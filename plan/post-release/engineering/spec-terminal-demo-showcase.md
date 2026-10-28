@@ -160,7 +160,7 @@ if github can have it embedded that would be ideal".
 
 | Decision | Answer |
 |----------|--------|
-| VPN chapter | Native IKEv2/IPsec in Go, far end a hidden second Ze daemon in its own netns. The kernel modules it needs must also be in the appliance kernel: `plan/release/delivery/spec-appliance-kernel-vpn-modules.md` |
+| VPN chapter | Native IKEv2/IPsec in Go, far end a hidden second Ze daemon in its own netns. The built-in appliance VPN requirements are documented in `docs/architecture/appliance/kernel-profiles.md`. |
 | WireGuard | Needs runtime testing AND a demo: `plan/release/validation/spec-wireguard-runtime-proof.md`. Not a chapter of this showcase until that spec lands |
 | PPP / L2TP | Skip |
 | Chapters | As listed below, in that order |
@@ -333,7 +333,7 @@ below are kept as asked.
 |---|----------|----------------|-----|
 | 1 | Replace each existing single-feature demo with its topic recording, or keep both | Replace, keeping the existing id where the subject is the same (`rpki`, `irr-filter`, `bfd-failover`, `ospf-adjacency`, `traffic-anomaly`, `commit-confirmed`) and renaming `vrrp-failover` to `vrrp-tracking`; add `ipsec` | `ai/rules/no-layering.md`; two recordings of one feature drift, and the old ones stage config the owner decided must be typed live. Keeping the id keeps every page marker |
 | 2 | Typed-live config in topic recordings vs the prepared-config pattern the existing demos use | Typed live for every topic, committed in the SSH editor against the running daemon; the BASE (peers, interfaces, chapter 1) stays imported at lab start | owner decision 5 already says typed live; this only confirms it overrides the existing pattern and that the base is not a topic. It makes each recording a live-reload test, which found the IRR fail-open |
-| 3 | Order relative to `plan/release/delivery/spec-appliance-kernel-vpn-modules.md` | Everything, IPsec included, can be built and recorded now: the render host has esp4 and xfrm_interface (Probe Results). Publish the IPsec topic and the super (which contains it) after the appliance spec lands, if the owner wants the appliance able to do what the hero shows | the dependency is the product's, not the recording's |
+| 3 | Order relative to `spec-appliance-kernel-vpn-modules` | The native kernel proof is complete; see `docs/architecture/testing/qemu-integration.md`, “VPN facilities without module loading”. Recording and publication remain this spec's work. | The dependency is the product's, not the recording's. |
 
 #### Work Plan (ordered)
 
@@ -364,7 +364,7 @@ below are kept as asked.
 
 | Item | Spec |
 |------|------|
-| Appliance kernel carries esp4, xfrm_interface, wireguard | `plan/release/delivery/spec-appliance-kernel-vpn-modules.md` |
+| Appliance kernel carries esp4, xfrm_interface, wireguard | Implemented; `docs/architecture/appliance/kernel-profiles.md` |
 | WireGuard runtime test, interop and demo | `plan/release/validation/spec-wireguard-runtime-proof.md` |
 
 #### Data Flow (MANDATORY - see `ai/rules/architecture.md`)
@@ -448,7 +448,7 @@ The R-1 to R-5 rows of the earlier `## Risks` table stand; R-2 is resolved by th
 |----------|--------|
 | What breaks if this is wrong? | The public site and README show a recording whose claim the product does not meet (a false public claim, corrected at once under `ai/rules/rfc-compliance.md`), or a demo render fails. The IRR fix touches the reload path of one BGP filter plugin: a wrong fix could drop or wrongly accept routes after a commit |
 | How is it reverted? | Recordings and site: one commit revert plus a gh-pages re-publish. IRR fix: one commit revert, no config migration |
-| Who else touches this path? | `internal/le/site/terminaldemo/` (any demo work), `internal/le/site/home*.go`, `README.md`; `filter_irr` is shared with `test/plugin/*irr*.ci`. Sibling specs: `plan/release/delivery/spec-appliance-kernel-vpn-modules.md`, `plan/release/validation/spec-wireguard-runtime-proof.md` |
+| Who else touches this path? | `internal/le/site/terminaldemo/` (any demo work), `internal/le/site/home*.go`, `README.md`; `filter_irr` is shared with `test/plugin/*irr*.ci`. Kernel contract: `docs/architecture/appliance/kernel-profiles.md`. Sibling spec: `plan/release/validation/spec-wireguard-runtime-proof.md` |
 
 #### Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -602,7 +602,7 @@ the light of decision 4: they guard against wrong output on screen, nothing more
 | Functional test for new RPC/API | Yes | `test/reload/bgp-filter-irr-added-live.ci` for the IRR reload path; no new RPC |
 | Pipe completeness | N-A | no new show output |
 | Env var registration | N-A | none added; the far-end Ze gets its own `ZE_CONFIG_DIR`, an existing variable |
-| Doctor check for runtime dependencies | N-A | the lab's netns, XFRM and eBPF use is inside the renderer container, not a product dependency; the appliance's IPsec modules are owned by `plan/release/delivery/spec-appliance-kernel-vpn-modules.md` |
+| Doctor check for runtime dependencies | N-A | The lab's netns, XFRM and eBPF use is inside the renderer container, not a new product dependency; built-in appliance VPN requirements are documented in `docs/architecture/appliance/kernel-profiles.md`. |
 | Prometheus counters/metrics | N-A | none added |
 | BGP family surface (new SAFI / capability / attribute) | N-A | no family, capability or attribute |
 
@@ -886,7 +886,7 @@ the light of decision 4: they guard against wrong output on screen, nothing more
 #### Known Limitations
 - WireGuard is not a chapter: `plan/release/validation/spec-wireguard-runtime-proof.md` owns it (owner decision).
 - PPP and L2TP are skipped (owner decision).
-- The appliance kernel's IPsec modules are owned by `plan/release/delivery/spec-appliance-kernel-vpn-modules.md`; the recording runs on the renderer container, not the appliance.
+- Built-in appliance VPN requirements are documented in `docs/architecture/appliance/kernel-profiles.md`; the recording runs on the renderer container, not the appliance.
 
 #### RFC Documentation (Scope: protocol)
 

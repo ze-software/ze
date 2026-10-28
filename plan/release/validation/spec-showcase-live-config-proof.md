@@ -6,7 +6,7 @@
 | Priority | P2 |
 | Release reason | Supported live commits must work regardless of an optional showcase; retain the repaired IRR path as proof, not a presumed current defect. |
 | Scope | tooling \| docs |
-| Depends | `spec-session-editor-file-mode-parity` (closed 2026-10-10; session-mode load merge and commit confirmed, former AC-13/AC-14); `plan/release/delivery/spec-appliance-kernel-vpn-modules.md` (owner order: that spec first. The 2026-10-09 probe shows the render host already carries esp4 and xfrm_interface, so the dependency is the product's, not the recording's: see Probe Results) |
+| Depends | `spec-session-editor-file-mode-parity` (closed 2026-10-10); native amd64/KVM and arm64/HVF kernel VPN proof completed under `spec-appliance-kernel-vpn-modules`. See `docs/architecture/testing/qemu-integration.md`, “VPN facilities without module loading”; live configuration proof remains this spec's work. |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-10-22 |

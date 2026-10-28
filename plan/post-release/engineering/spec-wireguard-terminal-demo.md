@@ -6,7 +6,7 @@
 | Priority | P3 |
 | Release reason | A WireGuard recording and showcase chapter are optional presentation work, not proof of the shipped tunnel. |
 | Scope | protocol \| tooling \| docs |
-| Depends | `plan/release/delivery/spec-appliance-kernel-vpn-modules.md` |
+| Depends | Kernel prerequisite complete (`spec-appliance-kernel-vpn-modules`); see `docs/architecture/appliance/kernel-profiles.md`. Product runtime proof remains in `plan/release/validation/spec-wireguard-runtime-proof.md`. |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-10-22 |

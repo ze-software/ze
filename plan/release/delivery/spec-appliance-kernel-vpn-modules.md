@@ -7,63 +7,93 @@
 | Release reason | The delivered appliance must contain the kernel facilities its VPN configuration requires. |
 | Scope | config \| tooling |
 | Depends | `plan/release/delivery/spec-appliance-ships-ze-kernel.md` (AC-6 and AC-7 only; AC-1..AC-5 land without it) |
-| Phase | 5/7 — native proof accepted; closure handed back for the promised Mac cache receipt |
+| Phase | 6/7 — AC receipts accepted; RFC proof freshness blocks closure |
 | Handoff | - |
 | Updated | 2026-10-28 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
-## Blocker
+## Blocker: RFC proof records invalidated by the ESP prerequisite
 
-Independent closure decision, 2026-10-28: hand back for the missing read-only
-Mac cache receipt requested by
-`plan/handover/27-macos-vpn-kernel-proof.md`, “Return to the Linux session”.
-This is an evidence-delivery gap, not a failed VPN test or a demonstrated
-kernel defect.
+The Mac cache receipt is accepted. It is not the blocker. The required static
+`./le rfc check` on 2026-10-28 returned 79 violations across the working tree.
+The scoped blocker is the subset whose producers changed in `ba03d7c2c7`:
 
-### Receipt sufficiency
+| Record | Changed producer | Affected tagged unit(s) or audit |
+|--------|------------------|---------------------------------|
+| RFC3748-7.10-5 positive | `crypto/keys.go::DeriveChildSAKeys` | `engine/rfc3748_msk_test.go::TestRFC3748TheEAPMSKNeverKeysTheDataItProtects` |
+| RFC4301-4.5.2-1 positive/negative | `crypto/keys.go::DeriveChildSAKeys` | `crypto/rfc4301_keymat_test.go::TestRFC4301KeymatEncryptionKeysLeadEachSA`, `TestRFC4301KeymatIntegrityKeysNeverLead` |
+| RFC4303-1-2 positive | `crypto/proposal.go::acceptESPEncryption` | `crypto/rfc4303_integrity_only_test.go::TestRFC4303IntegrityOnlyESPIsAccepted`, `engine/rfc4303_integrity_only_test.go::TestRFC4303IntegrityOnlyESPIsNegotiated`; audit also stale |
+| RFC4303-3.2-1 audit | `ipsec/config.go::parseESPProposal` | Audit fingerprint stale |
+| RFC5282-4-4 positive/negative | `crypto/aead.go::newIKEAEAD` | `engine/rfc5282_ccm_sk_test.go::TestRFC5282CCMNonceIsElevenOctets`, `TestRFC5282CCMRefusesANonceThatIsNotElevenOctets` |
+| RFC5282-7.1-2 negative/positive | `crypto/keys.go::encKeyMaterialLen` | `crypto/rfc5282_aead_test.go::TestRFC5282NonAEADEncryptionKeysCarryNoSalt`, `crypto/rfc5282_ccm_keys_test.go::TestRFC5282CCMEncryptionKeysCarryTheirSalt` |
+| RFC5282-8-1 negative/positive | `crypto/proposal.go::matchESP` | `engine/rfc5282_aead_send_test.go::TestRFC5282AEADESPOfferWithIntegrityIsRefused`, `TestRFC5282AEADESPSelectionCarriesNoIntegrityAlgorithm`; audit also stale |
+| RFC5282-8-2 positive/negative | `engine/initiator.go::espProposalWire` | `engine/rfc5282_aead_send_test.go::TestRFC5282AEADESPProposalCarriesNoIntegrityTransform`, `TestRFC5282NonAEADESPProposalKeepsItsIntegrityTransform`; audit also stale |
 
-- AC-5's literal post-AC-1 native-build and pasted-symbol requirements have
-  historical arm64 and amd64 receipts below. They remain evidence for those
-  builds; they are not copies from the repaired Mac tree.
-- The Mac run at `ceb83b7140c088445a1f7edcdfa682186201e3f2`, image
-  `4c4d23d6ca4234aa`, supplies native arm64/HVF traffic and no-module evidence.
-  `internal/le/test/qemu/vpnproof.go` `runVPNKernelHere` calls
-  `vpnKernelConfig` before boot; `requireVPNBuiltins` rejects a manifest symbol
-  unless the selected emitted config contains `=y`. That prerequisite is
-  stronger than checking requested fragments, but it returns only a verdict:
-  it does not return the config, provenance or installed module manifest.
-- The transferred build log shows non-modular compilation of `pwm-fan.o`
-  and installation of `modules.builtin`; the console shows missing
-  `pwm-fan.ko` and an empty loaded-module list. Neither contains the requested
-  installed manifest entry or the selected cache's complete config and
-  `kernel.version`. The five transferred files therefore do not discharge
-  the explicit post-repair handover. The older AC-5 tables cannot replace it.
+Paths in the table are relative to `internal/component/ike/`. The native output
+is retained as closure transcript artifact `2189`. It reports `producer-changed`,
+not mechanical line shifts. The committed prerequisite diff changes each named
+producer. These records are not repaired by `rfc reseal`.
 
-### Diagnosis and clearing condition
+Diagnosis: the prerequisite widened ESP admission and key derivation but did not
+refresh all RFC records tied to those producers. The owning layer is the
+implementation phase's discrimination and independent RFC audit. A workaround
+would reseal, delete tags or call the passing kernel matrix equivalent evidence;
+none demonstrates those individual requirement tests on the current producer.
+The source fix is to re-record the 13 affected unit/polarity proofs above and
+independently re-audit the four named verdicts against current source.
+Closure does not write those proofs or audit verdicts. No passing native VPN
+proof, kernel build or unsafe `verify changed` run is needed to clear this gap.
 
-| Item | Finding |
-|------|---------|
-| Symptom | The successful Mac transfer has host, revision, image-build, VPN and console logs only; the requested selected-cache readback is absent. |
-| Producer | `internal/le/test/qemu/vpnproof.go` `vpnKernelConfig` reads the config but emits no success receipt. `internal/appliance/runtimekernel.go` `ImageRuntimeKernelTree` selects the runtime tree; `internal/appliance/cache.go` `kernelCacheVariantFor` keys it from resolver inputs. `internal/appliance/kernelbuilder/worker.go` `copyRuntimeOutputs` installs the module tree. |
-| Owning layer | Evidence transfer under handover 27, owned by the Mac agent through the parent session; no change to kernel enforcement or traffic assertions is required. |
-| [workaround] | Treat the historical symbol paste and current PASS as the requested direct cache receipt. Rejected: this silently drops a promised artifact and does not identify the repaired installed tree. |
-| [source] | Return the retained run's selected kernel key, actual `config` and `kernel.version` paths and contents, the three fan-related `=y` lines, installed `modules.builtin` fan entry, and an absence check for loadable `pwm-fan.ko` in that same tree. Reconcile selection with the run's resolver inputs, never the cache date. |
+The rest of the broad gate's failures were not attributed to this spec.
+`repo check` also reported three unrelated numberparse allowlist mismatches;
+`test weakened check base origin/main` reported the unrelated
+`health.TestPartialHealthExplainsScopedEvidence` change. These are recorded
+limits, not excuses to waive the scoped RFC blocker.
 
-The parent must obtain that read-only transfer from the Mac agent. No identified
-Mac SSH destination is available to this closure phase. If the retained tree
-cannot be identified, return that fact; do not rebuild, boot, purge caches,
-choose a newer tree or repeat passing traffic. Once reconciled, the parent
-sets this spec back to `in-progress` and resumes the independent closure gate
-and its two-commit removal. This spec continues to own the missing receipt.
 
-This phase read the five transferred files and the producing source; it ran no
-build, test, formatter, lint or broad verification. It did not run the final
-Review Gate or claim a CLEAN review artifact. The unsafe `verify changed`
-scope recorded in `bfc1ec9876` remains separately owned by
-`plan/post-release/engineering/spec-verify-scope-0-umbrella.md`; it is not the
-pre-closing blocker and must not be rerun unchanged. L2TP privileged proof and
-the WireGuard configuration-commit workflow are not blockers for this spec.
+## Mac receipt reconciled
+
+The owner returned the selected-tree readback on 2026-10-28. This clears the
+evidence-delivery blocker recorded in `a1d2f0abf3`; it does not claim that the
+final Review Gate has run.
+
+The Mac agent exported the recorded revision `ceb83b7140`, built only its
+host tool and queried `appliance kernel --target runtime --arch arm64
+--print-cache-dir`, both with and without `--builder docker`. Both selected
+`7.2.9-runtime-arm64-runtime-docker-43d6bdb1-34cba457`. No kernel or image was
+rebuilt, nothing booted and no traffic test ran. The agent removed only its
+own 451 MB source export and retained the evidence and caches.
+
+These are owner-returned observations, not files copied to or independently
+read on Linux. Paths below are relative to
+`~/.cache/ze/runtime-kernel/7.2.9-runtime-arm64-runtime-docker-43d6bdb1-34cba457/`.
+
+| Receipt | Owner-returned result |
+|---------|-----------------------|
+| Run identity | Recorded revision `ceb83b7140`; image `4c4d23d6ca4234aa`; native arm64/HVF traffic PASS already recorded below |
+| `config` | `CONFIG_HWMON=y`, `CONFIG_PWM=y`, `CONFIG_SENSORS_PWM_FAN=y` |
+| `kernel.version` | `version=7.2.9`, `target=runtime`, `profile=runtime`, `arch=arm64`, `modules=yes`, `builder=docker`; source digest was reported in abbreviated form |
+| `lib/modules/7.2.9-ze/modules.builtin` | Contains `kernel/drivers/hwmon/pwm-fan.ko` |
+| Loadable fan | No `*pwm*fan*` file anywhere in the selected tree, and no fan entry in `modules.dep` or `modules.order`; 1608 other `.ko` files remain |
+| Control tree | The earlier `7.2.9-runtime-arm64-runtime-docker-a2bfd4f0-34cba457` has `CONFIG_SENSORS_PWM_FAN=m` and a loadable fan module |
+
+The reported config and manifest hashes were abbreviated, so they are not
+recorded as full checksum evidence. The image-to-kernel link rests on the
+recorded image build revision and that revision's resolver selection; the
+Mac agent did not separately extract the image to trace its kernel bytes.
+The accepted receipt does not claim that stronger proof.
+
+AC-5's historical native emitted-config pastes remain evidence for those
+builds. The later native proof's `vpnKernelConfig` / `requireVPNBuiltins`
+checks the selected emitted config before boot, while the returned receipt
+now supplies the repaired fan tree's identity and installed-module readback.
+No additional file transfer or passing test rerun is required for this gap.
+
+The unsafe `verify changed` scope recorded in `bfc1ec9876` remains separately
+owned by `plan/post-release/engineering/spec-verify-scope-0-umbrella.md`.
+It must not be rerun unchanged. L2TP privileged proof and the WireGuard
+configuration-commit workflow are not blockers for this spec.
 
 ## Task
 
@@ -196,8 +226,8 @@ State of each VPN symbol in the arm64 emitted config:
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Ze → kernel XFRM | netlink `XFRM_MSG_NEWSA` with transform name | No (AC-6) |
-| Ze → kernel WireGuard | rtnetlink link + genetlink config | No (AC-6) |
+| Ze → kernel XFRM | netlink `XFRM_MSG_NEWSA` with transform name | Yes: native amd64/KVM and arm64/HVF five-transform installed-state and directed-traffic receipts |
+| Kernel WireGuard | rtnetlink link + genetlink config through lab tools | Yes: native receipts require matching peers, handshake, received bytes and ping; not Ze's product config-commit path |
 
 ### Integration Points
 - `runtimeKernelRequirements` - extended, not duplicated
@@ -218,11 +248,11 @@ State of each VPN symbol in the arm64 emitted config:
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | the amd64 emitted config matches arm64 for every symbol in the table above | both arches merge the same fragments; only defconfig differs, and defconfig is where the crypto symbols come from | an amd64 build refuses, or ships a transform as `=m` | the amd64 native build on the Linux host reads each symbol (AC-5) | validated 2026-10-12: the arm64 and amd64 emitted configs read the same 22 symbol lines (AC-5 Evidence) |
-| A-2 | gokrazy cannot load a `=m` transform (no `modprobe` helper) | `conntrack_setup_appliance_linux.go` comment; gokrazy image holds two ze binaries plus randomd/heartbeat | `=m` would be enough and `=y` costs only kernel size | `vpnGuestPreparation`, `checkWireGuardProof`, native guest receipts | insufficient premise: gokrazy's `loadModule` calls `unix.FinitModule` directly for its boot module list. The proof instead disables module loading, refuses any loaded module and removes the helper; the accepted native arm64 run satisfies those guards. |
-| A-3 | `ecb(cipher_null)` is the spelling the 7.2 kernel accepts for NULL ESP | `xfrm_linux.go` NOTE originally said unverified | NULL ESP install fails even with `CONFIG_CRYPTO_NULL=y` | AC-6 installs a NULL-ESP SA; a refusal is a defect in the name table, fixed here | validated 2026-10-27: `xfrmEncNames` supplies `ecb(cipher_null)` and `esp-integrity-only-null` passed installed-state and traffic checks against strongSwan on native amd64/KVM and arm64/HVF. |
-| A-4 | Kconfig for 7.2 exposes `CONFIG_CRYPTO_CHACHA20POLY1305` and `CONFIG_CRYPTO_NULL` as user-selectable on both arches | emitted config prints them as "is not set" (so they exist on arm64) | the symbol name changed; requirement must name the 7.2 symbol | AC-5 emitted configs | validated 2026-10-12: both 7.2.9 emitted configs read `CONFIG_CRYPTO_CHACHA20POLY1305=y` and `CONFIG_CRYPTO_NULL=y` (AC-5 Evidence) |
-| A-5 | `ipsec-mobike-test` can install SAs with a chosen ESP transform | the lab runs Ze IKE in a guest on Ze's kernel | a new lab is needed | read `internal/le/test/deployment/mobike.go` at implementation | broken 2026-10-25: `RunMOBIKENetns` runs only `mobike-initiator` and `mobike-responder`; the QEMU wrapper supplies an Alpine package environment, not the default appliance image |
+| A-1 | the amd64 emitted config matches arm64 for every symbol in the table above | Both arches merge the same fragments; defconfig differs | Build refuses or ships a modular transform | Native emitted configs and manifest-verifying prerequisite | confirmed: pasted October 10–12 symbol lines, current amd64 config and accepted current arm64 prerequisite/cache readback |
+| A-2 | absent modprobe makes loading a modular transform impossible | Original gokrazy image premise | A module can load before the proof | `vpnGuestPreparation`, `checkWireGuardProof`, native receipts | broken: gokrazy directly calls `FinitModule`; repaired premise disables loading and refuses preloaded modules, with PWM fan built in |
+| A-3 | `ecb(cipher_null)` is accepted by the runtime kernel | Original XFRM table spelling | NULL install fails | `checkESPIntegrityOnlyNull` and native traffic | confirmed: native amd64/KVM and arm64/HVF installed-state and received-traffic passes |
+| A-4 | both arches expose ChaCha20-Poly1305 and NULL config symbols | Emitted configs | Requirement names a nonexistent symbol | Native emitted configs | confirmed: both pasted configs read `CONFIG_CRYPTO_CHACHA20POLY1305=y` and `CONFIG_CRYPTO_NULL=y` |
+| A-5 | the MOBIKE action can select every ESP transform | Original lab reuse plan | A different entry point is needed | `RunMOBIKENetns` source | broken: only movement scenarios; the shared Docker-host VPN matrix replaces that plan |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -268,10 +298,10 @@ State of each VPN symbol in the arm64 emitted config:
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestRuntimeFloorCarriesVPNSymbols` | `internal/appliance/kernelreq_test.go` | AC-2 | |
-| `TestEnforceRefusesModularVPNSymbol` | `internal/appliance/kernelreq_test.go` | AC-4 | |
-| `TestXfrmTransformsHaveRequiredKernelSymbol` | `internal/component/ike/dataplane/xfrm_kernelsym_linux_test.go` | AC-3, reads `gokrazy/kernel/runtime.require` from the repo root | |
-| existing `kernelconfig_pairing_test.go` | `internal/appliance/` | AC-1 lines are required, not unverified | |
+| `TestRuntimeFloorCarriesVPNSymbols` | `internal/appliance/kernelreq_test.go` | AC-2 | Implemented; reviewed from `447cf49105`, no closure rerun |
+| `TestEnforceRefusesModularVPNSymbol` | `internal/appliance/kernelreq_test.go` | AC-4 | Implemented per-symbol modular/unset fixtures; no closure rerun |
+| `TestXfrmTransformsHaveRequiredKernelSymbol` | `internal/component/ike/dataplane/xfrm_kernelsym_linux_test.go` | AC-3 | Walks actual transform tables, detects absent map/manifest/fragment entries |
+| existing `kernelconfig_pairing_test.go` | `internal/appliance/` | AC-1 | WireGuard/crypto leave the unverified list; reviewed source |
 
 ### Boundary Tests (numeric inputs)
 N-A: no numeric input.
@@ -283,7 +313,7 @@ N-A: no numeric input.
 | WireGuard guest step in the same action | `internal/le/test/deployment/wireguardproof.go` | AC-6 WireGuard, handshake and received ping traffic, no module loading |
 
 ### Interop Tests (Scope: protocol)
-N-A: no wire behavior changes; the kernel gains transforms Ze already negotiates. The IPsec interop suites keep their peers.
+Yes: the native matrix retains strongSwan as the independent peer. Fixed-key ESP admission was a necessary prerequisite, not a kernel-only config edit. Both native architectures passed the five initial-SA traffic scenarios; no external both-role rekey claim is made.
 
 ## Files to Modify
 - `gokrazy/kernel/runtime.config`, `gokrazy/kernel/runtime.require`
@@ -300,40 +330,39 @@ N-A: no wire behavior changes; the kernel gains transforms Ze already negotiates
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
 |-------------------|----------|---------------|
-| YANG schema (new RPCs/config) | N-A | no config surface |
-| YANG validation constraints | N-A | no leaf |
-| YANG custom validators | N-A | no leaf |
-| CLI commands/flags | N-A | no command |
-| CLI grammar (keyword before value) | N-A | no command |
-| Editor autocomplete | N-A | no leaf |
+| YANG schema (new RPCs/config) | Yes | Existing enum descriptions updated in `ze-ipsec-conf.yang`; no new leaf or RPC |
+| YANG validation constraints | Yes | Fixed-key ESP choices and integrity requirements remain separate from IKE choices |
+| YANG custom validators | Yes | `ipsec/config.go::parseESPProposal` uses `ParseESPHashAlgo`; IKE retains its original parser |
+| CLI commands/flags | Yes | Registered QEMU/deployment `vpn-kernel-test`; no new product daemon command |
+| CLI grammar (keyword before value) | Yes | Existing action grammar supplies `timeout`; `TestVPNKernelActionRefusesGuestOverrides` refuses image/kernel/arch overrides |
+| Editor autocomplete | N-A | Existing proposal enums, no new editor path |
 | Functional test for new RPC/API | N-A | no RPC; QEMU lab in AC-6 |
 | Pipe completeness | N-A | no output |
 | Env var registration | N-A | no env var |
-| Doctor check for runtime dependencies | No | the runtime dependency (`CONFIG_XFRM_USER`) already has its kernelcap probe and doctor codes; per-cipher absence is made impossible at build rather than diagnosed at runtime |
+| Doctor check for runtime dependencies | Yes | Existing `engine/kernelcap_linux.go` XFRM enrolment and `dataplane/kernelcap_linux.go::xfrmKernelCapabilities` transform-derived probes; compiled floor and manifest enforce appliance builtins |
 | Prometheus counters/metrics | N-A | none |
 | BGP family surface | N-A | not BGP |
 
 ### Documentation Update Checklist (BLOCKING)
 | # | Question | Applies? | File to update |
 |---|----------|----------|---------------|
-| 1 | New user-facing feature, or a feature's scope, evidence or level changed? | Yes | the IPsec feature file under `features/` gains the QEMU evidence of AC-6 |
-| 2 | Config syntax changed? | N-A | none |
-| 3 | CLI command added/changed? | N-A | none |
+| 1 | New user-facing feature, or a feature's scope, evidence or level changed? | Yes | `features/ipsec-interop-testing.md` records the native subset without promoting experimental maturity |
+| 2 | Config syntax changed? | Yes | `docs/guide/ipsec.md` proposal table and explicit legacy choices follow the ESP-only registries |
+| 3 | CLI command added/changed? | Yes | `docs/guide/appliance.md`, “VPN Kernel Proof”; `docs/architecture/testing/qemu-integration.md`, native VPN action |
 | 4 | API/RPC added/changed? | N-A | none |
 | 5 | Plugin added/changed? | N-A | none |
 | 6 | Has a user guide page? | Yes | `docs/guide/appliance.md` "Runtime Kernel Requirements" |
 | 7 | Wire format changed? | N-A | none |
 | 8 | Plugin SDK/protocol changed? | N-A | none |
-| 9 | RFC behavior implemented, changed, or newly proven? | Yes | RFC 7634 (ChaCha20-Poly1305 ESP) and RFC 4303 transforms gain runtime proof; `rfc/short/` rows touched only if a tagged test is added |
-| 10 | Test infrastructure changed? | Yes | `docs/architecture/testing/qemu-integration.md` if the mobike lab gains the matrix |
+| 9 | RFC behavior implemented, changed, or newly proven? | Yes | RFC4303/7634 public coverage now names kernel interop producers; Partial status and requirement gaps stay unchanged. RFC proof freshness blocks closure separately. |
+| 10 | Test infrastructure changed? | Yes | QEMU integration and interop architecture describe the shared Docker-host matrix, not a MOBIKE extension |
 | 11 | Affects daemon comparison? | N-A | none |
 | 12 | Internal architecture changed? | Yes | `docs/architecture/appliance/kernel-profiles.md` |
 | 13 | Route metadata keys added/changed? | N-A | none |
 | 14 | Prometheus counters added/changed? | N-A | none |
-| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | N-A | none |
-| 16 | Any changed source file referenced by existing doc source anchors? | Yes | run `./le spec citation anchors spec plan/release/delivery/spec-appliance-kernel-vpn-modules.md` at implementation |
-| 17 | Existing docs show config/CLI/API examples for this area? | N-A | no example changes |
-
+| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | Yes | QEMU/deployment action tables register `vpn-kernel-test`; `ai/INDEX.md` routes directly to the durable proof contract |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | Reviewed appliance/kernel/QEMU/IPsec guide anchors against their named producers; no Design header points to this spec |
+| 17 | Existing docs show config/CLI/API examples for this area? | Yes | IPsec guide documents legacy ESP explicitly; appliance guide shows the existing native proof command |
 ## Implementation Steps
 1. AC-3 test first (red: chacha20poly1305, 3des, null have no required symbol)
 2. AC-1 fragment lines, AC-2 manifest and floor, pairing list (green)
@@ -359,7 +388,12 @@ N-A: no wire behavior changes; the kernel gains transforms Ze already negotiates
 ### Security Review Checklist
 | Check | What to look for |
 |-------|-----------------|
-| Weak transforms | DES and NULL become installable in the kernel; confirm Ze's config validation is where an operator is stopped, and that nothing defaults to them |
+| Weak transforms | Confirmed explicit-only ESP choices, not IKE defaults; `parseESPProposal`, `LookupESPEncryption`, `LookupESPIntegrity` and `matchESP` retain transform validation; NULL without integrity is refused |
+| Key material | `prepare3DESKey` normalizes parity and rejects adjacent equal subkeys; initial and PFS derivation clear keys on failure; ChaCha salt/key/IV/tag sizes follow ESP metadata |
+| Injection and privilege | Proof commands use fixed argv/compiled preparation text and disposable guests; no new network-facing authorization or path resolver |
+| Failure and cleanup | Strict pre-service proc reads, empty module list, helper file/symlink checks and `requireVPNCleanup` refuse invalid prerequisites or cleanup failures |
+| Resource and style review | Bounded traffic commands; no new packet-hot-path allocations, peer-reachable panic or unbounded retry found in the scoped diff; current negotiation guards precede key derivation |
+| Private evidence | XFRM diagnostics can contain disposable lab keys; raw negative logs stay private. Public docs carry summaries and producer anchors, not key material |
 
 ### Failure Routing
 
@@ -388,8 +422,8 @@ N-A: no wire behavior changes; the kernel gains transforms Ze already negotiates
 
 The two tables below are historical build receipts from October 10–12.
 Current amd64 build and packaged-image evidence is recorded later in this spec.
-The current Mac run passed its emitted-config prerequisite, but its selected
-cache/config/module-tree copies still need the read-only handover receipt.
+The current Mac run passed its emitted-config prerequisite; the owner's
+2026-10-28 selected-cache/config/module-tree observations are accepted above.
 
 ### arm64 (built 2026-10-10, native Docker builder in colima's aarch64 VM, Mac)
 - Cache entry: `~/.cache/ze/runtime-kernel/7.2.9-runtime-arm64-runtime-7c0d8f79-bf3ac1c9` (`vmlinuz`, `config`, `lib/modules/7.2.9-ze`, 1612 `.ko`; `kernel.version`: version=7.2.9, target=runtime, profile=runtime, arch=arm64, modules=yes, builder=docker). Log: `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scratch/kernel-build-arm64.log`.
@@ -455,7 +489,7 @@ CONFIG_CRYPTO_SHA512=y
 
 ## AC-6 Implementation and Native Proof
 
-Native amd64/KVM traffic passed on 2026-10-27. The repaired arm64/HVF run at `ceb83b7140` also passed, as recorded below. All four prescribed deliberate breaks and an unmutated Linux restoration are now proved. The remaining Mac request is read-only cache/config/module-tree evidence, not another traffic run.
+Native amd64/KVM traffic passed on 2026-10-27. The repaired arm64/HVF run at `ceb83b7140` also passed, as recorded below. All four prescribed deliberate breaks and an unmutated Linux restoration are proved. The owner's read-only Mac cache/config/module-tree receipt is accepted; RFC proof freshness, not native traffic or cache evidence, now blocks closure.
 
 - `internal/le/test/qemu/mobike.go` `runIPsecMOBIKEHere` boots through
   `NewRun` with `iproute2 iputils util-linux strongswan`. This is the Alpine
@@ -772,14 +806,14 @@ Their SHA-256 receipts are:
 | `vpn-kernel.log` | `81dd190da0e7b55878f07a585c41963365b02b9a8375634d1ce3c58169a9dbd5` |
 | `docker-lab-console-2223.log` | `5d8d04d70d27ff14d8998494d6ba6bcc80b79f50bba38b3fc41c47762ca67c4b` |
 
-The explicit emitted-config and installed `modules.builtin` readback requested
-by handover 27 was not among these five files. Preserve the Mac cache for that
-read-only reconciliation; no new boot or traffic run is needed to retrieve it.
-The earlier two failure receipts and image remain preserved. Linux has since
-completed the four deliberate breaks, unmutated restoration and default-image
-readback recorded above and below. The missing Mac cache/config/module-tree
-copies and closure gates still prevent closure; none of these kernel proofs
-proves the separate product WireGuard configuration-commit workflow.
+The five transferred files did not include the direct cache readback.
+The owner supplied that read-only reconciliation on 2026-10-28, as recorded
+at the top of this spec and in handover 27; copying the retained files to
+Linux was not an acceptance requirement. Both earlier failure receipts remain
+preserved. Linux completed the four deliberate breaks, unmutated restoration
+and default-image readback below. These prove kernel support, not the separate
+product WireGuard configuration-commit workflow. The new blocker is RFC proof
+freshness for changed ESP prerequisite producers.
 
 ## Current native amd64 kernel and AC-7 default-image evidence
 
@@ -887,3 +921,175 @@ that image is separate from the default appliance image above.
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`
 - [ ] **Commit A:** code + tests + docs + edited spec
 - [ ] **Commit B:** `remove <the spec's path in its bucket>` only
+
+## Implementation Summary
+
+### What Was Implemented
+
+Built-in VPN requirements, transform-derived consistency tests, fixed-key ESP
+prerequisites and a native Docker-host VPN traffic proof. The fan repair keeps
+the no-module guard strict. Native receipts and the owner-returned Mac readback
+above supply the runtime evidence; closure does not repeat those runs.
+
+### Bugs Found/Fixed
+
+Missing transform requirements, fixed-key transform admission, buffered NULL
+proposal logs, silent preparation failures and preloaded PWM fan support were
+corrected in the implementation commits recorded above.
+
+### Documentation Updates
+
+The implementation updated kernel profiles, appliance/IPsec guides, QEMU and
+interop architecture, and the IPsec feature declaration. Closure reconciles
+the accepted Mac receipt and repoints citations to durable architecture.
+
+### Deviations from Plan
+
+The native proof uses the existing Docker-host transport, not the MOBIKE
+scenario selector. AC-7 separately reads the default image's embedded config.
+No kernel proof claims the product WireGuard configuration-commit workflow.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-2 treated absent modprobe as sufficient | gokrazy loads boot modules directly | Native Mac preparation failure | Disable loading and refuse preloaded modules; build PWM fan in |
+| assumption | A-5 expected MOBIKE to select every transform | Its selector runs movement scenarios | Producer audit | Use the shared Docker-host VPN matrix |
+| approach | NULL proposal logs were buffered | An established SA did not make the log observable | Native NULL proof | Flush the peer log without changing assertions |
+| documentation | Coverage and dependency prose lagged the accepted native receipts | Both native runs and the returned cache readback were already sufficient for the kernel ACs | Source/receipt reconciliation | Update RFC public coverage without promoting conformance; repoint durable citations |
+| evidence | ESP prerequisite changed RFC-recorded producers without refreshing all records | Native matrix PASS does not refresh per-requirement proof fingerprints | Static `rfc check`, artifact `2189` | Block closure; return the 13 unit/polarity records and four audits to implementation |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Built-in IPsec/WireGuard facilities | Demonstrated | Runtime fragments, manifest and compiled floor | Both native architectures; no module-loader dependency |
+| Transform-derived requirements | Demonstrated | `TestXfrmTransformsHaveRequiredKernelSymbol` | Actual XFRM tables drive the check |
+| Refuse missing/modular facilities | Demonstrated | `enforceKernelRequirements`, `enforceRequiredSymbols`, per-symbol fixtures | Emitted config, not request fragments |
+| Received traffic on a booted kernel | Demonstrated | `runVPNKernelAt`, `verifyESPDirectionsToward`, `requireWireGuardReceipt` | Five ESP cases plus WireGuard on both native architectures |
+| Closure evidence freshness | Blocked | RFC records named in Blocker | Implementation must refresh producer-bound proofs and independent audits |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Demonstrated | Runtime fragment reads | ChaCha20-Poly1305, DES and NULL are `=y` |
+| AC-2 | Demonstrated | Manifest/floor source and `TestRuntimeFloorCarriesVPNSymbols` | All 15 named VPN/crypto symbols; WireGuard no longer unverified |
+| AC-3 | Demonstrated | `TestXfrmTransformsHaveRequiredKernelSymbol` | Missing map or required/requested symbol reports transform |
+| AC-4 | Demonstrated | `TestEnforceRefusesModularVPNSymbol` and enforcement source | Modular and unset cases per symbol |
+| AC-5 | Demonstrated | Pasted historical native symbol lines, current native emitted-config prerequisite and accepted Mac readback | No requirement for transferred duplicate config files |
+| AC-6 | Demonstrated | `ceb83b7140` arm64/HVF receipt; native amd64 restoration log | Traffic, no helper, no loaded modules, loading disabled, cleanup |
+| AC-7 | Demonstrated | `scratch/vpn-default-readback/receipt.json` | Actual default image's embedded config matches selected kernel; 156/156 builtins |
+| AC-8 | Demonstrated | Kernel profiles and appliance guide | Built-in symbols and source anchors verified |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| Floor, manifest and emitted-config refusals | Implemented; source reviewed | `internal/appliance/kernelreq_test.go`, `cmd_kernel_test.go` | No passing test rerun |
+| Transform correspondence | Implemented; source reviewed | `dataplane/xfrm_kernelsym_linux_test.go` | Empty table and missing mapping/manifest/fragment checks |
+| Guest preparation and receipts | Implemented; source reviewed | QEMU/deployment VPN tests | Empty versus loaded/unreadable proc files, helper symlink, receipt identity/counters |
+| Native matrix | Retained passes accepted | Mac HVF and Linux KVM logs above | No emulation or new run |
+| Four deliberate breaks | Retained refusals accepted | Scratch logs named above | CBC mismatch is negotiation refusal; SHA substitution tests the observer, not actual SHA1 negotiation; wrong WireGuard allowed IP loses packets; helper guard fails |
+| RFC tagged units | Blocked freshness | Blocker table | Kernel matrix does not substitute for these records |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Runtime config/require and kernel floor/pairing | Implemented | Reused existing enforcement |
+| XFRM mapping and Linux consistency test | Implemented | Reused `xfrmTransformKernel`; no duplicate map |
+| QEMU/deployment/interop proof producers and fixtures | Implemented | Shared Docker-host transport; fixed five-case matrix |
+| Fixed-key ESP prerequisite | Implemented; evidence refresh owed | `ba03d7c2c7`; source review found no product blocker, but stale RFC proofs block closure |
+| Architecture, guides and feature declaration | Updated | Existing producer anchors retained; public RFC coverage and durable citers reconciled here |
+
+### Audit Summary
+
+All eight product ACs are demonstrated. The independent source review found no new product-code defect. Closure is blocked by stale scoped RFC proof/audit records, not by Mac receipt delivery or unsafe broad verification.
+
+## Goal Validation
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Facilities built in on both architectures | Native build/config | Historical pasted AC-5 lines plus current manifest-verifying prerequisites, amd64 emitted config and owner-returned Mac fan tree receipt |
+| Build refuses lost facilities | Producer and focused fixtures | `enforceKernelRequirements` tests boolean `=y` only; `enforceRequiredSymbols` checks worker output before compile |
+| Derive requirements from installed transforms | Source/test | Actual three XFRM maps feed the symbol consistency test |
+| SA and WireGuard carry traffic | Native interop | Five ESP cases under HVF/KVM require installed state and directed counters; WireGuard matching peers, nonzero handshake and received bytes plus ping |
+| Default appliance carries the config | Artifact readback | Actual EFI kernel and embedded config byte-match selected amd64 cache; 156 required builtins |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| Product WireGuard config-commit proof | Explicitly separate from kernel proof | `plan/release/validation/spec-wireguard-runtime-proof.md` |
+| Other default-image/L2TP and owner-deferred hardware obligations | This spec proves packaged config only | `plan/release/delivery/spec-appliance-ships-ze-kernel.md` |
+| Safe scoped verification | Known selector defect; do not rerun unchanged | `plan/post-release/engineering/spec-verify-scope-0-umbrella.md` |
+| Scoped RFC proof refresh | In-scope implementation handback, not deferred closure debt | `plan/release/delivery/spec-appliance-kernel-vpn-modules.md` |
+
+## Review Gate
+
+Round 1 scope: the complete VPN change in `447cf49105`, the relevant
+prerequisites in `ad0931ae26` and `ba03d7c2c7`, native proof `22f782e1c2`,
+NULL log repair `8544ee50de`, preparation repair `c135dceac6`, fan repair
+`6e8ff49248`, their current callers/tests/docs, retained discrimination and
+native receipts, and this closure's documentation/citation changes.
+Lenses: wiring and acceptance; security and fail-closed behavior; lifecycle,
+test discrimination, allocation and Go style. This is independent of the
+implementation phase and does not import unrelated intervening changes.
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/appliance-kernel-vpn-modules-644a4e78-0122-4eeb-8642-eb50638a1641.md`; FINDINGS over 11 source files |
+| `./le spec review check` | Not run: known FINDINGS verdict; parent stopped further checks after accepting scoped attribution |
+| Rounds | 1 |
+| Reviewer lenses used | Wiring/acceptance; security/guards; lifecycle/discrimination/style |
+| Final verdict | One closure BLOCKER (RFC freshness); no new product-code finding. Parent accepted the exact 13-record/four-audit repair scope. |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | NOTE | Stale missing-Mac-receipt and dependency wording | Spec/handover/citers | This documentation handback |
+| 2 | NOTE | Public RFC coverage omitted native kernel evidence | RFC4303/7634 metadata | Bounded producer-backed coverage; no conformance promotion |
+| 3 | BLOCKER | Changed ESP prerequisite invalidates 13 unit/polarity proofs and four audits | Blocker table | Not fixed in closure; implementation-phase evidence work required |
+
+## Pre-Commit Verification
+
+### Files Exist (source reads)
+| File | Exists | Evidence |
+|------|--------|----------|
+| Runtime config/manifest/floor | Yes | Read declarations and enforcement producers |
+| Native proof and transform fixtures | Yes | Read QEMU, deployment, interop producers and committed fixtures |
+| Mac and Linux retained evidence | Yes | Five transferred Mac files, four negative logs, restored pass and packaged-image receipt; direct Mac readback is owner-returned observation |
+
+### AC Verified (source/retained receipts)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-4 | Built-in declaration and refusal contract | Current source reads; no closure test execution |
+| AC-5..AC-6 | Native configurations and actual received traffic | Reconciled retained receipts against current producing checks, not refreshed timestamps |
+| AC-7 | Default image packaged config | Read `receipt.json`: true kernel/config byte equality, 156 builtins, none missing |
+| AC-8 | Durable contract and operator command | Reviewed docs and named source anchors |
+
+### Wiring Verified (end-to-end)
+| Entry Point | Test | Verified |
+|-------------|------|----------|
+| `ze appliance kernel` | Native emitted configs | Accepted existing receipts; resolver/worker enforcement read |
+| `./le test qemu vpn-kernel-test` | Native HVF/KVM matrix | Accepted existing receipts; outer provenance, strict preparation and inner traffic/cleanup producers read |
+| `ze appliance build t2` | Packaged-image readback | Accepted actual EFI kernel/config extraction receipt; not a new boot claim |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | Native emitted configs and manifest prerequisites agree on required symbols |
+| A-2 | broken | Direct gokrazy module loader; strict guards plus built-in fan replace the premise |
+| A-3 | confirmed | NULL installed state and received traffic on both native architectures |
+| A-4 | confirmed | Both configs expose required ChaCha20-Poly1305 and NULL builtins |
+| A-5 | broken | MOBIKE selector only covers movement; shared Docker-host matrix used instead |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Built-in VPN and fan contract | Kernel profiles, manifest/floor and gokrazy loader anchors | Yes |
+| Appliance command and scope | `runVPNKernelHere`, `vpnGuestPreparation`, `runVPNKernelAt`, `checkWireGuardProof` | Yes; no product config-commit claim |
+| ESP-only choices and framing | Crypto registries, config parser, key sizing and parity guards | Yes; explicit legacy choices, not defaults |
+| Feature maturity/public RFC coverage | Feature declaration remains experimental; RFC4303/7634 remain Partial | Yes; kernel interop is not new RFC-tag coverage |
+| Citation survival | Actual full-path citers repointed to durable architecture | Prepared; no spec removal while blocked |
+| Static checks | `repo check`, `test weakened check`, `rfc check` | Not globally green; scoped RFC failures block as detailed above |
+| Pending checks | Parent stopped checks after confirming the scoped blocker | `doc check all`, final CLEAN artifact/check and citation check await repaired RFC records; unsafe aggregate verify remains separately owned |

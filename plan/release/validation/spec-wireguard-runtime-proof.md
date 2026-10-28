@@ -6,7 +6,7 @@
 | Priority | P2 |
 | Release reason | WireGuard config is shipped experimentally but lacks kernel/interop traffic evidence; optional recording is split from release proof. |
 | Scope | protocol \| tooling \| docs |
-| Depends | `plan/release/delivery/spec-appliance-kernel-vpn-modules.md` |
+| Depends | Kernel prerequisite complete (`spec-appliance-kernel-vpn-modules`); `docs/architecture/testing/qemu-integration.md`, “VPN facilities without module loading”. This does not prove the product configuration-commit path. |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-10-09 |

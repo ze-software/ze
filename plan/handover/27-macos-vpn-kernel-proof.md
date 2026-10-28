@@ -1,8 +1,8 @@
 # Mac handover: native VPN kernel proof
 
-**Spec:** `plan/release/delivery/spec-appliance-kernel-vpn-modules.md`, AC-5 and AC-6.
+**Record:** `spec-appliance-kernel-vpn-modules`, AC-5 and AC-6; durable contract: `docs/architecture/testing/qemu-integration.md`, “VPN facilities without module loading”.
 **Branch:** `main`.
-**Goal:** Run the existing VPN kernel proof on an Apple Silicon Mac and return its native arm64/HVF evidence. No source edits or broad verification are requested.
+**Result:** Native arm64/HVF traffic and the selected-cache receipt are accepted. The commands below are historical instructions, not a request for another run.
 
 ## What is ready
 
@@ -11,7 +11,7 @@
 - The Linux session continues its own fixes and native proofs. Do not copy its scratch binaries, private overlays or cached amd64 kernel onto the Mac.
 - The website decision is WebP screenshots plus lightweight terminal playback. No video conversion, upload or website publication is part of this handover.
 
-## Mac results: traffic passed; cache receipt remains
+## Mac results: traffic and cache receipt accepted
 
 The first run at `7aa2f4849e` built the arm64 kernel and image, passed the
 emitted-config prerequisite and booted under HVF. Preparation exited with
@@ -41,15 +41,21 @@ cleanup reported no leftovers and the VM stopped. Linux received the five logs
 and identity files in `tmp/mac-vpn-proof-2026-10-27-pwmfan/` and recorded their
 hashes and source-backed verdict in the spec.
 
-Do not repeat the passing commands below. Keep them as the recorded invocation.
-The remaining Mac action is read-only: return the selected kernel cache key,
-actual config/provenance paths, the three resolved fan-related `=y` lines,
-the installed `modules.builtin` fan entry and absence of loadable `pwm-fan.ko`
-from that same tree, as requested under “Return to the Linux session”.
-Those receipts were not in the five transferred files. Do not select a tree
-by date, rebuild, boot, purge caches or change source to supply them.
+Do not repeat the passing commands below. On 2026-10-28 the owner returned
+the read-only cache observations. Exporting recorded revision `ceb83b7140`
+and querying its resolver, with and without explicit Docker, selected
+`7.2.9-runtime-arm64-runtime-docker-43d6bdb1-34cba457`.
+Its `config` has HWMON, PWM and SENSORS_PWM_FAN built in; `kernel.version`
+identifies 7.2.9/runtime/runtime/arm64/modules=yes/builder=docker.
+The installed `lib/modules/7.2.9-ze/modules.builtin` names
+`kernel/drivers/hwmon/pwm-fan.ko`; the same tree has no loadable fan file or
+fan entry in `modules.dep` or `modules.order`. It retains 1608 other modules.
+The older `a2bfd4f0` tree was the control: fan `=m` with a loadable module.
+These are owner-returned observations, not files transferred to Linux.
+No kernel/image rebuild, boot or traffic run occurred. Abbreviated hashes
+are not full-checksum evidence, and no image-kernel byte extraction is claimed.
 
-Linux owns the deliberate-break tests and final reconciliation. A new Mac
+Linux completed the four deliberate breaks and clean restoration. A new Mac
 traffic run is not required to confirm the WireGuard receipt: Linux read
 `checkWireGuardProof` and `requireWireGuardReceipt`, unchanged from the Mac
 revision. Their PASS requires a successful tunnel ping plus matching peer keys,
@@ -99,9 +105,9 @@ SH
 
 A cold kernel/image build can precede the guest run. The explicit 30-minute value is the existing documented VPN proof setting, not permission to extend a failure's deadline.
 
-## Return to the Linux session
+## Original return instructions (fulfilled)
 
-Send the evidence-directory path and these files, privately:
+The following was the private evidence request; no further transfer is required:
 
 - `host.txt` and `commit.txt`;
 - `image-build.log` and `vpn-kernel.log`, or the exact first refusal if the proof did not start;
@@ -132,7 +138,7 @@ Before boot, the action checks the emitted native kernel configuration against `
 ## Boundaries and remaining owners
 
 - This run proves Ze's docker-host kernel facilities, not the default appliance image's packaged configuration or its L2TP/PPP workflow. Those remain with `plan/release/delivery/spec-appliance-ships-ze-kernel.md`.
-- Live forced-break discrimination and final reconciliation remain with `spec-appliance-kernel-vpn-modules.md`; a green Mac run alone does not close that spec.
+- Live forced-break discrimination and final reconciliation completed under `spec-appliance-kernel-vpn-modules`; the Mac run alone was not the closure evidence.
 - It does not prove Ze's WireGuard configuration-commit workflow; `plan/release/validation/spec-wireguard-runtime-proof.md` owns that work.
 - Do not run `verify current`, `verify worktree`, a full functional suite or a whole-tree lint for this request. No push, upload or deployment is requested.
 
@@ -148,6 +154,6 @@ Before boot, the action checks the emitted native kernel configuration against `
 **Verification limit:** Native arm64/HVF preparation and all six traffic
 scenarios passed after the fan repair. Linux subsequently completed all four
 deliberate breaks, an unmutated six-case restoration and the default-image
-packaged-config readback. The direct Mac selected-cache/config/module-tree
-receipt remains missing, and wider closure gates remain open. The Mac passing
-run must not be repeated merely to refresh its timestamp.
+packaged-config readback. The owner-returned selected-cache/config/module-tree
+receipt was reconciled on 2026-10-28. No product WireGuard config-commit or
+external both-role rekey coverage is claimed. No passing run is repeated.

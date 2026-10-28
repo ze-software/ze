@@ -157,7 +157,7 @@ Goals.
 |----------|--------|
 | What breaks if this is wrong? | every Docker lab, Docker deployment proof and demo render fails on a host missing an enrolled feature; new enrolments add doctor rows and, for a non-degrading capability, a startup refusal on an appliance whose config uses that subsystem |
 | How is it reverted? | single commit revert per phase; an installed kernel stays in the VM and is harmless |
-| Who else touches this path? | `plan/release/validation/spec-kernel-capability-gate.md` (owns `kernelcap`; this spec extends its enrolment), `plan/release/delivery/spec-appliance-kernel-vpn-modules.md` (adds ESP, xfrm interface and WireGuard to `runtime.config`), `plan/release/delivery/spec-appliance-ships-ze-kernel.md` (the 7.2.9 pin Ze's own build uses), `plan/post-release/engineering/spec-terminal-demo-showcase.md`, `plan/post-release/engineering/spec-interop-image-copies-a-prebuilt-ze.md` (AC-9 depends on this), and the IKE sibling session working under `internal/component/ike/` (the MOBIKE enrolment lands there and must be sequenced with it) |
+| Who else touches this path? | `plan/release/validation/spec-kernel-capability-gate.md` (owns `kernelcap`; this spec extends its enrolment), `docs/architecture/appliance/kernel-profiles.md` (built-in ESP, xfrm interface and WireGuard requirements), `plan/release/delivery/spec-appliance-ships-ze-kernel.md` (the 7.2.9 pin Ze's own build uses), `plan/post-release/engineering/spec-terminal-demo-showcase.md`, `plan/post-release/engineering/spec-interop-image-copies-a-prebuilt-ze.md` (AC-9 depends on this), and the IKE sibling session working under `internal/component/ike/` (the MOBIKE enrolment lands there and must be sequenced with it) |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
