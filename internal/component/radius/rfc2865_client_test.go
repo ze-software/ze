@@ -342,6 +342,8 @@ func TestClientAuthenticatorVerify(t *testing.T) {
 	addr := conn.LocalAddr().String()
 	done := make(chan struct{})
 	var attempts atomic.Int32
+	// The first reply's Message-Authenticator verdict, taken by the mock before it sends.
+	var firstMA atomic.Uint32
 
 	go func() {
 		defer close(done)
@@ -352,11 +354,16 @@ func TestClientAuthenticatorVerify(t *testing.T) {
 				return
 			}
 			a := attempts.Add(1)
-			var resp []byte
+			resp := buildResponse(CodeAccessAccept, buf[:n], sharedKey)
 			if a == 1 {
-				resp = buildResponse(CodeAccessAccept, buf[:n], []byte("wrong-key"))
-			} else {
-				resp = buildResponse(CodeAccessAccept, buf[:n], sharedKey)
+				// Corrupt only the Response Authenticator. The Message-Authenticator
+				// HMAC runs with the Request Authenticator substituted at offsets
+				// 4..19 (RFC 2869 Section 5.14), so it still verifies, and the only
+				// check left to discard this reply is VerifyResponseAuth.
+				resp[4] ^= 0xff
+				var reqAuth [AuthenticatorLen]byte
+				copy(reqAuth[:], buf[4:4+AuthenticatorLen])
+				firstMA.Store(uint32(verifyResponseMessageAuthenticator(resp, reqAuth, sharedKey)))
 			}
 			conn.WriteToUDP(resp, from) //nolint:errcheck // test mock
 		}
@@ -391,11 +398,17 @@ func TestClientAuthenticatorVerify(t *testing.T) {
 	if resp.Code != CodeAccessAccept {
 		t.Errorf("got code %d, want %d", resp.Code, CodeAccessAccept)
 	}
-	// RFC requirement: RFC2865-4.2-1 negative -- the first reply, signed with the wrong secret,
-	// fails Response Authenticator verification and is silently discarded, so the client must
-	// retransmit (>= 2 attempts) before it accepts the correctly signed reply.
+	// The negative half below proves the Response Authenticator check only while
+	// the first reply's Message-Authenticator verifies: otherwise that check
+	// alone would discard it.
+	if got := responseIntegrity(firstMA.Load()); got != responseIntegrityAccepted {
+		t.Fatalf("first reply Message-Authenticator verdict %v, want it to verify", got)
+	}
+	// RFC requirement: RFC2865-4.2-1 negative -- the first reply carries a valid
+	// Message-Authenticator and a corrupted Response Authenticator; the client silently
+	// discards it and retransmits (>= 2 attempts) before it accepts the correctly signed reply.
 	if attempts.Load() < 2 {
-		t.Errorf("expected at least 2 attempts (first had bad auth), got %d", attempts.Load())
+		t.Errorf("expected at least 2 attempts (first had bad Response Authenticator), got %d", attempts.Load())
 	}
 }
 
