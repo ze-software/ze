@@ -1,11 +1,12 @@
-//go:build integration && linux
+//go:build linux
 
 // Design: docs/features/interfaces.md -- real-kernel macvlan backend proof
 // Overview: macvlan_linux.go -- CreateMacvlanDevice under test
 //
-// These run in the QEMU Alpine VM (ai/rules/platform-linux.md): they create real
-// macvlan devices via netlink in a throwaway network namespace and skip (never
-// fail) without CAP_NET_ADMIN. Component-level owned-device lifecycle (registry
+// These create real macvlan devices via netlink in a throwaway network
+// namespace. Each test runs userns.Enter first, which re-runs it as root over a
+// user and network namespace of its own, so it needs no host privilege and a
+// refused operation fails it. Component-level owned-device lifecycle (registry
 // -> reconcile -> orphan cleanup) is proven in the iface component's
 // device_owner_integration_linux_test.go, which can drive the unexported
 // reconcile pass; this file proves the backend building block.
@@ -22,11 +23,13 @@ import (
 	"github.com/vishvananda/netns"
 
 	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // withMacvlanNetNS runs fn inside a fresh named network namespace so real
-// device creation cannot collide with host links. Skips (not fails) without
-// CAP_NET_ADMIN per ai/rules/platform-linux.md.
+// device creation cannot collide with host links. Every caller runs
+// userns.Enter first, which grants CAP_NET_ADMIN, so a refusal here fails the
+// test rather than skipping it.
 func withMacvlanNetNS(t *testing.T, fn func()) {
 	t.Helper()
 	runtime.LockOSThread()
@@ -40,14 +43,14 @@ func withMacvlanNetNS(t *testing.T, fn func()) {
 	origNS, err := netns.Get()
 	if err != nil {
 		unlock()
-		t.Skipf("requires CAP_NET_ADMIN: cannot get current namespace: %v", err)
+		t.Fatalf("cannot get current namespace: %v", err)
 	}
 	nsName := macvlanNetNSName(t.Name())
 	newNS, err := netns.NewNamed(nsName)
 	if err != nil {
 		origNS.Close() //nolint:errcheck // best-effort cleanup
 		unlock()
-		t.Skipf("requires CAP_NET_ADMIN: cannot create namespace: %v", err)
+		t.Fatalf("cannot create namespace %q: %v", nsName, err)
 	}
 	t.Cleanup(func() {
 		if restoreErr := netns.Set(origNS); restoreErr != nil {
@@ -89,6 +92,9 @@ func addMacvlanParent(t *testing.T, name string, mtu int) {
 //
 // VALIDATES: AC-1 + A-2 + A-3 against a real kernel.
 func TestIntegrationMacvlanCreate_ReadBackMACModeAliasMTU(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withMacvlanNetNS(t, func() {
 		addMacvlanParent(t, "zvp0", 1400)
 		b := &netlinkBackend{}
@@ -172,6 +178,9 @@ func TestIntegrationMacvlanCreate_ReadBackMACModeAliasMTU(t *testing.T) {
 // VALIDATES: AC-5; pins A-4's corrected (broken-as-written) finding so a future
 // kernel change that starts propagating is caught rather than silently relied on.
 func TestIntegrationMacvlanParentDown_DeviceSurvivesAndKeepsOperUp(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withMacvlanNetNS(t, func() {
 		addMacvlanParent(t, "zvp0", 1500)
 		b := &netlinkBackend{}

@@ -9,7 +9,7 @@
 // PREVENTS: an infinite lease the reconcile cannot tell from a static address
 // because nobody claimed it, and a registration that outlives the lease.
 
-//go:build integration && linux
+//go:build linux
 
 package ifacedhcp
 
@@ -25,9 +25,16 @@ import (
 
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/core/clock"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
+// TestDHCPv4LeaseLifetimeAndOwnership runs each lease case over its own veth
+// lab. userns.Enter re-runs it as root over a user and network namespace of
+// its own, so it needs no host privilege.
 func TestDHCPv4LeaseLifetimeAndOwnership(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	cases := []struct {
 		name  string
 		lease time.Duration

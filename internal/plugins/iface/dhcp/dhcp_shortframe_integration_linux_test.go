@@ -7,7 +7,7 @@
 // its receive loop on a goroutine ze does not own, so safeRunV4's recover never
 // sees it and the whole process dies. An on-link station can send that frame.
 
-//go:build integration && linux
+//go:build linux
 
 package ifacedhcp
 
@@ -28,6 +28,7 @@ import (
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/core/clock"
 	_ "github.com/ze-software/ze/internal/plugins/iface/netlink" // register the netlink backend so iface.Resolve works
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 const (
@@ -57,7 +58,12 @@ var sfLabSeq atomic.Int32
 // TestDHCPv4SurvivesShortIPv4Payload drives the real client over a veth pair.
 // The guard on the vendored file is asserted separately, and cheaply, by
 // TestNclient4ShortIPv4PayloadGuard (internal/le/test/qemu/guestlabs_test.go).
+// userns.Enter re-runs it as root over a user and network namespace of its
+// own, so it needs no host privilege.
 func TestDHCPv4SurvivesShortIPv4Payload(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	zeSide, peerConn := sfSetupLab(t)
 
 	bus := &recordingBus{}
@@ -114,7 +120,9 @@ func TestDHCPv4SurvivesShortIPv4Payload(t *testing.T) {
 // internal/plugins/iface/netlink. A namespace is a property of a THREAD, and
 // the client under test hands its work to goroutines the runtime schedules on
 // any thread, so a namespace this function entered would hold the veth while
-// the DHCP worker looked for it somewhere else.
+// the DHCP worker looked for it somewhere else. Every caller enters
+// userns.Enter first, so that namespace is the test process's own, and a
+// refused veth or raw socket fails the test rather than skipping it.
 func sfSetupLab(t *testing.T) (string, *packet.Conn) {
 	t.Helper()
 
@@ -134,7 +142,7 @@ func sfSetupLab(t *testing.T) (string, *packet.Conn) {
 		PeerName: peerSide,
 	}
 	if err := netlink.LinkAdd(veth); err != nil {
-		t.Skipf("add veth (needs CAP_NET_ADMIN): %v", err)
+		t.Fatalf("add veth %s: %v", zeSide, err)
 	}
 	// Deleting one end deletes the pair.
 	t.Cleanup(func() { _ = netlink.LinkDel(veth) })
@@ -174,7 +182,7 @@ func sfSetupLab(t *testing.T) (string, *packet.Conn) {
 	// the Ethernet header, so this lab reads and writes IP packets.
 	conn, err := packet.Listen(peerIfc, packet.Datagram, unix.ETH_P_IP, nil)
 	if err != nil {
-		t.Skipf("raw socket on %s (needs CAP_NET_RAW): %v", peerSide, err)
+		t.Fatalf("raw socket on %s: %v", peerSide, err)
 	}
 	t.Cleanup(func() { _ = conn.Close() })
 

@@ -1,9 +1,11 @@
-//go:build integration && linux
+//go:build linux
 
 // Integration proof for spec-fixit-route-removal-protocol-blind. A zero
 // Protocol in RTM_DELROUTE is a kernel WILDCARD, so only a running kernel can
 // show that a stamped delete refuses a foreign route and a blind delete still
-// takes one. Every assertion here reads the kernel back.
+// takes one. Every assertion here reads the kernel back. Each test runs
+// userns.Enter first, which re-runs it as root over a user and network
+// namespace of its own, so it needs no host privilege.
 
 package ifacenetlink
 
@@ -11,7 +13,6 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
-	"errors"
 	"log/slog"
 	"net"
 	"runtime"
@@ -23,6 +24,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/ze-software/ze/internal/core/rtproto"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 const (
@@ -39,8 +41,10 @@ const (
 )
 
 // withRouteNetNS runs fn inside a fresh named network namespace so route
-// installs cannot touch the host table. Skips (not fails) without
-// CAP_NET_ADMIN per ai/rules/platform-linux.md.
+// installs cannot touch the host table. Every caller runs userns.Enter first,
+// which grants CAP_NET_ADMIN, so any refusal here fails the test: none is a
+// skip, and EEXIST from a namespace an earlier run left behind is a broken
+// environment too.
 func withRouteNetNS(t *testing.T, fn func()) {
 	t.Helper()
 
@@ -56,7 +60,7 @@ func withRouteNetNS(t *testing.T, fn func()) {
 	origNS, err := netns.Get()
 	if err != nil {
 		unlock()
-		t.Skipf("requires CAP_NET_ADMIN: cannot get current namespace: %v", err)
+		t.Fatalf("cannot get current namespace: %v", err)
 	}
 
 	nsName := routeNetNSName(t.Name())
@@ -64,13 +68,6 @@ func withRouteNetNS(t *testing.T, fn func()) {
 	if err != nil {
 		origNS.Close() //nolint:errcheck // best-effort; test is stopping either way
 		unlock()
-		// Only a privilege problem is a skip. Anything else -- EEXIST from a
-		// namespace an earlier run left behind, a missing /var/run/netns -- is a
-		// broken environment, and skipping it would delete an acceptance
-		// criterion from the run with a green bar on top.
-		if errors.Is(err, unix.EPERM) || errors.Is(err, unix.EACCES) {
-			t.Skipf("requires CAP_NET_ADMIN: cannot create namespace %q: %v", nsName, err)
-		}
 		t.Fatalf("create namespace %q: %v", nsName, err)
 	}
 
@@ -213,6 +210,9 @@ func captureIfaceLog(t *testing.T) *bytes.Buffer {
 // alone and deletes the static route whoever installed it. Remove the Protocol
 // field from (*netlinkBackend).RemoveRoute and this test fails.
 func TestRouteIntegration_StampedRemoveLeavesStaticRoute(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withRouteNetNS(t, func() {
 		addRouteTestLink(t)
 		addForeignRoute(t, routeTestDest, routeTestGW, rtproto.Static)
@@ -238,6 +238,9 @@ func TestRouteIntegration_StampedRemoveLeavesStaticRoute(t *testing.T) {
 // PREVENTS: a delete that matches nothing because add and remove disagree on
 // the protocol, which would leak a route on every lease expiry.
 func TestRouteIntegration_AddStampsAndRemoveDeletesOwnRoute(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withRouteNetNS(t, func() {
 		addRouteTestLink(t)
 
@@ -274,6 +277,9 @@ func TestRouteIntegration_AddStampsAndRemoveDeletesOwnRoute(t *testing.T) {
 // PREVENTS: an unconditional stamp, which would make that cleanup delete
 // nothing while ESRCH reports success.
 func TestRouteIntegration_BlindRemoveDeletesKernelRoute(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withRouteNetNS(t, func() {
 		addRouteTestLink(t)
 		addForeignRoute(t, routeTestDest6, routeTestGW6, unix.RTPROT_RA)
@@ -295,6 +301,9 @@ func TestRouteIntegration_BlindRemoveDeletesKernelRoute(t *testing.T) {
 // PREVENTS: swallowing ESRCH into nil with no trace, which hides a route Ze
 // believes it removed and the kernel still holds.
 func TestRouteIntegration_LegacyBootRouteIsReported(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withRouteNetNS(t, func() {
 		addRouteTestLink(t)
 		addForeignRoute(t, routeTestDest, routeTestGW, unix.RTPROT_BOOT)
@@ -331,6 +340,9 @@ func TestRouteIntegration_LegacyBootRouteIsReported(t *testing.T) {
 // case carries no orphan and no action for an operator, and a WARN they see on
 // healthy teardown is a WARN they stop reading.
 func TestRouteIntegration_RepeatedRemoveDoesNotWarn(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withRouteNetNS(t, func() {
 		addRouteTestLink(t)
 
@@ -359,6 +371,9 @@ func TestRouteIntegration_RepeatedRemoveDoesNotWarn(t *testing.T) {
 // PREVENTS: the deprioritize step deleting the static route, which is the
 // second way the blind match lost an operator's default route.
 func TestRouteIntegration_LinkBounceKeepsStaticRoute(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withRouteNetNS(t, func() {
 		addRouteTestLink(t)
 		addForeignRoute(t, routeTestDest, routeTestGW, rtproto.Static)
@@ -409,6 +424,9 @@ func TestRouteIntegration_LinkBounceKeepsStaticRoute(t *testing.T) {
 // PREVENTS: a local-only AddrDel leaving the old address behind, so the next
 // AddAddressP2P fails with EEXIST after an LCP restart.
 func TestRemovePointToPointAddressAllowsReuse(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withRouteNetNS(t, func() {
 		const (
 			ifname    = "zeptp0"

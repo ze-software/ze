@@ -1,10 +1,12 @@
-//go:build integration && linux
+//go:build linux
 
 // Design: docs/features/interfaces.md -- the mirror shares the clsact qdisc, so
 // it owns only its filters. These tests drive setupClsactMirror against a real
 // kernel with a destination the kernel refuses, which is the only deterministic
 // way to reach the rollback path: SetupMirror resolves its destination by name
-// and would refuse a bogus one before any filter is added.
+// and would refuse a bogus one before any filter is added. Each test runs
+// userns.Enter first, which re-runs it as root over a user and network
+// namespace of its own, so it needs no host privilege.
 
 package ifacenetlink
 
@@ -17,6 +19,8 @@ import (
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 	"golang.org/x/sys/unix"
+
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 const (
@@ -30,8 +34,8 @@ const (
 )
 
 // withMirrorNetNS runs fn inside a fresh named network namespace so tc state
-// cannot collide with host links. Skips (not fails) without CAP_NET_ADMIN per
-// ai/rules/platform-linux.md.
+// cannot collide with host links. Every caller runs userns.Enter first, which
+// grants CAP_NET_ADMIN, so a refusal here fails the test rather than skipping it.
 func withMirrorNetNS(t *testing.T, fn func()) {
 	t.Helper()
 
@@ -47,7 +51,7 @@ func withMirrorNetNS(t *testing.T, fn func()) {
 	origNS, err := netns.Get()
 	if err != nil {
 		unlock()
-		t.Skipf("requires CAP_NET_ADMIN: cannot get current namespace: %v", err)
+		t.Fatalf("cannot get current namespace: %v", err)
 	}
 
 	nsName := mirrorNetNSName(t.Name())
@@ -55,7 +59,7 @@ func withMirrorNetNS(t *testing.T, fn func()) {
 	if err != nil {
 		origNS.Close() //nolint:errcheck // best-effort cleanup
 		unlock()
-		t.Skipf("requires CAP_NET_ADMIN: cannot create namespace: %v", err)
+		t.Fatalf("cannot create namespace %q: %v", nsName, err)
 	}
 
 	t.Cleanup(func() {
@@ -179,6 +183,9 @@ func mirrorTestHasQdisc(t *testing.T, link netlink.Link) bool {
 }
 
 func TestIntegrationMirrorSetupRollbackKeepsForeignFilter(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	// VALIDATES: AC-5 -- a mirror setup that fails leaves the qdisc it did not
 	// create, with every foreign filter still attached to it.
 	// PREVENTS: the rollback path calling QdiscDel on the shared qdisc, which
@@ -220,6 +227,9 @@ func TestIntegrationMirrorSetupRollbackKeepsForeignFilter(t *testing.T) {
 }
 
 func TestIntegrationMirrorSetupRollbackRemovesTheQdiscItCreated(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	// VALIDATES: AC-5 -- a failed setup that created the qdisc removes it, so
 	// a failed apply leaves no tc state behind.
 	// PREVENTS: trading the qdisc-deletion defect for a qdisc leak.
@@ -237,6 +247,9 @@ func TestIntegrationMirrorSetupRollbackRemovesTheQdiscItCreated(t *testing.T) {
 }
 
 func TestIntegrationMirrorTeardownToleratesOnlyAnAbsentFilter(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	// VALIDATES: AC-8 -- a teardown with nothing to remove reports success, and
 	// it does so for exactly the two errnos that mean "nothing to remove".
 	// PREVENTS: isNotFound widening back out. It is the only error gate on the
@@ -293,6 +306,9 @@ func TestIntegrationMirrorTeardownToleratesOnlyAnAbsentFilter(t *testing.T) {
 }
 
 func TestIntegrationMirrorRemoveKeepsTheQdiscOfAnotherSubsystem(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	// VALIDATES: AC-2 and AC-3 -- teardown keeps the shared qdisc when another
 	// subsystem still holds a filter on it, and keeps it when the mirror was
 	// its last user too. RemoveMirror owns its filters and nothing else.

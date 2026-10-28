@@ -26,6 +26,7 @@ import (
 	"github.com/vishvananda/netlink"
 
 	"github.com/ze-software/ze/internal/core/clock"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 const (
@@ -326,8 +327,12 @@ func TestDHCPv4RenewsRepeatedlyOnVeth(t *testing.T) {
 // TestDHCPv4NakOnRenewRestartsOnVeth answers the RENEW with a DHCPNAK that
 // the lab broadcasts, as a server does when giaddr is zero (RFC 2131
 // Section 4.1). Method: the address must go and a DHCPDISCOVER follow well
-// inside the 10 s DORA back-off.
+// inside the 10 s DORA back-off. userns.Enter re-runs it as root over a user
+// and network namespace of its own, so it needs no host privilege.
 func TestDHCPv4NakOnRenewRestartsOnVeth(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	lab := lmStart(t, dHCPConfig{})
 	lab.bind()
 
