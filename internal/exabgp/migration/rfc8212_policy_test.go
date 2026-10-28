@@ -148,16 +148,16 @@ neighbor 192.0.2.3 {
 		t.Errorf("serialized %d peers, want external, internal and inherited", peers)
 	}
 	for _, peerName := range []string{"peer-1", "peer-2", "peer-3"} {
-		explained := false
+		warned := false
 		for _, warning := range result.Warnings {
 			if strings.Contains(warning, "peer "+peerName+":") &&
 				strings.Contains(warning, "RFC 8212") &&
 				strings.Contains(warning, "preserve ExaBGP route-exchange intent") {
-				explained = true
+				warned = true
 			}
 		}
-		if !explained {
-			t.Errorf("no preservation explanation for %s: %q", peerName, result.Warnings)
+		if !warned {
+			t.Errorf("no RFC 8212 warning for %s: %q", peerName, result.Warnings)
 		}
 	}
 }
