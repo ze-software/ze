@@ -7,7 +7,7 @@
     "claim-sha": "baea35d924574dae",
     "route": "revert",
     "producer": "internal/component/ike/engine/established.go::maintainSA",
-    "producer-sha": "8b4ec603c86b4f58",
+    "producer-sha": "6afb36f1befffd48",
     "break": "body of maintainSA replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -18,7 +18,7 @@
     "claim-sha": "d3cb23c414038883",
     "route": "revert",
     "producer": "internal/component/ike/engine/established.go::maintainSA",
-    "producer-sha": "8b4ec603c86b4f58",
+    "producer-sha": "6afb36f1befffd48",
     "break": "body of maintainSA replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
