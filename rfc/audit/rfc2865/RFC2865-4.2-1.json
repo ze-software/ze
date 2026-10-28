@@ -1,13 +1,13 @@
 {
-  "note": "Rejudged 2026-10-28 after BlastRADIUS. rfc/full/rfc2865.txt Section 4.2: 'The Response Authenticator field MUST contain the correct response for the pending Access-Request.  Invalid packets are silently discarded.' buildResponse now signs every non-accounting answer (buildReplyResponse), so TestClientAuthenticatorVerify's first reply, built with 'wrong-key', carries a wrong Message-Authenticator HMAC as well as a wrong Response Authenticator. client.go dispatchResponse verifies the Response Authenticator, then verifyResponseMessageAuthenticator (RFC 2869 5.14) discards a bad HMAC. A client that stopped verifying the Response Authenticator (VerifyResponseAuth returning true) would still drop that reply on the HMAC, retransmit, and keep attempts >= 2: the negative stays green under the exact non-compliance it names (question 3, isolation lost). The recorded revert (VerifyResponseAuth body replaced by a panic) cannot show this because a panic reddens either way. Fix: the first reply must carry a correct Message-Authenticator and only a wrong Response Authenticator (sign with the right key, then corrupt the RA), so only VerifyResponseAuth can reject it. Positive half (correctly signed reply accepted) still holds.",
+  "note": "Rejudged 2026-10-28 after 3fa8b278a9. rfc/full/rfc2865.txt Section 4.2: 'The Response Authenticator field MUST contain the correct response for the pending Access-Request.  Invalid packets are silently discarded.' TestClientAuthenticatorVerify's first reply is now signed with the correct secret and only its Response Authenticator byte 4 is flipped; the Message-Authenticator HMAC runs with the Request Authenticator substituted (RFC 2869 5.14) so it still verifies, and the test fatals unless the mock's verifyResponseMessageAuthenticator verdict on that reply is Accepted. Only VerifyResponseAuth can therefore discard it: attempts >= 2 goes red if it is accepted (mutant: compare forced true, observed 'got 1 attempt', record 8bc5e1c3c3). Positive: the correctly signed retry is accepted (Code assertion; revert record). Isolation restored; the earlier weak finding (wrong-key reply also failed the HMAC) no longer applies.",
   "requirement_sha": "a38aa7d3cc34b4fd",
   "tests": {
-    "internal/component/radius/rfc2865_client_test.go::TestClientAuthenticatorVerify": "7432bbe99ea90e75",
-    "internal/component/radius/rfc2865_client_test.go::TestClientAuthenticatorVerify#2": "7432bbe99ea90e75"
+    "internal/component/radius/rfc2865_client_test.go::TestClientAuthenticatorVerify": "1761e266bef616f1",
+    "internal/component/radius/rfc2865_client_test.go::TestClientAuthenticatorVerify#2": "1761e266bef616f1"
   },
   "units": {
-    "internal/component/radius/rfc2865_client_test.go::TestClientAuthenticatorVerify": "9d74f52754aa4825",
-    "internal/component/radius/rfc2865_client_test.go::TestClientAuthenticatorVerify#2": "9d74f52754aa4825"
+    "internal/component/radius/rfc2865_client_test.go::TestClientAuthenticatorVerify": "64a0f4c3c483a41d",
+    "internal/component/radius/rfc2865_client_test.go::TestClientAuthenticatorVerify#2": "64a0f4c3c483a41d"
   },
-  "verdict": "weak"
+  "verdict": "enforced"
 }

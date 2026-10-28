@@ -2,7 +2,7 @@
   "note": "Rejudged 2026-10-28 after BlastRADIUS (only change: Exchange takes a Server, buildResponse now signs non-accounting answers). TestRFC2865RetransmitRepeatsIdentifierAuthenticatorAndSourcePort still leaves the first datagram unanswered and byte-compares Identifier, all 16 Request Authenticator octets, attributes and source addr:port of every retransmit against the first; the signed answer only lets the exchange complete under the default presence check, it does not touch what is compared. {single-polarity: positive} holds. TestClientRetransmit remains a floor assertion.",
   "requirement_sha": "5c737904eded8aeb",
   "tests": {
-    "internal/component/radius/rfc2865_client_test.go::TestClientRetransmit": "7432bbe99ea90e75",
+    "internal/component/radius/rfc2865_client_test.go::TestClientRetransmit": "1761e266bef616f1",
     "internal/component/radius/rfc2865_wire_rules_test.go::TestRFC2865RetransmitRepeatsIdentifierAuthenticatorAndSourcePort": "2303f11cca7174af"
   },
   "units": {
