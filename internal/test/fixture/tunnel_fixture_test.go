@@ -3,6 +3,7 @@ package fixture
 import (
 	"bytes"
 	"context"
+	"crypto/hmac"
 	"crypto/md5" //nolint:gosec // RADIUS wire protocol requires MD5
 	"encoding/binary"
 	"errors"
@@ -178,8 +179,31 @@ func TestTunnelRadiusAccessAcceptWireShape(t *testing.T) {
 	}) {
 		t.Fatal("RADIUS driver did not answer Access-Request")
 	}
-	if len(response) != 26 || response[0] != 2 || response[1] != 9 || binary.BigEndian.Uint32(response[22:26]) != 60 {
-		t.Fatalf("Access-Accept = %x", response)
+	// The answer to an Access-Request is signed: header (20 octets), then the
+	// Message-Authenticator first (type 80, length 18, at 20..37), then
+	// Session-Timeout (type 27, length 6, value 60, at 38..43).
+	if len(response) != 44 {
+		t.Fatalf("Access-Accept length = %d, want 44: %x", len(response), response)
+	}
+	if response[0] != 2 || response[1] != 9 || binary.BigEndian.Uint16(response[2:4]) != 44 {
+		t.Fatalf("Access-Accept header = %x, want code 2, id 9, length 44", response[:4])
+	}
+	if response[20] != 80 || response[21] != 18 {
+		t.Fatalf("first attribute = %x, want Message-Authenticator (80, 18)", response[20:22])
+	}
+	if response[38] != 27 || response[39] != 6 || binary.BigEndian.Uint32(response[40:44]) != 60 {
+		t.Fatalf("Session-Timeout attribute = %x, want 1b060000003c", response[38:44])
+	}
+	// RFC 3579 Section 3.2: the HMAC-MD5 is computed over the answer with the
+	// Request Authenticator in the authenticator field and the
+	// Message-Authenticator value zeroed, keyed with the shared secret.
+	signed := append([]byte(nil), response...)
+	copy(signed[4:20], request[4:20])
+	clear(signed[22:38])
+	mac := hmac.New(md5.New, []byte("testing123"))
+	mac.Write(signed)
+	if !hmac.Equal(response[22:38], mac.Sum(nil)) {
+		t.Fatalf("Message-Authenticator did not verify: %x", response[22:38])
 	}
 	hash := md5.New() //nolint:gosec // RADIUS response authenticator
 	hash.Write(response[:4])
