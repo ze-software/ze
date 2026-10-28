@@ -22,7 +22,7 @@
 // in the sibling file, so a namespace whose datagrams never reach the outbound XFRM hook
 // cannot pass as an answer.
 
-//go:build integration && linux
+//go:build linux
 
 package dataplane
 
@@ -32,6 +32,8 @@ import (
 
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
+
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 const (
@@ -244,7 +246,7 @@ func overlapInNoStates(t *testing.T, spi uint32) int {
 
 	c, err := (&net.ListenConfig{}).ListenPacket(t.Context(), "ip4:esp", encapLoopbackAddr)
 	if err != nil {
-		t.Skipf("no raw ESP socket (needs CAP_NET_RAW): %v", err)
+		t.Fatalf("open a raw ESP socket in the test's own namespace: %v", err)
 	}
 	_, writeErr := c.WriteTo(encapESPBytes(spi), &net.IPAddr{IP: net.ParseIP(encapLoopbackAddr)})
 	if cerr := c.Close(); cerr != nil {
@@ -264,10 +266,10 @@ func overlapInNoStates(t *testing.T, spi uint32) int {
 // disagree. That second reading is the one that separates them: the newest state now
 // holds the LOWER SPI.
 func TestXFRMOutboundPicksTheNewestStateAtOneReqID(t *testing.T) {
-	// One namespace probe per PROCESS (encapOwnProcess). A second unshare in one binary
+	// One namespace probe per PROCESS (encapNetns). A second unshare in one binary
 	// reads a namespace whose datagrams never reach XFRM, and the controls below would
 	// then fail rather than mislead, which is still a wasted run.
-	if !encapOwnProcess(t) {
+	if !userns.Enter(t) {
 		return
 	}
 	reqidNetns(t)
@@ -275,7 +277,6 @@ func TestXFRMOutboundPicksTheNewestStateAtOneReqID(t *testing.T) {
 	b := &xfrmBackend{}
 	pol := reqidSPParams()
 	if err := b.InstallPolicy(pol); err != nil {
-		skipWithoutPolicyPermission(t, err)
 		t.Fatalf("installing the Child SA policy: %v", err)
 	}
 	t.Cleanup(func() {
@@ -319,7 +320,7 @@ func TestXFRMOutboundPicksTheNewestStateAtOneReqID(t *testing.T) {
 // exactly the shape RFC 4552 Section 10.1 step 2 describes for a manual rollover, and
 // the reverse move back to the predecessor is measured too.
 func TestXFRMOutboundTemplateSPIPinsOneStateAtOneReqID(t *testing.T) {
-	if !encapOwnProcess(t) {
+	if !userns.Enter(t) {
 		return
 	}
 	reqidNetns(t)
@@ -327,7 +328,6 @@ func TestXFRMOutboundTemplateSPIPinsOneStateAtOneReqID(t *testing.T) {
 	b := &xfrmBackend{}
 	pol := reqidSPParams()
 	if err := b.InstallPolicy(pol); err != nil {
-		skipWithoutPolicyPermission(t, err)
 		t.Fatalf("installing the Child SA policy: %v", err)
 	}
 	t.Cleanup(func() {
@@ -387,7 +387,7 @@ func TestXFRMOutboundTemplateSPIPinsOneStateAtOneReqID(t *testing.T) {
 // rekey cannot mark its states and leave the policy alone. A policy that carries the
 // mark does select the state that matches it, on traffic that carries the mark too.
 func TestXFRMStateMarkNeedsThePolicyToCarryItToo(t *testing.T) {
-	if !encapOwnProcess(t) {
+	if !userns.Enter(t) {
 		return
 	}
 	reqidNetns(t)
@@ -395,7 +395,6 @@ func TestXFRMStateMarkNeedsThePolicyToCarryItToo(t *testing.T) {
 	b := &xfrmBackend{}
 	pol := reqidSPParams()
 	if err := b.InstallPolicy(pol); err != nil {
-		skipWithoutPolicyPermission(t, err)
 		t.Fatalf("installing the Child SA policy: %v", err)
 	}
 	unmarkedPolicyGone := false
@@ -492,7 +491,7 @@ func TestXFRMStateMarkNeedsThePolicyToCarryItToo(t *testing.T) {
 // unreachable, and a peer that is still sending under the retired key would go unheard
 // through the whole rekey.
 func TestXFRMInboundReachesTheStateTheSPINames(t *testing.T) {
-	if !encapOwnProcess(t) {
+	if !userns.Enter(t) {
 		return
 	}
 	encapNetns(t)

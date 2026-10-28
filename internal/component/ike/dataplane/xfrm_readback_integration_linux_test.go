@@ -10,7 +10,7 @@
 // Design: docs/architecture/ike/ipsec-dataplane-inspection.md -- kernel dataplane read surface
 // Related: xfrm_readback_linux_test.go -- the same mapping driven from fixtures
 
-//go:build integration && linux
+//go:build linux
 
 package dataplane
 
@@ -21,6 +21,8 @@ import (
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netlink/nl"
 	"golang.org/x/sys/unix"
+
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // readbackSPI is chosen high and distinctive so a stray SA on the test host
@@ -35,7 +37,6 @@ func findSA(t *testing.T, b *xfrmBackend, spi uint32) *SAInfo {
 	t.Helper()
 	sas, err := b.ListSAs(0)
 	if err != nil {
-		skipUnprivileged(t, err)
 		t.Fatalf("ListSAs: %v", err)
 	}
 	for i := range sas {
@@ -48,6 +49,9 @@ func findSA(t *testing.T, b *xfrmBackend, spi uint32) *SAInfo {
 
 // TestXFRMReadbackShowsInstalledSA is the transition assertion for the SAD.
 func TestXFRMReadbackShowsInstalledSA(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	b := &xfrmBackend{}
 	src := net.ParseIP("10.88.0.1")
 	dst := net.ParseIP("10.88.0.2")
@@ -63,7 +67,6 @@ func TestXFRMReadbackShowsInstalledSA(t *testing.T) {
 		AuthAlgo: "sha256", AuthKey: make([]byte, 32),
 	})
 	if err != nil {
-		skipUnprivileged(t, err)
 		t.Fatalf("InstallSA: %v", err)
 	}
 	t.Cleanup(func() { _ = b.RemoveSA(readbackSPI, dst, ProtoESP) })
@@ -126,6 +129,9 @@ func TestXFRMReadbackShowsInstalledSA(t *testing.T) {
 
 // TestXFRMReadbackIfIDFilter proves the filter argument against a real dump.
 func TestXFRMReadbackIfIDFilter(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	b := &xfrmBackend{}
 	src := net.ParseIP("10.88.1.1")
 	dst := net.ParseIP("10.88.1.2")
@@ -139,7 +145,6 @@ func TestXFRMReadbackIfIDFilter(t *testing.T) {
 		AuthAlgo: "sha256", AuthKey: make([]byte, 32),
 	})
 	if err != nil {
-		skipUnprivileged(t, err)
 		t.Fatalf("InstallSA: %v", err)
 	}
 	t.Cleanup(func() { _ = b.RemoveSA(spi, dst, ProtoESP) })
@@ -178,6 +183,9 @@ func TestXFRMReadbackIfIDFilter(t *testing.T) {
 // xfrm-interface peers, so it reports the site-to-site policies IKE installs at
 // if_id 0. If it were limited, the dump would miss most policies in the field.
 func TestXFRMReadbackPolicyNoIfID(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	b := &xfrmBackend{}
 	selectorSrc := mustCIDR(t, "10.88.2.0/24")
 	selectorDst := mustCIDR(t, "10.88.3.0/24")
@@ -191,7 +199,6 @@ func TestXFRMReadbackPolicyNoIfID(t *testing.T) {
 		Owner:     "readback-peer",
 	}
 	if err := b.InstallPolicy(params); err != nil {
-		skipUnprivileged(t, err)
 		t.Fatalf("InstallPolicy: %v", err)
 	}
 	t.Cleanup(func() { _ = b.RemovePolicyParams(params) })
@@ -250,6 +257,9 @@ func TestXFRMReadbackPolicyNoIfID(t *testing.T) {
 // VALIDATES: IPv4 selectors retain their IPv6 tunnel endpoints, including
 // addresses whose zero tails would otherwise be decoded as IPv4.
 func TestXFRMReadbackPolicyTunnelAddressFamily(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	const ifID = 0x5ead1004
 	b := &xfrmBackend{}
 	params := SPParams{
@@ -260,7 +270,6 @@ func TestXFRMReadbackPolicyTunnelAddressFamily(t *testing.T) {
 		TunnelDst: net.ParseIP("2001:db8::"),
 	}
 	if err := b.InstallPolicy(params); err != nil {
-		skipUnprivileged(t, err)
 		t.Fatalf("InstallPolicy: %v", err)
 	}
 	t.Cleanup(func() { _ = b.RemovePolicyParams(params) })
@@ -307,6 +316,9 @@ func TestXFRMReadbackPolicyTunnelAddressFamily(t *testing.T) {
 // VALIDATES: an all-family kernel dump preserves each wildcard family and joins
 // explicit full-tunnel selectors to their installed owner.
 func TestXFRMReadbackWildcardOwners(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	const ifID = 0x5ead1001
 	b := &xfrmBackend{}
 	params := []SPParams{
@@ -342,7 +354,6 @@ func TestXFRMReadbackWildcardOwners(t *testing.T) {
 	}
 	for _, p := range params {
 		if err := b.InstallPolicy(p); err != nil {
-			skipUnprivileged(t, err)
 			t.Fatalf("InstallPolicy(%s): %v", p.Owner, err)
 		}
 		t.Cleanup(func() { _ = b.RemovePolicyParams(p) })
@@ -395,6 +406,9 @@ func TestXFRMReadbackWildcardOwners(t *testing.T) {
 // VALIDATES: raw foreign selectors cross the kernel and vendored parser before
 // reaching PolicyInfo. Ze's restricted policy writer cannot create these masks.
 func TestXFRMReadbackRawPortMasks(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	const ifID = 0x5ead1002
 	b := &xfrmBackend{}
 	cases := []struct {
@@ -435,7 +449,6 @@ func TestXFRMReadbackRawPortMasks(t *testing.T) {
 		req.AddData(msg)
 		req.AddData(nl.NewRtAttr(nl.XFRMA_IF_ID, nl.Uint32Attr(ifID)))
 		if _, err := req.Execute(unix.NETLINK_XFRM, 0); err != nil {
-			skipUnprivileged(t, err)
 			t.Fatalf("raw policy add: %v", err)
 		}
 		remove := func() error {
@@ -485,6 +498,9 @@ func TestXFRMReadbackRawPortMasks(t *testing.T) {
 // address has the same union bytes as an IPv4 address. Both SAs share every
 // other identity field, so guessing the family would merge their observations.
 func TestXFRMReadbackSAAddressFamilies(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	const (
 		spi  = 0x5ead0003
 		ifID = 0x5ead1003
@@ -516,7 +532,6 @@ func TestXFRMReadbackSAAddressFamilies(t *testing.T) {
 		// supplies exact ports here to exercise the nested selector decoder.
 		state.Selector.SrcPort, state.Selector.DstPort = 4500, 500
 		if err := netlink.XfrmStateAdd(state); err != nil {
-			skipUnprivileged(t, err)
 			t.Fatalf("install %s SA: %v", tc.dst, err)
 		}
 		t.Cleanup(func() { _ = netlink.XfrmStateDel(state) })

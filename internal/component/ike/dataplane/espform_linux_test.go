@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // VALIDATES: the receiver opens its sockets on the first watched SPI, keeps them while any
@@ -17,6 +18,9 @@ import (
 // encapsulation template. That socket makes the kernel clone every bare ESP packet on the
 // box, which taxes exactly the fast path this design exists to preserve.
 func TestESPFormReceiverHoldsSocketsOnlyWhileWatching(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	peer := netip.MustParseAddr("198.51.100.7")
 	local := netip.MustParseAddr("203.0.113.9")
 	r := newESPFormReceiver(slogutil.DiscardLogger())
@@ -26,7 +30,7 @@ func TestESPFormReceiverHoldsSocketsOnlyWhileWatching(t *testing.T) {
 	}
 
 	if err := r.Watch(0x1111, peer, local); err != nil {
-		t.Skipf("cannot open the raw ESP sockets (needs CAP_NET_RAW): %v", err)
+		t.Fatalf("open the raw ESP sockets in the test's own namespace: %v", err)
 	}
 	if !r.running() {
 		t.Fatal("the first watch did not start the receiver")
@@ -84,12 +88,15 @@ func TestESPFormReceiverNilIsFailClosed(t *testing.T) {
 // VALIDATES: Close releases the sockets and is safe while SPIs are still watched.
 // PREVENTS: a backend shutdown leaking the reader goroutine and its two raw sockets.
 func TestESPFormReceiverCloseWhileWatching(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	peer := netip.MustParseAddr("198.51.100.7")
 	local := netip.MustParseAddr("203.0.113.9")
 	r := newESPFormReceiver(slogutil.DiscardLogger())
 
 	if err := r.Watch(0x3333, peer, local); err != nil {
-		t.Skipf("cannot open the raw ESP sockets (needs CAP_NET_RAW): %v", err)
+		t.Fatalf("open the raw ESP sockets in the test's own namespace: %v", err)
 	}
 	if err := r.Close(); err != nil {
 		t.Fatalf("close: %v", err)

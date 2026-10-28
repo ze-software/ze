@@ -13,6 +13,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/ze-software/ze/internal/component/kernelcap"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // The MOBIKE migration message is enrolled from this package's init(), so a
@@ -178,9 +179,13 @@ func TestXFRMKernelProbesSendAnUpdate(t *testing.T) {
 
 // The real probes answer on this host's kernel with a verdict and leave no SA
 // behind. Method: run every enrolled IKE probe against the kernel, then list the
-// SAD. Without CAP_NET_ADMIN every update answers EPERM, which the probes report
-// as unknown; the SAD read is then skipped because it needs the same capability.
+// SAD. userns.Enter runs it as root over a user and network namespace of its own,
+// which holds CAP_NET_ADMIN, so every probe reaches this host's kernel with no host
+// privilege, and an EPERM anywhere below is a failure.
 func TestXFRMKernelProbesOnThisHost(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	capabilities := xfrmKernelCapabilities()
 	for i := range capabilities {
 		got := capabilities[i].Probe()
@@ -193,16 +198,11 @@ func TestXFRMKernelProbesOnThisHost(t *testing.T) {
 	// same update, or a present answer above proves nothing.
 	bogus := xfrmProbeState(xfrmProbeSource4, xfrmProbeTarget4, xfrmRoleIntegrity, xfrmAuthSHA256)
 	bogus.Crypt = &netlink.XfrmStateAlgo{Name: "cbc(ze-no-such-cipher)", Key: make([]byte, 16)}
-	if bogusErr := xfrmProbeUpdate(bogus); !errors.Is(bogusErr, unix.EPERM) {
-		if got := classifyTransformProbe(bogusErr); got.State != kernelcap.StateAbsent {
-			t.Errorf("a transform no kernel holds read %s (%v)", got.State, got.Reason)
-		}
+	if got := classifyTransformProbe(xfrmProbeUpdate(bogus)); got.State != kernelcap.StateAbsent {
+		t.Errorf("a transform no kernel holds read %s (%v)", got.State, got.Reason)
 	}
 
 	states, err := netlink.XfrmStateList(netlink.FAMILY_ALL)
-	if errors.Is(err, unix.EPERM) {
-		t.Skip("the SAD cannot be listed without CAP_NET_ADMIN")
-	}
 	if err != nil {
 		t.Fatalf("list SAD: %v", err)
 	}

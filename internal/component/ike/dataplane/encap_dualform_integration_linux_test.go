@@ -1,17 +1,16 @@
-//go:build integration && linux
+//go:build linux
 
 package dataplane
 
 import (
 	"encoding/binary"
 	"net"
-	"os"
-	"os/exec"
-	"strings"
 	"testing"
 
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
+
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // Phase 1 evidence for plan/spec-ipsec-esp-dual-form-receive.md.
@@ -44,54 +43,6 @@ const (
 	encapSPIReinjectNoSA  = 0x00ABCDE5
 	encapLoopbackPeerAddr = "127.0.0.2"
 )
-
-// encapChildEnv marks the re-executed probe process.
-const encapChildEnv = "ZE_ENCAP_PROBE_OWN_PROCESS"
-
-// encapOwnProcess gives the calling probe a process to itself. It returns true in the
-// child, where the probe body must run, and false in the parent, where the body must be
-// skipped because the child has already run it.
-//
-// MEASURED, and it is the reason this exists: this package supports exactly ONE network
-// namespace probe per test BINARY. Each probe passes when it runs alone. Run two in one
-// process and the first passes while every later one reports that no xfrm counter moved
-// at all. It is not a property of the new probes: the pre-existing
-// TestEncapKernelBindsOneESPFormPerState under `-count=2` passes its first iteration and
-// fails its second with no new code involved.
-//
-// The mechanism is NOT diagnosed. What is measured is the boundary: one unshare per
-// process is reliable and two are not. The contract is enforced structurally,
-// rather than left to an ordering assumption, because the integration pass runs
-// the whole package and a later probe would otherwise report a product defect
-// that does not exist.
-//
-// Every namespace probe in this package MUST open with this call. A probe that skips it
-// works only while it happens to run first.
-func encapOwnProcess(t *testing.T) bool {
-	t.Helper()
-	if os.Getenv(encapChildEnv) == "1" {
-		return true
-	}
-
-	cmd := exec.CommandContext(t.Context(), os.Args[0], "-test.run", "^"+t.Name()+"$", "-test.v")
-	cmd.Env = append(os.Environ(), encapChildEnv+"=1")
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("probe in its own process failed: %v\n%s", err, out)
-	}
-	if strings.Contains(string(out), "--- SKIP") {
-		// This propagates the child's skip. The probe body runs every assertion in the
-		// child; the child skips only when the kernel refuses CLONE_NEWNET or a raw
-		// socket. Reporting the child's skip as a parent PASS is the fail-open reading of
-		// the same result.
-		t.Skipf("probe skipped in its own process:\n%s", out)
-	}
-	if !strings.Contains(string(out), "--- PASS") {
-		t.Fatalf("probe in its own process reported neither PASS nor SKIP:\n%s", out)
-	}
-	t.Logf("ran in its own process:\n%s", out)
-	return false
-}
 
 // encapNetnsUsable fails the probe when loopback is not carrying traffic in the namespace
 // it just entered. Without it a broken fixture reads as "the kernel accepted nothing",
@@ -179,7 +130,7 @@ func encapInjectBare(t *testing.T, src string, esp []byte) {
 	const dst = encapLoopbackAddr
 	fd, err := unix.Socket(unix.AF_INET, unix.SOCK_RAW, unix.IPPROTO_RAW)
 	if err != nil {
-		t.Skipf("no raw socket (needs CAP_NET_RAW): %v", err)
+		t.Fatalf("open a raw IPPROTO_RAW socket in the test's own namespace: %v", err)
 	}
 	defer func() {
 		if cerr := unix.Close(fd); cerr != nil {
@@ -219,7 +170,7 @@ func encapInjectBare(t *testing.T, src string, esp []byte) {
 // One goroutine, no subtests. runtime.LockOSThread binds the NAMESPACE to this
 // goroutine's thread, and a t.Run subtest would read the HOST namespace instead.
 func TestEncapTwoStatesOneSPI(t *testing.T) {
-	if !encapOwnProcess(t) {
+	if !userns.Enter(t) {
 		return
 	}
 	encapNetns(t)
@@ -283,7 +234,7 @@ func TestEncapTwoStatesOneSPI(t *testing.T) {
 //
 // One goroutine, no subtests, for the namespace reason above.
 func TestEncapReinjectedBareESPAccepted(t *testing.T) {
-	if !encapOwnProcess(t) {
+	if !userns.Enter(t) {
 		return
 	}
 	encapNetns(t)

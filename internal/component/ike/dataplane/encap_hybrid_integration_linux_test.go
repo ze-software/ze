@@ -1,4 +1,4 @@
-//go:build integration && linux
+//go:build linux
 
 package dataplane
 
@@ -10,6 +10,8 @@ import (
 
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
+
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // Phase 2 evidence for plan/spec-ipsec-esp-dual-form-receive.md.
@@ -78,10 +80,9 @@ func encapInjectRaw(t *testing.T, dst string, pkt []byte) {
 	t.Helper()
 	fd, err := unix.Socket(unix.AF_INET, unix.SOCK_RAW, unix.IPPROTO_RAW)
 	if err != nil {
-		// CAP_NET_RAW is absent on some hosts, and every sibling probe in this package
-		// skips the same way (ai/rules/testing.md). encapOwnProcess propagates a child
-		// SKIP as a parent SKIP rather than reading it as PASS.
-		t.Skipf("no raw socket (needs CAP_NET_RAW): %v", err)
+		// The probe runs as root over its own user namespace (userns.Enter), which
+		// holds CAP_NET_RAW, so a refusal here is a defect, never a missing grant.
+		t.Fatalf("open a raw IPPROTO_RAW socket in the test's own namespace: %v", err)
 	}
 	defer func() {
 		if cerr := unix.Close(fd); cerr != nil {
@@ -109,7 +110,7 @@ func encapInjectRaw(t *testing.T, dst string, pkt []byte) {
 // One goroutine, no subtests. runtime.LockOSThread binds the NAMESPACE to this goroutine's
 // thread, and a t.Run subtest would read the HOST namespace instead.
 func TestEncapOneStateAcceptsBothForms(t *testing.T) {
-	if !encapOwnProcess(t) {
+	if !userns.Enter(t) {
 		return
 	}
 	encapNetns(t)
@@ -159,8 +160,8 @@ func TestEncapOneStateAcceptsBothForms(t *testing.T) {
 
 	reader, err := (&net.ListenConfig{}).ListenPacket(t.Context(), "ip4:esp", encapLoopbackAddr)
 	if err != nil {
-		// See encapInjectRaw above: this is a capability gate, not a relaxation.
-		t.Skipf("no raw ESP socket (needs CAP_NET_RAW): %v", err)
+		// See encapInjectRaw above: inside the namespace a refusal is a defect.
+		t.Fatalf("open a raw ESP socket in the test's own namespace: %v", err)
 	}
 	defer func() {
 		if cerr := reader.Close(); cerr != nil {
@@ -237,7 +238,7 @@ func TestEncapOneStateAcceptsBothForms(t *testing.T) {
 // One goroutine, no subtests. runtime.LockOSThread binds the NAMESPACE to this goroutine's
 // thread, and a t.Run subtest would read the HOST namespace instead.
 func TestEncapBareESPVisibleToUserspaceWhenStateIsTemplated(t *testing.T) {
-	if !encapOwnProcess(t) {
+	if !userns.Enter(t) {
 		return
 	}
 	encapNetns(t)
@@ -251,7 +252,7 @@ func TestEncapBareESPVisibleToUserspaceWhenStateIsTemplated(t *testing.T) {
 
 	reader, err := (&net.ListenConfig{}).ListenPacket(t.Context(), "ip4:esp", encapLoopbackAddr)
 	if err != nil {
-		t.Skipf("no raw ESP socket (needs CAP_NET_RAW): %v", err)
+		t.Fatalf("open a raw ESP socket in the test's own namespace: %v", err)
 	}
 	defer func() {
 		if cerr := reader.Close(); cerr != nil {
@@ -307,7 +308,7 @@ func TestEncapBareESPVisibleToUserspaceWhenStateIsTemplated(t *testing.T) {
 //
 // One goroutine, no subtests, for the namespace reason above.
 func TestEncapEncapsulatedESPHiddenFromUserspaceWhenSocketDecapsulates(t *testing.T) {
-	if !encapOwnProcess(t) {
+	if !userns.Enter(t) {
 		return
 	}
 	encapNetns(t)

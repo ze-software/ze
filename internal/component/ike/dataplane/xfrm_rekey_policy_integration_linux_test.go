@@ -14,7 +14,7 @@
 // the backend that stopped using NEWPOLICY, so it calls netlink directly; the
 // idempotence test goes red the moment the backend reverts to NEWPOLICY.
 
-//go:build integration && linux
+//go:build linux
 
 package dataplane
 
@@ -24,8 +24,9 @@ import (
 	"testing"
 
 	"github.com/vishvananda/netlink"
-
 	"golang.org/x/sys/unix"
+
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // rekeySPParams builds the outbound policy a Child SA installs. The two calls a
@@ -46,15 +47,6 @@ func rekeySPParams() SPParams {
 	}
 }
 
-// skipWithoutPolicyPermission is the file's SINGLE skip site. Both tests below need
-// CAP_NET_ADMIN to install anything, and neither can assert a thing without it.
-func skipWithoutPolicyPermission(t *testing.T, err error) {
-	t.Helper()
-	if errors.Is(err, unix.EPERM) || errors.Is(err, unix.EACCES) {
-		t.Skipf("XFRM policy install needs CAP_NET_ADMIN: %v", err)
-	}
-}
-
 // TestXFRMNewPolicyIsExclusive keeps measuring the KERNEL fact, unchanged: an
 // XFRM_MSG_NEWPOLICY install of a selector that already exists is refused with
 // EEXIST. Nothing about the kernel changed; what changed is that ze no longer sends
@@ -64,12 +56,14 @@ func skipWithoutPolicyPermission(t *testing.T, err error) {
 // precisely what stopped using NEWPOLICY. Measuring a kernel rule through a caller
 // that no longer exercises it would measure nothing.
 func TestXFRMNewPolicyIsExclusive(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	pol, err := xfrmPolicyFromParams(rekeySPParams())
 	if err != nil {
 		t.Fatalf("building the policy: %v", err)
 	}
 	if err := netlink.XfrmPolicyAdd(pol); err != nil {
-		skipWithoutPolicyPermission(t, err)
 		t.Fatalf("first XFRM_MSG_NEWPOLICY install: %v", err)
 	}
 	t.Cleanup(func() { _ = netlink.XfrmPolicyDel(pol) })
@@ -100,11 +94,13 @@ func TestXFRMNewPolicyIsExclusive(t *testing.T) {
 // The backend now sends XFRM_MSG_UPDPOLICY, which upserts, so this asserts the
 // repeat SUCCEEDS. Reverting InstallPolicy to XfrmPolicyAdd turns it red.
 func TestXFRMPolicyInstallIsIdempotent(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	b := &xfrmBackend{}
 	p := rekeySPParams()
 
 	if err := b.InstallPolicy(p); err != nil {
-		skipWithoutPolicyPermission(t, err)
 		t.Fatalf("first install of the retired pair's policy: %v", err)
 	}
 	t.Cleanup(func() {

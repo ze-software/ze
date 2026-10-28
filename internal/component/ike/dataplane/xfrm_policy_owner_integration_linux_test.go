@@ -20,7 +20,7 @@
 // policy was correctly absent" and every assertion here would pass vacuously
 // (ai/rules/evidence.md).
 
-//go:build integration && linux
+//go:build linux
 
 package dataplane
 
@@ -30,6 +30,8 @@ import (
 	"testing"
 
 	"github.com/vishvananda/netlink"
+
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 const (
@@ -255,11 +257,11 @@ func ownerAssertUnclaimed(t *testing.T, what string) {
 // The second half is the control. Removing the policy for real must STOP the counter,
 // otherwise the first half is reading something other than this policy.
 func TestXFRMPolicyOwnerSharedSelectorSurvivesRetiredChild(t *testing.T) {
-	// One namespace probe per PROCESS. See encapOwnProcess: a second unshare in one
+	// One namespace probe per PROCESS. See encapNetns: a second unshare in one
 	// binary reads a namespace whose datagrams never reach XFRM, and every counter
 	// then stays still -- which is this file's negative reading, so a probe that
 	// skipped this would manufacture its own false pass.
-	if !encapOwnProcess(t) {
+	if !userns.Enter(t) {
 		return
 	}
 	ownerNetns(t)
@@ -269,7 +271,6 @@ func TestXFRMPolicyOwnerSharedSelectorSurvivesRetiredChild(t *testing.T) {
 
 	// The retired Child SA's policy.
 	if err := b.InstallPolicy(p); err != nil {
-		skipWithoutPolicyPermission(t, err)
 		t.Fatalf("installing the retired pair's policy: %v", err)
 	}
 	// The replacement pair's policy: identical selector, identical owner. This is the
@@ -314,7 +315,7 @@ func TestXFRMPolicyOwnerSharedSelectorSurvivesRetiredChild(t *testing.T) {
 // policy, so a refused peer that could still delete would blackhole the peer it just
 // failed to displace, with that peer's states left installed and nothing to show for it.
 func TestXFRMPolicyOwnerRefusesTakeoverAndItsRollback(t *testing.T) {
-	if !encapOwnProcess(t) {
+	if !userns.Enter(t) {
 		return
 	}
 	ownerNetns(t)
@@ -323,7 +324,6 @@ func TestXFRMPolicyOwnerRefusesTakeoverAndItsRollback(t *testing.T) {
 	live := ownerSPParams(ownerSiteA)
 
 	if err := b.InstallPolicy(live); err != nil {
-		skipWithoutPolicyPermission(t, err)
 		t.Fatalf("installing site-a's policy: %v", err)
 	}
 	t.Cleanup(func() {
@@ -383,7 +383,7 @@ func TestXFRMPolicyOwnerRefusesTakeoverAndItsRollback(t *testing.T) {
 // A shape that DID match would overturn the design decision, so each is reported by
 // name whichever way it reads.
 func TestXFRMPolicyOwnerMarkedPolicyClaimsNothing(t *testing.T) {
-	if !encapOwnProcess(t) {
+	if !userns.Enter(t) {
 		return
 	}
 	ownerNetns(t)
@@ -404,7 +404,6 @@ func TestXFRMPolicyOwnerMarkedPolicyClaimsNothing(t *testing.T) {
 		t.Helper()
 		pol := build(t, mark)
 		if err := netlink.XfrmPolicyUpdate(pol); err != nil {
-			skipWithoutPolicyPermission(t, err)
 			t.Fatalf("%s: install: %v", what, err)
 		}
 		if got := ownerPoliciesFor(t, ownerSPParams(ownerSiteA)); len(got) != 1 {

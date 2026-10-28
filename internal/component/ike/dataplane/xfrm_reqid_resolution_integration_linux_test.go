@@ -22,7 +22,7 @@
 // reading below is therefore bracketed by a control that must move it: the same probe
 // with no state installed, taken before and after.
 
-//go:build integration && linux
+//go:build linux
 
 package dataplane
 
@@ -31,6 +31,8 @@ import (
 	"testing"
 
 	"github.com/vishvananda/netlink"
+
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 const (
@@ -193,8 +195,8 @@ func reqidStatePackets(t *testing.T, spi uint32) uint64 {
 func TestXFRMPolicyResolvesToAReplacedState(t *testing.T) {
 	// One namespace probe per PROCESS: a second unshare in one binary reads a namespace
 	// whose datagrams never reach XFRM, and this test's success condition IS a still
-	// counter, so it would manufacture its own false pass (encapOwnProcess).
-	if !encapOwnProcess(t) {
+	// counter, so it would manufacture its own false pass (encapNetns).
+	if !userns.Enter(t) {
 		return
 	}
 	reqidNetns(t)
@@ -203,7 +205,6 @@ func TestXFRMPolicyResolvesToAReplacedState(t *testing.T) {
 	pol := reqidSPParams()
 
 	if err := b.InstallPolicy(pol); err != nil {
-		skipWithoutPolicyPermission(t, err)
 		t.Fatalf("installing the Child SA policy: %v", err)
 	}
 	t.Cleanup(func() {

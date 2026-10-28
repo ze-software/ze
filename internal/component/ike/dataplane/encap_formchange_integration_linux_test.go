@@ -1,4 +1,4 @@
-//go:build integration && linux
+//go:build linux
 
 package dataplane
 
@@ -9,6 +9,8 @@ import (
 
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
+
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // Phase 5 evidence for plan/spec-ipsec-esp-dual-form-receive.md, acceptance criterion AC-4.
@@ -159,7 +161,7 @@ func encapFormChangeState(t *testing.T, when string) netlink.XfrmState {
 // One goroutine, no subtests. runtime.LockOSThread binds the NAMESPACE to this goroutine's
 // thread, and a t.Run subtest would read the HOST namespace instead.
 func TestEncapEstablishedSAServesAPeerFormChange(t *testing.T) {
-	if !encapOwnProcess(t) {
+	if !userns.Enter(t) {
 		return
 	}
 	encapNetns(t)

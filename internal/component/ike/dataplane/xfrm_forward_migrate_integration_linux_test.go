@@ -1,7 +1,7 @@
 // Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- live transit-policy migration.
 // Related: xfrm_migrate_integration_linux_test.go -- isolated real-kernel fixture.
 //
-//go:build integration && linux
+//go:build linux
 
 package dataplane
 
@@ -10,12 +10,18 @@ import (
 	"testing"
 
 	"github.com/vishvananda/netlink"
+
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // TestXFRMMigrationMovesForwardPolicy proves that the kernel's transit template
 // follows the inbound endpoints, retains its selector and owner, and is restored
-// when the final policy update fails after both states have moved.
+// when the final policy update fails after both states have moved. userns.Enter
+// runs it as root over a user and network namespace of its own.
 func TestXFRMMigrationMovesForwardPolicy(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	for _, rollback := range []bool{false, true} {
 		name := "move"
 		if rollback {

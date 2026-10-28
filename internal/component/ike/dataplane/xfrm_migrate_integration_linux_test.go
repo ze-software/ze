@@ -1,7 +1,8 @@
 // Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- atomic kernel migration.
 // These tests require CONFIG_XFRM_MIGRATE with XFRM_MSG_MIGRATE_STATE (Linux 7.2),
-// CAP_NET_ADMIN and CAP_NET_RAW. The integration package runs in the QEMU suite.
-//go:build integration && linux
+// CAP_NET_ADMIN and CAP_NET_RAW, which userns.Enter grants inside a user and network
+// namespace of the test's own, so they need no host privilege.
+//go:build linux
 
 package dataplane
 
@@ -17,6 +18,8 @@ import (
 	"github.com/vishvananda/netlink/nl"
 	"github.com/vishvananda/netns"
 	"golang.org/x/sys/unix"
+
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 type migrationKernelSnapshot struct {
@@ -66,7 +69,6 @@ func migrationKernelFixture(t *testing.T, window uint8, esn bool) (*xfrmMobikeBa
 		state.Limits.TimeHard = 3600
 		state.Limits.ByteHard = 1 << 20
 		if err := netlink.XfrmStateAdd(state); err != nil {
-			skipUnprivileged(t, err)
 			t.Fatal(err)
 		}
 		migrationSeedKernelState(t, state, window, esn)
@@ -191,6 +193,9 @@ func assertMigrationSnapshot(t *testing.T, before, after migrationKernelSnapshot
 // Exercise the live kernel mechanism with all replay layouts. The outgoing NAT
 // template is removed, the incoming one keeps both ESP receive forms available.
 func TestXFRMMigrationPreservesLiveKernelState(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	for _, tc := range []struct {
 		name   string
 		window uint8
@@ -260,6 +265,9 @@ func TestXFRMMigrationPreservesLiveKernelState(t *testing.T) {
 // Fail after both kernel SAs and one policy moved. The reverse migration must
 // preserve the counters while restoring the old endpoints and policy ownership.
 func TestXFRMMigrationRollsBackPolicyFailure(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	b, m := migrationKernelFixture(t, 64, false)
 	beforeIn := migrationSnapshot(t, m.InboundSPI, m.OldLocal, m.IfID)
 	beforeOut := migrationSnapshot(t, m.OutboundSPI, m.OldRemote, m.IfID)
@@ -296,6 +304,9 @@ func TestXFRMMigrationRollsBackPolicyFailure(t *testing.T) {
 // A reverse-migration failure must destroy both candidate SAD pairs while leaving
 // PROTECT policies owned, so a caller cannot mistake the error for an intact tunnel.
 func TestXFRMMigrationFailedRollbackDiscardsStates(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	b, m := migrationKernelFixture(t, 64, false)
 	original := xfrmMigrationExecute
 	t.Cleanup(func() { xfrmMigrationExecute = original })
@@ -333,6 +344,9 @@ func TestXFRMMigrationFailedRollbackDiscardsStates(t *testing.T) {
 }
 
 func TestXFRMMigrationRefusesAnotherPolicyOwner(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	b, m := migrationKernelFixture(t, 64, false)
 	before := migrationSnapshot(t, m.InboundSPI, m.OldLocal, m.IfID)
 	m.Policies[0].Owner = "another-peer"
@@ -352,6 +366,9 @@ func TestXFRMMigrationRefusesAnotherPolicyOwner(t *testing.T) {
 }
 
 func TestXFRMMigrationRefusesOccupiedDestinationSPI(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	b, m := migrationKernelFixture(t, 64, false)
 	foreign, err := xfrmStateFromParams(SAParams{
 		SPI: m.InboundSPI, Src: m.NewRemote, Dst: m.NewLocal,
@@ -376,6 +393,9 @@ func TestXFRMMigrationRefusesOccupiedDestinationSPI(t *testing.T) {
 }
 
 func TestXFRMMigrationRetainsFailedDeletionForTeardown(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	b, m := migrationKernelFixture(t, 64, false)
 	execute, remove := xfrmMigrationExecute, xfrmMigrationStateDel
 	t.Cleanup(func() {
@@ -414,6 +434,9 @@ func TestXFRMMigrationRetainsFailedDeletionForTeardown(t *testing.T) {
 // after mobility. Reading the peer's packets rules out a self-addressed route that
 // never used the outbound policy, and catches sequence/nonce reuse on the wire.
 func TestXFRMMigrationKeepsOutboundSequenceOnPeerWire(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	b, m := migrationKernelFixture(t, 64, false)
 	udp, esp := migrationPeerCapture(t, m.IfID)
 	conn, err := net.DialIP("ip4:6", &net.IPAddr{IP: net.ParseIP("10.71.1.1")}, &net.IPAddr{IP: net.ParseIP("10.71.2.1")})
@@ -565,7 +588,7 @@ func migrationLinkAddrs(t *testing.T, name string, addresses ...string) netlink.
 // receiver as well as the kernel state. Observe the production receiver's UDP
 // datagram rather than its registry: the old implementation injected port 4500.
 func TestXFRMMigrationRekeyReceiverUsesMappedPorts(t *testing.T) {
-	if !encapOwnProcess(t) {
+	if !userns.Enter(t) {
 		return
 	}
 	encapNetns(t)

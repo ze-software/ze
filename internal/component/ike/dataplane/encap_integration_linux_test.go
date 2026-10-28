@@ -1,4 +1,4 @@
-//go:build integration && linux
+//go:build linux
 
 package dataplane
 
@@ -12,6 +12,8 @@ import (
 
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
+
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // The states below never decrypt anything, and they do not need to. Every assertion
@@ -33,11 +35,22 @@ const (
 
 // encapNetns moves this goroutine into a fresh network namespace and brings loopback
 // up, so the XFRM states below cannot touch the host.
+//
+// MEASURED: this package supports exactly ONE network namespace probe per test
+// PROCESS. Each probe passes when it runs alone. Run two in one process and the first
+// passes while every later one reports that no xfrm counter moved at all; the
+// pre-existing TestEncapKernelBindsOneESPFormPerState under `-count=2` passes its first
+// iteration and fails its second with no new code involved. The mechanism is NOT
+// diagnosed; what is measured is the boundary, one unshare per process is reliable and
+// two are not. Every namespace probe therefore opens with userns.Enter, which re-runs
+// the one test in a process of its own (as root over a user namespace, so the unshare
+// below needs no host privilege). A probe that skips it works only while it happens to
+// run first.
 func encapNetns(t *testing.T) {
 	t.Helper()
 	runtime.LockOSThread()
 	if err := unix.Unshare(unix.CLONE_NEWNET); err != nil {
-		t.Skipf("no CLONE_NEWNET (needs root): %v", err)
+		t.Fatalf("unshare CLONE_NEWNET in the test's own user namespace: %v", err)
 	}
 	lo, err := netlink.LinkByName("lo")
 	if err != nil {
@@ -148,7 +161,7 @@ func encapKernelVerdict(t *testing.T, spi uint32, encapsulated bool) string {
 	} else {
 		c, err := (&net.ListenConfig{}).ListenPacket(t.Context(), "ip4:esp", encapLoopbackAddr)
 		if err != nil {
-			t.Skipf("no raw ESP socket (needs CAP_NET_RAW): %v", err)
+			t.Fatalf("open a raw ESP socket in the test's own namespace: %v", err)
 		}
 		defer func() {
 			if cerr := c.Close(); cerr != nil {
@@ -193,10 +206,10 @@ func encapKernelVerdict(t *testing.T, spi uint32, encapsulated bool) string {
 // It carries no RFC requirement tag on purpose. It records what the kernel does. It
 // does not assert that Ze meets an obligation.
 func TestEncapKernelBindsOneESPFormPerState(t *testing.T) {
-	// One namespace probe per PROCESS. See encapOwnProcess for the measurement: a second
+	// One namespace probe per PROCESS. See encapNetns for the measurement: a second
 	// probe in the same binary reads a namespace where its datagrams never reach XFRM, so
 	// every counter stays still. Nothing below changes; the body runs in the child.
-	if !encapOwnProcess(t) {
+	if !userns.Enter(t) {
 		return
 	}
 	encapNetns(t)

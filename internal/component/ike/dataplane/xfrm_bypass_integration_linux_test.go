@@ -9,12 +9,11 @@
 // tests would still be green and every tunnel with a wide selector would still be
 // broken.
 
-//go:build integration && linux
+//go:build linux
 
 package dataplane
 
 import (
-	"errors"
 	"net"
 	"os"
 	"strconv"
@@ -23,6 +22,8 @@ import (
 
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
+
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // The test range. RFC 5737 TEST-NET-2, carried on a dummy link this test creates and
@@ -118,7 +119,7 @@ func sendFromPort(t *testing.T, port int) int {
 	before := xfrmOutNoStates(t)
 	conn, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.ParseIP(bypassTestSelf), Port: port})
 	if err != nil {
-		t.Skipf("cannot bind UDP %s:%d in this environment: %v", bypassTestSelf, port, err)
+		t.Fatalf("bind UDP %s:%d on the test's own dummy link: %v", bypassTestSelf, port, err)
 	}
 	defer func() { _ = conn.Close() }()
 	if _, err := conn.WriteToUDP([]byte("ze-bypass-probe"), &net.UDPAddr{IP: net.ParseIP(bypassTestPeer), Port: 9}); err != nil {
@@ -132,9 +133,6 @@ func setupBypassTestLink(t *testing.T) {
 	t.Helper()
 	link := &netlink.Dummy{Name: bypassTestLink}
 	if err := netlink.LinkAdd(link); err != nil {
-		if errors.Is(err, unix.EPERM) || errors.Is(err, unix.EACCES) {
-			t.Skipf("creating a dummy link needs CAP_NET_ADMIN: %v", err)
-		}
 		t.Fatalf("add dummy link %s: %v", bypassTestLink, err)
 	}
 	t.Cleanup(func() { _ = netlink.LinkDel(link) })
@@ -153,14 +151,14 @@ func setupBypassTestLink(t *testing.T) {
 
 // TestXFRMIKEBypassOutranksChildSAPolicyInKernel measures the ordering contest.
 func TestXFRMIKEBypassOutranksChildSAPolicyInKernel(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	setupBypassTestLink(t)
 	b := &xfrmBackend{}
 
 	esp := espPolicyCapturingTestRange()
 	if err := b.InstallPolicy(esp); err != nil {
-		if errors.Is(err, unix.EPERM) || errors.Is(err, unix.EACCES) {
-			t.Skipf("XFRM policy install needs CAP_NET_ADMIN: %v", err)
-		}
 		t.Fatalf("install the Child SA policy: %v", err)
 	}
 	t.Cleanup(func() { _ = b.RemovePolicyParams(esp) })
@@ -206,13 +204,13 @@ func TestXFRMIKEBypassOutranksChildSAPolicyInKernel(t *testing.T) {
 // survive the round trip. A bypass stored WITH a template is a protect policy, and
 // it would black-hole every flow it matched instead of exempting it.
 func TestXFRMBypassIsStoredWithoutTemplate(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	b := &xfrmBackend{}
 
 	bypass := ikeBypassOut(4500)
 	if err := b.InstallPolicy(bypass); err != nil {
-		if errors.Is(err, unix.EPERM) || errors.Is(err, unix.EACCES) {
-			t.Skipf("XFRM policy install needs CAP_NET_ADMIN: %v", err)
-		}
 		t.Fatalf("install the IKE bypass: %v", err)
 	}
 	t.Cleanup(func() { _ = b.RemovePolicyParams(bypass) })
@@ -251,13 +249,13 @@ func TestXFRMBypassIsStoredWithoutTemplate(t *testing.T) {
 // succeed rather than answer EEXIST the way a Child SA policy does
 // (TestXFRMSecondInstallOfOneSelectorIsRefused measures that contrast).
 func TestXFRMBypassInstallIsIdempotent(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	b := &xfrmBackend{}
 	bypass := ikeBypassOut(500)
 
 	if err := b.InstallPolicy(bypass); err != nil {
-		if errors.Is(err, unix.EPERM) || errors.Is(err, unix.EACCES) {
-			t.Skipf("XFRM policy install needs CAP_NET_ADMIN: %v", err)
-		}
 		t.Fatalf("first install: %v", err)
 	}
 	t.Cleanup(func() { _ = b.RemovePolicyParams(bypass) })

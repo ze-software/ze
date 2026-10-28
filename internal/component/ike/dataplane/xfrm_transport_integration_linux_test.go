@@ -7,28 +7,21 @@
 // error, so a unit test with a fake backend cannot tell the two apart. Only a real kernel
 // read-back can.
 //
-// Auto-enrolled in the native QEMU integration run through the derived
-// `integration && linux` package list.
+// Each test runs as root over a user and network namespace of its own (userns.Enter),
+// so it needs no host privilege and a refused XFRM call is a failure.
 
-//go:build integration && linux
+//go:build linux
 
 package dataplane
 
 import (
-	"errors"
 	"net"
 	"testing"
 
 	"github.com/vishvananda/netlink"
-	"golang.org/x/sys/unix"
-)
 
-func skipUnprivileged(t *testing.T, err error) {
-	t.Helper()
-	if errors.Is(err, unix.EPERM) || errors.Is(err, unix.EACCES) {
-		t.Skipf("XFRM programming needs CAP_NET_ADMIN: %v", err)
-	}
-}
+	"github.com/ze-software/ze/internal/test/userns"
+)
 
 func mustCIDR(t *testing.T, s string) *net.IPNet {
 	t.Helper()
@@ -41,6 +34,9 @@ func mustCIDR(t *testing.T, s string) *net.IPNet {
 
 // TestXFRMTransportAndTunnelModesDiffer installs one SA in each mode and reads both back.
 func TestXFRMTransportAndTunnelModesDiffer(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	b := &xfrmBackend{}
 	src := net.ParseIP("10.77.0.1")
 	dst := net.ParseIP("10.77.0.2")
@@ -66,7 +62,6 @@ func TestXFRMTransportAndTunnelModesDiffer(t *testing.T) {
 			AuthAlgo: "sha256", AuthKey: key,
 		})
 		if err != nil {
-			skipUnprivileged(t, err)
 			t.Fatalf("%s: InstallSA: %v", tc.name, err)
 		}
 		installed++
@@ -78,7 +73,6 @@ func TestXFRMTransportAndTunnelModesDiffer(t *testing.T) {
 
 	states, err := netlink.XfrmStateList(netlink.FAMILY_ALL)
 	if err != nil {
-		skipUnprivileged(t, err)
 		t.Fatalf("XfrmStateList: %v", err)
 	}
 	seen := 0
@@ -102,6 +96,9 @@ func TestXFRMTransportAndTunnelModesDiffer(t *testing.T) {
 
 // TestXFRMTransportPolicyCarriesNoTunnelEndpoints proves the policy half.
 func TestXFRMTransportPolicyCarriesNoTunnelEndpoints(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	b := &xfrmBackend{}
 	sel := SPParams{
 		Src:   mustCIDR(t, "10.78.1.0/24"),
@@ -112,14 +109,12 @@ func TestXFRMTransportPolicyCarriesNoTunnelEndpoints(t *testing.T) {
 		ReqID: 0x7e58,
 	}
 	if err := b.InstallPolicy(sel); err != nil {
-		skipUnprivileged(t, err)
 		t.Fatalf("InstallPolicy(transport): %v", err)
 	}
 	t.Cleanup(func() { _ = b.RemovePolicy(sel.Src, sel.Dst, sel.Dir) })
 
 	policies, err := netlink.XfrmPolicyList(netlink.FAMILY_ALL)
 	if err != nil {
-		skipUnprivileged(t, err)
 		t.Fatalf("XfrmPolicyList: %v", err)
 	}
 	found := false
@@ -155,6 +150,9 @@ func TestXFRMTransportPolicyCarriesNoTunnelEndpoints(t *testing.T) {
 // exactly, which is what lets ipsec.ValidateTrafficSelectors accept one port and refuse
 // every other range (ai/rules/protocol.md).
 func TestXFRMSinglePortSelectorReachesTheKernel(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	b := &xfrmBackend{}
 	sel := SPParams{
 		Src:        mustCIDR(t, "10.79.1.0/24"),
@@ -169,14 +167,12 @@ func TestXFRMSinglePortSelectorReachesTheKernel(t *testing.T) {
 		TunnelDst:  net.ParseIP("10.79.0.2"),
 	}
 	if err := b.InstallPolicy(sel); err != nil {
-		skipUnprivileged(t, err)
 		t.Fatalf("InstallPolicy(port): %v", err)
 	}
 	t.Cleanup(func() { _ = b.RemovePolicy(sel.Src, sel.Dst, sel.Dir) })
 
 	policies, err := netlink.XfrmPolicyList(netlink.FAMILY_ALL)
 	if err != nil {
-		skipUnprivileged(t, err)
 		t.Fatalf("XfrmPolicyList: %v", err)
 	}
 	found := false
@@ -202,6 +198,9 @@ func TestXFRMSinglePortSelectorReachesTheKernel(t *testing.T) {
 // the backend REFUSES a port match it cannot express, rather than installing an any-port
 // policy that would protect more traffic than was negotiated.
 func TestXFRMOpaquePortIsRefused(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	b := &xfrmBackend{}
 	err := b.InstallPolicy(SPParams{
 		Src:   mustCIDR(t, "10.80.1.0/24"),

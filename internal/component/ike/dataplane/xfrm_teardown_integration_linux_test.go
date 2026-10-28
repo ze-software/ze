@@ -10,12 +10,11 @@
 // of the process. The receiver then makes the kernel clone every bare ESP packet on the
 // box, which taxes the fast path this design exists to preserve.
 //
-// Auto-enrolled in the native QEMU integration run through the derived
-// `integration && linux` package list. It needs CAP_NET_ADMIN for the state and
-// policy, and CAP_NET_RAW for the ESP form sockets, so it skips rather
-// than fails where it has neither.
+// It needs CAP_NET_ADMIN for the state and policy, and CAP_NET_RAW for the ESP
+// form sockets. userns.Enter runs it as root over a user and network namespace of
+// its own, which holds both, so it needs no host privilege and a refusal fails it.
 
-//go:build integration && linux
+//go:build linux
 
 package dataplane
 
@@ -28,6 +27,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 const (
@@ -66,7 +66,6 @@ func teardownPolicyInstalled(t *testing.T, b *xfrmBackend, want SPParams) bool {
 	t.Helper()
 	policies, err := b.ListPolicies()
 	if err != nil {
-		skipUnprivileged(t, err)
 		t.Fatalf("ListPolicies: %v", err)
 	}
 	for _, p := range policies {
@@ -78,6 +77,9 @@ func teardownPolicyInstalled(t *testing.T, b *xfrmBackend, want SPParams) bool {
 }
 
 func TestXFRMDoubleTeardownLeavesNothing(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	local := net.ParseIP("203.0.113.10")
 	remote := net.ParseIP("198.51.100.10")
 
@@ -95,7 +97,6 @@ func TestXFRMDoubleTeardownLeavesNothing(t *testing.T) {
 		AcceptBothESPForms: true,
 	})
 	if err != nil {
-		skipUnprivileged(t, err)
 		t.Fatalf("InstallSA: %v", err)
 	}
 	t.Cleanup(func() { _ = b.RemoveSA(teardownSPI, local, ProtoESP) })
@@ -106,7 +107,6 @@ func TestXFRMDoubleTeardownLeavesNothing(t *testing.T) {
 
 	policy := teardownPolicy(t)
 	if err := b.InstallPolicy(policy); err != nil {
-		skipUnprivileged(t, err)
 		t.Fatalf("InstallPolicy: %v", err)
 	}
 	t.Cleanup(func() { _ = b.RemovePolicyParams(policy) })
