@@ -2,7 +2,7 @@
 // Related: rfc9915_dhcp_v6_link_move_integration_linux_test.go -- the leased lab (v6lmLease) these tests reuse
 // Related: dhcp_v6_selector_renew_integration_linux_test.go -- the veth lab and the address lookup
 
-//go:build integration && linux
+//go:build linux
 
 package iface_test
 

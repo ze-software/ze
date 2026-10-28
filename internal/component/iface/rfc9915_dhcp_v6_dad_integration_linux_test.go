@@ -2,7 +2,7 @@
 // Related: dhcp_v6_selector_renew_integration_linux_test.go -- the veth lab and the Go DHCPv6 server this test reuses
 // RFC: rfc/short/rfc9915.md
 
-//go:build integration && linux
+//go:build linux
 
 package iface_test
 
@@ -17,6 +17,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // TestRFC9915DuplicateAddressDeclinedOnTheLink leases the client an address
@@ -34,6 +35,9 @@ import (
 func TestRFC9915DuplicateAddressDeclinedOnTheLink(t *testing.T) {
 	// RFC requirement: RFC9915-18.2.10.1-1 positive -- a leased address another node on the link holds fails the kernel's DAD, and the client declines it to the server and removes it from the device.
 	// RFC requirement: RFC9915-18.2.8-6 positive -- the Decline leaves from the device's link-local address, never from the declined address, which is no longer on the device.
+	if !userns.Enter(t) {
+		return
+	}
 	device, peer, peerNS, server := v6sbSetupLabNS(t)
 	v6dadHoldOnPeer(t, peerNS, peer)
 	iface.SetResolverMappingForTest(map[string]string{v6sbLogical: device})

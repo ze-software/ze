@@ -3,7 +3,7 @@
 // Related: export_test.go -- BindResolverEventsForTest, the binding a config apply makes
 // RFC: rfc/short/rfc9915.md
 
-//go:build integration && linux
+//go:build linux
 
 package iface_test
 
@@ -19,6 +19,7 @@ import (
 	"github.com/vishvananda/netns"
 
 	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 const (
@@ -47,6 +48,9 @@ var v6lmPrefix = &net.IPNet{IP: net.ParseIP("2001:db8:60::"), Mask: net.CIDRMask
 // fires on a real carrier loss.
 func TestRFC9915LinkMoveRebindsThroughTheMonitor(t *testing.T) {
 	// RFC requirement: RFC9915-18.2.12-2 positive -- with a delegated prefix held, a carrier loss then return on the bound device, reported by the kernel through the netlink monitor, starts a Rebind carrying the IA_NA and IA_PD leases.
+	if !userns.Enter(t) {
+		return
+	}
 	lab := v6lmLease(t)
 
 	h, err := netlink.NewHandleAt(lab.peerNS)
@@ -94,6 +98,9 @@ func TestRFC9915LinkMoveRebindsThroughTheMonitor(t *testing.T) {
 // each link attribute change.
 func TestRFC9915LinkChangeWithoutDownSendsNothing(t *testing.T) {
 	// RFC requirement: RFC9915-18.2.12-2 negative -- an up the netlink monitor reports for a link change with no disconnection before it starts no Rebind, although a delegated prefix is held.
+	if !userns.Enter(t) {
+		return
+	}
 	lab := v6lmLease(t)
 
 	link, err := netlink.LinkByName(lab.device)

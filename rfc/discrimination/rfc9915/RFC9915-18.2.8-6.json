@@ -3,12 +3,12 @@
     "rid": "RFC9915-18.2.8-6",
     "polarity": "positive",
     "unit": "internal/component/iface/rfc9915_dhcp_v6_dad_integration_linux_test.go::TestRFC9915DuplicateAddressDeclinedOnTheLink",
-    "unit-sha": "7ea9a98a883d1dd6",
+    "unit-sha": "ddc365c7fb0ebe31",
     "claim-sha": "6ac312a4ca87142b",
     "route": "revert",
     "producer": "internal/plugins/iface/dhcp/dhcp_v6_attach_linux.go::decline",
     "producer-sha": "cf09e79521bcd8cb",
-    "break": "body of decline replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of decline replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC9915-18.2.8-6",
