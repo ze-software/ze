@@ -70,7 +70,7 @@ func TestAccountingRequestOmitsAcctDelayTimeOnRequest(t *testing.T) {
 				},
 				OmitAcctDelayTime: test.omit,
 			}
-			if _, err = client.Exchange(context.Background(), pkt, sharedKey, addr); err != nil {
+			if _, err = client.Exchange(context.Background(), pkt, Server{Address: addr, SharedKey: sharedKey}); err != nil {
 				t.Fatal(err)
 			}
 
@@ -190,7 +190,7 @@ func TestRFC2866AccountingRetransmitWithoutDelayTimeKeepsIdentifier(t *testing.T
 		},
 		OmitAcctDelayTime: true,
 	}
-	if _, err = client.Exchange(context.Background(), pkt, secret, conn.LocalAddr().String()); err != nil {
+	if _, err = client.Exchange(context.Background(), pkt, Server{Address: conn.LocalAddr().String(), SharedKey: secret}); err != nil {
 		t.Fatal(err)
 	}
 

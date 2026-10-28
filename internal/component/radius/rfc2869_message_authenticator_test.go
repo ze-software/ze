@@ -144,7 +144,7 @@ func rfc2869Exchange(t *testing.T, serverAddr string, secret []byte) (*Packet, e
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	return client.Exchange(ctx, req, secret, serverAddr)
+	return client.Exchange(ctx, req, Server{Address: serverAddr, SharedKey: secret})
 }
 
 // TestRFC2869AccessAcceptWithValidMessageAuthenticatorIsAccepted drives the

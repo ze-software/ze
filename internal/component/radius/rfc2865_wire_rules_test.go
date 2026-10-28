@@ -98,7 +98,7 @@ func wireRulesExchange(t *testing.T, addr string, secret []byte) (*Packet, error
 	defer closeSilent(client)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	return client.Exchange(ctx, accessRequest(t, client.NextID()), secret, addr)
+	return client.Exchange(ctx, accessRequest(t, client.NextID()), Server{Address: addr, SharedKey: secret})
 }
 
 // VALIDATES: a retransmission to the same server repeats the Identifier, the
@@ -125,7 +125,7 @@ func TestRFC2865RetransmitRepeatsIdentifierAuthenticatorAndSourcePort(t *testing
 	require.NoError(t, err)
 	defer closeSilent(client)
 
-	resp, err := client.Exchange(context.Background(), accessRequest(t, client.NextID()), key, srv.addr)
+	resp, err := client.Exchange(context.Background(), accessRequest(t, client.NextID()), Server{Address: srv.addr, SharedKey: key})
 	require.NoError(t, err)
 	require.Equal(t, uint8(CodeAccessAccept), resp.Code)
 

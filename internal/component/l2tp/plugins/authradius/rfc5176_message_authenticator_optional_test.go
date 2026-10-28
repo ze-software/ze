@@ -1,11 +1,11 @@
 // Design: docs/research/l2tpv2-ze-integration.md -- CoA/DM listener
 // RFC: rfc/short/rfc5176.md -- Section 3.4, the Message-Authenticator MAY
 // Related: coa.go -- coaListener.handlePacket, the only gate on an inbound request
-// Related: yang/ze-l2tp-auth-radius-conf.yang -- leaf require-message-authenticator
+// Related: yang/ze-l2tp-auth-radius-conf.yang -- leaf coa-require-message-authenticator
 //
 // VALIDATES: that the Message-Authenticator attribute is optional on the wire,
 // which is what RFC 5176 Section 3.4 says, and that an operator who wants it
-// mandatory gets that from `require-message-authenticator` rather than from the
+// mandatory gets that from `coa-require-message-authenticator` rather than from the
 // default. Both cases are driven over UDP through the listener.
 // PREVENTS: the interop failure found on 2026-08-31. handlePacket discarded
 // every CoA-Request and Disconnect-Request carrying no Message-Authenticator,
@@ -23,7 +23,7 @@ import (
 	"github.com/ze-software/ze/internal/component/radius"
 )
 
-// RFC requirement: RFC5176-3.4-4 positive -- with require-message-authenticator
+// RFC requirement: RFC5176-3.4-4 positive -- with coa-require-message-authenticator
 // false, the YANG default, a Disconnect-Request carrying no Message-Authenticator
 // is acted on: the session it names is torn down and a Disconnect-ACK is sent
 // (coa.go coaListener.handlePacket).
@@ -68,7 +68,7 @@ func TestRFC5176MessageAuthenticatorAbsentIsAcceptedByDefault(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC5176-3.4-3 negative -- with require-message-authenticator
+// RFC requirement: RFC5176-3.4-3 negative -- with coa-require-message-authenticator
 // false, a Disconnect-Request whose Message-Authenticator is present and wrong is
 // still silently discarded. The leaf gates the PRESENCE check alone; the
 // verification RFC 5176 Section 3.4 makes mandatory is never configurable

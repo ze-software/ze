@@ -103,11 +103,11 @@ func TestEAPMessageKeepsTheRunConsecutive(t *testing.T) {
 	values := eapMessageValues(t, attrs)
 	require.Len(t, values, 3, "600 octets is three EAP-Message attributes")
 
-	// The two attributes the credential owes sit AFTER the run, never inside it.
-	require.Len(t, attrs, 5)
-	assert.Equal(t, uint8(AttrMessageAuthenticator), attrs[3].Type)
-	assert.Equal(t, uint8(AttrState), attrs[4].Type)
-	assert.Equal(t, []byte("opaque-state"), attrs[4].Value)
+	// The State the credential owes sits AFTER the run, never inside it. The
+	// Message-Authenticator is encodeRequest's, placed first in the packet.
+	require.Len(t, attrs, 4)
+	assert.Equal(t, uint8(AttrState), attrs[3].Type)
+	assert.Equal(t, []byte("opaque-state"), attrs[3].Value)
 }
 
 // TestEAPMessageRefusesAnEmptyPacket holds the zero-octet boundary.

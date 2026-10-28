@@ -433,3 +433,65 @@ func TestServerEntriesRefuseTwoServersWithNoOrder(t *testing.T) {
 		t.Errorf("error %q does not say the order was missing", err.Error())
 	}
 }
+
+// TestL2TPRadiusConfigRequireMessageAuthenticator proves AC-16 for the l2tp
+// tree and the wiring row from the per-server leaf to radius.Server.
+//
+// VALIDATES: an absent per-server leaf reads true, false reads false, the
+// accounting servers never carry it, and the row's path is carried.
+// PREVENTS: the BlastRADIUS protection off by default on subscriber logins.
+func TestL2TPRadiusConfigRequireMessageAuthenticator(t *testing.T) {
+	tree := map[string]any{"l2tp": map[string]any{"auth": map[string]any{"radius": map[string]any{
+		"server": []any{
+			map[string]any{"name": "secure", "address": "10.0.0.1", "shared-key": "k"},
+			map[string]any{"name": "legacy", "address": "10.0.0.2", "shared-key": "k", "require-message-authenticator": false},
+		},
+	}}}}
+	cfg, err := parseConfigFromTree(tree)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cfg.Servers) != 2 {
+		t.Fatalf("servers: got %d, want 2", len(cfg.Servers))
+	}
+	if cfg.Servers[0].AllowUnsignedResponse {
+		t.Error("absent leaf: got false, want true")
+	}
+	if !cfg.Servers[1].AllowUnsignedResponse {
+		t.Error("leaf false: got true")
+	}
+	if cfg.Servers[0].ConfigPath != "l2tp auth radius server secure" {
+		t.Errorf("config path: got %q", cfg.Servers[0].ConfigPath)
+	}
+	if cfg.CoARequireMessageAuthenticator {
+		t.Error("the CoA leaf is independent and defaults false")
+	}
+}
+
+// TestCoARequireMessageAuthenticatorLeafRenamed proves the Go half of AC-17.
+//
+// VALIDATES: coa-require-message-authenticator sets the CoA flag, and the old
+// container-level name no longer does.
+// PREVENTS: the CoA leaf being read as the response protection, or the reverse.
+func TestCoARequireMessageAuthenticatorLeafRenamed(t *testing.T) {
+	block := func(key string) map[string]any {
+		return map[string]any{"l2tp": map[string]any{"auth": map[string]any{"radius": map[string]any{
+			key:      true,
+			"server": []any{map[string]any{"name": "s", "address": "10.0.0.1", "shared-key": "k"}},
+		}}}}
+	}
+	cfg, err := parseConfigFromTree(block("coa-require-message-authenticator"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !cfg.CoARequireMessageAuthenticator {
+		t.Error("coa-require-message-authenticator true: got false")
+	}
+	cfg, err = parseConfigFromTree(block("require-message-authenticator"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.CoARequireMessageAuthenticator {
+		t.Error("the old container-level name still sets the CoA flag")
+	}
+}

@@ -1105,6 +1105,18 @@ var builtinCodes = []CodeMeta{
 		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-radius-admin-unreachable"},
 	},
 	{
+		Code:        "doctor-radius-admin-unsigned-response",
+		Title:       "RADIUS admin server answers without Message-Authenticator",
+		Description: "A system/authentication/radius server answered the probe Access-Request only without a Message-Authenticator. Ze discards such answers while the server's require-message-authenticator is true (BlastRADIUS, CVE-2024-3596), so operator logins via that server fail. Configure the server to sign its answers, or set require-message-authenticator false on that server row.",
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-radius-admin-unsigned-response"},
+	},
+	{
+		Code:        "doctor-radius-unsigned-response",
+		Title:       "RADIUS server answers without Message-Authenticator",
+		Description: "An L2TP RADIUS server answered the probe Access-Request only without a Message-Authenticator. Ze discards such answers while the server's require-message-authenticator is true (BlastRADIUS, CVE-2024-3596), so subscriber logins via that server fail. Configure the server to sign its answers, or set require-message-authenticator false on that server row.",
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-radius-unsigned-response"},
+	},
+	{
 		Code:        "doctor-aaa-no-local-fallback",
 		Title:       "No local account to fall back to",
 		Description: "A remote AAA backend (RADIUS or TACACS+) is configured and no system/authentication/user is. The chain asks the remote backend first and reaches the local one only when the remote fails to ANSWER, so that fallback is an account: with none declared, an unreachable server or a backend whose config will not build leaves the box with no login at all.",

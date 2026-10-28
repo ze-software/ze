@@ -683,8 +683,8 @@ func TestRadiusAdminEapPapPathUnchanged(t *testing.T) {
 	req := accept.captured(t)
 	assert.NotNil(t, req.FindAttr(AttrUserPassword), "PAP still carries User-Password")
 	assert.Nil(t, req.FindAttr(AttrEAPMessage), "PAP carries no EAP-Message")
-	assert.Nil(t, req.FindAttr(AttrMessageAuthenticator),
-		"RFC 3579 Section 3.2 leaves the attribute optional on a User-Password request")
+	assert.NotNil(t, req.FindAttr(AttrMessageAuthenticator),
+		"draft-ietf-radext-deprecating-radius Section 4.2: every Access-Request carries one, PAP included")
 
 	challenge := newReplyServer(t, key, CodeAccessChallenge, nil)
 	defer challenge.close()
@@ -737,18 +737,18 @@ func TestAccountingRequestRefusesEAPAttributes(t *testing.T) {
 	assert.Positive(t, n)
 }
 
-// TestEAPRequestWithoutMessageAuthenticatorIsRefused proves the socket-side
+// TestEAPRequestWithoutMessageAuthenticatorIsSigned proves the socket-side
 // half of the signing obligation.
 //
-// VALIDATES: an Access-Request carrying an EAP-Message and no
-// Message-Authenticator placeholder is refused rather than sent unprotected.
-// PREVENTS: a builder that forgets the placeholder. The signer would then find
-// nothing to sign and report it, and without this check the caller would send
-// the packet anyway.
+// VALIDATES: an Access-Request carrying an EAP-Message, built with no
+// Message-Authenticator, leaves encodeRequest with one first and signed, and a
+// caller-supplied one is refused rather than sent as a second.
+// PREVENTS: an EAP request reaching the wire unprotected because its builder
+// added nothing to sign.
 //
 // RFC requirement: RFC3579-3.1-3 negative -- an EAP-bearing Access-Request with
 // no Message-Authenticator never reaches the wire (client.go encodeRequest).
-func TestEAPRequestWithoutMessageAuthenticatorIsRefused(t *testing.T) {
+func TestEAPRequestWithoutMessageAuthenticatorIsSigned(t *testing.T) {
 	buf := make([]byte, MaxPacketLen)
 	pkt := &Packet{
 		Code:       CodeAccessRequest,
@@ -758,16 +758,17 @@ func TestEAPRequestWithoutMessageAuthenticatorIsRefused(t *testing.T) {
 			{Type: AttrEAPMessage, Value: []byte{0x02, 0x00, 0x00, 0x0a, 0x01, 'a', 'l', 'i', 'c', 'e'}},
 		},
 	}
-	_, _, err := encodeRequest(pkt, []byte("testing123"), buf)
-	require.Error(t, err)
-
-	// The control: the same packet with the placeholder encodes and is signed.
-	pkt.Attrs = append(pkt.Attrs, Attr{Type: AttrMessageAuthenticator, Value: make([]byte, AuthenticatorLen)})
 	n, _, err := encodeRequest(pkt, []byte("testing123"), buf)
 	require.NoError(t, err)
 	off := messageAuthenticatorOffsetIn(t, buf[:n])
+	assert.Equal(t, HeaderLen+2, off, "the Message-Authenticator is the first attribute")
 	assert.NotEqual(t, make([]byte, AuthenticatorLen), buf[off:off+AuthenticatorLen],
 		"the placeholder MUST be replaced by the computed HMAC")
+
+	// A caller-supplied Message-Authenticator would be a second one: refused.
+	pkt.Attrs = append(pkt.Attrs, Attr{Type: AttrMessageAuthenticator, Value: make([]byte, AuthenticatorLen)})
+	_, _, err = encodeRequest(pkt, []byte("testing123"), buf)
+	require.Error(t, err)
 }
 
 // eapIdentifierEcho is a sanity check on the Identifier discipline the loop
@@ -962,7 +963,6 @@ func TestRadiusAdminEapVerifiedChallengeIsAccepted(t *testing.T) {
 func TestAccessRequestRefusesTwoCredentialTypes(t *testing.T) {
 	secret := []byte("testing123")
 	buf := make([]byte, MaxPacketLen)
-	signature := Attr{Type: AttrMessageAuthenticator, Value: make([]byte, AuthenticatorLen)}
 	credentials := fourCredentialTypes()
 
 	pairs := 0
@@ -973,7 +973,7 @@ func TestAccessRequestRefusesTwoCredentialTypes(t *testing.T) {
 			pkt := &Packet{
 				Code:       CodeAccessRequest,
 				Identifier: 11,
-				Attrs:      []Attr{first.attr, second.attr, signature},
+				Attrs:      []Attr{first.attr, second.attr},
 			}
 			n, _, err := encodeRequest(pkt, secret, buf)
 			require.Errorf(t, err, "%s MUST NOT ride beside %s", second.name, first.name)
@@ -989,7 +989,7 @@ func TestAccessRequestRefusesTwoCredentialTypes(t *testing.T) {
 	// the pair's and not the packet's. Each other type alone is
 	// TestRFC3579EachCredentialTypeAloneEncodes.
 	eapMessage := credentials[3].attr
-	ok := &Packet{Code: CodeAccessRequest, Identifier: 11, Attrs: []Attr{eapMessage, signature}}
+	ok := &Packet{Code: CodeAccessRequest, Identifier: 11, Attrs: []Attr{eapMessage}}
 	n, _, err := encodeRequest(ok, secret, buf)
 	require.NoError(t, err)
 	assert.Positive(t, n)
@@ -1028,10 +1028,9 @@ func fourCredentialTypes() []credentialType {
 func TestRFC3579EachCredentialTypeAloneEncodes(t *testing.T) {
 	secret := []byte("testing123")
 	buf := make([]byte, MaxPacketLen)
-	signature := Attr{Type: AttrMessageAuthenticator, Value: make([]byte, AuthenticatorLen)}
 
 	for _, credential := range fourCredentialTypes() {
-		pkt := &Packet{Code: CodeAccessRequest, Identifier: 11, Attrs: []Attr{credential.attr, signature}}
+		pkt := &Packet{Code: CodeAccessRequest, Identifier: 11, Attrs: []Attr{credential.attr}}
 		n, _, err := encodeRequest(pkt, secret, buf)
 		require.NoErrorf(t, err, "%s alone", credential.name)
 		assert.Positivef(t, n, "%s alone encoded no octets", credential.name)

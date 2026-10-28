@@ -37,7 +37,10 @@ func unsignedReply(code uint8, req, secret []byte, carryEAP bool) []byte {
 }
 
 // unsignedExchange sends one Access-Request through a fresh client and returns
-// the outcome.
+// the outcome. The server row accepts unsigned answers (AllowUnsignedResponse),
+// the legacy configuration: RFC 3579 Section 3.1 must still discard an
+// EAP-bearing answer there, and the BlastRADIUS presence check that a default
+// row runs first would otherwise discard the control reply too.
 func unsignedExchange(t *testing.T, serverAddr string, secret []byte) (*Packet, error) {
 	t.Helper()
 	client, err := NewClient(ClientConfig{Timeout: 300 * time.Millisecond, Retries: 1})
@@ -58,7 +61,7 @@ func unsignedExchange(t *testing.T, serverAddr string, secret []byte) (*Packet, 
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	return client.Exchange(ctx, req, secret, serverAddr)
+	return client.Exchange(ctx, req, Server{Address: serverAddr, SharedKey: secret, AllowUnsignedResponse: true})
 }
 
 // TestRadiusDiscardsEAPAnswerWithoutMessageAuthenticator drives Client.Exchange

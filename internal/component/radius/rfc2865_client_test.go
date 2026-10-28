@@ -39,9 +39,14 @@ func newMockServer(t *testing.T, sharedKey []byte, code uint8) *mockRADIUSServer
 	return m
 }
 
+// buildResponse answers req signed, as a server updated for BlastRADIUS does:
+// Ze's zero-value Server requires the Message-Authenticator.
 func buildResponse(code uint8, req, sharedKey []byte) []byte {
 	if len(req) < MinPacketLen {
 		return nil
+	}
+	if code != CodeAccountingResp {
+		return buildReplyResponse(code, req, sharedKey, nil)
 	}
 	resp := make([]byte, HeaderLen)
 	resp[0] = code
@@ -105,7 +110,7 @@ func TestClientExchangeAccept(t *testing.T) {
 
 	// A response arriving from the server address
 	// the request was sent to is accepted (the waiter is keyed by that resolved address).
-	resp, err := client.Exchange(context.Background(), pkt, sharedKey, srv.addr)
+	resp, err := client.Exchange(context.Background(), pkt, Server{Address: srv.addr, SharedKey: sharedKey})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -135,7 +140,7 @@ func TestClientExchangeReject(t *testing.T) {
 		Authenticator: auth,
 	}
 
-	resp, err := client.Exchange(context.Background(), pkt, sharedKey, srv.addr)
+	resp, err := client.Exchange(context.Background(), pkt, Server{Address: srv.addr, SharedKey: sharedKey})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -195,7 +200,7 @@ func TestClientRetransmit(t *testing.T) {
 	// RFC requirement: RFC2865-2.5-1 positive -- Exchange resends the identical pre-encoded
 	// request buffer on retransmit, so the Identifier and Request Authenticator are unchanged
 	// across attempts and the server can still match the reply.
-	resp, err := client.Exchange(context.Background(), pkt, sharedKey, addr)
+	resp, err := client.Exchange(context.Background(), pkt, Server{Address: addr, SharedKey: sharedKey})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -305,7 +310,7 @@ func TestClientConcurrentExchangeDemuxesByAuthenticator(t *testing.T) {
 		go func(pkt *Packet) {
 			defer wg.Done()
 			<-start
-			resp, exchErr := client.Exchange(context.Background(), pkt, sharedKey, addr)
+			resp, exchErr := client.Exchange(context.Background(), pkt, Server{Address: addr, SharedKey: sharedKey})
 			if exchErr != nil {
 				results <- exchErr
 				return
@@ -377,7 +382,7 @@ func TestClientAuthenticatorVerify(t *testing.T) {
 		Authenticator: auth,
 	}
 
-	resp, err := client.Exchange(context.Background(), pkt, sharedKey, addr)
+	resp, err := client.Exchange(context.Background(), pkt, Server{Address: addr, SharedKey: sharedKey})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -441,7 +446,7 @@ func TestClientSourceAddress(t *testing.T) {
 		Authenticator: auth,
 	}
 
-	_, err = client.Exchange(context.Background(), pkt, sharedKey, addr)
+	_, err = client.Exchange(context.Background(), pkt, Server{Address: addr, SharedKey: sharedKey})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -492,7 +497,7 @@ func TestClientTimeout(t *testing.T) {
 		Authenticator: auth,
 	}
 
-	_, err = client.Exchange(context.Background(), pkt, []byte("key"), dead.LocalAddr().String())
+	_, err = client.Exchange(context.Background(), pkt, Server{Address: dead.LocalAddr().String(), SharedKey: []byte("key")})
 	if err == nil {
 		t.Fatal("expected timeout error")
 	}
@@ -566,7 +571,7 @@ func TestAccessRequestRetransmitIsByteIdentical(t *testing.T) {
 			{Type: AttrUserPassword, Value: []byte("secret")},
 		},
 	}
-	if _, err = client.Exchange(context.Background(), pkt, sharedKey, addr); err != nil {
+	if _, err = client.Exchange(context.Background(), pkt, Server{Address: addr, SharedKey: sharedKey}); err != nil {
 		t.Fatal(err)
 	}
 

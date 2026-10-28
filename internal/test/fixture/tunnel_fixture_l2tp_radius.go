@@ -83,10 +83,24 @@ func tunnelRadiusDriver(defaultPort int, accessCode byte, accessAttrs []byte) Dr
 			default:
 				continue
 			}
+			if code == 1 {
+				// An updated server signs every answer to an Access-Request, and
+				// Ze discards an unsigned one by default (BlastRADIUS): a
+				// Message-Authenticator first, the RFC 2869 Section 5.14 HMAC
+				// over the packet carrying the Request Authenticator.
+				attrs = append(append([]byte{80, 18}, make([]byte, 16)...), attrs...)
+			}
 			response := make([]byte, 20+len(attrs))
 			response[0], response[1] = responseCode, buffer[1]
 			binary.BigEndian.PutUint16(response[2:4], uint16(len(response)))
 			copy(response[20:], attrs)
+			if code == 1 {
+				copy(response[4:20], buffer[4:20])
+				mac := hmac.New(md5.New, secret)
+				mac.Write(response)
+				copy(response[22:38], mac.Sum(nil))
+				attrs = response[20:]
+			}
 			hash := md5.New() //nolint:gosec // RADIUS response authenticator is MD5
 			hash.Write(response[:4])
 			hash.Write(buffer[4:20])

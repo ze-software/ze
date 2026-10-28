@@ -45,12 +45,12 @@ func TestHandleRequestAcceptReject(t *testing.T) {
 		return buf[:n]
 	}
 
-	accept, err := radius.Decode(handleRequest(encode("pw"), secret, users, newEAPServer(), false))
+	accept, err := radius.Decode(handleRequest(encode("pw"), secret, users, newEAPServer(), false, messageAuthenticatorPolicy{}))
 	require.NoError(t, err)
 	assert.Equal(t, uint8(radius.CodeAccessAccept), accept.Code)
 	assert.Equal(t, "netops", string(accept.FindAttr(radius.AttrFilterID)))
 
-	reject, err := radius.Decode(handleRequest(encode("wrong"), secret, users, newEAPServer(), false))
+	reject, err := radius.Decode(handleRequest(encode("wrong"), secret, users, newEAPServer(), false, messageAuthenticatorPolicy{}))
 	require.NoError(t, err)
 	assert.Equal(t, uint8(radius.CodeAccessReject), reject.Code)
 }

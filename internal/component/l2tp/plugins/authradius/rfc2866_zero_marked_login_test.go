@@ -99,7 +99,8 @@ func (s *loginRADIUS) serve(conn *net.UDPConn, sharedKey []byte, acceptAttrs []r
 		resp = resp[:nResp]
 		var reqAuth [radius.AuthenticatorLen]byte
 		copy(reqAuth[:], buf[4:4+radius.AuthenticatorLen])
-		auth := radius.ResponseAuthenticator(reply.Code, pkt.Identifier, uint16(nResp), reqAuth, resp[radius.HeaderLen:], sharedKey)
+		resp = signAccessAnswer(resp, reqAuth, sharedKey)
+		auth := radius.ResponseAuthenticator(reply.Code, pkt.Identifier, uint16(len(resp)), reqAuth, resp[radius.HeaderLen:], sharedKey)
 		copy(resp[4:4+radius.AuthenticatorLen], auth[:])
 		conn.WriteToUDP(resp, from) //nolint:errcheck // test mock
 	}

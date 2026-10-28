@@ -1,4 +1,5 @@
 // Design: docs/guide/radius.md -- the unsigned EAP answer discard and its counter
+// Design: docs/guide/radius.md -- the unsigned answer discard (BlastRADIUS) and its counter
 // Related: client.go -- dispatchResponse: the discard site that calls countUnsignedEAPDiscard
 // Related: register.go -- init registers bindRadiusMetrics with the plugin registry
 
@@ -20,7 +21,8 @@ const metricsHookName = "radius-client"
 // instance serves every Client in the process, the admin login backend and the
 // subscriber plugin alike, so a discard by any of them lands on one series.
 type radiusMetrics struct {
-	unsignedEAPDiscardsTotal metrics.Counter
+	unsignedEAPDiscardsTotal      metrics.Counter
+	unsignedResponseDiscardsTotal metrics.CounterVec
 }
 
 // radiusMetricsPtr holds the active metric set. It is nil until a registry
@@ -49,6 +51,9 @@ func bindRadiusMetrics(reg metrics.Registry) {
 	radiusMetricsPtr.Store(&radiusMetrics{
 		unsignedEAPDiscardsTotal: reg.Counter("ze_radius_unsigned_eap_discards_total",
 			"RADIUS answers carrying an EAP-Message and no Message-Authenticator, discarded under RFC 3579 Section 3.1."),
+		unsignedResponseDiscardsTotal: reg.CounterVec("ze_radius_unsigned_response_discards_total",
+			"RADIUS answers to an Access-Request carrying no Message-Authenticator, discarded because the server's require-message-authenticator is true (BlastRADIUS, CVE-2024-3596).",
+			[]string{"server"}),
 	})
 }
 
@@ -63,4 +68,16 @@ func countUnsignedEAPDiscard() {
 		return
 	}
 	m.unsignedEAPDiscardsTotal.Inc()
+}
+
+// countUnsignedResponseDiscard increments the unsigned response discard counter
+// for one server. The series counts every discard, while the warning
+// dispatchResponse logs is rate limited per server, so under a flood this
+// counter is the only exact figure. It is a no-op while no registry is bound.
+func countUnsignedResponseDiscard(server string) {
+	m := radiusMetricsPtr.Load()
+	if m == nil {
+		return
+	}
+	m.unsignedResponseDiscardsTotal.With(server).Inc()
 }

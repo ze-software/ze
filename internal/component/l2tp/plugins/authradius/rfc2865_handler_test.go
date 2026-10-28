@@ -79,7 +79,8 @@ func startMockRADIUSWithAttrs(t *testing.T, sharedKey []byte, code uint8, attrs 
 
 			var reqAuth [radius.AuthenticatorLen]byte
 			copy(reqAuth[:], buf[4:4+radius.AuthenticatorLen])
-			auth := radius.ResponseAuthenticator(code, buf[1], uint16(nResp), reqAuth, resp[radius.HeaderLen:], sharedKey)
+			resp = signAccessAnswer(resp, reqAuth, sharedKey)
+			auth := radius.ResponseAuthenticator(code, buf[1], uint16(len(resp)), reqAuth, resp[radius.HeaderLen:], sharedKey)
 			copy(resp[4:4+radius.AuthenticatorLen], auth[:])
 
 			conn.WriteToUDP(resp, from) //nolint:errcheck // test mock
@@ -457,7 +458,9 @@ func TestRADIUSAuthNASIPAddress(t *testing.T) {
 			binary.BigEndian.PutUint16(resp[2:4], radius.HeaderLen)
 			var reqAuth [radius.AuthenticatorLen]byte
 			copy(reqAuth[:], buf[4:4+radius.AuthenticatorLen])
-			auth := radius.ResponseAuthenticator(radius.CodeAccessAccept, buf[1], radius.HeaderLen, reqAuth, nil, sharedKey)
+			// The server row requires the Message-Authenticator by default.
+			resp = signAccessAnswer(resp, reqAuth, sharedKey)
+			auth := radius.ResponseAuthenticator(radius.CodeAccessAccept, buf[1], uint16(len(resp)), reqAuth, resp[radius.HeaderLen:], sharedKey)
 			copy(resp[4:4+radius.AuthenticatorLen], auth[:])
 			conn.WriteToUDP(resp, from) //nolint:errcheck // test mock
 		}

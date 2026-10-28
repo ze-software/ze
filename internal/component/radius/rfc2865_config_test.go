@@ -231,3 +231,35 @@ func TestExtractConfigAuthMethod(t *testing.T) {
 		assert.Contains(t, err.Error(), word)
 	}
 }
+
+// TestExtractConfigRequireMessageAuthenticatorDefault proves AC-16 for the
+// admin tree.
+//
+// VALIDATES: a server row without require-message-authenticator reads true,
+// "false" reads false, and the row's config path is carried for the fix text.
+// PREVENTS: the BlastRADIUS protection off by default.
+func TestExtractConfigRequireMessageAuthenticatorDefault(t *testing.T) {
+	inner := config.NewTree()
+	secure := config.NewTree()
+	secure.Set("key", "k")
+	inner.AddListEntry("server", "10.0.0.1", secure)
+	legacy := config.NewTree()
+	legacy.Set("key", "k")
+	legacy.Set("require-message-authenticator", "false")
+	inner.AddListEntry("server", "10.0.0.2", legacy)
+
+	cfg, err := ExtractConfig(radiusTree(inner))
+	require.NoError(t, err)
+	require.Len(t, cfg.Servers, 2)
+	assert.False(t, cfg.Servers[0].AllowUnsignedResponse, "absent leaf requires the attribute")
+	assert.True(t, cfg.Servers[1].AllowUnsignedResponse)
+	assert.Equal(t, "system authentication radius server 10.0.0.1", cfg.Servers[0].ConfigPath)
+
+	broken := config.NewTree()
+	broken.Set("key", "k")
+	broken.Set("require-message-authenticator", "maybe")
+	inner = config.NewTree()
+	inner.AddListEntry("server", "10.0.0.3", broken)
+	_, err = ExtractConfig(radiusTree(inner))
+	require.Error(t, err)
+}

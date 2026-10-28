@@ -22,7 +22,9 @@ import (
 // produces since bindRadiusMetrics always fills it. Server A answers the first
 // request with an EAP-bearing answer and no Message-Authenticator, which
 // dispatchResponse counts through that empty counter on the read goroutine, and
-// ignores the rest. Server B answers correctly. One client asks A, then B.
+// ignores the rest. Server B answers correctly, signed with a
+// Message-Authenticator as the default server row requires. One client asks A,
+// then B.
 // PREVENTS: a server-driven panic in the answer reader killing the daemon, or
 // ending the reader and with it every later RADIUS login and accounting answer.
 func TestRADIUSClientReadPanicContained(t *testing.T) {
@@ -43,7 +45,7 @@ func TestRADIUSClientReadPanicContained(t *testing.T) {
 		return unsignedReply(CodeAccessAccept, req, secret, true)
 	})
 	healthy := newRFC2869Server(t, func(req []byte) []byte {
-		return unsignedReply(CodeAccessAccept, req, secret, false)
+		return buildReplyResponse(CodeAccessAccept, req, secret, nil)
 	})
 
 	client, err := NewClient(ClientConfig{Timeout: 300 * time.Millisecond, Retries: 1})
@@ -64,7 +66,7 @@ func TestRADIUSClientReadPanicContained(t *testing.T) {
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		return client.Exchange(ctx, req, secret, server)
+		return client.Exchange(ctx, req, Server{Address: server, SharedKey: secret})
 	}
 
 	if resp, exchangeErr := exchange(defective.addr); exchangeErr == nil {

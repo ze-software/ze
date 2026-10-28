@@ -218,15 +218,14 @@ func checkEAPResponseHeader(request, response *eap.Packet) error {
 }
 
 // eapCredential builds the credential attributes of one EAP Access-Request:
-// the EAP packet in consecutive EAP-Message attributes, a Message-Authenticator
-// placeholder, and the server's State when it sent one.
+// the EAP packet in consecutive EAP-Message attributes, and the server's State
+// when it sent one.
 //
 // RFC 3579 Section 3.1: "the Message-Authenticator attribute MUST be used to
 // protect all Access-Request, Access-Challenge, Access-Accept, and
-// Access-Reject packets containing an EAP-Message attribute." The sixteen zero
-// octets here are a placeholder: the value cannot be computed until the packet
-// is encoded, so encodeRequest (client.go) signs it over the finished bytes and
-// refuses to send an EAP-Message packet in which it found nothing to sign.
+// Access-Reject packets containing an EAP-Message attribute." No builder adds
+// it: encodeRequest (client.go) puts it first in every Access-Request and signs
+// it over the finished bytes, and it refuses a caller-supplied one.
 //
 // The State attribute goes LAST, after the EAP-Message run, because RFC 3579
 // Section 3.1 requires the EAP-Message attributes to be consecutive and a State
@@ -236,7 +235,6 @@ func eapCredential(packet, state []byte) ([]Attr, error) {
 	if err != nil {
 		return nil, err
 	}
-	attrs = append(attrs, Attr{Type: AttrMessageAuthenticator, Value: make([]byte, AuthenticatorLen)})
 	if len(state) > 0 {
 		// RFC 2865 Section 5.24: "A packet must have only zero or one State
 		// Attribute." One append, of the value the challenge carried, unread.

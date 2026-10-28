@@ -89,7 +89,7 @@ func TestAcctDelayTimeUpdatesOnRetransmit(t *testing.T) {
 			{Type: AttrAcctSessionID, Value: AttrString("1-2-3")},
 		},
 	}
-	if _, err = client.Exchange(context.Background(), pkt, secret, conn.LocalAddr().String()); err != nil {
+	if _, err = client.Exchange(context.Background(), pkt, Server{Address: conn.LocalAddr().String(), SharedKey: secret}); err != nil {
 		t.Fatal(err)
 	}
 

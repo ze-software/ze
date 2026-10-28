@@ -26,6 +26,35 @@ import (
 type Server struct {
 	Address   string // "host:port"
 	SharedKey []byte // RADIUS shared secret (RFC 2865)
+	// AllowUnsignedResponse accepts an answer to an Access-Request that carries
+	// no Message-Authenticator. It is the inverse of the per-server "require
+	// Message-Authenticator" flag of draft-ietf-radext-deprecating-radius
+	// Section 4.1, so the zero value is the secure one: a Server built without
+	// the field discards unsigned answers. Only the config readers
+	// (ExtractConfig, the l2tp authradius reader) set it, to true, when the
+	// operator set require-message-authenticator false.
+	AllowUnsignedResponse bool
+	// ConfigPath is the config row of this server, such as
+	// "system authentication radius server 192.0.2.1". The unsigned-answer
+	// error builds its fix command from it. Empty for a caller with no config.
+	ConfigPath string
+}
+
+// ErrUnsignedResponse reports that a server answered an Access-Request only
+// with datagrams carrying no Message-Authenticator, each discarded because the
+// server's AllowUnsignedResponse is false. Exchange wraps it once every
+// retry is spent, so a caller can tell this server from an unreachable one.
+var ErrUnsignedResponse = errors.New("the answer carried no Message-Authenticator")
+
+// unsignedLogInterval is the window in which one server's unsigned answers
+// produce at most one warning (draft-ietf-radext-deprecating-radius
+// Section 4.6, "with rate limits").
+const unsignedLogInterval = 60 * time.Second
+
+// unsignedLogState is the rate limiter of one server's unsigned-answer warning.
+type unsignedLogState struct {
+	last       time.Time // when the last warning was written
+	suppressed uint64    // discards since then that wrote no warning
 }
 
 // ClientConfig holds configuration for the RADIUS client.
@@ -47,6 +76,10 @@ type Client struct {
 	closed bool
 	done   chan struct{}
 	wait   map[responseKey][]*responseWaiter
+	// unsignedLog holds one limiter per server that sent an unsigned answer.
+	// It is guarded by mu and bounded by the servers this client addresses,
+	// because dispatchResponse reaches it only for a datagram a waiter matched.
+	unsignedLog map[string]*unsignedLogState
 }
 
 type responseKey struct {
@@ -58,6 +91,15 @@ type responseWaiter struct {
 	auth   [AuthenticatorLen]byte
 	secret []byte
 	ch     chan []byte
+	// requireMessageAuthenticator is true only for an Access-Request to a
+	// server whose flag is set: draft-ietf-radext-deprecating-radius
+	// Section 4.6 says the flag "MUST NOT be consulted for responses to other
+	// types of request packets", so an Accounting-Request waiter never has it.
+	requireMessageAuthenticator bool
+	// unsignedDiscarded records that dispatchResponse discarded an answer to
+	// this waiter for carrying no Message-Authenticator. Exchange reads it to
+	// report ErrUnsignedResponse rather than an unreachable server.
+	unsignedDiscarded atomic.Bool
 }
 
 // NewClient creates a RADIUS client.
@@ -88,6 +130,8 @@ func NewClient(cfg ClientConfig) (*Client, error) {
 		conn:   conn,
 		done:   make(chan struct{}),
 		wait:   make(map[responseKey][]*responseWaiter),
+
+		unsignedLog: make(map[string]*unsignedLogState),
 	}
 	go c.readLoop()
 	return c, nil
@@ -118,8 +162,12 @@ func (c *Client) NextID() uint8 {
 //
 // RFC 2865 Section 5.2: User-Password attributes are XOR-encoded with
 // the server's shared secret before sending. RFC 2866 Section 3:
-// Accounting-Request authenticators are computed (not random).
-func (c *Client) Exchange(ctx context.Context, pkt *Packet, secret []byte, serverAddr string) (*Packet, error) {
+// Accounting-Request authenticators are computed (not random). An
+// Access-Request is signed with a Message-Authenticator under srv's secret
+// (encodeRequest), and an unsigned answer to it is discarded unless srv's
+// AllowUnsignedResponse is set (dispatchResponse).
+func (c *Client) Exchange(ctx context.Context, pkt *Packet, srv Server) (*Packet, error) {
+	secret, serverAddr := srv.SharedKey, srv.Address
 	// RFC 2865 Section 3: "The secret MUST NOT be empty (length 0) since this
 	// would allow packets to be trivially forged." Every RADIUS packet ze sends
 	// leaves through here, so this is the one place that has to hold the rule.
@@ -157,8 +205,11 @@ func (c *Client) Exchange(ctx context.Context, pkt *Packet, secret []byte, serve
 	if err != nil {
 		return nil, fmt.Errorf("radius: resolve %s: %w", serverAddr, err)
 	}
+	// draft-ietf-radext-deprecating-radius-10 Section 4.6: "This flag MUST NOT
+	// be consulted for responses to other types of request packets."
+	requireMessageAuthenticator := pkt.Code == CodeAccessRequest && !srv.AllowUnsignedResponse
 	key := responseKey{server: addr.String(), id: pkt.Identifier}
-	waiter, err := c.registerWaiter(key, requestAuth, secret)
+	waiter, err := c.registerWaiter(key, requestAuth, secret, requireMessageAuthenticator)
 	if err != nil {
 		return nil, err
 	}
@@ -198,7 +249,7 @@ retryLoop:
 				return nil, err
 			}
 			key = responseKey{server: addr.String(), id: pkt.Identifier}
-			waiter, err = c.registerWaiter(key, requestAuth, secret)
+			waiter, err = c.registerWaiter(key, requestAuth, secret, requireMessageAuthenticator)
 			if err != nil {
 				return nil, err
 			}
@@ -242,7 +293,25 @@ retryLoop:
 		}
 	}
 
+	if waiter.unsignedDiscarded.Load() {
+		return nil, unsignedResponseError(srv)
+	}
 	return nil, fmt.Errorf("radius: all %d retries exhausted for %s", c.config.Retries, serverAddr)
+}
+
+// unsignedResponseError names the server whose only answers were unsigned,
+// why they were dropped, and the two fixes: a server that signs, or the leaf
+// that accepts a legacy server.
+func unsignedResponseError(srv Server) error {
+	row := srv.ConfigPath
+	if row == "" {
+		row = "<this server's config row>"
+	}
+	return fmt.Errorf(
+		"radius: server %s: %w, so Ze discarded it (BlastRADIUS, CVE-2024-3596); "+
+			"configure the server to sign its answers, or accept a legacy server with "+
+			"'set %s require-message-authenticator false'",
+		srv.Address, ErrUnsignedResponse, row)
 }
 
 // encodeRequest writes the packet into buf and returns its length and the
@@ -291,12 +360,34 @@ func encodeRequest(pkt *Packet, secret, buf []byte) (int, [AuthenticatorLen]byte
 		if err := oneCredentialType(pkt); err != nil {
 			return 0, [AuthenticatorLen]byte{}, err
 		}
+		// RFC 2869 Section 5.14: "There MUST NOT be more than one
+		// Message-Authenticator attribute in a packet." encodeRequest adds the
+		// one an Access-Request carries, so a caller-supplied one would be a
+		// second.
+		for _, a := range pkt.Attrs {
+			if a.Type == AttrMessageAuthenticator {
+				return 0, [AuthenticatorLen]byte{}, errors.New(
+					"radius: the caller supplied a Message-Authenticator; Ze adds the Access-Request's own, " +
+						"and RFC 2869 Section 5.14 forbids more than one")
+			}
+		}
 	}
 
 	wirePkt := prepareWirePacket(pkt, secret)
 	n, err := wirePkt.EncodeTo(buf, 0)
 	if err != nil {
 		return 0, [AuthenticatorLen]byte{}, fmt.Errorf("radius: encode: %w", err)
+	}
+	if pkt.Code == CodeAccessRequest {
+		// draft-ietf-radext-deprecating-radius-10 Section 4.2: "Clients MUST add
+		// Message-Authenticator to all Access-Request packets." The same section:
+		// "This behavior MUST NOT be configurable." and "The
+		// Message-Authenticator SHOULD be the first attribute in all
+		// Access-Request packets."
+		n, err = insertMessageAuthenticatorFirst(buf, n)
+		if err != nil {
+			return 0, [AuthenticatorLen]byte{}, err
+		}
 	}
 
 	signed, err := SignMessageAuthenticator(buf, n, secret)
@@ -305,9 +396,9 @@ func encodeRequest(pkt *Packet, secret, buf []byte) (int, [AuthenticatorLen]byte
 	}
 	// RFC 3579 Section 3.1: "the Message-Authenticator attribute MUST be used
 	// to protect all Access-Request, Access-Challenge, Access-Accept, and
-	// Access-Reject packets containing an EAP-Message attribute." The builder
-	// appends the placeholder (eapCredential, eap.go); this is the paired check
-	// at the socket, so no path can put an unprotected EAP request on the wire.
+	// Access-Reject packets containing an EAP-Message attribute." Every
+	// Access-Request is signed above, so this is the paired check at the
+	// socket: no other request code can put an unprotected EAP packet on the wire.
 	if !signed && carriesEAPMessage(pkt) {
 		return 0, [AuthenticatorLen]byte{}, errors.New(
 			"radius: an EAP-Message packet needs a Message-Authenticator (RFC 3579 Section 3.1)")
@@ -319,6 +410,42 @@ func encodeRequest(pkt *Packet, secret, buf []byte) (int, [AuthenticatorLen]byte
 	auth := AccountingRequestAuth(buf, n, secret)
 	copy(buf[4:4+AuthenticatorLen], auth[:])
 	return n, auth, nil
+}
+
+// insertMessageAuthenticatorFirst moves the attributes of the encoded packet in
+// buf[:length] up by eighteen octets and writes a Message-Authenticator
+// placeholder (sixteen zero octets) in front of them, then rewrites Length. It
+// returns the new length. SignMessageAuthenticator fills the value afterwards.
+//
+//	 0                   1                   2                   3
+//	 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|  Code (1)     |  Identifier   |            Length             |  0..3
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|              Request Authenticator (16 octets)                |  4..19
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|   Type = 80   |  Length = 18  |  Message-Authenticator ...    |  20..37
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|  Remaining attributes ...                                     |  38..Length-1
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//
+// The move is in place inside the caller's pooled buffer, so no attribute is
+// copied out of it.
+func insertMessageAuthenticatorFirst(buf []byte, length int) (int, error) {
+	const attrLen = 2 + AuthenticatorLen
+	total := length + attrLen
+	if total > MaxPacketLen {
+		return 0, errors.New("radius: packet exceeds 4096 bytes once the Message-Authenticator is added")
+	}
+	if total > len(buf) {
+		return 0, fmt.Errorf("radius: a %d-octet buffer cannot hold a %d-octet packet", len(buf), total)
+	}
+	copy(buf[HeaderLen+attrLen:total], buf[HeaderLen:length])
+	buf[HeaderLen] = AttrMessageAuthenticator
+	buf[HeaderLen+1] = attrLen
+	clear(buf[HeaderLen+2 : HeaderLen+attrLen])
+	binary.BigEndian.PutUint16(buf[2:4], uint16(total))
+	return total, nil
 }
 
 // carriesEAPMessage reports whether the packet encapsulates an EAP packet.
@@ -445,8 +572,14 @@ func (c *Client) readAnswers(buf []byte) (again bool) {
 	}
 }
 
-func (c *Client) registerWaiter(key responseKey, auth [AuthenticatorLen]byte, secret []byte) (*responseWaiter, error) {
-	w := &responseWaiter{auth: auth, secret: secret, ch: make(chan []byte, 4)}
+func (c *Client) registerWaiter(key responseKey, auth [AuthenticatorLen]byte, secret []byte, requireMessageAuthenticator bool) (*responseWaiter, error) {
+	w := &responseWaiter{
+		auth:   auth,
+		secret: secret,
+		ch:     make(chan []byte, 4),
+
+		requireMessageAuthenticator: requireMessageAuthenticator,
+	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.closed {
@@ -477,7 +610,31 @@ func (c *Client) dispatchResponse(key responseKey, data []byte) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	waits := c.wait[key]
+	judged := false // a waiter gave the datagram a verdict of its own
 	for _, w := range waits {
+		// draft-ietf-radext-deprecating-radius-10 Section 4.6: "Response packets
+		// which do not contain Message-Authenticator MUST be silently discarded.
+		// This check MUST be done before the Response Authenticator or Message-
+		// Authenticator has been verified."
+		//
+		// The discard touches neither w.ch nor the waiter's timer. The same
+		// section: "any retransmission timers MUST NOT be modified as a result of
+		// receiving a packet which is silently discarded."
+		//
+		// A datagram whose attribute list does not walk is not judged here: the
+		// checks below discard it as malformed, so it is never accepted.
+		if w.requireMessageAuthenticator {
+			if _, present, walks := messageAuthenticatorValueOffset(data); walks && !present {
+				w.unsignedDiscarded.Store(true)
+				// RFC 3579 Section 3.1: an unsigned EAP answer keeps its own count.
+				if datagramCarriesAttr(data, AttrEAPMessage) {
+					countUnsignedEAPDiscard()
+				}
+				c.discardUnsignedResponse(key.server)
+				judged = true
+				continue
+			}
+		}
 		if !VerifyResponseAuth(data, w.auth, w.secret) {
 			continue
 		}
@@ -496,6 +653,7 @@ func (c *Client) dispatchResponse(key responseKey, data []byte) {
 		}
 		if verdict != responseIntegrityAccepted {
 			c.logger.Warn("radius: discarding the answer", "server", key.server, "reason", verdict.String())
+			judged = true
 			continue
 		}
 		copyData := make([]byte, len(data))
@@ -506,9 +664,35 @@ func (c *Client) dispatchResponse(key responseKey, data []byte) {
 		}
 		return
 	}
-	if len(waits) > 0 {
+	if len(waits) > 0 && !judged {
 		c.logger.Warn("radius: bad response authenticator, discarding", "server", key.server)
 	}
+}
+
+// discardUnsignedResponse counts one unsigned answer from server and warns at
+// most once per unsignedLogInterval for that server, reporting in the next
+// warning how many it suppressed. The caller MUST hold c.mu.
+//
+// draft-ietf-radext-deprecating-radius-10 Section 4.6: "The client SHOULD log
+// the fact that the packet was discarded (with rate limits)".
+func (c *Client) discardUnsignedResponse(server string) {
+	countUnsignedResponseDiscard(server)
+	state := c.unsignedLog[server]
+	if state == nil {
+		state = &unsignedLogState{}
+		c.unsignedLog[server] = state
+	}
+	now := time.Now()
+	if !state.last.IsZero() && now.Sub(state.last) < unsignedLogInterval {
+		state.suppressed++
+		return
+	}
+	c.logger.Warn("radius: discarding an answer without Message-Authenticator (BlastRADIUS, CVE-2024-3596)",
+		"server", server,
+		"suppressed", state.suppressed,
+		"fix", "configure the server to sign its answers, or set require-message-authenticator false on its server row")
+	state.last = now
+	state.suppressed = 0
 }
 
 func stopTimer(timer *time.Timer) {
@@ -572,9 +756,9 @@ func (c *Client) SendToServers(ctx context.Context, pkt *Packet) (*Packet, error
 		}
 		pkt.Authenticator = auth
 
-		resp, err := c.Exchange(ctx, pkt, srv.SharedKey, srv.Address)
+		resp, err := c.Exchange(ctx, pkt, srv)
 		if err != nil {
-			c.logger.Warn("radius: server unreachable",
+			c.logger.Warn("radius: no usable answer from server, trying the next",
 				"server", srv.Address, "error", err)
 			continue
 		}

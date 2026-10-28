@@ -102,7 +102,7 @@ to accept CoA on upgrade. Ze accepts a request only from a configured RADIUS ser
 address.";
                     ze:help "UDP port of the RADIUS CoA and Disconnect listener, usually 3799.";
                 }
-                leaf require-message-authenticator {
+                leaf coa-require-message-authenticator {
                     type boolean;
                     default false;
                     description "RFC 5176 Section 3.4 makes the Message-Authenticator attribute
@@ -349,6 +349,18 @@ holds the attribute back from all three.";
 empty, that is length 0, because an empty secret makes a forged packet easy to
 build.";
                         ze:help "RADIUS shared secret.";
+                    }
+                    leaf require-message-authenticator {
+                        type boolean;
+                        default true;
+                        description "When true, Ze silently discards an Access-Accept,
+Access-Reject, Access-Challenge or Protocol-Error from this server that carries no
+Message-Authenticator. This closes BlastRADIUS (CVE-2024-3596), where an attacker
+forges an Access-Accept from an Access-Reject. draft-ietf-radext-deprecating-radius
+Section 4.1 asks for this per-server flag. Set it false only for a server that
+predates 2024 and cannot sign its answers. Ze signs every Access-Request whatever
+this leaf says, and the leaf never applies to accounting.";
+                        ze:help "Discard answers without Message-Authenticator (default true).";
                     }
                 }
             }

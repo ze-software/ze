@@ -12,6 +12,7 @@ package radius
 
 import (
 	"context"
+	"errors"
 	"net"
 	"time"
 
@@ -24,6 +25,11 @@ import (
 // because the configuration cannot produce a usable client.
 const doctorCodeAdminUnreachable = "doctor-radius-admin-unreachable"
 
+// doctorCodeAdminUnsignedResponse names the diagnostic for a server that
+// answers, but only without a Message-Authenticator, which Ze discards while
+// the server's require-message-authenticator is true.
+const doctorCodeAdminUnsignedResponse = "doctor-radius-admin-unsigned-response"
+
 // radiusAdminDoctorCheck is the readiness check registered from register.go.
 var radiusAdminDoctorCheck = diagnostic.DoctorCheck{
 	Name:         "radius-admin-unreachable",
@@ -32,7 +38,7 @@ var radiusAdminDoctorCheck = diagnostic.DoctorCheck{
 	Component:    "radius",
 	Dependencies: []string{"radius-server"},
 	Platforms:    []string{diagnostic.DoctorPlatformAny},
-	Codes:        []string{doctorCodeAdminUnreachable},
+	Codes:        []string{doctorCodeAdminUnreachable, doctorCodeAdminUnsignedResponse},
 	Check:        checkRadiusAdminServers,
 }
 
@@ -64,10 +70,24 @@ func checkRadiusAdminServers(ctx diagnostic.DoctorCheckContext) []diagnostic.Dia
 	if !cfg.HasServers() {
 		return nil
 	}
+	var unsigned []diagnostic.Diagnostic
 	for _, srv := range cfg.Servers {
-		if radiusAdminProbe(srv, cfg.SourceAddress, cfg.Timeout) {
+		err := radiusAdminProbe(srv, cfg.SourceAddress, cfg.Timeout)
+		if err == nil {
 			return nil
 		}
+		if errors.Is(err, ErrUnsignedResponse) {
+			unsigned = append(unsigned, diagnostic.Diagnostic{
+				Code:     doctorCodeAdminUnsignedResponse,
+				Severity: diagnostic.SeverityWarning,
+				Message: "RADIUS admin server " + srv.Address + " answers without a Message-Authenticator, " +
+					"which Ze discards (BlastRADIUS, CVE-2024-3596); configure it to sign its answers, " +
+					"or accept it with 'set " + srv.ConfigPath + " require-message-authenticator false'",
+			})
+		}
+	}
+	if len(unsigned) > 0 {
+		return unsigned
 	}
 	return []diagnostic.Diagnostic{{
 		Code:     doctorCodeAdminUnreachable,
@@ -76,23 +96,24 @@ func checkRadiusAdminServers(ctx diagnostic.DoctorCheckContext) []diagnostic.Dia
 	}}
 }
 
-// radiusAdminReachable sends a probe Access-Request and reports whether the
+// radiusAdminReachable sends a probe Access-Request and answers nil when the
 // server returned a verifiable response. A missing shared key or an unbound
-// port counts as unreachable: a verifiable response requires the correct
-// shared secret, so a wrong key also reads as unreachable.
-func radiusAdminReachable(srv Server, sourceIP net.IP, timeout time.Duration) bool {
+// port is an error: a verifiable response requires the correct shared secret,
+// so a wrong key also reads as unreachable. An error wrapping
+// ErrUnsignedResponse says the server answered, but only unsigned.
+func radiusAdminReachable(srv Server, sourceIP net.IP, timeout time.Duration) error {
 	if len(srv.SharedKey) == 0 {
-		return false
+		return errors.New("radius: no shared secret")
 	}
 	client, err := NewClient(ClientConfig{Timeout: timeout, Retries: 1, SourceAddress: sourceIP})
 	if err != nil {
-		return false
+		return err
 	}
 	defer func() { _ = client.Close() }()
 
 	auth, err := RandomAuthenticator()
 	if err != nil {
-		return false
+		return err
 	}
 	pkt := &Packet{
 		Code:          CodeAccessRequest,
@@ -106,6 +127,6 @@ func radiusAdminReachable(srv Server, sourceIP net.IP, timeout time.Duration) bo
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	_, err = client.Exchange(ctx, pkt, srv.SharedKey, srv.Address)
-	return err == nil
+	_, err = client.Exchange(ctx, pkt, srv)
+	return err
 }

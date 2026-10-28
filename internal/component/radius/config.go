@@ -83,7 +83,10 @@ func ExtractConfig(tree *config.Tree) (ExtractedConfig, error) {
 		// read as unreachable (fail-safe: login falls through to local, and
 		// doctor-radius-admin-unreachable flags it). RADIUS admin auth is IPv4
 		// only; see the YANG address leaf and docs/guide/radius.md.
-		srv := Server{Address: net.JoinHostPort(item.Key, strconv.Itoa(int(port)))}
+		srv := Server{
+			Address:    net.JoinHostPort(item.Key, strconv.Itoa(int(port))),
+			ConfigPath: "system authentication radius server " + item.Key,
+		}
 		v, ok := item.Value.Get("key")
 		// RFC 2865 Section 3: "The secret MUST NOT be empty (length 0) since this
 		// would allow packets to be trivially forged."
@@ -98,6 +101,11 @@ func ExtractConfig(tree *config.Tree) (ExtractedConfig, error) {
 				"radius: server %s has no shared secret; RFC 2865 Section 3 forbids an empty secret", item.Key)
 		}
 		srv.SharedKey = []byte(v)
+		require, err := ParseRequireMessageAuthenticator(item.Value.Get("require-message-authenticator"))
+		if err != nil {
+			return ExtractedConfig{}, fmt.Errorf("radius: server %s: %w", item.Key, err)
+		}
+		srv.AllowUnsignedResponse = !require
 		cfg.Servers = append(cfg.Servers, srv)
 	}
 
@@ -236,4 +244,23 @@ func authMethodWords() []string {
 	}
 	slices.Sort(words)
 	return words
+}
+
+// ParseRequireMessageAuthenticator reads a server row's
+// require-message-authenticator leaf. An absent leaf is true, the YANG
+// default: draft-ietf-radext-deprecating-radius-10 Section 4.1 lets an
+// implementer "set the default value for these values to "true" instead", and
+// Ze does so because false leaves BlastRADIUS (CVE-2024-3596) open. Any value
+// other than true or false is refused, never read as either.
+func ParseRequireMessageAuthenticator(value string, present bool) (bool, error) {
+	if !present {
+		return true, nil
+	}
+	switch value {
+	case "true":
+		return true, nil
+	case "false":
+		return false, nil
+	}
+	return false, fmt.Errorf("require-message-authenticator is %q; it takes true or false", value)
 }

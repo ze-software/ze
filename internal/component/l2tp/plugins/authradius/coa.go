@@ -47,11 +47,11 @@ type coaListenerConfig struct {
 	Bus            ze.EventBus
 	AllowedSources []net.IP
 
-	// RequireMessageAuthenticator is the `require-message-authenticator` leaf
+	// CoARequireMessageAuthenticator is the `coa-require-message-authenticator` leaf
 	// (yang/ze-l2tp-auth-radius-conf.yang). False is the RFC 5176 Section 3.4
 	// behavior: the attribute is optional and its absence is not a reason to
 	// discard.
-	RequireMessageAuthenticator bool
+	CoARequireMessageAuthenticator bool
 }
 
 // coaReplayKey is what makes two requests copies of one: RFC 5176 Section
@@ -194,9 +194,9 @@ func (cl *coaListener) admitRequest(data []byte, from *net.UDPAddr) *radius.Pack
 	// authenticate and integrity-protect CoA-Request, CoA-ACK, CoA-NAK,
 	// Disconnect-Request, Disconnect-ACK, and Disconnect-NAK packets in order to
 	// prevent spoofing." A MAY, so a request that carries none is answered, and
-	// only the `require-message-authenticator` leaf makes its absence a discard.
+	// only the `coa-require-message-authenticator` leaf makes its absence a discard.
 	hasMessageAuthenticator := pkt.FindAttr(radius.AttrMessageAuthenticator) != nil
-	if !hasMessageAuthenticator && cl.cfg.RequireMessageAuthenticator {
+	if !hasMessageAuthenticator && cl.cfg.CoARequireMessageAuthenticator {
 		logger().Debug("coa: missing message-authenticator, discarding", "from", from)
 		return nil
 	}

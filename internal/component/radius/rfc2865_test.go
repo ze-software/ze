@@ -113,7 +113,7 @@ func TestRFC2865ResponseSourceAddress(t *testing.T) {
 
 	const id uint8 = 7
 	key := responseKey{server: "192.0.2.10:1812", id: id}
-	waiter, err := client.registerWaiter(key, reqAuth, secret)
+	waiter, err := client.registerWaiter(key, reqAuth, secret, false)
 	require.NoError(t, err)
 	defer client.unregisterWaiter(key, waiter)
 

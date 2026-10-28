@@ -1,6 +1,7 @@
 package radius
 
 import (
+	"errors"
 	"net"
 	"testing"
 	"time"
@@ -15,7 +16,12 @@ import (
 func withRadiusProbe(t *testing.T, reachable bool) {
 	t.Helper()
 	prev := radiusAdminProbe
-	radiusAdminProbe = func(Server, net.IP, time.Duration) bool { return reachable }
+	radiusAdminProbe = func(Server, net.IP, time.Duration) error {
+		if reachable {
+			return nil
+		}
+		return errors.New("probe: no answer")
+	}
 	t.Cleanup(func() { radiusAdminProbe = prev })
 }
 
@@ -99,18 +105,40 @@ func TestRadiusAdminDoctorProbeStaysPap(t *testing.T) {
 	rejecting := newReplyServer(t, key, CodeAccessReject, nil)
 	defer rejecting.close()
 	cfg := chapConfig(t, rejecting.addr)
-	assert.True(t, radiusAdminReachable(cfg.Servers[0], cfg.SourceAddress, 2*time.Second),
+	assert.NoError(t, radiusAdminReachable(cfg.Servers[0], cfg.SourceAddress, 2*time.Second),
 		"a server that answers verifiably is reachable, whatever verdict it returns")
 
 	// The probe's own attributes: PAP, and the fixed ze-doctor credential.
 	capturing := newRequestCaptureServer(t, key, nil)
 	defer capturing.close()
 	cfg = chapConfig(t, capturing.addr)
-	assert.True(t, radiusAdminReachable(cfg.Servers[0], cfg.SourceAddress, 2*time.Second))
+	assert.NoError(t, radiusAdminReachable(cfg.Servers[0], cfg.SourceAddress, 2*time.Second))
 
 	req := capturing.captured(t)
 	assert.Equal(t, []byte("ze-doctor"), req.FindAttr(AttrUserName))
 	assert.NotNil(t, req.FindAttr(AttrUserPassword), "the probe stays PAP")
 	assert.Nil(t, req.FindAttr(AttrCHAPPassword))
 	assert.Nil(t, req.FindAttr(AttrCHAPChallenge))
+}
+
+// TestDoctorRadiusAdminUnsignedResponse proves AC-15 for the admin tree.
+//
+// VALIDATES: a server that answers only unsigned yields
+// doctor-radius-admin-unsigned-response with the exact set command.
+// PREVENTS: an operator reading "unreachable" for a server that answers.
+func TestDoctorRadiusAdminUnsignedResponse(t *testing.T) {
+	prev := radiusAdminProbe
+	radiusAdminProbe = func(srv Server, _ net.IP, _ time.Duration) error { return unsignedResponseError(srv) }
+	t.Cleanup(func() { radiusAdminProbe = prev })
+
+	inner := config.NewTree()
+	srv := config.NewTree()
+	srv.Set("key", "secret")
+	inner.AddListEntry("server", "10.0.0.1", srv)
+
+	diags := checkRadiusAdminServers(diagnostic.DoctorCheckContext{Tree: radiusTree(inner)})
+	require.Len(t, diags, 1)
+	assert.Equal(t, doctorCodeAdminUnsignedResponse, diags[0].Code)
+	assert.Contains(t, diags[0].Message,
+		"'set system authentication radius server 10.0.0.1 require-message-authenticator false'")
 }

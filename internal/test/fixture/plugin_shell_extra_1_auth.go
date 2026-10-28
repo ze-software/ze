@@ -373,3 +373,103 @@ environment { ssh { enabled true; server main { ip 127.0.0.1; port 0; } } }
 	fmt.Fprint(os.Stderr, daemon.contents())
 	return nil
 }
+
+// extra1RadiusUnsignedConfig is the daemon config of the two unsigned-answer
+// fixtures: one RADIUS server row (serverOptions holds its extra leaves) and a
+// local admin whose password is the RADIUS one, so the chain's fallback is
+// observable.
+func extra1RadiusUnsignedConfig(host, port, serverOptions string) string {
+	return fmt.Sprintf(`bgp {
+	router-id 203.0.113.253;
+	peer peer1 {
+		connection { remote { ip 127.0.0.1; } local { ip 127.0.0.1; accept false; } }
+		session { asn { local 65533; remote 65533; } }
+	}
+}
+system {
+	authentication {
+		user admin { password %q; profile [ admin ]; }
+		radius {
+			server %s { port %s; key "ze-mock-key";%s }
+			timeout 1;
+			retries 1;
+		}
+	}
+	authorization {
+		profile admin { run { default-action allow; } edit { default-action allow; } }
+	}
+}
+environment { ssh { enabled true; server main { ip 127.0.0.1; port 0; } } }
+`, extra1AdminHash, host, port, serverOptions)
+}
+
+// extra1RadiusUnsignedAcceptRefused proves the BlastRADIUS presence check
+// through the real login path. The mock answers Access-Accept with a correct
+// Response Authenticator and no Message-Authenticator (a legacy server). With
+// the server row at its default the answer is discarded, the login falls to
+// the local user, and the daemon's warning names the leaf that would accept it.
+func extra1RadiusUnsignedAcceptRefused(ctx context.Context, args []string) error {
+	if len(args) != 0 {
+		return fmt.Errorf("aaa-radius-unsigned-accept-refused takes no arguments: %q", args)
+	}
+	return extra1RadiusUnsignedLogin(ctx, "aaa-radius-unsigned-accept-refused.conf", "", "local")
+}
+
+// extra1RadiusUnsignedAcceptLegacy is the pair of the refused fixture: the
+// same unsigned mock, the server row set to require-message-authenticator
+// false, and the login succeeds through RADIUS.
+func extra1RadiusUnsignedAcceptLegacy(ctx context.Context, args []string) error {
+	if len(args) != 0 {
+		return fmt.Errorf("aaa-radius-unsigned-accept-legacy takes no arguments: %q", args)
+	}
+	return extra1RadiusUnsignedLogin(ctx, "aaa-radius-unsigned-accept-legacy.conf", " require-message-authenticator false;", "radius")
+}
+
+// extra1RadiusUnsignedLogin logs in over SSH against an unsigned mock and
+// requires the authentication to be recorded with source=wantSource and never
+// with the other source.
+func extra1RadiusUnsignedLogin(ctx context.Context, configName, serverOptions, wantSource string) error {
+	if err := extra1TouchReady(); err != nil {
+		return err
+	}
+	mock, address, err := extra1StartRadiusMock(ctx, "--sign-responses=false")
+	if err != nil {
+		return err
+	}
+	defer extra1StopRadiusMock(mock)
+	host, port, err := net.SplitHostPort(address)
+	if err != nil {
+		return err
+	}
+	daemon, sshPort, err := extra1RunDaemon(ctx, configName, extra1RadiusUnsignedConfig(host, port, serverOptions), nil)
+	if err != nil {
+		return err
+	}
+	defer daemon.stop()
+	if err := extra1Wait(ctx, 500*time.Millisecond); err != nil {
+		return err
+	}
+	if err := extra1RequireCommand(sshPort, "admin", "testpass", "show bgp"); err != nil {
+		return fmt.Errorf("show bgp after login: %w\n%s", err, daemon.contents())
+	}
+	// The mock answered: without this the refused case is the unreachable
+	// fallback case under another name.
+	if !strings.Contains(mock.contents(), "Access-Accept") {
+		return fmt.Errorf("the mock never answered Access-Accept: %s", mock.contents())
+	}
+	fmt.Fprintln(os.Stderr, "OK: the mock answered Access-Accept unsigned")
+	otherSource := "radius"
+	if wantSource == "radius" {
+		otherSource = "local"
+	}
+	if !Poll(ctx, 20, 100*time.Millisecond, func() bool {
+		return strings.Contains(daemon.contents(), "auth success") && strings.Contains(daemon.contents(), "source="+wantSource)
+	}) {
+		return fmt.Errorf("daemon did not record source=%s authentication: %s", wantSource, daemon.contents())
+	}
+	if strings.Contains(daemon.contents(), "source="+otherSource) {
+		return fmt.Errorf("daemon recorded source=%s authentication: %s", otherSource, daemon.contents())
+	}
+	fmt.Fprint(os.Stderr, daemon.contents())
+	return nil
+}

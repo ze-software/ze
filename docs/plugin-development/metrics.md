@@ -225,6 +225,7 @@ Use labels for runtime dimensions. Never encode variable data in metric names.
 | `ze_iface_ra_sent_total` | CounterVec | interface | iface-ra |
 | `ze_iface_ra_solicited_total` | CounterVec | interface | iface-ra |
 | `ze_radius_unsigned_eap_discards_total` | Counter | | radius (client) |
+| `ze_radius_unsigned_response_discards_total` | CounterVec | server | radius (client): one per Access answer discarded for carrying no Message-Authenticator |
 | `ze_dns_resolver_queries_total` | CounterVec | transport, rcode | dnsresolver: one per query answered |
 | `ze_dns_resolver_refused_total` | CounterVec | reason | dnsresolver: one per REFUSED answer, `acl` or `rd-clear` |
 | `ze_dns_resolver_rate_limited_total` | Counter | | dnsresolver: one per query dropped by `limit per-client-rate` |

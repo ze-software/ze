@@ -17,6 +17,7 @@
 package radius
 
 import (
+	"crypto/hmac"
 	"crypto/md5" //nolint:gosec // RFC 2865 Section 5.2 mandates MD5 for User-Password
 	"crypto/subtle"
 	"encoding/binary"
@@ -69,12 +70,17 @@ func Run(args []string) int {
 		logAll  bool
 	)
 
+	var policy messageAuthenticatorPolicy
 	fs := flag.NewFlagSet("le mock radius", flag.ExitOnError)
 	fs.IntVar(&port, "port", 0, "UDP listen port (0 = auto)")
 	fs.StringVar(&key, "key", "", "RADIUS shared secret (required)")
 	fs.Var(&users, "user", "credential: name:pass[:profile1,profile2] (repeatable)")
 	fs.StringVar(&addrOut, "addr-file", "", "write listening host:port to this file")
 	fs.BoolVar(&logAll, "log-packets", true, "log every received packet")
+	fs.BoolVar(&policy.require, "require-message-authenticator", true,
+		"discard an Access-Request without a valid Message-Authenticator, as FreeRADIUS does by default")
+	fs.BoolVar(&policy.sign, "sign-responses", true,
+		"put a signed Message-Authenticator first in every Access-* answer; false is a pre-2024 server")
 	if err := fs.Parse(args); err != nil {
 		return 1
 	}
@@ -111,7 +117,7 @@ func Run(args []string) int {
 		if err != nil {
 			return 0
 		}
-		reply := handleRequest(buf[:n], keyBytes, users, eap, logAll)
+		reply := handleRequest(buf[:n], keyBytes, users, eap, logAll, policy)
 		if reply == nil {
 			continue
 		}
@@ -123,7 +129,40 @@ func Run(args []string) int {
 
 // handleRequest decodes an Access-Request and returns the encoded response, or
 // nil if the packet is not a decodable Access-Request.
-func handleRequest(data, key []byte, users userList, eap *eapServer, logPackets bool) []byte {
+// messageAuthenticatorPolicy is the mock's BlastRADIUS behavior: whether it
+// requires a Message-Authenticator on an Access-Request, and whether it signs
+// its own Access-* answers.
+type messageAuthenticatorPolicy struct {
+	require bool
+	sign    bool
+}
+
+// requestMessageAuthenticatorValid reports whether the Access-Request in data
+// carries a Message-Authenticator that verifies under key (RFC 3579 Section 3.2).
+func requestMessageAuthenticatorValid(data, key []byte) bool {
+	off := radius.HeaderLen
+	for off+2 <= len(data) {
+		attrLen := int(data[off+1])
+		if attrLen < 2 || off+attrLen > len(data) {
+			return false
+		}
+		if data[off] == radius.AttrMessageAuthenticator && attrLen == 2+radius.AuthenticatorLen {
+			zeroed := append([]byte{}, data...)
+			clear(zeroed[off+2 : off+attrLen])
+			mac := hmac.New(md5.New, key)
+			mac.Write(zeroed)
+			return hmac.Equal(mac.Sum(nil), data[off+2:off+attrLen])
+		}
+		off += attrLen
+	}
+	return false
+}
+
+func handleRequest(data, key []byte, users userList, eap *eapServer, logPackets bool, policy messageAuthenticatorPolicy) []byte {
+	if policy.require && len(data) > 0 && data[0] == radius.CodeAccessRequest && !requestMessageAuthenticatorValid(data, key) {
+		slog.Warn("radius-mock: discarding an Access-Request without a valid Message-Authenticator")
+		return nil
+	}
 	pkt, err := radius.Decode(data)
 	if err != nil || pkt.Code != radius.CodeAccessRequest {
 		return nil
@@ -180,7 +219,7 @@ func handleRequest(data, key []byte, users userList, eap *eapServer, logPackets 
 	if logPackets {
 		slog.Info("radius-mock: Access-Request", requestLogFields(pkt, name, method, codeName(code))...)
 	}
-	return buildResponse(code, pkt.Identifier, pkt.Authenticator, reply, key)
+	return buildResponse(code, pkt.Identifier, pkt.Authenticator, reply, key, policy.sign)
 }
 
 // requestLogFields returns the slog fields of one Access-Request log line.
@@ -263,9 +302,15 @@ func trimTrailingNUL(b []byte) []byte {
 }
 
 // buildResponse encodes a response packet with a valid Response Authenticator
-// (RFC 2865 Section 3) computed over the reply attributes.
-func buildResponse(code, id uint8, reqAuth [radius.AuthenticatorLen]byte, attrs []radius.Attr, secret []byte) []byte {
+// (RFC 2865 Section 3) computed over the reply attributes. With sign, a
+// Message-Authenticator goes first, computed as RFC 2869 Section 5.14 defines
+// it for a response, which is what a server updated for BlastRADIUS sends.
+func buildResponse(code, id uint8, reqAuth [radius.AuthenticatorLen]byte, attrs []radius.Attr, secret []byte, sign bool) []byte {
 	body := make([]byte, 0, 64)
+	if sign {
+		body = append(body, radius.AttrMessageAuthenticator, 2+radius.AuthenticatorLen)
+		body = append(body, make([]byte, radius.AuthenticatorLen)...)
+	}
 	for _, a := range attrs {
 		body = append(body, a.Type, byte(2+len(a.Value)))
 		body = append(body, a.Value...)
@@ -276,6 +321,13 @@ func buildResponse(code, id uint8, reqAuth [radius.AuthenticatorLen]byte, attrs 
 	resp[1] = id
 	binary.BigEndian.PutUint16(resp[2:4], uint16(total))
 	copy(resp[radius.HeaderLen:], body)
+	if sign {
+		copy(resp[4:radius.HeaderLen], reqAuth[:])
+		mac := hmac.New(md5.New, secret)
+		mac.Write(resp)
+		copy(resp[radius.HeaderLen+2:radius.HeaderLen+2+radius.AuthenticatorLen], mac.Sum(nil))
+		body = resp[radius.HeaderLen:]
+	}
 	auth := radius.ResponseAuthenticator(code, id, uint16(total), reqAuth, body, secret)
 	copy(resp[4:4+radius.AuthenticatorLen], auth[:])
 	return resp

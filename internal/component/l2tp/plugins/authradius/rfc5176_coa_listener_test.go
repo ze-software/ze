@@ -369,7 +369,7 @@ func TestCoAListenerInvalidAuth(t *testing.T) {
 }
 
 // RFC requirement: RFC5176-3.4-4 negative -- an operator who sets
-// require-message-authenticator gets the strictness RFC 5176 Section 3.4 leaves
+// coa-require-message-authenticator gets the strictness RFC 5176 Section 3.4 leaves
 // optional: a CoA-Request carrying no Message-Authenticator is discarded with no
 // reply (coa.go coaListener.handlePacket).
 //
@@ -378,7 +378,7 @@ func TestCoAListenerInvalidAuth(t *testing.T) {
 // proves the leaf, and not the code, decides.
 func TestCoAListenerMissingMessageAuthenticatorDroppedWhenRequired(t *testing.T) {
 	secret := []byte("test-coa-secret-missing-ma")
-	cl, err := newCoAListener(coaListenerConfig{AllowedSources: coaLoopbackSources(), DefaultSecret: secret, RequireMessageAuthenticator: true})
+	cl, err := newCoAListener(coaListenerConfig{AllowedSources: coaLoopbackSources(), DefaultSecret: secret, CoARequireMessageAuthenticator: true})
 	if err != nil {
 		t.Fatal(err)
 	}

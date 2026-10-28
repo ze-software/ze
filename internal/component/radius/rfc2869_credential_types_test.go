@@ -26,7 +26,6 @@ func eapCredentialRequest(t *testing.T, id uint8, extra ...Attr) *Packet {
 	pkt := accessRequest(t, id)
 	pkt.Attrs = append(pkt.Attrs,
 		Attr{Type: AttrEAPMessage, Value: []byte{2, 1, 0, 5, 1}},
-		Attr{Type: AttrMessageAuthenticator, Value: make([]byte, AuthenticatorLen)},
 	)
 	pkt.Attrs = append(pkt.Attrs, extra...)
 	return pkt
@@ -42,7 +41,7 @@ func credentialExchange(t *testing.T, build func(id uint8) *Packet) ([][]byte, e
 	client, err := NewClient(ClientConfig{Timeout: 200 * time.Millisecond, Retries: 1})
 	require.NoError(t, err)
 	defer closeSilent(client)
-	_, exchangeErr := client.Exchange(context.Background(), build(client.NextID()), key, srv.addr)
+	_, exchangeErr := client.Exchange(context.Background(), build(client.NextID()), Server{Address: srv.addr, SharedKey: key})
 	// A refused request is refused before the socket, so a short wait is enough
 	// to show that nothing arrived.
 	time.Sleep(50 * time.Millisecond)

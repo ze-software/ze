@@ -1,0 +1,13 @@
+# Test: an Access-Accept with no Message-Authenticator is discarded by default
+# VALIDATES: a server row at its default refuses an unsigned answer (BlastRADIUS,
+# CVE-2024-3596): the RADIUS login does not succeed, the chain falls to the
+# local user, and the warning names the leaf that would accept a legacy server.
+# PREVENTS: a forged unsigned Access-Accept logging an operator in.
+
+cmd=foreground:seq=1:exec=le test fixture plugin/aaa-radius-unsigned-accept-refused:timeout=30s
+expect=exit:code=0
+expect=stderr:pattern=OK: the mock answered Access-Accept unsigned
+expect=stderr:pattern=discarding an answer without Message-Authenticator
+expect=stderr:pattern=require-message-authenticator false
+expect=stderr:pattern=auth success.*source=local
+reject=stderr:pattern=auth success.*source=radius

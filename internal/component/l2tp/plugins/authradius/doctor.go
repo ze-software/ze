@@ -6,6 +6,7 @@ package l2tpauthradius
 
 import (
 	"context"
+	"errors"
 	"net"
 	"strconv"
 	"time"
@@ -40,19 +41,47 @@ func checkRADIUSServers(ctx registry.DoctorCheckContext) []rpc.DoctorCheckDiagno
 		sourceIP = net.ParseIP(source)
 	}
 	checked := false
+	var unsigned []rpc.DoctorCheckDiagnostic
 	for _, s := range radiusCfg.GetListOrdered("server") {
 		address, ok := s.Value.Get("address")
 		if !ok || address == "" {
 			continue
 		}
 		checked = true
-		secret := []byte(doctorValueOrDefault(s.Value, "shared-key", ""))
-		if udpReachable(net.JoinHostPort(address, doctorValueOrDefault(s.Value, "port", "1812")), secret, sourceIP, nasID, timeout) {
+		require, err := radius.ParseRequireMessageAuthenticator(s.Value.Get("require-message-authenticator"))
+		if err != nil {
+			return []rpc.DoctorCheckDiagnostic{{
+				Code:     "doctor-radius-unreachable",
+				Severity: "warning",
+				Message:  "RADIUS server " + s.Key + " is misconfigured: " + err.Error(),
+			}}
+		}
+		srv := radius.Server{
+			Address:   net.JoinHostPort(address, doctorValueOrDefault(s.Value, "port", "1812")),
+			SharedKey: []byte(doctorValueOrDefault(s.Value, "shared-key", "")),
+
+			AllowUnsignedResponse: !require,
+			ConfigPath:            "l2tp auth radius server " + s.Key,
+		}
+		probeErr := udpReachable(srv, sourceIP, nasID, timeout)
+		if probeErr == nil {
 			return nil
+		}
+		if errors.Is(probeErr, radius.ErrUnsignedResponse) {
+			unsigned = append(unsigned, rpc.DoctorCheckDiagnostic{
+				Code:     "doctor-radius-unsigned-response",
+				Severity: "warning",
+				Message: "RADIUS server " + srv.Address + " answers without a Message-Authenticator, " +
+					"which Ze discards (BlastRADIUS, CVE-2024-3596); configure it to sign its answers, " +
+					"or accept it with 'set " + srv.ConfigPath + " require-message-authenticator false'",
+			})
 		}
 	}
 	if !checked {
 		return nil
+	}
+	if len(unsigned) > 0 {
+		return unsigned
 	}
 	return []rpc.DoctorCheckDiagnostic{{
 		Code:     "doctor-radius-unreachable",
@@ -61,24 +90,25 @@ func checkRADIUSServers(ctx registry.DoctorCheckContext) []rpc.DoctorCheckDiagno
 	}}
 }
 
-// udpServerReachable sends an authenticated Access-Request and reports whether
+// udpServerReachable sends an authenticated Access-Request and answers nil when
 // the server returned a verifiable response. Dial success alone is not enough:
-// an unbound UDP port or a wrong shared key must count as unreachable.
-func udpServerReachable(addr string, secret []byte, sourceIP net.IP, nasID string, timeout time.Duration) bool {
-	if len(secret) == 0 {
-		return false
+// an unbound UDP port or a wrong shared key is an error. An error wrapping
+// radius.ErrUnsignedResponse says the server answered, but only unsigned.
+func udpServerReachable(srv radius.Server, sourceIP net.IP, nasID string, timeout time.Duration) error {
+	if len(srv.SharedKey) == 0 {
+		return errors.New("radius: no shared secret")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	client, err := radius.NewClient(radius.ClientConfig{Timeout: timeout, Retries: 1, SourceAddress: sourceIP})
 	if err != nil {
-		return false
+		return err
 	}
 	defer func() { _ = client.Close() }()
 
 	auth, err := radius.RandomAuthenticator()
 	if err != nil {
-		return false
+		return err
 	}
 	attrs := []radius.Attr{
 		{Type: radius.AttrUserName, Value: radius.AttrString("ze-doctor")},
@@ -93,8 +123,8 @@ func udpServerReachable(addr string, secret []byte, sourceIP net.IP, nasID strin
 		Authenticator: auth,
 		Attrs:         attrs,
 	}
-	_, err = client.Exchange(ctx, pkt, secret, addr)
-	return err == nil
+	_, err = client.Exchange(ctx, pkt, srv)
+	return err
 }
 
 // radiusAuthContainer walks l2tp > auth > radius, returning nil when any

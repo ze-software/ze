@@ -68,7 +68,7 @@ func init() {
 			Order:        710,
 			Dependencies: []string{"radius-server"},
 			Platforms:    []string{"any"},
-			Codes:        []string{"doctor-radius-unreachable"},
+			Codes:        []string{"doctor-radius-unreachable", "doctor-radius-unsigned-response"},
 			Check:        checkRADIUSServers,
 		}},
 	}
@@ -423,12 +423,12 @@ func startCoAListener(cfg *radiusConfig, bus ze.EventBus) {
 	}
 
 	cl, coaErr := newCoAListener(coaListenerConfig{
-		Port:                        cfg.CoAPort,
-		Secrets:                     serverSecrets(cfg.Servers),
-		DefaultSecret:               cfg.Servers[0].SharedKey,
-		Bus:                         bus,
-		AllowedSources:              allowed,
-		RequireMessageAuthenticator: cfg.RequireMessageAuthenticator,
+		Port:                           cfg.CoAPort,
+		Secrets:                        serverSecrets(cfg.Servers),
+		DefaultSecret:                  cfg.Servers[0].SharedKey,
+		Bus:                            bus,
+		AllowedSources:                 allowed,
+		CoARequireMessageAuthenticator: cfg.CoARequireMessageAuthenticator,
 	})
 	if coaErr != nil {
 		logger().Warn("l2tp-auth-radius: CoA listener failed to start", "error", coaErr)
@@ -438,7 +438,7 @@ func startCoAListener(cfg *radiusConfig, bus ze.EventBus) {
 	logger().Info("l2tp-auth-radius: CoA listener started",
 		"port", cfg.CoAPort,
 		"trusted-sources", len(allowed),
-		"require-message-authenticator", cfg.RequireMessageAuthenticator)
+		"coa-require-message-authenticator", cfg.CoARequireMessageAuthenticator)
 }
 
 func closeCoAListener() {

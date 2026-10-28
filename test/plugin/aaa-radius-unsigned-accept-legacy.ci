@@ -1,0 +1,11 @@
+# Test: require-message-authenticator false accepts a legacy unsigned server
+# VALIDATES: the same unsigned Access-Accept the default row discards logs the
+# operator in through RADIUS once the server row sets the leaf false.
+# PREVENTS: the leaf being parsed but never reaching the client's check.
+
+cmd=foreground:seq=1:exec=le test fixture plugin/aaa-radius-unsigned-accept-legacy:timeout=30s
+expect=exit:code=0
+expect=stderr:pattern=OK: the mock answered Access-Accept unsigned
+expect=stderr:pattern=auth success.*source=radius
+reject=stderr:pattern=auth success.*source=local
+reject=stderr:pattern=discarding an answer without Message-Authenticator

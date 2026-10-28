@@ -4,6 +4,8 @@ package l2tpauthradius
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"net"
 	"testing"
 	"time"
@@ -20,7 +22,7 @@ func TestCheckRADIUSServers(t *testing.T) {
 	// VALIDATES: AC-7 unreachable RADIUS servers return doctor-radius-unreachable.
 	// PREVENTS: L2TP authentication failures surfacing only on subscriber login.
 	oldProbe := udpReachable
-	udpReachable = func(string, []byte, net.IP, string, time.Duration) bool { return false }
+	udpReachable = func(radius.Server, net.IP, string, time.Duration) error { return errors.New("probe: no answer") }
 	t.Cleanup(func() { udpReachable = oldProbe })
 
 	tree := config.NewTree()
@@ -44,7 +46,7 @@ func TestCheckRADIUSServersAbsentConfig(t *testing.T) {
 	// VALIDATES: the check fires only when the l2tp.auth.radius block is present.
 	// PREVENTS: doctor warning about RADIUS on boxes that do not use it.
 	oldProbe := udpReachable
-	udpReachable = func(string, []byte, net.IP, string, time.Duration) bool { return false }
+	udpReachable = func(radius.Server, net.IP, string, time.Duration) error { return errors.New("probe: no answer") }
 	t.Cleanup(func() { udpReachable = oldProbe })
 
 	assert.Empty(t, checkRADIUSServers(registry.DoctorCheckContext{Tree: config.NewTree()}))
@@ -92,15 +94,46 @@ func TestUDPServerReachableRequiresResponse(t *testing.T) {
 		if encodeErr != nil {
 			return
 		}
-		respAuth := radius.ResponseAuthenticator(resp.Code, resp.Identifier, uint16(respLen), reqAuth, wire[radius.HeaderLen:respLen], secret)
-		copy(wire[4:4+radius.AuthenticatorLen], respAuth[:])
-		if _, writeErr := pc.WriteTo(wire[:respLen], addr); writeErr != nil {
+		// The probe's server row requires the Message-Authenticator by
+		// default, so the answer is signed as a BlastRADIUS-updated server signs.
+		signed := signAccessAnswer(wire[:respLen], reqAuth, secret)
+		respAuth := radius.ResponseAuthenticator(resp.Code, resp.Identifier, uint16(len(signed)), reqAuth, signed[radius.HeaderLen:], secret)
+		copy(signed[4:4+radius.AuthenticatorLen], respAuth[:])
+		if _, writeErr := pc.WriteTo(signed, addr); writeErr != nil {
 			return
 		}
 	}()
 
-	assert.True(t, udpServerReachable(addr, secret, nil, "ze-doctor", time.Second))
+	assert.NoError(t, udpServerReachable(radius.Server{Address: addr, SharedKey: secret}, nil, "ze-doctor", time.Second))
 	require.NoError(t, pc.Close())
 	<-done
-	assert.False(t, udpServerReachable(addr, secret, nil, "ze-doctor", 10*time.Millisecond))
+	assert.Error(t, udpServerReachable(radius.Server{Address: addr, SharedKey: secret}, nil, "ze-doctor", 10*time.Millisecond))
+}
+
+// TestDoctorRadiusUnsignedResponse proves AC-15 for the l2tp tree.
+//
+// VALIDATES: a server that answers only unsigned yields
+// doctor-radius-unsigned-response with the exact set command.
+// PREVENTS: an operator reading "unreachable" for a server that answers.
+func TestDoctorRadiusUnsignedResponse(t *testing.T) {
+	oldProbe := udpReachable
+	udpReachable = func(srv radius.Server, _ net.IP, _ string, _ time.Duration) error {
+		if srv.AllowUnsignedResponse {
+			return errors.New("probe: the leaf did not reach the probe")
+		}
+		return fmt.Errorf("radius: server %s: %w", srv.Address, radius.ErrUnsignedResponse)
+	}
+	t.Cleanup(func() { udpReachable = oldProbe })
+
+	tree := config.NewTree()
+	radiusBlock := tree.GetOrCreateContainer("l2tp").GetOrCreateContainer("auth").GetOrCreateContainer("radius")
+	server := config.NewTree()
+	server.Set("address", "192.0.2.1")
+	server.Set("shared-key", "testing123")
+	radiusBlock.AddListEntry("server", "primary", server)
+
+	diags := checkRADIUSServers(registry.DoctorCheckContext{Tree: tree})
+	require.Len(t, diags, 1)
+	assert.Equal(t, "doctor-radius-unsigned-response", diags[0].Code)
+	assert.Contains(t, diags[0].Message, "'set l2tp auth radius server primary require-message-authenticator false'")
 }

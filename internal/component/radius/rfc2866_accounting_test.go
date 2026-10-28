@@ -199,7 +199,7 @@ func TestRFC2866AccountingRetransmitTakesANewIdentifier(t *testing.T) {
 		},
 	}
 
-	resp, err := client.Exchange(context.Background(), pkt, secret, addr)
+	resp, err := client.Exchange(context.Background(), pkt, Server{Address: addr, SharedKey: secret})
 	if err != nil {
 		t.Fatal(err)
 	}

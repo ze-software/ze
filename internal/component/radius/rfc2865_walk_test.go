@@ -167,7 +167,7 @@ func TestExchangeAcceptsANonEmptySharedSecret(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { _ = client.Close() }()
 
-	resp, err := client.Exchange(context.Background(), accessRequest(t, client.NextID()), key, srv.addr)
+	resp, err := client.Exchange(context.Background(), accessRequest(t, client.NextID()), Server{Address: srv.addr, SharedKey: key})
 	require.NoError(t, err)
 	assert.Equal(t, uint8(CodeAccessAccept), resp.Code)
 }
@@ -187,7 +187,7 @@ func TestExchangeRefusesAnEmptySharedSecret(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { _ = client.Close() }()
 
-	_, err = client.Exchange(context.Background(), accessRequest(t, client.NextID()), nil, srv.addr)
+	_, err = client.Exchange(context.Background(), accessRequest(t, client.NextID()), Server{Address: srv.addr, SharedKey: nil})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "empty shared secret")
 }
@@ -289,7 +289,7 @@ func TestRetransmitToTheSameServerKeepsItsIdentifier(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { _ = client.Close() }()
 
-	_, err = client.Exchange(context.Background(), accessRequest(t, client.NextID()), key, srv.addr)
+	_, err = client.Exchange(context.Background(), accessRequest(t, client.NextID()), Server{Address: srv.addr, SharedKey: key})
 	require.NoError(t, err)
 
 	seen := srv.identifiers()
@@ -353,7 +353,7 @@ func TestRetransmitToTheSameServerKeepsItsRequestAuthenticator(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { _ = client.Close() }()
 
-	_, err = client.Exchange(context.Background(), accessRequest(t, client.NextID()), key, srv.addr)
+	_, err = client.Exchange(context.Background(), accessRequest(t, client.NextID()), Server{Address: srv.addr, SharedKey: key})
 	require.NoError(t, err)
 
 	seen := srv.authenticators()

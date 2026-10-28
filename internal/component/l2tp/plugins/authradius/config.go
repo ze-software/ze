@@ -40,10 +40,10 @@ type radiusConfig struct {
 	CoAPort         int    // RFC 5176 CoA/DM listener port; 0 = disabled
 	NASPortIDFormat string // RFC 2869 Section 5.17 template; "" = no attribute
 
-	// RequireMessageAuthenticator discards a CoA/Disconnect-Request that
+	// CoARequireMessageAuthenticator discards a CoA/Disconnect-Request that
 	// carries no Message-Authenticator attribute. RFC 5176 Section 3.4 makes
 	// the attribute optional, so the default is false.
-	RequireMessageAuthenticator bool
+	CoARequireMessageAuthenticator bool
 
 	// Exclusions is the `attributes exclude` container: the attributes this
 	// deployment holds back, each with the packet kinds it is held back from.
@@ -160,11 +160,11 @@ func parseConfigFromTree(tree map[string]any) (*radiusConfig, error) {
 	}
 	cfg.Exclusions = exclusions
 
-	requireMA, err := boolFromAny(radiusBlock["require-message-authenticator"])
+	requireMA, err := boolFromAny(radiusBlock["coa-require-message-authenticator"])
 	if err != nil {
-		return nil, fmt.Errorf("%s: require-message-authenticator: %w", Name, err)
+		return nil, fmt.Errorf("%s: coa-require-message-authenticator: %w", Name, err)
 	}
-	cfg.RequireMessageAuthenticator = requireMA
+	cfg.CoARequireMessageAuthenticator = requireMA
 
 	// The `server` list is `ordered-by user` (yang/ze-l2tp-auth-radius-conf.yang)
 	// because the configured order IS the failover order: Servers[0] is tried
@@ -194,9 +194,22 @@ func parseConfigFromTree(tree map[string]any) (*radiusConfig, error) {
 		if sharedKey == "" {
 			return nil, fmt.Errorf("%s: server %s missing shared-key", Name, address)
 		}
+		// draft-ietf-radext-deprecating-radius-10 Section 4.1: "Clients MUST
+		// have a per-server boolean configuration flag, which we call “require
+		// Message-Authenticator”." An absent leaf is the YANG default, true.
+		requireResponseMA := true
+		if raw, present := m["require-message-authenticator"]; present {
+			requireResponseMA, err = boolFromAny(raw)
+			if err != nil {
+				return nil, fmt.Errorf("%s: server %s: require-message-authenticator: %w", Name, entry.Key, err)
+			}
+		}
 		cfg.Servers = append(cfg.Servers, radius.Server{
 			Address:   serverAddress(address, port),
 			SharedKey: []byte(sharedKey),
+
+			AllowUnsignedResponse: !requireResponseMA,
+			ConfigPath:            "l2tp auth radius server " + entry.Key,
 		})
 		// RFC 2866 Section 3: "Exactly one RADIUS Accounting packet is
 		// encapsulated in the UDP Data field [4], where the UDP Destination Port

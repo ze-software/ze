@@ -2,6 +2,7 @@ package radius
 
 import (
 	"bytes"
+	"crypto/hmac"
 	"crypto/md5" //nolint:gosec // RFC 2865 Section 2.2 mandates MD5 for the CHAP response
 	"encoding/binary"
 	"encoding/hex"
@@ -29,11 +30,18 @@ func newReplyServer(t *testing.T, sharedKey []byte, code uint8, reply []Attr) *m
 	return m
 }
 
+// buildReplyResponse answers req the way a server updated for BlastRADIUS
+// does: a Message-Authenticator first, signed under sharedKey, then attrs, then
+// the Response Authenticator over the whole. Ze's config readers require the
+// Message-Authenticator by default, so a test server that answers through
+// ExtractConfig MUST sign.
 func buildReplyResponse(code uint8, req, sharedKey []byte, attrs []Attr) []byte {
 	if len(req) < MinPacketLen {
 		return nil
 	}
 	body := make([]byte, 0, 64)
+	body = append(body, AttrMessageAuthenticator, 2+AuthenticatorLen)
+	body = append(body, make([]byte, AuthenticatorLen)...)
 	for _, a := range attrs {
 		body = append(body, a.Type, byte(2+len(a.Value)))
 		body = append(body, a.Value...)
@@ -43,7 +51,14 @@ func buildReplyResponse(code uint8, req, sharedKey []byte, attrs []Attr) []byte 
 	resp[0] = code
 	resp[1] = req[1]
 	binary.BigEndian.PutUint16(resp[2:4], uint16(total))
+	copy(resp[4:4+AuthenticatorLen], req[4:4+AuthenticatorLen])
 	copy(resp[HeaderLen:], body)
+	// RFC 2869 Section 5.14: the Message-Authenticator of a response is the
+	// HMAC-MD5 over the packet carrying the Request Authenticator.
+	mac := hmac.New(md5.New, sharedKey)
+	mac.Write(resp)
+	copy(resp[HeaderLen+2:HeaderLen+2+AuthenticatorLen], mac.Sum(nil))
+	body = resp[HeaderLen:]
 	var reqAuth [AuthenticatorLen]byte
 	copy(reqAuth[:], req[4:4+AuthenticatorLen])
 	auth := ResponseAuthenticator(code, req[1], uint16(total), reqAuth, body, sharedKey)

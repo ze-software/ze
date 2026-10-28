@@ -35,6 +35,8 @@ func init() {
 	Register("plugin/aaa-radius-chap", extra1RadiusChap)
 	Register("plugin/aaa-radius-eap", extra1RadiusEap)
 	Register("plugin/aaa-radius-fallback", extra1RadiusFallback)
+	Register("plugin/aaa-radius-unsigned-accept-legacy", extra1RadiusUnsignedAcceptLegacy)
+	Register("plugin/aaa-radius-unsigned-accept-refused", extra1RadiusUnsignedAcceptRefused)
 	Register("plugin/answer-unknown-command", extra1AnswerUnknownCommand)
 	Register("plugin/as112-probe-anycast-not-loopback", extra1AS112ProbeAnycast)
 	Register("plugin/as112-probe-anycast-not-loopback-probe", extra1AS112UnreachableProbe)
@@ -250,7 +252,10 @@ type extra1RadiusMock struct {
 	work    string
 }
 
-func extra1StartRadiusMock(ctx context.Context) (*extra1RadiusMock, string, error) {
+// extra1StartRadiusMock starts `le mock radius` with the fixture's key and
+// admin user. mockFlags are appended to its command line, so a fixture can run
+// the mock as a legacy server (`--sign-responses=false`).
+func extra1StartRadiusMock(ctx context.Context, mockFlags ...string) (*extra1RadiusMock, string, error) {
 	executable, err := os.Executable()
 	if err != nil {
 		return nil, "", err
@@ -267,7 +272,8 @@ func extra1StartRadiusMock(ctx context.Context) (*extra1RadiusMock, string, erro
 		return nil, "", err
 	}
 	mockCtx, cancel := context.WithCancel(ctx)
-	command := exec.CommandContext(mockCtx, executable, "mock", "radius", "--port", "0", "--key", "ze-mock-key", "--user", "admin:testpass:admin", "--addr-file", addrPath) //nolint:gosec // the fixture chooses the program and its arguments
+	mockArgs := append([]string{"mock", "radius", "--port", "0", "--key", "ze-mock-key", "--user", "admin:testpass:admin", "--addr-file", addrPath}, mockFlags...)
+	command := exec.CommandContext(mockCtx, executable, mockArgs...) //nolint:gosec // the fixture chooses the program and its arguments
 	command.Stdout = io.Discard
 	command.Stderr = mockLog
 	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
