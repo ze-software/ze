@@ -116,7 +116,7 @@ func TestPartialHealthExplainsScopedEvidence(t *testing.T) {
 			root := t.TempDir()
 			const summaryPath = "rfc/short/rfc9999.md"
 			marker := "{" + tc.padding + "partial" + tc.padding + `: tested "ignored on receipt."; gap "MUST be zero when sent"; sending absent at internal/sample/widget.go::SendWidget}`
-			summary := "# RFC 9999\n\n## Meta\n\n| Field | Value |\n|---|---|\n" +
+			summary := "# RFC 9999\n\n## Meta\n\n| Field | Value |\n|---|---|\n| Use cases | - |\n| Optional use cases | - |\n" +
 				"| Title | Widgets |\n| Enrolment | enrolled |\n| Enrolment reason | isolated fixture |\n" +
 				"| Implementation | ze |\n| Implementation reason | fixture production boundary |\n" +
 				"| Support | bgp-core |\n| Support area | Widgets |\n| Support status | Partial |\n" +
