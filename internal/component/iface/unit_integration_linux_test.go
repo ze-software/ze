@@ -1,12 +1,17 @@
-//go:build integration && linux
+//go:build linux
 
 package iface
 
 import (
 	"testing"
+
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 func TestIntegrationApplyConfigCreateVLANUnit(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	// VALIDATES: config commit with a VLAN unit creates the sub-interface.
 	// PREVENTS: regression where applyConfig Phase 2 fails to create VLAN
 	// sub-interfaces from the config unit list.
@@ -42,6 +47,9 @@ func TestIntegrationApplyConfigCreateVLANUnit(t *testing.T) {
 }
 
 func TestIntegrationApplyConfigDeleteVLANUnit(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	// VALIDATES: config reload that removes a VLAN unit deletes the sub-interface.
 	// PREVENTS: regression where applyConfig Phase 4 fails to reconcile removed
 	// VLAN sub-interfaces, or where the parent interface is deleted instead.
@@ -91,6 +99,9 @@ func TestIntegrationApplyConfigDeleteVLANUnit(t *testing.T) {
 }
 
 func TestIntegrationApplyConfigVLANUnitAddressReconcile(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	// VALIDATES: config reload that changes addresses on a VLAN unit reconciles
 	// correctly (adds new, removes old).
 	withNetNS(t, func() {

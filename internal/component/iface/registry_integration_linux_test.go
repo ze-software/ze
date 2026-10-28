@@ -1,4 +1,4 @@
-//go:build integration && linux
+//go:build linux
 
 // Design: docs/architecture/core-design.md -- Interface Management (section 14): generic
 // plugin-to-iface address-ownership registry, real-kernel proof
@@ -12,6 +12,8 @@ package iface
 import (
 	"sync/atomic"
 	"testing"
+
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // TestIntegrationRegisterOwnedAddresses_ReachesRealKernelInterface proves the
@@ -31,6 +33,9 @@ import (
 // unit test) silently never reaching the kernel for a real backend, which
 // no test previously verified end-to-end.
 func TestIntegrationRegisterOwnedAddresses_ReachesRealKernelInterface(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withNetNS(t, func() {
 		resetAddressOwners(t)
 

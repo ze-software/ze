@@ -1,4 +1,4 @@
-//go:build integration && linux
+//go:build linux
 
 // Design: docs/architecture/iface/logical-name-resolution.md -- sub-spec 5 dispatch translation.
 //
@@ -15,12 +15,19 @@
 
 package iface
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/ze-software/ze/internal/test/userns"
+)
 
 // TestDispatchTranslatesLogicalToOSDevice proves iface.SetMTU / SetAdminDown on a
 // logical name mutate the kernel device the os-name selector points at, not a
 // device named after the logical name (which does not exist).
 func TestDispatchTranslatesLogicalToOSDevice(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withNetNS(t, func() {
 		const osDev = "zedisp0"
 		createDummyForTest(t, osDev)
@@ -66,6 +73,9 @@ func TestDispatchTranslatesLogicalToOSDevice(t *testing.T) {
 // errors nor misses its baseline. (An untranslated GetStats/ResetCounters would
 // hit the backend with "wan" and fail, since no such kernel device exists.)
 func TestDispatchStatsBaselineKeyedByOSDevice(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withNetNS(t, func() {
 		const osDev = "zedisp1"
 		createDummyForTest(t, osDev)

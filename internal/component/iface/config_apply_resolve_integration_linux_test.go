@@ -1,4 +1,4 @@
-//go:build integration && linux
+//go:build linux
 
 // Design: docs/architecture/iface/logical-name-resolution.md -- the apply path translates.
 //
@@ -18,6 +18,8 @@ import (
 	"testing"
 
 	"github.com/vishvananda/netlink"
+
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // selectorTestMAC is the address the mac/match entry binds to. It is locally
@@ -38,6 +40,9 @@ func setMACForTest(t *testing.T, name, mac string) {
 // selector configures the selected kernel device and leaves the device carrying
 // the entry's logical name alone.
 func TestApplyKeysByMACSelectedDeviceOnKernel(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withNetNS(t, func() {
 		const selected, decoy = "zesel0", "zeselwan"
 		createDummyForTest(t, selected)
@@ -95,6 +100,9 @@ func TestApplyKeysByMACSelectedDeviceOnKernel(t *testing.T) {
 // ethtool ioctls by name, so an unresolved name is the one naming site no
 // backend fake can observe.
 func TestApplyKeysByOSNameAliasOnKernel(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withNetNS(t, func() {
 		const selected, logical = "zesel1", "zealias"
 		createDummyForTest(t, selected)
@@ -122,6 +130,9 @@ func TestApplyKeysByOSNameAliasOnKernel(t *testing.T) {
 // no device answers to leaves the commit succeeding and touches nothing, rather
 // than failing at the address add as it did before.
 func TestApplyDefersAbsentSelectorOnKernel(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withNetNS(t, func() {
 		const decoy = "zeselgone"
 		createDummyForTest(t, decoy)

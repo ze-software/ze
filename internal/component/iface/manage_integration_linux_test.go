@@ -1,4 +1,4 @@
-//go:build integration && linux
+//go:build linux
 
 package iface
 
@@ -6,9 +6,14 @@ import (
 	"testing"
 
 	"github.com/vishvananda/netlink"
+
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 func TestIntegrationCreateDummy(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	// VALIDATES: CreateDummy creates a dummy interface and brings it UP.
 	// PREVENTS: Interface creation fails silently or leaves link down.
 	withNetNS(t, func() {
@@ -25,6 +30,9 @@ func TestIntegrationCreateDummy(t *testing.T) {
 }
 
 func TestIntegrationCreateVeth(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	// VALIDATES: CreateVeth creates both ends and brings them UP.
 	// PREVENTS: One end of the veth pair left down or missing.
 	withNetNS(t, func() {
@@ -45,6 +53,9 @@ func TestIntegrationCreateVeth(t *testing.T) {
 }
 
 func TestIntegrationCreateBridge(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	// VALIDATES: CreateBridge creates a bridge interface and brings it UP.
 	// PREVENTS: Bridge creation fails or leaves interface down.
 	withNetNS(t, func() {
@@ -61,6 +72,9 @@ func TestIntegrationCreateBridge(t *testing.T) {
 }
 
 func TestIntegrationCreateVLAN(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	// VALIDATES: CreateVLAN creates a VLAN subinterface on a parent.
 	// PREVENTS: VLAN creation fails when parent exists or wrong name used.
 	withNetNS(t, func() {
@@ -80,6 +94,9 @@ func TestIntegrationCreateVLAN(t *testing.T) {
 }
 
 func TestIntegrationDeleteInterface(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	// VALIDATES: DeleteInterface removes a previously created interface.
 	// PREVENTS: Interface persists after deletion call.
 	withNetNS(t, func() {
@@ -98,6 +115,9 @@ func TestIntegrationDeleteInterface(t *testing.T) {
 }
 
 func TestIntegrationAddIPv4Address(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	// VALIDATES: AddAddress assigns an IPv4 address in CIDR notation.
 	// PREVENTS: Address not actually applied to the interface.
 	withNetNS(t, func() {
@@ -112,6 +132,9 @@ func TestIntegrationAddIPv4Address(t *testing.T) {
 }
 
 func TestIntegrationAddIPv6Address(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	// VALIDATES: AddAddress assigns an IPv6 address in CIDR notation.
 	// PREVENTS: IPv6 address handling differs from IPv4 path.
 	withNetNS(t, func() {
@@ -126,6 +149,9 @@ func TestIntegrationAddIPv6Address(t *testing.T) {
 }
 
 func TestIntegrationRemoveAddress(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	// VALIDATES: RemoveAddress removes a previously assigned address.
 	// PREVENTS: Address remains on interface after removal call.
 	withNetNS(t, func() {
@@ -144,6 +170,9 @@ func TestIntegrationRemoveAddress(t *testing.T) {
 }
 
 func TestIntegrationRemoveAddressKeepsSameSubnetSibling(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	// VALIDATES: removing one address of a subnet leaves the other addresses of
 	// that subnet on the interface, whichever of them the kernel made primary.
 	// PREVENTS: a make-before-break same-subnet renumber (add 10.99.0.2/24,
@@ -178,6 +207,9 @@ func TestIntegrationRemoveAddressKeepsSameSubnetSibling(t *testing.T) {
 }
 
 func TestIntegrationRemoveAddressKeepsOtherSubnets(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	// VALIDATES: removing an address does not disturb addresses in other
 	// subnets on the same interface.
 	// PREVENTS: an over-broad promote_secondaries/flush fix removing more than
@@ -202,6 +234,9 @@ func TestIntegrationRemoveAddressKeepsOtherSubnets(t *testing.T) {
 }
 
 func TestIntegrationSetMTU(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	// VALIDATES: SetMTU changes the interface MTU to the requested value.
 	// PREVENTS: MTU not actually applied by the kernel.
 	withNetNS(t, func() {

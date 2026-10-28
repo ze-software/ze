@@ -1,10 +1,11 @@
-//go:build integration && linux
+//go:build linux
 
 // Design: docs/features/interfaces.md AC-6 -- SLAAC address lifecycle
 // tracking. ze observes kernel-autoconfigured addresses and classifies them.
 //
 // This test exercises the classifier against the REAL kernel netlink stack in
-// an ephemeral network namespace (requires CAP_NET_ADMIN; skipped otherwise).
+// an ephemeral network namespace, inside the user and network namespace
+// userns.Enter gives it, so it needs no host privilege.
 // A kernel-timed IPv6 address (finite valid/preferred lifetime, non-permanent)
 // is the flag-equivalent of a SLAAC/RA-assigned address -- IFA_F_PERMANENT is
 // clear -- so it drives the same `origin=slaac` classification without needing
@@ -17,9 +18,14 @@ import (
 	"testing"
 
 	"github.com/vishvananda/netlink"
+
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 func TestSLAACAddressTracked(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withNetNS(t, func() {
 		const dev = "slaac0"
 		createDummyForTest(t, dev)

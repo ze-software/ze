@@ -1,4 +1,4 @@
-//go:build integration && linux
+//go:build linux
 
 // Design: docs/features/interfaces.md -- what the address reconcile removes.
 // Related: config_apply.go -- reconcileOnReadyWithJournal, the "remove extra addresses" pass.
@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/vishvananda/netlink"
+
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // TestIntegrationReconcileKeepsLearnedAddresses applies a config with one static
@@ -32,6 +34,9 @@ import (
 // is the same call over IPv6, which leaves IFA_F_PERMANENT clear as a Router
 // Advertisement does (see slaac_integration_linux_test.go).
 func TestIntegrationReconcileKeepsLearnedAddresses(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withNetNS(t, func() {
 		const (
 			dev       = "ze0"

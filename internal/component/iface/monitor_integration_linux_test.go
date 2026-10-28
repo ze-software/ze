@@ -1,4 +1,4 @@
-//go:build integration && linux
+//go:build linux
 
 package iface
 
@@ -10,6 +10,7 @@ import (
 	"github.com/vishvananda/netlink"
 
 	ifaceevents "github.com/ze-software/ze/internal/core/iface/events"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 const monitorEventTimeout = 5 * time.Second
@@ -75,6 +76,9 @@ func startTestMonitor(t *testing.T, bus *collectingBus) {
 }
 
 func TestIntegrationMonitorLinkCreated(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	// VALIDATES: Monitor emits (interface, created) when a link appears.
 	// PREVENTS: Monitor not detecting new interfaces via netlink.
 	withNetNS(t, func() {
@@ -95,6 +99,9 @@ func TestIntegrationMonitorLinkCreated(t *testing.T) {
 }
 
 func TestIntegrationMonitorPreexistingLinkDown(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	// The real startup snapshot sees this up link before its first notification.
 	// That first notification must reach down subscribers without a priming update.
 	withNetNS(t, func() {
@@ -117,6 +124,9 @@ func TestIntegrationMonitorPreexistingLinkDown(t *testing.T) {
 }
 
 func TestIntegrationMonitorAddrAdded(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	// VALIDATES: Monitor emits (interface, addr-added) when an IP is assigned.
 	// PREVENTS: Address events lost or wrong family reported.
 	withNetNS(t, func() {
@@ -146,6 +156,9 @@ func TestIntegrationMonitorAddrAdded(t *testing.T) {
 }
 
 func TestIntegrationMonitorAddrRemoved(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	// VALIDATES: Monitor emits (interface, addr-removed) when an IP is removed.
 	// PREVENTS: Removal events lost, leaving stale state.
 	withNetNS(t, func() {
@@ -178,6 +191,9 @@ func TestIntegrationMonitorAddrRemoved(t *testing.T) {
 }
 
 func TestIntegrationMonitorLinkDeleted(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	// VALIDATES: Monitor emits (interface, down) when a link is removed.
 	// PREVENTS: Deletion events lost, leaving stale tracking state.
 	withNetNS(t, func() {
@@ -212,6 +228,9 @@ func TestIntegrationMonitorLinkDeleted(t *testing.T) {
 }
 
 func TestIntegrationMonitorLinkUpDown(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	// VALIDATES: Monitor emits (interface, down) and (interface, up) on state changes.
 	// PREVENTS: State change events not emitted for admin up/down transitions.
 	withNetNS(t, func() {

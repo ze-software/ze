@@ -17,7 +17,7 @@
 // end moves to a namespace of its own, so every Reply crosses the veth instead
 // of being delivered locally, and a Go server answers on port 547 there.
 
-//go:build integration && linux
+//go:build linux
 
 package iface_test
 
@@ -44,6 +44,7 @@ import (
 	"github.com/ze-software/ze/internal/component/iface"
 	ifaceevents "github.com/ze-software/ze/internal/core/iface/events"
 	_ "github.com/ze-software/ze/internal/plugins/iface/dhcp" // installs the DHCP client factory the interface plugin calls
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 const (
@@ -75,6 +76,9 @@ var (
 var v6sbLabSeq atomic.Int32
 
 func TestDHCPv6RenewsOnSelectorBoundInterface(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	device, server := v6sbSetupLab(t)
 	if _, err := net.InterfaceByName(v6sbLogical); err == nil {
 		t.Fatalf("a kernel device is named %s: the test needs a logical name only the selector resolves", v6sbLogical)
@@ -173,7 +177,7 @@ func v6sbSetupLabNS(t *testing.T) (string, string, netns.NsHandle, *v6sbServer) 
 	peer := "zev6sp" + strconv.Itoa(suffix)
 	veth := &netlink.Veth{Name: device, PeerName: peer}
 	if err := netlink.LinkAdd(veth); err != nil {
-		t.Skipf("add veth (needs CAP_NET_ADMIN): %v", err)
+		t.Fatalf("add veth %s/%s in the test's namespace: %v", device, peer, err)
 	}
 	// Deleting one end deletes the pair.
 	t.Cleanup(func() { _ = netlink.LinkDel(veth) })
@@ -214,7 +218,7 @@ func v6sbMovePeer(t *testing.T, peer string) netns.NsHandle {
 	peerNS, err := netns.New()
 	if err != nil {
 		runtime.UnlockOSThread()
-		t.Skipf("new network namespace (needs CAP_SYS_ADMIN): %v", err)
+		t.Fatalf("new network namespace for the peer end %s: %v", peer, err)
 	}
 	if err := netns.Set(origin); err != nil {
 		// The thread stays locked: a thread left in the wrong namespace dies

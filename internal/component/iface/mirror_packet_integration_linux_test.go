@@ -1,10 +1,11 @@
-//go:build integration && linux
+//go:build linux
 
 // Design: docs/features/interfaces.md AC-6 -- prove the tc mirror copies
 // traffic at the PACKET level, not just that the qdisc/filter installs. A frame
 // injected on a veth peer ingresses the mirror source and must appear, copied,
-// on the mirror destination captured via AF_PACKET. Requires CAP_NET_ADMIN
-// (skipped otherwise). Run under `./le test integration iface`.
+// on the mirror destination captured via AF_PACKET. The test enters a user and
+// network namespace of its own with userns.Enter, so it needs no host
+// privilege, and a refused kernel operation fails it.
 
 package iface
 
@@ -15,6 +16,8 @@ import (
 
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
+
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 func htonsPkt(v uint16) uint16 { return v<<8 | v>>8 } //nolint:unparam // generic htons; only ETH_P_ALL is passed today
@@ -29,6 +32,9 @@ func ifIndexFor(t *testing.T, name string) int {
 }
 
 func TestIntegrationMirrorPacketLevel(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withNetNS(t, func() {
 		// veth: a frame sent on msrcp ingresses msrc0; mdst0 is the mirror sink.
 		createVethForTest(t, "msrc0", "msrcp")

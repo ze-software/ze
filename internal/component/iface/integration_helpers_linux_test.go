@@ -1,4 +1,4 @@
-//go:build integration && linux
+//go:build linux
 
 package iface
 
@@ -32,9 +32,10 @@ func ensureBackendForIntegration(t *testing.T) {
 // runs fn, then restores the original namespace in t.Cleanup.
 // The current goroutine is locked to its OS thread for the duration.
 //
-// If namespace creation fails (e.g., missing CAP_NET_ADMIN), the test
-// is skipped rather than failed, enabling graceful degradation on
-// unprivileged hosts.
+// The calling test MUST have entered its own namespaces with userns.Enter
+// as its first statement: it is then root over them, and the named
+// namespace lives on the private /run/netns Enter mounts, so a refusal here
+// is a failure, never a reason to skip.
 func withNetNS(t *testing.T, fn func()) {
 	t.Helper()
 	ensureBackendForIntegration(t)
@@ -43,7 +44,7 @@ func withNetNS(t *testing.T, fn func()) {
 
 	origNS, err := netns.Get()
 	if err != nil {
-		t.Skipf("requires CAP_NET_ADMIN: cannot get current namespace: %v", err)
+		t.Fatalf("get the test's network namespace: %v", err)
 	}
 
 	// Derive namespace name from test name, truncated to fit IFNAMSIZ-like limits.
@@ -52,7 +53,7 @@ func withNetNS(t *testing.T, fn func()) {
 	newNS, err := netns.NewNamed(nsName)
 	if err != nil {
 		origNS.Close() //nolint:errcheck // best-effort cleanup
-		t.Skipf("requires CAP_NET_ADMIN: cannot create namespace: %v", err)
+		t.Fatalf("create named network namespace %q in the test's namespace: %v", nsName, err)
 	}
 
 	t.Cleanup(func() {

@@ -1,4 +1,4 @@
-//go:build integration && linux
+//go:build linux
 
 package iface
 
@@ -12,9 +12,13 @@ import (
 	"github.com/vishvananda/netns"
 
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 func TestIntegrationMigrateFullCycle(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	// VALIDATES: MigrateInterface creates new interface, adds address, waits for
 	// BGP readiness, and removes the old address.
 	// PREVENTS: Migration fails in real kernel or rollback logic is wrong.
@@ -94,6 +98,9 @@ func TestIntegrationMigrateFullCycle(t *testing.T) {
 }
 
 func TestIntegrationMigrateTimeout(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	// VALIDATES: MigrateInterface rolls back when BGP readiness times out.
 	// PREVENTS: Leaked interfaces/addresses on timeout without rollback.
 	withNetNS(t, func() {

@@ -1,15 +1,16 @@
-//go:build integration && linux
+//go:build linux
 
 // Design: docs/features/interfaces.md -- owned-macvlan registry, real-kernel proof
 // Related: registry_integration_linux_test.go -- the address-registry sibling
 // Related: config_apply.go -- reconcileOwnedDevices (the pass under test)
 //
-// These run in the QEMU Alpine VM (ai/rules/platform-linux.md): they drive the
-// real reconcile device pass (reconcileOnReady) against a live netlink backend
-// in a throwaway network namespace, exercising create-before-address ordering,
-// VIP install via the address registry, delete-on-unregister, retry when the
-// parent appears late, and alias-scoped orphan cleanup. Skips (never fails)
-// without CAP_NET_ADMIN (withNetNS).
+// These drive the real reconcile device pass (reconcileOnReady) against a live
+// netlink backend in a throwaway network namespace, exercising
+// create-before-address ordering, VIP install via the address registry,
+// delete-on-unregister, retry when the parent appears late, and alias-scoped
+// orphan cleanup. Each test enters a user and network namespace of its own with
+// userns.Enter, so it needs no host privilege, and a refused kernel operation
+// fails it.
 
 package iface
 
@@ -17,6 +18,8 @@ import (
 	"testing"
 
 	"github.com/vishvananda/netlink"
+
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 const (
@@ -41,6 +44,9 @@ func createOwnedMacvlanViaBackend(t *testing.T, name, parent, alias string) {
 //
 // VALIDATES: Wiring row 1 + AC-1 end-to-end on a real kernel.
 func TestIntegrationRegisterOwnedMacvlan_ReachesKernel(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withNetNS(t, func() {
 		resetAddressOwners(t)
 		resetDeviceOwners(t)
@@ -76,6 +82,9 @@ func TestIntegrationRegisterOwnedMacvlan_ReachesKernel(t *testing.T) {
 // VALIDATES: A-1 + AC-2 -- the address registry installs on a plugin-created
 // device with no desiredState change.
 func TestIntegrationOwnedMacvlan_VIPInstalledViaAddressRegistry(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withNetNS(t, func() {
 		resetAddressOwners(t)
 		resetDeviceOwners(t)
@@ -99,6 +108,9 @@ func TestIntegrationOwnedMacvlan_VIPInstalledViaAddressRegistry(t *testing.T) {
 //
 // VALIDATES: AC-3 + story 2.
 func TestIntegrationMacvlanDelete_OnOwnerUnregister(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withNetNS(t, func() {
 		resetAddressOwners(t)
 		resetDeviceOwners(t)
@@ -129,6 +141,9 @@ func TestIntegrationMacvlanDelete_OnOwnerUnregister(t *testing.T) {
 // VALIDATES: AC-9 + Wiring row 5 (the monitor re-notify drives this in prod;
 // here the pass is invoked directly after the parent appears).
 func TestIntegrationMacvlanParentAppearsLater_DeviceCreated(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withNetNS(t, func() {
 		resetAddressOwners(t)
 		resetDeviceOwners(t)
@@ -161,6 +176,9 @@ func TestIntegrationMacvlanParentAppearsLater_DeviceCreated(t *testing.T) {
 //
 // VALIDATES: AC-4 + story 3 + A-7.
 func TestIntegrationMacvlanOrphanCleanup_StaleDeviceDeleted(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withNetNS(t, func() {
 		resetAddressOwners(t)
 		resetDeviceOwners(t)
@@ -180,6 +198,9 @@ func TestIntegrationMacvlanOrphanCleanup_StaleDeviceDeleted(t *testing.T) {
 //
 // VALIDATES: AC-4 + R-2 -- deletion requires kind macvlan AND the ze alias.
 func TestIntegrationMacvlanOrphanCleanup_UnmarkedDeviceUntouched(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withNetNS(t, func() {
 		resetAddressOwners(t)
 		resetDeviceOwners(t)

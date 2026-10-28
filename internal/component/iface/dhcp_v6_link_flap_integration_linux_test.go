@@ -19,6 +19,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // v6lfSlack is how far below the granted lifetime the kernel's lifetime left
@@ -35,6 +36,9 @@ const v6lfSlack = 60 * time.Second
 // PREVENTS: a carrier loss read as a duplicate address, or an address left
 // with a lifetime the lease never granted.
 func TestDHCPv6CarrierFlapKeepsTheLeasedAddress(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	lab := v6lmLease(t)
 
 	h, err := netlink.NewHandleAt(lab.peerNS)
@@ -69,6 +73,9 @@ func TestDHCPv6CarrierFlapKeepsTheLeasedAddress(t *testing.T) {
 // PREVENTS: every leased address declined to the server after an operator
 // bounces the interface, or left off the device until the next Reply.
 func TestDHCPv6AdminFlapReinstallsTheLeasedAddress(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	lab := v6lmLease(t)
 
 	link, err := netlink.LinkByName(lab.device)
@@ -106,6 +113,9 @@ func TestDHCPv6AdminFlapReinstallsTheLeasedAddress(t *testing.T) {
 // outran the LinkDown event (journal row of 2026-10-19 in
 // plan/journal/reconciler-repairs-against-a-stale-snapshot.md).
 func TestDHCPv6AdminDownDuringDADBeforeItsEventNotDeclined(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	device, peer, peerNS, server := v6sbSetupLabNS(t)
 	iface.SetResolverMappingForTest(map[string]string{v6sbLogical: device})
 	t.Cleanup(func() { iface.SetResolverMappingForTest(nil) })

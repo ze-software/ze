@@ -1,10 +1,17 @@
-//go:build integration && linux
+//go:build linux
 
 package iface
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/ze-software/ze/internal/test/userns"
+)
 
 func TestIntegrationApplyConfigFirstApplyPreservesUnmanagedDummy(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	// VALIDATES: first apply does not adopt/delete manageable links Ze did not own.
 	// PREVENTS: startup reconciliation removing pre-existing dummy/veth/bridge links.
 	withNetNS(t, func() {
@@ -34,6 +41,9 @@ func TestIntegrationApplyConfigFirstApplyPreservesUnmanagedDummy(t *testing.T) {
 }
 
 func TestIntegrationApplyConfigReloadDeletesOnlyPreviouslyManaged(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	// VALIDATES: reload deletion is scoped to interfaces in the previous config.
 	// PREVENTS: removing arbitrary manageable kernel links that Ze did not own.
 	withNetNS(t, func() {
@@ -75,6 +85,9 @@ func TestIntegrationApplyConfigReloadDeletesOnlyPreviouslyManaged(t *testing.T) 
 }
 
 func TestIntegrationApplyConfigFailureRollsBackCreatedLinks(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	// VALIDATES: partial apply rollback removes created links after a later failure.
 	// PREVENTS: failed config commits leaking real kernel interfaces.
 	withNetNS(t, func() {

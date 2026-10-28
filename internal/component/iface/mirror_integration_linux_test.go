@@ -1,4 +1,4 @@
-//go:build integration && linux
+//go:build linux
 
 package iface
 
@@ -7,6 +7,8 @@ import (
 
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
+
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 const (
@@ -130,6 +132,9 @@ func hasQdisc(t *testing.T, linkName, qdiscType string) bool {
 }
 
 func TestIntegrationMirrorIngress(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	// VALIDATES: SetupMirror with ingress=true installs a filter on the
 	// ingress hook of the clsact qdisc.
 	// PREVENTS: Ingress mirroring silently fails to configure tc.
@@ -156,6 +161,9 @@ func TestIntegrationMirrorIngress(t *testing.T) {
 }
 
 func TestIntegrationMirrorEgress(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	// VALIDATES: SetupMirror with egress=true installs a filter on the EGRESS
 	// hook, and leaves the ingress hook alone.
 	// PREVENTS: egress mirroring silently failing to configure tc. Asserting the
@@ -192,6 +200,9 @@ func TestIntegrationMirrorEgress(t *testing.T) {
 }
 
 func TestIntegrationMirrorBoth(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	// VALIDATES: SetupMirror with both ingress and egress uses clsact qdisc.
 	// PREVENTS: Combined mirror setup fails or only configures one direction.
 	withNetNS(t, func() {
@@ -234,6 +245,9 @@ func TestIntegrationMirrorBoth(t *testing.T) {
 }
 
 func TestIntegrationMirrorRemove(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	// VALIDATES: AC-3 -- RemoveMirror removes the mirror's own filter from both
 	// hooks and LEAVES the shared qdisc standing, even when the mirror was its
 	// only user.
@@ -279,6 +293,9 @@ func TestIntegrationMirrorRemove(t *testing.T) {
 }
 
 func TestIntegrationMirrorRemoveIdempotent(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	// VALIDATES: RemoveMirror succeeds even when no mirror is configured.
 	// PREVENTS: Error returned for idempotent cleanup of unconfigured interface.
 	withNetNS(t, func() {
@@ -292,6 +309,9 @@ func TestIntegrationMirrorRemoveIdempotent(t *testing.T) {
 }
 
 func TestIntegrationMirrorRemoveKeepsForeignFilter(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	// VALIDATES: AC-2 -- removing a mirror leaves every filter another
 	// subsystem attached to the shared clsact qdisc, and leaves the qdisc.
 	// PREVENTS: mirror teardown silently disabling flow-export sampling, which
@@ -334,6 +354,9 @@ func TestIntegrationMirrorRemoveKeepsForeignFilter(t *testing.T) {
 }
 
 func TestIntegrationMirrorRemoveLeavesForeignQdiscUntouched(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	// VALIDATES: AC-8 -- RemoveMirror on an interface ze never mirrored takes
 	// nothing away from the subsystem that created the qdisc.
 	// PREVENTS: a config commit that mentions no mirror deleting a clsact
@@ -359,6 +382,9 @@ func TestIntegrationMirrorRemoveLeavesForeignQdiscUntouched(t *testing.T) {
 }
 
 func TestIntegrationMirrorSetupOnExistingClsact(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	// VALIDATES: AC-4 -- a mirror can be configured on an interface whose
 	// clsact qdisc another subsystem already created.
 	// PREVENTS: mirror setup failing with EEXIST on an interface that already
@@ -397,6 +423,9 @@ func TestIntegrationMirrorSetupOnExistingClsact(t *testing.T) {
 // the kernel refuses with ENODEV.
 
 func TestIntegrationMirrorSetupIsIdempotent(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	// VALIDATES: AC-7 -- applying the same mirror twice succeeds and leaves
 	// one filter per hook.
 	// PREVENTS: a second commit of an unchanged config failing with EEXIST, or
@@ -429,6 +458,9 @@ func TestIntegrationMirrorSetupIsIdempotent(t *testing.T) {
 }
 
 func TestIntegrationMirrorTwoDestinations(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	// VALIDATES: a mirror that sends ingress and egress traffic to different
 	// interfaces installs both filters.
 	// PREVENTS: the second direction failing with EEXIST, which is what the
@@ -472,6 +504,9 @@ func TestIntegrationMirrorTwoDestinations(t *testing.T) {
 }
 
 func TestIntegrationApplyConfigMirrorRemovedOnConfigDelete(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	// VALIDATES: AC-1 end to end -- the operator deletes the mirror leaves,
 	// commits, and the kernel stops duplicating traffic.
 	// PREVENTS: a removed mirror living on in the kernel, which applyMirror's
@@ -522,6 +557,9 @@ func TestIntegrationApplyConfigMirrorRemovedOnConfigDelete(t *testing.T) {
 }
 
 func TestIntegrationApplyConfigMirrorKeepsForeignFilterOnConfigDelete(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	// VALIDATES: AC-1 and AC-2 together -- deleting the mirror from the config
 	// leaves an interface that also samples still sampling.
 	// PREVENTS: a config commit taking flow-export sampling down as a side
@@ -567,6 +605,9 @@ func TestIntegrationApplyConfigMirrorKeepsForeignFilterOnConfigDelete(t *testing
 }
 
 func TestIntegrationListMirrorsReportsTheLiveMirror(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	// VALIDATES: the netlink backend reads its own mirror back out of the
 	// kernel, naming the source and the destination DEVICE in each direction.
 	// PREVENTS: a reconcile deciding from a read that answers "no mirror" for
@@ -617,6 +658,9 @@ func TestIntegrationListMirrorsReportsTheLiveMirror(t *testing.T) {
 }
 
 func TestIntegrationListMirrorsIgnoresAForeignFilter(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	// VALIDATES: a filter another subsystem installed on the shared clsact
 	// qdisc is not reported as a mirror.
 	// PREVENTS: a reconcile retiring flow-export sampling because it read the
@@ -638,6 +682,9 @@ func TestIntegrationListMirrorsIgnoresAForeignFilter(t *testing.T) {
 }
 
 func TestIntegrationApplyConfigRetiresAMirrorNoConfigAsksFor(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	// VALIDATES: the restart hole, against a real kernel -- a mirror installed
 	// in tc and absent from the configuration is torn down by an apply that has
 	// NO previous config to derive it from.
@@ -685,6 +732,9 @@ func TestIntegrationApplyConfigRetiresAMirrorNoConfigAsksFor(t *testing.T) {
 }
 
 func TestIntegrationApplyConfigKeepsAForeignFilterWhileRetiringAStrandedMirror(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	// VALIDATES: the kernel-state reconcile removes ze's own filter and leaves
 	// every other subsystem's filter on the shared qdisc alone.
 	// PREVENTS: the reconcile taking flow-export sampling down as a side effect
@@ -726,6 +776,9 @@ func TestIntegrationApplyConfigKeepsAForeignFilterWhileRetiringAStrandedMirror(t
 }
 
 func TestIntegrationApplyConfigLeavesAMirrorOnAnInterfaceItDoesNotConfigure(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	// VALIDATES: against a real kernel, the reconcile retires ze's mirror on a
 	// configured interface and leaves an identically shaped filter on an
 	// interface the configuration does not name.

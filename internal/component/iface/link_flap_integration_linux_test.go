@@ -1,4 +1,4 @@
-//go:build integration && linux
+//go:build linux
 
 // Design: docs/architecture/iface/management.md -- carrier events are queued per interface
 // Related: link_queue.go -- the queue, subscribeLinkEvents and applyLinkEvent
@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/rtproto"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // dispatchingBus is an EventBus that delivers to its subscribers on the
@@ -157,6 +158,9 @@ func metricOf(t *testing.T, ifaceName, gateway string) int {
 // switches the namespace of ONE locked OS thread, and a netlink call from any
 // other goroutine would program the wrong namespace.
 func TestIntegrationLinkFlapDuringCommitKeepsTheRouteMetric(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withNetNS(t, func() {
 		const local = "zeflap0"
 		const peer = "zeflap1"

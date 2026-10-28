@@ -1,4 +1,4 @@
-//go:build integration && linux
+//go:build linux
 
 // Design: docs/architecture/iface/logical-name-resolution.md -- resolver os-name remapping.
 //
@@ -14,12 +14,19 @@
 
 package iface
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/ze-software/ze/internal/test/userns"
+)
 
 // TestResolveRemapsLogicalNameToOSDevice proves iface.Resolve("uplink") binds to
 // the real kernel device named by the os-name selector, not to a device literally
 // named "uplink".
 func TestResolveRemapsLogicalNameToOSDevice(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withNetNS(t, func() {
 		const osDev = "zeosdev0"
 		createDummyForTest(t, osDev)
@@ -67,6 +74,9 @@ func TestResolveRemapsLogicalNameToOSDevice(t *testing.T) {
 // TestAddressesRemapAndClassify proves Addresses() resolves the logical name to
 // its OS device and tags address scope correctly against a real interface.
 func TestAddressesRemapAndClassify(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withNetNS(t, func() {
 		const osDev = "zeosdev1"
 		createDummyForTest(t, osDev)
@@ -116,6 +126,9 @@ func TestAddressesRemapAndClassify(t *testing.T) {
 // a stub backend (TestResolveByPermMACPrefersPermanentOverCurrent) because CI
 // hosts expose no permanent-address NICs.
 func TestResolveByMACBindsToDevice(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withNetNS(t, func() {
 		const osDev = "zemacdev0"
 		const wantMAC = "02:00:00:00:be:ef"

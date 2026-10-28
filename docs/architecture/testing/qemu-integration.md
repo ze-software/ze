@@ -798,7 +798,7 @@ Two patterns, choose based on what the test needs:
 | Build tag | Use when | Example |
 |-----------|----------|---------|
 | `//go:build linux` | Test imports linux-only types but needs no kernel capabilities | `host/cpu_linux_test.go` |
-| `//go:build integration && linux` | Test needs root, devices, namespaces, ioctls | `iface/config_integration_linux_test.go` |
+| `//go:build integration && linux` | Test needs root, devices, namespaces, ioctls | `l2tp/bridge_integration_linux_test.go` |
 | `//go:build docker` | Test starts a real server container through `labtest.Start`, on the host's Docker; never together with `integration`, because the guest has no Docker ("The docker population") | `interoplab/labtest/labtest_docker_test.go` |
 
 Tests tagged `integration && linux` run through the applicable `./le test qemu`
