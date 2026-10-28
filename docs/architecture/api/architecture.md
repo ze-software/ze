@@ -1852,6 +1852,13 @@ Ze serialises config one way, as JSON, and answers in either JSON encoding: Capa
 
 Subscribe STREAM delivers change notifications from both gNMI Set operations and external config commits (web, CLI, managed). External commits trigger a generic config-reload notification via the `ChangeNotifier`, which is wired into the hub's `reloadAfterCommit` hook.
 
+A `ze:sensitive` leaf reaches a gNMI client only in its `$9$` form. The running tree holds every sensitive key decoded, so Get and Subscribe ONCE read the copy `config.EncodeSecrets` returns, in which each such leaf carries the `$9$` text it was parsed from, or a fresh encoding when it had none. The STREAM notification that echoes a Set goes to every subscriber, so `publishedUpdate` replaces a value written at a sensitive leaf with its `$9$` form (`config.SecretValueAtPath`) before it is broadcast, and falls back to the mask placeholder should the path or value fail to convert. Set accepts `$9$`: `Editor.SetValue` decodes it to the key (`config.DecodeSecretText`) and records the text as the leaf's stored spelling, so every writer prints it back as written.
+<!-- source: internal/component/gnmi/get.go -- Get -->
+<!-- source: internal/component/gnmi/subscribe.go -- handleSubscribeOnce -->
+<!-- source: internal/component/gnmi/set.go -- notifySetResults, publishedUpdate -->
+<!-- source: internal/component/cli/editor_commands.go -- decodeSecretValue, keepStoredSecret -->
+<!-- source: internal/component/config/secret_text.go -- EncodeSecrets, SecretValueAtPath, DecodeSecretText -->
+
 Prometheus counters: `ze_gnmi_requests_total{rpc}`, `ze_gnmi_subscribe_active`, `ze_gnmi_errors_total{rpc,code}`.
 
 `Serve` installs one unary and one stream interceptor chain, and the panic boundary is the first link of each, outside the token check: grpc-go recovers nothing, and a plain `grpc.UnaryInterceptor` would sit outside any chain. A Ze defect met in one call or stream ends that call with `Internal` and a plain message; the panic is logged, counted in `ze_task_panics_total{component="gnmi",task="rpc"}` and crash-recorded, and the listener and every other call keep running. Every Subscribe mode runs on the stream handler's goroutine, so the boundary covers the whole stream. Set discards its config session on every way out but a commit, the contained panic included.

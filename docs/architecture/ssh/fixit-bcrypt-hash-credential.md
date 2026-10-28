@@ -133,8 +133,10 @@ tests instead.
 
 ## Residual exposure, recorded and not closed here
 
-- gNMI `Get` still returns raw config leaf values unmasked. It is a separate
-  component with its own authorization.
+- gNMI `Get` answers a `ze:sensitive` leaf in its reversible `$9$` form
+  (`docs/guide/gnmi.md`, "Sensitive values") and every other leaf as stored, a
+  bcrypt hash included, never masked. It is a separate component with its own
+  authorization.
 - An operator-installed local TCP proxy in front of the loopback SSH port is
   outside Ze's control. A dedicated unix-socket listener would close it.
 - Redaction is scoped to the names `isSecretConfigKey` answers for: the words

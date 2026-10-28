@@ -465,7 +465,7 @@ func (e *Editor) rewriteWholeLeaf(path []string, key string, edit func(*config.T
 	for _, state := range states {
 		members = append(members, state.Value)
 	}
-	return e.writeThroughSet(path, key, config.JoinLeafListMembers(members))
+	return e.writeThroughSet(path, key, config.JoinLeafListMembers(members), "")
 }
 
 // dropSessionMemberOps answers ops without the member ops (insert, deactivate,

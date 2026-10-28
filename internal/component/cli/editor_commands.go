@@ -159,16 +159,54 @@ func (e *Editor) SetValue(path []string, key, value string) error {
 		// every replay of it read back the same members, a quoted one included.
 		value = config.JoinLeafListMembers(config.SplitLeafListMembers(value))
 	}
+	value, stored, err := e.decodeSecretValue(path, key, value)
+	if err != nil {
+		return err
+	}
 	if e.session != nil {
-		return e.writeThroughSet(path, key, value)
+		return e.writeThroughSet(path, key, value, stored)
 	}
 	target, err := e.walkOrCreate(path)
 	if err != nil {
 		return err
 	}
 	e.storeLeaf(target, path, key, value)
+	keepStoredSecret(target, key, stored)
 	e.dirty.Store(true)
 	return nil
+}
+
+// decodeSecretValue answers the key a client's value spells for the leaf key
+// under path, as every config parser stores it: a $9$ text on a ze:sensitive
+// leaf is decoded, and stored answers that text so the writers print it back
+// byte for byte (keepStoredSecret); stored is empty for any other value. A
+// client of SetValue (gNMI Set, a REST or gRPC config session, the web
+// editor) may send the $9$ form it read back, and the daemon must never hand
+// that text to a peer as the key.
+func (e *Editor) decodeSecretValue(path []string, key, value string) (decoded, stored string, err error) {
+	var leaf *config.LeafNode
+	if e.schema != nil {
+		if parentSchema := e.walkSchema(path); parentSchema != nil {
+			leaf, _ = parentSchema.Get(key).(*config.LeafNode) // No LeafNode holds no secret.
+		}
+	}
+	decoded, wasEncoded, err := config.DecodeSecretText(key, leaf, value)
+	if err != nil {
+		return "", "", err
+	}
+	if wasEncoded {
+		return decoded, value, nil
+	}
+	return decoded, "", nil
+}
+
+// keepStoredSecret records stored as the $9$ text of the leaf key of target,
+// which SetValue just wrote decoded; an empty stored is a value that was not
+// sent in the $9$ form, and records nothing.
+func keepStoredSecret(target *config.Tree, key, stored string) {
+	if stored != "" {
+		target.SetStoredSecret(key, stored)
+	}
 }
 
 // storeLeaf writes value whole at key in target. A bracket leaf-list is the one

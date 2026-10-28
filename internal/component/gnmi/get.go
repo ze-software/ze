@@ -46,6 +46,9 @@ func (s *Server) Get(_ context.Context, req *gpb.GetRequest) (*gpb.GetResponse, 
 		s.recordError("Get", codes.Unavailable)
 		return nil, status.Errorf(codes.Unavailable, "config schema not available: %v", err)
 	}
+	// The running tree holds every ze:sensitive key decoded, so a client
+	// reads the copy in which each one is in its $9$ form, never in clear.
+	tree = zeconfig.EncodeSecrets(tree, schema)
 
 	notifications := make([]*gpb.Notification, 0, len(req.GetPath()))
 	ts := time.Now().UnixNano()

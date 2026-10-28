@@ -159,6 +159,8 @@ func (s *Server) handleSubscribeOnce(stream gpb.GNMI_SubscribeServer, sub *gpb.S
 		s.recordError("Subscribe", codes.Unavailable)
 		return status.Errorf(codes.Unavailable, "config schema not available: %v", err)
 	}
+	// As Get does: a subscriber reads every ze:sensitive key in its $9$ form.
+	tree = zeconfig.EncodeSecrets(tree, schema)
 
 	ts := time.Now().UnixNano()
 	subs := sub.GetSubscription()

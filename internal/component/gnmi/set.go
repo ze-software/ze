@@ -116,7 +116,7 @@ func (s *Server) Set(ctx context.Context, req *gpb.SetRequest) (*gpb.SetResponse
 
 	ts := time.Now().UnixNano()
 	if s.notifier != nil {
-		s.notifySetResults(req, ts)
+		s.notifySetResults(schema, req, ts)
 	}
 
 	return &gpb.SetResponse{
@@ -183,7 +183,7 @@ func (s *Server) discardSession(_ context.Context, sessionID string) {
 }
 
 // notifySetResults broadcasts change notifications for all paths modified by a Set.
-func (s *Server) notifySetResults(req *gpb.SetRequest, ts int64) {
+func (s *Server) notifySetResults(schema *zeconfig.Schema, req *gpb.SetRequest, ts int64) {
 	for _, del := range req.GetDelete() {
 		s.notifier.Notify(&gpb.Notification{
 			Timestamp: ts,
@@ -193,13 +193,40 @@ func (s *Server) notifySetResults(req *gpb.SetRequest, ts int64) {
 	for _, upd := range req.GetReplace() {
 		s.notifier.Notify(&gpb.Notification{
 			Timestamp: ts,
-			Update:    []*gpb.Update{{Path: upd.GetPath(), Val: upd.GetVal()}},
+			Update:    []*gpb.Update{publishedUpdate(schema, upd)},
 		})
 	}
 	for _, upd := range req.GetUpdate() {
 		s.notifier.Notify(&gpb.Notification{
 			Timestamp: ts,
-			Update:    []*gpb.Update{{Path: upd.GetPath(), Val: upd.GetVal()}},
+			Update:    []*gpb.Update{publishedUpdate(schema, upd)},
 		})
 	}
+}
+
+// publishedUpdate answers the update a change notification carries for upd,
+// which one client set and every subscriber receives: a value written at a
+// ze:sensitive leaf goes out in its $9$ form (zeconfig.SecretValueAtPath),
+// never as the client sent it; every other value goes out as sent. Set has
+// already applied upd, so its path and value convert; should either fail
+// here, the value goes out as the mask placeholder rather than as sent.
+func publishedUpdate(schema *zeconfig.Schema, upd *gpb.Update) *gpb.Update {
+	masked := &gpb.Update{Path: upd.GetPath(), Val: &gpb.TypedValue{
+		Value: &gpb.TypedValue_StringVal{StringVal: zeconfig.SecretDataPlaceholder},
+	}}
+	segments, err := pathToSegments(schema, upd.GetPath())
+	if err != nil {
+		return masked
+	}
+	value, err := typedValueToString(upd.GetVal())
+	if err != nil {
+		return masked
+	}
+	published := zeconfig.SecretValueAtPath(schema, segments, value)
+	if published == value {
+		return &gpb.Update{Path: upd.GetPath(), Val: upd.GetVal()}
+	}
+	return &gpb.Update{Path: upd.GetPath(), Val: &gpb.TypedValue{
+		Value: &gpb.TypedValue_StringVal{StringVal: published},
+	}}
 }

@@ -95,7 +95,7 @@ func DetectFormat(content string) ConfigFormat {
 // prints in its $9$ form (encodeSecrets), never in clear.
 func SerializeSet(tree *Tree, schema *Schema) string {
 	var b textbuf.Buffer
-	serializeSetNode(&b, mustEncodeSecrets(tree, schema), schema.root, "")
+	serializeSetNode(&b, EncodeSecrets(tree, schema), schema.root, "")
 	return b.String()
 }
 
@@ -543,7 +543,7 @@ func serializeSetExtraValues(b *textbuf.Buffer, tree *Tree, children []string, p
 // (encodeSecretMeta).
 func SerializeSetWithMeta(tree *Tree, meta *MetaTree, schema *Schema) string {
 	var b textbuf.Buffer
-	printed := mustEncodeSecrets(tree, schema)
+	printed := EncodeSecrets(tree, schema)
 	serializeSetMetaNode(&b, printed, encodeSecretMeta(printed, meta, schema), schema.root, "")
 	return b.String()
 }

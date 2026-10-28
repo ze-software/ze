@@ -172,7 +172,7 @@ func normalizeBool(v string) string {
 // config text (fmt, migrate, the editor) prints through here or SerializeSet.
 func Serialize(tree *Tree, schema *Schema) string {
 	var b textbuf.Buffer
-	serializeTree(&b, mustEncodeSecrets(tree, schema), schema.root, 0)
+	serializeTree(&b, EncodeSecrets(tree, schema), schema.root, 0)
 	return b.String()
 }
 

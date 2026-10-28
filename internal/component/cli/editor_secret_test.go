@@ -7,7 +7,45 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/internal/component/config/secret"
 )
+
+// TestSetValueDecodesStoredSecret sets a peer's TCP MD5 key (a ze:sensitive
+// leaf) in its $9$ form through Editor.SetValue, the write a gNMI Set, a
+// REST or gRPC config session and the web editor make, once with no session
+// and once inside one.
+//
+// VALIDATES: the editor's tree holds the decoded key, as every config parser
+// stores it, and the content the editor writes carries the $9$ text the
+// client sent, byte for byte.
+// PREVENTS: a $9$ text a client set being held as the key itself, so the
+// daemon would send the encoded text to the peer as its MD5 key.
+func TestSetValueDecodesStoredSecret(t *testing.T) {
+	const key = "md5-key-set-3d81a0-tail"
+	stored, err := secret.Encode(key)
+	require.NoError(t, err)
+	md5Path := []string{"bgp", "peer", "peer1", "connection", "md5"}
+
+	for _, withSession := range []bool{false, true} {
+		configPath := writeTestConfig(t, validBGPConfig)
+		ed, err := NewEditorWithStorage(newTestTreeStore(t, configPath), configPath)
+		require.NoError(t, err)
+		t.Cleanup(func() { ed.Close() }) //nolint:errcheck // test cleanup
+		if withSession {
+			ed.SetSession(NewEditSession("carol", "gnmi"))
+		}
+
+		require.NoError(t, ed.SetValue(md5Path, "password", stored))
+
+		held, ok := ed.Tree().GetContainerPath("bgp").GetList("peer")["peer1"].GetContainerPath("connection/md5").Get("password")
+		require.True(t, ok, "session=%v: no md5 password under peer1", withSession)
+		require.Equal(t, key, held, "session=%v: the tree holds the client's text, not the decoded key", withSession)
+		written := ed.WorkingContent()
+		require.Contains(t, written, stored, "session=%v: the editor did not keep the $9$ text it was given", withSession)
+		require.NotContains(t, written, key, "session=%v: the editor wrote the key in clear", withSession)
+	}
+}
 
 // TestContestedSecretNeverWrittenInClear drives two editor sessions on one
 // store: bob sets a peer's TCP MD5 key (a ze:sensitive leaf), then alice

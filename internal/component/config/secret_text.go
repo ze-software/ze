@@ -26,7 +26,7 @@ func reversibleSecret(leaf *LeafNode) bool {
 // same encoding back. Every other value is answered unchanged. A nil leaf is
 // a child that is not a LeafNode, which holds no secret.
 func decodeSecretLeaf(tree *Tree, name string, leaf *LeafNode, value string) (string, error) {
-	decoded, wasEncoded, err := decodeSecretText(name, leaf, value)
+	decoded, wasEncoded, err := DecodeSecretText(name, leaf, value)
 	if err != nil {
 		return "", err
 	}
@@ -36,12 +36,15 @@ func decodeSecretLeaf(tree *Tree, name string, leaf *LeafNode, value string) (st
 	return decoded, nil
 }
 
-// decodeSecretText answers the key text spells for the leaf name: a $9$
+// DecodeSecretText answers the key text spells for the leaf name: a $9$
 // string on a ze:sensitive leaf is decoded, and wasEncoded says so; every
-// other text is answered unchanged. It serves a leaf value (decodeSecretLeaf)
-// and a session entry's ^previous field, which a meta writer prints in the
-// $9$ form too (encodeSecretMeta).
-func decodeSecretText(name string, leaf *LeafNode, text string) (key string, wasEncoded bool, err error) {
+// other text is answered unchanged. It serves a leaf value (decodeSecretLeaf),
+// a session entry's ^previous field, which a meta writer prints in the $9$
+// form too (encodeSecretMeta), and a value a client sets through the editor
+// (a gNMI Set, a REST or gRPC config session), which keeps text as the
+// leaf's stored text when wasEncoded (Tree.SetStoredSecret). A nil leaf
+// holds no secret.
+func DecodeSecretText(name string, leaf *LeafNode, text string) (key string, wasEncoded bool, err error) {
 	if !reversibleSecret(leaf) {
 		return text, false, nil
 	}
@@ -105,10 +108,16 @@ func holdsValueNamed(tree *Tree, names map[string]bool) bool {
 	return false
 }
 
-// mustEncodeSecrets is encodeSecrets for a printer whose signature carries no
-// error. secret.Encode fails only when crypto/rand.Read does, and since Go
-// 1.24 crypto/rand.Read never returns an error: it ends the program instead.
-func mustEncodeSecrets(tree *Tree, schema *Schema) *Tree {
+// EncodeSecrets is encodeSecrets for a writer whose signature carries no
+// error: the printers here, and every surface outside this package that
+// publishes values read from a tree holding decoded keys (gNMI Get and
+// Subscribe read the running tree). Such a surface reads the copy this
+// answers, never tree itself. secret.Encode fails only when crypto/rand.Read
+// does, and since Go 1.24 crypto/rand.Read never returns an error: it ends
+// the program instead. Safe for concurrent use: Tree locks every read, and
+// the one write to tree, the memoized stored text, goes through
+// Tree.SetStoredSecret.
+func EncodeSecrets(tree *Tree, schema *Schema) *Tree {
 	printed, err := encodeSecrets(tree, schema)
 	if err != nil {
 		panic("impossible: " + err.Error())
@@ -116,39 +125,78 @@ func mustEncodeSecrets(tree *Tree, schema *Schema) *Tree {
 	return printed
 }
 
+// SecretValueAtPath answers the text a surface may publish for value, written
+// at the leaf that path, a list of CLI tokens, names: a ze:sensitive key in
+// its $9$ form (secretSpelling), every other value as DisplayValueAtPath
+// answers it. So a one-way hash reads as the placeholder, and a path that
+// resolves to no leaf reads as the placeholder too: that path cannot be told
+// from one that names a credential. It serves a surface that echoes a value
+// a client wrote, with no tree to encode (a gNMI Set notification).
+func SecretValueAtPath(schema *Schema, path []string, value string) string {
+	leaf, isLeaf := schema.LookupTokenPath(path).(*LeafNode)
+	if isLeaf && reversibleSecret(leaf) {
+		return secretSpelling("", value)
+	}
+	return DisplayValueAtPath(schema, path, value)
+}
+
 // encodeSecretLeaves rewrites each ze:sensitive leaf of printed, under the
 // schema node cp, into its $9$ form, recording a fresh encoding in source,
-// the tree printed was cloned from; it walks both side by side. A FlexNode
-// keeps the surrounding tree, as the password hashing walk does. The
-// recursion is bounded by the schema's depth.
+// the tree printed was cloned from; it walks both side by side. It follows
+// the tree's storage, as maskWalk does: a ContainerNode's and a FlexNode's
+// children live in the container of that name, a ListNode's and an
+// InlineListNode's in the entries of the list of that name. The other node
+// kinds hold no LeafNode. The recursion is bounded by the schema's depth.
 func encodeSecretLeaves(source, printed *Tree, cp ChildProvider) error {
 	for _, name := range cp.Children() {
+		var err error
 		switch child := cp.Get(name).(type) {
 		case *LeafNode:
 			if reversibleSecret(child) {
-				if err := encodeSecretLeaf(source, printed, name); err != nil {
-					return err
-				}
+				err = encodeSecretLeaf(source, printed, name)
 			}
 		case *ContainerNode:
-			sourceSub := source.GetContainer(name)
-			printedSub := printed.GetContainer(name)
-			if sourceSub != nil && printedSub != nil {
-				if err := encodeSecretLeaves(sourceSub, printedSub, child); err != nil {
-					return err
-				}
-			}
+			err = encodeSecretContainer(source, printed, name, child)
+		case *FlexNode:
+			err = encodeSecretContainer(source, printed, name, child)
 		case *ListNode:
-			sourceEntries := source.GetList(name)
-			for key, entry := range printed.GetList(name) {
-				if err := encodeSecretLeaves(sourceEntries[key], entry, child); err != nil {
-					return err
-				}
-			}
-		case ChildProvider:
-			if err := encodeSecretLeaves(source, printed, child); err != nil {
-				return err
-			}
+			err = encodeSecretList(source, printed, name, child)
+		case *InlineListNode:
+			err = encodeSecretList(source, printed, name, child)
+		}
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// encodeSecretContainer is encodeSecretLeaves over the container name, whose
+// schema node is cp, of source and printed. A source that lost the container
+// gets no stored text, which only costs a fresh encoding on the next print.
+func encodeSecretContainer(source, printed *Tree, name string, cp ChildProvider) error {
+	printedSub := printed.GetContainer(name)
+	// refuse-by-default: guards encodeSecretLeaves -- a container the tree does not hold holds no key to print
+	if printedSub == nil {
+		return nil
+	}
+	var sourceSub *Tree
+	if source != nil {
+		sourceSub = source.GetContainer(name)
+	}
+	return encodeSecretLeaves(sourceSub, printedSub, cp)
+}
+
+// encodeSecretList is encodeSecretLeaves over every entry of the list name,
+// whose schema node is cp, of printed, beside the same entry of source.
+func encodeSecretList(source, printed *Tree, name string, cp ChildProvider) error {
+	var sourceEntries map[string]*Tree
+	if source != nil {
+		sourceEntries = source.GetList(name)
+	}
+	for key, entry := range printed.GetList(name) {
+		if err := encodeSecretLeaves(sourceEntries[key], entry, cp); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -196,7 +244,7 @@ func encodeSecretLeaf(source, printed *Tree, name string) error {
 // writer emits it: a contested entry (writeMetaLeafLineFormat), a value a
 // session set that another session deleted (writeDeleteMetaLines), and the
 // ^previous field of either (writeMetaPrefix). The parsers decode both
-// fields back (decodeSecretText), so the editor compares keys, never
+// fields back (DecodeSecretText), so the editor compares keys, never
 // encodings. A meta that holds no entry under a ze:sensitive leaf name is
 // answered as it is, as encodeSecrets does for its tree.
 func encodeSecretMeta(printed *Tree, meta *MetaTree, schema *Schema) *MetaTree {
@@ -241,9 +289,10 @@ func metaHoldsEntryNamed(meta *MetaTree, names map[string]bool) bool {
 // spelling, walking printed beside it: a container's meta is
 // meta.containers[name], a list entry's is meta.containers[name].lists[key]
 // (metaListEntry). printed is nil where the tree holds nothing at that place,
-// which is where a deleted value's entries live. Any other ChildProvider
-// keeps the surrounding tree and meta, as encodeSecretLeaves does. The
-// recursion is bounded by the schema's depth.
+// which is where a deleted value's entries live. A FlexNode is stored as a
+// container and an InlineListNode as a list, in the tree and in the meta
+// (cli walkOrCreateMeta), as encodeSecretLeaves follows them. The recursion
+// is bounded by the schema's depth.
 func encodeSecretMetaEntries(printed *Tree, meta *MetaTree, cp ChildProvider) {
 	for _, name := range cp.Children() {
 		switch child := cp.Get(name).(type) {
@@ -252,20 +301,35 @@ func encodeSecretMetaEntries(printed *Tree, meta *MetaTree, cp ChildProvider) {
 				encodeSecretMetaLeaf(printed, meta, name)
 			}
 		case *ContainerNode:
-			if sub := meta.containers[name]; sub != nil {
-				encodeSecretMetaEntries(printedContainer(printed, name), sub, child)
-			}
+			encodeSecretMetaContainer(printed, meta, name, child)
+		case *FlexNode:
+			encodeSecretMetaContainer(printed, meta, name, child)
 		case *ListNode:
-			listMeta := meta.containers[name]
-			if listMeta == nil {
-				continue
-			}
-			for key, entryMeta := range listMeta.lists {
-				encodeSecretMetaEntries(printedListEntry(printed, name, key), entryMeta, child)
-			}
-		case ChildProvider:
-			encodeSecretMetaEntries(printed, meta, child)
+			encodeSecretMetaList(printed, meta, name, child)
+		case *InlineListNode:
+			encodeSecretMetaList(printed, meta, name, child)
 		}
+	}
+}
+
+// encodeSecretMetaContainer is encodeSecretMetaEntries over the container
+// name, whose schema node is cp: its meta is meta.containers[name].
+func encodeSecretMetaContainer(printed *Tree, meta *MetaTree, name string, cp ChildProvider) {
+	if sub := meta.containers[name]; sub != nil {
+		encodeSecretMetaEntries(printedContainer(printed, name), sub, cp)
+	}
+}
+
+// encodeSecretMetaList is encodeSecretMetaEntries over every entry of the
+// list name, whose schema node is cp: an entry's meta is
+// meta.containers[name].lists[key].
+func encodeSecretMetaList(printed *Tree, meta *MetaTree, name string, cp ChildProvider) {
+	listMeta := meta.containers[name]
+	if listMeta == nil {
+		return
+	}
+	for key, entryMeta := range listMeta.lists {
+		encodeSecretMetaEntries(printedListEntry(printed, name, key), entryMeta, cp)
 	}
 }
 

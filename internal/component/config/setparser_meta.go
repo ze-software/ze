@@ -288,7 +288,7 @@ func (p *SetParser) walkAndSetWithMeta(tree *Tree, meta *MetaTree, parent Node, 
 		}
 		// The ^previous key is written in the $9$ form too (encodeSecretMeta),
 		// and the editor compares it with the committed key.
-		entry.Previous, _, err = decodeSecretText(name, leaf, entry.Previous)
+		entry.Previous, _, err = DecodeSecretText(name, leaf, entry.Previous)
 		if err != nil {
 			return fmt.Errorf("line %d: previous value: %w", lineNum, err)
 		}
@@ -512,7 +512,7 @@ func (p *SetParser) walkAndRecordDeleteMeta(meta *MetaTree, parent Node, entry M
 	// and the editor compares it with the committed key.
 	if isLeafLike(node) {
 		leaf, _ := node.(*LeafNode) // A leaf-like node that is no LeafNode holds no secret.
-		previous, _, err := decodeSecretText(name, leaf, entry.Previous)
+		previous, _, err := DecodeSecretText(name, leaf, entry.Previous)
 		if err != nil {
 			return fmt.Errorf("previous value: %w", err)
 		}

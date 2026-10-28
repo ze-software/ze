@@ -46,7 +46,10 @@ type CommitResult = contract.CommitResult
 // writeThroughSet implements the write-through protocol for set commands.
 // Writes to the per-user change file (not shared draft). The change file
 // contains only changed entries (sparse tree), not a full config dump.
-func (e *Editor) writeThroughSet(path []string, key, value string) error {
+// stored is the $9$ text value was decoded from (Editor.decodeSecretValue),
+// kept on the change tree and the in-memory tree so both print it back; an
+// empty stored records nothing.
+func (e *Editor) writeThroughSet(path []string, key, value, stored string) error {
 	guard, err := e.draftLock()
 	if err != nil {
 		return fmt.Errorf("write-through lock: %w", err)
@@ -84,6 +87,7 @@ func (e *Editor) writeThroughSet(path []string, key, value string) error {
 		return fmt.Errorf("write-through set change path: %w", err)
 	}
 	e.storeLeaf(changeTarget, path, key, value)
+	keepStoredSecret(changeTarget, key, stored)
 
 	// Build the YANG path for metadata recording.
 	metaPath := append(path, key) //nolint:gocritic // intentional new slice
@@ -119,6 +123,7 @@ func (e *Editor) writeThroughSet(path []string, key, value string) error {
 	// Update in-memory tree directly (base + own changes).
 	target, _ := e.walkOrCreateIn(e.tree, path)
 	e.storeLeaf(target, path, key, value)
+	keepStoredSecret(target, key, stored)
 	metaTarget := walkOrCreateMeta(e.meta, e.schema, path)
 	if replacedEntry != nil {
 		metaTarget.RemoveSessionMemberEntries(key, e.session.ID, replacedEntry)
