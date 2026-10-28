@@ -18,7 +18,7 @@
     "claim-sha": "dd312ec8cbf5f962",
     "route": "revert",
     "producer": "internal/plugins/ldp/register.go::runSession",
-    "producer-sha": "5d8b542ccbc28f8e",
-    "break": "body of runSession replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "8a4b11c387f32e07",
+    "break": "body of runSession replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

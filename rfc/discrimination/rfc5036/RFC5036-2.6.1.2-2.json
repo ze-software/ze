@@ -7,8 +7,8 @@
     "claim-sha": "b61b1c01e4691498",
     "route": "revert",
     "producer": "internal/plugins/ldp/register.go::runSession",
-    "producer-sha": "5d8b542ccbc28f8e",
-    "break": "body of runSession replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "8a4b11c387f32e07",
+    "break": "body of runSession replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC5036-2.6.1.2-2",
@@ -18,7 +18,7 @@
     "claim-sha": "333ba8bf4e5a02c6",
     "route": "revert",
     "producer": "internal/plugins/ldp/register.go::runSession",
-    "producer-sha": "5d8b542ccbc28f8e",
-    "break": "body of runSession replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "8a4b11c387f32e07",
+    "break": "body of runSession replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]
