@@ -1,4 +1,4 @@
-//go:build integration && linux
+//go:build linux
 
 // Design: docs/features/interfaces.md -- Router Advertisement sender (Linux)
 // Related: sender_linux.go -- the sender these tests drive
@@ -10,8 +10,9 @@
 // ICMPv6 socket, crosses the veth, and is read back by a capture socket or
 // consumed by the kernel's own SLAAC code.
 //
-// They need CAP_NET_ADMIN and CAP_NET_RAW, so they skip with a reason when the
-// process is not root. Run them with `./le test qemu all`.
+// They need CAP_NET_ADMIN and CAP_NET_RAW. Each test runs userns.Enter first,
+// which re-runs it as root over a user and network namespace of its own, so it
+// needs no host privilege and a refused operation fails it.
 
 package ifacera
 
@@ -35,6 +36,7 @@ import (
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/core/ndp"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/test/userns"
 
 	// The sender resolves its interface through iface.Resolve, which needs an
 	// active backend. This import registers the netlink one.
@@ -60,12 +62,11 @@ func raNSName(testName string) string {
 // Each test passes its OWN device names. The iface resolver caches a binding
 // per logical name and only a monitor event drops it, so two namespaces that
 // reused one name would hand the second test the first test's ifindex.
+//
+// Every caller runs userns.Enter first, which grants CAP_NET_ADMIN and
+// CAP_NET_RAW, so a refusal here fails the test.
 func withRAVeth(t *testing.T, router, host string, fn func()) {
 	t.Helper()
-
-	if os.Geteuid() != 0 {
-		t.Skip("requires root: the test creates a network namespace, a veth pair, and raw ICMPv6 sockets")
-	}
 
 	runtime.LockOSThread()
 	unlocked := false
@@ -79,7 +80,7 @@ func withRAVeth(t *testing.T, router, host string, fn func()) {
 	origNS, err := netns.Get()
 	if err != nil {
 		unlock()
-		t.Skipf("requires CAP_NET_ADMIN: %v", err)
+		t.Fatalf("get current namespace: %v", err)
 	}
 
 	nsName := raNSName(t.Name())
@@ -87,7 +88,7 @@ func withRAVeth(t *testing.T, router, host string, fn func()) {
 	if err != nil {
 		origNS.Close() //nolint:errcheck // best-effort cleanup
 		unlock()
-		t.Skipf("requires CAP_NET_ADMIN: %v", err)
+		t.Fatalf("create namespace %s: %v", nsName, err)
 	}
 
 	t.Cleanup(func() {
@@ -278,7 +279,7 @@ func openRACapture(t *testing.T, dev string) *raCapture {
 	t.Helper()
 	conn, err := (&net.ListenConfig{}).ListenPacket(context.Background(), "ip6:ipv6-icmp", "::")
 	if err != nil {
-		t.Skipf("requires CAP_NET_RAW: %v", err)
+		t.Fatalf("open ICMPv6 capture socket: %v", err)
 	}
 	if err := bindToDevice(conn, dev); err != nil {
 		conn.Close() //nolint:errcheck // best-effort cleanup
@@ -508,6 +509,9 @@ func parseRA(b []byte) (raMessage, error) {
 // host acts on, because its hop limit, its source address, or its prefix flags
 // make the kernel discard it.
 func TestRASenderPeerAutoconfigures(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	const router, host = "zra0", "zra1"
 	withRAVeth(t, router, host, func() {
 		// accept_ra 2 accepts advertisements even when the namespace forwards,
@@ -569,6 +573,9 @@ func TestRASenderPeerAutoconfigures(t *testing.T) {
 // PREVENTS: a stopped Ze staying a default router on every host of the link for
 // the whole advertised router lifetime, which black-holes their traffic.
 func TestRAFinalZeroLifetimeOnWire(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	const router, host = "zrd0", "zrd1"
 	withRAVeth(t, router, host, func() {
 		capture := openRACapture(t, host)
@@ -622,6 +629,9 @@ func TestRAFinalZeroLifetimeOnWire(t *testing.T) {
 // (onLinkEvent) reads iface link events, which only the interface component's
 // event bus delivers, so this test does not reach that path.
 func TestRALinkDownUp(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	const router, host = "zre0", "zre1"
 	withRAVeth(t, router, host, func() {
 		capture := openRACapture(t, host)

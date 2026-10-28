@@ -1,4 +1,4 @@
-//go:build integration && linux
+//go:build linux
 
 package ifacenetlink
 
@@ -12,6 +12,7 @@ import (
 	"github.com/vishvananda/netns"
 
 	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // installedEgress reads the VLAN's egress map back from the kernel, dropping
@@ -46,6 +47,9 @@ func installedIngress(t *testing.T, name string) map[uint32]uint32 {
 // omitted key and a nil map leave no mapping, and the minimal modify changes
 // no other attribute (MTU, flags, txqlen, address, VLAN flags).
 func TestNetlinkUpdateVLANQoSMapReplacesKernel(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withVLANQoSNetNS(t, func() {
 		addVLANQoSDummy(t, "zer0")
 		b := &netlinkBackend{}
@@ -106,6 +110,9 @@ func sameVLANFlags(a, b *netlink.Vlan) bool {
 // A's result and zeroes key 5. Without the mutex B arrives inside the window
 // with the pre-A snapshot and, released last, leaves key 5 installed.
 func TestNetlinkUpdateVLANQoSMapSerialised(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withVLANQoSNetNS(t, func() {
 		addVLANQoSDummy(t, "zes0")
 		b := &netlinkBackend{}

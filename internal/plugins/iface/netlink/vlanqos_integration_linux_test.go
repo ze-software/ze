@@ -1,4 +1,4 @@
-//go:build integration && linux
+//go:build linux
 
 package ifacenetlink
 
@@ -11,11 +11,12 @@ import (
 	"github.com/vishvananda/netns"
 
 	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // withVLANQoSNetNS runs fn inside a fresh named network namespace so VLAN
-// creation cannot collide with host links. Skips (not fails) without
-// CAP_NET_ADMIN per ai/rules/platform-linux.md.
+// creation cannot collide with host links. Every caller runs userns.Enter
+// first, which grants CAP_NET_ADMIN, so a refusal here fails the test.
 func withVLANQoSNetNS(t *testing.T, fn func()) {
 	t.Helper()
 
@@ -31,7 +32,7 @@ func withVLANQoSNetNS(t *testing.T, fn func()) {
 	origNS, err := netns.Get()
 	if err != nil {
 		unlock()
-		t.Skipf("requires CAP_NET_ADMIN: cannot get current namespace: %v", err)
+		t.Fatalf("get current namespace: %v", err)
 	}
 
 	nsName := vlanQoSNetNSName(t.Name())
@@ -39,7 +40,7 @@ func withVLANQoSNetNS(t *testing.T, fn func()) {
 	if err != nil {
 		origNS.Close() //nolint:errcheck // best-effort cleanup
 		unlock()
-		t.Skipf("requires CAP_NET_ADMIN: cannot create namespace: %v", err)
+		t.Fatalf("create namespace %s: %v", nsName, err)
 	}
 
 	t.Cleanup(func() {
@@ -100,6 +101,9 @@ func kernelVLAN(t *testing.T, name string) *netlink.Vlan {
 // IFLA_VLAN_INGRESS_QOS / IFLA_VLAN_EGRESS_QOS inside RTM_NEWLINK.
 // PREVENTS: maps silently dropped between VLANSpec and the kernel.
 func TestVLANQoSMapIntegration(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withVLANQoSNetNS(t, func() {
 		addVLANQoSDummy(t, "zeq0")
 		b := &netlinkBackend{}
@@ -144,6 +148,9 @@ func TestVLANQoSMapIntegration(t *testing.T) {
 // VALIDATES: spec-vlan-qos-map AC-6 -- nil maps emit no netlink attribute.
 // PREVENTS: zero-value mapping entries appearing on unconfigured VLANs.
 func TestVLANQoSMapIntegrationAbsent(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withVLANQoSNetNS(t, func() {
 		addVLANQoSDummy(t, "zeq0")
 		b := &netlinkBackend{}
@@ -172,6 +179,9 @@ func TestVLANQoSMapIntegrationAbsent(t *testing.T) {
 // VALIDATES: spec-vlan-qos-map assumption A-3 -- modify semantics evidence.
 // PREVENTS: undocumented stale-map behavior after a config change.
 func TestVLANQoSMapIntegrationModify(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withVLANQoSNetNS(t, func() {
 		addVLANQoSDummy(t, "zeq0")
 		b := &netlinkBackend{}

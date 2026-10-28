@@ -1,9 +1,10 @@
-//go:build integration && linux
+//go:build linux
 
 // Design: docs/features/interfaces.md -- IPv6 reverse-path check. These tests
 // drive ReplaceIPv6RPF against a real kernel and send real datagrams from a
 // second network namespace, so the verdict is the kernel's, not the rule
-// builder's.
+// builder's. Each test runs userns.Enter first, so it needs no host privilege
+// and a refused operation fails it.
 
 package ifacenetlink
 
@@ -22,6 +23,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // rpfLab is a router namespace holding r0 (2001:db8:1::1/64) and a dummy
@@ -47,7 +49,8 @@ const (
 )
 
 // newRPFLab builds the lab and leaves the calling thread in the router
-// namespace. Skips without CAP_NET_ADMIN (ai/rules/platform-linux.md).
+// namespace. Every caller runs userns.Enter first, which grants CAP_NET_ADMIN,
+// so a refusal here fails the test.
 func newRPFLab(t *testing.T) *rpfLab {
 	t.Helper()
 	runtime.LockOSThread()
@@ -55,13 +58,13 @@ func newRPFLab(t *testing.T) *rpfLab {
 	origNS, err := netns.Get()
 	if err != nil {
 		runtime.UnlockOSThread()
-		t.Skipf("requires CAP_NET_ADMIN: cannot get current namespace: %v", err)
+		t.Fatalf("get current namespace: %v", err)
 	}
 	router, err := netns.New()
 	if err != nil {
 		origNS.Close() //nolint:errcheck // best-effort cleanup
 		runtime.UnlockOSThread()
-		t.Skipf("requires CAP_NET_ADMIN: cannot create namespace: %v", err)
+		t.Fatalf("create router namespace: %v", err)
 	}
 	peer, err := netns.New()
 	if err != nil {
@@ -208,6 +211,9 @@ func (l *rpfLab) expect(label string, want map[string]bool) {
 // METHOD: one lab, four sets in turn; the first run with no check proves every
 // source reaches the router, so a drop afterwards is the check's.
 func TestIntegrationIPv6RPF(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	lab := newRPFLab(t)
 	b := &netlinkBackend{}
 	all := map[string]bool{rpfLabValid: true, rpfLabElsewhere: true, rpfLabUnrouted: true}

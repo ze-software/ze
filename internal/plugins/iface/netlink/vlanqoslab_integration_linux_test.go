@@ -1,4 +1,9 @@
 // Design: docs/architecture/iface/vlan-qos-map.md -- VLAN QoS wire-level lab tests
+//
+// Each test runs userns.Enter first, which re-runs it as root over a user and
+// network namespace of its own, so it needs no host privilege and a refused
+// operation fails it. The file keeps the integration tag because it runs the
+// nft binary, and a test skips when nft is absent.
 
 //go:build integration && linux
 
@@ -18,6 +23,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // ── netns + veth helpers ────────────────────────────────────────────────────
@@ -45,7 +51,7 @@ func withLabNetNS(t *testing.T, fn func()) {
 	origNS, err := netns.Get()
 	if err != nil {
 		unlock()
-		t.Skipf("requires CAP_NET_ADMIN: %v", err)
+		t.Fatalf("get current namespace: %v", err)
 	}
 
 	nsName := labNSName(t.Name())
@@ -53,7 +59,7 @@ func withLabNetNS(t *testing.T, fn func()) {
 	if err != nil {
 		origNS.Close() //nolint:errcheck // best-effort cleanup
 		unlock()
-		t.Skipf("requires CAP_NET_ADMIN: %v", err)
+		t.Fatalf("create namespace %s: %v", nsName, err)
 	}
 
 	t.Cleanup(func() {
@@ -301,6 +307,9 @@ func nftCounterPackets(t *testing.T, family, table string) uint64 {
 // PREVENTS: egress QoS map silently not applied, or PCP bits corrupted by
 // VLAN offload on the veth path.
 func TestVLANQoSEgressPCPOnWire(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	if _, err := exec.LookPath("nft"); err != nil {
 		t.Skip("nft not available")
 	}
@@ -364,6 +373,9 @@ table netdev zelab_pcp0 {
 // PREVENTS: ingress QoS map silently ignored, or PCP-to-priority mapping
 // producing ambient classification independent of the map configuration.
 func TestVLANQoSIngressClassification(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	if _, err := exec.LookPath("nft"); err != nil {
 		t.Skip("nft not available")
 	}
@@ -431,6 +443,9 @@ table ip zelab4 {
 // PREVENTS: DSCP classification and VLAN PCP stamping being tested in isolation
 // but never proven to work as a pipeline.
 func TestVLANQoSDSCPFullChain(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	if _, err := exec.LookPath("nft"); err != nil {
 		t.Skip("nft not available")
 	}

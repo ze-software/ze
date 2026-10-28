@@ -3,10 +3,11 @@
 // resulting netdev with netlink.LinkByName so that field round-trips
 // (kind, local, remote, key) are checked against the kernel state.
 //
-// Build tags require both `integration` and `linux`. The runner skips when
-// CAP_NET_ADMIN is unavailable so unprivileged CI hosts pass cleanly.
+// Each test runs userns.Enter first, which re-runs it as root over a user and
+// network namespace of its own, so it needs no host privilege and a refused
+// operation fails it.
 
-//go:build integration && linux
+//go:build linux
 
 package ifacenetlink
 
@@ -20,24 +21,26 @@ import (
 	"github.com/vishvananda/netns"
 
 	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // withTunnelNetNS sets up a fresh named netns and runs fn with the netlink
-// backend loaded inside it. Skips on missing CAP_NET_ADMIN.
+// backend loaded inside it. Every caller runs userns.Enter first, which grants
+// CAP_NET_ADMIN, so a refusal here fails the test.
 func withTunnelNetNS(t *testing.T, fn func(b iface.Backend)) {
 	t.Helper()
 	runtime.LockOSThread()
 
 	origNS, err := netns.Get()
 	if err != nil {
-		t.Skipf("requires CAP_NET_ADMIN: %v", err)
+		t.Fatalf("get current namespace: %v", err)
 	}
 
 	nsName := sanitize(t.Name())
 	newNS, err := netns.NewNamed(nsName)
 	if err != nil {
 		origNS.Close() //nolint:errcheck // best-effort cleanup
-		t.Skipf("requires CAP_NET_ADMIN: %v", err)
+		t.Fatalf("create namespace %s: %v", nsName, err)
 	}
 	t.Cleanup(func() {
 		if setErr := netns.Set(origNS); setErr != nil {
@@ -76,6 +79,9 @@ func sanitize(name string) string {
 // VALIDATES: AC-1, AC-2 (gre creation, key handling).
 // PREVENTS: Silent kernel-side ignoring of the key when GRE_KEY bit missing.
 func TestCreateTunnelGRE(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withTunnelNetNS(t, func(b iface.Backend) {
 		spec := iface.TunnelSpec{
 			Kind:          iface.TunnelKindGRE,
@@ -114,6 +120,9 @@ func TestCreateTunnelGRE(t *testing.T) {
 //
 // VALIDATES: AC-5 (gretap kind dispatched to Gretap Go type).
 func TestCreateTunnelGretap(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withTunnelNetNS(t, func(b iface.Backend) {
 		spec := iface.TunnelSpec{
 			Kind:          iface.TunnelKindGRETap,
@@ -138,6 +147,9 @@ func TestCreateTunnelGretap(t *testing.T) {
 //
 // VALIDATES: AC-8 (ipip kind dispatched to Iptun Go type).
 func TestCreateTunnelIPIP(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withTunnelNetNS(t, func(b iface.Backend) {
 		spec := iface.TunnelSpec{
 			Kind:          iface.TunnelKindIPIP,
@@ -163,6 +175,9 @@ func TestCreateTunnelIPIP(t *testing.T) {
 //
 // VALIDATES: AC-9 (sit/6in4 kind dispatched to Sittun Go type).
 func TestCreateTunnelSIT(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withTunnelNetNS(t, func(b iface.Backend) {
 		spec := iface.TunnelSpec{
 			Kind:          iface.TunnelKindSIT,
@@ -188,6 +203,9 @@ func TestCreateTunnelSIT(t *testing.T) {
 //
 // VALIDATES: AC-10 (ip6tnl kind dispatched to Ip6tnl Go type with EncapLimit).
 func TestCreateTunnelIp6tnl(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withTunnelNetNS(t, func(b iface.Backend) {
 		spec := iface.TunnelSpec{
 			Kind:          iface.TunnelKindIP6Tnl,
@@ -221,6 +239,9 @@ func TestCreateTunnelIp6tnl(t *testing.T) {
 // VALIDATES: AC-11 (ipip6 discriminator via Proto field, not separate kind).
 // PREVENTS: Silent fallthrough where ipip6 would create an ip6ip6 tunnel.
 func TestCreateTunnelIPIP6Proto(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withTunnelNetNS(t, func(b iface.Backend) {
 		spec := iface.TunnelSpec{
 			Kind:          iface.TunnelKindIPIP6,
@@ -253,6 +274,9 @@ func TestCreateTunnelIPIP6Proto(t *testing.T) {
 //
 // VALIDATES: AC-30 (free-form name still passes through ValidateIfaceName).
 func TestCreateTunnelInvalidName(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withTunnelNetNS(t, func(b iface.Backend) {
 		spec := iface.TunnelSpec{
 			Kind:          iface.TunnelKindGRE,
@@ -273,6 +297,9 @@ func TestCreateTunnelInvalidName(t *testing.T) {
 // VALIDATES: address-family-vs-kind sanity check in checkAddressFamily.
 // PREVENTS: Kernel returning a generic EINVAL with no clear error message.
 func TestCreateTunnelV4OnV6Kind(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withTunnelNetNS(t, func(b iface.Backend) {
 		spec := iface.TunnelSpec{
 			Kind:          iface.TunnelKindIP6Tnl,
@@ -334,6 +361,9 @@ func tunnelDeviceTTL(t *testing.T, b iface.Backend, spec iface.TunnelSpec) uint8
 //	drops it for one kind. buildIptun and buildSittun set the same
 //	link.Ttl as buildGretun, and nothing but a read-back proves it.
 func TestCreateTunnelTTLReachesTheDevice(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	for _, row := range []struct {
 		name  string
 		kind  iface.TunnelKind
@@ -371,6 +401,9 @@ func TestCreateTunnelTTLReachesTheDevice(t *testing.T) {
 //
 //	which would take the inherit mode away from the operator.
 func TestCreateTunnelTTLZeroInherits(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withTunnelNetNS(t, func(b iface.Backend) {
 		ttl := tunnelDeviceTTL(t, b, iface.TunnelSpec{
 			Kind:          iface.TunnelKindGRE,

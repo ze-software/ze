@@ -1,4 +1,4 @@
-//go:build integration && linux
+//go:build linux
 
 package ifacenetlink
 
@@ -9,12 +9,19 @@ import (
 
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
+
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // TestCounterGenerationKernelIndexReuse exercises the real subscribed snapshot
 // socket. A dummy is deleted and recreated at the same ifIndex between reads;
 // its replacement sends more bytes, so a decrease-only detector cannot pass.
+// It runs userns.Enter first, so it needs no host privilege and a refused
+// operation fails it.
 func TestCounterGenerationKernelIndexReuse(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withRouteNetNS(t, func() {
 		// Suppress background IPv6 solicitations in this private namespace,
 		// so only the test's raw Ethernet frames advance the dummy counters.
@@ -94,10 +101,7 @@ func counterSendFrames(t *testing.T, index, count int) {
 	t.Helper()
 	fd, err := unix.Socket(unix.AF_PACKET, unix.SOCK_RAW|unix.SOCK_CLOEXEC, 0)
 	if err != nil {
-		if errors.Is(err, unix.EPERM) || errors.Is(err, unix.EACCES) {
-			t.Skipf("requires CAP_NET_RAW: %v", err)
-		}
-		t.Fatal(err)
+		t.Fatalf("raw packet socket (the caller runs userns.Enter, which grants CAP_NET_RAW): %v", err)
 	}
 	defer func() {
 		if err := unix.Close(fd); err != nil {

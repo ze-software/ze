@@ -3,12 +3,13 @@
 // the resulting netdev with netlink.LinkByName so the kind and admin state
 // are checked against kernel state.
 //
-// Build tags require both `integration` and `linux`. The runner skips when
-// CAP_NET_ADMIN is unavailable so unprivileged CI hosts pass cleanly, and
-// also skips when the wireguard kernel module is not loaded (LinkAdd fails
-// with "operation not supported" on a kernel without the module).
+// Each test runs userns.Enter first, which re-runs it as root over a user and
+// network namespace of its own, so it needs no host privilege and a refused
+// operation fails it. A test still skips when the wireguard kernel module is
+// not loaded (LinkAdd fails with "operation not supported" on a kernel
+// without the module).
 
-//go:build integration && linux
+//go:build linux
 
 package ifacenetlink
 
@@ -21,6 +22,7 @@ import (
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 
 	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // wireguardModuleAvailable reports whether the running kernel has the
@@ -41,6 +43,9 @@ func wireguardModuleAvailable() bool {
 // PREVENTS: silent regression if netlink.Wireguard{} is replaced or the
 // LinkAdd call path is refactored without preserving kind semantics.
 func TestCreateWireguardDevice(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	if !wireguardModuleAvailable() {
 		t.Skip("requires wireguard kernel module")
 	}
@@ -71,6 +76,9 @@ func TestCreateWireguardDevice(t *testing.T) {
 // VALIDATES: name validation guards the CreateWireguardDevice entry point.
 // PREVENTS: unchecked strings flowing into LinkAdd.
 func TestCreateWireguardDeviceInvalidName(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	if !wireguardModuleAvailable() {
 		t.Skip("requires wireguard kernel module")
 	}
@@ -96,6 +104,9 @@ func TestCreateWireguardDeviceInvalidName(t *testing.T) {
 // PREVENTS: stranded netdevs after a config reload removes a wireguard
 // block.
 func TestCreateAndDeleteWireguardDevice(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	if !wireguardModuleAvailable() {
 		t.Skip("requires wireguard kernel module")
 	}
@@ -120,6 +131,9 @@ func TestCreateAndDeleteWireguardDevice(t *testing.T) {
 // VALIDATES: AC-13 (keepalive), AC-14 (listen-port), AC-15 (fwmark).
 // PREVENTS: silent field drop in buildWireguardConfig or deviceToSpec.
 func TestConfigureWireguardDevice(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	if !wireguardModuleAvailable() {
 		t.Skip("requires wireguard kernel module")
 	}
@@ -191,6 +205,9 @@ func TestConfigureWireguardDevice(t *testing.T) {
 // VALIDATES: allowed-ips is parsed defensively.
 // PREVENTS: half-applied peer config leaking into the kernel.
 func TestConfigureWireguardDeviceBadAllowedIP(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	if !wireguardModuleAvailable() {
 		t.Skip("requires wireguard kernel module")
 	}
