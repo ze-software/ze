@@ -626,8 +626,8 @@ index.
 <!-- source: internal/le/site/rfcprofiles.go -- renderRFCProfiles, rfcProfileGroups, rfcProfileBarHTML, removeRetiredRFCProfilePages, rfcProfileUseCases, rfcProfileUseCasesKnown -->
 <!-- source: internal/le/site/rfcfilter.go -- rfcProfileListHref, rfcFilterHTML, rfcFilterScript, rfcStemRows, rfcIndexLegend, rfcIndexCeiling -->
 
-One page per RFC sits under that route, one for every summary in `rfc/short/`,
-190 of them today. The compliance page itself is the index over them: two link tables, one for the
+One page per RFC sits under that route, one for every summary in `rfc/short/`.
+The compliance page itself is the index over them: two link tables, one for the
 enrolled summaries and one for the summaries that are not enrolled, so no page
 of the family is reachable only through search. 39 stems carry no row in
 `docs/features/rfc-status.md`, which is why the index lives here rather than on
