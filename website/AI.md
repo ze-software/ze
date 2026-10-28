@@ -404,12 +404,16 @@ Use `categoryLabel` for category display names: `platform` reads as
 The homepage preserves its useful content and data slots. Its opening keeps
 the network OS and immutable-services identity, followed by a short explanation.
 "Try the BGP quickstart" is the first, primary action and links directly to
-`guides/quickstart/`; the demo gallery is secondary. Immediately below the
-opening and demo row, two compact groups retain the routing, interface, tunnel
-and management capabilities with their individual destinations. The engine,
-daemon and immutable-appliance explanation follows those groups. The support
-links, no-stable-release notice and product map remain visible below them.
-These groups stack on narrow screens; they do not collapse or hide content.
+`guides/quickstart/`; the demo gallery is secondary. Two compact groups in the
+left column retain the routing, interface, tunnel and management capabilities
+with their individual destinations. The engine, daemon and immutable-appliance
+explanation follows those groups, then the primary actions. The copy and demo
+are vertically centered in their shared desktop row. The support links,
+no-stable-release notice and product map follow that row without an intervening
+full-width capability band. No capability content is collapsed or hidden.
+The outer hero alone paints the shared navy gradient. Its inner panel and
+showcase chrome remain transparent in both themes, without an inner shadow
+that creates seams at the left and right edges.
 <!-- source: internal/le/site/homebody.go -- homeTemplate -->
 
 Regression prevention follows Latest news. Its cards describe the behavior checked, with short action
