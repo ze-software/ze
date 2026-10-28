@@ -88,11 +88,16 @@ func (in *resolverInstaller) install(cfg resolverConfig) error {
 	running := in.res.narrow(&cfg)
 	if err := in.srv.reconcile(cfg, dnsserver.BindStrict); err != nil {
 		in.res.restore(running)
+		if running.shown != nil {
+			// The candidate's own listeners were unbound again.
+			in.res.listeners.prune(running.shown.Listeners)
+		}
 		if errors.Is(err, dnsserver.ErrPreviousListenersLost) {
 			return fmt.Errorf("dns-resolver: %w (%w).\n%s", err, sdk.ErrRunningConfigLost, sdk.RunningConfigLostNext)
 		}
 		return fmt.Errorf("dns-resolver: %w", err)
 	}
+	in.res.listeners.prune(cfg.Listeners)
 	in.res.apply(&cfg)
 	in.applied(cfg)
 	return nil

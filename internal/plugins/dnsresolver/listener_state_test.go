@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
@@ -12,8 +13,9 @@ import (
 // socket: two listeners on one IP with different ports are reported apart.
 // Method: install two listeners on 127.0.0.1, each reports udp and tcp up;
 // reload with only the first, which rebinds, and the dropped one must read
-// down while the kept one reads up (a state keyed by the IP alone reads up
-// for both); stop, and both read down. A listener never bound reads unknown.
+// unknown while the kept one reads up (a state keyed by the IP alone reads up
+// for both); stop, and the kept one reads down. A listener never bound reads
+// unknown.
 func TestListenerStateByPort(t *testing.T) {
 	up := aUpstream(t, 0)
 	cfg := testConfig(up)
@@ -62,8 +64,44 @@ func TestListenerStateByPort(t *testing.T) {
 		t.Fatalf("reload: %v", err)
 	}
 	want(kept, "up", "up")
-	want(dropped, "down", "down")
+	// The dropped listener was unbound for the last time: its state is
+	// forgotten (unknown), never kept as down (a state keyed by the IP alone
+	// reads up for it).
+	want(dropped, "unknown", "unknown")
 
 	in.srv.stop()
 	want(kept, "down", "down")
+}
+
+// TestPruneDeletesGaugeSeries proves a listener the config no longer names
+// leaves neither a state key nor a ze_dns_resolver_listener_up series, while
+// a kept listener keeps both, down included. Method: record edges for a kept
+// and a dropped socket under a Prometheus registry, prune to the kept one,
+// then delete each series: the dropped one must already be gone.
+func TestPruneDeletesGaugeSeries(t *testing.T) {
+	setMetricsRegistry(metrics.NewPrometheusRegistry())
+	t.Cleanup(func() { setMetricsRegistry(metrics.NopRegistry{}) })
+	kept := netip.MustParseAddrPort("127.0.0.1:5301")
+	dropped := netip.MustParseAddrPort("127.0.0.1:5302")
+	var s listenerStates
+	s.change(networkUDP, kept, false)
+	s.change(networkUDP, dropped, true)
+	s.change(networkTCP, dropped, false)
+
+	s.prune([]listenerEndpoint{{Name: "kept", IP: kept.Addr(), Port: kept.Port()}})
+
+	if got := s.show(kept)[networkUDP]; got != "down" {
+		t.Errorf("kept udp = %v, want down", got)
+	}
+	for _, protocol := range []string{networkUDP, networkTCP} {
+		if got := s.show(dropped)[protocol]; got != "unknown" {
+			t.Errorf("dropped %s = %v, want unknown", protocol, got)
+		}
+		if rmetrics().listenerUp.Delete(protocol, dropped.String()) {
+			t.Errorf("dropped %s gauge series survived prune", protocol)
+		}
+	}
+	if !rmetrics().listenerUp.Delete(networkUDP, kept.String()) {
+		t.Error("kept udp gauge series was deleted")
+	}
 }

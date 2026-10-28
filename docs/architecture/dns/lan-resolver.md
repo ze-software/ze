@@ -163,18 +163,27 @@ nobody asked for.
 When the upstream followed a CNAME but sent nothing about its target, and no
 SOA says the target is empty, the resolver asks again for the target.
 
+The chain follows the alias the client is given. When the cache holds a live
+higher-ranked CNAME for a name on the chain, that CNAME is returned in place of
+the reply's (RFC 2181 Section 5.4.1), and the walk continues from its target.
+If that target differs from the reply's, the rest of the reply describes
+another chain: its records, its RCODE and its SOA are not used, and the
+resolver asks for the held target.
+
 An ANY query is answered with every answer-section RRset the question name
 owns, in the order the reply carries them, a whole RRSIG RRset included (RFC
 2181 Section 5.3.1). A CNAME matches ANY as any other type at the node does, so
 an ANY query follows no alias (RFC 1034 Section 4.3.2). Each RRset is cached
-under its own type, where a later query for that type finds it, but the ANY
+under its own type, where a later query for that type finds it, except the
+RRSIG records: an ANY answer need not carry every signature the node holds, so
+they are returned and never cached where an RRSIG query would read them. The ANY
 answer itself is never cached: the per-type entries cannot prove they are every
 RRset the node holds, so every ANY query is forwarded. Unbound caches a whole
 ANY reply as one message instead.
 
 <!-- source: internal/plugins/dnsresolver/resolve.go -- resolver.absorb, followsAlias, resolver.storeOwned, groupAnswer, findSOA -->
 <!-- test: internal/plugins/dnsresolver/forward_test.go -- TestBailiwick -->
-<!-- test: internal/plugins/dnsresolver/resolve_test.go -- TestAnyReturnsEveryOwnedRRset, TestAnyDoesNotFollowAlias -->
+<!-- test: internal/plugins/dnsresolver/resolve_test.go -- TestAnyReturnsEveryOwnedRRset, TestAnyDoesNotFollowAlias, TestAnyDoesNotCacheRRSIGSet, TestHeldAliasRedirectsTheChain -->
 
 ## The answer cache
 
@@ -265,6 +274,7 @@ running config again or restarts the plugin.
 <!-- source: internal/plugins/dnsresolver/config_tx.go -- resolverInstaller.install, configureAtBoot -->
 <!-- source: internal/plugins/dnsresolver/state.go -- resolver.narrow, resolver.restore, intersectPrefixes -->
 <!-- test: internal/plugins/dnsresolver/config_tx_test.go -- TestRefusedReloadKeepsRunningPolicy -->
+<!-- test: internal/plugins/dnsresolver/state_test.go -- TestNarrowedReloadWindow -->
 <!-- test: internal/plugins/dnsresolver/resolve_test.go -- TestIntersectPrefixes -->
 <!-- source: internal/plugins/dnsresolver/server.go -- resolverServer.reconcile -->
 <!-- source: internal/plugins/dnsresolver/config.go -- parseConfig, checkEnabled -->
@@ -280,7 +290,10 @@ running config again or restarts the plugin.
 counters, which are the state the query path reads. Each listener also
 carries its `state`, one entry per transport (`udp`, `tcp`): `up` or `down` from
 the harness's `OnListenerChange` edges, a crash included, keyed by address and
-port, and `unknown` before the first edge. `clear dns-resolver cache
+port, and `unknown` before the first edge. A listener a reload removes is
+forgotten once the reload settles: its state and its
+`ze_dns_resolver_listener_up` series are deleted (`listenerStates.prune`), so
+no series reports a socket that no longer exists. `clear dns-resolver cache
 all` empties both caches and keeps the counters. The bare
 `clear dns-resolver cache` has no handler, so a word typed by mistake never
 empties the cache. Both RPCs are owned by the plugin (`ze-dnsresolver:*`).
@@ -289,7 +302,7 @@ empties the cache. Both RPCs are owned by the plugin (`ze-dnsresolver:*`).
 <!-- source: internal/plugins/dnsresolver/yang/ze-dns-resolver-cmd.yang -- show and clear command tree -->
 <!-- source: internal/plugins/dnsresolver/listener_state.go -- listenerStates -->
 <!-- test: internal/plugins/dnsresolver/show_test.go -- TestShowAndClear -->
-<!-- test: internal/plugins/dnsresolver/listener_state_test.go -- TestListenerStateByPort -->
+<!-- test: internal/plugins/dnsresolver/listener_state_test.go -- TestListenerStateByPort, TestPruneDeletesGaugeSeries -->
 
 ## Doctor
 
@@ -329,7 +342,7 @@ any reply counts, whatever its RCODE.
 | `ze_dns_resolver_cache_entries` | GaugeVec | cache | entries held: `answer` or `negative`, published by the sweeper and by a clear |
 | `ze_dns_resolver_cache_hits_total` | Counter | | queries answered from the cache |
 | `ze_dns_resolver_upstream_queries_total` | CounterVec | result | upstream exchanges: `answered`, `timeout`, `error`, `failure` (an RCODE other than NOERROR or NXDOMAIN), `truncated` (TC set, asked again over TCP) |
-| `ze_dns_resolver_listener_up` | GaugeVec | protocol, address | 1 while a listener socket is bound, 0 once it is unbound or crashed; `address` is the IP and port (`127.0.0.1:53`), so two listeners on one IP are two series |
+| `ze_dns_resolver_listener_up` | GaugeVec | protocol, address | 1 while a listener socket is bound, 0 once it is unbound or crashed; the series is deleted once a reload removes the listener; `address` is the IP and port (`127.0.0.1:53`), so two listeners on one IP are two series |
 
 A dropped query gets no reply and is not counted in
 `ze_dns_resolver_queries_total`. No label carries a client address or a queried

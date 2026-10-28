@@ -216,6 +216,8 @@ func (r *resolver) absorb(pol *policy, reply *dns.Msg, name string, q dns.Questi
 	sets := groupAnswer(reply.Answer, q.Qclass)
 	var s step
 	current := name
+	// diverged: a held alias moved the chain off the names the reply covers.
+	diverged := false
 	if q.Qtype == dns.TypeANY {
 		if s.answer = r.storeOwned(pol, reply, sets, name, now); len(s.answer) > 0 {
 			s.kind, s.rcode = stepDone, dns.RcodeSuccess
@@ -236,12 +238,21 @@ func (r *resolver) absorb(pol *policy, reply *dns.Msg, name string, q dns.Questi
 		if !ok {
 			break
 		}
-		target := cnameTarget(rrs)
-		if target == "" {
+		if cnameTarget(rrs) == "" {
 			break
 		}
 		// RFC 2181 Section 5.4.1
-		s.answer = append(s.answer, r.storeRRset(pol, rrs, rankOf(reply, current, name), now)...)
+		alias := r.storeRRset(pol, rrs, rankOf(reply, current, name), now)
+		s.answer = append(s.answer, alias...)
+		// The chain follows the alias the client is given: a held
+		// higher-ranked CNAME can point elsewhere than the reply's.
+		target := cnameTarget(alias)
+		if target == "" {
+			break
+		}
+		if !strings.EqualFold(dns.Fqdn(target), dns.Fqdn(cnameTarget(rrs))) {
+			diverged = true
+		}
 		if !b.spendRestart() {
 			s.kind = stepFailed
 			return s
@@ -254,6 +265,12 @@ func (r *resolver) absorb(pol *policy, reply *dns.Msg, name string, q dns.Questi
 		}
 		*seen = append(*seen, lower)
 		current = target
+	}
+	if diverged {
+		// The reply's RCODE and authority section speak for its own chain,
+		// which left this one at the held alias: ask for the target.
+		s.kind, s.target = stepRestart, current
+		return s
 	}
 	soa := findSOA(reply.Ns, current, q.Qclass)
 	if reply.Rcode == dns.RcodeNameError {
@@ -296,8 +313,9 @@ func followsAlias(qtype uint16) bool {
 // all records associated with a name (type=ANY) the entire SIG RRSet must be
 // included, as for any other RR type."
 //
-// Each RRset is cached under its own type, so a later query for that type
-// is answered from the cache. The ANY answer itself is never cached: the
+// Each RRset but the RRSIG one is cached under its own type, so a later
+// query for that type is answered from the cache. The ANY answer itself is
+// never cached: the
 // per-type entries cannot prove they are every RRset the node holds, so an
 // ANY query answered from them could leave sets out. Every ANY query is
 // forwarded, where Unbound caches the whole ANY reply as one message.
@@ -318,6 +336,13 @@ func (r *resolver) storeOwned(pol *policy, reply *dns.Msg, sets map[cacheKey][]d
 			continue
 		}
 		taken = append(taken, k)
+		if h.Rrtype == dns.TypeRRSIG {
+			// An ANY answer need not carry every signature the node holds,
+			// so its RRSIG records are returned, never cached where an RRSIG
+			// query would read them as the node's whole RRSIG set.
+			answer = append(answer, withTTL(rrs, trustedTTL(pol, rrs))...)
+			continue
+		}
 		// RFC 2181 Section 5.4.1
 		answer = append(answer, r.storeRRset(pol, rrs, rankOf(reply, name, name), now)...)
 	}
@@ -372,10 +397,7 @@ func findSOA(ns []dns.RR, name string, qclass uint16) *dns.SOA {
 // one, or more, particular servers should treat those servers as
 // authoritative for this purpose."
 func (r *resolver) storeRRset(pol *policy, rrs []dns.RR, rk rank, now time.Time) []dns.RR {
-	ttl := receivedTTL(rrs[0].Header().Ttl, pol.maxTTL)
-	for _, rr := range rrs[1:] {
-		ttl = min(ttl, receivedTTL(rr.Header().Ttl, pol.maxTTL))
-	}
+	ttl := trustedTTL(pol, rrs)
 	stored := withTTL(rrs, ttl)
 	h := rrs[0].Header()
 	e := &cacheEntry{key: keyOf(h.Name, h.Rrtype, h.Class), rrs: stored, rank: rk, stored: now, ttl: ttl}
@@ -391,6 +413,17 @@ func (r *resolver) storeRRset(pol *policy, rrs []dns.RR, rk rank, now time.Time)
 		panic("BUG: dnsresolver: the cache kept an expired entry over a new one")
 	}
 	return withTTL(held.rrs, left)
+}
+
+// trustedTTL is the one TTL every record of rrs is given: the lowest
+// received TTL, bounded by the configured maximum (RFC 2181 Section 5.2,
+// quoted at storeRRset).
+func trustedTTL(pol *policy, rrs []dns.RR) uint32 {
+	ttl := receivedTTL(rrs[0].Header().Ttl, pol.maxTTL)
+	for _, rr := range rrs[1:] {
+		ttl = min(ttl, receivedTTL(rr.Header().Ttl, pol.maxTTL))
+	}
+	return ttl
 }
 
 // storeNegative caches a negative answer under key and returns the

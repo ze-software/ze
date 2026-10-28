@@ -65,6 +65,34 @@ func TestAnyReturnsEveryOwnedRRset(t *testing.T) {
 	}
 }
 
+// TestAnyDoesNotCacheRRSIGSet proves the RRSIG records of an ANY answer are
+// returned but never cached under the RRSIG type: an ANY answer need not
+// carry every signature the node holds, so an RRSIG query answered from it
+// could leave signatures out. Method: an ANY answer with one RRSIG, then an
+// RRSIG query, which must be forwarded and answered with the upstream's two.
+func TestAnyDoesNotCacheRRSIGSet(t *testing.T) {
+	sigA := "s.test. 300 IN RRSIG A 13 2 300 20261201000000 20261101000000 1234 test. AAAA"
+	sigAAAA := "s.test. 300 IN RRSIG AAAA 13 2 300 20261201000000 20261101000000 1234 test. AAAA"
+	up := scriptedUpstream(t, func(q *dns.Msg) *dns.Msg {
+		if q.Question[0].Qtype == dns.TypeRRSIG {
+			return answerWith(q, sigA, sigAAAA)
+		}
+		return answerWith(q, "s.test. 300 IN A 192.0.2.1", sigA)
+	})
+	r := newTestResolver(t, testConfig(up), newTestClock())
+	anyReply := ask(r, query("s.test", dns.TypeANY), "127.0.0.1", false)
+	if anyReply == nil || len(anyReply.Answer) != 2 {
+		t.Fatalf("ANY answer %v, want the A record and its RRSIG", anyReply)
+	}
+	reply := ask(r, query("s.test", dns.TypeRRSIG), "127.0.0.1", false)
+	if n := up.queries.Load(); n != 2 {
+		t.Fatalf("upstream saw %d queries, want 2: the RRSIG query was answered from the ANY answer", n)
+	}
+	if reply == nil || len(reply.Answer) != 2 {
+		t.Fatalf("RRSIG answer %v, want the upstream's two signatures", reply)
+	}
+}
+
 // TestAnyDoesNotFollowAlias proves an ANY query at an alias is answered with
 // the CNAME and no restart: the CNAME matches ANY as any type at the node
 // does (RFC 1034 Section 4.3.2). Method: the upstream answers with the CNAME
@@ -224,5 +252,57 @@ func waitFor(t *testing.T, what string, cond func() bool) {
 		}
 		// sleep(poll): no channel reports the resolver's counters; 1ms bounds the poll cost.
 		time.Sleep(time.Millisecond)
+	}
+}
+
+// TestHeldAliasRedirectsTheChain proves a CNAME chain follows the alias the
+// cache trusts, not the one a lower-ranked reply carries. Method: an
+// authoritative reply caches b.test CNAME c.test; a later authoritative reply
+// to an a.test query carries a.test CNAME b.test, b.test CNAME d.test and a
+// d.test address. The b.test alias in that reply is an alias target, so it
+// ranks below the held one: the chain must go a -> b -> c, ask the upstream
+// for c.test, and carry no d.test record.
+func TestHeldAliasRedirectsTheChain(t *testing.T) {
+	up := scriptedUpstream(t, func(q *dns.Msg) *dns.Msg {
+		var m *dns.Msg
+		switch q.Question[0].Name {
+		case "b.test.":
+			m = answerWith(q, "b.test. 300 IN CNAME c.test.")
+		case "c.test.":
+			m = answerWith(q, "c.test. 300 IN A 192.0.2.3")
+		default:
+			m = answerWith(q,
+				"a.test. 300 IN CNAME b.test.",
+				"b.test. 300 IN CNAME d.test.",
+				"d.test. 300 IN A 198.51.100.9")
+		}
+		m.Authoritative = true
+		return m
+	})
+	r := newTestResolver(t, testConfig(up), newTestClock())
+	ask(r, query("b.test", dns.TypeCNAME), "127.0.0.1", false)
+	reply := ask(r, query("a.test", dns.TypeA), "127.0.0.1", false)
+	if reply == nil {
+		t.Fatal("a.test query dropped")
+	}
+	var chain []string
+	for _, rr := range reply.Answer {
+		if rr.Header().Name == "d.test." {
+			t.Fatalf("answer %v carries d.test, which is off the trusted chain", reply.Answer)
+		}
+		chain = append(chain, rr.String())
+	}
+	if got := ips(reply.Answer); len(got) != 1 || got[0] != "192.0.2.3" {
+		t.Fatalf("answer %v, want the c.test address 192.0.2.3", chain)
+	}
+	if len(reply.Answer) != 3 {
+		t.Fatalf("answer %v, want a CNAME b, b CNAME c, c A", chain)
+	}
+	link, ok := reply.Answer[1].(*dns.CNAME)
+	if !ok {
+		t.Fatalf("second record %v is not a CNAME", reply.Answer[1])
+	}
+	if link.Target != "c.test." {
+		t.Fatalf("second link points at %s, want the held c.test.", link.Target)
 	}
 }

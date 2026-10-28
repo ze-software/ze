@@ -6,6 +6,7 @@ package dnsresolver
 
 import (
 	"net/netip"
+	"slices"
 	"sync"
 
 	"github.com/ze-software/ze/internal/component/plugin"
@@ -46,10 +47,31 @@ func (s *listenerStates) change(protocol string, listen netip.AddrPort, up bool)
 	rmetrics().listenerUp.With(protocol, listen.String()).Set(value)
 }
 
-// show returns the state of the sockets bound on address (the listen IP, the
-// form the harness reports), one key per transport the
-// harness reported: {"udp": "up", "tcp": "down"}. A transport never reported
-// is "unknown", because no edge says whether it is bound.
+// prune forgets every socket whose address is not one of keep's, and
+// deletes its gauge series: a listener the config no longer names was
+// unbound for the last time, and a series left behind would report a socket
+// that no longer exists, at 0, forever. A kept listener's state stays, down
+// included, so show still says a configured listener is not serving.
+func (s *listenerStates) prune(keep []listenerEndpoint) {
+	s.mu.Lock()
+	var gone []listenerKey
+	for k := range s.up {
+		if !slices.ContainsFunc(keep, func(l listenerEndpoint) bool { return netip.AddrPortFrom(l.IP, l.Port) == k.listen }) {
+			gone = append(gone, k)
+			delete(s.up, k)
+		}
+	}
+	s.mu.Unlock()
+
+	for _, k := range gone {
+		rmetrics().listenerUp.Delete(k.protocol, k.listen.String())
+	}
+}
+
+// show returns the state of the sockets bound on listen (the listen IP and
+// port, the form the harness reports), one key per transport:
+// {"udp": "up", "tcp": "down"}. A transport never reported is "unknown",
+// because no edge says whether it is bound.
 func (s *listenerStates) show(listen netip.AddrPort) plugin.Map {
 	s.mu.Lock()
 	defer s.mu.Unlock()
