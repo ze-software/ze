@@ -8,7 +8,7 @@
 | Release reason | Security fix in shipped code: Ze's RADIUS client accepts a forged Access-Accept (BlastRADIUS, CVE-2024-3596) on every PAP, CHAP and MS-CHAP login, admin and subscriber alike |
 | RFC gaps | - |
 | Depends | - |
-| Phase | 5/6 |
+| Phase | 6/6 |
 | Handoff | - |
 | Updated | 2026-10-28 |
 
@@ -246,9 +246,9 @@ server, a rate-limited log line and a counter on every discard.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | FreeRADIUS 3.2.10 signs every Access-Accept, Access-Reject and Access-Challenge over UDP | `internal/le/interoplab/radius/check_unsigned_eap.go` header (rad_encode in release_3_2_10) | the default-true leaf breaks every existing interop scenario | existing PAP/CHAP interop scenarios pass with the leaf at its default | unvalidated |
+| A-1 | FreeRADIUS 3.2.10 signs every Access-Accept, Access-Reject and Access-Challenge over UDP | `internal/le/interoplab/radius/check_unsigned_eap.go` header (rad_encode in release_3_2_10) | the default-true leaf breaks every existing interop scenario | existing PAP/CHAP interop scenarios pass with the leaf at its default | confirmed 2026-10-28: interop-radius 7/7 PASS with every scenario's leaf at its default true (pap, chap, chap-hashed, eap among them) |
 | A-2 | FreeRADIUS 3.2.10 with `require_message_authenticator = yes` drops an Access-Request without MA | radiusd.conf.in text, "yes" | the clients.conf flip proves nothing | revert signing, run `radius-admin-pap-freeradius`, see it fail | confirmed 2026-10-28: signing skipped, FAIL assertion 1 (no request logged by FreeRADIUS); restored, PASS |
-| A-3 | `unsigned-relay.pl` in strip mode handles a PAP Access-Accept | relay walks any attribute list and drops type 80 (lines 69-90) | new scenario needs a relay change | the passthrough leg of the new scenario completes | unvalidated |
+| A-3 | `unsigned-relay.pl` in strip mode handles a PAP Access-Accept | relay walks any attribute list and drops type 80 (lines 69-90) | new scenario needs a relay change | the passthrough leg of the new scenario completes | confirmed 2026-10-28: `radius-admin-pap-unsigned-freeradius` PASS, its passthrough leg logged in with no relay change |
 | A-4 | Ze sends no Status-Server | grep `CodeStatusServer` / `Status-Server` under `internal/`: no producer | Section 4.7 owes work | the same grep at implementation (2026-10-28: no non-test hit) | confirmed |
 | A-5 | No operator config uses the CoA leaf name outside the repo | Ze is pre-release (`ai/META-DECISIONS.md`) | none | - | confirmed |
 
@@ -480,9 +480,9 @@ servers in `internal/test/fixture/tunnel_fixture_l2tp_radius.go` and
 | Audit finds a missing AC | Back to the relevant phase and implement |
 | 3 fix attempts failed | STOP. Report all 3 approaches. Ask the user |
 
-## Blocker
+## Review history before the final closure
 
-Cleared 2026-10-28; /ze-close is owed again. The A-2 red walk ran: with the
+The 2026-10-28 blocker (A-2 never walked) is cleared. The A-2 red walk ran: with the
 `insertMessageAuthenticatorFirst` call in `encodeRequest` skipped and the lab
 binary rebuilt, `radius-admin-pap-freeradius` FAILED at assertion 1 (FreeRADIUS
 never wrote its request log); restored, PASS. Recorded in
@@ -544,14 +544,6 @@ Closure review round 1, already landed (the next closure re-reads, it does not r
 - RADIUS/TLS and RADIUS/DTLS (the draft's real fix) are separate transports not
   implemented in Ze; this spec covers RADIUS/UDP only.
 
-## Pending judge record
-
-The independent ze-test-judge approved the fixture change in 1bd7f3ce49 after
-it landed. No `./le` approve route covers an interop fixture, so the next
-commit touching this area MUST carry this body line:
-
-`Test-judge: test/interop-radius/scenarios/radius-admin-eap-unsigned-freeradius/ze.conf: (a) the legacy row isolates the RFC 3579 Section 3.1 unsigned-EAP discard (dispatchResponse, responseIntegrityUnsignedEAP) from the presence-check path, which also bumps the EAP counter and is proven by radius-admin-pap-unsigned-freeradius; checker assertions unchanged.`
-
 ## RFC Documentation (Scope: protocol)
 
 Add `// draft-ietf-radext-deprecating-radius-10 Section 4.N: "<quoted text>"`
@@ -602,3 +594,169 @@ attribute (20..37) and the remaining attributes (38..Length-1).
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove plan/release/fixes/spec-radius-blastradius-message-authenticator.md` only, in the same `./le commit create` script
+
+## Implementation Summary
+
+### What Was Implemented
+- `encodeRequest` (`internal/component/radius/client.go`) writes a Message-Authenticator as the first attribute of every Access-Request, keyed by the secret of the server it goes to, and refuses a caller-supplied one (294ded2f31).
+- `dispatchResponse` discards an answer to an Access-Request that carries no Message-Authenticator before any authenticator is verified, counts `ze_radius_unsigned_response_discards_total`, warns once per 60 s per server with the exact `set` command, and `Exchange` returns `ErrUnsignedResponse` (294ded2f31, e6f4255655).
+- Per-server leaf `require-message-authenticator` (default true) in both trees; the CoA leaf renamed `coa-require-message-authenticator`; `Server.AllowUnsignedResponse` (zero value secure).
+- Doctor codes `doctor-radius-admin-unsigned-response`, `doctor-radius-unsigned-response`, `doctor-radius-invalid`.
+- Mock, fixtures, scale responder and FreeRADIUS labs sign and require MA (1bd7f3ce49, 1798be2e7f, 3dd07256c9); new interop scenario `radius-admin-pap-unsigned-freeradius`; two `.ci`.
+- Closure round 2: `SendToServers` stops failover once the request's context ended, and `Exchange` names the server in a context-ended error (this commit).
+
+### Bugs Found/Fixed
+- `test/l2tp/radius-acct-wire.ci` fixture answered unsigned (1798be2e7f), covered by that `.ci`.
+- `ze-test l2tp scale` responder answered unsigned (3dd07256c9), `TestMockRADIUSAnswersZesDefaultClient`.
+- `SendToServers` said "all servers unreachable" for servers that answered (e6f4255655), `TestSendToServersNamesEachUnsignedServer`.
+- Context-ended failover joined one unnamed "context deadline exceeded" per server (closure round 2), `TestSendToServersStopsWhenContextEnds`.
+
+### Documentation Updates
+- `docs/guide/radius.md`, `docs/guide/l2tp.md`, `docs/config-reference.md`, `docs/guide/monitoring.md`, `docs/architecture/testing/interop.md`, `rfc/short/rfc5176.md` (work commits). Round 2 changed no documented text: `grep -rn "usable answer" docs/guide/radius.md` line 105 still true.
+- `./le doc check all`: red only on the foreign `show policy test peer` wiki drift and a stale `ai/DOCS-TO-CODE.md` warning, neither from this spec.
+
+### Deviations from Plan
+- `TestExchangeReportsUnsignedResponse` was not written as a separate test: `TestUnsignedAcceptDiscardedByDefault` asserts AC-14 (`errors.Is`, server, text, set command).
+- `TestCoARequireMessageAuthenticatorLeafRenamed` lives in `authradius/config_test.go`, not the RFC 5176 test file.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | Three unsigned responders (l2tp acct fixture, scale responder, RFC2865-4.2-1 negative) were missed when the default flipped | every in-tree RADIUS answerer is a producer the default reaches | guest `.ci` run, closure round 1, rfc audit | each fixed and covered by a red-proven test |
+| approach | AC-3 had no test asserting the Accounting-Request leaves unsigned | the plan named none | closure round 2 audit | assertion added to `TestAccountingResponseNotJudgedByRequireFlag`, red under a mutant signing accounting |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Every Access-Request carries MA first | Done | `client.go` `encodeRequest`, `insertMessageAuthenticatorFirst` | |
+| Discard unsigned answers by default | Done | `client.go` `dispatchResponse` | |
+| Per-server leaf to accept a legacy server | Done | both YANG modules, `config.go` readers | |
+| Rate-limited log and counter | Done | `discardUnsignedResponse`, `metrics.go` | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestAccessRequestCarriesMessageAuthenticatorFirst` | |
+| AC-2 | Done | `TestAccessRequestRefusesCallerMessageAuthenticator` | |
+| AC-3 | Done | `TestAccountingResponseNotJudgedByRequireFlag` | assertion added at closure |
+| AC-4 | Done | `TestFailoverSignsWithEachServerSecret` | |
+| AC-5 | Done | `TestUnsignedAcceptDiscardedByDefault`, `TestPresenceCheckRunsBeforeResponseAuth` | |
+| AC-6 | Done | `TestUnsignedResponseCodesDiscarded` | |
+| AC-7 | Done | `TestDiscardDoesNotMoveRetransmitTimer` | |
+| AC-8 | Done | `TestUnsignedAcceptAcceptedWhenNotRequired`, `aaa-radius-unsigned-accept-legacy.ci` | |
+| AC-9 | Done | existing `rfc3579_*` tests, `radius-admin-eap-unsigned-freeradius` | |
+| AC-10 | Done | `TestMessageAuthenticatorLocationIgnored` | |
+| AC-11 | Done | existing `rfc2869_message_authenticator*` tests | |
+| AC-12 | Done | `TestAccountingResponseNotJudgedByRequireFlag` | |
+| AC-13 | Done | `TestUnsignedDiscardLogIsRateLimited` | |
+| AC-14 | Done | `TestUnsignedAcceptDiscardedByDefault`, `TestSendToServersNamesEachUnsignedServer` | |
+| AC-15 | Done | `TestDoctorRadiusAdminUnsignedResponse`, `TestDoctorRadiusUnsignedResponse` | |
+| AC-16 | Done | `TestExtractConfigRequireMessageAuthenticatorDefault`, `TestL2TPRadiusConfigRequireMessageAuthenticator` | |
+| AC-17 | Done | `TestCoARequireMessageAuthenticatorLeafRenamed` | |
+| AC-18 | Done | interop-radius 7/7 and interop-radius-subscriber logins with clients.conf `yes` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| unit tests of the plan | Done | `blastradius_client_test.go`, `rfc2865_config_test.go`, `authradius/config_test.go`, both `doctor_test.go` | `TestExchangeReportsUnsignedResponse` merged (Deviations) |
+| `aaa-radius-unsigned-accept-refused`, `-legacy` | Done | `test/plugin/` | `./le test bgp plugin --pattern aaa-radius` 6/6 |
+| `radius-admin-pap-unsigned-freeradius` | Done | `test/interop-radius/scenarios/` | red walk recorded in interop.md |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Files to Modify and Files to Create | Done | all present (Pre-Commit Verification) |
+
+### Audit Summary
+- **Total items:** 18 AC + 4 requirements
+- **Done:** all
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 2 (test placement, Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Every Access-Request Ze sends carries MA first | interop | `radius-admin-pap-freeradius` against FreeRADIUS requiring MA: signing skipped FAIL assertion 1, restored PASS (A-2, interop.md) |
+| Ze discards an unsigned answer by default | interop | `radius-admin-pap-unsigned-freeradius`: presence check disabled FAIL assertion 6, restored PASS (4579ced7f9) |
+| A per-server leaf accepts a legacy server | functional | `test/plugin/aaa-radius-unsigned-accept-legacy.ci` and the scenario's third leg |
+| Rate-limited log line and counter on every discard | unit | `TestUnsignedDiscardLogIsRateLimited` (1000 discards, 1 warning, counter 1000) |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | every AC is done | - |
+
+## Review Gate
+
+Round scope, written before each round ran:
+- Round 1 (earlier closing pass): the whole diff of the work commits. Findings in "Review history before the final closure".
+- Round 2: e6f4255655 (discard warning `configPath`, `unsignedResponseFix`, `serverFailures`, `doctor-radius-invalid`), fbfbc148a4 (docs only), and their sibling call sites: every `Exchange` error return, the admin doctor's misconfig path, `SendToServers` callers (`authenticator.go`, `authradius/handler.go`, `authradius/acct.go`), both doctor `Exchange` callers; plus an AC-by-AC test audit.
+- Round 3: the round-2 fix (`Exchange` context errors, `SendToServers` break) and the AC-3 assertion, with the sibling failover loop in `authenticator_eap.go`.
+
+| Field | Value |
+|-------|-------|
+| Artifact | recorded by `./le spec review record` over commit A's files; path in commit A's body |
+| `./le spec review check` | clean, run before commit A |
+| Rounds | 3 |
+| Reviewer lenses used | logic and wiring, user-facing errors, security, style (`ze-go-style.md`: no panic, no Sprintf, guards), test coverage per AC |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | scale responder answered unsigned (round 1) | `internal/test/cli/cmd_l2tp_scale.go` `handlePacket` | 3dd07256c9 |
+| 2 | ISSUE | l2tp guide never named the leaf (round 1) | `docs/guide/l2tp.md` | 3dd07256c9 |
+| 3 | ISSUE | RFC2865-4.2-1 negative lost isolation (round 1) | `rfc2865_client_test.go` | 3fa8b278a9, 8bc5e1c3c3 |
+| 4 | ISSUE | `serverFailures` claimed every cause names its server, but a context-ended `Exchange` returned bare `ctx.Err()`, and `SendToServers` kept failing over with an ended context, so the operator read one unnamed "context deadline exceeded" per server (round 2) | `client.go` `Exchange`, `SendToServers` | this commit; `TestSendToServersStopsWhenContextEnds` red under each half of the fix removed |
+| 5 | ISSUE | AC-3 had no test (round 2) | `blastradius_client_test.go` | this commit; red under a mutant that signs Accounting-Request |
+
+Round 2 also stales: the `rfc2865_test.go` edit in e6f4255655 shifted five RFC 2865 audit verdicts; resealed mechanically (`./le rfc reseal stem rfc2865`, units byte-identical), `./le rfc update` changed nothing else.
+
+NOTE (round 2): the admin doctor still reports an unparsable `require-message-authenticator` under `doctor-radius-admin-unreachable` with "it takes true or false" but no `set` command; YANG's boolean type refuses such a value at commit, so no committed config reaches it.
+
+Round 3: 0 BLOCKER, 0 ISSUE.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/radius/blastradius_client_test.go`, `internal/le/interoplab/radius/check_unsigned_accept.go`, `test/plugin/aaa-radius-unsigned-accept-refused.ci`, `test/plugin/aaa-radius-unsigned-accept-legacy.ci`, `test/interop-radius/scenarios/radius-admin-pap-unsigned-freeradius/{ze.conf,users}`, `rfc/drafts/draft-ietf-radext-deprecating-radius-10.txt` (tracked) | yes | `ls` and `git ls-files --error-unmatch` 2026-10-28 |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-17 | unit tests named in the audit pass | `go test -race -count=1 ./internal/component/radius/... ./internal/component/l2tp/plugins/authradius/`: ok 15.3 s, ok 21.7 s (2026-10-28, after the round-2 fix) |
+| AC-3 | Accounting-Request unsigned | `TestAccountingResponseNotJudgedByRequireFlag` ok; FAIL with `encodeRequest` signing accounting |
+| AC-14 | context-ended failover error names the server | `TestSendToServersStopsWhenContextEnds` ok; FAIL with the break removed, FAIL with the bare `ctx.Err()` restored |
+| AC-18 | FreeRADIUS requiring MA accepts Ze | interop-radius 7/7 PASS; A-2 red walk (fbfbc148a4) |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| admin PAP login, unsigned answer | `test/plugin/aaa-radius-unsigned-accept-refused.ci` | `./le test bgp plugin --pattern aaa-radius` 6/6 PASS |
+| leaf false | `test/plugin/aaa-radius-unsigned-accept-legacy.ci` | same run |
+| l2tp leaf, CoA leaf, doctor | unit tests in the Wiring Test table | package run above |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | interop-radius 7/7 at the default |
+| A-2 | confirmed | red walk, fbfbc148a4 |
+| A-3 | confirmed | `radius-admin-pap-unsigned-freeradius` PASS |
+| A-4 | confirmed | no non-test `CodeStatusServer` producer |
+| A-5 | confirmed | pre-release |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| radius guide failover text "names each server and why" | `client.go` `serverFailures.Error` | yes, still true after round 2 (a context-ended request names the server waited on and stops) |
+| l2tp guide `doctor-radius-invalid` | `authradius/doctor.go` `checkRADIUSServers` | yes |
+| `doctor-radius-invalid` registered | `internal/core/diagnostic/codes.go`, `authradius/register.go` Codes | yes |
+
+Known environment red, not code: `radius-coa-disconnect-freeradius` needs the host on the current Ze kernel (CONFIG_NET_ACT_POLICE, `gokrazy/kernel/runtime.config`).

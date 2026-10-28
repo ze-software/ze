@@ -5,7 +5,7 @@
     "internal/component/radius/rfc2865_attr_test.go::TestEncodeUserPassword": "e76b99b8ec888664",
     "internal/component/radius/rfc2865_attr_test.go::TestEncodeUserPasswordEmpty": "e76b99b8ec888664",
     "internal/component/radius/rfc2865_attr_test.go::TestEncodeUserPasswordMultiBlock": "e76b99b8ec888664",
-    "internal/component/radius/rfc2865_test.go::TestRFC2865UserPasswordClamp": "885d4b4d3a5aa587"
+    "internal/component/radius/rfc2865_test.go::TestRFC2865UserPasswordClamp": "03d2bcc722828db4"
   },
   "units": {
     "internal/component/radius/rfc2865_attr_test.go::TestEncodeUserPassword": "aadf0897134b3c36",

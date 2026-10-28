@@ -226,7 +226,7 @@ func (c *Client) Exchange(ctx context.Context, pkt *Packet, srv Server) (*Packet
 retryLoop:
 	for attempt := range c.config.Retries {
 		if err := ctx.Err(); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("radius: request to %s ended before it was sent: %w", serverAddr, err)
 		}
 
 		// The two request codes want OPPOSITE things from this loop.
@@ -289,10 +289,10 @@ retryLoop:
 				continue retryLoop
 			case <-ctx.Done():
 				stopTimer(timer)
-				return nil, ctx.Err()
+				return nil, fmt.Errorf("radius: request to %s ended before it answered: %w", serverAddr, ctx.Err())
 			case <-c.done:
 				stopTimer(timer)
-				return nil, errors.New("radius: client closed")
+				return nil, fmt.Errorf("radius: client closed before %s answered", serverAddr)
 			}
 		}
 	}
@@ -776,6 +776,11 @@ func (c *Client) SendToServers(ctx context.Context, pkt *Packet) (*Packet, error
 			c.logger.Warn("radius: no usable answer from server, trying the next",
 				"server", srv.Address, "error", err)
 			failures = append(failures, err)
+			// A request whose context ended cannot be answered by the next
+			// server either; trying it would only repeat this cause.
+			if ctx.Err() != nil {
+				break
+			}
 			continue
 		}
 		return resp, nil
@@ -787,11 +792,13 @@ func (c *Client) SendToServers(ctx context.Context, pkt *Packet) (*Packet, error
 }
 
 // serverFailures is the error of a SendToServers call in which no server gave
-// a usable answer: one Exchange error per server tried, in order. Each already
-// names its server and its cause (a timeout, a send failure, an answer
-// discarded as unsigned with the command that accepts it), so the joined text
-// tells the operator why, which "all servers unreachable" did not when the
-// servers did answer. Unwrap keeps errors.Is(err, ErrUnsignedResponse) true.
+// a usable answer: one Exchange error per server tried, in order. A failure
+// that involved the server names it with its cause (a timeout, a send failure,
+// the request's context ending while it waited, an answer discarded as
+// unsigned with the command that accepts it); a failure inside Ze before the
+// datagram left (encoding, a client already closed) names the cause alone.
+// The joined text tells the operator why, which "all servers unreachable" did
+// not when the servers did answer. Unwrap keeps errors.Is(err, ErrUnsignedResponse) true.
 type serverFailures []error
 
 func (f serverFailures) Error() string {

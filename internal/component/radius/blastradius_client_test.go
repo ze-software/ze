@@ -394,12 +394,14 @@ func TestMessageAuthenticatorLocationIgnored(t *testing.T) {
 	assert.Equal(t, uint8(CodeAccessAccept), resp.Code)
 }
 
-// TestAccountingResponseNotJudgedByRequireFlag proves AC-12.
+// TestAccountingResponseNotJudgedByRequireFlag proves AC-3 and AC-12.
 //
-// VALIDATES: an Accounting-Response with no Message-Authenticator is accepted
-// even when the server's flag is true.
+// VALIDATES: the Accounting-Request goes out with no Message-Authenticator,
+// and an Accounting-Response with none is accepted even when the server's
+// flag is true.
 // PREVENTS: the flag being consulted for another request type, which
-// draft-ietf-radext-deprecating-radius Section 4.6 forbids.
+// draft-ietf-radext-deprecating-radius Section 4.6 forbids, and the signing
+// meant for Access-Request reaching accounting (RFC 3579 Section 3.3).
 func TestAccountingResponseNotJudgedByRequireFlag(t *testing.T) {
 	secret := []byte("blast-secret")
 	srv := newScriptedServer(t, func(req []byte) [][]byte { return [][]byte{acctResponse(req, secret)} })
@@ -412,6 +414,10 @@ func TestAccountingResponseNotJudgedByRequireFlag(t *testing.T) {
 		Server{Address: srv.addr, SharedKey: secret})
 	require.NoError(t, err)
 	assert.Equal(t, uint8(CodeAccountingResp), resp.Code)
+	sent := srv.received()
+	require.Len(t, sent, 1)
+	assert.False(t, datagramCarriesAttr(sent[0], AttrMessageAuthenticator),
+		"an Accounting-Request carries no Message-Authenticator")
 }
 
 // TestUnsignedDiscardLogIsRateLimited proves AC-13.
@@ -477,4 +483,35 @@ func TestSendToServersNamesEachUnsignedServer(t *testing.T) {
 	} {
 		assert.Contains(t, text, want)
 	}
+}
+
+// TestSendToServersStopsWhenContextEnds asks SendToServers for a login whose
+// context ends while the first server stays silent.
+//
+// VALIDATES: the error names the server that was waited on and wraps the
+// context's error, and failover does not send the request to the next server.
+// PREVENTS: a joined error of identical unnamed "context deadline exceeded"
+// causes, one per configured server, none saying which server Ze waited on.
+func TestSendToServersStopsWhenContextEnds(t *testing.T) {
+	secret := []byte("blast-secret")
+	silent := func([]byte) [][]byte { return nil }
+	serverA := newScriptedServer(t, silent)
+	serverB := newScriptedServer(t, silent)
+	client, _ := blastClient(t, []Server{
+		{Address: serverA.addr, SharedKey: secret},
+		{Address: serverB.addr, SharedKey: secret},
+	}, 5*time.Second, 1)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	resp, err := client.SendToServers(ctx, accessRequest(t, 0))
+	require.Error(t, err)
+	assert.Nil(t, resp)
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+	text := err.Error()
+	assert.Contains(t, text, "radius: request to "+serverA.addr+" ended before it answered")
+	assert.NotContains(t, text, serverB.addr)
+	serverB.mu.Lock()
+	defer serverB.mu.Unlock()
+	assert.Empty(t, serverB.requests, "failover sent a request whose context had ended")
 }
