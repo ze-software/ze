@@ -429,7 +429,7 @@ var scenarioExtras = map[string][]operation{
 	},
 	"ospf-sr-frr": {
 		{kind: opRequireContains, peer: "ze", command: zeCommand("show ospf segment-routing"), contains: []string{"16000", zeLabAddress}},
-		{kind: opWaitContains, peer: "ze", command: []string{cmdMPLS, "-ls"}, contains: []string{"16100"}, timeout: 60 * time.Second},
+		{kind: opWaitContains, peer: "ze", command: []string{"ip", "-f", ipFamilyMPLS, "route", ipActionShow, "16100"}, contains: []string{"16100"}, timeout: 60 * time.Second},
 		{kind: opRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", "show ip ospf database segment-routing"}, contains: []string{zeLabAddress}},
 		{kind: opDelayRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPFNeighbor}, contains: []string{ospfStateFull}, delay: 5 * time.Second},
 	},
@@ -477,7 +477,7 @@ var scenarioExtras = map[string][]operation{
 	},
 	"ospfv3-sr-frr": {
 		{kind: opRequireContains, peer: "ze", command: zeCommand("show ospf ipv6 segment-routing"), contains: []string{"16000"}},
-		{kind: opWaitContains, peer: "ze", command: []string{cmdMPLS, "-ls"}, contains: []string{"16100"}, timeout: 60 * time.Second},
+		{kind: opWaitContains, peer: "ze", command: []string{"ip", "-f", ipFamilyMPLS, "route", ipActionShow, "16100"}, contains: []string{"16100"}, timeout: 60 * time.Second},
 		{kind: opDelayRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPF6Neighbor}, contains: []string{ospfStateFull}, delay: 5 * time.Second},
 	},
 	scenarioRPKIFRR: {
