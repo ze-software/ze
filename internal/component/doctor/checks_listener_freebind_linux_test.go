@@ -11,6 +11,32 @@ import (
 	"testing"
 )
 
+// absentAddr is an address from TEST-NET-1 (RFC 5737), which no test host
+// holds, so a plain bind to it fails with EADDRNOTAVAIL.
+const absentAddr = "192.0.2.53"
+
+// VALIDATES: probeListener accepts an address the host does not hold for a
+// service that binds with IP_FREEBIND, and still reports it for one that does
+// not. Method: probe a TEST-NET-1 address both ways.
+// PREVENTS: ze doctor warning doctor-listen-unavailable about a resolver
+// listener on a PPP pool gateway that is not up yet, which the resolver binds
+// anyway.
+func TestProbeListenerFreebindAcceptsAbsentAddress(t *testing.T) {
+	for _, network := range []string{"udp", "tcp"} {
+		plain := serviceListener{service: "test", network: network, host: absentAddr, port: "10053", code: "doctor-listen-unavailable"}
+		err := probeListener(plain)
+		if !errors.Is(err, syscall.EADDRNOTAVAIL) {
+			t.Fatalf("%s: plain probe of %s = %v, want EADDRNOTAVAIL: the test address is on this host", network, absentAddr, err)
+		}
+
+		freebind := plain
+		freebind.freebind = true
+		if err := probeListener(freebind); err != nil {
+			t.Errorf("%s: freebind probe of an address not on the host = %v, want nil: the service binds it with IP_FREEBIND", network, err)
+		}
+	}
+}
+
 // VALIDATES: a freebind service on an address the host does not hold is
 // still reported when its port is taken. Linux checks the address before the
 // port, so a plain probe meets EADDRNOTAVAIL and never sees the conflict; the
