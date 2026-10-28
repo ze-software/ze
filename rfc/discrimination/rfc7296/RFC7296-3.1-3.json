@@ -18,8 +18,8 @@
     "claim-sha": "59a5158f1c0e4a44",
     "route": "revert",
     "producer": "internal/component/ike/engine/register.go::dispatchNATTInbound",
-    "producer-sha": "8d9753a65c037be9",
-    "break": "body of dispatchNATTInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "b88eaa4431fe49c5",
+    "break": "body of dispatchNATTInbound replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC7296-3.1-3",
@@ -29,7 +29,7 @@
     "claim-sha": "a23b0820a0121be1",
     "route": "revert",
     "producer": "internal/component/ike/engine/register.go::dispatchInbound",
-    "producer-sha": "2179a1200b494a53",
-    "break": "body of dispatchInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "8cd2caca5dba6e72",
+    "break": "body of dispatchInbound replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]
