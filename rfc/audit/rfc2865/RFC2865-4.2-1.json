@@ -1,13 +1,13 @@
 {
-  "note": "Judged 2026-09-30 (rfc/full/rfc2865.txt:1015-1018, Section 4.2, 'Invalid packets are silently discarded.', MUST under D-3). Forbidden: a client trusting an Access-Accept whose Response Authenticator does not verify. TestClientAuthenticatorVerify answers the first attempt with an Accept signed with the wrong secret and every later one correctly signed: attempts >= 2 fails if the first reply is accepted rather than dropped (the client retransmits only when it discarded it), and the Code assertion fails if the correctly signed reply is not accepted. Only the secret differs between the two replies, so the buffer isolates the authenticator. Producer packet.go::VerifyResponseAuth via Client.Exchange; both polarities recorded and observed red. Tags moved from the retired RFC2865-3-4 under ruling R11; test body unchanged.",
+  "note": "Rejudged 2026-10-28 after BlastRADIUS. rfc/full/rfc2865.txt Section 4.2: 'The Response Authenticator field MUST contain the correct response for the pending Access-Request.  Invalid packets are silently discarded.' buildResponse now signs every non-accounting answer (buildReplyResponse), so TestClientAuthenticatorVerify's first reply, built with 'wrong-key', carries a wrong Message-Authenticator HMAC as well as a wrong Response Authenticator. client.go dispatchResponse verifies the Response Authenticator, then verifyResponseMessageAuthenticator (RFC 2869 5.14) discards a bad HMAC. A client that stopped verifying the Response Authenticator (VerifyResponseAuth returning true) would still drop that reply on the HMAC, retransmit, and keep attempts >= 2: the negative stays green under the exact non-compliance it names (question 3, isolation lost). The recorded revert (VerifyResponseAuth body replaced by a panic) cannot show this because a panic reddens either way. Fix: the first reply must carry a correct Message-Authenticator and only a wrong Response Authenticator (sign with the right key, then corrupt the RA), so only VerifyResponseAuth can reject it. Positive half (correctly signed reply accepted) still holds.",
   "requirement_sha": "a38aa7d3cc34b4fd",
   "tests": {
-    "internal/component/radius/rfc2865_client_test.go::TestClientAuthenticatorVerify": "adb68f6dd9fd6bc5",
-    "internal/component/radius/rfc2865_client_test.go::TestClientAuthenticatorVerify#2": "adb68f6dd9fd6bc5"
+    "internal/component/radius/rfc2865_client_test.go::TestClientAuthenticatorVerify": "7432bbe99ea90e75",
+    "internal/component/radius/rfc2865_client_test.go::TestClientAuthenticatorVerify#2": "7432bbe99ea90e75"
   },
   "units": {
-    "internal/component/radius/rfc2865_client_test.go::TestClientAuthenticatorVerify": "1df35557f2a6d0d8",
-    "internal/component/radius/rfc2865_client_test.go::TestClientAuthenticatorVerify#2": "1df35557f2a6d0d8"
+    "internal/component/radius/rfc2865_client_test.go::TestClientAuthenticatorVerify": "9d74f52754aa4825",
+    "internal/component/radius/rfc2865_client_test.go::TestClientAuthenticatorVerify#2": "9d74f52754aa4825"
   },
-  "verdict": "enforced"
+  "verdict": "weak"
 }

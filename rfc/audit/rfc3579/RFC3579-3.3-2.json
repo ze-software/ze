@@ -1,15 +1,15 @@
 {
-  "note": "Rejudged 2026-10-14 by a reader who did not author the tests. (a) forbidden: an Access-Request carrying two of User-Password, CHAP-Password, ARAP-Password, EAP-Message. - TestAccessRequestRefusesTwoCredentialTypes drives all six pairs of the four types through encodeRequest and requires an error naming both types and zero octets; + TestRFC3579EachCredentialTypeAloneEncodes encodes each type alone, so the refusal is the pair's; - TestRFC3579ARAPBesideEAPIsRefusedAtExchange shows the guard at Client.Exchange, with no datagram reaching the server. Producer client.go oneCredentialType now names ARAP-Password (70), called by encodeRequest for every CodeAccessRequest. Several EAP-Message fragments (one type) are allowed by the code and not separately asserted.",
+  "note": "Rejudged 2026-10-28 after BlastRADIUS: the two encodeRequest tests no longer pass a Message-Authenticator placeholder because encodeRequest adds one to every Access-Request. TestAccessRequestRefusesTwoCredentialTypes still drives all six pairs of User-Password, CHAP-Password, ARAP-Password, EAP-Message and requires an error naming both types and zero octets; TestRFC3579EachCredentialTypeAloneEncodes encodes each alone, so the refusal is the pair's; TestRFC3579ARAPBesideEAPIsRefusedAtExchange shows no datagram reaches the server. Producer client.go oneCredentialType via encodeRequest.",
   "requirement_sha": "0842807ab6c82ff7",
   "tests": {
-    "internal/component/radius/authenticator_eap_test.go::TestAccessRequestRefusesTwoCredentialTypes": "2f6a0814b0b8b9cb",
-    "internal/component/radius/authenticator_eap_test.go::TestRFC3579EachCredentialTypeAloneEncodes": "2f6a0814b0b8b9cb",
-    "internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapAccessRequestIsSignedAndCarriesEAPMessage": "2f6a0814b0b8b9cb",
+    "internal/component/radius/authenticator_eap_test.go::TestAccessRequestRefusesTwoCredentialTypes": "94dcdb1f7d5ed531",
+    "internal/component/radius/authenticator_eap_test.go::TestRFC3579EachCredentialTypeAloneEncodes": "94dcdb1f7d5ed531",
+    "internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapAccessRequestIsSignedAndCarriesEAPMessage": "94dcdb1f7d5ed531",
     "internal/component/radius/rfc3579_credential_types_test.go::TestRFC3579ARAPBesideEAPIsRefusedAtExchange": "29912f66c72effa4"
   },
   "units": {
-    "internal/component/radius/authenticator_eap_test.go::TestAccessRequestRefusesTwoCredentialTypes": "e589158e5225779c",
-    "internal/component/radius/authenticator_eap_test.go::TestRFC3579EachCredentialTypeAloneEncodes": "41ae0c3aac733e95",
+    "internal/component/radius/authenticator_eap_test.go::TestAccessRequestRefusesTwoCredentialTypes": "14931b86745093f4",
+    "internal/component/radius/authenticator_eap_test.go::TestRFC3579EachCredentialTypeAloneEncodes": "c14477e7d40290b2",
     "internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapAccessRequestIsSignedAndCarriesEAPMessage": "eaa91bfcf15a7356",
     "internal/component/radius/rfc3579_credential_types_test.go::TestRFC3579ARAPBesideEAPIsRefusedAtExchange": "74693a66fe8493b5"
   },

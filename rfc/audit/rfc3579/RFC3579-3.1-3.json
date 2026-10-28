@@ -1,12 +1,12 @@
 {
-  "note": "every EAP-bearing Access-Request carries a 16-octet Message-Authenticator that the mock server verifies; encodeRequest refuses an EAP-Message without the placeholder and replaces it with the HMAC. Ze sends only Access-Requests, so the Challenge/Accept/Reject clauses bind the server",
+  "note": "Rejudged 2026-10-28; negative renamed TestEAPRequestWithoutMessageAuthenticatorIsSigned. Forbidden: an EAP-bearing Access-Request on the wire without Message-Authenticator. encodeRequest now inserts it itself: the test builds an EAP request with none and requires it at offset HeaderLen+2 with a non-zero HMAC (red if insertMessageAuthenticatorFirst is skipped; revert recorded), and refuses a caller-supplied second one. Positive TestRadiusAdminEapAccessRequestIsSignedAndCarriesEAPMessage has the mock server verify the HMAC. Ze sends only Access-Requests, so the Challenge/Accept/Reject clauses bind the server; Ze's receive side discards an unsigned EAP answer (RFC3579 3.1 verdict path).",
   "requirement_sha": "fb1f30d5bcff9900",
   "tests": {
-    "internal/component/radius/authenticator_eap_test.go::TestEAPRequestWithoutMessageAuthenticatorIsRefused": "2f6a0814b0b8b9cb",
-    "internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapAccessRequestIsSignedAndCarriesEAPMessage": "2f6a0814b0b8b9cb"
+    "internal/component/radius/authenticator_eap_test.go::TestEAPRequestWithoutMessageAuthenticatorIsSigned": "94dcdb1f7d5ed531",
+    "internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapAccessRequestIsSignedAndCarriesEAPMessage": "94dcdb1f7d5ed531"
   },
   "units": {
-    "internal/component/radius/authenticator_eap_test.go::TestEAPRequestWithoutMessageAuthenticatorIsRefused": "39b71ec75cb78e50",
+    "internal/component/radius/authenticator_eap_test.go::TestEAPRequestWithoutMessageAuthenticatorIsSigned": "2235e20acfa79054",
     "internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapAccessRequestIsSignedAndCarriesEAPMessage": "eaa91bfcf15a7356"
   },
   "verdict": "enforced"
