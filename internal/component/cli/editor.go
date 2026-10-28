@@ -476,6 +476,20 @@ func (e *Editor) WorkingContent() string {
 	return e.workingContent
 }
 
+// stampedWorkingContent is WorkingContent headed by this binary's schema
+// stamp, the form a commit writes. The hierarchical form replaces the stamp
+// the tree kept from its file (config.SerializeStamped) rather than adding a
+// second one; the set forms print no comment, so they carry none to replace.
+func (e *Editor) stampedWorkingContent() string {
+	if e.treeValid && e.tree != nil && e.schema != nil {
+		if e.session != nil && e.meta != nil {
+			return config.FormatSchemaStamp() + config.SerializeSetWithMeta(e.tree, e.meta, e.schema)
+		}
+		return config.SerializeStamped(e.tree, e.schema)
+	}
+	return config.FormatSchemaStamp() + e.workingContent
+}
+
 // OriginalContentAtPath returns the serialized content from the original (on-disk)
 // config at the given context path in tree format. Re-parses originalContent on each
 // call (config files are small, and this is only called on user interaction, not hot path).

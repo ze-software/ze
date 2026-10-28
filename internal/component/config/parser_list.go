@@ -197,6 +197,11 @@ func (p *Parser) parseListInlineEntry(tree *Tree, name string, node *ListNode, k
 
 		// Handle bracket content: [ val1 val2 ... ]
 		if tok.kind == tokenLBracket {
+			if lastIdx >= 0 {
+				if err := p.refuseInlineSlot(tok, name, key, node, children[lastIdx]); err != nil {
+					return err
+				}
+			}
 			arrayVals, err := p.collectArray()
 			if err != nil {
 				return err
@@ -219,8 +224,23 @@ func (p *Parser) parseListInlineEntry(tree *Tree, name string, node *ListNode, k
 		if tok.kind != tokenWord && tok.kind != tokenString {
 			return p.errorf(tok, "expected value or ';' in %s entry, got %s", name, tok.kind)
 		}
+		if slot := min(childIdx, lastIdx); slot >= 0 {
+			if err := p.refuseInlineSlot(tok, name, key, node, children[slot]); err != nil {
+				return err
+			}
+		}
 
-		if childIdx < lastIdx {
+		switch {
+		case childIdx < lastIdx && isInlineLeafListChild(node.Get(children[childIdx])):
+			// A leaf-list before the last child takes its one value as a
+			// MEMBER, through the store the block form uses: a plain Set
+			// stored it where no printer reads a leaf-list, so `ze config fmt`
+			// dropped it (FuzzFormatRoundTrip, `pppoe { interface 0 0 }`).
+			if err := p.setInlineLastChild(entry, name, node, children[childIdx], []string{tok.value}); err != nil {
+				return err
+			}
+			childIdx++
+		case childIdx < lastIdx:
 			// Positional assignment for children before the last. A $9$
 			// key decodes here as it does in the block form (parseLeaf).
 			leaf, _ := node.Get(children[childIdx]).(*LeafNode)
@@ -233,7 +253,7 @@ func (p *Parser) parseListInlineEntry(tree *Tree, name string, node *ListNode, k
 			}
 			entry.Set(children[childIdx], value)
 			childIdx++
-		} else if lastIdx >= 0 {
+		case lastIdx >= 0:
 			// Collect into last child
 			lastParts = append(lastParts, tok.value)
 		}
@@ -248,6 +268,33 @@ func (p *Parser) parseListInlineEntry(tree *Tree, name string, node *ListNode, k
 	}
 
 	return p.addParsedListEntry(tree, name, node, key, entry, p.tok.line)
+}
+
+// refuseInlineSlot refuses a value of a one-line list entry that lands on a
+// child holding no value of its own: a container (presence aside), a list,
+// an inline list or a freeform block. The tree would store the text under the
+// child's name where no printer looks, so `ze config fmt` dropped it and the
+// formatted config lowered to another map (FuzzFormatRoundTrip). tok is the
+// value token, or the `[` of a bracket list.
+func (p *Parser) refuseInlineSlot(tok token, name, key string, node *ListNode, slot string) error {
+	if inlineSlotTakesValue(node.Get(slot)) {
+		return nil
+	}
+	return p.errorf(tok, "%s %s: the one-line entry gives %q to %s, which holds no value of its own\n  write the entry as a block: %s %s { %s { ... } }",
+		name, key, tok.value, slot, name, key, slot)
+}
+
+// inlineSlotTakesValue reports whether a list child stores the text a one-line
+// entry assigns it where the serializer reads it back (tree.values): every
+// leaf kind, a flex node's value form and a presence container's value form.
+func inlineSlotTakesValue(child Node) bool {
+	switch n := child.(type) {
+	case *LeafNode, *MultiLeafNode, *BracketLeafListNode, *ValueOrArrayNode, *FlexNode:
+		return true
+	case *ContainerNode:
+		return n.Presence
+	}
+	return false
 }
 
 // isInlineLeafListChild reports whether a list child holds MEMBERS rather than

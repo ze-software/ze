@@ -51,6 +51,16 @@ func computeTreeAnnotatedDiff(original, modified string, schema *config.Schema) 
 	origTree = config.MaskSecrets(origTree, schema)
 	modTree = config.MaskSecrets(modTree, schema)
 
+	// A comment is not configuration, so no comment makes a line changed. The
+	// walk takes its structure from the modified tree WITH its comments, the
+	// tree Serialize printed the working content from: a comment inside a
+	// container makes Serialize print it as a block rather than inline, and the
+	// diff must print the same statement lines for renderDiffLines to map them.
+	// Comparisons read comment-free text: the original side is stripped here,
+	// and the text comparisons of the modified side strip their own subtree
+	// (diffNodeFallback). The diff prints no comment line (emitReindentedLines).
+	origTree = config.WithoutComments(origTree)
+
 	var lines []diffLine
 	diffWalkChildren(&lines, origTree, modTree, schema, 0)
 	return lines, nil
@@ -73,15 +83,23 @@ func annotateContentWithTreeDiff(original, modified string, schema *config.Schem
 		return modified, nil
 	}
 
-	return renderDiffLines(diffs)
+	return renderDiffLines(diffs, modified)
 }
 
 // renderDiffLines converts diff lines into an annotated string with line mapping.
-func renderDiffLines(diffs []diffLine) (string, map[int]int) {
+// The map sends a display line to the line of working (the content validation
+// line numbers index) that holds the same statement. The diff prints no comment
+// line and no blank line, and working holds both (Serialize prints every
+// comment, and a blank line after a block's head comments), so the n-th diff
+// line that exists in working is the n-th statement line of working, not its
+// n-th line. A diff line past the last statement line gets no mapping, so it
+// is never highlighted for another line's error.
+func renderDiffLines(diffs []diffLine, working string) (string, map[int]int) {
+	statementLines := workingStatementLines(working)
 	var b textbuf.Buffer
 	lineMapping := make(map[int]int)
 	displayLine := 0
-	workingLine := 0
+	statements := 0
 
 	for _, dl := range diffs {
 		if displayLine > 0 {
@@ -93,8 +111,10 @@ func renderDiffLines(diffs []diffLine) (string, map[int]int) {
 
 		switch dl.Marker {
 		case diffUnchanged, diffAdded, diffModified:
-			workingLine++
-			lineMapping[displayLine] = workingLine
+			if statements < len(statementLines) {
+				lineMapping[displayLine] = statementLines[statements]
+			}
+			statements++
 		case diffRemoved: // removed lines have no working content counterpart
 		default:
 			panic("BUG: invalid diff marker")
@@ -102,6 +122,31 @@ func renderDiffLines(diffs []diffLine) (string, map[int]int) {
 	}
 
 	return b.String(), lineMapping
+}
+
+// workingStatementLines answers the 1-based numbers of the lines of working
+// that hold a statement, in order: every line but a blank one and a comment
+// on its own line.
+func workingStatementLines(working string) []int {
+	var numbers []int
+	for i, line := range splitDiffLines(working) {
+		if isCommentOrBlankLine(line) {
+			continue
+		}
+		numbers = append(numbers, i+1)
+	}
+	return numbers
+}
+
+// isCommentOrBlankLine reports whether a printed line holds no statement: it is
+// empty, or a `#` comment on its own line. A statement never starts with `#`,
+// because the tokenizer reads `#` outside a quoted string as a comment.
+func isCommentOrBlankLine(line string) bool {
+	trimmed := strings.TrimLeft(line, " \t")
+	if trimmed == "" {
+		return true
+	}
+	return trimmed[0] == '#'
 }
 
 // diffWalkChildren walks children in schema order, comparing two trees.
@@ -437,13 +482,18 @@ func diffFlex(lines *[]diffLine, orig, mod *config.Tree, name string, node *conf
 
 // --- Fallback for unsupported node types ---
 
+// The comparison reads the modified side without its comments, as the original
+// already is (computeTreeAnnotatedDiff). The lines it emits for that side come
+// from the commented text, whose shape is the one Serialize printed: a comment
+// inside an inline list makes it print one line per entry.
 func diffNodeFallback(lines *[]diffLine, orig, mod *config.Tree, name string, node config.Node, indent int) {
-	origText := serializeNodeText(orig, name, node, indent)
-	modText := serializeNodeText(mod, name, node, indent)
+	origText := serializeNodeText(orig, name, node, indent, false)
+	modText := serializeNodeText(mod, name, node, indent, false)
+	modBare := serializeNodeText(mod, name, node, indent, true)
 
 	switch {
-	case origText == modText:
-		emitTextLines(lines, origText, diffUnchanged)
+	case origText == modBare:
+		emitTextLines(lines, modText, diffUnchanged)
 	case origText == "":
 		emitTextLines(lines, modText, diffAdded)
 	case modText == "":
@@ -476,16 +526,25 @@ func emitFlexChildrenMarked(lines *[]diffLine, tree *config.Tree, node *config.F
 }
 
 // emitReindentedLines splits text into lines, re-indents from indent 0 to target, and emits with marker.
+// A comment on its own line and a blank line are skipped: the diff prints
+// statements only (renderDiffLines).
 func emitReindentedLines(lines *[]diffLine, text string, marker diffMarker, indent int) {
 	prefix := strings.Repeat("\t", indent)
 	for _, line := range splitDiffLines(text) {
+		if isCommentOrBlankLine(line) {
+			continue
+		}
 		*lines = append(*lines, diffLine{marker, prefix + line})
 	}
 }
 
-// emitTextLines splits text into lines and emits each with the given marker.
+// emitTextLines splits text into lines and emits each with the given marker,
+// skipping a comment on its own line and a blank line as emitReindentedLines does.
 func emitTextLines(lines *[]diffLine, text string, marker diffMarker) {
 	for _, line := range splitDiffLines(text) {
+		if isCommentOrBlankLine(line) {
+			continue
+		}
 		*lines = append(*lines, diffLine{marker, line})
 	}
 }
@@ -539,7 +598,8 @@ func diffExtraTreeValues(lines *[]diffLine, orig, mod *config.Tree, children []s
 }
 
 // serializeNodeText serializes a single node from a tree for fallback comparison.
-func serializeNodeText(tree *config.Tree, name string, node config.Node, indent int) string {
+// bare prints the node's block without the comments it carries.
+func serializeNodeText(tree *config.Tree, name string, node config.Node, indent int, bare bool) string {
 	prefix := strings.Repeat("\t", indent)
 	var tb textbuf.Buffer
 
@@ -550,6 +610,9 @@ func serializeNodeText(tree *config.Tree, name string, node config.Node, indent 
 
 	// For container-like nodes, check if container exists
 	if child := tree.GetContainer(name); child != nil {
+		if bare {
+			child = config.WithoutComments(child)
+		}
 		inner := config.SerializeSubtree(child, node)
 		if inner == "" {
 			return ""

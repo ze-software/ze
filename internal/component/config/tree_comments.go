@@ -144,6 +144,61 @@ func (t *Tree) commentsOfLeafKey(key leafCommentKey) statementComments {
 	return statementComments{}
 }
 
+// leafCommentsLocked answers the comments of leaf name, or of its line
+// `inactive: <name> <member>` when member is not empty, for a printer to read.
+// The answer shares its slices with t. Caller holds t.mu for reading.
+func (t *Tree) leafCommentsLocked(name, member string) statementComments {
+	if found := t.leafComments[leafCommentKey{name: name, member: member}]; found != nil {
+		return *found
+	}
+	return statementComments{}
+}
+
+// hasInnerCommentsLocked reports whether a comment sits inside the block t is
+// the body of: after its `{`, at its head, before its `}`, or on a statement in
+// it. A one-line spelling of the block (inline, flattened, positional) has no
+// line for such a comment, so the printer writes the block instead. Caller
+// holds t.mu for reading.
+func (t *Tree) hasInnerCommentsLocked() bool {
+	if len(t.comments.Opening) > 0 {
+		return true
+	}
+	if len(t.comments.Head) > 0 {
+		return true
+	}
+	if len(t.comments.Closing) > 0 {
+		return true
+	}
+	return len(t.leafComments) > 0
+}
+
+// hasStatementComments reports whether the block statement t is the body of
+// carries a comment above it or after its closing brace.
+func (t *Tree) hasStatementComments() bool {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	return !t.comments.Statement.empty()
+}
+
+// dropCommentsDeep removes every comment from t and from every block under it.
+// prune compares two subtrees by their printed text, and a comment describes a
+// statement without changing it. The recursion follows the tree's nesting,
+// which the schema bounds. t MUST be unshared, such as a Clone.
+func (t *Tree) dropCommentsDeep() {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.comments = blockComments{}
+	t.leafComments = nil
+	for _, child := range t.containers {
+		child.dropCommentsDeep()
+	}
+	for _, entries := range t.lists {
+		for _, entry := range entries {
+			entry.dropCommentsDeep()
+		}
+	}
+}
+
 // dropLeafCommentsLocked removes the comments of leaf name and of every member
 // line of it: a removed statement takes its comments with it, so none
 // reattaches to a later leaf of that name. Caller holds t.mu for writing.
@@ -200,6 +255,10 @@ func (t *Tree) keepBlockCommentsOf(replaced *Tree) {
 	defer t.mu.Unlock()
 	kept.appendFrom(t.comments)
 	t.comments = kept
+}
+
+func (c statementComments) empty() bool {
+	return len(c.Leading) == 0 && len(c.Trailing) == 0
 }
 
 func (c statementComments) clone() statementComments {

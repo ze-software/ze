@@ -14,7 +14,7 @@
 | Release reason | Formatter writeback must not destroy operator comments or configuration meaning. |
 | Scope | cli, config |
 | Depends | - |
-| Phase | 2/3 |
+| Phase | 3/3 |
 | Handoff | - |
 | Updated | 2026-10-28 |
 
@@ -194,7 +194,7 @@ built 2026-10-27 from that tree.
 | A-2 | No include statement exists, so one file is one tree | `parser.go`, `loader.go` carry no include keyword | An included file's comments need their own carrier | grep at Phase 2 start | confirmed by grep (phase 2 start, 2026-10-28: no `include` keyword in `parser*.go`, `loader*.go` or `tokenizer.go`; the one hit is a comment in `parser_freeform.go`) |
 | A-3 | Comments inside a bracket list can only follow `[` on its line: a newline inside the brackets after an item is refused by automatic semicolon insertion | Probe: `filters [ # c` newline `zz aa ]` parses, `[ zz` newline `aa ]` is refused | A comment between items needs a member-level anchor | `TestParserBracketComment` | confirmed by probe |
 | A-4 | The set parser's `tokenizeLine` reads a value `quoteIfNeeded` now quotes (`]`, newline) back as one value | `setparser.go` `tokenizeLine` | The meaning fix reddens the set round trip | `TestQuoteRoundTripSet` | broken (phase 1): `tokenizeLine` decoded no escape, so `"l1\nl2"` and `"a\"b"` read back changed, and `strings.TrimSpace` on each line cut a trailing `\v`, `\f` or Unicode space from a bare value. Fixed at the reader: `tokenizeLine` deleted, both set parsers call `splitQuotedTokens` (the inverse of `quoteIfNeeded`), lines trimmed by `trimTokenSpace`. An unterminated quote in a set line is now refused with its line number |
-| A-5 | Every `.conf` and `.ci` config body that parses today still parses after this change | No grammar change; comments were already accepted everywhere whitespace is | A carrier starts failing | `TestFormatCorpusRoundTrip` counts parses before and after | unvalidated |
+| A-5 | Every `.conf` and `.ci` config body that parses today still parses after this change | No grammar change; comments were already accepted everywhere whitespace is | A carrier starts failing | `TestFormatCorpusRoundTrip` counts parses before and after | confirmed (phase 3, 2026-10-28): 1104 of 1911 hierarchical carriers parse, as at phase 1, and every one formats with its 3460 comments kept |
 
 ### Risks
 | ID | Risk | Mitigation |
@@ -262,17 +262,23 @@ built 2026-10-27 from that tree.
 | `TestParserMergedStatementComments` | `internal/component/config/parser_comments_test.go` | AC-7 | phase 2 |
 | `TestTreeCloneKeepsComments` | `internal/component/config/tree_comments_test.go` | `Clone`, `MergeContainer`, `RenameListEntry` carry comments; a merge replacing a list entry keeps the entry's comments | phase 2 |
 | `TestTreeLeafRemovalDropsComments` | `internal/component/config/tree_comments_test.go` | R-2 | phase 2 |
-| `TestSerializeComments` | `internal/component/config/serialize_comments_test.go` | AC-1..AC-4 printed placement, golden strings written by hand | |
-| `TestSerializeKeepsStampFirst` | `internal/component/config/serialize_comments_test.go` | AC-5 | |
-| `TestSerializeCommentBlocksInline` | `internal/component/config/serialize_comments_test.go` | AC-8, both inline and `ze:flatten` | |
+| `TestSerializeComments` | `internal/component/config/serialize_comments_test.go` | AC-1..AC-4 printed placement, golden strings written by hand | phase 3 |
+| `TestSerializeKeepsStampFirst` | `internal/component/config/serialize_comments_test.go` | AC-5 | phase 3 |
+| `TestSerializeCommentBlocksInline` | `internal/component/config/serialize_comments_test.go` | AC-8, both inline and `ze:flatten` | phase 3 |
+| `TestParserRefusesUnterminatedQuote` | `internal/component/config/parser_quote_test.go` | AC-10 meaning: a quote with no closing quote is a syntax error naming its line (fuzz find `bgp peer A000"0000`) | phase 3 |
+| `TestParserRefusesInlineValueOnContainer` | `internal/component/config/parser_quote_test.go` | AC-10 meaning: a one-line list value that falls on a container child is refused | phase 3 |
+| `TestFormatOneLineListEntries` | `internal/component/config/serialize_list_key_test.go` | AC-10 meaning: a key named like a child, a leaf-list before the last child | phase 3 |
+| `TestTreeDiffIgnoresComments` | `internal/component/cli/diff_tree_comments_test.go` | R-5: the editor diff reports no change for a comment-only difference, as AC-14 prune does | phase 3 |
+| `TestSerializeStampedReplacesStamp` | `internal/component/config/serialize_comments_test.go` | AC-5 with a writer: the editor commit replaces the kept stamp, never stacks a second (`test/editor/lifecycle/history-dedup.et` went red without it) | phase 3 |
+| `TestTreeDiffGutterHighlightsLineBelowComments` | `internal/component/cli/diff_tree_gutter_test.go` | R-5: with the diff gutter on, a validation error lands on its statement's line below comment lines | phase 3 |
 | existing `serialize*_test.go`, `cli/main_test.go` fmt tests | `internal/component/config/` | AC-13: every existing expectation passes unedited; an edited one goes to an independent `ze-test-judge` agent | |
 | `TestQuoteIfNeededRoundTrip` | `internal/component/config/list_key_test.go` | AC-9 through the hierarchical tokenizer | phase 1 |
 | `TestQuoteRoundTripHierarchical` | `internal/component/config/list_key_test.go` | AC-9, AC-10 meaning and idempotence: leaf value and string list key through `Serialize` and `Parser` | phase 1 |
 | `TestQuoteRoundTripSet` | `internal/component/config/list_key_test.go` (beside the shared value generator) | A-4: same values through `SerializeSet`, `SerializeSetWithMeta` and `SetParser` | phase 1 |
 | `TestConfigFmtWriteKeepsValueMeaning` | `internal/component/config/cli/cmd_fmt_test.go` | AC-9 through `cmdFmt` -w then --check | phase 1 |
-| `TestPruneIgnoresComments` | `internal/component/config/prune_test.go` | AC-14 | |
-| `TestFormatCorpusRoundTrip` | `internal/component/config/cli/fmt_corpus_test.go` | AC-10 over `test/**/*.conf` and `.ci` bodies via `tmpfs.Parse`; fails under a carrier floor | |
-| `FuzzFormatRoundTrip` | `internal/component/config/fuzz_test.go` | AC-10 properties for any input that parses, seeded from the corpus | |
+| `TestPruneIgnoresComments` | `internal/component/config/prune_test.go` | AC-14 | phase 3 |
+| `TestFormatCorpusRoundTrip` | `internal/component/config/cli/fmt_corpus_test.go` | AC-10 over `test/**/*.conf` and `.ci` bodies via `tmpfs.Parse`; fails under a carrier floor | phase 3 |
+| `FuzzFormatRoundTrip` | `internal/component/config/fuzz_test.go` | AC-10 properties for any input that parses, seeded from the corpus | phase 3 |
 | `FuzzQuoteRoundTrip` | `internal/component/config/fuzz_test.go` | AC-9 for any value string | |
 | `TestConfigFmtSetInputRefused` | `internal/component/config/cli/cmd_fmt_test.go` | AC-12 through `cmdFmt` | phase 1 |
 
@@ -284,7 +290,7 @@ built 2026-10-27 from that tree.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `config-fmt-comments` | `test/parse/config-fmt-comments.ci` | AC-1..AC-5, AC-7, AC-8, AC-11: `-w` then `--check`; `expect=file:path=` contains each comment and `expect=stdout:regex` proves each comment sits directly above or beside its statement | |
+| `config-fmt-comments` | `test/parse/config-fmt-comments.ci` | AC-1..AC-5, AC-7, AC-8, AC-11: `-w` then `--check`; `expect=file:path=` contains each comment and `expect=stdout:regex` proves each comment sits directly above or beside its statement | phase 3 |
 | `config-fmt-value-meaning` | `test/parse/config-fmt-value-meaning.ci` | AC-9: `-w`, then `--check` exits 0, the file contains the quoted value | |
 | `config-fmt-set-refused` | `test/parse/config-fmt-set-refused.ci` | AC-12: exit 2, stderr names the fix command | |
 

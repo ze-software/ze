@@ -56,7 +56,23 @@ func canFlattenContainer(tree *Tree, node *ContainerNode) bool {
 	if len(tree.lists) == 0 {
 		return false
 	}
-	for name := range tree.lists {
+	// A comment inside the container, or after it, has no line in the flat
+	// form, and neither has one above or after an entry: each flat line is a
+	// statement of the container, so the parser would give such a comment to
+	// the container rather than to the entry. Only the container's own
+	// comments above it are written, above its first flat line.
+	if tree.hasInnerCommentsLocked() {
+		return false
+	}
+	if len(tree.comments.Statement.Trailing) > 0 {
+		return false
+	}
+	for name, entries := range tree.lists {
+		for _, entry := range entries {
+			if entry.hasStatementComments() {
+				return false
+			}
+		}
 		listNode, ok := node.Get(name).(*ListNode)
 		if !ok {
 			return false
@@ -80,6 +96,8 @@ func usesMultiBlockForm(node *ListNode) bool {
 func serializeFlattenedContainer(b *textbuf.Buffer, tree *Tree, name string, node *ContainerNode, indent int) {
 	tree.mu.RLock()
 	defer tree.mu.RUnlock()
+
+	writeCommentLines(b, strings.Repeat("\t", indent), tree.comments.Statement.Leading)
 
 	for _, childName := range node.Children() {
 		listNode, ok := node.Get(childName).(*ListNode)

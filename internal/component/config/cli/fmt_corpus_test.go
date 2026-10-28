@@ -24,11 +24,11 @@ type corpusCarrier struct {
 // carry: each `.conf` under test/, and each `.ci` tmpfs file ending `.conf`
 // and stdin=config block. test/draft is skipped, as every repo-wide gate does.
 //
-// VALIDATES: the meaning and idempotence halves of AC-10. For every
-// hierarchical body that parses, the formatted text parses, its tree lowers
-// to the same map and prints the same set form (values, inactive flags,
-// ordered order) as the source's, and formatting it again changes no byte.
-// The comment half of AC-10 is phase 3 of the spec.
+// VALIDATES: AC-10. For every hierarchical body that parses, the formatted
+// text parses, its tree lowers to the same map and prints the same set form
+// (values, inactive flags, ordered order) as the source's, formatting it
+// again changes no byte, and its comment texts are the source's, as a
+// multiset (commentTextsOf).
 // PREVENTS: fmt writing a file that reads back with another meaning, or one a
 // second fmt rewrites. R-6: a walk that silently finds no carriers fails.
 func TestFormatCorpusRoundTrip(t *testing.T) {
@@ -38,7 +38,7 @@ func TestFormatCorpusRoundTrip(t *testing.T) {
 	}
 
 	carriers := collectCorpusCarriers(t, filepath.Join("..", "..", "..", "..", "test"))
-	var hierarchical, parsed, orderedLists int
+	var hierarchical, parsed, orderedLists, comments int
 	for _, c := range carriers {
 		if config.DetectFormat(c.body) != config.FormatHierarchical {
 			continue
@@ -80,10 +80,20 @@ func TestFormatCorpusRoundTrip(t *testing.T) {
 		if again, _, err := fmtTree(reparsed, schema); err != nil || again != formatted {
 			t.Errorf("%s: second fmt changes the output:\n%s\nvs\n%s", c.source, formatted, again)
 		}
+		sourceComments := commentTextsOf(c.body)
+		comments += len(sourceComments)
+		if formattedComments := commentTextsOf(formatted); !slices.Equal(sourceComments, formattedComments) {
+			t.Errorf("%s: formatted text carries other comments: source %q, formatted %q\n%s",
+				c.source, sourceComments, formattedComments, formatted)
+		}
 	}
 
-	t.Logf("carriers %d, hierarchical %d, parsed and checked %d, ordered-by user lists of two or more entries %d",
-		len(carriers), hierarchical, parsed, orderedLists)
+	t.Logf("carriers %d, hierarchical %d, parsed and checked %d, ordered-by user lists of two or more entries %d, comments %d",
+		len(carriers), hierarchical, parsed, orderedLists, comments)
+	// The comment check proves nothing unless the corpus carries comments.
+	if comments == 0 {
+		t.Fatalf("no parsed carrier holds a comment: the comment check saw nothing")
+	}
 	// The order check proves nothing unless the corpus carries a user-ordered
 	// list with two entries or more.
 	if orderedLists == 0 {
@@ -95,6 +105,38 @@ func TestFormatCorpusRoundTrip(t *testing.T) {
 	if parsed == 0 || parsed*2 < hierarchical {
 		t.Fatalf("only %d of %d hierarchical carriers parse: check the test/ walk and the build tags", parsed, hierarchical)
 	}
+}
+
+// commentTextsOf answers the text after `#` of every comment in config text,
+// sorted, so two texts holding the same comments in another order compare
+// equal. A `#` inside a quoted value opens no comment; a backslash inside
+// quotes escapes the next byte, as the config tokenizer reads them, and the
+// carriage return of a CRLF line end is not part of the comment.
+func commentTextsOf(text string) []string {
+	var texts []string
+	var quote byte
+	for i := 0; i < len(text); i++ {
+		ch := text[i]
+		switch {
+		case quote != 0 && ch == '\\':
+			i++ // The escaped byte cannot close the quote.
+		case quote != 0:
+			if ch == quote {
+				quote = 0
+			}
+		case ch == '"' || ch == '\'':
+			quote = ch
+		case ch == '#':
+			end := strings.IndexByte(text[i:], '\n')
+			if end < 0 {
+				end = len(text) - i
+			}
+			texts = append(texts, strings.TrimSuffix(text[i+1:i+end], "\r"))
+			i += end
+		}
+	}
+	slices.Sort(texts)
+	return texts
 }
 
 // userOrderedListDiffs walks source and reparsed side by side under the schema

@@ -280,3 +280,40 @@ func TestPruneInactiveListEntry(t *testing.T) {
 	updates = alice.GetList("update")
 	assert.Len(t, updates, 1, "inactive update should be removed")
 }
+
+// TestPruneIgnoresComments checks that a comment never makes an unchanged
+// node look changed.
+//
+// VALIDATES: AC-14: a list entry and a leaf that differ from the baseline only
+// in their comments are pruned; an entry whose value changed is kept, with its
+// comment.
+// PREVENTS: the compare view listing every commented node as modified once
+// Serialize prints comments.
+func TestPruneIgnoresComments(t *testing.T) {
+	schema := commentSchema()
+	baseline, err := NewParser(schema).Parse("router-id 192.0.2.1\nbgp {\n\tpeer p1 {\n\t\tpeer-as 65001\n\t}\n\tpeer p2 {\n\t\tpeer-as 65002\n\t}\n}\n")
+	require.NoError(t, err)
+	tree, err := NewParser(schema).Parse(`# the router
+router-id 192.0.2.1 # unchanged
+bgp {
+	# first peer
+	peer p1 { # opening
+		peer-as 65001 # unchanged
+	}
+	# second peer
+	peer p2 {
+		peer-as 65003
+	}
+}
+`)
+	require.NoError(t, err)
+
+	PruneUnchanged(tree, baseline, schema)
+
+	_, kept := tree.Get("router-id")
+	assert.False(t, kept, "router-id differs only in comments and must be pruned")
+	peers := tree.GetContainer("bgp").GetList("peer")
+	assert.NotContains(t, peers, "p1", "p1 differs only in comments and must be pruned")
+	assert.Contains(t, peers, "p2", "p2 changed its peer-as and must be kept")
+	assert.Equal(t, "bgp {\n\t# second peer\n\tpeer p2 {\n\t\tpeer-as 65003\n\t}\n}\n", Serialize(tree, schema))
+}

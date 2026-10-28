@@ -25,16 +25,33 @@ import (
 // so only the second direction retains it.
 //
 // A nil baseline prunes nothing: with nothing to compare against, every node is new.
+//
+// A comment describes a statement without changing it, so the comparison reads
+// copies of both trees with every comment removed: a node that differs from
+// the baseline only in its comments is unchanged and pruned. What tree keeps,
+// it keeps with its comments.
 func PruneUnchanged(tree, baseline *Tree, schema *Schema) {
 	if tree == nil || baseline == nil || schema == nil {
 		return
 	}
-	pruneUnchangedNode(tree, baseline, schema.root)
+	pruneUnchangedNode(tree, WithoutComments(tree), WithoutComments(baseline), schema.root)
+}
+
+// WithoutComments answers a copy of tree with every comment removed. A
+// comparison of two configurations reads such copies, because a comment is
+// not configuration: PruneUnchanged and the editor's tree diff
+// (cli/diff_tree.go) both judge two trees that differ only in comments equal.
+func WithoutComments(tree *Tree) *Tree {
+	bare := tree.Clone()
+	bare.dropCommentsDeep()
+	return bare
 }
 
 // pruneUnchangedNode removes children that render identically in baseline, then
 // recurses into the ones that differ so their unchanged descendants go too.
-func pruneUnchangedNode(tree, baseline *Tree, node Node) {
+// bare is tree's comment-free copy: the comparison reads it, and every removal
+// is made in both so the two stay the same apart from comments.
+func pruneUnchangedNode(tree, bare, baseline *Tree, node Node) {
 	cp, ok := node.(ChildProvider)
 	if !ok {
 		return
@@ -43,8 +60,9 @@ func pruneUnchangedNode(tree, baseline *Tree, node Node) {
 	for _, name := range cp.Children() {
 		child := cp.Get(name)
 
-		if childText(tree, name, child) == childText(baseline, name, child) {
+		if childText(bare, name, child) == childText(baseline, name, child) {
 			removeChild(tree, name)
+			removeChild(bare, name)
 			continue
 		}
 
@@ -56,11 +74,11 @@ func pruneUnchangedNode(tree, baseline *Tree, node Node) {
 			// A nil baseline container means the whole container is new:
 			// keep every descendant, there is nothing to compare against.
 			if sub != nil && base != nil {
-				pruneUnchangedNode(sub, base, child)
+				pruneUnchangedNode(sub, bare.GetContainer(name), base, child)
 			}
 
 		case *ListNode:
-			pruneUnchangedListEntries(tree, baseline, name, child)
+			pruneUnchangedListEntries(tree, bare, baseline, name, child)
 		}
 	}
 
@@ -69,23 +87,27 @@ func pruneUnchangedNode(tree, baseline *Tree, node Node) {
 
 // pruneUnchangedListEntries prunes list entries that render identically and recurses
 // into those that differ. An entry absent from the baseline is new and is kept whole.
-func pruneUnchangedListEntries(tree, baseline *Tree, name string, node Node) {
+// bare is tree's comment-free copy, as in pruneUnchangedNode.
+func pruneUnchangedListEntries(tree, bare, baseline *Tree, name string, node Node) {
 	entries := tree.GetList(name)
+	bareEntries := bare.GetList(name)
 	baseEntries := baseline.GetList(name)
 
 	// Snapshot the keys first: the loop deletes from the same live map GetList
 	// returns. See listKeys.
 	for _, key := range listKeys(tree, name) {
 		entry := entries[key]
+		bareEntry := bareEntries[key]
 		baseEntry := baseEntries[key]
 		if entry == nil || baseEntry == nil {
 			continue
 		}
-		if SerializeSubtree(entry, node) == SerializeSubtree(baseEntry, node) {
+		if SerializeSubtree(bareEntry, node) == SerializeSubtree(baseEntry, node) {
 			tree.RemoveListEntry(name, key)
+			bare.RemoveListEntry(name, key)
 			continue
 		}
-		pruneUnchangedNode(entry, baseEntry, node)
+		pruneUnchangedNode(entry, bareEntry, baseEntry, node)
 	}
 }
 

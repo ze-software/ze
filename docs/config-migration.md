@@ -210,6 +210,12 @@ Flags:
 - `--check` exits 1 if formatting is needed.
 - `--diff` shows a unified diff.
 
+fmt keeps every comment beside the statement it was written beside, and the
+schema stamp on the first line, while it puts the statements in canonical
+order (`docs/architecture/config/syntax.md`, "Comments"). It keeps the meaning
+of every value; blank lines, indentation, quoting and one-line spellings are
+the canonical form's.
+
 fmt reads the hierarchical form only. A file in the set or set-meta form, the
 form the editor stores, is refused with exit 2, and the message gives the
 command that converts it:

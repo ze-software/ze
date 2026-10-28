@@ -1,6 +1,12 @@
 package config
 
 import (
+	"io/fs"
+	"os"
+	"path/filepath"
+	"reflect"
+	"slices"
+	"strings"
 	"testing"
 )
 
@@ -117,4 +123,108 @@ func FuzzQuoteRoundTrip(f *testing.F) {
 			t.Fatalf("set: quoteIfNeeded(%q) = %q read back as %q", value, written, tokens)
 		}
 	})
+}
+
+// FuzzFormatRoundTrip formats any input that parses, under the full YANG
+// schema, the way `ze config fmt` does.
+//
+// VALIDATES: AC-10 for any input: the formatted text parses to the same map,
+// formatting it again changes no byte, and the comments of the two trees are
+// the same multiset of texts.
+// PREVENTS: a comment the printer drops or duplicates, a comment text that
+// breaks out of its line (a `\r`, a very long line, binary bytes), and an
+// output a second fmt rewrites.
+// Method: seeded with every `.conf` under test/ that carries a comment, plus
+// hand-written shapes for each comment slot.
+func FuzzFormatRoundTrip(f *testing.F) {
+	schema, err := YANGSchema()
+	if err != nil {
+		f.Fatalf("YANG schema: %v", err)
+	}
+	f.Add("# ze-schema: 26.10.07\n# head\n\nbgp { # open\n\t# lead\n\trouter-id 192.0.2.1 # trail\n\t# closing\n} # after\n# end\n")
+	f.Add("bgp {\n\trouter-id 192.0.2.1 # one\n\trouter-id 192.0.2.2 # two\n}\n")
+	f.Add("# \r\x00\xff\nbgp { router-id 192.0.2.1 }\n")
+	for _, seed := range commentedCorpusSeeds(f) {
+		f.Add(seed)
+	}
+
+	f.Fuzz(func(t *testing.T, input string) {
+		source, err := NewParser(schema).Parse(input)
+		if err != nil {
+			return // Only an input that parses is formatted.
+		}
+		formatted := Serialize(source, schema)
+		reparsed, err := NewParser(schema).Parse(formatted)
+		if err != nil {
+			t.Fatalf("formatted text does not parse: %v\n%s", err, formatted)
+		}
+		if !reflect.DeepEqual(source.ToMap(), reparsed.ToMap()) {
+			t.Fatalf("formatted text lowers to another map\n%s", formatted)
+		}
+		if again := Serialize(reparsed, schema); again != formatted {
+			t.Fatalf("second format changes the output:\n%s\nvs\n%s", formatted, again)
+		}
+		sourceComments, reparsedComments := treeCommentTexts(source), treeCommentTexts(reparsed)
+		if !slices.Equal(sourceComments, reparsedComments) {
+			t.Fatalf("comments differ: source %q, formatted %q\n%s", sourceComments, reparsedComments, formatted)
+		}
+	})
+}
+
+// commentedCorpusSeeds answers the text of every `.conf` under test/ that
+// carries a `#`, test/draft skipped as every repo-wide gate does.
+func commentedCorpusSeeds(f *testing.F) []string {
+	f.Helper()
+	var seeds []string
+	root := filepath.Join("..", "..", "..", "test")
+	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if entry.IsDir() && entry.Name() == "draft" {
+			return filepath.SkipDir
+		}
+		if entry.IsDir() || filepath.Ext(path) != ".conf" {
+			return nil
+		}
+		body, err := os.ReadFile(path) //nolint:gosec // path comes from walking the repository's own test tree
+		if err != nil {
+			return err
+		}
+		if strings.Contains(string(body), "#") {
+			seeds = append(seeds, string(body))
+		}
+		return nil
+	})
+	if err != nil {
+		f.Fatalf("walk %s: %v", root, err)
+	}
+	if len(seeds) == 0 {
+		f.Fatalf("no commented .conf under %s: the seed walk found nothing", root)
+	}
+	return seeds
+}
+
+// treeCommentTexts answers every comment text a tree carries, at every depth,
+// sorted: the multiset AC-10 compares. The recursion is bounded by the depth
+// of the parsed text, which the schema bounds.
+func treeCommentTexts(tree *Tree) []string {
+	tree.mu.RLock()
+	defer tree.mu.RUnlock()
+	c := tree.comments
+	texts := slices.Concat(c.Statement.Leading, c.Statement.Trailing, c.Opening, c.Head, c.Closing)
+	for _, leaf := range tree.leafComments {
+		texts = append(texts, leaf.Leading...)
+		texts = append(texts, leaf.Trailing...)
+	}
+	for _, child := range tree.containers {
+		texts = append(texts, treeCommentTexts(child)...)
+	}
+	for _, entries := range tree.lists {
+		for _, entry := range entries {
+			texts = append(texts, treeCommentTexts(entry)...)
+		}
+	}
+	slices.Sort(texts)
+	return texts
 }

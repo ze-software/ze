@@ -5,6 +5,7 @@
 package config
 
 import (
+	"slices"
 	"strings"
 	"time"
 
@@ -19,6 +20,34 @@ const schemaStampPrefix = "# ze-schema: "
 // Format: "# ze-schema: <release>\n" where release is YY.MM.DD.
 func FormatSchemaStamp() string {
 	return schemaStampPrefix + version.Release() + "\n"
+}
+
+// SerializeStamped prints tree as Serialize does, headed by this binary's
+// schema stamp, for a writer that persists the hierarchical form. The parser
+// keeps a stamp it read on line 1 as the root's first head comment, so
+// Serialize prints it again (fmt keeps a file's stamp). A writer that prepended
+// a fresh stamp to that output would stack one stamp more on every write, so
+// the stamp the tree carries is replaced: a file names one release, the one
+// that wrote it.
+func SerializeStamped(tree *Tree, schema *Schema) string {
+	return FormatSchemaStamp() + Serialize(withoutSchemaStamp(tree), schema)
+}
+
+// withoutSchemaStamp answers tree without the stamp it carries as its first
+// head comment: a copy when it has one, tree itself when it has none.
+func withoutSchemaStamp(tree *Tree) *Tree {
+	tree.mu.RLock()
+	head := tree.comments.Head
+	stamped := len(head) > 0 && strings.HasPrefix("#"+head[0], schemaStampPrefix)
+	tree.mu.RUnlock()
+	if !stamped {
+		return tree
+	}
+	copied := tree.Clone()
+	copied.mu.Lock()
+	copied.comments.Head = slices.Clone(copied.comments.Head[1:])
+	copied.mu.Unlock()
+	return copied
 }
 
 // ScanStampRelease extracts the Ze release from the first line of raw config.

@@ -84,7 +84,10 @@ brace, a bracket, `;`, a quote or `#`, and a word that starts with `(` or `)`
 is read as that parenthesis instead (`endsWord`, `scan`, `tokenizer.go`). A `[`
 straight after a `:` stays in the word through its `]`, as in
 `redirect:[2001:db8::1]:100`. A double-quoted string decodes `\"`, `\\`, `\n`
-and `\t` (and `\'`); a single-quoted one decodes the same escapes.
+and `\t` (and `\'`); a single-quoted one decodes the same escapes. A quote
+with no closing quote before the end of the file is a syntax error naming the
+line it opens on: no string runs to the end of the file (`readString`,
+`refuseUnterminated` in `parser.go`).
 
 Every printer (`ze config fmt`, `show`, the set writers the editor stores)
 writes a value bare only when the tokenizer reads that bare word back as the
@@ -166,16 +169,24 @@ rather than the brackets an author happened to write.
 | Last child | `keyword key [ a b ];` stores |
 |------------|-------------------------------|
 | A leaf-list (`ze:syntax "bracket"`, `ze:syntax "value-or-array"`, or a plain YANG leaf-list) | `a` and `b` as two MEMBERS, through the same store the block form uses |
-| Anything else | the single string `"[ a b ]"`, joined with any other tokens on the line |
+| Any other leaf (a leaf, a multi-word leaf, a flex value, a presence container's value) | the single string `"[ a b ]"`, joined with any other tokens on the line |
+| A container, a list, an inline list or a freeform block | nothing: the line is refused, naming the child and the block form to write instead |
 
 So `nth 2 [ 3491 ]` and `nth 2 { asn [ 3491 ]; }` produce one tree, and the NLRI
-entry above is untouched, because its last child is a plain leaf.
+entry above is untouched, because its last child is a plain leaf. A leaf-list
+before the last child takes its one value as a member the same way, and a
+value that falls on a container or a list (`peer A "x"` gives `x` to the
+peer's first child, the `attach` container) is refused, because no printer
+could write it back (`refuseInlineSlot`).
 
 The serializer writes the one-line form back for a list whose schema has exactly
 ONE child and that child is a leaf-list. Every other list keeps the block form,
 because the one-line form drops the child NAME and a reader could not tell which
-leaf the members landed in.
-<!-- source: internal/component/config/parser_list.go -- parseListInlineEntry, setInlineLastChild, isInlineLeafListChild -->
+leaf the members landed in. A list with an entry whose key is one of its child
+names is written one block per entry, never as `name { key value }`, which
+reads back as an anonymous entry setting that child (`entriesArePositional`).
+<!-- source: internal/component/config/parser_list.go -- parseListInlineEntry, setInlineLastChild, isInlineLeafListChild, refuseInlineSlot, inlineSlotTakesValue -->
+<!-- source: internal/component/config/serialize.go -- entriesArePositional -->
 <!-- source: internal/component/config/serialize.go -- inlineLeafListEntry, writeInlineLeafListMembers -->
 
 ### What a reader receives
@@ -433,6 +444,42 @@ protocol to know about the node but treat it as administratively down.
 
 ---
 
+### Comments
+
+A comment runs from `#` to the end of the line, anywhere whitespace may stand,
+and is the only comment form. It changes no value. The parser keeps each one on
+the statement it was written beside, and the hierarchical printer
+(`config.Serialize`, so `ze config fmt` and `ze config migrate format
+hierarchical`) writes it back beside that statement, wherever the canonical
+order moves the statement:
+
+| Written | Belongs to | Printed |
+|---------|------------|---------|
+| On its own line above a statement | That statement (leaf, container, list entry, `inactive:` line) | On its own line directly above it, at its indent |
+| After a statement on its line, after `{`, after `}` | That statement, its opening line, its closing brace | After the same line, one space before `#` |
+| On its own lines after a block's last statement | The block | Inside the block, last before `}`; at the end of the file for the root |
+| A group before a block's first statement, a blank line after it | The block's head | First in the block, then one blank line |
+| After `[` in a bracket leaf-list | The leaf | Above the leaf |
+| Inside a freeform, flex or inline-list body, or a container written without braces | The enclosing statement | Above that statement |
+
+A statement written twice (a leaf set twice, two blocks of one container)
+keeps the comments of both. The last same-line comment stays on the line, and
+the earlier ones print above the statement.
+
+A container whose inside carries a comment, or whose entries carry one when it
+is `ze:flatten`, prints as a block rather than on one line, because a one-line
+spelling has no line for the comment. The container's own comment above it
+keeps the one-line spelling.
+
+Blank lines are presentation: fmt keeps only the one after a head group.
+A comment never makes `PruneUnchanged` keep an unchanged node. The set and
+set-meta printers, and so the editor's stored form, do not print comments yet.
+<!-- source: internal/component/config/parser_comments.go -- commentScope -->
+<!-- source: internal/component/config/serialize_comments.go -- writeBlock, writeCommentsAbove -->
+<!-- source: internal/component/config/serialize.go -- canInlineContainer -->
+<!-- source: internal/component/config/flatten.go -- canFlattenContainer -->
+<!-- source: internal/component/config/prune.go -- PruneUnchanged -->
+
 ### Schema Stamp
 
 Committed config files carry a schema stamp as the first line, naming the Ze
@@ -442,15 +489,19 @@ release that wrote them (`YY.MM.DD`):
 # ze-schema: 26.10.07
 ```
 
-The stamp is a comment (ignored by all parsers). `FormatSchemaStamp` builds it
+The stamp is a comment (ignored by all parsers). On the first line it is always
+the file's head, so `ze config fmt` keeps it on line 1. `FormatSchemaStamp` builds it
 from `version.Release()` and every persistence site re-emits it: the editor
 commit, schema evolution at startup, and downgrade recovery. It is not stored
-in the YANG tree. `ScanStampRelease` reads it back from the first line, and a
+in the YANG tree. A writer of the hierarchical form goes through
+`SerializeStamped`, which replaces the stamp the parsed tree kept as its head
+rather than adding a second one, so a file names one release, the one that
+wrote it. `ScanStampRelease` reads it back from the first line, and a
 file without a stamp yields an empty release. `version.CompareReleases` sorts
 an empty or unparseable release (such as a dev build's `dev`) as older than
 every dated one, so an unstamped file is never "newer" than the binary.
 
-<!-- source: internal/component/config/stamp.go -- FormatSchemaStamp, ScanStampRelease -->
+<!-- source: internal/component/config/stamp.go -- FormatSchemaStamp, SerializeStamped, ScanStampRelease -->
 <!-- source: internal/core/version/version.go -- CompareReleases, IsNewerRelease -->
 
 #### Schema Evolution

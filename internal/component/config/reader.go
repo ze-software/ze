@@ -87,6 +87,9 @@ type tokenizerFrontend struct{}
 func (f *tokenizerFrontend) parseConfigContent(content string) (map[string]any, error) {
 	tokenizer := newTokenizer(content)
 	tokens := tokenizer.all()
+	if tokenizer.unterminated != nil {
+		return nil, tokenizer.unterminated
+	}
 	return tokensToNestedMap(tokens), nil
 }
 

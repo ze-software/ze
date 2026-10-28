@@ -1,0 +1,2 @@
+go test fuzz v1
+string("bgp peer A000\"000000000000")

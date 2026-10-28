@@ -4,8 +4,11 @@
 package config
 
 import (
+	"errors"
 	"slices"
 	"strings"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // tokenType represents the type of token.
@@ -99,6 +102,11 @@ type tokenizer struct {
 	newlines   int
 	scanned    bool
 	taken      []comment
+	// unterminated holds the refusal of the first quoted string that reached
+	// the end of the input with no closing quote (readString). The token is
+	// still produced so a caller that only scans (probe, mask) keeps going;
+	// a caller that builds a config from the tokens MUST refuse when it is set.
+	unterminated error
 }
 
 // newTokenizer creates a new tokenizer for the given input.
@@ -302,15 +310,20 @@ func (t *tokenizer) readComment() {
 	t.newlines = 0
 }
 
-// readString reads a quoted string.
+// readString reads a quoted string. A string that reaches the end of the
+// input before its closing quote records the refusal in t.unterminated: the
+// grammar has no string that runs to the end of the file, and reading one
+// would swallow every statement after the quote into one value.
 func (t *tokenizer) readString(quote byte, startLine, startCol int) token {
 	t.advance() // skip opening quote
 
 	var value []byte
+	closed := false
 	for t.pos < len(t.input) {
 		ch := t.input[t.pos]
 		if ch == quote {
 			t.advance() // skip closing quote
+			closed = true
 			break
 		}
 		if ch == '\\' && t.pos+1 < len(t.input) {
@@ -338,6 +351,14 @@ func (t *tokenizer) readString(quote byte, startLine, startCol int) token {
 		t.advance()
 	}
 
+	if !closed && t.unterminated == nil {
+		var b textbuf.Buffer
+		t.unterminated = errors.New(b.Str("line ").Int(int64(startLine)).
+			Str(": unterminated ").Byte(quote).Str(" quote at column ").Int(int64(startCol)).
+			Str(": the string has no closing ").Byte(quote).
+			Str(", so it would run to the end of the file\n  add the closing ").Byte(quote).
+			Str(" where the value ends").String())
+	}
 	return token{kind: tokenString, value: string(value), line: startLine, col: startCol}
 }
 

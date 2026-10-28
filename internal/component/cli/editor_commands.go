@@ -1133,7 +1133,7 @@ func (e *Editor) commitContent() (string, []string, error) {
 		}
 		warnings = config.PasswordWeaknessWarnings(hashed)
 	}
-	return config.FormatSchemaStamp() + e.WorkingContent(), warnings, nil
+	return e.stampedWorkingContent(), warnings, nil
 }
 
 // RestoreOriginalContent writes the previous committed content back to disk

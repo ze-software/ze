@@ -1,0 +1,66 @@
+# Test: ze config fmt -w keeps every comment beside its statement.
+#
+# VALIDATES: AC-1..AC-5, AC-7, AC-8 and AC-11 through the command an operator
+#   runs: `-w` exits 0 and prints `Formatted: <path>`, the written file holds
+#   each comment on the line above or beside its statement after the canonical
+#   order moved the statements, the schema stamp stays line 1, a container
+#   whose inside carries a comment prints as a block, the comments of a
+#   container written twice all print, and `--check` on the written file
+#   exits 0.
+# PREVENTS: fmt -w discarding every comment and the schema stamp, or printing
+#   one beside a statement it does not describe.
+
+tmpfs=commented.conf:terminator=EOF_CONF
+# ze-schema: 26.10.07
+# Edge router configuration.
+# Owned by the network team.
+
+bgp {
+	# The peer facing the transit provider.
+	peer p1 { # opening comment
+		session {
+			asn {
+				remote 65001 # transit ASN
+			}
+		}
+		connection {
+			remote {
+				# the provider's router
+				ip 192.0.2.1
+			}
+		}
+		# closing comment of p1
+	}
+	# identifies this router
+	router-id 203.0.113.1
+} # closing brace of bgp
+bgp {
+	# the second peer, in a second bgp block
+	peer p2 {
+		session {
+			asn {
+				remote 65002
+			}
+		}
+	}
+}
+# end of file
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config fmt -w commented.conf:exit=0
+expect=stderr:contains=Formatted: commented.conf
+
+cmd=foreground:seq=2:exec=ze config fmt --check commented.conf:exit=0
+reject=stdout:contains=needs formatting
+
+# The parse suite asserts streams, not files. seq=2 proved the written file is
+# byte-identical to its own fmt output, so printing that output shows the file.
+cmd=foreground:seq=3:exec=ze config fmt commented.conf:exit=0
+expect=stdout:pattern=^# ze-schema: 26\.10\.07\n# Edge router configuration\.\n# Owned by the network team\.\n\nbgp \{
+expect=stdout:pattern=\n\t# identifies this router\n\trouter-id 203\.0\.113\.1\n
+expect=stdout:pattern=\n\t# The peer facing the transit provider\.\n\tpeer p1 \{ # opening comment\n
+expect=stdout:pattern=\n\t\t\tasn \{\n\t\t\t\tremote 65001 # transit ASN\n\t\t\t\}\n
+expect=stdout:pattern=\n\t\t\tremote \{\n\t\t\t\t# the provider's router\n\t\t\t\tip 192\.0\.2\.1\n\t\t\t\}\n
+expect=stdout:pattern=\n\t\t# closing comment of p1\n\t\}\n
+expect=stdout:pattern=\n\t# the second peer, in a second bgp block\n\tpeer p2 \{\n
+expect=stdout:pattern=\n\} # closing brace of bgp\n# end of file\n

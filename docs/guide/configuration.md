@@ -11,7 +11,7 @@ Ze uses a JUNOS-like hierarchical configuration format.
 |---------|--------|---------|
 | Blocks | `name { ... }` | `bgp { ... }` |
 | Values | `key value` or `key value;` | `router-id 1.2.3.4` |
-| Comments | `#` to end of line | `# this is a comment` |
+| Comments | `#` to end of line; `ze config fmt` keeps each one beside its statement, while an editor commit still drops them | `# this is a comment` |
 | Lists | `[ item1 item2 ]` | `receive [ update state ]` |
 | Strings | Unquoted or `"double quoted"` | `run "/usr/bin/my-plugin"` |
 | Terminators | `;`, or automatic after a value token at a newline, EOF, or before `}` | Both `edit { default-action deny }` and `edit { default-action deny;}` work |

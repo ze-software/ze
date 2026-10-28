@@ -407,6 +407,7 @@ func serializeAnnotatedList(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name 
 		// first child, which is the leaf-list this line carries.
 		if members, ok := inlineLeafListEntry(entry, node, key); ok {
 			writeInlineLeafListMembers(b, members)
+			b.Str("\n")
 			continue
 		}
 		b.Str(" {\n")

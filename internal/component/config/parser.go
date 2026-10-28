@@ -40,7 +40,19 @@ func (p *Parser) Parse(input string) (*Tree, error) {
 	p.tok = newTokenizer(input)
 	p.warnings = nil
 	p.stmtTree = nil
-	return p.parseRoot()
+	tree, err := p.parseRoot()
+	return p.refuseUnterminated(tree, err)
+}
+
+// refuseUnterminated answers the tokenizer's unterminated-quote refusal in
+// place of the parse result. It wins over a parse error too: the string ran to
+// the end of the input, so any later refusal (a bad value, an EOF in a block)
+// describes text the quote swallowed, not what the operator wrote.
+func (p *Parser) refuseUnterminated(tree *Tree, err error) (*Tree, error) {
+	if p.tok.unterminated != nil {
+		return nil, p.tok.unterminated
+	}
+	return tree, err
 }
 
 // Warnings returns any warnings generated during parsing.
@@ -74,9 +86,9 @@ func (p *Parser) ParseAt(input string, contextPath []string) (*Tree, error) {
 	if parent, ok := p.schema.LookupTokenPath(context).(ChildProvider); ok {
 		known = parent.Children()
 	}
-	tree, err := p.parseBody("unknown keyword", UnknownKeywordHint, known, func(name string) Node {
+	tree, err := p.refuseUnterminated(p.parseBody("unknown keyword", UnknownKeywordHint, known, func(name string) Node {
 		return p.schema.LookupTokenPath(append(context, name))
-	})
+	}))
 	if err != nil {
 		return nil, prependSyntaxPath(err, textbuf.Join(contextPath, "/"))
 	}
