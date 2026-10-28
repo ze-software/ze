@@ -7,8 +7,8 @@
     "claim-sha": "4e5484831adaa1b5",
     "route": "mutant",
     "producer": "internal/plugins/dnsresolver/resolve.go::absorb",
-    "producer-sha": "5c149de68c30d629",
-    "break": "line 186: \"groupAnswer(reply.Answer, q.Qclass)\" -\u003e \"groupAnswer(append(reply.Answer, reply.Ns...), q.Qclass)\""
+    "producer-sha": "230296172e4c7a54",
+    "break": "line 216: \"groupAnswer(reply.Answer, q.Qclass)\" -\u003e \"groupAnswer(append(reply.Answer, reply.Ns...), q.Qclass)\""
   },
   {
     "rid": "RFC2181-5.3.1-3",

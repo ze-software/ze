@@ -7,8 +7,8 @@
     "claim-sha": "40f89f63f5607cb2",
     "route": "mutant",
     "producer": "internal/plugins/dnsresolver/resolve.go::absorb",
-    "producer-sha": "5c149de68c30d629",
-    "break": "line 186: \"sets := groupAnswer(reply.Answer, q.Qclass)\" -\u003e \"sets := groupAnswer(reply.Answer, q.Qclass); for _, extra := range groupAnswer(reply.Extra, q.Qclass) { r.storeRRset(pol, extra, rankAnswer, now) }\""
+    "producer-sha": "230296172e4c7a54",
+    "break": "line 216: \"sets := groupAnswer(reply.Answer, q.Qclass)\" -\u003e \"sets := groupAnswer(reply.Answer, q.Qclass); for _, extra := range groupAnswer(reply.Extra, q.Qclass) { r.storeRRset(pol, extra, rankAnswer, now) }\""
   },
   {
     "rid": "RFC2181-5.3.1-4",
@@ -18,7 +18,7 @@
     "claim-sha": "119739509129e922",
     "route": "mutant",
     "producer": "internal/plugins/dnsresolver/resolve.go::storeRRset",
-    "producer-sha": "59e725a96316559f",
-    "break": "line 288: \"stored := withTTL(rrs, ttl)\" -\u003e \"stored := withTTL(rrs, ttl); if rrs[0].Header().Rrtype == dns.TypeRRSIG { return stored }\""
+    "producer-sha": "de6ac704aa97f06f",
+    "break": "line 379: \"stored := withTTL(rrs, ttl)\" -\u003e \"stored := withTTL(rrs, ttl); if rrs[0].Header().Rrtype == dns.TypeRRSIG { return stored }\""
   }
 ]
