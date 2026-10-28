@@ -99,22 +99,31 @@ func TestRDZeroRefused(t *testing.T) {
 }
 
 // TestQDCount proves AC-25: QDCOUNT 0 or 2 is FORMERR with no upstream
-// query.
+// query, whether RD is set or clear. Method: ask each count with RD=1 and
+// with RD=0; the RD=0 cases fail when the RD check runs first, since it
+// answers REFUSED and counts an RD-clear refusal.
 func TestQDCount(t *testing.T) {
 	up := aUpstream(t, 0)
 	r := newTestResolver(t, testConfig(up), newTestClock())
-	zero := query("a.test", dns.TypeA)
-	zero.Question = nil
-	two := query("a.test", dns.TypeA)
-	two.Question = append(two.Question, dns.Question{Name: "b.test.", Qtype: dns.TypeA, Qclass: dns.ClassINET})
-	for name, q := range map[string]*dns.Msg{"zero": zero, "two": two} {
-		reply := ask(r, q, "127.0.0.1", false)
-		if reply == nil || reply.Rcode != dns.RcodeFormatError {
-			t.Fatalf("%s questions: reply %v, want FORMERR", name, reply)
+	for _, rd := range []bool{true, false} {
+		zero := query("a.test", dns.TypeA)
+		zero.Question = nil
+		zero.RecursionDesired = rd
+		two := query("a.test", dns.TypeA)
+		two.Question = append(two.Question, dns.Question{Name: "b.test.", Qtype: dns.TypeA, Qclass: dns.ClassINET})
+		two.RecursionDesired = rd
+		for name, q := range map[string]*dns.Msg{"zero": zero, "two": two} {
+			reply := ask(r, q, "127.0.0.1", false)
+			if reply == nil || reply.Rcode != dns.RcodeFormatError {
+				t.Fatalf("%s questions, RD=%v: reply %v, want FORMERR", name, rd, reply)
+			}
 		}
 	}
 	if n := up.queries.Load(); n != 0 {
 		t.Fatalf("upstream saw %d queries, want 0", n)
+	}
+	if n := r.stats.refusedRD.Load(); n != 0 {
+		t.Fatalf("refused rd-clear %d, want 0: a malformed query is not an RD refusal", n)
 	}
 }
 

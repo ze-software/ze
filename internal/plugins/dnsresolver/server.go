@@ -44,6 +44,17 @@ func (r *resolver) answer(msg, q *dns.Msg, p dnsserver.Peer) bool {
 		r.countRateLimited()
 		return false
 	}
+	// The question count is judged before RD, so a query with no question or
+	// two draws Format error whatever its RD bit, as Unbound orders it:
+	// worker_handle_request runs worker_check_request ("request wrong nr qd",
+	// FORMERR) before its "refused nonrec (cache snoop) query" check.
+	if len(q.Question) != 1 {
+		// RFC 1035 Section 4.1.1: "Format error - The name server was unable
+		// to interpret the query."
+		msg.Rcode = dns.RcodeFormatError
+		r.countQuery(transport, msg.Rcode)
+		return true
+	}
 	if !q.RecursionDesired {
 		// RFC 1034 Section 4.3.1: "Note that the name server should never
 		// perform recursive service unless asked via RD, since this
@@ -55,13 +66,6 @@ func (r *resolver) answer(msg, q *dns.Msg, p dnsserver.Peer) bool {
 		// refused.").
 		msg.Rcode = dns.RcodeRefused
 		r.countRefused(refuseRDClear)
-		r.countQuery(transport, msg.Rcode)
-		return true
-	}
-	if len(q.Question) != 1 {
-		// RFC 1035 Section 4.1.1: "Format error - The name server was unable
-		// to interpret the query."
-		msg.Rcode = dns.RcodeFormatError
 		r.countQuery(transport, msg.Rcode)
 		return true
 	}
