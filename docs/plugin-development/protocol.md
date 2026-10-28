@@ -521,6 +521,9 @@ operation journals through `OnConfigOperationCommit`; discard only the matching
 transaction on accepted completion. Rejected completion follows original undo,
 after section-owned configuration and filters have been restored. A completion
 error after acceptance reports an active candidate, not a rollback.
+Requests and receipts MUST carry an explicit JSON boolean `accepted`, including
+`false` for rejection. Missing or `null` decisions never invoke SDK cleanup and
+never acknowledge completion to the engine; they are malformed messages.
 <!-- source: pkg/plugin/sdk/sdk.go -- Plugin.Run -->
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnConfigComplete -->
 <!-- source: internal/component/plugin/server/reload_tx.go -- completeBatches, finishWithLock -->

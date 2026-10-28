@@ -557,10 +557,18 @@ func (pc *PluginConn) SendConfigComplete(ctx context.Context, input *rpc.ConfigC
 	if err != nil {
 		return err
 	}
-	var out rpc.ConfigCompleteOutput
-	if err := json.Unmarshal(raw, &out); err != nil {
+	var decoded struct {
+		rpc.ConfigCompleteOutput
+		Accepted *bool `json:"accepted"`
+	}
+	if err := json.Unmarshal(raw, &decoded); err != nil {
 		return fmt.Errorf("decode config completion: %w", err)
 	}
+	if decoded.Accepted == nil {
+		return fmt.Errorf("config completion receipt requires an explicit boolean accepted decision")
+	}
+	out := decoded.ConfigCompleteOutput
+	out.Accepted = *decoded.Accepted
 	if out.TransactionID != input.TransactionID {
 		return fmt.Errorf("config completion receipt does not match transaction %s", input.TransactionID)
 	}

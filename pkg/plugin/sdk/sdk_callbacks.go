@@ -646,10 +646,18 @@ func (p *Plugin) OnConfigComplete(fn func(context.Context, rpc.ConfigCompleteInp
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.callbacks[callbackConfigComplete] = func(params json.RawMessage) (json.RawMessage, error) {
-		var input rpc.ConfigCompleteInput
-		if err := json.Unmarshal(params, &input); err != nil {
+		var decoded struct {
+			rpc.ConfigCompleteInput
+			Accepted *bool `json:"accepted"`
+		}
+		if err := json.Unmarshal(params, &decoded); err != nil {
 			return nil, fmt.Errorf("unmarshal config-complete: %w", err)
 		}
+		if decoded.Accepted == nil {
+			return nil, fmt.Errorf("config-complete requires an explicit boolean accepted decision")
+		}
+		input := decoded.ConfigCompleteInput
+		input.Accepted = *decoded.Accepted
 		if input.TransactionID == "" {
 			return nil, fmt.Errorf("config-complete requires a transaction")
 		}

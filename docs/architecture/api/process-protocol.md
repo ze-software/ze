@@ -911,6 +911,10 @@ already-expired request does not invoke the handler. The handler MUST finish
 cleanup before returning and MUST honour cancellation; a queue admission or an
 unjoined asynchronous cleanup is not success. The engine bounds its RPC wait
 independently and checks the echoed transaction and accepted decision.
+Both request and receipt MUST include `accepted` as an explicit JSON boolean.
+Missing or `null` decisions are malformed, not rejection: the SDK refuses them
+before invoking cleanup, and the engine refuses them as completion receipts.
+Explicit `false` remains a valid rejected decision.
 
 Accepted completion follows durable publication. A failure is returned with the
 candidate still active, not described as rollback. Rejected completion follows
