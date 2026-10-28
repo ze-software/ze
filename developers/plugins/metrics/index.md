@@ -96,11 +96,13 @@ Use labels for runtime dimensions. Never encode variable data in metric names.
 | `bgp-rpki` | `rpki` | `bgp` prefix redundant |
 | `bgp-role` | `role` | `bgp` prefix redundant |
 | `bgp-filter-path-asn` | `filter_path_asn` | The package name. The `bgp` prefix is redundant on a BGP filter, and the hyphen-stripped `bgpfilterpathasn` cannot be read |
+| `bgp-filter-community` | `filter_community` | The package name, for the same reason |
 
 ### Full Inventory
 
 | Metric Name | Type | Labels | Owner |
 |-------------|------|--------|-------|
+| `ze_task_panics_total` | CounterVec | component, task | every component with a network-input task, through its `taskguard.Guard`: one per panic recovered at the task boundary |
 | `ze_rib_routes_in_total` | Gauge | | bgp-rib |
 | `ze_rib_routes_out_total` | Gauge | | bgp-rib |
 | `ze_rib_routes_in` | GaugeVec | peer | bgp-rib |
@@ -110,7 +112,11 @@ Use labels for runtime dimensions. Never encode variable data in metric names.
 | `ze_attr_pool_intern_total` | GaugeVec | pool | bgp-rib |
 | `ze_attr_pool_dedup_hits_total` | GaugeVec | pool | bgp-rib |
 | `ze_attr_pool_slots_used` | GaugeVec | pool | bgp-rib |
+| `ze_bgp_paths_limit_refused_total` | CounterVec | peer, family | bgp reactor (receive ceiling): one per received path refused over Ze's advertised PATHS-LIMIT |
+| `ze_bgp_paths_limit_election_failed_total` | CounterVec | peer, family | bgp reactor (send admission): one per contested prefix whose paths no RIB could rank under the peer's PATHS-LIMIT, so arrival order stood |
 | `ze_bgp_attr_mod_remove_buffer_refused_total` | CounterVec | attribute | bgp reactor (filterapi) |
+| `ze_bgp_rs_prepend_applied_total` | Counter | | bgp reactor (route-server forward) |
+| `ze_bgp_rs_large_control_community_stripped_total` | Counter | | bgp reactor (route-server forward) |
 | `ze_bgp_redistribute_events_received` | Counter | | redistribute-orchestrator |
 | `ze_bgp_redistribute_announcements` | Counter | | redistribute-orchestrator |
 | `ze_bgp_redistribute_withdrawals` | Counter | | redistribute-orchestrator |
@@ -137,6 +143,9 @@ Use labels for runtime dimensions. Never encode variable data in metric names.
 | `ze_role_route_rejects_total` | CounterVec | reason | bgp-role |
 | `ze_role_route_suppressions_total` | CounterVec | reason | bgp-role |
 | `ze_filter_path_asn_rejects_total` | CounterVec | direction, position, reason | bgp-filter-path-asn |
+| `ze_filter_community_value_scrubbed_total` | CounterVec | width | bgp-filter-community |
+| `ze_filter_community_relation_tag_written_total` | Counter | | bgp-filter-community |
+| `ze_filter_community_blackhole_guard_added_total` | CounterVec | community | bgp-filter-community |
 | `ze_isis_adjacencies_up` | GaugeVec | level, interface | isis |
 | `ze_isis_adjacencies_total` | GaugeVec | level | isis |
 | `ze_isis_lsps` | GaugeVec | level | isis (lsdb) |
@@ -216,6 +225,16 @@ Use labels for runtime dimensions. Never encode variable data in metric names.
 | `ze_iface_ra_sent_total` | CounterVec | interface | iface-ra |
 | `ze_iface_ra_solicited_total` | CounterVec | interface | iface-ra |
 | `ze_radius_unsigned_eap_discards_total` | Counter | | radius (client) |
+| `ze_dns_resolver_queries_total` | CounterVec | transport, rcode | dnsresolver: one per query answered |
+| `ze_dns_resolver_refused_total` | CounterVec | reason | dnsresolver: one per REFUSED answer, `acl` or `rd-clear` |
+| `ze_dns_resolver_rate_limited_total` | Counter | | dnsresolver: one per query dropped by `limit per-client-rate` |
+| `ze_dns_resolver_dropped_total` | Counter | | dnsresolver: one per query dropped at `limit outstanding` |
+| `ze_dns_resolver_outstanding` | Gauge | | dnsresolver: resolutions in progress |
+| `ze_dns_resolver_cache_entries` | GaugeVec | cache | dnsresolver: entries in the `answer` and `negative` caches |
+| `ze_dns_resolver_cache_hits_total` | Counter | | dnsresolver: one per query answered from the cache |
+| `ze_dns_resolver_upstream_queries_total` | CounterVec | result | dnsresolver: one per upstream exchange, `answered`, `timeout`, `error`, `failure` or `truncated` |
+| `ze_dns_resolver_listener_up` | GaugeVec | protocol, address | dnsresolver: 1 while a listener socket is bound, by protocol and address with port |
+| `ze_dns_tcp_connection_refused_total` | Counter | | DNS server harness: one per TCP connection closed at accept because its listener held `Options.TCPConnMax` (the LAN resolver sets it) |
 
 The three iface link-event counters answer the same question from different
 points on the path, and none of them reports a lost final state. A rising
@@ -254,6 +273,16 @@ hosts join the link.
 
 <!-- source: internal/plugins/iface/ra/ifacera.go -- incSent, incSolicited -->
 <!-- source: internal/plugins/iface/ra/sender_linux.go -- send call sites -->
+
+The LAN resolver's `ze_dns_resolver_queries_total` counts answered queries
+only: a query dropped by the rate or the outstanding bound gets no reply and
+is counted by `ze_dns_resolver_rate_limited_total` or
+`ze_dns_resolver_dropped_total` instead. `ze_dns_resolver_cache_entries` is
+published by the resolver's sweeper every 10 seconds and by a cache clear, so
+it can lag the cache by that interval. What each label value means is in
+[the LAN resolver design](https://github.com/ze-software/ze/blob/main/docs/architecture/dns/lan-resolver.md#metrics).
+
+<!-- source: internal/plugins/dnsresolver/metrics.go -- buildMetrics, countQuery, cacheGauges -->
 
 `ze_plugin_write_watchdog_total` increments when a plugin RPC write on a
 transport that does not support `SetWriteDeadline` (SSH channels, `io.Pipe`)
@@ -410,6 +439,28 @@ registry).
 
 <!-- source: internal/core/metrics/nop.go -- NopRegistry -->
 
+## The Task Panic Counter
+
+A plugin with a task that handles network input (a receive goroutine, a
+session read loop, a request handler) guards it with `internal/core/taskguard`,
+and the guard owns `ze_task_panics_total{component,task}`. The plugin does not
+declare the metric itself:
+
+1. Build one `taskguard.Guard` per component with `taskguard.New(component, log)`,
+   and declare each task once with `Guard.Task(name, restart)`. `restart` says in
+   plain words what brings the unit back.
+2. Call `Guard.SetMetricsRegistry(reg)` from `ConfigureMetrics`. A panic
+   recovered before the registry arrived is added then, so none is lost.
+3. Defer `task.Contain(describe, end)` directly at the top of the task. It logs,
+   counts and writes the crash record, then calls `end` to tear the unit down.
+
+The name and labels are one declaration (`taskguard.MetricName`), so every
+component registering it shares one vector. The log line and the crash record
+are described in `docs/architecture/diagnostics/crash-capture.md`, "Recovered
+panics".
+
+<!-- source: internal/core/taskguard/guard.go -- New, Guard.Task, Guard.SetMetricsRegistry, Task.Contain -->
+
 ## Which Plugins Need Metrics
 
 Not every plugin needs metrics. NLRI codec plugins (flowspec, evpn, labeled, etc.)
@@ -422,6 +473,7 @@ with state machines, caches, or I/O operations benefit from metrics.
 | Plugins with external I/O (fib-kernel, rpki) | Pure capability-only plugins |
 | Plugins with timers/state machines (gr, watchdog) | Format/encoding plugins |
 | Plugins that drop or withhold routes (bgp-role, bgp-filter-path-asn) | |
+| Plugins that rewrite received routes (bgp-filter-community) | |
 
 A plugin that can refuse a route needs metrics even if it holds no state: a
 suppression is invisible to the operator otherwise. `bgp-role` was once listed
@@ -439,6 +491,33 @@ series count with the session count.
 <!-- source: internal/component/bgp/plugins/role/metrics.go -- recordDrop -->
 <!-- source: internal/component/bgp/plugins/role/otc.go -- OTCIngressFilter, OTCEgressFilter -->
 <!-- source: internal/component/bgp/plugins/filter_path_asn/metrics.go -- recordReject -->
+
+A filter that rewrites a received route is the same case again: the route is
+the only trace of the rewrite. `bgp-filter-community` counts the values its
+own-GA scrub removes (RFC 7454 Section 11), labelled `width` (`standard` or
+`large`); the routes its RFC 8195 relation tag is written to; and the BLACKHOLE
+routes its RFC 7999 Section 3.2 guard adds a propagation community to, labelled
+`community` with the YANG keyword (`no-export` or `no-advertise`). Each is
+counted after the rebuild that applies it succeeded, never where the change is
+only computed. Its filters run in the daemon whatever process the plugin's
+engine runs in, so the registry arrives through `Filter.ConfigureMetrics`, which
+`filterapi.SetMetricsRegistry` calls from the reactor's metrics-enable block,
+and not through the plugin `ConfigureMetrics` hook.
+
+The route server counts the control-community edits it makes for its clients.
+`ze_bgp_rs_prepend_applied_total` counts the UPDATEs written to a client that
+carry the AS_PATH prepend a route's large control community requested for that
+client (RFC 7947 Section 2.2.2.1), and
+`ze_bgp_rs_large_control_community_stripped_total` counts the LARGE_COMMUNITY
+values in the route server's own namespace removed from them. Both rails count
+each UPDATE once it is queued for the client: a client the egress filters
+refused, a failed rebuild and a withdrawal count nothing, and a received UPDATE
+split into several sections counts once per section, because each section
+carries the edit.
+
+<!-- source: internal/component/bgp/plugins/filter_community/metrics.go -- recordScrub, recordRelationTag, recordBlackholeGuard -->
+<!-- source: internal/component/bgp/filterapi/metrics.go -- SetMetricsRegistry -->
+<!-- source: internal/component/bgp/reactor/forward_rs.go -- recordRSCommunityEdits -->
 
 ## Reference Implementation
 

@@ -31,25 +31,34 @@
 ## Build personalities
 
 The repository builds `ze` and `le` from the one `cmd/ze` codebase. The root
-`./ze` and `./le` launchers execute the cached `bin/ze` and `bin/le`
-personalities and build only when that cache is absent.
+`./ze` launcher executes the cached `bin/ze` personality and builds it only
+when that cache is absent.
 
-`./le --name <name>` takes one session out of that cache. The launcher consumes
-the option, builds `bin/le-<name>/le` with the same tags and toolchain pin as
-the shared build, and rebuilds it on every call. The file keeps the name `le`
-because `defaultDispatch` selects the personality with
+The root `./le` is a dispatcher, and `bin/le` is an identical copy of it that
+`./le` installs by rename whenever the two differ. Both run the newest build in
+`bin/builds/<UTC commit time>-<short sha>/le`. A build is compiled from a
+`git archive` export of HEAD, never from the working tree, so no session's
+half-written edit reaches the le every other session runs. Each build records
+its input key, the git tree hash of le's inputs (`internal cmd pkg api vendor
+go.mod go.sum feature-gates.txt feature-tags`) at its commit. When HEAD's key
+differs, one call starts a detached candidate build and still runs the newest;
+the candidate is smoke-tested in a dot-prefixed staging directory and renamed
+into place only once it passes. A build that does not start is moved aside to
+`bin/builds/.failed-<name>` and the next newest runs, and `./le rollback` does
+the same on demand. `--update` is gone and says so with exit 2.
+`docs/contributing/running-commands.md`, "Launcher builds do not overwrite
+running binaries", carries the whole behaviour.
+
+`./le --name <name>` takes one session off the shared builds. The launcher
+consumes the option, builds `bin/le-<name>/le` from the working tree with the
+same tags and toolchain pin as the shared build, and rebuilds it on every call;
+`--name session` derives the name from the session id. The file keeps the name
+`le` because `defaultDispatch` selects the personality with
 `registry.LookupRoot(binaryName())`, so the session name goes on the directory.
 The launcher carries the name into the process, and `refuseWrongBuildName`
 refuses to answer when the running binary is a different build.
-
-`./le --update` moves the cache forward instead of stepping around it. It builds
-the working tree beside `bin/le` and renames the result into place, so a peer
-session executing the old binary keeps its inode. The launcher never rebuilds on
-its own, because one peer's unfinished source would then fail every call in every
-session. About one call in sixteen compares the binary with the build inputs,
-after the command has answered. It prints one stderr line when a file git holds
-unmodified is newer.
-<!-- source: le -- the --name option; cmd/ze/le_build_name.go -- refuseWrongBuildName -->
+<!-- source: le -- choose_build, start_candidate, set_aside, session_name -->
+<!-- source: cmd/ze/le_build_name.go -- refuseWrongBuildName -->
 
 The same selection lets `le` run inside a container. The perf runner
 cross-builds `le` for linux with `CGO_ENABLED=0` and the tags of the launcher's

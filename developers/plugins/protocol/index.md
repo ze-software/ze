@@ -523,6 +523,19 @@ and `log/slog`, and the number or `null` through `encoding/json`, where a field
 tagged `omitzero` is omitted while the AS is unknown.
 <!-- source: pkg/plugin/rpc/remote_as.go -- RemoteAS, ASN, MarshalJSON, IsZero, String, LogValue -->
 
+A session-down event names the session it ended: `session-generation` in the
+JSON and text forms, `StructuredEvent.SessionGeneration` in the structured
+one, a nonzero number captured when that session closed. An up carries none.
+A forwarding plugin that asks the engine to withdraw or replace a departed
+peer's routes (`recovery-source` meta on its `update` command) MUST name that
+session as `recovery-generation` meta, a decimal string: the engine refuses a
+departure without it, and with it owes only routes that session or an older
+one wrote, so a down handled after the peer reconnected never takes the newer
+session's routes (`docs/architecture/plugin/rib-storage-design.md`,
+"Source-DOWN replacement and sent ordering").
+<!-- source: pkg/plugin/rpc/bridge.go -- StructuredEvent -->
+<!-- source: internal/component/bgp/plugins/cmd/update/recovery.go -- recoveryFromMeta -->
+
 ### The Filter Text an `OnFilterUpdate` Handler Reads
 
 `FilterUpdateInput.Update` is the UPDATE as text: `<name> <value>` attribute

@@ -61,6 +61,7 @@
 <li><a href="#02-ppp-bgp-redistribute-frr">02-ppp-bgp-redistribute-frr</a></li>
 <li><a href="#03-ze-lac-xl2tpd-lns">03-ze-lac-xl2tpd-lns</a></li>
 <li><a href="#04-radius-acct-attrs">04-radius-acct-attrs</a></li>
+<li><a href="#dns-resolver-l2tp-subscriber">dns-resolver-l2tp-subscriber</a></li>
 </ol></li>
 <li><a href="#relationship-to-other-evidence">Relationship to Other Evidence</a></li>
 <li><a href="#design-pattern">Design Pattern</a></li>
@@ -85,14 +86,17 @@ route redistribution from a live PPP session.</p>
     02-ppp-bgp-redistribute-frr/   BGP route redistribution proof
     03-ze-lac-xl2tpd-lns/   ze as initiator (LAC) vs real xl2tpd LNS
     04-radius-acct-attrs/   subscriber attributes in RADIUS auth and accounting
+    dns-resolver-l2tp-subscriber/   IPCP DNS to Ze's LAN resolver, then a lookup
 internal/le/interoplab/l2tp/
   l2tp.go              Native topology, images, selection, and lifecycle
   checkers.go          Typed protocol assertions for all four scenarios
+  dns_resolver.go      The dns-resolver-l2tp-subscriber assertions
   radiusmock/          Independent Go RADIUS peer
 </code></pre>
 <p>Each scenario contains the protocol configuration mounted by its typed plan.
 The plans choose the Ze, xl2tpd, FRR, and RADIUS peers for that scenario, while
-the checker map fixes the complete four-scenario population.</p>
+the checker map fixes the complete scenario population. The
+<code>dns-resolver-l2tp-subscriber</code> plan adds Knot DNS on <code>172.29.0.7</code>.</p>
 <h2 id="prerequisites">Prerequisites</h2>
 <p>The lab requires Docker and a host kernel with PPPoL2TP support, built in
 or loaded by the host: a lab container never loads a kernel module. The
@@ -110,8 +114,8 @@ it fails strictly.</p>
 <p>Setting <code>ZE_L2TP_SKIP_KERNEL_PROBE</code> or <code>ze.l2tp.skip-kernel-probe</code> in the
 environment causes an immediate refusal.</p>
 <h2 id="running">Running</h2>
-<pre><code>./le test deployment docker-l2tp-ppp-test
-ZE_L2TP_INTEROP_SCENARIO=01-ppp-ipv4 ./le test deployment docker-l2tp-ppp-test
+<pre><code>./le test deployment docker-l2tp-ppp
+ZE_L2TP_INTEROP_SCENARIO=01-ppp-ipv4 ./le test deployment docker-l2tp-ppp
 </code></pre>
 <p>Environment variables: <code>FRR_IMAGE</code> (default
 <code>quay.io/frrouting/frr:10.3.1</code>), <code>NO_BUILD</code>, <code>SESSION_TIMEOUT</code> (default 90s),
@@ -147,7 +151,7 @@ control-plane-only scenario is selected alone. <code>xl2tpd</code> cannot answer
 that follows because it has no outgoing-call answerer (it logs <code>Unimplemented message 7</code>), so the RPC returns an error by design and the established control
 connection is the interop proof. The full OCRQ→OCRP→OCCN call flow is proven
 functionally by <code>test/l2tp/lns-outgoing-call.ci</code>. The LAC incoming-call PPP data
-plane is covered by <code>./le test deployment gokrazy-l2tp-ppp-test</code>.</p>
+plane is covered by <code>./le test deployment gokrazy-l2tp-ppp</code>.</p>
 <h3 id="04-radius-acct-attrs">04-radius-acct-attrs</h3>
 <p>Proves the subscriber attributes ze sends to a RADIUS server for a real PPP
 session: NAS-Port-Id (RFC 2869 Section 5.17) resolved from the operator's
@@ -170,6 +174,21 @@ operator one, so the Stop reports Admin Reset, RFC 2866 Section 5.10 value 6.</p
 The peer answers Access-Request and Accounting-Request packets and writes the
 decoded attributes that the checker compares. This scenario uses the same
 PPPoL2TP preflight as 01 and 02.</p>
+<h3 id="dns-resolver-l2tp-subscriber">dns-resolver-l2tp-subscriber</h3>
+<p>Proves that a subscriber learns Ze's LAN DNS resolver through IPCP and
+resolves through it. The pool's <code>dns-primary</code> and <code>dns-secondary</code> are the
+pool gateway 10.100.0.1, where <code>service dns-resolver</code> listens with
+<code>allow-from 10.100.0.0/24</code> and forwards to Knot DNS on <code>172.29.0.7</code>, the only
+server that holds the lab zone <code>lab.example.</code> (the BGP lab's
+<code>test/interop/Dockerfile.knot</code>). pppd runs with <code>usepeerdns</code>, so it asks for
+both RFC 1877 options and writes what Ze gave it to <code>/etc/ppp/resolv.conf</code>.</p>
+<p>The checker waits for <code>PPP session up</code>, requires every <code>nameserver</code> line of
+that file to be 10.100.0.1, requires the LAC's route to 10.100.0.1 to leave
+through its <code>ppp</code> interface, and requires busybox
+<code>nslookup -type=a www.lab.example 10.100.0.1</code> to answer from that server with
+exactly 192.0.2.10 and 192.0.2.11. The gateway exists only while a session is
+up. The resolver sets <code>IP_FREEBIND</code> on its listener sockets, so the listener
+binds at start, before the first session, and Ze's container needs no sysctl.</p>
 <p><code>auth-method chap-md5</code> in this scenario's <code>ze.conf</code> is load-bearing, unlike the
 same leaf in <code>test/l2tp/radius-acct-wire.ci</code>. xl2tpd sends no RFC 2661 Section
 4.4.5 proxy LCP AVPs, so ze negotiates LCP itself and the leaf picks the
@@ -188,22 +207,22 @@ no Access-Request without one.</p>
 </thead>
 <tbody>
 <tr>
-<td><code>./le test deployment l2tp-test</code></td>
+<td><code>./le test deployment l2tp</code></td>
 <td>Control tunnel and incoming-call session</td>
 <td class="cell-no">✕</td>
 </tr>
 <tr>
-<td><code>./le test deployment l2tp-ppp-test</code></td>
+<td><code>./le test deployment l2tp-ppp</code></td>
 <td>Native Linux full PPP/NCP/kernel proof in peer-isolated netns</td>
 <td class="cell-yes">✓</td>
 </tr>
 <tr>
-<td><code>./le test deployment docker-l2tp-ppp-test</code></td>
+<td><code>./le test deployment docker-l2tp-ppp</code></td>
 <td>Peer-isolated Docker lab (this)</td>
 <td class="cell-yes">✓</td>
 </tr>
 <tr>
-<td><code>./le test deployment gokrazy-l2tp-ppp-test</code></td>
+<td><code>./le test deployment gokrazy-l2tp-ppp</code></td>
 <td>QEMU gokrazy appliance LNS with a netns LAC</td>
 <td class="cell-yes">✓</td>
 </tr>
@@ -264,8 +283,10 @@ specific to this protocol.</p>
         <footer>
             <div class="footer-inner">
                 <div class="footer-bottom">
+                    <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
+                    <a href="../../../legal/">Legal notice</a>
+                    <span class="footer-published">Published 27 October 2026 23:56 UTC</span>
                 </div>
             </div>
         </footer>

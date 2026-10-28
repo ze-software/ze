@@ -180,11 +180,11 @@ sudo systemctl reload ze.service
 </tr>
 <tr>
 <td><code>control-plane-protection bgp</code></td>
-<td>Rate-limits new TCP connections to the protected BGP port.</td>
+<td>Accepts TCP to the protected BGP port from configured BGP neighbors only, drops every other source, and rate-limits new connections from the neighbors.</td>
 </tr>
 <tr>
 <td><code>trusted-source</code></td>
-<td>Bypasses CoPP for known BGP route reflectors or upstream routers.</td>
+<td>Accepts a source that is not a configured BGP neighbor, such as a monitoring host, and never rate-limits it.</td>
 </tr>
 <tr>
 <td><code>family ipv4/flow</code></td>
@@ -196,7 +196,7 @@ sudo systemctl reload ze.service
 </tr>
 </tbody>
 </table>
-<p><code>over-limit-policy drop</code> is intentionally strict. During first turn-up you can use <code>accept</code> to observe without dropping, then switch to <code>drop</code> after counters and logs look correct.</p>
+<p><code>over-limit-policy drop</code> is the default. During first turn-up you can set <code>accept</code> to observe the rate without dropping, then remove it after counters and logs look correct. Neither setting admits a source that is not a configured neighbor or a <code>trusted-source</code>.</p>
 <p>The bridge receives selected routes from <code>bgp-rib</code>. Received UPDATE events do
 not program the firewall. The RIB validates FlowSpec against unicast reachability
 and removes rules when authorization is lost. Startup requests replay the
@@ -495,8 +495,10 @@ the configuration, import it, and reload.</p>
         <footer>
             <div class="footer-inner">
                 <div class="footer-bottom">
+                    <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
+                    <a href="../../legal/">Legal notice</a>
+                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
                 </div>
             </div>
         </footer>

@@ -95,10 +95,10 @@ Each symbol has a producer in Ze rather than a test that wanted it.
 | Group | Symbols | Producer in Ze |
 |-------|---------|----------------|
 | Subscriber | `PPP`, `PPPOL2TP`, `PPPOE`, `L2TP`, `L2TP_V3` | The L2TP LNS, and the PPPoE server and client |
-| Firewall | `NF_TABLES`, `NF_TABLES_INET`, `NF_TABLES_IPV4`, `NF_TABLES_IPV6`, `NF_CONNTRACK`, `NF_NAT`, `NFT_CT`, `NFT_NAT`, `NFT_MASQ`, `NFT_REDIR`, `NFT_LIMIT`, `NFT_LOG`, `NFT_REJECT` | The nftables backend, and `translatePolicy` (`internal/plugins/copp/translate.go`), which returns `FamilyInet` unconditionally. Without `NF_TABLES_INET` the kernel answers EOPNOTSUPP, `Apply`'s flush fails, the firewall plugin fails startup, and the daemon exits |
+| Firewall | `NF_TABLES`, `NF_TABLES_INET`, `NF_TABLES_IPV4`, `NF_TABLES_IPV6`, `NF_CONNTRACK`, `NF_NAT`, `NFT_CT`, `NFT_NAT`, `NFT_MASQ`, `NFT_REDIR`, `NFT_LIMIT`, `NFT_LOG`, `NFT_REJECT`, `NF_FLOW_TABLE`, `NF_FLOW_TABLE_INET`, `NFT_FLOW_OFFLOAD` | The nftables backend, and `translatePolicy` (`internal/plugins/copp/translate.go`), which returns `FamilyInet` unconditionally. Without `NF_TABLES_INET` the kernel answers EOPNOTSUPP, `Apply`'s flush fails, the firewall plugin fails startup, and the daemon exits. The three flowtable symbols carry a table's `flowtable` and a term's `flow-offload` action (`applyFlowtable`); without them the kernel answers ENOENT and refuses the whole table |
 | Tunnels | `NET_IPGRE_DEMUX`, `NET_IPGRE`, `IPV6_GRE`, `NET_IPIP`, `IPV6_TUNNEL`, `IPV6_SIT`, `VXLAN` | The nine tunnel kinds `ze-iface-conf.yang` models. Six symbols plus the GRE demux gate. Measured cost: vmlinuz 16352256 to 16450560 bytes, +0.60% |
 | Policy routing | `IP_MULTIPLE_TABLES`, `IPV6_MULTIPLE_TABLES`, `IP_ROUTE_MULTIPATH` | The policy-routing engine. Without `IPV6_MULTIPLE_TABLES` the kernel folds every table id into the main table and says nothing |
-| Traffic control | `NET_SCH_HTB`, `TBF`, `FQ_CODEL`, `HFSC`, `FQ`, `SFQ`, `NETEM`, `PRIO`, `INGRESS`, `NET_CLS_U32`, `NET_CLS_FW`, `NET_CLS_MATCHALL`, `NET_ACT_MIRRED` | Class of service, rate limiting, and mirroring |
+| Traffic control | `NET_SCH_HTB`, `TBF`, `FQ_CODEL`, `HFSC`, `FQ`, `SFQ`, `NETEM`, `PRIO`, `INGRESS`, `NET_CLS_U32`, `NET_CLS_FW`, `NET_CLS_MATCHALL`, `NET_ACT_MIRRED`, `NET_ACT_POLICE` | Class of service, rate limiting, and mirroring; subscriber upload rates use the police action through `shaper.applyTC` and `ingressPolicerFilter` |
 | Interfaces and VPN | `DUMMY`, `VETH`, `MACVLAN`, `VLAN_8021Q`, `INET_ESP`, `INET6_ESP`, `XFRM_STATISTICS`, `HUGETLBFS`, `BPF_SYSCALL`, `BPF_JIT` | Interface creation, IPsec, VPP hugepages, and the eBPF surfaces |
 | IPsec and WireGuard | `XFRM_USER`, `XFRM_INTERFACE`, `XFRM_MIGRATE`, `INET_AH`, `INET6_AH`, `WIREGUARD`, `CRYPTO_CBC`, `CRYPTO_DES`, `CRYPTO_NULL`, `CRYPTO_GCM`, `CRYPTO_CHACHA20POLY1305`, `CRYPTO_SHA1`, `CRYPTO_SHA256`, `CRYPTO_SHA512` | Every SA install (XFRM netlink), route-based IPsec, MOBIKE, OSPFv3 authentication, WireGuard links, and one symbol for each ESP transform Ze can install, so every cipher Ze accepts in config is carried by the kernel |
 
@@ -107,6 +107,39 @@ are not pinned in a manifest.
 <!-- source: gokrazy/kernel/runtime.require -- runtime requirements -->
 <!-- source: gokrazy/kernel/kernel.require -- base requirements -->
 <!-- source: internal/appliance/kernelbuilder/worker.go -- enforceRequiredSymbols -->
+
+## VPN Kernel Proof
+
+`./le test qemu vpn-kernel-test` boots Ze's docker-host image with its own
+kernel and base, on the host's native architecture. It uses the shared
+Docker lab transport: KVM on Linux or HVF on macOS, never a stock guest or
+foreign-architecture emulation. This is a manual kernel proof, not a check
+of the default appliance image's packaged config.
+<!-- source: internal/le/test/qemu/vpnproof.go -- runVPNKernelHere -->
+<!-- source: internal/le/test/qemu/dockerlab.go -- runDockerLab -->
+
+The action runs AES-GCM, AES-CBC/SHA256, ChaCha20-Poly1305, 3DES/SHA1 and
+NULL/SHA256 against strongSwan. The IPsec checks require installed SAs and
+received tunnel traffic. A separate pair of Linux WireGuard peers must
+complete a handshake and pass a ping, with received bytes at both ends.
+<!-- source: internal/le/test/deployment/vpnproof.go -- runVPNKernelAt -->
+<!-- source: internal/le/interoplab/ipsec/vpnproof.go -- checkESPKernel -->
+<!-- source: internal/le/interoplab/ipsec/helpers.go -- verifyESPDirectionsToward -->
+<!-- source: internal/le/test/deployment/wireguardproof.go -- checkWireGuardProof -->
+
+Before services start, the disposable guest disables module loading,
+refuses any preloaded module, and removes its `/sbin/modprobe` helper.
+The shipped image and any existing Docker host are unchanged. The host
+checks the emitted kernel config against both requirement manifests;
+the WireGuard step checks the guest root again, not the container root.
+<!-- source: internal/le/test/qemu/vpnproof.go -- vpnGuestPreparation, vpnKernelConfig -->
+<!-- source: internal/le/test/qemu/dockerlab.go -- dockerLabGuest.cidataFiles -->
+<!-- source: internal/le/test/deployment/wireguardproof.go -- checkWireGuardProof -->
+
+The WireGuard step proves kernel traffic, not Ze's configuration-commit
+path. An amd64 run does not replace the required arm64/HVF run, and no
+result is implied by the command's presence.
+<!-- source: internal/le/test/deployment/vpnproof.go -- vpnKernelReport -->
 
 ## L2TP Kernel Support
 
@@ -159,7 +192,7 @@ support, the deployment proof target builds an L2TP-enabled appliance image and
 drives a real LAC against it:
 
 ```bash
-./le test deployment gokrazy-l2tp-ppp-test
+./le test deployment gokrazy-l2tp-ppp
 ```
 
 The proof image is built from a temporary gokrazy instance config so the normal
@@ -401,7 +434,7 @@ The gok source is vendored under `vendor/github.com/gokrazy/`. The small
 
 The tree above is the build *input*; no build runs inside it. Every image build
 first copies the instance it names (`gokrazy/ze` for the appliance,
-`gokrazy/docker-host` for `./le setup docker-host build`) to a fresh directory
+`gokrazy/docker-host` for `./le setup docker host build`) to a fresh directory
 under the project `tmp/`, including the whole `builddir`, rewriting each filesystem-path `replace` to an
 absolute path so it still resolves from the new depth. gok is then pointed at the
 copy, and the copy is deleted afterwards.

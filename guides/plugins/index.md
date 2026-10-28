@@ -428,9 +428,11 @@ that replays routes toward a peer when it comes up must skip that replay on an
 plugin through the ROUTE-REFRESH Ze sends after the up.
 
 A reload that detaches a plugin sends it a `state down` for that peer alone,
-and the session stays up for every other plugin. The plugin drops what it holds
+and the session stays up for every other plugin. The down names the
+still-running session as its `session-generation`, as a real down names the
+session it ended. The plugin drops what it holds
 for the peer. When that plugin is `bgp-rs`, the other peers lose the routes it
-forwarded from that peer: each is replaced by the best remaining route or
+forwarded from that peer, every one that session wrote included: each is replaced by the best remaining route or
 withdrawn, although the peer's session never went down. A plugin whose grant
 changed receives a down, then an `attached` up.
 
@@ -498,7 +500,7 @@ A reason string reaches CLI output as data, so never put a secret in one.
 |--------|---------|----------------|
 | `bgp-rib` | Mandatory Route Information Base with in-memory sent-history replay on reconnect | `receive [ update state refresh ] send [ update refresh ]` |
 | `bgp-adj-rib-in` | Adj-RIB-In (raw hex replay, auto-replays on peer-up) | `receive [ update-received state ]` |
-| `bgp-rs` | Route server (forward-all) | `receive [ update-received state open-received refresh ] send [ update ]` |
+| `bgp-rs` | Route server (RFC 7947): forwards each UPDATE, and a client without ADD-PATH is sent the `bgp-rib`-elected route when sources contest a prefix | `receive [ update-received state open-received refresh ] send [ update ]` |
 | `bgp-rr` | Route reflector (RFC 4456) | `receive [ update-received state open-received ]` |
 | `bgp-watchdog` | Deferred route announcement | `receive [ state ] send [ update ]` |
 <!-- source: internal/component/bgp/plugins/rib/register.go -- bgp-rib registration -->
@@ -605,6 +607,7 @@ address. A session whose events named it nothing is selected by no name.
 | `imageserver` | HTTP image server for PXE provisioning: serves gokrazy disk images, installer boot files, and pre-provisioned zefs databases with SSH credentials. Own HTTP listener, path traversal protection, Range request support | -- (Config-driven, HTTP listener) |
 | `geodns` | GeoDNS server (RFC 1035): DNS answers selected by client source IP. Client IP from EDNS0 client-subnet (RFC 7871) or packet source; CIDR longest-prefix selects a named host-set (A/AAAA/SRV records); synthesizes SOA/NS/glue. `show geodns`, `ze_geodns_*` metrics, UDP+TCP listeners (default 127.0.0.1:5300); compile-out-able with the `ze_geodns` build tag <!-- source: feature-gates.txt -- ze_geodns --> | -- (Config-driven, UDP+TCP listeners) |
 | `as112` | AS112 anycast DNS node (RFC 7534, RFC 7535): authoritative-only sink for misdirected RFC 1918 / link-local reverse-DNS queries plus the EMPTY.AS112.ARPA DNAME-redirection zone. Four fixed anycast host addresses (never operator-typed) registered via the iface address-ownership registry, `IP_FREEBIND` listeners, optional `allow-from` client-source access list (loopback always permitted). `show as112`, `as112 health` (one-shot query for the healthcheck probe), `ze_as112_*` metrics, UDP+TCP listeners on port 53. Now also a BGP redistribute source: `redistribute { destination bgp { import as112 } }` originates the four covering prefixes into BGP, with `asn` (origin AS, default 112), `community`, and a `watchdog` health-gate under `service { as112 }`. <!-- source: internal/plugins/as112/redistribute.go -- registerAS112Sources --> | -- (Config-driven, UDP+TCP listeners) |
+| `dnsresolver` | LAN DNS resolver (RFC 1035, RFC 2181), configured under `service { dns-resolver }`: UDP and TCP listeners on the addresses the operator names, an `allow-from` client prefix list, and an ordered `forward server` list. A commit is refused for a wildcard listener address, and for an enabled resolver with no `allow-from` prefix or no forward server. A query from an allowed client with RD set is answered from the cache or forwarded to the upstream servers in order, and SERVFAIL is returned when no upstream gives a usable answer within the timeout and the per-query work budget <!-- source: internal/plugins/dnsresolver/config.go -- parseConfig, checkEnabled --> <!-- source: internal/plugins/dnsresolver/resolve.go -- resolve, forward --> | -- (Config-driven, UDP+TCP listeners) |
 | `traffic-usage` | eBPF TCX per-(port, protocol) and opt-in per-IP byte accounting (IPv4, monitoring only). Pure-Go assembled eBPF (cilium/ebpf asm.Instructions, no C/clang). Prometheus `ze_traffic_usage_*` metrics, `show traffic usage [name <interface>]`. Linux >= 6.6. [Guide](../traffic-usage/index.md) | -- (Config-driven, Bus events) |
 <!-- source: internal/plugins/trafficusage/register.go -- traffic-usage registration -->
 <!-- source: internal/plugins/policyroute/register.go -- policy-routes registration -->
@@ -613,6 +616,7 @@ address. A session whose events named it nothing is selected by no name.
 <!-- source: internal/plugins/tftpserver/register.go -- tftpserver registration -->
 <!-- source: internal/plugins/geodns/register.go -- geodns registration -->
 <!-- source: internal/plugins/as112/register.go -- as112 registration -->
+<!-- source: internal/plugins/dnsresolver/register.go -- dnsresolver registration -->
 <!-- source: internal/component/iface/register.go -- iface registration -->
 <!-- source: internal/plugins/iface/netlink/register.go -- iface-netlink backend registration -->
 <!-- source: internal/plugins/iface/dhcp/register.go -- iface-dhcp registration -->

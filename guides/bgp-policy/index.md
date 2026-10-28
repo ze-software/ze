@@ -243,7 +243,21 @@ only the ones customers and peers use for signaling. An empty
 everything". The scrub covers standard and large communities, and it runs on
 eBGP sessions only: on an iBGP session an own-AS value is this network's own
 signal to itself. Well-known communities are never reached, so `NO_EXPORT`,
-`NO_ADVERTISE` and `BLACKHOLE` always survive. The `relation-function` number is
+`NO_ADVERTISE` and `BLACKHOLE` always survive. On a session with `rs-client
+true`, the scrub keeps the route-server control communities the client sends
+to the route server: `RS:X` and `RS:0` in the standard form, and
+`RS:101:X` to `RS:103:X` in the large form (see "Route-server control
+communities" below). They are the signalling Section 11 tells you to allow, and
+the route server reads them after the ingress filters, so scrubbing them would
+silently cancel every announce, do-not-announce and prepend request. The route
+server removes them before any client receives the route. `RS` is the route
+server's AS: the router's global `session asn local`, never a per-peer
+local-as override, because that is the AS the route server reads and removes
+them by. On a client session with a local-as override the scrub's own AS is the
+override, so a value under it shaped like a control is no request the route
+server reads, and it is scrubbed. The real controls carry the global AS and are
+outside the scrub's reach. Every other own-AS value from that client is still
+scrubbed. The `relation-function` number is
 never kept, whatever the list says, because a kept relation function would let a
 peer state its own relation to this AS.
 
@@ -322,10 +336,16 @@ When ze runs as a route server, a client can steer its own routes by tagging the
 | `0:<asn>` | Do not advertise this route to `<asn>`. |
 | `<rs-asn>:<asn>` | Advertise this route ONLY to the listed ASNs. |
 | `<rs-asn>:0` | Do not advertise this route to any client. |
+| `<rs-asn>:101:<asn>` | Large community. Prepend the route server's ASN once to the AS_PATH sent to `<asn>`. |
+| `<rs-asn>:102:<asn>`, `<rs-asn>:103:<asn>` | Large community. The same, two or three times. |
 
 A whitelist wins over a blacklist: if a route carries any `<rs-asn>:<asn>` tag, only the listed ASNs receive it and `0:<asn>` tags on the same route are not consulted.
 
-These are control tags, not attributes to pass on. The route server strips every one of them from the route before forwarding it, so a client never sees another client's steering instructions or the route server's own. A route carrying several control communities has all of them removed, not the first one. Communities the route server does not recognise are forwarded untouched and in their original order, so a client's own tagging survives.
+A prepend request whose `<asn>` is `0` applies to every client. When a route carries a request for a client and one for every client, the client's own wins; when it carries two for the same client, the larger count wins.
+
+Without a prepend request a client receives the AS_PATH exactly as the route server received it, as RFC 7947 Section 2.2.2.1 recommends. That section makes the rule a SHOULD NOT rather than a MUST NOT only to stay compatible with older clients that still reject a route whose first AS is not the route server's. A route that carries the request is its sender asking for the change, so the prepend is applied only to such a route, and only toward the client it names.
+
+These are control tags, not attributes to pass on. The route server strips every one of them from the route before forwarding it, and with them every large community whose first field (the Global Administrator) is its own ASN, whatever the other two fields hold, so a client never sees another client's steering instructions or the route server's own. A route carrying several control communities has all of them removed, not the first one. Communities the route server does not recognise are forwarded untouched and in their original order, so a client's own tagging survives.
 
 `65535:666` is NOT one of these. RFC 7999 BLACKHOLE steers no route-server forwarding and is never stripped, so a client's blackhole request reaches the other clients as the client wrote it. Ze's own answer to a received BLACKHOLE is the per-session `blackhole` container and the ingress `blackhole-propagation` leaf, both above.
 
@@ -339,15 +359,17 @@ A control community decides about a ROUTE, not about a MESSAGE. One UPDATE can c
 
 Two limits are worth knowing:
 
-- A standard community's high half is 16 bits (RFC 1997), so a route server with a 4-octet ASN matches `<rs-asn>:<asn>` on the low 16 bits of its ASN only. Use large communities where that is ambiguous.
+- A standard community's high half is 16 bits (RFC 1997), so a route server with a 4-octet ASN matches `<rs-asn>:<asn>` on the low 16 bits of its ASN only. Large communities match the full ASN, but only the prepend requests have a large form today: there is no large-community spelling of `0:<asn>`, `<rs-asn>:<asn>` or `<rs-asn>:0`.
 - Stripping is ze's own forwarding behaviour. RFC 7947 expects per-client import and export policy but prescribes no mechanism for it (Section 2.3.2.1 offers per-client RIBs as "the most portable method"), so a different route-server implementation may leave these tags in place.
+
+Behaviour change: earlier versions of ze read the prepend requests and then ignored them, and forwarded the route server's large communities to every client. A route that carries a prepend request now has the prepend applied, which changes path selection at the client it names, and a client policy that matched the route server's large communities no longer sees them.
 
 `ze_bgp_attr_mod_remove_buffer_refused_total{attribute}` counts removal buffers a
 handler refused because they were not a whole number of wire values. The refusal
 is silent on the wire, so a non-zero value is the one signal that a producer is
 violating the arity contract and that an attribute went out unchanged.
 
-<!-- source: internal/component/bgp/wireu/community.go — ParseCommunityPolicy, ShouldForwardTo, StripControlCommunities -->
+<!-- source: internal/component/bgp/wireu/community.go — ParseCommunityPolicy, ShouldForwardTo, StripControlCommunities, StripLargeControlCommunities, RSPrepend -->
 <!-- source: internal/component/bgp/reactor/reactor_api_forward.go — general forwarding rail; forward_rs.go — route-server fast path -->
 
 ## Redistribution

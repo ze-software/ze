@@ -813,6 +813,21 @@
     ]
   },
   {
+    "name": "dnsresolver",
+    "description": "LAN DNS resolver: answers recursive queries from allowed prefixes by forwarding to upstream resolvers (RFC 1035, RFC 2181)",
+    "config_roots": [
+      "service"
+    ],
+    "dependencies": [],
+    "optional_dependencies": [],
+    "start_after": [],
+    "source_dir": "internal/plugins/dnsresolver",
+    "yang_files": [
+      "internal/plugins/dnsresolver/yang/ze-dns-resolver-cmd.yang",
+      "internal/plugins/dnsresolver/yang/ze-dns-resolver-conf.yang"
+    ]
+  },
+  {
     "name": "exabgp-bridge",
     "description": "In-process ExaBGP compatibility bridge: runs an operator ExaBGP-format script as a subprocess and translates to/from ze events (RFC-agnostic transport shim)",
     "config_roots": [
@@ -976,11 +991,34 @@
     ]
   },
   {
+    "name": "iface-dhcp",
+    "description": "DHCP client: DHCPv4/DHCPv6 lease acquisition and renewal",
+    "config_roots": [],
+    "dependencies": [
+      "interface"
+    ],
+    "optional_dependencies": [],
+    "start_after": [],
+    "source_dir": "internal/plugins/iface/dhcp",
+    "yang_files": []
+  },
+  {
+    "name": "iface-ra",
+    "description": "Router Advertisement sender: advertises IPv6 prefixes, flags, and resolvers on a LAN (RFC 4861)",
+    "config_roots": [],
+    "dependencies": [
+      "interface"
+    ],
+    "optional_dependencies": [],
+    "start_after": [],
+    "source_dir": "internal/plugins/iface/ra",
+    "yang_files": []
+  },
+  {
     "name": "ike",
     "description": "IKEv2 engine for native IPsec VPN",
     "config_roots": [
-      "vpn",
-      "pki"
+      "vpn"
     ],
     "dependencies": [],
     "optional_dependencies": [],
@@ -1146,6 +1184,16 @@
     "yang_files": [
       "internal/component/bgp/reactor/filter/yang/ze-loop-detection.yang"
     ]
+  },
+  {
+    "name": "memlock",
+    "description": "Memory lock: keep the running executable resident under memory pressure",
+    "config_roots": [],
+    "dependencies": [],
+    "optional_dependencies": [],
+    "start_after": [],
+    "source_dir": "internal/plugins/memlock",
+    "yang_files": []
   },
   {
     "name": "mrt",

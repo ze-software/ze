@@ -122,7 +122,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 0 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 0 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 0 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>50.0%</strong><b>2 of 4 tagged units, 0 escaped and 2 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>100.0%</strong><b>4 of 4 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 <article class="rfc-card rfc-ok"><span>Audit verdicts</span><strong>0</strong><b>of 0 gated MUSTs judged</b><p>0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <h3>Neutral</h3>
@@ -318,7 +318,7 @@ The document allocates one registry value and states three SHOULD statements. It
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/peer/rfc9384_last_error_unsent_test.go#L35" title="internal/component/bgp/plugins/cmd/peer/rfc9384_last_error_unsent_test.go" target="_blank" rel="noopener"><code>TestBgpSummaryLastErrorSeparatesToldFromCouldNotTell</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9384_peer_last_error_test.go#L96" title="internal/component/bgp/reactor/rfc9384_peer_last_error_test.go" target="_blank" rel="noopener"><code>TestNotificationDeliveredIsNotRecordedAsUnsent</code></a></td>
@@ -328,7 +328,7 @@ The document allocates one registry value and states three SHOULD statements. It
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/peer/rfc9384_last_error_unsent_test.go#L31" title="internal/component/bgp/plugins/cmd/peer/rfc9384_last_error_unsent_test.go" target="_blank" rel="noopener"><code>TestBgpSummaryLastErrorSeparatesToldFromCouldNotTell</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9384_peer_last_error_test.go#L59" title="internal/component/bgp/reactor/rfc9384_peer_last_error_test.go" target="_blank" rel="noopener"><code>TestNotificationRefusedBySocketStillRecordsTheReason</code></a></td>
@@ -490,8 +490,10 @@ The document allocates one registry value and states three SHOULD statements. It
         <footer>
             <div class="footer-inner">
                 <div class="footer-bottom">
+                    <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
+                    <a href="../../../legal/">Legal notice</a>
+                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
                 </div>
             </div>
         </footer>

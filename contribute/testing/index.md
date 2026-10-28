@@ -8,12 +8,21 @@ directives, fuzz target list), see `docs/functional-tests.md`.
 
 ```sh
 ./le setup install
-./le verify current
+./le setup check
+./le job run label unit-pkg command go test ./internal/core/textbuf/
 ```
+
+`./le setup check` reports every tool setup installs, and the scoped package
+test proves the checkout builds and its tests run
+(`../guide/developer-setup.md`, "After Setup").
+
+`./le verify current` is the full verification, Thomas's release check. It runs
+only when stdin and stdout are both terminals, so Thomas starts it by hand at
+one; an agent is refused, and its evidence is `./le verify changed`.
 
 `./le` is the compiled repository development entry point. Each area exposes
 its own verbs, for example `./le test functional plugin`,
-`./le test qemu install-iso-test`, and `./le test unit bgp`. Legacy command names
+`./le test qemu installer-iso`, and `./le test unit bgp`. Legacy command names
 have no compatibility aliases.
 
 Action words describe the contract: `check` is a read-only verdict, `verify` is
@@ -29,22 +38,27 @@ Use the narrowest test that covers your change. Escalate only when needed.
 | 1 | `./le job run label one-test command go test ./pkg/... -run TestName` | Iterating on one test | seconds |
 | 2 | `./le test unit bgp` | Checking one component group | 10s to 1:30 |
 | 3 | `./le test functional plugin` | Checking the user-visible path | varies |
-| 4 | `./le verify current fast` | Checking the working tree before a commit | about 2 minutes |
-| 5 | `./le verify current` | The full gate, once per piece of work, over its final commit | minutes |
+| 4 | `./le verify changed` | Judging a commit's change set: the evidence a push owes | minutes |
+| 5 | `./le verify current` | The release check, which only Thomas starts, at a terminal | the longest |
 
-Steps 1 to 4 are development: run the ones that cover what you changed, and
+Steps 1 to 3 are development: run the ones that cover what you changed, and
 `./le repo changed scope print both` names them
-(`running-commands.md`, "The changed-set selector"). Step 5 never runs between
-phases, review rounds or fixes, because it judges HEAD and the work is not in
-HEAD until its final commit. A red it finds gets a fix commit; it does not hold
+(`running-commands.md`, "The changed-set selector"). Step 4 runs once the work
+is committed: it judges the change set from the merge base with the upstream to
+the commit, in a throwaway worktree, and its green scoped record is what
+`./le commit push` asks for. A red it finds gets a fix commit; it does not hold
 the commit it judged.
 
-`./le verify current` is the full gate. It runs every stage in a fresh
-detached worktree at HEAD, through the same lifecycle as `./le verify worktree`,
-so it judges the last commit and never the working tree: an edit made while it
-runs cannot move the tree it judges. `./le verify current fast` runs the
-changed-files stages in place, over the working tree, and is how uncommitted
-work gets checked. `./le verify current full` is the bare form spelled out.
+Step 5 is the full verification, and it is not an agent's to run. The dispatcher refuses `./le verify
+current`, `./le verify current fast` and every form of `./le verify worktree`
+unless stdin and stdout are both terminals, because a full run
+loads the whole shared machine and only Thomas knows when that is safe. The
+refusal prints the exact command line to hand to Thomas, and `./le verify
+changed` for the agent's own evidence. No keyword or environment variable
+skips it. When Thomas starts `./le verify current`, it runs every stage in a fresh detached worktree
+at HEAD, through the same lifecycle as `./le verify worktree`, so an edit made
+while it runs cannot move the tree it judges; `./le verify current fast` runs
+the changed-files stages in place, over the working tree.
 The narrower commands are development tools. `./le job run` admits an individual heavy command
 through `internal/le/job`, so concurrent sessions do not oversubscribe the
 machine.
@@ -66,7 +80,7 @@ green group says nothing about the rest of the tree.
 
 The `installer` group runs the tests on Linux. On another host `go test`
 cross-compiles a Linux binary it cannot start, so the group runs `go vet`
-and type-checks the same files instead. `./le test qemu all-tests` runs them for
+and type-checks the same files instead. `./le test qemu all` runs them for
 real inside the Alpine virtual machine.
 
 ## Test types
@@ -82,7 +96,7 @@ round-trip.
 ```sh
 ./le job run label bgp-message command go test ./internal/component/bgp/message/...
 ./le job run label parse-origin command go test ./internal/... -run TestParseOrigin
-./le verify current
+./le verify changed
 ```
 
 Dynamic-group coverage exercises each plugin's real configuration boundary:
@@ -187,7 +201,7 @@ Run a full suite:
 ./le test functional encode
 ./le test functional plugin
 ./le test functional gating
-./le test functional exabgp-test
+./le test functional exabgp
 ```
 
 ### Mutation tests (gomu)
@@ -200,16 +214,16 @@ suite against each mutation, and reports which mutations survived.
 
 gomu uses overlay-based execution, so it never modifies source files on disk.
 It is a Go tool recorded in `tools.go`. The native `./le test mutation combine`
-command combines completed reports, and `./le test mutation record-history` appends
+command combines completed reports, and `./le test mutation record` appends
 their per-package scores to the committed history.
 
-Mutation testing is advisory. It never gates `./le verify current` or CI. A surviving mutant
+Mutation testing is advisory. It never gates Thomas's release check, `./le verify current`, or CI. A surviving mutant
 is a signal that a test could be stronger, not a blocking failure.
 
 One consumer reads a gomu report for a narrower question. `./le rfc discriminate
 <selector> report <path>` scopes the report to ONE RFC-tagged test: it keeps the
 KILLED mutants that lie in code that test's own coverage profile executes, and
-offers them as candidate breaks. `./le rfc discriminate-record` then applies one,
+offers them as candidate breaks. `./le rfc record` then applies one,
 runs that test alone, and records the red it observed. gomu's status stays
 unchanged, because nothing in `./le rfc check` starts a mutation run: the gate
 reads a stored record. See `docs/contributing/rfc-conformance-gates.md`, "The
@@ -250,11 +264,11 @@ They are not part of the normal development cycle.
 ```sh
 ./le test integration interop
 ./le test integration iface
-./le test qemu all-tests
+./le test qemu all
 ./le test integration live-rpki
 ./le test integration docker-peers   # every package test tagged `docker`
-./le test integration cleanup dry    # what a killed lab run left, and why the rest stays
-./le test integration cleanup        # remove the lab resources whose owner is gone
+./le test integration clean dry    # what a killed lab run left, and why the rest stays
+./le test integration clean        # remove the lab resources whose owner is gone
 ```
 
 A package test that starts a real peer container carries `//go:build docker`,
@@ -273,47 +287,59 @@ A red test means the CODE is wrong by default. Fix the code. When the coverage i
 genuinely gone, because the feature it proved was removed or another test now
 proves it, the removal is recorded rather than silent.
 
-The record is `test/weakened/<session>.md`, the ledger shard your own commit
-session owns, where `<session>` is the eight hex characters `./le commit
-session` prints. It holds one row per weakened test, `| Test | Reason |`. No
-other session reads your shard and none can write it, so nobody has to be
-careful about anybody else's rows.
-
-Write the rows this commit owes and leave the rest to the gate: `./le commit
-create` drops every row your shard holds whose text git already has at HEAD,
-because a row whose commit landed explains a diff history holds. Git history is
-where past rows are read, so `git log -p -- test/weakened/` shows each one
-beside the change it accepted.
+A test weakening is approved BEFORE the edit by an independent agent running
+the `ze-test-judge` skill (`ai/skills/ze-test-judge.md`), never by Thomas and
+never by the agent that wrote the change. The judge approves only when the new
+test proves at least what the old one did, or when the old expectation is wrong
+against its source; otherwise it refuses, and the refusal stands. The edit hook
+refuses the weakening, names the test, and prints the command that records the
+verdict.
 
 The route, in order:
 
-1. Write the row first. The native write-edit hook reads the shard from disk, so
-   a row added after the edit takes effect only after the edit is retried.
-2. Make the edit.
-3. Name `test/weakened/<session>.md` in the commit. `internal/le/commit.Answer`
-   refuses a commit that weakens a test and leaves the row in the working tree.
+1. Hand the test, the diff and your reason to a fresh agent running
+   `ze-test-judge`.
+2. On APPROVE the judge records its verdict, for one test at a time:
+   `./le test weakened approve unit <package>.<TestName> reason "<the judge's verdict>"`.
+   The row goes to `tmp/commit-weakening-approved-<session>.md`, keyed on the
+   main thread's commit namespace, so a subagent's edit sees it too. git never
+   reads that file. On REFUSE, fix the code instead.
+3. Make the edit.
+4. Commit with `./le commit create` as usual. The message gains one
+   `Weakening-approved: <package>.<TestName>: <the judge's verdict>` line per test, and
+   the script drops each used row once the commit lands. A row a landed commit
+   already used approves nothing further.
 
-`./le test weakened check` prints every session's shard and the rows in it, and
-names yours. Read it when you want to know what the ledger holds without
-preparing a commit.
+The unit is the name of the directory holding the file, a dot, then the
+enclosing top-level `func TestXxx`, or the file stem for a `.ci` or a `.et`. A bare name, a path or a
+directory is refused: one approval names one test. An `RFC-approved:` row for a
+unit (`./le rfc approve`) also accepts that unit's weakening. Because the unit
+keeps only the directory's base name, a commit that changes `cmd.TestX` in both
+`a/cmd` and `b/cmd` is refused: split it so each commit carries one of them.
 
-The test name is the enclosing top-level `func TestXxx` for Go, and the file stem
-for a `.ci` or a `.et`. Write `package.TestName` when the bare name matches two
-weakened tests in one commit.
+Known limit: two kinds of unit cannot be approved at all, because the unit must match
+`<package>.<TestName>` with one dot and no empty side. A `.ci` or `.et` file
+whose stem holds a dot (`x.y.ci` is `suite.x.y`), and a test file at the
+repository root (its package side is empty), are refused by the approve writer
+and by every reader.
 
-An edit that only lowers a COUNT lands with a notice and no row: consolidating
-three cases into one table lowers a count exactly as deleting a check does. The
-COMMIT still needs a row for it, and that row is where you say which of the two
-happened.
+An edit that only lowers a COUNT lands with a notice and no approval:
+consolidating three cases into one table lowers a count exactly as deleting a
+check does. The COMMIT still needs an approval for it, and the judge's verdict
+is where the commit says which of the two happened.
 
-`./le test weakened check` runs the checker over the file and is a stage of
-`./le verify current` in both modes. The rule is `ai/rules/testing.md`, and the design is
+Git history is where past approvals are read: `git log --grep
+'^Weakening-approved:'` lists each one beside the change it accepted, and
+`./le test weakened check` reads the same lines when it reviews a commit. The
+rule is `ai/rules/testing.md`, and the design is
 `docs/architecture/testing/test-health.md`.
 
-## How `./le verify current` works
+## How Thomas's release check works
 
-`./le verify current` runs the full population in a fresh detached worktree at
+When Thomas starts `./le verify current`, it runs the full population in a fresh detached worktree at
 HEAD; `./le verify current fast` runs the changed-files population in place.
+Both are release checks that start only at a terminal (see the ladder above).
+`./le verify changed` runs the changed population in a throwaway worktree.
 `./le verify list full` and `./le verify list fast` print each population. The
 unit stages use a two-pass strategy to stay fast:
 
@@ -372,6 +398,25 @@ stops `git diff` writing the refresh back. The patch the linter reads is the
 same either way. le's other `git status` queries under a deadline carry the
 first setting through `gitenv.ReadOnly`.
 
+### Post-tool hooks block only on the author's own files
+
+<!-- source: internal/le/hookruntime/postwrite.go -- postLintVerdict -->
+<!-- source: internal/le/hookruntime/postbash.go -- postBashGofmt, commandNames -->
+<!-- source: internal/le/hookruntime/runtime.go -- shownVerdicts -->
+
+A post-tool hook's blocking text enters the agent's context, and every later
+turn re-reads it. Several sessions share this checkout, so a check that judged
+every uncommitted file blocked each session on the others' work. Each check
+therefore blocks only on what the tool call itself touched:
+
+| Check | Blocks on | Said at code 0, to the person only |
+|-------|-----------|------------------------------------|
+| Post-edit lint | An issue in the edited file, or a package that does not build (`* typecheck: N` in the summary) | The count of issues in other changed files of the package |
+| Post-command gofmt | An unformatted Go file the command names, by path or by a directory holding it | The count of unformatted files it does not name |
+
+When any check blocks, the hook drops the code-0 hints from what it prints,
+because a hint carries nothing for the agent to act on.
+
 ### The slot a lint holds
 
 <!-- source: internal/le/go/lint/actions.go -- runHere, jobArgv -->
@@ -381,11 +426,12 @@ first setting through `gitenv.ReadOnly`.
 `./le go lint run` claims the `lint` label in the shared job registry
 (`internal/le/job`) before it plans anything. A lint uses cores allocated for
 the whole machine, so admission decides how many run at once, and it prints
-`[lint] waiting: <holder> running (pid N, Ns elapsed): <the holder's last log
-line>` while it queues. That last line is the holder's current stage, read from
-the log the holder is writing (`reportBusy`, `internal/le/job/registry.go`), so
-a waiter can tell a run that is progressing from one that is stuck. A holder
-with no readable log gets the banner without it.
+`[lint] waiting: <holder> running (pid N, Ns elapsed)` while it queues.
+The banner also names the entry and log, the log's silence, and its last
+nonempty line. A quiet-window diagnostic does not establish that a job is
+stuck: the holder remains occupied and only its owner can stop it.
+An unreadable log has no stage or measured silence to report.
+An unreadable entry or an unsuccessful process query keeps capacity occupied.
 
 A second session asking for the SAME work over the SAME inputs does not queue.
 It attaches: it replays the running lint's output, takes that run's verdict, and
@@ -423,7 +469,7 @@ type-checked under FreeBSD or OpenBSD, where `syscall.Rlimit` is signed and
 `Statfs_t` names its fields `F_bavail` and `F_bsize`. `./le go vet-platforms`
 is the check that does compile it: it vets `./cmd/... ./internal/... ./pkg/...`
 with the shipped personality tags under `darwin`, `freebsd` and `openbsd`, and
-`./le verify worktree` runs all three. The split is deliberate: linting every
+Thomas's release check, `./le verify worktree`, runs all three. The split is deliberate: linting every
 package again under each BSD would repeat the host pass's findings to type-check
 what one `go vet` per target already type-checks.
 
@@ -607,7 +653,7 @@ discipline this page has always prescribed: disable the producing function,
 confirm the test flips to red, and revert.
 
 For an RFC-tagged carrier that walk now has a runner and a record.
-`./le rfc discriminate-record ... route revert producer <path>::<Func>` disables
+`./le rfc record ... route revert producer <path>::<Func>` disables
 the named function, runs ONE `.ci` or ONE interop scenario, requires the red, and
 puts the producer back byte for byte. What it writes is a
 `rfc/discrimination/<stem>/<requirement-id>.json` record that `./le rfc check` re-verifies on every
@@ -669,12 +715,12 @@ Reproducing a load-dependent flake is
 
 | I want to... | Run |
 |--------------|-----|
-| Check my setup | `./le verify current` |
+| Check my setup | `./le setup check`, then `./le job run label unit-pkg command go test ./internal/core/textbuf/` |
 | Run one Go test | `./le job run label one-test command go test ./pkg/... -run TestName` |
 | Run one functional test | `./le job run label plugin-42 command bin/le test bgp plugin 42` |
 | Run a component group | `./le test unit bgp` |
-| Check the working tree before a commit | `./le verify current fast` |
-| Run the full gate, once, after the final commit of a piece of work | `./le verify current` |
+| Judge my committed change set before a push | `./le verify changed` |
+| Have the release check run: Thomas runs it at his terminal, and an agent only gives him the command | `./le verify current` |
 | Type-check every supported feature combination | `./le go staticcheck check` |
 | List native test actions | `./le help` |
 | List functional tests | `./le job run label encode-list command bin/le test bgp encode --list` |
@@ -683,5 +729,5 @@ Reproducing a load-dependent flake is
 | Check the commit compiles | `./le repo compiles check` |
 | Check web behavior | `./le test functional web` |
 | Run every package test that starts a real server container (`docker` tag) | `./le test integration docker-peers` |
-| List, then remove, Docker resources a killed lab run left behind | `./le test integration cleanup dry`, then `./le test integration cleanup` |
-| Check that every `*_templ.go` matches its `.templ` source | `./le doc check templ-output`. No `./le` action writes the output back (`./le repo generate` carries no templ stage), so bring it back in step with the checker's own invocation minus `-check`: `./le job run label templ-gen command go run -mod=vendor github.com/a-h/templ/cmd/templ generate -keep-orphaned-files -path "$PWD/internal"`. Both walk `internal/` only. Never run a bare `templ generate`, and switch off an editor's on-save templ integration: a bare run walks from the repo root, writes that root into every generated file, and reds the gate |
+| List, then remove, Docker resources a killed lab run left behind | `./le test integration clean dry`, then `./le test integration clean` |
+| Check that every `*_templ.go` matches its `.templ` source | `./le doc check templ-output`. No `./le` action writes the output back (`./le repo update` carries no templ stage), so bring it back in step with the checker's own invocation minus `-check`: `./le job run label templ-gen command go run -mod=vendor github.com/a-h/templ/cmd/templ generate -keep-orphaned-files -path "$PWD/internal"`. Both walk `internal/` only. Never run a bare `templ generate`, and switch off an editor's on-save templ integration: a bare run walks from the repo root, writes that root into every generated file, and reds the gate |

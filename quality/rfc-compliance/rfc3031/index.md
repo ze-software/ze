@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 0.0% | 0 of 10 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 10 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 10 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 60.0% | 3 of 5 tagged units, 0 escaped and 2 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 100.0% | 5 of 5 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -154,8 +154,8 @@ Audit verdict: not audited: no reader has judged these tests
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestLDPLabelExhaustionRefusesSecondBinding`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc3031_label_test.go#L195) | unit/verify | revert, verified |
-| negative | [`TestRFC3031WrappedAllocatorNeverReissuesALabel`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc3031_label_test.go#L93) | unit/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestRFC3031LocalFECsGetDistinctLabels`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc3031_label_test.go#L60) | unit/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestRFC3031WrappedAllocatorNeverReissuesALabel`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc3031_label_test.go#L93) | unit/verify | mutant, verified |
+| positive | [`TestRFC3031LocalFECsGetDistinctLabels`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc3031_label_test.go#L60) | unit/verify | mutant, verified |
 
 ### [`RFC3031-3.10-1`](#rfc3031-3.10-1)
 

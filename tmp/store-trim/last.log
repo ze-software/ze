@@ -1,0 +1,16 @@
+2026-10-28T01:39:53Z store-trim pid 818022: run started
+automatic trim: on, at most once an hour
+budget ze.le.store.go-cache-budget=20.0G: 0.0G -> 0.0G, 0 removed
+budget ze.le.store.lint-cache-budget=10.0G: 0.0G -> 0.0G, 0 removed
+budget ze.le.store.staticcheck-cache-budget=5.0G: 0.0G -> 0.0G, 0 removed
+checkout    SKIP     /home/thomas/Code/github.com/ze-software/ze/gh-pages/cache/go-cache: does not exist, so it holds nothing to trim
+ambient     SKIP     /home/thomas/.cache/go-build: the machine-wide Go cache, outside le, is left to Go's own five-day trim
+bootstrap   SKIP     /home/thomas/Code/github.com/ze-software/ze/gh-pages/tmp/go-cache: does not exist, so it holds nothing to trim
+lint        SKIP     /home/thomas/Code/github.com/ze-software/ze/gh-pages/cache/golangci-lint-cache: does not exist, so it holds nothing to trim
+staticcheck SKIP     /home/thomas/Code/github.com/ze-software/ze/gh-pages/cache/staticcheck-matrix: does not exist, so it holds nothing to trim
+launchers   SKIP     /home/thomas/Code/github.com/ze-software/ze/gh-pages/bin: no bin/ directory
+sessions    /home/thomas/Code/github.com/ze-software/ze/gh-pages/tmp/session 0.0G -> 0.0G, 0 removed
+testbins    /home/thomas/Code/github.com/ze-software/ze/gh-pages/tmp/session 0.0G -> 0.0G, 0 removed
+builds      SKIP     /home/thomas/Code/github.com/ze-software/ze/gh-pages/bin/builds: no bin/builds directory
+agent-files SKIP     /home/thomas/Code/github.com/ze-software/ze/gh-pages/bin: no bin/ directory
+test-temp   /home/thomas/.zt                                 0.2G -> 0.2G, 0 removed, 38 kept

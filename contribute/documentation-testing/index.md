@@ -11,14 +11,14 @@ change.
 ## Quick start
 
 ```sh
-./le doc check verify              # Run all documentation tests
+./le doc check all              # Run all documentation tests
 ./le doc wiring    # Run changed-file-aware wiring/doc/inventory gate
 ```
 
-`./le doc check verify` runs every documentation checker and returns non-zero if any of
+`./le doc check all` runs every documentation checker and returns non-zero if any of
 them report drift. Run it after editing documentation files, after adding or
 removing plugins, or as part of review. `./le doc wiring` selects the
-checks needed for the current diff and is included in `./le verify current`.
+checks needed for the current diff and is a stage of Thomas's release check, `./le verify current`.
 
 ## What gets checked
 
@@ -35,7 +35,7 @@ checks needed for the current diff and is included in `./le verify current`.
 | `./le doc wiring` | Changed files trigger their documentation and inventory checks |
 | `./le doc ste check` | No ASD-STE100 habit grew against `HEAD` |
 
-`./le doc check verify` combines documentation drift, command validation, the two
+`./le doc check all` combines documentation drift, command validation, the two
 command help gates, and source-anchor validation. `./le doc wiring` is the changed-file-aware
 pre-commit gate.
 
@@ -63,24 +63,25 @@ any non-test importer, so such an export can never have a non-test reference.
 | Situation | Recommended target |
 |-----------|--------------------|
 | After you write any prose, in any file | `./le doc ste review-changed` |
-| After editing any file under `docs/` | `./le doc check verify` |
-| After adding or removing a plugin | `./le doc check verify` |
-| After writing a path reference in ANY tracked file | `./le doc check links` (`./le doc check verify` does not cover it) |
+| After editing any file under `docs/` | `./le doc check all` |
+| After adding or removing a plugin | `./le doc check all` |
+| After writing a path reference in ANY tracked file | `./le doc check links` (`./le doc check all` does not cover it) |
 | After adding or renaming a YANG `ze:command` | `./le doc yang-contract command-contract` |
 | After writing the `description` or the `ze:help` of a command node, an RPC or a config node | `./le doc yang-contract help-shape` |
 | After writing the `ShortHelp` or the `Description` of a `registry.Meta` | `./le doc yang-contract help-shape` |
 | While an agent writes a `ze:help` in any `.yang` file | `./le ai hooks pretool-writeedit` answers on the proposed text, before the file lands |
 | After adding a doc validator, inventory source, command source, or exported Go API | `./le doc wiring` |
-| Before opening a documentation PR | `./le doc check verify` |
+| Before opening a documentation PR | `./le doc check all` |
 
-The full `./le doc check verify` remains the explicit documentation review target.
-`./le verify current` runs `./le doc wiring`, which invokes the relevant doc,
+The full `./le doc check all` remains the explicit documentation review target.
+Thomas's release check, `./le verify current`, runs `./le doc wiring`, which invokes the relevant doc,
 command, inventory, and wiring checks for changed files.
 
 <!-- source: internal/le/doc/wiring/docwiring.go -- Answer -->
 
 The change is the unpushed range. The base is the merge base of HEAD and the
-branch upstream, or of HEAD and `origin/main` when the branch tracks none, and
+branch upstream, or of HEAD and `refs/remotes/origin/HEAD` when the branch
+tracks none (`ResolveAnchor`, `internal/le/repo/changed/anchor.go`), and
 the range runs from that base to the working tree. The gate is owed before a
 push, so a change committed without a run is still judged by the next run.
 The file set, the changed lines and every read of a file's earlier content
@@ -93,7 +94,7 @@ names the old path, which the change deleted, so that claim is unanswerable
 and counted. A failed read of a file's earlier content fails the run: it is
 never read as an empty file. A file named with
 `changed-file <path>` that holds no hunk in the range answers every line. The
-base reads refs only, so the detached worktree that `./le verify worktree`
+base reads refs only, so the detached worktree that Thomas's release check, `./le verify worktree`,
 makes judges the same range. When no base resolves, the gate exits 2 and names
 why, and no check runs.
 
@@ -358,7 +359,7 @@ that stopped early must not read as a file that broke no rule.
 | Feature inventory row has no status | Add one of: Supported, Partial, Experimental, Stub-backed, Rejected, Future |
 | Functional test release-gate list wrong | Update `docs/functional-tests.md` to match `internal/le/test/functional/catalog.go` |
 | Stale text parser allocation claim | Update `docs/architecture/api/text-parser.md` to describe `textparse.NewScanner` and source-linked result allocations |
-| Stale source anchor path | Fix or remove the `<!-- source: ... -->` path, then rerun `./le doc check verify` |
+| Stale source anchor path | Fix or remove the `<!-- source: ... -->` path, then rerun `./le doc check all` |
 | `CLAIM: ... names 'Sym', which is not declared there` | Read the anchored file. When the symbol moved, point the anchor at the file that DECLARES it; when the name changed, write the new one; when the symbol is gone, the sentence above the anchor is wrong too, so fix the sentence. Never reword a real symbol into prose to silence the finding: the check already ignores a token the anchored file names anywhere, so a finding means the token is absent from that file, which no call, field, parameter or env key of that file can be |
 | `cannot read the anchored file, so its symbols are unverifiable` | The anchor points at a file the checker could not read or decode. Fix the path. The check fails closed here on purpose: an unreadable file proves nothing about the claims above it |
 | `doc-links: ignore marker states no reason` | Write the reason inline, `<!-- doc-links: ignore (why this path cannot resolve) -->`, or delete the marker and repair the reference it was hiding. A marker with no reason is a silent allowlist |
@@ -382,7 +383,7 @@ looking for `ze:command` extensions. For each extension it checks
 `registry.CollectRPCHandlers()` for a matching method name.
 
 `./le doc index check` scans every Markdown source anchor under `docs/` and
-refuses a missing source path or symbol. `./le doc index write` regenerates
+refuses a missing source path or symbol. `./le doc index update` regenerates
 the two documentation indexes.
 
 One walk of `docs/` feeds the path and symbol checks. An anchor is
@@ -487,7 +488,7 @@ packages that no longer exist.
    trigger it during pre-commit verification.
 5. Add its producer and exact command to this page and `ai/INDEX.md`.
 6. If agent rules need the command, edit the canonical rule point and render the
-   rule corpus through `./le ai rules render-update`.
+   rule corpus through `./le ai rules update render`.
 
 Repository tooling is compiled Go under `internal/le`; package-owned fixtures
 belong in that package's `testdata/` directory.

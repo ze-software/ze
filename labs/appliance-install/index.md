@@ -19,16 +19,16 @@ The current amd64 installation ISO is under 150 MB. The `prod` build with the ha
 
 ```
 # HTTP/PXE install chain
-$ ./le test qemu install-test
+$ ./le test qemu installer
 
 # bootable ISO chain
-$ ./le test qemu install-iso-test
+$ ./le test qemu installer-iso
 
 # Ventoy ISO-on-FAT path
-$ ./le test qemu install-ventoy-test
+$ ./le test qemu installer-ventoy
 
 # fault/pin/rescue scenarios
-$ ./le test qemu install-scenarios-test
+$ ./le test qemu installer-scenarios
 ```
 
 `Prerequisites`

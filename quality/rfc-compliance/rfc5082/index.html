@@ -122,7 +122,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>100.0%</strong><b>14 of 14 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>89.5%</strong><b>17 of 19 tagged units, 0 escaped and 2 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -226,16 +226,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>14</td>
+<td>19</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>14</td>
+<td>19</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>3</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>14</td>
+<td>19</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc5082.md</code></td>
@@ -256,7 +256,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <section><h2>What the public ledger says</h2>
 <p><strong>Status:</strong> Supported on Linux</p>
 <details class="rfc-fold"><summary>What the ledger says is covered</summary>
-Per-peer BGP GTSM through <code>connection { ttl { max; set; min } }</code>: <code>parseTTLSettings</code> derives an outgoing TTL of 255 and an inbound floor of 255-N+1 from <code>ttl max N</code> (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/config.go" target="_blank" rel="noopener"><code>internal/component/bgp/reactor/config.go</code></a>), <code>tuneTCPConnectionForSettings</code> installs IP_TTL / IPV6_UNICAST_HOPS and IP_MINTTL / IPV6_MINHOPCOUNT on the connected socket (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_connection.go" target="_blank" rel="noopener"><code>internal/component/bgp/reactor/session_connection.go</code></a>, <a href="https://github.com/ze-software/ze/blob/main/internal/core/network/ttl_linux.go" target="_blank" rel="noopener"><code>internal/core/network/ttl_linux.go</code></a>), and <code>listenTTLForListener</code> carries the same outgoing TTL onto the listen socket so a GTSM peer that dials in does not drop the SYN-ACK (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor.go" target="_blank" rel="noopener"><code>internal/component/bgp/reactor/reactor.go</code></a>). BFD sets IP_TTL=255 and IPV6_UNICAST_HOPS=255 on transmit and gates the received TTL (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/transport/udp_linux.go" target="_blank" rel="noopener"><code>internal/component/bfd/transport/udp_linux.go</code></a>, <code>passesTTLGate</code> in <a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/loop.go" target="_blank" rel="noopener"><code>internal/component/bfd/engine/loop.go</code></a>). VRRP sends and requires TTL 255 (<a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate.go" target="_blank" rel="noopener"><code>internal/plugins/vrrp/packet/validate.go</code></a>). The related ICMP error messages of a BGP GTSM peer are carried by <code>internal/component/gtsm</code>, which the reactor&#39;s peer reconcile publishes the peer set to (<code>Reactor.gtsmPeers</code>, <a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/gtsm.go" target="_blank" rel="noopener"><code>internal/component/bgp/reactor/gtsm.go</code></a>): a host route carrying RTAX_HOPLIMIT 255 for the transmit rule, and the <code>ze_gtsm</code> nftables input table for the IPv4 receive rule. Requirements bound per requirement in <a href="https://github.com/ze-software/ze/blob/main/rfc/requirements/rfc5082.md" target="_blank" rel="noopener"><code>rfc/requirements/rfc5082.md</code></a>.
+<ul class="rfc-prose">
+<li>Per-peer BGP GTSM through <code>connection { ttl { max; set; min } }</code>: <code>parseTTLSettings</code> derives an outgoing TTL of 255 and an inbound floor of 255-N+1 from <code>ttl max N</code> (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/config.go" target="_blank" rel="noopener"><code>internal/component/bgp/reactor/config.go</code></a>), <code>tuneTCPConnectionForSettings</code> installs IP_TTL / IPV6_UNICAST_HOPS and IP_MINTTL / IPV6_MINHOPCOUNT on the connected socket (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_connection.go" target="_blank" rel="noopener"><code>internal/component/bgp/reactor/session_connection.go</code></a>, <a href="https://github.com/ze-software/ze/blob/main/internal/core/network/ttl_linux.go" target="_blank" rel="noopener"><code>internal/core/network/ttl_linux.go</code></a>), and <code>listenTTLForListener</code> carries the same outgoing TTL onto the listen socket so a GTSM peer that dials in does not drop the SYN-ACK (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor.go" target="_blank" rel="noopener"><code>internal/component/bgp/reactor/reactor.go</code></a>). BFD sets IP_TTL=255 and IPV6_UNICAST_HOPS=255 on transmit and gates the received TTL (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/transport/udp_linux.go" target="_blank" rel="noopener"><code>internal/component/bfd/transport/udp_linux.go</code></a>, <code>passesTTLGate</code> in <a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/loop.go" target="_blank" rel="noopener"><code>internal/component/bfd/engine/loop.go</code></a>). VRRP sends and requires TTL 255 (<a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate.go" target="_blank" rel="noopener"><code>internal/plugins/vrrp/packet/validate.go</code></a>). The related ICMP error messages of a BGP GTSM peer are carried by <code>internal/component/gtsm</code>, which the reactor&#39;s peer reconcile publishes the peer set to (<code>Reactor.gtsmPeers</code>, <a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/gtsm.go" target="_blank" rel="noopener"><code>internal/component/bgp/reactor/gtsm.go</code></a>): a host route carrying RTAX_HOPLIMIT 255 for the transmit rule, and the <code>ze_gtsm</code> nftables input table for the IPv4 related-message receive rule. The same table drops a below-floor TCP segment from a GTSM peer, or from inside a GTSM dynamic group&#39;s range, to Ze&#39;s listen port, in both families, before the SYN reaches the listener (<code>listenPortTerm</code>, <a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/gtsm.go" target="_blank" rel="noopener"><code>internal/component/gtsm/gtsm.go</code></a>)</li>
+<li>a segment from any other source or to any other port matches no term. Requirements bound per requirement in <a href="https://github.com/ze-software/ze/blob/main/rfc/requirements/rfc5082.md" target="_blank" rel="noopener"><code>rfc/requirements/rfc5082.md</code></a>.</li>
+</ul>
 </details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
 <p class="rfc-prose"><strong>The socket options are Linux-only:</strong> the non-Linux build returns an unsupported error and leaves the OS default (<a href="https://github.com/ze-software/ze/blob/main/internal/core/network/ttl_other.go" target="_blank" rel="noopener"><code>internal/core/network/ttl_other.go</code></a>). Dynamic GTSM capability negotiation is not offered. RFC 5082 Section 2.1 neither assumes nor defines one, ze configures GTSM statically per peer, and the obligation conditional on running such a negotiation is excluded as <code>feature-out-of-scope</code> in <a href="https://github.com/ze-software/ze/blob/main/rfc/extraction/rfc5082.json" target="_blank" rel="noopener"><code>rfc/extraction/rfc5082.json</code></a>. That absent feature is an implementation gap a later scope decision can revisit, and not a conformance gap. The related-message filter claims a BGP GTSM session: it associates an ICMP error with a session by the header the error quotes alone, the quoted IPv4 destination (the peer) and the quoted TCP port on either side (peerTerms, <a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/gtsm.go" target="_blank" rel="noopener"><code>internal/component/gtsm/gtsm.go</code></a>, and lowerICMPErrorQuotedDestinationMatch, <a href="https://github.com/ze-software/ze/blob/main/internal/plugins/firewall/nft/lower_linux.go" target="_blank" rel="noopener"><code>internal/plugins/firewall/nft/lower_linux.go</code></a>), reads no outer source, and drops the error below the floor, so the related messages of a BFD or VRRP GTSM session, which quote no TCP header, are not claimed by it. The drop policy for a Dangerous related message is not configurable; ze applies the answer it already applies to a Dangerous main packet.</p>
@@ -348,6 +351,9 @@ Per-peer BGP GTSM through <code>connection { ttl { max; set; min } }</code>: <co
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5082-3-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_gtsm_linux_test.go#L281" title="internal/component/gtsm/rfc5082_gtsm_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMDeliversAnICMPErrorNoSessionClaims</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/network/rfc5082_ttl_gtsm_linux_test.go#L129" title="internal/core/network/rfc5082_ttl_gtsm_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMFloorDeliversATrustedPacket</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_listener_integration_linux_test.go#L119" title="internal/component/gtsm/rfc5082_listener_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMListenerSYNAtFloorAccepted</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_listener_integration_linux_test.go#L131" title="internal/component/gtsm/rfc5082_listener_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMListenerSYNAtFloorAcceptedIPv6</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_listener_integration_linux_test.go#L222" title="internal/component/gtsm/rfc5082_listener_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMListenerUnknownNotDropped</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/network/rfc5082_ttl_gtsm_linux_test.go#L156" title="internal/core/network/rfc5082_ttl_gtsm_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMNoFloorDeliversAnUnknownPacket</code></a></span></div>
 </div></td>
 </tr>
@@ -374,7 +380,8 @@ Per-peer BGP GTSM through <code>connection { ttl { max; set; min } }</code>: <co
 <td>MAY</td>
 <td>3 - GTSM Procedure</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5082-3-7">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_listener_integration_linux_test.go#L63" title="internal/component/gtsm/rfc5082_listener_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMListenerSYNBelowFloorDropped</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_listener_integration_linux_test.go#L74" title="internal/component/gtsm/rfc5082_listener_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMListenerSYNBelowFloorDroppedIPv6</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
@@ -444,7 +451,7 @@ Per-peer BGP GTSM through <code>connection { ttl { max; set; min } }</code>: <co
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_gtsm_linux_test.go#L236" title="internal/component/gtsm/rfc5082_gtsm_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMDeliversAQuotedICMPErrorAtTTL255</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_gtsm_linux_test.go#L93" title="internal/component/gtsm/rfc5082_gtsm_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMTransmittedICMPErrorWithoutTheRouteMetricIsNot255</code></a></td>
@@ -464,7 +471,7 @@ Per-peer BGP GTSM through <code>connection { ttl { max; set; min } }</code>: <co
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_gtsm_linux_test.go#L196" title="internal/component/gtsm/rfc5082_gtsm_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMDropsADangerousQuotedICMPError</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_gtsm_linux_test.go#L335" title="internal/component/gtsm/rfc5082_gtsm_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMMinHopCountDropsALowHopLimitICMPv6Error</code></a></td>
@@ -501,7 +508,7 @@ Per-peer BGP GTSM through <code>connection { ttl { max; set; min } }</code>: <co
 </div>
 <h3><a href="#rfc5082-3-4"><code>RFC5082-3-4</code></a></h3>
 <p>+ MUST NOT drop (as part of GTSM processing) packets classified as Trusted or Unknown. (§3)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-read 2026-10-17 against Section 3: &#34;MUST NOT drop (as part of GTSM processing) packets classified as Trusted or Unknown.&#34; Trusted: TestGTSMFloorDeliversATrustedPacket fails if the packet at the floor is not received, unchanged. Unknown: TestGTSMNoFloorDeliversAnUnknownPacket is unchanged; TestGTSMDeliversAnICMPErrorNoSessionClaims, with the filter published, injects three unclaimed ICMP errors at TTL 1 and fails unless IcmpMsg InType3 rises by exactly one and no term&#39;s counter moved (a rule with no counter fails rather than reading zero). The test no longer proves the chain evaluated the message, an assertion the owner approved losing on 2026-10-17 because a match-scoped counter cannot see a non-match; that does not weaken this MUST NOT, whose observable is delivery, and TestGTSMDropsADangerousQuotedICMPError proves the same chain sees type-3 messages on the same path. With the 0x45 version/IHL match removed from quotedIPv4HeaderGuard, the options case was observed red in an arm64 guest on kernel 7.2.9 (InType3 did not rise), while the other two cases stayed green.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-27 by an independent auditor against Section 3: &#34;MUST NOT drop (as part of GTSM processing) packets classified as Trusted or Unknown.&#34; Ze has three GTSM processing points, and each now carries a 3-4 tag with a recorded break. Socket floor: TestGTSMFloorDeliversATrustedPacket (Trusted) and TestGTSMNoFloorDeliversAnUnknownPacket (Unknown), revert records on setIPMinTTL. ICMP-error terms: TestGTSMDeliversAnICMPErrorNoSessionClaims (Unknown errors delivered, no term counter), revert record on quotedIPv4HeaderGuard. Listen-port rule: TestGTSMListenerUnknownNotDropped (Unknown SYNs at TTL/hop limit 1 answered, no counter; mutant on listenPortTerm&#39;s MatchSourceAddress) and, new, TestGTSMListenerSYNAtFloorAccepted and its IPv6 twin (listenerAtFloorProof): a SYN from the GTSM peer at TTL/hop limit 255 with floor 255 gets a SYN-ACK, the injected ACK completes a connection the listener accepts from the peer&#39;s address, and assertNoTermMatched finds no ze_gtsm counter nonzero; mutant records lower_linux.go:947 lowerIPv4TTLBelowMatch and :972 lowerIPv6HopLimitBelowMatch CmpOpLt-&gt;CmpOpLte, observed red. This discharges the previous finding (Trusted half of the listen-port rule tagged only under 3-7). Each claim states what its body checks: at floor 255 the Trusted range is exactly TTL 255, so &#39;drops no SYN classified Trusted&#39; is not wider than the body. Residuals, not verdict changes: only floor 255 is driven, so a compare of the form ttl != floor would pass at this floor (the claims do not claim other floors); Trusted ICMP errors at TTL 255 are asserted by TestGTSMDeliversAQuotedICMPErrorAtTTL255 under the 3-2 tag, and their only drop path is the same shared lowerIPv4TTLBelowMatch compare the IPv4 at-floor record discriminates; listenerAtFloorProof does not itself read that the listen rule is installed, which the mutant record covers for the recorded run.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -517,9 +524,44 @@ Per-peer BGP GTSM through <code>connection { ttl { max; set; min } }</code>: <co
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_listener_integration_linux_test.go#L119" title="internal/component/gtsm/rfc5082_listener_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMListenerSYNAtFloorAccepted</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_listener_integration_linux_test.go#L131" title="internal/component/gtsm/rfc5082_listener_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMListenerSYNAtFloorAcceptedIPv6</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_listener_integration_linux_test.go#L222" title="internal/component/gtsm/rfc5082_listener_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMListenerUnknownNotDropped</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/network/rfc5082_ttl_gtsm_linux_test.go#L129" title="internal/core/network/rfc5082_ttl_gtsm_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMFloorDeliversATrustedPacket</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc5082-3-7"><code>RFC5082-3-7</code></a></h3>
+<p>MAY drop packets classified as Dangerous. (§3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_listener_integration_linux_test.go#L63" title="internal/component/gtsm/rfc5082_listener_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMListenerSYNBelowFloorDropped</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_listener_integration_linux_test.go#L74" title="internal/component/gtsm/rfc5082_listener_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMListenerSYNBelowFloorDroppedIPv6</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -758,8 +800,10 @@ Per-peer BGP GTSM through <code>connection { ttl { max; set; min } }</code>: <co
         <footer>
             <div class="footer-inner">
                 <div class="footer-bottom">
+                    <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
+                    <a href="../../../legal/">Legal notice</a>
+                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
                 </div>
             </div>
         </footer>

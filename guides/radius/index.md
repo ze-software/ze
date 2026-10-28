@@ -379,7 +379,7 @@ INFO SSH auth success subsystem=ssh username=alice remote=10.0.0.1:51408 source=
 `source=local` means RADIUS was unreachable (or unconfigured) and the local
 bcrypt user accepted the credentials.
 
-<!-- source: internal/test/mock/radius/radius.go -- le test radius-mock for .ci tests -->
+<!-- source: internal/test/mock/radius/radius.go -- le mock radius for .ci tests -->
 <!-- source: internal/test/mock/radius/eap.go -- the mock's EAP branch: buildEAPResponse, verifyRequestSignature -->
 <!-- source: internal/le/interoplab/radius/checkers.go -- what each FreeRADIUS scenario asserts -->
 <!-- source: test/interop-radius/scenarios/ -- the four interop scenario directories -->
@@ -396,6 +396,15 @@ bcrypt user accepted the credentials.
   apart from an unreachable server. The series appears once telemetry is
   enabled.
 <!-- source: internal/component/radius/metrics.go -- bindRadiusMetrics, countUnsignedEAPDiscard -->
+- `ze_task_panics_total{component="radius",task="read"}` -- answers whose
+  handling met a Ze defect (a Go panic). The client's answer reader recovers
+  it, logs it at ERROR with the server's address and the stack, writes a crash
+  record that `ze show crashes` lists, and reads on. The answer is dropped as a
+  silently discarded packet is, so its request retransmits and fails over as
+  on a timeout, and every other request on the client is answered as before.
+  Any value above zero is a Ze defect to report with the crash record.
+<!-- source: internal/component/radius/panic_guard.go -- readTask -->
+<!-- source: internal/component/radius/client.go -- Client.readAnswers -->
 
 ## Operational notes
 

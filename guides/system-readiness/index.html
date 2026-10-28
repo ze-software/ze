@@ -189,7 +189,7 @@ remediation guidance.</p>
 </tr>
 <tr>
 <td><code>doctor-gtsm-kernel-state</code></td>
-<td>A BGP peer with <code>connection ttl</code> (RFC 5082 GTSM) whose kernel state for related ICMP messages is short: inside the daemon (<code>show doctor</code>), the host route carrying hop limit 255 or the <code>ze_gtsm</code> table the daemon published is missing from the kernel; in <code>ze doctor</code>, before a start, the kernel resolves no route to the peer, so that route cannot be installed at apply <!-- source: internal/component/gtsm/doctor.go -- checkKernelState --></td>
+<td>A BGP peer or dynamic group range with <code>connection ttl</code> (RFC 5082 GTSM) whose kernel state is short: inside the daemon (<code>show doctor</code>), the host route carrying hop limit 255, or a <code>ze_gtsm</code> term the daemon published (the listen-port drop or a related-ICMP drop), is missing from the kernel. The report names each missing term and the fix, <code>ze signal restart</code>, because a reload leaves an unchanged peer set alone. In <code>ze doctor</code>, before a start, the kernel resolves no route to the peer, so that route cannot be installed at apply <!-- source: internal/component/gtsm/doctor.go -- checkKernelState, installedStateDiagnostics, missingStateDiagnostic --></td>
 </tr>
 <tr>
 <td><code>doctor-redistribute-unknown-source</code></td>
@@ -550,8 +550,10 @@ is present and emits the registered code.</li>
         <footer>
             <div class="footer-inner">
                 <div class="footer-bottom">
+                    <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 06:03 UTC</span>
+                    <a href="../../legal/">Legal notice</a>
+                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
                 </div>
             </div>
         </footer>

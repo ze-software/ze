@@ -68,6 +68,21 @@ TLS certificates are loaded once at startup. Certificate rotation requires resta
 | Subscribe ONCE | Snapshot of current config for requested paths |
 | Subscribe STREAM | Continuous change notifications (from gNMI Set and external commits) |
 
+### When a call meets an internal defect
+
+Every call and every Subscribe stream runs behind a panic boundary, outside the
+token check. If a Ze defect is reached while one is served, only that call or
+stream ends, with status `Internal` and a message that says so and names the
+`ze show crashes` command that finds its crash record. A Set that ends this way
+discards its uncommitted edits, so nothing it changed is applied. The listener
+and every other call and stream keep running. The panic is logged, crash
+recorded, and counted in `ze_task_panics_total{component="gnmi",task="rpc"}`
+and `ze_gnmi_errors_total{code="Internal"}`
+([monitoring](../monitoring/index.md)).
+<!-- source: internal/component/gnmi/panic_guard.go -- containUnaryPanic, containStreamPanic, endRPCAfterPanic -->
+<!-- source: internal/component/gnmi/server.go -- Serve -->
+<!-- source: internal/component/gnmi/set.go -- Set -->
+
 ## CLI Status
 
 Check gNMI server status from the SSH CLI when `ze_gnmi` is compiled in:

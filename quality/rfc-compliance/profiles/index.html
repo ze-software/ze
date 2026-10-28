@@ -1,0 +1,438 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>RFC coverage by profile - Ze</title>
+        <meta name="description" content="Mandatory and optional RFC requirement coverage of each use case Ze serves and each technology it implements, release profiles first." />
+        <meta property="og:title" content="RFC coverage by profile - Ze" />
+        <meta property="og:description" content="Mandatory and optional RFC requirement coverage of each use case Ze serves and each technology it implements, release profiles first." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="RFC coverage by profile - Ze" />
+        <meta name="twitter:description" content="Mandatory and optional RFC requirement coverage of each use case Ze serves and each technology it implements, release profiles first." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
+        <link rel="canonical" href="https://ze-software.net/quality/rfc-compliance/profiles/" />
+        <meta property="og:url" content="https://ze-software.net/quality/rfc-compliance/profiles/" />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../../#top">Ze</a>
+                    <a href="../../../#top">Home</a>
+                    <a href="../../../docs/">Docs</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../project/roadmap/">Roadmap</a>
+                    <a href="../../../project/changes/">Changes</a>
+                    <a href="../../../faq/">FAQ</a>
+                    <a href="../../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section aria-labeledby="rfc-profiles-title" class="md-content reveal cat-observe">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Quality</span>
+    <h1 id="rfc-profiles-title">RFC coverage by profile</h1>
+    <p>Each use case Ze serves and each technology it implements, with the share of mandatory and optional RFC requirements a recorded test break proves. Release profiles come first: before release, every mandatory requirement of every RFC they require must be proven. Optional RFCs a use case lists are not counted.</p>
+</div>
+<style>
+.rfc-table-wrap { overflow-x: auto; }
+.rfc-id-list { margin: .6rem 0; line-height: 1.9; }
+.rfc-verdict { margin: 1rem 0 1.6rem; padding: 1rem 1.2rem; border-radius: 18px; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-verdict p { margin: 0 0 .4rem; color: var(--muted); }
+.rfc-verdict p:last-child { margin-bottom: 0; }
+.rfc-verdict span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-verdict strong { display: block; margin: .2rem 0 .5rem; font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1; color: var(--text); }
+.rfc-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); grid-auto-rows: 1fr; gap: 1rem; margin: 1.25rem 0 .8rem; }
+.rfc-card { display: flex; flex-direction: column; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-card span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
+.rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
+.rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
+.rfc-ok { border-left: 7px solid var(--green); }
+.rfc-neutral { border-left: 7px solid var(--line-strong); }
+.rfc-warn { border-left: 7px solid var(--amber); }
+.rfc-bad { border-left: 7px solid var(--danger-deep); }
+.rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
+.rfc-tape span { width: var(--w); min-width: 0; display: block; }
+.rfc-tape-key { display: flex; flex-wrap: wrap; gap: .35rem 1.4rem; margin: 0 0 1.4rem; padding: 0; list-style: none; font-size: .92rem; }
+.rfc-tape-key li { display: flex; align-items: center; gap: .45rem; }
+.rfc-swatch { display: inline-block; width: .85rem; height: .85rem; border-radius: .25rem; border: 1px solid var(--line-strong); vertical-align: -.1rem; }
+.rfc-tape-both_polarities { background: var(--teal-chip); }
+.rfc-tape-single_polarity { background: var(--sky-chip); }
+.rfc-tape-not_applicable { background: var(--grape-chip); }
+.rfc-tape-feature_declined { background: var(--pink-chip); }
+.rfc-tape-lower_layer { background: var(--mint-chip); }
+.rfc-tape-rollup { background: var(--tangerine-chip); }
+.rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
+.rfc-tape-one_polarity_unexcused { background: var(--amber); }
+.rfc-tape-missing_unexcused { background: var(--danger-deep); }
+.rfc-swatch.rfc-ok { background: var(--green); }
+.rfc-swatch.rfc-neutral { background: var(--line-strong); }
+.rfc-swatch.rfc-warn { background: var(--amber); }
+.rfc-swatch.rfc-bad { background: var(--danger-deep); }
+.rfc-total td { border-top: 2px solid var(--line-strong); }
+.rfc-prose { max-width: 46rem; }
+ul.rfc-prose { margin: .5rem 0 1rem; padding-left: 1.2rem; }
+ul.rfc-prose li { margin: .35rem 0; line-height: 1.6; }
+p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
+.rfc-fold { margin: .6rem 0; }
+.rfc-fold > summary { cursor: pointer; font-weight: 700; }
+.rfc-span > td { padding-bottom: .2rem; border-bottom: 0; }
+.rfc-table td:first-child { font-weight: 400; }
+.rfc-table .rfc-span > td { padding-top: .9rem; }
+.rfc-subject-id { white-space: nowrap; vertical-align: top; }
+.rfc-subject { display: block; max-width: 52rem; }
+.rfc-tests { display: grid; gap: .15rem .8rem; }
+.rfc-tests-row { display: grid; grid-template-columns: 5rem 9.5rem minmax(0, 1fr); gap: .8rem; align-items: baseline; }
+.rfc-tests-row > span:first-child { color: var(--muted); font-size: .88rem; }
+.rfc-mark { margin: .45rem 0 0; color: var(--muted); max-width: 52rem; }
+@media (max-width: 760px) {
+  .rfc-tests-row { grid-template-columns: 1fr; gap: 0; padding-bottom: .35rem; }
+}
+.rfc-text > summary { cursor: pointer; color: var(--muted); font-size: .85rem; }
+.rfc-text > p { margin: .35rem 0 0; max-width: 44rem; }
+.rfc-note-box { margin: 1rem 0; padding: 1rem 1.2rem; border-radius: 16px; background: var(--gold-tint); border: 1px solid var(--gold-chip); }
+.rfc-note-box h3 { margin-top: 0; }
+.rfc-note-box ul { margin-bottom: 0; }
+.rfc-check-ok strong { color: var(--green); }
+.rfc-check-bad strong { color: var(--danger-deep); }
+</style>
+<style>
+.rfc-bar { display: block; width: 100%; min-width: 7rem; height: .7rem; margin: .2rem 0 .15rem; border-radius: 999px; background: var(--panel); border: 1px solid var(--line-strong); overflow: hidden; }
+.rfc-bar span { display: block; height: 100%; background: var(--teal-chip); }
+.rfc-bar-unmeasured { border-style: dashed; }
+.rfc-bar-note { display: block; color: var(--muted); font-size: .85rem; white-space: nowrap; }
+</style>
+<p><a href="../">All RFCs</a></p>
+<section><h2>Release profiles</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Profile</th><th>Mandatory</th><th>Optional</th><th>RFCs</th><th>Not walked</th><th>Mandatory register</th></tr></thead>
+<tbody>
+<tr><td><a href="fttx-edge/">FTTx edge: customers to the internet over L2TP, local DNS for the LAN</a></td>
+<td><div class="rfc-bar" role="img" aria-label="325 of 747 (43.5%)"><span style="width:43.5%"></span></div><span class="rfc-bar-note">325 of 747 (43.5%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="6 of 335 (1.8%)"><span style="width:1.8%"></span></div><span class="rfc-bar-note">6 of 335 (1.8%)</span></td>
+<td>18</td>
+<td>0</td>
+<td>not complete</td>
+</tr>
+<tr><td><a href="lns/">L2TP network server</a></td>
+<td><div class="rfc-bar" role="img" aria-label="255 of 458 (55.7%)"><span style="width:55.7%"></span></div><span class="rfc-bar-note">255 of 458 (55.7%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="6 of 161 (3.7%)"><span style="width:3.7%"></span></div><span class="rfc-bar-note">6 of 161 (3.7%)</span></td>
+<td>14</td>
+<td>0</td>
+<td>not complete</td>
+</tr>
+<tr><td><a href="looking-glass/">Looking glass</a></td>
+<td><div class="rfc-bar" role="img" aria-label="161 of 307 (52.4%)"><span style="width:52.4%"></span></div><span class="rfc-bar-note">161 of 307 (52.4%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="5 of 93 (5.4%)"><span style="width:5.4%"></span></div><span class="rfc-bar-note">5 of 93 (5.4%)</span></td>
+<td>16</td>
+<td>0</td>
+<td>not complete</td>
+</tr>
+<tr><td><a href="route-collector/">Route collector</a></td>
+<td><div class="rfc-bar" role="img" aria-label="197 of 360 (54.7%)"><span style="width:54.7%"></span></div><span class="rfc-bar-note">197 of 360 (54.7%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="8 of 99 (8.1%)"><span style="width:8.1%"></span></div><span class="rfc-bar-note">8 of 99 (8.1%)</span></td>
+<td>18</td>
+<td>0</td>
+<td>not complete</td>
+</tr>
+<tr><td><a href="route-server/">IXP route server</a></td>
+<td><div class="rfc-bar" role="img" aria-label="180 of 395 (45.6%)"><span style="width:45.6%"></span></div><span class="rfc-bar-note">180 of 395 (45.6%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="15 of 221 (6.8%)"><span style="width:6.8%"></span></div><span class="rfc-bar-note">15 of 221 (6.8%)</span></td>
+<td>24</td>
+<td>0</td>
+<td>not complete</td>
+</tr>
+<tr><td><a href="vpn-endpoint/">IPsec VPN endpoint</a></td>
+<td><div class="rfc-bar" role="img" aria-label="226 of 545 (41.5%)"><span style="width:41.5%"></span></div><span class="rfc-bar-note">226 of 545 (41.5%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="7 of 168 (4.2%)"><span style="width:4.2%"></span></div><span class="rfc-bar-note">7 of 168 (4.2%)</span></td>
+<td>11</td>
+<td>0</td>
+<td>not complete</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Other use-case profiles</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Profile</th><th>Mandatory</th><th>Optional</th><th>RFCs</th><th>Not walked</th><th>Mandatory register</th></tr></thead>
+<tbody>
+<tr><td><a href="ddos-flowspec/">DDoS detection and mitigation by sending FlowSpec upstream</a></td>
+<td><div class="rfc-bar" role="img" aria-label="179 of 343 (52.2%)"><span style="width:52.2%"></span></div><span class="rfc-bar-note">179 of 343 (52.2%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="15 of 124 (12.1%)"><span style="width:12.1%"></span></div><span class="rfc-bar-note">15 of 124 (12.1%)</span></td>
+<td>13</td>
+<td>0</td>
+<td>not complete</td>
+</tr>
+<tr><td><a href="vpn-concentrator/">IPsec VPN concentrator for remote-access clients</a></td>
+<td><div class="rfc-bar" role="img" aria-label="344 of 716 (48.0%)"><span style="width:48.0%"></span></div><span class="rfc-bar-note">344 of 716 (48.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="13 of 223 (5.8%)"><span style="width:5.8%"></span></div><span class="rfc-bar-note">13 of 223 (5.8%)</span></td>
+<td>15</td>
+<td>0</td>
+<td>not complete</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Technology aggregates</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Profile</th><th>Mandatory</th><th>Optional</th><th>RFCs</th><th>Not walked</th><th>Mandatory register</th></tr></thead>
+<tbody>
+<tr><td><a href="bfd/">BFD</a></td>
+<td><div class="rfc-bar" role="img" aria-label="83 of 143 (58.0%)"><span style="width:58.0%"></span></div><span class="rfc-bar-note">83 of 143 (58.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="10 of 69 (14.5%)"><span style="width:14.5%"></span></div><span class="rfc-bar-note">10 of 69 (14.5%)</span></td>
+<td>5</td>
+<td>0</td>
+<td>not complete</td>
+</tr>
+<tr><td><a href="bgp-communities-policy/">BGP communities and policy</a></td>
+<td><div class="rfc-bar" role="img" aria-label="24 of 49 (49.0%)"><span style="width:49.0%"></span></div><span class="rfc-bar-note">24 of 49 (49.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="3 of 37 (8.1%)"><span style="width:8.1%"></span></div><span class="rfc-bar-note">3 of 37 (8.1%)</span></td>
+<td>11</td>
+<td>1</td>
+<td>not complete</td>
+</tr>
+<tr><td><a href="bgp-core/">BGP core</a></td>
+<td><div class="rfc-bar" role="img" aria-label="192 of 347 (55.3%)"><span style="width:55.3%"></span></div><span class="rfc-bar-note">192 of 347 (55.3%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="8 of 114 (7.0%)"><span style="width:7.0%"></span></div><span class="rfc-bar-note">8 of 114 (7.0%)</span></td>
+<td>21</td>
+<td>0</td>
+<td>not complete</td>
+</tr>
+<tr><td><a href="bgp-flowspec/">BGP FlowSpec</a></td>
+<td><div class="rfc-bar" role="img" aria-label="26 of 49 (53.1%)"><span style="width:53.1%"></span></div><span class="rfc-bar-note">26 of 49 (53.1%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="6 of 32 (18.8%)"><span style="width:18.8%"></span></div><span class="rfc-bar-note">6 of 32 (18.8%)</span></td>
+<td>4</td>
+<td>0</td>
+<td>not complete</td>
+</tr>
+<tr><td><a href="bgp-ls/">BGP-LS</a></td>
+<td><div class="rfc-bar" role="img" aria-label="83 of 125 (66.4%)"><span style="width:66.4%"></span></div><span class="rfc-bar-note">83 of 125 (66.4%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="4 of 73 (5.5%)"><span style="width:5.5%"></span></div><span class="rfc-bar-note">4 of 73 (5.5%)</span></td>
+<td>6</td>
+<td>0</td>
+<td>not complete</td>
+</tr>
+<tr><td><a href="bgp-monitoring/">BGP monitoring</a></td>
+<td><div class="rfc-bar" role="img" aria-label="35 of 83 (42.2%)"><span style="width:42.2%"></span></div><span class="rfc-bar-note">35 of 83 (42.2%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="3 of 15 (20.0%)"><span style="width:20.0%"></span></div><span class="rfc-bar-note">3 of 15 (20.0%)</span></td>
+<td>4</td>
+<td>0</td>
+<td>not complete</td>
+</tr>
+<tr><td><a href="bgp-session-ops/">BGP session operations</a></td>
+<td><div class="rfc-bar" role="img" aria-label="38 of 76 (50.0%)"><span style="width:50.0%"></span></div><span class="rfc-bar-note">38 of 76 (50.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="5 of 122 (4.1%)"><span style="width:4.1%"></span></div><span class="rfc-bar-note">5 of 122 (4.1%)</span></td>
+<td>13</td>
+<td>3</td>
+<td>not complete</td>
+</tr>
+<tr><td><a href="bgp-sr-tunnel/">BGP segment routing and tunnels</a></td>
+<td><div class="rfc-bar" role="img" aria-label="89 of 244 (36.5%)"><span style="width:36.5%"></span></div><span class="rfc-bar-note">89 of 244 (36.5%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="4 of 136 (2.9%)"><span style="width:2.9%"></span></div><span class="rfc-bar-note">4 of 136 (2.9%)</span></td>
+<td>5</td>
+<td>0</td>
+<td>not complete</td>
+</tr>
+<tr><td><a href="bgp-transport-security/">BGP transport security</a></td>
+<td><div class="rfc-bar" role="img" aria-label="12 of 12 (100.0%)"><span style="width:100.0%"></span></div><span class="rfc-bar-note">12 of 12 (100.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="1 of 7 (14.3%)"><span style="width:14.3%"></span></div><span class="rfc-bar-note">1 of 7 (14.3%)</span></td>
+<td>3</td>
+<td>1</td>
+<td>not complete</td>
+</tr>
+<tr><td><a href="bgp-vpn-evpn/">BGP VPN and EVPN</a></td>
+<td><div class="rfc-bar" role="img" aria-label="31 of 202 (15.3%)"><span style="width:15.3%"></span></div><span class="rfc-bar-note">31 of 202 (15.3%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="1 of 54 (1.9%)"><span style="width:1.9%"></span></div><span class="rfc-bar-note">1 of 54 (1.9%)</span></td>
+<td>9</td>
+<td>2</td>
+<td>not complete</td>
+</tr>
+<tr><td><a href="dhcp-provisioning/">DHCP and provisioning</a></td>
+<td><div class="rfc-bar" role="img" aria-label="161 of 473 (34.0%)"><span style="width:34.0%"></span></div><span class="rfc-bar-note">161 of 473 (34.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="2 of 220 (0.9%)"><span style="width:0.9%"></span></div><span class="rfc-bar-note">2 of 220 (0.9%)</span></td>
+<td>13</td>
+<td>0</td>
+<td>not complete</td>
+</tr>
+<tr><td><a href="dns/">DNS</a></td>
+<td><div class="rfc-bar" role="img" aria-label="19 of 299 (6.4%)"><span style="width:6.4%"></span></div><span class="rfc-bar-note">19 of 299 (6.4%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 211 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 211 (0.0%)</span></td>
+<td>11</td>
+<td>0</td>
+<td>not complete</td>
+</tr>
+<tr><td><a href="drafts/">Drafts and non-RFC standards</a></td>
+<td><div class="rfc-bar" role="img" aria-label="74 of 121 (61.2%)"><span style="width:61.2%"></span></div><span class="rfc-bar-note">74 of 121 (61.2%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="6 of 61 (9.8%)"><span style="width:9.8%"></span></div><span class="rfc-bar-note">6 of 61 (9.8%)</span></td>
+<td>8</td>
+<td>0</td>
+<td>not complete</td>
+</tr>
+<tr><td><a href="eap/">EAP</a></td>
+<td><div class="rfc-bar" role="img" aria-label="119 of 172 (69.2%)"><span style="width:69.2%"></span></div><span class="rfc-bar-note">119 of 172 (69.2%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="6 of 59 (10.2%)"><span style="width:10.2%"></span></div><span class="rfc-bar-note">6 of 59 (10.2%)</span></td>
+<td>6</td>
+<td>1</td>
+<td>not complete</td>
+</tr>
+<tr><td><a href="fhrp/">First-hop redundancy</a></td>
+<td><div class="rfc-bar" role="img" aria-label="112 of 166 (67.5%)"><span style="width:67.5%"></span></div><span class="rfc-bar-note">112 of 166 (67.5%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="4 of 65 (6.2%)"><span style="width:6.2%"></span></div><span class="rfc-bar-note">4 of 65 (6.2%)</span></td>
+<td>3</td>
+<td>0</td>
+<td>not complete</td>
+</tr>
+<tr><td><a href="flow-telemetry/">Flow telemetry</a></td>
+<td><div class="rfc-bar" role="img" aria-label="17 of 70 (24.3%)"><span style="width:24.3%"></span></div><span class="rfc-bar-note">17 of 70 (24.3%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 19 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 19 (0.0%)</span></td>
+<td>3</td>
+<td>0</td>
+<td>not complete</td>
+</tr>
+<tr><td><a href="ikev2-ipsec/">IKEv2 and IPsec</a></td>
+<td><div class="rfc-bar" role="img" aria-label="239 of 703 (34.0%)"><span style="width:34.0%"></span></div><span class="rfc-bar-note">239 of 703 (34.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="9 of 265 (3.4%)"><span style="width:3.4%"></span></div><span class="rfc-bar-note">9 of 265 (3.4%)</span></td>
+<td>21</td>
+<td>0</td>
+<td>not complete</td>
+</tr>
+<tr><td><a href="isis/">IS-IS</a></td>
+<td><div class="rfc-bar" role="img" aria-label="59 of 125 (47.2%)"><span style="width:47.2%"></span></div><span class="rfc-bar-note">59 of 125 (47.2%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="1 of 36 (2.8%)"><span style="width:2.8%"></span></div><span class="rfc-bar-note">1 of 36 (2.8%)</span></td>
+<td>11</td>
+<td>1</td>
+<td>not complete</td>
+</tr>
+<tr><td><a href="management/">Management</a></td>
+<td><div class="rfc-bar" role="img" aria-label="37 of 99 (37.4%)"><span style="width:37.4%"></span></div><span class="rfc-bar-note">37 of 99 (37.4%)</span></td>
+<td><div class="rfc-bar rfc-bar-unmeasured" role="img" aria-label="no rows"><span style="width:0%"></span></div><span class="rfc-bar-note">no rows</span></td>
+<td>2</td>
+<td>0</td>
+<td>not complete</td>
+</tr>
+<tr><td><a href="mpls/">MPLS</a></td>
+<td><div class="rfc-bar" role="img" aria-label="105 of 319 (32.9%)"><span style="width:32.9%"></span></div><span class="rfc-bar-note">105 of 319 (32.9%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="5 of 59 (8.5%)"><span style="width:8.5%"></span></div><span class="rfc-bar-note">5 of 59 (8.5%)</span></td>
+<td>10</td>
+<td>0</td>
+<td>not complete</td>
+</tr>
+<tr><td><a href="oauth-mgmt/">OAuth for management</a></td>
+<td><div class="rfc-bar" role="img" aria-label="18 of 59 (30.5%)"><span style="width:30.5%"></span></div><span class="rfc-bar-note">18 of 59 (30.5%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="2 of 13 (15.4%)"><span style="width:15.4%"></span></div><span class="rfc-bar-note">2 of 13 (15.4%)</span></td>
+<td>3</td>
+<td>0</td>
+<td>not complete</td>
+</tr>
+<tr><td><a href="ospf/">OSPF</a></td>
+<td><div class="rfc-bar" role="img" aria-label="151 of 409 (36.9%)"><span style="width:36.9%"></span></div><span class="rfc-bar-note">151 of 409 (36.9%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="10 of 242 (4.1%)"><span style="width:4.1%"></span></div><span class="rfc-bar-note">10 of 242 (4.1%)</span></td>
+<td>23</td>
+<td>3</td>
+<td>not complete</td>
+</tr>
+<tr><td><a href="ppp-access/">PPP access</a></td>
+<td><div class="rfc-bar" role="img" aria-label="178 of 296 (60.1%)"><span style="width:60.1%"></span></div><span class="rfc-bar-note">178 of 296 (60.1%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="4 of 97 (4.1%)"><span style="width:4.1%"></span></div><span class="rfc-bar-note">4 of 97 (4.1%)</span></td>
+<td>11</td>
+<td>0</td>
+<td>not complete</td>
+</tr>
+<tr><td><a href="primitives/">Network primitives</a></td>
+<td><div class="rfc-bar" role="img" aria-label="18 of 51 (35.3%)"><span style="width:35.3%"></span></div><span class="rfc-bar-note">18 of 51 (35.3%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 34 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 34 (0.0%)</span></td>
+<td>6</td>
+<td>0</td>
+<td>not complete</td>
+</tr>
+<tr><td><a href="radius-tacacs/">RADIUS and TACACS+</a></td>
+<td><div class="rfc-bar" role="img" aria-label="122 of 202 (60.4%)"><span style="width:60.4%"></span></div><span class="rfc-bar-note">122 of 202 (60.4%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="2 of 105 (1.9%)"><span style="width:1.9%"></span></div><span class="rfc-bar-note">2 of 105 (1.9%)</span></td>
+<td>11</td>
+<td>0</td>
+<td>not complete</td>
+</tr>
+<tr><td><a href="route-archival/">Route archival</a></td>
+<td><div class="rfc-bar" role="img" aria-label="11 of 23 (47.8%)"><span style="width:47.8%"></span></div><span class="rfc-bar-note">11 of 23 (47.8%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 13 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 13 (0.0%)</span></td>
+<td>3</td>
+<td>0</td>
+<td>not complete</td>
+</tr>
+<tr><td><a href="rpki/">RPKI</a></td>
+<td><div class="rfc-bar" role="img" aria-label="11 of 142 (7.7%)"><span style="width:7.7%"></span></div><span class="rfc-bar-note">11 of 142 (7.7%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="4 of 80 (5.0%)"><span style="width:5.0%"></span></div><span class="rfc-bar-note">4 of 80 (5.0%)</span></td>
+<td>9</td>
+<td>1</td>
+<td>not complete</td>
+</tr>
+<tr><td><a href="tunnels/">Tunnels</a></td>
+<td><div class="rfc-bar" role="img" aria-label="2 of 61 (3.3%)"><span style="width:3.3%"></span></div><span class="rfc-bar-note">2 of 61 (3.3%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 64 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 64 (0.0%)</span></td>
+<td>5</td>
+<td>0</td>
+<td>not complete</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Debugging</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Quality hub</h2>
+                    <a class="page-sidebar-link" href="../../../quality/">
+                        <span class="page-sidebar-link-label">Quality overview</span>
+                        <small>Return to the verification map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../quality/verify-debugging/">
+                        <span class="page-sidebar-link-label">Verify debugging</span>
+                        <small>How failed checks route to evidence.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Symptom-led debugging for running systems.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                    <a href="../../../legal/">Legal notice</a>
+                    <span class="footer-published">Published 28 October 2026 00:45 UTC</span>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

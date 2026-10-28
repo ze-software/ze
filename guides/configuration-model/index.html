@@ -150,6 +150,7 @@
 </ol></li>
 <li><a href="#dns-name-servers">DNS Name Servers</a></li>
 <li><a href="#firmware-update-check-and-self-update">Firmware Update Check and Self-Update</a></li>
+<li><a href="#lan-dns-resolver">LAN DNS Resolver</a></li>
 <li><a href="#ntp-client">NTP Client</a></li>
 <li><a href="#dhcp-server">DHCP Server</a>
 <ol>
@@ -687,7 +688,7 @@ delivered to a new peer.</p>
 </tr>
 <tr>
 <td><code>timer { }</code></td>
-<td>Timer container: <code>receive-hold-time</code> (seconds, 0 or 3-65535, default 90), <code>send-hold-time</code> (seconds, 0 or 480-65535, default 0, and a non-zero value must be greater than <code>receive-hold-time</code> per RFC 9687 Section 4.4), <code>connect-retry</code> (seconds, default 120)</td>
+<td>Timer container: <code>receive-hold-time</code> (seconds, 0 or 3-65535, default 90), <code>send-hold-time</code> (seconds, 0 or 480-65535, default 0, and a non-zero value must be greater than <code>receive-hold-time</code> per RFC 9687 Section 4.4), <code>connect-retry</code> (seconds, default 120), <code>delay-open</code> (seconds, 0..240, default 0/off)</td>
 <td class="cell-no">✕</td>
 </tr>
 <tr>
@@ -732,7 +733,7 @@ delivered to a new peer.</p>
 </tr>
 <tr>
 <td><code>rs-fast-path</code></td>
-<td>Enable reactor-native RS forwarding (bypasses plugin dispatch for UPDATE forwarding). A destination peer with active export filters or an explicit export final reject is excluded; <code>bgp-rs</code> relays to it instead, so both peers must name that plugin in an <code>attach process</code> block</td>
+<td>Enable reactor-native RS forwarding (bypasses plugin dispatch for UPDATE forwarding). A destination peer with active export filters or an explicit export final reject is excluded; <code>bgp-rs</code> relays to it instead, so both peers must name that plugin in an <code>attach process</code> block. The fast path forwards only from a source that grants <code>bgp-rs</code> <code>receive [ update-received ]</code> and only to a destination that grants it <code>send [ update ]</code> (<a href="https://github.com/ze-software/ze/blob/main/docs/guide/route-reflection.md#plugin-bindings" target="_blank" rel="noopener">Route Reflection, Plugin Bindings</a>)</td>
 <td class="cell-no">✕</td>
 </tr>
 <tr>
@@ -749,6 +750,12 @@ delivered to a new peer.</p>
 </table>
 <!-- source: internal/component/bgp/config/peers.go -- PeersFromTree; internal/component/bgp/yang/ze-bgp-conf.yang -- peer settings, container timer -->
 <!-- source: internal/component/bgp/plugins/rib/rib_flowspec_redirect.go -- parseFlowSpecRedirectConfig, flowSpecRedirectRefused -->
+<p>For example, <code>timer { delay-open 5; }</code> holds the local OPEN for up to five
+seconds after TCP connects. A peer OPEN releases it early; otherwise the timer
+does. The same leaf can be inherited from a BGP or group block. Set it to zero
+to send OPEN immediately.</p>
+<!-- source: internal/component/bgp/reactor/session_connection.go -- connectionEstablished -->
+<!-- source: internal/component/bgp/reactor/session_delay_open.go -- delayOpenExpired -->
 <h2 id="startup-convergence-hold-update-delay">Startup Convergence Hold (<code>update-delay</code>)</h2>
 <p>A speaker that has just started advertises to each peer as soon as that session
 reaches Established, before the RIB has learned what the other neighbors are
@@ -1290,7 +1297,7 @@ migrates to this container.</p>
 </tr>
 <tr>
 <td>ADD-PATH</td>
-<td><code>add-path send/receive</code></td>
+<td><code>add-path { direction send/receive; limit { receive 10; } }</code></td>
 <td>See <a href="../add-path/">ADD-PATH guide</a></td>
 </tr>
 <tr>
@@ -4483,6 +4490,81 @@ replace binary only between 2 AM and 6 AM, restart at 3 AM.</p>
 <!-- source: internal/component/config/system/yang/ze-system-conf.yang -- update-check config -->
 <!-- source: internal/component/config/system/selfupdate.go -- selfUpdater -->
 <!-- source: cmd/ze/hub/main_system.go -- startUpdateChecker lifecycle -->
+<h3 id="lan-dns-resolver">LAN DNS Resolver</h3>
+<p><code>service { dns-resolver { } }</code> runs a caching DNS resolver for the hosts behind
+Ze. It is separate from <code>system { name-server }</code> above, which only Ze's own
+lookups use. It answers recursive queries on the <code>listener</code> addresses, from
+the <code>allow-from</code> prefixes only, by forwarding to the <code>forward server</code> entries
+in the order written. It does not recurse from the root and does not validate
+DNSSEC.</p>
+<pre><code>service {
+	dns-resolver {
+		enabled true
+		listener lan {
+			ip 192.168.1.1
+		}
+		allow-from [ 192.168.1.0/24 ]
+		forward {
+			server 192.0.2.53
+			server 198.51.100.53
+		}
+	}
+}
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Leaf</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>enabled</code></td>
+<td><code>false</code></td>
+<td>true needs a <code>listener</code>, an <code>allow-from</code> prefix and a <code>forward server</code></td>
+</tr>
+<tr>
+<td><code>listener &lt;name&gt; ip</code>, <code>port</code></td>
+<td>port <code>53</code></td>
+<td>UDP and TCP endpoint; a wildcard address is refused</td>
+</tr>
+<tr>
+<td><code>allow-from</code></td>
+<td>(none)</td>
+<td>client source prefixes; any other source gets REFUSED</td>
+</tr>
+<tr>
+<td><code>mode</code></td>
+<td><code>forward</code></td>
+<td>the only mode</td>
+</tr>
+<tr>
+<td><code>forward server &lt;ip&gt;</code>, <code>port</code></td>
+<td>port <code>53</code></td>
+<td>upstream resolvers, at most 8, tried in order</td>
+</tr>
+<tr>
+<td><code>cache size</code>, <code>max-ttl</code>, <code>max-negative-ttl</code></td>
+<td><code>100000</code>, <code>86400</code>, <code>3600</code></td>
+<td>entries per cache, and TTL caps in seconds</td>
+</tr>
+<tr>
+<td><code>timeout</code></td>
+<td><code>10</code></td>
+<td>seconds for one whole resolution, 1-60</td>
+</tr>
+<tr>
+<td><code>limit outstanding</code>, <code>per-client-rate</code></td>
+<td><code>2048</code>, <code>0</code></td>
+<td>resolutions in flight, and queries per second per source (0 for none)</td>
+</tr>
+</tbody>
+</table>
+<p>Every leaf, refusal and command is in the <a href="https://github.com/ze-software/ze/blob/main/docs/guide/dns-resolver.md" target="_blank" rel="noopener">LAN DNS Resolver guide</a>.</p>
+<!-- source: internal/plugins/dnsresolver/yang/ze-dns-resolver-conf.yang -- service dns-resolver -->
+<!-- source: internal/plugins/dnsresolver/config.go -- parseConfig, checkEnabled -->
 <h3 id="ntp-client">NTP Client</h3>
 <p>Configure NTP under <code>environment { ntp { } }</code>:</p>
 <pre><code>environment {
@@ -4556,7 +4638,7 @@ scratch directory is:</p>
 <code>test/plugin/storage-ntp-restart.ci</code>, passes the opt-in and is gated
 <code>option=needs-linux:caps=sys-time</code>: a process without <code>CAP_SYS_TIME</code> skips it,
 so an unprivileged developer host keeps its clock and the QEMU guest
-(<code>./le test qemu all-tests</code>) runs it.</p>
+(<code>./le test qemu all</code>) runs it.</p>
 <!-- source: internal/test/fixture/storage_consumer_restart.go -- storageNTPRestart, storageNTPServer -->
 <!-- source: internal/plugins/ntp/yang/ze-ntp-conf.yang -- NTP config schema -->
 <!-- source: internal/plugins/ntp/ntp.go -- parseNTPConfig, doSync -->
@@ -5434,8 +5516,10 @@ match criteria, actions, reserved ranges, and CLI usage.</p>
         <footer>
             <div class="footer-inner">
                 <div class="footer-bottom">
+                    <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
+                    <a href="../../legal/">Legal notice</a>
+                    <span class="footer-published">Published 27 October 2026 23:56 UTC</span>
                 </div>
             </div>
         </footer>

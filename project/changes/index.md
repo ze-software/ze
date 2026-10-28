@@ -2,6 +2,12 @@
 
 What shipped in Ze, newest first: the weekly updates, mined from git history and posted to Discord's `ze-news`. Each week lists the areas it touched; click a week for the full write-up. Ze is pre-release, so the configuration syntax can still change, and the [roadmap](../roadmap/) tracks the path to a stable release. For the landmark features on a timeline, see [Milestones](../milestones/).
 
+## [Week of 2026-10-12](2026-10-12/index.md)
+
+This update covers two weeks. Many settings that Ze used to accept and then silently ignore are now refused, so please read the changes below before upgrading. The release queue is now sorted into correctness fixes, validation and delivery work. It holds 240 required items and 273 nice-to-have, up from 202 and 224. 79 required items joined, most of them defects found by reviewing the code area by area, and 41 left, either finished or moved to after the release. The counts compare the two ends of the period, so an item added and finished in between is missed, and they count work items rather than readiness: https://ze-software.net/project/roadmap/
+
+Areas: BGP, Flowspec, OSPF, BFD, VRRP, DHCP, IPsec, L2TP, RADIUS, VPP, Config, CLI, API, ExaBGP Migration, RFC Compliance, Quality Improvement
+
 ## [Week of 2026-10-05](2026-10-05/index.md)
 
 A week on configuration safety, the public API and the appliance kernel, with fixes across BGP, RSVP-TE and IKEv2. Several changes need a look before upgrading, listed first. The release queue closed the week at 202 required work items and 224 nice-to-have, against 213 and 221 at the start. 12 required items joined and 23 left. Most of those that left were behaviour that shipped earlier and gained its end-to-end proof this week. The additions are the appliance kernel, live BGP reconfiguration and gaps the RFC checking found. This is an inventory preview. It reads two endpoints, so an item added and finished inside the same week never appears in it, and the counts measure work items rather than readiness: https://ze-software.net/project/roadmap/

@@ -435,9 +435,19 @@ bgp {
 |------|--------|
 | Advertises capability 74 | The BFD Strict-Mode Capability, code 74, length 0, in every OPEN. Draft Section 6 makes this a MUST for a speaker with strict mode enabled |
 | Opens the BFD session early | Before the BGP FSM starts, and keeps it open while BGP is down. Draft Section 7 asks for both, so the BFD handshake is not serialized behind the BGP one |
-| Holds the session in OpenSent | When the peer's OPEN arrives and BFD is not yet Up, Ze withholds its KEEPALIVE and waits. `show bgp peer list` and `show bgp peer detail` carry a `bfd-sub-state` field while it does |
+| Withholds KEEPALIVE while BFD is pending | When both OPENs negotiate strict mode and BFD is neither Up nor AdminDown, Ze waits in OpenSent, or in Connect/Active if the OPEN arrived during DelayOpen. `show bgp peer list` and `show bgp peer detail` carry the corresponding `bfd-sub-state` while it waits |
 
 A fourth leaf, `hold-down`, is optional and described below.
+
+To combine this with delayed OPEN, add `timer { delay-open 5; }` inside the
+same peer. An early remote OPEN still makes Ze send its OPEN, but not its
+KEEPALIVE while BFD is pending. The displayed sub-state is
+`CONNECT-DELAYOPEN-BFD-UP-PENDING` or `ACTIVE-DELAYOPEN-BFD-UP-PENDING`.
+BFD Up, AdminDown or Disabled releases that wait to OpenConfirm. The bounds
+below apply in those states too; DelayOpen does not introduce an unbounded
+strict-mode wait. With `delay-open 0`, the existing OpenSent path is unchanged.
+<!-- source: internal/component/bgp/fsm/delay_open.go -- EnterDelayOpenBfdUpPending, releaseDelayOpenBfdPending -->
+<!-- source: internal/component/bgp/reactor/session_bfd_strict.go -- advanceAfterOpen, handleBFDEvent -->
 
 **Both speakers must advertise it.** Against a peer whose OPEN carries no
 capability 74, Ze establishes on the normal path and BFD stays a failure
@@ -780,12 +790,12 @@ produce diff-able output.
 
 ### Session detail
 
-`show bfd session <peer>` returns the same struct for one session
+`show bfd session address <peer>` returns the same struct for one session
 plus the most recent state transitions kept in a bounded in-memory
 ring (eight entries by default -- see `api.TransitionHistoryDepth`):
 
 ```
-operator@router> show bfd session 192.0.2.2
+operator@router> show bfd session address 192.0.2.2
 {
   "peer": "192.0.2.2",
   "local": "192.0.2.1",

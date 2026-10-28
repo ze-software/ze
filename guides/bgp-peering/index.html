@@ -61,6 +61,7 @@
 <li><a href="#bgp-role">BGP Role</a></li>
 <li><a href="#session-lifecycle">Session lifecycle</a>
 <ol>
+<li><a href="#delay-sending-open">Delay sending OPEN</a></li>
 <li><a href="#hold-timer-expiry">Hold timer expiry</a></li>
 <li><a href="#a-second-open-is-refused">A second OPEN is refused</a></li>
 <li><a href="#the-session-always-ends-when-the-read-loop-ends">The session always ends when the read loop ends</a></li>
@@ -406,6 +407,24 @@ decision, and the filter never executes:</p>
 <h2 id="bgp-role">BGP Role</h2>
 <p>RFC 9234 roles describe the business relationship between peers and let Ze enforce valid pairings and OTC handling. Configure roles deliberately on eBGP sessions. See the <a href="../bgp-role/">BGP Role guide</a> for valid peer pairs and policy effects.</p>
 <h2 id="session-lifecycle">Session lifecycle</h2>
+<h3 id="delay-sending-open">Delay sending OPEN</h3>
+<p>Set <code>timer { delay-open 5; }</code> inside a peer to hold its local OPEN for up to five
+seconds after TCP connects. An incoming OPEN releases the wait immediately;
+otherwise timer expiry sends OPEN. The range is 0..240 seconds, and the default
+zero keeps immediate OPEN transmission. The setting is inherited from BGP and
+group blocks too.</p>
+<p>While the wait runs, peer detail reports Connect or Active, not OpenSent. A
+second connection waits for its OPEN before collision arbitration; it cannot
+displace the held connection merely by connecting.</p>
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- leaf delay-open -->
+<!-- source: internal/component/bgp/reactor/reactor_connection.go -- acceptOrReject, handlePendingCollision -->
+<p>With <code>connection { bfd { enabled true; strict true; } }</code> and strict mode
+negotiated by both peers, an early OPEN sends Ze's OPEN but withholds KEEPALIVE
+until BFD permits the session. <code>show bgp peer detail</code> reports a Connect or Active
+DelayOpen BFD pending sub-state. A nonzero negotiated HoldTimer bounds that wait;
+zero hold uses the configured BFD <code>hold-time</code> instead.</p>
+<!-- source: internal/component/bgp/reactor/session_bfd_strict.go -- advanceAfterOpen -->
+<!-- source: internal/component/bgp/fsm/delay_open.go -- EnterDelayOpenBfdUpPending -->
 <h3 id="hold-timer-expiry">Hold timer expiry</h3>
 <p>When the hold timer expires, Ze runs the full RFC 4271 Section 8.2.2 Event 10 action list. It sends NOTIFICATION Hold Timer Expired (error 4), releases the session resources, moves the FSM to Idle, and increases the ConnectRetryCounter.</p>
 <p>Ze granted one reprieve on a hold expiry until 2026-08-03. That grace is removed. Event 10 does not permit it, and worst-case dead-peer detection falls from two hold times to one. A daemon whose CPU is saturated now drops sessions that the grace used to keep.</p>
@@ -481,8 +500,10 @@ ze cli -c "show bgp rib status"
         <footer>
             <div class="footer-inner">
                 <div class="footer-bottom">
+                    <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
+                    <a href="../../legal/">Legal notice</a>
+                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
                 </div>
             </div>
         </footer>

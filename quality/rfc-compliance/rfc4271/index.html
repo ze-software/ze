@@ -121,7 +121,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>1.5%</strong><b>2 of 133 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 133 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 133 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>50.9%</strong><b>232 of 456 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>48.4%</strong><b>221 of 457 tagged units, 0 escaped and 19 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -136,7 +136,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>9.0%</strong><b>12 of 133 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>94</strong><b>of 133 gated MUSTs judged</b><p>2 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>95</strong><b>of 133 gated MUSTs judged</b><p>1 weak, wrong or unimplemented, 4 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 8 shares marked as a part above are the whole of the 133 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -231,16 +231,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>456</td>
+<td>457</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>456</td>
+<td>457</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>94</td>
+<td>95</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>232</td>
+<td>240</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc4271.md</code></td>
@@ -372,7 +372,7 @@ Full conformance is not established. The checklist below retains recorded OPEN e
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-4.3-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc4271_test.go#L55" title="internal/core/bgp/attribute/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271PartialBitClearOnSend</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_relay_partial_test.go#L48" title="internal/component/bgp/reactor/rfc4271_relay_partial_test.go" target="_blank" rel="noopener"><code>TestRFC4271PartialClearedOnTheRelayedWire</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L1119" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271PartialNotSetOnRecognizedOrNonTransitive</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L1122" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271PartialNotSetOnRecognizedOrNonTransitive</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc4271_test.go#L47" title="internal/component/bgp/plugins/rib/storage/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271PartialBitClearedOnReadvertisedWellKnown</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/rib/rfc4271_partial_test.go#L75" title="internal/component/bgp/rib/rfc4271_partial_test.go" target="_blank" rel="noopener"><code>TestRFC4271PartialClearedWhenTheRailReadvertises</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc4271_test.go#L170" title="internal/core/bgp/attribute/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271PartialNotStampedOnExcludedClasses</code></a></span></div>
@@ -493,9 +493,9 @@ Full conformance is not established. The checklist below retains recorded OPEN e
 <td>MUST</td>
 <td>5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-5-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L1087" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271PartialSetOnUnrecognizedTransitiveOptional</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L1090" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271PartialSetOnUnrecognizedTransitiveOptional</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc4271_test.go#L132" title="internal/core/bgp/attribute/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271PartialStampedOnUnrecognizedTransitive</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L1116" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271PartialNotSetOnRecognizedOrNonTransitive</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L1119" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271PartialNotSetOnRecognizedOrNonTransitive</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc4271_test.go#L167" title="internal/core/bgp/attribute/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271PartialNotStampedOnExcludedClasses</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/rfc4271-partial-unknown-transitive.ci#L32" title="test/plugin/rfc4271-partial-unknown-transitive.ci" target="_blank" rel="noopener"><code>rfc4271-partial-unknown-transitive.ci</code></a></span></div>
 </div></td>
@@ -506,7 +506,7 @@ Full conformance is not established. The checklist below retains recorded OPEN e
 <td>5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-5-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc4271_test.go#L82" title="internal/component/bgp/plugins/rib/storage/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271PartialBitPreservedOnUnknownTransitive</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L1155" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271PartialFromPreviousASNeverCleared</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L1158" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271PartialFromPreviousASNeverCleared</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc4271_test.go#L115" title="internal/component/bgp/plugins/rib/storage/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271PartialBitSurvivesLengthReframing</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc4271_test.go#L197" title="internal/core/bgp/attribute/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271PartialFromPreviousASNotCleared</code></a></span></div>
 </div></td>
@@ -516,8 +516,8 @@ Full conformance is not established. The checklist below retains recorded OPEN e
 <td>MUST</td>
 <td>5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-5-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L1213" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271UnrecognizedNonTransitiveIsNotPassedAlong</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L1254" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271TheNonTransitiveDropSparesEveryOtherClass</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L1216" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271UnrecognizedNonTransitiveIsNotPassedAlong</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L1257" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271TheNonTransitiveDropSparesEveryOtherClass</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4271-5-6">RFC4271-5-6</code></td><td colspan="3"><span class="rfc-subject">The receiver of an UPDATE message MUST be prepared to handle path attributes within UPDATE messages that are out of order. (§5)</span></td></tr>
@@ -750,10 +750,10 @@ Full conformance is not established. The checklist below retains recorded OPEN e
 <td>6.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-6.3-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_established_teardown_peer_test.go#L130" title="internal/component/bgp/reactor/rfc4271_established_teardown_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271EstablishedUpdateErrorReleasesTheConnection</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L636" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271UpdateErrorReportedAsUpdateMessageError</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L639" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271UpdateErrorReportedAsUpdateMessageError</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_session_core4271_test.go#L160" title="internal/component/bgp/reactor/rfc4271_session_core4271_test.go" target="_blank" rel="noopener"><code>TestSessionRFC4271RetainedUpdateNotifications</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_dupmp_unreach_wire_test.go#L32" title="internal/component/bgp/reactor/session_dupmp_unreach_wire_test.go" target="_blank" rel="noopener"><code>TestSessionRFC7606DuplicateMPUnreachNotificationOnTheWire</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L699" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271ConformantUpdateSendsNoUpdateError</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L702" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271ConformantUpdateSendsNoUpdateError</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4271-6.7-1">RFC4271-6.7-1</code></td><td colspan="3"><span class="rfc-subject">However, the Cease NOTIFICATION message MUST NOT be used when a fatal error indicated by this section does exist. (§6.7)</span></td></tr>
@@ -769,7 +769,7 @@ Full conformance is not established. The checklist below retains recorded OPEN e
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_fsm_error_peer_test.go#L96" title="internal/component/bgp/reactor/rfc4271_fsm_error_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271OpenConfirmUpdateIsAnFSMError</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go#L126" title="internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271OpenSentErrorReleasesTheConnection</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_fsm_error_peer_test.go#L59" title="internal/component/bgp/reactor/rfc4271_fsm_error_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271OpenSentUnexpectedMessageIsAnFSMError</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L639" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271UpdateErrorReportedAsUpdateMessageError</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L642" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271UpdateErrorReportedAsUpdateMessageError</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_bfd_strict_test.go#L723" title="internal/component/bgp/reactor/session_bfd_strict_test.go" target="_blank" rel="noopener"><code>TestSessionBFDStrictSecondOpenIsAnFSMErrorOnTheWire</code></a></span></div>
 </div></td>
 </tr>
@@ -805,8 +805,8 @@ Full conformance is not established. The checklist below retains recorded OPEN e
 <td>MUST</td>
 <td>8.2.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-8.2.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L810" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271HoldTimerExpirySendsNotification</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L839" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271HoldTimerNotYetExpiredSendsNoNotification</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L813" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271HoldTimerExpirySendsNotification</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L842" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271HoldTimerNotYetExpiredSendsNoNotification</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/deadpeer-holddown.ci#L3" title="test/plugin/deadpeer-holddown.ci" target="_blank" rel="noopener"><code>deadpeer-holddown.ci</code></a></span></div>
 </div></td>
 </tr>
@@ -816,9 +816,9 @@ Full conformance is not established. The checklist below retains recorded OPEN e
 <td>8.2.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-8.2.2-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go#L235" title="internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271EstablishedHoldTimerExpiryRunsTheEvent10List</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L932" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271HoldExpiryRunsTheEvent10ActionList</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L935" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271HoldExpiryRunsTheEvent10ActionList</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go#L260" title="internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271EstablishedHoldTimerFedByKeepalivesNeverExpires</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L1003" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271NoHoldExpiryLeavesTheSessionIntact</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L1006" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271NoHoldExpiryLeavesTheSessionIntact</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4271-8.2.2-3">RFC4271-8.2.2-3</code></td><td colspan="3"><span class="rfc-subject">If the HoldTimer_Expires event occurs (Event 10), the local system: - sends a NOTIFICATION message with the Error Code Hold Timer Expired, - sets the ConnectRetryTimer to zero, - releases all BGP resources (§8.2.2)</span></td></tr>
@@ -827,9 +827,9 @@ Full conformance is not established. The checklist below retains recorded OPEN e
 <td>8.2.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-8.2.2-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go#L236" title="internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271EstablishedHoldTimerExpiryRunsTheEvent10List</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L935" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271HoldExpiryRunsTheEvent10ActionList</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L938" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271HoldExpiryRunsTheEvent10ActionList</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go#L261" title="internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271EstablishedHoldTimerFedByKeepalivesNeverExpires</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L1005" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271NoHoldExpiryLeavesTheSessionIntact</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L1008" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271NoHoldExpiryLeavesTheSessionIntact</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4271-8.2.2-4">RFC4271-8.2.2-4</code></td><td colspan="3"><span class="rfc-subject">If the HoldTimer_Expires event occurs (Event 10), the local system: - sends a NOTIFICATION message with the Error Code Hold Timer Expired, - sets the ConnectRetryTimer to zero, - releases all BGP resources, - drops the TCP connection (§8.2.2)</span></td></tr>
@@ -838,9 +838,9 @@ Full conformance is not established. The checklist below retains recorded OPEN e
 <td>8.2.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-8.2.2-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go#L237" title="internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271EstablishedHoldTimerExpiryRunsTheEvent10List</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L938" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271HoldExpiryRunsTheEvent10ActionList</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L941" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271HoldExpiryRunsTheEvent10ActionList</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go#L262" title="internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271EstablishedHoldTimerFedByKeepalivesNeverExpires</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L1008" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271NoHoldExpiryLeavesTheSessionIntact</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L1011" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271NoHoldExpiryLeavesTheSessionIntact</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4271-8.2.2-5">RFC4271-8.2.2-5</code></td><td colspan="3"><span class="rfc-subject">If the HoldTimer_Expires event occurs (Event 10), the local system: - sends a NOTIFICATION message with the Error Code Hold Timer Expired, - sets the ConnectRetryTimer to zero, - releases all BGP resources, - drops the TCP connection, - increments the ConnectRetryCounter by 1, - (optionally) performs peer oscillation damping if the DampPeerOscillations attribute is set to TRUE, and - changes its state to Idle. (§8.2.2)</span></td></tr>
@@ -849,9 +849,9 @@ Full conformance is not established. The checklist below retains recorded OPEN e
 <td>8.2.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-8.2.2-5">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go#L238" title="internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271EstablishedHoldTimerExpiryRunsTheEvent10List</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L941" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271HoldExpiryRunsTheEvent10ActionList</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L944" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271HoldExpiryRunsTheEvent10ActionList</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go#L263" title="internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271EstablishedHoldTimerFedByKeepalivesNeverExpires</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L1010" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271NoHoldExpiryLeavesTheSessionIntact</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L1013" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271NoHoldExpiryLeavesTheSessionIntact</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4271-8.2.2-6">RFC4271-8.2.2-6</code></td><td colspan="3"><span class="rfc-subject">If the HoldTimer_Expires event occurs (Event 10), the local system: - sends a NOTIFICATION message with the Error Code Hold Timer Expired, - sets the ConnectRetryTimer to zero, - releases all BGP resources, - drops the TCP connection, - increments the ConnectRetryCounter by 1, - (optionally) performs peer oscillation damping if the DampPeerOscillations attribute is set to TRUE (§8.2.2)</span></td></tr>
@@ -879,9 +879,12 @@ Full conformance is not established. The checklist below retains recorded OPEN e
 <td>8.2.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-8.2.2-20">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go#L141" title="internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271AutomaticStartEvent3ZeroesCounter</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_retry_test.go#L673" title="internal/component/bgp/fsm/rfc4271_connect_retry_test.go" target="_blank" rel="noopener"><code>TestRFC4271AutomaticStartZeroesConnectRetryCounter</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_retry_test.go#L702" title="internal/component/bgp/fsm/rfc4271_connect_retry_test.go" target="_blank" rel="noopener"><code>TestRFC4271AutomaticStartZeroesOnlyFromIdle</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_retry_test.go#L672" title="internal/component/bgp/fsm/rfc4271_connect_retry_test.go" target="_blank" rel="noopener"><code>TestRFC4271AutomaticStartZeroesConnectRetryCounter</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go#L497" title="internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271HoldExpiryInboundShortenedBackoffZeroesCounter</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go#L518" title="internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271PassiveAutomaticStartReconnectZeroesCounter</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_retry_test.go#L701" title="internal/component/bgp/fsm/rfc4271_connect_retry_test.go" target="_blank" rel="noopener"><code>TestRFC4271AutomaticStartZeroesOnlyFromIdle</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go#L244" title="internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271FailedCycleAfterEstablishedKeepsCounter</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go#L479" title="internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271FailedCycleInboundShortenedBackoffKeepsCounter</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go#L191" title="internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271FailedCycleRestartKeepsCounter</code></a></span></div>
 </div></td>
 </tr>
@@ -957,10 +960,10 @@ Full conformance is not established. The checklist below retains recorded OPEN e
 <td>MUST</td>
 <td>8.2.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-8.2.2-14">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_retry_test.go#L422" title="internal/component/bgp/fsm/rfc4271_connect_retry_test.go" target="_blank" rel="noopener"><code>TestRFC4271ConnectRetryCounterIncrementsOnUpdateError</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_retry_test.go#L421" title="internal/component/bgp/fsm/rfc4271_connect_retry_test.go" target="_blank" rel="noopener"><code>TestRFC4271ConnectRetryCounterIncrementsOnUpdateError</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_established_teardown_peer_test.go#L129" title="internal/component/bgp/reactor/rfc4271_established_teardown_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271EstablishedUpdateErrorReleasesTheConnection</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4760_peer_down_test.go#L55" title="internal/component/bgp/plugins/rib/rfc4760_peer_down_test.go" target="_blank" rel="noopener"><code>TestRFC4760PeerDownDeletesOnlyThatNeighborsRoutes</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_retry_test.go#L442" title="internal/component/bgp/fsm/rfc4271_connect_retry_test.go" target="_blank" rel="noopener"><code>TestRFC4271ConnectRetryCounterQuietOnGoodUpdate</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_retry_test.go#L441" title="internal/component/bgp/fsm/rfc4271_connect_retry_test.go" target="_blank" rel="noopener"><code>TestRFC4271ConnectRetryCounterQuietOnGoodUpdate</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_established_teardown_peer_test.go#L158" title="internal/component/bgp/reactor/rfc4271_established_teardown_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271EstablishedGoodMessagesKeepTheConnection</code></a></span></div>
 </div></td>
 </tr>
@@ -972,11 +975,11 @@ Full conformance is not established. The checklist below retains recorded OPEN e
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_active_any_other_event_peer_test.go#L62" title="internal/component/bgp/reactor/rfc4271_active_any_other_event_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271ActiveAutomaticStopReleasesThePeer</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_any_other_event_test.go#L44" title="internal/component/bgp/fsm/rfc4271_connect_any_other_event_test.go" target="_blank" rel="noopener"><code>TestRFC4271ConnectActiveAnyOtherEventCountsAndDropsToIdle</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_connect_any_other_event_peer_test.go#L126" title="internal/component/bgp/reactor/rfc4271_connect_any_other_event_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271ConnectAutomaticStopDuringTheDialReleasesThePeer</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_retry_test.go#L464" title="internal/component/bgp/fsm/rfc4271_connect_retry_test.go" target="_blank" rel="noopener"><code>TestRFC4271ConnectRetryCounterIncrementsOnAnyOtherEvent</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_retry_test.go#L463" title="internal/component/bgp/fsm/rfc4271_connect_retry_test.go" target="_blank" rel="noopener"><code>TestRFC4271ConnectRetryCounterIncrementsOnAnyOtherEvent</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_active_any_other_event_peer_test.go#L98" title="internal/component/bgp/reactor/rfc4271_active_any_other_event_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271ActiveDuplicateStartKeepsThePeer</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_any_other_event_test.go#L79" title="internal/component/bgp/fsm/rfc4271_connect_any_other_event_test.go" target="_blank" rel="noopener"><code>TestRFC4271ConnectActiveUnlistedEventKeepsTheState</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_any_other_event_test.go#L78" title="internal/component/bgp/fsm/rfc4271_connect_any_other_event_test.go" target="_blank" rel="noopener"><code>TestRFC4271ConnectActiveUnlistedEventKeepsTheState</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_connect_any_other_event_peer_test.go#L165" title="internal/component/bgp/reactor/rfc4271_connect_any_other_event_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271ConnectDuplicateStartDuringTheDialKeepsThePeer</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_retry_test.go#L499" title="internal/component/bgp/fsm/rfc4271_connect_retry_test.go" target="_blank" rel="noopener"><code>TestRFC4271ConnectRetryCounterIdleDefaultArmCountsNothing</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_retry_test.go#L498" title="internal/component/bgp/fsm/rfc4271_connect_retry_test.go" target="_blank" rel="noopener"><code>TestRFC4271ConnectRetryCounterIdleDefaultArmCountsNothing</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4271-8.2.2-21">RFC4271-8.2.2-21</code></td><td colspan="3"><span class="rfc-subject">In response to any other event (Events 8, 10-11, 13, 19, 23, 25-28), the local system: - sets the ConnectRetryTimer to zero, - releases all BGP resources, - drops the TCP connection, - increments the ConnectRetryCounter by one (§8.2.2)</span></td></tr>
@@ -1060,9 +1063,9 @@ Full conformance is not established. The checklist below retains recorded OPEN e
 <td>MUST</td>
 <td>8.2.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-8.2.2-16">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_retry_test.go#L570" title="internal/component/bgp/fsm/rfc4271_connect_retry_test.go" target="_blank" rel="noopener"><code>TestRFC4271ConnectRetryCounterIncrementsOnAutomaticStop</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_retry_test.go#L569" title="internal/component/bgp/fsm/rfc4271_connect_retry_test.go" target="_blank" rel="noopener"><code>TestRFC4271ConnectRetryCounterIncrementsOnAutomaticStop</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go#L76" title="internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271OpenSentAutomaticStopReleasesTheConnection</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_retry_test.go#L596" title="internal/component/bgp/fsm/rfc4271_connect_retry_test.go" target="_blank" rel="noopener"><code>TestRFC4271ConnectRetryCounterAutomaticStopIsNotAManualStop</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_retry_test.go#L595" title="internal/component/bgp/fsm/rfc4271_connect_retry_test.go" target="_blank" rel="noopener"><code>TestRFC4271ConnectRetryCounterAutomaticStopIsNotAManualStop</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go#L200" title="internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271OpenSentWellFormedOpenKeepsTheConnection</code></a></span></div>
 </div></td>
 </tr>
@@ -1071,9 +1074,9 @@ Full conformance is not established. The checklist below retains recorded OPEN e
 <td>MUST</td>
 <td>8.2.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-8.2.2-17">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_retry_test.go#L627" title="internal/component/bgp/fsm/rfc4271_connect_retry_test.go" target="_blank" rel="noopener"><code>TestRFC4271ConnectRetryCounterIncrementsOnOpenCollisionDump</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_retry_test.go#L626" title="internal/component/bgp/fsm/rfc4271_connect_retry_test.go" target="_blank" rel="noopener"><code>TestRFC4271ConnectRetryCounterIncrementsOnOpenCollisionDump</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go#L96" title="internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271OpenSentCollisionDumpReleasesTheConnection</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_retry_test.go#L651" title="internal/component/bgp/fsm/rfc4271_connect_retry_test.go" target="_blank" rel="noopener"><code>TestRFC4271ConnectRetryCounterCollisionDumpIsQuietInIdle</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_retry_test.go#L650" title="internal/component/bgp/fsm/rfc4271_connect_retry_test.go" target="_blank" rel="noopener"><code>TestRFC4271ConnectRetryCounterCollisionDumpIsQuietInIdle</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go#L204" title="internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271OpenSentWellFormedOpenKeepsTheConnection</code></a></span></div>
 </div></td>
 </tr>
@@ -1378,9 +1381,7 @@ Full conformance is not established. The checklist below retains recorded OPEN e
 <td>9</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-9-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go#L194" title="internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go" target="_blank" rel="noopener"><code>TestRFC4271AdjRIBInUpdateRunsTheDecisionProcess</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go#L704" title="internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go" target="_blank" rel="noopener"><code>TestRIBBestChangeWithdraw</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go#L214" title="internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go" target="_blank" rel="noopener"><code>TestRFC4271AdjRIBInUpdateThatDisplacesTheBestReselects</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go#L668" title="internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go" target="_blank" rel="noopener"><code>TestRIBBestChangeNoPublishSameBest</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4271-9.1.1-1">RFC4271-9.1.1-1</code></td><td colspan="3"><span class="rfc-subject">The function that calculates the degree of preference for a given route SHALL NOT use any of the following as its inputs: the existence of other routes, the non-existence of other routes, or the path attributes of other routes. (§9.1)</span></td></tr>
@@ -1416,10 +1417,9 @@ Full conformance is not established. The checklist below retains recorded OPEN e
 <td>SHALL</td>
 <td>9.1.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-9.1.2-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go#L1626" title="internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go" target="_blank" rel="noopener"><code>TestLocRIBMirror</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go#L1611" title="internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go" target="_blank" rel="noopener"><code>TestLocRIBMirror</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go#L239" title="internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go" target="_blank" rel="noopener"><code>TestRFC4271SelectedRouteReplacesTheLocRIBRoute</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go#L263" title="internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go" target="_blank" rel="noopener"><code>TestRFC4271LocRIBHoldsOnlyTheReplacingRoute</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go#L709" title="internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go" target="_blank" rel="noopener"><code>TestRIBBestChangeWithdraw</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4271-9.1.2-3">RFC4271-9.1.2-3</code></td><td colspan="3"><span class="rfc-subject">The local speaker MUST determine the immediate next-hop address from the NEXT_HOP attribute (§9.1.2)</span></td></tr>
@@ -1427,7 +1427,7 @@ Full conformance is not established. The checklist below retains recorded OPEN e
 <td>MUST</td>
 <td>9.1.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-9.1.2-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go#L1628" title="internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go" target="_blank" rel="noopener"><code>TestLocRIBMirror</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go#L1613" title="internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go" target="_blank" rel="noopener"><code>TestLocRIBMirror</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_test.go#L121" title="internal/component/bgp/plugins/rib/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271LocRIBNextHopComesFromNextHopAttribute</code></a></span></div>
 </div></td>
 </tr>
@@ -1624,9 +1624,9 @@ Full conformance is not established. The checklist below retains recorded OPEN e
 <td>SHALL NOT</td>
 <td>9.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-9.2-6">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L511" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271NoIBGPToIBGPRedistribution</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L514" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271NoIBGPToIBGPRedistribution</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_ibgp_split_horizon_test.go#L35" title="internal/component/bgp/reactor/rfc4271_ibgp_split_horizon_test.go" target="_blank" rel="noopener"><code>TestRFC4271ForwardRailNeverRedistributesInternalRoutesToInternalPeers</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L570" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271IBGPRedistributionAllowedForReflectorClient</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L573" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271IBGPRedistributionAllowedForReflectorClient</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4271-9.2-7">RFC4271-9.2-7</code></td><td colspan="3"><span class="rfc-subject">All newly installed routes and all newly unfeasible routes for which there is no replacement route SHALL be advertised to its peers by means of an UPDATE message. (§9.2)</span></td></tr>
@@ -1634,8 +1634,8 @@ Full conformance is not established. The checklist below retains recorded OPEN e
 <td>SHALL</td>
 <td>9.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-9.2-7">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go#L707" title="internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go" target="_blank" rel="noopener"><code>TestRIBBestChangeWithdraw</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go#L671" title="internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go" target="_blank" rel="noopener"><code>TestRIBBestChangeNoPublishSameBest</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_rs_replacement_test.go#L88" title="internal/component/bgp/reactor/rfc4271_rs_replacement_test.go" target="_blank" rel="noopener"><code>TestRFC4271RouteServerLastSourceWithdrawalIsSent</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_rs_replacement_test.go#L42" title="internal/component/bgp/reactor/rfc4271_rs_replacement_test.go" target="_blank" rel="noopener"><code>TestRFC4271RouteServerOwnerWithdrawalSendsReplacement</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4271-9.2-8">RFC4271-9.2-8</code></td><td colspan="3"><span class="rfc-subject">Any routes in the Loc-RIB marked as unfeasible SHALL be removed (§9.2)</span></td></tr>
@@ -1643,8 +1643,9 @@ Full conformance is not established. The checklist below retains recorded OPEN e
 <td>SHALL</td>
 <td>9.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-9.2-8">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go#L1631" title="internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go" target="_blank" rel="noopener"><code>TestLocRIBMirror</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go#L673" title="internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go" target="_blank" rel="noopener"><code>TestRIBBestChangeNoPublishSameBest</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go#L1616" title="internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go" target="_blank" rel="noopener"><code>TestLocRIBMirror</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_rs_replacement_test.go#L180" title="internal/component/bgp/reactor/rfc4271_rs_replacement_test.go" target="_blank" rel="noopener"><code>TestRFC4271RouteServerStillFeasibleRouteIsNotWithdrawn</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_rs_replacement_test.go#L215" title="internal/component/bgp/reactor/rfc4271_rs_replacement_test.go" target="_blank" rel="noopener"><code>TestRFC4271RouteServerStillFeasibleRouteStaysInLocRIB</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4271-9.2-9">RFC4271-9.2-9</code></td><td colspan="3"><span class="rfc-subject">Changes to the reachable destinations within its own autonomous system SHALL also be advertised in an UPDATE message. (§9.2)</span></td></tr>
@@ -2277,7 +2278,7 @@ Full conformance is not established. The checklist below retains recorded OPEN e
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L1119" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271PartialNotSetOnRecognizedOrNonTransitive</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L1122" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271PartialNotSetOnRecognizedOrNonTransitive</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -2399,7 +2400,7 @@ Full conformance is not established. The checklist below retains recorded OPEN e
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_keepalive_session_test.go#L70" title="internal/component/bgp/reactor/rfc4271_keepalive_session_test.go" target="_blank" rel="noopener"><code>TestRFC4271NonZeroNegotiatedHoldSendsPeriodicKeepalives</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -2572,7 +2573,7 @@ Full conformance is not established. The checklist below retains recorded OPEN e
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L1116" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271PartialNotSetOnRecognizedOrNonTransitive</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L1119" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271PartialNotSetOnRecognizedOrNonTransitive</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -2582,7 +2583,7 @@ Full conformance is not established. The checklist below retains recorded OPEN e
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L1087" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271PartialSetOnUnrecognizedTransitiveOptional</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L1090" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271PartialSetOnUnrecognizedTransitiveOptional</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -2622,7 +2623,7 @@ Full conformance is not established. The checklist below retains recorded OPEN e
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L1155" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271PartialFromPreviousASNeverCleared</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L1158" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271PartialFromPreviousASNeverCleared</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -2637,12 +2638,12 @@ Full conformance is not established. The checklist below retains recorded OPEN e
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L1254" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271TheNonTransitiveDropSparesEveryOtherClass</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L1257" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271TheNonTransitiveDropSparesEveryOtherClass</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L1213" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271UnrecognizedNonTransitiveIsNotPassedAlong</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L1216" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271UnrecognizedNonTransitiveIsNotPassedAlong</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -3180,7 +3181,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_header_error_peer_test.go#L174" title="internal/component/bgp/reactor/rfc4271_header_error_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271MessageHeaderAtTheBoundsIsAccepted</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go#L201" title="internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271OpenSentWellFormedOpenKeepsTheConnection</code></a></td>
@@ -3240,7 +3241,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_header_error_peer_test.go#L175" title="internal/component/bgp/reactor/rfc4271_header_error_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271MessageHeaderAtTheBoundsIsAccepted</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go#L203" title="internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271OpenSentWellFormedOpenKeepsTheConnection</code></a></td>
@@ -3270,7 +3271,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_header_error_peer_test.go#L176" title="internal/component/bgp/reactor/rfc4271_header_error_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271MessageHeaderAtTheBoundsIsAccepted</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_header_error_peer_test.go#L159" title="internal/component/bgp/reactor/rfc4271_header_error_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271UnknownMessageTypeIsReported</code></a></td>
@@ -3292,7 +3293,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L699" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271ConformantUpdateSendsNoUpdateError</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L702" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271ConformantUpdateSendsNoUpdateError</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -3307,7 +3308,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L636" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271UpdateErrorReportedAsUpdateMessageError</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L639" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271UpdateErrorReportedAsUpdateMessageError</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -3357,7 +3358,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L639" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271UpdateErrorReportedAsUpdateMessageError</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L642" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271UpdateErrorReportedAsUpdateMessageError</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -3431,12 +3432,12 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L839" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271HoldTimerNotYetExpiredSendsNoNotification</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L842" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271HoldTimerNotYetExpiredSendsNoNotification</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L810" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271HoldTimerExpirySendsNotification</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L813" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271HoldTimerExpirySendsNotification</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -3461,7 +3462,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L1003" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271NoHoldExpiryLeavesTheSessionIntact</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L1006" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271NoHoldExpiryLeavesTheSessionIntact</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -3471,7 +3472,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L932" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271HoldExpiryRunsTheEvent10ActionList</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L935" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271HoldExpiryRunsTheEvent10ActionList</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -3491,7 +3492,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L1005" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271NoHoldExpiryLeavesTheSessionIntact</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L1008" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271NoHoldExpiryLeavesTheSessionIntact</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -3501,7 +3502,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L935" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271HoldExpiryRunsTheEvent10ActionList</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L938" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271HoldExpiryRunsTheEvent10ActionList</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -3521,7 +3522,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L1008" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271NoHoldExpiryLeavesTheSessionIntact</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L1011" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271NoHoldExpiryLeavesTheSessionIntact</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -3531,7 +3532,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L938" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271HoldExpiryRunsTheEvent10ActionList</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L941" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271HoldExpiryRunsTheEvent10ActionList</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -3551,7 +3552,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L1010" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271NoHoldExpiryLeavesTheSessionIntact</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L1013" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271NoHoldExpiryLeavesTheSessionIntact</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -3561,7 +3562,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L941" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271HoldExpiryRunsTheEvent10ActionList</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L944" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271HoldExpiryRunsTheEvent10ActionList</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -3595,20 +3596,25 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 </div>
 <h3><a href="#rfc4271-8.2.2-20"><code>RFC4271-8.2.2-20</code></a></h3>
 <p>or an AutomaticStart event (Event 3), the local system: - initializes all BGP resources for the peer connection, - sets ConnectRetryCounter to zero (§8.2.2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-24 (independent auditor, authored none of the change). RFC 4271 Section 8.2.2: &#34;or an AutomaticStart event (Event 3), the local system: - initializes all BGP resources for the peer connection, - sets ConnectRetryCounter to zero&#34; 238bdb62e9 changed the producer peer_run.go::runOnce only to pass rpc.RemoteASOf(settings.PeerAS) into the published peer info; the Idle ManualStart/AutomaticStart handling, resource initialisation and the ConnectRetryCounter reset (fsm.go::handleIdle, byte-identical) are untouched, and the tagged carriers are unchanged, so both clauses stay proven. The re-stamp inside 238bdb62e9 recorded a runOnce fingerprint that does not match HEAD; this judgement re-reads runOnce at HEAD. Verdict unchanged: enforced. Earlier judgement follows. RFC 4271 Section 8.2.2 (Idle), rfc/full/rfc4271.txt:2947-2962: &#34;In response to a ManualStart event (Event 1) or an AutomaticStart event (Event 3), the local system: - initializes all BGP resources for the peer connection, - sets ConnectRetryCounter to zero, - starts the ConnectRetryTimer with the initial value, - initiates a TCP connection to the other BGP peer, - listens for a connection that may be initiated by the remote BGP peer, and - changes its state to Connect.&#34; Independently read all five tagged carriers in fsm/rfc4271_connect_retry_test.go and reactor/rfc4271_automatic_start_peer_test.go, plus fsm.go::handleIdle and peer_run.go::runOnce. Implemented-tested: Idle Event 3 resets a seeded counter from 7 to exactly 0 in active/passive modes; Event 6 and non-Idle starts retain the counter. Live peer fixtures create sessions, exchange OPEN/KEEPALIVE, reach Established, end by Cease or hold expiry, and require 1 after failure then 0 on the next dial. A subsequent OpenSent failure must retain 1, discriminating a stale established flag. runOnce creates fresh session resources, supplies the peer-owned counter, consumes cycleReachedEstablished with Swap(false), and selects automatic versus damped start before dialing; the new export-final callback does not alter these steps. Resource initialization is observed through successful real session establishment, not inferred from reset alone; Section 8.2.1.5 leaves its details implementation-dependent. This row does not separately certify every timer/listener obligation in the full Idle action list. No new execution or discrimination observation; semantic source rejudgment only.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/fsm/fsm.go::handleIdle, internal/component/bgp/reactor/peer_run.go::runOnce moved. Re-judged 2026-10-26 (independent auditor, authored none of the change). RFC 4271 Section 8.2.2 (Idle), rfc/full/rfc4271.txt: &#34;In response to a ManualStart event (Event 1) or an AutomaticStart event (Event 3), the local system: - initializes all BGP resources for the peer connection, - sets ConnectRetryCounter to zero, - starts the ConnectRetryTimer with the initial value, - initiates a TCP connection to the other BGP peer, - listens for a connection that may be initiated by the remote BGP peer, and - changes its state to Connect.&#34; 8ad62e730f changed the producer peer_run.go::runOnce by one argument only: the deferred sessionDown now receives the session&#39;s receivePublication, so the close reason is derived after the delivery worker drains (sessionLeave.close, sessionCloseFor in peer_session_end.go). That path decides the close reason, session-dropped, the plugin down and the history row; it does not touch the ConnectRetryCounter, cycleReachedEstablished, newSession or the Event 3 / Event 6 / Event 1 choice. Re-read runOnce at HEAD: newSession creates fresh per-cycle session resources, SetConnectRetryCounter hands the FSM the peer-owned counter before the start event, cycleReachedEstablished.Swap(false) selects AutomaticStart (Event 3) after an Established cycle and the damped Event 6 otherwise, operatorStarted.Swap(true) keeps Event 1 for the first start, and the Established callback stores cycleReachedEstablished true. fsm.go::handleIdle and all five tagged units are unchanged. Re-read the tagged units independently: TestRFC4271AutomaticStartZeroesConnectRetryCounter seeds 7 in Idle and requires exactly 0 plus Connect (Active when passive) after Event 3; TestRFC4271AutomaticStartZeroesOnlyFromIdle requires Event 6 in Idle to keep 7 and Event 3 in every non-Idle state to keep 7 and the state; the live-peer reactor tests require 1 after an Established session ends by Cease or hold expiry and 0 on the next dial (Event 3), and 1 retained when the failed cycle never reached Established, including after an earlier Established cycle (discriminating a stale established flag). Exact-value assertions, isolated inputs, polarities violate this clause and not a neighbour. Ran the five tagged tests against a git archive HEAD export: all pass. Discrimination records are whole-body panic breaks of handleIdle, startAutomatic, startDamped and runOnce: they prove the tests reach those producers, not by themselves the exact clause; the exact-value assertions above carry that. Resource initialisation is observed through real session establishment per cycle, not separately asserted; Section 8.2.1.5 leaves its details implementation-dependent. This row does not certify the timer/TCP/listen/Connect list items beyond the Connect/Active state check, which belong to sibling rows. Verdict unchanged: enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_retry_test.go#L702" title="internal/component/bgp/fsm/rfc4271_connect_retry_test.go" target="_blank" rel="noopener"><code>TestRFC4271AutomaticStartZeroesOnlyFromIdle</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_retry_test.go#L701" title="internal/component/bgp/fsm/rfc4271_connect_retry_test.go" target="_blank" rel="noopener"><code>TestRFC4271AutomaticStartZeroesOnlyFromIdle</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go#L244" title="internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271FailedCycleAfterEstablishedKeepsCounter</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go#L479" title="internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271FailedCycleInboundShortenedBackoffKeepsCounter</code></a></td>
+<td>unit/verify</td>
+<td>mutant, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go#L191" title="internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271FailedCycleRestartKeepsCounter</code></a></td>
@@ -3616,7 +3622,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_retry_test.go#L673" title="internal/component/bgp/fsm/rfc4271_connect_retry_test.go" target="_blank" rel="noopener"><code>TestRFC4271AutomaticStartZeroesConnectRetryCounter</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_retry_test.go#L672" title="internal/component/bgp/fsm/rfc4271_connect_retry_test.go" target="_blank" rel="noopener"><code>TestRFC4271AutomaticStartZeroesConnectRetryCounter</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -3624,6 +3630,16 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go#L141" title="internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271AutomaticStartEvent3ZeroesCounter</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go#L497" title="internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271HoldExpiryInboundShortenedBackoffZeroesCounter</code></a></td>
+<td>unit/verify</td>
+<td>mutant, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go#L518" title="internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271PassiveAutomaticStartReconnectZeroesCounter</code></a></td>
+<td>unit/verify</td>
+<td>mutant, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -3760,7 +3776,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 </div>
 <h3><a href="#rfc4271-8.2.2-12"><code>RFC4271-8.2.2-12</code></a></h3>
 <p>If the local system receives a NOTIFICATION message (Event 24 or Event 25) or a TcpConnectionFails (Event 18) from the underlying TCP, the local system: - sets the ConnectRetryTimer to zero, - deletes all routes associated with this connection, - releases all the BGP resources, - drops the TCP connection, - increments the ConnectRetryCounter by 1 (§8.2.2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Peer level in Established with a Reactor observer: NOTIFICATION 2/1 (Event 24), Cease 6/2 (Event 25) and a far-end close (Event 18) each raise the peer-down for that neighbor, drop the session, stop the three timers and move the counter 0 -&gt; 1; for 24/25 Ze writes no NOTIFICATION and the far end reads EOF. Routes clause: the RIB unit drives handleStructuredState down and asserts that neighbor&#39;s routes are deleted and a bystander&#39;s kept. Negative: KEEPALIVE plus a well-formed UPDATE are dispatched with no peer-down, same session Established, timers running, counter 0. Records observed red: notifyPeerClosed (positive; the halt&#39;s own text is in the red, followed by &#39;fatal error: sync: Unlock of unlocked RWMutex&#39;, a consequence of FSM.change releasing f.mu around the transition callback while Event holds a deferred Unlock, so the red is the halt reaching the producer on this path; read independently, a silent no-op notifyPeerClosed fails the unit&#39;s 5 s peer-down t.Fatal), handleStructuredState (rib positive), handleKeepalive (negative). Not asserted end to end: the plugin dispatcher&#39;s translation of the reactor peer-down into the RIB&#39;s structured state event (same caveat as RFC4760-7-1). The ConnectRetryTimer clause holds by construction: fsm Timers.StartConnectRetryTimer has no non-test caller, so the peer-level &#39;not running&#39; assertion guards a future arming, and the HEAD rfc4271_test.go unit arms it and proves StopAll stops it.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterOnVersionErrorPerState moved. Peer level in Established with a Reactor observer: NOTIFICATION 2/1 (Event 24), Cease 6/2 (Event 25) and a far-end close (Event 18) each raise the peer-down for that neighbor, drop the session, stop the three timers and move the counter 0 -&gt; 1; for 24/25 Ze writes no NOTIFICATION and the far end reads EOF. Routes clause: the RIB unit drives handleStructuredState down and asserts that neighbor&#39;s routes are deleted and a bystander&#39;s kept. Negative: KEEPALIVE plus a well-formed UPDATE are dispatched with no peer-down, same session Established, timers running, counter 0. Records observed red: notifyPeerClosed (positive; the halt&#39;s own text is in the red, followed by &#39;fatal error: sync: Unlock of unlocked RWMutex&#39;, a consequence of FSM.change releasing f.mu around the transition callback while Event holds a deferred Unlock, so the red is the halt reaching the producer on this path; read independently, a silent no-op notifyPeerClosed fails the unit&#39;s 5 s peer-down t.Fatal), handleStructuredState (rib positive), handleKeepalive (negative). Not asserted end to end: the plugin dispatcher&#39;s translation of the reactor peer-down into the RIB&#39;s structured state event (same caveat as RFC4760-7-1). The ConnectRetryTimer clause holds by construction: fsm Timers.StartConnectRetryTimer has no non-test caller, so the peer-level &#39;not running&#39; assertion guards a future arming, and the HEAD rfc4271_test.go unit arms it and proves StopAll stops it.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -3778,7 +3794,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_retry_test.go#L318" title="internal/component/bgp/fsm/rfc4271_connect_retry_test.go" target="_blank" rel="noopener"><code>TestRFC4271ConnectRetryCounterOnVersionErrorPerState</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4760_peer_down_test.go#L51" title="internal/component/bgp/plugins/rib/rfc4760_peer_down_test.go" target="_blank" rel="noopener"><code>TestRFC4760PeerDownDeletesOnlyThatNeighborsRoutes</code></a></td>
@@ -3795,7 +3811,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 </div>
 <h3><a href="#rfc4271-8.2.2-13"><code>RFC4271-8.2.2-13</code></a></h3>
 <p>If the local system receives a TcpConnectionFails event (Event 18), the local system: - restarts the ConnectRetryTimer (with the initial value), - stops and clears the DelayOpenTimer (sets the value to zero), - releases all BGP resource, - increments the ConnectRetryCounter by 1 (§8.2.2)</p>
-<p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), fresh. Re-judged 2026-10-18 (independent auditor, after 56c2e06f0a). RFC 4271 Section 8.2.2 (Active) states: &#39;If the local system receives a TcpConnectionFails event (Event 18), the local system: - restarts the ConnectRetryTimer (with the initial value), - stops and clears the DelayOpenTimer (sets the value to zero), - releases all BGP resource, - increments the ConnectRetryCounter by 1, - optionally performs peer oscillation damping if the DampPeerOscillations attribute is set to TRUE, and - changes its state to Idle.&#39; Section 8.2.1.3: &#39;If the flag indicating support for an optional timer (DelayOpen or DampPeerOscillations) cannot be set to TRUE, the timers and events supporting that option do not have to be supported.&#39; 56c2e06f0a changed fsm.go::handleActive only by adding EventAutomaticStart to the ignored start-event arm (&#39;The start events (Events 1, 3-7) are ignored in the Active state&#39;); the Event 18 and TcpConnectionConfirmed arms are byte-for-byte unchanged. handleActive still moves Active to OpenSent at once on EventTCPConnectionConfirmed (DelayOpen FALSE path), no DelayOpenTimer exists in Ze, and the Event 18 arm only increments the counter and goes to Idle, without the restart/clear/release list. Event 3 with a passive peer enters Active exactly as Events 1 and 6 already did, so no new route holds a connection in Active. No test tags this row. The {gap} annotation (DelayOpen absent, an optional feature) still matches the code; DelayOpen remains planned in spec-bgp-fsm-delayopen-and-automatic-start row 6 but is not implemented by this commit. Verdict unchanged: unimplemented.</p>
+<p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), stale-unit: internal/component/bgp/fsm/fsm.go::handleActive moved. Re-judged 2026-10-18 (independent auditor, after 56c2e06f0a). RFC 4271 Section 8.2.2 (Active) states: &#39;If the local system receives a TcpConnectionFails event (Event 18), the local system: - restarts the ConnectRetryTimer (with the initial value), - stops and clears the DelayOpenTimer (sets the value to zero), - releases all BGP resource, - increments the ConnectRetryCounter by 1, - optionally performs peer oscillation damping if the DampPeerOscillations attribute is set to TRUE, and - changes its state to Idle.&#39; Section 8.2.1.3: &#39;If the flag indicating support for an optional timer (DelayOpen or DampPeerOscillations) cannot be set to TRUE, the timers and events supporting that option do not have to be supported.&#39; 56c2e06f0a changed fsm.go::handleActive only by adding EventAutomaticStart to the ignored start-event arm (&#39;The start events (Events 1, 3-7) are ignored in the Active state&#39;); the Event 18 and TcpConnectionConfirmed arms are byte-for-byte unchanged. handleActive still moves Active to OpenSent at once on EventTCPConnectionConfirmed (DelayOpen FALSE path), no DelayOpenTimer exists in Ze, and the Event 18 arm only increments the counter and goes to Idle, without the restart/clear/release list. Event 3 with a passive peer enters Active exactly as Events 1 and 6 already did, so no new route holds a connection in Active. No test tags this row. The {gap} annotation (DelayOpen absent, an optional feature) still matches the code; DelayOpen remains planned in spec-bgp-fsm-delayopen-and-automatic-start row 6 but is not implemented by this commit. Verdict unchanged: unimplemented.</p>
 <p>No test carries RFC4271-8.2.2-13, so no unit is bound to it.</p>
 <h3><a href="#rfc4271-8.2.2-14"><code>RFC4271-8.2.2-14</code></a></h3>
 <p>If the local system receives an UPDATE message, and the UPDATE message error handling procedure (see Section 6.3) detects an error (Event 28), the local system: - sends a NOTIFICATION message with an Update error, - sets the ConnectRetryTimer to zero, - deletes all routes associated with this connection, - releases all BGP resources, - drops the TCP connection, - increments the ConnectRetryCounter by 1 (§8.2.2)</p>
@@ -3805,17 +3821,17 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_retry_test.go#L442" title="internal/component/bgp/fsm/rfc4271_connect_retry_test.go" target="_blank" rel="noopener"><code>TestRFC4271ConnectRetryCounterQuietOnGoodUpdate</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_retry_test.go#L441" title="internal/component/bgp/fsm/rfc4271_connect_retry_test.go" target="_blank" rel="noopener"><code>TestRFC4271ConnectRetryCounterQuietOnGoodUpdate</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_established_teardown_peer_test.go#L158" title="internal/component/bgp/reactor/rfc4271_established_teardown_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271EstablishedGoodMessagesKeepTheConnection</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_retry_test.go#L422" title="internal/component/bgp/fsm/rfc4271_connect_retry_test.go" target="_blank" rel="noopener"><code>TestRFC4271ConnectRetryCounterIncrementsOnUpdateError</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_retry_test.go#L421" title="internal/component/bgp/fsm/rfc4271_connect_retry_test.go" target="_blank" rel="noopener"><code>TestRFC4271ConnectRetryCounterIncrementsOnUpdateError</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -3834,18 +3850,18 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 </div>
 <h3><a href="#rfc4271-8.2.2-15"><code>RFC4271-8.2.2-15</code></a></h3>
 <p>In response to any other events (Events 8, 10-11, 13, 19, 23, 25-28), the local system: - if the ConnectRetryTimer is running, stops and resets the ConnectRetryTimer (sets to zero), - if the DelayOpenTimer is running, stops and resets the DelayOpenTimer (sets to zero), - releases all BGP resources, - drops the TCP connection, - increments the ConnectRetryCounter by 1 (§8.2.2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Connect-state &#39;any other events&#39; list. FSM level (unchanged): every declared listed event (8, 10, 11, 19, 23, 25-28) in Connect moves counter 3-&gt;4 and Idle; Events 1/6/9 leave state and counter (handleConnect breaks observed red both polarities). Closes the c8 MISSING clauses at peer level: TestRFC4271ConnectAutomaticStopDuringTheDialReleasesThePeer holds a running dial-only Peer inside Session.Connect after the TCP handshake (heldDialer), teardownAutomatic (Event 8) -&gt; Idle, counter 3-&gt;4; when the dial returns the far end reads 0 octets then EOF (TCP connection dropped, no OPEN), session.Conn nil, Peer drops the session, Hold/Keepalive/ConnectRetry timers not running, counter stays 4 for 300 ms (Session.Connect break observed red). Negative: Event 1 during the dial keeps Connect and counter 3, and the far end reads an OPEN on the same connection, same unsealed session (handleConnect break observed red). Ze has no DelayOpenTimer and never starts the ConnectRetryTimer, so both conditional clauses never trigger. Event 13 not declared (optional damping). The Active peer-level units still carry 8.2.2-15 tags; they prove the Active sentence (now row 8.2.2-21) and are supplementary here.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/fsm/rfc4271_connect_any_other_event_test.go::TestRFC4271ConnectActiveAnyOtherEventCountsAndDropsToIdle moved. Connect-state &#39;any other events&#39; list. FSM level (unchanged): every declared listed event (8, 10, 11, 19, 23, 25-28) in Connect moves counter 3-&gt;4 and Idle; Events 1/6/9 leave state and counter (handleConnect breaks observed red both polarities). Closes the c8 MISSING clauses at peer level: TestRFC4271ConnectAutomaticStopDuringTheDialReleasesThePeer holds a running dial-only Peer inside Session.Connect after the TCP handshake (heldDialer), teardownAutomatic (Event 8) -&gt; Idle, counter 3-&gt;4; when the dial returns the far end reads 0 octets then EOF (TCP connection dropped, no OPEN), session.Conn nil, Peer drops the session, Hold/Keepalive/ConnectRetry timers not running, counter stays 4 for 300 ms (Session.Connect break observed red). Negative: Event 1 during the dial keeps Connect and counter 3, and the far end reads an OPEN on the same connection, same unsealed session (handleConnect break observed red). Ze has no DelayOpenTimer and never starts the ConnectRetryTimer, so both conditional clauses never trigger. Event 13 not declared (optional damping). The Active peer-level units still carry 8.2.2-15 tags; they prove the Active sentence (now row 8.2.2-21) and are supplementary here.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_any_other_event_test.go#L79" title="internal/component/bgp/fsm/rfc4271_connect_any_other_event_test.go" target="_blank" rel="noopener"><code>TestRFC4271ConnectActiveUnlistedEventKeepsTheState</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_any_other_event_test.go#L78" title="internal/component/bgp/fsm/rfc4271_connect_any_other_event_test.go" target="_blank" rel="noopener"><code>TestRFC4271ConnectActiveUnlistedEventKeepsTheState</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_retry_test.go#L499" title="internal/component/bgp/fsm/rfc4271_connect_retry_test.go" target="_blank" rel="noopener"><code>TestRFC4271ConnectRetryCounterIdleDefaultArmCountsNothing</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_retry_test.go#L498" title="internal/component/bgp/fsm/rfc4271_connect_retry_test.go" target="_blank" rel="noopener"><code>TestRFC4271ConnectRetryCounterIdleDefaultArmCountsNothing</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -3862,10 +3878,10 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_any_other_event_test.go#L44" title="internal/component/bgp/fsm/rfc4271_connect_any_other_event_test.go" target="_blank" rel="noopener"><code>TestRFC4271ConnectActiveAnyOtherEventCountsAndDropsToIdle</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_retry_test.go#L464" title="internal/component/bgp/fsm/rfc4271_connect_retry_test.go" target="_blank" rel="noopener"><code>TestRFC4271ConnectRetryCounterIncrementsOnAnyOtherEvent</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_retry_test.go#L463" title="internal/component/bgp/fsm/rfc4271_connect_retry_test.go" target="_blank" rel="noopener"><code>TestRFC4271ConnectRetryCounterIncrementsOnAnyOtherEvent</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -4070,7 +4086,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_retry_test.go#L596" title="internal/component/bgp/fsm/rfc4271_connect_retry_test.go" target="_blank" rel="noopener"><code>TestRFC4271ConnectRetryCounterAutomaticStopIsNotAManualStop</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_retry_test.go#L595" title="internal/component/bgp/fsm/rfc4271_connect_retry_test.go" target="_blank" rel="noopener"><code>TestRFC4271ConnectRetryCounterAutomaticStopIsNotAManualStop</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -4080,7 +4096,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_retry_test.go#L570" title="internal/component/bgp/fsm/rfc4271_connect_retry_test.go" target="_blank" rel="noopener"><code>TestRFC4271ConnectRetryCounterIncrementsOnAutomaticStop</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_retry_test.go#L569" title="internal/component/bgp/fsm/rfc4271_connect_retry_test.go" target="_blank" rel="noopener"><code>TestRFC4271ConnectRetryCounterIncrementsOnAutomaticStop</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -4100,7 +4116,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_retry_test.go#L651" title="internal/component/bgp/fsm/rfc4271_connect_retry_test.go" target="_blank" rel="noopener"><code>TestRFC4271ConnectRetryCounterCollisionDumpIsQuietInIdle</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_retry_test.go#L650" title="internal/component/bgp/fsm/rfc4271_connect_retry_test.go" target="_blank" rel="noopener"><code>TestRFC4271ConnectRetryCounterCollisionDumpIsQuietInIdle</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -4110,7 +4126,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_retry_test.go#L627" title="internal/component/bgp/fsm/rfc4271_connect_retry_test.go" target="_blank" rel="noopener"><code>TestRFC4271ConnectRetryCounterIncrementsOnOpenCollisionDump</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_retry_test.go#L626" title="internal/component/bgp/fsm/rfc4271_connect_retry_test.go" target="_blank" rel="noopener"><code>TestRFC4271ConnectRetryCounterIncrementsOnOpenCollisionDump</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -4132,7 +4148,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_hold_time_config_test.go#L75" title="internal/component/bgp/reactor/rfc4271_hold_time_config_test.go" target="_blank" rel="noopener"><code>TestRFC4271HoldTimeUnconfiguredPeerKeepsTheDefault</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L283" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271PerPeerHoldTimeSurvivesNegotiation</code></a></td>
@@ -4142,7 +4158,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_hold_time_config_test.go#L53" title="internal/component/bgp/reactor/rfc4271_hold_time_config_test.go" target="_blank" rel="noopener"><code>TestRFC4271HoldTimeConfiguredPerPeerFromConfig</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L259" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271HoldTimeConfigurablePerPeer</code></a></td>
@@ -4251,7 +4267,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_ibgp_aspath_export_test.go#L283" title="internal/component/bgp/reactor/rfc4271_ibgp_aspath_export_test.go" target="_blank" rel="noopener"><code>TestRFC4271ForwardExportASPathEditsSkipInternalPeers</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_ibgp_aspath_export_test.go#L202" title="internal/component/bgp/reactor/rfc4271_ibgp_aspath_export_test.go" target="_blank" rel="noopener"><code>TestRFC4271PolicyDryRunAgreesNoASPathEditTowardAnInternalPeer</code></a></td>
@@ -4261,7 +4277,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_reactor_a2_forward_test.go#L94" title="internal/component/bgp/reactor/rfc4271_reactor_a2_forward_test.go" target="_blank" rel="noopener"><code>TestRFC4271ForwardASPathUnmodifiedTowardInternalPeer</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L146" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271ASPathPrependedTowardExternalPeer</code></a></td>
@@ -4271,7 +4287,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_reactor_a2_forward_test.go#L93" title="internal/component/bgp/reactor/rfc4271_reactor_a2_forward_test.go" target="_blank" rel="noopener"><code>TestRFC4271ForwardASPathUnmodifiedTowardInternalPeer</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_reactor_batch_test.go#L569" title="internal/component/bgp/reactor/rfc4271_reactor_batch_test.go" target="_blank" rel="noopener"><code>TestEstablishedAnnounce_ExplicitASPath_IBGPVerbatim</code></a></td>
@@ -4351,7 +4367,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_med_ingress_test.go#L43" title="internal/component/bgp/reactor/rfc4271_med_ingress_test.go" target="_blank" rel="noopener"><code>TestRFC4271ReceivedMEDAlteredBeforeTheDecisionProcess</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L455" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271MEDAlterationHappensAtIngress</code></a></td>
@@ -4537,7 +4553,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 </div>
 <h3><a href="#rfc4271-9-3"><code>RFC4271-9-3</code></a></h3>
 <p>Once the BGP speaker updates the Adj-RIB-In, the speaker SHALL run its Decision Process. (§9)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. No unit calls checkBestPathChange itself. Positive: one received UPDATE puts the route in the Loc-RIB and publishes exactly one BestChangeAdd. Negative: peer A&#39;s withdrawal of the selected route leaves peer B&#39;s route installed, which a skipped run (stale best or none) fails. Judge mutants 2026-09-30 (go test -overlay, tree untouched): removing the decision run for legacy withdrawals reddens the negative.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 4271 Section 9: &#34;Once the BGP speaker updates the Adj-RIB-In, the speaker SHALL run its Decision Process.&#34; Re-judged 2026-10-26 by an independent auditor: the rib_bestchange_test.go units lost their tags, leaving the two plugins/rib/rfc4271_receive_decision_test.go carriers, both byte-identical to the units previously judged. Both feed an UPDATE body to handleReceivedStructured, never calling checkBestPathChange. Positive: one received route reaches the Loc-RIB with next hop 10.0.0.1 and exactly one BestChangeAdd names 10.0.0.0/8. Negative: after peer A withdraws its selected route, the Loc-RIB holds peer B&#39;s 10.0.0.2 rather than A&#39;s stale route or none, so a skipped run on the withdrawal update fails. The pair is two triggers of one obligation (announce, withdraw) rather than a confining case; no conforming input exists where the process must not run, so this is the strongest available pair. Discrimination records verified: revert of rib_bestchange.go::checkRouteBestChange reddens both units.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -4547,20 +4563,10 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
-<tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go#L668" title="internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go" target="_blank" rel="noopener"><code>TestRIBBestChangeNoPublishSameBest</code></a></td>
-<td>unit/verify</td>
-<td>unproven</td>
-</tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go#L194" title="internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go" target="_blank" rel="noopener"><code>TestRFC4271AdjRIBInUpdateRunsTheDecisionProcess</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
-</tr>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go#L704" title="internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go" target="_blank" rel="noopener"><code>TestRIBBestChangeWithdraw</code></a></td>
-<td>unit/verify</td>
-<td>unproven</td>
 </tr>
 </tbody>
 </table>
@@ -4616,7 +4622,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <p>No test carries RFC4271-9.1.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4271-9.1.2-2"><code>RFC4271-9.1.2-2</code></a></h3>
 <p>The local speaker SHALL then install that route in the Loc-RIB, replacing any route to the same destination that is currently being held in the Loc-RIB. (§9.1.2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Through handleReceivedStructured: positive, peer B&#39;s better route replaces peer A&#39;s as the Loc-RIB best (next hop 10.0.0.1 -&gt; 10.0.0.2); negative, the destination&#39;s Loc-RIB group holds exactly one BGP path afterwards, peer B&#39;s, so install-beside fails. HEAD rib_bestchange_test units kept as supplementary. Re-read 2026-10-01 (c10 judge): the only change under this verdict is a tag comment line for another id (RFC4271-6.7-1 / RFC4271-Security-1 added, RFC4271-9.1.2.1-1 removed) in the unit&#39;s doc comment; every assertion is byte-identical, so the judgement stands.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 4271 Section 9.1.2: &#34;The local speaker SHALL then install that route in the Loc-RIB, replacing any route to the same destination that is currently being held in the Loc-RIB.&#34; Re-judged 2026-10-26 by an independent auditor: TestRIBBestChangeWithdraw lost its tag; the remaining carriers are TestRFC4271SelectedRouteReplacesTheLocRIBRoute and TestRFC4271LocRIBHoldsOnlyTheReplacingRoute (receive path through handleReceivedStructured, byte-identical to the units judged before) and TestLocRIBMirror (supplementary positive: checkBestPathChange installs the best in a locrib with eBGP admin distance and NEXT_HOP). Positive: peer B&#39;s better route replaces peer A&#39;s as the Loc-RIB best (10.0.0.1 -&gt; 10.0.0.2). Negative: the destination&#39;s Loc-RIB group holds exactly one BGP path, peer B&#39;s, so install-beside fails. Both clauses (install, replacing) are asserted. Discrimination records verified: revert of rib_remote.go::insertLocRIB reddens both receive-path units.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -4626,18 +4632,13 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
-<tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go#L709" title="internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go" target="_blank" rel="noopener"><code>TestRIBBestChangeWithdraw</code></a></td>
-<td>unit/verify</td>
-<td>unproven</td>
-</tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go#L239" title="internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go" target="_blank" rel="noopener"><code>TestRFC4271SelectedRouteReplacesTheLocRIBRoute</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go#L1626" title="internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go" target="_blank" rel="noopener"><code>TestLocRIBMirror</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go#L1611" title="internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go" target="_blank" rel="noopener"><code>TestLocRIBMirror</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -4657,7 +4658,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go#L1628" title="internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go" target="_blank" rel="noopener"><code>TestLocRIBMirror</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go#L1613" title="internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go" target="_blank" rel="noopener"><code>TestLocRIBMirror</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -4849,7 +4850,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_overlap_acceptance_test.go#L99" title="internal/component/bgp/reactor/rfc4271_overlap_acceptance_test.go" target="_blank" rel="noopener"><code>TestRFC4271OverlappingRoutesAcceptedByPolicyBothReachTheDecisionProcess</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -4947,15 +4948,15 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_ibgp_split_horizon_test.go#L35" title="internal/component/bgp/reactor/rfc4271_ibgp_split_horizon_test.go" target="_blank" rel="noopener"><code>TestRFC4271ForwardRailNeverRedistributesInternalRoutesToInternalPeers</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L570" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271IBGPRedistributionAllowedForReflectorClient</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L573" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271IBGPRedistributionAllowedForReflectorClient</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L511" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271NoIBGPToIBGPRedistribution</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L514" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271NoIBGPToIBGPRedistribution</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -4964,38 +4965,43 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 </div>
 <h3><a href="#rfc4271-9.2-7"><code>RFC4271-9.2-7</code></a></h3>
 <p>All newly installed routes and all newly unfeasible routes for which there is no replacement route SHALL be advertised to its peers by means of an UPDATE message. (§9.2)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. positive calls checkBestPathChange directly after FamilyRIB.Remove and asserts a BestChangeWithdraw event; no UPDATE to a peer is asserted, and the &#39;newly installed routes&#39; half of the sentence carries no tag. Negative is an unchanged-best re-run</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 4271 Section 9.2: &#34;All newly installed routes and all newly unfeasible routes for which there is no replacement route SHALL be advertised to its peers by means of an UPDATE message.&#34; Re-judged 2026-10-26 by an independent auditor after the tags moved from plugins/rib/rfc4271_rib_bestchange_test.go (745b0890f8) to reactor/rfc4271_rs_replacement_test.go. Both carriers drive the real bgp-rs, bgp-rib and bgp-adj-rib-in over live TCP sessions and judge the client&#39;s replayed TCP history behind a causal fence taken once the client owes nothing. Positive TestRFC4271RouteServerLastSourceWithdrawalIsSent: the only source withdraws P; the client no longer holds P, saw exactly one withdrawal of P and exactly one announcement (no re-announcement), so the no-replacement clause is asserted at the wire, not as an internal event. Negative TestRFC4271RouteServerOwnerWithdrawalSendsReplacement: the owner of the held best withdraws while another source&#39;s route is retained; the client ends on the retained route&#39;s exact attributes with zero withdrawals of P, which proves both the newly installed replacement is advertised and the bare withdrawal is confined to the no-replacement case; the earlier newly-installed steps (B&#39;s route, then A&#39;s better route reaching C) are also asserted. Discrimination records verified: revert of relay_recovery.go::queueRecoveryWithdrawal reddens the positive; mutant owesWithdrawal &#39;entry == nil&#39; -&gt; true (owner withdrawal sent bare) reddens the negative. The earlier weak finding (an internal BestChangeWithdraw event, no UPDATE, no newly-installed carrier) is answered by the new units. Scope read: owesWithdrawal/oweAnnouncement (session_ownership.go) and recoveryOwedFor (recovery_owed.go) do not branch on RSClient, so the RS-client fixture exercises the general non-ADD-PATH path; when the RIB recovery owner is not attached to the source, the bare withdrawal is sent with a warning naming the attach fix (ownerReceives), a misconfiguration path no tag covers.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go#L671" title="internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go" target="_blank" rel="noopener"><code>TestRIBBestChangeNoPublishSameBest</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_rs_replacement_test.go#L42" title="internal/component/bgp/reactor/rfc4271_rs_replacement_test.go" target="_blank" rel="noopener"><code>TestRFC4271RouteServerOwnerWithdrawalSendsReplacement</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go#L707" title="internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go" target="_blank" rel="noopener"><code>TestRIBBestChangeWithdraw</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_rs_replacement_test.go#L88" title="internal/component/bgp/reactor/rfc4271_rs_replacement_test.go" target="_blank" rel="noopener"><code>TestRFC4271RouteServerLastSourceWithdrawalIsSent</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>mutant, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc4271-9.2-8"><code>RFC4271-9.2-8</code></a></h3>
 <p>Any routes in the Loc-RIB marked as unfeasible SHALL be removed (§9.2)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 4271 Section 9.2: &#34;Any routes in the Loc-RIB marked as unfeasible SHALL be removed.&#34; First judgement 2026-10-26 by an independent auditor. Positive TestLocRIBMirror (plugins/rib/rfc4271_rib_bestchange_test.go): after the only route is removed from the Adj-RIB-In and the decision re-runs, loc.Best reports the prefix absent; it calls checkBestPathChange directly rather than through a received withdrawal (the receive path running the decision is 9-3&#39;s carrier) and carries no discrimination record, but its assertion is exact and fails if the no-candidate branch of checkRouteBestChange stopped calling removeLocRIB. Negatives (reactor/rfc4271_rs_replacement_test.go, split in 1d549b72cd, live bgp-rs/bgp-rib/bgp-adj-rib-in sessions): a second source&#39;s worse route is announced then withdrawn while the best stays feasible; TestRFC4271RouteServerStillFeasibleRouteStaysInLocRIB reads locrib.Default() behind a causal fence (bgp-rib stored B&#39;s marker sent after its withdrawal) and requires P still installed with A&#39;s NEXT_HOP, which confines removal to unfeasible routes; TestRFC4271RouteServerStillFeasibleRouteIsNotWithdrawn requires the client wire to keep A&#39;s route with one announcement and zero withdrawals, the wire consequence of the feasible route staying. Discrimination records verified for both negatives: mutant checkRouteBestChange &#39;newBest == nil&#39; -&gt; true reddens the Loc-RIB unit; mutant oweAnnouncement contest test -&gt; true reddens the wire unit. Two negatives for one requirement are distinct observations (Loc-RIB, wire), not one assertion wearing two hats.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go#L673" title="internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go" target="_blank" rel="noopener"><code>TestRIBBestChangeNoPublishSameBest</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_rs_replacement_test.go#L180" title="internal/component/bgp/reactor/rfc4271_rs_replacement_test.go" target="_blank" rel="noopener"><code>TestRFC4271RouteServerStillFeasibleRouteIsNotWithdrawn</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_rs_replacement_test.go#L215" title="internal/component/bgp/reactor/rfc4271_rs_replacement_test.go" target="_blank" rel="noopener"><code>TestRFC4271RouteServerStillFeasibleRouteStaysInLocRIB</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go#L1631" title="internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go" target="_blank" rel="noopener"><code>TestLocRIBMirror</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go#L1616" title="internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go" target="_blank" rel="noopener"><code>TestLocRIBMirror</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -5012,7 +5018,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_own_as_change_test.go#L128" title="internal/component/bgp/reactor/rfc4271_own_as_change_test.go" target="_blank" rel="noopener"><code>TestRFC4271OwnASDestinationBecomingUnreachableIsSentToPeers</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L429" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271OwnASUnreachabilityChangeAdvertised</code></a></td>
@@ -6347,8 +6353,10 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
         <footer>
             <div class="footer-inner">
                 <div class="footer-bottom">
+                    <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 11:16 UTC</span>
+                    <a href="../../../legal/">Legal notice</a>
+                    <span class="footer-published">Published 27 October 2026 17:34 UTC</span>
                 </div>
             </div>
         </footer>

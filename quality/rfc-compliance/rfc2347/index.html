@@ -252,7 +252,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Enrolled: TFTP Option Extension: four MUST-level obligations in three rows. The two server-side requirements are tested with both polarities via loopback OACK round-trips in rfc2347_option_negotiation_test.go (producer: parseRRQ + sendOACKAndWait oackOpts assembly, internal/plugins/tftpserver/handler.go): RFC2347-x-1 (server MUST NOT include in the OACK any option not requested by the client) via TestRFC2347ServerOACKOnlyRequestedOptions (requesting only blksize yields an OACK with blksize but no tsize); RFC2347-x-3 (an option not acknowledged is ignored as if never requested) via TestRFC2347ServerIgnoresUnacknowledgedOption (a requested-but-unsupported windowsize is omitted from the OACK and the server falls back to lockstep, handler.go:276, while the supported blksize is still acknowledged). The client-side sentence is one row, {not-applicable}: RFC2347-x-4 (the client MUST use acknowledged options and MUST NOT use unacknowledged ones) governs a TFTP CLIENT, and Ze ships only a TFTP server with no client. RFC2347-x-2, which quoted the first half of the same sentence, was retired into x-4 on 2026-09-30 (rfc/corrections/rfc2347.md). No SHOULD/MAY requirements are gated.</p>
+<p>Enrolled: TFTP Option Extension: four MUST-level obligations in three rows. The two server-side requirements are tested with both polarities via loopback OACK round-trips in rfc2347_option_negotiation_test.go (producer: parseRRQ + sendOACKAndWait oackOpts assembly, internal/plugins/tftpserver/handler.go): RFC2347-x-1 (server MUST NOT include in the OACK any option not requested by the client) via TestRFC2347ServerOACKOnlyRequestedOptions (requesting only blksize yields an OACK with blksize but no tsize); RFC2347-x-3 (an option not acknowledged is ignored as if never requested) via TestRFC2347ServerIgnoresUnacknowledgedOption (a requested-but-unsupported windowsize, asked beside blksize, draws an OACK, not an ERROR, that omits it, because sendOACKAndWait assembles oackOpts from blksize and tsize only, while the supported blksize is still acknowledged). The client-side sentence is one row, {not-applicable}: RFC2347-x-4 (the client MUST use acknowledged options and MUST NOT use unacknowledged ones) governs a TFTP CLIENT, and Ze ships only a TFTP server with no client. RFC2347-x-2, which quoted the first half of the same sentence, was retired into x-4 on 2026-09-30 (rfc/corrections/rfc2347.md). No SHOULD/MAY requirements are gated.</p>
 </section>
 <section><h2>What the public ledger says</h2>
 <p><strong>Status:</strong> Supported</p>
@@ -406,7 +406,7 @@ No tracked gap in current source anchors.
 </div>
 <h3><a href="#rfc2347-x-3"><code>RFC2347-x-3</code></a></h3>
 <p>An option not acknowledged by the server must be ignored by the client and server as if it were never requested. (§Negotiation)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Server half: TestRFC2347UnacknowledgedOptionIsNotUsed reads past the OACK. windowsize 4 beside blksize 1024: windowsize absent from the OACK and no block 2 within 1 s before ACK 1 (red on a windowed send); declined blksize 7 and 65465 are absent and block 1 is the default 512 (red on using the declined size). Negative: the acked blksize 1024 is used (block 1 = 1024), so the ignore is not a blanket drop. The client half binds a TFTP client, which Ze does not have.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged after the x-3 positive claim was narrowed following a refused audit. RFC 2347 Negotiation: &#39;An option not acknowledged by the server must be ignored by the client and server as if it were never requested.&#39; Server half, as-if-never-requested read at two boundaries. (1) TestRFC2347ServerIgnoresUnacknowledgedOption: RRQ blksize 1200 + windowsize 4 (windowsize the only unsupported option, blksize valid, so nothing else can trip). readServerOACKOptions Fatalf&#39;s unless the first reply is an OACK, so an ERROR on the unsupported option is red (recorded: revert of sendOACKAndWait, observed &#39;first response opcode = 5, want OACK (6)&#39;); the exact-key check on opts[windowsize] is red on any OACK that carries it (a one-line append in sendOACKAndWait, where oackOpts is built from blksize and tsize only) - this clause has no record of its own and is judged by reading. Negative: blksize stays acknowledged, so the ignore is not a blanket drop. The claim states exactly these two clauses and no more. (2) TestRFC2347UnacknowledgedOptionIsNotUsed reads past the OACK: windowsize absent and no block 2 before ACK 1 (red on a windowed send); declined blksize 7 and 65465 absent and block 1 is 512; acked blksize 1024 is used. The client half binds a TFTP client, which Ze does not have (x-4). Stronger single record for the negotiation-test positive: a mutant appending windowsize to oackOpts, since the revert also reddens a copy of the test with its windowsize assertion removed.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -536,8 +536,10 @@ No tracked gap in current source anchors.
         <footer>
             <div class="footer-inner">
                 <div class="footer-bottom">
+                    <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
+                    <a href="../../../legal/">Legal notice</a>
+                    <span class="footer-published">Published 27 October 2026 23:56 UTC</span>
                 </div>
             </div>
         </footer>

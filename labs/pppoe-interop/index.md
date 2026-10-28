@@ -17,10 +17,10 @@ A peer-isolated Docker lab proves Ze's PPPoE client discovers, negotiates PPP, a
 
 ```
 # Docker lab
-$ ./le deployment docker-pppoe-accel-test
+$ ./le deployment docker-pppoe-accel
 
 # native Linux network-namespace path
-$ ./le qemu pppoe-accel-test
+$ ./le qemu pppoe-accel
 ```
 
 `Prerequisites`

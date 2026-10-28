@@ -136,6 +136,44 @@ nobody else committed.
 <!-- source: internal/component/config/change_file.go -- PendingChange.Summary -->
 <!-- source: internal/component/config/confirm/confirm.go -- ErrPending -->
 
+A newly created list entry is a pending change even when it contains no leaf
+values. `show | changes` lists it as `set <entry path>`. Loading a block such as
+an empty dummy interface or an interface-only static next hop preserves that
+entry through save and commit; it does not need a placeholder description or
+another leaf. Discarding the creation removes the pending entry, including
+after it was saved to the draft or subsequently deleted without saving, unless
+another pending edit or the committed configuration still owns it. Newly
+materialized list-entry ancestors are removed too when nothing still owns them;
+existing ancestors are retained.
+<!-- source: internal/component/cli/editor_draft.go -- writeThroughCreate -->
+<!-- source: internal/component/cli/editor_create_entry.go -- pruneDiscardedCreations -->
+
+Saving an entry before renaming it does not leave a second, unowned copy at
+the old name. Copying an entry retains this session's pending leaf edits,
+including edits already saved to the draft, without copying another session's
+ownership. Its member inactivity and child edits remain as they were at copy
+time, even if the source is renamed or edited afterward. Renaming or copying
+an ancestor also preserves the ordered effects of its pending child edits:
+a child created and then deleted stays deleted.
+An existing entry renamed more than once still checks its original committed
+source, not an intermediate name. Saving between those renames continues from
+the materialized entry without moving it back through its old name; another
+session's new entry at that old name is preserved. String keys containing spaces
+or `#` keep their boundaries through save, rename, copy, commit and discard,
+including leaf-list member toggles below those keys.
+<!-- source: internal/component/cli/editor_create_entry.go -- planCreations, prepareDraftReplay, rebaseCreatedMetadata, pruneCreationMaterializations -->
+<!-- source: internal/component/config/meta.go -- SessionEntries -->
+<!-- source: internal/component/config/change_file.go -- structural operation codecs -->
+
+If a pending creation's ownership path cannot be parsed or resolved against
+the schema, commit and discard report an error rather than treating it as
+unowned. A forced commit does not bypass that uncertainty. After an edit has
+already succeeded, an inconclusive overlap check is reported as
+`conflict check failed`, separately from a known conflict; the edit stays
+pending.
+<!-- source: internal/component/cli/editor_draft.go -- liveOverlaps, detectConflicts -->
+<!-- source: internal/component/cli/model_commands_edit.go -- appendConflictStatus -->
+
 `commit now` reaches the same reload as `ze signal reload`. Which configuration
 changes stop a session, and in what order, is in
 [The order of a commit](https://github.com/ze-software/ze/blob/main/docs/guide/config-reload.md#the-order-of-a-commit).
@@ -173,6 +211,11 @@ so do its `--dry-run` line, the `set` status line of the SSH CLI editor, the
 adoption prompt of `ze config edit`, and both sides of a commit conflict. A
 refusal names the rule the value broke and not the value. The path stays in the
 clear, so the operator still reads which leaf was written.
+
+To read the actual value of a `ze:sensitive` leaf, copy its `$9$` form from
+the config file and run `ze secret decode '$9$...'`, or `ze secret decode -`
+to keep the value out of the shell history. A `ze:bcrypt` leaf holds a one-way
+hash, which no command can decode.
 <!-- source: internal/component/config/mask.go -- LeafHoldsSecret, MaskSecrets, SecretKeys, DisplayValueAtPath, DisplayMessageAtPath -->
 <!-- source: internal/component/config/cli/cmd_diff.go -- maskDiffSecrets -->
 <!-- source: internal/component/config/cli/cmd_set.go -- cmdSetImpl -->
@@ -458,6 +501,19 @@ from configuration mode behind `run `, and the keys are in the
 | *or* timer expires | Config reverts automatically |
 
 The seconds parameter accepts values from 1 to 3600 (one hour).
+
+Every write to the daemon's configuration (a commit from any editor, an
+accept, an abort, a gNMI Set, an API config session, a managed push) runs on
+the daemon's one commit-confirm worker. A Ze defect met during one write ends
+that write only: its caller gets an error saying the write may be partly
+applied and naming the `ze show crashes` record, and the worker serves the
+next write and keeps the open window's deadline. A `commit confirmed` whose
+apply met the defect still opens its window, so its deadline, or `commit
+abort`, reverts whatever part of it applied. The panic is counted in
+`ze_task_panics_total{component="config-confirm",task="write"}`
+([Monitoring](../monitoring/index.md), "Contained Panics").
+<!-- source: internal/component/config/confirm/panic_guard.go -- Window.write, writeEndedByPanic -->
+<!-- source: internal/component/config/confirm/confirm.go -- Window.applyArmed -->
 
 In an SSH session editor or the web editor of the daemon's own
 configuration, the daemon owns the window, not your session. Both editors

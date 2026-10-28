@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0.0% | 0 of 67 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 67 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 67 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 87.6% | 191 of 218 tagged units, 2 escaped and 0 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 84.9% | 185 of 218 tagged units, 2 escaped and 6 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 | Audit verdicts | 69 | of 67 gated MUSTs judged | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 ### Neutral
@@ -272,9 +272,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Engi
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC2328FloodingRequiresExchangeOrHigher`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_test.go#L20) | unit/verify | revert, verified |
-| negative | [`TestRFC2328LSUpdateBelowExchangeDroppedByEngine`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_flood_state_gate_test.go#L83) | unit/verify | revert, verified |
+| negative | [`TestRFC2328LSUpdateBelowExchangeDroppedByEngine`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_flood_state_gate_test.go#L83) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | positive | [`TestRFC2328FloodingRequiresExchangeOrHigher`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_test.go#L17) | unit/verify | revert, verified |
-| positive | [`TestRFC2328LSUpdateFromExchangeNeighborProcessed`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_flood_state_gate_test.go#L120) | unit/verify | revert, verified |
+| positive | [`TestRFC2328LSUpdateFromExchangeNeighborProcessed`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_flood_state_gate_test.go#L120) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC2328-13.7-1`](#rfc2328-13.7-1)
 
@@ -285,7 +285,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Firs
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC2328LSAckBelowExchangeDiscarded`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_active_neighbor_test.go#L209) | unit/verify | revert, verified |
-| positive | [`TestRFC2328ActiveNeighborPacketsProcessed`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_active_neighbor_test.go#L174) | unit/verify | revert, verified |
+| positive | [`TestRFC2328ActiveNeighborPacketsProcessed`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_active_neighbor_test.go#L174) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC2328-13.1-1`](#rfc2328-13.1-1)
 
@@ -691,7 +691,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 | negative | [`TestRFC2328NullAuTypeIntoPasswordAreaDroppedForAuType`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_autype_test.go#L48) | unit/verify | revert, verified |
 | negative | [`TestRFC2328PasswordAuTypeIntoNullAreaDropped`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_autype_test.go#L78) | unit/verify | revert, verified |
 | negative | [`TestOSPFReceiveDropsMismatchedAuType`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_receive_test.go#L116) | unit/verify | revert, verified |
-| positive | [`TestOSPFReceiveAcceptsMatchingAuType`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_receive_test.go#L94) | unit/verify | revert, verified |
+| positive | [`TestOSPFReceiveAcceptsMatchingAuType`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_receive_test.go#L94) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC2328-8.2-4`](#rfc2328-8.2-4)
 
@@ -701,8 +701,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Firs
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC2328UnauthenticatedPacketDropped`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_packet_authenticated_test.go#L53) | unit/verify | revert, verified |
-| positive | [`TestRFC2328AuthenticatedPacketAccepted`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_packet_authenticated_test.go#L39) | unit/verify | revert, verified |
+| negative | [`TestRFC2328UnauthenticatedPacketDropped`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_packet_authenticated_test.go#L53) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC2328AuthenticatedPacketAccepted`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_packet_authenticated_test.go#L39) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC2328-8.2-5`](#rfc2328-8.2-5)
 

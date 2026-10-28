@@ -69,11 +69,12 @@ directives, fuzz target list), see <code>docs/functional-tests.md</code>.</p>
 <li><a href="#interop-and-integration-tests">Interop and integration tests</a></li>
 </ol></li>
 <li><a href="#when-a-test-must-be-weakened">When a test must be weakened</a></li>
-<li><a href="#how-le-verify-current-works">How ./le verify current works</a>
+<li><a href="#how-thomass-release-check-works">How Thomas&#39;s release check works</a>
 <ol>
 <li><a href="#the-builds-the-linter-reads">The builds the linter reads</a></li>
 <li><a href="#waiting-for-the-linters-own-lock">Waiting for the linter&#39;s own lock</a></li>
 <li><a href="#the-post-edit-lint-takes-no-index-lock">The post-edit lint takes no index lock</a></li>
+<li><a href="#post-tool-hooks-block-only-on-the-authors-own-files">Post-tool hooks block only on the author&#39;s own files</a></li>
 <li><a href="#the-slot-a-lint-holds">The slot a lint holds</a></li>
 <li><a href="#the-accounting-every-gate-owes-its-population">The accounting every gate owes its population</a></li>
 <li><a href="#the-exemptions-are-a-population-too">The exemptions are a population too</a></li>
@@ -94,11 +95,18 @@ directives, fuzz target list), see <code>docs/functional-tests.md</code>.</p>
 </ol></details></nav><div class="doc-body">
 <h2 id="first-time-setup">First-time setup</h2>
 <pre><code class="language-sh">./le setup install
-./le verify current
+./le setup check
+./le job run label unit-pkg command go test ./internal/core/textbuf/
 </code></pre>
+<p><code>./le setup check</code> reports every tool setup installs, and the scoped package
+test proves the checkout builds and its tests run
+(<code>../guide/developer-setup.md</code>, "After Setup").</p>
+<p><code>./le verify current</code> is the full verification, Thomas's release check. It runs
+only when stdin and stdout are both terminals, so Thomas starts it by hand at
+one; an agent is refused, and its evidence is <code>./le verify changed</code>.</p>
 <p><code>./le</code> is the compiled repository development entry point. Each area exposes
 its own verbs, for example <code>./le test functional plugin</code>,
-<code>./le test qemu install-iso-test</code>, and <code>./le test unit bgp</code>. Legacy command names
+<code>./le test qemu installer-iso</code>, and <code>./le test unit bgp</code>. Legacy command names
 have no compatibility aliases.</p>
 <p>Action words describe the contract: <code>check</code> is a read-only verdict, <code>verify</code> is
 a composite policy gate, <code>report</code> is advisory output, and <code>write</code> or <code>update</code>
@@ -135,30 +143,33 @@ changes tracked state.</p>
 </tr>
 <tr>
 <td>4</td>
-<td><code>./le verify current fast</code></td>
-<td>Checking the working tree before a commit</td>
-<td>about 2 minutes</td>
+<td><code>./le verify changed</code></td>
+<td>Judging a commit's change set: the evidence a push owes</td>
+<td>minutes</td>
 </tr>
 <tr>
 <td>5</td>
 <td><code>./le verify current</code></td>
-<td>The full gate, once per piece of work, over its final commit</td>
-<td>minutes</td>
+<td>The release check, which only Thomas starts, at a terminal</td>
+<td>the longest</td>
 </tr>
 </tbody>
 </table>
-<p>Steps 1 to 4 are development: run the ones that cover what you changed, and
+<p>Steps 1 to 3 are development: run the ones that cover what you changed, and
 <code>./le repo changed scope print both</code> names them
-(<code>running-commands.md</code>, "The changed-set selector"). Step 5 never runs between
-phases, review rounds or fixes, because it judges HEAD and the work is not in
-HEAD until its final commit. A red it finds gets a fix commit; it does not hold
+(<code>running-commands.md</code>, "The changed-set selector"). Step 4 runs once the work
+is committed: it judges the change set from the merge base with the upstream to
+the commit, in a throwaway worktree, and its green scoped record is what
+<code>./le commit push</code> asks for. A red it finds gets a fix commit; it does not hold
 the commit it judged.</p>
-<p><code>./le verify current</code> is the full gate. It runs every stage in a fresh
-detached worktree at HEAD, through the same lifecycle as <code>./le verify worktree</code>,
-so it judges the last commit and never the working tree: an edit made while it
-runs cannot move the tree it judges. <code>./le verify current fast</code> runs the
-changed-files stages in place, over the working tree, and is how uncommitted
-work gets checked. <code>./le verify current full</code> is the bare form spelled out.
+<p>Step 5 is the full verification, and it is not an agent's to run. The dispatcher refuses <code>./le verify current</code>, <code>./le verify current fast</code> and every form of <code>./le verify worktree</code>
+unless stdin and stdout are both terminals, because a full run
+loads the whole shared machine and only Thomas knows when that is safe. The
+refusal prints the exact command line to hand to Thomas, and <code>./le verify changed</code> for the agent's own evidence. No keyword or environment variable
+skips it. When Thomas starts <code>./le verify current</code>, it runs every stage in a fresh detached worktree
+at HEAD, through the same lifecycle as <code>./le verify worktree</code>, so an edit made
+while it runs cannot move the tree it judges; <code>./le verify current fast</code> runs
+the changed-files stages in place, over the working tree.
 The narrower commands are development tools. <code>./le job run</code> admits an individual heavy command
 through <code>internal/le/job</code>, so concurrent sessions do not oversubscribe the
 machine.</p>
@@ -213,7 +224,7 @@ machine.</p>
 green group says nothing about the rest of the tree.</p>
 <p>The <code>installer</code> group runs the tests on Linux. On another host <code>go test</code>
 cross-compiles a Linux binary it cannot start, so the group runs <code>go vet</code>
-and type-checks the same files instead. <code>./le test qemu all-tests</code> runs them for
+and type-checks the same files instead. <code>./le test qemu all</code> runs them for
 real inside the Alpine virtual machine.</p>
 <h2 id="test-types">Test types</h2>
 <p>Ze has four levels of testing, each covering a different concern.</p>
@@ -223,7 +234,7 @@ right output, does the state machine transition correctly, does the encoder
 round-trip.</p>
 <pre><code class="language-sh">./le job run label bgp-message command go test ./internal/component/bgp/message/...
 ./le job run label parse-origin command go test ./internal/... -run TestParseOrigin
-./le verify current
+./le verify changed
 </code></pre>
 <p>Dynamic-group coverage exercises each plugin's real configuration boundary:
 capability declarations, policy lookups, validation, and command output. Opposite
@@ -372,7 +383,7 @@ as a full suite.</p>
 <pre><code class="language-sh">./le test functional encode
 ./le test functional plugin
 ./le test functional gating
-./le test functional exabgp-test
+./le test functional exabgp
 </code></pre>
 <h3 id="mutation-tests-gomu">Mutation tests (gomu)</h3>
 <p>Coverage tells you which lines ran. Mutation testing tells you whether the tests
@@ -382,13 +393,13 @@ logical, bitwise, branch, return value, and error handling operators), runs the 
 suite against each mutation, and reports which mutations survived.</p>
 <p>gomu uses overlay-based execution, so it never modifies source files on disk.
 It is a Go tool recorded in <code>tools.go</code>. The native <code>./le test mutation combine</code>
-command combines completed reports, and <code>./le test mutation record-history</code> appends
+command combines completed reports, and <code>./le test mutation record</code> appends
 their per-package scores to the committed history.</p>
-<p>Mutation testing is advisory. It never gates <code>./le verify current</code> or CI. A surviving mutant
+<p>Mutation testing is advisory. It never gates Thomas's release check, <code>./le verify current</code>, or CI. A surviving mutant
 is a signal that a test could be stronger, not a blocking failure.</p>
 <p>One consumer reads a gomu report for a narrower question. <code>./le rfc discriminate &lt;selector&gt; report &lt;path&gt;</code> scopes the report to ONE RFC-tagged test: it keeps the
 KILLED mutants that lie in code that test's own coverage profile executes, and
-offers them as candidate breaks. <code>./le rfc discriminate-record</code> then applies one,
+offers them as candidate breaks. <code>./le rfc record</code> then applies one,
 runs that test alone, and records the red it observed. gomu's status stays
 unchanged, because nothing in <code>./le rfc check</code> starts a mutation run: the gate
 reads a stored record. See <code>docs/contributing/rfc-conformance-gates.md</code>, "The
@@ -468,11 +479,11 @@ history is tracked in <code>test/mutation/history.ndjson</code>.</p>
 They are not part of the normal development cycle.</p>
 <pre><code class="language-sh">./le test integration interop
 ./le test integration iface
-./le test qemu all-tests
+./le test qemu all
 ./le test integration live-rpki
 ./le test integration docker-peers   # every package test tagged `docker`
-./le test integration cleanup dry    # what a killed lab run left, and why the rest stays
-./le test integration cleanup        # remove the lab resources whose owner is gone
+./le test integration clean dry    # what a killed lab run left, and why the rest stays
+./le test integration clean        # remove the lab resources whose owner is gone
 </code></pre>
 <p>A package test that starts a real peer container carries <code>//go:build docker</code>,
 never <code>docker</code> and <code>integration</code> together: the integration population runs in
@@ -486,38 +497,52 @@ own <code>exec.Command("docker")</code>, which <code>./le arch tier check</code>
 <p>A red test means the CODE is wrong by default. Fix the code. When the coverage is
 genuinely gone, because the feature it proved was removed or another test now
 proves it, the removal is recorded rather than silent.</p>
-<p>The record is <code>test/weakened/&lt;session&gt;.md</code>, the ledger shard your own commit
-session owns, where <code>&lt;session&gt;</code> is the eight hex characters <code>./le commit session</code> prints. It holds one row per weakened test, <code>| Test | Reason |</code>. No
-other session reads your shard and none can write it, so nobody has to be
-careful about anybody else's rows.</p>
-<p>Write the rows this commit owes and leave the rest to the gate: <code>./le commit create</code> drops every row your shard holds whose text git already has at HEAD,
-because a row whose commit landed explains a diff history holds. Git history is
-where past rows are read, so <code>git log -p -- test/weakened/</code> shows each one
-beside the change it accepted.</p>
+<p>A test weakening is approved BEFORE the edit by an independent agent running
+the <code>ze-test-judge</code> skill (<code>ai/skills/ze-test-judge.md</code>), never by Thomas and
+never by the agent that wrote the change. The judge approves only when the new
+test proves at least what the old one did, or when the old expectation is wrong
+against its source; otherwise it refuses, and the refusal stands. The edit hook
+refuses the weakening, names the test, and prints the command that records the
+verdict.</p>
 <p>The route, in order:</p>
 <ol>
-<li>Write the row first. The native write-edit hook reads the shard from disk, so
-a row added after the edit takes effect only after the edit is retried.</li>
+<li>Hand the test, the diff and your reason to a fresh agent running
+<code>ze-test-judge</code>.</li>
+<li>On APPROVE the judge records its verdict, for one test at a time:
+<code>./le test weakened approve unit &lt;package&gt;.&lt;TestName&gt; reason "&lt;the judge's verdict&gt;"</code>.
+The row goes to <code>tmp/commit-weakening-approved-&lt;session&gt;.md</code>, keyed on the
+main thread's commit namespace, so a subagent's edit sees it too. git never
+reads that file. On REFUSE, fix the code instead.</li>
 <li>Make the edit.</li>
-<li>Name <code>test/weakened/&lt;session&gt;.md</code> in the commit. <code>internal/le/commit.Answer</code>
-refuses a commit that weakens a test and leaves the row in the working tree.</li>
+<li>Commit with <code>./le commit create</code> as usual. The message gains one
+<code>Weakening-approved: &lt;package&gt;.&lt;TestName&gt;: &lt;the judge's verdict&gt;</code> line per test, and
+the script drops each used row once the commit lands. A row a landed commit
+already used approves nothing further.</li>
 </ol>
-<p><code>./le test weakened check</code> prints every session's shard and the rows in it, and
-names yours. Read it when you want to know what the ledger holds without
-preparing a commit.</p>
-<p>The test name is the enclosing top-level <code>func TestXxx</code> for Go, and the file stem
-for a <code>.ci</code> or a <code>.et</code>. Write <code>package.TestName</code> when the bare name matches two
-weakened tests in one commit.</p>
-<p>An edit that only lowers a COUNT lands with a notice and no row: consolidating
-three cases into one table lowers a count exactly as deleting a check does. The
-COMMIT still needs a row for it, and that row is where you say which of the two
-happened.</p>
-<p><code>./le test weakened check</code> runs the checker over the file and is a stage of
-<code>./le verify current</code> in both modes. The rule is <code>ai/rules/testing.md</code>, and the design is
+<p>The unit is the name of the directory holding the file, a dot, then the
+enclosing top-level <code>func TestXxx</code>, or the file stem for a <code>.ci</code> or a <code>.et</code>. A bare name, a path or a
+directory is refused: one approval names one test. An <code>RFC-approved:</code> row for a
+unit (<code>./le rfc approve</code>) also accepts that unit's weakening. Because the unit
+keeps only the directory's base name, a commit that changes <code>cmd.TestX</code> in both
+<code>a/cmd</code> and <code>b/cmd</code> is refused: split it so each commit carries one of them.</p>
+<p>Known limit: two kinds of unit cannot be approved at all, because the unit must match
+<code>&lt;package&gt;.&lt;TestName&gt;</code> with one dot and no empty side. A <code>.ci</code> or <code>.et</code> file
+whose stem holds a dot (<code>x.y.ci</code> is <code>suite.x.y</code>), and a test file at the
+repository root (its package side is empty), are refused by the approve writer
+and by every reader.</p>
+<p>An edit that only lowers a COUNT lands with a notice and no approval:
+consolidating three cases into one table lowers a count exactly as deleting a
+check does. The COMMIT still needs an approval for it, and the judge's verdict
+is where the commit says which of the two happened.</p>
+<p>Git history is where past approvals are read: <code>git log --grep '^Weakening-approved:'</code> lists each one beside the change it accepted, and
+<code>./le test weakened check</code> reads the same lines when it reviews a commit. The
+rule is <code>ai/rules/testing.md</code>, and the design is
 <code>docs/architecture/testing/test-health.md</code>.</p>
-<h2 id="how-le-verify-current-works">How <code>./le verify current</code> works</h2>
-<p><code>./le verify current</code> runs the full population in a fresh detached worktree at
+<h2 id="how-thomass-release-check-works">How Thomas's release check works</h2>
+<p>When Thomas starts <code>./le verify current</code>, it runs the full population in a fresh detached worktree at
 HEAD; <code>./le verify current fast</code> runs the changed-files population in place.
+Both are release checks that start only at a terminal (see the ladder above).
+<code>./le verify changed</code> runs the changed population in a throwaway worktree.
 <code>./le verify list full</code> and <code>./le verify list fast</code> print each population. The
 unit stages use a two-pass strategy to stay fast:</p>
 <ol>
@@ -584,6 +609,37 @@ hook therefore runs the linter with <code>GIT_OPTIONAL_LOCKS=0</code>, which sto
 stops <code>git diff</code> writing the refresh back. The patch the linter reads is the
 same either way. le's other <code>git status</code> queries under a deadline carry the
 first setting through <code>gitenv.ReadOnly</code>.</p>
+<h3 id="post-tool-hooks-block-only-on-the-authors-own-files">Post-tool hooks block only on the author's own files</h3>
+<!-- source: internal/le/hookruntime/postwrite.go -- postLintVerdict -->
+<!-- source: internal/le/hookruntime/postbash.go -- postBashGofmt, commandNames -->
+<!-- source: internal/le/hookruntime/runtime.go -- shownVerdicts -->
+<p>A post-tool hook's blocking text enters the agent's context, and every later
+turn re-reads it. Several sessions share this checkout, so a check that judged
+every uncommitted file blocked each session on the others' work. Each check
+therefore blocks only on what the tool call itself touched:</p>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Blocks on</th>
+<th>Said at code 0, to the person only</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Post-edit lint</td>
+<td>An issue in the edited file, or a package that does not build (<code>* typecheck: N</code> in the summary)</td>
+<td>The count of issues in other changed files of the package</td>
+</tr>
+<tr>
+<td>Post-command gofmt</td>
+<td>An unformatted Go file the command names, by path or by a directory holding it</td>
+<td>The count of unformatted files it does not name</td>
+</tr>
+</tbody>
+</table>
+<p>When any check blocks, the hook drops the code-0 hints from what it prints,
+because a hint carries nothing for the agent to act on.</p>
 <h3 id="the-slot-a-lint-holds">The slot a lint holds</h3>
 <!-- source: internal/le/go/lint/actions.go -- runHere, jobArgv -->
 <!-- source: internal/le/job/registry.go -- shares, reportBusy -->
@@ -591,10 +647,12 @@ first setting through <code>gitenv.ReadOnly</code>.</p>
 <p><code>./le go lint run</code> claims the <code>lint</code> label in the shared job registry
 (<code>internal/le/job</code>) before it plans anything. A lint uses cores allocated for
 the whole machine, so admission decides how many run at once, and it prints
-<code>[lint] waiting: &lt;holder&gt; running (pid N, Ns elapsed): &lt;the holder's last log line&gt;</code> while it queues. That last line is the holder's current stage, read from
-the log the holder is writing (<code>reportBusy</code>, <code>internal/le/job/registry.go</code>), so
-a waiter can tell a run that is progressing from one that is stuck. A holder
-with no readable log gets the banner without it.</p>
+<code>[lint] waiting: &lt;holder&gt; running (pid N, Ns elapsed)</code> while it queues.
+The banner also names the entry and log, the log's silence, and its last
+nonempty line. A quiet-window diagnostic does not establish that a job is
+stuck: the holder remains occupied and only its owner can stop it.
+An unreadable log has no stage or measured silence to report.
+An unreadable entry or an unsuccessful process query keeps capacity occupied.</p>
 <p>A second session asking for the SAME work over the SAME inputs does not queue.
 It attaches: it replays the running lint's output, takes that run's verdict, and
 the tree is linted once for both. <code>[lint] attaching to the lint already running over these inputs</code> is that answer. A full run and a scoped run are different
@@ -625,7 +683,7 @@ type-checked under FreeBSD or OpenBSD, where <code>syscall.Rlimit</code> is sign
 <code>Statfs_t</code> names its fields <code>F_bavail</code> and <code>F_bsize</code>. <code>./le go vet-platforms</code>
 is the check that does compile it: it vets <code>./cmd/... ./internal/... ./pkg/...</code>
 with the shipped personality tags under <code>darwin</code>, <code>freebsd</code> and <code>openbsd</code>, and
-<code>./le verify worktree</code> runs all three. The split is deliberate: linting every
+Thomas's release check, <code>./le verify worktree</code>, runs all three. The split is deliberate: linting every
 package again under each BSD would repeat the host pass's findings to type-check
 what one <code>go vet</code> per target already type-checks.</p>
 <p>A pass that stops before it lints is not a pass with findings. golangci-lint
@@ -759,7 +817,7 @@ executes <code>.ci</code> or <code>.et</code>. Proving that a functional test ga
 discipline this page has always prescribed: disable the producing function,
 confirm the test flips to red, and revert.</p>
 <p>For an RFC-tagged carrier that walk now has a runner and a record.
-<code>./le rfc discriminate-record ... route revert producer &lt;path&gt;::&lt;Func&gt;</code> disables
+<code>./le rfc record ... route revert producer &lt;path&gt;::&lt;Func&gt;</code> disables
 the named function, runs ONE <code>.ci</code> or ONE interop scenario, requires the red, and
 puts the producer back byte for byte. What it writes is a
 <code>rfc/discrimination/&lt;stem&gt;/&lt;requirement-id&gt;.json</code> record that <code>./le rfc check</code> re-verifies on every
@@ -867,7 +925,7 @@ negotiated link-local address pair.</p>
 <tbody>
 <tr>
 <td>Check my setup</td>
-<td><code>./le verify current</code></td>
+<td><code>./le setup check</code>, then <code>./le job run label unit-pkg command go test ./internal/core/textbuf/</code></td>
 </tr>
 <tr>
 <td>Run one Go test</td>
@@ -882,11 +940,11 @@ negotiated link-local address pair.</p>
 <td><code>./le test unit bgp</code></td>
 </tr>
 <tr>
-<td>Check the working tree before a commit</td>
-<td><code>./le verify current fast</code></td>
+<td>Judge my committed change set before a push</td>
+<td><code>./le verify changed</code></td>
 </tr>
 <tr>
-<td>Run the full gate, once, after the final commit of a piece of work</td>
+<td>Have the release check run: Thomas runs it at his terminal, and an agent only gives him the command</td>
 <td><code>./le verify current</code></td>
 </tr>
 <tr>
@@ -923,11 +981,11 @@ negotiated link-local address pair.</p>
 </tr>
 <tr>
 <td>List, then remove, Docker resources a killed lab run left behind</td>
-<td><code>./le test integration cleanup dry</code>, then <code>./le test integration cleanup</code></td>
+<td><code>./le test integration clean dry</code>, then <code>./le test integration clean</code></td>
 </tr>
 <tr>
 <td>Check that every <code>*_templ.go</code> matches its <code>.templ</code> source</td>
-<td><code>./le doc check templ-output</code>. No action writes the output back (<code>./le repo generate</code> carries no templ stage), so bring it back in step with the checker's own invocation minus <code>-check</code>: <code>./le job run label templ-gen command go run -mod=vendor github.com/a-h/templ/cmd/templ generate -keep-orphaned-files -path "$PWD/internal"</code>. Both walk <code>internal/</code> only. Never run a bare <code>templ generate</code>, and switch off an editor's on-save templ integration: a bare run walks from the repo root, writes that root into every generated file, and reds the gate. <span class="ev-src"><span class="ev-ref"><code>./le</code></span></span></td>
+<td><code>./le doc check templ-output</code>. No action writes the output back (<code>./le repo update</code> carries no templ stage), so bring it back in step with the checker's own invocation minus <code>-check</code>: <code>./le job run label templ-gen command go run -mod=vendor github.com/a-h/templ/cmd/templ generate -keep-orphaned-files -path "$PWD/internal"</code>. Both walk <code>internal/</code> only. Never run a bare <code>templ generate</code>, and switch off an editor's on-save templ integration: a bare run walks from the repo root, writes that root into every generated file, and reds the gate. <span class="ev-src"><span class="ev-ref"><code>./le</code></span></span></td>
 </tr>
 </tbody>
 </table>
@@ -941,8 +999,10 @@ negotiated link-local address pair.</p>
         <footer>
             <div class="footer-inner">
                 <div class="footer-bottom">
+                    <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 09:22 UTC</span>
+                    <a href="../../legal/">Legal notice</a>
+                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
                 </div>
             </div>
         </footer>

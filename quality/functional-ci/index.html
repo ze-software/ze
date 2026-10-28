@@ -70,12 +70,12 @@
 <table>
 <thead><tr><th>Behavior</th><th>Files</th><th>Narrow run</th><th>Native suite</th></tr></thead>
 <tbody>
-<tr><td>BGP encode and route output</td><td><span class="ev-src"><span class="ev-ref"><code>test/encode/*.ci</code></span></span></td><td><code>./le test bgp encode NAME -v</code></td><td><code>./le test functional encode-test</code></td></tr>
-<tr><td>BGP plugin behavior</td><td><span class="ev-src"><span class="ev-ref"><code>test/plugin/*.ci</code></span></span></td><td><code>./le test bgp plugin NAME -v</code></td><td><code>./le test functional plugin-test</code></td></tr>
-<tr><td>Config parsing</td><td><span class="ev-src"><span class="ev-ref"><code>test/parse/*.ci</code></span></span></td><td><code>./le test bgp parse NAME -v</code></td><td><code>./le test functional parse-test</code></td></tr>
-<tr><td>Decode command output</td><td><span class="ev-src"><span class="ev-ref"><code>test/decode/*.ci</code></span></span></td><td><code>./le test bgp decode NAME -v</code></td><td><code>./le test functional decode-test</code></td></tr>
-<tr><td>Reload behavior</td><td><span class="ev-src"><span class="ev-ref"><code>test/reload/*.ci</code></span></span></td><td><code>./le test bgp reload NAME -v</code></td><td><code>./le test functional reload-test</code></td></tr>
-<tr><td>CLI output</td><td><span class="ev-src"><span class="ev-ref"><code>test/ui/*.ci</code></span></span></td><td><code>./le test ui NAME -v</code></td><td><code>./le test functional ui-test</code></td></tr>
+<tr><td>BGP encode and route output</td><td><span class="ev-src"><span class="ev-ref"><code>test/encode/*.ci</code></span></span></td><td><code>./le test bgp encode NAME -v</code></td><td><code>./le test functional encode</code></td></tr>
+<tr><td>BGP plugin behavior</td><td><span class="ev-src"><span class="ev-ref"><code>test/plugin/*.ci</code></span></span></td><td><code>./le test bgp plugin NAME -v</code></td><td><code>./le test functional plugin</code></td></tr>
+<tr><td>Config parsing</td><td><span class="ev-src"><span class="ev-ref"><code>test/parse/*.ci</code></span></span></td><td><code>./le test bgp parse NAME -v</code></td><td><code>./le test functional parse</code></td></tr>
+<tr><td>Decode command output</td><td><span class="ev-src"><span class="ev-ref"><code>test/decode/*.ci</code></span></span></td><td><code>./le test bgp decode NAME -v</code></td><td><code>./le test functional decode</code></td></tr>
+<tr><td>Reload behavior</td><td><span class="ev-src"><span class="ev-ref"><code>test/reload/*.ci</code></span></span></td><td><code>./le test bgp reload NAME -v</code></td><td><code>./le test functional reload</code></td></tr>
+<tr><td>CLI output</td><td><span class="ev-src"><span class="ev-ref"><code>test/ui/*.ci</code></span></span></td><td><code>./le test ui NAME -v</code></td><td><code>./le test functional ui</code></td></tr>
 <tr><td>L2TP, firewall, policy, LDP, RSVP-TE, IS-IS, OSPF, OSPFv3, static, traffic, VPP, and install flows</td><td><code>test/&lt;suite&gt;/*.ci</code></td><td><code>./le test &lt;suite&gt; NAME -v</code></td><td><code>./le test functional &lt;suite&gt;-test</code></td></tr>
 </tbody>
 </table>
@@ -113,7 +113,7 @@ expect=stdout:show:contains=Established
 <p>A <code>.ci</code> file that needs netlink, nftables, eBPF, PPP, L2TP, namespaces, kernel routing, or Linux-only sockets should say so directly:</p>
 <pre><code class="language-text">option=needs-linux
 </code></pre>
-<p>On macOS that test reports SKIP. Inside QEMU the option is inert and the same file runs for real. Use <code>./le test qemu netns-test</code> for the curated Linux kernel suites. For one command or an interactive investigation, use <code>./le test qemu run command '...' keep-alive</code>.</p>
+<p>On macOS that test reports SKIP. Inside QEMU the option is inert and the same file runs for real. Use <code>./le test qemu netns</code> for the curated Linux kernel suites. For one command or an interactive investigation, use <code>./le test qemu run command '...' keep-alive</code>.</p>
 <h2 id="failure-reading">Failure reading</h2>
 <p>A good <code>.ci</code> failure tells you the file, step, line, assertion, process output, temporary directory, and rerun command. With <code>-v</code>, the runner keeps enough detail to see command stdout and stderr. BGP mismatches are decoded before display, which turns a wire failure into protocol fields.</p>
 <pre><code class="language-bash">./le test bgp plugin 42 -v
@@ -151,8 +151,10 @@ ze.log.bgp.reactor.peer=debug ./le test bgp plugin 42 -v
         <footer>
             <div class="footer-inner">
                 <div class="footer-bottom">
+                    <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
+                    <a href="../../legal/">Legal notice</a>
+                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
                 </div>
             </div>
         </footer>

@@ -49,7 +49,7 @@
 <!-- source: internal/le/plugin/imports/actions.go -- Answer -->
 <h2 id="the-folder-test">The Folder Test</h2>
 <p>Every feature in Ze passes two folder tests:</p>
-<p><strong>Copy test:</strong> copy a plugin folder into the project, run codegen (<code>./le repo generate</code>),
+<p><strong>Copy test:</strong> copy a plugin folder into the project, run codegen (<code>./le repo update</code>),
 and the plugin's commands, YANG schema, and handlers are live. No manual wiring.</p>
 <p><strong>Delete test:</strong> delete a plugin folder, run codegen, and every one of its features
 disappears. Every other plugin and the core keep working. No dangling references,
@@ -168,7 +168,7 @@ checks the same property over the registered set.</p>
 </ol></details></nav><div class="doc-body">
 <ol>
 <li>Write <code>ze-&lt;name&gt;-cmd.yang</code> in the plugin's <code>yang/</code> folder</li>
-<li>Run <code>./le repo generate</code></li>
+<li>Run <code>./le repo update</code></li>
 <li>Done: the codegen produces <code>embed.go</code>, <code>register.go</code>, and updates <code>all.go</code></li>
 </ol>
 <h3 id="how-codegen-enables-the-folder-test">How Codegen Enables the Folder Test</h3>
@@ -540,8 +540,10 @@ package holds the matching presence test, such as
         <footer>
             <div class="footer-inner">
                 <div class="footer-bottom">
+                    <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
+                    <a href="../../legal/">Legal notice</a>
+                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
                 </div>
             </div>
         </footer>

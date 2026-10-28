@@ -76,13 +76,13 @@ change.</p>
 <!-- source: internal/le/doc/wiring/docwiring.go -- Run -->
 <!-- source: internal/le/verify/engine/run.go -- RunMode, RunPart -->
 <h2 id="quick-start">Quick start</h2>
-<pre><code class="language-sh">./le doc check verify              # Run all documentation tests
+<pre><code class="language-sh">./le doc check all              # Run all documentation tests
 ./le doc wiring    # Run changed-file-aware wiring/doc/inventory gate
 </code></pre>
-<p><code>./le doc check verify</code> runs every documentation checker and returns non-zero if any of
+<p><code>./le doc check all</code> runs every documentation checker and returns non-zero if any of
 them report drift. Run it after editing documentation files, after adding or
 removing plugins, or as part of review. <code>./le doc wiring</code> selects the
-checks needed for the current diff and is included in <code>./le verify current</code>.</p>
+checks needed for the current diff and is a stage of Thomas's release check, <code>./le verify current</code>.</p>
 <h2 id="what-gets-checked">What gets checked</h2>
 <table>
 <thead>
@@ -134,7 +134,7 @@ checks needed for the current diff and is included in <code>./le verify current<
 </tr>
 </tbody>
 </table>
-<p><code>./le doc check verify</code> combines documentation drift, command validation, the two
+<p><code>./le doc check all</code> combines documentation drift, command validation, the two
 command help gates, and source-anchor validation. <code>./le doc wiring</code> is the changed-file-aware
 pre-commit gate.</p>
 <p>Among its checks, the added-symbol wiring check refuses an exported symbol the
@@ -169,15 +169,15 @@ any non-test importer, so such an export can never have a non-test reference.</p
 </tr>
 <tr>
 <td>After editing any file under <code>docs/</code></td>
-<td><code>./le doc check verify</code></td>
+<td><code>./le doc check all</code></td>
 </tr>
 <tr>
 <td>After adding or removing a plugin</td>
-<td><code>./le doc check verify</code></td>
+<td><code>./le doc check all</code></td>
 </tr>
 <tr>
 <td>After writing a path reference in ANY tracked file</td>
-<td><code>./le doc check links</code> (<code>./le doc check verify</code> does not cover it)</td>
+<td><code>./le doc check links</code> (<code>./le doc check all</code> does not cover it)</td>
 </tr>
 <tr>
 <td>After adding or renaming a YANG <code>ze:command</code></td>
@@ -201,16 +201,17 @@ any non-test importer, so such an export can never have a non-test reference.</p
 </tr>
 <tr>
 <td>Before opening a documentation PR</td>
-<td><code>./le doc check verify</code></td>
+<td><code>./le doc check all</code></td>
 </tr>
 </tbody>
 </table>
-<p>The full <code>./le doc check verify</code> remains the explicit documentation review target.
-<code>./le verify current</code> runs <code>./le doc wiring</code>, which invokes the relevant doc,
+<p>The full <code>./le doc check all</code> remains the explicit documentation review target.
+Thomas's release check, <code>./le verify current</code>, runs <code>./le doc wiring</code>, which invokes the relevant doc,
 command, inventory, and wiring checks for changed files.</p>
 <!-- source: internal/le/doc/wiring/docwiring.go -- Answer -->
 <p>The change is the unpushed range. The base is the merge base of HEAD and the
-branch upstream, or of HEAD and <code>origin/main</code> when the branch tracks none, and
+branch upstream, or of HEAD and <code>refs/remotes/origin/HEAD</code> when the branch
+tracks none (<code>ResolveAnchor</code>, <code>internal/le/repo/changed/anchor.go</code>), and
 the range runs from that base to the working tree. The gate is owed before a
 push, so a change committed without a run is still judged by the next run.
 The file set, the changed lines and every read of a file's earlier content
@@ -223,7 +224,7 @@ names the old path, which the change deleted, so that claim is unanswerable
 and counted. A failed read of a file's earlier content fails the run: it is
 never read as an empty file. A file named with
 <code>changed-file &lt;path&gt;</code> that holds no hunk in the range answers every line. The
-base reads refs only, so the detached worktree that <code>./le verify worktree</code>
+base reads refs only, so the detached worktree that Thomas's release check, <code>./le verify worktree</code>,
 makes judges the same range. When no base resolves, the gate exits 2 and names
 why, and no check runs.</p>
 <!-- source: internal/le/doc/wiring/docwiring.go -- Run -->
@@ -558,7 +559,7 @@ that stopped early must not read as a file that broke no rule.</p>
 </tr>
 <tr>
 <td>Stale source anchor path</td>
-<td>Fix or remove the <code>&lt;!-- source: ... --&gt;</code> path, then rerun <code>./le doc check verify</code></td>
+<td>Fix or remove the <code>&lt;!-- source: ... --&gt;</code> path, then rerun <code>./le doc check all</code></td>
 </tr>
 <tr>
 <td><code>CLAIM: ... names 'Sym', which is not declared there</code></td>
@@ -600,7 +601,7 @@ schema/handler packages, loads the YANG modules, and walks the schema tree
 looking for <code>ze:command</code> extensions. For each extension it checks
 <code>registry.CollectRPCHandlers()</code> for a matching method name.</p>
 <p><code>./le doc index check</code> scans every Markdown source anchor under <code>docs/</code> and
-refuses a missing source path or symbol. <code>./le doc index write</code> regenerates
+refuses a missing source path or symbol. <code>./le doc index update</code> regenerates
 the two documentation indexes.</p>
 <p>One walk of <code>docs/</code> feeds the path and symbol checks. An anchor is
 <code>&lt;!-- source: &lt;path&gt; -- Sym1, Sym2 --&gt;</code>. <code>internal/le/doc/index.CheckCodeIndex</code>
@@ -710,7 +711,7 @@ another root name.</li>
 trigger it during pre-commit verification.</li>
 <li>Add its producer and exact command to this page and <code>ai/INDEX.md</code>.</li>
 <li>If agent rules need the command, edit the canonical rule point and render the
-rule corpus through <code>./le ai rules render-update</code>.</li>
+rule corpus through <code>./le ai rules update render</code>.</li>
 </ol>
 <p>Repository tooling is compiled Go under <code>internal/le</code>; package-owned fixtures
 belong in that package's <code>testdata/</code> directory.</p>
@@ -734,8 +735,10 @@ command validation, and changed-file wiring</li>
         <footer>
             <div class="footer-inner">
                 <div class="footer-bottom">
+                    <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
+                    <a href="../../legal/">Legal notice</a>
+                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
                 </div>
             </div>
         </footer>

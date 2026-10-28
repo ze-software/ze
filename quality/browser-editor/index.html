@@ -75,7 +75,7 @@
 <p>Use <code>.wb</code> when navigation, form behavior, HTMX replacement, visible copy, page title, URL, or accessibility-visible elements are the contract. Use a Go unit test for pure handler logic and use <code>.ci</code> for simple HTTP status checks.</p>
 <pre><code class="language-bash">./le test web --list
 ./le test web -p config -v
-./le test functional web-test
+./le test functional web
 </code></pre>
 <h3 id="browser-syntax">Browser syntax</h3>
 <table>
@@ -96,7 +96,7 @@
 <p>An <code>.et</code> file is a replay script for the interactive configuration editor. The runner creates a temporary config root, starts the editor model, sends key and text input, and checks the prompt, context, completions, dirty state, validation messages, and persisted files. It is headless, which makes it fast, but it still exercises the editor input model rather than a single parser function.</p>
 <pre><code class="language-bash">./le test editor --list
 ./le test editor -p completion -v
-./le test functional editor-test
+./le test functional editor
 </code></pre>
 <h3 id="editor-syntax">Editor syntax</h3>
 <table>
@@ -151,8 +151,10 @@ ZE_TEST_KEEP_TMP=1 ./le test editor completion-basic -v
         <footer>
             <div class="footer-inner">
                 <div class="footer-bottom">
+                    <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
+                    <a href="../../legal/">Legal notice</a>
+                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
                 </div>
             </div>
         </footer>

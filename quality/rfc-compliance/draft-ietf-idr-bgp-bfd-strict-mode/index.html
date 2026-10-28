@@ -122,7 +122,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>100.0%</strong><b>15 of 15 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>86.7%</strong><b>13 of 15 tagged units, 0 escaped and 2 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 <article class="rfc-card rfc-ok"><span>Audit verdicts</span><strong>4</strong><b>of 4 gated MUSTs judged</b><p>0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <h3>Neutral</h3>
@@ -252,16 +252,19 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Enrolled: BFD Strict-Mode for BGP (capability code 74): four MUST-level requirements with tagged tests. DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE-10-1 now has nonzero-hold-down entrypoint proof in TestDraftBFDNonzeroHoldDownInitialFSM: initial FSM and OPEN exchange proceed with Down or newly Up BFD, while establishment waits for the configured interval. The three cases passed, independent semantic review accepted the whole condition, and current native discrimination records and the renewed audit verdict are recorded. Ze advertises the capability from the peer&#39;s own bfd block (parsePeerFromTree, internal/component/bgp/reactor/config.go), negotiates it as BfdStrictNegotiated (Negotiate, internal/core/bgp/capability/negotiated.go), and runs the Section 8 FSM procedures in internal/component/bgp/fsm/fsm.go with their wire half in internal/component/bgp/reactor/session_bfd_strict.go. The two Event 20 sections, 8.3.5 and 8.4.5, are conditional on the RFC 4271 DelayOpenTimer, which Ze does not implement (permitted by RFC 4271 Section 8.2.1.3), and they carry no MUST-level keyword site.</p>
+<p>Enrolled: BFD Strict-Mode for BGP (capability code 74): four MUST-level requirements with tagged tests. DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE-10-1 now has nonzero-hold-down entrypoint proof in TestDraftBFDNonzeroHoldDownInitialFSM: initial FSM and OPEN exchange proceed with Down or newly Up BFD, while establishment waits for the configured interval. The three cases passed, independent semantic review accepted the whole condition, and current native discrimination records and the renewed audit verdict are recorded. Ze advertises the capability from the peer&#39;s own bfd block (parsePeerFromTree, internal/component/bgp/reactor/config.go), negotiates it as BfdStrictNegotiated (Negotiate, internal/core/bgp/capability/negotiated.go), and runs the Section 8 FSM procedures in internal/component/bgp/fsm/fsm.go with their wire half in internal/component/bgp/reactor/session_bfd_strict.go. Event 20 sections 8.3.5 and 8.4.5 use the configured RFC 4271 DelayOpenTimer through FSM.EnterDelayOpenBfdUpPending (internal/component/bgp/fsm/delay_open.go). These clauses carry no MUST-level keyword site; their behavioral tests add no requirement rows or RFC tags.</p>
 </section>
 <section><h2>What the public ledger says</h2>
 <p><strong>Status:</strong> Partial</p>
 <details class="rfc-fold"><summary>What the ledger says is covered</summary>
 <ul class="rfc-prose">
-<li>Capability code 74, length 0, advertised in the OPEN for a peer whose <code>connection bfd { strict true }</code> is enabled, and negotiated to <code>Negotiated.BFDStrictMode</code> when both speakers send it. FSM events 30 to 35 and the two OpenSent sub-states of Section 8.1 are implemented in <code>internal/component/bgp/fsm/</code>. The KEEPALIVE is withheld and the session held in OpenSent by <code>Session.advanceAfterOpen</code>, released by <code>Session.handleBFDEvent</code>, and closed with Cease / BFD Down or Cease / Other Configuration Change by the same function (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_bfd_strict.go" target="_blank" rel="noopener"><code>internal/component/bgp/reactor/session_bfd_strict.go</code></a>). The BFD session opens before the BGP FSM starts and outlives a transition to Idle (<code>Peer.run</code>, <code>Peer.cleanup</code>, Section 7). The BfdHoldTimer of Section 3 attribute 18 lives on <code>fsm.Timers</code>, defaults to 30 seconds, and is armed only when the negotiated BGP hold time is zero</li>
-<li>where it is non-zero the ordinary RFC 4271 HoldTimer bounds the wait, re-armed to the negotiated value by <code>advanceAfterOpen</code>. The Section 10 BFD hold-down interval is the <code>hold-down</code> leaf, in milliseconds, zero by default. Existing interop carriers are <code>test/interop/scenarios/bgp-bfd-strict-speaker</code> (the lab speaker, which advertises capability 74 and answers BFD built from RFC 5880) and <code>test/interop/scenarios/bgp-bfd-strict-frr</code> (FRR 10.3.1, which implements neither)</li>
-<li>they do not automatically establish the combined strict-mode/nonzero-hold-down condition of row 10-1. Sections 8.3.5 and 8.4.5 revise Event 20, an OPEN received while the DelayOpenTimer runs</li>
-<li>Ze implements no DelayOpenTimer, an RFC 4271 optional session attribute its Section 8.2.1.3 permits omitting, so <code>ConnectDelayOpenBfdUpPending</code> and <code>ActiveDelayOpenBfdUpPending</code> are unreachable and undeclared. Neither section carries a MUST-level obligation, so that is an implementation gap in RFC 4271&#39;s optional feature and not a conformance gap in this draft.</li>
+<li>Capability code 74, length 0, advertised in the OPEN for a peer whose <code>connection bfd { strict true }</code> is enabled, and negotiated to <code>Negotiated.BFDStrictMode</code> when both speakers send it. FSM events 30 to 35 and all four Section 8.1 sub-states are implemented in <code>internal/component/bgp/fsm/</code>. <code>Session.advanceAfterOpen</code> shares the strict decision across both OPEN rails: ordinary OPEN waits in OpenSent</li>
+<li>Event 20 sends OPEN and retains Connect/Active in <code>ConnectDelayOpenBfdUpPending</code>/<code>ActiveDelayOpenBfdUpPending</code>. <code>Session.handleBFDEvent</code> releases the withheld KEEPALIVE on Up, AdminDown or Disabled. Second OPEN sends FSM Error</li>
+<li>BfdHoldTimer expiry sends Cease/BFD Down</li>
+<li>strict configuration change silently closes Connect/Active but uses Cease/Other Configuration Change in OpenSent/OpenConfirm. The BFD session opens before the BGP FSM starts and outlives Idle (<code>Peer.run</code>, <code>Peer.cleanup</code>, Section 7). BfdHoldTimer defaults to 30 seconds and bounds zero-hold waits</li>
+<li>nonzero negotiated HoldTimer bounds the other branch, including Connect/Active Event 10. Section 10&#39;s <code>hold-down</code> interval is in milliseconds, zero by default, and still gates establishment rather than initial startup. Existing interop carriers are <code>test/interop/scenarios/bgp-bfd-strict-speaker</code> and <code>test/interop/scenarios/bgp-bfd-strict-frr</code></li>
+<li>neither automatically proves the combined strict-mode/nonzero-hold-down condition of row 10-1. Untagged Event 20 carriers are <code>fsm/bfd_delay_open_test.go</code> (state/timer boundaries), <code>reactor/bfd_delay_open_test.go</code> (both real OPEN rails, Peer cycles, releases and bounded cleanup), <code>reactor/bfd_delay_open_release_race_test.go</code> (immediate peer KEEPALIVE), and <a href="https://github.com/ze-software/ze/blob/main/test/plugin/bgp-delay-open-bfd-strict.ci" target="_blank" rel="noopener"><code>test/plugin/bgp-delay-open-bfd-strict.ci</code></a> with <a href="https://github.com/ze-software/ze/blob/main/internal/test/fixture/register_bgp_bfd_delay_open.go" target="_blank" rel="noopener"><code>internal/test/fixture/register_bgp_bfd_delay_open.go</code></a> (real daemon/BFD datagram release). Phase 3a has passing scoped race units, seven boundary mutations, native GREEN–RED–GREEN and 80 draft invocations after the separate runner exclusion repair. The unchanged carrier is promoted, but its live selector failed TIME30 case124</li>
+<li>live acceptance remains uncleared. The draft evidence does not clear that failure or establish full-spec or ledger clearance.</li>
 </ul>
 </details>
 <p><strong>What the ledger says remains:</strong></p>
@@ -398,7 +401,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/config_bfd_strict_test.go#L109" title="internal/component/bgp/reactor/config_bfd_strict_test.go" target="_blank" rel="noopener"><code>TestBFDSettingsStrictDisabledAdvertisesNothing</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_b_open_caps_test.go#L116" title="internal/component/bgp/reactor/reactor_b_open_caps_test.go" target="_blank" rel="noopener"><code>TestBFDStrictCapabilityInSentOpen</code></a></td>
@@ -408,7 +411,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/config_bfd_strict_test.go#L58" title="internal/component/bgp/reactor/config_bfd_strict_test.go" target="_blank" rel="noopener"><code>TestBFDSettingsStrictParse</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_b_open_caps_test.go#L115" title="internal/component/bgp/reactor/reactor_b_open_caps_test.go" target="_blank" rel="noopener"><code>TestBFDStrictCapabilityInSentOpen</code></a></td>
@@ -877,8 +880,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
         <footer>
             <div class="footer-inner">
                 <div class="footer-bottom">
+                    <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
+                    <a href="../../../legal/">Legal notice</a>
+                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
                 </div>
             </div>
         </footer>

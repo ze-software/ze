@@ -60,6 +60,7 @@ and <strong>runtime commands</strong> sent to the running daemon via SSH.</p>
 <li><a href="#ze">ze</a></li>
 <li><a href="#ze-config-validate">ze config validate</a></li>
 <li><a href="#ze-config">ze config</a></li>
+<li><a href="#ze-secret">ze secret</a></li>
 <li><a href="#ze-signal">ze signal</a></li>
 <li><a href="#ze-status">ze status</a></li>
 <li><a href="#ze-bgp">ze bgp</a></li>
@@ -105,6 +106,7 @@ and <strong>runtime commands</strong> sent to the running daemon via SSH.</p>
 <li><a href="#show-dns-lookup">show dns lookup</a></li>
 <li><a href="#show-dns-cache-stats-list-record">show dns cache stats / list / record</a></li>
 <li><a href="#clear-dns-cache-all-stats-record">clear dns cache all / stats / record</a></li>
+<li><a href="#show-dns-resolver-clear-dns-resolver-cache-all">show dns-resolver / clear dns-resolver cache all</a></li>
 <li><a href="#clear-peeringdb-cache-clear-irr-cache-clear-cymru-cache">clear peeringdb cache / clear irr cache / clear cymru cache</a></li>
 <li><a href="#show-resolve-rir">show resolve rir</a></li>
 <li><a href="#update-resolve-rir">update resolve rir</a></li>
@@ -122,6 +124,7 @@ and <strong>runtime commands</strong> sent to the running daemon via SSH.</p>
 <li><a href="#ze-exabgp">ze exabgp</a></li>
 <li><a href="#ze-schema">ze schema</a></li>
 <li><a href="#ze-yang">ze yang</a></li>
+<li><a href="#ze-appliance-kernel">ze appliance kernel</a></li>
 <li><a href="#ze-init">ze init</a></li>
 <li><a href="#ze-install">ze install</a>
 <ol>
@@ -146,7 +149,7 @@ and <strong>runtime commands</strong> sent to the running daemon via SSH.</p>
 <li><a href="#le-perf">le perf</a>
 <ol>
 <li><a href="#le-perf-send">le perf send</a></li>
-<li><a href="#le-perf-report">le perf report</a></li>
+<li><a href="#le-perf-compare">le perf compare</a></li>
 <li><a href="#le-perf-track">le perf track</a></li>
 </ol></li>
 </ol></li>
@@ -260,7 +263,7 @@ from stdin (<code>ze -</code>) is unaffected.</p>
 <figure class="terminal-demo" data-terminal-demo="launcher">
   <div class="terminal-demo__intro">
     <div>
-      <span class="terminal-demo__eyebrow">Replayable Ze terminal lab</span>
+      <span class="terminal-demo__eyebrow">Ze terminal lab</span>
       <h3>Discover Ze commands interactively</h3>
       <p>Use type-ahead filtering and drill-down navigation in Ze&#39;s interactive command launcher.</p>
     </div>
@@ -486,6 +489,50 @@ ze config archive &lt;name&gt; &lt;file&gt;  # Archive config (see config-archiv
 </tr>
 </tbody>
 </table>
+<h3 id="ze-secret">ze secret</h3>
+<p>Decode a <code>$9$</code> secret to its plaintext, or encode a plaintext. A <code>ze:sensitive</code>
+leaf (a BGP MD5 password, an API token, a pre-shared key) is stored in the
+reversible <code>$9$</code> form, and every display path masks it. <code>ze secret decode</code>
+gives the operator the actual key from a config. It works offline, reads no
+config and reaches no daemon.</p>
+<pre><code>ze secret decode '$9$...'        # Print the plaintext behind a $9$ value
+ze secret decode -               # Read the $9$ value from stdin
+ze secret encode '&lt;plaintext&gt;'   # Print a $9$ value for a plaintext
+ze secret encode -               # Read the plaintext from stdin
+</code></pre>
+<p>Put the value in single quotes: an unquoted <code>$</code> starts a shell variable, and
+the shell changes the value before ze sees it. Pass <code>-</code> to read the value from
+stdin, so it stays out of the shell history. One trailing line ending is
+dropped from stdin. A value that starts with <code>-</code> reads as an option, so pass it
+on stdin.</p>
+<p>A <code>ze:bcrypt</code> leaf holds a one-way hash (<code>$2a$</code>, <code>$2b$</code>, <code>$2y$</code>, and the crypt
+forms <code>$1$</code>, <code>$5$</code>, <code>$6$</code>). A hash keeps no copy of the password, so
+<code>ze secret decode</code> refuses it and names <code>ze config set</code> to set a new password.
+<code>ze secret encode</code> refuses a value that already starts with <code>$9$</code>, because the
+config reads such a value as encoded.</p>
+<table>
+<thead>
+<tr>
+<th>Exit code</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>Success</td>
+</tr>
+<tr>
+<td>1</td>
+<td>The value cannot be decoded or encoded: a one-way hash, no <code>$9$</code> prefix, a damaged <code>$9$</code> value, or an empty value</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Usage error (no value, two values, an unknown option or action), or stdin could not be read</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/config/cli/cmd_secret.go -- runSecret, decodeSecret, encodeSecret -->
 <h3 id="ze-signal">ze signal</h3>
 <p>Send commands to the running daemon via SSH.</p>
 <pre><code>ze signal reload                 # Reload configuration
@@ -1022,7 +1069,7 @@ ze show host kernel                # Kernel release, cmdline, microcode, arch fl
 <figure class="terminal-demo" data-terminal-demo="host-inventory">
   <div class="terminal-demo__intro">
     <div>
-      <span class="terminal-demo__eyebrow">Replayable Ze terminal lab</span>
+      <span class="terminal-demo__eyebrow">Ze terminal lab</span>
       <h3>Inspect a Linux host before Ze starts</h3>
       <p>Use Ze&#39;s offline command fallback to read the complete kernel, CPU, and memory inventory in human-readable structured output.</p>
     </div>
@@ -1258,6 +1305,9 @@ this platform" when no TC backend is loaded (e.g. on macOS).</p>
 <pre><code>ze show traffic control            # Summary of all interfaces with qdiscs
 ze show traffic control &lt;ifname&gt;   # Detail for one interface
 </code></pre>
+<p>For a Linux TBF root, <code>rate-bps</code> reports the kernel's rate in bits per second,
+not its native byte-per-second unit. It is zero when the root has no TBF rate.
+TBF has no configured classes; its rate is a root property.</p>
 <h3 id="show-flow-export">show flow export</h3>
 <p>Per-collector flow export statistics for the <code>flowexport</code> component (sFlow v5,
 NetFlow v9, IPFIX). Returns <code>{"status": "not-configured"}</code> when no
@@ -1550,7 +1600,7 @@ state the operator typed into config. Calling with no argument returns
 raw elements.</p>
 <!-- source: internal/plugins/firewall/nft/cmd_show.go -- handleShowFirewallRuleset, handleShowFirewallGroup -->
 <!-- source: internal/component/firewall/engine.go -- runEngine; OnConfigApply stores LastApplied -->
-<!-- source: internal/plugins/firewall/nft/backend_linux.go -- applyChain (UserData + auto Counter), readRuleCounter -->
+<!-- source: internal/plugins/firewall/nft/backend_linux.go -- addChainRules (UserData + auto Counter), readRuleCounter -->
 <h3 id="show-update-and-clear-firewall-irr">show, update and clear firewall irr</h3>
 <p>IRR prefix-list data behind firewall rules and interface bindings. Provided by
 the <code>firewall-irr</code> plugin.</p>
@@ -1785,6 +1835,20 @@ clear dns cache record example.com                  # Delete all entries matchin
 clear dns cache record example.com type AAAA        # Delete a single entry by name and type
 </code></pre>
 <!-- source: internal/component/resolve/cmd/dns.go -- handleClearDNSCache, handleClearDNSCacheStats, handleClearDNSCacheRecord -->
+<h3 id="show-dns-resolver-clear-dns-resolver-cache-all">show dns-resolver / clear dns-resolver cache all</h3>
+<p>The LAN DNS resolver (<code>service dns-resolver</code>, <a href="https://github.com/ze-software/ze/blob/main/docs/guide/dns-resolver.md" target="_blank" rel="noopener">guide</a>), which
+answers the hosts behind Ze. It is separate from the <code>show dns</code> and
+<code>clear dns</code> commands above, which cover the resolver Ze uses for its own
+lookups.</p>
+<pre><code>ze show dns-resolver                   # Config in force, listener state, cache entries, hit rate, refusals, drops, upstream results
+ze clear dns-resolver cache all        # Empty the answer and the negative cache; the counters are kept
+</code></pre>
+<p><code>clear dns-resolver cache</code> alone has no handler and empties nothing: it exits 1
+and lists <code>all</code>, the word emptying needs. <code>show dns-resolver</code> answers <code>running false</code> while the
+plugin is not running, and <code>clear dns-resolver cache all</code> answers an error that
+names the config to commit.</p>
+<!-- source: internal/plugins/dnsresolver/show.go -- handleShowDNSResolver, handleClearDNSResolverCache -->
+<!-- source: internal/plugins/dnsresolver/yang/ze-dns-resolver-cmd.yang -- show and clear command tree -->
 <h3 id="clear-peeringdb-cache-clear-irr-cache-clear-cymru-cache">clear peeringdb cache / clear irr cache / clear cymru cache</h3>
 <p>Each owner of a resolver client clears the client it uses now. The hub clears
 the one <code>resolve peeringdb</code>, <code>resolve irr</code> or <code>resolve cymru</code> uses, and every
@@ -1847,6 +1911,10 @@ show vpn ipsec dataplane drift               # Where engine belief and kernel st
 <p>Every other <code>show vpn ipsec</code> command reports what the IKE engine believes it
 installed. These three read the kernel back, so a kernel expiry, an external
 flush, or a policy a rekey stranded becomes visible.</p>
+<p><code>show vpn ipsec sa</code> lists, under <code>virtual-ip</code>, the inner addresses an IKE SA
+leased its peer from a <code>remote-access</code> pool (RFC 7296 Section 2.19), and an
+empty list for a peer bound to no <code>virtual-ip-pool</code>.</p>
+<!-- source: internal/component/ike/cmd/show_ipsec.go -- virtualIPText -->
 <p><code>sa</code> lists each installed ESP SA with its SPI, addresses, if_id, mode, reqid,
 encryption and integrity algorithm names, replay window, byte and packet
 counters, and the add and use timestamps. It never renders key material.
@@ -2293,6 +2361,17 @@ ze yang doc [command]            # Command documentation
 <p>The tree and the collision report are registered answers, so the pipe layer
 renders them: <code>ze cli -c "show yang tree --config | json"</code>.</p>
 <!-- source: internal/component/config/yang/cli/main.go -- Run -->
+<h3 id="ze-appliance-kernel">ze appliance kernel</h3>
+<p>The build-host binary builds or resolves Ze's installer or runtime kernel.
+Builds run only on a host of the target architecture.</p>
+<pre><code class="language-sh">ze-host appliance kernel --target runtime --arch amd64 --builder docker --jobs 4
+</code></pre>
+<p><code>--jobs &lt;count&gt;</code> limits parallel kernel compilation to a positive integer.
+Omitting it keeps the builder's CPU-count default. Zero, negative and malformed
+values are refused before building. This scheduling option does not change the
+kernel cache key or the existing two-hour build limit; a warm cache still skips
+compilation. See <a href="../appliance/">the appliance guide</a> for the build-host setup.</p>
+<!-- source: internal/appliance/cmd_kernel.go -- runKernel, defaultKernelBuild -->
 <h3 id="ze-init">ze init</h3>
 <p>Initialize <code>database/</code> in <code>ze.config.dir</code>, or the default config directory.
 The populated tree becomes visible only after credentials and initial config
@@ -2887,7 +2966,7 @@ ze resolve rir 15169                                   # Which registry holds an
 <h3 id="le-perf">le perf</h3>
 <p>BGP propagation latency benchmark tool, run by the development tool <code>le</code>.</p>
 <!-- source: internal/perf/cli/register.go -- perf CLI entry point -->
-<p><code>le perf send</code> runs one benchmark against a DUT, <code>le perf report</code> compares
+<p><code>le perf send</code> runs one benchmark against a DUT, <code>le perf compare</code> compares
 result files, and <code>le perf track</code> follows the history.</p>
 <!-- source: internal/le/perf/actions.go -- programVerbs -->
 <pre><code>./le perf &lt;command&gt; [flags]
@@ -3134,11 +3213,11 @@ measures how quickly they propagate through to the receiver.</p>
 </tbody>
 </table>
 <p>Exit codes: 0 = success, 1 = error (missing flags, validation failure, benchmark failure).</p>
-<h4 id="le-perf-report">le perf report</h4>
+<h4 id="le-perf-compare">le perf compare</h4>
 <p>Generate a comparison report from one or more result JSON files.</p>
 <!-- source: internal/perf/cli/cmd_report.go -- report subcommand -->
-<pre><code>./le perf report result-ze.json result-gobgp.json
-./le perf report --html result-ze.json result-gobgp.json &gt; report.html
+<pre><code>./le perf compare result-ze.json result-gobgp.json
+./le perf compare --html result-ze.json result-gobgp.json &gt; report.html
 </code></pre>
 <table>
 <thead>
@@ -4721,8 +4800,10 @@ reaches, where the daemon expands the chain.</p>
         <footer>
             <div class="footer-inner">
                 <div class="footer-bottom">
+                    <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
+                    <a href="../../legal/">Legal notice</a>
+                    <span class="footer-published">Published 28 October 2026 01:27 UTC</span>
                 </div>
             </div>
         </footer>

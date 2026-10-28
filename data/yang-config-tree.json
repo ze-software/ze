@@ -1101,10 +1101,10 @@
                 "type": "boolean"
               },
               {
-                "description": "Forward received UPDATEs directly inside the reactor for RS-client peers, and bypass the plugin\ndispatch chain. This path gives lower latency for route server forwarding. A peer with an export\nfilter is excluded and uses the normal path.",
+                "description": "Forward received UPDATEs directly inside the reactor for RS-client peers, and bypass the plugin\ndispatch chain. This path gives lower latency for route server forwarding. A peer with an export\nfilter is excluded and uses the normal path. The fast path obeys the route server's attach grants:\nit forwards only from a peer that attaches this plugin with receive [ update-received ], and only\nto a peer that attaches it with send [ update ]. Add both to every rs-fast-path peer:\nattach process \u003croute-server\u003e { receive [ update-received ]; send [ update ]; }.",
                 "kind": "leaf",
                 "name": "rs-fast-path",
-                "short-help": "Forward a received UPDATE inside the reactor for an RS-client peer.",
+                "short-help": "Forward an RS-client UPDATE inside the reactor. Needs the route server's update grants.",
                 "source": "config",
                 "type": "boolean"
               }
@@ -1772,10 +1772,10 @@
                     "type": "boolean"
                   },
                   {
-                    "description": "Forward received UPDATEs directly inside the reactor for RS-client peers, and bypass the plugin\ndispatch chain. This path gives lower latency for route server forwarding. A peer with an export\nfilter is excluded and uses the normal path.",
+                    "description": "Forward received UPDATEs directly inside the reactor for RS-client peers, and bypass the plugin\ndispatch chain. This path gives lower latency for route server forwarding. A peer with an export\nfilter is excluded and uses the normal path. The fast path obeys the route server's attach grants:\nit forwards only from a peer that attaches this plugin with receive [ update-received ], and only\nto a peer that attaches it with send [ update ]. Add both to every rs-fast-path peer:\nattach process \u003croute-server\u003e { receive [ update-received ]; send [ update ]; }.",
                     "kind": "leaf",
                     "name": "rs-fast-path",
-                    "short-help": "Forward a received UPDATE inside the reactor for an RS-client peer.",
+                    "short-help": "Forward an RS-client UPDATE inside the reactor. Needs the route server's update grants.",
                     "source": "config",
                     "type": "boolean"
                   }
@@ -2795,12 +2795,21 @@
                                 ]
                               },
                               {
-                                "description": "Use a value from 1 through 65535. Omit this leaf to inherit the container limit.\nZe advertises no limit for a disabled or refused ADD-PATH family. This is a request\nto the sender, not local receive-side policing.",
-                                "kind": "leaf",
+                                "children": [
+                                  {
+                                    "description": "Use a value from 1 through 65535. Omit this leaf to inherit the container\nreceive limit. Ze advertises no limit for a disabled or refused ADD-PATH family, or\nfor one whose direction excludes receive. Ze also enforces it on arrival: a path over\nthe limit for one prefix is dropped, and the rest of its UPDATE installs.",
+                                    "kind": "leaf",
+                                    "name": "receive",
+                                    "short-help": "Maximum paths per prefix requested from the peer (PATHS-LIMIT capability).",
+                                    "source": "config",
+                                    "type": "uint16"
+                                  }
+                                ],
+                                "description": "Holds this family's path counts per prefix for each ADD-PATH direction. A\nvalue set here replaces the container limit for this family alone.",
+                                "kind": "container",
                                 "name": "limit",
-                                "short-help": "Maximum paths per prefix requested from the peer (PATHS-LIMIT capability).",
-                                "source": "config",
-                                "type": "uint16"
+                                "short-help": "PATHS-LIMIT path counts per prefix for this family, by direction.",
+                                "source": "config"
                               },
                               {
                                 "description": "enable and disable act on this family alone. require refuses the session when\nthe peer does not offer ADD-PATH. refuse refuses the session when the peer offers\nit. Ze takes the most restrictive mode over the whole list.",
@@ -2832,16 +2841,25 @@
                             "description": "The list key is the family name. An entry with no direction takes the container\ndirection. Ze skips an entry whose family name is not registered.",
                             "kind": "list[name]",
                             "name": "family",
-                            "short-help": "Per-family ADD-PATH overrides with optional path count limit.",
+                            "short-help": "Per-family ADD-PATH overrides with an optional path count limit.",
                             "source": "config"
                           },
                           {
-                            "description": "Ze advertises this receive request for each enabled ADD-PATH family. A per-family\nlimit overrides it. This setting does not enforce a local receive-side limit.",
-                            "kind": "leaf",
+                            "children": [
+                              {
+                                "description": "Ze advertises this receive request in PATHS-LIMIT for each enabled ADD-PATH\nfamily whose direction includes receive. A per-family receive overrides it. Ze also\nenforces it: a path over the limit for one prefix is dropped on arrival.",
+                                "kind": "leaf",
+                                "name": "receive",
+                                "short-help": "Default maximum paths per prefix requested from the peer (PATHS-LIMIT).",
+                                "source": "config",
+                                "type": "uint16"
+                              }
+                            ],
+                            "description": "Holds the path counts per prefix for each ADD-PATH direction. A per-family limit\ncontainer overrides a value set here. Only the receive direction exists today.",
+                            "kind": "container",
                             "name": "limit",
-                            "short-help": "Default maximum paths per prefix requested from the peer (PATHS-LIMIT).",
-                            "source": "config",
-                            "type": "uint16"
+                            "short-help": "Default PATHS-LIMIT path counts per prefix, by direction.",
+                            "source": "config"
                           }
                         ],
                         "description": "PATHS-LIMIT is draft-abraitis-idr-addpath-paths-limit. The default direction applies to every\nnegotiated multiprotocol family. A per-family entry overrides the default direction.",
@@ -3457,6 +3475,14 @@
                     "kind": "leaf",
                     "name": "connect-retry",
                     "short-help": "Connect retry interval in seconds. Ze reads it for a dynamic peer alone.",
+                    "source": "config",
+                    "type": "uint16"
+                  },
+                  {
+                    "description": "RFC 4271 DelayOpen: hold a connected socket without sending OPEN until the peer\nsends OPEN or this timer expires. Zero sends OPEN immediately.",
+                    "kind": "leaf",
+                    "name": "delay-open",
+                    "short-help": "Delay OPEN by 0..240 seconds; 0 disables DelayOpen.",
                     "source": "config",
                     "type": "uint16"
                   },
@@ -4207,12 +4233,21 @@
                             ]
                           },
                           {
-                            "description": "Use a value from 1 through 65535. Omit this leaf to inherit the container limit.\nZe advertises no limit for a disabled or refused ADD-PATH family. This is a request\nto the sender, not local receive-side policing.",
-                            "kind": "leaf",
+                            "children": [
+                              {
+                                "description": "Use a value from 1 through 65535. Omit this leaf to inherit the container\nreceive limit. Ze advertises no limit for a disabled or refused ADD-PATH family, or\nfor one whose direction excludes receive. Ze also enforces it on arrival: a path over\nthe limit for one prefix is dropped, and the rest of its UPDATE installs.",
+                                "kind": "leaf",
+                                "name": "receive",
+                                "short-help": "Maximum paths per prefix requested from the peer (PATHS-LIMIT capability).",
+                                "source": "config",
+                                "type": "uint16"
+                              }
+                            ],
+                            "description": "Holds this family's path counts per prefix for each ADD-PATH direction. A\nvalue set here replaces the container limit for this family alone.",
+                            "kind": "container",
                             "name": "limit",
-                            "short-help": "Maximum paths per prefix requested from the peer (PATHS-LIMIT capability).",
-                            "source": "config",
-                            "type": "uint16"
+                            "short-help": "PATHS-LIMIT path counts per prefix for this family, by direction.",
+                            "source": "config"
                           },
                           {
                             "description": "enable and disable act on this family alone. require refuses the session when\nthe peer does not offer ADD-PATH. refuse refuses the session when the peer offers\nit. Ze takes the most restrictive mode over the whole list.",
@@ -4244,16 +4279,25 @@
                         "description": "The list key is the family name. An entry with no direction takes the container\ndirection. Ze skips an entry whose family name is not registered.",
                         "kind": "list[name]",
                         "name": "family",
-                        "short-help": "Per-family ADD-PATH overrides with optional path count limit.",
+                        "short-help": "Per-family ADD-PATH overrides with an optional path count limit.",
                         "source": "config"
                       },
                       {
-                        "description": "Ze advertises this receive request for each enabled ADD-PATH family. A per-family\nlimit overrides it. This setting does not enforce a local receive-side limit.",
-                        "kind": "leaf",
+                        "children": [
+                          {
+                            "description": "Ze advertises this receive request in PATHS-LIMIT for each enabled ADD-PATH\nfamily whose direction includes receive. A per-family receive overrides it. Ze also\nenforces it: a path over the limit for one prefix is dropped on arrival.",
+                            "kind": "leaf",
+                            "name": "receive",
+                            "short-help": "Default maximum paths per prefix requested from the peer (PATHS-LIMIT).",
+                            "source": "config",
+                            "type": "uint16"
+                          }
+                        ],
+                        "description": "Holds the path counts per prefix for each ADD-PATH direction. A per-family limit\ncontainer overrides a value set here. Only the receive direction exists today.",
+                        "kind": "container",
                         "name": "limit",
-                        "short-help": "Default maximum paths per prefix requested from the peer (PATHS-LIMIT).",
-                        "source": "config",
-                        "type": "uint16"
+                        "short-help": "Default PATHS-LIMIT path counts per prefix, by direction.",
+                        "source": "config"
                       }
                     ],
                     "description": "PATHS-LIMIT is draft-abraitis-idr-addpath-paths-limit. The default direction applies to every\nnegotiated multiprotocol family. A per-family entry overrides the default direction.",
@@ -4873,6 +4917,14 @@
                 "type": "uint16"
               },
               {
+                "description": "RFC 4271 DelayOpen: hold a connected socket without sending OPEN until the peer\nsends OPEN or this timer expires. Zero sends OPEN immediately.",
+                "kind": "leaf",
+                "name": "delay-open",
+                "short-help": "Delay OPEN by 0..240 seconds; 0 disables DelayOpen.",
+                "source": "config",
+                "type": "uint16"
+              },
+              {
                 "description": "Ze refuses a value that is not less than receive-hold-time, because the hold timer must be\nable to detect a lost KEEPALIVE. 0 derives the interval from the negotiated hold time.",
                 "kind": "leaf",
                 "name": "keepalive",
@@ -5479,10 +5531,10 @@
                 "type": "boolean"
               },
               {
-                "description": "Forward received UPDATEs directly inside the reactor for RS-client peers, and bypass the plugin\ndispatch chain. This path gives lower latency for route server forwarding. A peer with an export\nfilter is excluded and uses the normal path.",
+                "description": "Forward received UPDATEs directly inside the reactor for RS-client peers, and bypass the plugin\ndispatch chain. This path gives lower latency for route server forwarding. A peer with an export\nfilter is excluded and uses the normal path. The fast path obeys the route server's attach grants:\nit forwards only from a peer that attaches this plugin with receive [ update-received ], and only\nto a peer that attaches it with send [ update ]. Add both to every rs-fast-path peer:\nattach process \u003croute-server\u003e { receive [ update-received ]; send [ update ]; }.",
                 "kind": "leaf",
                 "name": "rs-fast-path",
-                "short-help": "Forward a received UPDATE inside the reactor for an RS-client peer.",
+                "short-help": "Forward an RS-client UPDATE inside the reactor. Needs the route server's update grants.",
                 "source": "config",
                 "type": "boolean"
               }
@@ -6502,12 +6554,21 @@
                             ]
                           },
                           {
-                            "description": "Use a value from 1 through 65535. Omit this leaf to inherit the container limit.\nZe advertises no limit for a disabled or refused ADD-PATH family. This is a request\nto the sender, not local receive-side policing.",
-                            "kind": "leaf",
+                            "children": [
+                              {
+                                "description": "Use a value from 1 through 65535. Omit this leaf to inherit the container\nreceive limit. Ze advertises no limit for a disabled or refused ADD-PATH family, or\nfor one whose direction excludes receive. Ze also enforces it on arrival: a path over\nthe limit for one prefix is dropped, and the rest of its UPDATE installs.",
+                                "kind": "leaf",
+                                "name": "receive",
+                                "short-help": "Maximum paths per prefix requested from the peer (PATHS-LIMIT capability).",
+                                "source": "config",
+                                "type": "uint16"
+                              }
+                            ],
+                            "description": "Holds this family's path counts per prefix for each ADD-PATH direction. A\nvalue set here replaces the container limit for this family alone.",
+                            "kind": "container",
                             "name": "limit",
-                            "short-help": "Maximum paths per prefix requested from the peer (PATHS-LIMIT capability).",
-                            "source": "config",
-                            "type": "uint16"
+                            "short-help": "PATHS-LIMIT path counts per prefix for this family, by direction.",
+                            "source": "config"
                           },
                           {
                             "description": "enable and disable act on this family alone. require refuses the session when\nthe peer does not offer ADD-PATH. refuse refuses the session when the peer offers\nit. Ze takes the most restrictive mode over the whole list.",
@@ -6539,16 +6600,25 @@
                         "description": "The list key is the family name. An entry with no direction takes the container\ndirection. Ze skips an entry whose family name is not registered.",
                         "kind": "list[name]",
                         "name": "family",
-                        "short-help": "Per-family ADD-PATH overrides with optional path count limit.",
+                        "short-help": "Per-family ADD-PATH overrides with an optional path count limit.",
                         "source": "config"
                       },
                       {
-                        "description": "Ze advertises this receive request for each enabled ADD-PATH family. A per-family\nlimit overrides it. This setting does not enforce a local receive-side limit.",
-                        "kind": "leaf",
+                        "children": [
+                          {
+                            "description": "Ze advertises this receive request in PATHS-LIMIT for each enabled ADD-PATH\nfamily whose direction includes receive. A per-family receive overrides it. Ze also\nenforces it: a path over the limit for one prefix is dropped on arrival.",
+                            "kind": "leaf",
+                            "name": "receive",
+                            "short-help": "Default maximum paths per prefix requested from the peer (PATHS-LIMIT).",
+                            "source": "config",
+                            "type": "uint16"
+                          }
+                        ],
+                        "description": "Holds the path counts per prefix for each ADD-PATH direction. A per-family limit\ncontainer overrides a value set here. Only the receive direction exists today.",
+                        "kind": "container",
                         "name": "limit",
-                        "short-help": "Default maximum paths per prefix requested from the peer (PATHS-LIMIT).",
-                        "source": "config",
-                        "type": "uint16"
+                        "short-help": "Default PATHS-LIMIT path counts per prefix, by direction.",
+                        "source": "config"
                       }
                     ],
                     "description": "PATHS-LIMIT is draft-abraitis-idr-addpath-paths-limit. The default direction applies to every\nnegotiated multiprotocol family. A per-family entry overrides the default direction.",
@@ -7164,6 +7234,14 @@
                 "kind": "leaf",
                 "name": "connect-retry",
                 "short-help": "Connect retry interval in seconds. Ze reads it for a dynamic peer alone.",
+                "source": "config",
+                "type": "uint16"
+              },
+              {
+                "description": "RFC 4271 DelayOpen: hold a connected socket without sending OPEN until the peer\nsends OPEN or this timer expires. Zero sends OPEN immediately.",
+                "kind": "leaf",
+                "name": "delay-open",
+                "short-help": "Delay OPEN by 0..240 seconds; 0 disables DelayOpen.",
                 "source": "config",
                 "type": "uint16"
               },
@@ -8287,10 +8365,10 @@
                 "type": "port"
               },
               {
-                "description": "Lower values are tried first. Each polling round starts with the most preferred cache.",
+                "description": "The lower the value, the more preferred the cache (RFC 8210 Section 10).\nEach polling round starts with the most preferred cache, and ze loads its data from\nthe first cache that completes a synchronization; caches with equal values keep their\nconfiguration order. A cache that fails, or answers No Data Available, hands the round\nto the next one in preference order. While a less-preferred cache holds the data, a\nmore-preferred cache is asked again when its own Retry Interval runs out, and takes\nover once it completes a full load.",
                 "kind": "leaf",
                 "name": "preference",
-                "short-help": "Preference of this cache server.",
+                "short-help": "Cache selection order: a lower value is preferred.",
                 "source": "config",
                 "type": "uint8"
               },
@@ -8397,6 +8475,23 @@
         "kind": "container",
         "name": "session",
         "short-help": "Global BGP session defaults",
+        "source": "config"
+      },
+      {
+        "children": [
+          {
+            "description": "RFC 4271 DelayOpen: hold a connected socket without sending OPEN until the peer\nsends OPEN or this timer expires. Zero sends OPEN immediately.",
+            "kind": "leaf",
+            "name": "delay-open",
+            "short-help": "Delay OPEN by 0..240 seconds; 0 disables DelayOpen.",
+            "source": "config",
+            "type": "uint16"
+          }
+        ],
+        "description": "BGP timer defaults inherited by groups and peers.",
+        "kind": "container",
+        "name": "timer",
+        "short-help": "Session timer defaults inherited by groups and peers.",
         "source": "config"
       },
       {
@@ -8876,7 +8971,7 @@
       {
         "children": [
           {
-            "description": "The unit follows the unit of rate: a packet count where rate counts\npackets, and a byte count where rate names a byte unit. The leaf\nhas no default, and Ze gives the kernel a burst of 0 when it is\nabsent.",
+            "description": "The unit follows the unit of rate: a packet count where rate counts\npackets, and a byte count where rate names a byte unit. The leaf\nhas no default, and Ze gives the kernel a burst of 0 when it is\nabsent. Ze refuses a burst without a rate.",
             "kind": "leaf",
             "name": "burst",
             "short-help": "Burst size (packets or bytes matching the rate unit).",
@@ -8884,20 +8979,20 @@
             "type": "uint32"
           },
           {
-            "description": "accept, the default, counts the over-limit packets and lets them through. The\nlimit then reports load and stops nothing. drop discards a new TCP connection\nto a protected port once the rate is exceeded. Either setting reaches the\nover-limit packets alone. The input chain keeps an accept policy, so SSH, ICMP\nand every service this table never names stay reachable. The first term accepts\nan established session before the limit is read, so drop never closes a session\nthat is already up.",
+            "description": "drop, the default, discards a new connection from a BGP neighbor once\nthe rate is exceeded. accept lets those connections through, so the\nlimit reports load and stops nothing; use it to observe a new rate\nbefore you enforce it. The leaf matters only when rate is set, and it\nnever changes the access list: a source that is not a neighbor is\ndropped under either setting. The input chain keeps an accept policy,\nso SSH, ICMP and every service this table never names stay reachable,\nand an established session is accepted before the limit is read.",
             "kind": "leaf",
             "name": "over-limit-policy",
-            "short-help": "What Ze does with the packets that exceed the rate limit.",
+            "short-help": "What Ze does with neighbor connections that exceed the rate limit.",
             "source": "config",
             "type": "enumeration",
             "values": [
               {
                 "name": "accept",
-                "short-help": "Accept over-limit packets (safe default)."
+                "short-help": "Accept over-limit connections; the limit then stops nothing."
               },
               {
                 "name": "drop",
-                "short-help": "Drop over-limit packets."
+                "short-help": "Drop over-limit connections (default)."
               }
             ]
           },
@@ -8910,26 +9005,26 @@
             "type": "uint16"
           },
           {
-            "description": "The leaf is mandatory, so Ze refuses the container without it. The\nvalue is a count, an optional byte unit, and a time unit, as in\n100/second or 1mbytes/second. The limit reaches a new TCP\nconnection to a protected port alone, because the chain accepts an\nestablished connection before it.",
+            "description": "The leaf is optional. Without it Ze builds the access list and no\nlimit. The value is a count, an optional byte unit, and a time unit,\nas in 100/second or 1mbytes/second. The limit applies to new TCP\nconnections from configured BGP neighbors. A trusted-source prefix\nand an established session never meet it, and a source that is not\na neighbor is dropped before it.",
             "kind": "leaf",
             "name": "rate",
-            "short-help": "Rate limit for new connections (e.g., 100/second).",
+            "short-help": "Limit for new connections from BGP neighbors (e.g., 100/second).",
             "source": "config",
             "type": "rate-spec"
           },
           {
-            "description": "Ze adds one accept term for each prefix, above the rate limit term.\nThe term matches TCP from that source to a protected port, so a\ntrusted peer never meets the limit. Ze refuses a value that is not\nan IPv4 prefix or an IPv6 prefix.",
+            "description": "Ze adds one accept term for each prefix, ahead of the neighbor terms.\nThe term matches TCP from that source to a protected port, so a\ntrusted source is never dropped and never meets the rate limit. Use it\nfor a source that is not a configured BGP neighbor, such as a\nmonitoring host. Ze refuses a value that is not an IPv4 prefix or an\nIPv6 prefix.",
             "kind": "leaf-list",
             "name": "trusted-source",
-            "short-help": "Source prefixes that bypass the rate limit.\nTypically the addresses of configured BGP peers.",
+            "short-help": "Source prefixes accepted without being BGP neighbors, and never rate limited.",
             "source": "config",
             "type": "string"
           }
         ],
-        "description": "The container carries presence, so Ze builds the ze_copp table when you\nwrite it and removes the table when you delete it. The chain accepts an\nestablished or related connection first, then a connection from each\ntrusted-source prefix, and applies the rate to what is left.",
+        "description": "An access list on TCP to the protected ports (RFC 7454 Section 4). Ze\naccepts an established or related connection first, then a connection\nfrom each trusted-source prefix, then a connection from a configured\nBGP neighbor: the remote ip of each static peer and the range of each\ndynamic group, read from the bgp configuration. Ze counts and drops TCP\nto a protected port from every other source. The rate, when set, limits\nnew connections from the neighbors only. Ze builds the table when you\nwrite the container and removes it when you delete the container. A\nconfiguration without this container gets no access list.",
         "kind": "container",
         "name": "bgp",
-        "short-help": "Rate-limit new TCP connections to the BGP listen port.",
+        "short-help": "Accept BGP connections from configured neighbors only, and drop the rest.",
         "source": "config"
       }
     ],
@@ -25716,6 +25811,162 @@
       {
         "children": [
           {
+            "description": "Source prefixes the resolver answers. A query from any other source is refused. An\nenabled resolver needs at least one entry: an empty list would refuse every client, and\nanswering every source would make Ze an open resolver.",
+            "kind": "leaf-list",
+            "name": "allow-from",
+            "short-help": "Client prefixes the resolver answers",
+            "source": "config",
+            "type": "ip-prefix"
+          },
+          {
+            "children": [
+              {
+                "description": "The longest time a name-error or no-data answer stays cached.",
+                "kind": "leaf",
+                "name": "max-negative-ttl",
+                "short-help": "Negative answer TTL cap in seconds",
+                "source": "config",
+                "type": "uint32"
+              },
+              {
+                "description": "The longest time a positive answer stays cached, whatever TTL the upstream gave.",
+                "kind": "leaf",
+                "name": "max-ttl",
+                "short-help": "Positive answer TTL cap in seconds",
+                "source": "config",
+                "type": "uint32"
+              },
+              {
+                "description": "The most entries the cache holds; the least recently used entry is evicted to make\nroom. 0 disables caching.",
+                "kind": "leaf",
+                "name": "size",
+                "short-help": "Cache entries, 0 disables caching",
+                "source": "config",
+                "type": "uint32"
+              }
+            ],
+            "description": "Bounds of the answer and negative caches.",
+            "kind": "container",
+            "name": "cache",
+            "short-help": "Resolver cache bounds",
+            "source": "config"
+          },
+          {
+            "description": "The default is false, so the resolver binds no listener and answers no query. A true\nvalue binds each `listener` entry for UDP and TCP, and needs at least one `listener`, one\n`allow-from` prefix and one `forward server`.",
+            "kind": "leaf",
+            "name": "enabled",
+            "short-help": "Enable the LAN DNS resolver",
+            "source": "config",
+            "type": "boolean"
+          },
+          {
+            "children": [
+              {
+                "children": [
+                  {
+                    "description": "The upstream resolver's port.",
+                    "kind": "leaf",
+                    "name": "port",
+                    "short-help": "Upstream resolver port",
+                    "source": "config",
+                    "type": "port"
+                  }
+                ],
+                "description": "One upstream resolver. The resolver tries the entries in the order they are\nconfigured and moves to the next when one does not answer.",
+                "kind": "list[ip]",
+                "name": "server",
+                "short-help": "Upstream resolver address",
+                "source": "config"
+              }
+            ],
+            "description": "The upstream resolvers forward mode sends queries to.",
+            "kind": "container",
+            "name": "forward",
+            "short-help": "Upstream resolvers",
+            "source": "config"
+          },
+          {
+            "children": [
+              {
+                "description": "The most resolutions in flight at once. A new query that needs one beyond it is\ndropped, and the client sends it again after its own timeout.",
+                "kind": "leaf",
+                "name": "outstanding",
+                "short-help": "Concurrent resolutions",
+                "source": "config",
+                "type": "uint32"
+              },
+              {
+                "description": "The most queries per second one source address is answered. Beyond it queries are\ndropped, one in ten still answered. 0 sets no limit.",
+                "kind": "leaf",
+                "name": "per-client-rate",
+                "short-help": "Per-source query rate, 0 for none",
+                "source": "config",
+                "type": "uint32"
+              }
+            ],
+            "description": "Bounds on the work clients can ask of the resolver.",
+            "kind": "container",
+            "name": "limit",
+            "short-help": "Resolver work bounds",
+            "source": "config"
+          },
+          {
+            "children": [
+              {
+                "description": "The listener binds this address. 0.0.0.0 binds every IPv4 address of\nthe host, and :: binds every IPv6 address. Config validation refuses\ntwo listeners that share a protocol and a port when their addresses\noverlap. A wildcard address overlaps every address of its own family,\nand an IPv4 address never overlaps an IPv6 address.",
+                "kind": "leaf",
+                "name": "ip",
+                "short-help": "Listen IP address",
+                "source": "config",
+                "type": "ip-address"
+              },
+              {
+                "description": "The port range is 0 to 65535. Port 0 makes the operating system pick a\nfree port at bind time, so no client can know the port before the\nlistener starts. ze doctor tries to bind each configured endpoint and\nreports the one the host refuses.",
+                "kind": "leaf",
+                "name": "port",
+                "short-help": "Listen TCP port; 0 means OS-assigned",
+                "source": "config",
+                "type": "listener-port"
+              }
+            ],
+            "description": "UDP and TCP listen endpoints. Each named entry binds one LAN or loopback address and one\nport. A wildcard address (0.0.0.0 or ::) is refused, because it would also answer on the WAN\nside. The ze:listener marking enables config-time port-conflict detection across services.",
+            "kind": "list[name]",
+            "name": "listener",
+            "short-help": "UDP and TCP listen endpoints for the resolver",
+            "source": "config"
+          },
+          {
+            "description": "How the resolver finds an answer it has not cached. forward sends the query to the\n`forward server` entries.",
+            "kind": "leaf",
+            "name": "mode",
+            "short-help": "Resolution mode",
+            "source": "config",
+            "type": "enumeration",
+            "values": [
+              {
+                "name": "forward",
+                "short-help": "Resolve by forwarding to the forward server entries"
+              }
+            ]
+          },
+          {
+            "description": "The longest one resolution may take, every upstream attempt included. A query not\nresolved in that time is answered SERVFAIL.",
+            "kind": "leaf",
+            "name": "timeout",
+            "short-help": "Whole-resolution deadline in seconds",
+            "source": "config",
+            "type": "uint8"
+          }
+        ],
+        "description": "The LAN DNS resolver answers recursive queries (RD set) from the hosts behind Ze, which learn\nits address from DHCPv4 option 6, the router advertisement RDNSS option or IPCP. It answers only on\nthe `listener` addresses and only to sources inside an `allow-from` prefix, and it resolves by\nforwarding to the `forward server` entries in order. It does not validate DNSSEC.",
+        "kind": "container",
+        "name": "dns-resolver",
+        "short-help": "LAN DNS resolver: caching, forwarding",
+        "source": "config"
+      },
+      {
+        "children": [
+          {
             "description": "edns0-then-packet, the default, reads the address from the EDNS0 client-subnet option (RFC\n7871) and falls back to the packet source address. packet ignores the option and always reads the\npacket source. edns0 reads only the option. A query with no option then matches no `source`\nprefix, so a name the zone owns draws an empty NOERROR answer.",
             "kind": "leaf",
             "name": "client-ip-source",
@@ -28339,6 +28590,14 @@
                     "type": "leafref"
                   },
                   {
+                    "description": "Root TBF rate. Required by backend tc for tbf, which\nhas no configurable classes. The backend refuses a rate it cannot represent\nwithout truncation. VPP uses class policers instead and refuses this leaf.",
+                    "kind": "leaf",
+                    "name": "rate",
+                    "short-help": "Rate of the classless TBF root.",
+                    "source": "config",
+                    "type": "rate-bps"
+                  },
+                  {
                     "description": "The commit-time gate rejects a type the configured backend\ndoes not support.",
                     "kind": "leaf",
                     "name": "type",
@@ -28550,7 +28809,7 @@
               {
                 "children": [
                   {
-                    "description": "No build carries a transform for chacha20poly1305\nor 3des, so a proposal that names one is refused at\ncommit. The refusal lists the algorithms the build does\nimplement. null selects integrity-only ESP, which RFC 4303\nSection 1 requires to be negotiable. RFC 4303 Section 3.2\nforbids ESP with neither confidentiality nor integrity, so a\nnull proposal without a hash is refused at commit.",
+                    "description": "chacha20poly1305 selects a fixed 256-bit AEAD key;\nomit hash. 3des selects a fixed 192-bit DES-EDE key\nincluding parity and requires hash. These ciphers are\nESP-only. null selects integrity-only ESP, which RFC 4303\nSection 1 requires to be negotiable. RFC 4303 Section 3.2\nforbids ESP with neither confidentiality nor integrity, so a\nnull proposal without a hash is refused at commit.",
                     "kind": "leaf",
                     "name": "encryption",
                     "short-help": "Encryption algorithm.",
@@ -28559,7 +28818,7 @@
                     "values": [
                       {
                         "name": "3des",
-                        "short-help": "Triple-DES-CBC (RFC 2451), deprecated. No build implements it."
+                        "short-help": "Triple-DES-CBC (RFC 2451), legacy ESP only; requires hash."
                       },
                       {
                         "name": "aes128",
@@ -28603,7 +28862,7 @@
                       },
                       {
                         "name": "chacha20poly1305",
-                        "short-help": "ChaCha20-Poly1305 AEAD (RFC 7634). No build implements it."
+                        "short-help": "ChaCha20-Poly1305 AEAD (RFC 7634). ESP only; omit hash."
                       },
                       {
                         "name": "null",
@@ -28612,7 +28871,7 @@
                     ]
                   },
                   {
-                    "description": "Integrity algorithm. It is required beside a\nnon-AEAD cipher, and refused beside an AEAD cipher. RFC 7296\nSection 3.3 gives an AEAD cipher its own integrity, so an ESP\nproposal offers the integrity transform NONE. An ESP proposal\ncarries no PRF transform, so this leaf never names one.\nNo build carries a transform for sha1, so a proposal that\nnames it is refused at commit. The refusal lists the\nalgorithms the build does implement.",
+                    "description": "Integrity algorithm. It is required beside a\nnon-AEAD cipher, and refused beside an AEAD cipher. RFC 7296\nSection 3.3 gives an AEAD cipher its own integrity, so an ESP\nproposal offers the integrity transform NONE. An ESP proposal\ncarries no PRF transform, so this leaf never names one.\nsha1 selects legacy HMAC-SHA-1-96 with a 160-bit key.\nIt is supported for ESP integrity only, not for IKE.",
                     "kind": "leaf",
                     "name": "hash",
                     "short-help": "Integrity algorithm.",
@@ -28621,7 +28880,7 @@
                     "values": [
                       {
                         "name": "sha1",
-                        "short-help": "HMAC-SHA-1-96 (RFC 2404). No build implements it."
+                        "short-help": "HMAC-SHA-1-96 (RFC 2404), legacy ESP integrity only; not an IKE PRF."
                       },
                       {
                         "name": "sha256",
@@ -28759,7 +29018,7 @@
                     "type": "uint8"
                   },
                   {
-                    "description": "No build carries a transform for chacha20poly1305\nor 3des, so a proposal that names one is refused at\ncommit. RFC 7296 Section 5 forbids ENCR_NULL for the IKE\nSA, so null is refused here too. The refusal lists the\nalgorithms the build does implement for the IKE SA.",
+                    "description": "chacha20poly1305 and 3des are ESP-only in this\nbuild and are refused here. RFC 7296 Section 5 forbids ENCR_NULL for the IKE\nSA, so null is refused here too. The refusal lists the\nalgorithms the build does implement for the IKE SA.",
                     "kind": "leaf",
                     "name": "encryption",
                     "short-help": "Encryption algorithm.",
@@ -28768,7 +29027,7 @@
                     "values": [
                       {
                         "name": "3des",
-                        "short-help": "Triple-DES-CBC (RFC 2451), deprecated. No build implements it."
+                        "short-help": "Triple-DES-CBC (RFC 2451), legacy ESP only; requires hash."
                       },
                       {
                         "name": "aes128",
@@ -28812,7 +29071,7 @@
                       },
                       {
                         "name": "chacha20poly1305",
-                        "short-help": "ChaCha20-Poly1305 AEAD (RFC 7634). No build implements it."
+                        "short-help": "ChaCha20-Poly1305 AEAD (RFC 7634). ESP only; omit hash."
                       },
                       {
                         "name": "null",
@@ -28821,7 +29080,7 @@
                     ]
                   },
                   {
-                    "description": "It is required beside\nevery cipher, and an AEAD cipher is no exception. RFC 7296\nSection 3.3.3 makes the PRF a mandatory transform for an IKE\nproposal, and this leaf names it. An ESP proposal reads the\nsame leaf as integrity alone, and refuses it beside an AEAD\ncipher.\nNo build carries a transform for sha1, so a proposal that\nnames it is refused at commit. The refusal lists the\nalgorithms the build does implement.",
+                    "description": "It is required beside\nevery cipher, and an AEAD cipher is no exception. RFC 7296\nSection 3.3.3 makes the PRF a mandatory transform for an IKE\nproposal, and this leaf names it. An ESP proposal reads the\nsame leaf as integrity alone, and refuses it beside an AEAD\ncipher.\nsha1 is ESP-only integrity in this build and has no IKE\nPRF, so it is refused here. The refusal lists the\nalgorithms the build implements for IKE.",
                     "kind": "leaf",
                     "name": "hash",
                     "short-help": "PRF and integrity algorithm.",
@@ -28830,7 +29089,7 @@
                     "values": [
                       {
                         "name": "sha1",
-                        "short-help": "HMAC-SHA-1-96 (RFC 2404). No build implements it."
+                        "short-help": "HMAC-SHA-1-96 (RFC 2404), legacy ESP integrity only; not an IKE PRF."
                       },
                       {
                         "name": "sha256",
@@ -29097,15 +29356,15 @@
               {
                 "children": [
                   {
-                    "description": "The leaf carries one address, and the pool sorts it into its IPv4 list or\nits IPv6 list from the family of that address. RFC 7296 Section 3.15.1 names\nthe attribute that carries it INTERNAL_IP4_DNS or INTERNAL_IP6_DNS. Ze sends\nno Configuration payload today, so no client receives the address.",
-                    "kind": "leaf",
+                    "description": "Each entry is one server address, IPv4 or IPv6, and commit refuses a value\nthat is not an address. A client leased an address of one family is sent the\nservers of that family, as INTERNAL_IP4_DNS or INTERNAL_IP6_DNS (RFC 7296\nSection 3.15.1), whether or not it asked for them.",
+                    "kind": "leaf-list",
                     "name": "dns",
                     "short-help": "DNS server pushed to clients via IKEv2 Configuration Payload.",
                     "source": "config",
                     "type": "string"
                   },
                   {
-                    "description": "The pool carries the domain beside the addresses it leases. Ze sends no\nConfiguration payload today, so no client receives the domain.",
+                    "description": "Commit refuses this leaf when it is set. RFC 7296 Section 3.15.1 defines\nno search-domain attribute, so no value here could reach a client; delete it.",
                     "kind": "leaf",
                     "name": "domain",
                     "short-help": "Search domain pushed to clients.",
@@ -29113,7 +29372,7 @@
                     "type": "string"
                   },
                   {
-                    "description": "Commit refuses a value that is not a CIDR prefix, and a prefix length\noutside /8 to /30. The pool leases the addresses of the prefix without the\nnetwork address and the broadcast address, so a /30 carries two clients. An\nempty leaf leases no IPv4 address. No code reads the pool today, so no client\nreceives an address.",
+                    "description": "Commit refuses a value that is not a CIDR prefix, and a prefix length\noutside /8 to /30. The pool leases the addresses of the prefix without the\nnetwork address and the broadcast address, so a /30 carries two clients. An\nempty leaf leases no IPv4 address. A client is sent its lease as\nINTERNAL_IP4_ADDRESS, with this prefix's mask as INTERNAL_IP4_NETMASK when it\nasks for one.",
                     "kind": "leaf",
                     "name": "range",
                     "short-help": "IPv4 CIDR for client addresses (e.g. 10.10.0.0/24). Prefix length /8-/30.",
@@ -29121,7 +29380,7 @@
                     "type": "string"
                   },
                   {
-                    "description": "Commit refuses a value that is not a CIDR prefix, and a prefix length\noutside /48 to /126. An empty leaf leases no IPv6 address. No code reads the\npool today, so no client receives an address.",
+                    "description": "Commit refuses a value that is not a CIDR prefix, and a prefix length\noutside /48 to /126. An empty leaf leases no IPv6 address. A client is sent its\nlease as INTERNAL_IP6_ADDRESS with this prefix length.",
                     "kind": "leaf",
                     "name": "range6",
                     "short-help": "IPv6 CIDR for client addresses (e.g. fd00::/64). Prefix length /48-/126.",
@@ -29129,14 +29388,14 @@
                     "type": "string"
                   }
                 ],
-                "description": "Virtual IP pool for client address assignment (IKEv2 Configuration Payload, RFC 7296 Section 2.19).",
+                "description": "Virtual IP pool for client address assignment (IKEv2 Configuration Payload,\nRFC 7296 Section 2.19). Commit refuses two pools whose ranges overlap, because both\ncould then lease one inner address to two peers (RFC 3948 Section 5.1).",
                 "kind": "list[name]",
                 "name": "pool",
                 "short-help": "Virtual IP pool for client address assignment.",
                 "source": "config"
               }
             ],
-            "description": "The subtree parses and no session reads it, so a pool assigns no address and an\neap-user authenticates nobody. The engine builds the address pool at each apply and\nthen discards it. Configure a road warrior as a site-to-site peer with an EAP mode\nuntil the service exists. plan/immediate/spec-ipsec-remote-access.md owns the work.",
+            "description": "Every pool is built at each apply and serves the site-to-site respond peers\nwhose virtual-ip-pool leaf names it: Ze answers their CFG_REQUEST with a lease\n(RFC 7296 Section 2.19). Admission of road warriors from unconfigured sources and the\neap-user list are not served yet, so an eap-user authenticates nobody; configure a\nclient as a respond peer with an EAP mode until that service exists.",
             "kind": "container",
             "name": "remote-access",
             "short-help": "Remote access VPN for road warrior clients (EAP).",
@@ -29437,7 +29696,7 @@
                     ]
                   },
                   {
-                    "description": "Where this peer's Security Policy Database entries sit in the\noperator's ordering of that database. A LOWER value is searched\nFIRST, in Ze and in the Linux kernel.\n\nRFC 4301 Section 4.4.1: 'The ordering requirement arises because\nentries often will overlap due to the presence of (non-trivial)\nranges as values for selectors. Thus, a user or administrator MUST\nbe able to order the entries to express a desired access control\npolicy.' The same section binds this interface: it 'MUST support\n(total) ordering of these entries, as seen via this interface'.\n\nTwo peers whose traffic selectors overlap, 0.0.0.0/0 on both for\nexample, describe the same traffic. Give the one that must win the\nlower value. Peers that share a value are ordered by whichever\nestablished last, which is what every peer did before this leaf\nexisted, so the default 2000 keeps an unordered configuration\ninstalling exactly what it installed before.\n\nThe range starts above 100, which is where the IKE control-plane\nbypass sits. A peer entry at or above that rank captures the IKE\nexchange that builds and rekeys the very SA it protects, and the\ntunnel could then never renegotiate. It ends at 2147483647, the\nlargest rank Ze can carry to a dataplane.",
+                    "description": "Where this peer's Security Policy Database entries sit in the\noperator's ordering of that database. A LOWER value is searched\nFIRST, in Ze and in the Linux kernel.\n\nRFC 4301 Section 4.4.1: 'The ordering requirement arises because\nentries often will overlap due to the presence of (non-trivial)\nranges as values for selectors. Thus, a user or administrator MUST\nbe able to order the entries to express a desired access control\npolicy.' The same section binds this interface: it 'MUST support\n(total) ordering of these entries, as seen via this interface'.\n\nTwo peers whose traffic selectors overlap, 0.0.0.0/0 on both for\nexample, describe the same traffic. Give the one that must win the\nlower value. Nothing orders two peers that share a value, so\nwhen their tunnels overlap the one that establishes second is\nanswered TS_UNACCEPTABLE and gets no Child SA: one packet could\notherwise be sent into either tunnel, which RFC 3948 Section 5.1\nforbids. The default 2000 is the rank every peer took before\nthis leaf existed.\n\nThe range starts above 100, which is where the IKE control-plane\nbypass sits. A peer entry at or above that rank captures the IKE\nexchange that builds and rekeys the very SA it protects, and the\ntunnel could then never renegotiate. It ends at 2147483647, the\nlargest rank Ze can carry to a dataplane.",
                     "kind": "leaf",
                     "name": "policy-priority",
                     "short-help": "Rank of this peer's Security Policy Database entries, lowest searched first.",
@@ -29538,6 +29797,14 @@
                     "short-help": "Delete the SA when the peer declines transport mode.",
                     "source": "config",
                     "type": "boolean"
+                  },
+                  {
+                    "description": "Names a pool declared under vpn ipsec remote-access pool, and commit refuses\nan empty name and a name no pool carries. The peer MUST then use\nconnection-type respond and MUST send a CFG_REQUEST in IKE_AUTH: Ze leases it an\ninner address no other peer holds, answers with a CFG_REPLY, narrows the peer's\ninner traffic selector of every Child SA the peer asks for to that address, and\nproposes only that address for the peer's side of every Child SA Ze asks for,\nrefusing a wider answer (RFC 7296 Section 2.19, RFC 3948 Section 5.1). A request Ze\ncannot serve refuses the Child SA with FAILED_CP_REQUIRED or\nINTERNAL_ADDRESS_FAILURE and keeps the IKE SA. When the peer has traffic\nselectors, a remote prefix must cover the pool's ranges. A bound peer declines\ntransport mode.",
+                    "kind": "leaf",
+                    "name": "virtual-ip-pool",
+                    "short-help": "Remote-access pool this respond peer leases its inner address from.",
+                    "source": "config",
+                    "type": "string"
                   },
                   {
                     "children": [

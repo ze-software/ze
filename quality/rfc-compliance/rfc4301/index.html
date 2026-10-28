@@ -121,7 +121,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>12.0%</strong><b>12 of 100 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 100 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 100 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>89.8%</strong><b>150 of 167 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>75.4%</strong><b>126 of 167 tagged units, 0 escaped and 24 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -136,7 +136,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>34.0%</strong><b>34 of 100 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>52</strong><b>of 100 gated MUSTs judged</b><p>4 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>52</strong><b>of 100 gated MUSTs judged</b><p>4 weak, wrong or unimplemented, 1 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 8 shares marked as a part above are the whole of the 100 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -319,8 +319,8 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <td>MUST</td>
 <td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-4.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L175" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInstallsInDataplane</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L226" title="internal/plugins/ospf/ipsec_install_test.go" target="_blank" rel="noopener"><code>TestIPsecSAPerDestinationWithOSPFSelector</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L177" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInstallsInDataplane</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L228" title="internal/plugins/ospf/ipsec_install_test.go" target="_blank" rel="noopener"><code>TestIPsecSAPerDestinationWithOSPFSelector</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze projects both modes -- IKE child SAs install tunnel-mode ESP and OSPFv3 RFC 4552 installs transport-mode ESP/AH; a capability-presence MUST has no meaningful negative (internal/component/ike/engine/child.go:224, :253, internal/plugins/ospf/ipsec_install.go:413, :441)</p></td>
 </tr>
@@ -329,7 +329,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <td>MUST</td>
 <td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-4.1-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L190" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInstallsInDataplane</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L192" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInstallsInDataplane</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze (a security gateway) installs tunnel-mode ESP for every IKE-negotiated peer SA and policy (internal/component/ike/engine/child.go:224, :253, :281, :295)</p></td>
 </tr>
@@ -338,7 +338,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <td>MUST</td>
 <td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-4.1-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L177" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInstallsInDataplane</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L179" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInstallsInDataplane</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the IKE child-SA path hardcodes tunnel mode for every peer SA, so a peer SA can never be transport (internal/component/ike/engine/child.go:40, :224, :253)</p></td>
 </tr>
@@ -347,7 +347,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <td>MUST</td>
 <td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-4.1-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L179" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInstallsInDataplane</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L181" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInstallsInDataplane</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the inbound and outbound child SAs of a pair are both built with modeTunnel, so the pair is always same-mode (internal/component/ike/engine/child.go:224, :253)</p></td>
 </tr>
@@ -377,7 +377,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <td>MUST</td>
 <td>4.4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-4.4.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L156" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInstallsInDataplane</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L158" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInstallsInDataplane</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze maintains an SPD policy model (SPParams) and installs at least the PROTECT entries into the kernel SPD via both the IKE and OSPFv3 paths (internal/component/ike/dataplane/dataplane.go:145, engine/child.go:276, :290, internal/plugins/ospf/ipsec_install.go:432-452)</p></td>
 </tr>
@@ -404,7 +404,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <td>MUST</td>
 <td>4.4.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-4.4.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L428" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInboundPolicyUsesNegotiatedTS</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L430" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInboundPolicyUsesNegotiatedTS</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/ts_narrow_test.go#L424" title="internal/component/ike/engine/ts_narrow_test.go" target="_blank" rel="noopener"><code>TestNarrowedSelectorsReachTheInstalledPolicy</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_sad_selector_test.go#L60" title="internal/component/ike/engine/rfc4301_sad_selector_test.go" target="_blank" rel="noopener"><code>TestRFC4301InboundSADEntryCarriesTheNegotiatedSelectors</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_sad_selector_linux_test.go#L401" title="internal/component/ike/engine/rfc4301_sad_selector_linux_test.go" target="_blank" rel="noopener"><code>TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors</code></a></span></div>
@@ -435,8 +435,8 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <td>MUST</td>
 <td>4.5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-4.5-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L150" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInstallsInDataplane</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L110" title="internal/plugins/ospf/ipsec_install_test.go" target="_blank" rel="noopener"><code>TestIPsecInstallOnInterfaceUp</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L152" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInstallsInDataplane</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L112" title="internal/plugins/ospf/ipsec_install_test.go" target="_blank" rel="noopener"><code>TestIPsecInstallOnInterfaceUp</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze implements automated keying via its native IKEv2 engine and manual keying via the OSPFv3 RFC 4552 config, both installing SAs through the same dataplane seam (internal/component/ike/engine/child.go:199-307, internal/plugins/ospf/ipsec_install.go:295-342)</p></td>
 </tr>
@@ -487,7 +487,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <td>4.4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-4.4.1-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_final_entry_test.go#L67" title="internal/component/ike/engine/rfc4301_final_entry_test.go" target="_blank" rel="noopener"><code>TestRFC4301DefaultFinalSPDEntryDiscards</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_spd_lifecycle_test.go#L161" title="internal/component/ike/engine/rfc4301_spd_lifecycle_test.go" target="_blank" rel="noopener"><code>TestRFC4301FinalEntryIsUnderEveryZeSPDEntry</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_spd_lifecycle_test.go#L167" title="internal/component/ike/engine/rfc4301_spd_lifecycle_test.go" target="_blank" rel="noopener"><code>TestRFC4301FinalEntryIsUnderEveryZeSPDEntry</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_inbound_steps_linux_test.go#L329" title="internal/component/ike/engine/rfc4301_inbound_steps_linux_test.go" target="_blank" rel="noopener"><code>TestRFC4301InboundClearPacketIsDiscardedByTheDefaultFinalEntry</code></a></span></div>
 </div></td>
 </tr>
@@ -1493,12 +1493,12 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L175" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInstallsInDataplane</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L177" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInstallsInDataplane</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L226" title="internal/plugins/ospf/ipsec_install_test.go" target="_blank" rel="noopener"><code>TestIPsecSAPerDestinationWithOSPFSelector</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L228" title="internal/plugins/ospf/ipsec_install_test.go" target="_blank" rel="noopener"><code>TestIPsecSAPerDestinationWithOSPFSelector</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1513,7 +1513,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L190" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInstallsInDataplane</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L192" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInstallsInDataplane</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1528,7 +1528,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L177" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInstallsInDataplane</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L179" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInstallsInDataplane</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1543,7 +1543,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L179" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInstallsInDataplane</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L181" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInstallsInDataplane</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1597,7 +1597,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L156" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInstallsInDataplane</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L158" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInstallsInDataplane</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1622,44 +1622,44 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_sad_selector_linux_test.go#L403" title="internal/component/ike/engine/rfc4301_sad_selector_linux_test.go" target="_blank" rel="noopener"><code>TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_sad_selector_linux_test.go#L348" title="internal/component/ike/engine/rfc4301_sad_selector_linux_test.go" target="_blank" rel="noopener"><code>TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L428" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInboundPolicyUsesNegotiatedTS</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L430" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInboundPolicyUsesNegotiatedTS</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_sad_selector_linux_test.go#L401" title="internal/component/ike/engine/rfc4301_sad_selector_linux_test.go" target="_blank" rel="noopener"><code>TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_sad_selector_linux_test.go#L345" title="internal/component/ike/engine/rfc4301_sad_selector_linux_test.go" target="_blank" rel="noopener"><code>TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_sad_selector_test.go#L60" title="internal/component/ike/engine/rfc4301_sad_selector_test.go" target="_blank" rel="noopener"><code>TestRFC4301InboundSADEntryCarriesTheNegotiatedSelectors</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/ts_narrow_test.go#L424" title="internal/component/ike/engine/ts_narrow_test.go" target="_blank" rel="noopener"><code>TestNarrowedSelectorsReachTheInstalledPolicy</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc4301-4.4.2-2"><code>RFC4301-4.4.2-2</code></a></h3>
 <p>the entry for an inbound SA in the SAD MUST be initially populated with the value or values negotiated at the time the SA was created. (§4.4.2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-20 (independent judge, after 098cac336e, 166ef7cf27, 0b324c6182). Section 4.4.2: &#34;For each of the selectors defined in Section 4.4.1.1, the entry for an inbound SA in the SAD MUST be initially populated with the value or values negotiated at the time the SA was created.&#34; The STALE unit inboundStateSelector (child.go) changed only in its doc comment (0b324c6182 adds the pointer to Linux limitation LL-XFRM-STATE-ONE-SELECTOR); the body is unchanged, so the transport-mode state selector is still taken from the one inbound policy childPolicies builds, and the intersected protocol from d5af024e2a still holds. installChildSA&#39;s other change (rollback through removeZePolicy) touches no selector. Producers childPolicies, acceptablePairs, crossPairs unchanged. Tagged carriers TestRFC4301TransportStateSelectorIsTheNegotiatedPair, TestRFC4301MixedProtocolPairInstallsTheIntersection, TestRFC4301AuthResponseWithoutTSIsRefused, TestRFC4301InitiatorInstallsAnAddressRangeExactly, TestRFC4301InitiatorRefusesAnAnswerItCannotInstallExactly, TestRFC4301TransportInitiatorRefusesSeveralPairs, TestRFC4301InitiatorInstallsEveryAnsweredCombination PASS with -race at HEAD. ./le rfc check reports no discrimination refusal for this id. Verdict stands.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-26 against HEAD c8584247bb (independent judge, clean clone, after a8797fd0c2, c8d3e41036, 1502b3034b). Section 4.4.2: &#34;For each of the selectors defined in Section 4.4.1.1, the entry for an inbound SA in the SAD MUST be initially populated with the value or values negotiated at the time the SA was created.&#34; narrowChildSelectors changed in two places: substituteVirtualIP now drops a proposed TSi that does not contain the lease instead of replacing it (refusing with TS_UNACCEPTABLE when none is left), and the transport single-address filter is gated on transportSelectorsInPlay, which is false for a pool-bound peer whose transport request decideResponderTransportMode declined. Neither changes what is recorded: sa.NegotiatedPairs is still exactly the answered set (closedSubset of narrowed), and childPolicies/inboundStateSelector (unchanged) build the SAD selector from it, so SAD = negotiated holds on every path including the leased one. recordInitiatorSelectors gained answerNamesOnlyLeases before the ceiling, which only refuses; an accepted answer is still recorded as answered. Tagged carriers (TestRFC4301TransportStateSelectorIsTheNegotiatedPair, TestRFC4301MixedProtocolPairInstallsTheIntersection, TestRFC4301AuthResponseWithoutTSIsRefused, TestRFC4301InitiatorInstallsAnAddressRangeExactly, TestRFC4301InitiatorRefusesAnAnswerItCannotInstallExactly, TestRFC4301TransportInitiatorRefusesSeveralPairs, TestRFC4301InitiatorInstallsEveryAnsweredCombination) PASS at HEAD (./le job run, scoped -run). ./le rfc discriminate id RFC4301-4.4.2-2: ten mutant records, none stale, none unproven. Verdict stands.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1725,12 +1725,12 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L150" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInstallsInDataplane</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L152" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInstallsInDataplane</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L110" title="internal/plugins/ospf/ipsec_install_test.go" target="_blank" rel="noopener"><code>TestIPsecInstallOnInterfaceUp</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L112" title="internal/plugins/ospf/ipsec_install_test.go" target="_blank" rel="noopener"><code>TestIPsecInstallOnInterfaceUp</code></a></td>
 <td>unit/verify</td>
 <td>mutant, verified</td>
 </tr>
@@ -1739,7 +1739,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 </div>
 <h3><a href="#rfc4301-5.2-1"><code>RFC4301-5.2-1</code></a></h3>
 <p>Since the SPD-I is just a part of the SPD, if a packet that is looked up in the SPD-I cannot be matched to an entry there, then the packet MUST be discarded. (§4.4.1)</p>
-<p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), fresh. Re-judged 2026-10-20 (independent judge, after d6e44c3bb1). Section 4.4.1: &#34;Since the SPD-I is just a part of the SPD, if a packet that is looked up in the SPD-I cannot be matched to an entry there, then the packet MUST be discarded.&#34; The only cited producer that moved is warnSPDLeft (spd_left.go): d6e44c3bb1 changed the warning text alone (each leftover entry is now named by its full `ip xfrm policy delete` command via describe/deleteCommand, sorted, carrying proto, sport, dport and if_id). Its contract is unchanged: it returns true exactly when the ledger is non-empty, and releaseSPD (apply.go) still returns before removeUnmatched in that case, so the catch-all still outlives every Ze entry a removal left. The gap paths are unaffected: VPP runs only under `unmatched bypass` with no catch-all (vppPolicyInterface, CatchAllSupported answering ErrNoNodeWideSPD), and the OSPFv3 RFC 4552 manual-key entries installed via defaultDataplaneSource have no catch-all beneath them, so an inbound packet can still meet no SPD-I entry and be delivered. Named tests TestReleaseSPDKeepsTheCatchAllWhenARemovalFails (now asserting the command form), TestRFC4301FinalEntryIsUnderEveryZeSPDEntry, TestRunInstallsNoSPDEntryBeforeTheFirstApply, TestRFC4301InboundClearPacketMatchingNoEntryFollowsTheUnmatchedLeaf and TestUnmatched* pass at HEAD. Gap stands; {gap} annotation accurate.</p>
+<p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), fresh. Re-judged 2026-10-26 at HEAD 635aa08b78 (independent judge, clean clone). Section 4.4.1: &#34;Since the SPD-I is just a part of the SPD, if a packet that is looked up in the SPD-I cannot be matched to an entry there, then the packet MUST be discarded.&#34; dc7de8e76f and 000e6fdfea changed the two cited units releaseSPD and warnSPDLeft, and nothing else this verdict cites. releaseSPD&#39;s only change is the call warnSPDLeft(log) becoming warnSPDLeft(dp, log). warnSPDLeft now names each leftover through spdLeft.describe(dp), which copies the ledger out under l.mu and asks policyDeleteCommand (inner_selectors.go) for each entry&#39;s removal command: dataplane.XFRMPolicyDeleteCommand for xfrmBackend, the recorded spdEntries entry for vppBackend (vppPolicyDelCommand), and a plain text naming the selector when the backend names none or a nil dataplane is passed. policyDeleteCommand always returns a string, so describe still returns exactly one name per ledger entry, and warnSPDLeft still returns true exactly when the ledger holds an entry: the decision to keep the catch-all is unchanged, only the text of the warning is. Probe in the clone (go -overlay, tree untouched): warnSPDLeft made to return false always, and describe made to return no name, each turn TestReleaseSPDKeepsTheCatchAllWhenARemovalFails, TestChildInstallRollbackFailureIsRecordedInTheSPDLedger, TestSPDLeftoverNamesTheExactRemovalCommand and TestSPDLeftoverNamesTheBackendCommand red. The gap paths are unchanged: vppPolicyInterface is byte-identical, so VPP still runs only under `unmatched bypass` with no catch-all (CatchAllSupported answering ErrNoNodeWideSPD), and defaultDataplaneSource is byte-identical, so the OSPFv3 RFC 4552 manual-key entries still have no catch-all beneath them; an inbound packet on either path can meet no SPD-I entry and be delivered. dc7de8e76f&#39;s VPP change (a stranded retry deletes the SPD entry the backend recorded) removes Child SA entries and installs none, so it adds no final entry. Gap stands; {gap} annotation accurate.</p>
 <p>No test carries RFC4301-5.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4301-5.2-2"><code>RFC4301-5.2-2</code></a></h3>
 <p>Then match the packet against the inbound selectors identified by the SAD entry to verify that the received packet is appropriate for the SA via which it was received. (§5.2)</p>
@@ -1756,12 +1756,12 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_sad_selector_linux_test.go#L408" title="internal/component/ike/engine/rfc4301_sad_selector_linux_test.go" target="_blank" rel="noopener"><code>TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_sad_selector_linux_test.go#L353" title="internal/component/ike/engine/rfc4301_sad_selector_linux_test.go" target="_blank" rel="noopener"><code>TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc4301_boundary_linux_test.go#L130" title="internal/component/ike/dataplane/rfc4301_boundary_linux_test.go" target="_blank" rel="noopener"><code>TestRFC4301BoundarySPDEntryCarriesSelectorDirectionOrderAndTemplate</code></a></td>
@@ -1776,12 +1776,12 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_sad_selector_linux_test.go#L406" title="internal/component/ike/engine/rfc4301_sad_selector_linux_test.go" target="_blank" rel="noopener"><code>TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_sad_selector_linux_test.go#L351" title="internal/component/ike/engine/rfc4301_sad_selector_linux_test.go" target="_blank" rel="noopener"><code>TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -1812,7 +1812,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <p>No test carries RFC4301-7-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4301-4.4.1-3"><code>RFC4301-4.4.1-3</code></a></h3>
 <p>Every SPD SHOULD have a nominal, final entry that matches anything that is otherwise unmatched, and discards it. (§4.4.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-20 (independent judge, after d6e44c3bb1). Section 4.4.1: &#34;Every SPD SHOULD have a nominal, final entry that matches anything that is otherwise unmatched, and discards it.&#34; The only cited producer that moved is warnSPDLeft: d6e44c3bb1 changed the warning message only (entries named by their exact `ip xfrm policy delete` command, so the port 500 and port 4500 IKE bypasses are distinguishable). Return semantics unchanged: true iff the ledger holds an entry, and releaseSPD then skips removeUnmatched, so the discard catch-all stays beneath every leftover Ze entry. removeZePolicy, installUnmatched, unmatchedPolicies, parseUnmatched, applyConfig and shutdown are unchanged. The three tagged carriers are unchanged in body: TestRFC4301DefaultFinalSPDEntryDiscards (with the leaf absent, the last entry in every direction and family is a wildcard discard), TestRFC4301FinalEntryIsUnderEveryZeSPDEntry (replays every recorded write through apply, a Child SA and shutdown, failing the moment any Ze entry is live without the discard catch-all), and TestRFC4301InboundClearPacketIsDiscardedByTheDefaultFinalEntry (real XFRM, a clear inbound packet matching no other entry is dropped). All pass at HEAD together with TestReleaseSPDKeepsTheCatchAllWhenARemovalFails, TestChildInstallRollbackFailureIsRecordedInTheSPDLedger and TestSPDLeftoverNamesTheExactRemovalCommand. Scope note carried from RFC4301-5.2-1: VPP holds no catch-all and the OSPFv3 RFC 4552 entries have none; those are the disclosed gap there and do not touch the SPD Ze&#39;s IKE engine builds, which these tests pin. Verdict stands.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-26 at HEAD 635aa08b78 (independent judge, clean clone). Section 4.4.1: &#34;Every SPD SHOULD have a nominal, final entry that matches anything that is otherwise unmatched, and discards it.&#34; dc7de8e76f and 000e6fdfea changed the two cited units releaseSPD and warnSPDLeft, and nothing else this verdict cites. releaseSPD&#39;s only change is the call warnSPDLeft(log) becoming warnSPDLeft(dp, log). warnSPDLeft now names each leftover through spdLeft.describe(dp), which copies the ledger out under l.mu and asks policyDeleteCommand (inner_selectors.go) for each entry&#39;s removal command: dataplane.XFRMPolicyDeleteCommand for xfrmBackend, the recorded spdEntries entry for vppBackend (vppPolicyDelCommand), and a plain text naming the selector when the backend names none or a nil dataplane is passed. policyDeleteCommand always returns a string, so describe still returns exactly one name per ledger entry, and warnSPDLeft still returns true exactly when the ledger holds an entry: the decision to keep the catch-all is unchanged, only the text of the warning is. Probe in the clone (go -overlay, tree untouched): warnSPDLeft made to return false always, and describe made to return no name, each turn TestReleaseSPDKeepsTheCatchAllWhenARemovalFails, TestChildInstallRollbackFailureIsRecordedInTheSPDLedger, TestSPDLeftoverNamesTheExactRemovalCommand and TestSPDLeftoverNamesTheBackendCommand red. The three tagged units are byte-identical to the recorded ones (TestRFC4301DefaultFinalSPDEntryDiscards, TestRFC4301FinalEntryIsUnderEveryZeSPDEntry, TestRFC4301InboundClearPacketIsDiscardedByTheDefaultFinalEntry) and still assert the catch-all&#39;s existence, rank and discard. Observation, not a finding: the keep-the-catch-all-at-exit behaviour that these two units carry is proven by the untagged TestReleaseSPDKeepsTheCatchAllWhenARemovalFails, not by a tagged unit. Scope note carried from RFC4301-5.2-1: VPP holds no catch-all and the OSPFv3 RFC 4552 entries have none. Verdict stands.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1828,7 +1828,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_spd_lifecycle_test.go#L161" title="internal/component/ike/engine/rfc4301_spd_lifecycle_test.go" target="_blank" rel="noopener"><code>TestRFC4301FinalEntryIsUnderEveryZeSPDEntry</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_spd_lifecycle_test.go#L167" title="internal/component/ike/engine/rfc4301_spd_lifecycle_test.go" target="_blank" rel="noopener"><code>TestRFC4301FinalEntryIsUnderEveryZeSPDEntry</code></a></td>
 <td>unit/verify</td>
 <td>mutant, verified</td>
 </tr>
@@ -1897,7 +1897,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 </div>
 <h3><a href="#rfc4301-4.4.1-4"><code>RFC4301-4.4.1-4</code></a></h3>
 <p>Thus, a user or administrator MUST be able to order the entries to express a desired access control policy. (§4.4.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-19 (independent judge, after 4c41f84038, which replaced childPolicyParams with childPolicies: one inbound and one outbound policy per negotiated pair, all bound to the one SA, plus inboundStateSelector for the transport-mode state). RFC 4301 Section 4.4.1: &#34;Thus, a user or administrator MUST be able to order the entries to express a desired access control policy.&#34; Prior verdict enforced. The tagged units changed only by childPolicyParams(x, dir) becoming childPolicies(x, dir)[0]; their fixtures carry no selector set, so childPolicies returns exactly one policy and [0] is the same SPParams as before. childPairPolicy resolves Priority from child.PolicyPriority (zero to PriorityChildSA) for every pair, so a multi-pair Child SA carries the operator&#39;s rank on every policy. Assertions unchanged: operator rank reaches both directions and orders overlapping peers; unstated order is not 0 and a rekey keeps the default rank; an order capturing IKE is refused (engine and ipsec). All PASS at HEAD. Verdict stands. Owed by the author: the revert record on TestSpdOperatorOrdersOverlappingPeers names childPolicyParams and no longer verifies (unit-changed); re-record it on childPolicies.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-27 (independent judge, after 2f36373081). RFC 4301 Section 4.4.1: &#34;The ordering requirement arises because entries often will overlap due to the presence of (non-trivial) ranges as values for selectors. Thus, a user or administrator MUST be able to order the entries to express a desired access control policy.&#34; The STALE unit TestSpdUnstatedOrderTakesTheDefaultRank changed only by newRekeyedChild gaining its mode argument (child.Mode, the value the constructor previously copied from old.Mode); Mode does not reach childPairPolicy&#39;s priority, which still resolves child.PolicyPriority with zero mapped to PriorityChildSA, and newRekeyedChild still copies old.PolicyPriority. Assertions unchanged: operator rank reaches both directions and orders two overlapping 0.0.0.0/0 peers (positive; its revert record on childPolicies no longer verifies, producer-changed, and is owed a re-record by the author); unstated order is never 0 and takes the default rank (negative); an order capturing IKE is refused (engine and ipsec; the ipsec revert record on spd_policy.go validate verifies). All tagged units PASS at 95efd5421d. Observed this audit: disabling the zero-to-default branch in childPairPolicy turns TestSpdUnstatedOrderTakesTheDefaultRank red (rank 0 reached the SPD). The unit&#39;s rekey half runs on rank 0 and cannot catch a rekey that drops the operator&#39;s rank; dropping that copy in newRekeyedChild is caught by the untagged TestOrderedTransportChildRekeyAfterIKERekey, observed red this audit. Verdict stands.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -2030,7 +2030,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_esp_test.go#L19" title="internal/component/ike/engine/rfc4301_esp_test.go" target="_blank" rel="noopener"><code>TestRFC4301ChildSAIsInstalledAsESP</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -2085,7 +2085,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_parallel_sa_linux_test.go#L108" title="internal/component/ike/engine/rfc4301_parallel_sa_linux_test.go" target="_blank" rel="noopener"><code>TestRFC4301ParallelSAsAreHeldToTheOneSharedPolicy</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc4301_boundary_linux_test.go#L70" title="internal/component/ike/dataplane/rfc4301_boundary_linux_test.go" target="_blank" rel="noopener"><code>TestRFC4301BoundarySADEntryCarriesWhatTheKernelLooksUp</code></a></td>
@@ -2095,7 +2095,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_parallel_sa_linux_test.go#L81" title="internal/component/ike/engine/rfc4301_parallel_sa_linux_test.go" target="_blank" rel="noopener"><code>TestRFC4301ParallelSAsWithOneSelectorAreEachReceived</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -2176,7 +2176,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_parallel_sa_linux_test.go#L111" title="internal/component/ike/engine/rfc4301_parallel_sa_linux_test.go" target="_blank" rel="noopener"><code>TestRFC4301ParallelSAsAreHeldToTheOneSharedPolicy</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc4301_boundary_linux_test.go#L127" title="internal/component/ike/dataplane/rfc4301_boundary_linux_test.go" target="_blank" rel="noopener"><code>TestRFC4301BoundarySPDEntryCarriesSelectorDirectionOrderAndTemplate</code></a></td>
@@ -2186,12 +2186,12 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_ordered_spd_linux_test.go#L87" title="internal/component/ike/engine/rfc4301_ordered_spd_linux_test.go" target="_blank" rel="noopener"><code>TestRFC4301OrderedInboundSearchAdmitsOnTheFirstRankedEntry</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_parallel_sa_linux_test.go#L84" title="internal/component/ike/engine/rfc4301_parallel_sa_linux_test.go" target="_blank" rel="noopener"><code>TestRFC4301ParallelSAsWithOneSelectorAreEachReceived</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -2482,7 +2482,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_sad_lifetime_action_test.go#L81" title="internal/component/ike/engine/rfc4301_sad_lifetime_action_test.go" target="_blank" rel="noopener"><code>TestRFC4301SADLifetimeHardTimeTerminatesTheSA</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_sad_lifetime_test.go#L52" title="internal/component/ike/engine/rfc4301_sad_lifetime_test.go" target="_blank" rel="noopener"><code>TestRFC4301SADLifetimeTerminatesTheSAAtTheEndOfItsInterval</code></a></td>
@@ -2492,7 +2492,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_sad_lifetime_action_test.go#L23" title="internal/component/ike/engine/rfc4301_sad_lifetime_action_test.go" target="_blank" rel="noopener"><code>TestRFC4301SADLifetimeSoftTimeReplacesTheSA</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_sad_lifetime_test.go#L23" title="internal/component/ike/engine/rfc4301_sad_lifetime_test.go" target="_blank" rel="noopener"><code>TestRFC4301SADLifetimeIndicatesReplaceBeforeTerminate</code></a></td>
@@ -2624,12 +2624,12 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc4301_keymat_test.go#L72" title="internal/component/ike/crypto/rfc4301_keymat_test.go" target="_blank" rel="noopener"><code>TestRFC4301KeymatIntegrityKeysNeverLead</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc4301_keymat_test.go#L45" title="internal/component/ike/crypto/rfc4301_keymat_test.go" target="_blank" rel="noopener"><code>TestRFC4301KeymatEncryptionKeysLeadEachSA</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -2760,7 +2760,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 </div>
 <h3><a href="#rfc4301-5.1-7"><code>RFC4301-5.1-7</code></a></h3>
 <p>If the SPD entry calls for PROTECT, i.e., creation of an SA, the key management mechanism (e.g., IKEv2) is invoked to create the SA. If SA creation succeeds, a new outbound (SPD-S) cache entry is created, along with outbound and inbound SAD entries, otherwise the packet is discarded. (§5.1)</p>
-<p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), fresh. Re-judged 2026-10-21 (independent judge, over the uncommitted errChildEncapPort change for plan/immediate/spec-ike-eap-rfc-defects.md). Section 5.1: &#34;If the SPD entry calls for PROTECT, i.e., creation of an SA, the key management mechanism (e.g., IKEv2) is invoked to create the SA.&#34; installChildSA changed in one place only: before anything is installed it refuses a Child SA with UDPEncap set and a zero udpLocalPort or udpRemotePort (errChildEncapPort). That narrows which negotiated SAs install; it adds no path from an outbound packet to IKEv2. PROTECT entries are still installed only beside a Child SA IKEv2 already negotiated, and no XFRM acquire is handled under internal/component/ike (the non-test &#39;acquire&#39; hits are a netlink receiver comment, redistevents.AcquireBatch and a lock comment). {gap} text at rfc/short/rfc4301.md:540 remains accurate. Gap stands.</p>
+<p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), stale-unit: internal/component/ike/engine/child.go::installChildSA moved. Re-judged 2026-10-27 at HEAD 58ee58c176 (independent judge, clean clone), after bb90bdec23 rewrote the doc comment of installChildSA (&#34;its selectors, tunnel or transport mode&#34;). The function body is byte-identical to dfabdcf8bf (retryStranded, claim, installChildDataplane, release on a non-XFRM-unsupported error), and parseSPDPolicy is unchanged. Section 5.1: &#34;If the SPD entry calls for PROTECT, i.e., creation of an SA, the key management mechanism (e.g., IKEv2) is invoked to create the SA.&#34; A PROTECT entry is still installed only beside a Child SA IKEv2 already negotiated (createFirstChildSA, installChildSA). Outside vendor/ no file names XFRM_MSG_ACQUIRE or XFRMNLGRP_ACQUIRE (the only hits are in vendor/github.com/vishvananda/netlink/nl/xfrm_linux.go), no XFRM monitor or subscription exists under internal/component/ike or internal/plugins/ospf, the remaining &#39;acquire&#39; hits are a migrate receiver comment, lease and batch acquisitions and lock comments, and no trap or on-demand start action exists. The other child.go changes since dfabdcf8bf (000e6fdfea, dc7de8e76f, 0308ef4d70) touch stranded-policy retry and childPolicyPair and add no path from an outbound packet to IKEv2. The {gap} text on the row stays accurate. Gap stands.</p>
 <p>No test carries RFC4301-5.1-7, so no unit is bound to it.</p>
 <h3><a href="#rfc4301-5.1.2.1-1"><code>RFC4301-5.1.2.1-1</code></a></h3>
 <p>If the packet will immediately enter a domain for which the DSCP value in the outer header is not appropriate, that value MUST be mapped to an appropriate value for the domain (§5.1.2.1)</p>
@@ -2848,7 +2848,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 </div>
 <h3><a href="#rfc4301-5.2-9"><code>RFC4301-5.2-9</code></a></h3>
 <p>(No SAs are created in response to receipt of a packet that requires IPsec protection; only BYPASS or DISCARD cache entries can be created this way.) If there is no match, discard the traffic. (§5.2)</p>
-<p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), fresh. Re-judged 2026-10-20 (independent judge, after d6e44c3bb1). Section 5.2 step 3b: &#34;(No SAs are created in response to receipt of a packet that requires IPsec protection; only BYPASS or DISCARD cache entries can be created this way.) If there is no match, discard the traffic.&#34; Same producer walk as RFC4301-5.2-1. The only cited producer that moved is warnSPDLeft: d6e44c3bb1 changed its warning text alone (exact `ip xfrm policy delete` command per leftover entry); it still returns true iff the ledger is non-empty and releaseSPD still keeps the catch-all then. The unmatched-traffic paths are unchanged: VPP runs only under `unmatched bypass` with no catch-all (vppPolicyInterface, ErrNoNodeWideSPD), and the OSPFv3 RFC 4552 manual-key entries (defaultDataplaneSource) have no catch-all, so traffic matching no entry there is delivered, not discarded. Named tests pass at HEAD (TestReleaseSPDKeepsTheCatchAllWhenARemovalFails, TestRFC4301FinalEntryIsUnderEveryZeSPDEntry, TestRunInstallsNoSPDEntryBeforeTheFirstApply, TestUnmatched*). Gap stands; {gap} annotation accurate.</p>
+<p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), fresh. Re-judged 2026-10-26 at HEAD 635aa08b78 (independent judge, clean clone). Section 5.2 step 3b: &#34;(No SAs are created in response to receipt of a packet that requires IPsec protection; only BYPASS or DISCARD cache entries can be created this way.) If there is no match, discard the traffic.&#34; Same producer walk as RFC4301-5.2-1. dc7de8e76f and 000e6fdfea changed the two cited units releaseSPD and warnSPDLeft, and nothing else this verdict cites. releaseSPD&#39;s only change is the call warnSPDLeft(log) becoming warnSPDLeft(dp, log). warnSPDLeft now names each leftover through spdLeft.describe(dp), which copies the ledger out under l.mu and asks policyDeleteCommand (inner_selectors.go) for each entry&#39;s removal command: dataplane.XFRMPolicyDeleteCommand for xfrmBackend, the recorded spdEntries entry for vppBackend (vppPolicyDelCommand), and a plain text naming the selector when the backend names none or a nil dataplane is passed. policyDeleteCommand always returns a string, so describe still returns exactly one name per ledger entry, and warnSPDLeft still returns true exactly when the ledger holds an entry: the decision to keep the catch-all is unchanged, only the text of the warning is. Probe in the clone (go -overlay, tree untouched): warnSPDLeft made to return false always, and describe made to return no name, each turn TestReleaseSPDKeepsTheCatchAllWhenARemovalFails, TestChildInstallRollbackFailureIsRecordedInTheSPDLedger, TestSPDLeftoverNamesTheExactRemovalCommand and TestSPDLeftoverNamesTheBackendCommand red. vppPolicyInterface and defaultDataplaneSource are byte-identical, so on VPP (no catch-all, `unmatched bypass` only) and under the OSPFv3 RFC 4552 manual-key entries (no catch-all) traffic matching no entry is still delivered, not discarded. Gap stands; {gap} annotation accurate.</p>
 <p>No test carries RFC4301-5.2-9, so no unit is bound to it.</p>
 <h3><a href="#rfc4301-5.2-10"><code>RFC4301-5.2-10</code></a></h3>
 <p>Apply AH or ESP processing as specified, using the SAD entry selected in step 3a above. (§5.2)</p>
@@ -2921,7 +2921,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_portless_test.go#L47" title="internal/component/ike/engine/rfc4301_portless_test.go" target="_blank" rel="noopener"><code>TestRFC4301TunnelSAPassesTrafficWithoutRegardToPorts</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -3047,7 +3047,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_fragment_linux_test.go#L86" title="internal/component/ike/engine/rfc4301_fragment_linux_test.go" target="_blank" rel="noopener"><code>TestRFC4301FragmentsOfANonCompliantPacketAreDiscarded</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc4301_boundary_linux_test.go#L133" title="internal/component/ike/dataplane/rfc4301_boundary_linux_test.go" target="_blank" rel="noopener"><code>TestRFC4301BoundarySPDEntryCarriesSelectorDirectionOrderAndTemplate</code></a></td>
@@ -3057,7 +3057,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_fragment_linux_test.go#L57" title="internal/component/ike/engine/rfc4301_fragment_linux_test.go" target="_blank" rel="noopener"><code>TestRFC4301FragmentsOfACompliantPacketAreDelivered</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -3711,8 +3711,10 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
         <footer>
             <div class="footer-inner">
                 <div class="footer-bottom">
+                    <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 15:23 UTC</span>
+                    <a href="../../../legal/">Legal notice</a>
+                    <span class="footer-published">Published 27 October 2026 23:56 UTC</span>
                 </div>
             </div>
         </footer>

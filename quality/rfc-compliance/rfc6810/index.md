@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 5.0% | 2 of 40 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 40 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 40 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 61.9% | 13 of 21 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 23.8% | 5 of 21 tagged units, 0 escaped and 8 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -134,7 +134,7 @@ Four MUST-level gaps, each annotated in [`rfc/short/rfc6810.md`](https://github.
 | `RFC6810-6.4-1` | If no other caches are available, the router MUST issue periodic Reset Queries until it gets a new usable load from the cache. (Section 6.4) | MUST | 6.4 | **positive:** `unit/verify` [`TestRFC6810NoDataAvailableRepeatsResetQuery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go#L71). **negative:** `unit/verify` [`TestRFC6810NoDataAvailableRepeatsResetQuery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go#L72) |
 | `RFC6810-3-1` | A relying party, e.g., router or other client, MUST have a trust relationship with, and a trusted transport channel to, any authoritative cache(s) it uses. (Section 3) | MUST | 3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** operator deployment obligation -- the trust relationship and trusted channel are established by network placement; ze dials the operator-configured cache over unprotected TCP (internal/component/bgp/plugins/rpki/rtr_session.go:127) and has no in-band trust mechanism to produce or violate |
 | `RFC6810-4-2` | As a cache server must evaluate certificates and ROAs (Route Origin Attestations; see [RFC6480]), which are time dependent, servers' clocks MUST be correct to a tolerance of approximately an hour. (Section 4) | MUST | 4 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** cache-server clock obligation -- ze is the RTR router client that dials out (internal/component/bgp/plugins/rpki/rtr_session.go:125 connectAndSync); it runs no cache and holds no clock this binds |
-| `RFC6810-7-1` | Caches and routers MUST implement unprotected transport over TCP using a port, rpki-rtr (323); see Section 12. (Section 7) | MUST | 7 | **positive:** `unit/verify` [`TestParseRPKIConfigDefaults`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rpki_config_test.go#L86). **positive:** `unit/verify` [`TestRTRUnprotectedTCPFromConfig`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_transport_rfc8210_test.go#L26). **negative:** no negative test. **{single-polarity}:** ze implements the unprotected TCP transport by dialing tcp (internal/component/bgp/plugins/rpki/rtr_session.go:127) and defaults the RTR port to 323 (rpki_config.go:174); it never declines to offer unprotected TCP, so there is no negative case |
+| `RFC6810-7-1` | Caches and routers MUST implement unprotected transport over TCP using a port, rpki-rtr (323); see Section 12. (Section 7) | MUST | 7 | **positive:** `unit/verify` [`TestParseRPKIConfigDefaults`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rpki_config_test.go#L88). **positive:** `unit/verify` [`TestRTRUnprotectedTCPFromConfig`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_transport_rfc8210_test.go#L26). **negative:** no negative test. **{single-polarity}:** ze implements the unprotected TCP transport by dialing tcp (internal/component/bgp/plugins/rpki/rtr_session.go:127) and defaults the RTR port to 323 (rpki_config.go:174); it never declines to offer unprotected TCP, so there is no negative case |
 | `RFC6810-7-2` | If unprotected TCP is the transport, the cache and routers MUST be on the same trusted and controlled network. (Section 7) | MUST | 7 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** operator deployment obligation -- when unprotected TCP is used the trusted-network placement is the operator's; ze dials plain TCP (internal/component/bgp/plugins/rpki/rtr_session.go:127) with no code path to enforce network topology |
 | `RFC6810-7-3` | If available to the operator, caches and routers MUST use one of the following more protected protocols. (Section 7) | MUST | 7 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze implements no protected RTR transport -- connectAndSync dials only unprotected TCP (internal/component/bgp/plugins/rpki/rtr_session.go:127) and the plugin has no SSH, TLS, TCP-MD5, or TCP-AO client, so no more protected protocol is available to select |
 | `RFC6810-7.1-1` | Cache servers supporting SSH transport MUST accept RSA and Digital Signature Algorithm (DSA) authentication (Section 7.1) | MUST | 7.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** cache-server SSH obligation -- ze runs no RTR SSH server and no SSH client (connectAndSync dials plain TCP, internal/component/bgp/plugins/rpki/rtr_session.go:127), so it performs no SSH authentication |
@@ -257,9 +257,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Rece
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC6810ReservedPrefixOctetsIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go#L38) | unit/verify | revert, verified |
-| negative | [`TestRTRReservedOctetsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L495) | unit/verify | revert, verified |
+| negative | [`TestRTRReservedOctetsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L495) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | positive | [`TestRFC6810ReservedPrefixOctetsIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go#L37) | unit/verify | revert, verified |
-| positive | [`TestRTRReservedOctetsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L472) | unit/verify | revert, verified |
+| positive | [`TestRTRReservedOctetsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L472) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC6810-5.6-1`](#rfc6810-5.6-1)
 
@@ -368,10 +368,10 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Same
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRTRCacheResetReloadsTheWholeSet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L338) | unit/verify | revert, verified |
-| negative | [`TestCacheResetTriggersResetQuery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L318) | unit/verify | revert, verified |
-| positive | [`TestRTRCacheResetReloadsTheWholeSet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L325) | unit/verify | revert, verified |
-| positive | [`TestCacheResetTriggersResetQuery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L302) | unit/verify | revert, verified |
+| negative | [`TestRTRCacheResetReloadsTheWholeSet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L338) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestCacheResetTriggersResetQuery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L318) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRTRCacheResetReloadsTheWholeSet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L325) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestCacheResetTriggersResetQuery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L302) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC6810-6.4-1`](#rfc6810-6.4-1)
 
@@ -381,8 +381,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC6810NoDataAvailableRepeatsResetQuery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go#L72) | unit/verify | revert, verified |
-| positive | [`TestRFC6810NoDataAvailableRepeatsResetQuery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go#L71) | unit/verify | revert, verified |
+| negative | [`TestRFC6810NoDataAvailableRepeatsResetQuery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go#L72) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC6810NoDataAvailableRepeatsResetQuery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go#L71) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC6810-3-1`](#rfc6810-3-1)
 
@@ -408,7 +408,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Sing
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestParseRPKIConfigDefaults`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rpki_config_test.go#L86) | unit/verify | unproven |
+| positive | [`TestParseRPKIConfigDefaults`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rpki_config_test.go#L88) | unit/verify | unproven |
 | positive | [`TestRTRUnprotectedTCPFromConfig`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_transport_rfc8210_test.go#L26) | unit/verify | revert, verified |
 
 ### [`RFC6810-7-2`](#rfc6810-7-2)

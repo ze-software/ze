@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 0.0% | 0 of 31 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 31 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 31 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 91.7% | 44 of 48 tagged units, 2 escaped and 2 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 95.8% | 46 of 48 tagged units, 2 escaped and 0 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -382,8 +382,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. a fo
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRadiusAdminEapDiscardsUnauthenticatedChallenge`](https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L501) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRadiusAdminEapVerifiedChallengeIsAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L915) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRadiusAdminEapDiscardsUnauthenticatedChallenge`](https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L501) | unit/verify | revert, verified |
+| positive | [`TestRadiusAdminEapVerifiedChallengeIsAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L915) | unit/verify | revert, verified |
 
 ### [`RFC3579-3.2-1`](#rfc3579-3.2-1)
 

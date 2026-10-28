@@ -287,6 +287,29 @@ RFC 9234 roles describe the business relationship between peers and let Ze enfor
 
 ## Session lifecycle
 
+### Delay sending OPEN
+
+Set `timer { delay-open 5; }` inside a peer to hold its local OPEN for up to five
+seconds after TCP connects. An incoming OPEN releases the wait immediately;
+otherwise timer expiry sends OPEN. The range is 0..240 seconds, and the default
+zero keeps immediate OPEN transmission. The setting is inherited from BGP and
+group blocks too.
+
+While the wait runs, peer detail reports Connect or Active, not OpenSent. A
+second connection waits for its OPEN before collision arbitration; it cannot
+displace the held connection merely by connecting.
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- leaf delay-open -->
+<!-- source: internal/component/bgp/reactor/reactor_connection.go -- acceptOrReject, handlePendingCollision -->
+
+With `connection { bfd { enabled true; strict true; } }` and strict mode
+negotiated by both peers, an early OPEN sends Ze's OPEN but withholds KEEPALIVE
+until BFD permits the session. `show bgp peer detail` reports a Connect or Active
+DelayOpen BFD pending sub-state. A nonzero negotiated HoldTimer bounds that wait;
+zero hold uses the configured BFD `hold-time` instead.
+<!-- source: internal/component/bgp/reactor/session_bfd_strict.go -- advanceAfterOpen -->
+<!-- source: internal/component/bgp/fsm/delay_open.go -- EnterDelayOpenBfdUpPending -->
+
+
 ### Hold timer expiry
 
 When the hold timer expires, Ze runs the full RFC 4271 Section 8.2.2 Event 10 action list. It sends NOTIFICATION Hold Timer Expired (error 4), releases the session resources, moves the FSM to Idle, and increases the ConnectRetryCounter.

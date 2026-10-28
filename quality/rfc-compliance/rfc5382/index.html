@@ -1,0 +1,892 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>RFC 5382 requirement ledger - Ze</title>
+        <meta name="description" content="RFC 5382: NAT Behavioral Requirements for TCP. 11 gated MUST-level requirements, 6 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:title" content="RFC 5382 requirement ledger - Ze" />
+        <meta property="og:description" content="RFC 5382: NAT Behavioral Requirements for TCP. 11 gated MUST-level requirements, 6 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="RFC 5382 requirement ledger - Ze" />
+        <meta name="twitter:description" content="RFC 5382: NAT Behavioral Requirements for TCP. 11 gated MUST-level requirements, 6 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
+        <link rel="canonical" href="https://ze-software.net/quality/rfc-compliance/rfc5382/" />
+        <meta property="og:url" content="https://ze-software.net/quality/rfc-compliance/rfc5382/" />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../../#top">Ze</a>
+                    <a href="../../../#top">Home</a>
+                    <a href="../../../docs/">Docs</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../project/roadmap/">Roadmap</a>
+                    <a href="../../../project/changes/">Changes</a>
+                    <a href="../../../faq/">FAQ</a>
+                    <a href="../../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section aria-labeledby="rfc-detail-title" class="md-content reveal cat-observe">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Partial</span>
+    <h1 id="rfc-detail-title">RFC 5382 - NAT Behavioral Requirements for TCP</h1>
+    <p>Every requirement this repository extracted from RFC 5382, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.</p>
+</div>
+<style>
+.rfc-table-wrap { overflow-x: auto; }
+.rfc-id-list { margin: .6rem 0; line-height: 1.9; }
+.rfc-verdict { margin: 1rem 0 1.6rem; padding: 1rem 1.2rem; border-radius: 18px; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-verdict p { margin: 0 0 .4rem; color: var(--muted); }
+.rfc-verdict p:last-child { margin-bottom: 0; }
+.rfc-verdict span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-verdict strong { display: block; margin: .2rem 0 .5rem; font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1; color: var(--text); }
+.rfc-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); grid-auto-rows: 1fr; gap: 1rem; margin: 1.25rem 0 .8rem; }
+.rfc-card { display: flex; flex-direction: column; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-card span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
+.rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
+.rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
+.rfc-ok { border-left: 7px solid var(--green); }
+.rfc-neutral { border-left: 7px solid var(--line-strong); }
+.rfc-warn { border-left: 7px solid var(--amber); }
+.rfc-bad { border-left: 7px solid var(--danger-deep); }
+.rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
+.rfc-tape span { width: var(--w); min-width: 0; display: block; }
+.rfc-tape-key { display: flex; flex-wrap: wrap; gap: .35rem 1.4rem; margin: 0 0 1.4rem; padding: 0; list-style: none; font-size: .92rem; }
+.rfc-tape-key li { display: flex; align-items: center; gap: .45rem; }
+.rfc-swatch { display: inline-block; width: .85rem; height: .85rem; border-radius: .25rem; border: 1px solid var(--line-strong); vertical-align: -.1rem; }
+.rfc-tape-both_polarities { background: var(--teal-chip); }
+.rfc-tape-single_polarity { background: var(--sky-chip); }
+.rfc-tape-not_applicable { background: var(--grape-chip); }
+.rfc-tape-feature_declined { background: var(--pink-chip); }
+.rfc-tape-lower_layer { background: var(--mint-chip); }
+.rfc-tape-rollup { background: var(--tangerine-chip); }
+.rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
+.rfc-tape-one_polarity_unexcused { background: var(--amber); }
+.rfc-tape-missing_unexcused { background: var(--danger-deep); }
+.rfc-swatch.rfc-ok { background: var(--green); }
+.rfc-swatch.rfc-neutral { background: var(--line-strong); }
+.rfc-swatch.rfc-warn { background: var(--amber); }
+.rfc-swatch.rfc-bad { background: var(--danger-deep); }
+.rfc-total td { border-top: 2px solid var(--line-strong); }
+.rfc-prose { max-width: 46rem; }
+ul.rfc-prose { margin: .5rem 0 1rem; padding-left: 1.2rem; }
+ul.rfc-prose li { margin: .35rem 0; line-height: 1.6; }
+p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
+.rfc-fold { margin: .6rem 0; }
+.rfc-fold > summary { cursor: pointer; font-weight: 700; }
+.rfc-span > td { padding-bottom: .2rem; border-bottom: 0; }
+.rfc-table td:first-child { font-weight: 400; }
+.rfc-table .rfc-span > td { padding-top: .9rem; }
+.rfc-subject-id { white-space: nowrap; vertical-align: top; }
+.rfc-subject { display: block; max-width: 52rem; }
+.rfc-tests { display: grid; gap: .15rem .8rem; }
+.rfc-tests-row { display: grid; grid-template-columns: 5rem 9.5rem minmax(0, 1fr); gap: .8rem; align-items: baseline; }
+.rfc-tests-row > span:first-child { color: var(--muted); font-size: .88rem; }
+.rfc-mark { margin: .45rem 0 0; color: var(--muted); max-width: 52rem; }
+@media (max-width: 760px) {
+  .rfc-tests-row { grid-template-columns: 1fr; gap: 0; padding-bottom: .35rem; }
+}
+.rfc-text > summary { cursor: pointer; color: var(--muted); font-size: .85rem; }
+.rfc-text > p { margin: .35rem 0 0; max-width: 44rem; }
+.rfc-note-box { margin: 1rem 0; padding: 1rem 1.2rem; border-radius: 16px; background: var(--gold-tint); border: 1px solid var(--gold-chip); }
+.rfc-note-box h3 { margin-top: 0; }
+.rfc-note-box ul { margin-bottom: 0; }
+.rfc-check-ok strong { color: var(--green); }
+.rfc-check-bad strong { color: var(--danger-deep); }
+</style>
+<section><h2>Overview</h2>
+<h3>Positive</h3>
+<p>what Ze has</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 0 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+</div>
+<h3>Neutral</h3>
+<p>measures that are neither good news nor bad</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>11</strong><b>of 22 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 11 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>45.5%</strong><b>5 of 11 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+</div>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>54.5%</strong><b>6 of 11 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+</div>
+<p>The 8 shares marked as a part above are the whole of the 11 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<details class="rfc-fold"><summary>How to read the colors</summary>
+<p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Card</th><th>Tone here</th><th>Why that color</th></tr></thead>
+<tbody>
+<tr><td>Gated MUSTs</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total</td>
+</tr>
+<tr><td>Out of scope</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
+</tr>
+<tr><td>Tested both ways</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got</td>
+</tr>
+<tr><td>One polarity plus reason</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it</td>
+</tr>
+<tr><td>One polarity, unexcused</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: half a proof with no reason for the other half</td>
+</tr>
+<tr><td>Partial proof; remaining gap</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+</tr>
+<tr><td>No test at all</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
+</tr>
+<tr><td>Not applicable</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
+</tr>
+<tr><td>Met below Ze</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself</td>
+</tr>
+<tr><td>Optional feature declined</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC&#39;s own status row, as an implementation gap a later scope decision can revisit</td>
+</tr>
+<tr><td>Proven by a recorded break</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
+</tr>
+<tr><td>Audit verdicts</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
+</tr>
+</tbody>
+</table>
+</div>
+</details>
+</section>
+<section><h2>At a glance</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Public status</td>
+<td>Partial</td>
+</tr>
+<tr><td>Enrolment</td>
+<td>Enrolled</td>
+</tr>
+<tr><td>Requirements</td>
+<td>22</td>
+</tr>
+<tr><td>Gated MUST-level</td>
+<td>11</td>
+</tr>
+<tr><td>Not applicable, so out of scope</td>
+<td>0</td>
+</tr>
+<tr><td>Declared gaps</td>
+<td>6</td>
+</tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
+<tr><td>Gated with no test</td>
+<td>0</td>
+</tr>
+<tr><td>Nightly-only evidence</td>
+<td>0</td>
+</tr>
+<tr><td>Test tags</td>
+<td>0</td>
+</tr>
+<tr><td>Tagged units</td>
+<td>0</td>
+</tr>
+<tr><td>Recorded audit verdicts</td>
+<td>0</td>
+</tr>
+<tr><td>Discrimination records</td>
+<td>0</td>
+</tr>
+<tr><td>Summary</td>
+<td><code>rfc/short/rfc5382.md</code></td>
+</tr>
+<tr><td>Requirement shard</td>
+<td><code>rfc/requirements/rfc5382.md</code></td>
+</tr>
+<tr><td>RFC text</td>
+<td><code>rfc/full/rfc5382.txt</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Enrolment</h2>
+<p>Enrolled: NAT behavioral requirements for TCP (BCP 142). Every MUST-level row is classified: the behaviors Linux netfilter performs on the NAT rules ze installs are {lower-layer}, and the behaviors neither ze nor the Linux defaults provide (endpoint-independent mapping, the unsolicited-SYN hold, the four-minute transitory timeout, hairpinning) are {gap}.</p>
+</section>
+<section><h2>What the public ledger says</h2>
+<p><strong>Status:</strong> Partial</p>
+<details class="rfc-fold"><summary>What the ledger says is covered</summary>
+<ul class="rfc-prose">
+<li>Source NAT, destination NAT and masquerade are configured through the <code>firewall</code> YANG tree and lowered into nftables NAT chains</li>
+<li>the nf_conntrack TCP tracker follows every valid TCP sequence including simultaneous open, keeps an established connection for the Linux default of five days, never overloads a port, and keeps a connection across ICMP.</li>
+</ul>
+</details>
+<details class="rfc-fold"><summary>What the ledger says remains</summary>
+Endpoint-independent mapping is not guaranteed (<a href="#rfc5382-4.1-1"><code>RFC5382-4.1-1</code></a>). An unsolicited inbound SYN is not held for six seconds: the NAT&#39;s own TCP stack answers it with a RST unless an operator filter drops it (<a href="#rfc5382-4.3-1"><code>RFC5382-4.3-1</code></a>, <a href="#rfc5382-4.3-2"><code>RFC5382-4.3-2</code></a>, <a href="#rfc5382-4.3-3"><code>RFC5382-4.3-3</code></a>). Ze sets no conntrack timeout, so Linux&#39;s transitory TCP timeouts (10 to 120 seconds) stay below four minutes (<a href="#rfc5382-5-2"><code>RFC5382-5-2</code></a>). No hairpinning is configured (<a href="#rfc5382-7.2-1"><code>RFC5382-7.2-1</code></a>).
+</details>
+</section>
+<section><h2>Coverage</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
+<tbody>
+<tr><td>Positive and negative tests</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Annotated (including scoped evidence)</td>
+<td><strong>11</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>One polarity only</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>No test and no annotation</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
+</tr>
+<tr><td>Evidence that runs nightly only</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
+</tr>
+<tr><td>Derived from other rows</td>
+<td><strong>0</strong></td>
+<td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
+</tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>11</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+</tbody>
+</table>
+</div>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (11):</strong> <a href="#rfc5382-4.1-1"><code>RFC5382-4.1-1</code></a>, <a href="#rfc5382-4.2-1"><code>RFC5382-4.2-1</code></a>, <a href="#rfc5382-4.2-2"><code>RFC5382-4.2-2</code></a>, <a href="#rfc5382-4.3-1"><code>RFC5382-4.3-1</code></a>, <a href="#rfc5382-4.3-2"><code>RFC5382-4.3-2</code></a>, <a href="#rfc5382-4.3-3"><code>RFC5382-4.3-3</code></a>, <a href="#rfc5382-5-1"><code>RFC5382-5-1</code></a>, <a href="#rfc5382-5-2"><code>RFC5382-5-2</code></a>, <a href="#rfc5382-7.1-1"><code>RFC5382-7.1-1</code></a>, <a href="#rfc5382-7.2-1"><code>RFC5382-7.2-1</code></a>, <a href="#rfc5382-7.3-1"><code>RFC5382-7.3-1</code></a></p>
+</section>
+<section><h2>Requirements</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
+<tbody>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5382-4.1-1">RFC5382-4.1-1</code></td><td colspan="3"><span class="rfc-subject">REQ-1: A NAT MUST have an &#34;Endpoint-Independent Mapping&#34; behavior for TCP. (§4.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5382-4.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> nf_nat preserves the internal source port only while the translated 5-tuple is unique and otherwise allocates another port for that destination, the masquerade random and fully-random flags ze lowers randomize per connection, and VPP NAT44-ED maps per endpoint; internal/plugins/firewall/nft/lower_linux.go lowerMasquerade</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5382-4.2-1">RFC5382-4.2-1</code></td><td colspan="3"><span class="rfc-subject">REQ-2: A NAT MUST support all valid sequences of TCP packets (defined in [RFC0793]) for connections initiated both internally as well as externally when the connection is permitted by the NAT. (§4.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5382-4.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{lower-layer}:</strong> Linux nf_conntrack TCP tracker; internal/plugins/firewall/nft/lower_linux.go::lowerMasquerade installs the NAT rule and the tracker follows every RFC 793 state transition of the translated connection</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5382-4.2-2">RFC5382-4.2-2</code></td><td colspan="3"><span class="rfc-subject">In addition to handling the TCP 3-way handshake mode of connection initiation, A NAT MUST handle the TCP simultaneous- open mode of connection initiation. (§4.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5382-4.2-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{lower-layer}:</strong> Linux nf_conntrack TCP tracker; internal/plugins/firewall/nft/lower_linux.go::lowerMasquerade installs the NAT rule and the tracker accepts a SYN answered by a SYN as a simultaneous open</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5382-4.3-1">RFC5382-4.3-1</code></td><td colspan="3"><span class="rfc-subject">REQ-4: A NAT MUST NOT respond to an unsolicited inbound SYN packet for at least 6 seconds after the packet is received. (§4.3)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>4.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5382-4.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze installs nothing that holds an unsolicited inbound SYN; one addressed to the NAT&#39;s external address matches no conntrack entry, reaches the NAT&#39;s own Linux TCP stack and is answered with a RST at once unless an operator input filter drops it</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5382-4.3-2">RFC5382-4.3-2</code></td><td colspan="3"><span class="rfc-subject">If during this interval the NAT receives and translates an outbound SYN for the connection the NAT MUST silently drop the original unsolicited inbound SYN packet. (§4.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5382-4.3-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> no unsolicited SYN is held (RFC5382-4.3-1), so a later outbound SYN cannot cause it to be dropped</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5382-4.3-3">RFC5382-4.3-3</code></td><td colspan="3"><span class="rfc-subject">The NAT MUST silently drop the original SYN packet if sending a response violates the security policy of the NAT. (§4.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5382-4.3-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> whether the NAT&#39;s own TCP stack answers with a RST or an operator filter drops the SYN is decided by the input ruleset, and ze ties no NAT security policy to that choice</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5382-5-1">RFC5382-5-1</code></td><td colspan="3"><span class="rfc-subject">In such cases, the value of the &#34;established connection idle-timeout&#34; MUST NOT be less than 2 hours 4 minutes. (§5)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5382-5-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{lower-layer}:</strong> Linux nf_conntrack; internal/plugins/firewall/nft/lower_linux.go::lowerMasquerade installs the NAT rule and no timeout policy, so an established connection keeps nf_conntrack_tcp_timeout_established, 432000 seconds</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5382-5-2">RFC5382-5-2</code></td><td colspan="3"><span class="rfc-subject">The value of the &#34;transitory connection idle-timeout&#34; MUST NOT be less than 4 minutes. (§5)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5382-5-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze installs no conntrack timeout policy, so Linux&#39;s transitory TCP timeouts apply, from 10 seconds (close) to 120 seconds (syn_sent, time_wait)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5382-7.1-1">RFC5382-7.1-1</code></td><td colspan="3"><span class="rfc-subject">REQ-7: A NAT MUST NOT have a &#34;Port assignment&#34; behavior of &#34;Port overloading&#34; for TCP. (§7.1)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>7.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5382-7.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{lower-layer}:</strong> Linux nf_nat; internal/plugins/firewall/nft/lower_linux.go::lowerMasquerade installs the masquerade expression and nf_nat&#39;s unique-tuple allocation never gives two internal endpoints one external tuple</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5382-7.2-1">RFC5382-7.2-1</code></td><td colspan="3"><span class="rfc-subject">REQ-8: A NAT MUST support &#34;hairpinning&#34; for TCP. a) A NAT&#39;s hairpinning behavior MUST be of type &#34;External source IP address and port&#34;. (§7.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>7.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5382-7.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze generates no hairpin rule, and a SYN from an internal host to another internal host&#39;s external mapping matches no conntrack reply tuple and is delivered to the NAT itself, so no hairpin exists and no hairpin source is translated</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5382-7.3-1">RFC5382-7.3-1</code></td><td colspan="3"><span class="rfc-subject">REQ-10: Receipt of any sort of ICMP message MUST NOT terminate the NAT mapping or TCP connection for which the ICMP was generated. (§7.3)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>7.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5382-7.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{lower-layer}:</strong> Linux nf_conntrack; internal/plugins/firewall/nft/lower_linux.go::lowerMasquerade installs the NAT rule and nf_conntrack classifies an ICMP error as RELATED to the connection without deleting it</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5382-4.3-4">RFC5382-4.3-4</code></td><td colspan="3"><span class="rfc-subject">REQ-3: If application transparency is most important, it is RECOMMENDED that a NAT have an &#34;Endpoint-Independent Filtering&#34; behavior for TCP. (§4.3)</span></td></tr>
+<tr><td></td>
+<td>RECOMMENDED</td>
+<td>4.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5382-4.3-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5382-4.3-5">RFC5382-4.3-5</code></td><td colspan="3"><span class="rfc-subject">If a more stringent filtering behavior is most important, it is RECOMMENDED that a NAT have an &#34;Address-Dependent Filtering&#34; behavior. (§4.3)</span></td></tr>
+<tr><td></td>
+<td>RECOMMENDED</td>
+<td>4.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5382-4.3-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5382-4.3-6">RFC5382-4.3-6</code></td><td colspan="3"><span class="rfc-subject">Otherwise, the NAT SHOULD send an ICMP Port Unreachable error (Type 3, Code 3) for the original SYN, unless REQ-4a applies. (§4.3)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5382-4.3-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5382-6-1">RFC5382-6-1</code></td><td colspan="3"><span class="rfc-subject">REQ-6: If a NAT includes ALGs that affect TCP, it is RECOMMENDED that all of those ALGs (except for FTP [RFC0959]) be disabled by default. (§6)</span></td></tr>
+<tr><td></td>
+<td>RECOMMENDED</td>
+<td>6</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5382-6-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5382-7.3-2">RFC5382-7.3-2</code></td><td colspan="3"><span class="rfc-subject">REQ-9: If a NAT translates TCP, it SHOULD translate ICMP Destination Unreachable (Type 3) messages. (§7.3)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>7.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5382-7.3-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5382-4.3-7">RFC5382-4.3-7</code></td><td colspan="3"><span class="rfc-subject">a) The filtering behavior MAY be an option configurable by the administrator of the NAT. (§4.3)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>4.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5382-4.3-7">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5382-4.3-8">RFC5382-4.3-8</code></td><td colspan="3"><span class="rfc-subject">b) The filtering behavior for TCP MAY be independent of the filtering behavior for UDP. (§4.3)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>4.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5382-4.3-8">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5382-5-3">RFC5382-5-3</code></td><td colspan="3"><span class="rfc-subject">REQ-5: If a NAT cannot determine whether the endpoints of a TCP connection are active, it MAY abandon the session if it has been idle for some time. (§5)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5382-5-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5382-5-4">RFC5382-5-4</code></td><td colspan="3"><span class="rfc-subject">a) The value of the NAT idle-timeouts MAY be configurable. (§5)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5382-5-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5382-5-5">RFC5382-5-5</code></td><td colspan="3"><span class="rfc-subject">A NAT MAY hold state for a connection in TIME_WAIT state to accommodate retransmissions of the last ACK. (§5)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5382-5-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5382-5-6">RFC5382-5-6</code></td><td colspan="3"><span class="rfc-subject">When a NAT abandons a live connection, for example due to a timeout expiring, the NAT MAY either send TCP RST packets to the endpoints or MAY silently abandon the connection. (§5)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5382-5-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Gaps and untested MUSTs</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><a href="#rfc5382-4.1-1"><code>RFC5382-4.1-1</code></a> REQ-1: A NAT MUST have an &#34;Endpoint-Independent Mapping&#34; behavior for TCP. (§4.1)</td>
+<td>{gap}, no test</td>
+<td>nf_nat preserves the internal source port only while the translated 5-tuple is unique and otherwise allocates another port for that destination, the masquerade random and fully-random flags ze lowers randomize per connection, and VPP NAT44-ED maps per endpoint; internal/plugins/firewall/nft/lower_linux.go lowerMasquerade</td>
+</tr>
+<tr><td><a href="#rfc5382-4.2-1"><code>RFC5382-4.2-1</code></a> REQ-2: A NAT MUST support all valid sequences of TCP packets (defined in [RFC0793]) for connections initiated both internally as well as externally when the connection is permitted by the NAT. (§4.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {lower-layer}: Linux nf_conntrack TCP tracker; internal/plugins/firewall/nft/lower_linux.go::lowerMasquerade installs the NAT rule and the tracker follows every RFC 793 state transition of the translated connection</td>
+</tr>
+<tr><td><a href="#rfc5382-4.2-2"><code>RFC5382-4.2-2</code></a> In addition to handling the TCP 3-way handshake mode of connection initiation, A NAT MUST handle the TCP simultaneous- open mode of connection initiation. (§4.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {lower-layer}: Linux nf_conntrack TCP tracker; internal/plugins/firewall/nft/lower_linux.go::lowerMasquerade installs the NAT rule and the tracker accepts a SYN answered by a SYN as a simultaneous open</td>
+</tr>
+<tr><td><a href="#rfc5382-4.3-1"><code>RFC5382-4.3-1</code></a> REQ-4: A NAT MUST NOT respond to an unsolicited inbound SYN packet for at least 6 seconds after the packet is received. (§4.3)</td>
+<td>{gap}, no test</td>
+<td>ze installs nothing that holds an unsolicited inbound SYN; one addressed to the NAT&#39;s external address matches no conntrack entry, reaches the NAT&#39;s own Linux TCP stack and is answered with a RST at once unless an operator input filter drops it</td>
+</tr>
+<tr><td><a href="#rfc5382-4.3-2"><code>RFC5382-4.3-2</code></a> If during this interval the NAT receives and translates an outbound SYN for the connection the NAT MUST silently drop the original unsolicited inbound SYN packet. (§4.3)</td>
+<td>{gap}, no test</td>
+<td>no unsolicited SYN is held (RFC5382-4.3-1), so a later outbound SYN cannot cause it to be dropped</td>
+</tr>
+<tr><td><a href="#rfc5382-4.3-3"><code>RFC5382-4.3-3</code></a> The NAT MUST silently drop the original SYN packet if sending a response violates the security policy of the NAT. (§4.3)</td>
+<td>{gap}, no test</td>
+<td>whether the NAT&#39;s own TCP stack answers with a RST or an operator filter drops the SYN is decided by the input ruleset, and ze ties no NAT security policy to that choice</td>
+</tr>
+<tr><td><a href="#rfc5382-5-1"><code>RFC5382-5-1</code></a> In such cases, the value of the &#34;established connection idle-timeout&#34; MUST NOT be less than 2 hours 4 minutes. (§5)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {lower-layer}: Linux nf_conntrack; internal/plugins/firewall/nft/lower_linux.go::lowerMasquerade installs the NAT rule and no timeout policy, so an established connection keeps nf_conntrack_tcp_timeout_established, 432000 seconds</td>
+</tr>
+<tr><td><a href="#rfc5382-5-2"><code>RFC5382-5-2</code></a> The value of the &#34;transitory connection idle-timeout&#34; MUST NOT be less than 4 minutes. (§5)</td>
+<td>{gap}, no test</td>
+<td>ze installs no conntrack timeout policy, so Linux&#39;s transitory TCP timeouts apply, from 10 seconds (close) to 120 seconds (syn_sent, time_wait)</td>
+</tr>
+<tr><td><a href="#rfc5382-7.1-1"><code>RFC5382-7.1-1</code></a> REQ-7: A NAT MUST NOT have a &#34;Port assignment&#34; behavior of &#34;Port overloading&#34; for TCP. (§7.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {lower-layer}: Linux nf_nat; internal/plugins/firewall/nft/lower_linux.go::lowerMasquerade installs the masquerade expression and nf_nat&#39;s unique-tuple allocation never gives two internal endpoints one external tuple</td>
+</tr>
+<tr><td><a href="#rfc5382-7.2-1"><code>RFC5382-7.2-1</code></a> REQ-8: A NAT MUST support &#34;hairpinning&#34; for TCP. a) A NAT&#39;s hairpinning behavior MUST be of type &#34;External source IP address and port&#34;. (§7.2)</td>
+<td>{gap}, no test</td>
+<td>ze generates no hairpin rule, and a SYN from an internal host to another internal host&#39;s external mapping matches no conntrack reply tuple and is delivered to the NAT itself, so no hairpin exists and no hairpin source is translated</td>
+</tr>
+<tr><td><a href="#rfc5382-7.3-1"><code>RFC5382-7.3-1</code></a> REQ-10: Receipt of any sort of ICMP message MUST NOT terminate the NAT mapping or TCP connection for which the ICMP was generated. (§7.3)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {lower-layer}: Linux nf_conntrack; internal/plugins/firewall/nft/lower_linux.go::lowerMasquerade installs the NAT rule and nf_conntrack classifies an ICMP error as RELATED to the connection without deleting it</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Proof state</h2>
+<p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
+<h3><a href="#rfc5382-4.1-1"><code>RFC5382-4.1-1</code></a></h3>
+<p>REQ-1: A NAT MUST have an &#34;Endpoint-Independent Mapping&#34; behavior for TCP. (§4.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5382-4.1-1, so no unit is bound to it.</p>
+<h3><a href="#rfc5382-4.2-1"><code>RFC5382-4.2-1</code></a></h3>
+<p>REQ-2: A NAT MUST support all valid sequences of TCP packets (defined in [RFC0793]) for connections initiated both internally as well as externally when the connection is permitted by the NAT. (§4.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5382-4.2-1, so no unit is bound to it.</p>
+<h3><a href="#rfc5382-4.2-2"><code>RFC5382-4.2-2</code></a></h3>
+<p>In addition to handling the TCP 3-way handshake mode of connection initiation, A NAT MUST handle the TCP simultaneous- open mode of connection initiation. (§4.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5382-4.2-2, so no unit is bound to it.</p>
+<h3><a href="#rfc5382-4.3-1"><code>RFC5382-4.3-1</code></a></h3>
+<p>REQ-4: A NAT MUST NOT respond to an unsolicited inbound SYN packet for at least 6 seconds after the packet is received. (§4.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5382-4.3-1, so no unit is bound to it.</p>
+<h3><a href="#rfc5382-4.3-2"><code>RFC5382-4.3-2</code></a></h3>
+<p>If during this interval the NAT receives and translates an outbound SYN for the connection the NAT MUST silently drop the original unsolicited inbound SYN packet. (§4.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5382-4.3-2, so no unit is bound to it.</p>
+<h3><a href="#rfc5382-4.3-3"><code>RFC5382-4.3-3</code></a></h3>
+<p>The NAT MUST silently drop the original SYN packet if sending a response violates the security policy of the NAT. (§4.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5382-4.3-3, so no unit is bound to it.</p>
+<h3><a href="#rfc5382-5-1"><code>RFC5382-5-1</code></a></h3>
+<p>In such cases, the value of the &#34;established connection idle-timeout&#34; MUST NOT be less than 2 hours 4 minutes. (§5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5382-5-1, so no unit is bound to it.</p>
+<h3><a href="#rfc5382-5-2"><code>RFC5382-5-2</code></a></h3>
+<p>The value of the &#34;transitory connection idle-timeout&#34; MUST NOT be less than 4 minutes. (§5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5382-5-2, so no unit is bound to it.</p>
+<h3><a href="#rfc5382-7.1-1"><code>RFC5382-7.1-1</code></a></h3>
+<p>REQ-7: A NAT MUST NOT have a &#34;Port assignment&#34; behavior of &#34;Port overloading&#34; for TCP. (§7.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5382-7.1-1, so no unit is bound to it.</p>
+<h3><a href="#rfc5382-7.2-1"><code>RFC5382-7.2-1</code></a></h3>
+<p>REQ-8: A NAT MUST support &#34;hairpinning&#34; for TCP. a) A NAT&#39;s hairpinning behavior MUST be of type &#34;External source IP address and port&#34;. (§7.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5382-7.2-1, so no unit is bound to it.</p>
+<h3><a href="#rfc5382-7.3-1"><code>RFC5382-7.3-1</code></a></h3>
+<p>REQ-10: Receipt of any sort of ICMP message MUST NOT terminate the NAT mapping or TCP connection for which the ICMP was generated. (§7.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5382-7.3-1, so no unit is bound to it.</p>
+</section>
+<section><h2>Extraction sign-off</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Reviewer</td>
+<td>claude</td>
+</tr>
+<tr><td>Signed off</td>
+<td>2026-10-26</td>
+</tr>
+<tr><td>Register</td>
+<td>rfc2119</td>
+</tr>
+<tr><td>Source</td>
+<td>rfc/full/rfc5382.txt</td>
+</tr>
+<tr><td>Source fingerprint</td>
+<td>45e5af46d41ae22a</td>
+</tr>
+<tr><td>Record</td>
+<td>rfc/extraction/rfc5382.json</td>
+</tr>
+<tr><td>Mapped sentences</td>
+<td>11</td>
+</tr>
+<tr><td>Declined as scope</td>
+<td>12</td>
+</tr>
+<tr><td>Relocated to a spec, which Ze OWES</td>
+<td>0</td>
+</tr>
+<tr><td>Unclassified</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Sections</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Section</th><th>Name</th><th>Sites</th><th>Disposition</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><code>front</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.1</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.2</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.3</code></td>
+<td>not stated</td>
+<td>3</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>7</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>7.1</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>7.2</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>7.3</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8</code></td>
+<td>not stated</td>
+<td>12</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>9</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>10</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>11</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>11.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>11.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Excluded sentences</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Site</th><th>Excluded kind</th><th>Reason</th><th>Quote</th></tr></thead>
+<tbody>
+<tr><td><code>8:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Section 8 opens by defining what &#39;compliant with this specification&#39; means; the MUST names the set of requirements and imposes none of its own.</td>
+<td>A NAT that supports all of the mandatory requirements of this specification (i.e., the &#34;MUST&#34;) and is compliant with [BEHAVE-UDP], is &#34;compliant with this specification&#34;.</td>
+</tr>
+<tr><td><code>8:2</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>Section 8 summary repeats REQ-1 of Section 4.1.</td>
+<td>REQ-1: A NAT MUST have an &#34;Endpoint-Independent Mapping&#34; behavior for TCP.</td>
+</tr>
+<tr><td><code>8:3</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>Section 8 summary repeats REQ-2 of Section 4.2.</td>
+<td>REQ-2: A NAT MUST support all valid sequences of TCP packets (defined in [RFC0793]) for connections initiated both internally as well as externally when the connection is permitted by the NAT.</td>
+</tr>
+<tr><td><code>8:4</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>Section 8 summary repeats REQ-2a of Section 4.2.</td>
+<td>In particular: a) In addition to handling the TCP 3-way handshake mode of connection initiation, A NAT MUST handle the TCP simultaneous- open mode of connection initiation.</td>
+</tr>
+<tr><td><code>8:5</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>Section 8 summary repeats REQ-4 of Section 4.3.</td>
+<td>REQ-4: A NAT MUST NOT respond to an unsolicited inbound SYN packet for at least 6 seconds after the packet is received.</td>
+</tr>
+<tr><td><code>8:6</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>Section 8 summary repeats the REQ-4 drop of Section 4.3.</td>
+<td>If during this interval the NAT receives and translates an outbound SYN for the connection the NAT MUST silently drop the original unsolicited inbound SYN packet.</td>
+</tr>
+<tr><td><code>8:7</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>Section 8 summary repeats REQ-4a of Section 4.3.</td>
+<td>Otherwise, the NAT SHOULD send an ICMP Port Unreachable error (Type 3, Code 3) for the original SYN, unless REQ-4a applies. a) The NAT MUST silently drop the original SYN packet if sending a response violates the security policy of the NAT.</td>
+</tr>
+<tr><td><code>8:8</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>Section 8 summary repeats the REQ-5 established timeout of Section 5.</td>
+<td>In such cases, the value of the &#34;established connection idle-timeout&#34; MUST NOT be less than 2 hours 4 minutes.</td>
+</tr>
+<tr><td><code>8:9</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>Section 8 summary repeats the REQ-5 transitory timeout of Section 5.</td>
+<td>The value of the &#34;transitory connection idle-timeout&#34; MUST NOT be less than 4 minutes. a) The value of the NAT idle-timeouts MAY be configurable.</td>
+</tr>
+<tr><td><code>8:10</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>Section 8 summary repeats REQ-7 of Section 7.1.</td>
+<td>REQ-7: A NAT MUST NOT have a &#34;Port assignment&#34; behavior of &#34;Port overloading&#34; for TCP.</td>
+</tr>
+<tr><td><code>8:11</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>Section 8 summary repeats REQ-8 of Section 7.2.</td>
+<td>REQ-8: A NAT MUST support &#34;hairpinning&#34; for TCP. a) A NAT&#39;s hairpinning behavior MUST be of type &#34;External source IP address and port&#34;.</td>
+</tr>
+<tr><td><code>8:12</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>Section 8 summary repeats REQ-10 of Section 7.3.</td>
+<td>REQ-10: Receipt of any sort of ICMP message MUST NOT terminate the NAT mapping or TCP connection for which the ICMP was generated.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Superseded</h2>
+<p>No document obsoletes RFC 5382, so its obligations are stated where they were written.</p>
+</section>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Debugging</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Quality hub</h2>
+                    <a class="page-sidebar-link" href="../../../quality/">
+                        <span class="page-sidebar-link-label">Quality overview</span>
+                        <small>Return to the verification map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../quality/verify-debugging/">
+                        <span class="page-sidebar-link-label">Verify debugging</span>
+                        <small>How failed checks route to evidence.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Symptom-led debugging for running systems.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                    <a href="../../../legal/">Legal notice</a>
+                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

@@ -1185,6 +1185,125 @@
     ]
   },
   {
+    "path": "clear dns-resolver cache all",
+    "short-help": "Empty every LAN DNS resolver cache.",
+    "description": "Empties the answer and the negative cache, so the next query for any\nname goes upstream. The counters are kept.",
+    "mode": "daemon",
+    "wire-method": "ze-dnsresolver:clear-dns-resolver-cache",
+    "usage": "clear dns-resolver cache all",
+    "grammar": [
+      {
+        "text": "clear",
+        "kind": "keyword"
+      },
+      {
+        "text": "dns-resolver",
+        "kind": "keyword"
+      },
+      {
+        "text": "cache",
+        "kind": "keyword"
+      },
+      {
+        "text": "all",
+        "kind": "keyword"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
+      }
+    ]
+  },
+  {
     "path": "clear firewall domain-group",
     "short-help": "Remove the addresses Ze cached for a domain group.",
     "description": "Drops the group's addresses from memory and from the persisted\ncache, then re-applies the firewall tables. Config that still\nnames the group fails to verify until it is resolved again with\n'update firewall domain-group <name>'.",
@@ -29407,6 +29526,117 @@
     ]
   },
   {
+    "path": "show dns-resolver",
+    "short-help": "LAN DNS resolver status, cache and counters.",
+    "description": "Enabled, mode, listeners, allow-from count, upstreams, limits, the\nanswer and negative cache entry counts, cache hits, misses and hit rate, the queries\nrefused (by reason), rate-limited and dropped, and the upstream exchanges by result.",
+    "mode": "read-only",
+    "wire-method": "ze-dnsresolver:show-dns-resolver",
+    "usage": "show dns-resolver",
+    "grammar": [
+      {
+        "text": "show",
+        "kind": "keyword"
+      },
+      {
+        "text": "dns-resolver",
+        "kind": "keyword"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
+      }
+    ]
+  },
+  {
     "path": "show doctor",
     "short-help": "Check if this box is ready to run Ze.",
     "description": "Verifies runtime dependencies: required files, sockets,\nports, and kernel modules. Each check reports pass or fail with a reason. Run\nthis before first start or after changing the platform setup.",
@@ -48367,7 +48597,7 @@
   {
     "path": "show rsvp-te lsp",
     "short-help": "Show RSVP-TE label-switched paths.",
-    "description": "Returns state, role (ingress/transit/egress), reserved bandwidth, and in/out\nlabels for each LSP.",
+    "description": "Returns state, role (ingress/transit/egress, or unspecified while the message or\nconfiguration that created the LSP is still being handled), reserved bandwidth, and in/out labels for each LSP.",
     "mode": "read-only",
     "wire-method": "ze-rsvpte:show-rsvp-te-lsp",
     "usage": "show rsvp-te lsp",

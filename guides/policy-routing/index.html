@@ -187,7 +187,7 @@ the packets that arrived on the interface the row names. An interface
 that carries nothing reads zero while its siblings climb.</p>
 <p>A policy that names no interface matches every ingress interface.</p>
 <!-- source: internal/plugins/policyroute/translate.go -- ruleTerms, termName -->
-<!-- source: internal/plugins/firewall/nft/backend_linux.go -- applyChain, mergeRuleCounters -->
+<!-- source: internal/plugins/firewall/nft/backend_linux.go -- addChainRules, mergeRuleCounters -->
 <p>The <code>order</code> leaf still decides which rule runs first. The nftables rules
 of one policy rule stay together, in the order the interfaces are
 listed.</p>
@@ -408,8 +408,10 @@ the shared firewall table registry.</p>
         <footer>
             <div class="footer-inner">
                 <div class="footer-bottom">
+                    <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
+                    <a href="../../legal/">Legal notice</a>
+                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
                 </div>
             </div>
         </footer>

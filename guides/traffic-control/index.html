@@ -54,6 +54,7 @@ the operator chooses one via the <code>backend</code> leaf.</p>
 <div class="doc-layout">
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#backends">Backends</a></li>
+<li><a href="#tc-backend-tbf-root-rate">tc Backend: TBF Root Rate</a></li>
 <li><a href="#tc-backend-original-qdisc-snapshot">tc Backend: Original Qdisc Snapshot</a></li>
 <li><a href="#tc-backend-filter-priorities">tc Backend: Filter Priorities</a></li>
 <li><a href="#vpp-backend-compatibility-matrix">VPP Backend: Compatibility Matrix</a></li>
@@ -127,6 +128,44 @@ the classes that exist. A <code>default-class</code> naming no class used to be 
 and the netlink backend then ignored it in silence.</p>
 <!-- source: internal/component/traffic/yang/ze-traffic-control-conf.yang -- YANG schema -->
 <!-- source: internal/component/traffic/config.go -- parseInterfaceQoS -->
+<h2 id="tc-backend-tbf-root-rate">tc Backend: TBF Root Rate</h2>
+<p>TBF is classless on Linux. Its rate belongs to the root qdisc, not to an
+invented class:</p>
+<pre><code>traffic {
+    control {
+        backend tc
+        interface eth0 {
+            qdisc {
+                type tbf
+                rate 10mbit
+            }
+        }
+    }
+}
+</code></pre>
+<p>For <code>backend tc</code>, a TBF root requires <code>rate</code> and refuses <code>class</code> and
+<code>default-class</code>. There is no fallback rate. A root <code>rate</code> on another qdisc type
+is refused. HTB retains its class <code>rate</code> and <code>ceil</code>.</p>
+<p>Rates in the model and readback are bits per second. Linux tc takes bytes per
+second, so the backend divides by eight on installation and multiplies by eight
+on TBF readback. Both TBF and HTB, and the ingress policer, refuse zero and
+fractional-byte rates rather than truncate them. <code>show traffic control</code> reports the
+TBF root as <code>rate-bps</code>; human-readable QoS formatting shows its root <code>rate</code>.</p>
+<p>TBF's queue limit is one second of traffic in <strong>bytes</strong>, with a 2048-byte
+minimum. Its burst is 125ms of traffic, also with a 2048-byte minimum, converted
+to <strong>scheduler ticks</strong> for the kernel's <code>Buffer</code> field. A rate exceeding
+34,359,738,360 bit/s would overflow this one-second queue's 32-bit byte limit
+and is refused. A burst duration that cannot fit the scheduler's 32-bit tick
+representation is also refused. These checks run at config verification and
+again before dynamic subscriber apply changes the kernel.</p>
+<p>The VPP class-policer syntax below is unchanged. VPP refuses the root <code>rate</code>
+leaf at verification and apply; it never ignores it or combines it with a
+class rate.</p>
+<!-- source: internal/plugins/traffic/netlink/translate_linux.go -- translateQdisc, translateClass, burstTicks -->
+<!-- source: internal/plugins/traffic/netlink/verify_linux.go -- verifyDesired -->
+<!-- source: internal/plugins/traffic/netlink/backend_linux.go -- ListQdiscs -->
+<!-- source: internal/component/traffic/cmd/show.go -- FormatQoS -->
+<!-- source: internal/component/traffic/cmd/traffic.go -- handleShowTraffic -->
 <h2 id="tc-backend-original-qdisc-snapshot">tc Backend: Original Qdisc Snapshot</h2>
 <p>Before installing its own root qdisc, the tc backend snapshots the interface's existing one so the interface can be restored exactly. A qdisc whose parameters this backend cannot reproduce is refused rather than approximated, and the apply fails naming it (<code>protocol.md</code>).</p>
 <p><code>noqueue</code> is snapshotted and restored. It is the default root on every virtual interface (veth, dummy, bridge, and anything else the kernel gives no real queue), so it is the state a QoS config is most often applied <em>from</em>. It carries no reconstructable parameters, but it is the <em>absence</em> of a discipline, so it is exactly restorable: the restore deletes whatever root Ze installed rather than replacing it, which returns the interface to <code>noqueue</code>. Adding a qdisc named <code>noqueue</code> is not the inverse operation, and a snapshot restored by deletion fails closed if a caller routes it down the replace path.</p>
@@ -378,8 +417,10 @@ default and range.</p>
         <footer>
             <div class="footer-inner">
                 <div class="footer-bottom">
+                    <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 09:38 UTC</span>
+                    <a href="../../legal/">Legal notice</a>
+                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
                 </div>
             </div>
         </footer>

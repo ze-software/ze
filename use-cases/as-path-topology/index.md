@@ -2,6 +2,8 @@
 
 Use the built-in Looking Glass to turn the AS paths for a prefix into a topology view. The graph is an operational aid for comparing what different peers advertise, not a complete map of the Internet.
 
+**RFC completion:** the [Looking glass coverage page](../../quality/rfc-compliance/profiles/looking-glass/) shows how much of the RFC work behind this use case is proven by tests.
+
 ## What the graph shows
 
 For one prefix, Ze collects eligible paths visible through the Looking Glass and builds a directed AS graph. Nodes are AS numbers and edges are observed AS-path adjacencies. Multiple peers may contribute the same edge or different paths to the same origin.

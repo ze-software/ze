@@ -410,7 +410,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>5.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7627-5.4-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc7627_eap_tls_export_refusal_test.go#L200" title="internal/core/eap/rfc7627_eap_tls_export_refusal_test.go" target="_blank" rel="noopener"><code>TestEAPTLSExportSucceedsOnTLS12WithExtendedMasterSecret</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L381" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkEAPTLS</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L389" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkEAPTLS</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7627-5.4-2">RFC7627-5.4-2</code></td><td colspan="3"><span class="rfc-subject">If a client or server chooses to continue with a full handshake without the extended master secret extension, then the new session becomes vulnerable to the man-in-the-middle key synchronization attack described in Section 1. Hence, the client or server MUST NOT export any key material based on the new master secret for any subsequent application-level authentication. In particular, it MUST disable [RFC5705] and any Extensible Authentication Protocol (EAP) relying on compound authentication [COMPOUND-AUTH]. (§5.4)</span></td></tr>
@@ -419,7 +419,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>5.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7627-5.4-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc7627_eap_tls_export_refusal_test.go#L203" title="internal/core/eap/rfc7627_eap_tls_export_refusal_test.go" target="_blank" rel="noopener"><code>TestEAPTLSExportSucceedsOnTLS12WithExtendedMasterSecret</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L386" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkEAPTLS</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L394" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkEAPTLS</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7627-5.4-3">RFC7627-5.4-3</code></td><td colspan="3"><span class="rfc-subject">If a client or server chooses to continue an abbreviated handshake to resume a session that does not use the extended master secret, then the current connection becomes vulnerable to a man-in-the-middle handshake log synchronization attack as described in Section 1. Hence, the client or server MUST NOT use the current handshake&#39;s &#34;verify_data&#34; for application-level authentication. (§5.4)</span></td></tr>
@@ -675,7 +675,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L381" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkEAPTLS</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L389" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkEAPTLS</code></a></td>
 <td>interop/nightly</td>
 <td>mutant, verified</td>
 </tr>
@@ -695,7 +695,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L386" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkEAPTLS</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L394" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkEAPTLS</code></a></td>
 <td>interop/nightly</td>
 <td>mutant, verified</td>
 </tr>
@@ -900,8 +900,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
         <footer>
             <div class="footer-inner">
                 <div class="footer-bottom">
+                    <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
+                    <a href="../../../legal/">Legal notice</a>
+                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
                 </div>
             </div>
         </footer>

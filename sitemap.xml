@@ -418,6 +418,9 @@
     <loc>https://ze-software.net/labs/vpp-dataplane/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/legal/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/license/</loc>
   </url>
   <url>
@@ -568,6 +571,9 @@
     <loc>https://ze-software.net/project/changes/2026-10-05/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/project/changes/2026-10-12/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/project/history/</loc>
   </url>
   <url>
@@ -622,6 +628,117 @@
     <loc>https://ze-software.net/quality/rfc-compliance/draft-walton-bgp-hostname-capability/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/profiles/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/profiles/bfd/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/profiles/bgp-communities-policy/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/profiles/bgp-core/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/profiles/bgp-flowspec/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/profiles/bgp-ls/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/profiles/bgp-monitoring/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/profiles/bgp-session-ops/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/profiles/bgp-sr-tunnel/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/profiles/bgp-transport-security/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/profiles/bgp-vpn-evpn/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/profiles/ddos-flowspec/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/profiles/dhcp-provisioning/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/profiles/dns/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/profiles/drafts/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/profiles/eap/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/profiles/fhrp/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/profiles/flow-telemetry/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/profiles/fttx-edge/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/profiles/ikev2-ipsec/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/profiles/isis/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/profiles/lns/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/profiles/looking-glass/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/profiles/management/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/profiles/mpls/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/profiles/oauth-mgmt/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/profiles/ospf/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/profiles/ppp-access/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/profiles/primitives/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/profiles/radius-tacacs/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/profiles/route-archival/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/profiles/route-collector/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/profiles/route-server/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/profiles/rpki/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/profiles/tunnels/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/profiles/vpn-concentrator/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/profiles/vpn-endpoint/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/quality/rfc-compliance/rfc1035/</loc>
   </url>
   <url>
@@ -638,6 +755,9 @@
   </url>
   <url>
     <loc>https://ze-software.net/quality/rfc-compliance/rfc1350/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/rfc1570/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/quality/rfc-compliance/rfc1661/</loc>
@@ -709,6 +829,12 @@
     <loc>https://ze-software.net/quality/rfc-compliance/rfc2866/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/rfc2867/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/rfc2868/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/quality/rfc-compliance/rfc2869/</loc>
   </url>
   <url>
@@ -721,6 +847,9 @@
     <loc>https://ze-software.net/quality/rfc-compliance/rfc2966/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/rfc3022/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/quality/rfc-compliance/rfc3031/</loc>
   </url>
   <url>
@@ -728,6 +857,12 @@
   </url>
   <url>
     <loc>https://ze-software.net/quality/rfc-compliance/rfc3101/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/rfc3145/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/rfc3162/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/quality/rfc-compliance/rfc3209/</loc>
@@ -757,16 +892,28 @@
     <loc>https://ze-software.net/quality/rfc-compliance/rfc3787/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/rfc3882/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/quality/rfc-compliance/rfc3948/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/quality/rfc-compliance/rfc3954/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/rfc4033/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/rfc4034/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/quality/rfc-compliance/rfc4035/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/quality/rfc-compliance/rfc4090/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/rfc4106/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/quality/rfc-compliance/rfc4213/</loc>
@@ -811,6 +958,9 @@
     <loc>https://ze-software.net/quality/rfc-compliance/rfc4578/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/rfc4638/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/quality/rfc-compliance/rfc4659/</loc>
   </url>
   <url>
@@ -820,6 +970,12 @@
     <loc>https://ze-software.net/quality/rfc-compliance/rfc4724/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/rfc4739/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/rfc4754/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/quality/rfc-compliance/rfc4760/</loc>
   </url>
   <url>
@@ -827,6 +983,15 @@
   </url>
   <url>
     <loc>https://ze-software.net/quality/rfc-compliance/rfc4762/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/rfc4787/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/rfc4818/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/rfc4861/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/quality/rfc-compliance/rfc4862/</loc>
@@ -859,6 +1024,9 @@
     <loc>https://ze-software.net/quality/rfc-compliance/rfc5250/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/rfc5280/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/quality/rfc-compliance/rfc5282/</loc>
   </url>
   <url>
@@ -886,6 +1054,9 @@
     <loc>https://ze-software.net/quality/rfc-compliance/rfc5340/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/rfc5382/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/quality/rfc-compliance/rfc5392/</loc>
   </url>
   <url>
@@ -902,6 +1073,12 @@
   </url>
   <url>
     <loc>https://ze-software.net/quality/rfc-compliance/rfc5575/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/rfc5635/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/rfc5685/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/quality/rfc-compliance/rfc5701/</loc>
@@ -928,7 +1105,13 @@
     <loc>https://ze-software.net/quality/rfc-compliance/rfc5883/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/rfc5905/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/quality/rfc-compliance/rfc5925/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/rfc5998/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/quality/rfc-compliance/rfc6071/</loc>
@@ -967,6 +1150,9 @@
     <loc>https://ze-software.net/quality/rfc-compliance/rfc6811/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/rfc6911/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/quality/rfc-compliance/rfc6987/</loc>
   </url>
   <url>
@@ -979,6 +1165,9 @@
     <loc>https://ze-software.net/quality/rfc-compliance/rfc7012/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/rfc7084/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/quality/rfc-compliance/rfc7166/</loc>
   </url>
   <url>
@@ -989,6 +1178,9 @@
   </url>
   <url>
     <loc>https://ze-software.net/quality/rfc-compliance/rfc7313/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/rfc7383/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/quality/rfc-compliance/rfc7427/</loc>
@@ -1024,6 +1216,9 @@
     <loc>https://ze-software.net/quality/rfc-compliance/rfc7627/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/rfc7634/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/quality/rfc-compliance/rfc7684/</loc>
   </url>
   <url>
@@ -1054,10 +1249,16 @@
     <loc>https://ze-software.net/quality/rfc-compliance/rfc7947/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/rfc7948/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/quality/rfc-compliance/rfc7950/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/quality/rfc-compliance/rfc7999/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/rfc8031/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/quality/rfc-compliance/rfc8050/</loc>
@@ -1069,6 +1270,9 @@
     <loc>https://ze-software.net/quality/rfc-compliance/rfc8097/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/rfc8106/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/quality/rfc-compliance/rfc8195/</loc>
   </url>
   <url>
@@ -1076,6 +1280,15 @@
   </url>
   <url>
     <loc>https://ze-software.net/quality/rfc-compliance/rfc8210/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/rfc8212/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/rfc8221/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/rfc8247/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/quality/rfc-compliance/rfc8277/</loc>
@@ -1091,6 +1304,9 @@
   </url>
   <url>
     <loc>https://ze-software.net/quality/rfc-compliance/rfc8484/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/rfc8522/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/quality/rfc-compliance/rfc8538/</loc>
@@ -1115,6 +1331,9 @@
   </url>
   <url>
     <loc>https://ze-software.net/quality/rfc-compliance/rfc8707/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/rfc8893/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/quality/rfc-compliance/rfc8907/</loc>
@@ -1172,6 +1391,12 @@
   </url>
   <url>
     <loc>https://ze-software.net/quality/rfc-compliance/rfc9319/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/rfc9329/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/rfc9370/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/quality/rfc-compliance/rfc9384/</loc>
@@ -1253,6 +1478,9 @@
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/clear-dns-cache-stats/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/clear-dns-resolver-cache-all/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/clear-firewall-domain-group/</loc>
@@ -1958,6 +2186,9 @@
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-dns-lookup/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-dns-resolver/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-doctor/</loc>
@@ -2872,6 +3103,9 @@
     <loc>https://ze-software.net/reference/plugins/dhcpserver/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/reference/plugins/dnsresolver/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/reference/plugins/exabgp-bridge/</loc>
   </url>
   <url>
@@ -2900,6 +3134,12 @@
   </url>
   <url>
     <loc>https://ze-software.net/reference/plugins/geodns/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/plugins/iface-dhcp/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/plugins/iface-ra/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/plugins/ike/</loc>
@@ -2933,6 +3173,9 @@
   </url>
   <url>
     <loc>https://ze-software.net/reference/plugins/loop/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/plugins/memlock/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/plugins/mrt/</loc>

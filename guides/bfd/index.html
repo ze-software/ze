@@ -536,12 +536,21 @@ Established until the BFD session to that neighbour is Up.</p>
 <td>Before the BGP FSM starts, and keeps it open while BGP is down. Draft Section 7 asks for both, so the BFD handshake is not serialized behind the BGP one</td>
 </tr>
 <tr>
-<td>Holds the session in OpenSent</td>
-<td>When the peer's OPEN arrives and BFD is not yet Up, Ze withholds its KEEPALIVE and waits. <code>show bgp peer list</code> and <code>show bgp peer detail</code> carry a <code>bfd-sub-state</code> field while it does</td>
+<td>Withholds KEEPALIVE while BFD is pending</td>
+<td>When both OPENs negotiate strict mode and BFD is neither Up nor AdminDown, Ze waits in OpenSent, or in Connect/Active if the OPEN arrived during DelayOpen. <code>show bgp peer list</code> and <code>show bgp peer detail</code> carry the corresponding <code>bfd-sub-state</code> while it waits</td>
 </tr>
 </tbody>
 </table>
 <p>A fourth leaf, <code>hold-down</code>, is optional and described below.</p>
+<p>To combine this with delayed OPEN, add <code>timer { delay-open 5; }</code> inside the
+same peer. An early remote OPEN still makes Ze send its OPEN, but not its
+KEEPALIVE while BFD is pending. The displayed sub-state is
+<code>CONNECT-DELAYOPEN-BFD-UP-PENDING</code> or <code>ACTIVE-DELAYOPEN-BFD-UP-PENDING</code>.
+BFD Up, AdminDown or Disabled releases that wait to OpenConfirm. The bounds
+below apply in those states too; DelayOpen does not introduce an unbounded
+strict-mode wait. With <code>delay-open 0</code>, the existing OpenSent path is unchanged.</p>
+<!-- source: internal/component/bgp/fsm/delay_open.go -- EnterDelayOpenBfdUpPending, releaseDelayOpenBfdPending -->
+<!-- source: internal/component/bgp/reactor/session_bfd_strict.go -- advanceAfterOpen, handleBFDEvent -->
 <p><strong>Both speakers must advertise it.</strong> Against a peer whose OPEN carries no
 capability 74, Ze establishes on the normal path and BFD stays a failure
 detector. That is deliberate: a one-sided strict mode is a session that never
@@ -928,10 +937,10 @@ $ ze-demo card topic-bfd recap</code></pre>
 <p>Fields are sorted stably by <code>(mode, vrf, peer)</code> so successive scrapes
 produce diff-able output.</p>
 <h3 id="session-detail">Session detail</h3>
-<p><code>show bfd session &lt;peer&gt;</code> returns the same struct for one session
+<p><code>show bfd session address &lt;peer&gt;</code> returns the same struct for one session
 plus the most recent state transitions kept in a bounded in-memory
 ring (eight entries by default -- see <code>api.TransitionHistoryDepth</code>):</p>
-<pre><code>operator@router&gt; show bfd session 192.0.2.2
+<pre><code>operator@router&gt; show bfd session address 192.0.2.2
 {
   "peer": "192.0.2.2",
   "local": "192.0.2.1",
@@ -1233,8 +1242,10 @@ document for the full gap list and the intended follow-up order.</p>
         <footer>
             <div class="footer-inner">
                 <div class="footer-bottom">
+                    <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
+                    <a href="../../legal/">Legal notice</a>
+                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
                 </div>
             </div>
         </footer>

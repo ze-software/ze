@@ -1,0 +1,1667 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>RFC 7084 requirement ledger - Ze</title>
+        <meta name="description" content="RFC 7084: Basic Requirements for IPv6 Customer Edge Routers. 41 gated MUST-level requirements, 20 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:title" content="RFC 7084 requirement ledger - Ze" />
+        <meta property="og:description" content="RFC 7084: Basic Requirements for IPv6 Customer Edge Routers. 41 gated MUST-level requirements, 20 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="RFC 7084 requirement ledger - Ze" />
+        <meta name="twitter:description" content="RFC 7084: Basic Requirements for IPv6 Customer Edge Routers. 41 gated MUST-level requirements, 20 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
+        <link rel="canonical" href="https://ze-software.net/quality/rfc-compliance/rfc7084/" />
+        <meta property="og:url" content="https://ze-software.net/quality/rfc-compliance/rfc7084/" />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../../#top">Ze</a>
+                    <a href="../../../#top">Home</a>
+                    <a href="../../../docs/">Docs</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../project/roadmap/">Roadmap</a>
+                    <a href="../../../project/changes/">Changes</a>
+                    <a href="../../../faq/">FAQ</a>
+                    <a href="../../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section aria-labeledby="rfc-detail-title" class="md-content reveal cat-observe">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Partial</span>
+    <h1 id="rfc-detail-title">RFC 7084 - Basic Requirements for IPv6 Customer Edge Routers</h1>
+    <p>Every requirement this repository extracted from RFC 7084, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.</p>
+</div>
+<style>
+.rfc-table-wrap { overflow-x: auto; }
+.rfc-id-list { margin: .6rem 0; line-height: 1.9; }
+.rfc-verdict { margin: 1rem 0 1.6rem; padding: 1rem 1.2rem; border-radius: 18px; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-verdict p { margin: 0 0 .4rem; color: var(--muted); }
+.rfc-verdict p:last-child { margin-bottom: 0; }
+.rfc-verdict span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-verdict strong { display: block; margin: .2rem 0 .5rem; font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1; color: var(--text); }
+.rfc-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); grid-auto-rows: 1fr; gap: 1rem; margin: 1.25rem 0 .8rem; }
+.rfc-card { display: flex; flex-direction: column; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-card span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
+.rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
+.rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
+.rfc-ok { border-left: 7px solid var(--green); }
+.rfc-neutral { border-left: 7px solid var(--line-strong); }
+.rfc-warn { border-left: 7px solid var(--amber); }
+.rfc-bad { border-left: 7px solid var(--danger-deep); }
+.rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
+.rfc-tape span { width: var(--w); min-width: 0; display: block; }
+.rfc-tape-key { display: flex; flex-wrap: wrap; gap: .35rem 1.4rem; margin: 0 0 1.4rem; padding: 0; list-style: none; font-size: .92rem; }
+.rfc-tape-key li { display: flex; align-items: center; gap: .45rem; }
+.rfc-swatch { display: inline-block; width: .85rem; height: .85rem; border-radius: .25rem; border: 1px solid var(--line-strong); vertical-align: -.1rem; }
+.rfc-tape-both_polarities { background: var(--teal-chip); }
+.rfc-tape-single_polarity { background: var(--sky-chip); }
+.rfc-tape-not_applicable { background: var(--grape-chip); }
+.rfc-tape-feature_declined { background: var(--pink-chip); }
+.rfc-tape-lower_layer { background: var(--mint-chip); }
+.rfc-tape-rollup { background: var(--tangerine-chip); }
+.rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
+.rfc-tape-one_polarity_unexcused { background: var(--amber); }
+.rfc-tape-missing_unexcused { background: var(--danger-deep); }
+.rfc-swatch.rfc-ok { background: var(--green); }
+.rfc-swatch.rfc-neutral { background: var(--line-strong); }
+.rfc-swatch.rfc-warn { background: var(--amber); }
+.rfc-swatch.rfc-bad { background: var(--danger-deep); }
+.rfc-total td { border-top: 2px solid var(--line-strong); }
+.rfc-prose { max-width: 46rem; }
+ul.rfc-prose { margin: .5rem 0 1rem; padding-left: 1.2rem; }
+ul.rfc-prose li { margin: .35rem 0; line-height: 1.6; }
+p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
+.rfc-fold { margin: .6rem 0; }
+.rfc-fold > summary { cursor: pointer; font-weight: 700; }
+.rfc-span > td { padding-bottom: .2rem; border-bottom: 0; }
+.rfc-table td:first-child { font-weight: 400; }
+.rfc-table .rfc-span > td { padding-top: .9rem; }
+.rfc-subject-id { white-space: nowrap; vertical-align: top; }
+.rfc-subject { display: block; max-width: 52rem; }
+.rfc-tests { display: grid; gap: .15rem .8rem; }
+.rfc-tests-row { display: grid; grid-template-columns: 5rem 9.5rem minmax(0, 1fr); gap: .8rem; align-items: baseline; }
+.rfc-tests-row > span:first-child { color: var(--muted); font-size: .88rem; }
+.rfc-mark { margin: .45rem 0 0; color: var(--muted); max-width: 52rem; }
+@media (max-width: 760px) {
+  .rfc-tests-row { grid-template-columns: 1fr; gap: 0; padding-bottom: .35rem; }
+}
+.rfc-text > summary { cursor: pointer; color: var(--muted); font-size: .85rem; }
+.rfc-text > p { margin: .35rem 0 0; max-width: 44rem; }
+.rfc-note-box { margin: 1rem 0; padding: 1rem 1.2rem; border-radius: 16px; background: var(--gold-tint); border: 1px solid var(--gold-chip); }
+.rfc-note-box h3 { margin-top: 0; }
+.rfc-note-box ul { margin-bottom: 0; }
+.rfc-check-ok strong { color: var(--green); }
+.rfc-check-bad strong { color: var(--danger-deep); }
+</style>
+<section><h2>Overview</h2>
+<h3>Positive</h3>
+<p>what Ze has</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>0.0%</strong><b>0 of 41 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>34.1%</strong><b>14 of 41 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 41 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 41 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>100.0%</strong><b>14 of 14 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+</div>
+<h3>Neutral</h3>
+<p>measures that are neither good news nor bad</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>41</strong><b>of 68 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 41 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 41 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>17.1%</strong><b>7 of 41 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 41 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+</div>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>48.8%</strong><b>20 of 41 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+</div>
+<p>The 8 shares marked as a part above are the whole of the 41 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<details class="rfc-fold"><summary>How to read the colors</summary>
+<p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Card</th><th>Tone here</th><th>Why that color</th></tr></thead>
+<tbody>
+<tr><td>Gated MUSTs</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total</td>
+</tr>
+<tr><td>Out of scope</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
+</tr>
+<tr><td>Tested both ways</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got</td>
+</tr>
+<tr><td>One polarity plus reason</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it</td>
+</tr>
+<tr><td>One polarity, unexcused</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: half a proof with no reason for the other half</td>
+</tr>
+<tr><td>Partial proof; remaining gap</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+</tr>
+<tr><td>No test at all</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
+</tr>
+<tr><td>Not applicable</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
+</tr>
+<tr><td>Met below Ze</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself</td>
+</tr>
+<tr><td>Optional feature declined</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC&#39;s own status row, as an implementation gap a later scope decision can revisit</td>
+</tr>
+<tr><td>Proven by a recorded break</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
+</tr>
+<tr><td>Audit verdicts</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
+</tr>
+</tbody>
+</table>
+</div>
+</details>
+</section>
+<section><h2>At a glance</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Public status</td>
+<td>Partial</td>
+</tr>
+<tr><td>Enrolment</td>
+<td>Enrolled</td>
+</tr>
+<tr><td>Requirements</td>
+<td>68</td>
+</tr>
+<tr><td>Gated MUST-level</td>
+<td>41</td>
+</tr>
+<tr><td>Not applicable, so out of scope</td>
+<td>0</td>
+</tr>
+<tr><td>Declared gaps</td>
+<td>20</td>
+</tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
+<tr><td>Gated with no test</td>
+<td>0</td>
+</tr>
+<tr><td>Nightly-only evidence</td>
+<td>0</td>
+</tr>
+<tr><td>Test tags</td>
+<td>14</td>
+</tr>
+<tr><td>Tagged units</td>
+<td>14</td>
+</tr>
+<tr><td>Recorded audit verdicts</td>
+<td>0</td>
+</tr>
+<tr><td>Discrimination records</td>
+<td>14</td>
+</tr>
+<tr><td>Summary</td>
+<td><code>rfc/short/rfc7084.md</code></td>
+</tr>
+<tr><td>Requirement shard</td>
+<td><code>rfc/requirements/rfc7084.md</code></td>
+</tr>
+<tr><td>RFC text</td>
+<td><code>rfc/full/rfc7084.txt</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Enrolment</h2>
+<p>Enrolled: Ze plays the IPv6 CE router of the fttx-edge use case: a DHCPv6 client that requests addresses and delegated prefixes on the WAN unit (internal/plugins/iface/dhcp), SLAAC and router discovery on the WAN through the kernel sysctls Ze writes (internal/component/iface/config_sysctl.go), and Router Advertisements on the LAN (internal/plugins/iface/ra, internal/core/ndp/ra.go). Walked site by site on 2026-10-26 (rfc/extraction/rfc7084.json). Every MUST is classified: the ICMPv6, Ethernet, Router Solicitation, L flag and weak host rows the Linux IPv6 stack performs are lower-layer; WAA-3 and L-1 roll up to rfc9915 and rfc4861; the CE glue between WAN provisioning and LAN advertisement (delegated prefix to LAN /64, Route Information Option, Router Lifetime tied to WAN state and prefixes, RA M/O flags starting DHCPv6, Reconfigure Accept, LAN DHCPv6 server, DNSSL, renumbering, ULA border filtering, IPv6 over PPP on the PPPoE client) is recorded as gaps; the remaining rows are Ze&#39;s and carry tagged tests with recorded discrimination. The 6rd and DS-Lite requirements are conditional on features this RFC makes SHOULD-level and Ze does not offer, and are excluded as feature-out-of-scope.</p>
+</section>
+<section><h2>What the public ledger says</h2>
+<p><strong>Status:</strong> Partial</p>
+<details class="rfc-fold"><summary>What the ledger says is covered</summary>
+<ul class="rfc-prose">
+<li>WAN side: a DHCPv6 client with a persistent DUID that requests IA_NA, DNS servers and SOL_MAX_RT and, when configured, an IA_PD with an optional length hint, accepting any delegated prefix length and an IA_PD without addresses</li>
+<li>SLAAC and router discovery on the WAN through the kernel, with Ze installing the default route itself when the operator sets a route priority. LAN side: Router Advertisements with Prefix Information (A and L set by default), RDNSS and a zero Router Lifetime when an interface stops advertising.</li>
+</ul>
+</details>
+<details class="rfc-fold"><summary>What the ledger says remains</summary>
+A delegated prefix is not assigned to LAN interfaces and no address is formed from it (<a href="#rfc7084-4.3-5"><code>RFC7084-4.3-5</code></a>, <a href="#rfc7084-4.2-16"><code>RFC7084-4.2-16</code></a>); no Route Information Option (<a href="#rfc7084-4.3-6"><code>RFC7084-4.3-6</code></a>); the Router Lifetime is not tied to WAN default router state, WAN loss, configured prefixes or ULA-only prefixes (<a href="#rfc7084-4.1-4"><code>RFC7084-4.1-4</code></a>, <a href="#rfc7084-4.1-5"><code>RFC7084-4.1-5</code></a>, <a href="#rfc7084-4.3-7"><code>RFC7084-4.3-7</code></a>, <a href="#rfc7084-4.3-3"><code>RFC7084-4.3-3</code></a>); forwarding is not held until acquisition completes (<a href="#rfc7084-4.1-3"><code>RFC7084-4.1-3</code></a>); DHCPv6 is not started from the RA M or O flags (<a href="#rfc7084-4.2-15"><code>RFC7084-4.2-15</code></a>, <a href="#rfc7084-4.2-22"><code>RFC7084-4.2-22</code></a>); no Reconfigure Accept (<a href="#rfc7084-4.2-14"><code>RFC7084-4.2-14</code></a>); the prefix hint is not derived from the interface count (<a href="#rfc7084-4.2-20"><code>RFC7084-4.2-20</code></a>); no LAN DHCPv6 server and no DNS Search List option (<a href="#rfc7084-4.3-10"><code>RFC7084-4.3-10</code></a>, <a href="#rfc7084-4.3-11"><code>RFC7084-4.3-11</code></a>, <a href="#rfc7084-4.3-12"><code>RFC7084-4.3-12</code></a>); no renumbering of a replaced delegated prefix and no ICMPv6 code 5 (<a href="#rfc7084-4.3-13"><code>RFC7084-4.3-13</code></a>, <a href="#rfc7084-4.3-14"><code>RFC7084-4.3-14</code></a>); no default ULA border filtering (<a href="#rfc7084-4.3-2"><code>RFC7084-4.3-2</code></a>); no IPv6 over PPP on the PPPoE client (<a href="#rfc7084-4.2-9"><code>RFC7084-4.2-9</code></a>, <a href="#rfc7084-4.2-10"><code>RFC7084-4.2-10</code></a>). 6rd and DS-Lite are not offered. No Ze-owned requirement is yet proven by a tagged test.
+</details>
+</section>
+<section><h2>Coverage</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
+<tbody>
+<tr><td>Positive and negative tests</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Annotated (including scoped evidence)</td>
+<td><strong>41</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>One polarity only</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>No test and no annotation</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
+</tr>
+<tr><td>Evidence that runs nightly only</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
+</tr>
+<tr><td>Derived from other rows</td>
+<td><strong>2</strong></td>
+<td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
+</tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>41</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+</tbody>
+</table>
+</div>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (41):</strong> <a href="#rfc7084-4.1-1"><code>RFC7084-4.1-1</code></a>, <a href="#rfc7084-4.1-2"><code>RFC7084-4.1-2</code></a>, <a href="#rfc7084-4.1-3"><code>RFC7084-4.1-3</code></a>, <a href="#rfc7084-4.1-4"><code>RFC7084-4.1-4</code></a>, <a href="#rfc7084-4.1-5"><code>RFC7084-4.1-5</code></a>, <a href="#rfc7084-4.2-1"><code>RFC7084-4.2-1</code></a>, <a href="#rfc7084-4.2-2"><code>RFC7084-4.2-2</code></a>, <a href="#rfc7084-4.2-3"><code>RFC7084-4.2-3</code></a>, <a href="#rfc7084-4.2-4"><code>RFC7084-4.2-4</code></a>, <a href="#rfc7084-4.2-5"><code>RFC7084-4.2-5</code></a>, <a href="#rfc7084-4.2-6"><code>RFC7084-4.2-6</code></a>, <a href="#rfc7084-4.2-7"><code>RFC7084-4.2-7</code></a>, <a href="#rfc7084-4.2-8"><code>RFC7084-4.2-8</code></a>, <a href="#rfc7084-4.2-9"><code>RFC7084-4.2-9</code></a>, <a href="#rfc7084-4.2-10"><code>RFC7084-4.2-10</code></a>, <a href="#rfc7084-4.2-11"><code>RFC7084-4.2-11</code></a>, <a href="#rfc7084-4.2-12"><code>RFC7084-4.2-12</code></a>, <a href="#rfc7084-4.2-14"><code>RFC7084-4.2-14</code></a>, <a href="#rfc7084-4.2-15"><code>RFC7084-4.2-15</code></a>, <a href="#rfc7084-4.2-16"><code>RFC7084-4.2-16</code></a>, <a href="#rfc7084-4.2-17"><code>RFC7084-4.2-17</code></a>, <a href="#rfc7084-4.2-18"><code>RFC7084-4.2-18</code></a>, <a href="#rfc7084-4.2-19"><code>RFC7084-4.2-19</code></a>, <a href="#rfc7084-4.2-20"><code>RFC7084-4.2-20</code></a>, <a href="#rfc7084-4.2-21"><code>RFC7084-4.2-21</code></a>, <a href="#rfc7084-4.2-22"><code>RFC7084-4.2-22</code></a>, <a href="#rfc7084-4.2-23"><code>RFC7084-4.2-23</code></a>, <a href="#rfc7084-4.2-24"><code>RFC7084-4.2-24</code></a>, <a href="#rfc7084-4.3-1"><code>RFC7084-4.3-1</code></a>, <a href="#rfc7084-4.3-2"><code>RFC7084-4.3-2</code></a>, <a href="#rfc7084-4.3-3"><code>RFC7084-4.3-3</code></a>, <a href="#rfc7084-4.3-5"><code>RFC7084-4.3-5</code></a>, <a href="#rfc7084-4.3-6"><code>RFC7084-4.3-6</code></a>, <a href="#rfc7084-4.3-7"><code>RFC7084-4.3-7</code></a>, <a href="#rfc7084-4.3-8"><code>RFC7084-4.3-8</code></a>, <a href="#rfc7084-4.3-9"><code>RFC7084-4.3-9</code></a>, <a href="#rfc7084-4.3-10"><code>RFC7084-4.3-10</code></a>, <a href="#rfc7084-4.3-11"><code>RFC7084-4.3-11</code></a>, <a href="#rfc7084-4.3-12"><code>RFC7084-4.3-12</code></a>, <a href="#rfc7084-4.3-13"><code>RFC7084-4.3-13</code></a>, <a href="#rfc7084-4.3-14"><code>RFC7084-4.3-14</code></a></p>
+<p class="rfc-id-list"><strong>Derived from other rows (2):</strong> <a href="#rfc7084-4.2-13"><code>RFC7084-4.2-13</code></a>, <a href="#rfc7084-4.3-4"><code>RFC7084-4.3-4</code></a></p>
+</section>
+<section><h2>Requirements</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
+<tbody>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.1-1">RFC7084-4.1-1</code></td><td colspan="3"><span class="rfc-subject">G-2: The IPv6 CE router MUST implement ICMPv6 according to [RFC4443]. (§4.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{lower-layer}:</strong> Linux IPv6 ICMP (net/ipv6/icmp.c); internal/plugins/iface/netlink/manage_linux.go::AddAddress installs the IPv6 addresses the kernel originates and answers ICMPv6 from, and Ze builds no ICMPv6 error or echo message and holds no state this behaviour reads</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.1-2">RFC7084-4.1-2</code></td><td colspan="3"><span class="rfc-subject">In particular, point-to-point links MUST be handled as described in Section 3.1 of [RFC4443]. (§4.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.1-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{lower-layer}:</strong> Linux IPv6 ICMP (net/ipv6/icmp.c); internal/plugins/iface/netlink/manage_linux.go::AddAddress installs the IPv6 addresses the kernel originates and answers ICMPv6 from, and Ze builds no ICMPv6 error or echo message and holds no state this behaviour reads</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.1-3">RFC7084-4.1-3</code></td><td colspan="3"><span class="rfc-subject">G-3: The IPv6 CE router MUST NOT forward any IPv6 traffic between its LAN interface(s) and its WAN interface until the router has successfully completed the IPv6 address and the delegated prefix acquisition process. (§4.1)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>4.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.1-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> IPv6 forwarding follows the operator&#39;s forwarding leaf alone and is never held off until the DHCPv6 address and delegated prefix are acquired; internal/component/iface/config_sysctl.go::applySysctl</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.1-4">RFC7084-4.1-4</code></td><td colspan="3"><span class="rfc-subject">G-4: By default, an IPv6 CE router that has no default router(s) on its WAN interface MUST NOT advertise itself as an IPv6 default router on its LAN interfaces. (§4.1)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>4.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.1-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> the advertised Router Lifetime does not depend on whether the WAN interface has a default router; internal/component/iface/config_ra.go parseRAConfig takes router-lifetime from the operator (default 1800 seconds) and nothing lowers it</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.1-5">RFC7084-4.1-5</code></td><td colspan="3"><span class="rfc-subject">G-5: By default, if the IPv6 CE router is an advertising router and loses its IPv6 default router(s) and/or detects loss of connectivity on the WAN interface, it MUST explicitly invalidate itself as an IPv6 default router on each of its advertising interfaces by immediately transmitting one or more Router Advertisement messages with the &#34;Router Lifetime&#34; field set to zero [RFC4861]. (§4.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.1-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> a zero Router Lifetime is sent only when an interface stops advertising, never when the WAN loses its default router or its connectivity; internal/plugins/iface/ra/sender_linux.go Sender.sendFinal</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.2-1">RFC7084-4.2-1</code></td><td colspan="3"><span class="rfc-subject">W-1: When the router is attached to the WAN interface link, it MUST act as an IPv6 host for the purposes of stateless [RFC4862] or stateful [RFC3315] interface address assignment. (§4.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc7084_ce_router_test.go#L29" title="internal/component/iface/rfc7084_ce_router_test.go" target="_blank" rel="noopener"><code>TestRFC7084WANUnitTurnsOnSLAAC</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the row asks for a capability, host address assignment on the WAN, and no input exists under which a conforming router declines it, so only its presence can be asserted</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.2-2">RFC7084-4.2-2</code></td><td colspan="3"><span class="rfc-subject">W-2: The IPv6 CE router MUST generate a link-local address and finish Duplicate Address Detection according to [RFC4862] prior to sending any Router Solicitations on the interface. (§4.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.2-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{lower-layer}:</strong> Linux IPv6 address configuration (net/ipv6/addrconf.c, which sends the first Router Solicitation from addrconf_dad_completed once the link-local address has passed Duplicate Address Detection, sourced from that address); internal/component/iface/config_sysctl.go::applySysctl writes the accept_ra and autoconf values that decide whether solicitations are sent at all, and no value Ze writes decides their timing or source address</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.2-3">RFC7084-4.2-3</code></td><td colspan="3"><span class="rfc-subject">The source address used in the subsequent Router Solicitation MUST be the link-local address on the WAN interface. (§4.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.2-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{lower-layer}:</strong> Linux IPv6 address configuration (net/ipv6/addrconf.c, which sends the first Router Solicitation from addrconf_dad_completed once the link-local address has passed Duplicate Address Detection, sourced from that address); internal/component/iface/config_sysctl.go::applySysctl writes the accept_ra and autoconf values that decide whether solicitations are sent at all, and no value Ze writes decides their timing or source address</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.2-4">RFC7084-4.2-4</code></td><td colspan="3"><span class="rfc-subject">W-3: Absent other routing information, the IPv6 CE router MUST use Router Discovery as specified in [RFC4861] to discover a default router(s) and install a default route(s) in its routing table with the discovered router&#39;s address as the next hop. (§4.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.2-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc7084_ce_router_test.go#L89" title="internal/component/iface/rfc7084_ce_router_test.go" target="_blank" rel="noopener"><code>TestRFC7084DiscoveredRouterBecomesTheDefaultRoute</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the row asks the router to install a default route from a discovered router, and no input exists under which a conforming router must refuse one</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.2-5">RFC7084-4.2-5</code></td><td colspan="3"><span class="rfc-subject">W-4: The router MUST act as a requesting router for the purposes of DHCPv6 prefix delegation ([RFC3633]). (§4.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.2-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc7084_dhcp_v6_ce_linux_test.go#L32" title="internal/plugins/iface/dhcp/rfc7084_dhcp_v6_ce_linux_test.go" target="_blank" rel="noopener"><code>TestRFC7084RequestingRouterSolicitsIAPD</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the row asks for a capability, acting as a requesting router, and no input exists under which a conforming router declines it</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.2-6">RFC7084-4.2-6</code></td><td colspan="3"><span class="rfc-subject">W-5: The IPv6 CE router MUST use a persistent DHCP Unique Identifier (DUID) for DHCPv6 messages. (§4.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.2-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go#L620" title="internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv6DefaultDUIDStable</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the row asks for a persistent DUID, which only its use across messages and restarts can show</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.2-7">RFC7084-4.2-7</code></td><td colspan="3"><span class="rfc-subject">The DUID MUST NOT change between network-interface resets or IPv6 CE router reboots. (§4.2)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.2-7">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go#L621" title="internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv6DefaultDUIDStable</code></a></span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the row forbids a DUID change, which only the absence of a change across a restart can show</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.2-8">RFC7084-4.2-8</code></td><td colspan="3"><span class="rfc-subject">WLL-1: If the WAN interface supports Ethernet encapsulation, then the IPv6 CE router MUST support IPv6 over Ethernet [RFC2464]. (§4.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.2-8">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{lower-layer}:</strong> Linux IPv6 over Ethernet (net/ipv6 with the Ethernet interface identifier in net/ipv6/addrconf.c and address resolution in net/ipv6/ndisc.c); internal/plugins/iface/netlink/manage_linux.go::AddAddress installs the IPv6 addresses of the Ethernet interface, and Ze writes no frame and no value the encapsulation reads</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.2-9">RFC7084-4.2-9</code></td><td colspan="3"><span class="rfc-subject">WLL-2: If the WAN interface supports PPP encapsulation, the IPv6 CE router MUST support IPv6 over PPP [RFC5072]. (§4.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.2-9">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> the PPPoE client negotiates LCP, authentication and IPCP only, with no IPV6CP, so no IPv6 runs over a PPP WAN interface; internal/component/l2tp/pppoeclient/session.go negotiateSession</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.2-10">RFC7084-4.2-10</code></td><td colspan="3"><span class="rfc-subject">WLL-3: If the WAN interface supports PPP encapsulation, in a dual- stack environment with IPCP and IPV6CP running over one PPP logical channel, the Network Control Protocols (NCPs) MUST be treated as independent of each other and start and terminate independently. (§4.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.2-10">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> the PPPoE client runs IPCP alone and no IPV6CP, so the dual-stack pair of independent NCPs does not exist; internal/component/l2tp/pppoeclient/session.go negotiateSession</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.2-11">RFC7084-4.2-11</code></td><td colspan="3"><span class="rfc-subject">WAA-1: The IPv6 CE router MUST support Stateless Address Autoconfiguration (SLAAC) [RFC4862]. (§4.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.2-11">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc7084_ce_router_test.go#L28" title="internal/component/iface/rfc7084_ce_router_test.go" target="_blank" rel="noopener"><code>TestRFC7084WANUnitTurnsOnSLAAC</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the row asks for SLAAC support, and no input exists under which a conforming router declines it</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.2-12">RFC7084-4.2-12</code></td><td colspan="3"><span class="rfc-subject">WAA-2: The IPv6 CE router MUST follow the recommendations in Section 4 of [RFC5942], and in particular the handling of the L flag in the Router Advertisement Prefix Information option. (§4.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.2-12">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{lower-layer}:</strong> Linux IPv6 address configuration (net/ipv6/addrconf.c addrconf_prefix_rcv installs an on-link prefix route only for a Prefix Information option whose L flag is set, and forms an address from the A flag independently of it); internal/component/iface/config_sysctl.go::applySysctl writes the autoconf and accept_ra values, and no value Ze writes decides how the L flag is read</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.2-13">RFC7084-4.2-13</code></td><td colspan="3"><span class="rfc-subject">WAA-3: The IPv6 CE router MUST support DHCPv6 [RFC3315] client behavior. (§4.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.2-13">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{rollup}:</strong> rfc9915; WAA-3 asks for the DHCPv6 client behaviour of RFC 3315, which RFC 9915 now states, and asserts nothing of its own</p><p class="rfc-mark"><strong>derived:</strong> gap: RFC9915-15-2 is annotated {gap}</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.2-14">RFC7084-4.2-14</code></td><td colspan="3"><span class="rfc-subject">WAA-4: The IPv6 CE router MUST be able to support the following DHCPv6 options: Identity Association for Non-temporary Address (IA_NA), Reconfigure Accept [RFC3315], and DNS_SERVERS [RFC3646]. (§4.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.2-14">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> the client sends IA_NA and asks for DNS_SERVERS (option 23), but never sends Reconfigure Accept and handles no Reconfigure message; internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go v6Worker.buildSolicit and requestOptions</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.2-15">RFC7084-4.2-15</code></td><td colspan="3"><span class="rfc-subject">WAA-6: If the IPv6 CE router receives a Router Advertisement message (described in [RFC4861]) with the M flag set to 1, the IPv6 CE router MUST do DHCPv6 address assignment (request an IA_NA option). (§4.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.2-15">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> the DHCPv6 client starts from the dhcpv6 enabled leaf and never reads the M flag of a received Router Advertisement; internal/plugins/iface/dhcp/dhcp_v6_linux.go DHCPClient.runV6</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.2-16">RFC7084-4.2-16</code></td><td colspan="3"><span class="rfc-subject">WAA-7: If the IPv6 CE router does not acquire a global IPv6 address(es) from either SLAAC or DHCPv6, then it MUST create a global IPv6 address(es) from its delegated prefix(es) and configure those on one of its internal virtual network interfaces, unless configured to require a global IPv6 address on the WAN interface. (§4.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.2-16">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> no global address is formed from a delegated prefix on any interface; internal/plugins/iface/dhcp/dhcp_v6_linux.go v6Worker.effect publishes each delegated prefix as a lease event on the WAN unit and nothing consumes it to address an interface</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.2-17">RFC7084-4.2-17</code></td><td colspan="3"><span class="rfc-subject">WAA-8: The CE router MUST support the SOL_MAX_RT option [RFC7083] and request the SOL_MAX_RT option in an Option Request Option (ORO). (§4.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.2-17">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc7084_dhcp_v6_ce_linux_test.go#L55" title="internal/plugins/iface/dhcp/rfc7084_dhcp_v6_ce_linux_test.go" target="_blank" rel="noopener"><code>TestRFC7084SolMaxRTRequestedAndHonoured</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the row asks for SOL_MAX_RT support and its request in the ORO, and no input exists under which a conforming client omits them</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.2-18">RFC7084-4.2-18</code></td><td colspan="3"><span class="rfc-subject">WAA-9: As a router, the IPv6 CE router MUST follow the weak host (Weak End System) model [RFC1122]. (§4.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.2-18">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{lower-layer}:</strong> Linux IPv6 source address selection (net/ipv6/addrconf.c ipv6_dev_get_saddr, which takes a source address from another interface when the outgoing one has none of suitable scope); internal/plugins/iface/netlink/manage_linux.go::AddAddress installs the addresses it chooses from, and Ze sets no source selection policy</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.2-19">RFC7084-4.2-19</code></td><td colspan="3"><span class="rfc-subject">WPD-1: The IPv6 CE router MUST support DHCPv6 prefix delegation requesting router behavior as specified in [RFC3633] (Identity Association for Prefix Delegation (IA_PD) option). (§4.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.2-19">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc7084_dhcp_v6_ce_linux_test.go#L33" title="internal/plugins/iface/dhcp/rfc7084_dhcp_v6_ce_linux_test.go" target="_blank" rel="noopener"><code>TestRFC7084RequestingRouterSolicitsIAPD</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the row asks for IA_PD requesting router behaviour, and no input exists under which a conforming router declines it</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.2-20">RFC7084-4.2-20</code></td><td colspan="3"><span class="rfc-subject">If so, it MUST ask for a prefix large enough to assign one /64 for each of its interfaces, rounded up to the nearest nibble, and SHOULD be configurable to ask for more. (§4.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.2-20">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> the prefix hint is the operator&#39;s pd length (48 to 64) sent unchanged, never derived from the number of interfaces and rounded up to a nibble; internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go v6Worker.emptyIAPD</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.2-21">RFC7084-4.2-21</code></td><td colspan="3"><span class="rfc-subject">WPD-3: The IPv6 CE router MUST be prepared to accept a delegated prefix size different from what is given in the hint. (§4.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.2-21">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc7084_dhcp_v6_ce_linux_test.go#L73" title="internal/plugins/iface/dhcp/rfc7084_dhcp_v6_ce_linux_test.go" target="_blank" rel="noopener"><code>TestRFC7084DelegatedPrefixOtherThanHintWithoutAddresses</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the row asks the router to accept a delegated prefix of any length, and no length exists that a conforming router refuses on that ground</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.2-22">RFC7084-4.2-22</code></td><td colspan="3"><span class="rfc-subject">WPD-4: By default, the IPv6 CE router MUST initiate DHCPv6 prefix delegation when either the M or O flags are set to 1 in a received Router Advertisement (RA) message. (§4.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.2-22">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> prefix delegation starts from the configured pd container, never from the M or O flag of a received Router Advertisement; internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go v6Worker.emptyIAPD</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.2-23">RFC7084-4.2-23</code></td><td colspan="3"><span class="rfc-subject">WPD-6: If the IPv6 CE router requests both an IA_NA and an IA_PD option in DHCPv6, it MUST accept an IA_PD option in DHCPv6 Advertise/Reply messages, even if the message does not contain any addresses, unless configured to only obtain its WAN IPv6 address via DHCPv6; see [DHCPv6-STATEFUL-ISSUES]. (§4.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.2-23">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc7084_dhcp_v6_ce_linux_test.go#L74" title="internal/plugins/iface/dhcp/rfc7084_dhcp_v6_ce_linux_test.go" target="_blank" rel="noopener"><code>TestRFC7084DelegatedPrefixOtherThanHintWithoutAddresses</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the row asks the router to accept an IA_PD without addresses, and no such Reply exists that a conforming router refuses on that ground</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.2-24">RFC7084-4.2-24</code></td><td colspan="3"><span class="rfc-subject">WPD-7: By default, an IPv6 CE router MUST NOT initiate any dynamic routing protocol on its WAN interface. (§4.2)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.2-24">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/plugin/server/rfc7084_wan_routing_test.go#L26" title="internal/component/plugin/server/rfc7084_wan_routing_test.go" target="_blank" rel="noopener"><code>TestRFC7084InterfaceOnlyConfigStartsNoRoutingProtocol</code></a></span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the row forbids starting a routing protocol by default, which only the absence of one under a configuration that names none can show</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.3-1">RFC7084-4.3-1</code></td><td colspan="3"><span class="rfc-subject">ULA-2: An IPv6 CE router with a ULA prefix MUST maintain this prefix consistently across reboots. (§4.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc7084_ce_router_test.go#L71" title="internal/component/iface/rfc7084_ce_router_test.go" target="_blank" rel="noopener"><code>TestRFC7084ULAPrefixComesFromTheConfigAlone</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the row asks the router to keep its ULA prefix, which only the same prefix on each load of one configuration can show</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.3-2">RFC7084-4.3-2</code></td><td colspan="3"><span class="rfc-subject">ULA-4: By default, the IPv6 CE router MUST act as a site border router according to Section 4.3 of [RFC4193] and filter packets with local IPv6 source or destination addresses accordingly. (§4.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.3-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> no filter of ULA source or destination addresses at the site border is installed by default; such filtering exists only as firewall rules the operator writes</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.3-3">RFC7084-4.3-3</code></td><td colspan="3"><span class="rfc-subject">ULA-5: An IPv6 CE router MUST NOT advertise itself as a default router with a Router Lifetime greater than zero whenever all of its configured and delegated prefixes are ULA prefixes. (§4.3)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>4.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.3-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> the Router Lifetime does not depend on whether the advertised prefixes are all ULA prefixes; internal/component/iface/config_ra.go parseRAConfig takes router-lifetime from the operator (default 1800 seconds) and nothing lowers it</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.3-4">RFC7084-4.3-4</code></td><td colspan="3"><span class="rfc-subject">L-1: The IPv6 CE router MUST support router behavior according to Neighbor Discovery for IPv6 [RFC4861]. (§4.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.3-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{rollup}:</strong> rfc4861; L-1 asks for the router behaviour RFC 4861 states and asserts nothing of its own</p><p class="rfc-mark"><strong>derived:</strong> gap: RFC4861-4.4-3 is annotated {gap}</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.3-5">RFC7084-4.3-5</code></td><td colspan="3"><span class="rfc-subject">L-2: The IPv6 CE router MUST assign a separate /64 from its delegated prefix(es) (and ULA prefix if configured to provide ULA addressing) for each of its LAN interfaces. (§4.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.3-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> no /64 is assigned from a delegated prefix to any LAN interface; internal/plugins/iface/dhcp/dhcp_v6_linux.go v6Worker.effect publishes each delegated prefix as a lease event on the WAN unit and nothing consumes it to address an interface</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.3-6">RFC7084-4.3-6</code></td><td colspan="3"><span class="rfc-subject">L-3: An IPv6 CE router MUST advertise itself as a router for the delegated prefix(es) (and ULA prefix if configured to provide ULA addressing) using the &#34;Route Information Option&#34; specified in Section 2.3 of [RFC4191]. (§4.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.3-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> the Router Advertisement encoder writes Source Link-layer Address, Prefix Information and RDNSS options only, and no Route Information Option; internal/core/ndp/ra.go BuildRA</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.3-7">RFC7084-4.3-7</code></td><td colspan="3"><span class="rfc-subject">L-4: An IPv6 CE router MUST NOT advertise itself as a default router with a Router Lifetime [RFC4861] greater than zero if it has no prefixes configured or delegated to it. (§4.3)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>4.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.3-7">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> the Router Lifetime does not depend on whether any prefix is configured or delegated; internal/component/iface/config_ra.go parseRAConfig takes router-lifetime from the operator (default 1800 seconds) and nothing lowers it</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.3-8">RFC7084-4.3-8</code></td><td colspan="3"><span class="rfc-subject">L-5: The IPv6 CE router MUST make each LAN interface an advertising interface according to [RFC4861]. (§4.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.3-8">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc4861_router_configuration_test.go#L101" title="internal/component/iface/rfc4861_router_configuration_test.go" target="_blank" rel="noopener"><code>TestRFC4861OnlyAnAdvertisingInterfaceSends</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the row asks that a LAN interface advertise, and no input exists under which a conforming router keeps a LAN interface silent</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.3-9">RFC7084-4.3-9</code></td><td colspan="3"><span class="rfc-subject">L-6: In Router Advertisement messages ([RFC4861]), the Prefix Information option&#39;s A and L flags MUST be set to 1 by default. (§4.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.3-9">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc7084_config_ra_test.go#L104" title="internal/component/iface/rfc7084_config_ra_test.go" target="_blank" rel="noopener"><code>TestRAConfigParse</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the row fixes a default, and no input exists under which a conforming default leaves A or L clear, so only the default itself can be asserted</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.3-10">RFC7084-4.3-10</code></td><td colspan="3"><span class="rfc-subject">L-8: The IPv6 CE router MUST support a DHCPv6 server capable of IPv6 address assignment according to [RFC3315] OR a stateless DHCPv6 server according to [RFC3736] on its LAN interfaces. (§4.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.3-10">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> the DHCP server is IPv4 only and refuses an IPv6 subnet (internal/plugins/dhcpserver/config.go), and the DHCPv6 server on L2TP subscriber sessions only delegates prefixes (internal/component/l2tp/ppp/dhcpv6.go), so no LAN interface has a DHCPv6 address-assignment or stateless server</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.3-11">RFC7084-4.3-11</code></td><td colspan="3"><span class="rfc-subject">L-10: The IPv6 CE router MUST support providing DNS information in the DHCPv6 DNS_SERVERS and DOMAIN_LIST options [RFC3646]. (§4.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.3-11">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> no LAN-side DHCPv6 server exists to send DNS_SERVERS or DOMAIN_LIST (internal/plugins/dhcpserver/config.go refuses an IPv6 subnet)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.3-12">RFC7084-4.3-12</code></td><td colspan="3"><span class="rfc-subject">L-11: The IPv6 CE router MUST support providing DNS information in the Router Advertisement Recursive DNS Server (RDNSS) and DNS Search List options. (§4.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.3-12">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> RDNSS is advertised, but the Router Advertisement encoder has no DNS Search List option; internal/core/ndp/ra.go BuildRA</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.3-13">RFC7084-4.3-13</code></td><td colspan="3"><span class="rfc-subject">L-13: If the delegated prefix changes, i.e., the current prefix is replaced with a new prefix without any overlapping time period, then the IPv6 CE router MUST immediately advertise the old prefix with a Preferred Lifetime of zero and a Valid Lifetime of either a) zero or b) the lower of the current Valid Lifetime and two hours (which must be decremented in real time) in a Router Advertisement message as described in Section 5.5.3, (e) of [RFC4862]. (§4.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.3-13">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> Router Advertisements carry only configured prefixes, so a replaced delegated prefix is never re-advertised with a zero Preferred Lifetime; internal/component/iface/config_ra.go raParsePrefixes</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.3-14">RFC7084-4.3-14</code></td><td colspan="3"><span class="rfc-subject">L-14: The IPv6 CE router MUST send an ICMPv6 Destination Unreachable message, code 5 (Source address failed ingress/egress policy) for packets forwarded to it that use an address from a prefix that has been invalidated. (§4.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.3-14">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> no prefix is ever invalidated and nothing sends ICMPv6 Destination Unreachable code 5 for one</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.2-25">RFC7084-4.2-25</code></td><td colspan="3"><span class="rfc-subject">W-6: The WAN interface of the CE router SHOULD support a Port Control Protocol (PCP) client as specified in [RFC6887] for use by applications on the CE router. (§4.2)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.2-25">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.2-26">RFC7084-4.2-26</code></td><td colspan="3"><span class="rfc-subject">The PCP client SHOULD follow the procedure specified in Section 8.1 of [RFC6887] to discover its PCP server. (§4.2)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.2-26">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.2-27">RFC7084-4.2-27</code></td><td colspan="3"><span class="rfc-subject">The IPv6 CE router SHOULD be able to support the DNS Search List (DNSSL) option as specified in [RFC3646]. (§4.2)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.2-27">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.2-28">RFC7084-4.2-28</code></td><td colspan="3"><span class="rfc-subject">WAA-5: The IPv6 CE router SHOULD implement the Network Time Protocol (NTP) as specified in [RFC5905] to provide a time reference common to the service provider for other protocols, such as DHCPv6, to use. (§4.2)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.2-28">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.2-29">RFC7084-4.2-29</code></td><td colspan="3"><span class="rfc-subject">WAA-10: The IPv6 CE router SHOULD implement the Information Refresh Time option and associated client behavior as specified in [RFC4242]. (§4.2)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.2-29">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.2-30">RFC7084-4.2-30</code></td><td colspan="3"><span class="rfc-subject">and SHOULD be configurable to ask for more. (§4.2)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.2-30">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.2-31">RFC7084-4.2-31</code></td><td colspan="3"><span class="rfc-subject">If the delegated prefix is too small to address all of its interfaces, the IPv6 CE router SHOULD log a system management error. (§4.2)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.2-31">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.2-32">RFC7084-4.2-32</code></td><td colspan="3"><span class="rfc-subject">The IPv6 CE router SHOULD send an ICMPv6 Destination Unreachable message in accordance with Section 3.1 of [RFC4443] back to the source of the packet, if the packet is to be dropped due to this rule. (§4.2)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.2-32">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.2-33">RFC7084-4.2-33</code></td><td colspan="3"><span class="rfc-subject">WPD-8: The IPv6 CE router SHOULD support the [RFC6603] Prefix Exclude option. (§4.2)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.2-33">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.3-15">RFC7084-4.3-15</code></td><td colspan="3"><span class="rfc-subject">ULA-1: The IPv6 CE router SHOULD be capable of generating a ULA prefix [RFC4193]. (§4.3)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.3-15">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.3-16">RFC7084-4.3-16</code></td><td colspan="3"><span class="rfc-subject">ULA-3: The value of the ULA prefix SHOULD be configurable. (§4.3)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.3-16">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.3-17">RFC7084-4.3-17</code></td><td colspan="3"><span class="rfc-subject">L-7: The A and L flags&#39; ([RFC4861]) settings SHOULD be user configurable. (§4.3)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.3-17">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.3-18">RFC7084-4.3-18</code></td><td colspan="3"><span class="rfc-subject">L-9: Unless the IPv6 CE router is configured to support the DHCPv6 IA_NA option, it SHOULD set the M flag to zero and the O flag to 1 in its Router Advertisement messages [RFC4861]. (§4.3)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.3-18">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.3-19">RFC7084-4.3-19</code></td><td colspan="3"><span class="rfc-subject">L-12: The IPv6 CE router SHOULD make available a subset of DHCPv6 options (as listed in Section 5.3 of [RFC3736]) received from the DHCPv6 client on its WAN interface to its LAN-side DHCPv6 server. (§4.3)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.3-19">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.4.1-1">RFC7084-4.4.1-1</code></td><td colspan="3"><span class="rfc-subject">The CE router SHOULD support 6rd functionality. (§4.4.1)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4.4.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.4.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.4.1-2">RFC7084-4.4.1-2</code></td><td colspan="3"><span class="rfc-subject">If the CE router has obtained an IPv4 network address through some other means such as PPP, it SHOULD use the DHCPINFORM request message [RFC2131] to request the 6rd DHCPv4 Option. (§4.4.1)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4.4.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.4.1-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.4.2-1">RFC7084-4.4.2-1</code></td><td colspan="3"><span class="rfc-subject">The IPv6 CE router SHOULD implement DS-Lite functionality. (§4.4.2)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4.4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.4.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.4.2-2">RFC7084-4.4.2-2</code></td><td colspan="3"><span class="rfc-subject">DLW-3: If the IPv6 CE router is configured with an IPv4 address on its WAN interface, then the IPv6 CE router SHOULD disable the DS-Lite Basic Bridging BroadBand (B4) element. (§4.4.2)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4.4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.4.2-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.5-1">RFC7084-4.5-1</code></td><td colspan="3"><span class="rfc-subject">S-1: The IPv6 CE router SHOULD support [RFC6092]. (§4.5)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4.5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.5-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.5-2">RFC7084-4.5-2</code></td><td colspan="3"><span class="rfc-subject">In particular, the IPv6 CE router SHOULD support functionality sufficient for implementing the set of recommendations in [RFC6092], Section 4. (§4.5)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4.5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.5-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.5-3">RFC7084-4.5-3</code></td><td colspan="3"><span class="rfc-subject">S-2: The IPv6 CE router SHOULD support ingress filtering in accordance with BCP 38 [RFC2827]. (§4.5)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4.5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.5-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.5-4">RFC7084-4.5-4</code></td><td colspan="3"><span class="rfc-subject">S-3: If the IPv6 CE router firewall is configured to filter incoming tunneled data, the firewall SHOULD provide the capability to filter decapsulated packets from a tunnel. (§4.5)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4.5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.5-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.2-34">RFC7084-4.2-34</code></td><td colspan="3"><span class="rfc-subject">WPD-2: The IPv6 CE router MAY indicate as a hint to the delegating router the size of the prefix it requires. (§4.2)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.2-34">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.4.1-3">RFC7084-4.4.1-3</code></td><td colspan="3"><span class="rfc-subject">The IPv6 CE router MAY use other mechanisms to configure 6rd parameters. (§4.4.1)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>4.4.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.4.1-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.4.2-3">RFC7084-4.4.2-3</code></td><td colspan="3"><span class="rfc-subject">The IPv6 CE router MAY use other mechanisms to configure DS-Lite parameters. (§4.4.2)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>4.4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.4.2-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Gaps and untested MUSTs</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><a href="#rfc7084-4.1-1"><code>RFC7084-4.1-1</code></a> G-2: The IPv6 CE router MUST implement ICMPv6 according to [RFC4443]. (§4.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {lower-layer}: Linux IPv6 ICMP (net/ipv6/icmp.c); internal/plugins/iface/netlink/manage_linux.go::AddAddress installs the IPv6 addresses the kernel originates and answers ICMPv6 from, and Ze builds no ICMPv6 error or echo message and holds no state this behaviour reads</td>
+</tr>
+<tr><td><a href="#rfc7084-4.1-2"><code>RFC7084-4.1-2</code></a> In particular, point-to-point links MUST be handled as described in Section 3.1 of [RFC4443]. (§4.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {lower-layer}: Linux IPv6 ICMP (net/ipv6/icmp.c); internal/plugins/iface/netlink/manage_linux.go::AddAddress installs the IPv6 addresses the kernel originates and answers ICMPv6 from, and Ze builds no ICMPv6 error or echo message and holds no state this behaviour reads</td>
+</tr>
+<tr><td><a href="#rfc7084-4.1-3"><code>RFC7084-4.1-3</code></a> G-3: The IPv6 CE router MUST NOT forward any IPv6 traffic between its LAN interface(s) and its WAN interface until the router has successfully completed the IPv6 address and the delegated prefix acquisition process. (§4.1)</td>
+<td>{gap}, no test</td>
+<td>IPv6 forwarding follows the operator&#39;s forwarding leaf alone and is never held off until the DHCPv6 address and delegated prefix are acquired; internal/component/iface/config_sysctl.go::applySysctl</td>
+</tr>
+<tr><td><a href="#rfc7084-4.1-4"><code>RFC7084-4.1-4</code></a> G-4: By default, an IPv6 CE router that has no default router(s) on its WAN interface MUST NOT advertise itself as an IPv6 default router on its LAN interfaces. (§4.1)</td>
+<td>{gap}, no test</td>
+<td>the advertised Router Lifetime does not depend on whether the WAN interface has a default router; internal/component/iface/config_ra.go parseRAConfig takes router-lifetime from the operator (default 1800 seconds) and nothing lowers it</td>
+</tr>
+<tr><td><a href="#rfc7084-4.1-5"><code>RFC7084-4.1-5</code></a> G-5: By default, if the IPv6 CE router is an advertising router and loses its IPv6 default router(s) and/or detects loss of connectivity on the WAN interface, it MUST explicitly invalidate itself as an IPv6 default router on each of its advertising interfaces by immediately transmitting one or more Router Advertisement messages with the &#34;Router Lifetime&#34; field set to zero [RFC4861]. (§4.1)</td>
+<td>{gap}, no test</td>
+<td>a zero Router Lifetime is sent only when an interface stops advertising, never when the WAN loses its default router or its connectivity; internal/plugins/iface/ra/sender_linux.go Sender.sendFinal</td>
+</tr>
+<tr><td><a href="#rfc7084-4.2-2"><code>RFC7084-4.2-2</code></a> W-2: The IPv6 CE router MUST generate a link-local address and finish Duplicate Address Detection according to [RFC4862] prior to sending any Router Solicitations on the interface. (§4.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {lower-layer}: Linux IPv6 address configuration (net/ipv6/addrconf.c, which sends the first Router Solicitation from addrconf_dad_completed once the link-local address has passed Duplicate Address Detection, sourced from that address); internal/component/iface/config_sysctl.go::applySysctl writes the accept_ra and autoconf values that decide whether solicitations are sent at all, and no value Ze writes decides their timing or source address</td>
+</tr>
+<tr><td><a href="#rfc7084-4.2-3"><code>RFC7084-4.2-3</code></a> The source address used in the subsequent Router Solicitation MUST be the link-local address on the WAN interface. (§4.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {lower-layer}: Linux IPv6 address configuration (net/ipv6/addrconf.c, which sends the first Router Solicitation from addrconf_dad_completed once the link-local address has passed Duplicate Address Detection, sourced from that address); internal/component/iface/config_sysctl.go::applySysctl writes the accept_ra and autoconf values that decide whether solicitations are sent at all, and no value Ze writes decides their timing or source address</td>
+</tr>
+<tr><td><a href="#rfc7084-4.2-8"><code>RFC7084-4.2-8</code></a> WLL-1: If the WAN interface supports Ethernet encapsulation, then the IPv6 CE router MUST support IPv6 over Ethernet [RFC2464]. (§4.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {lower-layer}: Linux IPv6 over Ethernet (net/ipv6 with the Ethernet interface identifier in net/ipv6/addrconf.c and address resolution in net/ipv6/ndisc.c); internal/plugins/iface/netlink/manage_linux.go::AddAddress installs the IPv6 addresses of the Ethernet interface, and Ze writes no frame and no value the encapsulation reads</td>
+</tr>
+<tr><td><a href="#rfc7084-4.2-9"><code>RFC7084-4.2-9</code></a> WLL-2: If the WAN interface supports PPP encapsulation, the IPv6 CE router MUST support IPv6 over PPP [RFC5072]. (§4.2)</td>
+<td>{gap}, no test</td>
+<td>the PPPoE client negotiates LCP, authentication and IPCP only, with no IPV6CP, so no IPv6 runs over a PPP WAN interface; internal/component/l2tp/pppoeclient/session.go negotiateSession</td>
+</tr>
+<tr><td><a href="#rfc7084-4.2-10"><code>RFC7084-4.2-10</code></a> WLL-3: If the WAN interface supports PPP encapsulation, in a dual- stack environment with IPCP and IPV6CP running over one PPP logical channel, the Network Control Protocols (NCPs) MUST be treated as independent of each other and start and terminate independently. (§4.2)</td>
+<td>{gap}, no test</td>
+<td>the PPPoE client runs IPCP alone and no IPV6CP, so the dual-stack pair of independent NCPs does not exist; internal/component/l2tp/pppoeclient/session.go negotiateSession</td>
+</tr>
+<tr><td><a href="#rfc7084-4.2-12"><code>RFC7084-4.2-12</code></a> WAA-2: The IPv6 CE router MUST follow the recommendations in Section 4 of [RFC5942], and in particular the handling of the L flag in the Router Advertisement Prefix Information option. (§4.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {lower-layer}: Linux IPv6 address configuration (net/ipv6/addrconf.c addrconf_prefix_rcv installs an on-link prefix route only for a Prefix Information option whose L flag is set, and forms an address from the A flag independently of it); internal/component/iface/config_sysctl.go::applySysctl writes the autoconf and accept_ra values, and no value Ze writes decides how the L flag is read</td>
+</tr>
+<tr><td><a href="#rfc7084-4.2-13"><code>RFC7084-4.2-13</code></a> WAA-3: The IPv6 CE router MUST support DHCPv6 [RFC3315] client behavior. (§4.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {rollup}: rfc9915; WAA-3 asks for the DHCPv6 client behaviour of RFC 3315, which RFC 9915 now states, and asserts nothing of its own</td>
+</tr>
+<tr><td><a href="#rfc7084-4.2-14"><code>RFC7084-4.2-14</code></a> WAA-4: The IPv6 CE router MUST be able to support the following DHCPv6 options: Identity Association for Non-temporary Address (IA_NA), Reconfigure Accept [RFC3315], and DNS_SERVERS [RFC3646]. (§4.2)</td>
+<td>{gap}, no test</td>
+<td>the client sends IA_NA and asks for DNS_SERVERS (option 23), but never sends Reconfigure Accept and handles no Reconfigure message; internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go v6Worker.buildSolicit and requestOptions</td>
+</tr>
+<tr><td><a href="#rfc7084-4.2-15"><code>RFC7084-4.2-15</code></a> WAA-6: If the IPv6 CE router receives a Router Advertisement message (described in [RFC4861]) with the M flag set to 1, the IPv6 CE router MUST do DHCPv6 address assignment (request an IA_NA option). (§4.2)</td>
+<td>{gap}, no test</td>
+<td>the DHCPv6 client starts from the dhcpv6 enabled leaf and never reads the M flag of a received Router Advertisement; internal/plugins/iface/dhcp/dhcp_v6_linux.go DHCPClient.runV6</td>
+</tr>
+<tr><td><a href="#rfc7084-4.2-16"><code>RFC7084-4.2-16</code></a> WAA-7: If the IPv6 CE router does not acquire a global IPv6 address(es) from either SLAAC or DHCPv6, then it MUST create a global IPv6 address(es) from its delegated prefix(es) and configure those on one of its internal virtual network interfaces, unless configured to require a global IPv6 address on the WAN interface. (§4.2)</td>
+<td>{gap}, no test</td>
+<td>no global address is formed from a delegated prefix on any interface; internal/plugins/iface/dhcp/dhcp_v6_linux.go v6Worker.effect publishes each delegated prefix as a lease event on the WAN unit and nothing consumes it to address an interface</td>
+</tr>
+<tr><td><a href="#rfc7084-4.2-18"><code>RFC7084-4.2-18</code></a> WAA-9: As a router, the IPv6 CE router MUST follow the weak host (Weak End System) model [RFC1122]. (§4.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {lower-layer}: Linux IPv6 source address selection (net/ipv6/addrconf.c ipv6_dev_get_saddr, which takes a source address from another interface when the outgoing one has none of suitable scope); internal/plugins/iface/netlink/manage_linux.go::AddAddress installs the addresses it chooses from, and Ze sets no source selection policy</td>
+</tr>
+<tr><td><a href="#rfc7084-4.2-20"><code>RFC7084-4.2-20</code></a> If so, it MUST ask for a prefix large enough to assign one /64 for each of its interfaces, rounded up to the nearest nibble, and SHOULD be configurable to ask for more. (§4.2)</td>
+<td>{gap}, no test</td>
+<td>the prefix hint is the operator&#39;s pd length (48 to 64) sent unchanged, never derived from the number of interfaces and rounded up to a nibble; internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go v6Worker.emptyIAPD</td>
+</tr>
+<tr><td><a href="#rfc7084-4.2-22"><code>RFC7084-4.2-22</code></a> WPD-4: By default, the IPv6 CE router MUST initiate DHCPv6 prefix delegation when either the M or O flags are set to 1 in a received Router Advertisement (RA) message. (§4.2)</td>
+<td>{gap}, no test</td>
+<td>prefix delegation starts from the configured pd container, never from the M or O flag of a received Router Advertisement; internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go v6Worker.emptyIAPD</td>
+</tr>
+<tr><td><a href="#rfc7084-4.3-2"><code>RFC7084-4.3-2</code></a> ULA-4: By default, the IPv6 CE router MUST act as a site border router according to Section 4.3 of [RFC4193] and filter packets with local IPv6 source or destination addresses accordingly. (§4.3)</td>
+<td>{gap}, no test</td>
+<td>no filter of ULA source or destination addresses at the site border is installed by default; such filtering exists only as firewall rules the operator writes</td>
+</tr>
+<tr><td><a href="#rfc7084-4.3-3"><code>RFC7084-4.3-3</code></a> ULA-5: An IPv6 CE router MUST NOT advertise itself as a default router with a Router Lifetime greater than zero whenever all of its configured and delegated prefixes are ULA prefixes. (§4.3)</td>
+<td>{gap}, no test</td>
+<td>the Router Lifetime does not depend on whether the advertised prefixes are all ULA prefixes; internal/component/iface/config_ra.go parseRAConfig takes router-lifetime from the operator (default 1800 seconds) and nothing lowers it</td>
+</tr>
+<tr><td><a href="#rfc7084-4.3-4"><code>RFC7084-4.3-4</code></a> L-1: The IPv6 CE router MUST support router behavior according to Neighbor Discovery for IPv6 [RFC4861]. (§4.3)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {rollup}: rfc4861; L-1 asks for the router behaviour RFC 4861 states and asserts nothing of its own</td>
+</tr>
+<tr><td><a href="#rfc7084-4.3-5"><code>RFC7084-4.3-5</code></a> L-2: The IPv6 CE router MUST assign a separate /64 from its delegated prefix(es) (and ULA prefix if configured to provide ULA addressing) for each of its LAN interfaces. (§4.3)</td>
+<td>{gap}, no test</td>
+<td>no /64 is assigned from a delegated prefix to any LAN interface; internal/plugins/iface/dhcp/dhcp_v6_linux.go v6Worker.effect publishes each delegated prefix as a lease event on the WAN unit and nothing consumes it to address an interface</td>
+</tr>
+<tr><td><a href="#rfc7084-4.3-6"><code>RFC7084-4.3-6</code></a> L-3: An IPv6 CE router MUST advertise itself as a router for the delegated prefix(es) (and ULA prefix if configured to provide ULA addressing) using the &#34;Route Information Option&#34; specified in Section 2.3 of [RFC4191]. (§4.3)</td>
+<td>{gap}, no test</td>
+<td>the Router Advertisement encoder writes Source Link-layer Address, Prefix Information and RDNSS options only, and no Route Information Option; internal/core/ndp/ra.go BuildRA</td>
+</tr>
+<tr><td><a href="#rfc7084-4.3-7"><code>RFC7084-4.3-7</code></a> L-4: An IPv6 CE router MUST NOT advertise itself as a default router with a Router Lifetime [RFC4861] greater than zero if it has no prefixes configured or delegated to it. (§4.3)</td>
+<td>{gap}, no test</td>
+<td>the Router Lifetime does not depend on whether any prefix is configured or delegated; internal/component/iface/config_ra.go parseRAConfig takes router-lifetime from the operator (default 1800 seconds) and nothing lowers it</td>
+</tr>
+<tr><td><a href="#rfc7084-4.3-10"><code>RFC7084-4.3-10</code></a> L-8: The IPv6 CE router MUST support a DHCPv6 server capable of IPv6 address assignment according to [RFC3315] OR a stateless DHCPv6 server according to [RFC3736] on its LAN interfaces. (§4.3)</td>
+<td>{gap}, no test</td>
+<td>the DHCP server is IPv4 only and refuses an IPv6 subnet (internal/plugins/dhcpserver/config.go), and the DHCPv6 server on L2TP subscriber sessions only delegates prefixes (internal/component/l2tp/ppp/dhcpv6.go), so no LAN interface has a DHCPv6 address-assignment or stateless server</td>
+</tr>
+<tr><td><a href="#rfc7084-4.3-11"><code>RFC7084-4.3-11</code></a> L-10: The IPv6 CE router MUST support providing DNS information in the DHCPv6 DNS_SERVERS and DOMAIN_LIST options [RFC3646]. (§4.3)</td>
+<td>{gap}, no test</td>
+<td>no LAN-side DHCPv6 server exists to send DNS_SERVERS or DOMAIN_LIST (internal/plugins/dhcpserver/config.go refuses an IPv6 subnet)</td>
+</tr>
+<tr><td><a href="#rfc7084-4.3-12"><code>RFC7084-4.3-12</code></a> L-11: The IPv6 CE router MUST support providing DNS information in the Router Advertisement Recursive DNS Server (RDNSS) and DNS Search List options. (§4.3)</td>
+<td>{gap}, no test</td>
+<td>RDNSS is advertised, but the Router Advertisement encoder has no DNS Search List option; internal/core/ndp/ra.go BuildRA</td>
+</tr>
+<tr><td><a href="#rfc7084-4.3-13"><code>RFC7084-4.3-13</code></a> L-13: If the delegated prefix changes, i.e., the current prefix is replaced with a new prefix without any overlapping time period, then the IPv6 CE router MUST immediately advertise the old prefix with a Preferred Lifetime of zero and a Valid Lifetime of either a) zero or b) the lower of the current Valid Lifetime and two hours (which must be decremented in real time) in a Router Advertisement message as described in Section 5.5.3, (e) of [RFC4862]. (§4.3)</td>
+<td>{gap}, no test</td>
+<td>Router Advertisements carry only configured prefixes, so a replaced delegated prefix is never re-advertised with a zero Preferred Lifetime; internal/component/iface/config_ra.go raParsePrefixes</td>
+</tr>
+<tr><td><a href="#rfc7084-4.3-14"><code>RFC7084-4.3-14</code></a> L-14: The IPv6 CE router MUST send an ICMPv6 Destination Unreachable message, code 5 (Source address failed ingress/egress policy) for packets forwarded to it that use an address from a prefix that has been invalidated. (§4.3)</td>
+<td>{gap}, no test</td>
+<td>no prefix is ever invalidated and nothing sends ICMPv6 Destination Unreachable code 5 for one</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Proof state</h2>
+<p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
+<h3><a href="#rfc7084-4.1-1"><code>RFC7084-4.1-1</code></a></h3>
+<p>G-2: The IPv6 CE router MUST implement ICMPv6 according to [RFC4443]. (§4.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7084-4.1-1, so no unit is bound to it.</p>
+<h3><a href="#rfc7084-4.1-2"><code>RFC7084-4.1-2</code></a></h3>
+<p>In particular, point-to-point links MUST be handled as described in Section 3.1 of [RFC4443]. (§4.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7084-4.1-2, so no unit is bound to it.</p>
+<h3><a href="#rfc7084-4.1-3"><code>RFC7084-4.1-3</code></a></h3>
+<p>G-3: The IPv6 CE router MUST NOT forward any IPv6 traffic between its LAN interface(s) and its WAN interface until the router has successfully completed the IPv6 address and the delegated prefix acquisition process. (§4.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7084-4.1-3, so no unit is bound to it.</p>
+<h3><a href="#rfc7084-4.1-4"><code>RFC7084-4.1-4</code></a></h3>
+<p>G-4: By default, an IPv6 CE router that has no default router(s) on its WAN interface MUST NOT advertise itself as an IPv6 default router on its LAN interfaces. (§4.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7084-4.1-4, so no unit is bound to it.</p>
+<h3><a href="#rfc7084-4.1-5"><code>RFC7084-4.1-5</code></a></h3>
+<p>G-5: By default, if the IPv6 CE router is an advertising router and loses its IPv6 default router(s) and/or detects loss of connectivity on the WAN interface, it MUST explicitly invalidate itself as an IPv6 default router on each of its advertising interfaces by immediately transmitting one or more Router Advertisement messages with the &#34;Router Lifetime&#34; field set to zero [RFC4861]. (§4.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7084-4.1-5, so no unit is bound to it.</p>
+<h3><a href="#rfc7084-4.2-1"><code>RFC7084-4.2-1</code></a></h3>
+<p>W-1: When the router is attached to the WAN interface link, it MUST act as an IPv6 host for the purposes of stateless [RFC4862] or stateful [RFC3315] interface address assignment. (§4.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc7084_ce_router_test.go#L29" title="internal/component/iface/rfc7084_ce_router_test.go" target="_blank" rel="noopener"><code>TestRFC7084WANUnitTurnsOnSLAAC</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc7084-4.2-2"><code>RFC7084-4.2-2</code></a></h3>
+<p>W-2: The IPv6 CE router MUST generate a link-local address and finish Duplicate Address Detection according to [RFC4862] prior to sending any Router Solicitations on the interface. (§4.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7084-4.2-2, so no unit is bound to it.</p>
+<h3><a href="#rfc7084-4.2-3"><code>RFC7084-4.2-3</code></a></h3>
+<p>The source address used in the subsequent Router Solicitation MUST be the link-local address on the WAN interface. (§4.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7084-4.2-3, so no unit is bound to it.</p>
+<h3><a href="#rfc7084-4.2-4"><code>RFC7084-4.2-4</code></a></h3>
+<p>W-3: Absent other routing information, the IPv6 CE router MUST use Router Discovery as specified in [RFC4861] to discover a default router(s) and install a default route(s) in its routing table with the discovered router&#39;s address as the next hop. (§4.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc7084_ce_router_test.go#L89" title="internal/component/iface/rfc7084_ce_router_test.go" target="_blank" rel="noopener"><code>TestRFC7084DiscoveredRouterBecomesTheDefaultRoute</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc7084-4.2-5"><code>RFC7084-4.2-5</code></a></h3>
+<p>W-4: The router MUST act as a requesting router for the purposes of DHCPv6 prefix delegation ([RFC3633]). (§4.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc7084_dhcp_v6_ce_linux_test.go#L32" title="internal/plugins/iface/dhcp/rfc7084_dhcp_v6_ce_linux_test.go" target="_blank" rel="noopener"><code>TestRFC7084RequestingRouterSolicitsIAPD</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc7084-4.2-6"><code>RFC7084-4.2-6</code></a></h3>
+<p>W-5: The IPv6 CE router MUST use a persistent DHCP Unique Identifier (DUID) for DHCPv6 messages. (§4.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go#L620" title="internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv6DefaultDUIDStable</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc7084-4.2-7"><code>RFC7084-4.2-7</code></a></h3>
+<p>The DUID MUST NOT change between network-interface resets or IPv6 CE router reboots. (§4.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go#L621" title="internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv6DefaultDUIDStable</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc7084-4.2-8"><code>RFC7084-4.2-8</code></a></h3>
+<p>WLL-1: If the WAN interface supports Ethernet encapsulation, then the IPv6 CE router MUST support IPv6 over Ethernet [RFC2464]. (§4.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7084-4.2-8, so no unit is bound to it.</p>
+<h3><a href="#rfc7084-4.2-9"><code>RFC7084-4.2-9</code></a></h3>
+<p>WLL-2: If the WAN interface supports PPP encapsulation, the IPv6 CE router MUST support IPv6 over PPP [RFC5072]. (§4.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7084-4.2-9, so no unit is bound to it.</p>
+<h3><a href="#rfc7084-4.2-10"><code>RFC7084-4.2-10</code></a></h3>
+<p>WLL-3: If the WAN interface supports PPP encapsulation, in a dual- stack environment with IPCP and IPV6CP running over one PPP logical channel, the Network Control Protocols (NCPs) MUST be treated as independent of each other and start and terminate independently. (§4.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7084-4.2-10, so no unit is bound to it.</p>
+<h3><a href="#rfc7084-4.2-11"><code>RFC7084-4.2-11</code></a></h3>
+<p>WAA-1: The IPv6 CE router MUST support Stateless Address Autoconfiguration (SLAAC) [RFC4862]. (§4.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc7084_ce_router_test.go#L28" title="internal/component/iface/rfc7084_ce_router_test.go" target="_blank" rel="noopener"><code>TestRFC7084WANUnitTurnsOnSLAAC</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc7084-4.2-12"><code>RFC7084-4.2-12</code></a></h3>
+<p>WAA-2: The IPv6 CE router MUST follow the recommendations in Section 4 of [RFC5942], and in particular the handling of the L flag in the Router Advertisement Prefix Information option. (§4.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7084-4.2-12, so no unit is bound to it.</p>
+<h3><a href="#rfc7084-4.2-13"><code>RFC7084-4.2-13</code></a></h3>
+<p>WAA-3: The IPv6 CE router MUST support DHCPv6 [RFC3315] client behavior. (§4.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7084-4.2-13, so no unit is bound to it.</p>
+<h3><a href="#rfc7084-4.2-14"><code>RFC7084-4.2-14</code></a></h3>
+<p>WAA-4: The IPv6 CE router MUST be able to support the following DHCPv6 options: Identity Association for Non-temporary Address (IA_NA), Reconfigure Accept [RFC3315], and DNS_SERVERS [RFC3646]. (§4.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7084-4.2-14, so no unit is bound to it.</p>
+<h3><a href="#rfc7084-4.2-15"><code>RFC7084-4.2-15</code></a></h3>
+<p>WAA-6: If the IPv6 CE router receives a Router Advertisement message (described in [RFC4861]) with the M flag set to 1, the IPv6 CE router MUST do DHCPv6 address assignment (request an IA_NA option). (§4.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7084-4.2-15, so no unit is bound to it.</p>
+<h3><a href="#rfc7084-4.2-16"><code>RFC7084-4.2-16</code></a></h3>
+<p>WAA-7: If the IPv6 CE router does not acquire a global IPv6 address(es) from either SLAAC or DHCPv6, then it MUST create a global IPv6 address(es) from its delegated prefix(es) and configure those on one of its internal virtual network interfaces, unless configured to require a global IPv6 address on the WAN interface. (§4.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7084-4.2-16, so no unit is bound to it.</p>
+<h3><a href="#rfc7084-4.2-17"><code>RFC7084-4.2-17</code></a></h3>
+<p>WAA-8: The CE router MUST support the SOL_MAX_RT option [RFC7083] and request the SOL_MAX_RT option in an Option Request Option (ORO). (§4.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc7084_dhcp_v6_ce_linux_test.go#L55" title="internal/plugins/iface/dhcp/rfc7084_dhcp_v6_ce_linux_test.go" target="_blank" rel="noopener"><code>TestRFC7084SolMaxRTRequestedAndHonoured</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc7084-4.2-18"><code>RFC7084-4.2-18</code></a></h3>
+<p>WAA-9: As a router, the IPv6 CE router MUST follow the weak host (Weak End System) model [RFC1122]. (§4.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7084-4.2-18, so no unit is bound to it.</p>
+<h3><a href="#rfc7084-4.2-19"><code>RFC7084-4.2-19</code></a></h3>
+<p>WPD-1: The IPv6 CE router MUST support DHCPv6 prefix delegation requesting router behavior as specified in [RFC3633] (Identity Association for Prefix Delegation (IA_PD) option). (§4.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc7084_dhcp_v6_ce_linux_test.go#L33" title="internal/plugins/iface/dhcp/rfc7084_dhcp_v6_ce_linux_test.go" target="_blank" rel="noopener"><code>TestRFC7084RequestingRouterSolicitsIAPD</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc7084-4.2-20"><code>RFC7084-4.2-20</code></a></h3>
+<p>If so, it MUST ask for a prefix large enough to assign one /64 for each of its interfaces, rounded up to the nearest nibble, and SHOULD be configurable to ask for more. (§4.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7084-4.2-20, so no unit is bound to it.</p>
+<h3><a href="#rfc7084-4.2-21"><code>RFC7084-4.2-21</code></a></h3>
+<p>WPD-3: The IPv6 CE router MUST be prepared to accept a delegated prefix size different from what is given in the hint. (§4.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc7084_dhcp_v6_ce_linux_test.go#L73" title="internal/plugins/iface/dhcp/rfc7084_dhcp_v6_ce_linux_test.go" target="_blank" rel="noopener"><code>TestRFC7084DelegatedPrefixOtherThanHintWithoutAddresses</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc7084-4.2-22"><code>RFC7084-4.2-22</code></a></h3>
+<p>WPD-4: By default, the IPv6 CE router MUST initiate DHCPv6 prefix delegation when either the M or O flags are set to 1 in a received Router Advertisement (RA) message. (§4.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7084-4.2-22, so no unit is bound to it.</p>
+<h3><a href="#rfc7084-4.2-23"><code>RFC7084-4.2-23</code></a></h3>
+<p>WPD-6: If the IPv6 CE router requests both an IA_NA and an IA_PD option in DHCPv6, it MUST accept an IA_PD option in DHCPv6 Advertise/Reply messages, even if the message does not contain any addresses, unless configured to only obtain its WAN IPv6 address via DHCPv6; see [DHCPv6-STATEFUL-ISSUES]. (§4.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc7084_dhcp_v6_ce_linux_test.go#L74" title="internal/plugins/iface/dhcp/rfc7084_dhcp_v6_ce_linux_test.go" target="_blank" rel="noopener"><code>TestRFC7084DelegatedPrefixOtherThanHintWithoutAddresses</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc7084-4.2-24"><code>RFC7084-4.2-24</code></a></h3>
+<p>WPD-7: By default, an IPv6 CE router MUST NOT initiate any dynamic routing protocol on its WAN interface. (§4.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/plugin/server/rfc7084_wan_routing_test.go#L26" title="internal/component/plugin/server/rfc7084_wan_routing_test.go" target="_blank" rel="noopener"><code>TestRFC7084InterfaceOnlyConfigStartsNoRoutingProtocol</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc7084-4.3-1"><code>RFC7084-4.3-1</code></a></h3>
+<p>ULA-2: An IPv6 CE router with a ULA prefix MUST maintain this prefix consistently across reboots. (§4.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc7084_ce_router_test.go#L71" title="internal/component/iface/rfc7084_ce_router_test.go" target="_blank" rel="noopener"><code>TestRFC7084ULAPrefixComesFromTheConfigAlone</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc7084-4.3-2"><code>RFC7084-4.3-2</code></a></h3>
+<p>ULA-4: By default, the IPv6 CE router MUST act as a site border router according to Section 4.3 of [RFC4193] and filter packets with local IPv6 source or destination addresses accordingly. (§4.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7084-4.3-2, so no unit is bound to it.</p>
+<h3><a href="#rfc7084-4.3-3"><code>RFC7084-4.3-3</code></a></h3>
+<p>ULA-5: An IPv6 CE router MUST NOT advertise itself as a default router with a Router Lifetime greater than zero whenever all of its configured and delegated prefixes are ULA prefixes. (§4.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7084-4.3-3, so no unit is bound to it.</p>
+<h3><a href="#rfc7084-4.3-4"><code>RFC7084-4.3-4</code></a></h3>
+<p>L-1: The IPv6 CE router MUST support router behavior according to Neighbor Discovery for IPv6 [RFC4861]. (§4.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7084-4.3-4, so no unit is bound to it.</p>
+<h3><a href="#rfc7084-4.3-5"><code>RFC7084-4.3-5</code></a></h3>
+<p>L-2: The IPv6 CE router MUST assign a separate /64 from its delegated prefix(es) (and ULA prefix if configured to provide ULA addressing) for each of its LAN interfaces. (§4.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7084-4.3-5, so no unit is bound to it.</p>
+<h3><a href="#rfc7084-4.3-6"><code>RFC7084-4.3-6</code></a></h3>
+<p>L-3: An IPv6 CE router MUST advertise itself as a router for the delegated prefix(es) (and ULA prefix if configured to provide ULA addressing) using the &#34;Route Information Option&#34; specified in Section 2.3 of [RFC4191]. (§4.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7084-4.3-6, so no unit is bound to it.</p>
+<h3><a href="#rfc7084-4.3-7"><code>RFC7084-4.3-7</code></a></h3>
+<p>L-4: An IPv6 CE router MUST NOT advertise itself as a default router with a Router Lifetime [RFC4861] greater than zero if it has no prefixes configured or delegated to it. (§4.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7084-4.3-7, so no unit is bound to it.</p>
+<h3><a href="#rfc7084-4.3-8"><code>RFC7084-4.3-8</code></a></h3>
+<p>L-5: The IPv6 CE router MUST make each LAN interface an advertising interface according to [RFC4861]. (§4.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc4861_router_configuration_test.go#L101" title="internal/component/iface/rfc4861_router_configuration_test.go" target="_blank" rel="noopener"><code>TestRFC4861OnlyAnAdvertisingInterfaceSends</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc7084-4.3-9"><code>RFC7084-4.3-9</code></a></h3>
+<p>L-6: In Router Advertisement messages ([RFC4861]), the Prefix Information option&#39;s A and L flags MUST be set to 1 by default. (§4.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc7084_config_ra_test.go#L104" title="internal/component/iface/rfc7084_config_ra_test.go" target="_blank" rel="noopener"><code>TestRAConfigParse</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc7084-4.3-10"><code>RFC7084-4.3-10</code></a></h3>
+<p>L-8: The IPv6 CE router MUST support a DHCPv6 server capable of IPv6 address assignment according to [RFC3315] OR a stateless DHCPv6 server according to [RFC3736] on its LAN interfaces. (§4.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7084-4.3-10, so no unit is bound to it.</p>
+<h3><a href="#rfc7084-4.3-11"><code>RFC7084-4.3-11</code></a></h3>
+<p>L-10: The IPv6 CE router MUST support providing DNS information in the DHCPv6 DNS_SERVERS and DOMAIN_LIST options [RFC3646]. (§4.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7084-4.3-11, so no unit is bound to it.</p>
+<h3><a href="#rfc7084-4.3-12"><code>RFC7084-4.3-12</code></a></h3>
+<p>L-11: The IPv6 CE router MUST support providing DNS information in the Router Advertisement Recursive DNS Server (RDNSS) and DNS Search List options. (§4.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7084-4.3-12, so no unit is bound to it.</p>
+<h3><a href="#rfc7084-4.3-13"><code>RFC7084-4.3-13</code></a></h3>
+<p>L-13: If the delegated prefix changes, i.e., the current prefix is replaced with a new prefix without any overlapping time period, then the IPv6 CE router MUST immediately advertise the old prefix with a Preferred Lifetime of zero and a Valid Lifetime of either a) zero or b) the lower of the current Valid Lifetime and two hours (which must be decremented in real time) in a Router Advertisement message as described in Section 5.5.3, (e) of [RFC4862]. (§4.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7084-4.3-13, so no unit is bound to it.</p>
+<h3><a href="#rfc7084-4.3-14"><code>RFC7084-4.3-14</code></a></h3>
+<p>L-14: The IPv6 CE router MUST send an ICMPv6 Destination Unreachable message, code 5 (Source address failed ingress/egress policy) for packets forwarded to it that use an address from a prefix that has been invalidated. (§4.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7084-4.3-14, so no unit is bound to it.</p>
+</section>
+<section><h2>Extraction sign-off</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Reviewer</td>
+<td>claude</td>
+</tr>
+<tr><td>Signed off</td>
+<td>2026-10-26</td>
+</tr>
+<tr><td>Register</td>
+<td>rfc2119</td>
+</tr>
+<tr><td>Source</td>
+<td>rfc/full/rfc7084.txt</td>
+</tr>
+<tr><td>Source fingerprint</td>
+<td>c4cebb97a6ddc13d</td>
+</tr>
+<tr><td>Record</td>
+<td>rfc/extraction/rfc7084.json</td>
+</tr>
+<tr><td>Mapped sentences</td>
+<td>43</td>
+</tr>
+<tr><td>Declined as scope</td>
+<td>12</td>
+</tr>
+<tr><td>Relocated to a spec, which Ze OWES</td>
+<td>0</td>
+</tr>
+<tr><td>Unclassified</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Sections</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Section</th><th>Name</th><th>Sites</th><th>Disposition</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><code>front</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.2.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.1</code></td>
+<td>not stated</td>
+<td>5</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.2</code></td>
+<td>not stated</td>
+<td>24</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.3</code></td>
+<td>not stated</td>
+<td>14</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.4</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.4.1</code></td>
+<td>not stated</td>
+<td>8</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.4.2</code></td>
+<td>not stated</td>
+<td>3</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.5</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>7</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>7.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>7.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Excluded sentences</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Site</th><th>Excluded kind</th><th>Reason</th><th>Quote</th></tr></thead>
+<tbody>
+<tr><td><code>4.4.1:1</code></td>
+<td><code>feature-out-of-scope</code><br /><strong>never bound Ze</strong><br />the RFC makes a feature OPTIONAL, Ze decided not to offer it, and this obligation is conditional on offering it</td>
+<td>&#34;The CE router SHOULD support 6rd functionality.&#34; The obligation applies only to a CE router that offers 6rd, and ze offers none: the DHCPv4 client asks for no 6rd option 212 (internal/plugins/iface/dhcp/dhcp_v4_linux.go DHCPClient.v4RequestModifiers adds only the host name and client identifier) and no interface derives a 6rd prefix. The absent feature is disclosed on docs/features/rfc-status.md through the Support remaining row of rfc/short/rfc7084.md</td>
+<td>If 6rd is supported, it MUST be implemented according to [RFC5969].</td>
+</tr>
+<tr><td><code>4.4.1:2</code></td>
+<td><code>feature-out-of-scope</code><br /><strong>never bound Ze</strong><br />the RFC makes a feature OPTIONAL, Ze decided not to offer it, and this obligation is conditional on offering it</td>
+<td>&#34;The CE router SHOULD support 6rd functionality.&#34; The obligation applies only to a CE router that offers 6rd, and ze offers none: the DHCPv4 client asks for no 6rd option 212 (internal/plugins/iface/dhcp/dhcp_v4_linux.go DHCPClient.v4RequestModifiers adds only the host name and client identifier) and no interface derives a 6rd prefix. The absent feature is disclosed on docs/features/rfc-status.md through the Support remaining row of rfc/short/rfc7084.md</td>
+<td>6RD-1: The IPv6 CE router MUST support 6rd configuration via the 6rd DHCPv4 Option 212.</td>
+</tr>
+<tr><td><code>4.4.1:3</code></td>
+<td><code>feature-out-of-scope</code><br /><strong>never bound Ze</strong><br />the RFC makes a feature OPTIONAL, Ze decided not to offer it, and this obligation is conditional on offering it</td>
+<td>&#34;The CE router SHOULD support 6rd functionality.&#34; The obligation applies only to a CE router that offers 6rd, and ze offers none: the DHCPv4 client asks for no 6rd option 212 (internal/plugins/iface/dhcp/dhcp_v4_linux.go DHCPClient.v4RequestModifiers adds only the host name and client identifier) and no interface derives a 6rd prefix. The absent feature is disclosed on docs/features/rfc-status.md through the Support remaining row of rfc/short/rfc7084.md</td>
+<td>6RD-2: If the IPv6 CE router is capable of automated configuration of IPv4 through IPCP (i.e., over a PPP connection), it MUST support user-entered configuration of 6rd.</td>
+</tr>
+<tr><td><code>4.4.1:4</code></td>
+<td><code>feature-out-of-scope</code><br /><strong>never bound Ze</strong><br />the RFC makes a feature OPTIONAL, Ze decided not to offer it, and this obligation is conditional on offering it</td>
+<td>&#34;The CE router SHOULD support 6rd functionality.&#34; The obligation applies only to a CE router that offers 6rd, and ze offers none: the DHCPv4 client asks for no 6rd option 212 (internal/plugins/iface/dhcp/dhcp_v4_linux.go DHCPClient.v4RequestModifiers adds only the host name and client identifier) and no interface derives a 6rd prefix. The absent feature is disclosed on docs/features/rfc-status.md through the Support remaining row of rfc/short/rfc7084.md</td>
+<td>6RD-3: If the CE router supports configuration mechanisms other than the 6rd DHCPv4 Option 212 (user-entered, TR-069 [TR-069], etc.), the CE router MUST support 6rd in &#34;hub and spoke&#34; mode. 6rd in &#34;hub and spoke&#34; requires all IPv6 traffic to go to the 6rd Border Relay.</td>
+</tr>
+<tr><td><code>4.4.1:5</code></td>
+<td><code>feature-out-of-scope</code><br /><strong>never bound Ze</strong><br />the RFC makes a feature OPTIONAL, Ze decided not to offer it, and this obligation is conditional on offering it</td>
+<td>&#34;The CE router SHOULD support 6rd functionality.&#34; The obligation applies only to a CE router that offers 6rd, and ze offers none: the DHCPv4 client asks for no 6rd option 212 (internal/plugins/iface/dhcp/dhcp_v4_linux.go DHCPClient.v4RequestModifiers adds only the host name and client identifier) and no interface derives a 6rd prefix. The absent feature is disclosed on docs/features/rfc-status.md through the Support remaining row of rfc/short/rfc7084.md</td>
+<td>6RD-4: A CE router MUST allow 6rd and native IPv6 WAN interfaces to be active alone as well as simultaneously in order to support coexistence of the two technologies during an incremental migration period such as a migration from 6rd to native IPv6.</td>
+</tr>
+<tr><td><code>4.4.1:6</code></td>
+<td><code>feature-out-of-scope</code><br /><strong>never bound Ze</strong><br />the RFC makes a feature OPTIONAL, Ze decided not to offer it, and this obligation is conditional on offering it</td>
+<td>&#34;The CE router SHOULD support 6rd functionality.&#34; The obligation applies only to a CE router that offers 6rd, and ze offers none: the DHCPv4 client asks for no 6rd option 212 (internal/plugins/iface/dhcp/dhcp_v4_linux.go DHCPClient.v4RequestModifiers adds only the host name and client identifier) and no interface derives a 6rd prefix. The absent feature is disclosed on docs/features/rfc-status.md through the Support remaining row of rfc/short/rfc7084.md</td>
+<td>6RD-5: Each packet sent on a 6rd or native WAN interface MUST be directed such that its source IP address is derived from the delegated prefix associated with the particular interface from which the packet is being sent (Section 4.3 of [RFC3704]).</td>
+</tr>
+<tr><td><code>4.4.1:7</code></td>
+<td><code>feature-out-of-scope</code><br /><strong>never bound Ze</strong><br />the RFC makes a feature OPTIONAL, Ze decided not to offer it, and this obligation is conditional on offering it</td>
+<td>&#34;The CE router SHOULD support 6rd functionality.&#34; The obligation applies only to a CE router that offers 6rd, and ze offers none: the DHCPv4 client asks for no 6rd option 212 (internal/plugins/iface/dhcp/dhcp_v4_linux.go DHCPClient.v4RequestModifiers adds only the host name and client identifier) and no interface derives a 6rd prefix. The absent feature is disclosed on docs/features/rfc-status.md through the Support remaining row of rfc/short/rfc7084.md</td>
+<td>6RD-6: The CE router MUST allow different as well as identical delegated prefixes to be configured via each (6rd or native) WAN interface.</td>
+</tr>
+<tr><td><code>4.4.1:8</code></td>
+<td><code>feature-out-of-scope</code><br /><strong>never bound Ze</strong><br />the RFC makes a feature OPTIONAL, Ze decided not to offer it, and this obligation is conditional on offering it</td>
+<td>&#34;The CE router SHOULD support 6rd functionality.&#34; The obligation applies only to a CE router that offers 6rd, and ze offers none: the DHCPv4 client asks for no 6rd option 212 (internal/plugins/iface/dhcp/dhcp_v4_linux.go DHCPClient.v4RequestModifiers adds only the host name and client identifier) and no interface derives a 6rd prefix. The absent feature is disclosed on docs/features/rfc-status.md through the Support remaining row of rfc/short/rfc7084.md</td>
+<td>6RD-7: In the event that forwarding rules produce a tie between 6rd and native IPv6, by default, the IPv6 CE router MUST prefer native IPv6.</td>
+</tr>
+<tr><td><code>4.4.2:1</code></td>
+<td><code>feature-out-of-scope</code><br /><strong>never bound Ze</strong><br />the RFC makes a feature OPTIONAL, Ze decided not to offer it, and this obligation is conditional on offering it</td>
+<td>&#34;The IPv6 CE router SHOULD implement DS-Lite functionality.&#34; The obligation applies only to a CE router that offers DS-Lite, and ze offers none: the DHCPv6 client asks for no AFTR-Name option 64 (internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go requestOptions lists codes 23 and 82 only) and no B4 element exists. The absent feature is disclosed on docs/features/rfc-status.md through the Support remaining row of rfc/short/rfc7084.md</td>
+<td>If DS-Lite is supported, it MUST be implemented according to [RFC6333].</td>
+</tr>
+<tr><td><code>4.4.2:2</code></td>
+<td><code>feature-out-of-scope</code><br /><strong>never bound Ze</strong><br />the RFC makes a feature OPTIONAL, Ze decided not to offer it, and this obligation is conditional on offering it</td>
+<td>&#34;The IPv6 CE router SHOULD implement DS-Lite functionality.&#34; The obligation applies only to a CE router that offers DS-Lite, and ze offers none: the DHCPv6 client asks for no AFTR-Name option 64 (internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go requestOptions lists codes 23 and 82 only) and no B4 element exists. The absent feature is disclosed on docs/features/rfc-status.md through the Support remaining row of rfc/short/rfc7084.md</td>
+<td>DLW-1: The CE router MUST support configuration of DS-Lite via the DS-Lite DHCPv6 option [RFC6334].</td>
+</tr>
+<tr><td><code>4.4.2:3</code></td>
+<td><code>feature-out-of-scope</code><br /><strong>never bound Ze</strong><br />the RFC makes a feature OPTIONAL, Ze decided not to offer it, and this obligation is conditional on offering it</td>
+<td>&#34;The IPv6 CE router SHOULD implement DS-Lite functionality.&#34; The obligation applies only to a CE router that offers DS-Lite, and ze offers none: the DHCPv6 client asks for no AFTR-Name option 64 (internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go requestOptions lists codes 23 and 82 only) and no B4 element exists. The absent feature is disclosed on docs/features/rfc-status.md through the Support remaining row of rfc/short/rfc7084.md</td>
+<td>DLW-2: The IPv6 CE router MUST NOT perform IPv4 Network Address Translation (NAT) on IPv4 traffic encapsulated using DS-Lite.</td>
+</tr>
+<tr><td><code>4.5:1</code></td>
+<td><code>advisory-in-context</code><br /><strong>never bound Ze</strong><br />the sentence advises on applying a rule stated elsewhere and adds no obligation of its own</td>
+<td>advisory: the sentence names the level RFC 6204 gave S-2. The requirement itself reads &#34;S-2: The IPv6 CE router SHOULD support ingress filtering in accordance with BCP 38 [RFC2827].&#34;, so the MUST is not an obligation of this document</td>
+<td>Note that this requirement was downgraded from a MUST from RFC 6204 due to the difficulty of implementation in the CE router and the feature&#39;s redundancy with upstream router ingress filtering.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Superseded</h2>
+<p>No document obsoletes RFC 7084, so its obligations are stated where they were written.</p>
+</section>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Debugging</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Quality hub</h2>
+                    <a class="page-sidebar-link" href="../../../quality/">
+                        <span class="page-sidebar-link-label">Quality overview</span>
+                        <small>Return to the verification map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../quality/verify-debugging/">
+                        <span class="page-sidebar-link-label">Verify debugging</span>
+                        <small>How failed checks route to evidence.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Symptom-led debugging for running systems.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                    <a href="../../../legal/">Legal notice</a>
+                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

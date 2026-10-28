@@ -101,7 +101,7 @@ FUZZ=FuzzParseNLRI PKG=./internal/component/bgp/wire/ TIME=30s ./le test fuzz ru
 <pre><code class="language-bash">go run github.com/sivchari/gomu/cmd/gomu run --incremental --base-branch=main --fail-on-gate=false
 go run github.com/sivchari/gomu/cmd/gomu run --incremental=false --fail-on-gate=false ./internal/core/textbuf/
 go run github.com/sivchari/gomu/cmd/gomu run --incremental=false --fail-on-gate=false
-./le test mutation record-history report mutation-report.json
+./le test mutation record report mutation-report.json
 </code></pre>
 <p>This complements fuzzing. Fuzzing changes the inputs and keeps the implementation fixed. gomu changes the implementation and keeps the tests fixed. Together they show whether a test is broad enough and sharp enough.</p>
 <table>
@@ -154,8 +154,10 @@ go run github.com/sivchari/gomu/cmd/gomu run --incremental=false --fail-on-gate=
         <footer>
             <div class="footer-inner">
                 <div class="footer-bottom">
+                    <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
+                    <a href="../../legal/">Legal notice</a>
+                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
                 </div>
             </div>
         </footer>

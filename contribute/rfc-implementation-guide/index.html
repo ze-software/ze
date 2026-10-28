@@ -125,7 +125,7 @@
 <ol>
 <li><a href="#what-each-carrier-earns-in-the-ledger">What each carrier earns in the ledger</a></li>
 </ol></li>
-<li><a href="#the-owners-approval-lives-in-the-commit">The owner&#39;s approval lives in the commit</a></li>
+<li><a href="#the-judges-approval-lives-in-the-commit">The judge&#39;s approval lives in the commit</a></li>
 </ol></li>
 <li><a href="#phase-10-documentation">Phase 10: Documentation</a>
 <ol>
@@ -630,7 +630,7 @@ refuses a tagged unit the tip commit added against <code>HEAD^</code> and that c
 recorded break under which that unit itself goes red. Both sides are
 committed, so the violation reaches you at your own commit rather than every
 other session at theirs. Record one with
-<code>./le rfc discriminate-record</code>; <code>./le rfc discriminate stem &lt;stem&gt;</code> proposes
+<code>./le rfc record</code>; <code>./le rfc discriminate stem &lt;stem&gt;</code> proposes
 the candidates. The full contract is <code>rfc/discrimination/README.md</code>.</p>
 </li>
 <li>
@@ -674,7 +674,7 @@ declared by the test.</p>
 <tr>
 <td><span class="ev-src"><span class="ev-ref"><code>test/exabgp-compat/*.ci</code></span></span></td>
 <td><code>functional</code></td>
-<td><code>./le test functional exabgp-test</code></td>
+<td><code>./le test functional exabgp</code></td>
 <td><code>verify</code>, through the full verifier's separate ExaBGP stage</td>
 </tr>
 <tr>
@@ -698,13 +698,13 @@ declared by the test.</p>
 <tr>
 <td><span class="ev-src"><span class="ev-ref"><code>internal/le/interoplab/l2tp/*.go</code></span></span></td>
 <td><code>interop</code></td>
-<td><code>./le test deployment docker-l2tp-ppp-test</code></td>
+<td><code>./le test deployment docker-l2tp-ppp</code></td>
 <td>same derivation</td>
 </tr>
 <tr>
 <td><span class="ev-src"><span class="ev-ref"><code>internal/le/interoplab/pppoe/*.go</code></span></span></td>
 <td><code>interop</code></td>
-<td><code>./le test deployment docker-pppoe-accel-test</code></td>
+<td><code>./le test deployment docker-pppoe-accel</code></td>
 <td>same derivation</td>
 </tr>
 </tbody>
@@ -725,14 +725,15 @@ never sums the two, because a nightly tier is not merge-gate proof.</p>
 <p><strong>Five native RFC actions clear different failures.</strong></p>
 <ul>
 <li><code>./le rfc check</code> gates coverage and validates the audit records.</li>
-<li><code>./le rfc index-update</code> renders one ledger per RFC and
+<li><code>./le rfc update</code> renders one ledger per RFC and
 <code>ai/RFC-REQUIREMENTS.md</code>.</li>
-<li><code>./le rfc extraction-create stem &lt;stem&gt;</code> writes an extraction skeleton. It
+<li><code>./le rfc extraction create stem &lt;stem&gt;</code> writes an extraction skeleton. It
 reaches <code>rfc/extraction/</code> only when every site and section already carries a
 disposition; otherwise it lands in this session's scratch and the command
 prints the <code>mv</code> that ends the walk.</li>
-<li><code>./le rfc extraction-status</code> prints the sign-off counts.</li>
-<li><code>./le rfc reseal</code> re-stamps an audit verdict after a mechanical edit.</li>
+<li><code>./le rfc extraction report</code> prints the sign-off counts.</li>
+<li><code>./le rfc reseal stem &lt;stem&gt;</code> re-stamps the audit verdicts of the named
+RFC after a mechanical edit, and no other RFC's.</li>
 <li><code>./le rfc audit-stamp stem &lt;stem&gt; from &lt;path&gt;</code> adds new audit verdicts from a
 pending file, computing their fingerprints. With <code>mode rejudge</code> it replaces
 recorded verdicts a judge re-made, in place, and accepts <code>upgrade_reason</code>.</li>
@@ -745,7 +746,7 @@ reasoned annotation. Writing a summary does not enrol an RFC.</p>
 <p><strong>Declare enrolment in the summary, and the public row with it.</strong> Both live in
 the <code>## Meta</code> table of <code>rfc/short/&lt;stem&gt;.md</code>, and nowhere else.
 <code>rfc/enrolled.txt</code>, <code>rfc/not-enrolled.txt</code> and <code>docs/features/rfc-status.md</code> are
-generated from those tables by <code>./le rfc index-update</code>. A hand edit to one of the
+generated from those tables by <code>./le rfc update</code>. A hand edit to one of the
 three is lost at the next run. Write <code>| Enrolment | &lt;kind&gt; |</code> beside
 <code>| Enrolment reason | &lt;why&gt; |</code>, kind one of <code>enrolled</code>, <code>non-normative</code>,
 <code>backlog</code>, <code>blocked</code>, <code>out-of-scope</code> or <code>source-restricted</code>. A summary that
@@ -764,6 +765,19 @@ making it. <code>out-of-scope</code> says the extraction is DONE and the owner d
 feature, so its reason carries the decision date and its row reads <code>Future</code> or
 <code>Unsupported</code>. <code>backlog</code> and <code>blocked</code> are debt, and the ledger renders them as
 debt.</p>
+<p>The public row is declared by <code>| Support | &lt;aggregate&gt; |</code>, where the aggregate
+is the name of a technology file under <code>rfc/profiles/</code>; the row renders under
+that aggregate's heading, in RFC-number order. A summary with no public row
+writes <code>| Support | - |</code> and still names its aggregate in an
+<code>| Aggregate | &lt;aggregate&gt; |</code> row, so every summary belongs to one aggregate.
+A name with no file under <code>rfc/profiles/</code> does not parse. The format of those
+files is in <code>rfc-conformance-gates.md</code>, "Profiles and aggregates".</p>
+<p>Every summary also declares its use cases in two mandatory rows, each <code>-</code> when
+empty: <code>| Use cases | route-server, looking-glass |</code> names the use-case
+profiles that require the RFC, counted in their figures, and
+<code>| Optional use cases | lns |</code> those that list it as optional, never counted.
+No profile file lists a member and no citation adds one, so a forgotten row
+is a parse error rather than an RFC quietly not owed.</p>
 <p>Three related reds come from the same place. First, a public row that claims support
 over a summary with zero gated requirements. The escape is evidence that zero is
 real: a <code>non-normative</code> disposition, or a <code>manual-walk</code>
@@ -804,12 +818,12 @@ reflow is not a new judgment; ordinary requirement fingerprints are unchanged.</
 <p><strong>A <code>SHIFTED</code> verdict is not your problem to re-read.</strong> When the gate says a
 verdict is SHIFTED, the tagged unit is byte-identical and only the file around it
 moved: a line shift, a sibling test, or a rewritten import. Run
-<code>./le rfc reseal</code> then <code>./le rfc index-update</code>. Reseal owns mechanical
+<code>./le rfc reseal stem &lt;stem&gt;</code> then <code>./le rfc update</code>. Reseal owns mechanical
 fingerprint shifts, not independent rejudgment. Semantic changes require a
 new audit and <code>audit-stamp ... mode rejudge</code>; regeneration never authorizes
 a broader claim.</p>
 <!-- source: internal/le/rfc/freshness.go -- auditFreshness -->
-<!-- source: internal/le/rfc/reseal.go -- resealTree -->
+<!-- source: internal/le/rfc/reseal.go -- resealStems -->
 </li>
 <li>
 <p><strong>A <code>STALE</code> verdict is.</strong> The tagged unit itself changed, so re-run
@@ -818,7 +832,7 @@ a broader claim.</p>
 <li>
 <p><strong>Never change a tagged test to make it pass.</strong> Once a test carries an
 <code>RFC requirement:</code> tag it is the requirement: fix your code, not the test.
-Changing its behavior needs the owner's approval.</p>
+Changing its behavior needs a <code>ze-test-judge</code> approval.</p>
 </li>
 <li>
 <p><strong>The lock holds what HEAD records.</strong> The Write/Edit hook refuses an edit to
@@ -833,20 +847,23 @@ whatever the working tree holds. Where the unit is one Go function, another
 session's uncommitted change to it does not lock an edit to another
 function. Where the unit is the whole file (a <code>.ci</code> or other non-Go
 carrier, or Go with a file-scope tag), that change makes every edit to the
-file refuse until the file matches HEAD again or the owner approves. The
+file refuse until the file matches HEAD again or the judge approves. The
 commit gate,
 <code>rfcChangeProblems</code> in <code>internal/le/commit/rfcchange.go</code>, reads its baseline
 from HEAD too.</p>
 <!-- source: internal/le/test/weakened/proposed.go -- committedRFCChanges -->
 </li>
 </ul>
-<h3 id="the-owners-approval-lives-in-the-commit">The owner's approval lives in the commit</h3>
-<p>An author cannot approve their own change. A weakening row in
-<code>test/weakened/&lt;session&gt;.md</code> is the author's own justification, and a reviewer
-reads it to judge the author; it approves nothing here. Once the owner has
-answered, record his words, once:</p>
-<pre><code>./le rfc approve unit &lt;package&gt;.&lt;TestName&gt; reason "&lt;the owner's words&gt;"
+<h3 id="the-judges-approval-lives-in-the-commit">The judge's approval lives in the commit</h3>
+<p>An author cannot approve their own change, and the question is never put to
+Thomas. An independent agent running the <code>ze-test-judge</code> skill
+(<code>ai/skills/ze-test-judge.md</code>) reads the old and new test, the producing code
+and the cited RFC text, and approves only when the old expectation is wrong
+against the RFC sentence it quotes, or the new test proves at least what the
+old one did. On APPROVE the judge records its verdict, once:</p>
+<pre><code>./le rfc approve unit &lt;package&gt;.&lt;TestName&gt; reason "&lt;the judge's verdict&gt;"
 </code></pre>
+<p>On REFUSE the refusal stands, and the author fixes the code.</p>
 <p>The command writes one row into <code>tmp/commit-rfc-approved-&lt;session&gt;.md</code>, the
 file this commit session owns (<code>./le commit session</code>) and git never sees. A
 second call for the same unit replaces the reason. The Write/Edit hook and
@@ -856,14 +873,16 @@ each row it used into the commit message as one trailer line,
 <code>RFC-approved: &lt;package&gt;.&lt;TestName&gt;: &lt;reason&gt;</code>, and the generated script drops
 the used rows from the file once the commit succeeds. The commit that changed
 the test is the record, where a reader looks first: <code>git log --grep RFC-approved:</code> lists every approval. A row whose whole trailer line a commit
-already carries approves nothing further: <code>trailerLanded</code>
-(<code>internal/le/commit/rfcchange.go</code>) compares each message line to the trailer,
+already carries approves nothing further: <code>TrailerLanded</code>
+(<code>internal/le/rfc/approve.go</code>) compares each message line to the trailer,
 and the refusal names that commit by short hash and subject. A row with no
-answer from the owner behind
-it is a forgery, not a shortcut, so the reason names what the owner approved
+judge's verdict behind
+it is a forgery, not a shortcut, so the reason names what the judge approved
 and why the tagged requirement is still proven after the change, quoting the
-requirement id.</p>
-<p>When the owner has not answered yet, <code>rfc-change-ok "&lt;reason&gt;"</code> on
+requirement id. The row also accepts a weakening of the same unit, so a tagged
+test the judge approved needs no second <code>./le test weakened approve</code> answer
+(<code>docs/contributing/testing.md</code>, "When a test must be weakened").</p>
+<p>When the judge has not ruled yet, <code>rfc-change-ok "&lt;reason&gt;"</code> on
 <code>./le commit create</code> admits the commit anyway and writes one trailer per
 unapproved unit, <code>RFC-approval-owed: &lt;package&gt;.&lt;TestName&gt;: &lt;reason&gt;</code>. The
 commit lands, and the push is refused while the trailer is open: a later commit
@@ -896,7 +915,7 @@ attestation, <code>./le commit create subject "&lt;subject&gt;" attest &lt;commi
 [ ] Add Ze implementation notes section
 [ ] Cross-reference related RFCs
 [ ] Every MUST-level line has a stable id (see 9.7); disclose any {gap} in docs/features/rfc-status.md
-[ ] Extraction sign-off recorded: ./le rfc extraction-create stem rfcNNNN, then classify
+[ ] Extraction sign-off recorded: ./le rfc extraction create stem rfcNNNN, then classify
     every derived site and section in rfc/extraction/rfcNNNN.json (see 10.4)
 </code></pre>
 <h3 id="103-config-examples">10.3 Config Examples</h3>
@@ -907,10 +926,10 @@ attestation, <code>./le commit create subject "&lt;subject&gt;" attest &lt;commi
 <p>The checklist above proves the requirements you WROTE DOWN are enforced. Nothing
 in it bounds what the summary MISSED, and a green <code>./le rfc check</code> is bounded
 by what was extracted. Record the walk in an artifact the gate re-checks:</p>
-<pre><code>./le rfc extraction-create stem rfcNNNN   # derive the inventory and preserve matching decisions
+<pre><code>./le rfc extraction create stem rfcNNNN   # derive the inventory and preserve matching decisions
                                           # an unclassified skeleton stays in session scratch;
                                           # a fully classified refresh may replace the artifact
-./le rfc extraction-classify decisions &lt;path&gt;  # or write the decisions in one file and apply them
+./le rfc extraction classify decisions &lt;path&gt;  # or write the decisions in one file and apply them
 ./le rfc check                            # re-derives the inventory and judges it
 </code></pre>
 <p>Each derived site (<code>&lt;section&gt;:&lt;n&gt;</code>, with the sentence it came from) is <code>mapped</code>
@@ -930,12 +949,13 @@ ruling moved it out of the summary. It authors <code>relocated-to</code>
 unless that spec exists and still names that id.</p>
 <!-- source: internal/le/rfc/actions.go -- Answer -->
 <p>Read the signed, enrolled, relocated, and unsigned counts with
-<code>./le rfc extraction-status</code>. The action emits structured output directly.</p>
+<code>./le rfc extraction report</code>. The action emits structured output directly.</p>
 <!-- source: internal/le/rfc/actions.go -- Actions -->
 <hr>
 <h2 id="final-checklist">Final Checklist</h2>
 <p>Before marking implementation complete:</p>
-<pre><code>[ ] Verify the agreed implementation boundary through ./le verify worktree
+<pre><code>[ ] Verify the agreed implementation boundary through ./le verify changed
+    (the full run is Thomas's release check: give him the command)
 [ ] Fuzz targets pass: ./le test fuzz run
 [ ] Functional tests pass: ./le test functional gating
 [ ] RFC MUST tests have both polarities: ./le rfc check
@@ -1068,8 +1088,10 @@ func (n *MyNLRI) SupportsAddPath() bool { return true }
         <footer>
             <div class="footer-inner">
                 <div class="footer-bottom">
+                    <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 06:34 UTC</span>
+                    <a href="../../legal/">Legal notice</a>
+                    <span class="footer-published">Published 28 October 2026 01:27 UTC</span>
                 </div>
             </div>
         </footer>

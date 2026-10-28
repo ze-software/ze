@@ -161,7 +161,81 @@ RFC 7454 carries no gated, tagged or audited requirement, so there is no proof s
 
 ## Extraction sign-off
 
-No extraction sign-off exists for RFC 7454, so no reviewer has walked its text sentence by sentence.
+| Field | Value |
+|---|---|
+| Reviewer | claude (spec-rfc-profile-declared-membership review fix) |
+| Signed off | 2026-10-26 |
+| Register | rfc2119 |
+| Source | rfc/full/rfc7454.txt |
+| Source fingerprint | 82b05a99d6a67464 |
+| Record | rfc/extraction/rfc7454.json |
+| Mapped sentences | 0 |
+| Declined as scope | 1 |
+| Relocated to a spec, which Ze OWES | 0 |
+| Unclassified | 0 |
+
+### Sections
+
+| Section | Name | Sites | Disposition | Reason |
+|---|---|---|---|---|
+| `front` | Title page, abstract, status, copyright and contents | 0 | skipped (front-matter) | Title page, abstract, status, copyright and contents |
+| `1` | not stated | 0 | walked | not stated |
+| `1.1` | not stated | 0 | walked | not stated |
+| `2` | not stated | 0 | walked | not stated |
+| `3` | not stated | 0 | walked | not stated |
+| `4` | not stated | 0 | walked | not stated |
+| `5` | not stated | 0 | walked | not stated |
+| `5.1` | not stated | 1 | walked | not stated |
+| `5.2` | not stated | 0 | walked | not stated |
+| `6` | not stated | 0 | walked | not stated |
+| `6.1` | not stated | 0 | walked | not stated |
+| `6.1.1` | not stated | 0 | walked | not stated |
+| `6.1.1.1` | not stated | 0 | walked | not stated |
+| `6.1.1.2` | not stated | 0 | walked | not stated |
+| `6.1.2` | not stated | 0 | walked | not stated |
+| `6.1.2.1` | not stated | 0 | walked | not stated |
+| `6.1.2.2` | not stated | 0 | walked | not stated |
+| `6.1.2.2.1` | not stated | 0 | walked | not stated |
+| `6.1.2.2.2` | not stated | 0 | walked | not stated |
+| `6.1.3` | not stated | 0 | walked | not stated |
+| `6.1.4` | not stated | 0 | walked | not stated |
+| `6.1.5` | not stated | 0 | walked | not stated |
+| `6.1.5.1` | not stated | 0 | walked | not stated |
+| `6.1.5.2` | not stated | 0 | walked | not stated |
+| `6.1.6` | not stated | 0 | walked | not stated |
+| `6.1.6.1` | not stated | 0 | walked | not stated |
+| `6.1.6.2` | not stated | 0 | walked | not stated |
+| `6.2` | not stated | 0 | walked | not stated |
+| `6.2.1` | not stated | 0 | walked | not stated |
+| `6.2.1.1` | not stated | 0 | walked | not stated |
+| `6.2.1.1.1` | not stated | 0 | walked | not stated |
+| `6.2.1.1.2` | not stated | 0 | walked | not stated |
+| `6.2.1.2` | not stated | 0 | walked | not stated |
+| `6.2.2` | not stated | 0 | walked | not stated |
+| `6.2.2.1` | not stated | 0 | walked | not stated |
+| `6.2.2.2` | not stated | 0 | walked | not stated |
+| `6.2.3` | not stated | 0 | walked | not stated |
+| `6.2.3.1` | not stated | 0 | walked | not stated |
+| `6.2.3.2` | not stated | 0 | walked | not stated |
+| `6.3` | not stated | 0 | walked | not stated |
+| `6.3.1` | not stated | 0 | walked | not stated |
+| `6.3.2` | not stated | 0 | walked | not stated |
+| `7` | not stated | 0 | walked | not stated |
+| `8` | not stated | 0 | walked | not stated |
+| `9` | not stated | 0 | walked | not stated |
+| `10` | not stated | 0 | walked | not stated |
+| `11` | not stated | 0 | walked | not stated |
+| `12` | not stated | 0 | walked | not stated |
+| `13` | References | 0 | skipped (references) | References |
+| `13.1` | Normative references | 0 | skipped (references) | Normative references |
+| `13.2` | Informative references | 0 | skipped (references) | Informative references |
+| `A` | not stated | 0 | walked | not stated |
+
+### Excluded sentences
+
+| Site | Excluded kind | Reason | Quote |
+|---|---|---|---|
+| `5.1:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | NOT REQUIRED negates a requirement rather than stating one, and the sentence addresses operators, not an implementation: it directs nothing. Its advisory half, operators are RECOMMENDED to consider TCP session protection, is captured as RFC7454-5.1-3, and the NOT REQUIRED clause is recorded at the OPTIONAL level as RFC7454-5.1-2 | Protection of TCP sessions used by BGP is thus NOT REQUIRED even when peerings are established over shared networks where spoofing can be done (like IXPs), but operators are RECOMMENDED to consider the trade-offs and to apply TCP session protection where appropriate. |
 
 ## Superseded
 

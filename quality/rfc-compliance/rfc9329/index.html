@@ -1,0 +1,1592 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>RFC 9329 requirement ledger - Ze</title>
+        <meta name="description" content="RFC 9329: TCP Encapsulation of Internet Key Exchange Protocol (IKE) and IPsec Packets. 30 gated MUST-level requirements, 30 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:title" content="RFC 9329 requirement ledger - Ze" />
+        <meta property="og:description" content="RFC 9329: TCP Encapsulation of Internet Key Exchange Protocol (IKE) and IPsec Packets. 30 gated MUST-level requirements, 30 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="RFC 9329 requirement ledger - Ze" />
+        <meta name="twitter:description" content="RFC 9329: TCP Encapsulation of Internet Key Exchange Protocol (IKE) and IPsec Packets. 30 gated MUST-level requirements, 30 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
+        <link rel="canonical" href="https://ze-software.net/quality/rfc-compliance/rfc9329/" />
+        <meta property="og:url" content="https://ze-software.net/quality/rfc-compliance/rfc9329/" />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../../#top">Ze</a>
+                    <a href="../../../#top">Home</a>
+                    <a href="../../../docs/">Docs</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../project/roadmap/">Roadmap</a>
+                    <a href="../../../project/changes/">Changes</a>
+                    <a href="../../../faq/">FAQ</a>
+                    <a href="../../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section aria-labeledby="rfc-detail-title" class="md-content reveal cat-observe">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Future</span>
+    <h1 id="rfc-detail-title">RFC 9329 - TCP Encapsulation of Internet Key Exchange Protocol (IKE) and IPsec Packets</h1>
+    <p>Every requirement this repository extracted from RFC 9329, the tests bound to it, and what a reader has verified about them. This summary is not enrolled.</p>
+</div>
+<style>
+.rfc-table-wrap { overflow-x: auto; }
+.rfc-id-list { margin: .6rem 0; line-height: 1.9; }
+.rfc-verdict { margin: 1rem 0 1.6rem; padding: 1rem 1.2rem; border-radius: 18px; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-verdict p { margin: 0 0 .4rem; color: var(--muted); }
+.rfc-verdict p:last-child { margin-bottom: 0; }
+.rfc-verdict span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-verdict strong { display: block; margin: .2rem 0 .5rem; font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1; color: var(--text); }
+.rfc-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); grid-auto-rows: 1fr; gap: 1rem; margin: 1.25rem 0 .8rem; }
+.rfc-card { display: flex; flex-direction: column; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-card span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
+.rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
+.rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
+.rfc-ok { border-left: 7px solid var(--green); }
+.rfc-neutral { border-left: 7px solid var(--line-strong); }
+.rfc-warn { border-left: 7px solid var(--amber); }
+.rfc-bad { border-left: 7px solid var(--danger-deep); }
+.rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
+.rfc-tape span { width: var(--w); min-width: 0; display: block; }
+.rfc-tape-key { display: flex; flex-wrap: wrap; gap: .35rem 1.4rem; margin: 0 0 1.4rem; padding: 0; list-style: none; font-size: .92rem; }
+.rfc-tape-key li { display: flex; align-items: center; gap: .45rem; }
+.rfc-swatch { display: inline-block; width: .85rem; height: .85rem; border-radius: .25rem; border: 1px solid var(--line-strong); vertical-align: -.1rem; }
+.rfc-tape-both_polarities { background: var(--teal-chip); }
+.rfc-tape-single_polarity { background: var(--sky-chip); }
+.rfc-tape-not_applicable { background: var(--grape-chip); }
+.rfc-tape-feature_declined { background: var(--pink-chip); }
+.rfc-tape-lower_layer { background: var(--mint-chip); }
+.rfc-tape-rollup { background: var(--tangerine-chip); }
+.rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
+.rfc-tape-one_polarity_unexcused { background: var(--amber); }
+.rfc-tape-missing_unexcused { background: var(--danger-deep); }
+.rfc-swatch.rfc-ok { background: var(--green); }
+.rfc-swatch.rfc-neutral { background: var(--line-strong); }
+.rfc-swatch.rfc-warn { background: var(--amber); }
+.rfc-swatch.rfc-bad { background: var(--danger-deep); }
+.rfc-total td { border-top: 2px solid var(--line-strong); }
+.rfc-prose { max-width: 46rem; }
+ul.rfc-prose { margin: .5rem 0 1rem; padding-left: 1.2rem; }
+ul.rfc-prose li { margin: .35rem 0; line-height: 1.6; }
+p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
+.rfc-fold { margin: .6rem 0; }
+.rfc-fold > summary { cursor: pointer; font-weight: 700; }
+.rfc-span > td { padding-bottom: .2rem; border-bottom: 0; }
+.rfc-table td:first-child { font-weight: 400; }
+.rfc-table .rfc-span > td { padding-top: .9rem; }
+.rfc-subject-id { white-space: nowrap; vertical-align: top; }
+.rfc-subject { display: block; max-width: 52rem; }
+.rfc-tests { display: grid; gap: .15rem .8rem; }
+.rfc-tests-row { display: grid; grid-template-columns: 5rem 9.5rem minmax(0, 1fr); gap: .8rem; align-items: baseline; }
+.rfc-tests-row > span:first-child { color: var(--muted); font-size: .88rem; }
+.rfc-mark { margin: .45rem 0 0; color: var(--muted); max-width: 52rem; }
+@media (max-width: 760px) {
+  .rfc-tests-row { grid-template-columns: 1fr; gap: 0; padding-bottom: .35rem; }
+}
+.rfc-text > summary { cursor: pointer; color: var(--muted); font-size: .85rem; }
+.rfc-text > p { margin: .35rem 0 0; max-width: 44rem; }
+.rfc-note-box { margin: 1rem 0; padding: 1rem 1.2rem; border-radius: 16px; background: var(--gold-tint); border: 1px solid var(--gold-chip); }
+.rfc-note-box h3 { margin-top: 0; }
+.rfc-note-box ul { margin-bottom: 0; }
+.rfc-check-ok strong { color: var(--green); }
+.rfc-check-bad strong { color: var(--danger-deep); }
+</style>
+<section><h2>Overview</h2>
+<h3>Positive</h3>
+<p>what Ze has</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>0.0%</strong><b>0 of 30 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 30 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 30 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 30 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 0 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+</div>
+<h3>Neutral</h3>
+<p>measures that are neither good news nor bad</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-neutral"><span>MUSTs declared</span><strong>30</strong><b>of 74 this summary declares</b><p>MUST-level requirements this summary DECLARES. The gate holds none of them, because this RFC is not enrolled (out-of-scope), so every share below reads what the summary records rather than what the gate enforces</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 30 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 30 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 30 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 30 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+</div>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>100.0%</strong><b>30 of 30 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+</div>
+<p>The 8 shares marked as a part above are the whole of the 30 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<details class="rfc-fold"><summary>How to read the colors</summary>
+<p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Card</th><th>Tone here</th><th>Why that color</th></tr></thead>
+<tbody>
+<tr><td>MUSTs declared</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total</td>
+</tr>
+<tr><td>Out of scope</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
+</tr>
+<tr><td>Tested both ways</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got</td>
+</tr>
+<tr><td>One polarity plus reason</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it</td>
+</tr>
+<tr><td>One polarity, unexcused</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: half a proof with no reason for the other half</td>
+</tr>
+<tr><td>Partial proof; remaining gap</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+</tr>
+<tr><td>No test at all</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
+</tr>
+<tr><td>Not applicable</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
+</tr>
+<tr><td>Met below Ze</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself</td>
+</tr>
+<tr><td>Optional feature declined</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC&#39;s own status row, as an implementation gap a later scope decision can revisit</td>
+</tr>
+<tr><td>Proven by a recorded break</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
+</tr>
+<tr><td>Audit verdicts</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
+</tr>
+</tbody>
+</table>
+</div>
+</details>
+</section>
+<section><h2>At a glance</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Public status</td>
+<td>Future</td>
+</tr>
+<tr><td>Enrolment</td>
+<td>Not enrolled (out-of-scope)</td>
+</tr>
+<tr><td>Requirements</td>
+<td>74</td>
+</tr>
+<tr><td>Gated MUST-level</td>
+<td>30</td>
+</tr>
+<tr><td>Not applicable, so out of scope</td>
+<td>0</td>
+</tr>
+<tr><td>Declared gaps</td>
+<td>30</td>
+</tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
+<tr><td>Gated with no test</td>
+<td>0</td>
+</tr>
+<tr><td>Nightly-only evidence</td>
+<td>0</td>
+</tr>
+<tr><td>Test tags</td>
+<td>0</td>
+</tr>
+<tr><td>Tagged units</td>
+<td>0</td>
+</tr>
+<tr><td>Recorded audit verdicts</td>
+<td>0</td>
+</tr>
+<tr><td>Discrimination records</td>
+<td>0</td>
+</tr>
+<tr><td>Summary</td>
+<td><code>rfc/short/rfc9329.md</code></td>
+</tr>
+<tr><td>Requirement shard</td>
+<td><code>rfc/requirements/rfc9329.md</code></td>
+</tr>
+<tr><td>RFC text</td>
+<td><code>rfc/full/rfc9329.txt</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Enrolment</h2>
+<p>Not enrolled (out-of-scope, the requirements ARE extracted and the owner decided not to offer the feature for now, so the absence is a scope decision rather than a conformance gap): OUT OF SCOPE as a document by owner decision, 2026-10-26: the owner rule committed in 1e7a9dbc34 (ai/META-DECISIONS.md, Goal and scope) counts an RFC a profile lists as optional only once Thomas brings it into scope, and this summary&#39;s `Optional use cases` row lists this RFC in the optional tier of the vpn-concentrator profile. The extraction is COMPLETE: the source text is at rfc/full/rfc9329.txt and the extraction sign-off is rfc/extraction/rfc9329.json. Ze implements none of it, and each MUST-level row keeps its `{gap}` note naming the absent producer: all 30 MUST-level requirements are classified, and all 30 are `{gap}`, because Ze carries IKE and ESP over UDP ports 500 and 4500 and directly over IP only. `internal/component/ike/transport/udp.go::newTransport` opens a UDP socket, and nothing under `internal/component/ike/` listens on or dials TCP, frames a Length-prefixed stream or sends the IKETCP stream prefix.</p>
+</section>
+<section><h2>What the public ledger says</h2>
+<p><strong>Status:</strong> Future</p>
+<p><strong>What the ledger says is covered:</strong></p>
+None: IKE runs over UDP 500 and 4500 (<a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/udp.go" target="_blank" rel="noopener"><code>internal/component/ike/transport/udp.go</code></a>), ESP directly over IP or in UDP 4500 per RFC 3948.
+<details class="rfc-fold"><summary>What the ledger says remains</summary>
+No TCP listener or originator, no IKETCP stream prefix, no 16-bit Length framing for IKE or ESP, no ESP-in-TCP datapath, no UDP-to-TCP fallback, and no MOBIKE switching between UDP and TCP. Some prohibitions (preferring UDP or direct ESP over TCP, dropping NAT-keepalives on TCP) hold today only because TCP is never used, and no test proves them. All 30 MUST-level requirements are annotated <code>{gap}</code> in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc9329.md" target="_blank" rel="noopener"><code>rfc/short/rfc9329.md</code></a>. Out of scope by owner decision, 2026-10-26.
+</details>
+</section>
+<section><h2>Coverage</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
+<tbody>
+<tr><td>Positive and negative tests</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Annotated (including scoped evidence)</td>
+<td><strong>30</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>One polarity only</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>No test and no annotation</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
+</tr>
+<tr><td>Evidence that runs nightly only</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
+</tr>
+<tr><td>Derived from other rows</td>
+<td><strong>0</strong></td>
+<td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
+</tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>30</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+</tbody>
+</table>
+</div>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (30):</strong> <a href="#rfc9329-1.2-1"><code>RFC9329-1.2-1</code></a>, <a href="#rfc9329-2-1"><code>RFC9329-2-1</code></a>, <a href="#rfc9329-3-1"><code>RFC9329-3-1</code></a>, <a href="#rfc9329-3.1-1"><code>RFC9329-3.1-1</code></a>, <a href="#rfc9329-3.1-2"><code>RFC9329-3.1-2</code></a>, <a href="#rfc9329-3.2-1"><code>RFC9329-3.2-1</code></a>, <a href="#rfc9329-3.2-2"><code>RFC9329-3.2-2</code></a>, <a href="#rfc9329-3.2-3"><code>RFC9329-3.2-3</code></a>, <a href="#rfc9329-4-1"><code>RFC9329-4-1</code></a>, <a href="#rfc9329-5-1"><code>RFC9329-5-1</code></a>, <a href="#rfc9329-5-2"><code>RFC9329-5-2</code></a>, <a href="#rfc9329-5.1-1"><code>RFC9329-5.1-1</code></a>, <a href="#rfc9329-6.1-1"><code>RFC9329-6.1-1</code></a>, <a href="#rfc9329-6.1-2"><code>RFC9329-6.1-2</code></a>, <a href="#rfc9329-6.1-3"><code>RFC9329-6.1-3</code></a>, <a href="#rfc9329-6.1-4"><code>RFC9329-6.1-4</code></a>, <a href="#rfc9329-6.1-5"><code>RFC9329-6.1-5</code></a>, <a href="#rfc9329-6.1-6"><code>RFC9329-6.1-6</code></a>, <a href="#rfc9329-6.1-7"><code>RFC9329-6.1-7</code></a>, <a href="#rfc9329-6.1-8"><code>RFC9329-6.1-8</code></a>, <a href="#rfc9329-6.1-9"><code>RFC9329-6.1-9</code></a>, <a href="#rfc9329-6.2-1"><code>RFC9329-6.2-1</code></a>, <a href="#rfc9329-6.3-1"><code>RFC9329-6.3-1</code></a>, <a href="#rfc9329-6.6-1"><code>RFC9329-6.6-1</code></a>, <a href="#rfc9329-6.7-1"><code>RFC9329-6.7-1</code></a>, <a href="#rfc9329-7.1-1"><code>RFC9329-7.1-1</code></a>, <a href="#rfc9329-7.1-2"><code>RFC9329-7.1-2</code></a>, <a href="#rfc9329-7.2-1"><code>RFC9329-7.2-1</code></a>, <a href="#rfc9329-7.5-1"><code>RFC9329-7.5-1</code></a>, <a href="#rfc9329-9-1"><code>RFC9329-9-1</code></a></p>
+</section>
+<section><h2>Requirements</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
+<tbody>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-1.2-1">RFC9329-1.2-1</code></td><td colspan="3"><span class="rfc-subject">If an IKE SA is rekeyed one or more times, the TCP Originator MUST remain the peer that originally initiated the first IKE SA. (§1.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>1.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-1.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> Ze has no TCP connection and no TCP Originator role; internal/component/ike/transport/udp.go::newTransport opens UDP only; internal/component/ike/transport/udp.go</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-2-1">RFC9329-2-1</code></td><td colspan="3"><span class="rfc-subject">Compliant implementations MUST support TCP encapsulation on TCP port 4500, which is reserved for IPsec NAT traversal. (§2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> Ze does not listen on or connect to TCP port 4500; internal/component/ike/transport/udp.go::newTransport binds a UDP socket and no TCP transport exists under internal/component/ike/; internal/component/ike/transport/udp.go</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-3-1">RFC9329-3-1</code></td><td colspan="3"><span class="rfc-subject">Empty messages (where the Length field equals 2) MUST be silently ignored by receiver. (§3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> Ze parses no Length-framed TCP stream; internal/component/ike/transport/udp.go</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-3.1-1">RFC9329-3.1-1</code></td><td colspan="3"><span class="rfc-subject">The value in the Length field MUST NOT be 0 or 1. (§3.1)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-3.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> Ze writes no TCP-encapsulated IKE message; internal/component/ike/transport/udp.go</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-3.1-2">RFC9329-3.1-2</code></td><td colspan="3"><span class="rfc-subject">The receiver MUST treat these values as fatal errors and MUST close the TCP connection. (§3.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-3.1-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> Ze reads no TCP-encapsulated IKE message and holds no TCP connection to close; internal/component/ike/transport/udp.go</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-3.2-1">RFC9329-3.2-1</code></td><td colspan="3"><span class="rfc-subject">The Security Parameter Index (SPI) field [RFC7296] in the ESP header MUST NOT be a zero value. (§3.2)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>3.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-3.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> Ze sends no ESP packet over TCP, so no TCP-encapsulated ESP header exists to carry an SPI; internal/component/ike/transport/udp.go</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-3.2-2">RFC9329-3.2-2</code></td><td colspan="3"><span class="rfc-subject">The value in the Length field MUST NOT be 0 or 1. (§3.2)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>3.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-3.2-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> Ze writes no TCP-encapsulated ESP packet; internal/component/ike/transport/udp.go</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-3.2-3">RFC9329-3.2-3</code></td><td colspan="3"><span class="rfc-subject">The receiver MUST treat these values as fatal errors and MUST close TCP connection. (§3.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-3.2-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> Ze reads no TCP-encapsulated ESP packet and holds no TCP connection to close; internal/component/ike/transport/udp.go</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-4-1">RFC9329-4-1</code></td><td colspan="3"><span class="rfc-subject">Each stream of bytes used for IKE and IPsec encapsulation MUST begin with a fixed sequence of 6 bytes as a magic value, containing the characters &#34;IKETCP&#34; as ASCII values. (§4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-4-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> Ze sends and checks no IKETCP stream prefix; internal/component/ike/transport/udp.go</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-5-1">RFC9329-5-1</code></td><td colspan="3"><span class="rfc-subject">If a Responder is configured to accept and is allowed to use TCP encapsulation, it MUST listen on the configured port(s) in case any peers will initiate new IKE sessions. (§5)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-5-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> Ze has no TCP encapsulation configuration and no TCP listener; internal/component/ike/transport/udp.go::newTransport; internal/component/ike/transport/udp.go</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-5-2">RFC9329-5-2</code></td><td colspan="3"><span class="rfc-subject">If TCP encapsulation is being used for a specific IKE SA, all IKE messages for that IKE SA and ESP packets for its Child SAs MUST be sent over a TCP connection until the SA is deleted or IKEv2 Mobility and Multihoming (MOBIKE) is used to change the SA endpoints and/or the encapsulation protocol. (§5)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-5-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> no IKE SA of Ze&#39;s ever uses TCP encapsulation; internal/component/ike/transport/udp.go</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-5.1-1">RFC9329-5.1-1</code></td><td colspan="3"><span class="rfc-subject">When switching from UDP to TCP, a new IKE_SA_INIT exchange MUST be initiated with the Initiator&#39;s new SPI and with recalculated content of NAT_DETECTION_*_IP notifications. (§5.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-5.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> Ze never falls back from UDP to TCP; internal/component/ike/transport/udp.go</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-6.1-1">RFC9329-6.1-1</code></td><td colspan="3"><span class="rfc-subject">The first bytes sent on the TCP stream MUST be the stream prefix value (Section 4). (§6.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-6.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> Ze opens no TCP stream; internal/component/ike/transport/udp.go</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-6.1-2">RFC9329-6.1-2</code></td><td colspan="3"><span class="rfc-subject">The TCP Responder MUST wait for the entire stream prefix to be received on the stream before trying to parse out any IKE or ESP messages. (§6.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-6.1-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> Ze accepts no TCP stream; internal/component/ike/transport/udp.go</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-6.1-3">RFC9329-6.1-3</code></td><td colspan="3"><span class="rfc-subject">Since new TCP connections may use different IP addresses and/or ports due to NAT mappings or local address or port allocations changing, the TCP Responder MUST allow packets for existing SAs to be received from new source IP addresses and ports. (§6.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-6.1-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> Ze accepts no TCP connection for an existing SA; internal/component/ike/transport/udp.go</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-6.1-4">RFC9329-6.1-4</code></td><td colspan="3"><span class="rfc-subject">Note that the IPv6 Flow-ID header MUST remain constant when a new TCP connection is created to avoid ECMP load balancing. (§6.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-6.1-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> Ze creates no TCP connection, so no Flow Label is chosen for one; internal/component/ike/transport/udp.go</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-6.1-5">RFC9329-6.1-5</code></td><td colspan="3"><span class="rfc-subject">A peer MUST discard a partially received message due to a broken connection. (§6.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-6.1-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> Ze reassembles no message from a TCP stream; internal/component/ike/transport/udp.go</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-6.1-6">RFC9329-6.1-6</code></td><td colspan="3"><span class="rfc-subject">Whenever the TCP Originator opens a new TCP connection to be used for an existing IKE SA, it MUST send the stream prefix first, before any IKE or ESP messages. (§6.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-6.1-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> Ze opens no TCP connection for an IKE SA; internal/component/ike/transport/udp.go</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-6.1-7">RFC9329-6.1-7</code></td><td colspan="3"><span class="rfc-subject">Multiple IKE SAs MUST NOT share a single TCP connection, unless one is a rekey of an existing IKE SA, in which case there will temporarily be two IKE SAs on the same TCP connection. (§6.1)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>6.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-6.1-7">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> unproven rather than known divergent. Ze carries no IKE SA over TCP, so none share a connection, but no test proves it; internal/component/ike/transport/udp.go</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-6.1-8">RFC9329-6.1-8</code></td><td colspan="3"><span class="rfc-subject">The TCP Responder MUST NOT accept any messages for the existing IKE session on a new incoming connection, unless that connection begins with the stream prefix. (§6.1)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>6.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-6.1-8">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> unproven rather than known divergent. Ze accepts no incoming TCP connection at all, but no test proves it; internal/component/ike/transport/udp.go</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-6.1-9">RFC9329-6.1-9</code></td><td colspan="3"><span class="rfc-subject">If there is instead a syntax issue within an IKE message, an implementation MUST send the INVALID_SYNTAX notify payload and tear down the IKE SA as usual, rather than tearing down the TCP connection directly. (§6.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-6.1-9">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> Ze receives no IKE message over TCP, so the TCP-specific choice between INVALID_SYNTAX and closing the connection never arises; internal/component/ike/transport/udp.go</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-6.2-1">RFC9329-6.2-1</code></td><td colspan="3"><span class="rfc-subject">If a new TCP connection for the IKE SA is established while the exchange Initiator is waiting for a response, the Initiator MUST retransmit its request over this connection and continue to wait for a response. (§6.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-6.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> Ze has no TCP connection on which to retransmit; internal/component/ike/transport/udp.go</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-6.3-1">RFC9329-6.3-1</code></td><td colspan="3"><span class="rfc-subject">Note that the Responder MUST NOT include the Initiator&#39;s TCP port into the Cookie calculation (*) since the Cookie can be returned over a new TCP connection with a different port. (§6.3)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>6.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-6.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> Ze computes no cookie for a TCP-encapsulated IKE_SA_INIT, because none arrives over TCP; internal/component/ike/transport/udp.go</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-6.6-1">RFC9329-6.6-1</code></td><td colspan="3"><span class="rfc-subject">Any implementation using TCP encapsulation MUST silently drop incoming NAT-keepalive packets and not treat them as errors. (§6.6)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.6</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-6.6-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> Ze receives no TCP-encapsulated stream, so it has no TCP NAT-keepalive handling; internal/component/ike/transport/udp.go</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-6.7-1">RFC9329-6.7-1</code></td><td colspan="3"><span class="rfc-subject">These MUST NOT be used as indications of IKE peer liveness, for which purpose the standard IKEv2 mechanism of exchanging (usually empty) INFORMATIONAL messages is used (see Section 1.4 of [RFC7296]). (§6.7)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>6.7</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-6.7-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> unproven rather than known divergent. Ze uses no TCP or TLS keep-alive, so none stands in for IKE liveness, but no test proves it; internal/component/ike/transport/udp.go</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-7.1-1">RFC9329-7.1-1</code></td><td colspan="3"><span class="rfc-subject">Implementations that implement both MOBIKE and TCP encapsulation within the same connection configuration MUST support dynamically enabling and disabling TCP encapsulation as interfaces change. (§7.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>7.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-7.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> Ze implements MOBIKE but not TCP encapsulation, so MOBIKE never switches an SA to or from TCP; internal/component/ike/transport/udp.go</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-7.1-2">RFC9329-7.1-2</code></td><td colspan="3"><span class="rfc-subject">A new INFORMATIONAL exchange MUST NOT be started in this situation. (§7.1)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>7.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-7.1-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> the sentence governs a MOBIKE update retried over a new TCP connection, and Ze has no TCP path; internal/component/ike/transport/udp.go</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-7.2-1">RFC9329-7.2-1</code></td><td colspan="3"><span class="rfc-subject">In other words, with the next security gateway, the client MUST first try UDP and then fall back to TCP while establishing a new IKE SA, regardless of the transport of the SA the redirect notification was received over (unless the client&#39;s configuration instructs it to instantly use TCP for the gateway it is redirected to). (§7.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>7.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-7.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> Ze implements neither the RFC 5685 redirect nor a TCP fallback; internal/component/ike/transport/udp.go</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-7.5-1">RFC9329-7.5-1</code></td><td colspan="3"><span class="rfc-subject">Even if fragmentation is negotiated, an implementation SHOULD NOT send fragments when going over a TCP connection, although it MUST support receiving fragments. (§7.5)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>7.5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-7.5-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> Ze receives nothing over TCP, so it cannot receive IKE fragments there; internal/component/ike/transport/udp.go</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-9-1">RFC9329-9-1</code></td><td colspan="3"><span class="rfc-subject">Implementations MUST favor using direct ESP or UDP encapsulation over TCP encapsulation whenever possible. (§9)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>9</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-9-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> unproven rather than known divergent. Ze uses direct ESP or UDP encapsulation only, but no test proves the preference; internal/component/ike/transport/udp.go</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-2-2">RFC9329-2-2</code></td><td colspan="3"><span class="rfc-subject">Since TCP encapsulation of IKE and IPsec packets adds overhead and has potential performance trade-offs compared to direct or UDP- encapsulated SAs (as described in Section 9), implementations SHOULD prefer ESP direct or UDP-encapsulated SAs over TCP-encapsulated SAs when possible. (§2)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-2-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-3-2">RFC9329-3-2</code></td><td colspan="3"><span class="rfc-subject">Although a TCP stream may be able to send very long messages, implementations SHOULD limit message lengths to match the lengths used for UDP encapsulation of ESP messages. (§3)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-3-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-5.1-2">RFC9329-5.1-2</code></td><td colspan="3"><span class="rfc-subject">If an Initiator implementation has no prior knowledge about the network it is on and the status of UDP on that network, it SHOULD always attempt to negotiate IKE over UDP first. (§5.1)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>5.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-5.1-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-6.1-10">RFC9329-6.1-10</code></td><td colspan="3"><span class="rfc-subject">In order to close an IKE session, either the Initiator or Responder SHOULD gracefully tear down IKE SAs with DELETE payloads. (§6.1)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>6.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-6.1-10">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-6.1-11">RFC9329-6.1-11</code></td><td colspan="3"><span class="rfc-subject">Once the SA has been deleted, the TCP Originator SHOULD close the TCP connection if it does not intend to use the connection for another IKE session to the TCP Responder. (§6.1)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>6.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-6.1-11">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-6.1-13">RFC9329-6.1-13</code></td><td colspan="3"><span class="rfc-subject">If a DELETE payload has not been sent, both sides SHOULD maintain the state for their SAs for the standard lifetime or timeout period. (§6.1)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>6.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-6.1-13">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-6.1-14">RFC9329-6.1-14</code></td><td colspan="3"><span class="rfc-subject">If either the TCP Originator or TCP Responder detects corruption on a connection that was started with a valid stream prefix, it SHOULD close the TCP connection. (§6.1)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>6.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-6.1-14">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-6.1-15">RFC9329-6.1-15</code></td><td colspan="3"><span class="rfc-subject">Implementations SHOULD NOT tear down a connection if only a few consecutive ESP packets have unknown SPIs since the SPI databases may be momentarily out of sync. (§6.1)</span></td></tr>
+<tr><td></td>
+<td>SHOULD NOT</td>
+<td>6.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-6.1-15">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-6.1-16">RFC9329-6.1-16</code></td><td colspan="3"><span class="rfc-subject">A TCP Originator SHOULD only open one TCP connection per IKE SA, over which it sends all of the corresponding IKE and ESP messages. (§6.1)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>6.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-6.1-16">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-6.1-17">RFC9329-6.1-17</code></td><td colspan="3"><span class="rfc-subject">As with TCP Originators, a TCP Responder SHOULD send packets for an IKE SA and its Child SAs over only one TCP connection at any given time. (§6.1)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>6.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-6.1-17">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-6.1-18">RFC9329-6.1-18</code></td><td colspan="3"><span class="rfc-subject">It SHOULD choose the TCP connection on which it last received a valid and decryptable IKE or ESP message. (§6.1)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>6.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-6.1-18">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-6.1-19">RFC9329-6.1-19</code></td><td colspan="3"><span class="rfc-subject">Since a connection may be broken and a new connection re-established by the TCP Originator without the TCP Responder being aware, a TCP Responder SHOULD accept receiving IKE and ESP messages on both old and new connections until the old connection is closed by the TCP Originator. (§6.1)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>6.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-6.1-19">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-6.2-2">RFC9329-6.2-2</code></td><td colspan="3"><span class="rfc-subject">The exchange Initiator SHOULD NOT retransmit request message (*); if no response is received within some reasonable period of time, the IKE SA is deleted. (§6.2)</span></td></tr>
+<tr><td></td>
+<td>SHOULD NOT</td>
+<td>6.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-6.2-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-6.3-2">RFC9329-6.3-2</code></td><td colspan="3"><span class="rfc-subject">The exchange Responder SHOULD NOT send an IKEv2 Cookie request without an accompanied Puzzle; implementations might choose to have exceptions to this for cases like mitigating TCP sequence number attacks. (§6.3)</span></td></tr>
+<tr><td></td>
+<td>SHOULD NOT</td>
+<td>6.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-6.3-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-6.3-3">RFC9329-6.3-3</code></td><td colspan="3"><span class="rfc-subject">If the Responder chooses to send a Cookie request (possibly along with Puzzle request), then the TCP connection that the IKE_SA_INIT request message was received over SHOULD be closed after the Responder sends its reply and no repeated requests are received within some short period of time to keep the Responder stateless (see Section 6.3.1). (§6.3)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>6.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-6.3-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-6.4-1">RFC9329-6.4-1</code></td><td colspan="3"><span class="rfc-subject">Thus, in the case of TCP encapsulation, an Initiator SHOULD NOT wait for additional messages in case it receives an error notification from the Responder in the IKE_SA_INIT exchange. (§6.4)</span></td></tr>
+<tr><td></td>
+<td>SHOULD NOT</td>
+<td>6.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-6.4-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-6.4-2">RFC9329-6.4-2</code></td><td colspan="3"><span class="rfc-subject">In the IKE_SA_INIT exchange, if the Responder returns an error notification that implies a recovery action from the Initiator (such as INVALID_KE_PAYLOAD or INVALID_MAJOR_VERSION, see Section 2.21.1 of [RFC7296]), then the Responder SHOULD NOT close the TCP connection immediately in anticipation of the fact that the Initiator will repeat the request with corrected parameters. (§6.4)</span></td></tr>
+<tr><td></td>
+<td>SHOULD NOT</td>
+<td>6.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-6.4-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-6.5-1">RFC9329-6.5-1</code></td><td colspan="3"><span class="rfc-subject">IKE_SA_INIT packets sent on a TCP connection SHOULD include these payloads with the same content as when sending over UDP and SHOULD use the applicable TCP ports when creating and checking the SHA-1 digests. (§6.5)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>6.5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-6.5-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-6.6-2">RFC9329-6.6-2</code></td><td colspan="3"><span class="rfc-subject">In general, TCP port mappings are maintained by NATs longer than UDP port mappings, so IPsec ESP NAT-keepalive packets [RFC3948] SHOULD NOT be sent when using TCP encapsulation. (§6.6)</span></td></tr>
+<tr><td></td>
+<td>SHOULD NOT</td>
+<td>6.6</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-6.6-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-7.1-3">RFC9329-7.1-3</code></td><td colspan="3"><span class="rfc-subject">When a MOBIKE-enabled Initiator changes networks, the INFORMATIONAL exchange with the UPDATE_SA_ADDRESSES notification SHOULD be initiated first over UDP before attempting over TCP. (§7.1)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>7.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-7.1-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-7.1-4">RFC9329-7.1-4</code></td><td colspan="3"><span class="rfc-subject">If the TCP transport was used for the previous network connection, the old TCP connection SHOULD be closed by the Initiator once MOBIKE finishes migration to a new connection (either TCP or UDP). (§7.1)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>7.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-7.1-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-7.1-5">RFC9329-7.1-5</code></td><td colspan="3"><span class="rfc-subject">In the case of TCP, the NO_NATS_ALLOWED notification SHOULD be ignored because TCP generally has no problems with NAT boxes. (§7.1)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>7.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-7.1-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-7.1-6">RFC9329-7.1-6</code></td><td colspan="3"><span class="rfc-subject">In the case of TCP encapsulation, this check has little value since a TCP handshake proves the routability of the TCP Originator&#39;s address; thus, the Return Routability Check SHOULD NOT be performed. (§7.1)</span></td></tr>
+<tr><td></td>
+<td>SHOULD NOT</td>
+<td>7.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-7.1-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-7.3-1">RFC9329-7.3-1</code></td><td colspan="3"><span class="rfc-subject">Since network conditions may change while the client is inactive, the fact that TCP encapsulation was used in an old SA SHOULD NOT affect which transport is used during session resumption. (§7.3)</span></td></tr>
+<tr><td></td>
+<td>SHOULD NOT</td>
+<td>7.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-7.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-7.4-1">RFC9329-7.4-1</code></td><td colspan="3"><span class="rfc-subject">This document makes the following recommendation: if support for High Availability in IKEv2 is negotiated and TCP transport is used, a client that is a TCP Originator SHOULD periodically send IKEv2 messages (e.g., by initiating liveness check exchange) whenever there is no IKEv2 or ESP traffic. (§7.4)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>7.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-7.4-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-7.5-2">RFC9329-7.5-2</code></td><td colspan="3"><span class="rfc-subject">If an implementation supports both MOBIKE and IKE fragmentation, it SHOULD negotiate IKE fragmentation over a TCP-encapsulated session in case the session switches to UDP encapsulation on another network. (§7.5)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>7.5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-7.5-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-8-1">RFC9329-8-1</code></td><td colspan="3"><span class="rfc-subject">If the IKE implementation has its own minimal implementation of TCP, it SHOULD still use common TCP behaviors to avoid being dropped by middleboxes. (§8)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>8</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-8-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-9.3-1">RFC9329-9.3-1</code></td><td colspan="3"><span class="rfc-subject">Individual packets SHOULD NOT use different markings than the rest of the connection since packets with different priorities may be routed differently and cause unnecessary delays in the connection. (§9.3)</span></td></tr>
+<tr><td></td>
+<td>SHOULD NOT</td>
+<td>9.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-9.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-9.4-1">RFC9329-9.4-1</code></td><td colspan="3"><span class="rfc-subject">A TCP connection used for IKE encapsulation SHOULD negotiate its MSS in order to avoid unnecessary fragmentation of packets. (§9.4)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>9.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-9.4-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-9.5-1">RFC9329-9.5-1</code></td><td colspan="3"><span class="rfc-subject">Implementations SHOULD follow the ECN compatibility mode for tunnel ingress as described in [RFC6040]. (§9.5)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>9.5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-9.5-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-10-2">RFC9329-10-2</code></td><td colspan="3"><span class="rfc-subject">Implementations SHOULD limit the attempts to resync, because if the injection attack is ongoing, then there is a high probability that the resync process will not succeed or will quickly come under attack again. (§10)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>10</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-10-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-10-3">RFC9329-10-3</code></td><td colspan="3"><span class="rfc-subject">Therefore, implementations SHOULD make sure that IKE session state persists even if the underlying TCP connection is torn down. (§10)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>10</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-10-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-11-1">RFC9329-11-1</code></td><td colspan="3"><span class="rfc-subject">This port SHOULD be used for TCP-encapsulated IKE and ESP as described in this document. (§11)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>11</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-11-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-a-1">RFC9329-A-1</code></td><td colspan="3"><span class="rfc-subject">The security of the IKE session is entirely derived from the IKE negotiation and key establishment and not from the TLS session (which, in this context, is only used for encapsulation purposes); therefore, when TLS is used on the TCP connection, both the TCP Originator and the TCP Responder SHOULD allow the NULL cipher to be selected for performance reasons. (§A)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>A</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-A-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-a-2">RFC9329-A-2</code></td><td colspan="3"><span class="rfc-subject">It is RECOMMENDED to follow [RFC9325] when selecting parameters for TLS. (§A)</span></td></tr>
+<tr><td></td>
+<td>RECOMMENDED</td>
+<td>A</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-A-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-b.1-1">RFC9329-B.1-1</code></td><td colspan="3"><span class="rfc-subject">During the TLS handshake, the server SHOULD NOT request the client&#39;s certificate since authentication is handled as part of IKE negotiation. (§B.1)</span></td></tr>
+<tr><td></td>
+<td>SHOULD NOT</td>
+<td>B.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-B.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-b.3-1">RFC9329-B.3-1</code></td><td colspan="3"><span class="rfc-subject">The client SHOULD attempt TLS session resumption if it has previously established a session with the server. (§B.3)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>B.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-B.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-b.3-2">RFC9329-B.3-2</code></td><td colspan="3"><span class="rfc-subject">If MOBIKE is being used, the Initiator SHOULD send an UPDATE_SA_ADDRESSES message. (§B.3)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>B.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-B.3-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-5-3">RFC9329-5-3</code></td><td colspan="3"><span class="rfc-subject">Initiators MAY use TCP encapsulation for any IKE session to a peer that is configured to support TCP encapsulation, although it is recommended that Initiators only use TCP encapsulation when traffic over UDP is blocked. (§5)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-5-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-6.1-12">RFC9329-6.1-12</code></td><td colspan="3"><span class="rfc-subject">If the TCP connection is no longer associated with any active IKE SA, the TCP Responder MAY close the connection to clean up IKE resources if the TCP Originator didn&#39;t close it within some reasonable period of time (e.g., a few seconds). (§6.1)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>6.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-6.1-12">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-6.1-20">RFC9329-6.1-20</code></td><td colspan="3"><span class="rfc-subject">A TCP Responder MAY close a TCP connection that it perceives as idle and extraneous (one previously used for IKE and ESP messages that has been replaced by a new connection). (§6.1)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>6.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-6.1-20">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-6.5-2">RFC9329-6.5-2</code></td><td colspan="3"><span class="rfc-subject">Implementations MAY use the information that a NAT is present to influence keepalive timer values. (§6.5)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>6.5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-6.5-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-6.7-2">RFC9329-6.7-2</code></td><td colspan="3"><span class="rfc-subject">Note that, depending on the configuration of TCP and TLS on the connection, TCP keep-alives [RFC1122] and TLS keep-alives [RFC6520] MAY be used. (§6.7)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>6.7</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-6.7-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9329-10-1">RFC9329-10-1</code></td><td colspan="3"><span class="rfc-subject">To avoid performance degradation caused by closing and re-creating TCP connections, implementations MAY alternatively try to resync after they receive unknown SPIs by searching the TCP stream for a 64-bit binary vector consisting of a known SPI in the first 32 bits and a valid Sequence Number for this SPI in the second 32 bits. (§10)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>10</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9329-10-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Gaps and untested MUSTs</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><a href="#rfc9329-1.2-1"><code>RFC9329-1.2-1</code></a> If an IKE SA is rekeyed one or more times, the TCP Originator MUST remain the peer that originally initiated the first IKE SA. (§1.2)</td>
+<td>{gap}, no test</td>
+<td>Ze has no TCP connection and no TCP Originator role; internal/component/ike/transport/udp.go::newTransport opens UDP only; internal/component/ike/transport/udp.go</td>
+</tr>
+<tr><td><a href="#rfc9329-2-1"><code>RFC9329-2-1</code></a> Compliant implementations MUST support TCP encapsulation on TCP port 4500, which is reserved for IPsec NAT traversal. (§2)</td>
+<td>{gap}, no test</td>
+<td>Ze does not listen on or connect to TCP port 4500; internal/component/ike/transport/udp.go::newTransport binds a UDP socket and no TCP transport exists under internal/component/ike/; internal/component/ike/transport/udp.go</td>
+</tr>
+<tr><td><a href="#rfc9329-3-1"><code>RFC9329-3-1</code></a> Empty messages (where the Length field equals 2) MUST be silently ignored by receiver. (§3)</td>
+<td>{gap}, no test</td>
+<td>Ze parses no Length-framed TCP stream; internal/component/ike/transport/udp.go</td>
+</tr>
+<tr><td><a href="#rfc9329-3.1-1"><code>RFC9329-3.1-1</code></a> The value in the Length field MUST NOT be 0 or 1. (§3.1)</td>
+<td>{gap}, no test</td>
+<td>Ze writes no TCP-encapsulated IKE message; internal/component/ike/transport/udp.go</td>
+</tr>
+<tr><td><a href="#rfc9329-3.1-2"><code>RFC9329-3.1-2</code></a> The receiver MUST treat these values as fatal errors and MUST close the TCP connection. (§3.1)</td>
+<td>{gap}, no test</td>
+<td>Ze reads no TCP-encapsulated IKE message and holds no TCP connection to close; internal/component/ike/transport/udp.go</td>
+</tr>
+<tr><td><a href="#rfc9329-3.2-1"><code>RFC9329-3.2-1</code></a> The Security Parameter Index (SPI) field [RFC7296] in the ESP header MUST NOT be a zero value. (§3.2)</td>
+<td>{gap}, no test</td>
+<td>Ze sends no ESP packet over TCP, so no TCP-encapsulated ESP header exists to carry an SPI; internal/component/ike/transport/udp.go</td>
+</tr>
+<tr><td><a href="#rfc9329-3.2-2"><code>RFC9329-3.2-2</code></a> The value in the Length field MUST NOT be 0 or 1. (§3.2)</td>
+<td>{gap}, no test</td>
+<td>Ze writes no TCP-encapsulated ESP packet; internal/component/ike/transport/udp.go</td>
+</tr>
+<tr><td><a href="#rfc9329-3.2-3"><code>RFC9329-3.2-3</code></a> The receiver MUST treat these values as fatal errors and MUST close TCP connection. (§3.2)</td>
+<td>{gap}, no test</td>
+<td>Ze reads no TCP-encapsulated ESP packet and holds no TCP connection to close; internal/component/ike/transport/udp.go</td>
+</tr>
+<tr><td><a href="#rfc9329-4-1"><code>RFC9329-4-1</code></a> Each stream of bytes used for IKE and IPsec encapsulation MUST begin with a fixed sequence of 6 bytes as a magic value, containing the characters &#34;IKETCP&#34; as ASCII values. (§4)</td>
+<td>{gap}, no test</td>
+<td>Ze sends and checks no IKETCP stream prefix; internal/component/ike/transport/udp.go</td>
+</tr>
+<tr><td><a href="#rfc9329-5-1"><code>RFC9329-5-1</code></a> If a Responder is configured to accept and is allowed to use TCP encapsulation, it MUST listen on the configured port(s) in case any peers will initiate new IKE sessions. (§5)</td>
+<td>{gap}, no test</td>
+<td>Ze has no TCP encapsulation configuration and no TCP listener; internal/component/ike/transport/udp.go::newTransport; internal/component/ike/transport/udp.go</td>
+</tr>
+<tr><td><a href="#rfc9329-5-2"><code>RFC9329-5-2</code></a> If TCP encapsulation is being used for a specific IKE SA, all IKE messages for that IKE SA and ESP packets for its Child SAs MUST be sent over a TCP connection until the SA is deleted or IKEv2 Mobility and Multihoming (MOBIKE) is used to change the SA endpoints and/or the encapsulation protocol. (§5)</td>
+<td>{gap}, no test</td>
+<td>no IKE SA of Ze&#39;s ever uses TCP encapsulation; internal/component/ike/transport/udp.go</td>
+</tr>
+<tr><td><a href="#rfc9329-5.1-1"><code>RFC9329-5.1-1</code></a> When switching from UDP to TCP, a new IKE_SA_INIT exchange MUST be initiated with the Initiator&#39;s new SPI and with recalculated content of NAT_DETECTION_*_IP notifications. (§5.1)</td>
+<td>{gap}, no test</td>
+<td>Ze never falls back from UDP to TCP; internal/component/ike/transport/udp.go</td>
+</tr>
+<tr><td><a href="#rfc9329-6.1-1"><code>RFC9329-6.1-1</code></a> The first bytes sent on the TCP stream MUST be the stream prefix value (Section 4). (§6.1)</td>
+<td>{gap}, no test</td>
+<td>Ze opens no TCP stream; internal/component/ike/transport/udp.go</td>
+</tr>
+<tr><td><a href="#rfc9329-6.1-2"><code>RFC9329-6.1-2</code></a> The TCP Responder MUST wait for the entire stream prefix to be received on the stream before trying to parse out any IKE or ESP messages. (§6.1)</td>
+<td>{gap}, no test</td>
+<td>Ze accepts no TCP stream; internal/component/ike/transport/udp.go</td>
+</tr>
+<tr><td><a href="#rfc9329-6.1-3"><code>RFC9329-6.1-3</code></a> Since new TCP connections may use different IP addresses and/or ports due to NAT mappings or local address or port allocations changing, the TCP Responder MUST allow packets for existing SAs to be received from new source IP addresses and ports. (§6.1)</td>
+<td>{gap}, no test</td>
+<td>Ze accepts no TCP connection for an existing SA; internal/component/ike/transport/udp.go</td>
+</tr>
+<tr><td><a href="#rfc9329-6.1-4"><code>RFC9329-6.1-4</code></a> Note that the IPv6 Flow-ID header MUST remain constant when a new TCP connection is created to avoid ECMP load balancing. (§6.1)</td>
+<td>{gap}, no test</td>
+<td>Ze creates no TCP connection, so no Flow Label is chosen for one; internal/component/ike/transport/udp.go</td>
+</tr>
+<tr><td><a href="#rfc9329-6.1-5"><code>RFC9329-6.1-5</code></a> A peer MUST discard a partially received message due to a broken connection. (§6.1)</td>
+<td>{gap}, no test</td>
+<td>Ze reassembles no message from a TCP stream; internal/component/ike/transport/udp.go</td>
+</tr>
+<tr><td><a href="#rfc9329-6.1-6"><code>RFC9329-6.1-6</code></a> Whenever the TCP Originator opens a new TCP connection to be used for an existing IKE SA, it MUST send the stream prefix first, before any IKE or ESP messages. (§6.1)</td>
+<td>{gap}, no test</td>
+<td>Ze opens no TCP connection for an IKE SA; internal/component/ike/transport/udp.go</td>
+</tr>
+<tr><td><a href="#rfc9329-6.1-7"><code>RFC9329-6.1-7</code></a> Multiple IKE SAs MUST NOT share a single TCP connection, unless one is a rekey of an existing IKE SA, in which case there will temporarily be two IKE SAs on the same TCP connection. (§6.1)</td>
+<td>{gap}, no test</td>
+<td>unproven rather than known divergent. Ze carries no IKE SA over TCP, so none share a connection, but no test proves it; internal/component/ike/transport/udp.go</td>
+</tr>
+<tr><td><a href="#rfc9329-6.1-8"><code>RFC9329-6.1-8</code></a> The TCP Responder MUST NOT accept any messages for the existing IKE session on a new incoming connection, unless that connection begins with the stream prefix. (§6.1)</td>
+<td>{gap}, no test</td>
+<td>unproven rather than known divergent. Ze accepts no incoming TCP connection at all, but no test proves it; internal/component/ike/transport/udp.go</td>
+</tr>
+<tr><td><a href="#rfc9329-6.1-9"><code>RFC9329-6.1-9</code></a> If there is instead a syntax issue within an IKE message, an implementation MUST send the INVALID_SYNTAX notify payload and tear down the IKE SA as usual, rather than tearing down the TCP connection directly. (§6.1)</td>
+<td>{gap}, no test</td>
+<td>Ze receives no IKE message over TCP, so the TCP-specific choice between INVALID_SYNTAX and closing the connection never arises; internal/component/ike/transport/udp.go</td>
+</tr>
+<tr><td><a href="#rfc9329-6.2-1"><code>RFC9329-6.2-1</code></a> If a new TCP connection for the IKE SA is established while the exchange Initiator is waiting for a response, the Initiator MUST retransmit its request over this connection and continue to wait for a response. (§6.2)</td>
+<td>{gap}, no test</td>
+<td>Ze has no TCP connection on which to retransmit; internal/component/ike/transport/udp.go</td>
+</tr>
+<tr><td><a href="#rfc9329-6.3-1"><code>RFC9329-6.3-1</code></a> Note that the Responder MUST NOT include the Initiator&#39;s TCP port into the Cookie calculation (*) since the Cookie can be returned over a new TCP connection with a different port. (§6.3)</td>
+<td>{gap}, no test</td>
+<td>Ze computes no cookie for a TCP-encapsulated IKE_SA_INIT, because none arrives over TCP; internal/component/ike/transport/udp.go</td>
+</tr>
+<tr><td><a href="#rfc9329-6.6-1"><code>RFC9329-6.6-1</code></a> Any implementation using TCP encapsulation MUST silently drop incoming NAT-keepalive packets and not treat them as errors. (§6.6)</td>
+<td>{gap}, no test</td>
+<td>Ze receives no TCP-encapsulated stream, so it has no TCP NAT-keepalive handling; internal/component/ike/transport/udp.go</td>
+</tr>
+<tr><td><a href="#rfc9329-6.7-1"><code>RFC9329-6.7-1</code></a> These MUST NOT be used as indications of IKE peer liveness, for which purpose the standard IKEv2 mechanism of exchanging (usually empty) INFORMATIONAL messages is used (see Section 1.4 of [RFC7296]). (§6.7)</td>
+<td>{gap}, no test</td>
+<td>unproven rather than known divergent. Ze uses no TCP or TLS keep-alive, so none stands in for IKE liveness, but no test proves it; internal/component/ike/transport/udp.go</td>
+</tr>
+<tr><td><a href="#rfc9329-7.1-1"><code>RFC9329-7.1-1</code></a> Implementations that implement both MOBIKE and TCP encapsulation within the same connection configuration MUST support dynamically enabling and disabling TCP encapsulation as interfaces change. (§7.1)</td>
+<td>{gap}, no test</td>
+<td>Ze implements MOBIKE but not TCP encapsulation, so MOBIKE never switches an SA to or from TCP; internal/component/ike/transport/udp.go</td>
+</tr>
+<tr><td><a href="#rfc9329-7.1-2"><code>RFC9329-7.1-2</code></a> A new INFORMATIONAL exchange MUST NOT be started in this situation. (§7.1)</td>
+<td>{gap}, no test</td>
+<td>the sentence governs a MOBIKE update retried over a new TCP connection, and Ze has no TCP path; internal/component/ike/transport/udp.go</td>
+</tr>
+<tr><td><a href="#rfc9329-7.2-1"><code>RFC9329-7.2-1</code></a> In other words, with the next security gateway, the client MUST first try UDP and then fall back to TCP while establishing a new IKE SA, regardless of the transport of the SA the redirect notification was received over (unless the client&#39;s configuration instructs it to instantly use TCP for the gateway it is redirected to). (§7.2)</td>
+<td>{gap}, no test</td>
+<td>Ze implements neither the RFC 5685 redirect nor a TCP fallback; internal/component/ike/transport/udp.go</td>
+</tr>
+<tr><td><a href="#rfc9329-7.5-1"><code>RFC9329-7.5-1</code></a> Even if fragmentation is negotiated, an implementation SHOULD NOT send fragments when going over a TCP connection, although it MUST support receiving fragments. (§7.5)</td>
+<td>{gap}, no test</td>
+<td>Ze receives nothing over TCP, so it cannot receive IKE fragments there; internal/component/ike/transport/udp.go</td>
+</tr>
+<tr><td><a href="#rfc9329-9-1"><code>RFC9329-9-1</code></a> Implementations MUST favor using direct ESP or UDP encapsulation over TCP encapsulation whenever possible. (§9)</td>
+<td>{gap}, no test</td>
+<td>unproven rather than known divergent. Ze uses direct ESP or UDP encapsulation only, but no test proves the preference; internal/component/ike/transport/udp.go</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Proof state</h2>
+<p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
+<h3><a href="#rfc9329-1.2-1"><code>RFC9329-1.2-1</code></a></h3>
+<p>If an IKE SA is rekeyed one or more times, the TCP Originator MUST remain the peer that originally initiated the first IKE SA. (§1.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9329-1.2-1, so no unit is bound to it.</p>
+<h3><a href="#rfc9329-2-1"><code>RFC9329-2-1</code></a></h3>
+<p>Compliant implementations MUST support TCP encapsulation on TCP port 4500, which is reserved for IPsec NAT traversal. (§2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9329-2-1, so no unit is bound to it.</p>
+<h3><a href="#rfc9329-3-1"><code>RFC9329-3-1</code></a></h3>
+<p>Empty messages (where the Length field equals 2) MUST be silently ignored by receiver. (§3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9329-3-1, so no unit is bound to it.</p>
+<h3><a href="#rfc9329-3.1-1"><code>RFC9329-3.1-1</code></a></h3>
+<p>The value in the Length field MUST NOT be 0 or 1. (§3.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9329-3.1-1, so no unit is bound to it.</p>
+<h3><a href="#rfc9329-3.1-2"><code>RFC9329-3.1-2</code></a></h3>
+<p>The receiver MUST treat these values as fatal errors and MUST close the TCP connection. (§3.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9329-3.1-2, so no unit is bound to it.</p>
+<h3><a href="#rfc9329-3.2-1"><code>RFC9329-3.2-1</code></a></h3>
+<p>The Security Parameter Index (SPI) field [RFC7296] in the ESP header MUST NOT be a zero value. (§3.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9329-3.2-1, so no unit is bound to it.</p>
+<h3><a href="#rfc9329-3.2-2"><code>RFC9329-3.2-2</code></a></h3>
+<p>The value in the Length field MUST NOT be 0 or 1. (§3.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9329-3.2-2, so no unit is bound to it.</p>
+<h3><a href="#rfc9329-3.2-3"><code>RFC9329-3.2-3</code></a></h3>
+<p>The receiver MUST treat these values as fatal errors and MUST close TCP connection. (§3.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9329-3.2-3, so no unit is bound to it.</p>
+<h3><a href="#rfc9329-4-1"><code>RFC9329-4-1</code></a></h3>
+<p>Each stream of bytes used for IKE and IPsec encapsulation MUST begin with a fixed sequence of 6 bytes as a magic value, containing the characters &#34;IKETCP&#34; as ASCII values. (§4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9329-4-1, so no unit is bound to it.</p>
+<h3><a href="#rfc9329-5-1"><code>RFC9329-5-1</code></a></h3>
+<p>If a Responder is configured to accept and is allowed to use TCP encapsulation, it MUST listen on the configured port(s) in case any peers will initiate new IKE sessions. (§5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9329-5-1, so no unit is bound to it.</p>
+<h3><a href="#rfc9329-5-2"><code>RFC9329-5-2</code></a></h3>
+<p>If TCP encapsulation is being used for a specific IKE SA, all IKE messages for that IKE SA and ESP packets for its Child SAs MUST be sent over a TCP connection until the SA is deleted or IKEv2 Mobility and Multihoming (MOBIKE) is used to change the SA endpoints and/or the encapsulation protocol. (§5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9329-5-2, so no unit is bound to it.</p>
+<h3><a href="#rfc9329-5.1-1"><code>RFC9329-5.1-1</code></a></h3>
+<p>When switching from UDP to TCP, a new IKE_SA_INIT exchange MUST be initiated with the Initiator&#39;s new SPI and with recalculated content of NAT_DETECTION_*_IP notifications. (§5.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9329-5.1-1, so no unit is bound to it.</p>
+<h3><a href="#rfc9329-6.1-1"><code>RFC9329-6.1-1</code></a></h3>
+<p>The first bytes sent on the TCP stream MUST be the stream prefix value (Section 4). (§6.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9329-6.1-1, so no unit is bound to it.</p>
+<h3><a href="#rfc9329-6.1-2"><code>RFC9329-6.1-2</code></a></h3>
+<p>The TCP Responder MUST wait for the entire stream prefix to be received on the stream before trying to parse out any IKE or ESP messages. (§6.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9329-6.1-2, so no unit is bound to it.</p>
+<h3><a href="#rfc9329-6.1-3"><code>RFC9329-6.1-3</code></a></h3>
+<p>Since new TCP connections may use different IP addresses and/or ports due to NAT mappings or local address or port allocations changing, the TCP Responder MUST allow packets for existing SAs to be received from new source IP addresses and ports. (§6.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9329-6.1-3, so no unit is bound to it.</p>
+<h3><a href="#rfc9329-6.1-4"><code>RFC9329-6.1-4</code></a></h3>
+<p>Note that the IPv6 Flow-ID header MUST remain constant when a new TCP connection is created to avoid ECMP load balancing. (§6.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9329-6.1-4, so no unit is bound to it.</p>
+<h3><a href="#rfc9329-6.1-5"><code>RFC9329-6.1-5</code></a></h3>
+<p>A peer MUST discard a partially received message due to a broken connection. (§6.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9329-6.1-5, so no unit is bound to it.</p>
+<h3><a href="#rfc9329-6.1-6"><code>RFC9329-6.1-6</code></a></h3>
+<p>Whenever the TCP Originator opens a new TCP connection to be used for an existing IKE SA, it MUST send the stream prefix first, before any IKE or ESP messages. (§6.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9329-6.1-6, so no unit is bound to it.</p>
+<h3><a href="#rfc9329-6.1-7"><code>RFC9329-6.1-7</code></a></h3>
+<p>Multiple IKE SAs MUST NOT share a single TCP connection, unless one is a rekey of an existing IKE SA, in which case there will temporarily be two IKE SAs on the same TCP connection. (§6.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9329-6.1-7, so no unit is bound to it.</p>
+<h3><a href="#rfc9329-6.1-8"><code>RFC9329-6.1-8</code></a></h3>
+<p>The TCP Responder MUST NOT accept any messages for the existing IKE session on a new incoming connection, unless that connection begins with the stream prefix. (§6.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9329-6.1-8, so no unit is bound to it.</p>
+<h3><a href="#rfc9329-6.1-9"><code>RFC9329-6.1-9</code></a></h3>
+<p>If there is instead a syntax issue within an IKE message, an implementation MUST send the INVALID_SYNTAX notify payload and tear down the IKE SA as usual, rather than tearing down the TCP connection directly. (§6.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9329-6.1-9, so no unit is bound to it.</p>
+<h3><a href="#rfc9329-6.2-1"><code>RFC9329-6.2-1</code></a></h3>
+<p>If a new TCP connection for the IKE SA is established while the exchange Initiator is waiting for a response, the Initiator MUST retransmit its request over this connection and continue to wait for a response. (§6.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9329-6.2-1, so no unit is bound to it.</p>
+<h3><a href="#rfc9329-6.3-1"><code>RFC9329-6.3-1</code></a></h3>
+<p>Note that the Responder MUST NOT include the Initiator&#39;s TCP port into the Cookie calculation (*) since the Cookie can be returned over a new TCP connection with a different port. (§6.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9329-6.3-1, so no unit is bound to it.</p>
+<h3><a href="#rfc9329-6.6-1"><code>RFC9329-6.6-1</code></a></h3>
+<p>Any implementation using TCP encapsulation MUST silently drop incoming NAT-keepalive packets and not treat them as errors. (§6.6)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9329-6.6-1, so no unit is bound to it.</p>
+<h3><a href="#rfc9329-6.7-1"><code>RFC9329-6.7-1</code></a></h3>
+<p>These MUST NOT be used as indications of IKE peer liveness, for which purpose the standard IKEv2 mechanism of exchanging (usually empty) INFORMATIONAL messages is used (see Section 1.4 of [RFC7296]). (§6.7)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9329-6.7-1, so no unit is bound to it.</p>
+<h3><a href="#rfc9329-7.1-1"><code>RFC9329-7.1-1</code></a></h3>
+<p>Implementations that implement both MOBIKE and TCP encapsulation within the same connection configuration MUST support dynamically enabling and disabling TCP encapsulation as interfaces change. (§7.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9329-7.1-1, so no unit is bound to it.</p>
+<h3><a href="#rfc9329-7.1-2"><code>RFC9329-7.1-2</code></a></h3>
+<p>A new INFORMATIONAL exchange MUST NOT be started in this situation. (§7.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9329-7.1-2, so no unit is bound to it.</p>
+<h3><a href="#rfc9329-7.2-1"><code>RFC9329-7.2-1</code></a></h3>
+<p>In other words, with the next security gateway, the client MUST first try UDP and then fall back to TCP while establishing a new IKE SA, regardless of the transport of the SA the redirect notification was received over (unless the client&#39;s configuration instructs it to instantly use TCP for the gateway it is redirected to). (§7.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9329-7.2-1, so no unit is bound to it.</p>
+<h3><a href="#rfc9329-7.5-1"><code>RFC9329-7.5-1</code></a></h3>
+<p>Even if fragmentation is negotiated, an implementation SHOULD NOT send fragments when going over a TCP connection, although it MUST support receiving fragments. (§7.5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9329-7.5-1, so no unit is bound to it.</p>
+<h3><a href="#rfc9329-9-1"><code>RFC9329-9-1</code></a></h3>
+<p>Implementations MUST favor using direct ESP or UDP encapsulation over TCP encapsulation whenever possible. (§9)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9329-9-1, so no unit is bound to it.</p>
+</section>
+<section><h2>Extraction sign-off</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Reviewer</td>
+<td>claude</td>
+</tr>
+<tr><td>Signed off</td>
+<td>2026-10-26</td>
+</tr>
+<tr><td>Register</td>
+<td>rfc2119</td>
+</tr>
+<tr><td>Source</td>
+<td>rfc/full/rfc9329.txt</td>
+</tr>
+<tr><td>Source fingerprint</td>
+<td>3d8cc0d5a6d18adb</td>
+</tr>
+<tr><td>Record</td>
+<td>rfc/extraction/rfc9329.json</td>
+</tr>
+<tr><td>Mapped sentences</td>
+<td>30</td>
+</tr>
+<tr><td>Declined as scope</td>
+<td>0</td>
+</tr>
+<tr><td>Relocated to a spec, which Ze OWES</td>
+<td>0</td>
+</tr>
+<tr><td>Unclassified</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Sections</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Section</th><th>Name</th><th>Sites</th><th>Disposition</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><code>front</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1.2</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>2</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.1</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.2</code></td>
+<td>not stated</td>
+<td>3</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5.1</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6.1</code></td>
+<td>not stated</td>
+<td>9</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6.2</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6.3</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6.3.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6.4</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6.5</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6.6</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6.7</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6.8</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>7</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>7.1</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>7.2</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>7.3</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>7.4</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>7.5</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>9</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>9.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>9.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>9.3</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>9.4</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>9.5</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>10</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>11</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>12</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>12.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>12.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>A</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>B</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>B.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>B.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>B.3</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>B.4</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Excluded sentences</h3>
+<p>The walk over RFC 9329 declined no sentence: every site it found is mapped to a requirement.</p>
+</section>
+<section><h2>Superseded</h2>
+<p>No document obsoletes RFC 9329, so its obligations are stated where they were written.</p>
+</section>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Debugging</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Quality hub</h2>
+                    <a class="page-sidebar-link" href="../../../quality/">
+                        <span class="page-sidebar-link-label">Quality overview</span>
+                        <small>Return to the verification map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../quality/verify-debugging/">
+                        <span class="page-sidebar-link-label">Verify debugging</span>
+                        <small>How failed checks route to evidence.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Symptom-led debugging for running systems.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                    <a href="../../../legal/">Legal notice</a>
+                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

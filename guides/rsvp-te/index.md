@@ -259,7 +259,7 @@ make-before-break, admission/preemption or complete RFC conformance.
 The source pin is the freeRouter commit that `ZE_SOURCE_COMMIT` names in
 `test/interop-rsvpte/Dockerfile.freertr`. freeRouter publishes no stable
 release, so the pin follows upstream master and is moved at least monthly with
-`./le lab pin bump dockerfile test/interop-rsvpte/Dockerfile.freertr`: the image
+`./le lab pin update dockerfile test/interop-rsvpte/Dockerfile.freertr`: the image
 build refuses a pin more than one month old (see
 `docs/architecture/testing/interop.md`, "Source-built peers").
 `test/interop-rsvpte/Dockerfile.freertr` compiles the upstream Java sources for

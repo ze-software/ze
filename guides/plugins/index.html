@@ -658,9 +658,11 @@ that replays routes toward a peer when it comes up must skip that replay on an
 <code>bgp-adj-rib-in</code> skip it. Routes the peer announced before the attach reach the
 plugin through the ROUTE-REFRESH Ze sends after the up.</p>
 <p>A reload that detaches a plugin sends it a <code>state down</code> for that peer alone,
-and the session stays up for every other plugin. The plugin drops what it holds
+and the session stays up for every other plugin. The down names the
+still-running session as its <code>session-generation</code>, as a real down names the
+session it ended. The plugin drops what it holds
 for the peer. When that plugin is <code>bgp-rs</code>, the other peers lose the routes it
-forwarded from that peer: each is replaced by the best remaining route or
+forwarded from that peer, every one that session wrote included: each is replaced by the best remaining route or
 withdrawn, although the peer's session never went down. A plugin whose grant
 changed receives a down, then an <code>attached</code> up.</p>
 <!-- source: pkg/plugin/rpc/enums.go -- ReasonAttached -->
@@ -763,7 +765,7 @@ BEFORE ze runs (<code>docs/architecture/doctor-and-health-checks.md</code>).</p>
 </tr>
 <tr>
 <td><code>bgp-rs</code></td>
-<td>Route server (forward-all)</td>
+<td>Route server (RFC 7947): forwards each UPDATE, and a client without ADD-PATH is sent the <code>bgp-rib</code>-elected route when sources contest a prefix</td>
 <td><code>receive [ update-received state open-received refresh ] send [ update ]</code></td>
 </tr>
 <tr>
@@ -984,6 +986,11 @@ address. A session whose events named it nothing is selected by no name.</p>
 <td>-- (Config-driven, UDP+TCP listeners)</td>
 </tr>
 <tr>
+<td><code>dnsresolver</code></td>
+<td>LAN DNS resolver (RFC 1035, RFC 2181), configured under <code>service { dns-resolver }</code>: UDP and TCP listeners on the addresses the operator names, an <code>allow-from</code> client prefix list, and an ordered <code>forward server</code> list. A commit is refused for a wildcard listener address, and for an enabled resolver with no <code>allow-from</code> prefix or no forward server. A query from an allowed client with RD set is answered from the cache or forwarded to the upstream servers in order, and SERVFAIL is returned when no upstream gives a usable answer within the timeout and the per-query work budget <!-- source: internal/plugins/dnsresolver/config.go -- parseConfig, checkEnabled --> <!-- source: internal/plugins/dnsresolver/resolve.go -- resolve, forward --></td>
+<td>-- (Config-driven, UDP+TCP listeners)</td>
+</tr>
+<tr>
 <td><code>traffic-usage</code></td>
 <td>eBPF TCX per-(port, protocol) and opt-in per-IP byte accounting (IPv4, monitoring only). Pure-Go assembled eBPF (cilium/ebpf asm.Instructions, no C/clang). Prometheus <code>ze_traffic_usage_*</code> metrics, <code>show traffic usage [name &lt;interface&gt;]</code>. Linux &gt;= 6.6. <a href="../traffic-usage/">Guide</a></td>
 <td>-- (Config-driven, Bus events)</td>
@@ -997,6 +1004,7 @@ address. A session whose events named it nothing is selected by no name.</p>
 <!-- source: internal/plugins/tftpserver/register.go -- tftpserver registration -->
 <!-- source: internal/plugins/geodns/register.go -- geodns registration -->
 <!-- source: internal/plugins/as112/register.go -- as112 registration -->
+<!-- source: internal/plugins/dnsresolver/register.go -- dnsresolver registration -->
 <!-- source: internal/component/iface/register.go -- iface registration -->
 <!-- source: internal/plugins/iface/netlink/register.go -- iface-netlink backend registration -->
 <!-- source: internal/plugins/iface/dhcp/register.go -- iface-dhcp registration -->
@@ -2064,8 +2072,10 @@ backend. Cycles among selected plugins are refused for order-only edges too.</p>
         <footer>
             <div class="footer-inner">
                 <div class="footer-bottom">
+                    <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 12:05 UTC</span>
+                    <a href="../../legal/">Legal notice</a>
+                    <span class="footer-published">Published 27 October 2026 23:56 UTC</span>
                 </div>
             </div>
         </footer>

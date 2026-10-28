@@ -440,9 +440,9 @@ option=<type>:key=value[:key=value...]
 | `env` | `var=<KEY>:value=<V>` | Set environment variable |
 | `skip-os` | `value=<os>[,<os>]` | Skip test on listed GOOS values (e.g., `darwin`, `linux`) |
 | `needs-arch` | `value=<goarch>[,<goarch>]` | Run only on a host whose CPU arch (`GOARCH`) is in the list. On any other host the test is SKIPPED, and the SKIP line names both arches: `SKIP ... -- needs-arch=arm64, host GOARCH=amd64: ...`. A test that builds or boots for a target arch carries it (owner decision 2026-10-13: a target arch is tested only on a CPU of that arch), because Ze builds every kernel on a host of its own arch, with no CPU emulation. Each token must be an arch the kernel builder supports (`kernelbuilder.SupportedArches`, today `amd64` and `arm64`): an empty token, a typo such as `amd46`, a kernel spelling such as `x86_64` or `aarch64`, a missing `value=` or any other key is a parse error on every host. A fixture whose arch is incidental to what it asserts asks for the host's arch instead (`hostKernelArch`, `internal/test/fixture/install_fixture.go`), so it runs everywhere. The `test/parse` suite has its own parser and does not take `needs-arch`. |
-| `needs-linux` | `[caps=<tok>[,<tok>]]` | Linux-only test. It skips on non-Linux hosts and runs in the QEMU guest through `./le test qemu all-tests`. `caps=` declares required capabilities such as `net-admin`, `net-raw`, `bpf`, and `sys-time`; an unavailable capability produces a visible skip. An unknown token, an unknown key or an empty `caps=` is refused on every host. |
+| `needs-linux` | `[caps=<tok>[,<tok>]]` | Linux-only test. It skips on non-Linux hosts and runs in the QEMU guest through `./le test qemu all`. `caps=` declares required capabilities such as `net-admin`, `net-raw`, `bpf`, and `sys-time`; an unavailable capability produces a visible skip. An unknown token, an unknown key or an empty `caps=` is refused on every host. |
 | `needs-path` | `value=<repo-rel-path>[:hint=<cmd>]` | Declares an optional heavyweight artifact. The runner resolves the path against the repository root and prints the native `hint` when the artifact is absent. A malformed or escaping path is a parse error. |
-| `netns-link` | `name=<if>[:address=<cidr>]` | Provisions a dummy interface inside the per-test namespace. The test skips outside the `./le test qemu netns-test` path because the named link must never be created on the host. |
+| `netns-link` | `name=<if>[:address=<cidr>]` | Provisions a dummy interface inside the per-test namespace. The test skips outside the `./le test qemu netns` path because the named link must never be created on the host. |
 | `exclusive` | `group=<name>` | Never run concurrently with another test carrying the same group name. Tests outside the group are unaffected and keep running alongside, so this costs far less wall-clock than dropping a whole suite to `-p 1`. Use it when tests contend for a kernel-global observation surface that unique names or addresses cannot partition: the ddos tests (`group=ddos-flood`) all flood the same loopback interface, and each daemon's detector picks its victim by top-destination-bytes over that interface's counters, so a sibling's concurrent flood is indistinguishable from the test's own. Applies on every platform and in every runner mode, because the contention is a property of the tests rather than of the host. |
 <!-- source: internal/test/runner/record_parse.go -- parseAndAdd, option parsing -->
 <!-- source: internal/test/runner/caps.go -- capsRequired, the caps= token table -->
@@ -495,7 +495,7 @@ sets one variable in the environment of the daemon under test, ze and
 `--dut exabgp` alike, appended after the runner's own variables so a case can
 override one: `api-version-env.ci` writes `option=env:exabgp.api.version=4` to
 hold every script to API 4 from its start. A line naming no key or no `=` is
-refused at discovery. A helper a configuration runs as `le ...` (conf-watchdog)
+refused at discovery. A helper a configuration runs as `le ...`
 reaches the le that runs the suite: that le's directory is first on the daemon's
 PATH, then the ze under test's, and `ZE_LE_BUILD_NAME` is removed, so the named
 build of `./le --name <name>` accepts the call. Those populations are chosen
@@ -608,7 +608,7 @@ option=open:value=paths-limit:family=<f>[,<f>]:limit=<N>
 | `seconds` | 0, or 3 to 65535 | `session_negotiate` takes the smaller of this and ze's `receive-hold-time`, then calls `timers.SetHoldTime`. RFC 4271 Section 4.2. 1 and 2 fail the file |
 | `restart-time` | 0 to 4095 | `grStateManager.onSessionDown` arms the restart timer on it, `runPeer` gives it to `startEORTimer`, and `show bgp peer` prints it. RFC 4724 Section 3 gives the field 12 bits |
 | `stale-time` | 0 to 16777215 | `enterLLGRLocked` arms one timer per family on it. RFC 9494 Section 3 gives the field 24 bits |
-| `limit` | 0 to 65535 | The Max Paths field of the code 76 entry this peer advertises. `Session.filterPathsLimit` drops paths past it, so ze sends this peer no more than `limit` paths for one prefix |
+| `limit` | 0 to 65535 | The Max Paths field of the code 76 entry this peer advertises. `pathsLimitAdmission.filter` drops paths past it, so ze sends this peer no more than `limit` paths for one prefix |
 | `family` | a family name, or a comma-separated list | The `<AFI, SAFI, Flags>` tuples of code 64, the 7-octet tuples of code 71, and the entries of code 76 |
 | `forward-state` | `true` (default) or `false` | The F bit of every tuple. `onSessionReestablished` purges the stale routes of a family whose F bit is clear |
 
@@ -730,6 +730,14 @@ hand-written `hex=` UPDATE from an eBGP peer MUST start its AS_PATH with that
 peer's AS.
 <!-- source: internal/test/peer/message.go -- asPathAttr; defaultRoute -->
 <!-- source: internal/test/peer/open.go -- ebgpSenderAS -->
+
+These two generated-route behaviors include `LOCAL_PREF=100` on iBGP and omit
+LOCAL_PREF on eBGP, including labeled `send-route` UPDATEs. The session kind
+comes from the OPEN exchange, not an option in the fixture. RFC 4271 Section
+5.1.5 requires LOCAL_PREF on internal advertisements and forbids it on external
+advertisements except within confederations. Raw `hex=` injection remains
+unchanged, so a test can still send deliberately malformed attributes.
+<!-- source: internal/test/peer/message.go -- buildIPv4RouteMsg; buildLabeledRouteMsg -->
 
 **Generating one oversize UPDATE (`max-msg`):**
 
@@ -882,7 +890,8 @@ One splitter serves every suite, so a `cmd=` line produces the same argv
 wherever it runs.
 
 The first word selects the program. `ze` is the daemon under test, and
-`le test <name>` runs the harness, which is the runner's own executable. Any
+`le test <name>`, `le mock <name>` or another harness tool such as `le dns query`
+(`docs/functional-tests.md`, "le dns query") runs the harness, which is the runner's own executable. Any
 other head, a retired standalone harness name among them, is no head of the
 runner's: it reaches the `PATH` lookup, finds no program, and fails the step.
 A name that the suite compiled into its temporary directory
@@ -895,8 +904,9 @@ A step that runs an `le` action names the head `le`, never `./le`. An `le`
 head reaches the build the suite chose, as above: the runner's own executable
 when the suite compiled none. `./le` is the
 repository's launcher script, and the runner drops `ZE_LE_BUILD_NAME` from
-every child, so the launcher runs the shared `bin/le`: a suite started with
-`./le --name <build>` would then test an older binary than its own. The
+every child, so the launcher runs the newest shared build of HEAD in
+`bin/builds/`: a suite started with `./le --name <build>` would then test a
+binary built without its working-tree edits. The
 appliance steps that exec `le test qemu ...` rely on this.
 <!-- source: internal/test/runner/runner_exec.go -- binNameLE head resolution -->
 <!-- source: internal/test/runner/harness_exec.go -- ownExecutable, droppedFromChild -->
@@ -1943,7 +1953,7 @@ cap how many are unexplained.
 
 ## Registered engines launched externally
 
-`le test plugin-external <name>` runs a registered engine through a genuine TLS
+`le mock plugin-external <name>` runs a registered engine through a genuine TLS
 connect-back so a test can exercise its external-process refusal or warning.
 Before configuring the engine logger, the launcher calls `crashlog.Flush` to
 restore the stderr pipe managed by the parent daemon. The logger therefore
@@ -2031,13 +2041,24 @@ find them and nothing survives the run. The same names in the checkout land
 beside tracked source: on 2026-09-05 a run left two ed25519 private keys and
 five config files at the repository root, none of them ignored, so a `git add -A`
 from any session would have committed a private key. `fixture.Run` therefore
-reads its own working directory first and exits 1 with the `ZE-OBSERVER-FAIL`
-sentinel when that directory holds the ze `go.mod`
-(`sessionpath.IsRepoRoot`). A driver that needs the checkout reads
-`$ZE_REPO_ROOT`, which the runner exports; it never reads the working directory
-for one.
-<!-- source: internal/test/fixture/fixture.go -- Run, refuseRepoRoot -->
-<!-- test: internal/test/fixture/fixture_test.go -- TestRunRefusesADriverStartedInTheCheckoutRoot, TestRunDispatchesADriverStartedOutsideTheCheckoutRoot -->
+reads its own working directory first and exits 1 when that directory holds the
+ze `go.mod` (`sessionpath.IsRepoRoot`). The runner never starts a fixture
+there, so the refusal is written for a person who typed
+`./le test fixture <name>` at the root: plain text, not a `ZE-OBSERVER-FAIL`
+line, ending with the command that runs each `.ci` test whose step starts the
+fixture, such as `./le test ui ze-help-ai-unchanged`. It reads every
+`test/<dir>/*.ci`, skips `#` comment lines, and asks the one resolver of which
+runner walks a directory (`testfunctional.CIRunnerWords`): the functional suite
+table, then the `le test bgp` directories, then a registered `le test <dir>`
+command. A suite's name is not always its directory (suite `installer` runs
+`test/install/` through `./le test install`), and `test/pppoe/` has a runner
+but no suite row, so the suite table alone misses both. Each command is that
+runner's words before `--all`, then the file's stem. When no `.ci` test starts
+the fixture, it prints the `exec=` step to add instead. A driver that needs the checkout reads `$ZE_REPO_ROOT`, which the
+runner exports; it never reads the working directory for one.
+<!-- source: internal/test/fixture/fixture.go -- Run, refuseRepoRoot, fixtureTestCommands, startsFixture -->
+<!-- source: internal/le/test/functional/cirunner.go -- CIRunnerWords, Suite.OneTestWords -->
+<!-- test: internal/test/fixture/fixture_test.go -- TestRunRefusesADriverStartedInTheCheckoutRoot, TestRunRefusalInTheCheckoutRootNamesTheStepWhenNoTestStartsTheFixture, TestRunDispatchesADriverStartedOutsideTheCheckoutRoot -->
 
 An observer assertion is therefore worth only what its wait is worth: a value
 that a plugin fills asynchronously (the Adj-RIB-In after RPKI validation, the
@@ -2051,7 +2072,7 @@ instead of an embedded Python observer. The runner serializes the parsed steps
 to `engine-steps.json` in the test tmpfs, and links it into the `daemon-N/`
 config directory of every further daemon, because a plugin runs in its daemon's
 config directory; the `.ci` declares the executor as an
-external plugin (`run "le test engine-steps ./engine-steps.json"`), which runs
+external plugin (`run "le mock engine-steps ./engine-steps.json"`), which runs
 the steps from `OnAllPluginsReady` and reports failures via the
 `ZE-OBSERVER-FAIL` sentinel the runner gates on.
 

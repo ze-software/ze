@@ -54,7 +54,10 @@
 <li><a href="#enabling-gnmi">Enabling gNMI</a></li>
 <li><a href="#authentication">Authentication</a></li>
 <li><a href="#tls">TLS</a></li>
-<li><a href="#supported-rpcs">Supported RPCs</a></li>
+<li><a href="#supported-rpcs">Supported RPCs</a>
+<ol>
+<li><a href="#when-a-call-meets-an-internal-defect">When a call meets an internal defect</a></li>
+</ol></li>
 <li><a href="#cli-status">CLI Status</a></li>
 <li><a href="#prometheus-metrics">Prometheus Metrics</a></li>
 <li><a href="#usage-with-gnmic">Usage with gnmic</a></li>
@@ -135,6 +138,19 @@ ze.gnmi.tls.key=/path/to/key.pem
 </tr>
 </tbody>
 </table>
+<h3 id="when-a-call-meets-an-internal-defect">When a call meets an internal defect</h3>
+<p>Every call and every Subscribe stream runs behind a panic boundary, outside the
+token check. If a Ze defect is reached while one is served, only that call or
+stream ends, with status <code>Internal</code> and a message that says so and names the
+<code>ze show crashes</code> command that finds its crash record. A Set that ends this way
+discards its uncommitted edits, so nothing it changed is applied. The listener
+and every other call and stream keep running. The panic is logged, crash
+recorded, and counted in <code>ze_task_panics_total{component="gnmi",task="rpc"}</code>
+and <code>ze_gnmi_errors_total{code="Internal"}</code>
+(<a href="../monitoring/">monitoring</a>).</p>
+<!-- source: internal/component/gnmi/panic_guard.go -- containUnaryPanic, containStreamPanic, endRPCAfterPanic -->
+<!-- source: internal/component/gnmi/server.go -- Serve -->
+<!-- source: internal/component/gnmi/set.go -- Set -->
 <h2 id="cli-status">CLI Status</h2>
 <p>Check gNMI server status from the SSH CLI when <code>ze_gnmi</code> is compiled in:</p>
 <pre><code>show gnmi
@@ -230,8 +246,10 @@ ze.gnmi.tls.key=/path/to/key.pem
         <footer>
             <div class="footer-inner">
                 <div class="footer-bottom">
+                    <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
+                    <a href="../../legal/">Legal notice</a>
+                    <span class="footer-published">Published 27 October 2026 23:56 UTC</span>
                 </div>
             </div>
         </footer>

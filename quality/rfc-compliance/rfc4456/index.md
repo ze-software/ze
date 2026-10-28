@@ -105,12 +105,12 @@ No tracked gap in current source anchors.
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC4456-x-1` | In addition, when a RR reflects a route, it SHOULD NOT modify the following path attributes: NEXT_HOP, AS_PATH, LOCAL_PREF, and MED. (§10) | SHOULD NOT | 10 - Implementation Considerations | **positive:** `unit/verify` [`TestReactorForwardRRInjects`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L178). **negative:** no negative test. **{single-polarity}:** on reflection the RR forwarding path emits only ORIGINATOR_ID and CLUSTER_LIST modifications (internal/component/bgp/reactor/forward_rs.go:337-339) and never a NEXT_HOP/AS_PATH/LOCAL_PREF/MED op, so those four are always carried through in the verbatim wire; there is no RR scenario that modifies them to assert as a negative. The positive is proven byte-identical in TestReactorForwardRRInjects |
-| `RFC4456-8-1` | This attribute is 4 bytes long and it will be created by an RR in reflecting a route. (§8) | MUST | 8 - Avoiding Routing Information Loops | **positive:** `unit/verify` [`TestReactorForwardRRInjects`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L170). **negative:** `unit/verify` [`TestForwardReflectionLeavesAWithdrawalUntouched`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4456_forward_build_withdraw_shape_test.go#L436). **negative:** `unit/verify` [`TestReactorForwardRRPreservesOriginator`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L201). **positive:** `interop/nightly` [`checkReflectorWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L277). **negative:** `interop/nightly` [`checkReflectorWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L278) |
-| `RFC4456-8-2` | When an RR reflects a route, it MUST prepend the local CLUSTER_ID to the CLUSTER_LIST.  If the CLUSTER_LIST is empty, it MUST create a new one. (§8) | MUST | 8 - Avoiding Routing Information Loops | **positive:** `unit/verify` [`TestReactorForwardRRInjects`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L172). **negative:** `unit/verify` [`TestReactorForwardRRPreservesOriginator`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L205). **positive:** `interop/nightly` [`checkReflectorWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L279). **negative:** `interop/nightly` [`checkReflectorWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L280) |
-| `RFC4456-8-3` | A BGP speaker SHOULD NOT create an ORIGINATOR_ID attribute if one already exists. (§8) | SHOULD NOT | 8 - Avoiding Routing Information Loops | **positive:** `unit/verify` [`TestReactorForwardRRInjects`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L174). **negative:** `unit/verify` [`TestReactorForwardRRPreservesOriginator`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L203) |
-| `RFC4456-8-4` | This attribute will carry the BGP Identifier of the originator of the route in the local AS. (§8) | MUST | 8 - Avoiding Routing Information Loops | **positive:** `unit/verify` [`TestRFC4456OriginatorIDIsTheOriginatorsBGPIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4456_originator_id_test.go#L30). **positive:** `unit/verify` [`TestReactorForwardRRPreservesOriginator`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L199). **negative:** `unit/verify` [`TestRFC4456OriginatorIDIsTheOriginatorsBGPIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4456_originator_id_test.go#L31). **negative:** `unit/verify` [`TestReactorForwardRRInjects`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L176) |
-| `RFC4456-x-2` | After the best path is selected, it must do the following depending on the type of peer it is receiving the best path from 1) A route from a Non-Client IBGP peer: Reflect to all the Clients. (§6) | MUST | 6 - Operation | **positive:** `unit/verify` [`TestReactorForwardRRNonClientRule`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L232). **negative:** `unit/verify` [`TestReactorForwardRRNonClientRule`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L234) |
+| `RFC4456-x-1` | In addition, when a RR reflects a route, it SHOULD NOT modify the following path attributes: NEXT_HOP, AS_PATH, LOCAL_PREF, and MED. (§10) | SHOULD NOT | 10 - Implementation Considerations | **positive:** `unit/verify` [`TestReactorForwardRRInjects`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L179). **negative:** no negative test. **{single-polarity}:** on reflection the RR forwarding path emits only ORIGINATOR_ID and CLUSTER_LIST modifications (internal/component/bgp/reactor/forward_rs.go:337-339) and never a NEXT_HOP/AS_PATH/LOCAL_PREF/MED op, so those four are always carried through in the verbatim wire; there is no RR scenario that modifies them to assert as a negative. The positive is proven byte-identical in TestReactorForwardRRInjects |
+| `RFC4456-8-1` | This attribute is 4 bytes long and it will be created by an RR in reflecting a route. (§8) | MUST | 8 - Avoiding Routing Information Loops | **positive:** `unit/verify` [`TestReactorForwardRRInjects`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L171). **negative:** `unit/verify` [`TestForwardReflectionLeavesAWithdrawalUntouched`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4456_forward_build_withdraw_shape_test.go#L436). **negative:** `unit/verify` [`TestReactorForwardRRPreservesOriginator`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L202). **positive:** `interop/nightly` [`checkReflectorWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L278). **negative:** `interop/nightly` [`checkReflectorWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L279) |
+| `RFC4456-8-2` | When an RR reflects a route, it MUST prepend the local CLUSTER_ID to the CLUSTER_LIST.  If the CLUSTER_LIST is empty, it MUST create a new one. (§8) | MUST | 8 - Avoiding Routing Information Loops | **positive:** `unit/verify` [`TestReactorForwardRRInjects`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L173). **negative:** `unit/verify` [`TestReactorForwardRRPreservesOriginator`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L206). **positive:** `interop/nightly` [`checkReflectorWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L280). **negative:** `interop/nightly` [`checkReflectorWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L281) |
+| `RFC4456-8-3` | A BGP speaker SHOULD NOT create an ORIGINATOR_ID attribute if one already exists. (§8) | SHOULD NOT | 8 - Avoiding Routing Information Loops | **positive:** `unit/verify` [`TestReactorForwardRRInjects`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L175). **negative:** `unit/verify` [`TestReactorForwardRRPreservesOriginator`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L204) |
+| `RFC4456-8-4` | This attribute will carry the BGP Identifier of the originator of the route in the local AS. (§8) | MUST | 8 - Avoiding Routing Information Loops | **positive:** `unit/verify` [`TestRFC4456OriginatorIDIsTheOriginatorsBGPIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4456_originator_id_test.go#L30). **positive:** `unit/verify` [`TestReactorForwardRRPreservesOriginator`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L200). **negative:** `unit/verify` [`TestRFC4456OriginatorIDIsTheOriginatorsBGPIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4456_originator_id_test.go#L31). **negative:** `unit/verify` [`TestReactorForwardRRInjects`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L177) |
+| `RFC4456-x-2` | After the best path is selected, it must do the following depending on the type of peer it is receiving the best path from 1) A route from a Non-Client IBGP peer: Reflect to all the Clients. (§6) | MUST | 6 - Operation | **positive:** `unit/verify` [`TestReactorForwardRRNonClientRule`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L233). **negative:** `unit/verify` [`TestReactorForwardRRNonClientRule`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L235) |
 | `RFC4456-8-5` | A router that recognizes the ORIGINATOR_ID attribute SHOULD ignore a route received with its BGP Identifier as the ORIGINATOR_ID. (§8) | SHOULD | 8 - Avoiding Routing Information Loops | **positive:** no positive test. **negative:** no negative test |
 | `RFC4456-8-6` | If the local CLUSTER_ID is found in the CLUSTER_LIST, the advertisement received SHOULD be ignored. (§8) | SHOULD | 8 - Avoiding Routing Information Loops | **positive:** no positive test. **negative:** no negative test |
 | `RFC4456-9-1` | In addition, the following rule SHOULD be inserted between Steps f) and g): a BGP Speaker SHOULD prefer a route with the shorter CLUSTER_LIST length.  The CLUSTER_LIST length is zero if a route does not carry the CLUSTER_LIST attribute. (§9) | SHOULD | 9 - Impact on Route Selection | **positive:** `unit/verify` [`TestBestPath_ClusterListLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L1219). **positive:** `unit/verify` [`TestClusterListEntries`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L1314). **negative:** `unit/verify` [`TestBestPath_ClusterListLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L1225). **positive:** `interop/nightly` [`checkClusterListLengthTieBreak`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc4456.go#L48) |
@@ -131,7 +131,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Test
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestReactorForwardRRInjects`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L178) | unit/verify | unproven |
+| positive | [`TestReactorForwardRRInjects`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L179) | unit/verify | unproven |
 
 ### [`RFC4456-8-1`](#rfc4456-8-1)
 
@@ -141,11 +141,11 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestReactorForwardRRPreservesOriginator`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L201) | unit/verify | unproven |
+| negative | [`TestReactorForwardRRPreservesOriginator`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L202) | unit/verify | unproven |
 | negative | [`TestForwardReflectionLeavesAWithdrawalUntouched`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4456_forward_build_withdraw_shape_test.go#L436) | unit/verify | unproven |
-| negative | [`checkReflectorWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L278) | interop/nightly | unproven |
-| positive | [`TestReactorForwardRRInjects`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L170) | unit/verify | unproven |
-| positive | [`checkReflectorWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L277) | interop/nightly | unproven |
+| negative | [`checkReflectorWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L279) | interop/nightly | unproven |
+| positive | [`TestReactorForwardRRInjects`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L171) | unit/verify | unproven |
+| positive | [`checkReflectorWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L278) | interop/nightly | unproven |
 
 ### [`RFC4456-8-2`](#rfc4456-8-2)
 
@@ -155,10 +155,10 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestReactorForwardRRPreservesOriginator`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L205) | unit/verify | unproven |
-| negative | [`checkReflectorWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L280) | interop/nightly | unproven |
-| positive | [`TestReactorForwardRRInjects`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L172) | unit/verify | unproven |
-| positive | [`checkReflectorWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L279) | interop/nightly | unproven |
+| negative | [`TestReactorForwardRRPreservesOriginator`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L206) | unit/verify | unproven |
+| negative | [`checkReflectorWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L281) | interop/nightly | unproven |
+| positive | [`TestReactorForwardRRInjects`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L173) | unit/verify | unproven |
+| positive | [`checkReflectorWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L280) | interop/nightly | unproven |
 
 ### [`RFC4456-8-3`](#rfc4456-8-3)
 
@@ -168,8 +168,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. nega
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestReactorForwardRRPreservesOriginator`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L203) | unit/verify | unproven |
-| positive | [`TestReactorForwardRRInjects`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L174) | unit/verify | unproven |
+| negative | [`TestReactorForwardRRPreservesOriginator`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L204) | unit/verify | unproven |
+| positive | [`TestReactorForwardRRInjects`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L175) | unit/verify | unproven |
 
 ### [`RFC4456-8-4`](#rfc4456-8-4)
 
@@ -179,9 +179,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Sent
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestReactorForwardRRInjects`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L176) | unit/verify | unproven |
+| negative | [`TestReactorForwardRRInjects`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L177) | unit/verify | unproven |
 | negative | [`TestRFC4456OriginatorIDIsTheOriginatorsBGPIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4456_originator_id_test.go#L31) | unit/verify | revert, verified |
-| positive | [`TestReactorForwardRRPreservesOriginator`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L199) | unit/verify | unproven |
+| positive | [`TestReactorForwardRRPreservesOriginator`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L200) | unit/verify | unproven |
 | positive | [`TestRFC4456OriginatorIDIsTheOriginatorsBGPIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4456_originator_id_test.go#L30) | unit/verify | revert, verified |
 
 ### [`RFC4456-x-2`](#rfc4456-x-2)
@@ -192,8 +192,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. asse
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestReactorForwardRRNonClientRule`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L234) | unit/verify | unproven |
-| positive | [`TestReactorForwardRRNonClientRule`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L232) | unit/verify | unproven |
+| negative | [`TestReactorForwardRRNonClientRule`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L235) | unit/verify | unproven |
+| positive | [`TestReactorForwardRRNonClientRule`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L233) | unit/verify | unproven |
 
 ### [`RFC4456-9-1`](#rfc4456-9-1)
 

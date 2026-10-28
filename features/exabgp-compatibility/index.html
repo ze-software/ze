@@ -63,6 +63,12 @@
 registered in the current binary. An explicit block keeps only the named
 families; migration does not replace ExaBGP's implicit all-family behavior
 with Ze's IPv4-unicast default.</li>
+<li>An ExaBGP per-family ADD-PATH limit (<code>add-path { ipv4 unicast limit 10; }</code>)
+migrates to the receive half of Ze's limit,
+<code>family { ipv4/unicast { limit { receive 10; } } }</code>. ExaBGP's limit is the
+receive request its OPEN advertises (PATHS-LIMIT), and ExaBGP has no
+send-side limit, so the migration writes no <code>send</code> leaf. A family named
+without a limit migrates with no <code>limit</code> container.</li>
 </ul>
 
             </section>
@@ -97,8 +103,10 @@ with Ze's IPv4-unicast default.</li>
         <footer>
             <div class="footer-inner">
                 <div class="footer-bottom">
+                    <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 14:26 UTC</span>
+                    <a href="../../legal/">Legal notice</a>
+                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
                 </div>
             </div>
         </footer>

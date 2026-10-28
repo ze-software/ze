@@ -183,6 +183,15 @@ Ze handles all 7 BMP message types defined in RFC 7854:
 - Requires a nonempty Statistics Report whose count matches its TLVs; unknown stat types and unexpected stat values are ignored
 - Reports Information strings in received order, including duplicates
 - Keeps separate Loc-RIB peer reports for each distinguisher and BGP ID, so an old identity's Peer Down cannot mark its replacement down
+- A Ze defect one router's message reaches ends only that router's session: the
+  connection closes with nothing sent back (RFC 7854 Section 3.2: "No BMP
+  message is ever sent from the monitoring station to the monitored router."),
+  its routes are withdrawn as at any session end, and the other routers'
+  sessions continue. Ze logs it at ERROR with the router, the message type and
+  the stack, counts it in `ze_task_panics_total{component="bmp",task="receive"}`,
+  and writes a crash record that `ze show crashes` lists
+<!-- source: internal/component/bgp/plugins/bmp/bmp.go -- BMPPlugin.handleSession; internal/component/bgp/plugins/bmp/panic_guard.go -- bmpPanics -->
+
 
 ### Sender Behavior
 

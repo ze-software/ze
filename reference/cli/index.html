@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>CLI Reference - Ze</title>
-        <meta name="description" content="Every ze command, generated live from the binary&#39;s own command registry -- 488 commands across 45 groups." />
+        <meta name="description" content="Every ze command, generated live from the binary&#39;s own command registry -- 490 commands across 45 groups." />
         <meta property="og:title" content="CLI Reference - Ze" />
-        <meta property="og:description" content="Every ze command, generated live from the binary&#39;s own command registry -- 488 commands across 45 groups." />
+        <meta property="og:description" content="Every ze command, generated live from the binary&#39;s own command registry -- 490 commands across 45 groups." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="CLI Reference - Ze" />
-        <meta name="twitter:description" content="Every ze command, generated live from the binary&#39;s own command registry -- 488 commands across 45 groups." />
+        <meta name="twitter:description" content="Every ze command, generated live from the binary&#39;s own command registry -- 490 commands across 45 groups." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../assets/vendor/fonts/fonts.css" />
@@ -48,13 +48,13 @@
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Reference</span>
     <h1 id="cli-title">CLI Reference</h1>
-    <p>488 commands across 45 groups, generated straight from <code>ze help command --json</code> -- the same live command registry the binary itself uses, including the pipe operators available to each command. Full machine-readable list: <a href="../../data/cli-commands.json">data/cli-commands.json</a>.</p>
+    <p>490 commands across 45 groups, generated straight from <code>ze help command --json</code> -- the same live command registry the binary itself uses, including the pipe operators available to each command. Full machine-readable list: <a href="../../data/cli-commands.json">data/cli-commands.json</a>.</p>
 </div>
 <div class="cli-reference-layout">
 <aside class="cli-group-nav"><details open><summary>Command groups</summary><nav aria-label="Command groups">
 <a href="#cli-group-clear-bgp">clear bgp <span>4</span></a>
 <a href="#cli-group-clear-l2tp">clear l2tp <span>4</span></a>
-<a href="#cli-group-clear-other">clear (other) <span>23</span></a>
+<a href="#cli-group-clear-other">clear (other) <span>24</span></a>
 <a href="#cli-group-create">create <span>10</span></a>
 <a href="#cli-group-debug">debug <span>4</span></a>
 <a href="#cli-group-delete">delete <span>6</span></a>
@@ -94,7 +94,7 @@
 <a href="#cli-group-show-vpn">show vpn <span>6</span></a>
 <a href="#cli-group-show-vpp">show vpp <span>4</span></a>
 <a href="#cli-group-show-vrrp">show vrrp <span>4</span></a>
-<a href="#cli-group-show-other">show (other) <span>73</span></a>
+<a href="#cli-group-show-other">show (other) <span>74</span></a>
 <a href="#cli-group-system">system <span>8</span></a>
 <a href="#cli-group-update">update <span>16</span></a>
 </nav></details></aside>
@@ -205,7 +205,7 @@ session negotiated is replayed.</span></p><p><span>Task support</span>forbidden:
 <tr id="cmd-clear-l2tp-tunnel-id"><td><code>clear l2tp tunnel id</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Gracefully tear down one L2TP tunnel.<br><code>clear l2tp tunnel id</code></td><td><details class="cli-pipes"><summary>15 operators</summary><div class="cli-pipe-detail"><p><span>Always</span><code>json · ndjson · table · text · yaml · raw · no-more · save</code></p><p><span>With rows</span><code>match · count · first · last · display · fill</code></p><p><span>While streaming</span><code>log</code></p><p><span>Local process only</span><code>save</code></p></div></details></td></tr>
 </tbody></table></details>
 <details class="cli-group" id="cli-group-clear-other" open>
-<summary>clear (other) <span class="cli-group-count">23</span></summary>
+<summary>clear (other) <span class="cli-group-count">24</span></summary>
 <table><thead><tr><th>Command</th><th>Mode</th><th>Description</th><th>Pipes</th></tr></thead><tbody>
 <tr id="cmd-clear-cymru-cache-address"><td><code>clear cymru cache address</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Remove the cached Cymru origin of one IP address.<br><code>clear cymru cache address &lt;ip-address&gt;</code><details class="cli-command-facts"><summary>Arguments and execution</summary><div><p><span>Arguments</span><code>ip-address</code> union, required: yes, any value of this type: IP address to clear. <span class="cmd-arg-help">An IPv4 or IPv6 address. Any spelling of the address finds the
 entry, so 2001:DB8::1 and 2001:db8:0::1 are the same key.</span></p></div></details></td><td><details class="cli-pipes"><summary>15 operators</summary><div class="cli-pipe-detail"><p><span>Always</span><code>json · ndjson · table · text · yaml · raw · no-more · save</code></p><p><span>With rows</span><code>match · count · first · last · display · fill</code></p><p><span>While streaming</span><code>log</code></p><p><span>Local process only</span><code>save</code></p></div></details></td></tr>
@@ -216,6 +216,7 @@ entry, so 2001:DB8::1 and 2001:db8:0::1 are the same key.</span></p></div></deta
 type cached under the name and the answer counts the entries removed.</span><br><code>type</code> enum, required: no, one of <code>A</code> <code>AAAA</code> <code>MX</code> <code>NS</code> <code>TXT</code> <code>CNAME</code> <code>PTR</code>: Optional DNS record type to evict for the named record. <span class="cmd-arg-help">Written after the type keyword, it evicts that one type and leaves
 the other types of the name in place. The answer reports found true or false.</span></p></div></details></td><td><details class="cli-pipes"><summary>15 operators</summary><div class="cli-pipe-detail"><p><span>Always</span><code>json · ndjson · table · text · yaml · raw · no-more · save</code></p><p><span>With rows</span><code>match · count · first · last · display · fill</code></p><p><span>While streaming</span><code>log</code></p><p><span>Local process only</span><code>save</code></p></div></details></td></tr>
 <tr id="cmd-clear-dns-cache-stats"><td><code>clear dns cache stats</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Reset DNS cache hit, miss, eviction, and expiry counters without removing cached entries.<br><code>clear dns cache stats</code></td><td><details class="cli-pipes"><summary>15 operators</summary><div class="cli-pipe-detail"><p><span>Always</span><code>json · ndjson · table · text · yaml · raw · no-more · save</code></p><p><span>With rows</span><code>match · count · first · last · display · fill</code></p><p><span>While streaming</span><code>log</code></p><p><span>Local process only</span><code>save</code></p></div></details></td></tr>
+<tr id="cmd-clear-dns-resolver-cache-all"><td><code>clear dns-resolver cache all</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Empty every LAN DNS resolver cache.<br><code>clear dns-resolver cache all</code></td><td><details class="cli-pipes"><summary>15 operators</summary><div class="cli-pipe-detail"><p><span>Always</span><code>json · ndjson · table · text · yaml · raw · no-more · save</code></p><p><span>With rows</span><code>match · count · first · last · display · fill</code></p><p><span>While streaming</span><code>log</code></p><p><span>Local process only</span><code>save</code></p></div></details></td></tr>
 <tr id="cmd-clear-firewall-domain-group"><td><code>clear firewall domain-group</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Remove the addresses Ze cached for a domain group.<br><code>clear firewall domain-group &lt;name&gt;</code><details class="cli-command-facts"><summary>Arguments and execution</summary><div><p><span>Arguments</span><code>name</code> string, required: yes, any value of this type: Domain group name <span class="cmd-arg-help">A group from the firewall configuration. The cache entries of
 that group&#39;s names are purged, and a name no group carries is an error.</span></p></div></details></td><td><details class="cli-pipes"><summary>15 operators</summary><div class="cli-pipe-detail"><p><span>Always</span><code>json · ndjson · table · text · yaml · raw · no-more · save</code></p><p><span>With rows</span><code>match · count · first · last · display · fill</code></p><p><span>While streaming</span><code>log</code></p><p><span>Local process only</span><code>save</code></p></div></details></td></tr>
 <tr id="cmd-clear-firewall-irr-as-set"><td><code>clear firewall irr as-set</code></td><td><span class="cli-mode cli-mode-daemon">Daemon</span></td><td>Remove the cached IRR prefix-list for an AS-SET.<br><code>clear firewall irr as-set &lt;as-set&gt;</code><details class="cli-command-facts"><summary>Arguments and execution</summary><div><p><span>Arguments</span><code>as-set</code> string, required: yes, any value of this type: AS-SET name <span class="cmd-arg-help">The RPSL set name the update command stored, for example
@@ -1058,7 +1059,7 @@ accepted from a programmatic sender.</span></p></div></details></td><td><details
 <tr id="cmd-show-vrrp-statistics"><td><code>show vrrp statistics</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show per-virtual-router counters.<br><code>show vrrp statistics</code></td><td><details class="cli-pipes"><summary>15 operators</summary><div class="cli-pipe-detail"><p><span>Always</span><code>json · ndjson · table · text · yaml · raw · no-more · save</code></p><p><span>With rows</span><code>match · count · first · last · display · fill</code></p><p><span>While streaming</span><code>log</code></p><p><span>Local process only</span><code>save</code></p></div></details></td></tr>
 </tbody></table></details>
 <details class="cli-group" id="cli-group-show-other" open>
-<summary>show (other) <span class="cli-group-count">73</span></summary>
+<summary>show (other) <span class="cli-group-count">74</span></summary>
 <table><thead><tr><th>Command</th><th>Mode</th><th>Description</th><th>Pipes</th></tr></thead><tbody>
 <tr id="cmd-show-aaa-accounting"><td><code>show aaa accounting</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show AAA accounting counters and any dropped records.<br><code>show aaa accounting</code></td><td><details class="cli-pipes"><summary>15 operators</summary><div class="cli-pipe-detail"><p><span>Always</span><code>json · ndjson · table · text · yaml · raw · no-more · save</code></p><p><span>With rows</span><code>match · count · first · last · display · fill</code></p><p><span>While streaming</span><code>log</code></p><p><span>Local process only</span><code>save</code></p></div></details></td></tr>
 <tr id="cmd-show-announcements"><td><code>show announcements</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>List active on-demand announcements.<br><code>show announcements [tag &lt;tag&gt;] [selector &lt;selector&gt;] [family &lt;family&gt;]</code><details class="cli-command-facts"><summary>Arguments and execution</summary><div><p><span>Arguments</span><code>tag</code> string, required: no, any value of this type: Show only announcements carrying this tag key <span class="cmd-arg-help">The value is a tag key, compared as text with the key each announcement was
@@ -1114,6 +1115,7 @@ hold is an error.</span></p></div></details></td><td><span class="cli-pipe-none"
 and the keyword is read only after name.</span></p></div></details></td><td><span class="cli-pipe-none">None</span></td></tr>
 <tr id="cmd-show-diagnostic"><td><code>show diagnostic</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Explain one diagnostic code Ze printed.<br><code>show diagnostic &lt;code&gt;</code><details class="cli-command-facts"><summary>Arguments and execution</summary><div><p><span>Arguments</span><code>code</code> string, required: yes, any value of this type: Diagnostic code. <span class="cmd-arg-help">A diagnostic code as a log line or an error message printed it. An unknown
 code is refused.</span></p></div></details></td><td><span class="cli-pipe-none">None</span></td></tr>
+<tr id="cmd-show-dns-resolver"><td><code>show dns-resolver</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>LAN DNS resolver status, cache and counters.<br><code>show dns-resolver</code></td><td><details class="cli-pipes"><summary>15 operators</summary><div class="cli-pipe-detail"><p><span>Always</span><code>json · ndjson · table · text · yaml · raw · no-more · save</code></p><p><span>With rows</span><code>match · count · first · last · display · fill</code></p><p><span>While streaming</span><code>log</code></p><p><span>Local process only</span><code>save</code></p></div></details></td></tr>
 <tr id="cmd-show-doctor"><td><code>show doctor</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Check if this box is ready to run Ze.<br><code>show doctor</code></td><td><details class="cli-pipes"><summary>15 operators</summary><div class="cli-pipe-detail"><p><span>Always</span><code>json · ndjson · table · text · yaml · raw · no-more · save</code></p><p><span>With rows</span><code>match · count · first · last · display · fill</code></p><p><span>While streaming</span><code>log</code></p><p><span>Local process only</span><code>save</code></p></div></details></td></tr>
 <tr id="cmd-show-ecmp-groups"><td><code>show ecmp-groups</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show each prefix the system RIB holds equal-cost paths for, whether or not Ze programs them.<br><code>show ecmp-groups</code></td><td><details class="cli-pipes"><summary>15 operators</summary><div class="cli-pipe-detail"><p><span>Always</span><code>json · ndjson · table · text · yaml · raw · no-more · save</code></p><p><span>With rows</span><code>match · count · first · last · display · fill</code></p><p><span>While streaming</span><code>log</code></p><p><span>Local process only</span><code>save</code></p></div></details></td></tr>
 <tr id="cmd-show-env-get"><td><code>show env get</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show one environment variable in detail.<br><code>show env get &lt;name&gt;</code><details class="cli-command-facts"><summary>Arguments and execution</summary><div><p><span>Arguments</span><code>name</code> string, required: yes, any value of this type: Environment variable name <span class="cmd-arg-help">The variable&#39;s full name as Ze registered it, matched exactly.
@@ -1294,8 +1296,10 @@ The cache key is the decimal spelling with an AS prefix, so 1.10 and 65546 name 
         <footer>
             <div class="footer-inner">
                 <div class="footer-bottom">
+                    <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 12:05 UTC</span>
+                    <a href="../../legal/">Legal notice</a>
+                    <span class="footer-published">Published 27 October 2026 23:56 UTC</span>
                 </div>
             </div>
         </footer>

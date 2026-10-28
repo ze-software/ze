@@ -299,6 +299,8 @@ the bus from buggy or malicious producers.
 | `ze-resolve:clear-dns-cache` | `handleClearDNSCache` in `internal/component/resolve/cmd/dns.go` | `{"action": "clear-all"}` |
 | `ze-resolve:clear-dns-cache-stats` | `handleClearDNSCacheStats` in `internal/component/resolve/cmd/dns.go` | `{"action": "reset-stats"}` |
 | `ze-resolve:clear-dns-cache-record` | `handleClearDNSCacheRecord` in `internal/component/resolve/cmd/dns.go` | `{"action": "delete-entry", "name": "...", "removed": N}` or `{"action": "delete-entry", "name": "...", "type": "...", "found": bool}` |
+| `ze-dnsresolver:show-dns-resolver` | `handleShowDNSResolver` in `internal/plugins/dnsresolver/show.go` | `{"running": true, "enabled": bool, "mode": "forward", "listeners": [{"name": "...", "ip": "...", "port": N}], "allow-from": N, "upstreams": ["ip:port", ...], "timeout-seconds": N, "limit-outstanding": N, "limit-per-client-rate": N, "outstanding": N, "cache-max-ttl": N, "cache-max-negative-ttl": N, "cache-answer-entries": N, "cache-negative-entries": N, "cache-hits": N, "cache-misses": N, "cache-hit-rate": N, "queries": N, "coalesced": N, "refused-acl": N, "refused-rd-clear": N, "rate-limited": N, "dropped": N, "upstream-queries": {"answered": N, "timeout": N, "error": N, "failure": N, "truncated": N}}`. `{"running": false}` while the plugin is not running, and `{"running": true, "enabled": false}` before its first config apply <!-- source: internal/plugins/dnsresolver/show.go -- handleShowDNSResolver, resolver.show --> |
+| `ze-dnsresolver:clear-dns-resolver-cache` | `handleClearDNSResolverCache` in `internal/plugins/dnsresolver/show.go` | `{"cleared-answer": N, "cleared-negative": N}`: the entries removed from each cache; the counters are kept. An error naming the config to commit while the plugin is not running. The CLI words are `clear dns-resolver cache all`; the bare `clear dns-resolver cache` has no handler <!-- source: internal/plugins/dnsresolver/yang/ze-dns-resolver-cmd.yang -- clear dns-resolver cache all --> |
 | `ze-resolve:show-rir` (args: `<asn>`) | `handleRIRASN` in `internal/component/resolve/cmd/rir.go` | `{"asn": N, "registry": "ARIN", "whois": "whois.arin.net", "range-start": N, "range-end": N}`. Two distinct errors: `AS<n> is in no delegated range` for a table that was read, `RIR delegation table unreadable: ...` for one that was not |
 | `ze-resolve:update-rir` (no args) | `handleRIRRefresh` in `internal/component/resolve/cmd/rir.go` | `{"key": "meta/rir/delegation", "ranges": N, "generated": "YYYY-MM-DD"}`. `ranges` is how many ranges the stored table holds and `generated` is the date it stored. All or nothing: a fetch that failed, a parse that refused, a run that read no ASN record, and a write that stored nothing each answer an error and change no stored table |
 | `ze-cmd:show-system-profile` | `handleShowSystemProfile` in `profile.go` | `{"type": "...", "format": "pprof-base64", "data": "..."}` |
@@ -678,6 +680,12 @@ update bgp config                  # Write the running peer set to the config fi
 request peer <sel> flush           # Wait for forward pool to drain (barrier)
 ```
 <!-- source: internal/component/bgp/yang/ze-bgp-api.yang -- peer RPCs -->
+
+`show bgp peer <selector> history` reads the peer's retained FSM transitions
+through the registered BGP adapter. Each row carries the source and destination
+states, plus the timestamp and reason when recorded.
+<!-- source: internal/component/bgp/reactor/reactor_api.go -- PeerFSMHistory -->
+<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- handlePeerHistory -->
 
 `create bgp peer` (`ze-bgp:peer-create`) and `delete bgp peer`
 (`ze-bgp:peer-delete`) change the running peer set and never write the
@@ -1969,6 +1977,8 @@ An RPC's pair reaches an agent through the machine-readable reference.
 `RegisteredRPC.Description`. `aihelp.Build` then publishes them under `short-help`
 and `description`, the two keys `ze help command --json` uses for a command.
 `ze help ai --json` and the MCP `ze_reference` tool read that one projection.
+Build sorts the RPCs and the notifications by wire method, so the reference is
+the same bytes on every run rather than the schema registry's map order.
 The `show schema methods` and `ze schema methods` tables print one line for each
 RPC. Both read the summary alone, as every other one-line surface does.
 
@@ -2062,6 +2072,7 @@ name alone. The selected candidate's summary is on message line 2, whole
 <!-- source: internal/component/command/local.go -- ListLocal -->
 <!-- source: cmd/ze/command_help_page.go -- commandHelpPage -->
 <!-- source: internal/plugins/completion/words.go -- writeCompletionRecord -->
+<!-- source: internal/plugins/completion/script/script.go -- WriteRecord -->
 <!-- source: internal/component/cli/model_render.go -- (Model).renderDropdownBox, (Model).warningText -->
 <!-- source: internal/component/web/handler_admin.go -- buildAdminFragmentData, CommandFormData -->
 <!-- source: internal/component/web/cli.go -- HandleCLICompleteWithCommandCompleter -->

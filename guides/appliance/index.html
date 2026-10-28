@@ -55,6 +55,7 @@
 <li><a href="#prerequisites">Prerequisites</a></li>
 <li><a href="#first-time-setup">First-time setup</a></li>
 <li><a href="#runtime-kernel-requirements">Runtime Kernel Requirements</a></li>
+<li><a href="#vpn-kernel-proof">VPN Kernel Proof</a></li>
 <li><a href="#l2tp-kernel-support">L2TP Kernel Support</a></li>
 <li><a href="#build-an-image">Build an image</a></li>
 <li><a href="#test-in-qemu">Test in QEMU</a></li>
@@ -201,8 +202,8 @@ Alpine's own modules, built for another version.</p>
 </tr>
 <tr>
 <td>Firewall</td>
-<td><code>NF_TABLES</code>, <code>NF_TABLES_INET</code>, <code>NF_TABLES_IPV4</code>, <code>NF_TABLES_IPV6</code>, <code>NF_CONNTRACK</code>, <code>NF_NAT</code>, <code>NFT_CT</code>, <code>NFT_NAT</code>, <code>NFT_MASQ</code>, <code>NFT_REDIR</code>, <code>NFT_LIMIT</code>, <code>NFT_LOG</code>, <code>NFT_REJECT</code></td>
-<td>The nftables backend, and <code>translatePolicy</code>, which returns <code>FamilyInet</code> unconditionally. Without <code>NF_TABLES_INET</code> the kernel answers EOPNOTSUPP, <code>Apply</code>'s flush fails, the firewall plugin fails startup, and the daemon exits. <span class="ev-src"><span class="ev-ref"><code>internal/plugins/copp/translate.go</code></span></span></td>
+<td><code>NF_TABLES</code>, <code>NF_TABLES_INET</code>, <code>NF_TABLES_IPV4</code>, <code>NF_TABLES_IPV6</code>, <code>NF_CONNTRACK</code>, <code>NF_NAT</code>, <code>NFT_CT</code>, <code>NFT_NAT</code>, <code>NFT_MASQ</code>, <code>NFT_REDIR</code>, <code>NFT_LIMIT</code>, <code>NFT_LOG</code>, <code>NFT_REJECT</code>, <code>NF_FLOW_TABLE</code>, <code>NF_FLOW_TABLE_INET</code>, <code>NFT_FLOW_OFFLOAD</code></td>
+<td>The nftables backend, and <code>translatePolicy</code>, which returns <code>FamilyInet</code> unconditionally. Without <code>NF_TABLES_INET</code> the kernel answers EOPNOTSUPP, <code>Apply</code>'s flush fails, the firewall plugin fails startup, and the daemon exits. The three flowtable symbols carry a table's <code>flowtable</code> and a term's <code>flow-offload</code> action (<code>applyFlowtable</code>); without them the kernel answers ENOENT and refuses the whole table. <span class="ev-src"><span class="ev-ref"><code>internal/plugins/copp/translate.go</code></span></span></td>
 </tr>
 <tr>
 <td>Tunnels</td>
@@ -216,8 +217,8 @@ Alpine's own modules, built for another version.</p>
 </tr>
 <tr>
 <td>Traffic control</td>
-<td><code>NET_SCH_HTB</code>, <code>TBF</code>, <code>FQ_CODEL</code>, <code>HFSC</code>, <code>FQ</code>, <code>SFQ</code>, <code>NETEM</code>, <code>PRIO</code>, <code>INGRESS</code>, <code>NET_CLS_U32</code>, <code>NET_CLS_FW</code>, <code>NET_CLS_MATCHALL</code>, <code>NET_ACT_MIRRED</code></td>
-<td>Class of service, rate limiting, and mirroring</td>
+<td><code>NET_SCH_HTB</code>, <code>TBF</code>, <code>FQ_CODEL</code>, <code>HFSC</code>, <code>FQ</code>, <code>SFQ</code>, <code>NETEM</code>, <code>PRIO</code>, <code>INGRESS</code>, <code>NET_CLS_U32</code>, <code>NET_CLS_FW</code>, <code>NET_CLS_MATCHALL</code>, <code>NET_ACT_MIRRED</code>, <code>NET_ACT_POLICE</code></td>
+<td>Class of service, rate limiting, and mirroring; subscriber upload rates use the police action through <code>shaper.applyTC</code> and <code>ingressPolicerFilter</code></td>
 </tr>
 <tr>
 <td>Interfaces and VPN</td>
@@ -236,6 +237,34 @@ are not pinned in a manifest.</p>
 <!-- source: gokrazy/kernel/runtime.require -- runtime requirements -->
 <!-- source: gokrazy/kernel/kernel.require -- base requirements -->
 <!-- source: internal/appliance/kernelbuilder/worker.go -- enforceRequiredSymbols -->
+<h2 id="vpn-kernel-proof">VPN Kernel Proof</h2>
+<p><code>./le test qemu vpn-kernel-test</code> boots Ze's docker-host image with its own
+kernel and base, on the host's native architecture. It uses the shared
+Docker lab transport: KVM on Linux or HVF on macOS, never a stock guest or
+foreign-architecture emulation. This is a manual kernel proof, not a check
+of the default appliance image's packaged config.</p>
+<!-- source: internal/le/test/qemu/vpnproof.go -- runVPNKernelHere -->
+<!-- source: internal/le/test/qemu/dockerlab.go -- runDockerLab -->
+<p>The action runs AES-GCM, AES-CBC/SHA256, ChaCha20-Poly1305, 3DES/SHA1 and
+NULL/SHA256 against strongSwan. The IPsec checks require installed SAs and
+received tunnel traffic. A separate pair of Linux WireGuard peers must
+complete a handshake and pass a ping, with received bytes at both ends.</p>
+<!-- source: internal/le/test/deployment/vpnproof.go -- runVPNKernelAt -->
+<!-- source: internal/le/interoplab/ipsec/vpnproof.go -- checkESPKernel -->
+<!-- source: internal/le/interoplab/ipsec/helpers.go -- verifyESPDirectionsToward -->
+<!-- source: internal/le/test/deployment/wireguardproof.go -- checkWireGuardProof -->
+<p>Before services start, the disposable guest disables module loading,
+refuses any preloaded module, and removes its <code>/sbin/modprobe</code> helper.
+The shipped image and any existing Docker host are unchanged. The host
+checks the emitted kernel config against both requirement manifests;
+the WireGuard step checks the guest root again, not the container root.</p>
+<!-- source: internal/le/test/qemu/vpnproof.go -- vpnGuestPreparation, vpnKernelConfig -->
+<!-- source: internal/le/test/qemu/dockerlab.go -- dockerLabGuest.cidataFiles -->
+<!-- source: internal/le/test/deployment/wireguardproof.go -- checkWireGuardProof -->
+<p>The WireGuard step proves kernel traffic, not Ze's configuration-commit
+path. An amd64 run does not replace the required arm64/HVF run, and no
+result is implied by the command's presence.</p>
+<!-- source: internal/le/test/deployment/vpnproof.go -- vpnKernelReport -->
 <h2 id="l2tp-kernel-support">L2TP Kernel Support</h2>
 <p>Ze's L2TP LNS path needs kernel PPPoL2TP support in the appliance runtime
 kernel: <code>CONFIG_PPP</code>, <code>CONFIG_PPPOL2TP</code>, <code>CONFIG_L2TP</code>, and
@@ -276,7 +305,7 @@ can be used.</p>
 <p>On a Linux runner with QEMU, <code>xl2tpd</code>, <code>pppd</code>, <code>/dev/ppp</code>, and PPPoL2TP kernel
 support, the deployment proof target builds an L2TP-enabled appliance image and
 drives a real LAC against it:</p>
-<pre><code class="language-bash">./le test deployment gokrazy-l2tp-ppp-test
+<pre><code class="language-bash">./le test deployment gokrazy-l2tp-ppp
 </code></pre>
 <p>The proof image is built from a temporary gokrazy instance config so the normal
 appliance config is left unchanged. It disables IPv6CP in that proof image
@@ -506,7 +535,7 @@ internal/le/build/gokrazy/  # `le build gokrazy`: the vendored gokrazy command w
 <h3 id="builds-never-run-from-this-directory">Builds never run from this directory</h3>
 <p>The tree above is the build <em>input</em>; no build runs inside it. Every image build
 first copies the instance it names (<code>gokrazy/ze</code> for the appliance,
-<code>gokrazy/docker-host</code> for <code>./le setup docker-host build</code>) to a fresh directory
+<code>gokrazy/docker-host</code> for <code>./le setup docker host build</code>) to a fresh directory
 under the project <code>tmp/</code>, including the whole <code>builddir</code>, rewriting each filesystem-path <code>replace</code> to an
 absolute path so it still resolves from the new depth. gok is then pointed at the
 copy, and the copy is deleted afterwards.</p>
@@ -1038,8 +1067,10 @@ config was saved. If the window completes, the active config hash is written to
         <footer>
             <div class="footer-inner">
                 <div class="footer-bottom">
+                    <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
+                    <a href="../../legal/">Legal notice</a>
+                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
                 </div>
             </div>
         </footer>

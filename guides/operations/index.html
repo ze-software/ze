@@ -93,6 +93,14 @@
 </ol></details></nav><div class="doc-body">
 <h2 id="ssh-server">SSH Server</h2>
 <p>Ze exposes its CLI over SSH. <code>ze cli</code>, <code>ze cli -c</code>, and <code>ze signal</code> commands connect to this server. Most <code>ze show</code> subcommands do too, except local ones (version, bgp decode/encode, env, schema, yang, completion) which run in-process.</p>
+<p>If a session reaches an internal Ze defect, only that session ends: its user
+reads on the session that an internal defect ended it and which
+<code>ze show crashes name &lt;record&gt;</code> command prints the crash record, and the session
+exits with status 1. A defect met while a login is checked refuses that login.
+The listener and every other session keep running, and each such panic is
+logged, crash recorded, and counted in
+<code>ze_task_panics_total{component="ssh"}</code> (<a href="../monitoring/">monitoring</a>).</p>
+<!-- source: internal/component/ssh/panic_guard.go -- panicMiddleware, endSessionAfterPanic, containAuth -->
 <h3 id="setup">Setup</h3>
 <pre><code class="language-bash">ze init                        # interactive: prompts for username, password, host, port
 </code></pre>
@@ -920,8 +928,10 @@ ze signal quit                 # goroutine dump (kills daemon!)
         <footer>
             <div class="footer-inner">
                 <div class="footer-bottom">
+                    <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 06:34 UTC</span>
+                    <a href="../../legal/">Legal notice</a>
+                    <span class="footer-published">Published 27 October 2026 23:56 UTC</span>
                 </div>
             </div>
         </footer>

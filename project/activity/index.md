@@ -4,43 +4,43 @@ Git telemetry
 
 A year of commits, added lines, and Go composition regenerated from the repository.
 
-- Total added lines:** 4,997,678:**
-- Days with added lines:** 308:**
+- Total added lines:** 5,159,151:**
+- Days with added lines:** 312:**
 - Peak line day:** 140,381:**
 - Days shown:** 365:**
- 2025-10-25 to 2026-10-24 LessMore
+ 2025-10-29 to 2026-10-28 LessMore
 
 ## Go code composition
 
 ### Total Code
 
-- Files:** 12,613:**
-- Total lines:** 2,874,313:**
-- Code:** 2,051,323:**
-- Blank:** 259,666:**
-- Comments:** 563,324:**
+- Files:** 13,146:**
+- Total lines:** 2,982,563:**
+- Code:** 2,131,174:**
+- Blank:** 266,636:**
+- Comments:** 584,753:**
 
 ### Production
 
-- Files:** 6,061:**
-- Total lines:** 1,342,510:**
-- Code:** 936,412:**
-- Blank:** 112,437:**
-- Comments:** 293,661:**
+- Files:** 6,282:**
+- Total lines:** 1,389,516:**
+- Code:** 968,670:**
+- Blank:** 115,540:**
+- Comments:** 305,306:**
 
 ### Test
 
-- Files:** 6,552:**
-- Total lines:** 1,531,803:**
-- Code:** 1,114,911:**
-- Blank:** 147,229:**
-- Comments:** 269,663:**
+- Files:** 6,864:**
+- Total lines:** 1,593,047:**
+- Code:** 1,162,504:**
+- Blank:** 151,096:**
+- Comments:** 279,447:**
 
 ### Dependencies
 
 - Files:** 6,253:**
-- Total lines:** 1,900,237:**
-- Code:** 1,483,104:**
-- Blank:** 169,576:**
-- Comments:** 247,557:**
+- Total lines:** 1,900,838:**
+- Code:** 1,483,549:**
+- Blank:** 169,606:**
+- Comments:** 247,683:**
 - Modules:** 284:**

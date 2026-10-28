@@ -83,19 +83,18 @@
                                     <a class="button ghost" href="guides/quickstart/">Try the BGP quickstart <span aria-hidden="true">↗</span></a>
                                 </div>
                             </div>
-            <section class="home-section-panel home-section-panel-demo" aria-labelledby="recording-title">
-                <div class="section-head">
-                    <h2 id="recording-title">Watch Ze at work.</h2>
-                    <p>Follow a real terminal lab, with its transcript alongside it. Explore the individual interfaces below.</p>
-                </div>
-                <figure class="hero-product-demo" aria-labelledby="hero-demo-title">
-                    <div class="hero-product-frame">
-                        <div class="hero-product-bar" aria-hidden="true">
-                            <span class="terminal-demo__dots"><i></i><i></i><i></i></span>
-                            <span>showcase.terminal</span>
-                            <span>CAST</span>
-                        </div>
-                        <div
+                            <div class="showcase" data-product-showcase>
+                                <div class="screen-tabs" role="group" aria-label="Choose a product interface" hidden>
+                                    <button type="button" data-product-target="product-terminal" aria-controls="product-terminal" aria-pressed="true">Watch Ze at work</button>
+                                    <button type="button" data-product-target="product-routes" aria-controls="product-routes" aria-pressed="false">Looking glass</button>
+                                    <button type="button" data-product-target="product-web" aria-controls="product-web" aria-pressed="false">Web configuration</button>
+                                    <button type="button" data-product-target="product-editor" aria-controls="product-editor" aria-pressed="false">CLI editor</button>
+                                    <button type="button" data-product-target="product-dashboard" aria-controls="product-dashboard" aria-pressed="false">CLI dashboard</button>
+                                </div>
+                                <div class="product-panels">
+                                <figure class="screen product-screen" id="product-terminal" data-product-panel>
+                                    <div class="screen-toolbar"><strong>Ze / <span>showcase.terminal</span></strong><a href="demos/terminal/#continuous-live-configuration-showcase">Read transcript</a></div>
+                                    <div class="screen-media"><div
       class="terminal-demo__player"
       data-terminal-demo-player
       data-cast-src="assets/demos/showcase.cast?v=fa585da9e0"
@@ -108,23 +107,14 @@
       <p class="terminal-demo__noscript">This recording is replayed by the
       page's own player. <a href="assets/demos/showcase.cast?v=fa585da9e0">Download the asciicast</a> or
       <a href="assets/demos/showcase.txt?v=1eea1ac585">read the transcript</a>.</p>
-    </noscript>
-                    </div>
-                    <figcaption>
-                        <strong id="hero-demo-title">One running router, eight live configuration topics</strong>
-                        <span>Replayable Ze terminal lab</span>
-                        <a href="demos/terminal/#continuous-live-configuration-showcase">Read transcript</a>
-                    </figcaption>
-                </figure>
-            </section>
-                            <div class="showcase" data-product-showcase>
-                                <div class="screen-tabs" role="group" aria-label="Choose a product interface" hidden>
-                                    <button type="button" data-product-target="product-routes" aria-controls="product-routes" aria-pressed="true">Looking glass</button>
-                                    <button type="button" data-product-target="product-web" aria-controls="product-web" aria-pressed="false">Web configuration</button>
-                                    <button type="button" data-product-target="product-editor" aria-controls="product-editor" aria-pressed="false">CLI editor</button>
-                                    <button type="button" data-product-target="product-dashboard" aria-controls="product-dashboard" aria-pressed="false">CLI dashboard</button>
-                                </div>
-                                <div class="product-panels">
+    </noscript></div>
+                                    <figcaption class="screen-description">
+                                        <strong id="hero-demo-title">One running router, eight live configuration topics</strong>
+                                        <p>Watch Ze at work: follow a real terminal lab, with its transcript alongside it.</p>
+                                        <a href="demos/terminal/">Watch the other demos →</a>
+                                        <p class="capture-caption">A replayable Ze terminal lab.</p>
+                                    </figcaption>
+                                </figure>
                                 <figure class="screen product-screen" id="product-routes" data-product-panel>
                                     <div class="screen-toolbar"><strong>Ze / Looking glass</strong><a href="assets/product-routes.webp" target="_blank" rel="noopener">Open full size ↗</a></div>
                                     <a href="assets/product-routes.webp" target="_blank" rel="noopener"><img src="assets/product-routes.webp" alt="Ze looking glass with prefix, AS path and community filters, a route graph and route table" width="2820" height="1848" /></a>
@@ -240,8 +230,8 @@
                 </article>
                 <article class="whats-new-item cat-meta">
                     <span class="whats-new-label">Recently shipped</span>
-                    <h3><a href="project/changes/2026-10-05/">Week of 2026-10-05</a></h3>
-                    <p>A week on configuration safety, the public API and the appliance kernel, with fixes across BGP, RSVP-TE and…</p>
+                    <h3><a href="project/changes/2026-10-12/">Week of 2026-10-12</a></h3>
+                    <p>This update covers two weeks. Many settings that Ze used to accept and then silently ignore are now…</p>
                 </article>
                 <article class="whats-new-item cat-meta">
                     <span class="whats-new-label">RFC compliance progress</span>
@@ -265,14 +255,27 @@
                         </p>
                     </div>
                     <div class="home-proof-actions">
+                        <a class="button" href="quality/rfc-compliance/profiles/">See completion by use case</a>
                         <a class="button" href="quality/">Read the evidence map</a>
                         <a class="button" href="demos/terminal/">Watch product demos</a>
                     </div>
                 </div>
                 <div class="proof-strip" aria-label="Project evidence">
+                    <a class="proof" href="quality/rfc-compliance/">
+                        <strong
+                            ><span data-ze-stat="rfc.proven_percent">63.4</span>%
+                            <span class="label">RFC MUSTs tested</span></strong
+                        >
+                        <ul>
+                            <li><span data-ze-stat="rfc.proven_display">2,888</span> of <span data-ze-stat="rfc.gated_implemented_display">4,556</span> tracked MUSTs</li>
+                            <li>Across <span data-ze-stat="rfc.implemented_display">167</span> RFCs</li>
+                            <li>Tests tied to requirements</li>
+                        </ul>
+                        <span class="proof-check concept-evidence">RFC requirement ledger.</span>
+                    </a>
                     <a class="proof" href="quality/unit-fuzz-mutation/">
                         <strong
-                            ><span data-ze-stat="tests.unit_display">38,400+</span> <span class="label">Go tests</span></strong
+                            ><span data-ze-stat="tests.unit_display">39,400+</span> <span class="label">Go tests</span></strong
                         >
                         <ul>
                             <li>Check encoded bytes and parsed values.</li>
@@ -283,7 +286,7 @@
                     </a>
                     <a class="proof" href="quality/functional-ci/">
                         <strong
-                            ><span data-ze-stat="tests.e2e_display">2,500+</span>
+                            ><span data-ze-stat="tests.e2e_display">2,600+</span>
                             <span class="label">end-to-end tests</span></strong
                         >
                         <ul>
@@ -293,20 +296,8 @@
                         </ul>
                         <span class="proof-check concept-evidence">Scenarios and expected results.</span>
                     </a>
-                    <a class="proof" href="quality/rfc-compliance/">
-                        <strong
-                            ><span data-ze-stat="rfc.proven_percent">66.3</span>%
-                            <span class="label">RFC MUSTs tested</span></strong
-                        >
-                        <ul>
-                            <li><span data-ze-stat="rfc.proven_display">2,758</span> of <span data-ze-stat="rfc.gated_implemented_display">4,163</span> tracked MUSTs</li>
-                            <li>Across <span data-ze-stat="rfc.implemented_display">154</span> RFCs</li>
-                            <li>Tests tied to requirements</li>
-                        </ul>
-                        <span class="proof-check concept-evidence">RFC requirement ledger.</span>
-                    </a>
                     <a class="proof" href="quality/unit-fuzz-mutation/#fuzz-targets-are-still-tests">
-                        <strong><span data-ze-stat="tests.fuzz_display">91</span> <span class="label">fuzz targets</span></strong>
+                        <strong><span data-ze-stat="tests.fuzz_display">92</span> <span class="label">fuzz targets</span></strong>
                         <ul>
                             <li>Generate inputs for parsers and decoders.</li>
                             <li>Probe packets and config text for crashes.</li>
@@ -775,6 +766,20 @@
                             <span class="cat">Update</span>
                             <span class="home-update-number">01</span>
                         </div>
+                        <p class="home-update-date">Week of 2026-10-12</p>
+                        <h3><a href="project/changes/2026-10-12/">Two weeks of stricter configuration, an IPsec drop-by-default policy and BGP filter changes, plus BGP…</a></h3>
+                        <div class="home-update-tags">
+                            <span class="home-update-tag cat-routing">BGP</span>
+                            <span class="home-update-tag cat-services">DHCP</span>
+                            <span class="home-update-tag cat-operate">Config</span>
+                            <span class="home-update-tag cat-automate">API</span>
+                        </div>
+                    </article>
+                    <article class="card card-post home-update-card cat-meta">
+                        <div class="home-update-head">
+                            <span class="cat">Update</span>
+                            <span class="home-update-number">02</span>
+                        </div>
                         <p class="home-update-date">Week of 2026-10-05</p>
                         <h3><a href="project/changes/2026-10-05/">Safer configuration commits, API changes and a new appliance kernel, plus BGP, RSVP-TE and IPsec fixes.</a></h3>
                         <div class="home-update-tags">
@@ -787,7 +792,7 @@
                     <article class="card card-post home-update-card cat-meta">
                         <div class="home-update-head">
                             <span class="cat">Update</span>
-                            <span class="home-update-number">02</span>
+                            <span class="home-update-number">03</span>
                         </div>
                         <p class="home-update-date">Week of 2026-09-28</p>
                         <h3><a href="project/changes/2026-09-28/">RFC reviews led to fixes in BGP route selection, graceful restart, BFD, OSPF and LDP.</a></h3>
@@ -796,20 +801,6 @@
                             <span class="home-update-tag cat-services">L2TP</span>
                             <span class="home-update-tag cat-observe">Flow Export</span>
                             <span class="home-update-tag cat-automate">API</span>
-                        </div>
-                    </article>
-                    <article class="card card-post home-update-card cat-meta">
-                        <div class="home-update-head">
-                            <span class="cat">Update</span>
-                            <span class="home-update-number">03</span>
-                        </div>
-                        <p class="home-update-date">Week of 2026-09-21</p>
-                        <h3><a href="project/changes/2026-09-21/">Configuration backup and restore, AIGP and BGP-LS export, and a review of every RFC Ze implements.</a></h3>
-                        <div class="home-update-tags">
-                            <span class="home-update-tag cat-platform">Storage</span>
-                            <span class="home-update-tag cat-operate">Config</span>
-                            <span class="home-update-tag cat-routing">BGP</span>
-                            <span class="home-update-tag cat-services">IPsec</span>
                         </div>
                     </article>
                 </div>
@@ -878,8 +869,10 @@
         <footer>
             <div class="footer-inner">
                 <div class="footer-bottom">
+                    <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 18:52 UTC</span>
+                    <a href="legal/">Legal notice</a>
+                    <span class="footer-published">Published 28 October 2026 00:45 UTC</span>
                 </div>
             </div>
         </footer>

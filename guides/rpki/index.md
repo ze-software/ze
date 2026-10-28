@@ -69,7 +69,9 @@ StayRTR v0.6.4 needs `-protocol 1 -enforce.version=true` for this exchange.
 Without enforcement, its unsupported-version reply can carry the new client's
 initial version 0 even though the server supports version 1. Enforcement
 initializes the client at version 1 before it rejects Ze's version-2 query.
-This cache setting leaves Ze's version negotiation unchanged.
+This cache setting leaves Ze's version negotiation unchanged. StayRTR fixed
+the reply upstream in pull request 167, after v0.6.4: a release that includes
+it needs neither flag. Run v0.6.4 with both flags, or a later release.
 <!-- source: internal/component/bgp/plugins/rpki/rtr_session.go -- newRTRSession, handlePDU -->
 <!-- source: test/interop/Dockerfile.stayrtr -- pinned v1 cache configuration -->
 
@@ -128,7 +130,7 @@ root keeps its committed value; an explicitly removed root does not.
 
 | Path | Type | Default | Description |
 |------|------|---------|-------------|
-| `rpki / cache-server <addr>` | list | -- | RTR cache server (keyed by IP/hostname) |
+| `rpki / cache-server <addr>` | list, ordered-by-user | -- | RTR cache server (keyed by IP/hostname); the written order breaks a preference tie |
 | `rpki / cache-server / port` | 1..65535 | 323 TCP, 324 TLS | RTR transport port |
 | `rpki / cache-server / trusted-network` | boolean | false | Explicitly permit unprotected TCP on a trusted, controlled network |
 | `rpki / cache-server / tls / ca-certificate` | string | required with TLS | Named PKI CA for cache authentication |
@@ -142,7 +144,9 @@ root keeps its committed value; an explicitly removed root does not.
 | `rpki / aspa / action / invalid` | enum | reject | Action for ASPA Invalid routes: reject, log-only, accept |
 | `rpki / aspa / action / unknown` | enum | accept | Action for ASPA Unknown routes: accept, reject, log-only |
 
-Multiple cache servers are supported for redundancy. Ze tries them in preference order and uses the most preferred server that answers. A completed full synchronization atomically replaces the previous server's data; partial transfers do not replace the working set.
+Multiple cache servers are supported for redundancy. Ze tries them in preference order (a lower value is preferred; equal values keep their configuration order) and uses the most preferred server that answers. Ze holds one server's data at a time, never the union of several. A completed full synchronization atomically replaces the previous server's data; partial transfers do not replace the working set. While the new server's load is still arriving, validation answers from the previous server's set, unchanged: nothing in that load, withdrawals included, reaches the working set before its End of Data, and an update the previous server sends afterwards no longer touches the data in use. "RTR Poll Timing" below covers Cache Reset and the return to a more-preferred server.
+<!-- source: internal/component/bgp/plugins/rpki/rtr_session.go -- RTRSession.handlePDU, RTRSession.startFullSync -->
+<!-- source: internal/component/bgp/plugins/rpki/rpki_config.go -- parseRPKIConfig, sortCachesByPreference -->
 <!-- source: internal/component/bgp/plugins/rpki/yang/ -- ze-rpki YANG schema -->
 
 #### Per-peer and per-group actions
@@ -338,6 +342,40 @@ invalidates the serial base, so the next query requests a complete reset.
 A cache answering No Data Available ends the current attempt. Ze tries the next
 cache in preference order; if none answers, it retries with Reset Queries after
 the Retry Interval. It does not wait for the cache to close its connection.
+
+A cache answering a query with Cache Reset gets one Reset Query at once, in the
+same attempt, and its full answer replaces the working set. Every cache more
+preferred than it has already failed by then, or is still inside its Retry
+Interval, so RFC 8210 Section 8.3 sends the reload to that same cache rather
+than to a less-preferred one. A second Cache
+Reset in the same attempt counts as a failure, and Ze moves on to the next
+cache in preference order.
+
+While a less-preferred cache holds the data, Ze asks each more-preferred cache
+that failed again when that cache's own Retry Interval runs out, not when the
+holder's Refresh Interval does. The first one that completes a full load takes
+over, and its set replaces the holder's. The holder itself is polled only at
+its Refresh Interval. `show bgp rpki status` reports `synced` true for exactly
+the cache whose set validation uses.
+
+No poll asks a failed cache again before its own Retry Interval runs out. A
+round at the holder's Refresh Interval, which can be much shorter (the
+interop lab's StayRTR is started with `-rtr.refresh 10` and sends 10 seconds;
+StayRTR's default is 3600), passes over such a cache and moves to the next one in
+preference order. When no cache answers, the next round runs when the first
+of them may be asked again.
+<!-- source: internal/component/bgp/plugins/rpki/rtr_session.go -- cacheGroup.Run, cacheGroup.poll, cacheGroup.probe, cacheGroup.load -->
+
+A Ze defect a cache's PDU reaches ends that one sync and nothing else. Ze logs
+it at ERROR with the cache, the PDU type in flight and the stack, counts it in
+`ze_task_panics_total{component="rpki",task="rtr-read"}`, and writes a crash
+record that `ze show crashes` lists. The cache is sent an Error Report with
+code 1, Internal Error, and no encapsulated PDU (RFC 8210 Sections 5.11 and
+12), unless the PDU in flight was itself an Error Report. The connection then
+closes and the attempt counts as a failed query: the next cache in preference
+order takes the load, and this cache is asked again after its Retry Interval.
+The validation data stays as the last completed sync left it.
+<!-- source: internal/component/bgp/plugins/rpki/rtr_session.go -- RTRSession.readLoop, RTRSession.applyEndOfData; internal/component/bgp/plugins/rpki/panic_guard.go -- reportInternalError -->
 
 ### AS_PATH Edge Cases
 
@@ -581,10 +619,10 @@ Routes retain their received attributes and normalized AS_PATH. When ASPA data c
 
 ### Testing ASPA
 
-The `le test rtr-mock` command supports ASPA records with the `--aspa` flag:
+The `le mock rtr` command supports ASPA records with the `--aspa` flag:
 
 ```
-le test rtr-mock --port 3323 \
+le mock rtr --port 3323 \
     --vrp 10.0.0.0/8,24,65001 \
     --aspa 64502:64501 \
     --aspa 64501:64500
@@ -592,13 +630,49 @@ le test rtr-mock --port 3323 \
 
 The format is `customer:provider1,provider2,...` (repeatable). When ASPA records are present, the mock server uses RTR v2. Seven functional tests cover ASPA: `rpki-aspa-valid.ci`, `rpki-aspa-invalid.ci`, `rpki-aspa-unknown.ci`, `rpki-aspa-disabled.ci` for verification states, and `rpki-aspa-policy-reject.ci`, `rpki-aspa-policy-logonly.ci`, `rpki-aspa-policy-unknown-reject.ci` for policy enforcement.
 
+### Testing Cache Failover
+
+`le mock rtr` answers every Reset Query and Serial Query with its whole set, so
+two of them stand in for a preferred and a standby cache. Ze keys each
+`cache-server` entry by its address, so the two caches listen on different
+addresses rather than different ports:
+
+```
+le mock rtr --address 127.0.0.1 --port 3323 --vrp 10.0.0.0/8,24,65001 \
+    --refresh 1 --retry 1 --outage-start preferred.down --outage-release preferred.up
+le mock rtr --address 127.0.0.2 --port 3323 --vrp 10.0.0.0/8,24,65999 \
+    --refresh 1 --retry 1
+```
+
+| Flag | Default | Effect |
+|------|---------|--------|
+| `--address` | `127.0.0.1` | IP address to listen on |
+| `--refresh`, `--retry` | 3600, 600 | Refresh and Retry Intervals in seconds, sent in End of Data |
+| `--outage-start FILE` | none | Close the listener once FILE exists, so the router's next connection is refused |
+| `--outage-release FILE` | none | Listen again on the same address and port once FILE exists. The two outage flags go together |
+
+The test writes the start file once it has seen the state it needs from the
+preferred cache, so the outage follows what the test observed rather than a
+clock. Creating the release file ends the outage, and the router fails back to
+the preferred cache at its Retry Interval. Each file is waited for at most 30
+seconds. `le mock rtr help` prints every flag.
+<!-- source: internal/test/mock/rtr/rtr.go -- Run, rtrMockOutage -->
+
 ## Testing RPKI Locally
 
-The `le test rpki` command starts a deterministic mock RTR server that auto-generates VRPs based on the first octet of each /8 prefix:
+The `le mock rpki` command starts a deterministic mock RTR server that auto-generates VRPs based on the first octet of each /8 prefix:
 
 ```
-le test rpki --port 3323
+le mock rpki --port 3323
 ```
+
+For a short local outage exercise, `le mock rpki --refresh 2 --retry 1`
+advertises two-second refresh and one-second retry intervals. Defaults remain
+3600 and 600 seconds. Refresh accepts 1 through 86400, and retry accepts
+1 through 7200. Expiration is the larger of 7200 seconds or one second beyond
+either requested timer, as required by [RFC 8210, Section 6](https://www.rfc-editor.org/rfc/rfc8210#section-6).
+<!-- source: internal/test/mock/rpki/rpki.go -- Run, newRPKITimers -->
+
 
 Validation states are predictable (for routes from AS 65001 with default flags):
 

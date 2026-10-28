@@ -11,6 +11,8 @@ file; skim the last one or two posts before writing a new one.
   a person. Never "I did X". Refer to Thomas in the third person if you must name
   him at all ("Thomas", "the maintainer"), but usually you don't name anyone: the
   work speaks for itself ("Ze can now...", "shipped this week...").
+- **Credit outside reporters by role.** "An operator running two route
+  servers", "a FRR developer". Name a person only when they asked to be named.
 - **Confident and factual, not hypey.** Report what shipped. No "excited to
   announce", no "game-changing", no marketing adjectives. The audience is
   network engineers who can smell fluff.
@@ -27,9 +29,12 @@ file; skim the last one or two posts before writing a new one.
   criteria, review gates, learned summaries, session/agent mechanics, commit
   counts as a headline, or "how we do it". Translate internal work into
   user-facing capability.
-- **No unshipped claims stated as shipped.** Only list things that actually
-  landed. Design/planning work goes under a clearly separate "Coming up" or "On
-  the drawing board" heading, phrased as design work started, not delivered.
+- **Only what shipped.** Only list things that actually landed. Design and
+  planning work does not appear in the update, under any heading.
+- **Correct what an earlier post got wrong.** When a claim an earlier post made
+  proves wrong (a fix that did not hold, a number that counted something else),
+  the next post says so in one line and names that post's date: "The 12 October
+  update said X. It did Y until this week; it now does Z."
 - **Accurate over impressive.** If unsure whether something shipped or how it
   works, verify against the code/git history before claiming it. Do not inflate.
 - **No repo vocabulary.** Some words mean something inside this repository and
@@ -69,7 +74,7 @@ trusting the words even when the facts are right, so avoid the tells:
 
 ## How long
 
-**Three Discord messages. Four at the very most.** `./le weekly source
+**Three Discord messages. Four at the very most.** `./le weekly publish source
 <draft.md>` prints the count without publishing, so the budget is measured
 rather than guessed.
 
@@ -102,10 +107,42 @@ things with them.
   `own` field on `show isis database`, a new `reconnect` leaf,
   `ze_bgp_announce_dropped_oversize_total`. A changed default gets its escape
   hatch beside it.
+- **The week's one or two headline features get two or three sentences:** what
+  it is, why it exists, and its spelling. When an outside request is behind it,
+  one clause says who needed it, by role ("asked for by an operator running
+  ...").
+- **A new feature states its limit beside it, when the limit can bite:** what
+  it does not do yet, or what it trusts. "<feature> covers IPv4 only; IPv6
+  follows" or "<field> is not authenticated, so use it only on a trusted
+  link".
+- **A new protocol feature invites interop reports:** one line naming the
+  implementations it was tested against and asking for reports from others.
+- **Anchor an addition or a refusal to the RFC section that decides it.**
 - **A fix: one line.** What was broken, plus the RFC section when that is the
-  point. Leave out the mechanism, the function names, the measurements, the
-  review rounds, the interop scenario numbers, and the byte-level story. The
-  reader wants to know it is fixed, not how it was found.
+  point. Leave out the mechanism, the function names, the review rounds, the
+  interop scenario numbers, and the byte-level story. The reader wants to know
+  it is fixed, not how it was found.
+- **One measured number, when the number is the operator's pain.** "A
+  full-table reload took 140 s; it now takes 16 s." The number comes from a
+  `./le perf` result Thomas ran on his Mac, never from a commit message, and a
+  fix carries no number otherwise. (The figures in that example are a shape,
+  not a measurement.)
+- **"Again" and "since" only against an earlier post.** A fix says "works
+  again" or "broken since 12 October" only when an earlier post claimed the
+  behaviour worked. Otherwise it carries no qualifier: there is no release, so
+  a reader knows only what the posts told them.
+- **A security fix says which configurations were exposed and which were
+  not,** in the operator's terms: "a peer with `md5` set and no `ttl-security`".
+
+A changed setting under ⚠️ is a change since the last post, aimed at someone
+running a recent build of main. It carries:
+
+- **why**, in one sentence, for a setting Ze now refuses or a default it
+  changed: "Ze used to accept `disable false;` and disable the interface";
+- **the action** that fixes the reader's config, and the command that checks
+  it before moving to the new build (`ze config validate`);
+- **how many it touches against how bad it is**, when both are not obvious:
+  "few configs set this, but those that do no longer load".
 - **One sentence, one idea.** Split anything past about 30 words. Three clauses
   and two RFC references in one sentence is a sentence nobody finishes.
 
@@ -135,8 +172,8 @@ research for those items. Never derive effort, a completion percentage,
 release readiness, or a release date from these counts.
 
 While bucket and ownership decisions remain unresolved, label the draft as an
-inventory preview and withhold public release classification. Keep planned
-capabilities under `Coming up`. The progress paragraph shares the existing
+inventory preview and withhold public release classification. Planned
+capabilities stay out of the body. The progress paragraph shares the existing
 message budget with the standing RFC MUST programme. Neither replaces the other.
 
 Save fixed numbers and prose in `website/changes/posts/<covers-start>.md`
@@ -150,29 +187,58 @@ post, separate from the public body.
 ```
 **📅 Ze Weekly Update**
 
-<one-line framing of the week: which areas saw work>
+<one sentence stating what the week was about>
 
 <short release-progress paragraph and https://ze-software.net/project/roadmap/>
 
-**🔒 <Theme>**
-<optional one-line intro>
+**⚠️ Changes to check**
+- <changed setting: why, the action, how many it touches>
+
+**🔒 Security**
+- <fix: what was exposed, and what was not>
+
+**🛰️ <Theme>**
+New:
 - <feature, plain language, one line>
-- <feature>
+Fixed:
+- <fix, one line>
 
-**🧩 <Theme>**
-<short paragraph or bullets>
-
-... (3 to 6 themed sections)
-
-**🔭 Coming up**
-<design/planning work, framed as started, not shipped>
+**📚 <RFC section>**
+<the standing RFC section>
 ```
 
+- **The opening sentence states what the week was about,** the claim that ties
+  its changes together: "Settings Ze used to accept and ignore are now
+  refused." It never lists the areas that saw work. A quiet week says why it
+  was quiet.
+- **Sections run in order of impact on the reader:** changes to check, then
+  security, then features by theme, then the RFC section. A week with nothing
+  under a heading drops the heading.
 - **Bold section headers with a leading emoji.** Pick an emoji that fits the
-  theme (🔒 security/hardening, 💿 appliance/installer, 🛰️ routing/protocols,
-  📊 observability, 🛠️ under the hood / internals, 🧩 build/modularity,
-  📚 standards and RFC conformance, 🔭 coming up). Reuse the same emoji for the
-  same theme across weeks.
+  theme (⚠️ changes to check, 🔒 security/hardening, 💿 appliance/installer,
+  🛰️ routing/protocols, 📊 observability, 🛠️ under the hood / internals,
+  🧩 build/modularity, 📚 standards and RFC conformance). Reuse the same emoji
+  for the same theme across weeks.
+- **A bug Ze found in another implementation or a library gets one line when it
+  was reported or fixed upstream:** "The interop tests found <implementation>
+  sending X; it is fixed in <version>."
+
+## From the first release
+
+These apply once Ze has a release. Before it, nobody runs a release, so none of
+them has a reader.
+
+- **Name the affected releases** for a regression or a security fix ("releases
+  X to Y; Z is not affected").
+- **Give a workaround** for an operator who cannot upgrade yet.
+- **Deprecate before removing:** the post shows the warning Ze prints, word for
+  word, says what to change, and names the release that removes it. Before the
+  first release a replaced path is deleted, not deprecated.
+- **Flag the post** in its opening sentence when it carries a security fix or a
+  change to check before upgrading.
+- **Label a feature "experimental"** when the release ships it as such.
+- **"Again" and "since" are measured against the last release,** replacing the
+  rule that measures them against earlier posts.
 - **Group by theme, not by commit.** Readers care about capabilities, not the
   changelog. Fold many small commits into one bullet when they serve one story.
 - **Bullets for lists of features; a short sentence for a single item.**
@@ -195,10 +261,10 @@ Avoid (hype / internal / em dash):
    Collect the pinned release comparison before drafting.
 2. Verify shipped claims at their source producers for the selected end revision.
    Draft in the template above and keep internal terms out of the body.
-3. Preview with `./le weekly source <draft.md>` without `confirm`.
+3. Preview with `./le weekly publish source <draft.md>` without `confirm`.
    Show Thomas the exact messages. Do not post until he approves them.
-4. On approval, inspect the exact messages again with `./le weekly source <draft.md>`,
-   then publish with `./le weekly source <draft.md> confirm`. Use `channel
+4. On approval, inspect the exact messages again with `./le weekly publish source <draft.md>`,
+   then publish with `./le weekly publish source <draft.md> confirm`. Use `channel
    ze-test confirm` for a rehearsal. The command splits at section boundaries
    to stay within Discord's 2000-character limit.
 5. The command archives the exact posted text in `website/changes/discord/`

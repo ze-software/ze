@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>BGP segment routing and tunnels RFC coverage - Ze</title>
+        <meta name="description" content="Technology aggregate bgp-sr-tunnel: mandatory 89 of 244 (36.5%), optional 4 of 136 (2.9%); 5 RFCs, 0 not walked." />
+        <meta property="og:title" content="BGP segment routing and tunnels RFC coverage - Ze" />
+        <meta property="og:description" content="Technology aggregate bgp-sr-tunnel: mandatory 89 of 244 (36.5%), optional 4 of 136 (2.9%); 5 RFCs, 0 not walked." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="BGP segment routing and tunnels RFC coverage - Ze" />
+        <meta name="twitter:description" content="Technology aggregate bgp-sr-tunnel: mandatory 89 of 244 (36.5%), optional 4 of 136 (2.9%); 5 RFCs, 0 not walked." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="stylesheet" href="../../../../assets/vendor/fonts/fonts.css" />
+        <link rel="canonical" href="https://ze-software.net/quality/rfc-compliance/profiles/bgp-sr-tunnel/" />
+        <meta property="og:url" content="https://ze-software.net/quality/rfc-compliance/profiles/bgp-sr-tunnel/" />
+        <link rel="stylesheet" href="../../../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../../assets/header.html" data-site-root="../../../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../../../#top">Ze</a>
+                    <a href="../../../../#top">Home</a>
+                    <a href="../../../../docs/">Docs</a>
+                    <a href="../../../../features/">Features</a>
+                    <a href="../../../../compare/">Compare</a>
+                    <a href="../../../../project/roadmap/">Roadmap</a>
+                    <a href="../../../../project/changes/">Changes</a>
+                    <a href="../../../../faq/">FAQ</a>
+                    <a href="../../../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section aria-labeledby="rfc-profile-title" class="md-content reveal cat-observe">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Technology aggregate</span>
+    <h1 id="rfc-profile-title">BGP segment routing and tunnels</h1>
+    <p>BGP segment routing, SRv6, and tunnel encapsulation. The RFCs whose summary names the bgp-sr-tunnel aggregate, with their mandatory and optional coverage.</p>
+</div>
+<style>
+.rfc-table-wrap { overflow-x: auto; }
+.rfc-id-list { margin: .6rem 0; line-height: 1.9; }
+.rfc-verdict { margin: 1rem 0 1.6rem; padding: 1rem 1.2rem; border-radius: 18px; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-verdict p { margin: 0 0 .4rem; color: var(--muted); }
+.rfc-verdict p:last-child { margin-bottom: 0; }
+.rfc-verdict span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-verdict strong { display: block; margin: .2rem 0 .5rem; font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1; color: var(--text); }
+.rfc-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); grid-auto-rows: 1fr; gap: 1rem; margin: 1.25rem 0 .8rem; }
+.rfc-card { display: flex; flex-direction: column; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-card span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
+.rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
+.rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
+.rfc-ok { border-left: 7px solid var(--green); }
+.rfc-neutral { border-left: 7px solid var(--line-strong); }
+.rfc-warn { border-left: 7px solid var(--amber); }
+.rfc-bad { border-left: 7px solid var(--danger-deep); }
+.rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
+.rfc-tape span { width: var(--w); min-width: 0; display: block; }
+.rfc-tape-key { display: flex; flex-wrap: wrap; gap: .35rem 1.4rem; margin: 0 0 1.4rem; padding: 0; list-style: none; font-size: .92rem; }
+.rfc-tape-key li { display: flex; align-items: center; gap: .45rem; }
+.rfc-swatch { display: inline-block; width: .85rem; height: .85rem; border-radius: .25rem; border: 1px solid var(--line-strong); vertical-align: -.1rem; }
+.rfc-tape-both_polarities { background: var(--teal-chip); }
+.rfc-tape-single_polarity { background: var(--sky-chip); }
+.rfc-tape-not_applicable { background: var(--grape-chip); }
+.rfc-tape-feature_declined { background: var(--pink-chip); }
+.rfc-tape-lower_layer { background: var(--mint-chip); }
+.rfc-tape-rollup { background: var(--tangerine-chip); }
+.rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
+.rfc-tape-one_polarity_unexcused { background: var(--amber); }
+.rfc-tape-missing_unexcused { background: var(--danger-deep); }
+.rfc-swatch.rfc-ok { background: var(--green); }
+.rfc-swatch.rfc-neutral { background: var(--line-strong); }
+.rfc-swatch.rfc-warn { background: var(--amber); }
+.rfc-swatch.rfc-bad { background: var(--danger-deep); }
+.rfc-total td { border-top: 2px solid var(--line-strong); }
+.rfc-prose { max-width: 46rem; }
+ul.rfc-prose { margin: .5rem 0 1rem; padding-left: 1.2rem; }
+ul.rfc-prose li { margin: .35rem 0; line-height: 1.6; }
+p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
+.rfc-fold { margin: .6rem 0; }
+.rfc-fold > summary { cursor: pointer; font-weight: 700; }
+.rfc-span > td { padding-bottom: .2rem; border-bottom: 0; }
+.rfc-table td:first-child { font-weight: 400; }
+.rfc-table .rfc-span > td { padding-top: .9rem; }
+.rfc-subject-id { white-space: nowrap; vertical-align: top; }
+.rfc-subject { display: block; max-width: 52rem; }
+.rfc-tests { display: grid; gap: .15rem .8rem; }
+.rfc-tests-row { display: grid; grid-template-columns: 5rem 9.5rem minmax(0, 1fr); gap: .8rem; align-items: baseline; }
+.rfc-tests-row > span:first-child { color: var(--muted); font-size: .88rem; }
+.rfc-mark { margin: .45rem 0 0; color: var(--muted); max-width: 52rem; }
+@media (max-width: 760px) {
+  .rfc-tests-row { grid-template-columns: 1fr; gap: 0; padding-bottom: .35rem; }
+}
+.rfc-text > summary { cursor: pointer; color: var(--muted); font-size: .85rem; }
+.rfc-text > p { margin: .35rem 0 0; max-width: 44rem; }
+.rfc-note-box { margin: 1rem 0; padding: 1rem 1.2rem; border-radius: 16px; background: var(--gold-tint); border: 1px solid var(--gold-chip); }
+.rfc-note-box h3 { margin-top: 0; }
+.rfc-note-box ul { margin-bottom: 0; }
+.rfc-check-ok strong { color: var(--green); }
+.rfc-check-bad strong { color: var(--danger-deep); }
+</style>
+<style>
+.rfc-bar { display: block; width: 100%; min-width: 7rem; height: .7rem; margin: .2rem 0 .15rem; border-radius: 999px; background: var(--panel); border: 1px solid var(--line-strong); overflow: hidden; }
+.rfc-bar span { display: block; height: 100%; background: var(--teal-chip); }
+.rfc-bar-unmeasured { border-style: dashed; }
+.rfc-bar-note { display: block; color: var(--muted); font-size: .85rem; white-space: nowrap; }
+</style>
+<p><a href="../">All profiles</a> · <a href="../../">All RFCs</a></p>
+<div class="rfc-card-grid">
+<div class="rfc-card rfc-neutral"><span>Mandatory</span><strong>36.5%</strong><b>89 of 244 (36.5%)</b><p>MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.</p></div>
+<div class="rfc-card rfc-neutral"><span>Optional</span><strong>2.9%</strong><b>4 of 136 (2.9%)</b><p>MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.</p></div>
+<div class="rfc-card rfc-neutral"><span>Not walked</span><strong>0</strong><b>of 5 RFCs</b><p>RFCs with no valid extraction sign-off: their rows count in neither figure.</p></div>
+<div class="rfc-card rfc-neutral"><span>Mandatory register</span><strong>not complete</strong><b>every row proven, none unwalked</b><p>A profile is complete only when it requires at least one RFC and none of them is unwalked.</p></div>
+</div>
+<section><h2>Tree</h2>
+<p>Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each bar is the share of that figure&#39;s rows a recorded break proves; an RFC that is not walked shows an empty bar and no figure.</p>
+<h3>Level 8</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>RFC</th><th>Title</th><th>Mandatory</th><th>Optional</th></tr></thead>
+<tbody>
+<tr><td><a href="../../rfc8669/">RFC 8669</a></td>
+<td>Segment Routing Prefix Segment Identifier Extensions for BGP</td>
+<td><div class="rfc-bar" role="img" aria-label="13 of 24 (54.2%)"><span style="width:54.2%"></span></div><span class="rfc-bar-note">13 of 24 (54.2%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="3 of 21 (14.3%)"><span style="width:14.3%"></span></div><span class="rfc-bar-note">3 of 21 (14.3%)</span></td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Level 9</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>RFC</th><th>Title</th><th>Mandatory</th><th>Optional</th></tr></thead>
+<tbody>
+<tr><td><a href="../../rfc9012/">RFC 9012</a></td>
+<td>The BGP Tunnel Encapsulation Attribute</td>
+<td><div class="rfc-bar" role="img" aria-label="25 of 76 (32.9%)"><span style="width:32.9%"></span></div><span class="rfc-bar-note">25 of 76 (32.9%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="1 of 22 (4.5%)"><span style="width:4.5%"></span></div><span class="rfc-bar-note">1 of 22 (4.5%)</span></td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Level 11</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>RFC</th><th>Title</th><th>Mandatory</th><th>Optional</th></tr></thead>
+<tbody>
+<tr><td><a href="../../rfc9252/">RFC 9252</a></td>
+<td>BGP Overlay Services Based on Segment Routing over IPv6 (SRv6)</td>
+<td><div class="rfc-bar" role="img" aria-label="14 of 25 (56.0%)"><span style="width:56.0%"></span></div><span class="rfc-bar-note">14 of 25 (56.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 5 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 5 (0.0%)</span></td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Level 13</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>RFC</th><th>Title</th><th>Mandatory</th><th>Optional</th></tr></thead>
+<tbody>
+<tr><td><a href="../../rfc9256/">RFC 9256</a></td>
+<td>Segment Routing Policy Architecture</td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 22 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 22 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 47 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 47 (0.0%)</span></td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Level 14</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>RFC</th><th>Title</th><th>Mandatory</th><th>Optional</th></tr></thead>
+<tbody>
+<tr><td><a href="../../rfc9830/">RFC 9830</a></td>
+<td>BGP Extensions for the Advertisement of Segment Routing (SR) Policies</td>
+<td><div class="rfc-bar" role="img" aria-label="37 of 97 (38.1%)"><span style="width:38.1%"></span></div><span class="rfc-bar-note">37 of 97 (38.1%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 41 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 41 (0.0%)</span></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Debugging</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Quality hub</h2>
+                    <a class="page-sidebar-link" href="../../../../quality/">
+                        <span class="page-sidebar-link-label">Quality overview</span>
+                        <small>Return to the verification map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../../quality/verify-debugging/">
+                        <span class="page-sidebar-link-label">Verify debugging</span>
+                        <small>How failed checks route to evidence.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Symptom-led debugging for running systems.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
+                    <a href="../../../../license/">Ze is AGPLv3 open source.</a>
+                    <a href="../../../../legal/">Legal notice</a>
+                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

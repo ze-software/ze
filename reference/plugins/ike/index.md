@@ -13,7 +13,7 @@ IKEv2 engine for native IPsec VPN
 
 ## Configuration
 
-`vpn`, `pki`
+`vpn`
 
 ## Dependencies
 

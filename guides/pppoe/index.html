@@ -182,7 +182,7 @@ therefore authenticates against those users, on PPPoE and on L2TP.</p>
 <!-- source: internal/component/l2tp/plugins/authradius/register.go -- activateRadiusConfig claims the slot -->
 <h2 id="interoperability">Interoperability</h2>
 <p>Two Docker lab scenarios run Ze in each PPPoE role.
-<code>./le test deployment docker-pppoe-accel-test</code> runs both.</p>
+<code>./le test deployment docker-pppoe-accel</code> runs both.</p>
 <table>
 <thead>
 <tr>
@@ -207,8 +207,8 @@ therefore authenticates against those users, on PPPoE and on L2TP.</p>
 </tr>
 </tbody>
 </table>
-<p><code>./le test qemu pppoe-accel-test</code> runs the client half in QEMU, and
-<code>./le test qemu pppoe-test</code> runs the access concentrator's <code>test/pppoe/</code> suite on
+<p><code>./le test qemu pppoe-accel</code> runs the client half in QEMU, and
+<code>./le test qemu pppoe</code> runs the access concentrator's <code>test/pppoe/</code> suite on
 Ze's runtime kernel. The stock Alpine kernel has no <code>CONFIG_PPPOE</code>.</p>
 <h2 id="cli-commands">CLI Commands</h2>
 <table>
@@ -373,8 +373,10 @@ ID for L2TP) and SessionID.</p>
         <footer>
             <div class="footer-inner">
                 <div class="footer-bottom">
+                    <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
+                    <a href="../../legal/">Legal notice</a>
+                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
                 </div>
             </div>
         </footer>

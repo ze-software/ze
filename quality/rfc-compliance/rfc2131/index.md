@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 38.0% | 27 of 71 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| Tested both ways | 39.4% | 28 of 71 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 7.0% | 5 of 71 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 71 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 71 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 63.5% | 47 of 74 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 65.4% | 51 of 78 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -34,7 +34,7 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 21.1% | 15 of 71 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| No test at all | 19.7% | 14 of 71 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
 The 8 shares marked as a part above are the whole of the 71 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -64,14 +64,14 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Requirements | 109 |
 | Gated MUST-level | 71 |
 | Not applicable, so out of scope | 24 |
-| Declared gaps | 15 |
+| Declared gaps | 14 |
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 76 |
-| Tagged units | 74 |
+| Test tags | 80 |
+| Tagged units | 78 |
 | Recorded audit verdicts | 21 |
-| Discrimination records | 47 |
+| Discrimination records | 51 |
 | Summary | `rfc/short/rfc2131.md` |
 | Requirement shard | `rfc/requirements/rfc2131.md` |
 | RFC text | `rfc/full/rfc2131.txt` |
@@ -90,17 +90,17 @@ Both roles. Server: DORA, leases, static mappings, PXE support -- every OFFER/AC
 
 **What the ledger says remains**
 
-Fifteen MUST gaps, each annotated in [`rfc/short/rfc2131.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc2131.md).
+Fourteen MUST gaps, each annotated in [`rfc/short/rfc2131.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc2131.md).
 
-- **Server:** an OFFER to a client that already holds a binding restarts the lease duration instead of returning the expiration time already assigned ([`RFC2131-4.3.1-10`](#rfc2131-4.3.1-10)); DHCPNAK delivery ([`RFC2131-4.3.2-1`](#rfc2131-4.3.2-1) unicasts to a non-zero ciaddr instead of broadcasting, [`RFC2131-4.3.2-2`](#rfc2131-4.3.2-2) never forces the broadcast bit behind a relay); INIT-REBOOT for an unknown client draws an ACK rather than silence ([`RFC2131-4.3.2-3`](#rfc2131-4.3.2-3)); a declined address is handed back to the client that declined it ([`RFC2131-4.3.3-1`](#rfc2131-4.3.3-1)); only one address per subnet is accepted as the server identifier ([`RFC2131-4.1-1`](#rfc2131-4.1-1)); with no default-router configured the server identifier falls back to a pool address or the subnet network address, neither of which the server answers on ([`RFC2131-4.1-2`](#rfc2131-4.1-2)); the client identifier option 61 is never read, so every client is keyed by chaddr ([`RFC2131-4.2-1`](#rfc2131-4.2-1)); the Parameter Request List is never parsed, so the section 4.3.1 selection rules govern no code path ([`RFC2131-4.3.1-1`](#rfc2131-4.3.1-1), 4.3.1-3, 4.3.1-5); and the vendor class is matched by "PXEClient:" prefix rather than exactly ([`RFC2131-4.3.1-7`](#rfc2131-4.3.1-7)).
+- **Server:** an OFFER to a client that already holds a binding restarts the lease duration instead of returning the expiration time already assigned ([`RFC2131-4.3.1-10`](#rfc2131-4.3.1-10)); a DHCPNAK behind a relay never has the broadcast bit forced ([`RFC2131-4.3.2-2`](#rfc2131-4.3.2-2)); INIT-REBOOT for an unknown client draws an ACK rather than silence ([`RFC2131-4.3.2-3`](#rfc2131-4.3.2-3)); a declined address is handed back to the client that declined it ([`RFC2131-4.3.3-1`](#rfc2131-4.3.3-1)); only one address per subnet is accepted as the server identifier ([`RFC2131-4.1-1`](#rfc2131-4.1-1)); with no default-router configured the server identifier falls back to a pool address or the subnet network address, neither of which the server answers on ([`RFC2131-4.1-2`](#rfc2131-4.1-2)); the client identifier option 61 is never read, so every client is keyed by chaddr ([`RFC2131-4.2-1`](#rfc2131-4.2-1)); the Parameter Request List is never parsed, so the section 4.3.1 selection rules govern no code path ([`RFC2131-4.3.1-1`](#rfc2131-4.3.1-1), 4.3.1-3, 4.3.1-5); and the vendor class is matched by "PXEClient:" prefix rather than exactly ([`RFC2131-4.3.1-7`](#rfc2131-4.3.1-7)).
 - **Client:** the configured client-id is emitted with no uniqueness check ([`RFC2131-2-1`](#rfc2131-2-1)); an address found in use is kept rather than declined, and no DHCPDECLINE path exists ([`RFC2131-3.1-7`](#rfc2131-3.1-7)); and DORA retransmission doubles the timeout with no randomization ([`RFC2131-4.1-8`](#rfc2131-4.1-8)). DHCPINFORM is answered by no code path and sent by none, the server emits no option overload (52), and the client neither emits nor honors one, and the remaining client-role MUSTs are not-applicable because ze produces none of the governed bytes: the vendored nclient4 library constructs them, or ze never enters the state (INIT-REBOOT, DECLINE, RELEASE, INFORM). The client issues no ARP request for an offered address, so the section 4.4.1 rules for that ARP request govern no code path.
 
 ## Coverage
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 27 | one part of the gated population |
-| Annotated (including scoped evidence) | 44 | one part of the gated population |
+| Positive and negative tests | 28 | one part of the gated population |
+| Annotated (including scoped evidence) | 43 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
 | Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
@@ -108,9 +108,9 @@ Fifteen MUST gaps, each annotated in [`rfc/short/rfc2131.md`](https://github.com
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **71** | every gated MUST falls in exactly one bucket above |
 
-**Positive and negative tests (27):** [`RFC2131-4.3-4`](#rfc2131-4.3-4), [`RFC2131-4.3-5`](#rfc2131-4.3-5), [`RFC2131-4.3-6`](#rfc2131-4.3-6), [`RFC2131-4.3-7`](#rfc2131-4.3-7), [`RFC2131-4.3-8`](#rfc2131-4.3-8), [`RFC2131-4.3-9`](#rfc2131-4.3-9), [`RFC2131-3.2-4`](#rfc2131-3.2-4), [`RFC2131-4.2-2`](#rfc2131-4.2-2), [`RFC2131-2-2`](#rfc2131-2-2), [`RFC2131-3.1-5`](#rfc2131-3.1-5), [`RFC2131-4.4.5-1`](#rfc2131-4.4.5-1), [`RFC2131-3-1`](#rfc2131-3-1), [`RFC2131-4.1-3`](#rfc2131-4.1-3), [`RFC2131-4.1-6`](#rfc2131-4.1-6), [`RFC2131-4.1-7`](#rfc2131-4.1-7), [`RFC2131-4.1-15`](#rfc2131-4.1-15), [`RFC2131-4.1-10`](#rfc2131-4.1-10), [`RFC2131-2-3`](#rfc2131-2-3), [`RFC2131-4.4.5-2`](#rfc2131-4.4.5-2), [`RFC2131-4.4.5-3`](#rfc2131-4.4.5-3), [`RFC2131-4.3.1-2`](#rfc2131-4.3.1-2), [`RFC2131-4.3.1-4`](#rfc2131-4.3.1-4), [`RFC2131-4.3.1-6`](#rfc2131-4.3.1-6), [`RFC2131-4.3.2-5`](#rfc2131-4.3.2-5), [`RFC2131-4.4.5-5`](#rfc2131-4.4.5-5), [`RFC2131-4.4.5-6`](#rfc2131-4.4.5-6), [`RFC2131-4.4.5-7`](#rfc2131-4.4.5-7)
+**Positive and negative tests (28):** [`RFC2131-4.3-4`](#rfc2131-4.3-4), [`RFC2131-4.3-5`](#rfc2131-4.3-5), [`RFC2131-4.3-6`](#rfc2131-4.3-6), [`RFC2131-4.3-7`](#rfc2131-4.3-7), [`RFC2131-4.3-8`](#rfc2131-4.3-8), [`RFC2131-4.3-9`](#rfc2131-4.3-9), [`RFC2131-4.3.2-1`](#rfc2131-4.3.2-1), [`RFC2131-3.2-4`](#rfc2131-3.2-4), [`RFC2131-4.2-2`](#rfc2131-4.2-2), [`RFC2131-2-2`](#rfc2131-2-2), [`RFC2131-3.1-5`](#rfc2131-3.1-5), [`RFC2131-4.4.5-1`](#rfc2131-4.4.5-1), [`RFC2131-3-1`](#rfc2131-3-1), [`RFC2131-4.1-3`](#rfc2131-4.1-3), [`RFC2131-4.1-6`](#rfc2131-4.1-6), [`RFC2131-4.1-7`](#rfc2131-4.1-7), [`RFC2131-4.1-15`](#rfc2131-4.1-15), [`RFC2131-4.1-10`](#rfc2131-4.1-10), [`RFC2131-2-3`](#rfc2131-2-3), [`RFC2131-4.4.5-2`](#rfc2131-4.4.5-2), [`RFC2131-4.4.5-3`](#rfc2131-4.4.5-3), [`RFC2131-4.3.1-2`](#rfc2131-4.3.1-2), [`RFC2131-4.3.1-4`](#rfc2131-4.3.1-4), [`RFC2131-4.3.1-6`](#rfc2131-4.3.1-6), [`RFC2131-4.3.2-5`](#rfc2131-4.3.2-5), [`RFC2131-4.4.5-5`](#rfc2131-4.4.5-5), [`RFC2131-4.4.5-6`](#rfc2131-4.4.5-6), [`RFC2131-4.4.5-7`](#rfc2131-4.4.5-7)
 
-**Annotated (including scoped evidence) (44):** [`RFC2131-4.3-1`](#rfc2131-4.3-1), [`RFC2131-4.3-2`](#rfc2131-4.3-2), [`RFC2131-4.3-3`](#rfc2131-4.3-3), [`RFC2131-4.3.5-1`](#rfc2131-4.3.5-1), [`RFC2131-4.3.2-1`](#rfc2131-4.3.2-1), [`RFC2131-4.3.2-2`](#rfc2131-4.3.2-2), [`RFC2131-4.3.2-3`](#rfc2131-4.3.2-3), [`RFC2131-4.3.3-1`](#rfc2131-4.3.3-1), [`RFC2131-4.1-1`](#rfc2131-4.1-1), [`RFC2131-4.1-2`](#rfc2131-4.1-2), [`RFC2131-4.2-1`](#rfc2131-4.2-1), [`RFC2131-2-1`](#rfc2131-2-1), [`RFC2131-3.1-1`](#rfc2131-3.1-1), [`RFC2131-3.1-2`](#rfc2131-3.1-2), [`RFC2131-3.1-3`](#rfc2131-3.1-3), [`RFC2131-3.1-4`](#rfc2131-3.1-4), [`RFC2131-3.2-1`](#rfc2131-3.2-1), [`RFC2131-3.1-6`](#rfc2131-3.1-6), [`RFC2131-3.1-7`](#rfc2131-3.1-7), [`RFC2131-4.1-4`](#rfc2131-4.1-4), [`RFC2131-4.1-5`](#rfc2131-4.1-5), [`RFC2131-4.1-8`](#rfc2131-4.1-8), [`RFC2131-4.1-9`](#rfc2131-4.1-9), [`RFC2131-3.4-1`](#rfc2131-3.4-1), [`RFC2131-2-4`](#rfc2131-2-4), [`RFC2131-3.5-1`](#rfc2131-3.5-1), [`RFC2131-3.1-8`](#rfc2131-3.1-8), [`RFC2131-4.3.1-1`](#rfc2131-4.3.1-1), [`RFC2131-4.3.1-3`](#rfc2131-4.3.1-3), [`RFC2131-4.3.1-5`](#rfc2131-4.3.1-5), [`RFC2131-4.3.1-7`](#rfc2131-4.3.1-7), [`RFC2131-4.4.1-1`](#rfc2131-4.4.1-1), [`RFC2131-4.4.2-1`](#rfc2131-4.4.2-1), [`RFC2131-4.4.2-2`](#rfc2131-4.4.2-2), [`RFC2131-4.4.3-1`](#rfc2131-4.4.3-1), [`RFC2131-3.2-3`](#rfc2131-3.2-3), [`RFC2131-4.4-1`](#rfc2131-4.4-1), [`RFC2131-4.4-2`](#rfc2131-4.4-2), [`RFC2131-4.4-3`](#rfc2131-4.4-3), [`RFC2131-3-2`](#rfc2131-3-2), [`RFC2131-3.6-1`](#rfc2131-3.6-1), [`RFC2131-4.1-16`](#rfc2131-4.1-16), [`RFC2131-4.4.1-4`](#rfc2131-4.4.1-4), [`RFC2131-4.3.1-10`](#rfc2131-4.3.1-10)
+**Annotated (including scoped evidence) (43):** [`RFC2131-4.3-1`](#rfc2131-4.3-1), [`RFC2131-4.3-2`](#rfc2131-4.3-2), [`RFC2131-4.3-3`](#rfc2131-4.3-3), [`RFC2131-4.3.5-1`](#rfc2131-4.3.5-1), [`RFC2131-4.3.2-2`](#rfc2131-4.3.2-2), [`RFC2131-4.3.2-3`](#rfc2131-4.3.2-3), [`RFC2131-4.3.3-1`](#rfc2131-4.3.3-1), [`RFC2131-4.1-1`](#rfc2131-4.1-1), [`RFC2131-4.1-2`](#rfc2131-4.1-2), [`RFC2131-4.2-1`](#rfc2131-4.2-1), [`RFC2131-2-1`](#rfc2131-2-1), [`RFC2131-3.1-1`](#rfc2131-3.1-1), [`RFC2131-3.1-2`](#rfc2131-3.1-2), [`RFC2131-3.1-3`](#rfc2131-3.1-3), [`RFC2131-3.1-4`](#rfc2131-3.1-4), [`RFC2131-3.2-1`](#rfc2131-3.2-1), [`RFC2131-3.1-6`](#rfc2131-3.1-6), [`RFC2131-3.1-7`](#rfc2131-3.1-7), [`RFC2131-4.1-4`](#rfc2131-4.1-4), [`RFC2131-4.1-5`](#rfc2131-4.1-5), [`RFC2131-4.1-8`](#rfc2131-4.1-8), [`RFC2131-4.1-9`](#rfc2131-4.1-9), [`RFC2131-3.4-1`](#rfc2131-3.4-1), [`RFC2131-2-4`](#rfc2131-2-4), [`RFC2131-3.5-1`](#rfc2131-3.5-1), [`RFC2131-3.1-8`](#rfc2131-3.1-8), [`RFC2131-4.3.1-1`](#rfc2131-4.3.1-1), [`RFC2131-4.3.1-3`](#rfc2131-4.3.1-3), [`RFC2131-4.3.1-5`](#rfc2131-4.3.1-5), [`RFC2131-4.3.1-7`](#rfc2131-4.3.1-7), [`RFC2131-4.4.1-1`](#rfc2131-4.4.1-1), [`RFC2131-4.4.2-1`](#rfc2131-4.4.2-1), [`RFC2131-4.4.2-2`](#rfc2131-4.4.2-2), [`RFC2131-4.4.3-1`](#rfc2131-4.4.3-1), [`RFC2131-3.2-3`](#rfc2131-3.2-3), [`RFC2131-4.4-1`](#rfc2131-4.4-1), [`RFC2131-4.4-2`](#rfc2131-4.4-2), [`RFC2131-4.4-3`](#rfc2131-4.4-3), [`RFC2131-3-2`](#rfc2131-3-2), [`RFC2131-3.6-1`](#rfc2131-3.6-1), [`RFC2131-4.1-16`](#rfc2131-4.1-16), [`RFC2131-4.4.1-4`](#rfc2131-4.4.1-4), [`RFC2131-4.3.1-10`](#rfc2131-4.3.1-10)
 
 ## Requirements
 
@@ -126,7 +126,7 @@ Fifteen MUST gaps, each annotated in [`rfc/short/rfc2131.md`](https://github.com
 | `RFC2131-4.3-8` | Maximum message size MUST NOT MUST NOT MUST NOT (§4.3) | MUST NOT | 4.3 | **positive:** `unit/verify` [`TestReplyOmitsClientOnlyOptions`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L232). **negative:** `unit/verify` [`TestReplyDoesNotEchoClientOptions`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L320) |
 | `RFC2131-4.3-9` | All others MAY MAY MUST NOT (§4.3) | MUST NOT | 4.3 | **positive:** `unit/verify` [`TestReplyOmitsClientOnlyOptions`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L249). **negative:** `unit/verify` [`TestReplyDoesNotEchoClientOptions`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L337) |
 | `RFC2131-4.3.5-1` | The server MUST NOT send a lease expiration time to the client (§4.3.5) | MUST NOT | 4.3.5 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze answers no DHCPINFORM at all -- the message-type switch in handle (internal/plugins/dhcpserver/handler.go:121-134) dispatches DISCOVER, REQUEST, RELEASE and DECLINE, and every other type including msgInform (handler.go:37) falls to the default branch that returns nil, so ze builds no DHCPINFORM response at all |
-| `RFC2131-4.3.2-1` | If 'giaddr' is 0x0 in the DHCPREQUEST message, the client is on the same subnet as the server. The server MUST broadcast the DHCPNAK message to the 0xffffffff broadcast address (§4.3.2) | MUST | 4.3.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** with giaddr zero the delivery path unicasts a DHCPNAK to a non-zero ciaddr instead of broadcasting -- responseAddr tests giaddr, then ciaddr, before it ever reaches the broadcast decision (internal/plugins/dhcpserver/register.go:275-298) and never special-cases the NAK message type, so a REQUEST whose ciaddr is on-subnet and whose requested address is off-subnet is NAKed to ciaddr:68 |
+| `RFC2131-4.3.2-1` | If 'giaddr' is 0x0 in the DHCPREQUEST message, the client is on the same subnet as the server. The server MUST broadcast the DHCPNAK message to the 0xffffffff broadcast address (§4.3.2) | MUST | 4.3.2 | **positive:** `unit/verify` [`TestNakBroadcastWhenGiaddrZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_delivery_test.go#L25). **negative:** `unit/verify` [`TestNakBroadcastWhenGiaddrZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_delivery_test.go#L26) |
 | `RFC2131-4.3.2-2` | If 'giaddr' is set in the DHCPREQUEST message, the client is on a different subnet. The server MUST set the broadcast bit in the DHCPNAK, so that the relay agent will broadcast the DHCPNAK to the client (§4.3.2) | MUST | 4.3.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** buildNak copies the client's flags word verbatim (internal/plugins/dhcpserver/handler.go:339) and never forces the BROADCAST bit, so a DHCPNAK relayed through a non-zero giaddr leaves the server with the broadcast bit clear whenever the client left it clear |
 | `RFC2131-3.2-4` | Otherwise, the server MUST send the DHCPNAK message to the IP address of the BOOTP relay agent, as recorded in 'giaddr'. (§3.2) | MUST | 3.2 | **positive:** `unit/verify` [`TestNakDeliveredToRelayAgent`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_nak_relay_test.go#L19). **negative:** `unit/verify` [`TestNakDeliveredToRelayAgent`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_nak_relay_test.go#L20) |
 | `RFC2131-4.3.2-3` | If the DHCP server has no record of this client, then it MUST remain silent (§4.3.2) | MUST | 4.3.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the INIT-REBOOT branch commits a binding for any in-subnet requested address without consulting the lease table (handleRequest internal/plugins/dhcpserver/handler.go:178-183 calls commitBinding at handler.go:194), so a client the server holds no record of draws a DHCPACK rather than silence |
@@ -180,7 +180,7 @@ Fifteen MUST gaps, each annotated in [`rfc/short/rfc2131.md`](https://github.com
 | `RFC2131-3.7-1` | A client SHOULD use DHCP to reacquire or verify its IP address and network parameters whenever the local network parameters may have changed; e.g., at system boot time or after a disconnection from the local network, as the local network configuration may change without the client's or user's knowledge. (§3.7) | SHOULD | 3.7 | **positive:** no positive test. **negative:** no negative test |
 | `RFC2131-2-5` | The TCP/IP software SHOULD accept and forward to the IP layer any IP packets delivered to the client's hardware address before the IP address is configured (§2) | SHOULD | 2 | **positive:** no positive test. **negative:** no negative test |
 | `RFC2131-4.1-11` | A client that cannot receive unicast IP datagrams until its protocol software has been configured with an IP address SHOULD set the BROADCAST bit in the 'flags' field to 1 in any DHCPDISCOVER or DHCPREQUEST messages that client sends. (§4.1) | SHOULD | 4.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2131-4.1-12` | A server or relay agent sending or relaying a DHCP message directly to a DHCP client (i.e., not to a relay agent specified in the 'giaddr' field) SHOULD examine the BROADCAST bit in the 'flags' field. If this bit is set to 1, the DHCP message SHOULD be sent as an IP broadcast using an IP broadcast address (preferably 0xffffffff) as the IP destination address and the link-layer broadcast address as the link-layer destination address. (§4.1) | SHOULD | 4.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2131-4.1-12` | A server or relay agent sending or relaying a DHCP message directly to a DHCP client (i.e., not to a relay agent specified in the 'giaddr' field) SHOULD examine the BROADCAST bit in the 'flags' field. If this bit is set to 1, the DHCP message SHOULD be sent as an IP broadcast using an IP broadcast address (preferably 0xffffffff) as the IP destination address and the link-layer broadcast address as the link-layer destination address. (§4.1) | SHOULD | 4.1 | **positive:** `unit/verify` [`TestOfferReachesClientHardware`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_delivery_test.go#L93). **negative:** `unit/verify` [`TestOfferReachesClientHardware`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_delivery_test.go#L94) |
 | `RFC2131-4.4.5-4` | Times T1 and T2 SHOULD be chosen with some random "fuzz" around a fixed value, to avoid synchronization of client reacquisition. (§4.4.5) | SHOULD | 4.4.5 | **positive:** no positive test. **negative:** no negative test |
 | `RFC2131-4.1-13` | the delay before the first retransmission SHOULD be 4 seconds randomized by the value of a uniform random number chosen from the range -1 to +1. Clients with clocks that provide resolution granularity of less than one second may choose a non-integer randomization value. The delay before the next retransmission SHOULD be 8 seconds randomized by the value of a uniform number chosen from the range -1 to +1. The retransmission delay SHOULD be doubled with subsequent retransmissions up to a maximum of 64 seconds. (§4.1) | SHOULD | 4.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC2131-2.2-1` | As a consistency check, the allocating server SHOULD probe the reused address before allocating the address, e.g., with an ICMP echo request (§2.2) | SHOULD | 2.2 | **positive:** no positive test. **negative:** no negative test |
@@ -231,7 +231,6 @@ Fifteen MUST gaps, each annotated in [`rfc/short/rfc2131.md`](https://github.com
 | Requirement | State | Reason |
 |---|---|---|
 | [`RFC2131-4.3.5-1`](#rfc2131-4.3.5-1) The server MUST NOT send a lease expiration time to the client (§4.3.5) | no test | no test carries this requirement id; annotated {not-applicable}: ze answers no DHCPINFORM at all -- the message-type switch in handle (internal/plugins/dhcpserver/handler.go:121-134) dispatches DISCOVER, REQUEST, RELEASE and DECLINE, and every other type including msgInform (handler.go:37) falls to the default branch that returns nil, so ze builds no DHCPINFORM response at all |
-| [`RFC2131-4.3.2-1`](#rfc2131-4.3.2-1) If 'giaddr' is 0x0 in the DHCPREQUEST message, the client is on the same subnet as the server. The server MUST broadcast the DHCPNAK message to the 0xffffffff broadcast address (§4.3.2) | {gap}, no test | with giaddr zero the delivery path unicasts a DHCPNAK to a non-zero ciaddr instead of broadcasting -- responseAddr tests giaddr, then ciaddr, before it ever reaches the broadcast decision (internal/plugins/dhcpserver/register.go:275-298) and never special-cases the NAK message type, so a REQUEST whose ciaddr is on-subnet and whose requested address is off-subnet is NAKed to ciaddr:68 |
 | [`RFC2131-4.3.2-2`](#rfc2131-4.3.2-2) If 'giaddr' is set in the DHCPREQUEST message, the client is on a different subnet. The server MUST set the broadcast bit in the DHCPNAK, so that the relay agent will broadcast the DHCPNAK to the client (§4.3.2) | {gap}, no test | buildNak copies the client's flags word verbatim (internal/plugins/dhcpserver/handler.go:339) and never forces the BROADCAST bit, so a DHCPNAK relayed through a non-zero giaddr leaves the server with the broadcast bit clear whenever the client left it clear |
 | [`RFC2131-4.3.2-3`](#rfc2131-4.3.2-3) If the DHCP server has no record of this client, then it MUST remain silent (§4.3.2) | {gap}, no test | the INIT-REBOOT branch commits a binding for any in-subnet requested address without consulting the lease table (handleRequest internal/plugins/dhcpserver/handler.go:178-183 calls commitBinding at handler.go:194), so a client the server holds no record of draws a DHCPACK rather than silence |
 | [`RFC2131-4.3.3-1`](#rfc2131-4.3.3-1) The server MUST mark the network address as not available (§4.3.3) | {gap}, no test | markUnavailable sets the pool bit and the static set for the declined address (internal/plugins/dhcpserver/pool.go:144-163), but the declining client's MAC-to-address cache entry survives -- pool.release returns early for a staticSet address (pool.go:174-177) -- so pool.allocate hands that same declined address back to that client on its next DISCOVER (pool.go:68-72) |
@@ -384,7 +383,10 @@ If 'giaddr' is 0x0 in the DHCPREQUEST message, the client is on the same subnet 
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC2131-4.3.2-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestNakBroadcastWhenGiaddrZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_delivery_test.go#L26) | unit/verify | revert, verified |
+| positive | [`TestNakBroadcastWhenGiaddrZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_delivery_test.go#L25) | unit/verify | revert, verified |
 
 ### [`RFC2131-4.3.2-2`](#rfc2131-4.3.2-2)
 
@@ -727,6 +729,17 @@ To help ensure that any BOOTP relay agents forward the DHCPREQUEST message to th
 Audit verdict: not audited: no reader has judged these tests
 
 No test carries RFC2131-3.1-8, so no unit is bound to it.
+
+### [`RFC2131-4.1-12`](#rfc2131-4.1-12)
+
+A server or relay agent sending or relaying a DHCP message directly to a DHCP client (i.e., not to a relay agent specified in the 'giaddr' field) SHOULD examine the BROADCAST bit in the 'flags' field. If this bit is set to 1, the DHCP message SHOULD be sent as an IP broadcast using an IP broadcast address (preferably 0xffffffff) as the IP destination address and the link-layer broadcast address as the link-layer destination address. (§4.1)
+
+Audit verdict: not audited: no reader has judged these tests
+
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestOfferReachesClientHardware`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_delivery_test.go#L94) | unit/verify | revert, verified |
+| positive | [`TestOfferReachesClientHardware`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_delivery_test.go#L93) | unit/verify | revert, verified |
 
 ### [`RFC2131-4.3.1-1`](#rfc2131-4.3.1-1)
 

@@ -70,8 +70,8 @@
 <table>
 <thead><tr><th>Need</th><th>Command</th></tr></thead>
 <tbody>
-<tr><td>Run curated Linux-only functional files</td><td><code>./le test qemu netns-test</code></td></tr>
-<tr><td>Run the full suite inside a prepared guest</td><td><code>./le test qemu run command '&lt;guest-le&gt; le test qemu all-tests'</code></td></tr>
+<tr><td>Run curated Linux-only functional files</td><td><code>./le test qemu netns</code></td></tr>
+<tr><td>Run the full suite inside a prepared guest</td><td><code>./le test qemu run command '&lt;guest-le&gt; le test qemu all'</code></td></tr>
 <tr><td>Rerun one failing command inside the VM</td><td><code>./le test qemu run command '...'</code></td></tr>
 <tr><td>Keep a VM alive for manual inspection</td><td><code>./le test qemu run command '...' keep-alive</code></td></tr>
 </tbody>
@@ -94,8 +94,8 @@
 <tbody>
 <tr><td>BGP interop</td><td><code>./le test integration interop</code></td><td>Ze exchanges real protocol messages with third-party BGP daemons.</td></tr>
 <tr><td>IPsec interop</td><td><code>./le test integration interop-ipsec</code></td><td>strongSwan and Ze agree on the deployed behavior.</td></tr>
-<tr><td>L2TP and PPPoE</td><td><code>./le test deployment docker-l2tp-ppp-test</code>, <code>./le test deployment docker-pppoe-accel-test</code></td><td>Access protocol behavior works against real peers.</td></tr>
-<tr><td>Deployment evidence</td><td><code>./le test deployment l2tp-test</code>, <code>./le test deployment vpp-test</code></td><td>Deployment paths are not just unit-tested scripts.</td></tr>
+<tr><td>L2TP and PPPoE</td><td><code>./le test deployment docker-l2tp-ppp</code>, <code>./le test deployment docker-pppoe-accel</code></td><td>Access protocol behavior works against real peers.</td></tr>
+<tr><td>Deployment evidence</td><td><code>./le test deployment l2tp</code>, <code>./le test deployment vpp</code></td><td>Deployment paths are not just unit-tested scripts.</td></tr>
 </tbody>
 </table>
 <p>Interop tests are not a replacement for functional transcripts. A <code>.ci</code> test explains a Ze behavior precisely and cheaply. Interop proves that the behavior still works when another implementation interprets the protocol.</p>
@@ -140,8 +140,10 @@ native action checks its prerequisites before it starts the matrix.</p>
         <footer>
             <div class="footer-inner">
                 <div class="footer-bottom">
+                    <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
+                    <a href="../../legal/">Legal notice</a>
+                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
                 </div>
             </div>
         </footer>

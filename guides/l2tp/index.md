@@ -106,7 +106,7 @@ The `relay` binding is the LAC path: a PPPoE subscriber whose Service-Name
 matches is relayed into an L2TP incoming call (ICRQ) toward the bound remote
 instead of terminating PPP locally. The subscriber-PPP↔L2TP kernel channel
 bridge that carries frames at the LAC is Linux-only and exercised through
-`./le test deployment l2tp-ppp-test`. Initiator tunnel interop is proven against
+`./le test deployment l2tp-ppp`. Initiator tunnel interop is proven against
 xl2tpd in `test/interop-l2tp/scenarios/03-ze-lac-xl2tpd-lns`.
 
 <!-- source: internal/component/l2tp/yang/ze-l2tp-conf.yang -- remote/relay lists -->
@@ -431,6 +431,15 @@ ze strips the Ident and decodes the digits rather than passing the attribute
 through.
 <!-- source: internal/component/l2tp/plugins/authradius/handler.go -- buildAuthAttrs, doRADIUS, extractMSCHAP2Success, decodeMSCHAP2Success -->
 
+A login whose handling meets a Ze defect (a Go panic) is denied with
+`internal error`, and every other login is served as before. The panic is
+logged at ERROR with the tunnel and session and the stack, counted in
+`ze_task_panics_total{component="radius-auth",task="request"}`, and written as
+a crash record that `ze show crashes` lists. Any count above zero is a Ze defect
+to report with that record.
+<!-- source: internal/component/l2tp/plugins/authradius/handler.go -- doRADIUS -->
+<!-- source: internal/component/l2tp/plugins/authradius/panic_guard.go -- authRequestTask -->
+
 Every Accounting-Request carries Acct-Status-Type, Acct-Session-Id, Service-Type
 (Framed), Framed-Protocol (PPP), NAS-Port-Type (Virtual), NAS-Port and
 Event-Timestamp. User-Name and Calling-Station-Id are added when the session has
@@ -458,6 +467,17 @@ initial raw interface counters before it enables forwarding. This includes a
 replacement network lifetime on the same PPP unit. Accounting-Start runs
 asynchronously; forwarding does not wait for a RADIUS server response. PPPoE
 accounting remains unconnected to subscriber events.
+
+Each session's Start and Interim-Update records come from a task of its own. A
+Ze defect (a Go panic) met in that task ends that session's Start and
+Interim-Update records only: the session stays up, every other session accounts
+as before, and the session's Stop record is still sent when it ends, because
+RFC 2866 Section 2 ties the Stop to the end of service delivery. The panic is
+logged at ERROR with the tunnel and session and the stack, counted in
+`ze_task_panics_total{component="radius-auth",task="accounting"}`, and written
+as a crash record that `ze show crashes` lists.
+<!-- source: internal/component/l2tp/plugins/authradius/acct.go -- runAccounting, onSessionDown -->
+<!-- source: internal/component/l2tp/plugins/authradius/panic_guard.go -- accountingTask -->
 
 Event-Timestamp (type 55) is four octets of seconds since 1970-01-01 00:00 UTC,
 which RFC 2869 Section 5.3 defines. Calling-Station-Id (type 31) is the L2TP
@@ -732,6 +752,18 @@ minutes, the Event-Timestamp window, and only an authenticated request that
 earned a response enters it.
 <!-- source: internal/component/l2tp/plugins/authradius/coa.go -- replayKey, cachedReplay, rememberReplay, coaReplayWindow -->
 
+A request whose handling meets a Ze defect (a Go panic) does not stop the
+listener. When the request had passed every authentication check, Ze answers it
+with a CoA-NAK or Disconnect-NAK carrying Error-Cause 506 (Resources
+Unavailable), and the cache keeps that NAK for a retransmission; any other
+packet is dropped, as one that fails those checks is. The listener then serves
+the next request. The panic is logged at ERROR with the sender's address and
+the stack, counted in `ze_task_panics_total{component="radius-coa",task="request"}`,
+and written as a crash record that `ze show crashes` lists. Any count above zero
+is a Ze defect to report with that record.
+<!-- source: internal/component/l2tp/plugins/authradius/coa.go -- coaListener.serveRequests -->
+<!-- source: internal/component/l2tp/plugins/authradius/panic_guard.go -- coaRequestTask -->
+
 The response echoes the request's Proxy-State and State attributes unchanged,
 and Ze never reads their contents.
 
@@ -758,7 +790,7 @@ packet the finished Message-Authenticator is part of. A client that inverts the
 two is refused.
 
 <!-- source: internal/component/l2tp/plugins/authradius/yang/ze-l2tp-auth-radius-conf.yang -- coa-port -->
-<!-- source: internal/component/l2tp/plugins/authradius/coa.go -- handlePacket, unsupportedAttr, unsupportedAttrValue, readCoAChange, applySubscriberCoA, oneSession -->
+<!-- source: internal/component/l2tp/plugins/authradius/coa.go -- admitRequest, answerRequest, unsupportedAttr, unsupportedAttrValue, readCoAChange, applySubscriberCoA, oneSession -->
 <!-- source: internal/component/l2tp/plugins/authradius/register.go -- startCoAListener -->
 <!-- source: internal/component/radius/packet.go -- VerifyCoARequestAuth, VerifyCoAMessageAuthenticator -->
 
@@ -839,6 +871,15 @@ into on that hook, so the enforcement available is to drop what exceeds the
 rate. The policer attaches at tc priority 200 on the shared `clsact` qdisc, so
 interface mirroring (priority 1) and flow-export sampling (priority 100) keep
 working on the same interface.
+
+For TBF, the download rate is a classless root rate; the shaper creates no
+traffic class. HTB uses one default class with both rate and ceil set to the
+download rate. Both paths convert configured bits per second to Linux's byte
+rate. A `10mbit` download therefore programs 1,250,000 bytes/s, not
+10,000,000 bytes/s. The TBF burst is encoded in scheduler ticks, not bytes.
+Invalid or unrepresentable rates are refused before replacing the root, so a
+bad rate cannot install a download qdisc and then abort before upload policing.
+See [TBF root rates and bounds](../traffic-control/index.md#tc-backend-tbf-root-rate).
 
 A PPPoE subscriber gets the same pair of mechanisms. Both access types
 terminate on a `pppN`, so one implementation serves them both.

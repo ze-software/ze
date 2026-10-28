@@ -94,12 +94,12 @@ What each block does:
 | --- | --- |
 | `plugin internal flowspec-firewall` | Starts the bridge and subscribes to validated BGP RIB best-path changes. |
 | `firewall backend nft` | Uses Linux nftables as the firewall backend. |
-| `control-plane-protection bgp` | Rate-limits new TCP connections to the protected BGP port. |
-| `trusted-source` | Bypasses CoPP for known BGP route reflectors or upstream routers. |
+| `control-plane-protection bgp` | Accepts TCP to the protected BGP port from configured BGP neighbors only, drops every other source, and rate-limits new connections from the neighbors. |
+| `trusted-source` | Accepts a source that is not a configured BGP neighbor, such as a monitoring host, and never rate-limits it. |
 | `family ipv4/flow` | Negotiates IPv4 FlowSpec with the route reflector. |
 | `ddos flowspec` | Optional automatic upstream mitigation policy for the DDoS pipeline. |
 
-`over-limit-policy drop` is intentionally strict. During first turn-up you can use `accept` to observe without dropping, then switch to `drop` after counters and logs look correct.
+`over-limit-policy drop` is the default. During first turn-up you can set `accept` to observe the rate without dropping, then remove it after counters and logs look correct. Neither setting admits a source that is not a configured neighbor or a `trusted-source`.
 
 The bridge receives selected routes from `bgp-rib`. Received UPDATE events do
 not program the firewall. The RIB validates FlowSpec against unicast reachability

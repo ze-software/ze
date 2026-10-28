@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 3.3% | 3 of 91 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 91 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 91 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 87.5% | 56 of 64 tagged units, 0 escaped and 1 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 68.8% | 44 of 64 tagged units, 0 escaped and 13 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -35,7 +35,7 @@ what Ze owes
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | No test at all | 64.8% | 59 of 91 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Audit verdicts | 26 | of 91 gated MUSTs judged | 2 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+| Audit verdicts | 26 | of 91 gated MUSTs judged | 2 weak, wrong or unimplemented, 2 no longer current. Each is named below under its own requirement id |
 
 The 8 shares marked as a part above are the whole of the 91 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -323,18 +323,18 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. The 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC5036SessionNotOperationalWithoutOwnInit`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L437) | unit/verify | revert, verified |
-| positive | [`TestRFC5036ActiveRoleInitiatesNegotiation`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_establishment_test.go#L98) | unit/verify | revert, verified |
+| positive | [`TestRFC5036ActiveRoleInitiatesNegotiation`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_establishment_test.go#L98) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC5036-2.5.3-1`](#rfc5036-2.5.3-1)
 
 An LSR MUST arrange that its peer receive an LDP message from it at least every KeepAlive Time period. Any LDP protocol message will do but, in circumstances where no other LDP protocol messages have been sent within the period, a KeepAlive message MUST be sent. (§3.5.4.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-14 after TestRFC5036KeepalivesSentPeriodically changed. Positive: runSession to operational with both sides at 1s and an empty LIB; each of the next three PDUs must be a KeepAlive and each gap at most 1s; the test peer now writes a KeepAlive after each one so ze's 1s KeepAlive Timer is fed, which removes no assertion. Negative (dual-tagged with RFC5036-3.5.4.1-1, unit unchanged): TestRFC5036KeepalivePacingFollowsNegotiatedTime has ze propose 60s and the peer 1s, then requires each of the next three PDUs within 1s of the previous; it does not check their type, which the row allows (any LDP message will do), and a sender pacing from the 60s proposal fails it because the session ends after the 1s timer and the next read fails. Row-quality: the first sentence duplicates RFC5036-3.5.4.1-1 verbatim.
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/plugins/ldp/register.go::runSession moved. Re-judged 2026-10-14 after TestRFC5036KeepalivesSentPeriodically changed. Positive: runSession to operational with both sides at 1s and an empty LIB; each of the next three PDUs must be a KeepAlive and each gap at most 1s; the test peer now writes a KeepAlive after each one so ze's 1s KeepAlive Timer is fed, which removes no assertion. Negative (dual-tagged with RFC5036-3.5.4.1-1, unit unchanged): TestRFC5036KeepalivePacingFollowsNegotiatedTime has ze propose 60s and the peer 1s, then requires each of the next three PDUs within 1s of the previous; it does not check their type, which the row allows (any LDP message will do), and a sender pacing from the 60s proposal fails it because the session ends after the 1s timer and the next read fails. Row-quality: the first sentence duplicates RFC5036-3.5.4.1-1 verbatim.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC5036KeepalivePacingFollowsNegotiatedTime`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L408) | unit/verify | revert, verified |
-| positive | [`TestRFC5036KeepalivesSentPeriodically`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L533) | unit/verify | revert, verified |
+| negative | [`TestRFC5036KeepalivePacingFollowsNegotiatedTime`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L408) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC5036KeepalivesSentPeriodically`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L533) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC5036-2.6.1.2-1`](#rfc5036-2.6.1.2-1)
 
@@ -367,7 +367,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 Two octet unsigned non zero integer that indicates the number of seconds that the sending LSR proposes for the value of the KeepAlive Time. (§3.5.3)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-14 after TestRFC5036InitNonZeroKeepaliveTimeAccepted changed. Positive: processMessages over an Initialization proposing 30s plus the peer's KeepAlive reaches operational, negotiated KeepAlive Time and armed KeepAlive Timer are both 30s, and no byte arrives on the peer side within 200ms (no Notification). Negative, unchanged: TestRFC5036InitZeroKeepaliveTimeRejected sends KeepAlive Time 0 and asserts a Session Rejected/Bad KeepAlive Time status referring to message id 7 of type Initialization, processMessages returning errBadKeepaliveTime, a non-operational state, and non-zero hold and keepalive times.
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/plugins/ldp/session.go::processMessages moved. Re-judged 2026-10-14 after TestRFC5036InitNonZeroKeepaliveTimeAccepted changed. Positive: processMessages over an Initialization proposing 30s plus the peer's KeepAlive reaches operational, negotiated KeepAlive Time and armed KeepAlive Timer are both 30s, and no byte arrives on the peer side within 200ms (no Notification). Negative, unchanged: TestRFC5036InitZeroKeepaliveTimeRejected sends KeepAlive Time 0 and asserts a Session Rejected/Bad KeepAlive Time status referring to message id 7 of type Initialization, processMessages returning errBadKeepaliveTime, a non-operational state, and non-zero hold and keepalive times.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -391,7 +391,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Posi
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC5036ActiveRoleNoKeepAliveWithoutAcceptableInit`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_establishment_test.go#L159) | unit/verify | revert, verified |
-| positive | [`TestRFC5036ActiveRoleAcceptableInitAnsweredWithKeepAlive`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_establishment_test.go#L129) | unit/verify | revert, verified |
+| positive | [`TestRFC5036ActiveRoleAcceptableInitAnsweredWithKeepAlive`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_establishment_test.go#L129) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC5036-2.5.3-6`](#rfc5036-2.5.3-6)
 
@@ -401,7 +401,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Posi
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC5036ActiveRoleAcceptableInitKeepsConnection`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_establishment_test.go#L242) | unit/verify | revert, verified |
+| negative | [`TestRFC5036ActiveRoleAcceptableInitKeepsConnection`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_establishment_test.go#L242) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | positive | [`TestRFC5036ActiveRoleUnacceptableInitRejectedAndClosed`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_establishment_test.go#L192) | unit/verify | revert, verified |
 
 ### [`RFC5036-2.5.3-7`](#rfc5036-2.5.3-7)
@@ -431,7 +431,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. The 
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC5036KeepAliveWithoutPeerInitializationNeverEstablishes`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_openrec_test.go#L56) | unit/verify | revert, verified |
+| negative | [`TestRFC5036KeepAliveWithoutPeerInitializationNeverEstablishes`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_openrec_test.go#L56) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | negative | [`TestRFC5036OpenReceivedWaitsForPeerKeepAlive`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_openrec_test.go#L41) | unit/verify | revert, verified |
 | positive | [`TestRFC5036OpenReceivedKeepAliveEstablishesSession`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_openrec_test.go#L15) | unit/verify | revert, verified |
 
@@ -444,7 +444,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC5036OpenReceivedKeepAliveEstablishesSession`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_openrec_test.go#L17) | unit/verify | revert, verified |
-| positive | [`TestRFC5036OpenReceivedOtherMessageRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_openrec_test.go#L89) | unit/verify | revert, verified |
+| positive | [`TestRFC5036OpenReceivedOtherMessageRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_openrec_test.go#L89) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC5036-2.5.4-2`](#rfc5036-2.5.4-2)
 
@@ -455,7 +455,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. OPEN
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC5036OpenReceivedKeepAliveEstablishesSession`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_openrec_test.go#L19) | unit/verify | revert, verified |
-| positive | [`TestRFC5036OpenSentOtherMessageRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_openrec_test.go#L101) | unit/verify | revert, verified |
+| positive | [`TestRFC5036OpenSentOtherMessageRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_openrec_test.go#L101) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC5036-2.5.4-3`](#rfc5036-2.5.4-3)
 
@@ -553,8 +553,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC5036NonEgressFECNotMappedBeforeDownstreamLabel`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L498) | unit/verify | revert, verified |
-| positive | [`TestRFC5036EgressFECMappedWithoutWaiting`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L469) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestRFC5036NonEgressFECNotMappedBeforeDownstreamLabel`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L498) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC5036EgressFECMappedWithoutWaiting`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L469) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC5036-2.8.1-1`](#rfc5036-2.8.1-1)
 
@@ -779,7 +779,7 @@ Audit verdict: weak (the tests pass over code that does not enforce the requirem
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC5036HopCountAboveMaximumDrawsLoopDetected`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L203) | unit/verify | revert, verified |
+| negative | [`TestRFC5036HopCountAboveMaximumDrawsLoopDetected`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L203) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | positive | [`TestRFC5036HopCountWithinMaximumIsApplied`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L174) | unit/verify | revert, verified |
 
 ### [`RFC5036-3.4.4.1-2`](#rfc5036-3.4.4.1-2)
@@ -790,7 +790,7 @@ Audit verdict: weak (the tests pass over code that does not enforce the requirem
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC5036HopCountWithinMaximumIsApplied`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L177) | unit/verify | revert, verified |
+| negative | [`TestRFC5036HopCountWithinMaximumIsApplied`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L177) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | positive | [`TestRFC5036HopCountAboveMaximumDrawsLoopDetected`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L206) | unit/verify | revert, verified |
 
 ### [`RFC5036-3.4.4.1-3`](#rfc5036-3.4.4.1-3)
@@ -991,7 +991,7 @@ Audit verdict: not audited: no reader has judged these tests
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC5036KeepalivePacingFollowsNegotiatedTime`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L405) | unit/verify | revert, verified |
-| positive | [`TestRFC5036PeerHearsFromZeWithinKeepaliveTime`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L381) | unit/verify | revert, verified |
+| positive | [`TestRFC5036PeerHearsFromZeWithinKeepaliveTime`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L381) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC5036-3.5.7-1`](#rfc5036-3.5.7-1)
 

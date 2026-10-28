@@ -26,15 +26,18 @@ test/interop-l2tp/
     02-ppp-bgp-redistribute-frr/   BGP route redistribution proof
     03-ze-lac-xl2tpd-lns/   ze as initiator (LAC) vs real xl2tpd LNS
     04-radius-acct-attrs/   subscriber attributes in RADIUS auth and accounting
+    dns-resolver-l2tp-subscriber/   IPCP DNS to Ze's LAN resolver, then a lookup
 internal/le/interoplab/l2tp/
   l2tp.go              Native topology, images, selection, and lifecycle
   checkers.go          Typed protocol assertions for all four scenarios
+  dns_resolver.go      The dns-resolver-l2tp-subscriber assertions
   radiusmock/          Independent Go RADIUS peer
 ```
 
 Each scenario contains the protocol configuration mounted by its typed plan.
 The plans choose the Ze, xl2tpd, FRR, and RADIUS peers for that scenario, while
-the checker map fixes the complete four-scenario population.
+the checker map fixes the complete scenario population. The
+`dns-resolver-l2tp-subscriber` plan adds Knot DNS on `172.29.0.7`.
 
 ## Prerequisites
 
@@ -62,8 +65,8 @@ environment causes an immediate refusal.
 ## Running
 
 ```
-./le test deployment docker-l2tp-ppp-test
-ZE_L2TP_INTEROP_SCENARIO=01-ppp-ipv4 ./le test deployment docker-l2tp-ppp-test
+./le test deployment docker-l2tp-ppp
+ZE_L2TP_INTEROP_SCENARIO=01-ppp-ipv4 ./le test deployment docker-l2tp-ppp
 ```
 
 Environment variables: `FRR_IMAGE` (default
@@ -110,7 +113,7 @@ that follows because it has no outgoing-call answerer (it logs `Unimplemented
 message 7`), so the RPC returns an error by design and the established control
 connection is the interop proof. The full OCRQ→OCRP→OCCN call flow is proven
 functionally by `test/l2tp/lns-outgoing-call.ci`. The LAC incoming-call PPP data
-plane is covered by `./le test deployment gokrazy-l2tp-ppp-test`.
+plane is covered by `./le test deployment gokrazy-l2tp-ppp`.
 
 ### 04-radius-acct-attrs
 
@@ -139,6 +142,24 @@ The peer answers Access-Request and Accounting-Request packets and writes the
 decoded attributes that the checker compares. This scenario uses the same
 PPPoL2TP preflight as 01 and 02.
 
+### dns-resolver-l2tp-subscriber
+
+Proves that a subscriber learns Ze's LAN DNS resolver through IPCP and
+resolves through it. The pool's `dns-primary` and `dns-secondary` are the
+pool gateway 10.100.0.1, where `service dns-resolver` listens with
+`allow-from 10.100.0.0/24` and forwards to Knot DNS on `172.29.0.7`, the only
+server that holds the lab zone `lab.example.` (the BGP lab's
+`test/interop/Dockerfile.knot`). pppd runs with `usepeerdns`, so it asks for
+both RFC 1877 options and writes what Ze gave it to `/etc/ppp/resolv.conf`.
+
+The checker waits for `PPP session up`, requires every `nameserver` line of
+that file to be 10.100.0.1, requires the LAC's route to 10.100.0.1 to leave
+through its `ppp` interface, and requires busybox
+`nslookup -type=a www.lab.example 10.100.0.1` to answer from that server with
+exactly 192.0.2.10 and 192.0.2.11. The gateway exists only while a session is
+up. The resolver sets `IP_FREEBIND` on its listener sockets, so the listener
+binds at start, before the first session, and Ze's container needs no sysctl.
+
 `auth-method chap-md5` in this scenario's `ze.conf` is load-bearing, unlike the
 same leaf in `test/l2tp/radius-acct-wire.ci`. xl2tpd sends no RFC 2661 Section
 4.4.5 proxy LCP AVPs, so ze negotiates LCP itself and the leaf picks the
@@ -151,10 +172,10 @@ no Access-Request without one.
 
 | Action | What it proves | PPPoL2TP required |
 |--------|----------------|-------------------|
-| `./le test deployment l2tp-test` | Control tunnel and incoming-call session | No |
-| `./le test deployment l2tp-ppp-test` | Native Linux full PPP/NCP/kernel proof in peer-isolated netns | Yes |
-| `./le test deployment docker-l2tp-ppp-test` | Peer-isolated Docker lab (this) | Yes for PPP scenarios |
-| `./le test deployment gokrazy-l2tp-ppp-test` | QEMU gokrazy appliance LNS with a netns LAC | Yes |
+| `./le test deployment l2tp` | Control tunnel and incoming-call session | No |
+| `./le test deployment l2tp-ppp` | Native Linux full PPP/NCP/kernel proof in peer-isolated netns | Yes |
+| `./le test deployment docker-l2tp-ppp` | Peer-isolated Docker lab (this) | Yes for PPP scenarios |
+| `./le test deployment gokrazy-l2tp-ppp` | QEMU gokrazy appliance LNS with a netns LAC | Yes |
 | `test/plugin/redistribute-l2tp-*.ci` | Synthetic BGP UPDATE rendering | No |
 
 The native proof and Docker lab catch different failure shapes. The native

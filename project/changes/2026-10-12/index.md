@@ -1,0 +1,61 @@
+# Week of 2026-10-12
+
+This update covers two weeks. Many settings that Ze used to accept and then silently ignore are now refused, so please read the changes below before upgrading.
+
+The release queue is now sorted into correctness fixes, validation and delivery work. It holds 240 required items and 273 nice-to-have, up from 202 and 224. 79 required items joined, most of them defects found by reviewing the code area by area, and 41 left, either finished or moved to after the release. The counts compare the two ends of the period, so an item added and finished in between is missed, and they count work items rather than readiness: https://ze-software.net/project/roadmap/
+
+## ⚠️ Changes to check
+
+- IPsec: traffic that matches no IPsec policy is now dropped by default (RFC 4301 Section 5). A config saved by an older release is rewritten to `vpn ipsec unmatched bypass` at start, with a warning. A new config drops it too, so it needs bypass policies for BGP, SSH, DNS and NTP, or `unmatched bypass`.
+- BGP filters: every configured `import` or `export` must now end with `final accept` or `final reject`, as in `filter { import { filters [ a b ]; final accept; } }`. An `accept` from one filter now passes the route on to the next one. The old `import [ ... ]` list is refused.
+- Config: a missing mandatory value is refused at load, validate and commit. A flag takes no value, so `disable false;`, which used to disable the interface, is refused. A setting that needs a feature this build leaves out is refused, naming the line to remove. Run `ze config validate` before upgrading.
+- CLI: commands that clear everything need an explicit `all`, as in `clear ospf neighbor all`, `clear vpn ipsec sa all` or `clear dns cache all`. `clear bgp rib in` and `out` need a peer.
+
+## ⚠️ More changes to check
+
+- CLI: five commands were renamed. `explain` is now `show diagnostic`, `skills` is `show skills`, `support` is `request support archive`, `generate wireguard keypair` is `request wireguard keypair`, and `validate config` is `show config validation`.
+- API: in FlowSpec update text, values listed one after another now mean OR, and `&` means AND, matching ExaBGP 6.0. `destination-port =80 =443` now matches 80 or 443, where it used to mean both. `update text` takes `nlri add|del|eor` for IPv4 unicast and `mp <family> add|del|eor` for other families.
+- FlowSpec: a redirect-to-IP action from an eBGP peer is now dropped unless the route to that address comes from the peer's own AS. The rest of the rule still applies. `flowspec-redirect-check { enabled false; }` turns the check off.
+- VRRP over IPv4 now uses the RFC 9568 checksum. A group that shares a link with keepalived needs `checksum rfc5798-compatible`.
+- L2TP RADIUS accounting now goes to the new `accounting-port`, default 1813, instead of the authentication port.
+- IPv6 `rpf-check` was accepted and ignored on Linux. It is now enforced.
+- The DHCPv6 client now builds its DUID from the interface MAC, so a DHCPv6 server treats each client as new after the upgrade.
+
+## 🛰️ Routing
+
+New:
+
+- BGP `shutdown { message "..." }` holds a peer down, and sends the message when it closes the session (RFC 9003). `request peer <peer> disable [message]` and `request peer <peer> enable` do the same at runtime.
+- BFD can be added, changed or removed on an established BGP peer without resetting the session, as FRR and BIRD do.
+- OSPF over unnumbered point-to-point links: `ipv4 unnumbered <donor>` borrows the address of the named interface. Tested against FRR.
+- `clear bgp rib advertised <peer>` withdraws everything sent to a peer, and `show bgp peer * detail` gains `fsm-state`.
+- ExaBGP 6.0: the bridge handles `neighbor disable/enable`, `ping` and `flush adj-rib out`, and migration handles `as-set` and `tunnel-encapsulation`.
+
+Fixed:
+
+- A configured `med 0` was never sent, and `local-preference 0` went out as 100.
+- Received BLACKHOLE routes were passed to eBGP peers that had not agreed to them (RFC 7999 Section 3.1).
+- Routes from a route-server client were sent on to providers and peers (RFC 9234 Section 3.1).
+- LDP timed out a silent neighbour at three times the agreed KeepAlive (RFC 5036 Section 3.5.3).
+
+## 🔒 VPN, access and DHCP
+
+New:
+
+- Integrity-only ESP, with encryption `null` in an `esp-group`.
+- An `intermediate-certificate` list for EAP-TLS clients that do not send their full chain.
+
+Fixed:
+
+- IKEv2 tunnels now follow a peer when a NAT changes its address or port, and later rekeys go to the new address (RFC 3948 Section 2.1).
+- The DHCPv4 client dropped its address after the first renewal. It now renews and rebinds for the life of the lease (RFC 2131 Section 4.4).
+- DHCPv6 `pd` now requests a delegated prefix; before, it did not. A commit no longer strips DHCP, SLAAC or link-local addresses.
+- The DHCP server now applies a reloaded config, and subnets that did not change keep their leases.
+
+## 📚 Closing the RFC gap
+
+A requirement counts as covered once it has a test, and the code behind it has been deliberately broken to confirm that the test then fails. The number of requirements covered this way grew from 253 in mid-September to 867 at the end of September, 1,844 by 11 October and 2,108 by 25 October.
+
+These two weeks went into the tests that were hardest to prove. The tool that breaks the code can now run tests that need Ze's own kernel inside a virtual machine, break the Ze side of an interop test against another implementation, and prove requirements that only fail when two faults are combined. The defects the tests exposed were fixed as they were found, among them the BLACKHOLE and route-server leaks above.
+
+Today 1,994 of the 4,680 MUST requirements are covered: https://ze-software.net/quality/rfc-compliance/

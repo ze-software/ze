@@ -1,6 +1,6 @@
 # Command Equivalents
 
-488 live Ze commands. 46 have vendor CLI today. 98 have been reviewed for migration intent. Vendor commands are curated migration hints, not exhaustive vendor CLI catalogs.
+490 live Ze commands. 46 have vendor CLI today. 98 have been reviewed for migration intent. Vendor commands are curated migration hints, not exhaustive vendor CLI catalogs.
 
 ## Commands with vendor CLI
 
@@ -74,6 +74,7 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `clear dns cache all` | Daemon | - | - | - | - | [details](clear-dns-cache-all/) |
 | `clear dns cache record` | Daemon | - | - | - | - | [details](clear-dns-cache-record/) |
 | `clear dns cache stats` | Daemon | - | - | - | - | [details](clear-dns-cache-stats/) |
+| `clear dns-resolver cache all` | Daemon | - | - | - | - | [details](clear-dns-resolver-cache-all/) |
 | `clear firewall domain-group` | Daemon | - | - | - | - | [details](clear-firewall-domain-group/) |
 | `clear firewall irr as-set` | Daemon | - | - | - | - | [details](clear-firewall-irr-as-set/) |
 | `clear firewall irr asn` | Daemon | - | - | - | - | [details](clear-firewall-irr-asn/) |
@@ -369,6 +370,7 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `show dns cache record` | Read-only | - | - | - | `show dns` | [details](show-dns-cache-record/) |
 | `show dns cache stats` | Read-only | - | - | - | `show dns` | [details](show-dns-cache-stats/) |
 | `show dns lookup` | Read-only | - | - | - | `show dns` | [details](show-dns-lookup/) |
+| `show dns-resolver` | Read-only | - | - | - | - | [details](show-dns-resolver/) |
 | `show doctor` | Read-only | - | - | - | `show hardware cpu`<br>`show system memory` | [details](show-doctor/) |
 | `show ecmp-groups` | Read-only | - | - | - | - | [details](show-ecmp-groups/) |
 | `show env get` | Read-only | - | - | - | - | [details](show-env-get/) |

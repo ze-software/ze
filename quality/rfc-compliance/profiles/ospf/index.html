@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>OSPF RFC coverage - Ze</title>
+        <meta name="description" content="Technology aggregate ospf: mandatory 151 of 409 (36.9%), optional 10 of 242 (4.1%); 23 RFCs, 3 not walked." />
+        <meta property="og:title" content="OSPF RFC coverage - Ze" />
+        <meta property="og:description" content="Technology aggregate ospf: mandatory 151 of 409 (36.9%), optional 10 of 242 (4.1%); 23 RFCs, 3 not walked." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="OSPF RFC coverage - Ze" />
+        <meta name="twitter:description" content="Technology aggregate ospf: mandatory 151 of 409 (36.9%), optional 10 of 242 (4.1%); 23 RFCs, 3 not walked." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="stylesheet" href="../../../../assets/vendor/fonts/fonts.css" />
+        <link rel="canonical" href="https://ze-software.net/quality/rfc-compliance/profiles/ospf/" />
+        <meta property="og:url" content="https://ze-software.net/quality/rfc-compliance/profiles/ospf/" />
+        <link rel="stylesheet" href="../../../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../../assets/header.html" data-site-root="../../../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../../../#top">Ze</a>
+                    <a href="../../../../#top">Home</a>
+                    <a href="../../../../docs/">Docs</a>
+                    <a href="../../../../features/">Features</a>
+                    <a href="../../../../compare/">Compare</a>
+                    <a href="../../../../project/roadmap/">Roadmap</a>
+                    <a href="../../../../project/changes/">Changes</a>
+                    <a href="../../../../faq/">FAQ</a>
+                    <a href="../../../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section aria-labeledby="rfc-profile-title" class="md-content reveal cat-observe">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Technology aggregate</span>
+    <h1 id="rfc-profile-title">OSPF</h1>
+    <p>OSPFv2 and OSPFv3. The RFCs whose summary names the ospf aggregate, with their mandatory and optional coverage.</p>
+</div>
+<style>
+.rfc-table-wrap { overflow-x: auto; }
+.rfc-id-list { margin: .6rem 0; line-height: 1.9; }
+.rfc-verdict { margin: 1rem 0 1.6rem; padding: 1rem 1.2rem; border-radius: 18px; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-verdict p { margin: 0 0 .4rem; color: var(--muted); }
+.rfc-verdict p:last-child { margin-bottom: 0; }
+.rfc-verdict span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-verdict strong { display: block; margin: .2rem 0 .5rem; font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1; color: var(--text); }
+.rfc-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); grid-auto-rows: 1fr; gap: 1rem; margin: 1.25rem 0 .8rem; }
+.rfc-card { display: flex; flex-direction: column; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-card span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
+.rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
+.rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
+.rfc-ok { border-left: 7px solid var(--green); }
+.rfc-neutral { border-left: 7px solid var(--line-strong); }
+.rfc-warn { border-left: 7px solid var(--amber); }
+.rfc-bad { border-left: 7px solid var(--danger-deep); }
+.rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
+.rfc-tape span { width: var(--w); min-width: 0; display: block; }
+.rfc-tape-key { display: flex; flex-wrap: wrap; gap: .35rem 1.4rem; margin: 0 0 1.4rem; padding: 0; list-style: none; font-size: .92rem; }
+.rfc-tape-key li { display: flex; align-items: center; gap: .45rem; }
+.rfc-swatch { display: inline-block; width: .85rem; height: .85rem; border-radius: .25rem; border: 1px solid var(--line-strong); vertical-align: -.1rem; }
+.rfc-tape-both_polarities { background: var(--teal-chip); }
+.rfc-tape-single_polarity { background: var(--sky-chip); }
+.rfc-tape-not_applicable { background: var(--grape-chip); }
+.rfc-tape-feature_declined { background: var(--pink-chip); }
+.rfc-tape-lower_layer { background: var(--mint-chip); }
+.rfc-tape-rollup { background: var(--tangerine-chip); }
+.rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
+.rfc-tape-one_polarity_unexcused { background: var(--amber); }
+.rfc-tape-missing_unexcused { background: var(--danger-deep); }
+.rfc-swatch.rfc-ok { background: var(--green); }
+.rfc-swatch.rfc-neutral { background: var(--line-strong); }
+.rfc-swatch.rfc-warn { background: var(--amber); }
+.rfc-swatch.rfc-bad { background: var(--danger-deep); }
+.rfc-total td { border-top: 2px solid var(--line-strong); }
+.rfc-prose { max-width: 46rem; }
+ul.rfc-prose { margin: .5rem 0 1rem; padding-left: 1.2rem; }
+ul.rfc-prose li { margin: .35rem 0; line-height: 1.6; }
+p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
+.rfc-fold { margin: .6rem 0; }
+.rfc-fold > summary { cursor: pointer; font-weight: 700; }
+.rfc-span > td { padding-bottom: .2rem; border-bottom: 0; }
+.rfc-table td:first-child { font-weight: 400; }
+.rfc-table .rfc-span > td { padding-top: .9rem; }
+.rfc-subject-id { white-space: nowrap; vertical-align: top; }
+.rfc-subject { display: block; max-width: 52rem; }
+.rfc-tests { display: grid; gap: .15rem .8rem; }
+.rfc-tests-row { display: grid; grid-template-columns: 5rem 9.5rem minmax(0, 1fr); gap: .8rem; align-items: baseline; }
+.rfc-tests-row > span:first-child { color: var(--muted); font-size: .88rem; }
+.rfc-mark { margin: .45rem 0 0; color: var(--muted); max-width: 52rem; }
+@media (max-width: 760px) {
+  .rfc-tests-row { grid-template-columns: 1fr; gap: 0; padding-bottom: .35rem; }
+}
+.rfc-text > summary { cursor: pointer; color: var(--muted); font-size: .85rem; }
+.rfc-text > p { margin: .35rem 0 0; max-width: 44rem; }
+.rfc-note-box { margin: 1rem 0; padding: 1rem 1.2rem; border-radius: 16px; background: var(--gold-tint); border: 1px solid var(--gold-chip); }
+.rfc-note-box h3 { margin-top: 0; }
+.rfc-note-box ul { margin-bottom: 0; }
+.rfc-check-ok strong { color: var(--green); }
+.rfc-check-bad strong { color: var(--danger-deep); }
+</style>
+<style>
+.rfc-bar { display: block; width: 100%; min-width: 7rem; height: .7rem; margin: .2rem 0 .15rem; border-radius: 999px; background: var(--panel); border: 1px solid var(--line-strong); overflow: hidden; }
+.rfc-bar span { display: block; height: 100%; background: var(--teal-chip); }
+.rfc-bar-unmeasured { border-style: dashed; }
+.rfc-bar-note { display: block; color: var(--muted); font-size: .85rem; white-space: nowrap; }
+</style>
+<p><a href="../">All profiles</a> · <a href="../../">All RFCs</a></p>
+<div class="rfc-card-grid">
+<div class="rfc-card rfc-neutral"><span>Mandatory</span><strong>36.9%</strong><b>151 of 409 (36.9%)</b><p>MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.</p></div>
+<div class="rfc-card rfc-neutral"><span>Optional</span><strong>4.1%</strong><b>10 of 242 (4.1%)</b><p>MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.</p></div>
+<div class="rfc-card rfc-neutral"><span>Not walked</span><strong>3</strong><b>of 23 RFCs</b><p>RFCs with no valid extraction sign-off: their rows count in neither figure.</p></div>
+<div class="rfc-card rfc-neutral"><span>Mandatory register</span><strong>not complete</strong><b>every row proven, none unwalked</b><p>A profile is complete only when it requires at least one RFC and none of them is unwalked.</p></div>
+</div>
+<section><h2>Tree</h2>
+<p>Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each bar is the share of that figure&#39;s rows a recorded break proves; an RFC that is not walked shows an empty bar and no figure.</p>
+<h3>Level 4</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>RFC</th><th>Title</th><th>Mandatory</th><th>Optional</th></tr></thead>
+<tbody>
+<tr><td><a href="../../rfc2328/">RFC 2328</a> (cycle with rfc3101, rfc5250)</td>
+<td>OSPF Version 2</td>
+<td><div class="rfc-bar" role="img" aria-label="57 of 67 (85.1%)"><span style="width:85.1%"></span></div><span class="rfc-bar-note">57 of 67 (85.1%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="2 of 15 (13.3%)"><span style="width:13.3%"></span></div><span class="rfc-bar-note">2 of 15 (13.3%)</span></td>
+</tr>
+<tr><td><a href="../../rfc3101/">RFC 3101</a> (cycle with rfc2328, rfc5250)</td>
+<td>The OSPF Not-So-Stubby Area (NSSA) Option</td>
+<td><div class="rfc-bar" role="img" aria-label="15 of 28 (53.6%)"><span style="width:53.6%"></span></div><span class="rfc-bar-note">15 of 28 (53.6%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="2 of 7 (28.6%)"><span style="width:28.6%"></span></div><span class="rfc-bar-note">2 of 7 (28.6%)</span></td>
+</tr>
+<tr><td><a href="../../rfc5250/">RFC 5250</a> (cycle with rfc2328, rfc3101)</td>
+<td>The OSPF Opaque LSA Option</td>
+<td><div class="rfc-bar" role="img" aria-label="10 of 15 (66.7%)"><span style="width:66.7%"></span></div><span class="rfc-bar-note">10 of 15 (66.7%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 2 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 2 (0.0%)</span></td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Level 5</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>RFC</th><th>Title</th><th>Mandatory</th><th>Optional</th></tr></thead>
+<tbody>
+<tr><td><a href="../../rfc3623/">RFC 3623</a></td>
+<td>Graceful OSPF Restart</td>
+<td><div class="rfc-bar" role="img" aria-label="8 of 13 (61.5%)"><span style="width:61.5%"></span></div><span class="rfc-bar-note">8 of 13 (61.5%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 13 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 13 (0.0%)</span></td>
+</tr>
+<tr><td><a href="../../rfc3630/">RFC 3630</a></td>
+<td>Traffic Engineering (TE) Extensions to OSPF Version 2</td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 5 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 5 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 5 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 5 (0.0%)</span></td>
+</tr>
+<tr><td><a href="../../rfc5709/">RFC 5709</a></td>
+<td>OSPFv2 HMAC-SHA Cryptographic Authentication</td>
+<td><div class="rfc-bar" role="img" aria-label="5 of 15 (33.3%)"><span style="width:33.3%"></span></div><span class="rfc-bar-note">5 of 15 (33.3%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="2 of 7 (28.6%)"><span style="width:28.6%"></span></div><span class="rfc-bar-note">2 of 7 (28.6%)</span></td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Level 6</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>RFC</th><th>Title</th><th>Mandatory</th><th>Optional</th></tr></thead>
+<tbody>
+<tr><td><a href="../../rfc7474/">RFC 7474</a></td>
+<td>Security Extensions for OSPFv2 when Using Manual Key Management</td>
+<td><div class="rfc-bar" role="img" aria-label="7 of 12 (58.3%)"><span style="width:58.3%"></span></div><span class="rfc-bar-note">7 of 12 (58.3%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="1 of 4 (25.0%)"><span style="width:25.0%"></span></div><span class="rfc-bar-note">1 of 4 (25.0%)</span></td>
+</tr>
+<tr><td><a href="../../rfc7684/">RFC 7684</a></td>
+<td>OSPFv2 Prefix/Link Attribute Advertisement</td>
+<td><div class="rfc-bar" role="img" aria-label="4 of 9 (44.4%)"><span style="width:44.4%"></span></div><span class="rfc-bar-note">4 of 9 (44.4%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 11 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 11 (0.0%)</span></td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Level 8</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>RFC</th><th>Title</th><th>Mandatory</th><th>Optional</th></tr></thead>
+<tbody>
+<tr><td><a href="../../rfc4576/">RFC 4576</a> (cycle with rfc4577)</td>
+<td>Using a Link State Advertisement (LSA) Options Bit to Prevent Looping in BGP/MPLS IP Virtual Private Networks (VPNs)</td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 4 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 4 (0.0%)</span></td>
+<td><div class="rfc-bar rfc-bar-unmeasured" role="img" aria-label="no rows"><span style="width:0%"></span></div><span class="rfc-bar-note">no rows</span></td>
+</tr>
+<tr><td><a href="../../rfc4577/">RFC 4577</a> (cycle with rfc4576)</td>
+<td>OSPF as the Provider/Customer Edge Protocol for BGP/MPLS IP Virtual Private Networks (VPNs)</td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 45 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 45 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="1 of 20 (5.0%)"><span style="width:5.0%"></span></div><span class="rfc-bar-note">1 of 20 (5.0%)</span></td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Level 9</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>RFC</th><th>Title</th><th>Mandatory</th><th>Optional</th></tr></thead>
+<tbody>
+<tr><td><a href="../../rfc4552/">RFC 4552</a> (cycle with rfc5340)</td>
+<td>Authentication/Confidentiality for OSPFv3</td>
+<td><div class="rfc-bar" role="img" aria-label="6 of 27 (22.2%)"><span style="width:22.2%"></span></div><span class="rfc-bar-note">6 of 27 (22.2%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 11 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 11 (0.0%)</span></td>
+</tr>
+<tr><td><a href="../../rfc5340/">RFC 5340</a> (cycle with rfc4552)</td>
+<td>OSPF for IPv6</td>
+<td><div class="rfc-bar" role="img" aria-label="6 of 23 (26.1%)"><span style="width:26.1%"></span></div><span class="rfc-bar-note">6 of 23 (26.1%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 23 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 23 (0.0%)</span></td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Level 10</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>RFC</th><th>Title</th><th>Mandatory</th><th>Optional</th></tr></thead>
+<tbody>
+<tr><td><a href="../../rfc5187/">RFC 5187</a></td>
+<td>OSPFv3 Graceful Restart</td>
+<td><div class="rfc-bar" role="img" aria-label="4 of 4 (100.0%)"><span style="width:100.0%"></span></div><span class="rfc-bar-note">4 of 4 (100.0%)</span></td>
+<td><div class="rfc-bar rfc-bar-unmeasured" role="img" aria-label="no rows"><span style="width:0%"></span></div><span class="rfc-bar-note">no rows</span></td>
+</tr>
+<tr><td><a href="../../rfc5392/">RFC 5392</a></td>
+<td>OSPF Extensions in Support of Inter-Autonomous System (AS) MPLS and GMPLS Traffic Engineering</td>
+<td><div class="rfc-bar" role="img" aria-label="5 of 14 (35.7%)"><span style="width:35.7%"></span></div><span class="rfc-bar-note">5 of 14 (35.7%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 18 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 18 (0.0%)</span></td>
+</tr>
+<tr><td><a href="../../rfc5838/">RFC 5838</a></td>
+<td>Support of Address Families in OSPFv3</td>
+<td><div class="rfc-bar" role="img" aria-label="4 of 16 (25.0%)"><span style="width:25.0%"></span></div><span class="rfc-bar-note">4 of 16 (25.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 11 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 11 (0.0%)</span></td>
+</tr>
+<tr><td><a href="../../rfc6549/">RFC 6549</a></td>
+<td>OSPFv2 Multi-Instance Extensions</td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 1 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 1 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 3 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 3 (0.0%)</span></td>
+</tr>
+<tr><td><a href="../../rfc6987/">RFC 6987</a></td>
+<td>OSPF Stub Router Advertisement</td>
+<td><div class="rfc-bar rfc-bar-unmeasured" role="img" aria-label="not walked"><span style="width:0%"></span></div><span class="rfc-bar-note">not walked</span></td>
+<td><div class="rfc-bar rfc-bar-unmeasured" role="img" aria-label="not walked"><span style="width:0%"></span></div><span class="rfc-bar-note">not walked</span></td>
+</tr>
+<tr><td><a href="../../rfc7166/">RFC 7166</a></td>
+<td>Supporting Authentication Trailer for OSPFv3</td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 17 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 17 (0.0%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 17 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 17 (0.0%)</span></td>
+</tr>
+<tr><td><a href="../../rfc7770/">RFC 7770</a></td>
+<td>Extensions to OSPF for Advertising Optional Router Capabilities</td>
+<td><div class="rfc-bar" role="img" aria-label="1 of 11 (9.1%)"><span style="width:9.1%"></span></div><span class="rfc-bar-note">1 of 11 (9.1%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="1 of 14 (7.1%)"><span style="width:7.1%"></span></div><span class="rfc-bar-note">1 of 14 (7.1%)</span></td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Level 11</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>RFC</th><th>Title</th><th>Mandatory</th><th>Optional</th></tr></thead>
+<tbody>
+<tr><td><a href="../../rfc8362/">RFC 8362</a></td>
+<td>OSPFv3 Link State Advertisement (LSA) Extensibility</td>
+<td><div class="rfc-bar rfc-bar-unmeasured" role="img" aria-label="not walked"><span style="width:0%"></span></div><span class="rfc-bar-note">not walked</span></td>
+<td><div class="rfc-bar rfc-bar-unmeasured" role="img" aria-label="not walked"><span style="width:0%"></span></div><span class="rfc-bar-note">not walked</span></td>
+</tr>
+<tr><td><a href="../../rfc8665/">RFC 8665</a></td>
+<td>OSPF Extensions for Segment Routing</td>
+<td><div class="rfc-bar" role="img" aria-label="13 of 51 (25.5%)"><span style="width:25.5%"></span></div><span class="rfc-bar-note">13 of 51 (25.5%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="1 of 35 (2.9%)"><span style="width:2.9%"></span></div><span class="rfc-bar-note">1 of 35 (2.9%)</span></td>
+</tr>
+<tr><td><a href="../../rfc9129/">RFC 9129</a></td>
+<td>YANG Data Model for the OSPF Protocol</td>
+<td><div class="rfc-bar rfc-bar-unmeasured" role="img" aria-label="not walked"><span style="width:0%"></span></div><span class="rfc-bar-note">not walked</span></td>
+<td><div class="rfc-bar rfc-bar-unmeasured" role="img" aria-label="not walked"><span style="width:0%"></span></div><span class="rfc-bar-note">not walked</span></td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Level 12</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>RFC</th><th>Title</th><th>Mandatory</th><th>Optional</th></tr></thead>
+<tbody>
+<tr><td><a href="../../rfc8666/">RFC 8666</a></td>
+<td>OSPFv3 Extensions for Segment Routing</td>
+<td><div class="rfc-bar" role="img" aria-label="6 of 32 (18.8%)"><span style="width:18.8%"></span></div><span class="rfc-bar-note">6 of 32 (18.8%)</span></td>
+<td><div class="rfc-bar" role="img" aria-label="0 of 26 (0.0%)"><span style="width:0.0%"></span></div><span class="rfc-bar-note">0 of 26 (0.0%)</span></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Debugging</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Quality hub</h2>
+                    <a class="page-sidebar-link" href="../../../../quality/">
+                        <span class="page-sidebar-link-label">Quality overview</span>
+                        <small>Return to the verification map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../../quality/verify-debugging/">
+                        <span class="page-sidebar-link-label">Verify debugging</span>
+                        <small>How failed checks route to evidence.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Symptom-led debugging for running systems.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
+                    <a href="../../../../license/">Ze is AGPLv3 open source.</a>
+                    <a href="../../../../legal/">Legal notice</a>
+                    <span class="footer-published">Published 27 October 2026 23:56 UTC</span>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

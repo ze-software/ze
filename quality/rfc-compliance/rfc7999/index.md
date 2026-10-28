@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0.0% | 0 of 4 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 4 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 4 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 42.1% | 16 of 38 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 36.8% | 14 of 38 tagged units, 0 escaped and 2 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 | Audit verdicts | 7 | of 4 gated MUSTs judged | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 ### Neutral
@@ -203,9 +203,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Posi
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC7999RouteWithoutBlackholeGainsNoPropagationCommunity`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_community/rfc7999_blackhole_propagation_test.go#L46) | unit/verify | revert, verified |
+| negative | [`TestRFC7999RouteWithoutBlackholeGainsNoPropagationCommunity`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_community/rfc7999_blackhole_propagation_test.go#L46) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | positive | [`TestRFC7999BlackholeFieldHasReader`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_community/rfc7999_blackhole_guard_test.go#L42) | unit/verify | unproven |
-| positive | [`TestRFC7999ReceivedBlackholeRouteGainsThePropagationCommunity`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_community/rfc7999_blackhole_propagation_test.go#L25) | unit/verify | revert, verified |
+| positive | [`TestRFC7999ReceivedBlackholeRouteGainsThePropagationCommunity`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_community/rfc7999_blackhole_propagation_test.go#L25) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | positive | [`community-blackhole-noexport.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/community-blackhole-noexport.ci#L6) | functional/verify | unproven |
 
 ### [`RFC7999-3.2-2`](#rfc7999-3.2-2)

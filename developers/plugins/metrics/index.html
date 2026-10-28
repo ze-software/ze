@@ -64,6 +64,7 @@ via the existing <code>ConfigureMetrics</code> callback in the <code>Registratio
 </ol></li>
 <li><a href="#when-configuremetrics-runs">When ConfigureMetrics Runs</a></li>
 <li><a href="#nopregistry-fallback">NopRegistry Fallback</a></li>
+<li><a href="#the-task-panic-counter">The Task Panic Counter</a></li>
 <li><a href="#which-plugins-need-metrics">Which Plugins Need Metrics</a></li>
 <li><a href="#reference-implementation">Reference Implementation</a></li>
 </ol></details></nav><div class="doc-body">
@@ -292,6 +293,11 @@ in the same scope: <code>installed</code>, <code>active</code>, <code>up</code>,
 <td><code>filter_path_asn</code></td>
 <td>The package name. The <code>bgp</code> prefix is redundant on a BGP filter, and the hyphen-stripped <code>bgpfilterpathasn</code> cannot be read</td>
 </tr>
+<tr>
+<td><code>bgp-filter-community</code></td>
+<td><code>filter_community</code></td>
+<td>The package name, for the same reason</td>
+</tr>
 </tbody>
 </table>
 <h3 id="full-inventory">Full Inventory</h3>
@@ -305,6 +311,12 @@ in the same scope: <code>installed</code>, <code>active</code>, <code>up</code>,
 </tr>
 </thead>
 <tbody>
+<tr>
+<td><code>ze_task_panics_total</code></td>
+<td>CounterVec</td>
+<td>component, task</td>
+<td>every component with a network-input task, through its <code>taskguard.Guard</code>: one per panic recovered at the task boundary</td>
+</tr>
 <tr>
 <td><code>ze_rib_routes_in_total</code></td>
 <td>Gauge</td>
@@ -360,10 +372,34 @@ in the same scope: <code>installed</code>, <code>active</code>, <code>up</code>,
 <td>bgp-rib</td>
 </tr>
 <tr>
+<td><code>ze_bgp_paths_limit_refused_total</code></td>
+<td>CounterVec</td>
+<td>peer, family</td>
+<td>bgp reactor (receive ceiling): one per received path refused over Ze's advertised PATHS-LIMIT</td>
+</tr>
+<tr>
+<td><code>ze_bgp_paths_limit_election_failed_total</code></td>
+<td>CounterVec</td>
+<td>peer, family</td>
+<td>bgp reactor (send admission): one per contested prefix whose paths no RIB could rank under the peer's PATHS-LIMIT, so arrival order stood</td>
+</tr>
+<tr>
 <td><code>ze_bgp_attr_mod_remove_buffer_refused_total</code></td>
 <td>CounterVec</td>
 <td>attribute</td>
 <td>bgp reactor (filterapi)</td>
+</tr>
+<tr>
+<td><code>ze_bgp_rs_prepend_applied_total</code></td>
+<td>Counter</td>
+<td></td>
+<td>bgp reactor (route-server forward)</td>
+</tr>
+<tr>
+<td><code>ze_bgp_rs_large_control_community_stripped_total</code></td>
+<td>Counter</td>
+<td></td>
+<td>bgp reactor (route-server forward)</td>
 </tr>
 <tr>
 <td><code>ze_bgp_redistribute_events_received</code></td>
@@ -520,6 +556,24 @@ in the same scope: <code>installed</code>, <code>active</code>, <code>up</code>,
 <td>CounterVec</td>
 <td>direction, position, reason</td>
 <td>bgp-filter-path-asn</td>
+</tr>
+<tr>
+<td><code>ze_filter_community_value_scrubbed_total</code></td>
+<td>CounterVec</td>
+<td>width</td>
+<td>bgp-filter-community</td>
+</tr>
+<tr>
+<td><code>ze_filter_community_relation_tag_written_total</code></td>
+<td>Counter</td>
+<td></td>
+<td>bgp-filter-community</td>
+</tr>
+<tr>
+<td><code>ze_filter_community_blackhole_guard_added_total</code></td>
+<td>CounterVec</td>
+<td>community</td>
+<td>bgp-filter-community</td>
 </tr>
 <tr>
 <td><code>ze_isis_adjacencies_up</code></td>
@@ -995,6 +1049,66 @@ in the same scope: <code>installed</code>, <code>active</code>, <code>up</code>,
 <td></td>
 <td>radius (client)</td>
 </tr>
+<tr>
+<td><code>ze_dns_resolver_queries_total</code></td>
+<td>CounterVec</td>
+<td>transport, rcode</td>
+<td>dnsresolver: one per query answered</td>
+</tr>
+<tr>
+<td><code>ze_dns_resolver_refused_total</code></td>
+<td>CounterVec</td>
+<td>reason</td>
+<td>dnsresolver: one per REFUSED answer, <code>acl</code> or <code>rd-clear</code></td>
+</tr>
+<tr>
+<td><code>ze_dns_resolver_rate_limited_total</code></td>
+<td>Counter</td>
+<td></td>
+<td>dnsresolver: one per query dropped by <code>limit per-client-rate</code></td>
+</tr>
+<tr>
+<td><code>ze_dns_resolver_dropped_total</code></td>
+<td>Counter</td>
+<td></td>
+<td>dnsresolver: one per query dropped at <code>limit outstanding</code></td>
+</tr>
+<tr>
+<td><code>ze_dns_resolver_outstanding</code></td>
+<td>Gauge</td>
+<td></td>
+<td>dnsresolver: resolutions in progress</td>
+</tr>
+<tr>
+<td><code>ze_dns_resolver_cache_entries</code></td>
+<td>GaugeVec</td>
+<td>cache</td>
+<td>dnsresolver: entries in the <code>answer</code> and <code>negative</code> caches</td>
+</tr>
+<tr>
+<td><code>ze_dns_resolver_cache_hits_total</code></td>
+<td>Counter</td>
+<td></td>
+<td>dnsresolver: one per query answered from the cache</td>
+</tr>
+<tr>
+<td><code>ze_dns_resolver_upstream_queries_total</code></td>
+<td>CounterVec</td>
+<td>result</td>
+<td>dnsresolver: one per upstream exchange, <code>answered</code>, <code>timeout</code>, <code>error</code>, <code>failure</code> or <code>truncated</code></td>
+</tr>
+<tr>
+<td><code>ze_dns_resolver_listener_up</code></td>
+<td>GaugeVec</td>
+<td>protocol, address</td>
+<td>dnsresolver: 1 while a listener socket is bound, by protocol and address with port</td>
+</tr>
+<tr>
+<td><code>ze_dns_tcp_connection_refused_total</code></td>
+<td>Counter</td>
+<td></td>
+<td>DNS server harness: one per TCP connection closed at accept because its listener held <code>Options.TCPConnMax</code> (the LAN resolver sets it)</td>
+</tr>
 </tbody>
 </table>
 <p>The three iface link-event counters answer the same question from different
@@ -1030,6 +1144,14 @@ the total. A rise in the solicited counter with a flat send rate means that
 hosts join the link.</p>
 <!-- source: internal/plugins/iface/ra/ifacera.go -- incSent, incSolicited -->
 <!-- source: internal/plugins/iface/ra/sender_linux.go -- send call sites -->
+<p>The LAN resolver's <code>ze_dns_resolver_queries_total</code> counts answered queries
+only: a query dropped by the rate or the outstanding bound gets no reply and
+is counted by <code>ze_dns_resolver_rate_limited_total</code> or
+<code>ze_dns_resolver_dropped_total</code> instead. <code>ze_dns_resolver_cache_entries</code> is
+published by the resolver's sweeper every 10 seconds and by a cache clear, so
+it can lag the cache by that interval. What each label value means is in
+<a href="https://github.com/ze-software/ze/blob/main/docs/architecture/dns/lan-resolver.md#metrics" target="_blank" rel="noopener">the LAN resolver design</a>.</p>
+<!-- source: internal/plugins/dnsresolver/metrics.go -- buildMetrics, countQuery, cacheGauges -->
 <p><code>ze_plugin_write_watchdog_total</code> increments when a plugin RPC write on a
 transport that does not support <code>SetWriteDeadline</code> (SSH channels, <code>io.Pipe</code>)
 stalls past the write-watchdog window (default 30s); the connection is then
@@ -1162,6 +1284,25 @@ no-op metric implementations. The nil-check on the atomic pointer handles the ca
 where <code>ConfigureMetrics</code> is never called at all (plugin loaded without a metrics
 registry).</p>
 <!-- source: internal/core/metrics/nop.go -- NopRegistry -->
+<h2 id="the-task-panic-counter">The Task Panic Counter</h2>
+<p>A plugin with a task that handles network input (a receive goroutine, a
+session read loop, a request handler) guards it with <code>internal/core/taskguard</code>,
+and the guard owns <code>ze_task_panics_total{component,task}</code>. The plugin does not
+declare the metric itself:</p>
+<ol>
+<li>Build one <code>taskguard.Guard</code> per component with <code>taskguard.New(component, log)</code>,
+and declare each task once with <code>Guard.Task(name, restart)</code>. <code>restart</code> says in
+plain words what brings the unit back.</li>
+<li>Call <code>Guard.SetMetricsRegistry(reg)</code> from <code>ConfigureMetrics</code>. A panic
+recovered before the registry arrived is added then, so none is lost.</li>
+<li>Defer <code>task.Contain(describe, end)</code> directly at the top of the task. It logs,
+counts and writes the crash record, then calls <code>end</code> to tear the unit down.</li>
+</ol>
+<p>The name and labels are one declaration (<code>taskguard.MetricName</code>), so every
+component registering it shares one vector. The log line and the crash record
+are described in <code>docs/architecture/diagnostics/crash-capture.md</code>, "Recovered
+panics".</p>
+<!-- source: internal/core/taskguard/guard.go -- New, Guard.Task, Guard.SetMetricsRegistry, Task.Contain -->
 <h2 id="which-plugins-need-metrics">Which Plugins Need Metrics</h2>
 <p>Not every plugin needs metrics. NLRI codec plugins (flowspec, evpn, labeled, etc.)
 are stateless encoders/decoders with no runtime state to observe. Only plugins
@@ -1190,6 +1331,10 @@ with state machines, caches, or I/O operations benefit from metrics.</p>
 <td>Plugins that drop or withhold routes (bgp-role, bgp-filter-path-asn)</td>
 <td></td>
 </tr>
+<tr>
+<td>Plugins that rewrite received routes (bgp-filter-community)</td>
+<td></td>
+</tr>
 </tbody>
 </table>
 <p>A plugin that can refuse a route needs metrics even if it holds no state: a
@@ -1206,6 +1351,30 @@ series count with the session count.</p>
 <!-- source: internal/component/bgp/plugins/role/metrics.go -- recordDrop -->
 <!-- source: internal/component/bgp/plugins/role/otc.go -- OTCIngressFilter, OTCEgressFilter -->
 <!-- source: internal/component/bgp/plugins/filter_path_asn/metrics.go -- recordReject -->
+<p>A filter that rewrites a received route is the same case again: the route is
+the only trace of the rewrite. <code>bgp-filter-community</code> counts the values its
+own-GA scrub removes (RFC 7454 Section 11), labelled <code>width</code> (<code>standard</code> or
+<code>large</code>); the routes its RFC 8195 relation tag is written to; and the BLACKHOLE
+routes its RFC 7999 Section 3.2 guard adds a propagation community to, labelled
+<code>community</code> with the YANG keyword (<code>no-export</code> or <code>no-advertise</code>). Each is
+counted after the rebuild that applies it succeeded, never where the change is
+only computed. Its filters run in the daemon whatever process the plugin's
+engine runs in, so the registry arrives through <code>Filter.ConfigureMetrics</code>, which
+<code>filterapi.SetMetricsRegistry</code> calls from the reactor's metrics-enable block,
+and not through the plugin <code>ConfigureMetrics</code> hook.</p>
+<p>The route server counts the control-community edits it makes for its clients.
+<code>ze_bgp_rs_prepend_applied_total</code> counts the UPDATEs written to a client that
+carry the AS_PATH prepend a route's large control community requested for that
+client (RFC 7947 Section 2.2.2.1), and
+<code>ze_bgp_rs_large_control_community_stripped_total</code> counts the LARGE_COMMUNITY
+values in the route server's own namespace removed from them. Both rails count
+each UPDATE once it is queued for the client: a client the egress filters
+refused, a failed rebuild and a withdrawal count nothing, and a received UPDATE
+split into several sections counts once per section, because each section
+carries the edit.</p>
+<!-- source: internal/component/bgp/plugins/filter_community/metrics.go -- recordScrub, recordRelationTag, recordBlackholeGuard -->
+<!-- source: internal/component/bgp/filterapi/metrics.go -- SetMetricsRegistry -->
+<!-- source: internal/component/bgp/reactor/forward_rs.go -- recordRSCommunityEdits -->
 <h2 id="reference-implementation">Reference Implementation</h2>
 <p>The bgp-rib plugin (<code>internal/component/bgp/plugins/rib/</code>) is the reference
 implementation. It demonstrates all aspects: registration callback, metrics struct,
@@ -1220,8 +1389,10 @@ atomic pointer, periodic update loop, and per-peer label cleanup.</p>
         <footer>
             <div class="footer-inner">
                 <div class="footer-bottom">
+                    <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
+                    <a href="../../../legal/">Legal notice</a>
+                    <span class="footer-published">Published 28 October 2026 01:27 UTC</span>
                 </div>
             </div>
         </footer>

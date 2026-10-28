@@ -2,6 +2,8 @@
 
 Use Ze to inject or relay BGP FlowSpec rules when an automation system must distribute traffic filters to routers. Keep the route source, policy, and withdrawal path explicit because a stale FlowSpec rule can affect live traffic.
 
+**RFC completion:** the [DDoS detection and mitigation by sending FlowSpec upstream coverage page](../../quality/rfc-compliance/profiles/ddos-flowspec/) shows how much of the RFC work behind this use case is proven by tests.
+
 ## Choose the deployment shape
 
 Two common shapes are:

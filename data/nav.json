@@ -67,7 +67,8 @@
                     {"href": "use-cases/route-server/", "icon": "🔀", "title": "IXP route server", "desc": "Member policy, RPKI validation, and replay"},
                     {"href": "use-cases/transit-edge-rpki/", "icon": "🔏", "title": "Transit edge with RPKI", "desc": "Dual-transit policy and tested failover"},
                     {"href": "use-cases/flowspec-injection/", "icon": "🛡️", "title": "FlowSpec injection", "desc": "Authorised, atomic, reversible mitigation routes"},
-                    {"href": "use-cases/exabgp-migration/", "icon": "🔀", "title": "ExaBGP migration", "desc": "Migrate process scripts to Ze"}
+                    {"href": "use-cases/exabgp-migration/", "icon": "🔀", "title": "ExaBGP migration", "desc": "Migrate process scripts to Ze"},
+                    {"href": "quality/rfc-compliance/profiles/", "icon": "📈", "title": "Completion by use case", "desc": "RFC requirements proven for each use case"}
                 ],
                 [
                     {"label_only": "Labs and demonstrations"},

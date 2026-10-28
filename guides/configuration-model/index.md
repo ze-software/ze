@@ -484,7 +484,7 @@ Peers are keyed by name (`peer <name> { }`) where the name must start with a let
 | `local { ip; as; }` | Local bind address and AS | Yes (ip can be `auto`) |
 | `router-id` | BGP router ID | Yes (or inherited) |
 | `description` | Human-readable description | No |
-| `timer { }` | Timer container: `receive-hold-time` (seconds, 0 or 3-65535, default 90), `send-hold-time` (seconds, 0 or 480-65535, default 0, and a non-zero value must be greater than `receive-hold-time` per RFC 9687 Section 4.4), `connect-retry` (seconds, default 120) | No |
+| `timer { }` | Timer container: `receive-hold-time` (seconds, 0 or 3-65535, default 90), `send-hold-time` (seconds, 0 or 480-65535, default 0, and a non-zero value must be greater than `receive-hold-time` per RFC 9687 Section 4.4), `connect-retry` (seconds, default 120), `delay-open` (seconds, 0..240, default 0/off) | No |
 | `remote { connect }` | Initiate outbound TCP connections: `true` or `false` (default: true) | No |
 | `local { accept }` | Accept inbound TCP connections: `true` or `false` (default: true) | No |
 | `remote { port }` | Port Ze dials to reach the peer | No (default: 179) |
@@ -493,11 +493,19 @@ Peers are keyed by name (`peer <name> { }`) where the name must start with a let
 | `ttl-security` | Minimum TTL for incoming packets | No |
 | `outgoing-ttl` | TTL for outgoing packets | No |
 | `group-updates` | Enable/disable UPDATE grouping | No (default: enable) |
-| `rs-fast-path` | Enable reactor-native RS forwarding (bypasses plugin dispatch for UPDATE forwarding). A destination peer with active export filters or an explicit export final reject is excluded; `bgp-rs` relays to it instead, so both peers must name that plugin in an `attach process` block | No (default: disable) |
+| `rs-fast-path` | Enable reactor-native RS forwarding (bypasses plugin dispatch for UPDATE forwarding). A destination peer with active export filters or an explicit export final reject is excluded; `bgp-rs` relays to it instead, so both peers must name that plugin in an `attach process` block. The fast path forwards only from a source that grants `bgp-rs` `receive [ update-received ]` and only to a destination that grants it `send [ update ]` ([Route Reflection, Plugin Bindings](https://github.com/ze-software/ze/blob/main/docs/guide/route-reflection.md#plugin-bindings)) | No (default: disable) |
 | `blackhole { }` | Honor RFC 7999's BLACKHOLE community from this peer. See [Blackhole Honoring](#blackhole-honoring-rfc-7999) | No (default: off) |
 | `flowspec-redirect-check { enabled }` | The draft-simpson-idr-flowspec-redirect-02 Section 3 check on a FlowSpec rule from an EBGP peer that carries a redirect-to-IP action (0x0800) to next hop X. Ze finds the longest unicast match for X in the rule's own domain (a flow-vpn rule's Route Distinguisher); when its origin AS is not the peer's AS, Ze keeps the rule but drops the action: it installs the rule without 0x0800 and forwards it without 0x0800 and with a zero next-hop length. `false` turns the check off for the session. Also settable at the bgp and group levels; the peer's value beats the group's, and the group's beats the bgp level's | No (default: the check runs) |
 <!-- source: internal/component/bgp/config/peers.go -- PeersFromTree; internal/component/bgp/yang/ze-bgp-conf.yang -- peer settings, container timer -->
 <!-- source: internal/component/bgp/plugins/rib/rib_flowspec_redirect.go -- parseFlowSpecRedirectConfig, flowSpecRedirectRefused -->
+
+For example, `timer { delay-open 5; }` holds the local OPEN for up to five
+seconds after TCP connects. A peer OPEN releases it early; otherwise the timer
+does. The same leaf can be inherited from a BGP or group block. Set it to zero
+to send OPEN immediately.
+<!-- source: internal/component/bgp/reactor/session_connection.go -- connectionEstablished -->
+<!-- source: internal/component/bgp/reactor/session_delay_open.go -- delayOpenExpired -->
+
 
 ## Startup Convergence Hold (`update-delay`)
 
@@ -995,7 +1003,7 @@ Configured under `capability { }` at any inheritance level.
 | Extended Message | `extended-message` | `enable`, `disable`, `require`, `refuse`; absent means not advertised |
 | Link-Local Next Hop | `link-local-nexthop` | `enable`, `disable` |
 | Graceful Restart | `graceful-restart { restart-time 120; }` | See [Graceful Restart guide](../graceful-restart/index.md) |
-| ADD-PATH | `add-path send/receive` | See [ADD-PATH guide](../add-path/index.md) |
+| ADD-PATH | `add-path { direction send/receive; limit { receive 10; } }` | See [ADD-PATH guide](../add-path/index.md) |
 | Extended Next Hop | `nexthop { ipv4/unicast ipv6; }` | Per-family NH mapping |
 | BGP Role | `role provider` | provider, customer, rs, rs-client, peer |
 | Software Version | `software-version { encoding legacy; }` | presence; `mode`, and `encoding` `draft` (default) or `legacy` |
@@ -3729,6 +3737,47 @@ See the [Self-Update Guide](../self-update/index.md) for server setup and fleet 
 <!-- source: internal/component/config/system/selfupdate.go -- selfUpdater -->
 <!-- source: cmd/ze/hub/main_system.go -- startUpdateChecker lifecycle -->
 
+### LAN DNS Resolver
+
+`service { dns-resolver { } }` runs a caching DNS resolver for the hosts behind
+Ze. It is separate from `system { name-server }` above, which only Ze's own
+lookups use. It answers recursive queries on the `listener` addresses, from
+the `allow-from` prefixes only, by forwarding to the `forward server` entries
+in the order written. It does not recurse from the root and does not validate
+DNSSEC.
+
+```
+service {
+	dns-resolver {
+		enabled true
+		listener lan {
+			ip 192.168.1.1
+		}
+		allow-from [ 192.168.1.0/24 ]
+		forward {
+			server 192.0.2.53
+			server 198.51.100.53
+		}
+	}
+}
+```
+
+| Leaf | Default | Description |
+|------|---------|-------------|
+| `enabled` | `false` | true needs a `listener`, an `allow-from` prefix and a `forward server` |
+| `listener <name> ip`, `port` | port `53` | UDP and TCP endpoint; a wildcard address is refused |
+| `allow-from` | (none) | client source prefixes; any other source gets REFUSED |
+| `mode` | `forward` | the only mode |
+| `forward server <ip>`, `port` | port `53` | upstream resolvers, at most 8, tried in order |
+| `cache size`, `max-ttl`, `max-negative-ttl` | `100000`, `86400`, `3600` | entries per cache, and TTL caps in seconds |
+| `timeout` | `10` | seconds for one whole resolution, 1-60 |
+| `limit outstanding`, `per-client-rate` | `2048`, `0` | resolutions in flight, and queries per second per source (0 for none) |
+
+Every leaf, refusal and command is in the [LAN DNS Resolver guide](https://github.com/ze-software/ze/blob/main/docs/guide/dns-resolver.md).
+
+<!-- source: internal/plugins/dnsresolver/yang/ze-dns-resolver-conf.yang -- service dns-resolver -->
+<!-- source: internal/plugins/dnsresolver/config.go -- parseConfig, checkEnabled -->
+
 ### NTP Client
 
 Configure NTP under `environment { ntp { } }`:
@@ -3777,7 +3826,7 @@ The fixture refuses to run without that opt-in. Its suite carrier,
 `test/plugin/storage-ntp-restart.ci`, passes the opt-in and is gated
 `option=needs-linux:caps=sys-time`: a process without `CAP_SYS_TIME` skips it,
 so an unprivileged developer host keeps its clock and the QEMU guest
-(`./le test qemu all-tests`) runs it.
+(`./le test qemu all`) runs it.
 <!-- source: internal/test/fixture/storage_consumer_restart.go -- storageNTPRestart, storageNTPServer -->
 
 <!-- source: internal/plugins/ntp/yang/ze-ntp-conf.yang -- NTP config schema -->

@@ -86,8 +86,8 @@ Enrolled: Protocol Modifications for the DNS Security Extensions
 
 **What the ledger says is covered**
 
-- Security-aware non-validating stub resolver: `dnssec-validation` permissive/strict sets the EDNS0 DO bit with CD clear and a 4096-octet advertised buffer ([`internal/component/resolve/dns/resolver.go`](https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/resolver.go)), rejects (strict) or logs (permissive) an upstream SERVFAIL, accepts an AD-clear NOERROR answer from an unsigned zone, disregards the AD bit of a response, and returns ordinary records from answers that also carry RRSIG/NSEC/DNSKEY. On the authoritative side the shared harness copies the query's CD bit into the reply, ignores the query's AD bit, never asserts AD for local zone data, performs no DNSSEC additional processing, and answers a DS query inside a served zone as authoritative no-data
-- tests bound per requirement in [`rfc/short/rfc4035.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc4035.md).
+- Security-aware non-validating stub resolver: `dnssec-validation` permissive/strict sets the EDNS0 DO bit with CD clear and a 4096-octet advertised buffer ([`internal/component/resolve/dns/resolver.go`](https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/resolver.go)), rejects (strict) or logs (permissive) an upstream SERVFAIL, accepts an AD-clear NOERROR answer from an unsigned zone, disregards the AD bit of a response, and returns ordinary records from answers that also carry RRSIG/NSEC/DNSKEY. On the authoritative side the shared harness copies the query's CD bit into the reply, ignores the query's AD bit, never asserts AD for local zone data, performs no DNSSEC additional processing, and answers a DS query inside a served zone as authoritative no-data. The caching LAN resolver (internal/plugins/dnsresolver) is not security-aware: it sends every upstream query with an EDNS0 OPT whose DO bit is clear, caches and returns RRSIG, DNSKEY, NSEC and DS records as ordinary RRsets, and never sets AD on a reply, so it claims no DNSSEC processing
+- validation is [`plan/post-release/features/spec-dns-resolver-dnssec-validation.md`](https://github.com/ze-software/ze/blob/main/plan/post-release/features/spec-dns-resolver-dnssec-validation.md). Tests bound per requirement in [`rfc/short/rfc4035.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc4035.md).
 
 
 **What the ledger says remains**
@@ -584,7 +584,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 The CD bit is controlled by resolvers; a security-aware name server MUST copy the CD bit from a query into the corresponding response. (§3)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC4035_CDCopiedADIgnored drives the real dnsserver.Authoritative harness: a CD=1 query must draw CD=1 and a CD=0 query CD=0, so both an always-clear and an always-set implementation go red
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/core/dnsserver/rfc4035_test.go::TestRFC4035_CDCopiedADIgnored, internal/core/dnsserver/rfc4035_test.go::TestRFC4035_CDCopiedADIgnored#2 moved. TestRFC4035_CDCopiedADIgnored drives the real dnsserver.Authoritative harness: a CD=1 query must draw CD=1 and a CD=0 query CD=0, so both an always-clear and an always-set implementation go red
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -595,7 +595,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Test
 
 The AD bit is controlled by name servers; a security-aware name server MUST ignore the setting of the AD bit in queries. (§3)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. the negative asserts an AD=1 query draws a reply with AD clear through the real harness; the positive's answer-equality half runs over the answerOne test stub, which cannot vary, so the AD-echo assertion is the discriminating one
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/core/dnsserver/rfc4035_test.go::TestRFC4035_CDCopiedADIgnored, internal/core/dnsserver/rfc4035_test.go::TestRFC4035_CDCopiedADIgnored#2 moved. the negative asserts an AD=1 query draws a reply with AD clear through the real harness; the positive's answer-equality half runs over the answerOne test stub, which cannot vary, so the AD-echo assertion is the discriminating one
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|

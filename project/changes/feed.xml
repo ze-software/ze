@@ -5,7 +5,14 @@
         <link>https://ze-software.net/project/changes/</link>
         <description>What shipped in Ze each week, in Zeledon's voice, mined from git history.</description>
         <language>en</language>
-        <lastBuildDate>Mon, 05 Oct 2026 00:00:00 +0000</lastBuildDate>
+        <lastBuildDate>Mon, 12 Oct 2026 00:00:00 +0000</lastBuildDate>
+        <item>
+            <title>Week of 2026-10-12</title>
+            <link>https://ze-software.net/project/changes/2026-10-12/</link>
+            <guid isPermaLink="true">https://ze-software.net/project/changes/2026-10-12/</guid>
+            <pubDate>Mon, 12 Oct 2026 00:00:00 +0000</pubDate>
+            <description>This update covers two weeks. Many settings that Ze used to accept and then silently ignore are now refused, so please read the changes below before upgrading. The release queue is now sorted into correctness fixes, validation and delivery work. It holds 240 required items and 273 nice-to-have, up from 202 and 224. 79 required items joined, most of them defects found by reviewing the code area by area, and 41 left, either finished or moved to after the release. The counts compare the two ends of the period, so an item added and finished in between is missed, and they count work items rather than readiness: https://ze-software.net/project/roadmap/</description>
+        </item>
         <item>
             <title>Week of 2026-10-05</title>
             <link>https://ze-software.net/project/changes/2026-10-05/</link>

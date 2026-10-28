@@ -122,7 +122,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>73.1%</strong><b>19 of 26 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>42.3%</strong><b>11 of 26 tagged units, 0 escaped and 8 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -581,7 +581,7 @@ The earlier Supported/no-tracked-gap claim did not establish complete NOTIFICATI
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_open_session_test.go#L143" title="internal/component/bgp/reactor/rfc5492_open_session_test.go" target="_blank" rel="noopener"><code>TestRFC5492RepeatedCapabilityInstancesAcceptedAtTheSession</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L310" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestParseAcceptsMultipleIdenticalCapabilityInstances</code></a></td>
@@ -603,7 +603,7 @@ Pending note: retain enforced with the exact session assertions and parser-fixtu
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_open_session_test.go#L201" title="internal/component/bgp/reactor/rfc5492_open_session_test.go" target="_blank" rel="noopener"><code>TestRFC5492EveryCapabilitiesParameterReadBeforeRefusing</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L267" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestOptionalParamRejectsTruncatedCapabilityTLV</code></a></td>
@@ -613,7 +613,7 @@ Pending note: retain enforced with the exact session assertions and parser-fixtu
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_open_session_test.go#L173" title="internal/component/bgp/reactor/rfc5492_open_session_test.go" target="_blank" rel="noopener"><code>TestRFC5492CapabilitiesSpreadOverSeveralParameters</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L341" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestParseFromOptionalParamsMultipleCapabilitiesParameters</code></a></td>
@@ -633,7 +633,7 @@ Pending note: retain enforced with the exact session assertions and parser-fixtu
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_open_session_test.go#L117" title="internal/component/bgp/reactor/rfc5492_open_session_test.go" target="_blank" rel="noopener"><code>TestRFC5492UnrecognizedCapabilityNeverReadAsKnown</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L233" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestParseRejectsMalformedKnownCapabilityLength</code></a></td>
@@ -643,7 +643,7 @@ Pending note: retain enforced with the exact session assertions and parser-fixtu
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_open_session_test.go#L90" title="internal/component/bgp/reactor/rfc5492_open_session_test.go" target="_blank" rel="noopener"><code>TestRFC5492UnrecognizedCapabilitiesIgnoredAtTheSession</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L184" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestParseUnknownCapability</code></a></td>
@@ -667,7 +667,7 @@ Pending note: retain enforced with the exact session assertions and parser-fixtu
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_handlers_test.go#L109" title="internal/component/bgp/reactor/session_handlers_test.go" target="_blank" rel="noopener"><code>TestOpenIgnoresUnknownCapability</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -682,7 +682,7 @@ Pending note: retain enforced with the exact session assertions and parser-fixtu
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_handlers_test.go#L112" title="internal/component/bgp/reactor/session_handlers_test.go" target="_blank" rel="noopener"><code>TestOpenIgnoresUnknownCapability</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -697,7 +697,7 @@ Pending note: retain enforced with the exact session assertions and parser-fixtu
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_handlers_test.go#L114" title="internal/component/bgp/reactor/session_handlers_test.go" target="_blank" rel="noopener"><code>TestOpenIgnoresUnknownCapability</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -888,8 +888,10 @@ Pending note: retain enforced with the exact session assertions and parser-fixtu
         <footer>
             <div class="footer-inner">
                 <div class="footer-bottom">
+                    <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
+                    <a href="../../../legal/">Legal notice</a>
+                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
                 </div>
             </div>
         </footer>

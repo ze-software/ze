@@ -104,7 +104,7 @@
 <li><a href="#see-also">See also</a></li>
 </ol></details></nav><div class="doc-body">
 <blockquote>
-<p><strong>Pre-Alpha.</strong> This page describes behaviour that may change.</p>
+<p><strong>Pre-Alpha.</strong> This page describes behavior that may change.</p>
 </blockquote>
 <p>Ze implements native IKEv2 in Go for route-based IPsec VPN tunnels. It does not require strongSwan, libreswan, or another external IKE daemon. The IKE engine, cryptographic primitives, wire codec, and XFRM dataplane integration are all in-tree. The Ze binary negotiates IKE SAs, installs XFRM policies and states, and programs routes through XFRM interfaces from the same YANG config tree as every other subsystem.</p>
 <h2 id="live-ipsec-demonstration">Live IPsec demonstration</h2>
@@ -431,7 +431,7 @@ come up.</p>
 </tr>
 <tr>
 <td>Proposals</td>
-<td>AES-CBC and AES-GCM 128/256 for the IKE SA and ESP; AES-CCM 128/256 with an 8, 12 or 16 octet ICV for the IKE SA only (RFC 5282), refused at commit in an <code>esp-group</code>; NULL encryption with an integrity algorithm for ESP only (integrity-only ESP, RFC 4303 Section 1), refused at commit in an <code>ike-group</code> (RFC 7296 Section 5); DH groups 14 (MODP 2048), 19 (ECP 256) and 20 (ECP 384); SHA-256/384/512 PRFs. The schema also names <code>chacha20poly1305</code> and <code>3des</code>, which no build implements, so a proposal naming either is refused at commit</td>
+<td>AES-CBC and AES-GCM 128/256 for the IKE SA and ESP; AES-CCM 128/256 with an 8, 12 or 16 octet ICV for the IKE SA only (RFC 5282), refused at commit in an <code>esp-group</code>; NULL encryption with an integrity algorithm for ESP only (integrity-only ESP, RFC 4303 Section 1), refused at commit in an <code>ike-group</code> (RFC 7296 Section 5); ESP-only <code>chacha20poly1305</code> with no hash, and legacy ESP <code>3des</code> with <code>hash sha1</code>; DH groups 14 (MODP 2048), 19 (ECP 256) and 20 (ECP 384); SHA-256/384/512 PRFs. ChaCha20, 3DES and SHA-1 remain unavailable for the IKE control channel</td>
 </tr>
 <tr>
 <td>Authentication</td>
@@ -463,10 +463,20 @@ come up.</p>
 </tr>
 <tr>
 <td>Virtual IP pool</td>
-<td>Not wired. The <code>remote-access</code> container parses and no session reads it</td>
+<td>A <code>respond</code> peer with <code>virtual-ip-pool</code> is leased a unique inner address from the named <code>remote-access pool</code> in IKE_AUTH (RFC 7296 Section 2.19), and its Child SAs name that address</td>
 </tr>
 </tbody>
 </table>
+<p>Prefer AES-GCM or ChaCha20-Poly1305 for new ESP deployments. <code>3des</code> and <code>sha1</code>
+are explicit legacy interoperability choices, not defaults. ChaCha20-Poly1305
+uses a 32-byte key plus a four-byte salt and a 16-byte tag. 3DES uses a 24-byte
+key including DES parity; SHA-1 integrity uses a 20-byte key and a 12-byte ICV.
+The fixed-size ciphers send no Key Length attribute. Linux XFRM and VPP have
+explicit algorithm mappings; an unavailable backend algorithm fails installation,
+never falls back to AES. Interoperability proof for both new combinations is
+pending the scoped two-role rekey runs.</p>
+<!-- source: internal/component/ike/crypto/transform.go -- espOnlyEncryptionRegistry, espOnlyIntegrityRegistry -->
+<!-- source: internal/component/ike/crypto/keys.go -- encKeyMaterialLen, prepare3DESKey -->
 <h2 id="mobike-endpoint-movement">MOBIKE endpoint movement</h2>
 <p>IPv4 tunnel peers negotiate MOBIKE automatically when the dataplane can migrate a
 live ESP state without resetting its sequence number or replay window. The Linux
@@ -533,10 +543,94 @@ restart instead of waiting for Dead Peer Detection.</p>
 }
 </code></pre>
 <p>For a road-warrior EAP server, set <code>authentication { mode eap-mschapv2 }</code>, <code>eap-tls</code> or <code>eap-md5</code>, then reference a device <code>certificate</code> and <code>ca-certificate</code> from the PKI store. Configure the client as a <code>site-to-site</code> peer. Read the EAP MD5-Challenge section below before you select <code>eap-md5</code>.</p>
-<p>The <code>remote-access</code> container is not wired yet. It parses, and no session reads
-it, so a <code>pool</code> assigns no address and an <code>eap-user</code> list authenticates nobody.
-<code>plan/release/fixes/spec-ipsec-remote-access.md</code> owns the work.</p>
-<!-- source: internal/component/ike/engine/apply.go -- reloadPool stores the pool in ikeEngineState.pool, which nothing reads -->
+<p>A <code>remote-access pool</code> serves the <code>site-to-site</code> peers whose <code>virtual-ip-pool</code> leaf
+names it. Such a peer must use <code>connection-type respond</code> and send a CFG_REQUEST in
+IKE_AUTH: Ze leases it an inner address no other live peer holds (RFC 3948 Section
+5.1), answers with a CFG_REPLY carrying the address and the pool's DNS servers, and
+narrows every Child SA the peer asks for to the address. A Child SA Ze asks for on
+that IKE SA, a rekey included, proposes only that address for the peer's side, and
+an answer naming a wider one is refused. The peer's proposed inner
+selector must contain that address, as a strongSwan client's 0.0.0.0/0 does: a
+Child SA proposing only other addresses is refused with TS_UNACCEPTABLE, because
+the answer may only narrow what the peer proposed. A bound peer that asks for no
+address is refused its Child SA with FAILED_CP_REQUIRED, and one Ze cannot serve
+with INTERNAL_ADDRESS_FAILURE; both keep the IKE SA. The address returns to the
+pool when the IKE SA ends, and the same peer gets it back on reconnect while it is
+free. <code>show vpn ipsec sa</code> lists it under <code>virtual-ip</code>. Admission of clients from
+unconfigured sources and the <code>eap-user</code> list are not served yet, so an <code>eap-user</code>
+authenticates nobody; <code>plan/release/fixes/spec-ipsec-remote-access.md</code> owns that.</p>
+<p>A peer bound to no pool keeps the inner source it proposes when its
+configuration names no remote traffic selector. Ze still never gives two peers
+tunnels that one packet could be sent into (RFC 3948 Section 5.1). When a peer
+proposes inner selectors that overlap a live tunnel of another peer, those
+selectors are left out of the answer, and when nothing is left the peer gets
+TS_UNACCEPTABLE: its IKE SA stays up with no Child SA, and Ze logs a warning that
+names both peers, both selector pairs and the fix. The first peer to hold the
+address keeps it until its tunnel goes away. The fix is to configure disjoint
+remote prefixes (<code>set vpn ipsec site-to-site peer &lt;name&gt; traffic-selector &lt;n&gt; remote prefix &lt;prefix&gt;</code>), to bind the peer to a pool (<code>set vpn ipsec site-to-site peer &lt;name&gt; virtual-ip-pool &lt;pool&gt;</code>), or, for an overlap you
+configured on purpose, to give one of the two peers a different priority (<code>set vpn ipsec site-to-site peer &lt;name&gt; policy-priority &lt;n&gt;</code>). A leased address
+counts like any other, so keep pool ranges disjoint from other peers' remote
+prefixes.</p>
+<p>When Ze is the side that asks for the Child SA and the tunnel the responder
+answers with overlaps another peer's, Ze refuses the answer itself. It deletes the
+Child SA pair it just negotiated, keeps the IKE SA with no Child SA, and asks
+again 30 seconds later, doubling the wait after each refusal up to 300 seconds.
+The warning it logs names the fix, which is the same as above without the pool,
+since a pool is the responder's to lease.</p>
+<p>A tunnel keeps its selectors until its kernel policies are gone, not only until
+the tunnel ends. If Ze cannot remove a policy when a tunnel ends, after a
+transient netlink error for example, the policy can still send packets into the
+old tunnel, so its selectors stay reserved and a peer proposing an overlapping
+tunnel is refused. The warning lists, for each policy left, the command that
+removes it in the dataplane's own tool: <code>ip xfrm policy delete ...</code> on the Linux
+kernel, <code>vppctl ipsec policy del ...</code> on VPP. IKE cannot drive the VPP dataplane
+yet: the VPP backend refuses a policy that names no interface, and IKE names
+none, so the VPP command and the retry below apply once that support lands
+(<code>plan/post-release/features/spec-ipsec-vpp-policy-interface.md</code>). Ze tries the removal again each time a peer proposes a tunnel
+and each time a configuration is committed, and releases the selectors as soon
+as the policies are gone. Running the listed commands lets the next proposal
+succeed, and restarting Ze is the last resort. The refusal names no
+configuration of the peer that held the tunnel, which may no longer exist.</p>
+<p>Remote prefixes that you configure on two peers, and that each peer negotiates
+exactly as written, may overlap only when the two peers have different
+<code>policy-priority</code> values: you ordered them, and the lower value decides which
+tunnel a packet takes (RFC 4301 Section 4.4.1). At one value, the default 2000
+on both for example, nothing orders them, so the second peer to establish is
+refused like an unconfigured one. An overlap a peer chose by narrowing inside a
+configured selector, to a smaller prefix, one protocol or one port, is refused at
+any priority. Route-based peers on distinct XFRM interfaces never conflict.</p>
+<p>The same rule covers a peer in transport mode. Its connection is held from its
+own address to Ze's, so a tunnel that another peer negotiates around that
+address, for example an unbound peer proposing <code>198.18.0.9/32</code> to <code>0.0.0.0/0</code>
+while a transport-mode peer runs from 198.18.0.9, is refused, and so is a
+transport-mode connection inside a tunnel another peer already holds, whichever
+of the two comes first. The warning names both peers, and the fix is on the
+tunnel peer: remote prefixes that leave out the transport-mode peer's address,
+or a pool. Where the overlap is on purpose, different <code>policy-priority</code> values
+order the two, exactly as for two tunnels, when the tunnel is exactly a traffic
+selector you configured on the tunnel peer, both sides, and the transport-mode
+connection runs exactly from that peer's <code>remote-address</code> to its <code>local-address</code>,
+for every protocol and port. A transport-mode peer that narrows its proposal to
+one protocol or one port, on its own address or on Ze's (<code>198.18.0.9/32</code> to
+<code>192.0.2.1/32</code> TCP port 80 for example), chose that itself, and is refused at any
+priority. The refusal names the traffic selector that would order the connection,
+both prefixes at the connection's own addresses, /32 for IPv4 and /128 for IPv6. A host-to-host
+transport-mode peer at 198.18.0.9 beside a full-tunnel peer configured with
+<code>0.0.0.0/0</code> on both sides is therefore served at two different priorities, and
+refused at one. A transport-mode peer whose <code>remote-address</code> or <code>local-address</code>
+is a DNS hostname is ordered only by a traffic selector you configured on it. Two
+transport-mode peers that overlap, two clients behind one NAT for example, are
+refused by the dataplane instead (RFC 3948 Section 5.2).</p>
+<p>strongSwan protects the same case differently: its default <code>remote_ts</code> is
+<code>dynamic</code>, the peer's observed address, so a client behind a NAT that proposes
+its private address gets no tunnel at all without a pool. Ze serves every
+client whose inner address is free, and refuses only the one that would share
+an address with another peer.</p>
+<!-- source: internal/component/ike/engine/cp.go -- assignVirtualIP, buildCFGReply, substituteVirtualIP -->
+<!-- source: internal/component/ike/engine/ts_narrow.go -- narrowSelectors -->
+<!-- source: internal/component/ike/engine/inner_selectors.go -- dropForeignInnerOverlaps, innerSelectorConflict -->
+<!-- source: internal/component/ike/dataplane/policy_owner.go -- claim -->
+<!-- source: internal/component/ike/engine/virtual_ip.go -- virtualIPState.reload builds every pool -->
 <p>Every EAP mode and X.509 needs a <code>ca-certificate</code>. The daemon refuses a remote
 certificate it cannot chain to that anchor. A certificate with no trust anchor
 authenticates nobody: any self-signed certificate that carries a valid signature
@@ -1238,10 +1332,12 @@ of three per connection attempt, so two peers can never oscillate between them.<
 because entries with range selectors overlap: "Thus, a user or administrator
 MUST be able to order the entries to express a desired access control policy."</p>
 <p><code>policy-priority</code> under a peer is that order. A LOWER value is searched FIRST,
-in Ze and in the Linux kernel. Two peers that both negotiate <code>0.0.0.0/0</code>
-describe the same traffic, so give the one that must win the lower value.</p>
-<p>The default is 2000, which every peer took before the leaf existed, so an
-unordered configuration installs what it installed before. The range starts at
+in Ze and in the Linux kernel. Two peers configured with overlapping remote
+prefixes describe the same traffic, so give the one that must win the lower
+value. Two tunnels that overlap at one value are not ordered at all, so Ze
+refuses the second peer's Child SA rather than let arrival order pick the tunnel
+(RFC 3948 Section 5.1, see the inner-address paragraphs above).</p>
+<p>The default is 2000, which every peer took before the leaf existed. The range starts at
 101 because 100 holds the IKE control-plane bypass. A peer entry at or above
 that rank matches the IKE datagrams first, which hands the exchange that builds
 and rekeys the SA to the SA itself, and the tunnel could then never
@@ -1493,9 +1589,11 @@ stops, every tunnel is torn down first, then the IKE bypass and your <code>polic
 entries are removed, and the catch-all goes last, so no Ze entry is ever in
 force without it. If any of those entries cannot be removed, the catch-all
 stays installed beneath it, and the daemon logs a warning naming each entry
-left as the exact <code>ip xfrm policy delete</code> command that removes it: direction,
-prefixes, protocol, ports and <code>if_id</code>, so two entries that differ only by port
-get two different commands.</p>
+left as the command that removes it in the dataplane's own tool. On the Linux
+kernel that is the exact <code>ip xfrm policy delete</code> command: direction, prefixes,
+protocol, ports and <code>if_id</code>, so two entries that differ only by port get two
+different commands. On VPP it is the <code>vppctl ipsec policy del</code> command for the
+entry VPP holds.</p>
 <h4 id="when-the-entry-is-not-there">When the entry is not there</h4>
 <p>A catch-all that is not installed leaves a packet no entry matches meeting no
 entry at all, which RFC 4301 Section 5.2 forbids ("If there is no match,
@@ -1605,7 +1703,9 @@ restricts a peer, never omitting it.</p>
 3.13: "a packet matches a given TSi/TSr if it matches at least one of the individual
 selectors in TSi, and at least one of the individual selectors in TSr." So the list must
 name every combination of the local and remote selectors it uses, as the example above
-does with one local and two remote selectors. A list such as local 10.1.0.0/16 with remote
+does with one local and two remote selectors. A packet is either IPv4 or IPv6, so an IPv4
+selector is never combined with an IPv6 one: a dual-stack peer with one IPv4 entry and one
+IPv6 entry already names every combination. A list such as local 10.1.0.0/16 with remote
 10.2.0.0/16, then local 10.3.0.0/16 with remote 10.4.0.0/16, would be offered as
 10.1.0.0/16 with 10.4.0.0/16 as well, so <code>ze config verify</code> refuses it and names the
 missing combination. Add the missing entries, or remove the entry that brings in the
@@ -1617,7 +1717,7 @@ every combination of their own selectors, it answers the largest part that is, s
 from the first choice, because the initiator installs every combination it is answered. A proposal it cannot narrow to a
 non-empty subset draws a <code>TS_UNACCEPTABLE</code> notification. As initiator, Ze proposes the list
 in order, because RFC 7296 reads the order as the preference order.</p>
-<!-- source: internal/component/ike/engine/ts_narrow.go -- narrowSelectors, narrowChildSelectors -->
+<!-- source: internal/component/ike/engine/ts_narrow.go -- narrowSelectors, narrowChildSelectorsIn -->
 <p>The selectors Ze puts on the wire are the selectors it programs. A proposal it cannot
 program exactly is narrowed FURTHER, never rounded outward: an address range that is not a
 prefix becomes the largest prefix inside it, and a port range that is neither all ports nor
@@ -1694,7 +1794,7 @@ initiator it refuses an answer of several pairs and deletes the SA, so configure
 on the far end too.</p>
 <!-- source: internal/component/ike/engine/config.go -- validateTransportOnePair -->
 <!-- source: internal/component/ike/engine/transport_mode.go -- transportSelectorPairs -->
-<!-- source: internal/component/ike/engine/ts_narrow.go -- oneTransportPair, recordInitiatorSelectors -->
+<!-- source: internal/component/ike/engine/ts_narrow.go -- oneTransportPair, recordInitiatorSelectorsIn -->
 <p>A tunnel-mode peer's <code>vti { bind &lt;name&gt; }</code> names an <code>interface { xfrm &lt;name&gt; { if-id } }</code>
 block. The Child SA is installed with that interface's if_id, so the tunnel's traffic
 enters and leaves through the named interface and the interface's MTU is the tunnel's.
@@ -1947,6 +2047,13 @@ SAs under each interface ID used by an installed Child SA.
 identity. Kernel expiry or an external flush can produce drift while
 <code>ze_ipsec_tunnel_up</code> still reports a successful install.</p>
 <!-- source: internal/component/ike/engine/metrics.go -- publishDataplaneGauges -->
+<p><code>ze_ipsec_virtual_ip_leases{pool}</code> counts the virtual IP addresses live IKE SAs
+hold in each <code>remote-access pool</code>. <code>ze doctor</code> warns under <code>ipsec-virtual-ip-pool</code>
+when one family of a pool is at least 90% held, because a full pool refuses the
+next client with INTERNAL_ADDRESS_FAILURE; widen <code>range</code> or <code>range6</code>, or bind some
+peers to another pool.</p>
+<!-- source: internal/component/ike/engine/metrics.go -- publishVirtualIPGauges -->
+<!-- source: internal/component/ike/engine/doctor_virtual_ip.go -- checkIPsecVirtualIPPool -->
 <p>A failed or changing dataplane observation removes both gauge families'
 previous series. Absent series mean the observation is unknown, not that the
 kernel holds no SAs or that no drift exists. Peer removal also removes the
@@ -2067,8 +2174,10 @@ boundaries; neither is a claim that every IKE extension is implemented.</p>
         <footer>
             <div class="footer-inner">
                 <div class="footer-bottom">
+                    <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
+                    <a href="../../legal/">Legal notice</a>
+                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
                 </div>
             </div>
         </footer>

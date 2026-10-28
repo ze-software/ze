@@ -1,5 +1,92 @@
 [
   {
+    "slug": "2026-10-12",
+    "intro": "This update covers two weeks. Many settings that Ze used to accept and then silently ignore are now refused, so please read the changes below before upgrading.\n\nThe release queue is now sorted into correctness fixes, validation and delivery work. It holds 240 required items and 273 nice-to-have, up from 202 and 224. 79 required items joined, most of them defects found by reviewing the code area by area, and 41 left, either finished or moved to after the release. The counts compare the two ends of the period, so an item added and finished in between is missed, and they count work items rather than readiness: https://ze-software.net/project/roadmap/",
+    "is_draft": false,
+    "topics": [
+      {
+        "label": "BGP",
+        "category": "routing",
+        "key": "BGP"
+      },
+      {
+        "label": "Flowspec",
+        "category": "routing",
+        "key": "Flowspec"
+      },
+      {
+        "label": "OSPF",
+        "category": "routing",
+        "key": "OSPF"
+      },
+      {
+        "label": "BFD",
+        "category": "routing",
+        "key": "BFD"
+      },
+      {
+        "label": "VRRP",
+        "category": "routing",
+        "key": "VRRP"
+      },
+      {
+        "label": "DHCP",
+        "category": "services",
+        "key": "DHCP"
+      },
+      {
+        "label": "IPsec",
+        "category": "services",
+        "key": "IPsec"
+      },
+      {
+        "label": "L2TP",
+        "category": "services",
+        "key": "L2TP"
+      },
+      {
+        "label": "RADIUS",
+        "category": "services",
+        "key": "RADIUS"
+      },
+      {
+        "label": "VPP",
+        "category": "services",
+        "key": "VPP"
+      },
+      {
+        "label": "Config",
+        "category": "operate",
+        "key": "Config"
+      },
+      {
+        "label": "CLI",
+        "category": "operate",
+        "key": "CLI"
+      },
+      {
+        "label": "API",
+        "category": "automate",
+        "key": "API"
+      },
+      {
+        "label": "ExaBGP Migration",
+        "category": "automate",
+        "key": "ExaBGP Migration"
+      },
+      {
+        "label": "RFC Compliance",
+        "category": "meta",
+        "key": "RFC Compliance"
+      },
+      {
+        "label": "Quality Improvement",
+        "category": "platform",
+        "key": "Quality Improvement"
+      }
+    ]
+  },
+  {
     "slug": "2026-10-05",
     "intro": "A week on configuration safety, the public API and the appliance kernel, with fixes across BGP, RSVP-TE and IKEv2. Several changes need a look before upgrading, listed first.\n\nThe release queue closed the week at 202 required work items and 224 nice-to-have, against 213 and 221 at the start. 12 required items joined and 23 left. Most of those that left were behaviour that shipped earlier and gained its end-to-end proof this week. The additions are the appliance kernel, live BGP reconfiguration and gaps the RFC checking found. This is an inventory preview. It reads two endpoints, so an item added and finished inside the same week never appears in it, and the counts measure work items rather than readiness: https://ze-software.net/project/roadmap/",
     "is_draft": false,

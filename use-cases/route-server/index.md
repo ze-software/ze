@@ -2,6 +2,8 @@
 
 Use Ze as an RFC 7947 route server when each member should maintain one eBGP session and receive eligible routes from the other members without next-hop rewriting.
 
+**RFC completion:** the [IXP route server coverage page](../../quality/rfc-compliance/profiles/route-server/) shows how much of the RFC work behind this use case is proven by tests.
+
 ## Topology
 
 ```text

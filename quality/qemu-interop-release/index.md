@@ -10,8 +10,8 @@ QEMU is required for code that depends on Linux behavior rather than Go behavior
 
 | Need | Command |
 | --- | --- |
-| Run curated Linux-only functional files | `./le test qemu netns-test` |
-| Run the full suite inside a prepared guest | `./le test qemu run command '<guest-le> le test qemu all-tests'` |
+| Run curated Linux-only functional files | `./le test qemu netns` |
+| Run the full suite inside a prepared guest | `./le test qemu run command '<guest-le> le test qemu all'` |
 | Rerun one failing command inside the VM | `./le test qemu run command '...'` |
 | Keep a VM alive for manual inspection | `./le test qemu run command '...' keep-alive` |
 
@@ -45,8 +45,8 @@ Docker interop proves protocol behavior against real implementations. Ze runs BG
 | --- | --- | --- |
 | BGP interop | `./le test integration interop` | Ze exchanges real protocol messages with third-party BGP daemons. |
 | IPsec interop | `./le test integration interop-ipsec` | strongSwan and Ze agree on the deployed behavior. |
-| L2TP and PPPoE | `./le test deployment docker-l2tp-ppp-test`, `./le test deployment docker-pppoe-accel-test` | Access protocol behavior works against real peers. |
-| Deployment evidence | `./le test deployment l2tp-test`, `./le test deployment vpp-test` | Deployment paths are not just unit-tested scripts. |
+| L2TP and PPPoE | `./le test deployment docker-l2tp-ppp`, `./le test deployment docker-pppoe-accel` | Access protocol behavior works against real peers. |
+| Deployment evidence | `./le test deployment l2tp`, `./le test deployment vpp` | Deployment paths are not just unit-tested scripts. |
 
 Interop tests are not a replacement for functional transcripts. A `.ci` test explains a Ze behavior precisely and cheaply. Interop proves that the behavior still works when another implementation interprets the protocol.
 

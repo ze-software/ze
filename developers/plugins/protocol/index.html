@@ -1078,6 +1078,18 @@ Rendered without a branch, it writes the number or <code>unknown</code> through 
 and <code>log/slog</code>, and the number or <code>null</code> through <code>encoding/json</code>, where a field
 tagged <code>omitzero</code> is omitted while the AS is unknown.</p>
 <!-- source: pkg/plugin/rpc/remote_as.go -- RemoteAS, ASN, MarshalJSON, IsZero, String, LogValue -->
+<p>A session-down event names the session it ended: <code>session-generation</code> in the
+JSON and text forms, <code>StructuredEvent.SessionGeneration</code> in the structured
+one, a nonzero number captured when that session closed. An up carries none.
+A forwarding plugin that asks the engine to withdraw or replace a departed
+peer's routes (<code>recovery-source</code> meta on its <code>update</code> command) MUST name that
+session as <code>recovery-generation</code> meta, a decimal string: the engine refuses a
+departure without it, and with it owes only routes that session or an older
+one wrote, so a down handled after the peer reconnected never takes the newer
+session's routes (<code>docs/architecture/plugin/rib-storage-design.md</code>,
+"Source-DOWN replacement and sent ordering").</p>
+<!-- source: pkg/plugin/rpc/bridge.go -- StructuredEvent -->
+<!-- source: internal/component/bgp/plugins/cmd/update/recovery.go -- recoveryFromMeta -->
 <h3 id="the-filter-text-an-onfilterupdate-handler-reads">The Filter Text an <code>OnFilterUpdate</code> Handler Reads</h3>
 <p><code>FilterUpdateInput.Update</code> is the UPDATE as text: <code>&lt;name&gt; &lt;value&gt;</code> attribute
 pairs, then one NLRI block for each section the UPDATE carries.</p>
@@ -1353,8 +1365,10 @@ config-verify, etc.) and bye.</p>
         <footer>
             <div class="footer-inner">
                 <div class="footer-bottom">
+                    <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
+                    <a href="../../../legal/">Legal notice</a>
+                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
                 </div>
             </div>
         </footer>

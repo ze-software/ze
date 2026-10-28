@@ -75,11 +75,13 @@ over, and the hosts on the segment never change their default gateway.</p>
 IPv4 and IPv6) by default, and <a href="https://www.rfc-editor.org/rfc/rfc3768.html" target="_blank" rel="noopener">RFC 3768</a>
 (VRRPv2, IPv4 only) as a per-group opt-in for talking to older equipment.</p>
 <blockquote>
-<p><strong>Status: Experimental.</strong> The implementation is complete, its wire format is
-asserted against golden frames under QEMU, and it interoperates with keepalived
-2.3.1 across election, node-death failover, and graceful-stop scenarios
-(including virtual-MAC ownership of the virtual IP), but it has not yet been
-proven in production. See
+<p><strong>Status: Experimental.</strong> Wire-format tests and the keepalived scenarios below
+cover particular election, node-death, graceful-stop, and virtual-MAC ownership
+paths; they do not establish a complete implementation or production readiness.
+Tracked-priority handover and recovery have passed live ownership and
+reachability checks against keepalived 2.4.3, including peer loss at reduced
+priority and restoration of the tracked uplink. Those checks cover the corrected
+macvlan receive and unicast-only Backup-filter paths. See
 <a href="../../reference/rfcs/#first-hop-redundancy">RFC status</a>.</p>
 </blockquote>
 <p>The Docker interop lab runs the <code>vrrp-mastership-keepalived</code> scenario
@@ -249,6 +251,12 @@ fails, rather than only when VRRP itself stops.</p>
 <p>While <code>eth1</code> is down this router advertises 50 instead of 200, so a Backup
 configured at 100 takes the gateway. When <code>eth1</code> returns, the router advertises
 200 again and takes it back (subject to <code>preempt</code>).</p>
+<p>The decrement changes preference, not eligibility. Ze remains Active until it
+receives a winning advertisement; it does not resign merely because an uplink
+went down. The higher-priority Backup must have preemption enabled to take over.
+If that peer then disappears while the tracked interface is still down, Ze can
+take the gateway at priority 50. A returning peer at 100 takes it back, and
+restoring the tracked interface lets Ze preempt at 200.</p>
 <table>
 <thead>
 <tr>
@@ -519,9 +527,10 @@ the RFCs require. The ARP table needs a kernel built with
 <code>CONFIG_NF_TABLES_ARP</code>; ze's appliance kernel has it.</li>
 <li><strong>A Backup drops traffic sent to the virtual MAC.</strong> The virtual-MAC interface
 exists in every state, and the kernel would forward what it receives even with
-no virtual IP on it. While a group is not Active, ze drops every packet that
-interface receives with the firewall table <code>ze_vrrp_backup</code>, which
-<code>show firewall ruleset</code> lists. The Active router forwards that traffic.</li>
+no virtual IP on it. While a group is not Active, ze drops host-type unicast
+received on that PRIVATE interface with the firewall table <code>ze_vrrp_backup</code>,
+which <code>show firewall ruleset</code> lists. Multicast VRRP advertisements and IPv6 ND
+remain receivable. The Active router forwards the virtual-MAC unicast traffic.</li>
 <li><strong>First-resolution race (IPv4 only).</strong> The very first host to ARP for the
 virtual IP right as a router becomes Active can, for one resolution, cache the
 parent's real MAC before the macvlan takes over; it converges to the virtual
@@ -774,8 +783,10 @@ filters link-local multicast will break the election.</p>
         <footer>
             <div class="footer-inner">
                 <div class="footer-bottom">
+                    <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
+                    <a href="../../legal/">Legal notice</a>
+                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
                 </div>
             </div>
         </footer>

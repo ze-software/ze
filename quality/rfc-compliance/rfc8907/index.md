@@ -237,7 +237,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC8907ReplyChangingSessionIDRefused`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_header_test.go#L134) | unit/verify | revert, verified |
+| negative | [`TestRFC8907ReplyChangingSessionIDRefused`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_header_test.go#L134) | unit/verify | mutant, verified |
 | positive | [`TestTacacsClientAuthenticatePass`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_client_test.go#L148) | unit/verify | revert, verified |
 | positive | [`TestRFC8907ReplyKeepingSessionIDAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_header_test.go#L122) | unit/verify | revert, verified |
 

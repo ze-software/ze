@@ -299,7 +299,7 @@ confirmation before proceeding.</p>
 <p>To check the service status, use <code>systemctl status ze.service</code> directly.</p>
 <h2 id="installing-on-real-hardware-end-to-end">Installing on Real Hardware (End to End)</h2>
 <p>This bare-metal PXE walkthrough follows the same chain as
-<code>./le test qemu install-test</code>: build an image, serve it, boot an installer kernel
+<code>./le test qemu installer</code>: build an image, serve it, boot an installer kernel
 and initrd, write the disk, then log in over SSH. The reference sections below
 describe each piece.</p>
 <h3 id="1-build-the-disk-image">1. Build the disk image</h3>
@@ -398,7 +398,7 @@ the installer stops and names the candidates rather than picking one. Pass
 <code>ze.target=/dev/vda</code> in the cmdline, or detach the extra fixed disks.</li>
 <li><strong>Download stalls / non-standard port</strong>: confirm the image server's port and
 pass <code>ze.port=</code> in the iPXE cmdline.</li>
-<li><strong>Dry-run first</strong>: <code>./le test qemu install-test</code> reproduces the whole chain and
+<li><strong>Dry-run first</strong>: <code>./le test qemu installer</code> reproduces the whole chain and
 reports a broken image, kernel, or initrd before hardware is touched.</li>
 </ul>
 <h2 id="appliance-iso-install">Appliance ISO Install</h2>
@@ -954,8 +954,8 @@ console / fatal policy):</p>
 </code></pre>
 <p>End-to-end boot and install are covered by the QEMU evidence harness, which
 boots the real Go initrd:</p>
-<pre><code class="language-bash">./le test qemu install-test       # HTTP PXE install
-./le test qemu install-iso-test   # ISO install
+<pre><code class="language-bash">./le test qemu installer       # HTTP PXE install
+./le test qemu installer-iso   # ISO install
 </code></pre>
 <h3 id="no-external-binaries">No External Binaries</h3>
 <p>The initrd contains exactly one file: the <code>cmd/ze-installer</code> Go binary as
@@ -1033,20 +1033,20 @@ fifteen seconds, so a hung QEMU or Docker daemon is reported, not waited on.
 <!-- source: internal/appliance/kernelbuilder/worker.go -- RunWorker -->
 <!-- source: internal/appliance/kernelbuilder/qemu.go -- runQEMU -->
 <h2 id="end-to-end-qemu-verification">End-to-End QEMU Verification</h2>
-<p><code>./le test qemu install-test</code> builds the initrd and an appliance image, boots the
+<p><code>./le test qemu installer</code> builds the initrd and an appliance image, boots the
 installer against a blank virtio disk, and transfers the image over HTTP. It
 then boots the installed disk and authenticates over SSH. The storage proof
 also checks the logged first-boot import, the live tree's seed key values, and
 the retired seed. An incomplete staging tree is planted before boot to exercise
 restart with an interrupted import.</p>
-<pre><code class="language-bash">ZE_INSTALL_KERNEL=$PWD/build/kernel/Image ./le --name storage-proof test qemu install-test
+<pre><code class="language-bash">ZE_INSTALL_KERNEL=$PWD/build/kernel/Image ./le --name storage-proof test qemu installer
 </code></pre>
-<p><code>./le test qemu install-iso-test</code> exercises the ISO transport. It creates an ISO
+<p><code>./le test qemu installer-iso</code> exercises the ISO transport. It creates an ISO
 through <code>ze appliance iso</code>, boots it, verifies the embedded image is written
 without the PXE-only branch, checks safe poweroff and the GPT layout, then logs
 in with the embedded ZeFS credentials.</p>
 <!-- source: internal/le/test/qemu/actions.go -- Actions -->
-<pre><code class="language-bash">ZE_INSTALL_KERNEL=$PWD/build/kernel/Image ./le test qemu install-iso-test
+<pre><code class="language-bash">ZE_INSTALL_KERNEL=$PWD/build/kernel/Image ./le test qemu installer-iso
 </code></pre>
 <p>The ISO evidence self-skips with <code>INSTALL-ISO-QEMU: SKIP</code> when QEMU, a suitable
 installer kernel, UEFI firmware, <code>grub-mkstandalone</code>/<code>grub2-mkstandalone</code>,
@@ -1155,8 +1155,10 @@ real network and <code>ze install remote</code> on port 80.</p>
         <footer>
             <div class="footer-inner">
                 <div class="footer-bottom">
+                    <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
+                    <a href="../../legal/">Legal notice</a>
+                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
                 </div>
             </div>
         </footer>

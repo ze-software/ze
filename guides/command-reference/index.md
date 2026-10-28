@@ -241,6 +241,40 @@ ze config migrate <file>         # Convert old format to current
 | `--list` | List available transformations (migrate) |
 | `--format <fmt>` | Output format: `set` (default) or `hierarchical` (migrate) |
 
+### ze secret
+
+Decode a `$9$` secret to its plaintext, or encode a plaintext. A `ze:sensitive`
+leaf (a BGP MD5 password, an API token, a pre-shared key) is stored in the
+reversible `$9$` form, and every display path masks it. `ze secret decode`
+gives the operator the actual key from a config. It works offline, reads no
+config and reaches no daemon.
+
+```
+ze secret decode '$9$...'        # Print the plaintext behind a $9$ value
+ze secret decode -               # Read the $9$ value from stdin
+ze secret encode '<plaintext>'   # Print a $9$ value for a plaintext
+ze secret encode -               # Read the plaintext from stdin
+```
+
+Put the value in single quotes: an unquoted `$` starts a shell variable, and
+the shell changes the value before ze sees it. Pass `-` to read the value from
+stdin, so it stays out of the shell history. One trailing line ending is
+dropped from stdin. A value that starts with `-` reads as an option, so pass it
+on stdin.
+
+A `ze:bcrypt` leaf holds a one-way hash (`$2a$`, `$2b$`, `$2y$`, and the crypt
+forms `$1$`, `$5$`, `$6$`). A hash keeps no copy of the password, so
+`ze secret decode` refuses it and names `ze config set` to set a new password.
+`ze secret encode` refuses a value that already starts with `$9$`, because the
+config reads such a value as encoded.
+
+| Exit code | Meaning |
+|-----------|---------|
+| 0 | Success |
+| 1 | The value cannot be decoded or encoded: a one-way hash, no `$9$` prefix, a damaged `$9$` value, or an empty value |
+| 2 | Usage error (no value, two values, an unknown option or action), or stdin could not be read |
+<!-- source: internal/component/config/cli/cmd_secret.go -- runSecret, decodeSecret, encodeSecret -->
+
 ### ze signal
 
 Send commands to the running daemon via SSH.
@@ -746,6 +780,10 @@ ze show traffic control            # Summary of all interfaces with qdiscs
 ze show traffic control <ifname>   # Detail for one interface
 ```
 
+For a Linux TBF root, `rate-bps` reports the kernel's rate in bits per second,
+not its native byte-per-second unit. It is zero when the root has no TBF rate.
+TBF has no configured classes; its rate is a root property.
+
 ### show flow export
 
 Per-collector flow export statistics for the `flowexport` component (sFlow v5,
@@ -1132,7 +1170,7 @@ raw elements.
 
 <!-- source: internal/plugins/firewall/nft/cmd_show.go -- handleShowFirewallRuleset, handleShowFirewallGroup -->
 <!-- source: internal/component/firewall/engine.go -- runEngine; OnConfigApply stores LastApplied -->
-<!-- source: internal/plugins/firewall/nft/backend_linux.go -- applyChain (UserData + auto Counter), readRuleCounter -->
+<!-- source: internal/plugins/firewall/nft/backend_linux.go -- addChainRules (UserData + auto Counter), readRuleCounter -->
 
 ### show, update and clear firewall irr
 
@@ -1461,6 +1499,26 @@ clear dns cache record example.com type AAAA        # Delete a single entry by n
 
 <!-- source: internal/component/resolve/cmd/dns.go -- handleClearDNSCache, handleClearDNSCacheStats, handleClearDNSCacheRecord -->
 
+### show dns-resolver / clear dns-resolver cache all
+
+The LAN DNS resolver (`service dns-resolver`, [guide](https://github.com/ze-software/ze/blob/main/docs/guide/dns-resolver.md)), which
+answers the hosts behind Ze. It is separate from the `show dns` and
+`clear dns` commands above, which cover the resolver Ze uses for its own
+lookups.
+
+```
+ze show dns-resolver                   # Config in force, listener state, cache entries, hit rate, refusals, drops, upstream results
+ze clear dns-resolver cache all        # Empty the answer and the negative cache; the counters are kept
+```
+
+`clear dns-resolver cache` alone has no handler and empties nothing: it exits 1
+and lists `all`, the word emptying needs. `show dns-resolver` answers `running false` while the
+plugin is not running, and `clear dns-resolver cache all` answers an error that
+names the config to commit.
+
+<!-- source: internal/plugins/dnsresolver/show.go -- handleShowDNSResolver, handleClearDNSResolverCache -->
+<!-- source: internal/plugins/dnsresolver/yang/ze-dns-resolver-cmd.yang -- show and clear command tree -->
+
 ### clear peeringdb cache / clear irr cache / clear cymru cache
 
 Each owner of a resolver client clears the client it uses now. The hub clears
@@ -1546,6 +1604,11 @@ show vpn ipsec dataplane drift               # Where engine belief and kernel st
 Every other `show vpn ipsec` command reports what the IKE engine believes it
 installed. These three read the kernel back, so a kernel expiry, an external
 flush, or a policy a rekey stranded becomes visible.
+
+`show vpn ipsec sa` lists, under `virtual-ip`, the inner addresses an IKE SA
+leased its peer from a `remote-access` pool (RFC 7296 Section 2.19), and an
+empty list for a peer bound to no `virtual-ip-pool`.
+<!-- source: internal/component/ike/cmd/show_ipsec.go -- virtualIPText -->
 
 `sa` lists each installed ESP SA with its SPI, addresses, if_id, mode, reqid,
 encryption and integrity algorithm names, replay window, byte and packet
@@ -2007,6 +2070,22 @@ ze yang doc [command]            # Command documentation
 The tree and the collision report are registered answers, so the pipe layer
 renders them: `ze cli -c "show yang tree --config | json"`.
 <!-- source: internal/component/config/yang/cli/main.go -- Run -->
+
+### ze appliance kernel
+
+The build-host binary builds or resolves Ze's installer or runtime kernel.
+Builds run only on a host of the target architecture.
+
+```sh
+ze-host appliance kernel --target runtime --arch amd64 --builder docker --jobs 4
+```
+
+`--jobs <count>` limits parallel kernel compilation to a positive integer.
+Omitting it keeps the builder's CPU-count default. Zero, negative and malformed
+values are refused before building. This scheduling option does not change the
+kernel cache key or the existing two-hour build limit; a warm cache still skips
+compilation. See [the appliance guide](../appliance/index.md) for the build-host setup.
+<!-- source: internal/appliance/cmd_kernel.go -- runKernel, defaultKernelBuild -->
 
 ### ze init
 
@@ -2488,7 +2567,7 @@ BGP propagation latency benchmark tool, run by the development tool `le`.
 
 <!-- source: internal/perf/cli/register.go -- perf CLI entry point -->
 
-`le perf send` runs one benchmark against a DUT, `le perf report` compares
+`le perf send` runs one benchmark against a DUT, `le perf compare` compares
 result files, and `le perf track` follows the history.
 <!-- source: internal/le/perf/actions.go -- programVerbs -->
 
@@ -2568,15 +2647,15 @@ measures how quickly they propagate through to the receiver.
 
 Exit codes: 0 = success, 1 = error (missing flags, validation failure, benchmark failure).
 
-#### le perf report
+#### le perf compare
 
 Generate a comparison report from one or more result JSON files.
 
 <!-- source: internal/perf/cli/cmd_report.go -- report subcommand -->
 
 ```
-./le perf report result-ze.json result-gobgp.json
-./le perf report --html result-ze.json result-gobgp.json > report.html
+./le perf compare result-ze.json result-gobgp.json
+./le perf compare --html result-ze.json result-gobgp.json > report.html
 ```
 
 | Flag | Type | Default | Purpose |

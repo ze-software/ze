@@ -287,6 +287,103 @@ diff nd.txt ze.txt
 
 Host metrics are refreshed on a configurable interval (default 60 seconds). Linux only; on other platforms no host metrics are registered.
 
+### Contained Panics
+<!-- source: internal/core/taskguard/guard.go -- MetricName, Guard.SetMetricsRegistry, Guard.Task -->
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `ze_task_panics_total` | counter | `component`, `task` | Panics recovered at a network-input task boundary. Each one ended one unit (a session, a neighbor, a request, a connection) while Ze kept running |
+
+Any value above zero is a Ze defect. The ERROR log line of each panic names the
+unit and the stack, and `ze show crashes` lists its crash record with kind
+`recovered`: attach that record to the bug report. A component's tasks appear
+at zero from the moment the component has a metrics registry.
+
+| `component` | `task` | The unit one panic ends |
+|-------------|--------|-------------------------|
+| `bgp` | `read` | One BGP session: the peer is sent Cease / Unspecific and reconnects after its backoff |
+| `bgp` | `cancel` | One BGP session's connection, closed when the session ends |
+| `bgp` | `connect` | One connection cycle of a peer (dial, OPEN setup): the peer retries after its backoff |
+| `bgp` | `delivery` | One BGP session whose received UPDATEs could not reach the plugins: Cease / Unspecific |
+| `bgp` | `accept` | One accepted TCP connection: the listener keeps accepting |
+<!-- source: internal/component/bgp/reactor/panic_guard.go -- bgpPanics -->
+| `rpki` | `rtr-read` | One RTR sync with one cache: the cache is sent an Error Report Internal Error, the connection closes, the next cache in preference order takes the load, and this cache is asked again after its Retry Interval |
+<!-- source: internal/component/bgp/plugins/rpki/panic_guard.go -- rpkiPanics -->
+| `bmp` | `receive` | One monitored router's BMP session: it closes with no message sent back, the router's routes are withdrawn, and the router reconnects under its own configuration |
+<!-- source: internal/component/bgp/plugins/bmp/panic_guard.go -- bmpPanics -->
+| `ldp` | `session` | One LDP session: the peer is sent an Internal Error Notification, the session closes, and the neighbor's next Hello sets it up again |
+| `ldp` | `discovery` | One received Hello, dropped: discovery reads the next one on the same socket |
+<!-- source: internal/plugins/ldp/panic_guard.go -- ldpPanics -->
+| `rsvp-te` | `signaling` | The LSPs one received RSVP message names: each loses its state as if it had timed out (the forwarding entry it installed, its label and admission charge released, no teardown message sent). A transit or egress LSP is set up again by the upstream's next PATH refresh; a tunnel or bypass this router heads is signaled again only when the configuration is next committed. The engine handles the next message at once |
+| `rsvp-te` | `receive` | One received RSVP datagram, dropped: the receiver reads the next one on the same socket |
+<!-- source: internal/plugins/rsvpte/panic_guard.go -- rsvpPanics, endHandling -->
+| `ospf` | `interface-read` | One OSPFv2 interface's socket reader: the interface leaves OSPF, its neighbors go Down, and the 30-second rescan reopens it |
+| `ospf` | `interface-fan-in` | The same interface, when the transport's per-interface fan-in panicked: same recovery |
+<!-- source: internal/plugins/ospf/transport/panic_guard.go -- receivePanics -->
+| `ospfv3` | `interface-read` | One OSPFv3 interface's socket reader: the interface leaves OSPFv3, its neighbors go Down, and the 30-second rescan reopens it |
+| `ospfv3` | `interface-fan-in` | The same interface, when the OSPFv3 transport's per-interface fan-in panicked: same recovery |
+<!-- source: internal/plugins/ospf/v3/transport/panic_guard.go -- receivePanics -->
+| `ospf` | `consumer` | One call into a callback another package registered with the OSPF engine (an opaque LSA consumer, a Router Information TLV builder, an Extended Link or Prefix sub-TLV codec): its contribution to that one LSA or origination is dropped, its own error counter rises, and it is called again on the next one |
+| `ospf` | `show-decode` | One LSA body decoded or rendered for a `show ospf database` command: that row is shown undecoded |
+| `ospf` | `receive` | One received OSPFv2 or OSPFv3 packet: it is dropped and its sending neighbor goes Down (KillNbr), its next Hello brings it back, and every other neighbor keeps its state |
+<!-- source: internal/plugins/ospf/panic_guard.go -- enginePanics -->
+| `isis` | `interface-read` | One IS-IS circuit's socket reader: the circuit leaves IS-IS, its adjacencies go Down, and the 30-second rescan reopens it |
+| `isis` | `interface-fan-in` | The same circuit, when the transport's per-circuit fan-in panicked: same recovery |
+<!-- source: internal/plugins/isis/transport/panic_guard.go -- receivePanics -->
+| `isis` | `receive` | One received IS-IS PDU: it is dropped and the adjacencies of the neighbor that sent it, on that circuit only, go Down; its next Hello brings them back, and every other adjacency keeps its state |
+<!-- source: internal/plugins/isis/panic_guard.go -- enginePanics -->
+| `l2tp` | `control` | One L2TP tunnel: it is cleared with a StopCCN (Result Code 1, General request to clear control connection), its sessions end, the LAC sets it up again, and the other tunnels keep running |
+| `l2tp` | `auth-handler` | One session's authentication, refused: the subscriber's PPP retries it |
+| `l2tp` | `pool-handler` | One session's address request, refused: the subscriber's PPP retries it |
+<!-- source: internal/component/l2tp/panic_guard.go -- newL2TPPanicTasks, clearTunnelAfterPanic -->
+| `pppoe` | `discovery` | One discovery frame: the session its PADR was admitting ends (removed with no frame sent before the PADS, a PADT after it), the host starts discovery again, and the reader serves every other host |
+| `pppoe` | `auth-handler` | One session's authentication, refused: the subscriber's PPP retries it |
+| `pppoe` | `pool-handler` | One session's address request, refused: the subscriber's PPP retries it |
+<!-- source: internal/component/l2tp/pppoe/panic_guard.go -- newPPPoEPanicTasks, endAdmissionAfterPanic -->
+| `ike` | `inbound` | One received IKE datagram, dropped: the socket's dispatch goroutine reads the next one, and the peer retransmits its request |
+| `ike` | `established` | One IKE SA: the peer is sent a Delete for it (unless it stopped answering), its Child SAs go with it, and Ze sets it up again through IKE_SA_INIT and IKE_AUTH; every other SA keeps running |
+<!-- source: internal/component/ike/engine/panic_guard.go -- newIKEPanicTasks, deliverDatagram, handleOwnedInboundGuarded -->
+| `plugin` | `rpc-read` | One plugin connection, when its reader panicked: the connection closes and the engine releases the plugin as it does one whose process exited; every other plugin keeps its connection |
+| `plugin` | `rpc-route` | The same connection, when the reader that routes answers and requests panicked: same recovery, and the plugin's calls in flight fail |
+<!-- source: pkg/plugin/rpc/panic_guard.go -- readerPanics -->
+| `plugin` | `connect-back` | One external plugin's connect-back, before its handshake: the connection closes, and that plugin fails to start as one that never connected |
+<!-- source: internal/component/plugin/ipc/panic_guard.go -- acceptorPanics -->
+| `plugin` | `run` | One in-process plugin: it ends as if it had returned, and the engine releases it as it does any plugin that exited |
+<!-- source: internal/component/plugin/process/panic_guard.go -- runnerPanics -->
+| `plugin` | `engine-op` | One request a plugin sent the engine: it is answered with an error and is not applied; the plugin keeps its connection and its other requests are served |
+| `plugin` | `managed-client` | One managed client's connection: it closes and the client's name is released; the client connects again on its own schedule, and every other client keeps its connection |
+<!-- source: internal/component/plugin/server/panic_guard.go -- engineOpPanics, managedPanics -->
+| `bfd` | `receive` | One received BFD packet, dropped: the socket reader reads the next one, and no session changes state |
+<!-- source: internal/component/bfd/transport/panic_guard.go -- receiveGuard -->
+| `bfd` | `express` | The BFD session the loop was serving, when it was serving one: it goes Down with diagnostic 0 (No Diagnostic) and comes back Up through the three-way handshake; every other session on the loop keeps running |
+<!-- source: internal/component/bfd/engine/panic_guard.go -- expressGuard, endServedSession -->
+| `vrrp` | `receive` | One received advertisement, dropped: the virtual router's socket reader reads the next one, and its state is unchanged |
+<!-- source: internal/plugins/vrrp/transport/panic_guard.go -- receiveGuard -->
+| `vrrp` | `advertisement` | One virtual router: it runs Shutdown (an Active router resigns with Priority 0) and Startup, re-entering as Backup, or as Active when it owns the address; every other virtual router is untouched |
+<!-- source: internal/plugins/vrrp/panic_guard.go -- advertGuard, restartAfterDefect -->
+| `radius` | `read` | One answer from a RADIUS server, dropped: the client's reader reads the next one, and the request it answered retransmits and fails over as on a timeout |
+<!-- source: internal/component/radius/panic_guard.go -- readTask -->
+| `radius-coa` | `request` | One CoA-Request or Disconnect-Request: answered with a NAK carrying Error-Cause 506 (Resources Unavailable) when it had been authenticated, dropped otherwise; the listener serves the next one |
+<!-- source: internal/component/l2tp/plugins/authradius/panic_guard.go -- coaRequestTask -->
+| `radius-auth` | `request` | One subscriber login, denied with `internal error`; every other login is served as before |
+<!-- source: internal/component/l2tp/plugins/authradius/panic_guard.go -- authRequestTask -->
+| `radius-auth` | `accounting` | One session's Start and Interim-Update records: none follow, the session stays up, and its Stop record is still sent when it ends; every other session accounts as before |
+<!-- source: internal/component/l2tp/plugins/authradius/panic_guard.go -- accountingTask -->
+| `dhcp` | `request` | One DHCP request, unanswered: the client retransmits it, and the listener serves the next one |
+<!-- source: internal/plugins/dhcpserver/panic_guard.go -- requestTask -->
+| `tftp` | `request` | One TFTP request: its client is sent an ERROR (code 0), and the listener serves the next request |
+| `tftp` | `transfer` | One file transfer: its client is sent an ERROR (code 0) on the transfer's socket and the transfer ends; every other transfer runs on |
+<!-- source: internal/plugins/tftpserver/panic_guard.go -- requestTask, transferTask -->
+| `tacacs` | `request` | One TACACS+ authentication, authorization or accounting request: it fails as if the server were unreachable, so the AAA chain moves to its next backend, and the connection it used is closed |
+<!-- source: internal/component/tacacs/panic_guard.go -- requestTask -->
+| `ssh` | `session` | One SSH session, interactive or exec: its user is told on the session that an internal defect ended it and which `ze show crashes` command finds the record, and it exits with status 1; the listener and every other session keep running |
+| `ssh` | `auth` | One login attempt, refused: the client sees an authentication failure and can try again; every other login and session keeps running |
+<!-- source: internal/component/ssh/panic_guard.go -- sessionTask, authTask, endSessionAfterPanic -->
+| `gnmi` | `rpc` | One gNMI call (Capabilities, Get, Set) or one Subscribe stream: it ends with status `Internal` and a plain message naming the `ze show crashes` command, and a Set's uncommitted edits are discarded; the listener and every other call and stream keep running |
+<!-- source: internal/component/gnmi/panic_guard.go -- rpcTask, endRPCAfterPanic -->
+| `config-confirm` | `write` | One config write on the commit-confirm worker (a gNMI Set, an SSH, web or API commit, an accept, an abort, a managed push): its caller gets an error saying the write may be partly applied and naming the `ze show crashes` command; the worker serves the next write and the open window's deadline |
+<!-- source: internal/component/config/confirm/panic_guard.go -- writeTask, writeEndedByPanic -->
+
 ### BGP Metrics
 <!-- source: internal/component/bgp/reactor/reactor_metrics.go -- initReactorMetrics -->
 

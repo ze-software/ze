@@ -8,12 +8,12 @@ A `.ci` file is an executable transcript. The runner reads key-value directives,
 
 | Behavior | Files | Narrow run | Native suite |
 | --- | --- | --- | --- |
-| BGP encode and route output | `test/encode/*.ci` | `./le test bgp encode NAME -v` | `./le test functional encode-test` |
-| BGP plugin behavior | `test/plugin/*.ci` | `./le test bgp plugin NAME -v` | `./le test functional plugin-test` |
-| Config parsing | `test/parse/*.ci` | `./le test bgp parse NAME -v` | `./le test functional parse-test` |
-| Decode command output | `test/decode/*.ci` | `./le test bgp decode NAME -v` | `./le test functional decode-test` |
-| Reload behavior | `test/reload/*.ci` | `./le test bgp reload NAME -v` | `./le test functional reload-test` |
-| CLI output | `test/ui/*.ci` | `./le test ui NAME -v` | `./le test functional ui-test` |
+| BGP encode and route output | `test/encode/*.ci` | `./le test bgp encode NAME -v` | `./le test functional encode` |
+| BGP plugin behavior | `test/plugin/*.ci` | `./le test bgp plugin NAME -v` | `./le test functional plugin` |
+| Config parsing | `test/parse/*.ci` | `./le test bgp parse NAME -v` | `./le test functional parse` |
+| Decode command output | `test/decode/*.ci` | `./le test bgp decode NAME -v` | `./le test functional decode` |
+| Reload behavior | `test/reload/*.ci` | `./le test bgp reload NAME -v` | `./le test functional reload` |
+| CLI output | `test/ui/*.ci` | `./le test ui NAME -v` | `./le test functional ui` |
 | L2TP, firewall, policy, LDP, RSVP-TE, IS-IS, OSPF, OSPFv3, static, traffic, VPP, and install flows | `test/<suite>/*.ci` | `./le test <suite> NAME -v` | `./le test functional <suite>-test` |
 
 Run `./le test bgp plugin --list` or the equivalent suite command before picking an id. The list output gives the exact test name, id, status, and rerun shape.
@@ -62,7 +62,7 @@ A `.ci` file that needs netlink, nftables, eBPF, PPP, L2TP, namespaces, kernel r
 option=needs-linux
 ```
 
-On macOS that test reports SKIP. Inside QEMU the option is inert and the same file runs for real. Use `./le test qemu netns-test` for the curated Linux kernel suites. For one command or an interactive investigation, use `./le test qemu run command '...' keep-alive`.
+On macOS that test reports SKIP. Inside QEMU the option is inert and the same file runs for real. Use `./le test qemu netns` for the curated Linux kernel suites. For one command or an interactive investigation, use `./le test qemu run command '...' keep-alive`.
 
 ## Failure reading
 

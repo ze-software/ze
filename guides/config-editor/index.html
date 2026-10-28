@@ -259,6 +259,41 @@ nobody else committed.</p>
 <!-- source: internal/component/web/handler_config_commit.go -- handleCommitPost -->
 <!-- source: internal/component/config/change_file.go -- PendingChange.Summary -->
 <!-- source: internal/component/config/confirm/confirm.go -- ErrPending -->
+<p>A newly created list entry is a pending change even when it contains no leaf
+values. <code>show | changes</code> lists it as <code>set &lt;entry path&gt;</code>. Loading a block such as
+an empty dummy interface or an interface-only static next hop preserves that
+entry through save and commit; it does not need a placeholder description or
+another leaf. Discarding the creation removes the pending entry, including
+after it was saved to the draft or subsequently deleted without saving, unless
+another pending edit or the committed configuration still owns it. Newly
+materialized list-entry ancestors are removed too when nothing still owns them;
+existing ancestors are retained.</p>
+<!-- source: internal/component/cli/editor_draft.go -- writeThroughCreate -->
+<!-- source: internal/component/cli/editor_create_entry.go -- pruneDiscardedCreations -->
+<p>Saving an entry before renaming it does not leave a second, unowned copy at
+the old name. Copying an entry retains this session's pending leaf edits,
+including edits already saved to the draft, without copying another session's
+ownership. Its member inactivity and child edits remain as they were at copy
+time, even if the source is renamed or edited afterward. Renaming or copying
+an ancestor also preserves the ordered effects of its pending child edits:
+a child created and then deleted stays deleted.
+An existing entry renamed more than once still checks its original committed
+source, not an intermediate name. Saving between those renames continues from
+the materialized entry without moving it back through its old name; another
+session's new entry at that old name is preserved. String keys containing spaces
+or <code>#</code> keep their boundaries through save, rename, copy, commit and discard,
+including leaf-list member toggles below those keys.</p>
+<!-- source: internal/component/cli/editor_create_entry.go -- planCreations, prepareDraftReplay, rebaseCreatedMetadata, pruneCreationMaterializations -->
+<!-- source: internal/component/config/meta.go -- SessionEntries -->
+<!-- source: internal/component/config/change_file.go -- structural operation codecs -->
+<p>If a pending creation's ownership path cannot be parsed or resolved against
+the schema, commit and discard report an error rather than treating it as
+unowned. A forced commit does not bypass that uncertainty. After an edit has
+already succeeded, an inconclusive overlap check is reported as
+<code>conflict check failed</code>, separately from a known conflict; the edit stays
+pending.</p>
+<!-- source: internal/component/cli/editor_draft.go -- liveOverlaps, detectConflicts -->
+<!-- source: internal/component/cli/model_commands_edit.go -- appendConflictStatus -->
 <p><code>commit now</code> reaches the same reload as <code>ze signal reload</code>. Which configuration
 changes stop a session, and in what order, is in
 <a href="https://github.com/ze-software/ze/blob/main/docs/guide/config-reload.md#the-order-of-a-commit" target="_blank" rel="noopener">The order of a commit</a>.</p>
@@ -290,6 +325,10 @@ so do its <code>--dry-run</code> line, the <code>set</code> status line of the S
 adoption prompt of <code>ze config edit</code>, and both sides of a commit conflict. A
 refusal names the rule the value broke and not the value. The path stays in the
 clear, so the operator still reads which leaf was written.</p>
+<p>To read the actual value of a <code>ze:sensitive</code> leaf, copy its <code>$9$</code> form from
+the config file and run <code>ze secret decode '$9$...'</code>, or <code>ze secret decode -</code>
+to keep the value out of the shell history. A <code>ze:bcrypt</code> leaf holds a one-way
+hash, which no command can decode.</p>
 <!-- source: internal/component/config/mask.go -- LeafHoldsSecret, MaskSecrets, SecretKeys, DisplayValueAtPath, DisplayMessageAtPath -->
 <!-- source: internal/component/config/cli/cmd_diff.go -- maskDiffSecrets -->
 <!-- source: internal/component/config/cli/cmd_set.go -- cmdSetImpl -->
@@ -647,6 +686,17 @@ from configuration mode behind <code>run </code>, and the keys are in the
 </tbody>
 </table>
 <p>The seconds parameter accepts values from 1 to 3600 (one hour).</p>
+<p>Every write to the daemon's configuration (a commit from any editor, an
+accept, an abort, a gNMI Set, an API config session, a managed push) runs on
+the daemon's one commit-confirm worker. A Ze defect met during one write ends
+that write only: its caller gets an error saying the write may be partly
+applied and naming the <code>ze show crashes</code> record, and the worker serves the
+next write and keeps the open window's deadline. A <code>commit confirmed</code> whose
+apply met the defect still opens its window, so its deadline, or <code>commit abort</code>, reverts whatever part of it applied. The panic is counted in
+<code>ze_task_panics_total{component="config-confirm",task="write"}</code>
+(<a href="../monitoring/">Monitoring</a>, "Contained Panics").</p>
+<!-- source: internal/component/config/confirm/panic_guard.go -- Window.write, writeEndedByPanic -->
+<!-- source: internal/component/config/confirm/confirm.go -- Window.applyArmed -->
 <p>In an SSH session editor or the web editor of the daemon's own
 configuration, the daemon owns the window, not your session. Both editors
 commit through the same window code, so the rules below hold for a web user
@@ -897,8 +947,10 @@ ze config archive prod config.conf # Archive to named destination
         <footer>
             <div class="footer-inner">
                 <div class="footer-bottom">
+                    <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 06:34 UTC</span>
+                    <a href="../../legal/">Legal notice</a>
+                    <span class="footer-published">Published 28 October 2026 00:45 UTC</span>
                 </div>
             </div>
         </footer>

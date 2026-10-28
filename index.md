@@ -11,13 +11,15 @@ Ze speaks [**BGP**](https://ze-software.net/guides/bgp-peering/), [**ISIS**](htt
 
 It is built on a configuration and protocol engine that runs as a [**daemon**](https://ze-software.net/architecture/) or [**immutable appliance**](https://ze-software.net/guides/appliance/).
 
- [Watch the demos](https://ze-software.net/demos/terminal/) [Try the BGP quickstart](https://ze-software.net/guides/quickstart/)
+ [Watch the demos](https://ze-software.net/demos/terminal/) [Try the BGP quickstart](https://ze-software.net/guides/quickstart/) **Ze / showcase.terminal**[Read transcript](https://ze-software.net/demos/terminal/#continuous-live-configuration-showcase) **One running router, eight live configuration topics**
 
-## Watch Ze at work.
+Watch Ze at work: follow a real terminal lab, with its transcript alongside it.
 
-Follow a real terminal lab, with its transcript alongside it. Explore the individual interfaces below.
+ [Watch the other demos →](https://ze-software.net/demos/terminal/)
 
-**One running router, eight live configuration topics** Replayable Ze terminal lab [Read transcript](https://ze-software.net/demos/terminal/#continuous-live-configuration-showcase) **Ze / Looking glass**[Open full size ↗](https://ze-software.net/assets/product-routes.webp) [![Ze looking glass with prefix, AS path and community filters, a route graph and route table](https://ze-software.net/assets/product-routes.webp)](https://ze-software.net/assets/product-routes.webp) **Follow a route through the network.**
+A replayable Ze terminal lab.
+
+**Ze / Looking glass**[Open full size ↗](https://ze-software.net/assets/product-routes.webp) [![Ze looking glass with prefix, AS path and community filters, a route graph and route table](https://ze-software.net/assets/product-routes.webp)](https://ze-software.net/assets/product-routes.webp) **Follow a route through the network.**
 
 Inspect prefixes, AS paths and peers through a read-only BGP interface.
 
@@ -66,9 +68,9 @@ Ze generates command, configuration and support reference data from the code and
 
  Recently shipped
 
-### [Week of 2026-10-05](https://ze-software.net/project/changes/2026-10-05/)
+### [Week of 2026-10-12](https://ze-software.net/project/changes/2026-10-12/)
 
-A week on configuration safety, the public API and the appliance kernel, with fixes across BGP, RSVP-TE and…
+This update covers two weeks. Many settings that Ze used to accept and then silently ignore are now…
 
  RFC compliance progress
 
@@ -80,25 +82,25 @@ One page per RFC, naming each requirement, the test evidence behind it, and the 
 
 Tests help catch changes that break existing behavior. Go tests, end-to-end scenarios, protocol checks, fuzzing and interoperability tests cover different failure modes. The figures describe the test suite and its coverage. Each card explains what is checked and links to how those checks work.
 
- [Read the evidence map](https://ze-software.net/quality/) [Watch product demos](https://ze-software.net/demos/terminal/) [**38,400+ Go tests**
+ [See completion by use case](https://ze-software.net/quality/rfc-compliance/profiles/) [Read the evidence map](https://ze-software.net/quality/) [Watch product demos](https://ze-software.net/demos/terminal/) [**63.4% RFC MUSTs tested**
+
+- 2,888 of 4,556 tracked MUSTs
+- Across 167 RFCs
+- Tests tied to requirements
+
+ RFC requirement ledger.](https://ze-software.net/quality/rfc-compliance/) [**39,400+ Go tests**
 
 - Check encoded bytes and parsed values.
 - Verify config, state transitions and plugins.
 - gomu checks whether tests catch code changes.
 
- Go tests and mutation checks.](https://ze-software.net/quality/unit-fuzz-mutation/) [**2,500+ end-to-end tests**
+ Go tests and mutation checks.](https://ze-software.net/quality/unit-fuzz-mutation/) [**2,600+ end-to-end tests**
 
 - Start sessions and exchange route updates.
 - Run editor commands, commits and reloads.
 - Check output, errors and saved state.
 
- Scenarios and expected results.](https://ze-software.net/quality/functional-ci/) [**66.3% RFC MUSTs tested**
-
-- 2,758 of 4,163 tracked MUSTs
-- Across 154 RFCs
-- Tests tied to requirements
-
- RFC requirement ledger.](https://ze-software.net/quality/rfc-compliance/) [**91 fuzz targets**
+ Scenarios and expected results.](https://ze-software.net/quality/functional-ci/) [**92 fuzz targets**
 
 - Generate inputs for parsers and decoders.
 - Probe packets and config text for crashes.
@@ -343,6 +345,16 @@ Weekly updates come from git history and Discord's `ze-news`. They stay specific
 
  01
 
+Week of 2026-10-12
+
+### [Two weeks of stricter configuration, an IPsec drop-by-default policy and BGP filter changes, plus BGP…](https://ze-software.net/project/changes/2026-10-12/)
+
+ BGP DHCP Config API
+
+**Update**
+
+ 02
+
 Week of 2026-10-05
 
 ### [Safer configuration commits, API changes and a new appliance kernel, plus BGP, RSVP-TE and IPsec fixes.](https://ze-software.net/project/changes/2026-10-05/)
@@ -351,23 +363,13 @@ Week of 2026-10-05
 
 **Update**
 
- 02
+ 03
 
 Week of 2026-09-28
 
 ### [RFC reviews led to fixes in BGP route selection, graceful restart, BFD, OSPF and LDP.](https://ze-software.net/project/changes/2026-09-28/)
 
- BGP L2TP Flow Export API
-
-**Update**
-
- 03
-
-Week of 2026-09-21
-
-### [Configuration backup and restore, AIGP and BGP-LS export, and a review of every RFC Ze implements.](https://ze-software.net/project/changes/2026-09-21/)
-
- Storage Config BGP IPsec - [See all updates](https://ze-software.net/project/changes/)
+ BGP L2TP Flow Export API - [See all updates](https://ze-software.net/project/changes/)
 `Try safely`
 
 ## Try Ze before the first release.

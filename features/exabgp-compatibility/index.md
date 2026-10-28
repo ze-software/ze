@@ -15,3 +15,9 @@
   registered in the current binary. An explicit block keeps only the named
   families; migration does not replace ExaBGP's implicit all-family behavior
   with Ze's IPv4-unicast default.
+- An ExaBGP per-family ADD-PATH limit (`add-path { ipv4 unicast limit 10; }`)
+  migrates to the receive half of Ze's limit,
+  `family { ipv4/unicast { limit { receive 10; } } }`. ExaBGP's limit is the
+  receive request its OPEN advertises (PATHS-LIMIT), and ExaBGP has no
+  send-side limit, so the migration writes no `send` leaf. A family named
+  without a limit migrates with no `limit` container.

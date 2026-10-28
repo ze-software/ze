@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 3948 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 3948: UDP Encapsulation of IPsec ESP Packets. 11 gated MUST-level requirements, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 3948: UDP Encapsulation of IPsec ESP Packets. 11 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 3948 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 3948: UDP Encapsulation of IPsec ESP Packets. 11 gated MUST-level requirements, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 3948: UDP Encapsulation of IPsec ESP Packets. 11 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 3948 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 3948: UDP Encapsulation of IPsec ESP Packets. 11 gated MUST-level requirements, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 3948: UDP Encapsulation of IPsec ESP Packets. 11 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -117,11 +117,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>63.6%</strong><b>7 of 11 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>72.7%</strong><b>8 of 11 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>18.2%</strong><b>2 of 11 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>76.0%</strong><b>38 of 50 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>81.0%</strong><b>68 of 84 tagged units, 0 escaped and 5 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -131,12 +132,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>9.1%</strong><b>1 of 11 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
-</div>
-<h3>Negative</h3>
-<p>what Ze owes</p>
-<div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>9.1%</strong><b>1 of 11 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>9</strong><b>of 11 gated MUSTs judged</b><p>1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 8 shares marked as a part above are the whole of the 11 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -170,7 +165,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
 </tr>
 <tr><td>No test at all</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
 </tr>
 <tr><td>Not applicable</td>
@@ -190,7 +185,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -219,7 +214,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>1</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>1</td>
+<td>0</td>
 </tr>
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
@@ -231,16 +226,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>2</td>
 </tr>
 <tr><td>Test tags</td>
-<td>50</td>
+<td>84</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>50</td>
+<td>84</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>9</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>38</td>
+<td>73</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc3948.md</code></td>
@@ -263,7 +258,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>What the ledger says is covered:</strong></p>
 NAT-T non-ESP marker, UDP 4500 encapsulation, NAT keepalive, XFRM UDP encap attributes.
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
-Section 5.1 tunnel mode conflict (<code>RFC3948-5.1-1</code>) is a gap. Ze assigns no inner address to a remote peer, so it devises no way of preventing two peers behind one NAT from reaching it with the same self-chosen inner address. The section&#39;s RECOMMENDED remedy is a locally unique address per peer, and the allocator for it is written and unreached: <code>Pool.Allocate</code> (<a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/pool.go" target="_blank" rel="noopener"><code>internal/core/eap/pool.go</code></a>) has no non-test caller, and <code>reloadPool</code> (<a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/apply.go" target="_blank" rel="noopener"><code>internal/component/ike/engine/apply.go</code></a>) stores the pool it builds in a field no code reads. No engine code constructs a Configuration payload, so ze sends no CFG_REPLY. Closing it is <a href="https://github.com/ze-software/ze/blob/main/plan/release/fixes/spec-ike-virtual-ip-assignment.md" target="_blank" rel="noopener"><code>plan/release/fixes/spec-ike-virtual-ip-assignment.md</code></a>.
+None for Section 5.1 (<code>RFC3948-5.1-1</code>) among the Child SAs IKE peers negotiate: no two peers can hold a tunnel-mode Child SA and another Child SA, tunnel or transport mode, that one packet could match unless the operator configured and ordered both, and two transport-mode Child SAs of two peers are kept apart by the dataplane under Section 5.2 (<code>RFC3948-5.2-1</code>, <code>policyOwners.claim</code>), which the engine registry leaves them to. For a peer bound to a virtual-IP pool, the lease registry (<code>eap.Registry</code>, <a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/pool.go" target="_blank" rel="noopener"><code>internal/core/eap/pool.go</code></a>) holds each inner address for one configured peer at a time (Ze runs one session per configured peer), <code>assignVirtualIP</code> (<a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/cp.go" target="_blank" rel="noopener"><code>internal/component/ike/engine/cp.go</code></a>) leases one on CP(CFG_REQUEST), and <code>substituteVirtualIP</code> makes every Child SA the peer asks for name the lease as its remote inner source, so two peers behind one NAT that both ask for 10.1.2.3 hold two distinct addresses (<code>TestTwoPeersSameRequestedAddressDistinctLeases</code>). A Child SA request Ze sends on that IKE SA, a rekey included, proposes the lease host as the peer&#39;s side (<code>proposeLeasedChildTSPayloads</code>), and <code>answerNamesOnlyLeases</code> refuses an answer naming the pool prefix or the wildcard there (<code>TestRFC3948ZeInitiatedRekeyNamesOnlyTheLease</code>). A bound peer holding no lease gets no Child SA. Every Child SA, tunnel or transport mode, pool-bound or not, is also held in the engine&#39;s cross-peer inner-selector registry (<code>innerSelectorRegistry</code>, <a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/inner_selectors.go" target="_blank" rel="noopener"><code>internal/component/ike/engine/inner_selectors.go</code></a>): <code>narrowChildSelectorsIn</code> drops every narrowed pair one packet could match together with a live pair of another peer, keeping the initiator&#39;s first choice when it is free, and answers TS_UNACCEPTABLE when no pair is left, and <code>installChildSA</code> repeats the check and records the pairs under one lock before any dataplane call, so two peers bound to no pool that both propose 10.1.2.3 cannot both hold a tunnel for it (<code>TestRFC3948TwoUnboundPeersSameInnerAddressSecondRefused</code>, <code>TestRFC3948ConfiguredOverlapNarrowedByPeerRefused</code>, <code>TestRFC3948TwoUnboundPeersDistinctInnerAddressesServed</code>). The install-time check in <code>innerSelectorRegistry.claim</code> is the only guard on the paths the narrowing filter does not see: two responder sessions that both passed narrowing before either installed (<code>TestInnerSelectorInstallBackstopRefusesSecond</code>), and a Child SA this node installs as initiator from the responder&#39;s answer (<code>TestInnerSelectorInitiatorInstallRefusedInstallsNothing</code>). A record is released only once every policy its Child SA installed is gone (<code>removeChildSAExcept</code>, <code>releaseInnerRecord</code>), so a policy whose removal fails keeps its selectors reserved and the next overlapping peer refused (<code>TestRFC3948FailedPolicyRemovalKeepsRecord</code>), and a record stranded that way refuses an overlapping peer while every retry of the removal fails (<code>conflictLocked</code>, <code>TestRFC3948StrandedRecordRefusesOverlap</code>). A Child SA rekey carries the record to the replacement (<code>newRekeyedChild</code>), so retiring the old pair, whichever side started the rekey, leaves the peer&#39;s inner address held and the next peer proposing it refused (<code>TestRFC3948RekeyedChildKeepsInnerAddress</code>). Every IKE SA a configured session holds compares against the one registry its <code>SATable</code> owns: <code>startPeerSession</code> hands it to the session, <code>tryResponderSAInit</code> and <code>runInitiator</code> to the SA each one creates, and both IKE SA rekey directions to the replacement (<code>applyIKERekeyResponse</code>, <code>respondIKERekey</code>), so a second peer&#39;s overlapping proposal is refused at IKE_AUTH as responder and as initiator and in a CREATE_CHILD_SA after either IKE rekey (<code>TestRFC3948ResponderSessionsShareInnerRegistry</code>, <code>TestRFC3948ResponderSAInitRefusesHeldInnerAddress</code>, <code>TestRFC3948InitiatorSessionRefusesHeldInnerAddress</code>, <code>TestRFC3948ZeIKERekeyKeepsInnerRegistry</code>, <code>TestRFC3948PeerIKERekeyKeepsInnerRegistry</code>). An overlap stays legal only between pairs the operator wrote whole on both peers, each either a traffic selector configured on that peer and negotiated whole, both prefixes, the protocol and both ports, or, for a transport-mode pair, exactly the pair between the peer&#39;s configured <code>local-address</code> and <code>remote-address</code> for any protocol and any port on both halves, and only when the two peers&#39; <code>policy-priority</code> values differ, so the SPD orders them (RFC 4301 Section 4.4.1, <code>operatorOrdered</code>); two such peers at one value, the default 2000 on both included, are unordered, and the second to establish is answered TS_UNACCEPTABLE (<code>TestRFC3948ConfiguredOverlapEqualPriorityRefused</code>). Distinct values order nothing a peer chose: a pair narrowed on either half inside the configured selector, or narrowed to one protocol or port between the configured addresses, is the peer&#39;s choice, judged on the policy it installs (its protocol is the intersection of the two halves&#39;), and it is refused against any overlapping pair at any priority, whichever of the two arrives second (<code>TestRFC3948NarrowedByPeerDistinctPriorityRefused</code>, <code>TestRFC3948NarrowedProtocolDistinctPriorityRefused</code>, <code>TestRFC3948NarrowedPortDistinctPriorityRefused</code>, <code>TestRFC3948PeerChosenAgainstFixedDistinctPriorityRefused</code>, <code>TestRFC3948FixedAgainstPeerChosenDistinctPriorityRefused</code>), and a pair that differs from the configured selector only by its local port or only by its local prefix is the peer&#39;s choice too (<code>TestRFC3948ConfiguredSelectorNarrowedOnLocalPortRefused</code>, <code>TestRFC3948ConfiguredSelectorNarrowedOnLocalPrefixRefused</code>). A transport-mode Child SA is recorded too, so a tunnel another peer negotiates around a transport-mode peer&#39;s address, and a transport-mode connection inside another peer&#39;s tunnel, are refused in either arrival order, at narrowing and at install (<code>TestRFC3948TunnelAroundTransportPeerRefused</code>, <code>TestRFC3948TunnelAroundTransportPeerInstallBackstop</code>); <code>conflictLocked</code> leaves only the overlap of two transport-mode pairs to the dataplane. Distinct <code>policy-priority</code> values order a tunnel against a transport-mode pair exactly as two tunnels, when the tunnel is exactly a traffic selector its operator configured and the transport-mode pair is exactly such a selector or the pair between the peer&#39;s configured <code>local-address</code> and <code>remote-address</code> as host prefixes for any protocol and any port (<code>classifyInnerPair</code>, <code>configuredHostPair</code>, <code>isConfiguredHost</code>, <code>samePolicyPair</code>): a host-to-host transport-mode peer beside a full-tunnel peer configured with 0.0.0.0/0 is served at distinct values and refused at one, and refused at distinct values too when it narrows its proposal to TCP port 80 at its own address or at this node&#39;s, or proposes a host other than its configured address (<code>TestRFC3948OrderedTransportBesideFullTunnelServed</code>, <code>TestRFC3948OrderedTransportEqualPriorityRefused</code>, <code>TestRFC3948OrderedTransportNarrowedToPortRefused</code>, <code>TestRFC3948OrderedTransportLocalHalfNarrowedRefused</code>, <code>TestRFC3948TransportPeerChosenHostBesideConfiguredTunnelRefused</code>). The configured-host pair orders a transport-mode pair only: a tunnel peer with no traffic selector that proposes exactly the pair between its configured addresses beside a full-tunnel peer at a distinct value is the peer&#39;s choice, and whichever of the two arrives second is refused (<code>TestRFC3948TunnelPeerOwnHostPairBesideFullTunnelRefused</code>). Sixteen peers installing one inner address at once leave one recorded, because <code>claim</code> checks and records under one critical section (<code>TestRFC3948ConcurrentInstallsHoldOneInnerAddress</code>). Narrowing judges a Child SA rekey in the mode the rekey negotiates: transport only when the request carries USE_TRANSPORT_MODE and the retired Child SA runs transport, tunnel otherwise (<code>respondChildRekey</code>, <code>narrowChildSelectorsIn</code>), so a transport-mode Child SA rekeyed after an IKE SA rekey with the notify is judged as transport mode.
 </details>
 </section>
 <section><h2>Coverage</h2>
@@ -272,11 +267,11 @@ Section 5.1 tunnel mode conflict (<code>RFC3948-5.1-1</code>) is a gap. Ze assig
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>7</strong></td>
+<td><strong>8</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated (including scoped evidence)</td>
-<td><strong>4</strong></td>
+<td><strong>3</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -303,8 +298,8 @@ Section 5.1 tunnel mode conflict (<code>RFC3948-5.1-1</code>) is a gap. Ze assig
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (7):</strong> <a href="#rfc3948-2.1-1"><code>RFC3948-2.1-1</code></a>, <a href="#rfc3948-2.1-2"><code>RFC3948-2.1-2</code></a>, <a href="#rfc3948-3.1.2-1"><code>RFC3948-3.1.2-1</code></a>, <a href="#rfc3948-3.1.2-2"><code>RFC3948-3.1.2-2</code></a>, <a href="#rfc3948-1-1"><code>RFC3948-1-1</code></a>, <a href="#rfc3948-4-3"><code>RFC3948-4-3</code></a>, <a href="#rfc3948-5.2-1"><code>RFC3948-5.2-1</code></a></p>
-<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (4):</strong> <a href="#rfc3948-2.1-4"><code>RFC3948-2.1-4</code></a>, <a href="#rfc3948-2.3-2"><code>RFC3948-2.3-2</code></a>, <a href="#rfc3948-3.1.1-1"><code>RFC3948-3.1.1-1</code></a>, <a href="#rfc3948-5.1-1"><code>RFC3948-5.1-1</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (8):</strong> <a href="#rfc3948-2.1-1"><code>RFC3948-2.1-1</code></a>, <a href="#rfc3948-2.1-2"><code>RFC3948-2.1-2</code></a>, <a href="#rfc3948-3.1.2-1"><code>RFC3948-3.1.2-1</code></a>, <a href="#rfc3948-3.1.2-2"><code>RFC3948-3.1.2-2</code></a>, <a href="#rfc3948-1-1"><code>RFC3948-1-1</code></a>, <a href="#rfc3948-4-3"><code>RFC3948-4-3</code></a>, <a href="#rfc3948-5.1-1"><code>RFC3948-5.1-1</code></a>, <a href="#rfc3948-5.2-1"><code>RFC3948-5.2-1</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (3):</strong> <a href="#rfc3948-2.1-4"><code>RFC3948-2.1-4</code></a>, <a href="#rfc3948-2.3-2"><code>RFC3948-2.3-2</code></a>, <a href="#rfc3948-3.1.1-1"><code>RFC3948-3.1.1-1</code></a></p>
 <p class="rfc-id-list"><strong>Evidence that runs nightly only (2):</strong> <a href="#rfc3948-3.1.2-1"><code>RFC3948-3.1.2-1</code></a>, <a href="#rfc3948-3.1.2-2"><code>RFC3948-3.1.2-2</code></a></p>
 </section>
 <section><h2>Requirements</h2>
@@ -319,13 +314,13 @@ Section 5.1 tunnel mode conflict (<code>RFC3948-5.1-1</code>) is a gap. Ze assig
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3948-2.1-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L318" title="internal/component/ike/engine/rfc4303_peer_spi_test.go" target="_blank" rel="noopener"><code>TestChildRekeyRequestUsesPeerSPI</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L374" title="internal/component/ike/engine/rfc4303_peer_spi_test.go" target="_blank" rel="noopener"><code>TestChildRekeyResponseUsesPeerSPI</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L253" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestGenerateESPSPI</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L255" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestGenerateESPSPI</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_spi_test.go#L28" title="internal/component/ike/engine/rfc3948_spi_test.go" target="_blank" rel="noopener"><code>TestRFC3948GeneratedESPSPIIsNeverZero</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_spi_test.go#L72" title="internal/component/ike/engine/rfc3948_spi_test.go" target="_blank" rel="noopener"><code>TestRFC3948OutboundESPSPIIsNeverZero</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L228" title="internal/component/ike/engine/rfc4303_peer_spi_test.go" target="_blank" rel="noopener"><code>TestResponderUsesPeerSPI</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L292" title="internal/component/ike/engine/rfc4303_peer_spi_test.go" target="_blank" rel="noopener"><code>TestChildRekeyRequestRefusesPeerSPIZero</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L346" title="internal/component/ike/engine/rfc4303_peer_spi_test.go" target="_blank" rel="noopener"><code>TestChildRekeyResponseRefusesPeerSPIZero</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L267" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestGenerateESPSPI</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L269" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestGenerateESPSPI</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_spi_test.go#L29" title="internal/component/ike/engine/rfc3948_spi_test.go" target="_blank" rel="noopener"><code>TestRFC3948GeneratedESPSPIIsNeverZero</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_spi_test.go#L73" title="internal/component/ike/engine/rfc3948_spi_test.go" target="_blank" rel="noopener"><code>TestRFC3948OutboundESPSPIIsNeverZero</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L192" title="internal/component/ike/engine/rfc4303_peer_spi_test.go" target="_blank" rel="noopener"><code>TestResponderRefusesPeerSPIZero</code></a></span></div>
@@ -336,15 +331,15 @@ Section 5.1 tunnel mode conflict (<code>RFC3948-5.1-1</code>) is a gap. Ze assig
 <td>MUST</td>
 <td>2.1 - UDP-Encapsulated ESP Header Format</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3948-2.1-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L290" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSANATTEncapPorts</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L292" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSANATTEncapPorts</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_encap_port_test.go#L110" title="internal/component/ike/engine/rfc3948_encap_port_test.go" target="_blank" rel="noopener"><code>TestRFC3948ChildSAFollowsANATMappedPeerPort500</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_encap_port_test.go#L326" title="internal/component/ike/engine/rfc3948_encap_port_test.go" target="_blank" rel="noopener"><code>TestRFC3948EAPResponderChildSAEncapsulatesToTheIKEPeerPort</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_rebind_test.go#L215" title="internal/component/ike/engine/rfc3948_rebind_test.go" target="_blank" rel="noopener"><code>TestRFC3948RebindMigratesTunnelChildSAs</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_rebind_test.go#L281" title="internal/component/ike/engine/rfc3948_rebind_test.go" target="_blank" rel="noopener"><code>TestRFC3948RebindRekeysTransportChildSA</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_rebind_test.go#L258" title="internal/component/ike/engine/rfc3948_rebind_test.go" target="_blank" rel="noopener"><code>TestRFC3948RebindRekeysWithoutAMigrator</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_rebind_test.go#L231" title="internal/component/ike/engine/rfc3948_rebind_test.go" target="_blank" rel="noopener"><code>TestRFC3948RebindMigratesTunnelChildSAs</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_rebind_test.go#L297" title="internal/component/ike/engine/rfc3948_rebind_test.go" target="_blank" rel="noopener"><code>TestRFC3948RebindRekeysTransportChildSA</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_rebind_test.go#L274" title="internal/component/ike/engine/rfc3948_rebind_test.go" target="_blank" rel="noopener"><code>TestRFC3948RebindRekeysWithoutAMigrator</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_encap_port_test.go#L302" title="internal/component/ike/engine/rfc3948_encap_port_test.go" target="_blank" rel="noopener"><code>TestRFC3948ResponderChildSAEncapsulatesToTheIKEPeerPort</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_encap_port_test.go#L173" title="internal/component/ike/engine/rfc3948_encap_port_test.go" target="_blank" rel="noopener"><code>TestRFC3948ChildSARefusesEncapWithoutAnIKEPort</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_rebind_test.go#L352" title="internal/component/ike/engine/rfc3948_rebind_test.go" target="_blank" rel="noopener"><code>TestRFC3948RebindNotRunWithoutAnAdoptedMove</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_rebind_test.go#L368" title="internal/component/ike/engine/rfc3948_rebind_test.go" target="_blank" rel="noopener"><code>TestRFC3948RebindNotRunWithoutAnAdoptedMove</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3948-3.1.2-1">RFC3948-3.1.2-1</code></td><td colspan="3"><span class="rfc-subject">Depending on local policy, one of the following MUST be done: 1. If the protocol header after the ESP header is a TCP/UDP header and the peer&#39;s real source and destination IP address have been received according to [RFC3947], incrementally recompute the TCP/UDP checksum: * Subtract the IP source address in the received packet from the checksum. * Add the real IP source address received via IKE to the checksum (obtained from the NAT-OA) * Subtract the IP destination address in the received packet from the checksum. * Add the real IP destination address received via IKE to the checksum (obtained from the NAT-OA). Note: If the received and real address are the same for a given address (e.g., say the source address), the operations cancel and don&#39;t need to be performed. 2. If the protocol header after the ESP header is a TCP/UDP header, recompute the checksum field in the TCP/UDP header. 3. If the protocol header after the ESP header is a UDP header, set the checksum field to zero in the UDP header. If the protocol after the ESP header is a TCP header, and if there is an option to flag to the stack that the TCP checksum does not need to be computed, then that flag MAY be used. (S3.1.2)</span></td></tr>
@@ -352,8 +347,8 @@ Section 5.1 tunnel mode conflict (<code>RFC3948-5.1-1</code>) is a gap. Ze assig
 <td>MUST</td>
 <td>3.1.2 - Transport Mode Decapsulation NAT Procedure</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3948-3.1.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1647" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTransportInnerChecksum</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1686" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTunnelInnerChecksum</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1655" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTransportInnerChecksum</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1694" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTunnelInnerChecksum</code></a></span></div>
 </div><p class="rfc-mark"><strong>nightly-only:</strong> every test bound to this requirement runs in the scheduled workflow alone, so nothing here is proven on the merge path</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3948-3.1.2-2">RFC3948-3.1.2-2</code></td><td colspan="3"><span class="rfc-subject">Tunnel mode TCP checksums MUST be verified (S3.1.2)</span></td></tr>
@@ -361,8 +356,8 @@ Section 5.1 tunnel mode conflict (<code>RFC3948-5.1-1</code>) is a gap. Ze assig
 <td>MUST</td>
 <td>3.1.2 - Transport Mode Decapsulation NAT Procedure</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3948-3.1.2-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1683" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTunnelInnerChecksum</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1650" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTransportInnerChecksum</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1691" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTunnelInnerChecksum</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1658" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTransportInnerChecksum</code></a></span></div>
 </div><p class="rfc-mark"><strong>nightly-only:</strong> every test bound to this requirement runs in the scheduled workflow alone, so nothing here is proven on the merge path</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3948-2.1-4">RFC3948-2.1-4</code></td><td colspan="3"><span class="rfc-subject">receivers MUST NOT depend on the UDP checksum being a zero value (S2.1)</span></td></tr>
@@ -393,9 +388,9 @@ Section 5.1 tunnel mode conflict (<code>RFC3948-5.1-1</code>) is a gap. Ze assig
 <td>MUST</td>
 <td>1 - Introduction</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3948-1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L193" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInstallsInDataplane</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L476" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestTunnelModeIsTheChildSADefault</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L517" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestTunnelModeIsTheChildSADefault</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L195" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInstallsInDataplane</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L478" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestTunnelModeIsTheChildSADefault</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L519" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestTunnelModeIsTheChildSADefault</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3948-2.3-2">RFC3948-2.3-2</code></td><td colspan="3"><span class="rfc-subject">The sender MUST use a one-octet-long payload with the value 0xFF. (S2.3)</span></td></tr>
@@ -423,7 +418,7 @@ Section 5.1 tunnel mode conflict (<code>RFC3948-5.1-1</code>) is a gap. Ze assig
 <td>3.1.1 - Tunnel Mode Decapsulation NAT Procedure</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3948-3.1.1-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_inner_source_policy_test.go#L29" title="internal/component/ike/engine/rfc3948_inner_source_policy_test.go" target="_blank" rel="noopener"><code>TestChildInboundPolicyDefinesTheValidInnerSourceSpace</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L431" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInboundPolicyUsesNegotiatedTS</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L433" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInboundPolicyUsesNegotiatedTS</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze takes the first option by installing the inbound policy with the negotiated remote traffic selector as its source selector (childPolicies, internal/component/ike/engine/child.go), and the drop of a mismatched inner packet is the kernel&#39;s, so ze holds no rejecting branch</p></td>
 </tr>
@@ -432,9 +427,41 @@ Section 5.1 tunnel mode conflict (<code>RFC3948-5.1-1</code>) is a gap. Ze assig
 <td>MUST</td>
 <td>5.1 - Tunnel Mode Conflict</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3948-5.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> ze devises no such way, because it assigns no inner address at all. The section&#39;s RECOMMENDED remedy is to give each remote peer a locally unique address, and the allocator for it exists and is unreached: Pool.Allocate (internal/core/eap/pool.go) leases a unique address and refuses on exhaustion with ErrPoolExhausted, yet its only callers are pool_test.go and pool_release_test.go. reloadPool (internal/component/ike/engine/apply.go) builds the pool from the remote-access config and stores it in ikeEngineState.pool, which no code reads, so no lease ever reaches a peer. No engine code constructs a wire.PayloadCP either, so ze sends no CFG_REPLY and a client keeps whatever inner address it chose for itself. Two peers behind one NAT that both chose 10.1.2.3 would therefore present the gateway with the ambiguity the section names, and ze holds nothing that prevents it. Closing this is plan/immediate/spec-ike-virtual-ip-assignment.md</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_inner_selector_ordered_transport_test.go#L44" title="internal/component/ike/engine/rfc3948_inner_selector_ordered_transport_test.go" target="_blank" rel="noopener"><code>TestRFC3948OrderedTransportBesideFullTunnelServed</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_inner_selector_test.go#L141" title="internal/component/ike/engine/rfc3948_inner_selector_test.go" target="_blank" rel="noopener"><code>TestRFC3948TwoUnboundPeersDistinctInnerAddressesServed</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_virtual_ip_rekey_test.go#L122" title="internal/component/ike/engine/rfc3948_virtual_ip_rekey_test.go" target="_blank" rel="noopener"><code>TestRFC3948ZeInitiatedRekeyNamesOnlyTheLease</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/cp_test.go#L330" title="internal/component/ike/engine/cp_test.go" target="_blank" rel="noopener"><code>TestTwoPeersSameRequestedAddressDistinctLeases</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_inner_selector_test.go#L543" title="internal/component/ike/engine/rfc3948_inner_selector_test.go" target="_blank" rel="noopener"><code>TestInnerSelectorInitiatorInstallRefusedInstallsNothing</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_inner_selector_test.go#L345" title="internal/component/ike/engine/rfc3948_inner_selector_test.go" target="_blank" rel="noopener"><code>TestInnerSelectorInstallBackstopRefusesSecond</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/cp_test.go#L366" title="internal/component/ike/engine/cp_test.go" target="_blank" rel="noopener"><code>TestNoChildSAWithoutLeaseOnBoundPeer</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_inner_selector_audit_gaps_test.go#L73" title="internal/component/ike/engine/rfc3948_inner_selector_audit_gaps_test.go" target="_blank" rel="noopener"><code>TestRFC3948ConcurrentInstallsHoldOneInnerAddress</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_inner_selector_test.go#L231" title="internal/component/ike/engine/rfc3948_inner_selector_test.go" target="_blank" rel="noopener"><code>TestRFC3948ConfiguredOverlapEqualPriorityRefused</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_inner_selector_test.go#L169" title="internal/component/ike/engine/rfc3948_inner_selector_test.go" target="_blank" rel="noopener"><code>TestRFC3948ConfiguredOverlapNarrowedByPeerRefused</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_inner_selector_audit_gaps_test.go#L194" title="internal/component/ike/engine/rfc3948_inner_selector_audit_gaps_test.go" target="_blank" rel="noopener"><code>TestRFC3948ConfiguredSelectorNarrowedOnLocalPortRefused</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_inner_selector_audit_gaps_test.go#L216" title="internal/component/ike/engine/rfc3948_inner_selector_audit_gaps_test.go" target="_blank" rel="noopener"><code>TestRFC3948ConfiguredSelectorNarrowedOnLocalPrefixRefused</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_inner_selector_test.go#L573" title="internal/component/ike/engine/rfc3948_inner_selector_test.go" target="_blank" rel="noopener"><code>TestRFC3948FailedPolicyRemovalKeepsRecord</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_inner_selector_transport_test.go#L184" title="internal/component/ike/engine/rfc3948_inner_selector_transport_test.go" target="_blank" rel="noopener"><code>TestRFC3948FixedAgainstPeerChosenDistinctPriorityRefused</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_inner_selector_wiring_test.go#L264" title="internal/component/ike/engine/rfc3948_inner_selector_wiring_test.go" target="_blank" rel="noopener"><code>TestRFC3948InitiatorSessionRefusesHeldInnerAddress</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_inner_selector_transport_test.go#L157" title="internal/component/ike/engine/rfc3948_inner_selector_transport_test.go" target="_blank" rel="noopener"><code>TestRFC3948NarrowedByPeerDistinctPriorityRefused</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_inner_selector_transport_test.go#L230" title="internal/component/ike/engine/rfc3948_inner_selector_transport_test.go" target="_blank" rel="noopener"><code>TestRFC3948NarrowedPortDistinctPriorityRefused</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_inner_selector_transport_test.go#L222" title="internal/component/ike/engine/rfc3948_inner_selector_transport_test.go" target="_blank" rel="noopener"><code>TestRFC3948NarrowedProtocolDistinctPriorityRefused</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_inner_selector_ordered_transport_test.go#L74" title="internal/component/ike/engine/rfc3948_inner_selector_ordered_transport_test.go" target="_blank" rel="noopener"><code>TestRFC3948OrderedTransportEqualPriorityRefused</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_inner_selector_local_half_test.go#L31" title="internal/component/ike/engine/rfc3948_inner_selector_local_half_test.go" target="_blank" rel="noopener"><code>TestRFC3948OrderedTransportLocalHalfNarrowedRefused</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_inner_selector_ordered_transport_test.go#L156" title="internal/component/ike/engine/rfc3948_inner_selector_ordered_transport_test.go" target="_blank" rel="noopener"><code>TestRFC3948OrderedTransportNarrowedToPortRefused</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_inner_selector_transport_test.go#L175" title="internal/component/ike/engine/rfc3948_inner_selector_transport_test.go" target="_blank" rel="noopener"><code>TestRFC3948PeerChosenAgainstFixedDistinctPriorityRefused</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_inner_selector_wiring_test.go#L249" title="internal/component/ike/engine/rfc3948_inner_selector_wiring_test.go" target="_blank" rel="noopener"><code>TestRFC3948PeerIKERekeyKeepsInnerRegistry</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_inner_selector_rekey_test.go#L61" title="internal/component/ike/engine/rfc3948_inner_selector_rekey_test.go" target="_blank" rel="noopener"><code>TestRFC3948RekeyedChildKeepsInnerAddress</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_inner_selector_wiring_test.go#L229" title="internal/component/ike/engine/rfc3948_inner_selector_wiring_test.go" target="_blank" rel="noopener"><code>TestRFC3948ResponderSAInitRefusesHeldInnerAddress</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_inner_selector_wiring_test.go#L171" title="internal/component/ike/engine/rfc3948_inner_selector_wiring_test.go" target="_blank" rel="noopener"><code>TestRFC3948ResponderSessionsShareInnerRegistry</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_stranded_refusal_test.go#L23" title="internal/component/ike/engine/rfc3948_stranded_refusal_test.go" target="_blank" rel="noopener"><code>TestRFC3948StrandedRecordRefusesOverlap</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_inner_selector_audit_gaps_test.go#L32" title="internal/component/ike/engine/rfc3948_inner_selector_audit_gaps_test.go" target="_blank" rel="noopener"><code>TestRFC3948TransportPeerChosenHostBesideConfiguredTunnelRefused</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_inner_selector_transport_test.go#L111" title="internal/component/ike/engine/rfc3948_inner_selector_transport_test.go" target="_blank" rel="noopener"><code>TestRFC3948TunnelAroundTransportPeerInstallBackstop</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_inner_selector_transport_test.go#L71" title="internal/component/ike/engine/rfc3948_inner_selector_transport_test.go" target="_blank" rel="noopener"><code>TestRFC3948TunnelAroundTransportPeerRefused</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_inner_selector_audit_gaps_test.go#L164" title="internal/component/ike/engine/rfc3948_inner_selector_audit_gaps_test.go" target="_blank" rel="noopener"><code>TestRFC3948TunnelPeerOwnHostPairBesideFullTunnelRefused</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_inner_selector_test.go#L118" title="internal/component/ike/engine/rfc3948_inner_selector_test.go" target="_blank" rel="noopener"><code>TestRFC3948TwoUnboundPeersSameInnerAddressSecondRefused</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_inner_selector_wiring_test.go#L238" title="internal/component/ike/engine/rfc3948_inner_selector_wiring_test.go" target="_blank" rel="noopener"><code>TestRFC3948ZeIKERekeyKeepsInnerRegistry</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_virtual_ip_rekey_test.go#L123" title="internal/component/ike/engine/rfc3948_virtual_ip_rekey_test.go" target="_blank" rel="noopener"><code>TestRFC3948ZeInitiatedRekeyNamesOnlyTheLease</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3948-5.2-1">RFC3948-5.2-1</code></td><td colspan="3"><span class="rfc-subject">Implementations MUST handle this situation, either by disallowing conflicting connections, or by other means. (S5.2)</span></td></tr>
 <tr><td></td>
@@ -499,10 +526,6 @@ Section 5.1 tunnel mode conflict (<code>RFC3948-5.1-1</code>) is a gap. Ze assig
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze reads IKE/ESP demux from the OS UDP socket (internal/component/ike/engine/register.go:421) and never inspects the UDP checksum, so no ze code path can depend on it; ESP-in-UDP checksum handling is the kernel&#39;s</td>
 </tr>
-<tr><td><a href="#rfc3948-5.1-1"><code>RFC3948-5.1-1</code></a> Because SGW will now see two possible SAs that lead to 10.1.2.3, it can become confused about where to send packets coming from Suzy&#39;s server. Implementors MUST devise ways of preventing this from occurring. (S5.1)</td>
-<td>{gap}, no test</td>
-<td>ze devises no such way, because it assigns no inner address at all. The section&#39;s RECOMMENDED remedy is to give each remote peer a locally unique address, and the allocator for it exists and is unreached: Pool.Allocate (internal/core/eap/pool.go) leases a unique address and refuses on exhaustion with ErrPoolExhausted, yet its only callers are pool_test.go and pool_release_test.go. reloadPool (internal/component/ike/engine/apply.go) builds the pool from the remote-access config and stores it in ikeEngineState.pool, which no code reads, so no lease ever reaches a peer. No engine code constructs a wire.PayloadCP either, so ze sends no CFG_REPLY and a client keeps whatever inner address it chose for itself. Two peers behind one NAT that both chose 10.1.2.3 would therefore present the gateway with the ambiguity the section names, and ze holds nothing that prevents it. Closing this is plan/immediate/spec-ike-virtual-ip-assignment.md</td>
-</tr>
 </tbody>
 </table>
 </div>
@@ -517,7 +540,7 @@ Section 5.1 tunnel mode conflict (<code>RFC3948-5.1-1</code>) is a gap. Ze assig
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L267" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestGenerateESPSPI</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L269" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestGenerateESPSPI</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -547,7 +570,7 @@ Section 5.1 tunnel mode conflict (<code>RFC3948-5.1-1</code>) is a gap. Ze assig
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L253" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestGenerateESPSPI</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L255" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestGenerateESPSPI</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -592,12 +615,12 @@ Section 5.1 tunnel mode conflict (<code>RFC3948-5.1-1</code>) is a gap. Ze assig
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_rebind_test.go#L352" title="internal/component/ike/engine/rfc3948_rebind_test.go" target="_blank" rel="noopener"><code>TestRFC3948RebindNotRunWithoutAnAdoptedMove</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_rebind_test.go#L368" title="internal/component/ike/engine/rfc3948_rebind_test.go" target="_blank" rel="noopener"><code>TestRFC3948RebindNotRunWithoutAnAdoptedMove</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L290" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSANATTEncapPorts</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L292" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSANATTEncapPorts</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -617,17 +640,17 @@ Section 5.1 tunnel mode conflict (<code>RFC3948-5.1-1</code>) is a gap. Ze assig
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_rebind_test.go#L215" title="internal/component/ike/engine/rfc3948_rebind_test.go" target="_blank" rel="noopener"><code>TestRFC3948RebindMigratesTunnelChildSAs</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_rebind_test.go#L231" title="internal/component/ike/engine/rfc3948_rebind_test.go" target="_blank" rel="noopener"><code>TestRFC3948RebindMigratesTunnelChildSAs</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_rebind_test.go#L281" title="internal/component/ike/engine/rfc3948_rebind_test.go" target="_blank" rel="noopener"><code>TestRFC3948RebindRekeysTransportChildSA</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_rebind_test.go#L297" title="internal/component/ike/engine/rfc3948_rebind_test.go" target="_blank" rel="noopener"><code>TestRFC3948RebindRekeysTransportChildSA</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_rebind_test.go#L258" title="internal/component/ike/engine/rfc3948_rebind_test.go" target="_blank" rel="noopener"><code>TestRFC3948RebindRekeysWithoutAMigrator</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_rebind_test.go#L274" title="internal/component/ike/engine/rfc3948_rebind_test.go" target="_blank" rel="noopener"><code>TestRFC3948RebindRekeysWithoutAMigrator</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -642,12 +665,12 @@ Section 5.1 tunnel mode conflict (<code>RFC3948-5.1-1</code>) is a gap. Ze assig
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1686" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTunnelInnerChecksum</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1694" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTunnelInnerChecksum</code></a></td>
 <td>interop/nightly</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1647" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTransportInnerChecksum</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1655" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTransportInnerChecksum</code></a></td>
 <td>interop/nightly</td>
 <td>unproven</td>
 </tr>
@@ -662,12 +685,12 @@ Section 5.1 tunnel mode conflict (<code>RFC3948-5.1-1</code>) is a gap. Ze assig
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1650" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTransportInnerChecksum</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1658" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTransportInnerChecksum</code></a></td>
 <td>interop/nightly</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1683" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTunnelInnerChecksum</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1691" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTunnelInnerChecksum</code></a></td>
 <td>interop/nightly</td>
 <td>unproven</td>
 </tr>
@@ -731,17 +754,17 @@ Section 5.1 tunnel mode conflict (<code>RFC3948-5.1-1</code>) is a gap. Ze assig
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L517" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestTunnelModeIsTheChildSADefault</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L519" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestTunnelModeIsTheChildSADefault</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L195" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInstallsInDataplane</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L193" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInstallsInDataplane</code></a></td>
-<td>unit/verify</td>
-<td>unproven</td>
-</tr>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L476" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestTunnelModeIsTheChildSADefault</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L478" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestTunnelModeIsTheChildSADefault</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -796,22 +819,198 @@ Section 5.1 tunnel mode conflict (<code>RFC3948-5.1-1</code>) is a gap. Ze assig
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L431" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInboundPolicyUsesNegotiatedTS</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L433" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInboundPolicyUsesNegotiatedTS</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_inner_source_policy_test.go#L29" title="internal/component/ike/engine/rfc3948_inner_source_policy_test.go" target="_blank" rel="noopener"><code>TestChildInboundPolicyDefinesTheValidInnerSourceSpace</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc3948-5.1-1"><code>RFC3948-5.1-1</code></a></h3>
 <p>Because SGW will now see two possible SAs that lead to 10.1.2.3, it can become confused about where to send packets coming from Suzy&#39;s server. Implementors MUST devise ways of preventing this from occurring. (S5.1)</p>
-<p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), fresh. {gap} confirmed at the producer: ze devises no way to stop two peers behind one NAT reaching it with the same inner address, because it assigns no inner address. eap.Pool.Allocate (internal/core/eap/pool.go) leases a locally unique address and has no non-test caller; the engine keeps the remote-access pool in s.pool via reloadPool (internal/component/ike/engine/apply.go), whose own comment states nothing reads s.pool yet. No tagged unit exists.</p>
-<p>No test carries RFC3948-5.1-1, so no unit is bound to it.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-27 at HEAD 58ee58c176 (independent judge, clean git clone --shared, go -overlay mapping ike_auth_algorithms_test.go away for journal row 3f1a944493, tree untouched), after 0308ef4d70 and 690d38f274. RFC 3948 Section 5.1: &#34;Because SGW will now see two possible SAs that lead to 10.1.2.3, it can become confused about where to send packets coming from Suzy&#39;s server.  Implementors MUST devise ways of preventing this from occurring.&#34; Ze&#39;s way is the cross-peer inner-selector registry (narrowChildSelectors filter, innerSelectorRegistry.claim at install): a tunnel-mode pair one packet could match together with another peer&#39;s live pair is refused TS_UNACCEPTABLE unless both pairs are operator-fixed and their policy-priority values differ. 0308ef4d70 only dropped childPolicyPair&#39;s unused remote-half return; childPolicies and innerSelectorPairOf still build from the one childPolicyPair, so the registry compares the policy the dataplane installs, and with innerSelectorPairOf forced to report no pair 37 tagged and untagged units go red. 690d38f274 closes the three unproven guards the 5064d6db1f verdict named, each reproduced here by overlay break: classifyInnerPair&#39;s `if p.transport()` forced true reddens TestRFC3948TunnelPeerOwnHostPairBesideFullTunnelRefused alone; samePolicyPair&#39;s local-port test forced false reddens TestRFC3948ConfiguredSelectorNarrowedOnLocalPortRefused alone; its local-prefix test forced false reddens TestRFC3948ConfiguredSelectorNarrowedOnLocalPrefixRefused alone. Each runs both responder steps (narrowChildSelectors then createFirstChildSA), and mustSecondRefused asserts the first served, the second refused as TS_UNACCEPTABLE with the RFC 3948 Section 5.1 reason, nothing on its dataplane and the registry holding one Child SA, so the refusal cannot come from another rule. Isolation holds: each second peer&#39;s pair differs from its operator-fixed form by exactly the one dimension the break ignores, and under the break the pair is served at the distinct priorities, which is the red. These three enforce Ze&#39;s stated rule (a pair is operator-fixed only when it is the whole configured selector, and the configured-host pair orders a transport-mode pair only), which is stricter than the bare MUST needs, since the SPD would order the overlaps they refuse; they are legitimate Section 5.1 negatives because they pin the edges of the mechanism Ze devised and the rfc/short Support remaining row claims, and they assert nothing the RFC contradicts. RE-PROBED at HEAD: conflictLocked overlap test forced to skip reddens 37 units; operatorOrdered forced true reddens TestRFC3948ConfiguredOverlapEqualPriorityRefused and TestRFC3948OrderedTransportEqualPriorityRefused. The earlier verdict&#39;s probes of claim atomicity, initiator wiring, IKE and Child SA rekey carriers, stranded records and the lease guards cover units this window did not change and are not repeated. Not counted: replacing childPolicyPair&#39;s intersectProto by either half&#39;s protocol leaves every RFC3948-5.1-1 unit green, because responder narrowing intersects each half against the policy; the installed intersection is proven by RFC4301-4.4.2-2&#39;s mutant record on TestRFC4301MixedProtocolPairInstallsTheIntersection, and the registry reads the same function. Positives: TestRFC3948TwoUnboundPeersDistinctInnerAddressesServed, TestRFC3948OrderedTransportBesideFullTunnelServed, the two lease tests in cp_test.go and the Ze-initiated rekey lease test, each a conforming input, not a different error.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/cp_test.go#L366" title="internal/component/ike/engine/cp_test.go" target="_blank" rel="noopener"><code>TestNoChildSAWithoutLeaseOnBoundPeer</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_inner_selector_audit_gaps_test.go#L73" title="internal/component/ike/engine/rfc3948_inner_selector_audit_gaps_test.go" target="_blank" rel="noopener"><code>TestRFC3948ConcurrentInstallsHoldOneInnerAddress</code></a></td>
+<td>unit/verify</td>
+<td>mutant, producer-gone (the producer the break was applied to is no longer in the tree)</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_inner_selector_audit_gaps_test.go#L194" title="internal/component/ike/engine/rfc3948_inner_selector_audit_gaps_test.go" target="_blank" rel="noopener"><code>TestRFC3948ConfiguredSelectorNarrowedOnLocalPortRefused</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_inner_selector_audit_gaps_test.go#L216" title="internal/component/ike/engine/rfc3948_inner_selector_audit_gaps_test.go" target="_blank" rel="noopener"><code>TestRFC3948ConfiguredSelectorNarrowedOnLocalPrefixRefused</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_inner_selector_audit_gaps_test.go#L32" title="internal/component/ike/engine/rfc3948_inner_selector_audit_gaps_test.go" target="_blank" rel="noopener"><code>TestRFC3948TransportPeerChosenHostBesideConfiguredTunnelRefused</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_inner_selector_audit_gaps_test.go#L164" title="internal/component/ike/engine/rfc3948_inner_selector_audit_gaps_test.go" target="_blank" rel="noopener"><code>TestRFC3948TunnelPeerOwnHostPairBesideFullTunnelRefused</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_inner_selector_local_half_test.go#L31" title="internal/component/ike/engine/rfc3948_inner_selector_local_half_test.go" target="_blank" rel="noopener"><code>TestRFC3948OrderedTransportLocalHalfNarrowedRefused</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_inner_selector_ordered_transport_test.go#L74" title="internal/component/ike/engine/rfc3948_inner_selector_ordered_transport_test.go" target="_blank" rel="noopener"><code>TestRFC3948OrderedTransportEqualPriorityRefused</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_inner_selector_ordered_transport_test.go#L156" title="internal/component/ike/engine/rfc3948_inner_selector_ordered_transport_test.go" target="_blank" rel="noopener"><code>TestRFC3948OrderedTransportNarrowedToPortRefused</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_inner_selector_rekey_test.go#L61" title="internal/component/ike/engine/rfc3948_inner_selector_rekey_test.go" target="_blank" rel="noopener"><code>TestRFC3948RekeyedChildKeepsInnerAddress</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_inner_selector_test.go#L543" title="internal/component/ike/engine/rfc3948_inner_selector_test.go" target="_blank" rel="noopener"><code>TestInnerSelectorInitiatorInstallRefusedInstallsNothing</code></a></td>
+<td>unit/verify</td>
+<td>mutant, producer-gone (the producer the break was applied to is no longer in the tree)</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_inner_selector_test.go#L345" title="internal/component/ike/engine/rfc3948_inner_selector_test.go" target="_blank" rel="noopener"><code>TestInnerSelectorInstallBackstopRefusesSecond</code></a></td>
+<td>unit/verify</td>
+<td>mutant, producer-gone (the producer the break was applied to is no longer in the tree)</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_inner_selector_test.go#L231" title="internal/component/ike/engine/rfc3948_inner_selector_test.go" target="_blank" rel="noopener"><code>TestRFC3948ConfiguredOverlapEqualPriorityRefused</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_inner_selector_test.go#L169" title="internal/component/ike/engine/rfc3948_inner_selector_test.go" target="_blank" rel="noopener"><code>TestRFC3948ConfiguredOverlapNarrowedByPeerRefused</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_inner_selector_test.go#L573" title="internal/component/ike/engine/rfc3948_inner_selector_test.go" target="_blank" rel="noopener"><code>TestRFC3948FailedPolicyRemovalKeepsRecord</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_inner_selector_test.go#L118" title="internal/component/ike/engine/rfc3948_inner_selector_test.go" target="_blank" rel="noopener"><code>TestRFC3948TwoUnboundPeersSameInnerAddressSecondRefused</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_inner_selector_transport_test.go#L184" title="internal/component/ike/engine/rfc3948_inner_selector_transport_test.go" target="_blank" rel="noopener"><code>TestRFC3948FixedAgainstPeerChosenDistinctPriorityRefused</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_inner_selector_transport_test.go#L157" title="internal/component/ike/engine/rfc3948_inner_selector_transport_test.go" target="_blank" rel="noopener"><code>TestRFC3948NarrowedByPeerDistinctPriorityRefused</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_inner_selector_transport_test.go#L230" title="internal/component/ike/engine/rfc3948_inner_selector_transport_test.go" target="_blank" rel="noopener"><code>TestRFC3948NarrowedPortDistinctPriorityRefused</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_inner_selector_transport_test.go#L222" title="internal/component/ike/engine/rfc3948_inner_selector_transport_test.go" target="_blank" rel="noopener"><code>TestRFC3948NarrowedProtocolDistinctPriorityRefused</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_inner_selector_transport_test.go#L175" title="internal/component/ike/engine/rfc3948_inner_selector_transport_test.go" target="_blank" rel="noopener"><code>TestRFC3948PeerChosenAgainstFixedDistinctPriorityRefused</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_inner_selector_transport_test.go#L111" title="internal/component/ike/engine/rfc3948_inner_selector_transport_test.go" target="_blank" rel="noopener"><code>TestRFC3948TunnelAroundTransportPeerInstallBackstop</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_inner_selector_transport_test.go#L71" title="internal/component/ike/engine/rfc3948_inner_selector_transport_test.go" target="_blank" rel="noopener"><code>TestRFC3948TunnelAroundTransportPeerRefused</code></a></td>
+<td>unit/verify</td>
+<td>mutant, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_inner_selector_wiring_test.go#L264" title="internal/component/ike/engine/rfc3948_inner_selector_wiring_test.go" target="_blank" rel="noopener"><code>TestRFC3948InitiatorSessionRefusesHeldInnerAddress</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_inner_selector_wiring_test.go#L249" title="internal/component/ike/engine/rfc3948_inner_selector_wiring_test.go" target="_blank" rel="noopener"><code>TestRFC3948PeerIKERekeyKeepsInnerRegistry</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_inner_selector_wiring_test.go#L229" title="internal/component/ike/engine/rfc3948_inner_selector_wiring_test.go" target="_blank" rel="noopener"><code>TestRFC3948ResponderSAInitRefusesHeldInnerAddress</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_inner_selector_wiring_test.go#L171" title="internal/component/ike/engine/rfc3948_inner_selector_wiring_test.go" target="_blank" rel="noopener"><code>TestRFC3948ResponderSessionsShareInnerRegistry</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_inner_selector_wiring_test.go#L238" title="internal/component/ike/engine/rfc3948_inner_selector_wiring_test.go" target="_blank" rel="noopener"><code>TestRFC3948ZeIKERekeyKeepsInnerRegistry</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_stranded_refusal_test.go#L23" title="internal/component/ike/engine/rfc3948_stranded_refusal_test.go" target="_blank" rel="noopener"><code>TestRFC3948StrandedRecordRefusesOverlap</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_virtual_ip_rekey_test.go#L123" title="internal/component/ike/engine/rfc3948_virtual_ip_rekey_test.go" target="_blank" rel="noopener"><code>TestRFC3948ZeInitiatedRekeyNamesOnlyTheLease</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/cp_test.go#L330" title="internal/component/ike/engine/cp_test.go" target="_blank" rel="noopener"><code>TestTwoPeersSameRequestedAddressDistinctLeases</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_inner_selector_ordered_transport_test.go#L44" title="internal/component/ike/engine/rfc3948_inner_selector_ordered_transport_test.go" target="_blank" rel="noopener"><code>TestRFC3948OrderedTransportBesideFullTunnelServed</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_inner_selector_test.go#L141" title="internal/component/ike/engine/rfc3948_inner_selector_test.go" target="_blank" rel="noopener"><code>TestRFC3948TwoUnboundPeersDistinctInnerAddressesServed</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_virtual_ip_rekey_test.go#L122" title="internal/component/ike/engine/rfc3948_virtual_ip_rekey_test.go" target="_blank" rel="noopener"><code>TestRFC3948ZeInitiatedRekeyNamesOnlyTheLease</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc3948-5.2-1"><code>RFC3948-5.2-1</code></a></h3>
 <p>Implementations MUST handle this situation, either by disallowing conflicting connections, or by other means. (S5.2)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Ze disallows the conflicting connection (policyOwners.claim, dataplane/policy_owner.go): a transport-mode claim is refused when a DIFFERENT owner holds a transport-mode selector that overlaps it (same dir/if_id, overlapping prefixes, protocol any-or-equal, masked ports agreeing). Owner is the configured peer name and a peer holds one live IKE SA (a second client on one peer config replaces the first), so two concurrent clients behind one NAT are two owners. Negative TestRFC3948TransportConflictingConnectionIsDisallowed: second client&#39;s overlapping transport claim (any vs tcp/80, tcp/80 vs any, inbound tcp-any vs tcp/80) at one NAT address refused with TransportSelectorConflictError naming both, no record kept; red at HEAD by reading (identical-key check only). Positive TestRFC3948TransportDisjointConnectionsAreAdmitted: disjoint descriptions (tcp/80 vs tcp/443, tcp vs udp) admitted, same client&#39;s overlap admitted. Supplementary: TestPolicyOwnerRefusesASecondPeerOnOneSelector (identical selector refused) and TestPolicyOwnerSeparatesDistinctSelectors (tunnel-mode identity bounded by selector), prose now narrowed to what they assert. Pass 2: TestRFC3948TransportClientsAtDifferentAddressesAreAdmitted admits clients at a different NAT address with overlapping descriptions both directions; judge forced prefixesOverlap to true (go test -overlay) and both subtests went red. Tunnel mode not being compared is not exercised and is not the obligation. Records are whole-body panic breaks of claim.</p>
@@ -1021,7 +1220,7 @@ Section 5.1 tunnel mode conflict (<code>RFC3948-5.1-1</code>) is a gap. Ze assig
 <td>Tunnel Mode Conflict</td>
 <td>1</td>
 <td>walked</td>
-<td>Tunnel Mode Conflict. The overlapping-inner-address hazard at a security gateway, one MUST and one RECOMMENDED remedy. Its site is mapped below to RFC3948-5.1-1, which the summary carries as a gap: ze is the security gateway of the diagram and assigns no inner address, so nothing it holds prevents the overlap.</td>
+<td>Tunnel Mode Conflict. The overlapping-inner-address hazard at a security gateway, one MUST and one RECOMMENDED remedy. Its site is mapped below to RFC3948-5.1-1, which the summary carries as partial: ze is the security gateway of the diagram, it prevents the overlap for a peer bound to a virtual-IP pool, and nothing it holds prevents it for a tunnel-mode peer bound to no pool.</td>
 </tr>
 <tr><td><code>5.2</code></td>
 <td>Transport Mode Conflict</td>
@@ -1133,8 +1332,10 @@ Section 5.1 tunnel mode conflict (<code>RFC3948-5.1-1</code>) is a gap. Ze assig
         <footer>
             <div class="footer-inner">
                 <div class="footer-bottom">
+                    <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 14:55 UTC</span>
+                    <a href="../../../legal/">Legal notice</a>
+                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
                 </div>
             </div>
         </footer>

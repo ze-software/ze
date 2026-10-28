@@ -1,6 +1,6 @@
 # Plugin catalog
 
-91 runtime plugins generated from `data/plugin-registry.json`. 73 runtime plugins declare configuration roots and 77 ship YANG modules.
+95 runtime plugins generated from `data/plugin-registry.json`. 74 runtime plugins declare configuration roots and 78 ship YANG modules.
 
 The HTML page includes browser-side search across name, purpose, config roots, dependencies, YANG files, and source directories. Clicking a plugin opens its generated local detail page.
 
@@ -202,10 +202,12 @@ Generated group for registry entries mapped to the IS-IS area. Config roots: `is
 
 ## Interface
 
-Generated group for registry entries mapped to the Interface area. Config roots: `interface`. Source area: `internal/component/iface`, `internal/plugins/vrrp`.
+Generated group for registry entries mapped to the Interface area. Config roots: `interface`. Source area: `internal/component/iface`, `internal/plugins/iface`, `internal/plugins/vrrp`.
 
 | Plugin | Used for | Config | Depends on | Source path |
 |--------|----------|--------|------------|-------------|
+| [`iface-dhcp`](iface-dhcp/index.md) | DHCP client: DHCPv4/DHCPv6 lease acquisition and renewal | None | `interface` | `internal/plugins/iface/dhcp` |
+| [`iface-ra`](iface-ra/index.md) | Router Advertisement sender: advertises IPv6 prefixes, flags, and resolvers on a LAN (RFC 4861) | None | `interface` | `internal/plugins/iface/ra` |
 | [`interface`](interface/index.md) | OS network interface monitoring and management | `interface` | `sysctl` | `internal/component/iface` |
 | [`vrrp`](vrrp/index.md) | Virtual Router Redundancy Protocol (RFC 9568 / RFC 3768): first-hop gateway redundancy | `interface` | `interface` | `internal/plugins/vrrp` |
 
@@ -245,6 +247,14 @@ Generated group for registry entries mapped to the MRT area. Config roots: `mrt`
 | Plugin | Used for | Config | Depends on | Source path |
 |--------|----------|--------|------------|-------------|
 | [`mrt`](mrt/index.md) | MRT routing information export (RFC 6396) | `mrt` | None | `internal/plugins/mrt` |
+
+## Memlock
+
+Generated group for registry entries mapped to the Memlock area. Source area: `internal/plugins/memlock`.
+
+| Plugin | Used for | Config | Depends on | Source path |
+|--------|----------|--------|------------|-------------|
+| [`memlock`](memlock/index.md) | Memory lock: keep the running executable resident under memory pressure | None | None | `internal/plugins/memlock` |
 
 ## OSPF
 
@@ -289,12 +299,13 @@ Generated group for registry entries mapped to the Routing Table area. Config ro
 
 ## Service
 
-Generated group for registry entries mapped to the Service area. Config roots: `service`. Source area: `internal/plugins/as112`, `internal/plugins/dhcpserver`, `internal/plugins/geodns`.
+Generated group for registry entries mapped to the Service area. Config roots: `service`. Source area: `internal/plugins/as112`, `internal/plugins/dhcpserver`, `internal/plugins/dnsresolver`.
 
 | Plugin | Used for | Config | Depends on | Source path |
 |--------|----------|--------|------------|-------------|
 | [`as112`](as112/index.md) | AS112 anycast DNS node: authoritative sink for misdirected RFC 1918 / link-local reverse-DNS queries (RFC 7534, RFC 7535) | `service` | None | `internal/plugins/as112` |
 | [`dhcpserver`](dhcpserver/index.md) | DHCP server: address assignment for LAN clients (RFC 2131) | `service` | None | `internal/plugins/dhcpserver` |
+| [`dnsresolver`](dnsresolver/index.md) | LAN DNS resolver: answers recursive queries from allowed prefixes by forwarding to upstream resolvers (RFC 1035, RFC 2181) | `service` | None | `internal/plugins/dnsresolver` |
 | [`geodns`](geodns/index.md) | GeoDNS server: DNS answers selected by client source IP (RFC 1035, RFC 7871 client-subnet) | `service` | None | `internal/plugins/geodns` |
 | [`imageserver`](imageserver/index.md) | Image server: HTTP provisioning for disk images and boot files | `service` | None | `internal/plugins/imageserver` |
 | [`tftpserver`](tftpserver/index.md) | TFTP server: read-only file serving for PXE boot (RFC 1350, RFC 2347 option negotiation) | `service` | None | `internal/plugins/tftpserver` |
@@ -331,11 +342,11 @@ Generated group for registry entries mapped to the Traffic area. Config roots: `
 
 ## VPN
 
-Generated group for registry entries mapped to the VPN area. Config roots: `pki`, `vpn`. Source area: `internal/component/ike`.
+Generated group for registry entries mapped to the VPN area. Config roots: `vpn`. Source area: `internal/component/ike`.
 
 | Plugin | Used for | Config | Depends on | Source path |
 |--------|----------|--------|------------|-------------|
-| [`ike`](ike/index.md) | IKEv2 engine for native IPsec VPN | `vpn`, `pki` | None | `internal/component/ike/engine` |
+| [`ike`](ike/index.md) | IKEv2 engine for native IPsec VPN | `vpn` | None | `internal/component/ike/engine` |
 
 ## VPP
 

@@ -121,7 +121,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>8.0%</strong><b>6 of 75 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 75 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 75 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>91.8%</strong><b>78 of 85 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>62.4%</strong><b>53 of 85 tagged units, 0 escaped and 25 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -1339,7 +1339,7 @@ Forty-three MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L196" title="internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go" target="_blank" rel="noopener"><code>TestRFC2205MalformedMessageLoggedLocally</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_mandatory_test.go#L90" title="internal/plugins/rsvpte/rfc2205_mandatory_test.go" target="_blank" rel="noopener"><code>TestDecodeMandatoryObjects</code></a></td>
@@ -1349,12 +1349,12 @@ Forty-three MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_mandatory_test.go#L139" title="internal/plugins/rsvpte/rfc2205_mandatory_test.go" target="_blank" rel="noopener"><code>TestEnginePathWithTimeValuesAccepted</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L212" title="internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go" target="_blank" rel="noopener"><code>TestRFC2205WellFormedMessageNotLogged</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -1389,7 +1389,7 @@ Forty-three MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_carrier_test.go#L14" title="internal/plugins/rsvpte/rfc2205_carrier_test.go" target="_blank" rel="noopener"><code>TestRFC2205PathNeverLeavesWithoutRouterAlertCarrier</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L400" title="internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go" target="_blank" rel="noopener"><code>TestRFC2205ResvConfNeverLeavesWithoutRouterAlertCarrier</code></a></td>
@@ -1465,22 +1465,22 @@ Forty-three MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_engine_test.go#L105" title="internal/plugins/rsvpte/rfc2205_engine_test.go" target="_blank" rel="noopener"><code>TestRFC2205ResvWithoutPathStateNotRelayed</code></a></td>
 <td>unit/verify</td>
-<td>mutant, verified</td>
+<td>mutant, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L392" title="internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go" target="_blank" rel="noopener"><code>TestRFC2205ResvNeverTakesAnotherSendersPath</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_engine_test.go#L91" title="internal/plugins/rsvpte/rfc2205_engine_test.go" target="_blank" rel="noopener"><code>TestRFC2205ResvSentToPreviousHop</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L376" title="internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go" target="_blank" rel="noopener"><code>TestRFC2205ResvFollowsEachSendersReversePath</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -1500,7 +1500,7 @@ Forty-three MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_engine_test.go#L122" title="internal/plugins/rsvpte/rfc2205_engine_test.go" target="_blank" rel="noopener"><code>TestRFC2205ResvDeliveredToSender</code></a></td>
 <td>unit/verify</td>
-<td>mutant, verified</td>
+<td>mutant, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -1613,12 +1613,12 @@ Forty-three MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_engine_test.go#L181" title="internal/plugins/rsvpte/rfc2205_engine_test.go" target="_blank" rel="noopener"><code>TestRFC2205PathTearWithoutStateNotRelayed</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_engine_test.go#L166" title="internal/plugins/rsvpte/rfc2205_engine_test.go" target="_blank" rel="noopener"><code>TestRFC2205TransitPathTearRelayedWithoutDelay</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -1633,12 +1633,12 @@ Forty-three MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_resv_error_test.go#L130" title="internal/plugins/rsvpte/rfc2205_resv_error_test.go" target="_blank" rel="noopener"><code>TestRFC2205ResvErrForOtherSenderNotRelayed</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_resv_error_test.go#L107" title="internal/plugins/rsvpte/rfc2205_resv_error_test.go" target="_blank" rel="noopener"><code>TestRFC2205ResvErrRelayedToReceiver</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -1708,12 +1708,12 @@ Forty-three MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_carrier_test.go#L106" title="internal/plugins/rsvpte/rfc2205_carrier_test.go" target="_blank" rel="noopener"><code>TestRFC2205PathIPAddressesNeverHopAddresses</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_carrier_test.go#L93" title="internal/plugins/rsvpte/rfc2205_carrier_test.go" target="_blank" rel="noopener"><code>TestRFC2205PathIPAddressesAreSenderAndSession</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -1764,12 +1764,12 @@ Forty-three MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_carrier_test.go#L132" title="internal/plugins/rsvpte/rfc2205_carrier_test.go" target="_blank" rel="noopener"><code>TestRFC2205PathTearNotAddressedHopByHop</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_carrier_test.go#L118" title="internal/plugins/rsvpte/rfc2205_carrier_test.go" target="_blank" rel="noopener"><code>TestRFC2205PathTearRoutedLikePath</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L277" title="internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go" target="_blank" rel="noopener"><code>TestRFC2205PathTearRouteEqualsPathRoute</code></a></td>
@@ -1814,7 +1814,7 @@ Forty-three MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_resv_error_test.go#L154" title="internal/plugins/rsvpte/rfc2205_resv_error_test.go" target="_blank" rel="noopener"><code>TestRFC2205PathTearObjectsIgnored</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -1829,12 +1829,12 @@ Forty-three MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L481" title="internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go" target="_blank" rel="noopener"><code>TestRFC2205ResvTearScopeNotObeyed</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L455" title="internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go" target="_blank" rel="noopener"><code>TestRFC2205ResvTearWithScopeTearsDown</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -1849,7 +1849,7 @@ Forty-three MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_engine_test.go#L217" title="internal/plugins/rsvpte/rfc2205_engine_test.go" target="_blank" rel="noopener"><code>TestRFC2205PathTearForOtherLSPLeavesReservation</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L82" title="internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go" target="_blank" rel="noopener"><code>TestRFC2205RefreshedPathStateKept</code></a></td>
@@ -1864,7 +1864,7 @@ Forty-three MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L69" title="internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go" target="_blank" rel="noopener"><code>TestRFC2205PathStateDeletedAtCleanupTimeout</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -1883,12 +1883,12 @@ Forty-three MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_resv_error_test.go#L264" title="internal/plugins/rsvpte/rfc2205_resv_error_test.go" target="_blank" rel="noopener"><code>TestRFC2205ResvTearForOtherHopNotRouted</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_resv_error_test.go#L238" title="internal/plugins/rsvpte/rfc2205_resv_error_test.go" target="_blank" rel="noopener"><code>TestRFC2205ResvTearRoutedLikeResv</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -1923,7 +1923,7 @@ Forty-three MUST rows carry {gap}. Checksum validation, supported FF/SE message 
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_resv_error_test.go#L370" title="internal/plugins/rsvpte/rfc2205_resv_error_test.go" target="_blank" rel="noopener"><code>TestRFC2205ResvErrWrongStyleNotRouted</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_resv_error_test.go#L341" title="internal/plugins/rsvpte/rfc2205_resv_error_test.go" target="_blank" rel="noopener"><code>TestRFC2205ResvErrCarriesErrorAndRoute</code></a></td>
@@ -2566,8 +2566,10 @@ Forty-three MUST rows carry {gap}. Checksum validation, supported FF/SE message 
         <footer>
             <div class="footer-inner">
                 <div class="footer-bottom">
+                    <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
+                    <a href="../../../legal/">Legal notice</a>
+                    <span class="footer-published">Published 27 October 2026 23:56 UTC</span>
                 </div>
             </div>
         </footer>

@@ -10,11 +10,12 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 13.0% | 3 of 23 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| Tested both ways | 39.1% | 9 of 23 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 39.1% | 9 of 23 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 23 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 23 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 65.0% | 13 of 20 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| No test at all | 0.0% | 0 of 23 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Proven by a recorded break | 51.5% | 17 of 33 tagged units, 0 escaped and 9 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -23,18 +24,10 @@ measures that are neither good news nor bad
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | Gated MUSTs | 23 | of 70 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 10 | of 23 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 43.5% | 10 of 23 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Out of scope | 5 | of 23 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 17.4% | 4 of 23 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
 | Met below Ze | 0.0% | 0 of 23 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 23 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
-
-### Negative
-
-what Ze owes
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| No test at all | 4.3% | 1 of 23 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Optional feature declined | 4.3% | 1 of 23 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
 The 8 shares marked as a part above are the whole of the 23 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -48,7 +41,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
-| No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
@@ -63,22 +56,22 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Enrolment | Enrolled |
 | Requirements | 70 |
 | Gated MUST-level | 23 |
-| Not applicable, so out of scope | 10 |
-| Declared gaps | 1 |
+| Not applicable, so out of scope | 4 |
+| Declared gaps | 0 |
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 20 |
-| Tagged units | 20 |
+| Test tags | 33 |
+| Tagged units | 33 |
 | Recorded audit verdicts | 8 |
-| Discrimination records | 13 |
+| Discrimination records | 26 |
 | Summary | `rfc/short/rfc2181.md` |
 | Requirement shard | `rfc/requirements/rfc2181.md` |
 | RFC text | `rfc/full/rfc2181.txt` |
 
 ## Enrolment
 
-Enrolled: Clarifications to the DNS Specification (RFC 2181): ze is authoritative (internal/plugins/geodns, internal/plugins/as112) plus a stub resolver+cache (internal/component/resolve/dns). 1 MET (section 8 TTL 0..2147483647 bound, both polarities) + 11 single-polarity positive (UDP reply source-IP/port fidelity 4.1-1/4.2-1/4.2-2, RRSet equal TTLs 5.2-1, cache replaces RRSets without merging 5.4-1/5.4-2, canonical NS targets with A glue 10.3-1/10.3-2, wire label/name limits and unrestricted labels 11-1/11-2/11-3) + 1 gap (5.1-1 no TC/Truncate on oversized RRSet) + 10 not-applicable (SIG/DNSSEC 5.3.1-2/5.3.1-3/5.3.1-4/5.4.1-8/5.4.1-9, recursive-resolver ranking 5.4.1-3, AXFR 5.5-4, CNAME/PTR authoring 10.1-4/10.1.1-1/10.2-1)
+Enrolled: Clarifications to the DNS Specification (RFC 2181): ze is authoritative (internal/plugins/geodns, internal/plugins/as112), a stub resolver+cache (internal/component/resolve/dns), and a caching forwarding resolver for customer LANs (internal/plugins/dnsresolver). Both polarities tagged: TC on a datagram reply whose RRSet does not fit 5.1-1, the whole RRSIG RRset 5.3.1-2, section RRSIG never taken as the RRSet 5.3.1-3, section RRSIG never cached for an RRSIG query 5.3.1-4, cache RRSet replacement 5.4-2, trust ranking 5.4.1-3 (alias target data from an authoritative reply ranks as non-authoritative), AA set by the authoritative harness and clear on resolver replies 5.4.1-9, the section 8 TTL bound 8-1, label/name limits 11-1. Single-polarity positive: UDP reply source-IP/port fidelity 4.1-1/4.2-1/4.2-2, RRSet equal TTLs 5.2-1, no merge 5.4-1, canonical NS targets with A glue 10.3-1/10.3-2, unrestricted labels 11-2/11-3. 1 feature-declined (5.4.1-8, conditional on DNS security, optional-only for fttx-edge, post-release). 4 not-applicable (AXFR 5.5-4, CNAME/PTR authoring 10.1-4/10.1.1-1/10.2-1)
 
 ## What the public ledger says
 
@@ -86,20 +79,22 @@ Enrolled: Clarifications to the DNS Specification (RFC 2181): ze is authoritativ
 
 **What the ledger says is covered**
 
-- Authoritative GeoDNS/AS112 answers with RRSet-consistent per-record TTLs, the section 8 0..2147483647 TTL bound ([`internal/plugins/geodns/config.go`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/config.go)), canonical NS targets with A glue, UDP reply source-address/port fidelity, wire label/name limits, and a stub-resolver cache that replaces whole RRSets without merging
+- Authoritative GeoDNS/AS112 answers with RRSet-consistent per-record TTLs, the section 8 0..2147483647 TTL bound ([`internal/plugins/geodns/config.go`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/config.go)), canonical NS targets with A glue, UDP reply source-address/port fidelity, wire label/name limits, and a stub-resolver cache that replaces whole RRSets without merging. Every datagram reply of the shared DNS harness whose RRSet does not fit is marked truncated ([`internal/core/dnsserver/handler.go`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/handler.go) send). The LAN resolver (internal/plugins/dnsresolver) ranks cached answer-section data by the reply's AA bit, giving the authoritative rank only to the RRset the name sought owns (an alias target in an authoritative reply ranks as non-authoritative), and caches nothing else as an answer, returns an RRSIG RRset whole as an ordinary RRset, never takes or caches an RRSIG seen only in an authority or additional section as one, and clears AA on every reply, while the authoritative harness sets AA on every answer it gives ([`internal/core/dnsserver/handler.go`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/handler.go) shapeAuthoritative)
 - tests bound per requirement in [`rfc/short/rfc2181.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc2181.md).
 
 
 **What the ledger says remains**
 
-One MUST gap ([`RFC2181-5.1-1`](#rfc2181-5.1-1)): GeoDNS and AS112 never set the TC bit or call miekg Truncate, so an oversized RRSet would be sent unmarked rather than truncated. The recursive-resolver data-ranking, DNSSEC/SIG, AXFR, and CNAME/PTR-authoring MUSTs are not-applicable (ze is authoritative plus a stub resolver only).
+No MUST gap is recorded.
+
+- **The status stays Partial:** the rows tagged in this change rest on hand-written breaks that still owe an independent ze-test-judge reading and carry no /ze-rfc-audit verdict yet, and the single-polarity rows are proven in one polarity only (4.1-1, 4.2-1, 4.2-2, 5.2-1, 5.4-1, 10.3-1, 10.3-2, 11-2, 11-3). One feature is absent by decision, and it is not a conformance gap: ze offers no DNSSEC validation, optional-only for fttx-edge, post-release ([`rfc/short/rfc4034.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc4034.md)), so [`RFC2181-5.4.1-8`](#rfc2181-5.4.1-8), which binds only "When DNS security [RFC2065] is in use", is feature-declined; the AXFR and CNAME/PTR-authoring MUSTs are not-applicable (ze serves no zone transfer and authors no CNAME or PTR record).
 
 ## Coverage
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 3 | one part of the gated population |
-| Annotated (including scoped evidence) | 20 | one part of the gated population |
+| Positive and negative tests | 9 | one part of the gated population |
+| Annotated (including scoped evidence) | 14 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
 | Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
@@ -107,9 +102,9 @@ One MUST gap ([`RFC2181-5.1-1`](#rfc2181-5.1-1)): GeoDNS and AS112 never set the
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **23** | every gated MUST falls in exactly one bucket above |
 
-**Positive and negative tests (3):** [`RFC2181-5.4-2`](#rfc2181-5.4-2), [`RFC2181-8-1`](#rfc2181-8-1), [`RFC2181-11-1`](#rfc2181-11-1)
+**Positive and negative tests (9):** [`RFC2181-5.1-1`](#rfc2181-5.1-1), [`RFC2181-5.3.1-2`](#rfc2181-5.3.1-2), [`RFC2181-5.3.1-3`](#rfc2181-5.3.1-3), [`RFC2181-5.3.1-4`](#rfc2181-5.3.1-4), [`RFC2181-5.4-2`](#rfc2181-5.4-2), [`RFC2181-5.4.1-3`](#rfc2181-5.4.1-3), [`RFC2181-5.4.1-9`](#rfc2181-5.4.1-9), [`RFC2181-8-1`](#rfc2181-8-1), [`RFC2181-11-1`](#rfc2181-11-1)
 
-**Annotated (including scoped evidence) (20):** [`RFC2181-4.1-1`](#rfc2181-4.1-1), [`RFC2181-4.2-1`](#rfc2181-4.2-1), [`RFC2181-4.2-2`](#rfc2181-4.2-2), [`RFC2181-5.1-1`](#rfc2181-5.1-1), [`RFC2181-5.2-1`](#rfc2181-5.2-1), [`RFC2181-5.3.1-2`](#rfc2181-5.3.1-2), [`RFC2181-5.3.1-3`](#rfc2181-5.3.1-3), [`RFC2181-5.3.1-4`](#rfc2181-5.3.1-4), [`RFC2181-5.4-1`](#rfc2181-5.4-1), [`RFC2181-5.4.1-3`](#rfc2181-5.4.1-3), [`RFC2181-5.4.1-8`](#rfc2181-5.4.1-8), [`RFC2181-5.4.1-9`](#rfc2181-5.4.1-9), [`RFC2181-5.5-4`](#rfc2181-5.5-4), [`RFC2181-10.1-4`](#rfc2181-10.1-4), [`RFC2181-10.1.1-1`](#rfc2181-10.1.1-1), [`RFC2181-10.2-1`](#rfc2181-10.2-1), [`RFC2181-10.3-1`](#rfc2181-10.3-1), [`RFC2181-10.3-2`](#rfc2181-10.3-2), [`RFC2181-11-2`](#rfc2181-11-2), [`RFC2181-11-3`](#rfc2181-11-3)
+**Annotated (including scoped evidence) (14):** [`RFC2181-4.1-1`](#rfc2181-4.1-1), [`RFC2181-4.2-1`](#rfc2181-4.2-1), [`RFC2181-4.2-2`](#rfc2181-4.2-2), [`RFC2181-5.2-1`](#rfc2181-5.2-1), [`RFC2181-5.4-1`](#rfc2181-5.4-1), [`RFC2181-5.4.1-8`](#rfc2181-5.4.1-8), [`RFC2181-5.5-4`](#rfc2181-5.5-4), [`RFC2181-10.1-4`](#rfc2181-10.1-4), [`RFC2181-10.1.1-1`](#rfc2181-10.1.1-1), [`RFC2181-10.2-1`](#rfc2181-10.2-1), [`RFC2181-10.3-1`](#rfc2181-10.3-1), [`RFC2181-10.3-2`](#rfc2181-10.3-2), [`RFC2181-11-2`](#rfc2181-11-2), [`RFC2181-11-3`](#rfc2181-11-3)
 
 ## Requirements
 
@@ -118,16 +113,16 @@ One MUST gap ([`RFC2181-5.1-1`](#rfc2181-5.1-1)): GeoDNS and AS112 never set the
 | `RFC2181-4.1-1` | To avoid these problems, servers when responding to queries using UDP must cause the reply to be sent with the source address field in the IP header set to the address that was in the destination address field of the IP header of the packet containing the query causing the response. (§4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestRFC2181ReplySourcedFromTheQueriedAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_clarifications_test.go#L58). **positive:** `unit/verify` [`TestRFC2181_UDPReplySourceAndPort`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_server_test.go#L347). **negative:** no negative test. **{single-polarity}:** each UDP listener binds one specific IP at internal/core/dnsserver/manager.go:160 so the kernel sources every reply from the query destination address, and ze has no wildcard-bind or explicit-source path that could send from another address |
 | `RFC2181-4.2-1` | Replies to all queries must be directed to the port from which they were sent. (§4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestRFC2181_UDPReplySourceAndPort`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_server_test.go#L352). **negative:** no negative test. **{single-polarity}:** the reply is written on the same socket the query arrived on via internal/core/dnsserver/handler.go:62 so miekg/dns directs it to the query source port, a property ze cannot violate |
 | `RFC2181-4.2-2` | For queries received by UDP the server must take note of the source port and use that as the destination port in the response. (§4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestRFC2181_UDPReplySourceAndPort`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_server_test.go#L357). **negative:** no negative test. **{single-polarity}:** miekg/dns ServeUDP records the datagram source port and uses it as the reply destination for the write at internal/core/dnsserver/handler.go:62, so ze always answers to the query source port |
-| `RFC2181-5.1-1` | The response must be marked as "truncated" if the entire RRSet will not fit in the response. (§5.1) | MUST | 5.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** geodns and as112 never set the TC bit or call miekg Truncate, and miekg WriteMsg at vendor/github.com/miekg/dns/server.go:747 packs and sends without auto-truncating, so an oversized RRSet would be sent unmarked |
+| `RFC2181-5.1-1` | The response must be marked as "truncated" if the entire RRSet will not fit in the response. (§5.1) | MUST | 5.1 | **positive:** `unit/verify` [`TestRFC2181TruncatedWhenRRSetDoesNotFit`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_test.go#L47). **negative:** `unit/verify` [`TestRFC2181TruncatedWhenRRSetDoesNotFit`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_test.go#L60) |
 | `RFC2181-5.2-1` | Consequently the use of differing TTLs in an RRSet is hereby deprecated, the TTLs of all RRs in an RRSet must be the same. (§5.2) | MUST | 5.2 | **positive:** `unit/verify` [`TestRFC2181_RRSetEqualTTL`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_server_test.go#L399). **negative:** no negative test. **{single-polarity}:** geodns assigns one TTL per host record set at internal/plugins/geodns/config.go:271 and as112 uses fixed per-zone TTL constants, so an emitted RRSet never carries unequal TTLs and no code path can produce one |
-| `RFC2181-5.3.1-2` | However, where SIG records are being returned in the answer section, in response to a query for SIG records, or a query for all records associated with a name (type=ANY) the entire SIG RRSet must be included, as for any other RR type. (§5.3.1) | MUST | 5.3.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze serves no SIG or DNSSEC records -- geodns emits only A/AAAA/SRV at internal/plugins/geodns/record.go:10 and as112 only SOA/NS/TXT, so there is no SIG RRSet to include |
-| `RFC2181-5.3.1-3` | Servers that receive responses containing SIG records in the authority section, or (probably incorrectly) as additional data, must understand that the entire RRSet has almost certainly not been included. (§5.3.1) | MUST | 5.3.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze's stub resolver extracts only answer-section A/AAAA/TXT/PTR/CNAME/MX/NS/SRV at internal/component/resolve/dns/resolver.go:299 and processes no SIG records, so there is no partial SIG RRSet to reason about |
-| `RFC2181-5.3.1-4` | Thus, they must not cache that SIG record in a way that would permit it to be returned should a query for SIG records be received at that server. (§5.3.1) | MUST NOT | 5.3.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** the resolver caches only records it extracted from the answer section at internal/component/resolve/dns/resolver.go:299 and never handles SIG, so an authority-section SIG can never be cached or returned |
+| `RFC2181-5.3.1-2` | However, where SIG records are being returned in the answer section, in response to a query for SIG records, or a query for all records associated with a name (type=ANY) the entire SIG RRSet must be included, as for any other RR type. (§5.3.1) | MUST | 5.3.1 | **positive:** `unit/verify` [`TestRFC2181WholeSIGRRSet`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_test.go#L246). **negative:** `unit/verify` [`TestRFC2181SectionSIGNotTheRRSet`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_test.go#L291) |
+| `RFC2181-5.3.1-3` | Servers that receive responses containing SIG records in the authority section, or (probably incorrectly) as additional data, must understand that the entire RRSet has almost certainly not been included. (§5.3.1) | MUST | 5.3.1 | **positive:** `unit/verify` [`TestRFC2181SectionSIGNotTheRRSet`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_test.go#L283). **negative:** `unit/verify` [`TestRFC2181WholeSIGRRSet`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_test.go#L234) |
+| `RFC2181-5.3.1-4` | Thus, they must not cache that SIG record in a way that would permit it to be returned should a query for SIG records be received at that server. (§5.3.1) | MUST NOT | 5.3.1 | **positive:** `unit/verify` [`TestRFC2181WholeSIGRRSet`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_test.go#L256). **negative:** `unit/verify` [`TestRFC2181SectionSIGNotCached`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_test.go#L323) |
 | `RFC2181-5.4-1` | Servers must never merge RRs from a response with RRs in their cache to form an RRSet. (§5.4) | MUST NOT | 5.4 | **positive:** `unit/verify` [`TestRFC2181_CacheReplacesRRSetNoMerge`](https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/rfc2181_cache_test.go#L234). **negative:** no negative test. **{single-polarity}:** the resolver cache replaces the whole RRSet for a name+type at internal/component/resolve/dns/cache.go:145 by removing the existing entry before storing the new records, so response RRs are never merged with cached ones |
 | `RFC2181-5.4-2` | If a response contains data that would form an RRSet with data in a server's cache the server must either ignore the RRs in the response, or discard the entire RRSet currently in the cache, as appropriate. (§5.4) | MUST | 5.4 | **positive:** `unit/verify` [`TestRFC2181FormingAnRRSetDiscardsTheWholeCachedSet`](https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/rfc2181_cache_rrset_test.go#L21). **positive:** `unit/verify` [`TestRFC2181_CacheReplacesRRSetNoMerge`](https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/rfc2181_cache_test.go#L242). **negative:** `unit/verify` [`TestRFC2181FormingAnRRSetDiscardsTheWholeCachedSet`](https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/rfc2181_cache_rrset_test.go#L31) |
-| `RFC2181-5.4.1-3` | Trustworthiness shall be, in order from most to least: + Data from a primary zone file, other than glue data, + Data from a zone transfer, other than glue, + The authoritative data included in the answer section of an authoritative reply. + Data from the authority section of an authoritative answer, + Glue from a primary zone, or glue from a zone transfer, + Data from the answer section of a non-authoritative answer, and non-authoritative data from the answer section of authoritative answers, + Additional information from an authoritative answer, Data from the authority section of a non-authoritative answer, Additional information from non-authoritative answers. (§5.4.1) | SHALL | 5.4.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze's resolver is a stub forwarder to one configured upstream at internal/component/resolve/dns/resolver.go:263 with a single-source cache keyed by name+type, so it never ranks data from competing trustworthiness sources |
-| `RFC2181-5.4.1-8` | When DNS security [RFC2065] is in use, and an authenticated reply has been received and verified, the data thus authenticated shall be considered more trustworthy than unauthenticated data of the same type. (§5.4.1) | SHALL | 5.4.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** the stub resolver performs no per-record trust ranking -- it relies on a validating upstream returning SERVFAIL at internal/component/resolve/dns/resolver.go:99 rather than comparing authenticated against unauthenticated data |
-| `RFC2181-5.4.1-9` | However DNSSEC aware servers must still correctly set the AA bit in responses to enable correct operation with servers that are not security aware (almost all currently). (§5.4.1) | MUST | 5.4.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze's authoritative servers implement no DNSSEC signing so the DNSSEC-aware precondition does not hold; the AA bit is nonetheless always set at internal/core/dnsserver/handler.go:73 |
+| `RFC2181-5.4.1-3` | Trustworthiness shall be, in order from most to least: + Data from a primary zone file, other than glue data, + Data from a zone transfer, other than glue, + The authoritative data included in the answer section of an authoritative reply. + Data from the authority section of an authoritative answer, + Glue from a primary zone, or glue from a zone transfer, + Data from the answer section of a non-authoritative answer, and non-authoritative data from the answer section of authoritative answers, + Additional information from an authoritative answer, Data from the authority section of a non-authoritative answer, Additional information from non-authoritative answers. (§5.4.1) | SHALL | 5.4.1 | **positive:** `unit/verify` [`TestRFC2181AliasTargetNotAuthoritative`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_test.go#L185). **positive:** `unit/verify` [`TestRFC2181LowerTrustNeverDisplacesHigher`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_test.go#L100). **negative:** `unit/verify` [`TestRFC2181HigherTrustReplacesLower`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_test.go#L147) |
+| `RFC2181-5.4.1-8` | When DNS security [RFC2065] is in use, and an authenticated reply has been received and verified, the data thus authenticated shall be considered more trustworthy than unauthenticated data of the same type. (§5.4.1) | SHALL | 5.4.1 | **positive:** no positive test. **negative:** no negative test. **{feature-declined}:** "to enable correct operation with servers that are not security aware (almost all currently)"; optional-only for fttx-edge, post-release: ze offers no DNSSEC validation, so no reply is ever authenticated and verified. internal/plugins/dnsresolver/forward.go::upstreamQuery sends every upstream query with the EDNS0 DO bit clear, so the resolver is not security-aware, and the stub at internal/component/resolve/dns/resolver.go relies on a validating upstream. The owner ruling that DNSSEC is optional for fttx-edge is recorded in rfc/short/rfc4034.md (Enrolment reason, commit 5ff4834b67); validation is homed in plan/post-release/features/spec-dns-resolver-dnssec-validation.md |
+| `RFC2181-5.4.1-9` | However DNSSEC aware servers must still correctly set the AA bit in responses to enable correct operation with servers that are not security aware (almost all currently). (§5.4.1) | MUST | 5.4.1 | **positive:** `unit/verify` [`TestRFC2181AuthoritativeReplySetsAA`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc2181_aa_test.go#L29). **negative:** `unit/verify` [`TestRFC2181ReplyAAClear`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_test.go#L361) |
 | `RFC2181-5.5-4` | Where duplicates are required this way, the TTL transmitted in each case must be the same. (§5.5) | MUST | 5.5 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze serves no AXFR -- the geodns YANG notes this at internal/plugins/geodns/yang/ze-geodns-conf.yang:95 and no plugin emits an SOA twice in one message, so no duplicate RRSet arises |
 | `RFC2181-8-1` | It is hereby specified that a TTL value is an unsigned number, with a minimum value of 0, and a maximum value of 2147483647. That is, a maximum of 2^31 - 1. When transmitted, this value shall be encoded in the less significant 31 bits of the 32 bit TTL field, with the most significant, or sign, bit set to zero. (§8) | SHALL | 8 | **positive:** `unit/verify` [`TestRFC2181TTLTransmittedWithSignBitClear`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_clarifications_test.go#L173). **positive:** `unit/verify` [`TestRFC2181_TTLSignBitBound`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_config_test.go#L226). **negative:** `unit/verify` [`TestRFC2181_TTLSignBitBound`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_config_test.go#L239) |
 | `RFC2181-10.1-4` | An alias name (label of a CNAME record) may, if DNSSEC is in use, have SIG, NXT, and KEY RRs, but may have no other data. (§10.1) | MUST NOT | 10.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze serves no CNAME records -- geodns emits only A/AAAA/SRV at internal/plugins/geodns/record.go:10 and as112 only SOA/NS/TXT, so no CNAME can coexist with other data |
@@ -190,13 +185,7 @@ One MUST gap ([`RFC2181-5.1-1`](#rfc2181-5.1-1)): GeoDNS and AS112 never set the
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC2181-5.1-1`](#rfc2181-5.1-1) The response must be marked as "truncated" if the entire RRSet will not fit in the response. (§5.1) | {gap}, no test | geodns and as112 never set the TC bit or call miekg Truncate, and miekg WriteMsg at vendor/github.com/miekg/dns/server.go:747 packs and sends without auto-truncating, so an oversized RRSet would be sent unmarked |
-| [`RFC2181-5.3.1-2`](#rfc2181-5.3.1-2) However, where SIG records are being returned in the answer section, in response to a query for SIG records, or a query for all records associated with a name (type=ANY) the entire SIG RRSet must be included, as for any other RR type. (§5.3.1) | no test | no test carries this requirement id; annotated {not-applicable}: ze serves no SIG or DNSSEC records -- geodns emits only A/AAAA/SRV at internal/plugins/geodns/record.go:10 and as112 only SOA/NS/TXT, so there is no SIG RRSet to include |
-| [`RFC2181-5.3.1-3`](#rfc2181-5.3.1-3) Servers that receive responses containing SIG records in the authority section, or (probably incorrectly) as additional data, must understand that the entire RRSet has almost certainly not been included. (§5.3.1) | no test | no test carries this requirement id; annotated {not-applicable}: ze's stub resolver extracts only answer-section A/AAAA/TXT/PTR/CNAME/MX/NS/SRV at internal/component/resolve/dns/resolver.go:299 and processes no SIG records, so there is no partial SIG RRSet to reason about |
-| [`RFC2181-5.3.1-4`](#rfc2181-5.3.1-4) Thus, they must not cache that SIG record in a way that would permit it to be returned should a query for SIG records be received at that server. (§5.3.1) | no test | no test carries this requirement id; annotated {not-applicable}: the resolver caches only records it extracted from the answer section at internal/component/resolve/dns/resolver.go:299 and never handles SIG, so an authority-section SIG can never be cached or returned |
-| [`RFC2181-5.4.1-3`](#rfc2181-5.4.1-3) Trustworthiness shall be, in order from most to least: + Data from a primary zone file, other than glue data, + Data from a zone transfer, other than glue, + The authoritative data included in the answer section of an authoritative reply. + Data from the authority section of an authoritative answer, + Glue from a primary zone, or glue from a zone transfer, + Data from the answer section of a non-authoritative answer, and non-authoritative data from the answer section of authoritative answers, + Additional information from an authoritative answer, Data from the authority section of a non-authoritative answer, Additional information from non-authoritative answers. (§5.4.1) | no test | no test carries this requirement id; annotated {not-applicable}: ze's resolver is a stub forwarder to one configured upstream at internal/component/resolve/dns/resolver.go:263 with a single-source cache keyed by name+type, so it never ranks data from competing trustworthiness sources |
-| [`RFC2181-5.4.1-8`](#rfc2181-5.4.1-8) When DNS security [RFC2065] is in use, and an authenticated reply has been received and verified, the data thus authenticated shall be considered more trustworthy than unauthenticated data of the same type. (§5.4.1) | no test | no test carries this requirement id; annotated {not-applicable}: the stub resolver performs no per-record trust ranking -- it relies on a validating upstream returning SERVFAIL at internal/component/resolve/dns/resolver.go:99 rather than comparing authenticated against unauthenticated data |
-| [`RFC2181-5.4.1-9`](#rfc2181-5.4.1-9) However DNSSEC aware servers must still correctly set the AA bit in responses to enable correct operation with servers that are not security aware (almost all currently). (§5.4.1) | no test | no test carries this requirement id; annotated {not-applicable}: ze's authoritative servers implement no DNSSEC signing so the DNSSEC-aware precondition does not hold; the AA bit is nonetheless always set at internal/core/dnsserver/handler.go:73 |
+| [`RFC2181-5.4.1-8`](#rfc2181-5.4.1-8) When DNS security [RFC2065] is in use, and an authenticated reply has been received and verified, the data thus authenticated shall be considered more trustworthy than unauthenticated data of the same type. (§5.4.1) | no test | no test carries this requirement id; annotated {feature-declined}: "to enable correct operation with servers that are not security aware (almost all currently)"; optional-only for fttx-edge, post-release: ze offers no DNSSEC validation, so no reply is ever authenticated and verified. internal/plugins/dnsresolver/forward.go::upstreamQuery sends every upstream query with the EDNS0 DO bit clear, so the resolver is not security-aware, and the stub at internal/component/resolve/dns/resolver.go relies on a validating upstream. The owner ruling that DNSSEC is optional for fttx-edge is recorded in rfc/short/rfc4034.md (Enrolment reason, commit 5ff4834b67); validation is homed in plan/post-release/features/spec-dns-resolver-dnssec-validation.md |
 | [`RFC2181-5.5-4`](#rfc2181-5.5-4) Where duplicates are required this way, the TTL transmitted in each case must be the same. (§5.5) | no test | no test carries this requirement id; annotated {not-applicable}: ze serves no AXFR -- the geodns YANG notes this at internal/plugins/geodns/yang/ze-geodns-conf.yang:95 and no plugin emits an SOA twice in one message, so no duplicate RRSet arises |
 | [`RFC2181-10.1-4`](#rfc2181-10.1-4) An alias name (label of a CNAME record) may, if DNSSEC is in use, have SIG, NXT, and KEY RRs, but may have no other data. (§10.1) | no test | no test carries this requirement id; annotated {not-applicable}: ze serves no CNAME records -- geodns emits only A/AAAA/SRV at internal/plugins/geodns/record.go:10 and as112 only SOA/NS/TXT, so no CNAME can coexist with other data |
 | [`RFC2181-10.1.1-1`](#rfc2181-10.1.1-1) Care must therefore be taken to be very clear whether the label, or the value (the canonical name) of a CNAME resource record is intended. (§10.1.1) | no test | no test carries this requirement id; annotated {not-applicable}: ze authors no CNAME records at internal/plugins/geodns/record.go:10, so there is no label-versus-canonical-name ambiguity for an implementation to resolve |
@@ -214,8 +203,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRFC2181ReplySourcedFromTheQueriedAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_clarifications_test.go#L58) | unit/verify | revert, verified |
-| positive | [`TestRFC2181_UDPReplySourceAndPort`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_server_test.go#L347) | unit/verify | revert, verified |
+| positive | [`TestRFC2181ReplySourcedFromTheQueriedAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_clarifications_test.go#L58) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC2181_UDPReplySourceAndPort`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_server_test.go#L347) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC2181-4.2-1`](#rfc2181-4.2-1)
 
@@ -243,7 +232,10 @@ The response must be marked as "truncated" if the entire RRSet will not fit in t
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC2181-5.1-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC2181TruncatedWhenRRSetDoesNotFit`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_test.go#L60) | unit/verify | mutant, verified |
+| positive | [`TestRFC2181TruncatedWhenRRSetDoesNotFit`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_test.go#L47) | unit/verify | mutant, verified |
 
 ### [`RFC2181-5.2-1`](#rfc2181-5.2-1)
 
@@ -261,7 +253,10 @@ However, where SIG records are being returned in the answer section, in response
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC2181-5.3.1-2, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC2181SectionSIGNotTheRRSet`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_test.go#L291) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC2181WholeSIGRRSet`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_test.go#L246) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC2181-5.3.1-3`](#rfc2181-5.3.1-3)
 
@@ -269,7 +264,10 @@ Servers that receive responses containing SIG records in the authority section, 
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC2181-5.3.1-3, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC2181WholeSIGRRSet`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_test.go#L234) | unit/verify | mutant, verified |
+| positive | [`TestRFC2181SectionSIGNotTheRRSet`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_test.go#L283) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC2181-5.3.1-4`](#rfc2181-5.3.1-4)
 
@@ -277,7 +275,10 @@ Thus, they must not cache that SIG record in a way that would permit it to be re
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC2181-5.3.1-4, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC2181SectionSIGNotCached`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_test.go#L323) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC2181WholeSIGRRSet`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_test.go#L256) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC2181-5.4-1`](#rfc2181-5.4-1)
 
@@ -307,7 +308,11 @@ Trustworthiness shall be, in order from most to least: + Data from a primary zon
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC2181-5.4.1-3, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC2181HigherTrustReplacesLower`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_test.go#L147) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC2181AliasTargetNotAuthoritative`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_test.go#L185) | unit/verify | mutant, verified |
+| positive | [`TestRFC2181LowerTrustNeverDisplacesHigher`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_test.go#L100) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC2181-5.4.1-8`](#rfc2181-5.4.1-8)
 
@@ -323,7 +328,10 @@ However DNSSEC aware servers must still correctly set the AA bit in responses to
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC2181-5.4.1-9, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC2181ReplyAAClear`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_test.go#L361) | unit/verify | mutant, verified |
+| positive | [`TestRFC2181AuthoritativeReplySetsAA`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc2181_aa_test.go#L29) | unit/verify | mutant, verified |
 
 ### [`RFC2181-5.5-4`](#rfc2181-5.5-4)
 

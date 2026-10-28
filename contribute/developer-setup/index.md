@@ -40,55 +40,58 @@ This detects your OS (macOS with Homebrew or Debian/Ubuntu with apt), installs
 missing tools, vendors Go dependencies, and reports what it did.
 
 `le` is the native development-tool personality built from `cmd/ze`. The root
-launcher executes the cached `bin/le` binary and builds it only when absent.
+`./le` is a dispatcher, and `bin/le` is an identical copy of it that `./le`
+installs whenever the two differ. Both run the newest build in
+`bin/builds/<UTC commit time>-<short sha>/le`.
 Setup behavior lives in `internal/le/setup.Answer`.
 
-The cache is an existence test, never a freshness test, so a change under
-`internal/le/` does not reach `./le` on its own.
-<!-- source: le -- the binary existence cache -->
+Builds follow HEAD, never your working tree, because a peer session's
+half-written source would otherwise break every call in every session. Each
+build records the git tree hash of le's inputs (`internal cmd pkg api vendor
+go.mod go.sum feature-gates.txt feature-tags`) at the commit it came from.
+When a commit changes them, the next `./le` call starts one build of HEAD in
+the background and keeps running the newest build; the new one is smoke-tested
+and renamed into place only when it passes, so after a `git pull` the new
+commands arrive a couple of minutes later with no command of yours waiting. A
+commit that changes no input reuses the newest build. On a fresh checkout with
+no build at all, the first call builds HEAD in the foreground.
 
-The launcher does not rebuild by itself, because a peer session's half-written
-source would then fail every call in every session. It tells you instead. About
-one call in sixteen compares the binary with the build inputs and prints one
-line on stderr when a COMMITTED file is newer:
-
-```
-le: bin/le is older than committed sources; refresh it with './le --update'
-```
-
-A file that git holds as modified is never counted, so a peer's work in progress
-says nothing. The check runs after your command, so it never delays the answer
-you asked for.
-<!-- source: le -- warn_when_stale, committed_change_is_newer -->
-
-`./le --update` builds the working tree into `bin/le`:
+A HEAD that fails to build is reported once on stderr, with its log at
+`bin/builds/.failed-<commit>.log`, and the newest good build keeps running. A
+build that does not start is moved aside to `bin/builds/.failed-<name>` and the
+call runs the next newest, saying so in one line. When the newest build starts
+but misbehaves, take it out by hand:
 
 ```bash
-./le --update
+./le rollback
 ```
 
-It renames the new binary into place rather than writing through the file. A peer
-executing the old one therefore keeps the inode it started with. A failed build
-leaves `bin/le` as it was and says so. With a command after it, the option
-updates first and then runs that command against the new binary.
+It moves the newest build aside the same way, so the next call runs the one
+before it, and HEAD is not built again until a commit changes the inputs.
+Nothing is deleted: a peer executing that build keeps its file.
+`./le help` lists `rollback` and Tab completes it; run it as `./le rollback`,
+because only the launcher moves a build.
+`./le --update` is gone and says so with exit 2.
+<!-- source: le -- choose_build, start_candidate, head_rejected, set_aside, the rollback action -->
+<!-- source: internal/le/rollback/rollback.go -- Answer -->
 
-`--update` is the answer to a stale shared binary. `--name` below is the answer
-to reading a result back from your own uncommitted edits.
-<!-- source: le -- update_le -->
-
-Do not delete `bin/le`. Several sessions share one checkout and one of them can
-be executing that file right now. Ask for a build of your own instead:
+Do not delete `bin/le` or anything in `bin/builds/`. Several sessions share one
+checkout and one of them can be executing that file right now. When you need
+le to carry your own uncommitted edits, ask for a build of your own instead:
 
 ```bash
-./le --name mywork verify current
+./le --name session verify current
 ```
 
 `--name` comes first, before the command, and the launcher consumes it. Every
-argument after it reaches the binary unchanged. The build lands in
-`bin/le-mywork/le`, which `bin/` already keeps out of git, and it runs on every
-call, so the toolchain decides what to recompile and the binary carries your
-edits. The shared `bin/le` is never written and never waits for a peer.
-<!-- source: le -- the --name option -->
+argument after it reaches the binary unchanged. `--name session` names the
+build after `CLAUDE_CODE_SESSION_ID` (`s-<its first eight characters>`) and
+refuses with exit 2 when that variable is unset; `--name mywork` picks the name
+yourself. The build lands in `bin/le-<name>/le`, which `bin/` already keeps out
+of git, and it is rebuilt from the working tree on every call, so the toolchain
+decides what to recompile and the binary carries your edits. The shared builds
+are never written and never wait for a peer.
+<!-- source: le -- the --name option, session_name -->
 
 A name accepts letters, digits, dot, underscore and hyphen. A name carrying `/`
 or `..` is refused with a message and exit 2, never repaired into something safe.
@@ -99,7 +102,7 @@ build without repeating the option. A binary that is not the one you named
 refuses to answer and reports both names:
 
 ```
-le: --name asked for 'mywork' and this process is 'le' (/home/you/ze/bin/le).
+le: --name asked for 'mywork' and this process is 'le' (/home/you/ze/bin/builds/20261025T114143Z-00b9273a2a/le).
     Reach the named build through ./le --name mywork, never through a hardcoded binary path.
 ```
 <!-- source: cmd/ze/le_build_name.go -- refuseWrongBuildName -->
@@ -142,6 +145,124 @@ Run the slash command inside a Claude Code session. The plugin and the binary
 it names fail the same way and have different fixes, so the report says which
 of the two is absent.
 
+### Tool caches: `le exec`
+
+`./le exec <path> [args...]` runs a program with its caches in the one per-user
+cache, `$XDG_CACHE_HOME/ze`, else `~/.cache/ze`, instead of each tool's default
+folder (`~/Library/Caches` on macOS). It sets four variables, creates their
+directories, and then replaces itself with the program, so the program's exit
+status is the caller's and every argument after the path reaches it untouched.
+
+| Variable | Directory under the per-user cache |
+|----------|------------------------------------|
+| `GOCACHE` | `go-cache` |
+| `GOPLSCACHE` | `gopls` |
+| `GOLANGCI_LINT_CACHE` | `golangci-lint-cache` |
+| `STATICCHECK_CACHE` | `staticcheck-matrix` |
+
+When the working directory is inside a Ze checkout, the program also gets Ze's
+patched GOROOT, with `GOTOOLCHAIN=local` and the tree's `bin` first on PATH, so
+gopls analyzes the standard library Ze compiles. Anywhere else it gets the
+GOROOT, GOTOOLCHAIN and PATH its caller had, and never a patched tree, so a tool
+on another repository sees that repository's Go.
+
+A bare name is looked up on PATH, skipping any file that carries the shim
+marker. `le exec` refuses, with exit 1, a path that does not exist, is not an
+executable file, or is a shim `./le setup` wrote, because a shim handed back to
+`le exec` would start it again in a loop; each refusal names the path and
+`./le setup`. Warm, `./le exec /usr/bin/true` takes about 50 ms on an Apple
+silicon Mac.
+<!-- source: internal/le/exec/exec.go -- programEnvironment, resolve, ShimMarker -->
+<!-- source: internal/le/go/stdpatch/gen/caller.go -- CallerEnvironment -->
+
+### Tool shims, PATH and the Go cache setting
+
+`./le setup install` writes a shim for `gopls`, `golangci-lint` and
+`staticcheck`, the tool rows marked `Shim` in the setup table, into the shim
+directory it chooses from PATH. Each shim is a short `sh` script, mode 0755,
+that carries the `le exec` marker on its second line and ends with:
+
+```sh
+exec '/path/to/ze/le' exec '/path/to/real/gopls' "$@"
+```
+
+The shim directory is the earliest PATH entry that is:
+
+- an absolute path under HOME
+- an existing directory this user can write
+- outside any ze checkout (a directory holding `go.mod` beside `feature-gates.txt`, or under one)
+- ahead of every PATH directory holding a real `gopls`, `golangci-lint` or `staticcheck`
+
+The PATH judged here is the caller's: the one the shell that ran `./le` had,
+which is the one an editor or a new shell searches. le's own PATH is not it,
+because le puts the patched GOROOT's `bin` first before it runs any action
+(see above), and that tree lives under the per-user cache, so under HOME and
+writable. Setup restores the caller's PATH the way `le exec` does, dropping
+every patched tree's `bin` a parent le left on it, and judges the shim
+directory, the real tools and the `gopls-answers` row against that.
+
+A directory listed twice counts at its first position, the one a lookup
+reaches. The Go bin directory never qualifies, because it holds the real tools,
+and a shim there would be overwritten by the next `go install`. Only when no
+entry qualifies do the shims go in `~/bin`, and the `shim-dir` row is pending
+until PATH reaches `~/bin` first.
+
+The real tool is the first copy on PATH outside the shim directory that is not
+itself a shim. An editor, the Claude LSP or a shell that finds the tool by PATH
+then starts it through `le exec`, so its cache lands under `~/.cache/ze` with no
+shell variable. Each run rewrites a shim whose checkout or tool path changed,
+so after moving the checkout or reinstalling a tool, run `./le setup install`
+again. When the checkout a shim names is gone, the shim exits 1 and says which
+`le` is missing and that `./le setup install` from the current checkout
+rewrites it. Setup never overwrites a file in the shim directory that it did
+not write: the row is pending and prints the `mv` command that moves the file
+aside. A shimmed tool with no real copy on PATH is missing, and its own tool row
+installs it; a shim found first on PATH does not count as the tool.
+
+Once a tool's shim is current in the shim directory, the same run removes every
+older shim for that tool in `~/bin`, in every other directory of the caller's
+PATH, and in every directory of le's own PATH (the patched tree's `bin`, where
+an earlier setup wrote them), and the
+tool's row names each one it removed. Directories are compared by identity, so
+a second spelling of the shim directory (`~/Bin` for `~/bin` on a
+case-insensitive disk, or a link) is the same directory and keeps its shims. Only a file carrying the `le exec` marker
+under a shimmed tool's name is removed, so a file setup did not write is never
+touched. `check` removes nothing and reports the old shims as work left.
+
+| Row | Present when | Otherwise |
+|-----|--------------|-----------|
+| `<tool>-shim` | `<shim directory>/<tool>` runs `le exec` on the current real tool, and no older shim for it is left elsewhere | install writes it and removes the old shims; `check` reports it missing |
+| `shim-dir` | a PATH entry qualifies; the row names it | pending, with the shims in `~/bin` and the lines below |
+| `go-env-gocache` | `go env GOCACHE` names `<per-user cache>/go-cache`, links followed | install runs `go env -w GOCACHE=<that path>` and prints the old and new value; `check` reports it |
+
+le never edits a shell file. When no PATH entry qualifies, setup prints the
+line that puts `~/bin` first for `~/.zshenv` (`~/.profile` for another shell)
+and, when `nu` is on PATH, the line for the env file `nu -c '$nu.env-path'`
+names:
+
+```sh
+export PATH='/Users/you/bin':"$PATH"
+```
+
+```nu
+$env.PATH = ($env.PATH | split row (char esep) | prepend r#'/Users/you/bin'# | uniq)
+```
+
+Plain `go` outside le reads GOCACHE from `go env`, so the `go-env-gocache` row
+is what keeps `go build` in any shell out of `~/Library/Caches/go-build`. It
+reads the setting with GOCACHE removed from the environment, so le's own value
+does not hide it. When `go env -w` fails, for example under `GOENV=off`, the row
+fails with the reason and prints the exact `go env -w` command.
+
+With the shims in place, the `GOPLSCACHE`, `GOLANGCI_LINT_CACHE` and
+`STATICCHECK_CACHE` lines in `~/.zshenv` or `env.nu` are no longer needed:
+`le exec` sets them. The `gopls-answers` row names the gopls the caller's PATH
+reaches and whether it is the shim; a gopls started by absolute path, or one ahead of
+the shim directory, keeps its default cache.
+<!-- source: internal/le/setup/shims.go -- callerPath, chooseShimDir, shimDirRefusal, visitShim, strayShims, shimScript, realTool, visitShimDir, notePathLines, visitGoCacheSetting -->
+<!-- source: internal/le/setup/tools.go -- Tool.Shim -->
+<!-- source: internal/le/setup/servers.go -- goplsAnswerer -->
+
 ## What It Installs
 
 ### Build and Lint
@@ -170,7 +291,7 @@ Regenerate the checked-in protobuf Go files after you change
 `api/proto/ze.proto` or the module path:
 
 ```bash
-./le setup proto-generate
+./le setup proto
 ```
 
 The action builds both protoc plugins from the vendored module versions, runs
@@ -236,18 +357,18 @@ kernel that lacks one.
 
 - **macOS, the `ze` Colima profile:** the labs run on the Colima profile `ze`,
   which boots Ze's docker-host image (Ze's runtime kernel, dockerd,
-  containerd). `./le setup docker-host start` builds the image when needed and
+  containerd). `./le setup docker host start` builds the image when needed and
   runs the profile, never touching Colima's `default` profile, then makes
   `colima-ze` the current Docker context so a plain `docker` reaches it. With DOCKER_HOST
   unset, every lab names the profile's socket, `ze/docker.sock` under
   Colima's home (`$COLIMA_HOME` when that directory exists, else
   `~/.colima`), itself, whatever the current Docker context says; when that socket is absent
   the lab stops before it builds anything and names
-  `./le setup docker-host start`. It never falls back to `default` or to
+  `./le setup docker host start`. It never falls back to `default` or to
   Docker Desktop. A DOCKER_HOST you set is used as it is, and the lab's Docker
-  kernel check judges that daemon. `./le setup docker-host check` names
+  kernel check judges that daemon. `./le setup docker host check` names
   anything missing (colima, lima, docker, `brew install e2fsprogs` for
-  `mkfs.ext4`), and `./le setup docker-host stop` stops it. The image build and
+  `mkfs.ext4`), and `./le setup docker host stop` stops it. The image build and
   the profile's lifecycle are in `docs/architecture/appliance/docker-host.md`.
 - **macOS, the QEMU guest:** the second route boots the same docker-host
   image under QEMU with HVF, on Ze's own arm64 runtime kernel, and runs the
@@ -259,23 +380,23 @@ kernel that lacks one.
   `./le test qemu docker-lab lab "test integration interop-ipsec"`. With no
   `lab` the action stops after the guest's Docker kernel check.
 - **Linux:** the labs run on the host's own Docker, on a kernel that carries
-  every registered feature. `./le setup docker-kernel check` asks the
+  every registered feature. `./le setup docker kernel check` asks the
   Docker daemon in hand and names each missing feature. It cross-builds the
   linux `ze` it probes with for the daemon's architecture
   (`tmp/qemu/linux-<arch>/ze`); `ze <path>` names another, which must be a
   linux executable for that architecture.
-  `./le setup docker-kernel install` puts Ze's cached runtime kernel under
+  `./le setup docker kernel install` puts Ze's cached runtime kernel under
   `/boot` and makes it GRUB's default, one stated `sudo` step at a time. It
   needs `GRUB_DEFAULT=saved` in `/etc/default/grub`, never reboots, and refuses
   on macOS. A kernel built with `--builder qemu` on a host with Docker is
   installed with `builder qemu`, because the cache entry is keyed by backend. When the daemon applies AppArmor (Ubuntu's default), the check runs its
   probe under Ze's `ze-kernel-probe` profile, because Docker's `docker-default`
-  denies what the probe does; `./le setup docker-kernel apparmor confirm
+  denies what the probe does; `./le setup docker kernel apparmor confirm
   ze-kernel-probe` installs and loads it, one stated `sudo` step at a time. The
   lab peers that write their network sysctls while they run (the VRRP
   scenarios' ze, strongSwan in some IPsec scenarios) run under the one generic
   profile `ze-lab-net-sysctl` the same way, loaded with
-  `./le setup docker-kernel apparmor confirm ze-lab-net-sysctl`; the action with no
+  `./le setup docker kernel apparmor confirm ze-lab-net-sysctl`; the action with no
   `confirm` lists every profile and the steps each one runs.
 - **BuildKit:** the interop labs build some images with a named build context,
   which only BuildKit accepts, and the docker CLI reaches BuildKit through its
@@ -310,7 +431,7 @@ guest", is the guest path; the scheduled nightly runs the same path on amd64
 under KVM (`docs/architecture/testing/ci-workflows.md`).
 
 <!-- source: internal/le/test/qemu/dockerlab.go -- runDockerLabHere, runDockerLab -->
-<!-- source: internal/le/setup/dockerkernel/dockerkernel.go -- runDockerKernelCheck, runDockerKernelInstall -->
+<!-- source: internal/le/setup/docker/kernel/dockerkernel.go -- runDockerKernelCheck, runDockerKernelInstall -->
 
 <!-- source: internal/appliance/homebrew.go -- brewPrefixes, brewKegDirs -->
 <!-- source: internal/le/setup/actions.go -- Answer -->
@@ -385,7 +506,7 @@ even after the command succeeds. Log out and back in, or run one command with
 the new group:
 
 ```bash
-sg kvm -c './le test qemu vpp-hugepages-test'
+sg kvm -c './le test qemu vpp-hugepages'
 ```
 
 Setup distinguishes the two states: `kvm-access` reports `pending` when the
@@ -455,11 +576,19 @@ section governs each of them.
 
 ## After Setup
 
-Verify everything works:
+Check that the checkout builds and its tests run with one scoped package test:
 
 ```bash
-./le verify current
+./le job run label unit-pkg command go test ./internal/core/textbuf/
 ```
+
+`./le verify changed` is the day-to-day evidence once you have a change: it
+judges only the change set against the upstream, so on a fresh clone it judges
+nothing and proves nothing about the setup.
+
+The full verification, `./le verify current`, is Thomas's release check. It
+refuses unless stdin and stdout are a terminal, so it is started by hand at one
+when a release needs it, never from an agent or a script.
 
 Check that appliance tools are detected:
 

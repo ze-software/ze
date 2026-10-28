@@ -14,27 +14,27 @@ This file is intentionally denormalized for AI use. It includes the high-signal 
 - Dataplane: Linux netlink, nftables, eBPF, AF_PACKET, psample, optional VPP integrations, and namespace-aware testing.
 - Release state: pre-release, main-branch builds, no tagged stable release yet.
 - License and repos: AGPLv3. Canonical repository: https://github.com/ze-software/ze. Discord: https://discord.gg/T8s7CjPDne.
-- Current generated counts: 52 shipped or experimental feature cards, 488 CLI commands, 38 config sections, 91 plugin registrations, 52 direct Go dependencies, 44 weekly change entries.
-- Test evidence counts: 38,400+ unit tests, 91 fuzz targets, 2,500+ end-to-end transcript steps, 209 interop scenarios across 11 target implementations.
+- Current generated counts: 52 shipped or experimental feature cards, 490 CLI commands, 38 config sections, 95 plugin registrations, 52 direct Go dependencies, 45 weekly change entries.
+- Test evidence counts: 39,400+ unit tests, 92 fuzz targets, 2,600+ end-to-end transcript steps, 218 interop scenarios across 11 target implementations.
 - Classified planning inventory (not release-readiness proof): [roadmap](https://ze-software.net/project/roadmap/index.md), [snapshot JSON](https://ze-software.net/data/release-roadmap.json).
-- Generated date: 2026-10-24.
+- Generated date: 2026-10-28.
 
 ## Quality and verification model
 
 Ze uses layered proof because bugs appear at different boundaries.
 
-- Local Go tests: package behavior, parser rules, encoders, state transitions, validation paths, and error shapes. Current scale: 38,400+ unit tests.
-- Race, coverage, and fuzz: fuzz targets are normal Go tests with generated input. Current scale: 91 fuzz targets.
+- Local Go tests: package behavior, parser rules, encoders, state transitions, validation paths, and error shapes. Current scale: 39,400+ unit tests.
+- Race, coverage, and fuzz: fuzz targets are normal Go tests with generated input. Current scale: 92 fuzz targets.
 - gomu mutation checks: mutate production Go code and rerun tests to find weak assertions. gomu is advisory, not the default CI gate.
 - Functional `.ci` transcripts: drive processes, CLI commands, files, HTTP, syslog, peers, daemons, exits, and BGP wire expectations. BGP failures are decoded structurally, not shown as raw hex only.
 - Browser `.wb` transcripts: drive the rendered web UI through real browser flows.
 - Editor `.et` transcripts: drive the headless interactive editor.
 - QEMU: runs Linux-only behavior from macOS or CI where netlink, nftables, eBPF, PPP, network namespaces, and kernel modules exist.
-- Interop: 209 scenarios against 11 target implementations, including FRR, BIRD, GoBGP, RustyBGP, OpenBGPD, ExaBGP, and other real daemons where applicable.
+- Interop: 218 scenarios against 11 target implementations, including FRR, BIRD, GoBGP, RustyBGP, OpenBGPD, ExaBGP, and other real daemons where applicable.
 - Verify workflow: `./le verify worktree` runs the whole native verification population against a fixed commit in a detached worktree, writes stage logs under `tmp/`, groups related failures, and prints narrow rerun commands. `./le repo` is the narrower handoff gate.
 - Rule for regressions: do not hide a failure with a skip or loose assertion. Move the proof to the layer that can see the real behavior, add the narrow test, rerun it, then rerun the gate that should have caught it.
 
-Useful commands: `go test -race -run TestName ./internal/...`, `./le test fuzz run`, `gomu run`, `./le test bgp plugin 42 -v`, `./le test qemu netns-test`, `./le test integration interop`, `./le verify evidence release-candidate`.
+Useful commands: `go test -race -run TestName ./internal/...`, `./le test fuzz run`, `gomu run`, `./le test bgp plugin 42 -v`, `./le test qemu netns`, `./le test integration interop`, `./le verify evidence release-candidate`.
 
 ## Comparison positioning
 
@@ -136,7 +136,7 @@ Top-level YANG-derived config roots. Child names are direct children only, enoug
 - `rib`: System RIB configuration. The system RIB takes the best route each protocol offers and selects one system best for each prefix. The FIB plugins program that winner into the kernel with netlink, into VPP... Children: distance, fib-withhold.
 - `routing-table`: Named routing table definitions. Each entry maps a name to a kernel routing table ID. Ze builds one registry from these entries, and a static route or a policy route resolves its table name against that registry. The name default is built-in and resolves to table... Children: table.
 - `rsvp-te`: RSVP-TE traffic engineering configuration RSVP-TE traffic engineering configuration. Signaling is IPv4 only. Without a router-id the engine stays idle, and no tunnel and no bypass signals. RSVP-TE does not consume a... Children: bypass, interface, refresh-multiplier, refresh-period, reservation-policy, router-id, tunnel.
-- `service`: Service settings. The container holds the settings of each service Ze runs, and the as112 container under it configures the AS112 node. Children: as112, dhcp-server, geodns, image-server, tftp-server.
+- `service`: Service settings. The container holds the settings of each service Ze runs, and the as112 container under it configures the AS112 node. Children: as112, dhcp-server, dns-resolver, geodns, image-server, tftp-server.
 - `static`: Static route configuration. Ze programs each route into the kernel through netlink, or into the VPP dataplane, and marks it with the static protocol number. A route the backend cannot program is skipped and... Children: table.
 - `storage`: Storage device management The container holds the smart block alone. Ze reads it at config load and at each reload, and starts or stops the health manager to match. Children: smart.
 - `sysctl`: Kernel tunable management. A setting entry applies to the host, and a profile entry applies to the interface units that name the profile. Ze validates a key it knows against the type and the range of that... Children: profile, setting.
@@ -205,6 +205,7 @@ Each registration comes from the Go runtime registry. Config roots come from plu
 - `ddos-local`: DDoS local responder: on-host nft drop on attack detection Config roots: ddos/local. Dependencies: firewall. Optional: none. Start after (order only): none. YANG files: 1. Source: `internal/plugins/ddos/local`.
 - `ddos-observe`: DDoS observability: incident store and show ddos status/incidents CLI Config roots: ddos/observe. Dependencies: none. Optional: none. Start after (order only): none. YANG files: 1. Source: `internal/plugins/ddos/observe`.
 - `dhcpserver`: DHCP server: address assignment for LAN clients (RFC 2131) Config roots: service. Dependencies: none. Optional: none. Start after (order only): interface. YANG files: 1. Source: `internal/plugins/dhcpserver`.
+- `dnsresolver`: LAN DNS resolver: answers recursive queries from allowed prefixes by forwarding to upstream resolvers (RFC 1035, RFC 2181) Config roots: service. Dependencies: none. Optional: none. Start after (order only): none. YANG files: 2. Source: `internal/plugins/dnsresolver`.
 - `exabgp-bridge`: In-process ExaBGP compatibility bridge: runs an operator ExaBGP-format script as a subprocess and translates to/from ze events (RFC-agnostic transport shim) Config roots: exabgp. Dependencies: bgp. Optional: none. Start after (order only): none. YANG files: 1. Source: `internal/plugins/exabgp/bridgeplugin`.
 - `fib-kernel`: FIB kernel: programs OS routes from system RIB via netlink/route socket Config roots: fib/kernel. Dependencies: rib, sysctl. Optional: none. Start after (order only): none. YANG files: 1. Source: `internal/plugins/fib/kernel`.
 - `fib-p4`: FIB P4: programs P4 switch forwarding entries from system RIB via gRPC/P4Runtime Config roots: fib/p4. Dependencies: rib. Optional: none. Start after (order only): none. YANG files: 1. Source: `internal/plugins/fib/p4`.
@@ -215,7 +216,9 @@ Each registration comes from the Go runtime registry. Config roots come from plu
 - `flow-export`: sFlow, NetFlow v9, and IPFIX counter export Config roots: flow-export. Dependencies: interface. Optional: bgp-rib. Start after (order only): none. YANG files: 1. Source: `internal/plugins/flowexport`.
 - `flowspec-firewall`: Translates BGP FlowSpec routes into nftables firewall rules Config roots: none. Dependencies: firewall, bgp-rib. Optional: none. Start after (order only): none. YANG files: 0. Source: `internal/plugins/flowspec-firewall`.
 - `geodns`: GeoDNS server: DNS answers selected by client source IP (RFC 1035, RFC 7871 client-subnet) Config roots: service. Dependencies: none. Optional: none. Start after (order only): none. YANG files: 2. Source: `internal/plugins/geodns`.
-- `ike`: IKEv2 engine for native IPsec VPN Config roots: vpn, pki. Dependencies: none. Optional: none. Start after (order only): none. YANG files: 0. Source: `internal/component/ike/engine`.
+- `iface-dhcp`: DHCP client: DHCPv4/DHCPv6 lease acquisition and renewal Config roots: none. Dependencies: interface. Optional: none. Start after (order only): none. YANG files: 0. Source: `internal/plugins/iface/dhcp`.
+- `iface-ra`: Router Advertisement sender: advertises IPv6 prefixes, flags, and resolvers on a LAN (RFC 4861) Config roots: none. Dependencies: interface. Optional: none. Start after (order only): none. YANG files: 0. Source: `internal/plugins/iface/ra`.
+- `ike`: IKEv2 engine for native IPsec VPN Config roots: vpn. Dependencies: none. Optional: none. Start after (order only): none. YANG files: 0. Source: `internal/component/ike/engine`.
 - `imageserver`: Image server: HTTP provisioning for disk images and boot files Config roots: service. Dependencies: none. Optional: none. Start after (order only): interface. YANG files: 1. Source: `internal/plugins/imageserver`.
 - `interface`: OS network interface monitoring and management Config roots: interface. Dependencies: sysctl. Optional: vpp. Start after (order only): none. YANG files: 6. Source: `internal/component/iface`.
 - `isis`: Intermediate System to Intermediate System (ISO/IEC 10589, RFC 1195): native link-state IGP Config roots: isis. Dependencies: fib-kernel, sysctl. Optional: none. Start after (order only): none. YANG files: 2. Source: `internal/plugins/isis`.
@@ -226,6 +229,7 @@ Each registration comes from the Go runtime registry. Config roots come from plu
 - `l2tp-shaper`: Traffic shaping for L2TP subscriber sessions Config roots: l2tp. Dependencies: none. Optional: none. Start after (order only): l2tp-auth-radius. YANG files: 1. Source: `internal/component/l2tp/plugins/shaper`.
 - `ldp`: Label Distribution Protocol (RFC 5036): MPLS label distribution Config roots: ldp. Dependencies: fib-kernel, sysctl. Optional: none. Start after (order only): none. YANG files: 2. Source: `internal/plugins/ldp`.
 - `loop`: Route loop detection (RFC 4271 S9, RFC 4456 S8) Config roots: none. Dependencies: none. Optional: none. Start after (order only): none. YANG files: 1. Source: `internal/component/bgp/reactor/filter`.
+- `memlock`: Memory lock: keep the running executable resident under memory pressure Config roots: none. Dependencies: none. Optional: none. Start after (order only): none. YANG files: 0. Source: `internal/plugins/memlock`.
 - `mrt`: MRT routing information export (RFC 6396) Config roots: mrt. Dependencies: none. Optional: none. Start after (order only): none. YANG files: 1. Source: `internal/plugins/mrt`.
 - `ntp`: NTP client: system clock synchronization Config roots: environment/ntp. Dependencies: none. Optional: none. Start after (order only): none. YANG files: 2. Source: `internal/plugins/ntp`.
 - `ospf`: Open Shortest Path First v2 (RFC 2328): native link-state IPv4 IGP Config roots: ospf. Dependencies: interface, fib-kernel, sysctl. Optional: none. Start after (order only): none. YANG files: 2. Source: `internal/plugins/ospf`.
@@ -244,10 +248,10 @@ Each registration comes from the Go runtime registry. Config roots come from plu
 
 ## CLI command surface
 
-The command catalog is generated from `ze help command --json`, not hand-written. Modes: 142 daemon, 4 offline, 342 read-only.
+The command catalog is generated from `ze help command --json`, not hand-written. Modes: 143 daemon, 4 offline, 343 read-only.
 `daemon` commands require a running Ze daemon. `read-only` commands query state. `offline` commands can run without daemon state. `pipes` groups operators as `always`, `with-rows`, `when-streaming`, or `local-only`; these qualifiers are part of the contract. An operator absent from those groups is refused by name.
 
-### `clear` commands (31)
+### `clear` commands (32)
 - `clear bgp healthcheck` (daemon; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `clear bgp healthcheck`): Reset healthcheck probe to INIT
 - `clear bgp rib advertised` (daemon; wire ze-bgp:rib-clear-advertised; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args selector:string, family:string; usage `clear bgp rib advertised <selector> [family <family>]`): Withdraw every route advertised to a peer\.
 - `clear bgp rib in` (daemon; wire ze-bgp:rib-clear-in; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args selector:string; usage `clear bgp rib in <selector>`): Remove all routes received from a peer\.
@@ -258,6 +262,7 @@ The command catalog is generated from `ze help command --json`, not hand-written
 - `clear dns cache all` (daemon; wire ze-resolve:clear-dns-cache; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `clear dns cache all`): Flush all DNS cache entries and reset all DNS cache counters\.
 - `clear dns cache record` (daemon; wire ze-resolve:clear-dns-cache-record; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args name:string, type:enum; usage `clear dns cache record <name> [type <A|AAAA|MX|NS|TXT|CNAME|PTR>]`): Evict DNS cache entries for one record name\, or one name and type when a type is provided\.
 - `clear dns cache stats` (daemon; wire ze-resolve:clear-dns-cache-stats; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `clear dns cache stats`): Reset DNS cache hit\, miss\, eviction\, and expiry counters without removing cached entries\.
+- `clear dns-resolver cache all` (daemon; wire ze-dnsresolver:clear-dns-resolver-cache; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `clear dns-resolver cache all`): Empty every LAN DNS resolver cache\.
 - `clear firewall domain-group` (daemon; wire ze-firewall:clear-domain-group; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args name:string; usage `clear firewall domain-group <name>`): Remove the addresses Ze cached for a domain group\.
 - `clear firewall irr as-set` (daemon; wire ze-firewall:clear-irr-as-set; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args as-set:string; usage `clear firewall irr as-set <as-set>`): Remove the cached IRR prefix\-list for an AS\-SET\.
 - `clear firewall irr asn` (daemon; wire ze-firewall:clear-irr-asn; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args asn:string; usage `clear firewall irr asn <asn>`): Remove the cached IRR prefix\-list for an ASN\.
@@ -431,7 +436,7 @@ The command catalog is generated from `ze help command --json`, not hand-written
 - `set sysctl` (daemon; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `set sysctl <key> <value>`): Set a transient sysctl value
 - `set system file-descriptors` (daemon; wire ze-host:set-system-file-descriptors; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args limit:union; usage `set system file-descriptors [limit <limit|max>]`): Raise the file descriptor limit for the daemon process\.
 
-### `show` commands (304)
+### `show` commands (305)
 - `show aaa accounting` (read-only; wire ze-aaa:show-accounting; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `show aaa accounting`): Show AAA accounting counters and any dropped records\.
 - `show announcements` (read-only; wire ze-bgp:show-announcements; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args tag:string, selector:string, family:string; usage `show announcements [tag <tag>] [selector <selector>] [family <family>]`): List active on\-demand announcements\.
 - `show anomaly detect` (read-only; wire ze-anomaly:show-anomaly; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `show anomaly detect`): Show the recent behavioral anomaly incidents\.
@@ -517,6 +522,7 @@ The command catalog is generated from `ze help command --json`, not hand-written
 - `show dns cache record` (read-only; wire ze-resolve:show-dns-cache-record; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args name:string; usage `show dns cache record <name>`): Show DNS cache entries for one record name\.
 - `show dns cache stats` (read-only; wire ze-resolve:show-dns-cache-stats; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `show dns cache stats`): Show the DNS cache hit\, miss\, eviction\, expiry\, and hit\-rate counters\.
 - `show dns lookup` (read-only; wire ze-resolve:show-dns-lookup; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args hostname:string, type:enum; usage `show dns lookup <hostname> [type <A|AAAA|MX|NS|TXT|CNAME|PTR>]`): Look up a DNS name from the router\.
+- `show dns-resolver` (read-only; wire ze-dnsresolver:show-dns-resolver; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `show dns-resolver`): LAN DNS resolver status\, cache and counters\.
 - `show doctor` (read-only; wire ze-doctor:show-doctor; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `show doctor`): Check if this box is ready to run Ze\.
 - `show ecmp-groups` (read-only; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `show ecmp-groups`): Show each prefix the system RIB holds equal\-cost paths for\, whether or not Ze programs them\.
 - `show env get` (read-only; wire ze-env:show-get; pipes always: json ndjson table text yaml raw no-more save match count first last display fill, when-streaming: log, local-only: save; shape tab; args name:string; usage `show env get <name>`): Show one environment variable in detail\.
@@ -1070,6 +1076,7 @@ Every link points to the page Markdown mirror first. The web URL is the human-re
 - [Transit edge with RPKI](https://ze-software.net/use-cases/transit-edge-rpki/index.md): Dual-transit policy and tested failover (web: https://ze-software.net/use-cases/transit-edge-rpki/)
 - [FlowSpec injection](https://ze-software.net/use-cases/flowspec-injection/index.md): Authorised, atomic, reversible mitigation routes (web: https://ze-software.net/use-cases/flowspec-injection/)
 - [ExaBGP migration](https://ze-software.net/use-cases/exabgp-migration/index.md): Migrate process scripts to Ze (web: https://ze-software.net/use-cases/exabgp-migration/)
+- [Completion by use case](https://ze-software.net/quality/rfc-compliance/profiles/index.md): RFC requirements proven for each use case (web: https://ze-software.net/quality/rfc-compliance/profiles/)
 ### Labs and demonstrations
 - [Testing labs](https://ze-software.net/labs/index.md): Interop labs you can run against real daemons (web: https://ze-software.net/labs/)
 - [BGP interop](https://ze-software.net/labs/bgp-interop/index.md): FRR, BIRD, and GoBGP sessions (web: https://ze-software.net/labs/bgp-interop/)
@@ -1083,7 +1090,7 @@ Every link points to the page Markdown mirror first. The web URL is the human-re
 
 ### Live system
 - [Reference index](https://ze-software.net/reference/index.md): Commands, configuration, plugins, standards, and feature status (web: https://ze-software.net/reference/)
-- [CLI reference](https://ze-software.net/reference/cli/index.md): 488 commands, generated from the live binary (web: https://ze-software.net/reference/cli/)
+- [CLI reference](https://ze-software.net/reference/cli/index.md): 490 commands, generated from the live binary (web: https://ze-software.net/reference/cli/)
 - [Configuration reference](https://ze-software.net/reference/configuration/index.md): %(config_sections)s sections, indexed from live YANG (web: https://ze-software.net/reference/configuration/)
 - [Plugin catalogue](https://ze-software.net/reference/plugins/index.md): Find runtime plugins by purpose, config, or dependency (web: https://ze-software.net/reference/plugins/)
 ### Standards and lookup
@@ -1097,7 +1104,7 @@ Every link points to the page Markdown mirror first. The web URL is the human-re
 ### Progress and history
 - [Project overview](https://ze-software.net/project/index.md): Progress, history, talks, and contribution paths (web: https://ze-software.net/project/)
 - [Roadmap](https://ze-software.net/project/roadmap/index.md): Release work items and nice-to-haves, an inventory preview (web: https://ze-software.net/project/roadmap/)
-- [Changes](https://ze-software.net/project/changes/index.md): 44 weekly updates, newest first (web: https://ze-software.net/project/changes/)
+- [Changes](https://ze-software.net/project/changes/index.md): 45 weekly updates, newest first (web: https://ze-software.net/project/changes/)
 - [Milestones](https://ze-software.net/project/milestones/index.md): Landmark features, oldest to newest (web: https://ze-software.net/project/milestones/)
 - [Activity](https://ze-software.net/project/activity/index.md): A year of commits, at a glance (web: https://ze-software.net/project/activity/)
 - [Project history](https://ze-software.net/project/history/index.md): How ExaBGP's programmable model grew into Ze (web: https://ze-software.net/project/history/)

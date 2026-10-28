@@ -696,6 +696,16 @@ the bus from buggy or malicious producers.</p>
 <td><code>{"action": "delete-entry", "name": "...", "removed": N}</code> or <code>{"action": "delete-entry", "name": "...", "type": "...", "found": bool}</code></td>
 </tr>
 <tr>
+<td><code>ze-dnsresolver:show-dns-resolver</code></td>
+<td><code>handleShowDNSResolver</code> in. <span class="ev-src"><span class="ev-ref"><code>internal/plugins/dnsresolver/show.go</code></span></span></td>
+<td><code>{"running": true, "enabled": bool, "mode": "forward", "listeners": [{"name": "...", "ip": "...", "port": N}], "allow-from": N, "upstreams": ["ip:port", ...], "timeout-seconds": N, "limit-outstanding": N, "limit-per-client-rate": N, "outstanding": N, "cache-max-ttl": N, "cache-max-negative-ttl": N, "cache-answer-entries": N, "cache-negative-entries": N, "cache-hits": N, "cache-misses": N, "cache-hit-rate": N, "queries": N, "coalesced": N, "refused-acl": N, "refused-rd-clear": N, "rate-limited": N, "dropped": N, "upstream-queries": {"answered": N, "timeout": N, "error": N, "failure": N, "truncated": N}}</code>. <code>{"running": false}</code> while the plugin is not running, and <code>{"running": true, "enabled": false}</code> before its first config apply <!-- source: internal/plugins/dnsresolver/show.go -- handleShowDNSResolver, resolver.show --></td>
+</tr>
+<tr>
+<td><code>ze-dnsresolver:clear-dns-resolver-cache</code></td>
+<td><code>handleClearDNSResolverCache</code> in. <span class="ev-src"><span class="ev-ref"><code>internal/plugins/dnsresolver/show.go</code></span></span></td>
+<td><code>{"cleared-answer": N, "cleared-negative": N}</code>: the entries removed from each cache; the counters are kept. An error naming the config to commit while the plugin is not running. The CLI words are <code>clear dns-resolver cache all</code>; the bare <code>clear dns-resolver cache</code> has no handler <!-- source: internal/plugins/dnsresolver/yang/ze-dns-resolver-cmd.yang -- clear dns-resolver cache all --></td>
+</tr>
+<tr>
 <td><code>ze-resolve:show-rir</code> (args: <code>&lt;asn&gt;</code>)</td>
 <td><code>handleRIRASN</code> in. <span class="ev-src"><span class="ev-ref"><code>internal/component/resolve/cmd/rir.go</code></span></span></td>
 <td><code>{"asn": N, "registry": "ARIN", "whois": "whois.arin.net", "range-start": N, "range-end": N}</code>. Two distinct errors: <code>AS&lt;n&gt; is in no delegated range</code> for a table that was read, <code>RIR delegation table unreadable: ...</code> for one that was not</td>
@@ -1308,6 +1318,11 @@ update bgp config                  # Write the running peer set to the config fi
 request peer &lt;sel&gt; flush           # Wait for forward pool to drain (barrier)
 </code></pre>
 <!-- source: internal/component/bgp/yang/ze-bgp-api.yang -- peer RPCs -->
+<p><code>show bgp peer &lt;selector&gt; history</code> reads the peer's retained FSM transitions
+through the registered BGP adapter. Each row carries the source and destination
+states, plus the timestamp and reason when recorded.</p>
+<!-- source: internal/component/bgp/reactor/reactor_api.go -- PeerFSMHistory -->
+<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- handlePeerHistory -->
 <p><code>create bgp peer</code> (<code>ze-bgp:peer-create</code>) and <code>delete bgp peer</code>
 (<code>ze-bgp:peer-delete</code>) change the running peer set and never write the
 configuration file. A commit or a reload whose configuration does not declare a
@@ -2856,6 +2871,8 @@ of the extension for both carriers. A command container reaches it through
 <code>RegisteredRPC.Description</code>. <code>aihelp.Build</code> then publishes them under <code>short-help</code>
 and <code>description</code>, the two keys <code>ze help command --json</code> uses for a command.
 <code>ze help ai --json</code> and the MCP <code>ze_reference</code> tool read that one projection.
+Build sorts the RPCs and the notifications by wire method, so the reference is
+the same bytes on every run rather than the schema registry's map order.
 The <code>show schema methods</code> and <code>ze schema methods</code> tables print one line for each
 RPC. Both read the summary alone, as every other one-line surface does.</p>
 <p>A PLUGIN command carries the same two texts, declared in its Stage 1 message as
@@ -3026,6 +3043,7 @@ name alone. The selected candidate's summary is on message line 2, whole
 <!-- source: internal/component/command/local.go -- ListLocal -->
 <!-- source: cmd/ze/command_help_page.go -- commandHelpPage -->
 <!-- source: internal/plugins/completion/words.go -- writeCompletionRecord -->
+<!-- source: internal/plugins/completion/script/script.go -- WriteRecord -->
 <!-- source: internal/component/cli/model_render.go -- (Model).renderDropdownBox, (Model).warningText -->
 <!-- source: internal/component/web/handler_admin.go -- buildAdminFragmentData, CommandFormData -->
 <!-- source: internal/component/web/cli.go -- HandleCLICompleteWithCommandCompleter -->
@@ -4121,8 +4139,10 @@ unconditionally, and the <code>ui://</code> asset it points at is readable by ev
         <footer>
             <div class="footer-inner">
                 <div class="footer-bottom">
+                    <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 12:05 UTC</span>
+                    <a href="../../../legal/">Legal notice</a>
+                    <span class="footer-published">Published 27 October 2026 23:56 UTC</span>
                 </div>
             </div>
         </footer>

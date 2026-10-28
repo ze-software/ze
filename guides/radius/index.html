@@ -545,7 +545,7 @@ backend on every login, e.g.:</p>
 <p><code>source=radius</code> confirms the chain consulted RADIUS and returned Access-Accept.
 <code>source=local</code> means RADIUS was unreachable (or unconfigured) and the local
 bcrypt user accepted the credentials.</p>
-<!-- source: internal/test/mock/radius/radius.go -- le test radius-mock for .ci tests -->
+<!-- source: internal/test/mock/radius/radius.go -- le mock radius for .ci tests -->
 <!-- source: internal/test/mock/radius/eap.go -- the mock's EAP branch: buildEAPResponse, verifyRequestSignature -->
 <!-- source: internal/le/interoplab/radius/checkers.go -- what each FreeRADIUS scenario asserts -->
 <!-- source: test/interop-radius/scenarios/ -- the four interop scenario directories -->
@@ -562,6 +562,17 @@ apart from an unreachable server. The series appears once telemetry is
 enabled.</li>
 </ul>
 <!-- source: internal/component/radius/metrics.go -- bindRadiusMetrics, countUnsignedEAPDiscard -->
+<ul>
+<li><code>ze_task_panics_total{component="radius",task="read"}</code> -- answers whose
+handling met a Ze defect (a Go panic). The client's answer reader recovers
+it, logs it at ERROR with the server's address and the stack, writes a crash
+record that <code>ze show crashes</code> lists, and reads on. The answer is dropped as a
+silently discarded packet is, so its request retransmits and fails over as
+on a timeout, and every other request on the client is answered as before.
+Any value above zero is a Ze defect to report with the crash record.</li>
+</ul>
+<!-- source: internal/component/radius/panic_guard.go -- readTask -->
+<!-- source: internal/component/radius/client.go -- Client.readAnswers -->
 <h2 id="operational-notes">Operational notes</h2>
 <ul>
 <li><strong>Shared secrets</strong> are stored as <code>$9$</code>-encoded ciphertext, never as
@@ -626,8 +637,10 @@ Local summary: <code>rfc/short/rfc2865.md</code>.</li>
         <footer>
             <div class="footer-inner">
                 <div class="footer-bottom">
+                    <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
+                    <a href="../../legal/">Legal notice</a>
+                    <span class="footer-published">Published 27 October 2026 23:56 UTC</span>
                 </div>
             </div>
         </footer>

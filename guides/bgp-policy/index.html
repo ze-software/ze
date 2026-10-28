@@ -321,7 +321,20 @@ only the ones customers and peers use for signaling. An empty
 everything". The scrub covers standard and large communities, and it runs on
 eBGP sessions only: on an iBGP session an own-AS value is this network's own
 signal to itself. Well-known communities are never reached, so <code>NO_EXPORT</code>,
-<code>NO_ADVERTISE</code> and <code>BLACKHOLE</code> always survive. The <code>relation-function</code> number is
+<code>NO_ADVERTISE</code> and <code>BLACKHOLE</code> always survive. On a session with <code>rs-client true</code>, the scrub keeps the route-server control communities the client sends
+to the route server: <code>RS:X</code> and <code>RS:0</code> in the standard form, and
+<code>RS:101:X</code> to <code>RS:103:X</code> in the large form (see "Route-server control
+communities" below). They are the signalling Section 11 tells you to allow, and
+the route server reads them after the ingress filters, so scrubbing them would
+silently cancel every announce, do-not-announce and prepend request. The route
+server removes them before any client receives the route. <code>RS</code> is the route
+server's AS: the router's global <code>session asn local</code>, never a per-peer
+local-as override, because that is the AS the route server reads and removes
+them by. On a client session with a local-as override the scrub's own AS is the
+override, so a value under it shaped like a control is no request the route
+server reads, and it is scrubbed. The real controls carry the global AS and are
+outside the scrub's reach. Every other own-AS value from that client is still
+scrubbed. The <code>relation-function</code> number is
 never kept, whatever the list says, because a kept relation function would let a
 peer state its own relation to this AS.</p>
 <p><strong>The relation tag reads the resolved peer role.</strong> The parameter says what the
@@ -402,10 +415,20 @@ is logged and not applied.</p>
 <td><code>&lt;rs-asn&gt;:0</code></td>
 <td>Do not advertise this route to any client.</td>
 </tr>
+<tr>
+<td><code>&lt;rs-asn&gt;:101:&lt;asn&gt;</code></td>
+<td>Large community. Prepend the route server's ASN once to the AS_PATH sent to <code>&lt;asn&gt;</code>.</td>
+</tr>
+<tr>
+<td><code>&lt;rs-asn&gt;:102:&lt;asn&gt;</code>, <code>&lt;rs-asn&gt;:103:&lt;asn&gt;</code></td>
+<td>Large community. The same, two or three times.</td>
+</tr>
 </tbody>
 </table>
 <p>A whitelist wins over a blacklist: if a route carries any <code>&lt;rs-asn&gt;:&lt;asn&gt;</code> tag, only the listed ASNs receive it and <code>0:&lt;asn&gt;</code> tags on the same route are not consulted.</p>
-<p>These are control tags, not attributes to pass on. The route server strips every one of them from the route before forwarding it, so a client never sees another client's steering instructions or the route server's own. A route carrying several control communities has all of them removed, not the first one. Communities the route server does not recognise are forwarded untouched and in their original order, so a client's own tagging survives.</p>
+<p>A prepend request whose <code>&lt;asn&gt;</code> is <code>0</code> applies to every client. When a route carries a request for a client and one for every client, the client's own wins; when it carries two for the same client, the larger count wins.</p>
+<p>Without a prepend request a client receives the AS_PATH exactly as the route server received it, as RFC 7947 Section 2.2.2.1 recommends. That section makes the rule a SHOULD NOT rather than a MUST NOT only to stay compatible with older clients that still reject a route whose first AS is not the route server's. A route that carries the request is its sender asking for the change, so the prepend is applied only to such a route, and only toward the client it names.</p>
+<p>These are control tags, not attributes to pass on. The route server strips every one of them from the route before forwarding it, and with them every large community whose first field (the Global Administrator) is its own ASN, whatever the other two fields hold, so a client never sees another client's steering instructions or the route server's own. A route carrying several control communities has all of them removed, not the first one. Communities the route server does not recognise are forwarded untouched and in their original order, so a client's own tagging survives.</p>
 <p><code>65535:666</code> is NOT one of these. RFC 7999 BLACKHOLE steers no route-server forwarding and is never stripped, so a client's blackhole request reaches the other clients as the client wrote it. Ze's own answer to a received BLACKHOLE is the per-session <code>blackhole</code> container and the ingress <code>blackhole-propagation</code> leaf, both above.</p>
 <pre><code># Client tags a route: keep it away from AS 64998, and let AS 65002 have it.
 # The route server removes both tags; 65001:100 reaches AS 65002 unchanged.
@@ -414,14 +437,15 @@ community [ 0:64998 65000:65002 65001:100 ]
 <p>A control community decides about a ROUTE, not about a MESSAGE. One UPDATE can carry withdrawn routes and an announcement together. The withdrawn routes carry no attribute and were tagged by nobody, so a client the announcement excludes still receives the withdrawals in that UPDATE. Without that, an excluded client would keep a prefix an earlier UPDATE did advertise to it, and ze could not take it back until the session reset.</p>
 <p>Two limits are worth knowing:</p>
 <ul>
-<li>A standard community's high half is 16 bits (RFC 1997), so a route server with a 4-octet ASN matches <code>&lt;rs-asn&gt;:&lt;asn&gt;</code> on the low 16 bits of its ASN only. Use large communities where that is ambiguous.</li>
+<li>A standard community's high half is 16 bits (RFC 1997), so a route server with a 4-octet ASN matches <code>&lt;rs-asn&gt;:&lt;asn&gt;</code> on the low 16 bits of its ASN only. Large communities match the full ASN, but only the prepend requests have a large form today: there is no large-community spelling of <code>0:&lt;asn&gt;</code>, <code>&lt;rs-asn&gt;:&lt;asn&gt;</code> or <code>&lt;rs-asn&gt;:0</code>.</li>
 <li>Stripping is ze's own forwarding behaviour. RFC 7947 expects per-client import and export policy but prescribes no mechanism for it (Section 2.3.2.1 offers per-client RIBs as "the most portable method"), so a different route-server implementation may leave these tags in place.</li>
 </ul>
+<p>Behaviour change: earlier versions of ze read the prepend requests and then ignored them, and forwarded the route server's large communities to every client. A route that carries a prepend request now has the prepend applied, which changes path selection at the client it names, and a client policy that matched the route server's large communities no longer sees them.</p>
 <p><code>ze_bgp_attr_mod_remove_buffer_refused_total{attribute}</code> counts removal buffers a
 handler refused because they were not a whole number of wire values. The refusal
 is silent on the wire, so a non-zero value is the one signal that a producer is
 violating the arity contract and that an attribute went out unchanged.</p>
-<!-- source: internal/component/bgp/wireu/community.go — ParseCommunityPolicy, ShouldForwardTo, StripControlCommunities -->
+<!-- source: internal/component/bgp/wireu/community.go — ParseCommunityPolicy, ShouldForwardTo, StripControlCommunities, StripLargeControlCommunities, RSPrepend -->
 <!-- source: internal/component/bgp/reactor/reactor_api_forward.go — general forwarding rail; forward_rs.go — route-server fast path -->
 <h2 id="redistribution">Redistribution</h2>
 <p>The top-level <code>redistribute</code> block moves selected routes between protocol RIBs. Redistribution is separate from ordinary per-peer BGP filtering, but the resulting routes still pass through the destination protocol's policy and loop-prevention rules.</p>
@@ -501,8 +525,10 @@ ze cli -c "show bgp peer transit-b rib"
         <footer>
             <div class="footer-inner">
                 <div class="footer-bottom">
+                    <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
+                    <a href="../../legal/">Legal notice</a>
+                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
                 </div>
             </div>
         </footer>

@@ -80,7 +80,7 @@ including Ze.</p>
 </ol></li>
 </ol></details></nav><div class="doc-body">
 <!-- source: internal/perf/cli/register.go -- perf CLI entry point -->
-<p><code>le perf send</code> runs one benchmark against a DUT, <code>le perf report</code> compares
+<p><code>le perf send</code> runs one benchmark against a DUT, <code>le perf compare</code> compares
 result files, and <code>le perf track</code> follows the history. Every word after the verb reaches the program
 unchanged, and the program's exit code is le's.</p>
 <!-- source: internal/le/perf/actions.go -- programVerbs -->
@@ -294,10 +294,10 @@ check".</p>
 DUT_ROUTES=10000 DUT_REPEAT=5 ./le perf run step test dut ze
 
 # Append the results of the last measurement to the committed NDJSON history.
-./le perf history-record
+./le perf record history
 
 # The release evidence gate: measure ze, append the result, fail on a regression.
-./le perf evidence-record
+./le perf record evidence
 </code></pre>
 <!-- source: internal/le/perf/actions.go -- runParameters -->
 <!-- source: internal/le/perf/bench.go -- Bench -->
@@ -326,7 +326,7 @@ names <code>NO_BUILD</code> as the reason, prints the <code>env -u NO_BUILD ./le
 with <code>CGO_ENABLED=0</code> into <code>tmp/perf-run/linux-&lt;arch&gt;/le</code>, and prints how long
 that build took. It mounts the file at <code>/usr/local/bin/le</code> in the sender
 container, which runs <code>le perf send</code>. The <code>le</code> that started the run renders
-the report as <code>le perf report</code>. The terminal-demo recorder container runs a
+the report as <code>le perf compare</code>. The terminal-demo recorder container runs a
 linux <code>le</code> built by the same recipe (<code>docs/contributing/gh-pages.md</code>).</p>
 <!-- source: internal/test/perfrunner/run.go -- Execute -->
 <!-- source: internal/le/linuxle/linuxle.go -- Tags -->
@@ -335,7 +335,7 @@ owner labels. Ctrl-C (SIGINT) or SIGTERM stops the run, and the run still
 removes the DUT, the sender and the network before it exits 1. A removal that
 fails is printed on stderr with the resource's name, and the run exits 1; a
 run that died before its removals (SIGKILL, a crash) leaves resources that
-<code>./le test integration cleanup</code>, or the next lab start, removes. The DUT
+<code>./le test integration clean</code>, or the next lab start, removes. The DUT
 images themselves are kept, so the next <code>step test</code> finds them.</p>
 <!-- source: internal/test/perfrunner/run.go -- Runner.removeContainer, Runner.cleanup -->
 <!-- source: internal/le/perf/actions.go -- signalRooted -->
@@ -343,15 +343,15 @@ images themselves are kept, so the next <code>step test</code> finds them.</p>
 <h3 id="manual-reports">Manual Reports</h3>
 <p>After running benchmarks, generate reports from the result files:</p>
 <pre><code class="language-bash"># Markdown report (default)
-./le perf report result-ze.json result-gobgp.json result-rustbgpd.json
+./le perf compare result-ze.json result-gobgp.json result-rustbgpd.json
 
 # HTML report
-./le perf report --html result-ze.json result-gobgp.json &gt; comparison.html
+./le perf compare --html result-ze.json result-gobgp.json &gt; comparison.html
 </code></pre>
 <!-- source: internal/perf/cli/cmd_report.go -- report subcommand -->
 <!-- source: internal/perf/report/markdown.go -- Markdown report generation -->
 <!-- source: internal/perf/report/html.go -- HTML report generation -->
-<p>For the full flag reference, see <a href="../command-reference/#le-perf-report">le perf report</a>.</p>
+<p>For the full flag reference, see <a href="../command-reference/#le-perf-compare">le perf compare</a>.</p>
 <h2 id="tracking-performance-over-time">Tracking Performance Over Time</h2>
 <h3 id="ndjson-history">NDJSON History</h3>
 <p>Each <code>le perf send --json</code> invocation produces a single JSON object. Append
@@ -600,8 +600,10 @@ result inconclusive and say which answer is missing.</p>
         <footer>
             <div class="footer-inner">
                 <div class="footer-bottom">
+                    <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
+                    <a href="../../legal/">Legal notice</a>
+                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
                 </div>
             </div>
         </footer>

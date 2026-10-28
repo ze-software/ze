@@ -25,7 +25,7 @@ $ ./le perf run
 $ ./le perf run dut "ze bird"
 
 # regenerate docs/performance.md from results
-$ ./le perf report --doc test/perf/results/*.json
+$ ./le perf compare --doc test/perf/results/*.json
 ```
 
 `Prerequisites`

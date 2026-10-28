@@ -6,7 +6,7 @@ including Ze.
 
 <!-- source: internal/perf/cli/register.go -- perf CLI entry point -->
 
-`le perf send` runs one benchmark against a DUT, `le perf report` compares
+`le perf send` runs one benchmark against a DUT, `le perf compare` compares
 result files, and `le perf track` follows the history. Every word after the verb reaches the program
 unchanged, and the program's exit code is le's.
 <!-- source: internal/le/perf/actions.go -- programVerbs -->
@@ -139,10 +139,10 @@ check".
 DUT_ROUTES=10000 DUT_REPEAT=5 ./le perf run step test dut ze
 
 # Append the results of the last measurement to the committed NDJSON history.
-./le perf history-record
+./le perf record history
 
 # The release evidence gate: measure ze, append the result, fail on a regression.
-./le perf evidence-record
+./le perf record evidence
 ```
 <!-- source: internal/le/perf/actions.go -- runParameters -->
 <!-- source: internal/le/perf/bench.go -- Bench -->
@@ -178,7 +178,7 @@ The runner builds no host benchmark program. It cross-builds `le` for linux
 with `CGO_ENABLED=0` into `tmp/perf-run/linux-<arch>/le`, and prints how long
 that build took. It mounts the file at `/usr/local/bin/le` in the sender
 container, which runs `le perf send`. The `le` that started the run renders
-the report as `le perf report`. The terminal-demo recorder container runs a
+the report as `le perf compare`. The terminal-demo recorder container runs a
 linux `le` built by the same recipe (`docs/contributing/gh-pages.md`).
 <!-- source: internal/test/perfrunner/run.go -- Execute -->
 <!-- source: internal/le/linuxle/linuxle.go -- Tags -->
@@ -188,7 +188,7 @@ owner labels. Ctrl-C (SIGINT) or SIGTERM stops the run, and the run still
 removes the DUT, the sender and the network before it exits 1. A removal that
 fails is printed on stderr with the resource's name, and the run exits 1; a
 run that died before its removals (SIGKILL, a crash) leaves resources that
-`./le test integration cleanup`, or the next lab start, removes. The DUT
+`./le test integration clean`, or the next lab start, removes. The DUT
 images themselves are kept, so the next `step test` finds them.
 <!-- source: internal/test/perfrunner/run.go -- Runner.removeContainer, Runner.cleanup -->
 <!-- source: internal/le/perf/actions.go -- signalRooted -->
@@ -201,17 +201,17 @@ After running benchmarks, generate reports from the result files:
 
 ```bash
 # Markdown report (default)
-./le perf report result-ze.json result-gobgp.json result-rustbgpd.json
+./le perf compare result-ze.json result-gobgp.json result-rustbgpd.json
 
 # HTML report
-./le perf report --html result-ze.json result-gobgp.json > comparison.html
+./le perf compare --html result-ze.json result-gobgp.json > comparison.html
 ```
 
 <!-- source: internal/perf/cli/cmd_report.go -- report subcommand -->
 <!-- source: internal/perf/report/markdown.go -- Markdown report generation -->
 <!-- source: internal/perf/report/html.go -- HTML report generation -->
 
-For the full flag reference, see [le perf report](../command-reference/index.md#le-perf-report).
+For the full flag reference, see [le perf compare](../command-reference/index.md#le-perf-compare).
 
 ## Tracking Performance Over Time
 

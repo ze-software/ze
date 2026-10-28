@@ -540,7 +540,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5216-2.3-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_eap_tls_handshake_test.go#L364" title="internal/core/eap/rfc5216_eap_tls_handshake_test.go" target="_blank" rel="noopener"><code>TestEAPTLSMutualAuthHandshakeSucceeds</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_emsk_test.go#L152" title="internal/core/eap/rfc3748_emsk_test.go" target="_blank" rel="noopener"><code>TestRFC3748EAPTLSExportsASixtyFourOctetEMSK</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_msk_label_test.go#L112" title="internal/core/eap/rfc5216_msk_label_test.go" target="_blank" rel="noopener"><code>TestRFC5216MSKIsTheExportUnderTheRFCLabel</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_msk_label_test.go#L113" title="internal/core/eap/rfc5216_msk_label_test.go" target="_blank" rel="noopener"><code>TestRFC5216MSKIsTheExportUnderTheRFCLabel</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> both server and peer export the 64-octet MSK via ExportKeyingMaterial with the exact RFC label &#39;client EAP encryption&#39;, the only key the IKEv2 lower layer consumes (internal/core/eap/eap_tls.go:268, peer.go:381)</p></td>
 </tr>
@@ -1374,7 +1374,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc5216-2.3-1"><code>RFC5216-2.3-1</code></a></h3>
 <p>Key_Material = TLS-PRF-128(master_secret, &#34;client EAP encryption&#34;, client.random || server.random) MSK = Key_Material(0,63) EMSK = Key_Material(64,127) (§2.3)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Unchanged after comment-only edits. Single-polarity positive (row marker): with the literal label &#39;client EAP encryption&#39; and the 128-octet export read from the TLS session, the authenticator MSK equals octets 0-63 and the EMSK 64-127 (TLS 1.2); MSKs identical on both ends. Recorded.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent rejudgment after the approved mechanical TLS 1.2 caller adjustment. RFC 5216 section 2.3 defines Key_Material as the 128-octet TLS PRF under the literal client EAP encryption label, with MSK octets 0-63 and EMSK octets 64-127. The pinned TLS 1.2 case in TestRFC3748EAPTLSExportsASixtyFourOctetEMSK checks the authenticator MSK and EMSK against the complete export and equality of the peer EMSK; TestRFC5216MSKIsTheExportUnderTheRFCLabel independently checks both roles MSKs against that literal-label exporter and retains the wrong-label control. The fifth helper result is a copy of stored Session.emsk before cleanup and is ignored only by the TLS 1.2 caller; none of its previous inputs or assertions changed. TestEAPTLSMutualAuthHandshakeSucceeds is supplementary agreement evidence, not the derivation oracle. Single-polarity positive remains appropriate for this fixed output derivation. Reviewed exportEAPTLSKeys and both Session and PeerSession consumers; reviewed the refreshed wrong-label mutant record and private overlay. No test was rerun by this judge.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1390,9 +1390,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_msk_label_test.go#L112" title="internal/core/eap/rfc5216_msk_label_test.go" target="_blank" rel="noopener"><code>TestRFC5216MSKIsTheExportUnderTheRFCLabel</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_msk_label_test.go#L113" title="internal/core/eap/rfc5216_msk_label_test.go" target="_blank" rel="noopener"><code>TestRFC5216MSKIsTheExportUnderTheRFCLabel</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -2117,8 +2117,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
         <footer>
             <div class="footer-inner">
                 <div class="footer-bottom">
+                    <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
+                    <a href="../../../legal/">Legal notice</a>
+                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
                 </div>
             </div>
         </footer>

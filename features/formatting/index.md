@@ -55,7 +55,7 @@ or `raw`. Two together are rejected. Filter and display operators chain freely.
 
 The complete, current set is generated from the operator catalog:
 [`pipe-operators.generated.md`](https://github.com/ze-software/ze/blob/main/docs/features/pipe-operators.generated.md). It is the list to
-build a tool against, and `./le doc check verify` fails when it and the product
+build a tool against, and `./le doc check all` fails when it and the product
 disagree. That page carries every operator's name, class, argument, repetition
 and description, so this page does not list them again. A second copy is how
 five surfaces came to publish five different sets.

@@ -93,7 +93,7 @@ Use the shared gate before handing over normal work.
 Use the wider gates only when the behavior needs Linux, real peers, or release evidence.
 
 ```
-./le test qemu netns-test
+./le test qemu netns
 ./le test qemu run command '...' keep-alive
 ./le test integration interop
 ./le verify evidence release-candidate

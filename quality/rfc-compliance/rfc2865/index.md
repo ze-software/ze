@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0.0% | 0 of 31 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 31 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 31 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 72.0% | 77 of 107 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 68.2% | 73 of 107 tagged units, 0 escaped and 4 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -280,7 +280,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC2865SubscriberServiceTypeAuthorization`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go#L223) | unit/verify | revert, verified |
-| negative | [`TestRFC2865AcceptForAFramingTheLNSLacksIsRejected`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go#L54) | unit/verify | revert, verified |
+| negative | [`TestRFC2865AcceptForAFramingTheLNSLacksIsRejected`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go#L54) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | negative | [`TestRFC2865UnsupportedServiceTypeIsRejection`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_nas_obligations_test.go#L241) | unit/verify | revert, verified |
 | negative | [`TestAdminAccessAcceptWithUnofferedServiceTypeIsRejected`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L82) | unit/verify | revert, verified |
 | positive | [`TestRFC2865SubscriberServiceTypeAuthorization`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go#L216) | unit/verify | revert, verified |
@@ -296,7 +296,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC2865UnknownOrUnsupportedServiceTypeIsARejection`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go#L84) | unit/verify | revert, verified |
+| negative | [`TestRFC2865UnknownOrUnsupportedServiceTypeIsARejection`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go#L84) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | positive | [`TestRFC2865SupportedServiceTypeIsHonored`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go#L69) | unit/verify | revert, verified |
 
 ### [`RFC2865-3-6`](#rfc2865-3-6)
@@ -386,10 +386,10 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. The 
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC2865SubscriberAccessAcceptIsNotTreatedAsReject`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_access_challenge_test.go#L56) | unit/verify | revert, verified |
+| negative | [`TestRFC2865SubscriberAccessAcceptIsNotTreatedAsReject`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_access_challenge_test.go#L56) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | negative | [`TestRFC2865AccessChallengeIsRejection`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_nas_obligations_test.go#L200) | unit/verify | revert, verified |
 | negative | [`TestAccessChallengeDoesNotFallThroughToTheNextBackend`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L396) | unit/verify | revert, verified |
-| positive | [`TestRFC2865SubscriberAccessChallengeIsTreatedAsReject`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_access_challenge_test.go#L29) | unit/verify | revert, verified |
+| positive | [`TestRFC2865SubscriberAccessChallengeIsTreatedAsReject`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_access_challenge_test.go#L29) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | positive | [`TestRFC2865AccessChallengeIsRejection`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_nas_obligations_test.go#L193) | unit/verify | revert, verified |
 | positive | [`TestAccessChallengeIsTreatedAsAccessReject`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L371) | unit/verify | revert, verified |
 

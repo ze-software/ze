@@ -121,7 +121,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>62.7%</strong><b>79 of 126 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 126 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 126 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>97.8%</strong><b>89 of 91 tagged units, 0 escaped and 2 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>100.0%</strong><b>91 of 91 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -488,7 +488,7 @@ Client role only. The <code>iface-dhcp</code> plugin (<code>internal/plugins/ifa
 <td>MUST</td>
 <td>14.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9915-14.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go#L779" title="internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go" target="_blank" rel="noopener"><code>TestRFC9915Section142ZeroTimersChosenByClient</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go#L781" title="internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go" target="_blank" rel="noopener"><code>TestRFC9915Section142ZeroTimersChosenByClient</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the timers are chosen by the client, so the zero T1/T2 input is itself the case asserted</p></td>
 </tr>
@@ -497,7 +497,7 @@ Client role only. The <code>iface-dhcp</code> plugin (<code>internal/plugins/ifa
 <td>MUST NOT</td>
 <td>14.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9915-14.2-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go#L780" title="internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go" target="_blank" rel="noopener"><code>TestRFC9915Section142ZeroTimersChosenByClient</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go#L782" title="internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go" target="_blank" rel="noopener"><code>TestRFC9915Section142ZeroTimersChosenByClient</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the timers are chosen by the client, so the zero T1/T2 input is itself the case asserted</p></td>
 </tr>
@@ -830,7 +830,7 @@ Client role only. The <code>iface-dhcp</code> plugin (<code>internal/plugins/ifa
 <td>MUST</td>
 <td>18.2.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9915-18.2.4-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go#L804" title="internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go" target="_blank" rel="noopener"><code>TestRFC9915Section1824EarliestT1AcrossIAs</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go#L806" title="internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go" target="_blank" rel="noopener"><code>TestRFC9915Section1824EarliestT1AcrossIAs</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the earliest-T1 selection is the client&#39;s own arithmetic, so the multi-IA input is itself the case asserted</p></td>
 </tr>
@@ -965,7 +965,7 @@ Client role only. The <code>iface-dhcp</code> plugin (<code>internal/plugins/ifa
 <td>MUST</td>
 <td>18.2.7</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9915-18.2.7-6">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go#L646" title="internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv6ReleaseOnStop</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go#L648" title="internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv6ReleaseOnStop</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the removal order is fixed in internal/plugins/iface/dhcp/dhcp_v6_linux.go::shutdown, so no input reorders it</p></td>
 </tr>
@@ -974,7 +974,7 @@ Client role only. The <code>iface-dhcp</code> plugin (<code>internal/plugins/ifa
 <td>MUST</td>
 <td>18.2.7</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9915-18.2.7-7">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go#L647" title="internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv6ReleaseOnStop</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go#L649" title="internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv6ReleaseOnStop</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the removal order is fixed in internal/plugins/iface/dhcp/dhcp_v6_linux.go::shutdown, so no input reorders it</p></td>
 </tr>
@@ -1186,7 +1186,7 @@ Client role only. The <code>iface-dhcp</code> plugin (<code>internal/plugins/ifa
 <td>18.3.5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9915-18.3.5-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go#L731" title="internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go" target="_blank" rel="noopener"><code>TestRFC9915Section182101ValidZeroDiscarded</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go#L733" title="internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go" target="_blank" rel="noopener"><code>TestRFC9915Section182101ValidZeroDiscarded</code></a></span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> a lease with a non-zero valid lifetime is recorded in every exchange test</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9915-20.2-1">RFC9915-20.2-1</code></td><td colspan="3"><span class="rfc-subject">Any DHCP message MUST NOT include more than one Authentication option. (§20.2)</span></td></tr>
@@ -1249,7 +1249,7 @@ Client role only. The <code>iface-dhcp</code> plugin (<code>internal/plugins/ifa
 <td>21.6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9915-21.6-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go#L749" title="internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go" target="_blank" rel="noopener"><code>TestRFC9915Section216PreferredAboveValidDiscarded</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go#L751" title="internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go" target="_blank" rel="noopener"><code>TestRFC9915Section216PreferredAboveValidDiscarded</code></a></span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the valid address is recorded in every exchange test</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9915-21.7-1">RFC9915-21.7-1</code></td><td colspan="3"><span class="rfc-subject">A client MUST include an Option Request option in a Solicit, Request, Renew, Rebind, or Information-request message to inform the server about options the client wants the server to send to the client. (§21.7)</span></td></tr>
@@ -1798,7 +1798,7 @@ Client role only. The <code>iface-dhcp</code> plugin (<code>internal/plugins/ifa
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go#L779" title="internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go" target="_blank" rel="noopener"><code>TestRFC9915Section142ZeroTimersChosenByClient</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go#L781" title="internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go" target="_blank" rel="noopener"><code>TestRFC9915Section142ZeroTimersChosenByClient</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1813,7 +1813,7 @@ Client role only. The <code>iface-dhcp</code> plugin (<code>internal/plugins/ifa
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go#L780" title="internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go" target="_blank" rel="noopener"><code>TestRFC9915Section142ZeroTimersChosenByClient</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go#L782" title="internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go" target="_blank" rel="noopener"><code>TestRFC9915Section142ZeroTimersChosenByClient</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -2340,7 +2340,7 @@ Client role only. The <code>iface-dhcp</code> plugin (<code>internal/plugins/ifa
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go#L804" title="internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go" target="_blank" rel="noopener"><code>TestRFC9915Section1824EarliestT1AcrossIAs</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go#L806" title="internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go" target="_blank" rel="noopener"><code>TestRFC9915Section1824EarliestT1AcrossIAs</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -2499,7 +2499,7 @@ Client role only. The <code>iface-dhcp</code> plugin (<code>internal/plugins/ifa
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go#L646" title="internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv6ReleaseOnStop</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go#L648" title="internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv6ReleaseOnStop</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -2514,7 +2514,7 @@ Client role only. The <code>iface-dhcp</code> plugin (<code>internal/plugins/ifa
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go#L647" title="internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv6ReleaseOnStop</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go#L649" title="internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv6ReleaseOnStop</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -2714,12 +2714,12 @@ Client role only. The <code>iface-dhcp</code> plugin (<code>internal/plugins/ifa
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc9915_dhcp_v6_dad_integration_linux_test.go#L35" title="internal/component/iface/rfc9915_dhcp_v6_dad_integration_linux_test.go" target="_blank" rel="noopener"><code>TestRFC9915DuplicateAddressDeclinedOnTheLink</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_attach_linux_test.go#L97" title="internal/plugins/iface/dhcp/rfc9915_dhcp_v6_attach_linux_test.go" target="_blank" rel="noopener"><code>TestRFC9915Section182101DuplicateAddressDeclined</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -2839,7 +2839,7 @@ Client role only. The <code>iface-dhcp</code> plugin (<code>internal/plugins/ifa
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go#L731" title="internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go" target="_blank" rel="noopener"><code>TestRFC9915Section182101ValidZeroDiscarded</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go#L733" title="internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go" target="_blank" rel="noopener"><code>TestRFC9915Section182101ValidZeroDiscarded</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -2900,7 +2900,7 @@ Client role only. The <code>iface-dhcp</code> plugin (<code>internal/plugins/ifa
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go#L749" title="internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go" target="_blank" rel="noopener"><code>TestRFC9915Section216PreferredAboveValidDiscarded</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go#L751" title="internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go" target="_blank" rel="noopener"><code>TestRFC9915Section216PreferredAboveValidDiscarded</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -4571,8 +4571,10 @@ Client role only. The <code>iface-dhcp</code> plugin (<code>internal/plugins/ifa
         <footer>
             <div class="footer-inner">
                 <div class="footer-bottom">
+                    <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
+                    <a href="../../../legal/">Legal notice</a>
+                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
                 </div>
             </div>
         </footer>

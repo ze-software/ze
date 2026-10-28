@@ -142,7 +142,7 @@ re-establishment rather than waiting for Ze to re-advertise.
 
 ### Peer Restarts
 
-1. **Peer goes down** -- unless the session ended by a NOTIFICATION, sent or received. RFC 4724 Section 4 says "the normal BGP procedures MUST be followed when the TCP session terminates due to the sending or receiving of a BGP NOTIFICATION message", so that down (reason `notification`) retains nothing. Ze never advertises the RFC 8538 N bit, so no NOTIFICATION is graceful. For any other down (`tcp-failure`, `local-close`) the GR plugin sends `retain-routes` with the received GR families plus exchanged LLGR families whose received LLST is nonzero
+1. **Peer goes down** -- unless the session ended by a NOTIFICATION, sent or received. RFC 4724 Section 4 says "the normal BGP procedures MUST be followed when the TCP session terminates due to the sending or receiving of a BGP NOTIFICATION message", so that down (reason `notification`) retains nothing. Ze never advertises the RFC 8538 N bit, so no NOTIFICATION is graceful. A session whose received UPDATEs Ze could not publish to its plugins retains nothing either: Ze ends it with a Cease (Out of Resources), and when that Cease did not reach the peer, or the session had already ended, the down carries reason `adj-rib-in-invalid`, because the routes it holds are known to be incomplete or already withdrawn. For any other down (`tcp-failure`, `local-close`) the GR plugin sends `retain-routes` with the received GR families plus exchanged LLGR families whose received LLST is nonzero
 2. **RIB marks routes as stale** -- routes kept in forwarding but flagged
 3. **Restart timer starts** -- countdown from `restart-time` seconds
 4. **Peer reconnects** -- new session established, fresh routes received. A family whose Forwarding State bit is clear in the new OPEN, a family the new capability omits, and every family when the new OPEN carries no Graceful Restart Capability at all, are purged with `purge-stale` at once (RFC 4724 Section 4.2)
@@ -234,7 +234,17 @@ retained, and withdraws only the others. The route reflector's DOWN handler asks
 the same query, synchronously, before it hands the source's routes to the
 engine's departure recovery, and leaves a retained family's routes out. Without
 that filter a reflector would withdraw every retained route from its other
-peers during the restart window. `bgp-gr` orders itself against both owners so
+peers during the restart window. Both handlers decide retention while they
+handle the DOWN, so a reconnect or a Restart Time expiry that follows cannot
+change which families that DOWN withdraws. Each handler then queues the routes
+left over on its plugin's departure workers and returns without waiting.
+Up to eight workers send departures to the engine, taking sources in the order
+they went down, so a source whose departure the engine is slow to complete
+holds back only its own worker. One source's departures are sent one at a
+time, and a source that goes down again before its waiting departure was sent
+is merged into it. At shutdown each plugin cancels its outstanding departure
+requests, then stops the workers once they have handled every queued
+departure; a plugin that never queued a departure has no workers to stop. `bgp-gr` orders itself against both owners so
 its retention decision for a DOWN is delivered before either handler asks:
 `bgp-rs` is an optional dependency of `bgp-gr`, and `bgp-rr` is named in its
 `StartAfter` (order only, since a GR configuration does not load the
@@ -253,13 +263,14 @@ publish into the daemon either, so it refuses to start the same way (see
 Use internal `bgp-gr`, `bgp-rib`, and `bgp-rs` or `bgp-rr` for the coordinated
 lifecycle described here.
 <!-- source: internal/component/bgp/retention/retention.go -- Publish, Family -->
-<!-- source: internal/component/bgp/plugins/rr/rr.go -- runRouteReflector, IsInternal refusal -->
+<!-- source: internal/component/bgp/plugins/rr/rr.go -- runRouteReflector, IsInternal refusal, stopDepartures -->
 <!-- source: internal/component/bgp/plugins/rs/server.go -- RunRouteServer, IsInternal refusal -->
 <!-- source: test/plugin/rr-external-refuses.ci -- a forked bgp-rr refuses to start -->
 <!-- source: test/plugin/rs-external-refuses.ci -- a forked bgp-rs refuses to start -->
 <!-- source: test/plugin/gr-external-refuses.ci -- a forked bgp-gr refuses to start -->
-<!-- source: internal/component/bgp/plugins/rs/server_handlers.go -- handleStateDown -->
-<!-- source: internal/component/bgp/plugins/rr/rr.go -- handleStateDown -->
+<!-- source: internal/component/bgp/plugins/rs/server_handlers.go -- handleStateDown, enqueueDeparture, stopDepartures -->
+<!-- source: internal/component/bgp/plugins/rr/rr.go -- handleStateDown, enqueueDeparture -->
+<!-- source: internal/core/syncutil/coalescer.go -- Coalescer, Enqueue, Stop -->
 <!-- source: internal/component/bgp/plugins/gr/register.go -- init (OptionalDependencies bgp-rs, StartAfter bgp-rr) -->
 <!-- source: test/plugin/addpath-departure-rr-gr-retained.ci -- a retained family is not withdrawn by the reflector -->
 <!-- source: test/plugin/addpath-departure-rr-gr-expiry.ci -- at Restart Time expiry the reflected paths are withdrawn under ze's identifiers -->

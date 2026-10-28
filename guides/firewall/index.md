@@ -157,15 +157,47 @@ with the configuration that asked for it.
 
 One example: a BGP peer configured
 with `connection { ttl { max N; } }` (RFC 5082 GTSM) gets `ze_gtsm`, an input
-chain that drops an ICMP error which quotes that peer's BGP session and arrives
-below the peer's TTL floor. The chain names the session by the header the error
-quotes (the peer as the quoted destination, and the BGP port), whoever sent the
-error. Its terms therefore read the quoted header as a raw payload compare
+chain with two kinds of term for that peer.
+
+| Term | Matches | Why |
+|------|---------|-----|
+| `dangerous-<peer>-listen` | TCP from the peer to Ze's listen port with a TTL (IPv4) or hop limit (IPv6) below the peer's floor, then drop | The SYN reaches the listener before the accepted socket carries its own floor, so a spoofed SYN would otherwise cost a SYN-ACK and a request socket |
+| `dangerous-<peer>-type<N>-quoted-<side>` (IPv4 only) | An ICMP error which quotes that peer's BGP session and arrives below the floor | The related messages RFC 5082 Section 6.1 covers |
+
+A GTSM dynamic group gets one listen term per range, named
+`dangerous-<address>-<length>-listen`, with the range as its source and the
+group template's floor. A SYN to the listen port from any other source, or
+from the peer to any other port, matches no term: RFC 5082 Section 3 forbids
+dropping a packet GTSM classifies as Unknown.
+
+A session source inside a wider GTSM range on the same port (a static peer,
+or a dynamic group whose range is longer) owns its own SYNs, because the
+listener gives the connection to that session. It gets a
+`claimed-<source>-listen` term that accepts its TCP to the listen port, after
+its own drop term when it has a floor and before the wider range's drop, so
+the range never judges it by the range's floor. The accept ends only the
+`ze_gtsm` chain; every other table still sees the packet. A prefix two
+sources share is judged only by the one the listener picks: a static peer
+before a group range of the same address, and the first of two groups whose
+ranges are the same prefix.
+<!-- source: internal/component/gtsm/gtsm.go -- claimTerm, narrowestFirst -->
+<!-- source: internal/component/bgp/reactor/gtsm.go -- gtsmRanges -->
+
+Every term carries a packet counter (the nft backend adds one to each rule),
+so `show firewall ruleset gtsm` shows how many below-floor SYNs each
+`dangerous-...-listen` term dropped.
+<!-- source: internal/plugins/firewall/nft/backend_linux.go -- addChainRules -->
+<!-- source: internal/plugins/firewall/nft/cmd_show.go -- handleShowFirewallRuleset -->
+
+
+The ICMP terms name the session by the header the error quotes (the peer as
+the quoted destination, and the BGP port), whoever sent the error. They
+therefore read the quoted header as a raw payload compare
 (`@th,192,32 0xc0000202` is 192.0.2.2) and carry no `ip saddr`.
-`show firewall ruleset gtsm` lists it, and removing
-the peer's `ttl` block removes it. The full list of table owners is in
+`show firewall ruleset gtsm` lists the table, and removing the peer's `ttl`
+block removes its terms; the table goes with the last GTSM peer. The full list of table owners is in
 [table ownership](https://github.com/ze-software/ze/blob/main/docs/architecture/firewall/table-ownership-and-shutdown-flush.md).
-<!-- source: internal/component/gtsm/gtsm.go -- filterTables, peerTerms -->
+<!-- source: internal/component/gtsm/gtsm.go -- FilterTables, peerTerms -->
 
 ### Table Families
 
@@ -350,6 +382,48 @@ firewall {
     }
 }
 ```
+
+## Control-plane protection (CoPP)
+
+<!-- source: internal/plugins/copp/translate.go -- translatePolicy -->
+<!-- source: internal/plugins/copp/yang/ze-copp-conf.yang -- control-plane-protection bgp -->
+
+`control-plane-protection bgp` builds its own table, `inet ze_copp`, beside
+the firewall component's tables. It is an access list on TCP to the protected
+ports (179 unless `protected-port` says otherwise), as RFC 7454 Section 4
+recommends:
+
+- an established or related connection is accepted;
+- a connection from a `trusted-source` prefix is accepted;
+- a connection from a configured BGP neighbor is accepted: the `remote ip` of
+  each static peer and the `range` of each dynamic group, read from the `bgp`
+  configuration, so adding or removing a peer updates the list on reload;
+- TCP to a protected port from any other source is counted and dropped.
+
+```
+set control-plane-protection bgp rate 100/second
+set control-plane-protection bgp trusted-source 203.0.113.10/32
+```
+
+`rate` is optional and limits new connections from the neighbors only.
+`over-limit-policy` defaults to `drop`; set `accept` to observe a new rate
+before you enforce it. Neither setting admits an unknown source. Without the
+`control-plane-protection bgp` container Ze builds no access list. The chain
+policy stays `accept`, so SSH, ICMP and every port the table does not name stay
+reachable. `ze doctor` names any part of `ze_copp` the kernel does not hold.
+Design: [CoPP for BGP](https://github.com/ze-software/ze/blob/main/docs/architecture/traffic/cp-survival-2-copp-port179.md).
+
+Changed from earlier builds, for a configuration you carry forward:
+
+| Before | Now |
+|--------|-----|
+| `rate` was mandatory | `rate` is optional; without it the table is the access list alone |
+| `over-limit-policy` defaulted to `accept`, which counted and admitted | it defaults to `drop`; write `accept` to keep the old behaviour |
+| a trusted term's name carried the prefix as written, `trusted-192.0.2.0/24` | it is `trusted-192.0.2.0-24`: `/` and `:` are written `-`, because the firewall's name check refuses both |
+| any source could open a connection to a protected port | only a configured neighbor or a `trusted-source` can |
+<!-- source: internal/plugins/copp/config.go -- parseRateLimit -->
+<!-- source: internal/plugins/copp/translate.go -- trustedTermName -->
+
 
 ## Global Options
 

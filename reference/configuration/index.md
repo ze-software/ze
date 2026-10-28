@@ -1,6 +1,6 @@
 # Configuration Reference
 
-The complete Ze configuration as one tree: 38 top-level sections (28 provided by plugins, the rest core), generated live from the YANG schema with `ze yang tree`. This is about the structure of the configuration -- every section, searchable and inspectable. See [the Configuration guide](https://ze-software.net/features/bgp-configuration/) for a narrative walkthrough of BGP peer config specifically.
+The complete Ze configuration as one tree: 38 top-level sections (27 provided by plugins, the rest core), generated live from the YANG schema with `ze yang tree`. This is about the structure of the configuration -- every section, searchable and inspectable. See [the Configuration guide](https://ze-software.net/features/bgp-configuration/) for a narrative walkthrough of BGP peer config specifically.
 
 ## anomaly
 
@@ -289,8 +289,8 @@ A peer inherits from its group defaults. A group inherits from this global level
       Packing reduces the number of UPDATE messages from O(routes) to O(unique-attribute-sets). Disable it for a peer that requires one prefix per UPDATE.
     - **manual-eor** `boolean`: Do not send End-of-RIB automatically after the initial route advertisement.
       When the leaf is enabled, End-of-RIB must be triggered from outside, through the process API. Use the leaf when an external controller manages the convergence signaling.
-    - **rs-fast-path** `boolean`: Forward a received UPDATE inside the reactor for an RS-client peer.
-      Forward received UPDATEs directly inside the reactor for RS-client peers, and bypass the plugin dispatch chain. This path gives lower latency for route server forwarding. A peer with an export filter is excluded and uses the normal path.
+    - **rs-fast-path** `boolean`: Forward an RS-client UPDATE inside the reactor. Needs the route server's update grants.
+      Forward received UPDATEs directly inside the reactor for RS-client peers, and bypass the plugin dispatch chain. This path gives lower latency for route server forwarding. A peer with an export filter is excluded and uses the normal path. The fast path obeys the route server's attach grants: it forwards only from a peer that attaches this plugin with receive [ update-received ], and only to a peer that attaches it with send [ update ]. Add both to every rs-fast-path peer: attach process <route-server> { receive [ update-received ]; send [ update ]; }.
   - **blackhole** `container`: RFC 7999 blackhole agreement on this BGP session, in both directions.
     The RFC 7999 agreement on this BGP session, in both directions. It states what this speaker does with a received route carrying the BLACKHOLE community, 65535:666. It also states whether this speaker CAN advertise that community to this peer. Section 4 uses the suggested shorthand keyword for the value. A later revision adds an as-sets leaf-list here. It answers a DIFFERENT question from session/irr/as-set. That one states what the peer CAN advertise at all. This one would state what the peer CAN blackhole within. Whether one deployment puts the same set in both is the operator's business, not this model's.
     - **communities** `string[]`: Communities that make Ze discard traffic toward a prefix this peer announces.
@@ -450,8 +450,8 @@ A peer inherits from its group defaults. A group inherits from this global level
         Packing reduces the number of UPDATE messages from O(routes) to O(unique-attribute-sets). Disable it for a peer that requires one prefix per UPDATE.
       - **manual-eor** `boolean`: Do not send End-of-RIB automatically after the initial route advertisement.
         When the leaf is enabled, End-of-RIB must be triggered from outside, through the process API. Use the leaf when an external controller manages the convergence signaling.
-      - **rs-fast-path** `boolean`: Forward a received UPDATE inside the reactor for an RS-client peer.
-        Forward received UPDATEs directly inside the reactor for RS-client peers, and bypass the plugin dispatch chain. This path gives lower latency for route server forwarding. A peer with an export filter is excluded and uses the normal path.
+      - **rs-fast-path** `boolean`: Forward an RS-client UPDATE inside the reactor. Needs the route server's update grants.
+        Forward received UPDATEs directly inside the reactor for RS-client peers, and bypass the plugin dispatch chain. This path gives lower latency for route server forwarding. A peer with an export filter is excluded and uses the normal path. The fast path obeys the route server's attach grants: it forwards only from a peer that attaches this plugin with receive [ update-received ], and only to a peer that attaches it with send [ update ]. Add both to every rs-fast-path peer: attach process <route-server> { receive [ update-received ]; send [ update ]; }.
     - **blackhole** `container`: RFC 7999 blackhole agreement on this BGP session, in both directions.
       The RFC 7999 agreement on this BGP session, in both directions. It states what this speaker does with a received route carrying the BLACKHOLE community, 65535:666. It also states whether this speaker CAN advertise that community to this peer. Section 4 uses the suggested shorthand keyword for the value. A later revision adds an as-sets leaf-list here. It answers a DIFFERENT question from session/irr/as-set. That one states what the peer CAN advertise at all. This one would state what the peer CAN blackhole within. Whether one deployment puts the same set in both is the operator's business, not this model's.
       - **communities** `string[]`: Communities that make Ze discard traffic toward a prefix this peer announces.
@@ -688,23 +688,27 @@ A peer inherits from its group defaults. A group inherits from this global level
             - `receive`: Receive multiple paths
             - `send`: Send multiple paths
             - `send/receive`: Both send and receive multiple paths
-          - **family <name>** `list`: Per-family ADD-PATH overrides with optional path count limit.
+          - **family <name>** `list`: Per-family ADD-PATH overrides with an optional path count limit.
             The list key is the family name. An entry with no direction takes the container direction. Ze skips an entry whose family name is not registered.
             - **direction** `enumeration`: ADD-PATH direction override for this family.
               The value replaces the container direction for this family. An absent value keeps the container direction.
               - `receive`: Receive ADD-PATH
               - `send`: Send ADD-PATH
               - `send/receive`: Both send and receive ADD-PATH
-            - **limit** `uint16`: Maximum paths per prefix requested from the peer (PATHS-LIMIT capability).
-              Use a value from 1 through 65535. Omit this leaf to inherit the container limit. Ze advertises no limit for a disabled or refused ADD-PATH family. This is a request to the sender, not local receive-side policing.
+            - **limit** `container`: PATHS-LIMIT path counts per prefix for this family, by direction.
+              Holds this family's path counts per prefix for each ADD-PATH direction. A value set here replaces the container limit for this family alone.
+              - **receive** `uint16`: Maximum paths per prefix requested from the peer (PATHS-LIMIT capability).
+                Use a value from 1 through 65535. Omit this leaf to inherit the container receive limit. Ze advertises no limit for a disabled or refused ADD-PATH family, or for one whose direction excludes receive. Ze also enforces it on arrival: a path over the limit for one prefix is dropped, and the rest of its UPDATE installs.
             - **mode** `capability-mode`: ADD-PATH negotiation mode for this family.
               enable and disable act on this family alone. require refuses the session when the peer does not offer ADD-PATH. refuse refuses the session when the peer offers it. Ze takes the most restrictive mode over the whole list.
               - `disable`: Do not advertise the capability; no enforcement
               - `enable`: Advertise the capability; no enforcement
               - `refuse`: Do not advertise the capability; refuse the session when the peer offers it
               - `require`: Advertise the capability; refuse the session when the peer does not offer it
-          - **limit** `uint16`: Default maximum paths per prefix requested from the peer (PATHS-LIMIT).
-            Ze advertises this receive request for each enabled ADD-PATH family. A per-family limit overrides it. This setting does not enforce a local receive-side limit.
+          - **limit** `container`: Default PATHS-LIMIT path counts per prefix, by direction.
+            Holds the path counts per prefix for each ADD-PATH direction. A per-family limit container overrides a value set here. Only the receive direction exists today.
+            - **receive** `uint16`: Default maximum paths per prefix requested from the peer (PATHS-LIMIT).
+              Ze advertises this receive request in PATHS-LIMIT for each enabled ADD-PATH family whose direction includes receive. A per-family receive overrides it. Ze also enforces it: a path over the limit for one prefix is dropped on arrival.
         - **asn4** `capability-mode`: 4-byte ASN capability mode (RFC 6793): enable, disable, require or refuse.
           The capability is required for an ASN of more than 65535. Disable it only for a peer that runs a legacy implementation, which speaks 2-byte ASNs alone. require refuses the session when the peer does not offer it, and refuse refuses the session when the peer offers it.
           - `disable`: Do not advertise the capability; no enforcement
@@ -846,6 +850,8 @@ A peer inherits from its group defaults. A group inherits from this global level
       The speaker proposes the hold time in OPEN. The two peers negotiate it to the lower of their two values.
       - **connect-retry** `uint16`: Connect retry interval in seconds. Ze reads it for a dynamic peer alone.
         Ze removes a disconnected dynamic peer after this delay when no connection comes back. A static peer reconnects on an exponential backoff from 5 seconds to 60 seconds, and this leaf does not change that backoff.
+      - **delay-open** `uint16`: Delay OPEN by 0..240 seconds; 0 disables DelayOpen.
+        RFC 4271 DelayOpen: hold a connected socket without sending OPEN until the peer sends OPEN or this timer expires. Zero sends OPEN immediately.
       - **keepalive** `uint16`: Keepalive interval in seconds (RFC 4271 Section 10). 0 = auto: hold-time/3.
         Ze refuses a value that is not less than receive-hold-time, because the hold timer must be able to detect a lost KEEPALIVE. 0 derives the interval from the negotiated hold time.
       - **receive-hold-time** `uint16`: Receive hold time in seconds (RFC 4271: 0 or >= 3). Proposed in OPEN.
@@ -1019,23 +1025,27 @@ A peer inherits from its group defaults. A group inherits from this global level
           - `receive`: Receive multiple paths
           - `send`: Send multiple paths
           - `send/receive`: Both send and receive multiple paths
-        - **family <name>** `list`: Per-family ADD-PATH overrides with optional path count limit.
+        - **family <name>** `list`: Per-family ADD-PATH overrides with an optional path count limit.
           The list key is the family name. An entry with no direction takes the container direction. Ze skips an entry whose family name is not registered.
           - **direction** `enumeration`: ADD-PATH direction override for this family.
             The value replaces the container direction for this family. An absent value keeps the container direction.
             - `receive`: Receive ADD-PATH
             - `send`: Send ADD-PATH
             - `send/receive`: Both send and receive ADD-PATH
-          - **limit** `uint16`: Maximum paths per prefix requested from the peer (PATHS-LIMIT capability).
-            Use a value from 1 through 65535. Omit this leaf to inherit the container limit. Ze advertises no limit for a disabled or refused ADD-PATH family. This is a request to the sender, not local receive-side policing.
+          - **limit** `container`: PATHS-LIMIT path counts per prefix for this family, by direction.
+            Holds this family's path counts per prefix for each ADD-PATH direction. A value set here replaces the container limit for this family alone.
+            - **receive** `uint16`: Maximum paths per prefix requested from the peer (PATHS-LIMIT capability).
+              Use a value from 1 through 65535. Omit this leaf to inherit the container receive limit. Ze advertises no limit for a disabled or refused ADD-PATH family, or for one whose direction excludes receive. Ze also enforces it on arrival: a path over the limit for one prefix is dropped, and the rest of its UPDATE installs.
           - **mode** `capability-mode`: ADD-PATH negotiation mode for this family.
             enable and disable act on this family alone. require refuses the session when the peer does not offer ADD-PATH. refuse refuses the session when the peer offers it. Ze takes the most restrictive mode over the whole list.
             - `disable`: Do not advertise the capability; no enforcement
             - `enable`: Advertise the capability; no enforcement
             - `refuse`: Do not advertise the capability; refuse the session when the peer offers it
             - `require`: Advertise the capability; refuse the session when the peer does not offer it
-        - **limit** `uint16`: Default maximum paths per prefix requested from the peer (PATHS-LIMIT).
-          Ze advertises this receive request for each enabled ADD-PATH family. A per-family limit overrides it. This setting does not enforce a local receive-side limit.
+        - **limit** `container`: Default PATHS-LIMIT path counts per prefix, by direction.
+          Holds the path counts per prefix for each ADD-PATH direction. A per-family limit container overrides a value set here. Only the receive direction exists today.
+          - **receive** `uint16`: Default maximum paths per prefix requested from the peer (PATHS-LIMIT).
+            Ze advertises this receive request in PATHS-LIMIT for each enabled ADD-PATH family whose direction includes receive. A per-family receive overrides it. Ze also enforces it: a path over the limit for one prefix is dropped on arrival.
       - **asn4** `capability-mode`: 4-byte ASN capability mode (RFC 6793): enable, disable, require or refuse.
         The capability is required for an ASN of more than 65535. Disable it only for a peer that runs a legacy implementation, which speaks 2-byte ASNs alone. require refuses the session when the peer does not offer it, and refuse refuses the session when the peer offers it.
         - `disable`: Do not advertise the capability; no enforcement
@@ -1177,6 +1187,8 @@ A peer inherits from its group defaults. A group inherits from this global level
     The speaker proposes the hold time in OPEN. The two peers negotiate it to the lower of their two values.
     - **connect-retry** `uint16`: Connect retry interval in seconds. Ze reads it for a dynamic peer alone.
       Ze removes a disconnected dynamic peer after this delay when no connection comes back. A static peer reconnects on an exponential backoff from 5 seconds to 60 seconds, and this leaf does not change that backoff.
+    - **delay-open** `uint16`: Delay OPEN by 0..240 seconds; 0 disables DelayOpen.
+      RFC 4271 DelayOpen: hold a connected socket without sending OPEN until the peer sends OPEN or this timer expires. Zero sends OPEN immediately.
     - **keepalive** `uint16`: Keepalive interval in seconds (RFC 4271 Section 10). 0 = auto: hold-time/3.
       Ze refuses a value that is not less than receive-hold-time, because the hold timer must be able to detect a lost KEEPALIVE. 0 derives the interval from the negotiated hold time.
     - **receive-hold-time** `uint16`: Receive hold time in seconds (RFC 4271: 0 or >= 3). Proposed in OPEN.
@@ -1325,8 +1337,8 @@ A peer inherits from its group defaults. A group inherits from this global level
       Packing reduces the number of UPDATE messages from O(routes) to O(unique-attribute-sets). Disable it for a peer that requires one prefix per UPDATE.
     - **manual-eor** `boolean`: Do not send End-of-RIB automatically after the initial route advertisement.
       When the leaf is enabled, End-of-RIB must be triggered from outside, through the process API. Use the leaf when an external controller manages the convergence signaling.
-    - **rs-fast-path** `boolean`: Forward a received UPDATE inside the reactor for an RS-client peer.
-      Forward received UPDATEs directly inside the reactor for RS-client peers, and bypass the plugin dispatch chain. This path gives lower latency for route server forwarding. A peer with an export filter is excluded and uses the normal path.
+    - **rs-fast-path** `boolean`: Forward an RS-client UPDATE inside the reactor. Needs the route server's update grants.
+      Forward received UPDATEs directly inside the reactor for RS-client peers, and bypass the plugin dispatch chain. This path gives lower latency for route server forwarding. A peer with an export filter is excluded and uses the normal path. The fast path obeys the route server's attach grants: it forwards only from a peer that attaches this plugin with receive [ update-received ], and only to a peer that attaches it with send [ update ]. Add both to every rs-fast-path peer: attach process <route-server> { receive [ update-received ]; send [ update ]; }.
   - **blackhole** `container`: RFC 7999 blackhole agreement on this BGP session, in both directions.
     The RFC 7999 agreement on this BGP session, in both directions. It states what this speaker does with a received route carrying the BLACKHOLE community, 65535:666. It also states whether this speaker CAN advertise that community to this peer. Section 4 uses the suggested shorthand keyword for the value. A later revision adds an as-sets leaf-list here. It answers a DIFFERENT question from session/irr/as-set. That one states what the peer CAN advertise at all. This one would state what the peer CAN blackhole within. Whether one deployment puts the same set in both is the operator's business, not this model's.
     - **communities** `string[]`: Communities that make Ze discard traffic toward a prefix this peer announces.
@@ -1563,23 +1575,27 @@ A peer inherits from its group defaults. A group inherits from this global level
           - `receive`: Receive multiple paths
           - `send`: Send multiple paths
           - `send/receive`: Both send and receive multiple paths
-        - **family <name>** `list`: Per-family ADD-PATH overrides with optional path count limit.
+        - **family <name>** `list`: Per-family ADD-PATH overrides with an optional path count limit.
           The list key is the family name. An entry with no direction takes the container direction. Ze skips an entry whose family name is not registered.
           - **direction** `enumeration`: ADD-PATH direction override for this family.
             The value replaces the container direction for this family. An absent value keeps the container direction.
             - `receive`: Receive ADD-PATH
             - `send`: Send ADD-PATH
             - `send/receive`: Both send and receive ADD-PATH
-          - **limit** `uint16`: Maximum paths per prefix requested from the peer (PATHS-LIMIT capability).
-            Use a value from 1 through 65535. Omit this leaf to inherit the container limit. Ze advertises no limit for a disabled or refused ADD-PATH family. This is a request to the sender, not local receive-side policing.
+          - **limit** `container`: PATHS-LIMIT path counts per prefix for this family, by direction.
+            Holds this family's path counts per prefix for each ADD-PATH direction. A value set here replaces the container limit for this family alone.
+            - **receive** `uint16`: Maximum paths per prefix requested from the peer (PATHS-LIMIT capability).
+              Use a value from 1 through 65535. Omit this leaf to inherit the container receive limit. Ze advertises no limit for a disabled or refused ADD-PATH family, or for one whose direction excludes receive. Ze also enforces it on arrival: a path over the limit for one prefix is dropped, and the rest of its UPDATE installs.
           - **mode** `capability-mode`: ADD-PATH negotiation mode for this family.
             enable and disable act on this family alone. require refuses the session when the peer does not offer ADD-PATH. refuse refuses the session when the peer offers it. Ze takes the most restrictive mode over the whole list.
             - `disable`: Do not advertise the capability; no enforcement
             - `enable`: Advertise the capability; no enforcement
             - `refuse`: Do not advertise the capability; refuse the session when the peer offers it
             - `require`: Advertise the capability; refuse the session when the peer does not offer it
-        - **limit** `uint16`: Default maximum paths per prefix requested from the peer (PATHS-LIMIT).
-          Ze advertises this receive request for each enabled ADD-PATH family. A per-family limit overrides it. This setting does not enforce a local receive-side limit.
+        - **limit** `container`: Default PATHS-LIMIT path counts per prefix, by direction.
+          Holds the path counts per prefix for each ADD-PATH direction. A per-family limit container overrides a value set here. Only the receive direction exists today.
+          - **receive** `uint16`: Default maximum paths per prefix requested from the peer (PATHS-LIMIT).
+            Ze advertises this receive request in PATHS-LIMIT for each enabled ADD-PATH family whose direction includes receive. A per-family receive overrides it. Ze also enforces it: a path over the limit for one prefix is dropped on arrival.
       - **asn4** `capability-mode`: 4-byte ASN capability mode (RFC 6793): enable, disable, require or refuse.
         The capability is required for an ASN of more than 65535. Disable it only for a peer that runs a legacy implementation, which speaks 2-byte ASNs alone. require refuses the session when the peer does not offer it, and refuse refuses the session when the peer offers it.
         - `disable`: Do not advertise the capability; no enforcement
@@ -1721,6 +1737,8 @@ A peer inherits from its group defaults. A group inherits from this global level
     The speaker proposes the hold time in OPEN. The two peers negotiate it to the lower of their two values.
     - **connect-retry** `uint16`: Connect retry interval in seconds. Ze reads it for a dynamic peer alone.
       Ze removes a disconnected dynamic peer after this delay when no connection comes back. A static peer reconnects on an exponential backoff from 5 seconds to 60 seconds, and this leaf does not change that backoff.
+    - **delay-open** `uint16`: Delay OPEN by 0..240 seconds; 0 disables DelayOpen.
+      RFC 4271 DelayOpen: hold a connected socket without sending OPEN until the peer sends OPEN or this timer expires. Zero sends OPEN immediately.
     - **keepalive** `uint16`: Keepalive interval in seconds (RFC 4271 Section 10). 0 = auto: hold-time/3.
       Ze refuses a value that is not less than receive-hold-time, because the hold timer must be able to detect a lost KEEPALIVE. 0 derives the interval from the negotiated hold time.
     - **receive-hold-time** `uint16`: Receive hold time in seconds (RFC 4271: 0 or >= 3). Proposed in OPEN.
@@ -1986,8 +2004,8 @@ A peer inherits from its group defaults. A group inherits from this global level
     The list key is an IP address or a hostname. Ze tries entries in increasing preference order, publishes only a completed cache response, and replaces the selected cache's records atomically. An empty list leaves validation off.
     - **port** `port`: TCP port of the RTR cache server.
       The cache transport port. When omitted, unprotected TCP uses 323 and TLS uses 324.
-    - **preference** `uint8`: Preference of this cache server.
-      Lower values are tried first. Each polling round starts with the most preferred cache.
+    - **preference** `uint8`: Cache selection order: a lower value is preferred.
+      The lower the value, the more preferred the cache (RFC 8210 Section 10). Each polling round starts with the most preferred cache, and ze loads its data from the first cache that completes a synchronization; caches with equal values keep their configuration order. A cache that fails, or answers No Data Available, hands the round to the next one in preference order. While a less-preferred cache holds the data, a more-preferred cache is asked again when its own Retry Interval runs out, and takes over once it completes a full load.
     - **source-address** `ip-address`: Source IP address of an outbound RTR connection.
       Set this leaf when the RTR connection MUST leave the box from one specific local address.
     - **tls** `container`: Authenticate the RTR cache and router with TLS.
@@ -2010,6 +2028,10 @@ A peer inherits from its group defaults. A group inherits from this global level
     At this global level the container holds the local ASN alone. The same container under a group or a peer also holds remote and local-options.
     - **local** `asn`: Local Autonomous System Number (required)
       Ze sends the value as My Autonomous System in OPEN. A group or a peer can override it. Ze keeps this global value for the local-as modifiers, which need the real AS number.
+- **timer** `container`: Session timer defaults inherited by groups and peers.
+  BGP timer defaults inherited by groups and peers.
+  - **delay-open** `uint16`: Delay OPEN by 0..240 seconds; 0 disables DelayOpen.
+    RFC 4271 DelayOpen: hold a connected socket without sending OPEN until the peer sends OPEN or this timer expires. Zero sends OPEN immediately.
 - **update** `list`: Native Ze route announcements
   Ze announces every route of the block to the peers the block applies to. The block is written at the global level, the group level, and the peer level, and the three accumulate.
   - **attribute** `container`: Path attributes for routes in this block
@@ -2159,20 +2181,20 @@ Control-plane policing configuration.
 
 Ze compiles the containers under it into one nftables table named ze_copp, which carries a base input chain at priority 0. The ze_ prefix is what makes the firewall backend own that table and withdraw it when you delete the configuration. The bgp container is the only policy Ze builds today.
 
-- **bgp** `container`: Rate-limit new TCP connections to the BGP listen port.
-  The container carries presence, so Ze builds the ze_copp table when you write it and removes the table when you delete it. The chain accepts an established or related connection first, then a connection from each trusted-source prefix, and applies the rate to what is left.
+- **bgp** `container`: Accept BGP connections from configured neighbors only, and drop the rest.
+  An access list on TCP to the protected ports (RFC 7454 Section 4). Ze accepts an established or related connection first, then a connection from each trusted-source prefix, then a connection from a configured BGP neighbor: the remote ip of each static peer and the range of each dynamic group, read from the bgp configuration. Ze counts and drops TCP to a protected port from every other source. The rate, when set, limits new connections from the neighbors only. Ze builds the table when you write the container and removes it when you delete the container. A configuration without this container gets no access list.
   - **burst** `uint32`: Burst size (packets or bytes matching the rate unit).
-    The unit follows the unit of rate: a packet count where rate counts packets, and a byte count where rate names a byte unit. The leaf has no default, and Ze gives the kernel a burst of 0 when it is absent.
-  - **over-limit-policy** `enumeration`: What Ze does with the packets that exceed the rate limit.
-    accept, the default, counts the over-limit packets and lets them through. The limit then reports load and stops nothing. drop discards a new TCP connection to a protected port once the rate is exceeded. Either setting reaches the over-limit packets alone. The input chain keeps an accept policy, so SSH, ICMP and every service this table never names stay reachable. The first term accepts an established session before the limit is read, so drop never closes a session that is already up.
-    - `accept`: Accept over-limit packets (safe default).
-    - `drop`: Drop over-limit packets.
+    The unit follows the unit of rate: a packet count where rate counts packets, and a byte count where rate names a byte unit. The leaf has no default, and Ze gives the kernel a burst of 0 when it is absent. Ze refuses a burst without a rate.
+  - **over-limit-policy** `enumeration`: What Ze does with neighbor connections that exceed the rate limit.
+    drop, the default, discards a new connection from a BGP neighbor once the rate is exceeded. accept lets those connections through, so the limit reports load and stops nothing; use it to observe a new rate before you enforce it. The leaf matters only when rate is set, and it never changes the access list: a source that is not a neighbor is dropped under either setting. The input chain keeps an accept policy, so SSH, ICMP and every service this table never names stay reachable, and an established session is accepted before the limit is read.
+    - `accept`: Accept over-limit connections; the limit then stops nothing.
+    - `drop`: Drop over-limit connections (default).
   - **protected-port** `uint16[]`: TCP port(s) the control-plane policing rules protect, 179 (BGP) by default.
     TCP port(s) to protect. Ze uses 179, the BGP port, when this leaf is omitted. Set a different value when the BGP listener uses another port.
-  - **rate** `rate-spec`: Rate limit for new connections (e.g., 100/second).
-    The leaf is mandatory, so Ze refuses the container without it. The value is a count, an optional byte unit, and a time unit, as in 100/second or 1mbytes/second. The limit reaches a new TCP connection to a protected port alone, because the chain accepts an established connection before it.
-  - **trusted-source** `string[]`: Source prefixes that bypass the rate limit. Typically the addresses of configured BGP peers.
-    Ze adds one accept term for each prefix, above the rate limit term. The term matches TCP from that source to a protected port, so a trusted peer never meets the limit. Ze refuses a value that is not an IPv4 prefix or an IPv6 prefix.
+  - **rate** `rate-spec`: Limit for new connections from BGP neighbors (e.g., 100/second).
+    The leaf is optional. Without it Ze builds the access list and no limit. The value is a count, an optional byte unit, and a time unit, as in 100/second or 1mbytes/second. The limit applies to new TCP connections from configured BGP neighbors. A trusted-source prefix and an established session never meet it, and a source that is not a neighbor is dropped before it.
+  - **trusted-source** `string[]`: Source prefixes accepted without being BGP neighbors, and never rate limited.
+    Ze adds one accept term for each prefix, ahead of the neighbor terms. The term matches TCP from that source to a protected port, so a trusted source is never dropped and never meets the rate limit. Use it for a source that is not a configured BGP neighbor, such as a monitoring host. Ze refuses a value that is not an IPv4 prefix or an IPv6 prefix.
 
 ## ddos
 
@@ -5937,8 +5959,6 @@ The presence of this container starts the OSPFv2 engine, which RFC 2328 defines.
 
 ## pki
 
-*Provided by `ike`*
-
 PKI certificate and key store.
 
 PKI certificate and key store. Presence of this block enables certificate-based authentication for IPsec VPN, TLS, and other subsystems.
@@ -6247,7 +6267,7 @@ RSVP-TE traffic engineering configuration. Signaling is IPv4 only. Without a rou
 
 ## service
 
-*Provided by `as112` ([ze-as112-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/as112/yang/ze-as112-cmd.yang), [ze-as112-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/as112/yang/ze-as112-conf.yang)); `dhcpserver` ([ze-dhcp-server-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/yang/ze-dhcp-server-conf.yang)); `geodns` ([ze-geodns-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/yang/ze-geodns-cmd.yang), [ze-geodns-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/yang/ze-geodns-conf.yang)); `imageserver` ([ze-image-server-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/imageserver/yang/ze-image-server-conf.yang)); `tftpserver` ([ze-tftp-server-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/yang/ze-tftp-server-conf.yang))*
+*Provided by `as112` ([ze-as112-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/as112/yang/ze-as112-cmd.yang), [ze-as112-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/as112/yang/ze-as112-conf.yang)); `dhcpserver` ([ze-dhcp-server-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/yang/ze-dhcp-server-conf.yang)); `dnsresolver` ([ze-dns-resolver-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/yang/ze-dns-resolver-cmd.yang), [ze-dns-resolver-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/yang/ze-dns-resolver-conf.yang)); `geodns` ([ze-geodns-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/yang/ze-geodns-cmd.yang), [ze-geodns-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/yang/ze-geodns-conf.yang)); `imageserver` ([ze-image-server-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/imageserver/yang/ze-image-server-conf.yang)); `tftpserver` ([ze-tftp-server-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/yang/ze-tftp-server-conf.yang))*
 
 Service settings.
 
@@ -6350,6 +6370,43 @@ The container holds the settings of each service Ze runs, and the as112 containe
           Fixed IP address for this client. It has to fall inside the subnet prefix, and a commit rejects an address outside it. The address does not have to fall inside a range. When it does, Ze marks it allocated so the dynamic pool never offers it to another client.
         - **mac-address** `string`: Client MAC address (xx:xx:xx:xx:xx:xx)
           Client MAC address. Ze reads the colon form aa:bb:cc:dd:ee:ff, the hyphen form and the dotted form. Ze matches the value against the client hardware address of the request. A mapping with no mac-address is rejected at commit.
+- **dns-resolver** `container`: LAN DNS resolver: caching, forwarding
+  The LAN DNS resolver answers recursive queries (RD set) from the hosts behind Ze, which learn its address from DHCPv4 option 6, the router advertisement RDNSS option or IPCP. It answers only on the `listener` addresses and only to sources inside an `allow-from` prefix, and it resolves by forwarding to the `forward server` entries in order. It does not validate DNSSEC.
+  - **allow-from** `ip-prefix[]`: Client prefixes the resolver answers
+    Source prefixes the resolver answers. A query from any other source is refused. An enabled resolver needs at least one entry: an empty list would refuse every client, and answering every source would make Ze an open resolver.
+  - **cache** `container`: Resolver cache bounds
+    Bounds of the answer and negative caches.
+    - **max-negative-ttl** `uint32`: Negative answer TTL cap in seconds
+      The longest time a name-error or no-data answer stays cached.
+    - **max-ttl** `uint32`: Positive answer TTL cap in seconds
+      The longest time a positive answer stays cached, whatever TTL the upstream gave.
+    - **size** `uint32`: Cache entries, 0 disables caching
+      The most entries the cache holds; the least recently used entry is evicted to make room. 0 disables caching.
+  - **enabled** `boolean`: Enable the LAN DNS resolver
+    The default is false, so the resolver binds no listener and answers no query. A true value binds each `listener` entry for UDP and TCP, and needs at least one `listener`, one `allow-from` prefix and one `forward server`.
+  - **forward** `container`: Upstream resolvers
+    The upstream resolvers forward mode sends queries to.
+    - **server <ip>** `list`: Upstream resolver address
+      One upstream resolver. The resolver tries the entries in the order they are configured and moves to the next when one does not answer.
+      - **port** `port`: Upstream resolver port
+        The upstream resolver's port.
+  - **limit** `container`: Resolver work bounds
+    Bounds on the work clients can ask of the resolver.
+    - **outstanding** `uint32`: Concurrent resolutions
+      The most resolutions in flight at once. A new query that needs one beyond it is dropped, and the client sends it again after its own timeout.
+    - **per-client-rate** `uint32`: Per-source query rate, 0 for none
+      The most queries per second one source address is answered. Beyond it queries are dropped, one in ten still answered. 0 sets no limit.
+  - **listener <name>** `list`: UDP and TCP listen endpoints for the resolver
+    UDP and TCP listen endpoints. Each named entry binds one LAN or loopback address and one port. A wildcard address (0.0.0.0 or ::) is refused, because it would also answer on the WAN side. The ze:listener marking enables config-time port-conflict detection across services.
+    - **ip** `ip-address`: Listen IP address
+      The listener binds this address. 0.0.0.0 binds every IPv4 address of the host, and :: binds every IPv6 address. Config validation refuses two listeners that share a protocol and a port when their addresses overlap. A wildcard address overlaps every address of its own family, and an IPv4 address never overlaps an IPv6 address.
+    - **port** `listener-port`: Listen TCP port; 0 means OS-assigned
+      The port range is 0 to 65535. Port 0 makes the operating system pick a free port at bind time, so no client can know the port before the listener starts. ze doctor tries to bind each configured endpoint and reports the one the host refuses.
+  - **mode** `enumeration`: Resolution mode
+    How the resolver finds an answer it has not cached. forward sends the query to the `forward server` entries.
+    - `forward`: Resolve by forwarding to the forward server entries
+  - **timeout** `uint8`: Whole-resolution deadline in seconds
+    The longest one resolution may take, every upstream attempt included. A query not resolved in that time is answered SERVFAIL.
 - **geodns** `container`: GeoDNS server: per-source-IP DNS answers
   GeoDNS answers a query from the client address rather than from the name alone. A `source` entry maps a client prefix to a `host-set`, and the longest prefix that holds the client address wins. The same name can then answer a different address to each client. Ze is authoritative for the `zone` entries only, and it serves no AXFR.
   - **client-ip-source** `enumeration`: Where the client IP used for source selection is read from
@@ -7017,6 +7074,8 @@ Two subtrees sit under it, and they are independent. control programs the queuei
           The value is a number and a unit, for example 10mbit or 100kbps.
       - **default-class** `leafref`: Name of the class that takes the unclassified traffic.
         The value is the name of a class in the class list of this qdisc. The leafref refuses a name no class of this qdisc carries.
+      - **rate** `rate-bps`: Rate of the classless TBF root.
+        Root TBF rate. Required by backend tc for tbf, which has no configurable classes. The backend refuses a rate it cannot represent without truncation. VPP uses class policers instead and refuses this leaf.
       - **type** `qdisc-type`: Type of the queueing discipline.
         The commit-time gate rejects a type the configured backend does not support.
         - `fq`: The Fair Queue qdisc.
@@ -7076,8 +7135,8 @@ Ze declares one subsystem under it today, which is ipsec. That subsystem holds t
     - **proposal <number>** `list`: ESP proposal, where a lower number is a higher priority.
       ESP proposal. Lower number = higher priority. One group offers at most 255 proposals, because RFC 7296 Section 3.3.1 numbers them in one octet.
       - **encryption** `encryption-algo`: Encryption algorithm.
-        No build carries a transform for chacha20poly1305 or 3des, so a proposal that names one is refused at commit. The refusal lists the algorithms the build does implement. null selects integrity-only ESP, which RFC 4303 Section 1 requires to be negotiable. RFC 4303 Section 3.2 forbids ESP with neither confidentiality nor integrity, so a null proposal without a hash is refused at commit.
-        - `3des`: Triple-DES-CBC (RFC 2451), deprecated. No build implements it.
+        chacha20poly1305 selects a fixed 256-bit AEAD key; omit hash. 3des selects a fixed 192-bit DES-EDE key including parity and requires hash. These ciphers are ESP-only. null selects integrity-only ESP, which RFC 4303 Section 1 requires to be negotiable. RFC 4303 Section 3.2 forbids ESP with neither confidentiality nor integrity, so a null proposal without a hash is refused at commit.
+        - `3des`: Triple-DES-CBC (RFC 2451), legacy ESP only; requires hash.
         - `aes128`: AES-CBC-128 (RFC 3602).
         - `aes128ccm12`: AES-CCM-128, 12-byte ICV (RFC 4309, RFC 5282). IKE SA only.
         - `aes128ccm16`: AES-CCM-128, 16-byte ICV (RFC 4309, RFC 5282). IKE SA only.
@@ -7088,11 +7147,11 @@ Ze declares one subsystem under it today, which is ipsec. That subsystem holds t
         - `aes256ccm16`: AES-CCM-256, 16-byte ICV (RFC 4309, RFC 5282). IKE SA only.
         - `aes256ccm8`: AES-CCM-256, 8-byte ICV (RFC 4309, RFC 5282). IKE SA only.
         - `aes256gcm`: AES-GCM-256, 16-byte ICV (RFC 4106).
-        - `chacha20poly1305`: ChaCha20-Poly1305 AEAD (RFC 7634). No build implements it.
+        - `chacha20poly1305`: ChaCha20-Poly1305 AEAD (RFC 7634). ESP only; omit hash.
         - `null`: NULL encryption (RFC 2410): integrity-only ESP, which needs a hash. ESP only.
       - **hash** `hash-algo`: Integrity algorithm.
-        Integrity algorithm. It is required beside a non-AEAD cipher, and refused beside an AEAD cipher. RFC 7296 Section 3.3 gives an AEAD cipher its own integrity, so an ESP proposal offers the integrity transform NONE. An ESP proposal carries no PRF transform, so this leaf never names one. No build carries a transform for sha1, so a proposal that names it is refused at commit. The refusal lists the algorithms the build does implement.
-        - `sha1`: HMAC-SHA-1-96 (RFC 2404). No build implements it.
+        Integrity algorithm. It is required beside a non-AEAD cipher, and refused beside an AEAD cipher. RFC 7296 Section 3.3 gives an AEAD cipher its own integrity, so an ESP proposal offers the integrity transform NONE. An ESP proposal carries no PRF transform, so this leaf never names one. sha1 selects legacy HMAC-SHA-1-96 with a 160-bit key. It is supported for ESP integrity only, not for IKE.
+        - `sha1`: HMAC-SHA-1-96 (RFC 2404), legacy ESP integrity only; not an IKE PRF.
         - `sha256`: HMAC-SHA-256-128 (RFC 4868).
         - `sha384`: HMAC-SHA-384-192 (RFC 4868).
         - `sha512`: HMAC-SHA-512-256 (RFC 4868).
@@ -7125,8 +7184,8 @@ Ze declares one subsystem under it today, which is ipsec. That subsystem holds t
       - **dh-group** `uint8`: Diffie-Hellman group number (RFC 7296 Section 3.3.2).
         The number is Transform Type 4 of RFC 7296 Section 3.3.2. That section lists the values current at publication, up to 18, and sends the reader to the IANA registry for later ones. Ze takes 1 to 31 and refuses a group this build carries no transform for. The refusal lists the numbers the build does carry, which stops the reserved Transform ID 0 reaching the wire.
       - **encryption** `encryption-algo`: Encryption algorithm.
-        No build carries a transform for chacha20poly1305 or 3des, so a proposal that names one is refused at commit. RFC 7296 Section 5 forbids ENCR_NULL for the IKE SA, so null is refused here too. The refusal lists the algorithms the build does implement for the IKE SA.
-        - `3des`: Triple-DES-CBC (RFC 2451), deprecated. No build implements it.
+        chacha20poly1305 and 3des are ESP-only in this build and are refused here. RFC 7296 Section 5 forbids ENCR_NULL for the IKE SA, so null is refused here too. The refusal lists the algorithms the build does implement for the IKE SA.
+        - `3des`: Triple-DES-CBC (RFC 2451), legacy ESP only; requires hash.
         - `aes128`: AES-CBC-128 (RFC 3602).
         - `aes128ccm12`: AES-CCM-128, 12-byte ICV (RFC 4309, RFC 5282). IKE SA only.
         - `aes128ccm16`: AES-CCM-128, 16-byte ICV (RFC 4309, RFC 5282). IKE SA only.
@@ -7137,11 +7196,11 @@ Ze declares one subsystem under it today, which is ipsec. That subsystem holds t
         - `aes256ccm16`: AES-CCM-256, 16-byte ICV (RFC 4309, RFC 5282). IKE SA only.
         - `aes256ccm8`: AES-CCM-256, 8-byte ICV (RFC 4309, RFC 5282). IKE SA only.
         - `aes256gcm`: AES-GCM-256, 16-byte ICV (RFC 4106).
-        - `chacha20poly1305`: ChaCha20-Poly1305 AEAD (RFC 7634). No build implements it.
+        - `chacha20poly1305`: ChaCha20-Poly1305 AEAD (RFC 7634). ESP only; omit hash.
         - `null`: NULL encryption (RFC 2410): integrity-only ESP, which needs a hash. ESP only.
       - **hash** `hash-algo`: PRF and integrity algorithm.
-        It is required beside every cipher, and an AEAD cipher is no exception. RFC 7296 Section 3.3.3 makes the PRF a mandatory transform for an IKE proposal, and this leaf names it. An ESP proposal reads the same leaf as integrity alone, and refuses it beside an AEAD cipher. No build carries a transform for sha1, so a proposal that names it is refused at commit. The refusal lists the algorithms the build does implement.
-        - `sha1`: HMAC-SHA-1-96 (RFC 2404). No build implements it.
+        It is required beside every cipher, and an AEAD cipher is no exception. RFC 7296 Section 3.3.3 makes the PRF a mandatory transform for an IKE proposal, and this leaf names it. An ESP proposal reads the same leaf as integrity alone, and refuses it beside an AEAD cipher. sha1 is ESP-only integrity in this build and has no IKE PRF, so it is refused here. The refusal lists the algorithms the build implements for IKE.
+        - `sha1`: HMAC-SHA-1-96 (RFC 2404), legacy ESP integrity only; not an IKE PRF.
         - `sha256`: HMAC-SHA-256-128 (RFC 4868).
         - `sha384`: HMAC-SHA-384-192 (RFC 4868).
         - `sha512`: HMAC-SHA-512-256 (RFC 4868).
@@ -7177,7 +7236,7 @@ Ze declares one subsystem under it today, which is ipsec. That subsystem holds t
       - **prefix** `ip-prefix`: Remote traffic the entry matches.
         It follows the rules the local prefix states, including the shared address family.
   - **remote-access** `container`: Remote access VPN for road warrior clients (EAP).
-    The subtree parses and no session reads it, so a pool assigns no address and an eap-user authenticates nobody. The engine builds the address pool at each apply and then discards it. Configure a road warrior as a site-to-site peer with an EAP mode until the service exists. plan/immediate/spec-ipsec-remote-access.md owns the work.
+    Every pool is built at each apply and serves the site-to-site respond peers whose virtual-ip-pool leaf names it: Ze answers their CFG_REQUEST with a lease (RFC 7296 Section 2.19). Admission of road warriors from unconfigured sources and the eap-user list are not served yet, so an eap-user authenticates nobody; configure a client as a respond peer with an EAP mode until that service exists.
     - **authentication** `container`: EAP authentication settings for remote access.
       Ze reads this block with the same parser as the site-to-site peer authentication block, so mode is mandatory here too. A handshake takes its EAP server credentials from the peer block instead, so the mode named here selects no method. The one effect it carries is the warning the daemon writes when it names eap-md5.
       - **mode** `enumeration`: EAP authentication method.
@@ -7202,15 +7261,15 @@ Ze declares one subsystem under it today, which is ipsec. That subsystem holds t
     - **ike-group** `string`: Reference to an IKE group name.
       The group MUST be declared under vpn ipsec ike-group, and commit refuses a name no group carries. No other code reads the reference, because no remote access session runs.
     - **pool <name>** `list`: Virtual IP pool for client address assignment.
-      Virtual IP pool for client address assignment (IKEv2 Configuration Payload, RFC 7296 Section 2.19).
-      - **dns** `string`: DNS server pushed to clients via IKEv2 Configuration Payload.
-        The leaf carries one address, and the pool sorts it into its IPv4 list or its IPv6 list from the family of that address. RFC 7296 Section 3.15.1 names the attribute that carries it INTERNAL_IP4_DNS or INTERNAL_IP6_DNS. Ze sends no Configuration payload today, so no client receives the address.
+      Virtual IP pool for client address assignment (IKEv2 Configuration Payload, RFC 7296 Section 2.19). Commit refuses two pools whose ranges overlap, because both could then lease one inner address to two peers (RFC 3948 Section 5.1).
+      - **dns** `string[]`: DNS server pushed to clients via IKEv2 Configuration Payload.
+        Each entry is one server address, IPv4 or IPv6, and commit refuses a value that is not an address. A client leased an address of one family is sent the servers of that family, as INTERNAL_IP4_DNS or INTERNAL_IP6_DNS (RFC 7296 Section 3.15.1), whether or not it asked for them.
       - **domain** `string`: Search domain pushed to clients.
-        The pool carries the domain beside the addresses it leases. Ze sends no Configuration payload today, so no client receives the domain.
+        Commit refuses this leaf when it is set. RFC 7296 Section 3.15.1 defines no search-domain attribute, so no value here could reach a client; delete it.
       - **range** `string`: IPv4 CIDR for client addresses (e.g. 10.10.0.0/24). Prefix length /8-/30.
-        Commit refuses a value that is not a CIDR prefix, and a prefix length outside /8 to /30. The pool leases the addresses of the prefix without the network address and the broadcast address, so a /30 carries two clients. An empty leaf leases no IPv4 address. No code reads the pool today, so no client receives an address.
+        Commit refuses a value that is not a CIDR prefix, and a prefix length outside /8 to /30. The pool leases the addresses of the prefix without the network address and the broadcast address, so a /30 carries two clients. An empty leaf leases no IPv4 address. A client is sent its lease as INTERNAL_IP4_ADDRESS, with this prefix's mask as INTERNAL_IP4_NETMASK when it asks for one.
       - **range6** `string`: IPv6 CIDR for client addresses (e.g. fd00::/64). Prefix length /48-/126.
-        Commit refuses a value that is not a CIDR prefix, and a prefix length outside /48 to /126. An empty leaf leases no IPv6 address. No code reads the pool today, so no client receives an address.
+        Commit refuses a value that is not a CIDR prefix, and a prefix length outside /48 to /126. An empty leaf leases no IPv6 address. A client is sent its lease as INTERNAL_IP6_ADDRESS with this prefix length.
   - **site-to-site** `container`: Site-to-site VPN peers.
     Each peer under it is one tunnel to one remote gateway. A peer carries its own algorithms, its own identity, its own traffic selectors and its own rank in the Security Policy Database.
     - **peer <name>** `list`: Remote VPN peer.
@@ -7285,7 +7344,7 @@ Ze declares one subsystem under it today, which is ipsec. That subsystem holds t
         - `allow`: Allow translated paths and ESP-in-UDP when NAT is detected.
         - `prohibit`: Reject translated paths and protect MOBIKE address updates.
       - **policy-priority** `uint32`: Rank of this peer's Security Policy Database entries, lowest searched first.
-        Where this peer's Security Policy Database entries sit in the operator's ordering of that database. A LOWER value is searched FIRST, in Ze and in the Linux kernel. RFC 4301 Section 4.4.1: 'The ordering requirement arises because entries often will overlap due to the presence of (non-trivial) ranges as values for selectors. Thus, a user or administrator MUST be able to order the entries to express a desired access control policy.' The same section binds this interface: it 'MUST support (total) ordering of these entries, as seen via this interface'. Two peers whose traffic selectors overlap, 0.0.0.0/0 on both for example, describe the same traffic. Give the one that must win the lower value. Peers that share a value are ordered by whichever established last, which is what every peer did before this leaf existed, so the default 2000 keeps an unordered configuration installing exactly what it installed before. The range starts above 100, which is where the IKE control-plane bypass sits. A peer entry at or above that rank captures the IKE exchange that builds and rekeys the very SA it protects, and the tunnel could then never renegotiate. It ends at 2147483647, the largest rank Ze can carry to a dataplane.
+        Where this peer's Security Policy Database entries sit in the operator's ordering of that database. A LOWER value is searched FIRST, in Ze and in the Linux kernel. RFC 4301 Section 4.4.1: 'The ordering requirement arises because entries often will overlap due to the presence of (non-trivial) ranges as values for selectors. Thus, a user or administrator MUST be able to order the entries to express a desired access control policy.' The same section binds this interface: it 'MUST support (total) ordering of these entries, as seen via this interface'. Two peers whose traffic selectors overlap, 0.0.0.0/0 on both for example, describe the same traffic. Give the one that must win the lower value. Nothing orders two peers that share a value, so when their tunnels overlap the one that establishes second is answered TS_UNACCEPTABLE and gets no Child SA: one packet could otherwise be sent into either tunnel, which RFC 3948 Section 5.1 forbids. The default 2000 is the rank every peer took before this leaf existed. The range starts above 100, which is where the IKE control-plane bypass sits. A peer entry at or above that rank captures the IKE exchange that builds and rekeys the very SA it protects, and the tunnel could then never renegotiate. It ends at 2147483647, the largest rank Ze can carry to a dataplane.
       - **remote-address** `string`: Remote endpoint IPv4 address or DNS hostname.
         Ze resolves the value with net.ResolveUDPAddr over udp4 and sends IKE to port 500 there, so an IPv6 literal is refused with "ike: resolve remote". Ze builds the NAT detection hashes of RFC 7296 Section 2.23 from this value. It sends none when the value is not an address literal. An unsolicited IKE_SA_INIT reaches a respond peer only when its source address equals this leaf, character for character.
       - **traffic-selector <number>** `list`: The traffic this peer's Child SAs carry.
@@ -7308,6 +7367,8 @@ Ze declares one subsystem under it today, which is ipsec. That subsystem holds t
             The value is a CIDR prefix, and Ze installs it as the remote selector of the kernel policy. The single-address rule the local prefix states applies here as well under mode transport.
       - **transport-required** `boolean`: Delete the SA when the peer declines transport mode.
         Whether a peer that declines transport mode is unacceptable. RFC 7296 Section 1.3.1: 'If the responder declines the request, the Child SA will be established in tunnel mode. If this is unacceptable to the initiator, the initiator MUST delete the SA.' Only the operator knows whether it is unacceptable, so this leaf carries that decision. When it is true and the response omits USE_TRANSPORT_MODE, Ze deletes the SA rather than run a tunnel-mode Child SA the operator did not ask for. When it is false the SA stays up in tunnel mode, which is the safe default. It applies only when mode is transport.
+      - **virtual-ip-pool** `string`: Remote-access pool this respond peer leases its inner address from.
+        Names a pool declared under vpn ipsec remote-access pool, and commit refuses an empty name and a name no pool carries. The peer MUST then use connection-type respond and MUST send a CFG_REQUEST in IKE_AUTH: Ze leases it an inner address no other peer holds, answers with a CFG_REPLY, narrows the peer's inner traffic selector of every Child SA the peer asks for to that address, and proposes only that address for the peer's side of every Child SA Ze asks for, refusing a wider answer (RFC 7296 Section 2.19, RFC 3948 Section 5.1). A request Ze cannot serve refuses the Child SA with FAILED_CP_REQUIRED or INTERNAL_ADDRESS_FAILURE and keeps the IKE SA. When the peer has traffic selectors, a remote prefix must cover the pool's ranges. A bound peer declines transport mode.
       - **vti** `container`: Virtual Tunnel Interface binding.
         The interface itself is declared under interfaces xfrm, where the if-id leaf carries the identifier a bound security association must match. Ze reads that if-id through the name under bind and installs this peer's Child SAs with it.
         - **bind** `string`: VTI interface name to bind this peer's traffic to.

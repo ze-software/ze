@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>Week of 2026-10-12 - Ze</title>
+        <meta name="description" content="This update covers two weeks. Many settings that Ze used to accept and then silently ignore are now refused, so please read the changes below before upgrading. The release queue is now sorted into cor" />
+        <meta property="og:title" content="Week of 2026-10-12 - Ze" />
+        <meta property="og:description" content="This update covers two weeks. Many settings that Ze used to accept and then silently ignore are now refused, so please read the changes below before upgrading. The release queue is now sorted into cor" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Week of 2026-10-12 - Ze" />
+        <meta name="twitter:description" content="This update covers two weeks. Many settings that Ze used to accept and then silently ignore are now refused, so please read the changes below before upgrading. The release queue is now sorted into cor" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
+        <link rel="canonical" href="https://ze-software.net/project/changes/2026-10-12/" />
+        <meta property="og:url" content="https://ze-software.net/project/changes/2026-10-12/" />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+        <link rel="alternate" type="application/rss+xml" title="Ze weekly updates" href="../feed.xml" />
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../../#top">Ze</a>
+                    <a href="../../../#top">Home</a>
+                    <a href="../../../docs/">Docs</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../project/roadmap/">Roadmap</a>
+                    <a href="../../../project/changes/">Changes</a>
+                    <a href="../../../faq/">FAQ</a>
+                    <a href="../../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="blog-post" aria-labelledby="post-title">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Weekly update</span>
+    <h1 id="post-title">Week of 2026-10-12</h1>
+    <p>This update covers two weeks. Many settings that Ze used to accept and then silently ignore are now refused, so please read the changes below before upgrading.</p>
+<p>The release queue is now sorted into correctness fixes, validation and delivery work. It holds 240 required items and 273 nice-to-have, up from 202 and 224. 79 required items joined, most of them defects found by reviewing the code area by area, and 41 left, either finished or moved to after the release. The counts compare the two ends of the period, so an item added and finished in between is missed, and they count work items rather than readiness: https://ze-software.net/project/roadmap/</p>
+</div>
+                <p class="post-back"><a href="../">&larr; All weekly updates</a></p>
+            </section>
+            <section class="blog-post reveal">
+                <div class="blog-grid">
+                    <div class="blog-block" aria-label="⚠️ Changes to check">
+                        <div class="md-content">
+                            <h2>⚠️ Changes to check</h2>
+                            <ul>
+<li>IPsec: traffic that matches no IPsec policy is now dropped by default (RFC 4301 Section 5). A config saved by an older release is rewritten to <code>vpn ipsec unmatched bypass</code> at start, with a warning. A new config drops it too, so it needs bypass policies for BGP, SSH, DNS and NTP, or <code>unmatched bypass</code>.</li>
+<li>BGP filters: every configured <code>import</code> or <code>export</code> must now end with <code>final accept</code> or <code>final reject</code>, as in <code>filter { import { filters [ a b ]; final accept; } }</code>. An <code>accept</code> from one filter now passes the route on to the next one. The old <code>import [ ... ]</code> list is refused.</li>
+<li>Config: a missing mandatory value is refused at load, validate and commit. A flag takes no value, so <code>disable false;</code>, which used to disable the interface, is refused. A setting that needs a feature this build leaves out is refused, naming the line to remove. Run <code>ze config validate</code> before upgrading.</li>
+<li>CLI: commands that clear everything need an explicit <code>all</code>, as in <code>clear ospf neighbor all</code>, <code>clear vpn ipsec sa all</code> or <code>clear dns cache all</code>. <code>clear bgp rib in</code> and <code>out</code> need a peer.</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="⚠️ More changes to check">
+                        <div class="md-content">
+                            <h2>⚠️ More changes to check</h2>
+                            <ul>
+<li>CLI: five commands were renamed. <code>explain</code> is now <code>show diagnostic</code>, <code>skills</code> is <code>show skills</code>, <code>support</code> is <code>request support archive</code>, <code>generate wireguard keypair</code> is <code>request wireguard keypair</code>, and <code>validate config</code> is <code>show config validation</code>.</li>
+<li>API: in FlowSpec update text, values listed one after another now mean OR, and <code>&amp;</code> means AND, matching ExaBGP 6.0. <code>destination-port =80 =443</code> now matches 80 or 443, where it used to mean both. <code>update text</code> takes <code>nlri add|del|eor</code> for IPv4 unicast and <code>mp &lt;family&gt; add|del|eor</code> for other families.</li>
+<li>FlowSpec: a redirect-to-IP action from an eBGP peer is now dropped unless the route to that address comes from the peer's own AS. The rest of the rule still applies. <code>flowspec-redirect-check { enabled false; }</code> turns the check off.</li>
+<li>VRRP over IPv4 now uses the RFC 9568 checksum. A group that shares a link with keepalived needs <code>checksum rfc5798-compatible</code>.</li>
+<li>L2TP RADIUS accounting now goes to the new <code>accounting-port</code>, default 1813, instead of the authentication port.</li>
+<li>IPv6 <code>rpf-check</code> was accepted and ignored on Linux. It is now enforced.</li>
+<li>The DHCPv6 client now builds its DUID from the interface MAC, so a DHCPv6 server treats each client as new after the upgrade.</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🛰️ Routing">
+                        <div class="md-content">
+                            <h2>🛰️ Routing</h2>
+                            <p>New:</p>
+<ul>
+<li>BGP <code>shutdown { message "..." }</code> holds a peer down, and sends the message when it closes the session (RFC 9003). <code>request peer &lt;peer&gt; disable [message]</code> and <code>request peer &lt;peer&gt; enable</code> do the same at runtime.</li>
+<li>BFD can be added, changed or removed on an established BGP peer without resetting the session, as FRR and BIRD do.</li>
+<li>OSPF over unnumbered point-to-point links: <code>ipv4 unnumbered &lt;donor&gt;</code> borrows the address of the named interface. Tested against FRR.</li>
+<li><code>clear bgp rib advertised &lt;peer&gt;</code> withdraws everything sent to a peer, and <code>show bgp peer * detail</code> gains <code>fsm-state</code>.</li>
+<li>ExaBGP 6.0: the bridge handles <code>neighbor disable/enable</code>, <code>ping</code> and <code>flush adj-rib out</code>, and migration handles <code>as-set</code> and <code>tunnel-encapsulation</code>.</li>
+</ul>
+<p>Fixed:</p>
+<ul>
+<li>A configured <code>med 0</code> was never sent, and <code>local-preference 0</code> went out as 100.</li>
+<li>Received BLACKHOLE routes were passed to eBGP peers that had not agreed to them (RFC 7999 Section 3.1).</li>
+<li>Routes from a route-server client were sent on to providers and peers (RFC 9234 Section 3.1).</li>
+<li>LDP timed out a silent neighbour at three times the agreed KeepAlive (RFC 5036 Section 3.5.3).</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🔒 VPN, access and DHCP">
+                        <div class="md-content">
+                            <h2>🔒 VPN, access and DHCP</h2>
+                            <p>New:</p>
+<ul>
+<li>Integrity-only ESP, with encryption <code>null</code> in an <code>esp-group</code>.</li>
+<li>An <code>intermediate-certificate</code> list for EAP-TLS clients that do not send their full chain.</li>
+</ul>
+<p>Fixed:</p>
+<ul>
+<li>IKEv2 tunnels now follow a peer when a NAT changes its address or port, and later rekeys go to the new address (RFC 3948 Section 2.1).</li>
+<li>The DHCPv4 client dropped its address after the first renewal. It now renews and rebinds for the life of the lease (RFC 2131 Section 4.4).</li>
+<li>DHCPv6 <code>pd</code> now requests a delegated prefix; before, it did not. A commit no longer strips DHCP, SLAAC or link-local addresses.</li>
+<li>The DHCP server now applies a reloaded config, and subnets that did not change keep their leases.</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="📚 Closing the RFC gap">
+                        <div class="md-content">
+                            <h2>📚 Closing the RFC gap</h2>
+                            <p>A requirement counts as covered once it has a test, and the code behind it has been deliberately broken to confirm that the test then fails. The number of requirements covered this way grew from 253 in mid-September to 867 at the end of September, 1,844 by 11 October and 2,108 by 25 October.</p>
+<p>These two weeks went into the tests that were hardest to prove. The tool that breaks the code can now run tests that need Ze's own kernel inside a virtual machine, break the Ze side of an interop test against another implementation, and prove requirements that only fail when two faults are combined. The defects the tests exposed were fixed as they were found, among them the BLACKHOLE and route-server leaks above.</p>
+<p>Today 1,994 of the 4,680 MUST requirements are covered: https://ze-software.net/quality/rfc-compliance/</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Change note</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>More context</h2>
+                    <a class="page-sidebar-link" href="../../../project/changes/">
+                        <span class="page-sidebar-link-label">All changes</span>
+                        <small>Return to the weekly update index.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../project/milestones/">
+                        <span class="page-sidebar-link-label">Milestones</span>
+                        <small>See which changes became landmarks.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../project/roadmap/">
+                        <span class="page-sidebar-link-label">Roadmap</span>
+                        <small>Map this week to the release plan.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../project/activity/">
+                        <span class="page-sidebar-link-label">Activity</span>
+                        <small>View commit cadence around this week.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                    <a href="../../../legal/">Legal notice</a>
+                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>
