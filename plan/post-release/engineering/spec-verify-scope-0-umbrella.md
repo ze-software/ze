@@ -72,6 +72,30 @@ over-selects and under-selects at once.
 **Goal.** A session that edits one feature gets a verdict about that feature,
 in minutes, and that verdict survives another session's concurrent edit.
 
+## Current local verification blocker
+
+The VPN reconciliation on 2026-10-28 found that row-count scoping does not
+provide package isolation. `Judge` and `warmArguments` in
+`internal/le/go/staticcheck/judge.go` still name every package, even when the
+verifier has published a narrow package answer. `selectSuites` in
+`internal/le/test/functional/suitemap.go` selects every suite when its map cannot
+be read. `publishChangeScope` in `internal/le/verify/engine/scope.go` continues
+without a scope after selection or publication fails.
+
+These producers prevent an agent from using changed verification under the
+owner's no-whole-tree Linux rule. The earlier VPN run's 3600-second timeout is
+not authorization to retry it. Repair must preserve feature-omission coverage,
+honor the selected package and suite populations, and refuse a changed run
+before any unanswerable scope becomes whole-tree execution. Explicit human
+release verification retains its full population. No new verification run or
+implementation result is claimed by this investigation.
+
+## Owned journal rows
+
+| Class file | Date | Surface (short) |
+|------------|------|-----------------|
+| `gate-fires-outside-its-population.md` | 2026-10-28 | Staticcheck package targets and functional-suite widening in changed verification |
+
 ## Sub-Specs
 
 | # | Spec | Fixes | Depends |
