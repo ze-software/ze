@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | blocked |
 | Scope | protocol |
 | Priority | P3 |
 | Release reason | Adds a capability absent from the supported release (the fttx-edge profile's LAN DNS resolver); existing supported behavior and its obligations remain required. |
@@ -14,6 +14,28 @@
 | Approved | Session f3ae7c00, 2026-10-27: Thomas chose to run this spec; the design is settled by the RFC 1034, 1035, 2181, 2308 and 5452 text and the Unbound behaviour quoted below |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Blocker
+
+Found at `/ze-close` step 1 (deliverables review), 2026-10-28. Closure stopped
+before appending the closure template; no lesson file, no citer edit and no
+review artifact was written. Three deliverables this spec agreed are not in
+the tree. Each is implementation work (`/ze-implement`), not closure.
+
+| # | Owed by this spec | What the tree holds | What clears it |
+|---|-------------------|---------------------|----------------|
+| B-1 | Required Reading, `rfc/short/rfc1035.md` constraint: "each tagged test for those rows gains a resolver-side case with a discrimination record" (rows 2.3.3-1, 3.1-5, 4.1.1-1, 4.1.1-2, 4.1.4-5, 4.2.1-1/2, 4.2.1-3, 4.2.2-1, 6.4-1); Files to Modify: `rfc/short/rfc1035.md` resolver-side cases and Meta `Support coverage`; RFC Documentation: "every RFC 1035 and 2181 row that gains a resolver-side case has its record re-recorded" | `git grep -ln 'RFC requirement: RFC1035' -- internal` lists only `internal/core/dnsserver/rfc1035_handler_test.go`, `rfc1035_header_test.go`, and as112 and geodns test files; none names `Recursive` or `dnsresolver`. `rfc/short/rfc1035.md` `Support coverage` describes the authoritative shape only, and no commit since 07335960d8 touched that file. The behaviour is tested untagged (`TestRecursiveShape`, `TestRecursiveOpcode`, `TestRecursiveUDPSize` in `internal/core/dnsserver/recursive_test.go`; `TestCacheCaseFold` in `internal/plugins/dnsresolver/cache_test.go`) | tag a resolver-side unit per row (`RFC requirement: RFC1035-<id>`), take each record with `./le rfc record`, add the resolver to the summary's `Support coverage`, `./le rfc update` |
+| B-2 | Required Reading, `rfc/short/rfc2181.md` constraint: "5.4-1/5.4-2 (replace RRsets, never merge) and section 8 (TTL 0..2147483647) gain resolver cases" | `rfc/short/rfc2181.md` RFC2181-5.4-1 annotates only the stub cache (`internal/component/resolve/dns/cache.go`); 5.4-2 and 8-1 carry no resolver unit. The Phase 4 handoff records it: "Not done (outside brief): spec line 424 resolver cases on 5.4-1/5.4-2/section 8." Untagged proof exists: `TestCacheReplaceNotMerge`, `TestTTLHighBit` (`internal/plugins/dnsresolver/cache_test.go`) over `(*lru).put` and the TTL clamp in `cache.go` | tag resolver units for RFC2181-5.4-1, 5.4-2 and 8-1, record each with `./le rfc record`, rewrite the 5.4-1 annotation to name both producers |
+| B-3 | Documentation Update Checklist row 17 and Files to Modify: `docs/features/dns-resolver.md` points at the LAN resolver | the page said Ze answers queries "from two authoritative plugins", false since the resolver landed | fixed in the hand-back commit (the page now names `dnsresolver` and links `docs/guide/dns-resolver.md`) |
+
+Verified green at hand-back: `go test -count=1 -race` over
+`internal/plugins/dnsresolver`, `internal/core/dnsserver`,
+`internal/plugins/dhcpserver`, `internal/test/dnsquery`,
+`internal/test/mock/dns` (all `ok`, under `./le job run`); every test the TDD
+table names exists (`git grep 'func <name>('`, 66 of 66); `./le rfc check`
+reports 79 violations, none for RFC 1035, 2131, 2181, 4035, 6891 or 7858;
+both Owned journal rows read `fixed:`. The main thread sets the status back to
+`in-progress` once B-1 and B-2 are implemented, then reruns `/ze-close`.
 
 ## Owner decisions
 
@@ -256,7 +278,7 @@ Fixed, not configurable: per-resolution limits of 32 upstream queries (Unbound
 | A-2 | The listener conflict check refuses the resolver on an address and port geodns or as112 already binds, with no edit to `listener.go` | `DiscoverListenerServices` walks every `zt:listener` user | two services race for port 53 | functional test `dns-resolver-listener-conflict.ci` | validated: `test/plugin/dns-resolver-listener-conflict.ci` refuses the resolver on geodns's address and port, and `listener.go` is unchanged |
 | A-3 | An L2TP subscriber reaches a resolver bound on an LNS loopback or gateway address; binding per ppp interface is not needed. The pool gateway exists only while a session is up, so the resolver binds it before then with `IP_FREEBIND` (`newResolverServer` sets `dnsserver.Options.Freebind`) | subscriber sessions are dynamic interfaces; IPCP hands out an address, not an interface | per-session binding needed; ACL by source prefix still holds | unit `TestListenBeforeAddressIsUp` (bind half); interop `dns-resolver-l2tp-subscriber` | bind half validated by unit test (red without Freebind); interop green with a recorded red (Interop Tests table) |
 | A-4 | Spoofed replies are rejected: fresh ephemeral port and random ID per exchange, source filtered by the connected UDP socket, mismatched ID skipped; the question is NOT checked by miekg | `vendor/github.com/miekg/dns/client.go` `exchange` (read) | cache poisoning by off-path spoofing | unit test injecting a mismatched ID, a mismatched question, and a reply from another source | read at source; question check is resolver code (AC-18) |
-| A-7 | Ze's DHCP server runs in the interop Ze container and leases to a client container on the lab bridge | `internal/plugins/dhcpserver` serves on a configured interface; the lab Ze container owns `eth0` on the bridge | the DHCP story needs a QEMU guest instead | interop `dns-resolver-dhcp-lan` | unvalidated |
+| A-7 | Ze's DHCP server runs in the interop Ze container and leases to a client container on the lab bridge | `internal/plugins/dhcpserver` serves on a configured interface; the lab Ze container owns `eth0` on the bridge | the DHCP story needs a QEMU guest instead | interop `dns-resolver-dhcp-lan` | validated: `dns-resolver-dhcp-lan` green with a recorded red (Interop Tests table), after the DHCP delivery fix dafac43371 |
 | A-8 | miekg `dns.Server` handles each UDP and TCP query on its own goroutine, so a blocking answer function does not stall other queries | miekg server design; `docs/architecture/dns/server-harness.md` | one slow resolution blocks the listener | unit test: a resolution blocked on a slow upstream while a cached query is answered | validated: `TestSlowUpstreamDoesNotBlockCache` (`internal/plugins/dnsresolver/server_test.go`) answers a cached name while a resolution waits on a delayed upstream |
 
 A-1, A-5 and A-6 were validator assumptions and moved with the validator to
