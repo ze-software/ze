@@ -29,8 +29,8 @@
     "claim-sha": "1952b3e3d8bf2250",
     "route": "revert",
     "producer": "internal/component/l2tp/plugins/authradius/handler.go::doRADIUS",
-    "producer-sha": "a747657dd105aaec",
-    "break": "body of doRADIUS replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "6d789b911fc66640",
+    "break": "body of doRADIUS replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2865-1.1-2",
