@@ -1,0 +1,55 @@
+# Test: ze config fmt keeps the entry order the operator wrote
+# VALIDATES: AC-1: peers written zulu, alpha, mike print zulu, alpha, mike,
+# although the peer list is not ordered-by user
+# PREVENTS: the hierarchical printer sorting a list's entries by key, so the
+# formatted file disagrees with the file the operator wrote and with the set form
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+	router-id 10.0.0.1
+	session {
+		asn {
+			local 65000
+		}
+	}
+	peer zulu {
+		connection {
+			remote {
+				ip 192.0.2.26
+			}
+		}
+		session {
+			asn {
+				remote 65026
+			}
+		}
+	}
+	peer alpha {
+		connection {
+			remote {
+				ip 192.0.2.1
+			}
+		}
+		session {
+			asn {
+				remote 65001
+			}
+		}
+	}
+	peer mike {
+		connection {
+			remote {
+				ip 192.0.2.13
+			}
+		}
+		session {
+			asn {
+				remote 65013
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config fmt test.conf
+expect=exit:code=0
+expect=stdout:pattern=(?s)peer zulu \{.*peer alpha \{.*peer mike \{

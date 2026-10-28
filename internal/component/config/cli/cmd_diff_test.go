@@ -369,6 +369,62 @@ func TestConfigDiffRevisionNotFound(t *testing.T) {
 	assert.Equal(t, exitError, code)
 }
 
+// firewallTerms is a firewall chain whose two terms are written in the order
+// given; the chain's list of terms is `ordered-by user`. The config carries
+// a bgp block because `ze config diff` refuses a file without one.
+func firewallTerms(first, second string) string {
+	term := func(name string) string {
+		return "\t\t\tterm " + name + " {\n\t\t\t\tthen {\n\t\t\t\t\taccept\n\t\t\t\t}\n\t\t\t}\n"
+	}
+	return bgpPeers("alpha", "bravo") + "firewall {\n\ttable wan {\n\t\tfamily inet\n\t\tchain input {\n" +
+		"\t\t\ttype filter\n\t\t\thook input\n\t\t\tpriority 0\n\t\t\tpolicy accept\n" +
+		term(first) + term(second) +
+		"\t\t}\n\t}\n}\n"
+}
+
+// bgpPeers is a BGP config whose two peers are written in the order given;
+// the peer list is not `ordered-by user`.
+func bgpPeers(first, second string) string {
+	peer := func(name, ip string) string {
+		return "\tpeer " + name + " {\n\t\tconnection {\n\t\t\tremote {\n\t\t\t\tip " + ip +
+			"\n\t\t\t}\n\t\t}\n\t\tsession {\n\t\t\tasn {\n\t\t\t\tremote 65001\n\t\t\t}\n\t\t}\n\t}\n"
+	}
+	addresses := map[string]string{"alpha": "10.0.0.1", "bravo": "10.0.0.2"}
+	return "bgp {\n\trouter-id 1.1.1.1\n\tsession {\n\t\tasn {\n\t\t\tlocal 65000\n\t\t}\n\t}\n" +
+		peer(first, addresses[first]) + peer(second, addresses[second]) + "}\n"
+}
+
+// TestConfigDiffUserOrderedReorder proves owner decision D-4 for
+// `ze config diff`: two files that differ only in the order of a list's
+// entries report a difference when the list is `ordered-by user` (AC-12, the
+// firewall evaluates terms first to last), and no difference when it is not
+// (AC-7). The method compares the diff answer of the reordered pair with the
+// answer of a file against itself, which is the no-difference answer.
+func TestConfigDiffUserOrderedReorder(t *testing.T) {
+	answer := func(t *testing.T, before, after string) string {
+		t.Helper()
+		payload, code := dataDiff(commandtest.Args(writeTestConfig(t, before), writeTestConfig(t, after)))
+		require.Equal(t, exitOK, code)
+		require.NotNil(t, payload)
+		encoded, err := json.Marshal(payload)
+		require.NoError(t, err)
+		return string(encoded)
+	}
+
+	t.Run("ordered-by user list reordered is a change", func(t *testing.T) {
+		same := answer(t, firewallTerms("b", "a"), firewallTerms("b", "a"))
+		reordered := answer(t, firewallTerms("b", "a"), firewallTerms("a", "b"))
+		assert.NotEqual(t, same, reordered,
+			"moving term a ahead of term b changes which term matches first, and the diff reports nothing")
+	})
+
+	t.Run("plain list reordered is no change", func(t *testing.T) {
+		same := answer(t, bgpPeers("bravo", "alpha"), bgpPeers("bravo", "alpha"))
+		reordered := answer(t, bgpPeers("bravo", "alpha"), bgpPeers("alpha", "bravo"))
+		assert.Equal(t, same, reordered, "the peer list's order carries no meaning, and the diff reports it")
+	})
+}
+
 // TestConfigDiffRevisionMode verifies diff against a rollback revision.
 //
 // VALIDATES: "diff <N> <file>" resolves revision and compares.

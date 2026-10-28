@@ -120,6 +120,87 @@ func TestConfigFmtKeepsUserOrderedEntries(t *testing.T) {
 	}
 }
 
+// operatorOrderPeers is a BGP config whose peers are written zulu, alpha,
+// mike: an order the operator chose, and not key order.
+const operatorOrderPeers = `bgp {
+	router-id 10.0.0.1
+	session {
+		asn {
+			local 65000
+		}
+	}
+	peer zulu {
+		connection {
+			remote {
+				ip 192.0.2.26
+			}
+		}
+		session {
+			asn {
+				remote 65026
+			}
+		}
+	}
+	peer alpha {
+		connection {
+			remote {
+				ip 192.0.2.1
+			}
+		}
+		session {
+			asn {
+				remote 65001
+			}
+		}
+	}
+	peer mike {
+		connection {
+			remote {
+				ip 192.0.2.13
+			}
+		}
+		session {
+			asn {
+				remote 65013
+			}
+		}
+	}
+}
+`
+
+// TestConfigFmtKeepsOperatorOrderedEntries proves AC-1 through the function
+// `ze config fmt` runs: a list that is not `ordered-by user` keeps the entry
+// order the operator wrote, and formatting the output again changes nothing.
+// The method formats operatorOrderPeers and compares where each peer prints.
+func TestConfigFmtKeepsOperatorOrderedEntries(t *testing.T) {
+	formatted, _, err := configFmtBytes("test.conf", []byte(operatorOrderPeers))
+	if err != nil {
+		t.Fatalf("fmt: %v", err)
+	}
+	names := []string{"peer zulu", "peer alpha", "peer mike"}
+	positions := make([]int, len(names))
+	for i, name := range names {
+		positions[i] = strings.Index(formatted, name)
+		if positions[i] < 0 {
+			t.Fatalf("output lacks %s:\n%s", name, formatted)
+		}
+	}
+	for i := 1; i < len(names); i++ {
+		if positions[i-1] > positions[i] {
+			t.Errorf("fmt moved %s ahead of %s, want the order written (zulu, alpha, mike):\n%s",
+				names[i], names[i-1], formatted)
+		}
+	}
+
+	again, changed, err := configFmtBytes("test.conf", []byte(formatted))
+	if err != nil {
+		t.Fatalf("second fmt: %v", err)
+	}
+	if changed {
+		t.Errorf("second fmt changed the output:\n%s\nvs\n%s", formatted, again)
+	}
+}
+
 // TestConfigFmtWriteKeepsValueMeaning runs `ze config fmt -w` then
 // `ze config fmt --check` through cmdFmt on values that today print bare.
 //
