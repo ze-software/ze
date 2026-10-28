@@ -5,12 +5,13 @@
 package rpki
 
 import (
+	"context"
+	"log/slog"
 	"net"
 	"strconv"
 	"sync"
 	"time"
 
-	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/taskguard"
 )
 
@@ -30,18 +31,74 @@ type rpkiPanicTasks struct {
 	read taskguard.Task
 }
 
-// rpkiPanics answers the RPKI panic boundary. It is built on first use, so the
-// guard's logger is resolved after the log levels are configured. The logger is
-// the plugin's subsystem name, the one the engine hands ConfigureEngineLogger,
-// and never the discard logger the package starts with: a contained panic is
-// always reported.
-var rpkiPanics = sync.OnceValue(func() *rpkiPanicTasks {
-	guard := taskguard.New("rpki", slogutil.Logger("bgp.rpki"))
+// rpkiPanics answers the RPKI panic boundary, built on first use.
+var rpkiPanics = sync.OnceValue(newRPKIPanicTasks)
+
+// newRPKIPanicTasks builds the panic boundary over the plugin's own logger.
+//
+// The guard logs through pluginLogHandler and never through a second
+// slogutil.Logger("bgp.rpki"): slogutil.Logger registers a fresh level for the
+// subsystem each time it is called, so a second call left the plugin's logger on
+// a level nothing could reach any more. `request log level bgp.rpki info` then
+// changed only the guard's level, and "rtr: sync complete" was never logged.
+// The handler reads the configured logger at each record, so a guard built
+// before the engine configures that logger still reports a contained panic,
+// and is never left on the discard logger the package starts with.
+func newRPKIPanicTasks() *rpkiPanicTasks {
+	guard := taskguard.New("rpki", slog.New(pluginLogHandler{}))
 	return &rpkiPanicTasks{
 		guard: guard,
 		read:  guard.Task("rtr-read", rtrReadRestart),
 	}
-})
+}
+
+// pluginLogHandler forwards each record to the handler of the logger that
+// logger() answers when the record is written, with the attributes and groups
+// added through WithAttrs and WithGroup applied in order. Safe for concurrent
+// use: it holds no mutable state.
+type pluginLogHandler struct {
+	derive func(slog.Handler) slog.Handler
+}
+
+// target is the handler a record goes to now.
+func (h pluginLogHandler) target() slog.Handler {
+	base := logger().Handler()
+	if h.derive == nil {
+		return base
+	}
+	return h.derive(base)
+}
+
+// Enabled answers with the configured logger's level, so a runtime level change reaches it.
+func (h pluginLogHandler) Enabled(ctx context.Context, level slog.Level) bool {
+	return h.target().Enabled(ctx, level)
+}
+
+// Handle writes the record through the configured logger.
+func (h pluginLogHandler) Handle(ctx context.Context, record slog.Record) error { //nolint:gocritic // slog.Handler requires the Record by value
+	return h.target().Handle(ctx, record)
+}
+
+// WithAttrs adds attrs to every record, after this handler's own derivation.
+func (h pluginLogHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	return h.then(func(base slog.Handler) slog.Handler { return base.WithAttrs(attrs) })
+}
+
+// WithGroup opens group name for every record, after this handler's own derivation.
+func (h pluginLogHandler) WithGroup(name string) slog.Handler {
+	return h.then(func(base slog.Handler) slog.Handler { return base.WithGroup(name) })
+}
+
+// then returns a handler that applies this handler's derivation, then next.
+func (h pluginLogHandler) then(next func(slog.Handler) slog.Handler) slog.Handler {
+	previous := h.derive
+	return pluginLogHandler{derive: func(base slog.Handler) slog.Handler {
+		if previous != nil {
+			base = previous(base)
+		}
+		return next(base)
+	}}
+}
 
 // pduInFlight is the PDU readLoop is handling, as far as its header was parsed.
 // parsed is false until the first header of the sync parses, because type 0 is
