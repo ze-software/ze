@@ -137,7 +137,7 @@ Before boot, the action checks the emitted native kernel configuration against `
 
 ## Boundaries and remaining owners
 
-- This run proves Ze's docker-host kernel facilities, not the default appliance image's packaged configuration or its L2TP/PPP workflow. Those remain with `plan/release/delivery/spec-appliance-ships-ze-kernel.md`.
+- This run proves Ze's docker-host kernel facilities, not the default appliance image's packaged configuration or its L2TP/PPP workflow. Those were separately proved under `spec-appliance-ships-ze-kernel`; its committed closure record retains the amd64 image readback and owner-run L2TP receipt. The surviving build and proof contracts are in `docs/guide/appliance.md` and `docs/architecture/testing/qemu-integration.md`.
 - Live forced-break discrimination and final reconciliation completed under `spec-appliance-kernel-vpn-modules`; the Mac run alone was not the closure evidence.
 - It does not prove Ze's WireGuard configuration-commit workflow; `plan/release/validation/spec-wireguard-runtime-proof.md` owns that work.
 - Do not run `verify current`, `verify worktree`, a full functional suite or a whole-tree lint for this request. No push, upload or deployment is requested.

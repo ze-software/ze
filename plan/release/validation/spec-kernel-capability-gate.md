@@ -6,11 +6,11 @@
 | Priority | P2 |
 | Release reason | Implemented capability gating still owes default-image boot evidence and final closure. |
 | Scope | config |
-| Depends | plan/release/delivery/spec-appliance-ships-ze-kernel.md (AC-15 only) |
+| Depends | - |
 | Phase | 6/6 |
 | Updated | 2026-10-09 |
 
-Set aside 2026-10-09 (owner: "Set aside the 7 specs waiting on something else"): AC-1 to AC-14 carry the evidence below, and AC-15 waits on `plan/release/delivery/spec-appliance-ships-ze-kernel.md`, because the default appliance image ships the stock rtr7 kernel without `CONFIG_MPLS`. When that spec closes: the MPLS seed boot lab, review, close.
+Set aside 2026-10-09 (owner: "Set aside the 7 specs waiting on something else"): AC-1 to AC-14 carry the evidence below. The former AC-15 stock-kernel dependency is resolved by `spec-appliance-ships-ze-kernel`: its native amd64 MPLS-seed boot passed with an LDP CLI JSON answer, and historical arm64 evidence is retained in its committed closure record. The surviving contract is `docs/guide/appliance.md`, "Runtime Kernel Requirements". This does not close this spec or lift the owner's pause.
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -19,14 +19,16 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 Implementation was committed in `4e25253540` on 2026-09-06. Phase `6/6`
 records that progress; it does not establish release proof or closure. The
 five `test/plugin/kernel-capability-*.ci` files remain recorded as written
-and unexecuted, A-4 and A-5 still require guest evidence, and AC-15 still
-requires an appliance image boot with MPLS configured. The owner deferred
-guest runs for that implementation session; this reconciliation runs none.
+and unexecuted, and A-4 and A-5 still require guest evidence. The appliance
+closure record supplies native amd64 and historical arm64 MPLS-seed boot
+evidence for AC-15; this spec's reviewer must reconcile it with its criterion.
+No guest run is repeated by this citation update.
 
 The design and pre-implementation observations below explain the change.
 `internal/component/kernelcap` now owns the enrolment, as the Implementation
-Notes record. Remaining work is to obtain the functional and image-boot
-evidence, resolve A-4/A-5 without weakening their checks, and complete the
+Notes record. Remaining work is to obtain the outstanding functional
+evidence, resolve A-4/A-5 without weakening their checks, reconcile AC-15's
+existing image-boot receipt, and complete the
 review and closure gates. There is no `Handoff: verify` declaration, so
 `verification` would misstate the lifecycle.
 

@@ -157,7 +157,7 @@ Goals.
 |----------|--------|
 | What breaks if this is wrong? | every Docker lab, Docker deployment proof and demo render fails on a host missing an enrolled feature; new enrolments add doctor rows and, for a non-degrading capability, a startup refusal on an appliance whose config uses that subsystem |
 | How is it reverted? | single commit revert per phase; an installed kernel stays in the VM and is harmless |
-| Who else touches this path? | `plan/release/validation/spec-kernel-capability-gate.md` (owns `kernelcap`; this spec extends its enrolment), `docs/architecture/appliance/kernel-profiles.md` (built-in ESP, xfrm interface and WireGuard requirements), `plan/release/delivery/spec-appliance-ships-ze-kernel.md` (the 7.2.9 pin Ze's own build uses), `plan/post-release/engineering/spec-terminal-demo-showcase.md`, `plan/post-release/engineering/spec-interop-image-copies-a-prebuilt-ze.md` (AC-9 depends on this), and the IKE sibling session working under `internal/component/ike/` (the MOBIKE enrolment lands there and must be sequenced with it) |
+| Who else touches this path? | `plan/release/validation/spec-kernel-capability-gate.md` (owns `kernelcap`; this spec extends its enrolment), `docs/architecture/appliance/kernel-profiles.md` (built-in ESP, xfrm interface and WireGuard requirements), `docs/architecture/appliance/build-artifacts.md` (Ze's kernel build, source pin and provenance), `plan/post-release/engineering/spec-terminal-demo-showcase.md`, `plan/post-release/engineering/spec-interop-image-copies-a-prebuilt-ze.md` (AC-9 depends on this), and the IKE sibling session working under `internal/component/ike/` (the MOBIKE enrolment lands there and must be sequenced with it) |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -364,7 +364,7 @@ Rebuild (2026-10-14, after commits 7bd12b1e80 and af8cc93d2f): the Docker builde
 
 ## Known Limitations
 
-- Ze's own build, its pin and its digest belong to `plan/release/delivery/spec-appliance-ships-ze-kernel.md`; this spec uses whatever kernel passes.
+- Ze's own build, its source pin and its provenance are documented in `docs/architecture/appliance/build-artifacts.md`; this spec uses whatever kernel passes.
 - `ipsec-bgp-redistribute-frr` fails for a separate, journalled cause (`plan/journal/unwired-feature.md`, `plan/journal/test-against-broken-path.md`).
 - nftables, policy routing, traffic shaping, eBPF and other interface kinds stay unenrolled unless a Docker lab exercises them; `plan/release/validation/spec-kernel-capability-gate.md` keeps them.
 - D-5 closed (option B): no separate kernel profile. A distro kernel still passes the derived check when it has every feature, but Ze's own hosts install the appliance kernel.

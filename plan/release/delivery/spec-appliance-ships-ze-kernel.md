@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | blocked |
+| Status | in-progress |
 | Priority | P2 |
 | Release reason | Required release artifacts, safe installation or appliance/runtime-kernel delivery and their outstanding boot evidence. |
 | Scope | tooling |
@@ -169,7 +169,7 @@ AC-18 was never assigned. The gap is kept rather than renumbered, because commit
 | Check | Holds? | Evidence |
 |-------|--------|----------|
 | No bypassed layers (data flows through the intended path) | Yes | the image kernel goes through `resolveRuntimeKernel` and its `enforceKernelRequirements`, the same path `ze appliance kernel` uses |
-| No unintended coupling (components stay isolated) | Yes | `internal/appliance` owns resolution and assembly; `internal/appliance/instance` keeps only the replace |
+| No unintended coupling (components stay isolated) | Yes | `internal/appliance` owns resolution; `internal/appliance/instance` owns assembly, provenance notice and prepared-module replacement |
 | No duplicated functionality (extends existing, does not recreate) | Yes | the deployment proof's assembler is moved, not copied; its resolver collapses onto the default path |
 | Zero-copy preserved where applicable (refs, not copies) | N-A | build tooling, no wire path |
 | Registration over hardcoding, outbound | N-A | no command, view, family or handler added |
@@ -294,7 +294,7 @@ Deleted: `gokrazy/ze/builddir/github.com/rtr7/kernel/{go.mod,go.sum}`.
 | Editor autocomplete | N-A | no new command |
 | Functional test for new RPC/API | N-A | no RPC; QEMU boot proofs cover the path |
 | Pipe completeness | N-A | no output command |
-| Env var registration | Yes | `internal/le/build/gokrazy/gokrazy.go` `ze.gok.kernel-package` description |
+| Env var registration | Yes | removed `ze.gok.kernel-package`; `internal/le/build/gokrazy/gokrazy.go` `prepareArgs` always resolves Ze's runtime kernel |
 | Doctor check for runtime dependencies | Yes | `internal/appliance/doctor_checks.go`: the build-host check for the runtime kernel cache or a usable builder, since `ze appliance build` now needs one |
 | Prometheus counters/metrics | N-A | build tooling |
 | BGP family surface (new SAFI / capability / attribute) | N-A | not BGP |
@@ -383,8 +383,8 @@ What (b) forecloses: a cold-cache `ze appliance build` without Docker or QEMU (a
 ## Known Limitations
 
 - Bit-reproducible kernel builds (pinned builder image digest, `KBUILD_BUILD_TIMESTAMP`/`USER`/`HOST`) are not in scope; they matter once images are released and signed.
-- The GPLv2 source-offer sign-off remains the owner's licensing decision.
-- A hardware (N100) boot of the new kernel is owner-run evidence (A-3).
+- The owner chose the GPLv2 notice/source-pointer policy on 2026-10-09; its implementation is complete. This is not an independent legal opinion.
+- N100 hardware boot was excluded from this spec's owed evidence by the owner's "ignore n100 atm" decision; no hardware boot or hardware support validation is claimed.
 
 ## Checklist
 
@@ -533,7 +533,7 @@ What (b) forecloses: a cold-cache `ze appliance build` without Docker or QEMU (a
 ### Audit Summary
 - **Total items:** 18 ACs, 7 requirements
 - **Done:** 18 ACs, 7 requirements, with historical and fresh evidence distinguished below.
-- **Still owed:** independent final closure review and scoped committed-tree verification; the default-appliance L2TP runtime criterion is complete.
+- **Closure:** independent resumed review is CLEAN (see Closure resumption); all runtime criteria are complete. Post-commit scoped verification is a separate main-thread step, not a runtime acceptance gap.
 - **Skipped:** none
 - **Changed:** AC-6, assembler location, no skeleton, digest location (Deviations)
 
@@ -551,12 +551,34 @@ What (b) forecloses: a cold-cache `ze appliance build` without Docker or QEMU (a
 
 ## Work Not Done
 
+No in-scope implementation or runtime proof remains unassigned.
+
+The former rows mixed two different boundaries into unfinished scope:
+N100 hardware evidence was explicitly excluded by the owner ("ignore n100
+atm"), and scoped verification is the post-commit step of `ze-close`, not an
+acceptance item to transfer to another spec. Neither is silently marked
+passed. Verification debt remains derived from git, not stored in this table.
+The already-recorded selector defect belongs to
+`plan/post-release/engineering/spec-verify-scope-0-umbrella.md` (commit
+`bfc1ec9876`); closure neither repairs it nor repeats its unbounded run.
+
 | What was not done | Why | The spec that now owns it |
 |-------------------|-----|---------------------------|
-| Scoped verification over the landed change | No scoped certificate is claimed. The shared unpublished change set makes the current selector wider than this unit; no whole-tree run was started. | This spec's scoped evidence; `./le verify worktree` is the owner's separate release check, not agent closure work. |
-| N100 hardware boot (A-3 hardware half) | owner-deferred: "ignore n100 atm" | owner-run before release; no spec |
 
 ## Review Gate
+
+The latest verdict is the independent resumed closure pass of 2026-10-28,
+recorded under **Closure resumption** below. The table and eleven rounds
+that follow are preserved historical evidence, including only the owner
+authorisations actually supplied.
+
+| Resumed gate field | Result |
+|--------------------|--------|
+| Artifact | `tmp/review/appliance-ships-ze-kernel-30667194-e251-46e5-93e8-56ed151de886.md`; native `spec review record`, CLEAN, one resumed pass, reviewer `ApplianceClosureFinal` |
+| Hash check | Native `spec review check`: OK, 3 code files clean and hashes match (`gokrazylab.go`, `gokrazyl2tp.go`, `pppstate.go`); five closure/citation Markdown files also named |
+| Scope and findings | Closure resumption below; three lenses, 0 BLOCKER, 0 ISSUE; record-only NOTE corrected without another round |
+| Citation population | Whole tracked-tree roots searched, with ignored-heavy roots narrowed to their tracked files: four external citer files updated, no Go Design-header hit. The generated ignored `plan/release/roadmap.md` is not part of the tracked population. |
+| Journal sweep | Only foreign `plan/journal/declared-format-contradicts-payload.md` is dirty; no journal row was authored by this closure or left out of its commit. |
 
 | Field | Value |
 |-------|-------|
@@ -785,7 +807,7 @@ Gates: `go test -race` with the gate tags over `./internal/appliance/... ./inter
 | `internal/appliance/instance/kernelpkg.go` | yes | `addLinuxNotice` found by `git grep` 2026-10-10 |
 | `internal/appliance/runtimekernel.go` | yes | `RuntimeKernelTree` found by `git grep` 2026-10-10 |
 | `test/ui/doctor-appliance-runtime-kernel.ci` | yes | committed in 1927823c9f |
-| `internal/le/scratch/cacheclean_kernel_test.go` | yes | `TestCleanTargetsNeverReachTheKernelCache` at line 20 |
+| `internal/le/scratch/cacheclean_kernel_test.go` | yes | `TestCleanTargetsNeverReachTheKernelCache`; historical test evidence above, current cleanup producer `cleanTargets` in `internal/le/scratch/cacheclean.go` |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
@@ -957,16 +979,75 @@ The same guest failed before the bridge fix and passed after it, without
 changing assertions. This clears the L2TP runtime blocker, not IPv6CP,
 authentication, throughput, full RFC coverage or committed-tree verification.
 
-## Blocker
+## Closure resumption, 2026-10-28
 
-The independent final closure phase could not start. Both
-`ApplianceL2TPClose` and `L2TPClosureResume` failed in the reviewer service
-before reading or editing the spec; neither produced a closure verdict.
-The earlier independent bridge-patch review remains valid, but is not a
-new review of every spec closure criterion. Resume `ze-close` with an
-available independent worker, use the passing receipt above without
-rerunning it, and record the final review before deleting this spec.
+The independent closure worker is available. The earlier service-capacity
+blocker is cleared; no privileged proof is rerun. This resumed review covers
+the bridge repair in `d036685b5e`, the receipt in `4e888514a6`, their callers
+and teardown, current acceptance producers, and closure citations. It uses
+logic/wiring, security/isolation, and evidence/completeness lenses. The eleven
+historical review rounds and their actual owner authorisations remain history;
+this is one resumed closure pass, not an invented authorisation for round 12.
 No further owner-run privileged L2TP proof is owed.
+
+### Current acceptance producers
+
+| Criteria | Producer read during this closure | Evidence retained |
+|----------|-----------------------------------|-------------------|
+| AC-1, AC-2, AC-3, AC-7, AC-11 | `internal/appliance/kernelargs.go` `resolveBuildParentDir`; `internal/appliance/runtimekernel.go` `RuntimeKernelTree`; `internal/appliance/cmd_kernel.go` `resolveRuntimeKernel`; `internal/appliance/cache.go` `kernelCacheVariantFor`; `internal/appliance/instance/kernelpkg.go` `assembleKernelPackage` | The native amd64 150-symbol image readback, matching kernel digest, MPLS-seed KVM boot and historical arm64 image/HVF boot recorded above; no run repeated |
+| AC-4, AC-5, AC-6 | `internal/appliance/instance/prepare.go` `Prepare`; `internal/le/build/gokrazy/gokrazy.go` `prepareArgs`; `internal/appliance/instance/prepare_repo_test.go` `TestNoRtr7KernelReference` | Mandatory cache tree, private package replacement, no override lookup; historical rejection and module-scan tests |
+| AC-8, AC-9, AC-19 | `internal/appliance/kernelbuilder/worker.go` `downloadKernelSource`, `verifyKernelSource`, `SourceDigest`; `internal/appliance/cmd_kernel_test.go` `TestKernelVersionHasDigestPin` | Download and cached-tarball digest checks precede extraction; exact 7.2.9 pin and recorded clean patch application |
+| AC-10 | `internal/appliance/cmd_kernel.go` `resolveRuntimeKernel` | Cold-build failure names the missing cache and the exact native build command; historical `TestColdOfflineCacheNamesRemedy` |
+| AC-12 | `internal/appliance/kernelconfig_pairing_test.go` `TestEveryRuntimeConfigSymbolIsAssertedOrAcknowledged`, `TestUnverifiedRuntimeSymbolsHasNoStaleEntries` | Both assertions retain their config/manifest pairing checks |
+| AC-13 | `internal/appliance/kernelbuilder/driver.go` `validateRequest`, `CheckArch`; `internal/appliance/kernelbuilder/qemu.go` `hardwareAccelerator` | Foreign architecture refused; only usable HVF/KVM returned, never TCG; historical negative tests |
+| AC-14, AC-15, AC-16 | `internal/le/scratch/cacheclean.go` `cleanTargets`; `internal/le/scratch/storetrim.go` `trimStoresScanning`; `internal/appliance/cache.go` `evictKeepN` | Cleanup excludes kernel namespaces; eviction groups by architecture and protects the current entry; the disk-full guide retains this contract |
+| AC-17 | `internal/appliance/instance/kernelpkg.go` `addLinuxNotice`; `internal/appliance/instance/provenance.go` `readProvenance`, `Provenance.LinuxNotice` | Notice derives from built provenance; native image notice readback and historical notice tests |
+| L2TP runtime goal | `internal/le/test/deployment/gokrazyl2tp.go` `proveAppliance`, `gokrazyL2TP.observe`, `gokrazyL2TP.assertKernelState`; `internal/le/test/deployment/pppstate.go` `awaitTeardown`, `teardownSettled` | Owner-supplied same-image PASS after `d036685b5e`; peer addresses and two PPP pings, route withdrawal, peer baseline restored; actual UFW readback separately confirms no lab rules |
+
+### Security, documentation and review verdict
+
+Three lenses read the bridge diff and its caller/cleanup path: logic and
+wiring; security and host isolation; evidence and completeness. Final
+verdict: **CLEAN, 0 BLOCKER, 0 ISSUE** in this closure's scope.
+
+`gokrazyLab.allowBridgeThroughFirewall` in
+`internal/le/test/deployment/gokrazylab.go` fails on an unreadable or unknown
+UFW status and on rule installation failure. Its forwarding rule names this
+run's bridge for both interfaces; it neither disables UFW nor changes a
+global sysctl. `proveAppliance` defers `removeLab` before setup, so partial
+setup also reaches `clearBridgeFromFirewall`. Cleanup remains best-effort;
+the owner-observed post-run rule listing, not `Proven` alone, proves removal
+on this run. No shell interpolation, peer-controlled allocation, new panic,
+loop, goroutine or protocol change was introduced. The Go style pass covered
+names, bounds, paired MUST obligations, initialization and return shape.
+
+The kernel supply-chain boundary remains `verifyKernelSource` before the
+source is used; `Prepare` requires an architecture-checked kernel tree and
+provenance before creating its private instance. `checkRuntimeKernel` in
+`internal/appliance/doctor_checks.go` remains the registered build-readiness
+producer. The repair adds no runtime dependency: UFW was already optional.
+
+Documentation matched the producers: the bridge paragraph and source anchor
+landed in `d036685b5e` in `docs/architecture/testing/qemu-integration.md`;
+`docs/guide/appliance.md`, `docs/architecture/appliance/build-artifacts.md`
+and `gokrazy-build-pins.md` retain the cache, native-build, assembly and notice
+contracts. No config syntax, CLI grammar, RPC, plugin/SDK, wire format,
+comparison level or RFC support claim changes in this closure. Citations in
+the Docker-host spec, crash-capture spec, kernel-capability spec and Mac
+handover are repointed or restated; sibling owner pauses and unproved
+criteria are preserved. No new lesson or journal row is warranted.
+
+The required administrative prechecks used the retained native binary:
+`repo check` returned four findings outside this closure (RADIUS `EAPType`,
+and numeric parsing in the subscriber policer checker, DNS resolver and DNS
+mock); `test weakened check` returned fifteen findings in foreign RADIUS,
+authradius and health-test edits, none carried here. `rfc check` returned
+95 unrelated audit/discrimination violations; this tooling change adds or
+changes no RFC-tagged unit. These are not aggregate green results and no
+approval or reseal was manufactured. The prior `doc check all` result
+(three unrelated anchors, detailed above) is reused without rerunning.
+No test, build, formatter, lint, privileged proof or full verification ran
+in this resumed closure. Existing targeted race and runtime receipts stand.
 
 ## Owned journal rows
 

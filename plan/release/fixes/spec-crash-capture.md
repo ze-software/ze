@@ -6,38 +6,37 @@
 | Priority | P1 |
 | Release reason | Accepted crash-dump configuration must be honored by the shipped kernel; the existing implementation still owes boot/harvest and OTA proof. |
 | Scope | config |
-| Depends | plan/release/delivery/spec-appliance-ships-ze-kernel.md |
+| Depends | - |
 | Phase | 7/7 |
 | Handoff | - |
 | Updated | 2026-10-09 |
 
-Set aside 2026-10-09 (owner: "Set aside the 7 specs waiting on something else"): the Phase 7 QEMU labs cannot pass while the appliance ships the stock rtr7 kernel, which lacks `CONFIG_PSTORE` (Progress, 2026-10-09, below). When `plan/release/delivery/spec-appliance-ships-ze-kernel.md` closes: rerun the labs, then Phase 8.
+Set aside 2026-10-09 (owner: "Set aside the 7 specs waiting on something else"): the Phase 7 QEMU labs were blocked by the stock kernel's missing `CONFIG_PSTORE`. Kernel delivery was completed under `spec-appliance-ships-ze-kernel`: the default image now carries Ze's runtime kernel (`docs/guide/appliance.md`, "Runtime Kernel Requirements"). This clears that dependency, not this spec's panic-harvest or OTA proof; the owner pause remains in force.
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Release ownership (2026-10-22)
 
 This spec owns correctness and proof of the accepted Phase 1 configuration, not
-an absent feature. The October 9 progress record below establishes that
-`ze appliance build` accepts `image.crash-dump` while the shipped kernel lacks
-`CONFIG_PSTORE`; checking the other runtime kernel does not establish that the
-image can honor the setting. The kernel-delivery dependency owns shipping the
-capable kernel. This spec owns the crash-capture boundary and the owed proof.
+an absent feature. The October 9 progress record below describes the former
+stock-kernel defect; default images now carry Ze's runtime kernel, whose
+built-in requirements are documented in `docs/guide/appliance.md`.
+This spec still owns the crash-capture boundary and the owed proof.
 
 | Original obligation | Owning spec |
 |---------------------|-------------|
 | AC-1..AC-14, including the existing AC-12/13 architecture/space refusals; implementation steps 1..7; Phase 1 assumptions A-2..A-5 and their current unresolved/broken states | This spec |
-| Accepted `image.crash-dump` and AC-10 built-kernel floor correctness, configured-versus-armed readiness, Phase 7 panic-harvest and OTA-unaffected labs, N100 warm-reboot evidence before support claims | This spec, dependent on `plan/release/delivery/spec-appliance-ships-ze-kernel.md` for the shipped kernel |
+| Accepted `image.crash-dump` and AC-10 built-kernel floor correctness, configured-versus-armed readiness, Phase 7 panic-harvest and OTA-unaffected labs, N100 warm-reboot evidence before support claims | This spec; shipped-kernel dependency delivered under `spec-appliance-ships-ze-kernel`, with the surviving contract in `docs/guide/appliance.md` |
 | AC-15, former step 8, full-memory capture writer/staging and positive lab; A-7 and signing-key decision; Phase 2 R-1/2/3/5/7 and re-proof of AC-12/13 and OTA with staging active | `plan/post-release/features/spec-crash-capture-memory-image.md` |
 
 The complete original body remains below. Its Phase 2 mentions are non-owning
 history governed by the October 8 split, not release prerequisites. In
 particular the older pause paragraph's "then Phase 8" does not bring the
 memory-image extension back here. The owner pause remains in force: status
-stays `blocked`, Phase stays `7/7`, and the kernel dependency is not waived.
-Once that dependency is resolved, the recorded lab failures and unvalidated
-assumptions still require proof; relocation neither reruns them nor makes them
-pass. Closure remains after this spec's step 7 and its review, not by migration.
+stays `blocked` and Phase stays `7/7`. Kernel delivery is resolved, but the
+recorded lab failures and unvalidated assumptions still require proof; neither
+relocation nor dependency closure makes them pass. Closure remains after this
+spec's step 7 and its review, not by migration.
 
 ## Task
 
