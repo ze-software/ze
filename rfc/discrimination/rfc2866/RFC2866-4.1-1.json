@@ -84,8 +84,8 @@
     "claim-sha": "8156e80885b14e7e",
     "route": "revert",
     "producer": "internal/component/l2tp/plugins/authradius/acct.go::onSessionIPAssigned",
-    "producer-sha": "253e901268d65011",
-    "break": "body of onSessionIPAssigned replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+    "producer-sha": "47c83aeaf1f2097d",
+    "break": "body of onSessionIPAssigned replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
     "citation": "expect=stdout:contains=OK: Accounting-Start Framed-IP-Address matches the IPCP-negotiated address 10.99.7.10"
   }
 ]
