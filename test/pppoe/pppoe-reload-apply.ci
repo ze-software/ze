@@ -1,0 +1,47 @@
+# Test: a committed `pppoe` edit reaches the running access concentrator: a
+# changed ac-name is announced, an added access interface answers PADI, and a
+# removed one stops answering.
+#
+# VALIDATES: pppoe.Subsystem.Reload applies the diff live. After the SIGHUP
+#            reload, a PADI on the newly configured veth-bng2 gets a PADO
+#            carrying the new AC-Name (RFC 2516 Section 5.2).
+# VALIDATES: a PADI on veth-bng, which the reload removed, gets no PADO.
+# PREVENTS: the accepted-and-ignored reload. Reload returned nil and did
+#           nothing, so the commit succeeded while the AC kept answering with
+#           the boot configuration on the boot interface until a restart.
+#
+# DISCRIMINATION: with Reload a no-op, veth-sub2 never gets a PADO (the driver
+# fails "after the reload: no PADO on veth-sub2 ..."), and veth-sub keeps
+# answering AC-Name=ze-before.
+option=needs-linux:caps=net-admin,net-raw
+option=netns-link:name=veth-bng:peer=veth-sub
+option=netns-link:name=veth-bng2:peer=veth-sub2
+
+stdin=ze-bgp:terminator=EOF_CONF
+pppoe {
+    enabled true
+    ac-name ze-before
+    interface veth-bng {
+    }
+}
+EOF_CONF
+
+tmpfs=config2.conf:terminator=EOF_CONF2
+pppoe {
+    enabled true
+    ac-name ze-after
+    interface veth-bng2 {
+    }
+}
+EOF_CONF2
+
+option=env:var=ze.log.pppoe:value=info
+
+cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=le test fixture pppoe/reload before=veth-sub:ze-before after=veth-sub2:ze-after silent=veth-sub:timeout=90s
+expect=exit:code=0
+expect=stdout:contains=OK: before reload veth-sub answered AC-Name=ze-before
+expect=stdout:contains=OK: after reload veth-sub2 answered AC-Name=ze-after
+expect=stdout:contains=OK: after reload veth-sub left PADI unanswered
+reject=stderr:contains=reload error
+reject=stderr:pattern=panic

@@ -1,0 +1,43 @@
+# Test: enabling PPPoE by a reload starts the access concentrator on a daemon
+# that booted with it disabled.
+#
+# VALIDATES: the PPPoE subsystem is registered whatever the boot config says
+#            (cmd/ze/hub/register_l2tp.go), and pppoe.Subsystem.Reload starts
+#            it when the reloaded config enables it. After the SIGHUP a PADI on
+#            veth-sub gets a PADO carrying the reloaded AC-Name.
+# PREVENTS: a `pppoe enabled true` commit that is accepted and never applied,
+#           because the subsystem was registered only when the boot config
+#           already enabled it, so no Reload ever ran.
+#
+# DISCRIMINATION: with the boot-time registration condition or a no-op Reload,
+# veth-sub never gets a PADO and the driver fails "after the reload: no PADO
+# on veth-sub ...".
+option=needs-linux:caps=net-admin,net-raw
+option=netns-link:name=veth-bng:peer=veth-sub
+
+stdin=ze-bgp:terminator=EOF_CONF
+pppoe {
+    enabled false
+    ac-name ze-before
+    interface veth-bng {
+    }
+}
+EOF_CONF
+
+tmpfs=config2.conf:terminator=EOF_CONF2
+pppoe {
+    enabled true
+    ac-name ze-after
+    interface veth-bng {
+    }
+}
+EOF_CONF2
+
+option=env:var=ze.log.pppoe:value=info
+
+cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=le test fixture pppoe/reload after=veth-sub:ze-after:timeout=90s
+expect=exit:code=0
+expect=stdout:contains=OK: after reload veth-sub answered AC-Name=ze-after
+reject=stderr:contains=reload error
+reject=stderr:pattern=panic
