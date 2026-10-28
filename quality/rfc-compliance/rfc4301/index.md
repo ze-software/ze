@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 12.0% | 12 of 100 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 100 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 100 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 76.6% | 128 of 167 tagged units, 0 escaped and 22 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 77.8% | 130 of 167 tagged units, 0 escaped and 20 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -951,8 +951,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. encr
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC4301KeymatIntegrityKeysNeverLead`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc4301_keymat_test.go#L72) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC4301KeymatEncryptionKeysLeadEachSA`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc4301_keymat_test.go#L45) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC4301KeymatIntegrityKeysNeverLead`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc4301_keymat_test.go#L72) | unit/verify | mutant, verified |
+| positive | [`TestRFC4301KeymatEncryptionKeysLeadEachSA`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc4301_keymat_test.go#L45) | unit/verify | mutant, verified |
 
 ### [`RFC4301-4.5.3-1`](#rfc4301-4.5.3-1)
 

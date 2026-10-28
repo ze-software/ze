@@ -13,14 +13,14 @@ Each use case Ze serves and each technology it implements, with the share of man
 | [Looking glass](looking-glass/) | 165 of 307 (53.7%) | 5 of 93 (5.4%) | [16](../?profile=looking-glass&rfc=rfc4271%2Crfc1997%2Crfc2545%2Crfc5492%2Crfc6608%2Crfc9687%2Crfc4760%2Crfc6793%2Crfc7911%2Crfc8522%2Crfc6286%2Crfc6811%2Crfc7606%2Crfc7607%2Crfc8092%2Crfc9774#rfc-list) | 0 | not complete |
 | [Route collector](route-collector/) | 202 of 360 (56.1%) | 8 of 99 (8.1%) | [18](../?profile=route-collector&rfc=rfc4271%2Crfc2545%2Crfc5492%2Crfc6608%2Crfc9687%2Crfc4760%2Crfc6793%2Crfc7911%2Crfc6286%2Crfc7606%2Crfc7607%2Crfc7854%2Crfc9774%2Crfc8671%2Crfc9069%2Crfc6396%2Crfc6397%2Crfc8050#rfc-list) | 0 | not complete |
 | [IXP route server](route-server/) | 189 of 395 (47.8%) | 19 of 221 (8.6%) | [24](../?profile=route-server&rfc=rfc4271%2Crfc9582%2Crfc1997%2Crfc2545%2Crfc5492%2Crfc6608%2Crfc8212%2Crfc9687%2Crfc4760%2Crfc6793%2Crfc7911%2Crfc7947%2Crfc6286%2Crfc6811%2Crfc7606%2Crfc7948%2Crfc7454%2Crfc7607%2Crfc7999%2Crfc8092%2Crfc8893%2Crfc9234%2Crfc9774%2Crfc8210#rfc-list) | 0 | not complete |
-| [IPsec VPN endpoint](vpn-endpoint/) | 226 of 545 (41.5%) | 7 of 168 (4.2%) | [11](../?profile=vpn-endpoint&rfc=rfc5280%2Crfc3948%2Crfc4106%2Crfc4301%2Crfc4303%2Crfc5282%2Crfc7296%2Crfc8247%2Crfc7427%2Crfc8221%2Crfc6071#rfc-list) | 0 | not complete |
+| [IPsec VPN endpoint](vpn-endpoint/) | 228 of 545 (41.8%) | 7 of 168 (4.2%) | [11](../?profile=vpn-endpoint&rfc=rfc5280%2Crfc3948%2Crfc4106%2Crfc4301%2Crfc4303%2Crfc5282%2Crfc7296%2Crfc8247%2Crfc7427%2Crfc8221%2Crfc6071#rfc-list) | 0 | not complete |
 
 ## Other use-case profiles
 
 | Profile | Mandatory | Optional | RFCs | Not walked | Mandatory register |
 |---|---|---|---|---|---|
 | [DDoS detection and mitigation by sending FlowSpec upstream](ddos-flowspec/) | 182 of 343 (53.1%) | 16 of 124 (12.9%) | [13](../?profile=ddos-flowspec&rfc=rfc3954%2Crfc5635%2Crfc4271%2Csflow-v5%2Crfc4360%2Crfc4760%2Crfc7011%2Crfc7012%2Crfc7606%2Crfc7999%2Crfc8955%2Crfc8956%2Crfc9117#rfc-list) | 0 | not complete |
-| [IPsec VPN concentrator for remote-access clients](vpn-concentrator/) | 344 of 716 (48.0%) | 13 of 223 (5.8%) | [15](../?profile=vpn-concentrator&rfc=rfc3748%2Crfc5280%2Crfc3948%2Crfc4106%2Crfc4301%2Crfc4303%2Crfc5282%2Crfc7296%2Crfc8247%2Crfc4555%2Crfc5216%2Crfc5998%2Crfc7427%2Crfc8221%2Crfc9190#rfc-list) | 0 | not complete |
+| [IPsec VPN concentrator for remote-access clients](vpn-concentrator/) | 346 of 716 (48.3%) | 13 of 223 (5.8%) | [15](../?profile=vpn-concentrator&rfc=rfc3748%2Crfc5280%2Crfc3948%2Crfc4106%2Crfc4301%2Crfc4303%2Crfc5282%2Crfc7296%2Crfc8247%2Crfc4555%2Crfc5216%2Crfc5998%2Crfc7427%2Crfc8221%2Crfc9190#rfc-list) | 0 | not complete |
 
 ## Technology aggregates
 
@@ -42,7 +42,7 @@ Each use case Ze serves and each technology it implements, with the share of man
 | [EAP](eap/) | 119 of 172 (69.2%) | 6 of 59 (10.2%) | [6](../?profile=eap&rfc=rfc2759%2Crfc3748%2Crfc5216%2Crfc5998%2Crfc7627%2Crfc9190#rfc-list) | 1 | not complete |
 | [First-hop redundancy](fhrp/) | 112 of 166 (67.5%) | 4 of 65 (6.2%) | [3](../?profile=fhrp&rfc=rfc9568%2Crfc3768%2Crfc5798#rfc-list) | 0 | not complete |
 | [Flow telemetry](flow-telemetry/) | 17 of 70 (24.3%) | 0 of 19 (0.0%) | [3](../?profile=flow-telemetry&rfc=rfc3954%2Crfc7011%2Crfc7012#rfc-list) | 0 | not complete |
-| [IKEv2 and IPsec](ikev2-ipsec/) | 239 of 703 (34.0%) | 9 of 265 (3.4%) | [21](../?profile=ikev2-ipsec&rfc=rfc4739%2Crfc5685%2Crfc4754%2Crfc5280%2Crfc3948%2Crfc4106%2Crfc4301%2Crfc4302%2Crfc4303%2Crfc5282%2Crfc7296%2Crfc8247%2Crfc4555%2Crfc7383%2Crfc7427%2Crfc7634%2Crfc8031%2Crfc8221%2Crfc9329%2Crfc9370%2Crfc6071#rfc-list) | 0 | not complete |
+| [IKEv2 and IPsec](ikev2-ipsec/) | 241 of 703 (34.3%) | 9 of 265 (3.4%) | [21](../?profile=ikev2-ipsec&rfc=rfc4739%2Crfc5685%2Crfc4754%2Crfc5280%2Crfc3948%2Crfc4106%2Crfc4301%2Crfc4302%2Crfc4303%2Crfc5282%2Crfc7296%2Crfc8247%2Crfc4555%2Crfc7383%2Crfc7427%2Crfc7634%2Crfc8031%2Crfc8221%2Crfc9329%2Crfc9370%2Crfc6071#rfc-list) | 0 | not complete |
 | [IS-IS](isis/) | 59 of 125 (47.2%) | 1 of 36 (2.8%) | [11](../?profile=isis&rfc=rfc5301%2Crfc5304%2Crfc5305%2Crfc1195%2Crfc2966%2Crfc3786%2Crfc3787%2Crfc5303%2Crfc5308%2Crfc5310%2Crfc5120#rfc-list) | 1 | not complete |
 | [Management](management/) | 37 of 99 (37.4%) | no rows | [2](../?profile=management&rfc=rfc7950%2Crfc5905#rfc-list) | 0 | not complete |
 | [MPLS](mpls/) | 120 of 319 (37.6%) | 6 of 59 (10.2%) | [10](../?profile=mpls&rfc=rfc2205%2Crfc5036%2Crfc5561%2Crfc3031%2Crfc3032%2Crfc3209%2Crfc4090%2Crfc5443%2Crfc6138%2Crfc5286#rfc-list) | 0 | not complete |

@@ -122,7 +122,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 19 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 19 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 19 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>84.0%</strong><b>42 of 50 tagged units, 0 escaped and 8 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>100.0%</strong><b>50 of 50 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -812,12 +812,12 @@ The AES CCM transforms are offered for the IKE SA alone. An esp-group proposal n
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_ccm_sk_test.go#L339" title="internal/component/ike/engine/rfc5282_ccm_sk_test.go" target="_blank" rel="noopener"><code>TestRFC5282CCMRefusesANonceThatIsNotElevenOctets</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_ccm_sk_test.go#L312" title="internal/component/ike/engine/rfc5282_ccm_sk_test.go" target="_blank" rel="noopener"><code>TestRFC5282CCMNonceIsElevenOctets</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -907,7 +907,7 @@ The AES CCM transforms are offered for the IKE SA alone. An esp-group proposal n
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc5282_aead_test.go#L230" title="internal/component/ike/crypto/rfc5282_aead_test.go" target="_blank" rel="noopener"><code>TestRFC5282NonAEADEncryptionKeysCarryNoSalt</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc5282_aead_test.go#L169" title="internal/component/ike/crypto/rfc5282_aead_test.go" target="_blank" rel="noopener"><code>TestRFC5282AEADEncryptionKeysCarryTheirSalt</code></a></td>
@@ -917,7 +917,7 @@ The AES CCM transforms are offered for the IKE SA alone. An esp-group proposal n
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc5282_ccm_keys_test.go#L63" title="internal/component/ike/crypto/rfc5282_ccm_keys_test.go" target="_blank" rel="noopener"><code>TestRFC5282CCMEncryptionKeysCarryTheirSalt</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -969,7 +969,7 @@ The AES CCM transforms are offered for the IKE SA alone. An esp-group proposal n
 </div>
 <h3><a href="#rfc5282-8-1"><code>RFC5282-8-1</code></a></h3>
 <p>This document updates [RFC4306] to require that when an authenticated encryption algorithm is selected as the encryption algorithm for any SA (IKE or ESP), an integrity algorithm MUST NOT be selected for that SA. (§8)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/ike/crypto/proposal.go::matchESP moved. Re-judged 2026-10-19 (independent auditor, after d64411a639 and 08bfef9ee7). Section 8: &#34;This document updates [RFC4306] to require that when an authenticated encryption algorithm is selected as the encryption algorithm for any SA (IKE or ESP), an integrity algorithm MUST NOT be selected for that SA.&#34; matchESP now calls acceptESPEncryption, which delegates every non-null ID to acceptEncryption unchanged, and acceptIntegrity still compares the offer to the AEAD policy&#39;s AUTH_NONE; the responder&#39;s espProposalMatches AEAD branch is untouched; lookupESPEncryption resolves AEAD IDs identically to lookupEncryption. The null branch cannot select an AEAD cipher. All six tagged units (IKE SA, ESP initiator, ESP responder; both polarities) pass at HEAD; records re-taken in 08bfef9ee7. Verdict stands.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independently re-judged 2026-10-28 after the ba03d7c2c7 ESP cipher change, from rfc/full/rfc5282.txt Section 8: &#34;This document updates [RFC4306] to require that when an authenticated encryption algorithm is selected as the encryption algorithm for any SA (IKE or ESP), an integrity algorithm MUST NOT be selected for that SA.&#34; Read all six tagged tests, their fixtures and the producing selectors. The IKE positive requires AUTH_NONE and zero integrity key length, then an actually established AEAD handshake with empty SK_ai and SK_ar; its negative adds only HMAC-SHA256 to the otherwise valid AES-GCM offer and requires refusal. The ESP initiator positive pins both AES-GCM and AUTH_NONE despite a configured hash; its negative adds only the non-NONE integrity transform to that same valid offer. The responder positive drives selectResponderESP with a complete hand-built AES-GCM/ESN proposal, pins the accepted peer proposal number and an answer containing exactly one AES-GCM encryption transform and zero integrity transforms; its negative requires ErrNoProposalChosen and no accepted proposal number for the same offer plus HMAC-SHA256. These independent conforming controls prevent reject-all success, and the malformed offers introduce no unrelated missing transform or bad key length. Both SA kinds and both ESP selection paths are represented, rather than only IKE. The changed matchESP now independently refuses AEAD with non-NONE integrity, checks remote/local integrity equality, resolves any non-NONE ESP integrity and returns the peer proposal; the first guard plus equality both protect this negative input. resolveESPTransforms still builds AUTH_NONE for AEAD. The responder&#39;s espProposalMatches accepts absent integrity or an offered NONE alternative for AEAD, and the selected answer omits integrity; accepting a NONE alternative is not selecting a non-NONE algorithm. IKE selection compares against localIKEProposals&#39; AUTH_NONE through acceptIntegrity. Tests exercise AES-GCM, while the shared ID/property-based guards cover the admitted AEAD family by source reading, not per-cipher execution proof. Retain enforced. Existing whole-function revert records demonstrate reachability only, not that each individual guard is necessary; any fresh discriminatory observations belong to the native record repair and are not fabricated by this judgment. No tests were run by this auditor.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -977,7 +977,7 @@ The AES CCM transforms are offered for the IKE SA alone. An esp-group proposal n
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_send_test.go#L248" title="internal/component/ike/engine/rfc5282_aead_send_test.go" target="_blank" rel="noopener"><code>TestRFC5282AEADESPOfferWithIntegrityIsRefused</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L773" title="internal/component/ike/engine/rfc5282_aead_sk_test.go" target="_blank" rel="noopener"><code>TestRFC5282AEADOfferWithIntegrityIsRefused</code></a></td>
@@ -992,7 +992,7 @@ The AES CCM transforms are offered for the IKE SA alone. An esp-group proposal n
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_send_test.go#L224" title="internal/component/ike/engine/rfc5282_aead_send_test.go" target="_blank" rel="noopener"><code>TestRFC5282AEADESPSelectionCarriesNoIntegrityAlgorithm</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L739" title="internal/component/ike/engine/rfc5282_aead_sk_test.go" target="_blank" rel="noopener"><code>TestRFC5282AEADSelectionCarriesNoIntegrityAlgorithm</code></a></td>
@@ -1009,7 +1009,7 @@ The AES CCM transforms are offered for the IKE SA alone. An esp-group proposal n
 </div>
 <h3><a href="#rfc5282-8-2"><code>RFC5282-8-2</code></a></h3>
 <p>This document further updates [RFC4306] to require that if all of the encryption algorithms in any proposal are authenticated encryption algorithms, then the proposal MUST NOT propose any integrity transforms. (§8)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/ike/engine/initiator.go::espProposalWire moved. Re-judged 2026-10-19 (independent auditor, after d64411a639 and 08bfef9ee7). Section 8: &#34;This document further updates [RFC4306] to require that if all of the encryption algorithms in any proposal are authenticated encryption algorithms, then the proposal MUST NOT propose any integrity transforms.&#34; espProposalWire now resolves through lookupESPEncryption; the AEAD decision and the omission of Transform Type 3 are unchanged, and null is non-AEAD (EncryptionNull in the IsAEAD false arm), so a null proposal keeps its integrity transform as RFC 4303 Section 3.2 needs. The four tagged units (IKE and ESP proposals, both polarities) pass at HEAD; records re-taken in 08bfef9ee7. Verdict stands.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independently re-judged 2026-10-28 after the ba03d7c2c7 ESP cipher change, from rfc/full/rfc5282.txt Section 8: &#34;This document further updates [RFC4306] to require that if all of the encryption algorithms in any proposal are authenticated encryption algorithms, then the proposal MUST NOT propose any integrity transforms.&#34; Read all four tagged units and the test wrappers forwarding to wireIKEOffer and espProposalWire. The IKE and ESP positives each offer one AES-GCM cipher while retaining a configured SHA256 hash, so an incorrect unconditional integrity emitter has a real transform to emit. Each asserts exactly zero Type 3 transforms, not merely AUTH_NONE: an explicit NONE transform would fail. The IKE positive additionally requires ENCR, PRF and DH; the ESP positive requires ENCR and ESN, so an empty or truncated proposal cannot satisfy absence vacuously. The separate AES-CBC controls require exactly one Type 3 on each rail, testing the boundary of the AEAD condition rather than permitting unconditional omission. The native builders currently emit one encryption transform per proposal, so &#39;all&#39; is the sole cipher, not an untested multi-cipher conjunction within a proposal. wireIKEOffer guards the integrity append with !enc.IsAEAD; the changed espProposalWire still guards it with !p.Encryption.IsAEAD(), now looking up non-AEAD integrity through lookupESPIntegrity. Reading the property and registry producers confirms AES-GCM and ChaCha20-Poly1305 are AEAD while NULL and 3DES are not; the new ESP-only hash lookup does not move the append outside that guard. Retain enforced for proposal construction on both IKE and ESP rails. The tagged executions are AES-GCM/AES-CBC examples, not a runtime enumeration of every cipher or a packet-capture proof. Existing revert records show dependency on the builders, not independent proof of every conditional; new native record observations are a separate deliverable. No tests were run by this auditor.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1022,7 +1022,7 @@ The AES CCM transforms are offered for the IKE SA alone. An esp-group proposal n
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_send_test.go#L212" title="internal/component/ike/engine/rfc5282_aead_send_test.go" target="_blank" rel="noopener"><code>TestRFC5282NonAEADESPProposalKeepsItsIntegrityTransform</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_proposal_test.go#L37" title="internal/component/ike/engine/rfc5282_aead_proposal_test.go" target="_blank" rel="noopener"><code>TestRFC5282AEADIKEProposalCarriesNoIntegrityTransform</code></a></td>
@@ -1032,7 +1032,7 @@ The AES CCM transforms are offered for the IKE SA alone. An esp-group proposal n
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_send_test.go#L185" title="internal/component/ike/engine/rfc5282_aead_send_test.go" target="_blank" rel="noopener"><code>TestRFC5282AEADESPProposalCarriesNoIntegrityTransform</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1370,7 +1370,7 @@ The AES CCM transforms are offered for the IKE SA alone. An esp-group proposal n
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
+                    <span class="footer-published">Published 28 October 2026 14:41 UTC</span>
                 </div>
             </div>
         </footer>

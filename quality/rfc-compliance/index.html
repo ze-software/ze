@@ -126,7 +126,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>52.8%</strong><b>2,405 of 4,556 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>10.6%</strong><b>483 of 4,556 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 4,556 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>67.7%</strong><b>6,184 of 9,140 tagged units in enrolled RFCs, 4 escaped and 66 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>67.8%</strong><b>6,197 of 9,140 tagged units in enrolled RFCs, 4 escaped and 53 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -134,14 +134,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>14.5%</strong><b>662 of 4,556 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>4.7%</strong><b>215 of 4,556 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>1.2%</strong><b>53 of 4,556 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Semantic verdicts</span><strong>2,261</strong><b>0 shifted, 12 stale, 2,442 missing</b><p>requirements a reader has judged and whose judgement is still current. A missing verdict is not claimed, and the shifted and stale ones are named on their own RFC&#39;s page</p></article>
+<article class="rfc-card rfc-neutral"><span>Semantic verdicts</span><strong>2,265</strong><b>0 shifted, 8 stale, 2,442 missing</b><p>requirements a reader has judged and whose judgement is still current. A missing verdict is not claimed, and the shifted and stale ones are named on their own RFC&#39;s page</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>Partial proof; remaining gap</span><strong>0.3%</strong><b>14 of 4,556 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>15.9%</strong><b>724 of 4,556 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-bad"><span>Gate verdict</span><strong>RED</strong><b>79 open gate issues</b><p>whether ./le rfc check passes over this tree</p></article>
+<article class="rfc-card rfc-bad"><span>Gate verdict</span><strong>RED</strong><b>62 open gate issues</b><p>whether ./le rfc check passes over this tree</p></article>
 </div>
 <p>The 8 shares marked as a part above are the whole of the 4,556 gated MUSTs: they add to 100%. Proven by test is the first two of them added together, so it is not a part of its own. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -212,8 +212,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </details>
 <div class="rfc-verdict rfc-bad">
 <p><span>Gate verdict</span><strong>RED</strong></p>
-<p>79 open gate issues. Check results below names them, up to the 25 this page inlines.</p>
-<p>Reproduce it with <code>./le rfc check</code>. The gate's own line reads <code>rfc-requirements: 79 violation(s)</code>.</p>
+<p>62 open gate issues. Check results below names them, up to the 25 this page inlines.</p>
+<p>Reproduce it with <code>./le rfc check</code>. The gate's own line reads <code>rfc-requirements: 62 violation(s)</code>.</p>
 </div>
 <section><h2>Coverage by profile</h2>
 <p>This page covers every RFC. Each use case Ze serves and each technology aggregate has its own page, with its mandatory and optional figures and the RFCs it lists ordered roots to leaves: <a href="profiles/">RFC coverage by profile</a>.</p>
@@ -517,7 +517,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Semantic audits</td>
 <td><code>rfc/audit/*/*.json</code></td>
-<td>2,261 fresh, 0 shifted, 12 stale, 2,442 missing</td>
+<td>2,265 fresh, 0 shifted, 8 stale, 2,442 missing</td>
 </tr>
 <tr><td>Pre-commit verification</td>
 <td><code>internal/le/verify/engine/stages.go</code></td>
@@ -575,30 +575,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>-</td>
 <td><code>-</code></td>
 <td>-</td>
-<td>rfc/short/rfc4303.md:171: RFC4303-1-2 has a STALE audit verdict -- what it judged changed: internal/component/ike/crypto/proposal.go::acceptESPEncryption (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc4303 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)</td>
-<td>-</td>
-</tr>
-<tr><td>-</td>
-<td><code>-</code></td>
-<td>-</td>
-<td>rfc/short/rfc4303.md:181: RFC4303-3.2-1 has a STALE audit verdict -- what it judged changed: internal/component/ike/ipsec/config.go::parseESPProposal (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc4303 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)</td>
-<td>-</td>
-</tr>
-<tr><td>-</td>
-<td><code>-</code></td>
-<td>-</td>
-<td>rfc/short/rfc5282.md:289: RFC5282-8-1 has a STALE audit verdict -- what it judged changed: internal/component/ike/crypto/proposal.go::matchESP (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc5282 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)</td>
-<td>-</td>
-</tr>
-<tr><td>-</td>
-<td><code>-</code></td>
-<td>-</td>
-<td>rfc/short/rfc5282.md:290: RFC5282-8-2 has a STALE audit verdict -- what it judged changed: internal/component/ike/engine/initiator.go::espProposalWire (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc5282 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)</td>
-<td>-</td>
-</tr>
-<tr><td>-</td>
-<td><code>-</code></td>
-<td>-</td>
 <td>rfc/short/rfc5798.md:234: RFC5798-7.2-1 has a STALE audit verdict -- what it judged changed: internal/plugins/vrrp/transport/backend_linux.go::openV6 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc5798 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)</td>
 <td>-</td>
 </tr>
@@ -618,12 +594,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><code>-</code></td>
 <td>-</td>
 <td>rfc/discrimination/rfc2866/RFC2866-4.1-1.json: the revert record for RFC2866-4.1-1 positive at test/l2tp/radius-acct-wire.ci no longer verifies (producer-changed): the producer&#39;s behavior changed since the break was applied to it. The break &#34;body of onSessionIPAssigned replaced by panic(\&#34;BUG: ./le rfc discriminate-record disabled this producer to observe the red\&#34;)&#34; was observed to redden that unit when applied to internal/component/l2tp/plugins/authradius/acct.go::onSessionIPAssigned. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved</td>
-<td>-</td>
-</tr>
-<tr><td>-</td>
-<td><code>-</code></td>
-<td>-</td>
-<td>rfc/discrimination/rfc3748/RFC3748-7.10-5.json: the revert record for RFC3748-7.10-5 positive at internal/component/ike/engine/rfc3748_msk_test.go::TestRFC3748TheEAPMSKNeverKeysTheDataItProtects no longer verifies (producer-changed): the producer&#39;s behavior changed since the break was applied to it. The break &#34;body of DeriveChildSAKeys replaced by panic(\&#34;BUG: ./le rfc discriminate-record disabled this producer to observe the red\&#34;)&#34; was observed to redden that unit when applied to internal/component/ike/crypto/keys.go::DeriveChildSAKeys. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved</td>
 <td>-</td>
 </tr>
 <tr><td>-</td>
@@ -686,10 +656,40 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>rfc/discrimination/rfc4301/RFC4301-4.1-9.json: the revert record for RFC4301-4.1-9 negative at internal/component/ike/engine/rfc4301_parallel_sa_linux_test.go::TestRFC4301ParallelSAsAreHeldToTheOneSharedPolicy no longer verifies (producer-changed): the producer&#39;s behavior changed since the break was applied to it. The break &#34;body of childPolicies replaced by panic(\&#34;BUG: ./le rfc record disabled this producer to observe the red\&#34;)&#34; was observed to redden that unit when applied to internal/component/ike/engine/child.go::childPolicies. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved</td>
 <td>-</td>
 </tr>
+<tr><td>-</td>
+<td><code>-</code></td>
+<td>-</td>
+<td>rfc/discrimination/rfc4301/RFC4301-4.1-9.json: the revert record for RFC4301-4.1-9 positive at internal/component/ike/engine/rfc4301_parallel_sa_linux_test.go::TestRFC4301ParallelSAsWithOneSelectorAreEachReceived no longer verifies (producer-changed): the producer&#39;s behavior changed since the break was applied to it. The break &#34;body of childPolicies replaced by panic(\&#34;BUG: ./le rfc record disabled this producer to observe the red\&#34;)&#34; was observed to redden that unit when applied to internal/component/ike/engine/child.go::childPolicies. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved</td>
+<td>-</td>
+</tr>
+<tr><td>-</td>
+<td><code>-</code></td>
+<td>-</td>
+<td>rfc/discrimination/rfc4301/RFC4301-4.4.1-10.json: the revert record for RFC4301-4.4.1-10 positive at internal/component/ike/engine/rfc4301_ordered_spd_linux_test.go::TestRFC4301OrderedInboundSearchAdmitsOnTheFirstRankedEntry no longer verifies (producer-changed): the producer&#39;s behavior changed since the break was applied to it. The break &#34;body of childPolicies replaced by panic(\&#34;BUG: ./le rfc record disabled this producer to observe the red\&#34;)&#34; was observed to redden that unit when applied to internal/component/ike/engine/child.go::childPolicies. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved</td>
+<td>-</td>
+</tr>
+<tr><td>-</td>
+<td><code>-</code></td>
+<td>-</td>
+<td>rfc/discrimination/rfc4301/RFC4301-4.4.1-10.json: the revert record for RFC4301-4.4.1-10 negative at internal/component/ike/engine/rfc4301_parallel_sa_linux_test.go::TestRFC4301ParallelSAsAreHeldToTheOneSharedPolicy no longer verifies (producer-changed): the producer&#39;s behavior changed since the break was applied to it. The break &#34;body of childPolicies replaced by panic(\&#34;BUG: ./le rfc record disabled this producer to observe the red\&#34;)&#34; was observed to redden that unit when applied to internal/component/ike/engine/child.go::childPolicies. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved</td>
+<td>-</td>
+</tr>
+<tr><td>-</td>
+<td><code>-</code></td>
+<td>-</td>
+<td>rfc/discrimination/rfc4301/RFC4301-4.4.1-10.json: the revert record for RFC4301-4.4.1-10 positive at internal/component/ike/engine/rfc4301_parallel_sa_linux_test.go::TestRFC4301ParallelSAsWithOneSelectorAreEachReceived no longer verifies (producer-changed): the producer&#39;s behavior changed since the break was applied to it. The break &#34;body of childPolicies replaced by panic(\&#34;BUG: ./le rfc record disabled this producer to observe the red\&#34;)&#34; was observed to redden that unit when applied to internal/component/ike/engine/child.go::childPolicies. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved</td>
+<td>-</td>
+</tr>
+<tr><td>-</td>
+<td><code>-</code></td>
+<td>-</td>
+<td>rfc/discrimination/rfc4301/RFC4301-4.4.2-1.json: the revert record for RFC4301-4.4.2-1 positive at internal/component/ike/engine/child_test.go::TestChildSAInboundPolicyUsesNegotiatedTS no longer verifies (producer-changed): the producer&#39;s behavior changed since the break was applied to it. The break &#34;body of childPolicies replaced by panic(\&#34;BUG: ./le rfc record disabled this producer to observe the red\&#34;)&#34; was observed to redden that unit when applied to internal/component/ike/engine/child.go::childPolicies. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved</td>
+<td>-</td>
+</tr>
 </tbody>
 </table>
 </div>
-<p>54 further findings not shown here. The whole list is in data/rfc-compliance.json, and each one is on its own RFC&#39;s page under the requirement it names.</p>
+<p>37 further findings not shown here. The whole list is in data/rfc-compliance.json, and each one is on its own RFC&#39;s page under the requirement it names.</p>
 </section>
 <section id="rfc-list"><h2>Enrolled RFCs</h2>
 <div class="rfc-filter" id="rfc-filter" hidden>
@@ -2356,7 +2356,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 13:31 UTC</span>
+                    <span class="footer-published">Published 28 October 2026 14:41 UTC</span>
                 </div>
             </div>
         </footer>

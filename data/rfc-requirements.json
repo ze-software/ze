@@ -70929,7 +70929,7 @@
         "audited": 36,
         "discrimination-records": 131,
         "escapes": 0,
-        "stale-records": 1
+        "stale-records": 0
       },
       "requirements": [
         {
@@ -73484,12 +73484,11 @@
               "claim": "-- RFC 3748 Section 7.10: \"The MSK and EMSK MUST NOT be used directly to protect data; however, they are of sufficient size to enable derivation of a AAA-Key subsequently used to derive Transient Session Keys (TSKs) for use with the selected ciphersuite.\" The keys that protect data on ze are the ESP keys it installs into the dataplane. The two SAs below carry different MSKs and the same SK_d and nonces, and every key installed is byte for byte the same across them, so none of them follows the MSK. No installed key is a window of either MSK either, so no part of one is being installed verbatim.",
               "tags": 1,
               "proof": {
-                "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
-                "producer": "internal/component/ike/crypto/keys.go::DeriveChildSAKeys",
-                "break": "body of DeriveChildSAKeys replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "route": "mutant",
+                "state": "verified",
+                "producer": "internal/component/ike/engine/child.go::createFirstChildSA",
+                "break": "line 308: \"var inSPI uint32\" -\u003e \"keys.EncryptKeyI = append([]byte(nil), sa.EAPMSK[:len(keys.EncryptKeyI)]...); var inSPI uint32 // MUTATION-APPLIED\"",
+                "verified": true,
                 "proves": true
               }
             }
@@ -100448,7 +100447,7 @@
         "audited": 52,
         "discrimination-records": 150,
         "escapes": 0,
-        "stale-records": 22
+        "stale-records": 20
       },
       "requirements": [
         {
@@ -103645,12 +103644,11 @@
               "claim": "-- an integrity key is never taken from the leading bits of its SA's keying material.",
               "tags": 1,
               "proof": {
-                "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "route": "mutant",
+                "state": "verified",
                 "producer": "internal/component/ike/crypto/keys.go::DeriveChildSAKeys",
-                "break": "body of DeriveChildSAKeys replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "break": "line 156: \"keys.IntegKeyI = dup(keymat[off : off+integKeyLen])\" -\u003e \"keys.IntegKeyI = dup(keymat[0 : integKeyLen]) // MUTATION-APPLIED\"",
+                "verified": true,
                 "proves": true
               }
             },
@@ -103663,12 +103661,11 @@
               "claim": "-- each SA's encryption key is the leading bits of its keying material and its integrity key the remaining bits.",
               "tags": 1,
               "proof": {
-                "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "route": "mutant",
+                "state": "verified",
                 "producer": "internal/component/ike/crypto/keys.go::DeriveChildSAKeys",
-                "break": "body of DeriveChildSAKeys replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "break": "line 154: \"keys.EncryptKeyI = dup(keymat[off : off+encKeyLen])\" -\u003e \"keys.EncryptKeyI = dup(keymat[integKeyLen : integKeyLen+encKeyLen]) // MUTATION-APPLIED\"",
+                "verified": true,
                 "proves": true
               }
             }
@@ -107053,7 +107050,7 @@
       "implementation": "mixed",
       "implementation-reason": "Ze's Go builds and installs the ESP association, its algorithms and its replay window, internal/component/ike/engine/child.go. Linux XFRM performs every per-packet ESP operation.",
       "public-status": "Partial",
-      "public-coverage": "ESP SA parameter model, protocol 50, tunnel and transport modes, XFRM installation, OSPFv3 manual ESP.",
+      "public-coverage": "ESP SA parameter model, protocol 50, tunnel and transport modes, XFRM installation, OSPFv3 manual ESP. Native amd64/KVM and arm64/HVF kernel interop covers AES-GCM, AES-CBC/SHA256, ChaCha20-Poly1305, 3DES/SHA1 and NULL/SHA256 against strongSwan with module loading disabled: internal/le/test/deployment/vpnproof.go::runVPNKernelAt selects the five scenarios; internal/le/interoplab/ipsec/helpers.go::verifyESPDirectionsToward requires lossless ping and advancing directed ESP counters. This is kernel interop evidence, not additional RFC-tagged requirement coverage.",
       "public-remaining": "Integrity-only ESP is configurable on OSPFv3 manual SAs (RFC4303-1-1) and negotiable in IKEv2 for Child SAs, where an esp-group proposal naming null with a hash offers and accepts ENCR_NULL (RFC4303-1-2); the IKE SA still refuses ENCR_NULL per RFC 7296 Section 5. SPI 0 and anti-replay-needs-integrity are proven on one SA producer each (RFC4303-2.1-1, RFC4303-3.4.3-2). Protocol 50 (RFC4303-2-1) is proven on the wire for the OSPFv3 manual SAs and at the installed SA for the IKE Child SA; the address-match indication for the inbound SA lookup (RFC4303-2.1-2) is proven against the kernel's own lookup on both producers.",
       "summary-path": "rfc/short/rfc4303.md",
       "shard-path": "rfc/requirements/rfc4303.md",
@@ -107081,7 +107078,7 @@
         "audited": 11,
         "discrimination-records": 31,
         "escapes": 0,
-        "stale-records": 6
+        "stale-records": 4
       },
       "requirements": [
         {
@@ -107145,7 +107142,7 @@
           "gated": true,
           "positive-test": "`internal/component/ike/crypto/rfc4303_integrity_only_test.go` `TestRFC4303IntegrityOnlyESPIsAccepted` (unit/verify), `internal/component/ike/dataplane/rfc4301_esp_null_vpp_test.go` `TestRFC4303VPPIntegrityOnlyESPIsInstalled` (unit/verify), `internal/component/ike/engine/rfc4303_integrity_only_test.go` `TestRFC4303IntegrityOnlyESPIsNegotiated` (unit/verify)",
           "negative-test": "`internal/component/ike/crypto/rfc4303_integrity_only_test.go` `TestIntegrityOnlyESPRefusals` (unit/verify)",
-          "note": "**audit: enforced, stale-unit**",
+          "note": "",
           "nightly-only": false,
           "covers": [
             {
@@ -107175,11 +107172,10 @@
               "tags": 1,
               "proof": {
                 "route": "mutant",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/ike/crypto/proposal.go::acceptESPEncryption",
-                "break": "line 503: \"local.ID != ENCR_NULL\" -\u003e \"true\"",
-                "verified": false,
+                "break": "line 497: \"if local.ID != remote.ID {\" -\u003e \"if local.ID != remote.ID || remote.ID == ENCR_NULL { // MUTATION-APPLIED\"",
+                "verified": true,
                 "proves": true
               }
             },
@@ -107210,11 +107206,10 @@
               "tags": 1,
               "proof": {
                 "route": "mutant",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/ike/crypto/proposal.go::acceptESPEncryption",
-                "break": "line 503: \"local.ID != ENCR_NULL\" -\u003e \"true\"",
-                "verified": false,
+                "break": "line 497: \"if local.ID != remote.ID {\" -\u003e \"if local.ID != remote.ID || remote.ID == ENCR_NULL { // MUTATION-APPLIED\"",
+                "verified": true,
                 "proves": true
               }
             }
@@ -107222,11 +107217,8 @@
           "audit": {
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
-            "note": "Re-judged 2026-10-20 (independent judge, after 967dbf7883, 5450fa29e9, b87fdb0b43; HEAD 6dce69a77c). Section 1: \"Integrity-only ESP MUST be offered as a service selection option, e.g., it must be negotiable in SA management protocols and MUST be configurable via management interfaces.\" STALE trigger is ec006f283e, which added only an RFC4303-3.2-1 tag comment above TestIntegrityOnlyESPRefusals; no assertion changed and its RFC4303-1-2 claim is unchanged. The 2026-10-19 judgement (positive accept of ENCR_NULL beside every integrity transform, negative bounds, two-Ze engine negotiation, ze_vpp SAD install) stands; crypto and engine units PASS at HEAD.",
-            "freshness": "stale-unit",
-            "moved": [
-              "internal/component/ike/crypto/proposal.go::acceptESPEncryption"
-            ]
+            "note": "Independently re-judged 2026-10-28 after the ba03d7c2c7 ESP cipher change, from rfc/full/rfc4303.txt Section 1: \"Integrity-only ESP MUST be offered as a service selection option, e.g., it must be negotiable in SA management protocols and MUST be configurable via management interfaces.\" This row covers service selection and negotiation; the management-interface clause is separately listed as RFC4303-1-1, not newly audited here. Read all four tagged units and their helpers, then independently re-read the approved crypto-test strengthening. TestRFC4303IntegrityOnlyESPIsAccepted now enumerates SupportedESPIntegrityNames and resolves each entry with LookupESPIntegrity, including ESP-only SHA1 alongside SHA256/384/512; it requires a nonempty registry and pins the selected NULL ID, zero key length and unchanged integrity ID for every entry. This closes the discovered mismatch between its universal ESP claim and the former IKE-only enumeration without removing or weakening an assertion. TestRFC4303IntegrityOnlyESPIsNegotiated drives real IKE_SA_INIT/IKE_AUTH handlers, asserts the NULL/no-attribute plus SHA256 offer, established state and both installed Child-SA parameter sets, including no encryption key and 32-octet SHA256 keys. TestRFC4303VPPIntegrityOnlyESPIsInstalled asserts the exact emitted SAD cipher and integrity enums; this is the VPP API boundary, not observed packet forwarding. TestIntegrityOnlyESPRefusals supplies distinct negative bounds, asserting ErrProposalIncomplete for NULL/NONE and ErrNoProposalChosen for a keyed NULL offer or an unoffered NULL suite; these bounds do not themselves prove service availability. The positives do: refusing NULL cannot satisfy their exact acceptance assertions. In the changed acceptESPEncryption, FixedKeyOctets recognizes NULL with zero key octets, matching IDs are required and a nonzero wire Key Length is rejected; espProposalComplete independently excludes NULL/NONE. The service remains implemented and these assertions discriminate its loss. Read the native engine recording: the clean control names TestRFC4303IntegrityOnlyESPIsNegotiated as PASS; adding remote.ID == ENCR_NULL to the admission refusal makes the same unit FAIL with state = dead rather than established. That break directly removes the required service, unlike a generic producer panic. No tests were launched by this auditor; the corrected crypto unit's fresh native observation belongs to the discrimination repair, not an inferred result here.",
+            "freshness": "fresh"
           }
         },
         {
@@ -107780,7 +107772,7 @@
           "gated": true,
           "positive-test": "`internal/plugins/ospf/config_ipsec_test.go` `TestIPsecESPRequiresIntegrity` (unit/verify)",
           "negative-test": "`internal/component/ike/crypto/rfc4303_integrity_only_test.go` `TestIntegrityOnlyESPRefusals` (unit/verify), `internal/plugins/ospf/config_ipsec_test.go` `TestIPsecESPRequiresIntegrity` (unit/verify)",
-          "note": "**audit: enforced, stale-unit**",
+          "note": "",
           "nightly-only": false,
           "covers": [
             {
@@ -107822,11 +107814,8 @@
           "audit": {
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
-            "note": "Re-judged 2026-10-19 (independent auditor, after ec006f283e). Section 3.2: \"Note that although both confidentiality and integrity are optional, at least one of these services MUST be selected, hence both algorithms MUST NOT be simultaneously NULL.\" Correction of the prior note: the IKE ESP vocabulary DOES carry the null cipher (ike/ipsec/types.go EncryptionNull \"null\"; crypto.ENCR_NULL = 11), so the OSPFv3 manual path is not the only producer. Every path that can build an ESP SA was read at HEAD. (1) IKE initiator: NegotiateESP -\u003e negotiateESP calls espProposalComplete on each remote proposal before matching; proposal.go:483 refuses ENCR_NULL beside AUTH_NONE with ErrProposalIncomplete. TestIntegrityOnlyESPRefusals asserts exactly that (errors.Is ErrProposalIncomplete); its new 3.2-1 negative claim states no more than the assertion, and the mutant record (line 483 condition -\u003e false) breaks that very guard. (2) IKE responder: matchOfferedESP reads the operator's own proposal; for a non-AEAD cipher (null included) integID comes from lookupIntegrity of a configured hash, and espProposalMatches requires the offer to contain that INTEG id, so a peer's null+none offer never matches. Untagged, sound by reading. (3) IKE config: parseESPProposal refuses null with no hash ('hash is required for non-AEAD encryption'), and HashAlgo has no 'none' word; TestIntegrityOnlyESPConfig asserts this refusal (untagged for 3.2-1). (4) OSPFv3 manual SA: validateIPsecInterface refuses null encryption with no integrity (ErrIPsecAuthAlgo); TestIPsecESPRequiresIntegrity carries the existing 3.2-1 negative and positive, unchanged. (5) Installers: XFRM planStateAlgos sets Auth for non-AEAD ESP and xfrmAuthName refuses an empty name; VPP vppIntegAlg returns ErrNotSupported for a non-AEAD SA without a known hash. Defence in depth only, not tagged. All listed tests pass at HEAD (go test -count=1). Finding, no verdict change: the responder path (2) and config refusal (3) are the IKE refusals a peer or operator actually reaches and neither carries a 3.2-1 tag; the tagged IKE unit proves the initiator check of the peer's accepted proposal.",
-            "freshness": "stale-unit",
-            "moved": [
-              "internal/component/ike/ipsec/config.go::parseESPProposal"
-            ]
+            "note": "Independently re-judged 2026-10-28 after the ba03d7c2c7 ESP cipher change, from rfc/full/rfc4303.txt Section 3.2: \"Note that although both confidentiality and integrity are optional, at least one of these services MUST be selected, hence both algorithms MUST NOT be simultaneously NULL.\" Read every tagged cover: TestIntegrityOnlyESPRefusals and both tags in TestIPsecESPRequiresIntegrity. The IKE test supplies an otherwise complete matching NULL/NONE proposal and requires the specific ErrProposalIncomplete, not an arbitrary refusal; espProposalComplete checks exactly that forbidden pair before matching. Its retained mutant disables that exact predicate rather than an unrelated parser error. The OSPF test's negative config has a valid ESP protocol and nonreserved SPI and requires ErrIPsecAuthAlgo for NULL/no integrity; its separate positive config adds valid SHA256 and a 32-octet key and requires successful validation. Thus its two tags name distinct inputs and assertions, not one assertion counted twice. validateIPsecInterface rejects absent/unknown integrity before any SA install. The changed parseESPProposal still requires a hash for every non-AEAD cipher, including NULL, and validates an explicitly provided hash through HashImplementedESP; the change admits ESP-only SHA1, not absent integrity. Read matchOfferedESP/espProposalMatches as well: non-AEAD responder selection resolves a configured integrity algorithm and requires it in the peer offer. Both halves of the sentence express the same exclusion; confidentiality-only support is optional, not an additional acceptance obligation. Retain enforced for the exact prohibition. Evidence boundary retained from the earlier judgment: the tagged IKE assertion exercises initiator answer validation, not the config parser or responder refusal directly; those latter guards were read, not newly execution-proven here. No test run or fresh red/green observation is claimed by this audit.",
+            "freshness": "fresh"
           }
         },
         {
@@ -143582,7 +143571,7 @@
         "audited": 18,
         "discrimination-records": 50,
         "escapes": 0,
-        "stale-records": 8
+        "stale-records": 0
       },
       "requirements": [
         {
@@ -144152,12 +144141,11 @@
               "claim": "-- eleven is exact rather than a floor. A message sealed under a ten octet nonce is refused, and so is one sealed under the twelve octets AES GCM takes. Both keep salt-then-IV order, so only the length differs.",
               "tags": 1,
               "proof": {
-                "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "route": "mutant",
+                "state": "verified",
                 "producer": "internal/component/ike/crypto/aead.go::newIKEAEAD",
-                "break": "body of newIKEAEAD replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "break": "line 207: \"aead, err := t.mode(block, t.icvOctets, t.saltOctets+ikeIVOctets)\" -\u003e \"nonceOctets := t.saltOctets+ikeIVOctets; if t.saltOctets == 3 { nonceOctets++; keyWithSalt = append(keyWithSalt[:cut:cut], append([]byte{0}, keyWithSalt[cut:]...)...) }; aead, err := t.mode(block, t.icvOctets, nonceOctets) // MUTATION-APPLIED\"",
+                "verified": true,
                 "proves": true
               }
             },
@@ -144170,12 +144158,11 @@
               "claim": "-- the AES CCM nonce is eleven octets: the three octet salt and the eight octet IV. A message sealed under those eleven octets is accepted by the receive path, and both lengths are read from the key material and the wire rather than asserted.",
               "tags": 1,
               "proof": {
-                "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "route": "mutant",
+                "state": "verified",
                 "producer": "internal/component/ike/crypto/aead.go::newIKEAEAD",
-                "break": "body of newIKEAEAD replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "break": "line 207: \"aead, err := t.mode(block, t.icvOctets, t.saltOctets+ikeIVOctets)\" -\u003e \"nonceOctets := t.saltOctets+ikeIVOctets; if t.saltOctets == 3 { nonceOctets++; keyWithSalt = append(keyWithSalt[:cut:cut], append([]byte{0}, keyWithSalt[cut:]...)...) }; aead, err := t.mode(block, t.icvOctets, nonceOctets) // MUTATION-APPLIED\"",
+                "verified": true,
                 "proves": true
               }
             }
@@ -144417,12 +144404,11 @@
               "claim": "-- the four extra octets belong to the AEAD cipher. AES-CBC-256 gives SK_ei and SK_er of exactly 32 octets, so an implementation that added a salt to every encryption key would not pass.",
               "tags": 1,
               "proof": {
-                "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "route": "mutant",
+                "state": "verified",
                 "producer": "internal/component/ike/crypto/keys.go::encKeyMaterialLen",
-                "break": "body of encKeyMaterialLen replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "break": "line 32: \"int(enc.KeyLength)/8 + enc.ID.aeadSalt()\" -\u003e \"int(enc.KeyLength)/8 + 4 // MUTATION-APPLIED\"",
+                "verified": true,
                 "proves": true
               }
             },
@@ -144452,12 +144438,11 @@
               "claim": "-- with AES CCM, SK_ei and SK_er each have the size and format of the RFC 4309 KEYMAT for the AES key size in use: the cipher key followed by three octets of salt, so 19 octets at 128 bits and 35 at 256. The format is proven by USING it: the key seals with SealIKEAEAD, and an AES CCM instance built here from the leading octets opens the result with the trailing three as the start of the eleven octet nonce. Every CCM Transform ID is sealed at both key sizes.",
               "tags": 1,
               "proof": {
-                "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "route": "mutant",
+                "state": "verified",
                 "producer": "internal/component/ike/crypto/keys.go::encKeyMaterialLen",
-                "break": "body of encKeyMaterialLen replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "break": "line 32: \"int(enc.KeyLength)/8 + enc.ID.aeadSalt()\" -\u003e \"int(enc.KeyLength)/8 // MUTATION-APPLIED\"",
+                "verified": true,
                 "proves": true
               }
             }
@@ -144594,7 +144579,7 @@
           "gated": true,
           "positive-test": "`internal/component/ike/engine/rfc5282_aead_send_test.go` `TestRFC5282AEADESPSelectionCarriesNoIntegrityAlgorithm` (unit/verify), `internal/component/ike/engine/rfc5282_aead_sk_test.go` `TestRFC5282AEADSelectionCarriesNoIntegrityAlgorithm` (unit/verify), `internal/component/ike/engine/rfc5282_responder_esp_test.go` `TestRFC5282ResponderSelectsNoIntegrityForAnAEADChildSA` (unit/verify)",
           "negative-test": "`internal/component/ike/engine/rfc5282_aead_send_test.go` `TestRFC5282AEADESPOfferWithIntegrityIsRefused` (unit/verify), `internal/component/ike/engine/rfc5282_aead_sk_test.go` `TestRFC5282AEADOfferWithIntegrityIsRefused` (unit/verify), `internal/component/ike/engine/rfc5282_responder_esp_test.go` `TestRFC5282ResponderRefusesAnAEADChildSAOfferWithIntegrity` (unit/verify)",
-          "note": "**audit: enforced, stale-unit**",
+          "note": "",
           "nightly-only": false,
           "covers": [
             {
@@ -144606,12 +144591,11 @@
               "claim": "-- the ESP SA: a peer's ESP offer that carries an integrity transform beside AES GCM is refused, so no integrity algorithm can be selected for an ESP SA whose cipher is AEAD.",
               "tags": 1,
               "proof": {
-                "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "route": "mutant",
+                "state": "verified",
                 "producer": "internal/component/ike/crypto/proposal.go::matchESP",
-                "break": "body of matchESP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "break": "line 517: \"if remote.Encryption.ID.IsAEAD() \u0026\u0026 remote.Integrity.ID != AUTH_NONE {\" -\u003e \"if remote.Encryption.ID.IsAEAD() { return *remote, nil }; if remote.Encryption.ID.IsAEAD() \u0026\u0026 remote.Integrity.ID != AUTH_NONE { // MUTATION-APPLIED\"",
+                "verified": true,
                 "proves": true
               }
             },
@@ -144658,12 +144642,11 @@
               "claim": "-- the ESP SA: NegotiateESP over ze's own AES-GCM ESP offer selects AES GCM with AUTH_NONE as the integrity algorithm, although the configured proposal names a hash.",
               "tags": 1,
               "proof": {
-                "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "route": "mutant",
+                "state": "verified",
                 "producer": "internal/component/ike/crypto/proposal.go::matchESP",
-                "break": "body of matchESP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "break": "line 530: \"return *remote, nil\" -\u003e \"chosen := *remote; if chosen.Encryption.ID.IsAEAD() { chosen.Integrity.ID = AUTH_HMAC_SHA2_256_128 }; return chosen, nil // MUTATION-APPLIED\"",
+                "verified": true,
                 "proves": true
               }
             },
@@ -144705,11 +144688,8 @@
           "audit": {
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
-            "note": "Re-judged 2026-10-19 (independent auditor, after d64411a639 and 08bfef9ee7). Section 8: \"This document updates [RFC4306] to require that when an authenticated encryption algorithm is selected as the encryption algorithm for any SA (IKE or ESP), an integrity algorithm MUST NOT be selected for that SA.\" matchESP now calls acceptESPEncryption, which delegates every non-null ID to acceptEncryption unchanged, and acceptIntegrity still compares the offer to the AEAD policy's AUTH_NONE; the responder's espProposalMatches AEAD branch is untouched; lookupESPEncryption resolves AEAD IDs identically to lookupEncryption. The null branch cannot select an AEAD cipher. All six tagged units (IKE SA, ESP initiator, ESP responder; both polarities) pass at HEAD; records re-taken in 08bfef9ee7. Verdict stands.",
-            "freshness": "stale-unit",
-            "moved": [
-              "internal/component/ike/crypto/proposal.go::matchESP"
-            ]
+            "note": "Independently re-judged 2026-10-28 after the ba03d7c2c7 ESP cipher change, from rfc/full/rfc5282.txt Section 8: \"This document updates [RFC4306] to require that when an authenticated encryption algorithm is selected as the encryption algorithm for any SA (IKE or ESP), an integrity algorithm MUST NOT be selected for that SA.\" Read all six tagged tests, their fixtures and the producing selectors. The IKE positive requires AUTH_NONE and zero integrity key length, then an actually established AEAD handshake with empty SK_ai and SK_ar; its negative adds only HMAC-SHA256 to the otherwise valid AES-GCM offer and requires refusal. The ESP initiator positive pins both AES-GCM and AUTH_NONE despite a configured hash; its negative adds only the non-NONE integrity transform to that same valid offer. The responder positive drives selectResponderESP with a complete hand-built AES-GCM/ESN proposal, pins the accepted peer proposal number and an answer containing exactly one AES-GCM encryption transform and zero integrity transforms; its negative requires ErrNoProposalChosen and no accepted proposal number for the same offer plus HMAC-SHA256. These independent conforming controls prevent reject-all success, and the malformed offers introduce no unrelated missing transform or bad key length. Both SA kinds and both ESP selection paths are represented, rather than only IKE. The changed matchESP now independently refuses AEAD with non-NONE integrity, checks remote/local integrity equality, resolves any non-NONE ESP integrity and returns the peer proposal; the first guard plus equality both protect this negative input. resolveESPTransforms still builds AUTH_NONE for AEAD. The responder's espProposalMatches accepts absent integrity or an offered NONE alternative for AEAD, and the selected answer omits integrity; accepting a NONE alternative is not selecting a non-NONE algorithm. IKE selection compares against localIKEProposals' AUTH_NONE through acceptIntegrity. Tests exercise AES-GCM, while the shared ID/property-based guards cover the admitted AEAD family by source reading, not per-cipher execution proof. Retain enforced. Existing whole-function revert records demonstrate reachability only, not that each individual guard is necessary; any fresh discriminatory observations belong to the native record repair and are not fabricated by this judgment. No tests were run by this auditor.",
+            "freshness": "fresh"
           }
         },
         {
@@ -144720,7 +144700,7 @@
           "gated": true,
           "positive-test": "`internal/component/ike/engine/rfc5282_aead_proposal_test.go` `TestRFC5282AEADIKEProposalCarriesNoIntegrityTransform` (unit/verify), `internal/component/ike/engine/rfc5282_aead_send_test.go` `TestRFC5282AEADESPProposalCarriesNoIntegrityTransform` (unit/verify)",
           "negative-test": "`internal/component/ike/engine/rfc5282_aead_proposal_test.go` `TestRFC5282NonAEADIKEProposalKeepsItsIntegrityTransform` (unit/verify), `internal/component/ike/engine/rfc5282_aead_send_test.go` `TestRFC5282NonAEADESPProposalKeepsItsIntegrityTransform` (unit/verify)",
-          "note": "**audit: enforced, stale-unit**",
+          "note": "",
           "nightly-only": false,
           "covers": [
             {
@@ -144749,12 +144729,11 @@
               "claim": "-- the ESP rail: an ESP proposal whose encryption algorithm is AES CBC carries exactly one Transform Type 3, so the omission above is conditional on the AEAD property.",
               "tags": 1,
               "proof": {
-                "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "route": "mutant",
+                "state": "verified",
                 "producer": "internal/component/ike/engine/initiator.go::espProposalWire",
-                "break": "body of espProposalWire replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "break": "line 874: \"if !p.Encryption.IsAEAD() {\" -\u003e \"if false { // MUTATION-APPLIED\"",
+                "verified": true,
                 "proves": true
               }
             },
@@ -144784,12 +144763,11 @@
               "claim": "-- the ESP rail: an ESP proposal whose only encryption algorithm is AES GCM goes on the wire with no Transform Type 3, and keeps its encryption and Extended Sequence Numbers transforms.",
               "tags": 1,
               "proof": {
-                "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "route": "mutant",
+                "state": "verified",
                 "producer": "internal/component/ike/engine/initiator.go::espProposalWire",
-                "break": "body of espProposalWire replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "break": "line 874: \"if !p.Encryption.IsAEAD() {\" -\u003e \"if true { // MUTATION-APPLIED\"",
+                "verified": true,
                 "proves": true
               }
             }
@@ -144797,11 +144775,8 @@
           "audit": {
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
-            "note": "Re-judged 2026-10-19 (independent auditor, after d64411a639 and 08bfef9ee7). Section 8: \"This document further updates [RFC4306] to require that if all of the encryption algorithms in any proposal are authenticated encryption algorithms, then the proposal MUST NOT propose any integrity transforms.\" espProposalWire now resolves through lookupESPEncryption; the AEAD decision and the omission of Transform Type 3 are unchanged, and null is non-AEAD (EncryptionNull in the IsAEAD false arm), so a null proposal keeps its integrity transform as RFC 4303 Section 3.2 needs. The four tagged units (IKE and ESP proposals, both polarities) pass at HEAD; records re-taken in 08bfef9ee7. Verdict stands.",
-            "freshness": "stale-unit",
-            "moved": [
-              "internal/component/ike/engine/initiator.go::espProposalWire"
-            ]
+            "note": "Independently re-judged 2026-10-28 after the ba03d7c2c7 ESP cipher change, from rfc/full/rfc5282.txt Section 8: \"This document further updates [RFC4306] to require that if all of the encryption algorithms in any proposal are authenticated encryption algorithms, then the proposal MUST NOT propose any integrity transforms.\" Read all four tagged units and the test wrappers forwarding to wireIKEOffer and espProposalWire. The IKE and ESP positives each offer one AES-GCM cipher while retaining a configured SHA256 hash, so an incorrect unconditional integrity emitter has a real transform to emit. Each asserts exactly zero Type 3 transforms, not merely AUTH_NONE: an explicit NONE transform would fail. The IKE positive additionally requires ENCR, PRF and DH; the ESP positive requires ENCR and ESN, so an empty or truncated proposal cannot satisfy absence vacuously. The separate AES-CBC controls require exactly one Type 3 on each rail, testing the boundary of the AEAD condition rather than permitting unconditional omission. The native builders currently emit one encryption transform per proposal, so 'all' is the sole cipher, not an untested multi-cipher conjunction within a proposal. wireIKEOffer guards the integrity append with !enc.IsAEAD; the changed espProposalWire still guards it with !p.Encryption.IsAEAD(), now looking up non-AEAD integrity through lookupESPIntegrity. Reading the property and registry producers confirms AES-GCM and ChaCha20-Poly1305 are AEAD while NULL and 3DES are not; the new ESP-only hash lookup does not move the append outside that guard. Retain enforced for proposal construction on both IKE and ESP rails. The tagged executions are AES-GCM/AES-CBC examples, not a runtime enumeration of every cipher or a packet-capture proof. Existing revert records show dependency on the builders, not independent proof of every conditional; new native record observations are a separate deliverable. No tests were run by this auditor.",
+            "freshness": "fresh"
           }
         },
         {
@@ -221394,7 +221369,7 @@
       "implementation": "mixed",
       "implementation-reason": "Ze's Go negotiates ENCR_CHACHA20_POLY1305 (28) for a Child SA, derives the 36-octet KEYMAT (internal/component/ike/crypto/aead.go) and installs the association (internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams). The Linux XFRM rfc7539esp(chacha20,poly1305) transform generates each IV and performs every per-packet operation.",
       "public-status": "Partial",
-      "public-coverage": "ENCR_CHACHA20_POLY1305 for ESP Child SAs: 32-octet key plus 4-octet salt from KEYMAT, 8-octet IV, 16-octet tag; per-packet processing by Linux XFRM.",
+      "public-coverage": "ENCR_CHACHA20_POLY1305 for ESP Child SAs: 32-octet key plus 4-octet salt from KEYMAT, 8-octet IV, 16-octet tag; per-packet processing by Linux XFRM. internal/component/ike/crypto/keys.go::DeriveChildSAKeys derives KEYMAT; internal/le/interoplab/ipsec/vpnproof.go::checkESPKernel proves the negotiated cipher, installed rfc7539esp(chacha20,poly1305) transform and received traffic against strongSwan on native amd64/KVM and arm64/HVF. This kernel interop evidence adds no RFC-tagged requirement verdict.",
       "public-remaining": "ChaCha20-Poly1305 is not offered for the IKE SA (Section 3). Requirement test owed for RFC7634-4-1.",
       "summary-path": "rfc/short/rfc7634.md",
       "shard-path": "rfc/requirements/rfc7634.md",
@@ -324198,7 +324173,7 @@
         "updated-by": [],
         "summary": true,
         "walked": true,
-        "mandatory-proven": 49,
+        "mandatory-proven": 50,
         "mandatory-total": 100,
         "optional-proven": 1,
         "optional-total": 3,
@@ -324294,7 +324269,7 @@
         "updated-by": [],
         "summary": true,
         "walked": true,
-        "mandatory-proven": 18,
+        "mandatory-proven": 19,
         "mandatory-total": 19,
         "optional-proven": 0,
         "optional-total": 11,
@@ -341865,7 +341840,7 @@
         "rfcs": 15,
         "not-walked": 0,
         "mandatory": {
-          "proven": 344,
+          "proven": 346,
           "total": 716
         },
         "optional": {
@@ -342020,7 +341995,7 @@
           "updated-by": [],
           "summary": true,
           "walked": true,
-          "mandatory-proven": 49,
+          "mandatory-proven": 50,
           "mandatory-total": 100,
           "optional-proven": 1,
           "optional-total": 3,
@@ -342090,7 +342065,7 @@
           "updated-by": [],
           "summary": true,
           "walked": true,
-          "mandatory-proven": 18,
+          "mandatory-proven": 19,
           "mandatory-total": 19,
           "optional-proven": 0,
           "optional-total": 11,
@@ -342667,7 +342642,7 @@
         "rfcs": 11,
         "not-walked": 0,
         "mandatory": {
-          "proven": 226,
+          "proven": 228,
           "total": 545
         },
         "optional": {
@@ -342799,7 +342774,7 @@
           "updated-by": [],
           "summary": true,
           "walked": true,
-          "mandatory-proven": 49,
+          "mandatory-proven": 50,
           "mandatory-total": 100,
           "optional-proven": 1,
           "optional-total": 3,
@@ -342869,7 +342844,7 @@
           "updated-by": [],
           "summary": true,
           "walked": true,
-          "mandatory-proven": 18,
+          "mandatory-proven": 19,
           "mandatory-total": 19,
           "optional-proven": 0,
           "optional-total": 11,
@@ -346946,7 +346921,7 @@
         "rfcs": 21,
         "not-walked": 0,
         "mandatory": {
-          "proven": 239,
+          "proven": 241,
           "total": 703
         },
         "optional": {
@@ -347141,7 +347116,7 @@
           "updated-by": [],
           "summary": true,
           "walked": true,
-          "mandatory-proven": 49,
+          "mandatory-proven": 50,
           "mandatory-total": 100,
           "optional-proven": 1,
           "optional-total": 3,
@@ -347243,7 +347218,7 @@
           "updated-by": [],
           "summary": true,
           "walked": true,
-          "mandatory-proven": 18,
+          "mandatory-proven": 19,
           "mandatory-total": 19,
           "optional-proven": 0,
           "optional-total": 11,

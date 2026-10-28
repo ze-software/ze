@@ -77,10 +77,11 @@ Enrolled: ChaCha20-Poly1305 for ESP and IKEv2: two MUST-level rows, both classif
 
 **Status:** Partial
 
-**What the ledger says is covered:**
+**What the ledger says is covered**
 
 - ENCR_CHACHA20_POLY1305 for ESP Child SAs: 32-octet key plus 4-octet salt from KEYMAT, 8-octet IV, 16-octet tag
-- per-packet processing by Linux XFRM.
+- per-packet processing by Linux XFRM. [`internal/component/ike/crypto/keys.go`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/keys.go)::DeriveChildSAKeys derives KEYMAT
+- [`internal/le/interoplab/ipsec/vpnproof.go`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/vpnproof.go)::checkESPKernel proves the negotiated cipher, installed rfc7539esp(chacha20,poly1305) transform and received traffic against strongSwan on native amd64/KVM and arm64/HVF. This kernel interop evidence adds no RFC-tagged requirement verdict.
 
 
 **What the ledger says remains:**
