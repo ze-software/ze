@@ -7,8 +7,8 @@
     "claim-sha": "3044287c357ee25e",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/config.go::parsePeerFromTree",
-    "producer-sha": "2da70d4b66fff4a1",
-    "break": "body of parsePeerFromTree replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "129e42902bda8104",
+    "break": "body of parsePeerFromTree replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE-6-1",
@@ -18,8 +18,8 @@
     "claim-sha": "3192762298bd6a43",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/config.go::parsePeerFromTree",
-    "producer-sha": "2da70d4b66fff4a1",
-    "break": "body of parsePeerFromTree replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "129e42902bda8104",
+    "break": "body of parsePeerFromTree replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE-6-1",
