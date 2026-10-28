@@ -1306,14 +1306,14 @@ pre.code-copy-wrap, .md-content pre.code-copy-wrap { position: relative; padding
 .site-home .screen-tabs { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.75rem; }
 .site-home .screen-tabs button { padding: 0.5rem 0.8rem; border: 1px solid transparent; border-radius: 0.35rem; color: var(--hero-muted); background: transparent; font-size: 0.8rem; }
 .site-home .screen-tabs button[aria-pressed="true"] { background: #254767; border-color: #4b6b8a; color: #fff; }
-.site-home .screen { margin: 0 0 1rem; border: 1px solid #627f99; border-radius: 0.85rem; background: #0f2744; box-shadow: 0 22px 50px #02121a66; overflow: hidden; }
+.site-home .screen { margin: 0 0 1rem; border: 1px solid #627f99; border-radius: 0.85rem; background: #ffffff0a; box-shadow: 0 22px 50px #02121a66; overflow: hidden; }
 .site-home .screen-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-height: 3rem; box-sizing: border-box; padding: 0.8rem 1rem; background: #163553; color: var(--hero-muted); font-size: 0.7rem; }
 .site-home .screen-toolbar strong { color: var(--hero-muted); font-weight: 400; }
 .site-home .screen-toolbar a { color: #b8def6; text-decoration: none; }
 .site-home .screen > a { display: block; position: relative; aspect-ratio: 16 / 10; min-width: 0; overflow: hidden; background: #091e36; }
 .site-home .screen > a img { display: block; position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
 .site-home .screen > .screen-media { display: flex; flex-direction: column; justify-content: center; aspect-ratio: 16 / 10; min-width: 0; overflow: hidden; background: #091e36; }
-.site-home .screen-description { display: block; padding: 1.25rem 1.4rem; background: linear-gradient(115deg, #194466, #132b49); }
+.site-home .screen-description { display: block; padding: 1.25rem 1.4rem; background: transparent; }
 .site-home .screen-description strong { display: block; color: #eefcfe; font-size: 1rem; }
 .site-home .screen-description p { margin: 0.4rem 0 0.8rem; color: #c2d8e7; font-size: 0.85rem; line-height: 1.6; }
 .site-home .screen-description a { color: #8fcff4; font-size: 0.8rem; }
