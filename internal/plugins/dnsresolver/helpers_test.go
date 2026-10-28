@@ -20,6 +20,7 @@ type fakeReply struct {
 	msg       *dns.Msg
 	fromOther bool          // send from another socket (another source port)
 	delay     time.Duration // wait before sending
+	wire      []byte        // sent as-is over UDP in place of msg, for a datagram that does not parse
 }
 
 // fakeUpstream is a scripted DNS upstream on 127.0.0.1, UDP and TCP on one
@@ -112,10 +113,14 @@ func (u *fakeUpstream) serveUDP() {
 		u.record(q, false)
 		for _, rep := range u.handle(q, false) {
 			time.Sleep(rep.delay)
-			wire, err := rep.msg.Pack()
-			if err != nil {
-				u.t.Error(err)
-				return
+			wire := rep.wire
+			if wire == nil {
+				packed, err := rep.msg.Pack()
+				if err != nil {
+					u.t.Error(err)
+					return
+				}
+				wire = packed
 			}
 			conn := u.pc
 			if rep.fromOther {

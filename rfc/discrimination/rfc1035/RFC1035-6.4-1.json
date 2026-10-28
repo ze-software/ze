@@ -19,6 +19,6 @@
     "route": "mutant",
     "producer": "internal/core/dnsserver/recursive.go::Recursive",
     "producer-sha": "7553b71952421adc",
-    "break": "line 88: \"r.Opcode != dns.OpcodeQuery\" -\u003e \"r.Opcode != dns.OpcodeIQuery\""
+    "break": "line 88: \"r.Opcode != dns.OpcodeQuery\" -\u003e \"r.Opcode \u003e= dns.OpcodeQuery\""
   }
 ]

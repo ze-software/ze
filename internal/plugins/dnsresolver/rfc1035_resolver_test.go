@@ -4,6 +4,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/miekg/dns"
 )
@@ -159,6 +160,63 @@ func TestRFC1035ResolverUnderstandsPointers(t *testing.T) {
 	}
 	if got := reply.Answer[0].Header().Name; got != "pointer.test." {
 		t.Fatalf("answer owner %q, want pointer.test.", got)
+	}
+}
+
+// pointerLoopReply is a reply to q whose question is well formed and whose
+// one answer record has an owner name that is a compression pointer to
+// itself, so the name never ends and the message does not parse.
+func pointerLoopReply(t *testing.T, q *dns.Msg) []byte {
+	t.Helper()
+	m := new(dns.Msg)
+	m.SetReply(q)
+	wire, err := m.Pack()
+	if err != nil {
+		// Errorf, not Fatalf: this runs on the fake upstream's goroutine.
+		t.Errorf("pack reply header and question: %v", err)
+		return nil
+	}
+	self := len(wire)
+	wire = append(wire,
+		0xC0|byte(self>>8), byte(self), // owner name: a pointer to this very offset
+		0x00, 0x01, // TYPE A
+		0x00, 0x01, // CLASS IN
+		0x00, 0x00, 0x01, 0x2C, // TTL 300
+		0x00, 0x04, // RDLENGTH
+		192, 0, 2, 66, // RDATA
+	)
+	wire[6], wire[7] = 0x00, 0x01 // ANCOUNT 1
+	return wire
+}
+
+// TestRFC1035ResolverDiscardsPointerLoop proves the edge of RFC 1035 Section
+// 4.1.4 on the resolver path: understanding pointers does not mean taking a
+// message whose pointer leads nowhere. Method: an upstream that answers each
+// UDP query first with a datagram whose answer owner name is a compression
+// pointer to itself, then, 50 ms later, with a well-formed reply carrying
+// 192.0.2.7; the client's reply says which datagram the resolver took.
+func TestRFC1035ResolverDiscardsPointerLoop(t *testing.T) {
+	up := newFakeUpstream(t, func(q *dns.Msg, _ bool) []fakeReply {
+		good := answerWith(q, q.Question[0].Name+" 300 IN A 192.0.2.7")
+		return []fakeReply{
+			{wire: pointerLoopReply(t, q)},
+			{msg: good, delay: 50 * time.Millisecond},
+		}
+	})
+	r := newTestResolver(t, testConfig(up), newTestClock())
+
+	reply := ask(r, query("loop.test", dns.TypeA), "127.0.0.1", false)
+	// RFC requirement: RFC1035-4.1.4-5 negative -- a compression pointer that
+	// points at itself is no name to understand: the upstream datagram whose
+	// answer owner is such a pointer does not parse and is not taken as the
+	// reply, so the client is answered NOERROR with the one A record,
+	// 192.0.2.7, of the well-formed reply that follows it.
+	if reply == nil || reply.Rcode != dns.RcodeSuccess || len(reply.Answer) != 1 {
+		t.Fatalf("reply %v, want NOERROR with the one A record of the well-formed reply", reply)
+	}
+	a, ok := reply.Answer[0].(*dns.A)
+	if !ok || a.A.String() != "192.0.2.7" {
+		t.Fatalf("answer %v, want A 192.0.2.7 from the well-formed reply", reply.Answer[0])
 	}
 }
 

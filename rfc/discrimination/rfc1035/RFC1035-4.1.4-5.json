@@ -1,6 +1,17 @@
 [
   {
     "rid": "RFC1035-4.1.4-5",
+    "polarity": "negative",
+    "unit": "internal/plugins/dnsresolver/rfc1035_resolver_test.go::TestRFC1035ResolverDiscardsPointerLoop",
+    "unit-sha": "41f83d2803ab9c34",
+    "claim-sha": "d365ba83e91f2525",
+    "route": "mutant",
+    "producer": "internal/plugins/dnsresolver/forward.go::exchange",
+    "producer-sha": "be20e1ad5539bf94",
+    "break": "line 126: \"continue\" -\u003e \"if replyMatches(query, r) { return r, nil }; continue\""
+  },
+  {
+    "rid": "RFC1035-4.1.4-5",
     "polarity": "positive",
     "unit": "internal/plugins/dnsresolver/rfc1035_resolver_test.go::TestRFC1035ResolverUnderstandsPointers",
     "unit-sha": "fb38e9429bd5531f",
