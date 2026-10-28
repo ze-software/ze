@@ -387,7 +387,7 @@ disagree, the manifest is right and the row is stale.
 | `./le setup docker host` | `internal/le/setup/docker/host.DockerHostAnswer` | run Ze's docker-host image on macOS |
 | `./le setup docker kernel` | `internal/le/setup/docker/kernel.DockerKernelAnswer` | check or install Ze's Docker host kernel |
 | `./le site facts` | `internal/le/site/facts.Answer` | the numbers the website publishes about this repository: derive them into website/data/repo-facts.json, or check what has gone stale in it |
-| `./le site terminal-demo` | `internal/le/site/terminaldemo.Answer` | build, validate, verify, and render the published terminal demonstrations |
+| `./le site terminal-demo` | `internal/le/site/terminaldemo.Answer` | build, validate, verify and render demonstrations; `readme-carrier output <directory>` measures the canonical hero's SVG, video and thumbnail, and `probe <file>` selects only from observed GitHub results |
 | `./le spec citation` | `internal/le/spec/citation.Answer` | a plan/spec-*.md citing a sibling spec absent on disk fails, unless the target is grandfathered in plan/.citation-baseline; a path:line citation whose backtick-quoted token drifted off that line warns |
 | `./le spec roadmap` | `internal/le/spec/roadmap.Answer` | release roadmap and release progress: committed inventory preview, derived plan index, and pinned endpoint evidence for weekly news |
 | `./le spec current` | `internal/le/spec.Answer` | spec ownership, per-spec state paths, transcript model facts, and independent review artifacts |
