@@ -487,13 +487,30 @@ the private fixture, overlay and preserved console are under
 `scratch/vpn-esp-breaks/cbc-gcm/` in that session. Independent review confirmed
 this is the intended proposal-mismatch rejection, not a setup failure.
 
-The SHA observation, WireGuard allowed-IP and modprobe-present cases remain
-open, followed by one unmutated native restoration run. The first SHA attempt
-stopped at a foreign incomplete import edit; the missing import is now present.
-The next boot reached Docker readiness but not the lab: the host's SSH forward
-did not create its Unix socket within 15 seconds. That is setup evidence only,
-not a discrimination result; the preserved console records authentication.
-Client tracing is being collected without extending that deadline.
+The SHA256-to-SHA1 observation break also passed its targeted discrimination
+check. The CBC Child SA established and reached the installed-transform
+assertion. A private overlay preserved the real directed XFRM observation
+(SHA256 integrity), then substituted the SHA1 token in the returned observation.
+The unchanged oracle rejected it: `ze: installed ESP state lacks hmac(sha256)`.
+This proves rejection of the altered observation, not installation or
+negotiation of SHA1. The first rejected direction ends that scenario.
+
+Evidence is `scratch/job-vpn-break-sha256-ssh-trace-c6296b20.log` in the same
+session. The private original observation's SHA-256 is
+`977f62b6441f200188cd4915faec1ff3213f23fe70c34dc3fadc4c12d86748ad`;
+raw XFRM keys remain private. PSK and ChaCha passed, but later 3DES, NULL and
+WireGuard did not run because a concurrent DNS edit temporarily referenced
+undefined `RejectFunc`. Thus the aggregate lab exit 1 is not solely the
+mutation's verdict. The targeted rejection is established independently of
+those later setup failures; KVM, the guest kernel probe, no leftovers and a
+stopped VM are recorded. Independent review accepted this narrow claim.
+
+Earlier SHA attempts stopped at an incomplete shared import edit and then at
+SSH forwarding, before any lab. The instrumented run recorded client
+authentication and creation of the local Unix listener without changing the
+15-second deadline; it did not establish the earlier failure's cause or a fix.
+The WireGuard allowed-IP and modprobe-present cases remain open, followed by
+one unmutated native restoration run.
 
 ### Native amd64 result, 2026-10-27
 
