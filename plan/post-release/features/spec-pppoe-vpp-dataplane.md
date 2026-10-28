@@ -5,7 +5,7 @@
 | Status | design |
 | Scope | protocol |
 | Priority | P2 |
-| Release reason | Owner decision: Ze terminates PPPoE subscriber sessions in VPP. A new data-plane backend for an existing capability is a post-release feature unless the owner moves it (open decision OD-5). Phase 1 alone fixes shipped behaviour (a config validate accepts and every session then fails) and can land on its own |
+| Release reason | Owner decision: Ze terminates PPPoE subscriber sessions in VPP, after the first release (OD-5, decided 2026-10-28). The shipped-behaviour fix that was Phase 1 (validate accepts PPPoE under the VPP backend and every session then fails) moved to `plan/release/fixes/spec-pppoe-refuse-vpp-backend.md` |
 | RFC gaps | - |
 | Depends | - |
 | Phase | 0/7 |
@@ -271,6 +271,9 @@ Each row keeps its `lower-layer:` annotation and names both performers, one per 
 | AC-12 | VPP process killed while sessions are up | Ze reports the loss once, frees every session's state per OD-2, and serves new PADI once `vpp/reconnected` fires and the LCP pair is back |
 | AC-13 | Kernel backend (default netlink) | Every existing PPPoE and L2TP test and interop scenario passes unchanged |
 | AC-14 | `show pppoe session` on VPP | Names the VPP session interface and its sw_if_index; `ze doctor` reports the VPP pppoe plugin state |
+| AC-15 | A policed session ends (PADT, terminate, CoA Disconnect, idle) or a CoA swaps its rate, with many such sessions at once under traffic | The `policer-input` features leave the ip4/ip6 unicast and multicast arcs before the policer is unbound and deleted; VPP keeps its PID; no policer remains for a session that is gone. Source: accel-ppp-ng PR #46 (https://github.com/accel-ppp/accel-ppp-ng/pull/46), where the reverse order let `policer_input_node_fn` run on a deleted policer and VPP died with SIGBUS (VyOS T9502) |
+| AC-16 | A VPP session ends while others are up (PADT, operator clear, idle or session timeout) | The session's PPPoE socket, which is its PPP frame channel with no `/dev/ppp` unit, is closed exactly once by its one owner, after it is deregistered from any poller; the daemon and every other session keep running. Source: accel-ppp-ng PR #44 (https://github.com/accel-ppp/accel-ppp-ng/pull/44), where the shared fd was closed early and the later `EPOLL_CTL_DEL` on it failed with EBADF and aborted the daemon, dropping every session (VyOS T9499) |
+| AC-17 | A VPP session carries a RADIUS Idle-Timeout or Session-Timeout, and sends traffic | Its byte counters and idle detection come from the session's data-plane handle (the VPP session interface's counters, by the sw_if_index known only after the session interface is created); accounting octets move; a counter read that fails is reported and never read as zero or as idle, and never ends the session as a NAS error. Source: accel-ppp-ng PR #42 (https://github.com/accel-ppp/accel-ppp-ng/pull/42), where the ifindex was resolved before the hook created the interface, stats read nothing, and every session ended with NAS-Error every 60 s (VyOS T9211) |
 
 ## End-to-End User Stories
 | # | User does | Path through system | Test proving it works |
@@ -291,6 +294,9 @@ Each row keeps its `lower-layer:` annotation and names both performers, one per 
 | `TestPPPoEVPPPeerRouteOnIPCPOpened` | `internal/plugins/pppoe/vpp/` | Route add carries VRF table and session sw_if_index | |
 | `TestPPPoEVPPTeardownOrder` | `internal/plugins/pppoe/vpp/` | Route flush, policer delete, session delete, then PADT | |
 | `TestPPPoEVPPReconcileOnReconnect` | `internal/plugins/pppoe/vpp/` | OD-2 policy on disconnect and reconnect | |
+| `TestPPPoEVPPPolicerFeaturesRemovedBeforePolicer` | `internal/plugins/pppoe/vpp/` | AC-15: on teardown and on a CoA swap the fake GoVPP channel records the four feature disables before the policer unbind and delete | |
+| `TestSessionFrameChannelClosedOnceByOwner` | `internal/component/l2tp/ppp/` | AC-16: every session end path closes the frame channel once, after poller deregistration; other sessions keep running | |
+| `TestPPPoEVPPCountersFromSessionHandle` | `internal/plugins/pppoe/vpp/` | AC-17: counters read by the sw_if_index the handle learned at create; a failed read is an error, never zero, and never idle | |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -318,11 +324,11 @@ Goal validation: G-1 by the first scenario's VPP-counter and TAP-capture asserti
 ## Files to Modify
 - `internal/component/l2tp/pppoe/server.go` - `handlePADR` calls the selected session data plane instead of `pppoeCreate`/`DevPPPSetup`
 - `internal/component/l2tp/pppoe/subsystem.go` - select the data plane by backend name; discovery socket opened per data plane (cp TAP, netns); VPP readiness events
-- `internal/component/l2tp/pppoe/yang/ze-pppoe-conf.yang` - per OD-3
+- `internal/component/l2tp/pppoe/yang/ze-pppoe-conf.yang` - no leaf added (OD-3); the refusal `spec-pppoe-refuse-vpp-backend` lands is replaced by the data-plane selection
 - `internal/component/l2tp/ppp/start_session.go`, `manager.go`, `session.go`, `session_run.go`, `ncp.go`, `ipv6_service*.go`, `ra*.go`, `dhcpv6*.go` - frame channel and per-session data-plane handle replace fds and `IfaceBackend`
 - `internal/component/l2tp/` L2TP reactor kernel path - supplies the kernel handle (no behaviour change)
 - `internal/component/l2tp/plugins/shaper/` - rate application through the session handle; VPP policer mode
-- `internal/component/vpp/startupconf.go`, `config.go`, `yang/ze-vpp-conf.yang` - load `pppoe_plugin.so`; patched `pppoe` section if OD-1 B
+- `internal/component/vpp/startupconf.go`, `config.go`, `yang/ze-vpp-conf.yang` - load `pppoe_plugin.so`; the patched `pppoe` startup section (OD-1 B)
 - `rfc/short/rfc2516.md` - performer per backend on the rows above
 - `feature-gates.txt` - dependent gate entry for the VPP session data plane
 
@@ -332,12 +338,12 @@ Goal validation: G-1 by the first scenario's VPP-counter and TAP-capture asserti
 - `internal/plugins/pppoe/vpp/` - VPP session data plane (`ze_vpp` + `ze_l2tp`)
 - `test/interop-pppoe/scenarios/pppoe-vpp-ze-ac-pppd-client/`, `pppoe-vpp-restart/`
 - `test/parse/pppoe-vpp-*.ci`, `test/vpp/pppoe-vpp-*.ci`
-- If OD-1 B: `third_party/vpp-patches/` (diffs against the VPP release) and the build step that applies them
+- OD-1 B: `third_party/vpp-patches/` (diffs against the VPP release) and the build step that applies them
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
 |-------------------|----------|---------------|
-| YANG schema | Yes | OD-3 decides whether any leaf is added |
+| YANG schema | No | OD-3: no leaf added |
 | YANG validation constraints | Yes | Backend verifier for PPPoE on VPP |
 | YANG custom validators | Yes | LCP pair present for each PPPoE access interface |
 | CLI commands/flags | Yes | `show pppoe session` gains the data-plane interface |
@@ -354,7 +360,7 @@ Goal validation: G-1 by the first scenario's VPP-counter and TAP-capture asserti
 | # | Question | Applies? | File to update |
 |---|----------|----------|---------------|
 | 1 | New user-facing feature | Yes | `features/` PPPoE entry, VPP data plane level |
-| 2 | Config syntax changed | Per OD-3 | `docs/guide/configuration.md` |
+| 2 | Config syntax changed | No (OD-3) | `docs/guide/configuration.md` states PPPoE follows `interface backend` |
 | 6 | User guide page | Yes | `docs/guide/vpp.md` (status table, PPPoE section), PPPoE guide |
 | 9 | RFC behavior proven | Yes | `rfc/short/rfc2516.md` performer annotations |
 | 10 | Test infrastructure | Yes | `docs/labs/pppoe-interop.md` (VPP scenarios) |
@@ -363,12 +369,12 @@ Goal validation: G-1 by the first scenario's VPP-counter and TAP-capture asserti
 
 ## Implementation Steps
 
-1. **Phase 0: Lab proof of mechanism (no product code).** Real VPP container (af_packet access interface, LCP pair), pppd client, Ze unmodified except a scratch harness. Prove A-1..A-5 and the upstream facts above by capture and `vppctl show pppoe session`. Output: the decision evidence for OD-1 recorded in this spec.
-2. **Phase 1: Refuse what does not work today.** PPPoE under `interface backend vpp` is refused at verify while no VPP session data plane is registered (owns the journal row). Tests: AC-1. Lands alone.
-3. **Phase 2: The seam, kernel backend moved behind it.** `pppoe` declares the session data-plane interface and registry; the kernel implementation moves to its own package and registers; `ppp.StartSession` carries a frame channel and a per-session data-plane handle in place of `ChanFD`/`UnitFD`/`UnitNum` and `IfaceBackend`; L2TP supplies the kernel handle. No behaviour change. Tests: AC-13, `TestKernelDataplaneParity`, `TestPPPChannelSeam`.
-4. **Phase 3: VPP backend, IPv4.** cp map, discovery and session control on the cp TAP, session create before PADS, MTU, peer route in VRF, framed routes, teardown order, `show pppoe` and doctor. Tests: AC-2..AC-7, AC-11, AC-14, interop `pppoe-vpp-ze-ac-pppd-client` IPv4.
-5. **Phase 4: VPP backend, IPv6.** IPv6CP, RA, DHCPv6 IA_NA/IA_PD, delegated-prefix routes, by the route OD-1 selects. Tests: AC-8.
-6. **Phase 5: Rate limiting.** VPP policers per session, CoA replace, verify refuses tc qdisc modes under VPP. Tests: AC-9, AC-10.
+1. **Phase 0: Lab proof of mechanism (no product code).** Real VPP container (af_packet access interface, LCP pair), pppd client, Ze unmodified except a scratch harness. Prove A-1..A-5 and the upstream facts above by capture and `vppctl show pppoe session`. Output: the evidence recorded in this spec, run against the VPP Ze builds with the patches (OD-1 B).
+2. **Phase 1: moved out.** The verify-time refusal of PPPoE under `interface backend vpp` is `plan/release/fixes/spec-pppoe-refuse-vpp-backend.md` (OD-5), which owns the journal row and lands before this spec. This spec's AC-1 holds while no VPP session data plane is registered, and Phase 3's registration replaces that refusal with AC-2.
+3. **Phase 2: The seam, kernel backend moved behind it.** `pppoe` declares the session data-plane interface and registry; the kernel implementation moves to its own package and registers; `ppp.StartSession` carries a frame channel and a per-session data-plane handle in place of `ChanFD`/`UnitFD`/`UnitNum` and `IfaceBackend`; L2TP supplies the kernel handle. The handle's contract names one owner for each descriptor it holds, which closes it exactly once (AC-16). No behaviour change. Tests: AC-13, AC-16, `TestKernelDataplaneParity`, `TestPPPChannelSeam`.
+4. **Phase 3: VPP backend, IPv4.** cp map, discovery and session control on the cp TAP, session create before PADS, MTU, peer route in VRF, framed routes, teardown order, session counters and idle detection read through the session handle, `show pppoe` and doctor. Tests: AC-2..AC-7, AC-11, AC-14, AC-16, AC-17, interop `pppoe-vpp-ze-ac-pppd-client` IPv4.
+5. **Phase 4: VPP backend, IPv6.** IPv6CP, RA, DHCPv6 IA_NA/IA_PD, delegated-prefix routes, through patch 0014's punt of RS and DHCPv6 to the cp (OD-1 B). Tests: AC-8.
+6. **Phase 5: Rate limiting.** VPP policers per session, CoA replace, verify refuses tc qdisc modes under VPP. Removal order on teardown and on a CoA swap: the `policer-input` features leave the four arcs before the policer is unbound and deleted (AC-15). Tests: AC-9, AC-10, AC-15.
 7. **Phase 6: VPP loss and restart.** OD-2 policy on `vpp/disconnected`/`vpp/reconnected`, cp map and LCP pair re-established, discovery resumes. Tests: AC-12, interop `pppoe-vpp-restart`.
 8. **Phase 7: Docs, RFC annotations, discrimination records.** `rfc/short/rfc2516.md` performers, `./le rfc record` for each tagged unit, guides and digests.
 
@@ -414,9 +420,14 @@ Goal validation: G-1 by the first scenario's VPP-counter and TAP-capture asserti
 - The cp TAP is a Linux interface in the LCP namespace, so Ze's existing raw-socket and PPP codecs carry over; only their binding target changes. That is why this is a backend and not a rewrite.
 
 ## Owned journal rows
-| Class file | Date | Surface (short) |
-|------------|------|-----------------|
-| `plan/journal/validate-accepts-what-start-refuses.md` | 2026-10-28 | PPPoE under `interface backend vpp` validates, every session fails at IPCP Opened |
+
+None. The row this spec found (`validate-accepts-what-start-refuses.md`, 2026-10-28) is owned by `plan/release/fixes/spec-pppoe-refuse-vpp-backend.md`.
+
+## Work Not Done
+
+| Item | Where it went | Why |
+|------|---------------|-----|
+| Phase 1: refuse PPPoE under `interface backend vpp` at verify | `plan/release/fixes/spec-pppoe-refuse-vpp-backend.md` | OD-5: a shipped-behaviour fix belongs to the release; the rest of this spec is post-release |
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
@@ -429,7 +440,19 @@ Goal validation: G-1 by the first scenario's VPP-counter and TAP-capture asserti
 | D-6 Subscriber routes installed by the VPP session backend directly | Through sysrib and fib-vpp | `BestChangeEntry` has no egress interface (seams-3) |
 | D-7 Rate on VPP is policing, declared as such; tc shaping modes refused under VPP | Map TBF to a policer | Exact-or-reject (`fw-7-traffic-vpp.md`) |
 
-## Open owner decisions
+## Owner decisions (decided 2026-10-28)
+
+Thomas approved the recommendation for each of the five decisions. None is open.
+
+| ID | Decision | Chosen |
+|----|----------|--------|
+| OD-1 | Which VPP | **B now, C in parallel.** Ze builds VPP itself with the VyOS patches (0013, 0014, 0018, 0025, 0031) kept as diffs against the VPP release and applied at build time, and generates its own `pppoe` binapi from the patched `.api`; in parallel the needed changes are offered upstream to FD.io, and a patch is dropped once its change lands in a VPP release Ze builds |
+| OD-2 | VPP loss policy | **A.** On `vpp/disconnected` tear down every VPP session in Ze (no PADT is possible), Stop accounting with a lost-service cause, release pool addresses; clients redial when LCP echo fails |
+| OD-3 | Config surface | **A.** No new leaf: PPPoE's data plane follows `interface backend`; `pppoe_plugin.so` loads whenever `pppoe` is configured with the VPP backend |
+| OD-4 | Subscriber rate on VPP | **A.** Police both directions; TBF and HTB shaping under VPP are refused at verify until a VPP shaping mechanism exists |
+| OD-5 | Release bucket | **Post-release**, except Phase 1 (refuse PPPoE on the VPP backend at verify), which moved to `plan/release/fixes/spec-pppoe-refuse-vpp-backend.md` |
+
+The options as they were put to the owner:
 
 | ID | Decision | Option A | Option B | Option C | Evidence |
 |----|----------|----------|----------|----------|----------|

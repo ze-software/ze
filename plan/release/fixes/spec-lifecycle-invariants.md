@@ -78,6 +78,8 @@ Found during research for this spec.
 | D-8 | `applyIKERekeyResponse` and `respondIKERekey` (`ike/engine/rekey.go`) | the two rekey paths disagree, and RFC 7296 says **both are wrong**. The initiator path sets `CreatedAt` and `EstablishedAt` both to the current time; the responder path sets both from `oldSA.EstablishedAt`. Section 2.18 calls the result "the new IKE SA" with new SPIs and new keys, so `CreatedAt` should advance. Section 2.8.3 says rekeying *"does not authenticate the parties again"*, and reserves a from-scratch IKE_SA_INIT/IKE_AUTH for reauthentication, so `EstablishedAt` (the authenticated relationship, which is what `uptime-seconds` measures in `saToMap`) should carry forward. Today `show ipsec` uptime zeroes on a locally-initiated rekey, and `created-at` misreports the new SA's age on a peer-initiated one |
 | D-9 | `newExporter` (`plugins/flowexport/exporter.go`) | stamps `startTime` from the current time, and the `configure` closure in `register.go` is explicitly shared by boot and reload. RFC 3954 Section 5.1 defines sysUpTime as time since the device booted. `FIRST_SWITCHED` (22) and `LAST_SWITCHED` (21) are emitted as sysUpTime-relative milliseconds from the same value, so a reload corrupts every flow record's timestamps, not only the header |
 | D-10 | `StoreSessionMetadata` (`l2tp/session_metadata.go`) | one package-level `sessionMeta` map keyed on a pair of uint16s, shared by both transports. L2TP stores under (tunnel id, session id); PPPoE stores under (ifindex, PPPoE session id). The namespaces collide, so whichever session authenticates second overwrites the other's Framed-Pool, Session-Timeout, Idle-Timeout, Filter-Id rate and CoS profile. Found while landing D-1 (2026-08-29): the same collision reaches operator output through `lookupSessionUsername` (`l2tp/plugins/pool/register.go`), which `showPool` calls with each allocation's pair. For a PPPoE allocation that pair is (ifindex, PPPoE session id), so `show l2tp pool` reports an empty username, or another subscriber's, whenever an L2TP session holds the same numbers |
+| D-11 | `l2tpReactor.startSessionTimeouts` (`l2tp/session_timeout.go`) | its only caller is the L2TP kernel reactor (`reactor_kernel.go`), so a PPPoE subscriber's Session-Timeout and Idle-Timeout are stored from the Access-Accept and never enforced. RFC 2865 Section 5.27: "This Attribute sets the maximum number of seconds of service to be provided to the user before termination of the session or prompt." Section 5.28: "This Attribute sets the maximum number of consecutive seconds of idle connection allowed to the user before termination of the session or prompt." Found 2026-10-28 comparing accel-ppp PRs with Ze |
+| D-12 | `readIfaceRXBytes` (`l2tp/iface_stats_linux.go`), read by `runIdleTimeout` | a failed sysfs read or parse returns 0, so the idle check sees no growth and ends the session with cause Idle-Timeout; the comment above `runIdleTimeout` states this as designed and says netlink where the code reads `/sys/class/net/<iface>/statistics/rx_bytes`. The same shape in accel-ppp-ng (PR #42, https://github.com/accel-ppp/accel-ppp-ng/pull/42) ended every VPP session with NAS-Error each minute |
 
 ## Why the gates are green
 
@@ -116,6 +118,8 @@ those two rows true rather than changing them.
 | D-8 IKE rekey timestamps | open |
 | D-9 flow-export epoch | open |
 | D-10 metadata keyspace collision | open |
+| D-11 PPPoE Session-Timeout and Idle-Timeout | open |
+| D-12 failed counter read treated as idle | open |
 | I-1 emit-without-subscribe guard | open |
 | I-2 vacuity-trap and sibling-audit rows | open |
 | I-3 poll-sleep, VPP evidence image, checkVPPVersion | open |
@@ -369,6 +373,8 @@ tests instead.
 | AC-16 | RADIUS supplies a Framed-Route for a PPPoE subscriber | the route is installed and withdrawn with the session |
 | AC-17 | A renegotiation occurs on a session whose auth already completed | no second RADIUS Access-Request is sent |
 | AC-18 | A PPPoE session's CoS profile is torn down | the configured static profile is restored, not an empty map |
+| AC-20 | A PPPoE subscriber's Access-Accept carries Session-Timeout, Idle-Timeout, or both (D-11) | each is enforced on that subscriber session exactly as for L2TP: the session ends at the Session-Timeout deadline with Acct-Terminate-Cause Session-Timeout, and after Idle-Timeout seconds with no received traffic with cause Idle-Timeout. The timers are keyed on the subscriber session, not on an L2TP tunnel and session id pair, so the PPPoE and L2TP keyspaces cannot collide (D-10) and renegotiation does not restart them (AC-8) |
+| AC-21 | The idle check cannot read the session interface's received-byte counter (D-12) | the failure is logged naming the session and interface, the session is not torn down as idle, and the next tick reads again; a session whose interface is gone is ended by the teardown path that removed it, not by the idle timer |
 
 ## End-to-End User Stories
 
@@ -405,6 +411,9 @@ tests instead.
 | `TestParsePollSleepMicroseconds` | `internal/component/vpp/config_test.go` | AC-13 | |
 | `TestCheckVPPVersionRejectsUnsupportedRange` | `internal/component/doctor/checks_linux_test.go` | AC-14 | |
 | `test_emit_without_subscribe_is_reported` | `internal/le/` | AC-12 | |
+| `TestPPPoESessionTimeoutEnforced` | `internal/component/l2tp/pppoe/` | AC-20: Session-Timeout ends a PPPoE session at the deadline with cause Session-Timeout; Idle-Timeout ends it after a quiet interval with cause Idle-Timeout | |
+| `TestSessionTimeoutsKeyedOnSubscriberSession` | `internal/component/l2tp/` | AC-20: an L2TP and a PPPoE session with equal number pairs each keep their own timers | |
+| `TestIdleTimeoutReadFailureIsNotIdle` | `internal/component/l2tp/session_timeout_test.go` | AC-21: a counter read error is logged and does not tear the session down | |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -438,7 +447,8 @@ tests instead.
 - `internal/component/l2tp/subscriber_bridge.go` - carry the assigned address into the subscriber payload; stop rebuilding the session
 - `internal/component/l2tp/pppoe/subsystem.go` - stop rebuilding the session on a repeat event
 - `internal/component/l2tp/session_metadata.go` - re-key by subscriber session ID
-- `internal/component/l2tp/session_timeout.go` - cancel before restarting
+- `internal/component/l2tp/session_timeout.go` - cancel before restarting; timers keyed on the subscriber session and started for PPPoE as well (D-11); a counter read failure is not idle (D-12)
+- `internal/component/l2tp/iface_stats_linux.go`, `iface_stats_other.go` - the RX counter read returns an error instead of 0 (D-12); the stale "netlink" comment corrected
 - `internal/component/l2tp/reactor_kernel.go` - drive timeouts from first activation only
 - `internal/component/l2tp/route_observer.go` - reach framed routes from both transports
 - `internal/component/l2tp/plugins/authradius/acct.go` - migrate to the subscriber namespace, dedupe by session
@@ -596,6 +606,13 @@ tests instead.
 - The Echo re-entry fix and root cause 2 are one bug seen twice. The guard that closed the Echo case is the guard renegotiation walks through, because renegotiation genuinely leaves the Opened state and Echo does not. A guard keyed on state transition cannot express "once per session"; only a latch on the session can.
 - A test can be a faithful proof of its requirement and still miss the defect the requirement exists to prevent. `TestRFC1661RenegotiateOnConfigureRequestInOpened` proves the transition table, which is what "be prepared to renegotiate" means at the FSM layer and nothing more.
 - Delegating a handler registry and delegating an event subscription look alike from the call site and behave completely differently. That asymmetry is what let the subscriber-session-model work read as complete.
+
+## Owned journal rows
+
+| Class file | Date | Surface (short) |
+|------------|------|-----------------|
+| `invariant-enforced-by-an-absent-call-site.md` | 2026-10-28 | `startSessionTimeouts` never reached for PPPoE (D-11, AC-20) |
+| `zero-value-as-valid-answer.md` | 2026-10-28 | `readIfaceRXBytes` failure read as idle (D-12, AC-21) |
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
