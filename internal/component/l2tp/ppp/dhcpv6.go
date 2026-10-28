@@ -39,7 +39,7 @@ const (
 	D6StatusNoPrefixAvail uint16 = 6
 )
 
-// DUID types (RFC 3315 Section 9).
+// DUID types (RFC 9915 Section 11.1).
 const (
 	DUIDTypeLLT uint16 = 1
 	DUIDTypeEN  uint16 = 2
@@ -81,11 +81,18 @@ type dHCPv6Message struct {
 	StatusCode    *uint16
 }
 
-// maxDUIDLen caps the DUID ID field to prevent large allocations from
-// attacker-crafted packets. RFC 3315 Section 9.1 limits DUIDs to 128
-// octets (2 type + up to 126 payload). PPP MTU (~1500) bounds it
-// further, but we enforce explicitly.
-const maxDUIDLen = 128
+// A DUID is a 2-octet type code followed by its identifier. The identifier
+// bounds also cap what a crafted packet can make parseDUID allocate.
+//
+// RFC 9915 Section 11.1: "The length of the DUID (not including the type
+// code) is at least 1 octet and at most 128 octets."
+const (
+	duidTypeLen     = 2
+	duidIDOctetsMin = 1
+	duidIDOctetsMax = 128
+	duidOctetsMin   = duidTypeLen + duidIDOctetsMin
+	duidOctetsMax   = duidTypeLen + duidIDOctetsMax
+)
 
 var (
 	errDHCPv6TooShort   = errors.New("dhcpv6: message too short")
@@ -149,10 +156,12 @@ func parseDHCPv6(buf []byte) (*dHCPv6Message, error) {
 }
 
 func parseDUID(data []byte) (*DHCPv6DUID, error) {
-	if len(data) < 2 {
+	// RFC 9915 Section 11.1: "The length of the DUID (not including the type
+	// code) is at least 1 octet and at most 128 octets."
+	if len(data) < duidOctetsMin {
 		return nil, errDHCPv6BadDUID
 	}
-	if len(data) > maxDUIDLen {
+	if len(data) > duidOctetsMax {
 		return nil, errDHCPv6DUIDTooBig
 	}
 	d := &DHCPv6DUID{
