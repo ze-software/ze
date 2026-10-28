@@ -39,8 +39,10 @@ var subscriberAddresses = []netip.Addr{netip.MustParseAddr("192.0.2.10"), netip.
 //
 //  1. Ze brings the PPP session up.
 //  2. RFC 1877: pppd, asking with `usepeerdns`, was given the pool's
-//     dns-primary (and dns-secondary), which are Ze's resolver address, and
-//     wrote them to its resolv.conf.
+//     dns-primary, which is Ze's resolver address, and wrote it to its
+//     resolv.conf. The scenario's dns-secondary is the same address, and
+//     pppd writes a second nameserver line only when it differs, so this
+//     step observes the primary alone.
 //  3. The LAC reaches that address over its PPP interface, so the query
 //     leaves from the subscriber's pool address.
 //  4. The name resolves through that server to exactly Knot's RRset.

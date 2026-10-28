@@ -70,7 +70,7 @@ questions, to the resolver's handler, which answers it in the recursive shape
 | more than 16 questions | the library's FORMERR |
 | more than one answer record | the library's FORMERR |
 | more than one authority record | the library's FORMERR |
-| more than two additional records (so three or more OPT RRs) | the library's FORMERR |
+| more than two additional records (which is where a query with three or more OPT RRs lands) | the library's FORMERR |
 
 The library's FORMERR is not in the recursive shape. It carries the query's
 identifier and the query's own TC, RD, RA, AD and CD bits, so RA is clear
