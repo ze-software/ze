@@ -149,10 +149,10 @@ IPsec and WireGuard require their kernel support built in: `CONFIG_XFRM_USER`
 `CONFIG_INET_ESP`, `CONFIG_INET6_ESP`, `CONFIG_INET_AH`, `CONFIG_INET6_AH`,
 `CONFIG_WIREGUARD`, and one CRYPTO symbol for each kernel transform Ze's XFRM
 algorithm tables can install: `CBC`, `DES`, `NULL`, `GCM`, `CHACHA20POLY1305`,
-`SHA1`, `SHA256` and `SHA512`. gokrazy ships no `modprobe`, so a transform built
-as a module is never loaded and the SA naming it fails to install. The runtime
-fragment requests each one, and the runtime manifest and compiled floor require
-each one. The transform-to-symbol map is `xfrmTransformKernel`, and
+`SHA1`, `SHA256` and `SHA512`. These facilities must not depend on runtime
+module loading. The runtime fragment requests each one, and the runtime
+manifest and compiled floor require each one. The transform-to-symbol map is
+`xfrmTransformKernel`, and
 `TestXfrmTransformsHaveRequiredKernelSymbol` walks the algorithm tables and
 fails when a transform's symbol is not `=y` in the fragments or not in
 `runtime.require`, so a cipher added to a table alone fails a test. The AES,
@@ -173,10 +173,11 @@ loader attempts to insert `pwm-fan.ko`.
 <!-- source: gokrazy/modcache/github.com/gokrazy/gokrazy@v0.0.0-20260703061218-a4a45a20149d/gokrazy.go -- Boot -->
 <!-- source: gokrazy/modcache/github.com/gokrazy/gokrazy@v0.0.0-20260703061218-a4a45a20149d/modules.go -- loadModules, loadModule -->
 
-The fan configuration change still needs native build and boot evidence,
-including the arm64 Mac rerun. Source checks do not prove that the emitted
-kernel keeps these symbols built in or that the guest reaches VPN traffic
-with an empty loaded-module list. Keep the strict no-modules guard in that proof.
+The native proof checks the emitted config and refuses preloaded modules
+before VPN traffic. Source checks alone cannot prove that Kconfig kept the
+symbols built in or that the guest reaches traffic with an empty loaded-module
+list. Keep the strict no-modules guard; an absent `modprobe` helper alone does
+not exclude gokrazy's direct module loader.
 <!-- source: internal/appliance/kernelreq_test.go -- TestRuntimeFloorRequiresBuiltInPWMFan -->
 <!-- source: docs/architecture/testing/qemu-integration.md -- VPN facilities without module loading -->
 

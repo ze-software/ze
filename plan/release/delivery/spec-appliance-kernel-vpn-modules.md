@@ -165,8 +165,8 @@ State of each VPN symbol in the arm64 emitted config:
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | the amd64 emitted config matches arm64 for every symbol in the table above | both arches merge the same fragments; only defconfig differs, and defconfig is where the crypto symbols come from | an amd64 build refuses, or ships a transform as `=m` | the amd64 native build on the Linux host reads each symbol (AC-5) | validated 2026-10-12: the arm64 and amd64 emitted configs read the same 22 symbol lines (AC-5 Evidence) |
-| A-2 | gokrazy cannot load a `=m` transform (no `modprobe` helper) | `conntrack_setup_appliance_linux.go` comment; gokrazy image holds two ze binaries plus randomd/heartbeat | `=m` would be enough and `=y` costs only kernel size | `ls /sbin/modprobe` in a booted guest | unvalidated |
-| A-3 | `ecb(cipher_null)` is the spelling the 7.2 kernel accepts for NULL ESP | `xfrm_linux.go` NOTE says unverified | NULL ESP install fails even with `CONFIG_CRYPTO_NULL=y` | AC-6 installs a NULL-ESP SA; a refusal is a defect in the name table, fixed here | unvalidated |
+| A-2 | gokrazy cannot load a `=m` transform (no `modprobe` helper) | `conntrack_setup_appliance_linux.go` comment; gokrazy image holds two ze binaries plus randomd/heartbeat | `=m` would be enough and `=y` costs only kernel size | `vpnGuestPreparation`, `checkWireGuardProof`, native guest receipts | insufficient premise: gokrazy's `loadModule` calls `unix.FinitModule` directly for its boot module list. The proof instead disables module loading, refuses any loaded module and removes the helper; the accepted native arm64 run satisfies those guards. |
+| A-3 | `ecb(cipher_null)` is the spelling the 7.2 kernel accepts for NULL ESP | `xfrm_linux.go` NOTE originally said unverified | NULL ESP install fails even with `CONFIG_CRYPTO_NULL=y` | AC-6 installs a NULL-ESP SA; a refusal is a defect in the name table, fixed here | validated 2026-10-27: `xfrmEncNames` supplies `ecb(cipher_null)` and `esp-integrity-only-null` passed installed-state and traffic checks against strongSwan on native amd64/KVM and arm64/HVF. |
 | A-4 | Kconfig for 7.2 exposes `CONFIG_CRYPTO_CHACHA20POLY1305` and `CONFIG_CRYPTO_NULL` as user-selectable on both arches | emitted config prints them as "is not set" (so they exist on arm64) | the symbol name changed; requirement must name the 7.2 symbol | AC-5 emitted configs | validated 2026-10-12: both 7.2.9 emitted configs read `CONFIG_CRYPTO_CHACHA20POLY1305=y` and `CONFIG_CRYPTO_NULL=y` (AC-5 Evidence) |
 | A-5 | `ipsec-mobike-test` can install SAs with a chosen ESP transform | the lab runs Ze IKE in a guest on Ze's kernel | a new lab is needed | read `internal/le/test/deployment/mobike.go` at implementation | broken 2026-10-25: `RunMOBIKENetns` runs only `mobike-initiator` and `mobike-responder`; the QEMU wrapper supplies an Alpine package environment, not the default appliance image |
 
@@ -509,8 +509,24 @@ Earlier SHA attempts stopped at an incomplete shared import edit and then at
 SSH forwarding, before any lab. The instrumented run recorded client
 authentication and creation of the local Unix listener without changing the
 15-second deadline; it did not establish the earlier failure's cause or a fix.
-The WireGuard allowed-IP and modprobe-present cases remain open, followed by
-one unmutated native restoration run.
+
+The WireGuard allowed-IP break passed its targeted discrimination check.
+After normal endpoint setup, a private overlay removed the receiving peer's
+allowed IP and read back the same peer identity with no allowed IPs.
+`VPN-WG-SETUP-APPLIED` precedes the unchanged tunnel-ping failure: three
+packets transmitted, zero received. This proves the ping assertion rejects
+that configuration; the later handshake/transfer receipt checks were not
+reached, and this run does not establish whether a handshake occurred.
+
+Evidence is `scratch/job-vpn-break-wg-allowedip-667acf82.log` in the same session.
+PSK, ChaCha, 3DES and NULL passed. CBC did not run because a concurrent DHCP
+edit temporarily lacked `neighborEntry`, so the aggregate exit 1 is not solely
+the mutation's verdict. KVM, the guest kernel probe, no leftovers and a stopped
+VM are recorded. Independent review accepted the targeted allowed-IP case;
+the spec's alternative wrong-key mutation is not additionally required.
+
+The modprobe-present case remains open, followed by one unmutated native
+restoration run.
 
 ### Native amd64 result, 2026-10-27
 
