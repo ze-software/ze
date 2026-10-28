@@ -7,8 +7,8 @@
     "claim-sha": "82751b616c0fdc74",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/config_capabilities.go::parseAddPathFromTree",
-    "producer-sha": "2fe8a0c0740e46a7",
-    "break": "body of parseAddPathFromTree replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "3e2e780303dcdcc9",
+    "break": "body of parseAddPathFromTree replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC7911-4-1",
@@ -18,7 +18,7 @@
     "claim-sha": "643b5e1ce39f1031",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/config_capabilities.go::parseAddPathFromTree",
-    "producer-sha": "2fe8a0c0740e46a7",
-    "break": "body of parseAddPathFromTree replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "3e2e780303dcdcc9",
+    "break": "body of parseAddPathFromTree replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]
