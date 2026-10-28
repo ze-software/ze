@@ -3,7 +3,7 @@
     "rid": "RFC2865-4.2-1",
     "polarity": "positive",
     "unit": "internal/component/radius/rfc2865_client_test.go::TestClientAuthenticatorVerify",
-    "unit-sha": "603dde4428a655d0",
+    "unit-sha": "89276a08259ef8b2",
     "claim-sha": "c2b67845c2f97046",
     "route": "revert",
     "producer": "internal/component/radius/packet.go::VerifyResponseAuth",
@@ -14,11 +14,11 @@
     "rid": "RFC2865-4.2-1",
     "polarity": "negative",
     "unit": "internal/component/radius/rfc2865_client_test.go::TestClientAuthenticatorVerify",
-    "unit-sha": "603dde4428a655d0",
-    "claim-sha": "032161a3dbd75058",
-    "route": "revert",
+    "unit-sha": "89276a08259ef8b2",
+    "claim-sha": "722dde02c627fa70",
+    "route": "mutant",
     "producer": "internal/component/radius/packet.go::VerifyResponseAuth",
     "producer-sha": "d3ec3b01205d9529",
-    "break": "body of VerifyResponseAuth replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "break": "line 201: \"subtle.ConstantTimeCompare(response[4:4+AuthenticatorLen], expected[:]) == 1\" -\u003e \"subtle.ConstantTimeCompare(response[4:4+AuthenticatorLen], expected[:]) \u003e= 0\""
   }
 ]
