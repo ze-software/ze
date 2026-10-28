@@ -14,6 +14,10 @@ func FuzzAVPIterator(f *testing.F) {
 		{},
 		{0xFF, 0xFF},
 		{0x00, 0x05, 0, 0, 0, 0}, // length < 6
+		// accel-ppp-ng 2fa6475 (T8550): a zero Length must not stall the walk.
+		{0x80, 0x00, 0, 0, 0, 0, 0x80, 0x00, 0, 0, 0, 0},
+		// accel-ppp-ng a8ca0f3 (T8439): hidden mandatory AVP with a 1-octet value.
+		{0xC0, 0x07, 0, 0, 0, 14, 0x01},
 	}
 	for _, s := range seed {
 		f.Add(s)

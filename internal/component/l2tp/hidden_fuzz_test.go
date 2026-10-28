@@ -12,6 +12,11 @@ func FuzzHiddenDecrypt(f *testing.F) {
 		{0, 0x0A, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
 		make([]byte, 16),
 		make([]byte, 40),
+		// accel-ppp-ng a8ca0f3 (T8439): hidden value of one octet, and
+		// ciphertexts whose decrypted Original Length is 0xFFFF or 1.
+		{0x00},
+		{0xFF, 0xFF, 1, 2},
+		{0x00, 0x01},
 	}
 	for _, s := range seed {
 		f.Add(s)

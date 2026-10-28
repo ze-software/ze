@@ -16,6 +16,17 @@ func FuzzParseLCPPacket(f *testing.F) {
 		{0x01, 0x00, 0x00, 0x03},             // length below header
 		{0x01, 0x00, 0x00, 0x04, 0xFF, 0xFF}, // length 4 with trailing bytes (must be ignored)
 		make([]byte, 1500),
+		// accel-ppp-ng 1a42ab4 (T8830): Length far past the received octets.
+		{0x01, 0x01, 0x04, 0x00, 0x01, 0x04, 0x05, 0xDC},
+		// accel-ppp-ng 1957e7d (T8830): Echo-Request, Echo-Reply, Protocol-Reject,
+		// Discard-Request and Identification shorter than their fixed fields.
+		{0x09, 0x01, 0x00, 0x04},
+		{0x0A, 0x01, 0x00, 0x06, 0x00, 0x00},
+		{0x08, 0x01, 0x00, 0x05, 0x80},
+		{0x0B, 0x01, 0x00, 0x04},
+		{0x0C, 0x01, 0x00, 0x07, 0x00, 0x00, 0x00},
+		// accel-ppp-ng 2fa6475 (T8550): a zero Length must not stall a walker.
+		{0x01, 0x01, 0x00, 0x00},
 	}
 	for _, s := range seeds {
 		f.Add(s)
@@ -44,6 +55,9 @@ func FuzzParseLCPOptions(f *testing.F) {
 		{LCPOptMRU, 0xFF, 0xAA},              // length exceeds buffer
 		{0x99, 0x02, 0x99, 0x02, 0x99, 0x02}, // unknown option type, repeated
 		make([]byte, 254),
+		// accel-ppp-ng 2fa6475 (T8550): option Length 0 and 1 cannot advance.
+		{LCPOptMRU, 0x00, LCPOptMRU, 0x00},
+		{LCPOptMagic, 0x01},
 	}
 	for _, s := range seeds {
 		f.Add(s)
