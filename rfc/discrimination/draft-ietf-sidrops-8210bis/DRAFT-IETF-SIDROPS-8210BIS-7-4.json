@@ -18,7 +18,7 @@
     "claim-sha": "e232fef34d16f732",
     "route": "mutant",
     "producer": "internal/component/bgp/plugins/rpki/rtr_session.go::handlePDU",
-    "producer-sha": "fcaaae8230f48b20",
-    "break": "line 615: \"errCode == errUnsupportedVersion\" -\u003e \"true\""
+    "producer-sha": "a330c72ba9ad30b7",
+    "break": "line 684: \"errCode == errUnsupportedVersion\" -\u003e \"true\""
   }
 ]
