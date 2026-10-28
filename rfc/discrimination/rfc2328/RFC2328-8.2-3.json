@@ -29,8 +29,8 @@
     "claim-sha": "af7f63bbaeb435d8",
     "route": "revert",
     "producer": "internal/plugins/ospf/auth_wiring.go::verifyPacket",
-    "producer-sha": "7da6bd119065a469",
-    "break": "body of verifyPacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "6096051e56368598",
+    "break": "body of verifyPacket replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2328-8.2-3",

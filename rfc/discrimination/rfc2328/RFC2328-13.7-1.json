@@ -7,8 +7,8 @@
     "claim-sha": "26c55002a720ee99",
     "route": "revert",
     "producer": "internal/plugins/ospf/instance.go::handleLSAck",
-    "producer-sha": "41cdfe7cf3522609",
-    "break": "body of handleLSAck replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "95e50d9450a793f1",
+    "break": "body of handleLSAck replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2328-13.7-1",

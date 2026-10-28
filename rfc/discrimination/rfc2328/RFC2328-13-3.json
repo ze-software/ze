@@ -29,8 +29,8 @@
     "claim-sha": "7c6e73702369a0e3",
     "route": "revert",
     "producer": "internal/plugins/ospf/instance.go::handleLSUpdate",
-    "producer-sha": "b5c1b43ecdf10792",
-    "break": "body of handleLSUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "de473725edbc2930",
+    "break": "body of handleLSUpdate replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2328-13-3",
@@ -40,7 +40,7 @@
     "claim-sha": "73e6a09891fb5f9b",
     "route": "revert",
     "producer": "internal/plugins/ospf/instance.go::handleLSUpdate",
-    "producer-sha": "b5c1b43ecdf10792",
-    "break": "body of handleLSUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "de473725edbc2930",
+    "break": "body of handleLSUpdate replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]
