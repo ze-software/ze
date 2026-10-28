@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | blocked |
 | Priority | P2 |
 | Release reason | Required release artifacts, safe installation or appliance/runtime-kernel delivery and their outstanding boot evidence. |
 | Scope | tooling |
@@ -473,7 +473,7 @@ What (b) forecloses: a cold-cache `ze appliance build` without Docker or QEMU (a
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
-| default image boots ze's own runtime kernel | Done | `resolveBuildParentDir` (`internal/appliance/kernelargs.go`), `RuntimeKernelTree` (`runtimekernel.go`) | Historical arm64 boot plus native amd64 default-image readback and KVM boot below; default-appliance L2TP traffic remains separately blocked |
+| default image boots ze's own runtime kernel | Done | `resolveBuildParentDir` (`internal/appliance/kernelargs.go`), `RuntimeKernelTree` (`runtimekernel.go`) | Historical arm64 boot plus native amd64 default-image readback and KVM boot below; owner-run default-appliance L2TP/IPv4 PPP proof passed on 2026-10-28 |
 | rtr7 leaves the build | Done | `TestNoRtr7KernelReference` | |
 | `ze.gok.kernel-package` deleted | Done | `TestRunHasNoKernelOverride` | |
 | build natively, never emulated | Done | `validateRequest`, `qemuArgs` (`kernelbuilder`) | |
@@ -515,7 +515,7 @@ What (b) forecloses: a cold-cache `ze appliance build` without Docker or QEMU (a
 | `TestPrepareRealInstanceCarriesEveryModule`, `TestPreparedModulesResolveIdenticallyToTracked`, `TestNoRtr7KernelReference` | Done | `internal/appliance/instance/prepare_repo_test.go` | |
 | `mpls-boot-test` | Done | `./le test qemu mpls-boot` | Historical arm64 PASS; fresh amd64 KVM PASS on the POLICE kernel |
 | `vpp-hugepages-test` | Done | `./le test qemu vpp-hugepages` | Fresh amd64 KVM PASS, 64 two-MiB pages; no VPP traffic claim |
-| `gokrazy-l2tp-ppp-test` | Blocked | `./le test deployment gokrazy-l2tp-ppp` | Actual entry point refused before boot: host root or CAP_NET_ADMIN required |
+| `gokrazy-l2tp-ppp-test` | Done | `./le test deployment gokrazy-l2tp-ppp`, invoked through the retained patched binary | Owner-run native amd64 KVM PASS at 15:04 UTC, 2026-10-28; peer kernel addresses, PPP traffic, route withdrawal and peer kernel cleanup asserted; UFW active with no lab rules afterward |
 
 ### Files from Plan
 | File | Status | Notes |
@@ -533,7 +533,7 @@ What (b) forecloses: a cold-cache `ze appliance build` without Docker or QEMU (a
 ### Audit Summary
 - **Total items:** 18 ACs, 7 requirements
 - **Done:** 18 ACs, 7 requirements, with historical and fresh evidence distinguished below.
-- **Still owed:** default-appliance L2TP deployment proof and scoped verification; this is not spec closure.
+- **Still owed:** independent final closure review and scoped committed-tree verification; the default-appliance L2TP runtime criterion is complete.
 - **Skipped:** none
 - **Changed:** AC-6, assembler location, no skeleton, digest location (Deviations)
 
@@ -547,12 +547,12 @@ What (b) forecloses: a cold-cache `ze appliance build` without Docker or QEMU (a
 | the image honours GPLv2 by pointing at the exact source | data correctness | `/etc/linux-gpl-notice` extracted with `7zz` from the root squashfs of `ze-20261010-140153.img` reads Version 7.2.9, `https://cdn.kernel.org/pub/linux/kernel/v7.x/linux-7.2.9.tar.xz`, SHA-256 `b4c5dfbe51a364a6c7f03869200f88c8e1f77403539005f14b7fc6bc91b8d8ba`, equal to the cache entry's `kernel.version` provenance |
 | a long cold build is acceptable because the cache is never deleted | unit | `TestCleanTargetsNeverReachTheKernelCache`, `TestEvictKeepsNewestPerArchAndTheCurrentEntry` PASS; the arm64 build at 14:01 served `...-7c0d8f79-d826e25e` with no kernel build (that entry, under an older key, was evicted since; keep-newest eviction is AC-15, reclamation never reaches the cache); the 2026-10-11 `mpls-boot-test` served `...-docker-7c0d8f79-34cba457` with no kernel build |
 | kernels are built natively only | unit (negative) | `TestValidateRequestRefusesForeignArch`, `TestQEMUArgsRefusesWithoutHardwareAccelerator` PASS |
+| the default kernel supports the appliance L2TP PPP proof | interop and dataplane | Owner-run xl2tpd 1.3.18 replay on native amd64 Linux 7.2.9-ze returned `proven: true`; `gokrazyL2TP.assertKernelState` checked peer addresses and two pings through PPP, and `observe` required route withdrawal and `awaitTeardown` restoring the peer kernel baseline. See the 2026-10-28 passing receipt below. |
 
 ## Work Not Done
 
 | What was not done | Why | The spec that now owns it |
 |-------------------|-----|---------------------------|
-| Default-appliance L2TP PPP deployment proof | Actual native entry point refused in host privilege preflight: root or CAP_NET_ADMIN is required for the bridge, TAP and host LAC; `/dev/ppp` is root-only. No guest or traffic verdict was reached. | This spec; owner-run from an already-authorized root shell, preserving the warm cache and reviewing file ownership. Exact command is retained in `scratch/appliance-amd64-proof/l2tp-blocker.txt` under the session named below. |
 | Scoped verification over the landed change | No scoped certificate is claimed. The shared unpublished change set makes the current selector wider than this unit; no whole-tree run was started. | This spec's scoped evidence; `./le verify worktree` is the owner's separate release check, not agent closure work. |
 | N100 hardware boot (A-3 hardware half) | owner-deferred: "ignore n100 atm" | owner-run before release; no spec |
 
@@ -896,7 +896,7 @@ the appliance`. Neither PPP nor dataplane completion is proved.
 | Owning layer | Host network setup for the appliance proof; no product protocol defect is established by this failure. |
 | Rejected workaround | Disabling UFW or global bridge netfilter would change protection for other host workloads. |
 | Source repair | Permit UFW forwarding only when both interfaces are this run's bridge; remove that exact route rule with the INPUT rule during cleanup. Refuse setup if UFW status or either installation fails. |
-| Verification boundary | The patch is written. Privileged replay through the unchanged session, PPP, traffic and teardown assertions is still required; the spec remains open. |
+| Verification boundary | Superseded by the owner-run privileged PASS at 15:04 UTC below. The unchanged session, PPP, traffic and teardown assertions passed, and UFW readback showed no lab rules. |
 
 The journal was read with `journalctl -k --since '2026-10-28 14:29:00'
 --until '2026-10-28 14:30:30' --grep '172\.31\.0\.|ze-gok|UFW'
@@ -920,6 +920,53 @@ source anchors outside this change: `commandWordsMax` in
 `docs/architecture/testing/ci-workflows.md`. No clean aggregate result is
 claimed. The previously recorded unbounded `verify changed` path was not
 repeated.
+
+### Privileged L2TP passing receipt, 2026-10-28
+
+Thomas replayed the repaired harness against the same image and returned the
+following result. The first launcher retry did not execute the proof:
+`internal/le/rfc/checkgroups.go:80` failed to compile because `Finding.Check`
+was absent. The successful run invoked `bin/le-l2tp-30667194/le` directly
+with `ZE_GOKRAZY_SKIP_BUILD=1`; its SHA-256, checked before the run, was
+`1713790f1efd8b36f8b73dd466a5f6188ca043cd508bbdeed1e1d3a5b53f6b2f`.
+
+| Receipt field | Owner-observed value |
+|---------------|----------------------|
+| Time | 2026-10-28 15:03–15:04 UTC |
+| Verdict | `proven: true`, empty reason, `log-tail: null` |
+| Kernel and accelerator | Linux 7.2.9-ze, amd64, KVM |
+| Guest build | 2026-10-28T14:25:58Z; original `tmp/evidence/gokrazy-l2tp-ppp-3417732332/ze.img` |
+| Peer and namespace | xl2tpd 1.3.18; `ze-gokrazy-lac-3723203` |
+| PPP addresses | LNS 10.100.0.1, peer 10.100.0.2 |
+| Reported interfaces | Appliance JSON value `ppp0\r`, peer `ppp0`; raw carriage return preserved in the receipt |
+| Teardown console | Subscriber route withdrawn, pool address released and kernel tunnel 1702 deleted at 15:04:10 UTC |
+| Host firewall afterward | UFW active; the same 16 baseline INPUT rules, no lab bridge INPUT or forwarding rule |
+
+The producing path is `gokrazyL2TP.observe` in
+`internal/le/test/deployment/gokrazyl2tp.go`. It sets `Proven` only after
+`assertKernelState` verifies the peer interface and addresses and runs two
+dataplane pings through PPP, then observes subscriber-route withdrawal and
+calls `awaitTeardown`. `teardownSettled` in
+`internal/le/test/deployment/pppstate.go` requires the peer's PPP links and
+L2TP state to match their pre-session baseline.
+
+The user supplied this evidence; the agent did not repeat the privileged
+run. The machine-readable transcription is retained at
+`tmp/session/2026-10-28-30667194-e251-46e5-93e8-56ed151de886/scratch/l2tp-owner-pass.json`.
+The same guest failed before the bridge fix and passed after it, without
+changing assertions. This clears the L2TP runtime blocker, not IPv6CP,
+authentication, throughput, full RFC coverage or committed-tree verification.
+
+## Blocker
+
+The independent final closure phase could not start. Both
+`ApplianceL2TPClose` and `L2TPClosureResume` failed in the reviewer service
+before reading or editing the spec; neither produced a closure verdict.
+The earlier independent bridge-patch review remains valid, but is not a
+new review of every spec closure criterion. Resume `ze-close` with an
+available independent worker, use the passing receipt above without
+rerunning it, and record the final review before deleting this spec.
+No further owner-run privileged L2TP proof is owed.
 
 ## Owned journal rows
 
