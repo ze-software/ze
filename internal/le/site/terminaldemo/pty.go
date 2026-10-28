@@ -851,13 +851,20 @@ func (session *tapeSession) send(data []byte) error {
 	}
 	return session.pump(session.typing)
 }
+
+// typeText types text one key at a time, then lets the program finish
+// painting it before the next action. A full-screen program such as the ze
+// editor paints on its own frame tick, so a key that lands less than a frame
+// before Enter is never drawn: Enter clears the line first, and the viewer
+// sees the command without its last letter. Settling until the output goes
+// quiet records the frame that shows the whole command.
 func (session *tapeSession) typeText(text string) error {
 	for _, character := range text {
 		if err := session.send([]byte(string(character))); err != nil {
 			return err
 		}
 	}
-	return nil
+	return session.settle()
 }
 
 func driveTape(tape terminalTape, output string, columns, rows int) (*castWriter, error) {

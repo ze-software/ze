@@ -44,6 +44,13 @@ sleeps only where a screen needs longer. Nothing is held while the recording is
 hidden.
 <!-- source: internal/le/site/terminaldemo/tapehold.go -- resultHold, outerCardHold, holdResult, awaitReading -->
 
+A typed command is on screen whole before Enter runs it. The ze editor paints
+on its own frame tick, so a last letter typed less than a frame before Enter
+was never drawn, and the transcript check refused the recording because no
+viewer saw the command. After the last key of a `Type`, the recorder waits
+until the program's output goes quiet, then sends the next action.
+<!-- source: internal/le/site/terminaldemo/pty.go -- tapeSession.typeText, tapeSession.settle -->
+
 Two checks hold a tape to this. The recorder refuses a tape that loads a
 section with no `Card` since the previous section load, and a `Card` between
 `Hide` and `Show`, where nobody would see it. A unit test refuses a topic whose
