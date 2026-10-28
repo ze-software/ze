@@ -455,17 +455,24 @@ failure the requirement exists to prevent.
 
 **`verify -> execute -> commit` with rollback, not best-effort apply.** A later
 operation-commit failure still reverses every successfully applied operation.
-The coordinator first restores coarse section-owned configuration, including
-filter definitions, then replays operation journals in reverse actual apply
-order. Each inverse keeps the original transaction ID and captured owner
-lifetime. Undo attempts continue after an error, preserving all errors, under
-a fresh rollback budget rather than the expired apply deadline.
+The coordinator first replays operation journals in reverse actual apply order,
+then restores coarse section-owned configuration. A service installer may bind
+to an interface that an original inverse recreates, so section restoration cannot
+be a blanket prerequisite for operation undo. Each inverse keeps the original
+transaction ID and captured owner lifetime. Undo attempts continue after an
+error, preserving all errors, under a fresh rollback budget rather than the
+expired apply deadline; section restoration shares that bounded context.
+
+Source eligibility and advertisement restoration are separate from generic
+infrastructure undo. Their source lifecycle must keep visibility fenced until
+old filters have been restored and acknowledged; generic rollback ordering does
+not supply that lifecycle.
 
 BGP and interface journals remain reversible through the outer hub reload:
-operation commit does not discard them. Whole-reload rejection restores the
-sections and then invokes the original inverses; acceptance uses acknowledged
-`config-complete` callbacks after durable publication. A cleanup failure there
-reports that the candidate is active, never that it rolled back.
+operation commit does not discard them. Whole-reload rejection invokes the
+original inverses before restoring dependent sections; acceptance uses
+acknowledged `config-complete` callbacks after durable publication. A cleanup
+failure there reports that the candidate is active, never that it rolled back.
 <!-- source: internal/component/config/transaction/orchestrator.go -- runOperationPath -->
 <!-- source: internal/component/config/transaction/executor.go -- rollbackApplied -->
 <!-- source: internal/component/plugin/server/reload_compensation.go -- rollbackOperations -->

@@ -559,6 +559,8 @@ func TestReloadCompletionRejectsInFlightReplacement(t *testing.T) {
 	for _, replaceProcess := range []bool{false, true} {
 		t.Run(fmt.Sprintf("process=%t", replaceProcess), func(t *testing.T) {
 			s, spawner := newLifecycleStartupServer(t)
+			require.NoError(t, spawner.SpawnMore(nil))
+			s.procManager.Store(spawner.pm)
 			const name, txID = "inflight-completion", "captured-transaction"
 			original := process.NewProcess(plugin.PluginConfig{Name: name})
 			original.SetRegistration(&plugin.PluginRegistration{ConfigCompletion: true})
@@ -614,6 +616,159 @@ func TestReloadCompletionRejectsInFlightReplacement(t *testing.T) {
 				t.Fatal("completion was redirected to a successor")
 			default:
 			}
+		})
+	}
+}
+
+// Removed infrastructure has no live original journal. Its acknowledged
+// recovery must recreate the prerequisite before a retained dependent undoes.
+func TestReloadRecoversRemovedInfrastructureBeforeOriginalUndo(t *testing.T) {
+	for _, wire := range []bool{false, true} {
+		t.Run(fmt.Sprintf("wire=%t", wire), func(t *testing.T) {
+			snapshot := registry.Snapshot()
+			registry.Reset()
+			t.Cleanup(func() { registry.Restore(snapshot) })
+			const infrastructure, dependent = "removed-infrastructure", "retained-dependent"
+			oldTree := map[string]any{
+				infrastructure: map[string]any{"enabled": true},
+				dependent: map[string]any{"value": "old"},
+			}
+			candidate := map[string]any{dependent: map[string]any{"value": "new"}}
+			s, spawner := newLifecycleStartupServer(t)
+			r := &removalRecoveryReactor{tree: oldTree}
+			s.reactor = r
+			var present atomic.Bool
+			var runtime atomic.Int64
+			var infrastructureStarts, dependentDecompositions, dependentUndos atomic.Int64
+			for _, name := range []string{infrastructure, dependent} {
+				require.NoError(t, registry.Register(registry.Registration{
+					Name: name, Description: "removed prerequisite and retained dependent",
+					ConfigRoots: []string{name},
+					CLIHandler: func([]string) int { return 0 },
+					RunEngine: func(conn net.Conn) int {
+						if wire {
+							conn = struct{ net.Conn }{conn}
+						}
+						p := sdk.NewWithConn(name, conn)
+						if name == infrastructure {
+							infrastructureStarts.Add(1)
+						}
+						var enabled bool
+						stage := func(sections []sdk.ConfigSection) error {
+							for _, section := range sections {
+								var decoded map[string]struct{ Enabled bool }
+								if err := json.Unmarshal([]byte(section.Data), &decoded); err != nil {
+									return err
+								}
+								enabled = decoded[name].Enabled
+							}
+							return nil
+						}
+						p.OnConfigure(func(sections []sdk.ConfigSection) error {
+							if err := stage(sections); err != nil {
+								return err
+							}
+							if name == infrastructure {
+								present.Store(enabled)
+							} else {
+								runtime.Store(73)
+							}
+							return nil
+						})
+						p.OnConfigVerify(stage)
+						p.OnConfigApply(func([]sdk.ConfigDiffSection) error {
+							return errors.New("removed prerequisite fixture requires declared operations")
+						})
+						p.OnConfigOperationDecompose(func(sdk.ConfigOperationDecomposeInput) (*sdk.ConfigOperationDecomposeOutput, error) {
+							if name == dependent {
+								dependentDecompositions.Add(1)
+							}
+							return &sdk.ConfigOperationDecomposeOutput{Operations: []sdk.ConfigOperation{{
+								ID: name + "-original", Root: name, Owner: name, Type: testOpSetProperty,
+								Verb: transaction.VerbModify, Target: transaction.ResourceRef{Kind: testResourceSysctl, Name: name},
+							}}}, nil
+						})
+						journals := make(map[string]*sdk.Journal)
+						p.OnConfigOperationVerify(func(sdk.ConfigOperationVerifyInput) error { return nil })
+						p.OnConfigOperationApply(func(input sdk.ConfigOperationApplyInput) (*sdk.ConfigOperationApplyOutput, error) {
+							j := sdk.NewJournal()
+							var err error
+							if name == infrastructure {
+								before := present.Load()
+								err = j.Record(func() error { present.Store(enabled); return nil }, func() error { present.Store(before); return nil })
+							} else {
+								before := runtime.Load()
+								err = j.Record(func() error { runtime.Store(99); return nil }, func() error { runtime.Store(before); return nil })
+							}
+							if err != nil {
+								return nil, err
+							}
+							journals[input.TransactionID] = j
+							return nil, nil
+						})
+						p.OnConfigOperationRollback(func(input sdk.ConfigOperationRollbackInput) error {
+							j := journals[input.TransactionID]
+							if j == nil || len(input.Operations) != 1 || input.Operations[0].ID != name+"-original" {
+								return errors.New("undo did not address the original journal and operation token")
+							}
+							if name == dependent {
+								if !present.Load() {
+									return errors.New("removed infrastructure is absent during retained dependent undo")
+								}
+								dependentUndos.Add(1)
+							}
+							delete(journals, input.TransactionID)
+							return errors.Join(j.Rollback()...)
+						})
+						p.OnConfigOperationCommit(func(sdk.ConfigOperationCommitInput) error { return nil })
+						p.OnConfigComplete(func(_ context.Context, input sdk.ConfigCompleteInput) error {
+							if j := journals[input.TransactionID]; j != nil {
+								if !input.Accepted {
+									return errors.New("rejected completion preceded original undo")
+								}
+								j.Discard()
+								delete(journals, input.TransactionID)
+							}
+							return nil
+						})
+						p.OnBye(func(string) error {
+							if name == infrastructure {
+								present.Store(false)
+							}
+							return nil
+						})
+						defer p.Close()
+						if err := p.Run(s.Context(), &sdk.Registration{
+							WantsConfig: []string{name},
+							ConfigOperations: []sdk.ConfigOperationDecl{{Root: name, Decompose: true, Operations: []sdk.ConfigOperationType{testOpSetProperty}}},
+						}); err != nil {
+							return 1
+						}
+						return 0
+					},
+				}))
+			}
+			require.NoError(t, s.runPluginPhase([]plugin.PluginConfig{
+				{Name: infrastructure, Internal: true, Encoder: plugin.EncodingJSON},
+				{Name: dependent, Internal: true, Encoder: plugin.EncodingJSON},
+			}))
+			oldInfrastructure := spawner.pm.GetProcess(infrastructure)
+			originalDependent := spawner.pm.GetProcess(dependent)
+			require.True(t, present.Load())
+			ctx, finish := s.DeferReloadAcceptance(t.Context())
+			require.NoError(t, s.ReloadConfig(ctx, candidate))
+			require.False(t, present.Load())
+			require.Nil(t, spawner.pm.GetProcess(infrastructure), "infrastructure removal must be acknowledged before rejection")
+			require.Equal(t, int64(99), runtime.Load())
+			require.NoError(t, finish(false))
+			require.True(t, present.Load(), "removed prerequisite must be recovered from the old configuration")
+			require.Equal(t, int64(73), runtime.Load(), "retained dependent must replay its original journal")
+			require.Equal(t, int64(1), dependentUndos.Load())
+			require.Equal(t, int64(1), dependentDecompositions.Load(), "retained owner must not reconstruct a fresh inverse transaction")
+			require.Equal(t, int64(2), infrastructureStarts.Load())
+			require.NotSame(t, oldInfrastructure, spawner.pm.GetProcess(infrastructure))
+			require.Same(t, originalDependent, spawner.pm.GetProcess(dependent))
+			require.Equal(t, oldTree, r.GetConfigTree())
 		})
 	}
 }

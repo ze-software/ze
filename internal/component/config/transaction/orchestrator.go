@@ -600,7 +600,7 @@ func (o *TxCoordinator) runOperationPath(ctx context.Context, ops []ConfigOperat
 	o.mu.Unlock()
 	executor.SetDeadlineMS(time.Now().Add(deadline).UnixMilli())
 	executor.SetRollbackBudget(o.computeRollbackDeadline())
-	executor.beforeRollback = o.restoreSectionsBeforeOperationUndo
+	executor.afterRollback = o.restoreSectionsAfterOperationUndo
 	if err := executor.Verify(ctx, sorted); err != nil {
 		if canceledByShutdown(ctx) {
 			return o.abortForShutdown("operation verify", err)
@@ -841,32 +841,12 @@ func (o *TxCoordinator) rollBack(ctx context.Context, err error) *TxResult {
 	return &TxResult{State: StateRolledBack, Err: fmt.Errorf("%w\n%s", err, o.rollbackOutcome())}
 }
 
-// Operation undo may republish source state. It MUST follow acknowledged
-// restoration of section-owned filters, including a successful owner restart.
-func (o *TxCoordinator) restoreSectionsBeforeOperationUndo(ctx context.Context, cause error) (error, bool) {
-	result := o.rollBack(ctx, cause)
-	o.mu.Lock()
-	defer o.mu.Unlock()
-	for _, participant := range o.participants {
-		ack, answered := o.rollbackAcks[participant.Name]
-		if !answered {
-			return result.Err, false
-		}
-		if ack.Code == CodeOK {
-			continue
-		}
-		if ack.Code != CodeBroken {
-			return result.Err, false
-		}
-		restartErr, restarted := o.rollbackRestarts[participant.Name]
-		if !restarted {
-			return result.Err, false
-		}
-		if restartErr != nil {
-			return result.Err, false
-		}
-	}
-	return result.Err, true
+// The executor MUST finish original operation undo before restoring sections,
+// whose installers may require infrastructure recreated by those inverses.
+// Source eligibility is a separate lifecycle obligation: its owner MUST keep
+// visibility fenced until old filters have been restored and acknowledged.
+func (o *TxCoordinator) restoreSectionsAfterOperationUndo(ctx context.Context, cause error) error {
+	return o.rollBack(ctx, cause).Err
 }
 
 // rollbackOutcome says, in the participants' order, what the rollback did

@@ -16,6 +16,10 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
+// Only reconstruction carries this set. Retained owners replay their original
+// journals; their declared roots MUST NOT be decomposed into new inverse work.
+type retainedOperationRootsKey struct{}
+
 // Keep the first tree and last applied tree of a whole reload. The hub may
 // already have reversed its candidate before it rejects the outer scope.
 type reloadCompensation struct {
@@ -161,6 +165,15 @@ func (s *Server) restoreReload(pending *reloadAcceptance, undo *reloadCompensati
 		s.txLock.configTransactions = maps.Clone(undo.beforeTransactions)
 		return errors.Join(pending.rollbackOperations(pending.lifetime), pending.completeBatchesBounded(false))
 	}
+	if !undo.operationsRestored {
+		// Restore infrastructure before restarting services that depend on it.
+		// Source eligibility MUST remain held by its own lifecycle until section
+		// restoration acknowledges the old filters.
+		if err := pending.rollbackOperations(pending.lifetime); err != nil {
+			return err
+		}
+		undo.operationsRestored = true
+	}
 	if undo.restored == nil {
 		restoreCtx, _ := s.DeferReloadAcceptance(pending.lifetime)
 		restoring, _ := restoreCtx.Value(reloadAcceptanceKey{}).(*reloadAcceptance)
@@ -183,8 +196,12 @@ func (s *Server) restoreReload(pending *reloadAcceptance, undo *reloadCompensati
 		var affected []affectedPlugin
 		pm := s.procManager.Load()
 		operationOwners := pending.operationOwners()
+		retainedRoots := make(map[string]bool)
 		for _, participant := range undo.affected {
 			if operationOwners[participant.proc.Name()] {
+				for _, decl := range participant.proc.Registration().ConfigOperations {
+					retainedRoots[decl.Root] = true
+				}
 				continue
 			}
 			current := participant.proc
@@ -204,16 +221,11 @@ func (s *Server) restoreReload(pending *reloadAcceptance, undo *reloadCompensati
 			participant.sections = sections
 			affected = append(affected, participant)
 		}
+		restoreCtx = context.WithValue(restoreCtx, retainedOperationRootsKey{}, retainedRoots)
 		if err := s.runTxCoordinator(restoreCtx, affected, diff, undo.after, undo.before); err != nil {
 			return errors.Join(err, restoring.finishWithLock(false, false))
 		}
 		undo.restored, _ = restoreCtx.Value(reloadAcceptanceKey{}).(*reloadAcceptance)
-	}
-	if !undo.operationsRestored {
-		if err := pending.rollbackOperations(pending.lifetime); err != nil {
-			return err
-		}
-		undo.operationsRestored = true
 	}
 	if !undo.reactorRestored {
 		// Before the reconcile, which removes a running peer the file lacks

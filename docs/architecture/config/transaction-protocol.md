@@ -278,7 +278,7 @@ finalization events:
 | Outcome | Action | Event |
 |---------|--------|-------|
 | All plugins applied | Engine emits `(config, committed)`; `config-committed` closes the SDK's section-apply rollback gate. Operation owners retain their undo. The hub promotes the staged candidate, then waits for declared `config-complete` callbacks before reporting acceptance. | `(config, accepted)` remains the notification for existing retirement consumers, not a completion receipt. |
-| Runtime applied, pointer promotion fails | The hub restores section-owned configuration and filters, then replays the original operation journals in reverse applied order. It returns publication and compensation errors together. | A durable explicit-file intent preserves unfinished publication for recovery. |
+| Runtime applied, pointer promotion fails | The hub replays original operation journals in reverse applied order before reconstructing section-owned services that depend on that infrastructure. It returns publication and compensation errors together. | A durable explicit-file intent preserves unfinished publication for recovery. |
 | Rollback occurred | Config file untouched, engine emits `(config, rolled-back)`. | File still matches pre-transaction runtime. |
 
 Plugin apply completes the coordinator's transaction. The production hub still
@@ -300,14 +300,26 @@ and actual applied operation order. Completion never looks up a replacement
 process and sends it the old transaction. Its request carries `transaction-id`,
 `accepted` and an absolute `deadline-ms`; its receipt must echo the transaction
 and decision and say `status: ok`. Both DirectBridge and the external RPC path
-wait for the handler to return. Queue admission is not a receipt.
+wait for the handler to return. Queue admission is not a receipt. The server
+checks the captured process and connection both before dispatch and after a
+successful callback: an in-flight replacement invalidates that receipt rather
+than certifying the successor or redirecting the old transaction to it.
 
 Operation commit is reversible. BGP and interface owners keep their journals
 through later owners' commit callbacks and outer publication. `AbortReload`
-restores section-owned configuration first, then uses the original operation
-tokens rather than decomposing an inverse BGP/interface transaction. Operation
-undo runs in reverse actual apply order and attempts earlier inverses even after
-one fails. Its budget is fresh (three times the transaction apply budget, or
+replays original operation tokens before reconstructing section-owned services,
+so their infrastructure is restored before they restart. Reconstruction keeps
+the full inverse diff, but skips decomposition of roots declared by retained
+operation owners: those roots have already been undone from their original
+journals. Acknowledged removed owners have no retained journal and remain
+eligible for normal reconstruction. This is not a general exemption from
+operation declaration validation, nor a fresh inverse BGP/interface transaction.
+Operation undo runs in reverse actual apply order and attempts earlier inverses
+even after one fails. A session-bound source lifecycle MUST retain admission,
+epochs and pins through both infrastructure undo and section restoration, and
+MUST restore source eligibility only after old-filter restoration is
+acknowledged; generic operation undo does not provide that source barrier.
+Its budget is fresh (three times the transaction apply budget, or
 90 seconds without one), not the expired apply deadline. Whole-reload
 compensation and completion use bounded 90-second intervals tied to the captured
 server lifetime. A session-bound source transaction MUST cap the whole reload,
@@ -1391,9 +1403,11 @@ handles any remaining state.
 ### Operation commit
 
 After all operations execute and settle successfully, the executor sends a commit
-event per unique owner via `(config, operation-commit-<owner>)`. This tells each
-owner to finalize its per-operation journals. The orchestrator then emits the
-standard `(config, committed)` broadcast for the full transaction.
+event per unique owner via `(config, operation-commit-<owner>)`. Owners MUST
+retain their original per-operation journals through this reversible commit and
+the later whole-reload decision. The orchestrator then emits the standard
+`(config, committed)` broadcast. Matching accepted `config-complete`, not inner
+commit, permits journal release.
 
 ### Operation event types
 
@@ -1415,7 +1429,7 @@ transaction events. They are defined in
 | `operation-rollback-<plugin>` | Engine -> plugin | Roll back one or more operations |
 | `operation-rollback-ok` | Plugin -> engine | Operation rollback succeeded |
 | `operation-rollback-failed` | Plugin -> engine | Operation rollback failed |
-| `operation-commit-<plugin>` | Engine -> plugin | Finalize operation journals |
+| `operation-commit-<plugin>` | Engine -> plugin | Commit operations while retaining original undo until whole-reload completion |
 | `operation-commit-ok` | Plugin -> engine | Operation commit succeeded |
 | `operation-commit-failed` | Plugin -> engine | Operation commit failed |
 
@@ -1453,7 +1467,7 @@ say what each phase does with and without one:
 | Operation verify | Skipped | Per-operation verify in sorted order, decomposed operations only |
 | Apply (Phase 2) | Full-diff broadcast to all plugins | Per-operation apply in sorted order with settlement; a coarse node takes the participant's section apply |
 | Commit | `(config, committed)` broadcast | Per-owner `operation-commit` for decomposed owners, then `(config, committed)` broadcast |
-| Rollback (Phase 3) | `(config, rollback)` broadcast | Restore section/filter configuration first, then undo decomposed operations in reverse applied order under a fresh rollback budget |
+| Rollback (Phase 3) | `(config, rollback)` broadcast | Undo original decomposed operations in reverse applied order, then restore dependent coarse sections; both use the fresh bounded rollback context, preserving inverse and section failures |
 | Inner result | `(config, applied)` or `(config, rolled-back)` | Same result notifications; successful operation journals remain reversible |
 | Whole-reload acceptance | Existing retirement notifications | Acknowledged `config-complete` for declared owners, then existing retirement notifications |
 <!-- source: internal/component/config/transaction/orchestrator.go -- runOperationPath -->

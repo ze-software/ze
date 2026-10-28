@@ -480,37 +480,39 @@ func TestOperationRollbackOrderBudgetAndErrors(t *testing.T) {
 	require.Equal(t, []string{"a-last", "b-middle", "a-first"}, restored)
 }
 
-func TestOperationRollbackRequiresRestoredSections(t *testing.T) {
+func TestOperationRollbackRestoresSectionsAfterUndo(t *testing.T) {
 	for _, restored := range []bool{false, true} {
 		t.Run(fmt.Sprintf("restored=%t", restored), func(t *testing.T) {
 			gateway := newTestGateway()
 			executor := NewOperationExecutor(gateway, "original")
 			executor.SetRollbackBudget(time.Second)
-			prerequisiteCalled := false
-			sectionErr := errors.New("section restore failed")
-			executor.beforeRollback = func(ctx context.Context, cause error) (error, bool) {
-				require.NoError(t, ctx.Err())
-				prerequisiteCalled = true
-				if !restored {
-					return errors.Join(cause, sectionErr), false
-				}
-				return cause, true
-			}
+			sectionsCalled := false
 			undone := false
-			gateway.SubscribeConfigEvent(EventOperationRollbackFor("source"), func(payload []byte) {
-				require.True(t, prerequisiteCalled)
+			sectionErr := errors.New("section restore failed")
+			executor.afterRollback = func(ctx context.Context, cause error) error {
+				require.NoError(t, ctx.Err())
+				require.True(t, undone, "restore infrastructure before dependent sections")
+				sectionsCalled = true
+				if !restored {
+					return errors.Join(cause, sectionErr)
+				}
+				return cause
+			}
+			gateway.SubscribeConfigEvent(EventOperationRollbackFor("infrastructure"), func(payload []byte) {
+				require.False(t, sectionsCalled)
 				undone = true
 				var event ConfigOperationRollbackEvent
 				require.NoError(t, json.Unmarshal(payload, &event))
 				raw, err := json.Marshal(ConfigOperationRollbackAck{
-					TransactionID: event.TransactionID, Plugin: "source", OperationID: "source-change", Status: CodeOK,
+					TransactionID: event.TransactionID, Plugin: "infrastructure", OperationID: "infrastructure-change", Status: CodeOK,
 				})
 				require.NoError(t, err)
 				gateway.mustEmit(EventOperationRollbackOK, raw)
 			})
-			err := executor.Rollback(t.Context(), []ConfigOperation{{ID: "source-change", Owner: "source"}}, context.DeadlineExceeded)
+			err := executor.Rollback(t.Context(), []ConfigOperation{{ID: "infrastructure-change", Owner: "infrastructure"}}, context.DeadlineExceeded)
 			require.ErrorIs(t, err, context.DeadlineExceeded)
-			require.Equal(t, restored, undone)
+			require.True(t, undone)
+			require.True(t, sectionsCalled)
 			if !restored {
 				require.ErrorIs(t, err, sectionErr)
 			}

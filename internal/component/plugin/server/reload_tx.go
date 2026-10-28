@@ -222,6 +222,9 @@ func (a *reloadAcceptance) completeBatches(ctx context.Context, accepted bool) e
 					err = participant.conn.SendConfigComplete(ctx, &rpc.ConfigCompleteInput{
 						TransactionID: batch.txID, Accepted: accepted, DeadlineMS: deadline.UnixMilli(),
 					})
+					if err == nil && !participant.current(a.server) {
+						err = fmt.Errorf("captured process lifetime ended")
+					}
 				}
 				if err != nil {
 					batch.err = errors.Join(batch.err, fmt.Errorf("owner %s transaction %s: %w", name, batch.txID, err))
@@ -484,8 +487,12 @@ type operationPlan struct {
 // binder whose own config did not change while the address it binds moves, and
 // the caller passes a root of that shape only once an address is disturbed.
 func (p *operationPlan) decomposeRoots(ctx context.Context, roots, disturbed []string) ([]transaction.ConfigOperation, error) {
+	retainedRoots, _ := ctx.Value(retainedOperationRootsKey{}).(map[string]bool)
 	var operations []transaction.ConfigOperation
 	for _, root := range roots {
+		if retainedRoots[root] {
+			continue
+		}
 		decomposer, _ := transaction.OperationDecomposerFor(root)
 		activeRoot, err := marshalOperationRoot(p.runningTree, root)
 		if err != nil {

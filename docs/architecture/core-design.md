@@ -2506,13 +2506,19 @@ transaction. SIGHUP queued and replayed after completion.
 Plugin SDK provides a `Journal` for rollback: `Record(apply, undo)` during apply
 and `Rollback()` to replay undos in reverse. BGP and interface operation owners
 retain journals through operation commit and outer publication. On outer
-rejection, section/filter configuration is restored first, then the original
-operation tokens are undone in reverse applied order under a fresh budget.
+rejection, original operation tokens are undone in reverse applied order under a
+fresh budget before dependent section-owned services are reconstructed.
+Reconstruction retains the full diff but excludes retained owners' declared
+operation roots; acknowledged removed owners still use normal reconstruction.
+A session-bound source lifecycle MUST hold admission, epochs and pins through
+both steps and republish eligibility only after old filters are acknowledged.
+Generic infrastructure rollback does not supply that source barrier.
 `OnConfigComplete` acknowledges undo release after the irreversible accepted
-decision. Captured process and connection identities prevent a successor from
-receiving an old completion; completed duplicate calls return the recorded
-outcome, and concurrent receipt waits are bounded. The existing accepted event
-is a notification, not that receipt.
+decision. Captured process and connection identities are checked before dispatch
+and after a successful callback, so in-flight replacement invalidates the
+receipt and no successor receives an old completion. Completed duplicate calls
+return the recorded outcome, and concurrent receipt waits are bounded. The
+existing accepted event is a notification, not that receipt.
 <!-- source: internal/component/plugin/server/reload_tx.go -- DeferReloadAcceptance, completeBatches -->
 <!-- source: internal/component/plugin/server/reload_compensation.go -- rollbackOperations -->
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnConfigComplete -->

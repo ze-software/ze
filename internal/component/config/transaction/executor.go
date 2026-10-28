@@ -25,8 +25,8 @@ type OperationExecutor struct {
 	deadlineMS     int64
 	rollbackBudget time.Duration
 	sectionDiffs   SectionDiffs
-	// The coordinator restores section-owned filters before operation undo.
-	beforeRollback func(context.Context, error) (error, bool)
+	// The coordinator restores dependent sections after infrastructure undo.
+	afterRollback func(context.Context, error) error
 }
 
 // NewOperationExecutor creates an executor for one transaction.
@@ -299,21 +299,11 @@ func (e *OperationExecutor) rollbackApplied(ctx context.Context, executed []Conf
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), budget)
 	defer cancel()
 	deadline, _ := ctx.Deadline()
-	if e.beforeRollback != nil {
-		var restored bool
-		cause, restored = e.beforeRollback(ctx, cause)
-		if !restored {
-			return cause
-		}
-	}
 	for i := len(executed) - 1; i >= 0; i-- {
 		op := &executed[i]
-		// The inverse of a section apply is the section rollback, and that one
-		// is transaction-wide: the orchestrator publishes EventRollback to
-		// every participant when Execute returns this error, and the bridge
-		// turns it into one `config-rollback` per plugin. Emitting a
-		// per-operation rollback here would reach a callback the participant
-		// does not implement.
+		// Coarse sections have no per-operation inverse. The coordinator MUST
+		// restore them after original operation undo: an installer may bind
+		// to an interface that an inverse recreates.
 		if IsSectionApply(op) {
 			continue
 		}
@@ -335,6 +325,9 @@ func (e *OperationExecutor) rollbackApplied(ctx context.Context, executed []Conf
 		if filter != nil {
 			filter.clear()
 		}
+	}
+	if e.afterRollback != nil {
+		return e.afterRollback(ctx, cause)
 	}
 	return cause
 }
