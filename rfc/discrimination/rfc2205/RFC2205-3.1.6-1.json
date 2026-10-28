@@ -7,8 +7,8 @@
     "claim-sha": "37cfeec609b806c4",
     "route": "revert",
     "producer": "internal/plugins/rsvpte/reservation.go::handleResvTear",
-    "producer-sha": "8e5ad9b57ffef3db",
-    "break": "body of handleResvTear replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "6c0302394a06df97",
+    "break": "body of handleResvTear replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2205-3.1.6-1",
@@ -18,7 +18,7 @@
     "claim-sha": "d7a3a33d7ca7d097",
     "route": "revert",
     "producer": "internal/plugins/rsvpte/reservation.go::handleResvTear",
-    "producer-sha": "8e5ad9b57ffef3db",
-    "break": "body of handleResvTear replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "6c0302394a06df97",
+    "break": "body of handleResvTear replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

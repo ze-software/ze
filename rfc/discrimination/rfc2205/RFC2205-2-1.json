@@ -7,8 +7,8 @@
     "claim-sha": "8e26b296cb084e1b",
     "route": "revert",
     "producer": "internal/plugins/rsvpte/engine.go::handlePathEgress",
-    "producer-sha": "69edc65089534730",
-    "break": "body of handlePathEgress replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "2df4c04fc0391c1d",
+    "break": "body of handlePathEgress replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2205-2-1",
@@ -18,7 +18,7 @@
     "claim-sha": "60020cfea356a405",
     "route": "mutant",
     "producer": "internal/plugins/rsvpte/reservation.go::acceptReservation",
-    "producer-sha": "be57c2a7bd537cdc",
+    "producer-sha": "8efe1fc4087a4948",
     "break": "line 107: \"e.rejectReservation(src, msg, \u0026failed, e.missingSenderCode(msg.Session), 0, false)\" -\u003e \"e.transport.Send(filter.Filter.SenderAddr, buildResv(\u0026resvStateBlock{Session: msg.Session, Style: msg.Style, FlowSpec: descriptor.FlowSpec, Label: filter.Label}, filter.Filter, e.cfg().RefreshPeriod, e.cfg().RouterID))\""
   },
   {
@@ -29,8 +29,8 @@
     "claim-sha": "346b0bb96352b658",
     "route": "revert",
     "producer": "internal/plugins/rsvpte/engine.go::sendResv",
-    "producer-sha": "5780f6a886b291ae",
-    "break": "body of sendResv replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "8b86f044fcfb8495",
+    "break": "body of sendResv replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2205-2-1",
@@ -40,7 +40,7 @@
     "claim-sha": "1aa49eec444244ef",
     "route": "revert",
     "producer": "internal/plugins/rsvpte/engine.go::handlePathEgress",
-    "producer-sha": "69edc65089534730",
-    "break": "body of handlePathEgress replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "2df4c04fc0391c1d",
+    "break": "body of handlePathEgress replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

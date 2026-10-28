@@ -29,8 +29,8 @@
     "claim-sha": "77bca7252d90efd2",
     "route": "revert",
     "producer": "internal/plugins/rsvpte/engine.go::handlePathEgress",
-    "producer-sha": "69edc65089534730",
-    "break": "body of handlePathEgress replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "2df4c04fc0391c1d",
+    "break": "body of handlePathEgress replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2205-3.1.3-1",
@@ -51,8 +51,8 @@
     "claim-sha": "186310cf606045d5",
     "route": "revert",
     "producer": "internal/plugins/rsvpte/engine.go::handlePacket",
-    "producer-sha": "8294e45f506e924d",
-    "break": "body of handlePacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "07bc811b30fa4c27",
+    "break": "body of handlePacket replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2205-3.1.3-1",
@@ -62,7 +62,7 @@
     "claim-sha": "f3c577a30667cac2",
     "route": "revert",
     "producer": "internal/plugins/rsvpte/engine.go::handlePathEgress",
-    "producer-sha": "69edc65089534730",
-    "break": "body of handlePathEgress replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "2df4c04fc0391c1d",
+    "break": "body of handlePathEgress replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

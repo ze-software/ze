@@ -7,8 +7,8 @@
     "claim-sha": "4c2c2d6e471f1ac1",
     "route": "revert",
     "producer": "internal/plugins/rsvpte/engine.go::handlePathTear",
-    "producer-sha": "59b3b08faf6f7d2b",
-    "break": "body of handlePathTear replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "ce60d06c7f8341e3",
+    "break": "body of handlePathTear replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2205-3-12",
@@ -18,8 +18,8 @@
     "claim-sha": "377cc00a0546200c",
     "route": "revert",
     "producer": "internal/plugins/rsvpte/engine.go::handlePathTear",
-    "producer-sha": "59b3b08faf6f7d2b",
-    "break": "body of handlePathTear replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "ce60d06c7f8341e3",
+    "break": "body of handlePathTear replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2205-3-12",

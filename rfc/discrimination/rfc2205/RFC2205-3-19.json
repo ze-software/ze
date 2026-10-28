@@ -18,7 +18,7 @@
     "claim-sha": "eea0ec18ef919a6a",
     "route": "revert",
     "producer": "internal/plugins/rsvpte/reservation.go::handleResvErr",
-    "producer-sha": "d73b85dd41d9fd22",
-    "break": "body of handleResvErr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "545223a01ef7a887",
+    "break": "body of handleResvErr replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]
