@@ -1,11 +1,12 @@
-//go:build integration && linux
+//go:build linux
 
 // Design: docs/features/interfaces.md -- Router Advertisement sender (Linux)
 // Related: ra_integration_linux_test.go -- the veth fixture, capture and helpers these tests share.
 //
 // The RFC 4861 tagged integration tests of the sender: the source address of
 // an advertisement on the wire, and the answer to a solicitation sent to the
-// all-routers group. They run in the QEMU guest (ai/rules/platform-linux.md).
+// all-routers group. Each runs in its own user, network and mount namespaces.
+// They need no host privilege; refused setup fails the test.
 
 package ifacera
 
@@ -15,6 +16,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/ndp"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // TestRASenderWireFormat reads one advertisement off the wire and checks every
@@ -30,6 +32,9 @@ import (
 //
 // RFC requirement: RFC4861-4.2-1 positive -- the advertisement a sender started on a veth emits is received on the peer end with a link-local unicast source address.
 func TestRASenderWireFormat(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	const router, host = "zrb0", "zrb1"
 	withRAVeth(t, router, host, func() {
 		capture := openRACapture(t, host)
@@ -129,6 +134,9 @@ func TestRASenderWireFormat(t *testing.T) {
 //
 // RFC requirement: RFC4861-6.2.2-2 positive -- with IPv6 forwarding off on the advertising interface, so the kernel has not joined ff02::2 for it, a Router Solicitation sent to the all-routers address ff02::2 on that interface is answered with an advertisement, which reaches the sender only through the all-routers group it joined.
 func TestRASolicitedResponse(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	const router, host = "zrc0", "zrc1"
 	withRAVeth(t, router, host, func() {
 		requireRAForwardingOff(t, router)

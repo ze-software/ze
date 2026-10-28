@@ -1,4 +1,4 @@
-//go:build integration && linux
+//go:build linux
 
 // Design: docs/architecture/vrrp/vrrp-macvlan-vmac-dataplane.md -- the address owner's physical-MAC answers
 package vrrp
@@ -19,6 +19,7 @@ import (
 	"github.com/ze-software/ze/internal/component/iface"
 	_ "github.com/ze-software/ze/internal/plugins/firewall/nft" // registers the nft firewall backend
 	"github.com/ze-software/ze/internal/plugins/vrrp/packet"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // VALIDATES: the address owner's LAN answers carry only the virtual MAC.
@@ -39,6 +40,9 @@ import (
 // address on the parent (DAD on) both end up usable, neither tentative nor
 // failed.
 func TestVRRPOwnerAnswersWithVirtualMACOnly(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	// RFC requirement: RFC3768-8.2-1 positive -- with the owner filter applied, every ARP reply for the address owner's virtual address carries the virtual router MAC as sender hardware address, and none the parent's physical MAC (ownerARPReplyTerm ownerfilter.go).
 	// RFC requirement: RFC3768-8.2-1 negative -- control: without the filter the parent answers the same request with its physical MAC, and withdrawing the filter restores that answer (ownerFilterTables ownerfilter.go).
 	// RFC requirement: RFC5798-8.1.2-1 positive -- with the owner filter applied, the address owner's ARP replies carry only the virtual router MAC (ownerARPReplyTerm ownerfilter.go).

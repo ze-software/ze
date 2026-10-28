@@ -12,7 +12,7 @@
 // outbound policy never binds the OSPF flow to the AH transform leaves the local sender
 // with the unprotected MTU and every unit test still green.
 
-//go:build integration && linux
+//go:build linux
 
 package ospf
 
@@ -63,7 +63,7 @@ func pmtuLink(t *testing.T) {
 	const name = "zepmtu0"
 	link := &netlink.Veth{Name: name, PeerName: name + "p"}
 	if err := netlink.LinkAdd(link); err != nil {
-		t.Skipf("creating the veth pair needs CAP_NET_ADMIN: %v", err)
+		t.Fatalf("create veth pair inside the user namespace (CAP_NET_ADMIN): %v", err)
 	}
 	t.Cleanup(func() {
 		_ = netlink.LinkDel(link)
@@ -116,7 +116,7 @@ func ospfPathMTU(t *testing.T, dst netip.Addr) int {
 	}
 	fd, err := unix.Socket(unix.AF_INET6, unix.SOCK_RAW, int(ospfv3transport.Protocol))
 	if err != nil {
-		t.Skipf("a raw IPv6 OSPF socket needs CAP_NET_RAW: %v", err)
+		t.Fatalf("open raw IPv6 OSPF socket inside the user namespace (CAP_NET_RAW): %v", err)
 	}
 	defer func() { _ = unix.Close(fd) }()
 
@@ -147,6 +147,9 @@ func ospfPathMTU(t *testing.T, dst netip.Addr) int {
 // reports the unreduced MTU both times, so an installer that signals a smaller MTU when
 // no AH is configured fails here.
 func TestAHPathMTUIsSignaledToTheLocalSender(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	requireXFRM(t)
 	const spi = 0x4552c1
 	dst := netip.MustParseAddr("ff02::5")

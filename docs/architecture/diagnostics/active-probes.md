@@ -41,7 +41,9 @@ both the forwarding path and the return path, with valid controls for each
 discard condition, and checks reserved fields in emitted errors. RFC 1191
 assigns the next-hop MTU field, and RFC 4884 assigns the quoted-datagram length
 octet; these fields and Parameter Problem's pointer are excluded from the
-unused-bit check. These tests require Ze's runtime kernel under QEMU.
+unused-bit check. These tests run on Linux in private user/network namespaces
+and require the corresponding runtime-kernel features; QEMU remains a supported
+execution path.
 
 ## The Don't Fragment mode
 

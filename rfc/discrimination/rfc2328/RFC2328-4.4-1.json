@@ -25,22 +25,22 @@
     "rid": "RFC2328-4.4-1",
     "polarity": "negative",
     "unit": "internal/plugins/ospf/transport/rfc2328_transport_integration_linux_test.go::TestOSPFTransportAllDRoutersReceive",
-    "unit-sha": "ef6d98cf4176c0e4",
+    "unit-sha": "f0e6bda67b857079",
     "claim-sha": "b53cd731e3140e51",
     "route": "revert",
     "producer": "internal/plugins/ospf/transport/backend_linux.go::leaveGroup",
     "producer-sha": "05f13fb311bd27b9",
-    "break": "body of leaveGroup replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of leaveGroup replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2328-4.4-1",
     "polarity": "positive",
     "unit": "internal/plugins/ospf/transport/rfc2328_transport_integration_linux_test.go::TestOSPFTransportVethMulticastRoundTrip",
-    "unit-sha": "912dc70cf6c0619d",
+    "unit-sha": "9ac1153526c75fd0",
     "claim-sha": "af086876a33744e9",
     "route": "revert",
     "producer": "internal/plugins/ospf/transport/backend_linux.go::setMulticastOptions",
     "producer-sha": "57357c85c1ce52bc",
-    "break": "body of setMulticastOptions replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of setMulticastOptions replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

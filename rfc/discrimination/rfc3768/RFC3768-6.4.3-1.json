@@ -12,24 +12,24 @@
   },
   {
     "rid": "RFC3768-6.4.3-1",
-    "polarity": "negative",
-    "unit": "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly",
-    "unit-sha": "b700c87dc50de836",
-    "claim-sha": "fa8decb5f6a1232b",
-    "route": "revert",
-    "producer": "internal/plugins/vrrp/register.go::vipCIDRs",
-    "producer-sha": "eeae85e66629ec86",
-    "break": "body of vipCIDRs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-  },
-  {
-    "rid": "RFC3768-6.4.3-1",
     "polarity": "positive",
     "unit": "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly",
-    "unit-sha": "b700c87dc50de836",
+    "unit-sha": "83bb5cba69d51a45",
     "claim-sha": "3e66af195c31d22b",
     "route": "revert",
     "producer": "internal/plugins/vrrp/register.go::vipCIDRs",
     "producer-sha": "eeae85e66629ec86",
-    "break": "body of vipCIDRs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of vipCIDRs replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3768-6.4.3-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly",
+    "unit-sha": "83bb5cba69d51a45",
+    "claim-sha": "fa8decb5f6a1232b",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/register.go::vipCIDRs",
+    "producer-sha": "eeae85e66629ec86",
+    "break": "body of vipCIDRs replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

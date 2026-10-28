@@ -9,7 +9,7 @@
 // DHCPNAK while renewing, drops its client identifier on renewal, or keeps a
 // lease past its expiry.
 
-//go:build integration && linux
+//go:build linux
 
 package ifacedhcp
 
@@ -309,6 +309,9 @@ func lmIPv4Frame(source, target net.IP, payload []byte) []byte {
 // seconds, so the kernel removes the address unless each renewal refreshes
 // it; a DHCPDISCOVER at any point fails the test.
 func TestDHCPv4RenewsRepeatedlyOnVeth(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	lab := lmStart(t, dHCPConfig{})
 	lab.bind()
 
@@ -354,6 +357,9 @@ func TestDHCPv4NakOnRenewRestartsOnVeth(t *testing.T) {
 // checked, server B's ACK must hold the address past the first lease's
 // expiry, and the next RENEW must go to B.
 func TestDHCPv4RebindAcceptsAnyServerOnVeth(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	lab := lmStart(t, dHCPConfig{})
 	lab.neighbor(lmServerB)
 	bound := lab.bind()
@@ -403,6 +409,9 @@ func TestDHCPv4RebindAcceptsAnyServerOnVeth(t *testing.T) {
 // Method: the lab answers nothing, so the first REQUEST after the bound one
 // is the RENEWING transmission at T1.
 func TestDHCPv4RenewIsUnicastToServer(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	lab := lmStart(t, dHCPConfig{})
 	lab.bind()
 
@@ -433,6 +442,9 @@ func TestDHCPv4RenewIsUnicastToServer(t *testing.T) {
 // name. Method: the bound REQUEST's options 61 and 12 are compared byte for
 // byte with the RENEW's and, the RENEW left unanswered, the REBIND's.
 func TestDHCPv4RenewCarriesClientID(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	lab := lmStart(t, dHCPConfig{ClientID: "ze-lab-client", Hostname: "ze-lab"})
 	bound := lab.bind()
 
@@ -461,6 +473,9 @@ func TestDHCPv4RenewCarriesClientID(t *testing.T) {
 // Method: the RENEW and the REBIND, both left unanswered, are read and
 // checked against each echo.
 func TestDHCPv4ExtendIgnoresServerEchoesOnVeth(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	lab := lmStart(t, dHCPConfig{ClientID: "ze-lab-client"})
 	echoServer := net.IP{192, 0, 2, 9}
 	bound := lab.bind(
@@ -505,6 +520,9 @@ func TestDHCPv4ExtendIgnoresServerEchoesOnVeth(t *testing.T) {
 // nothing after. Method: the address and the default route must be there at
 // T2 and gone within a second of expiry, with a DHCPDISCOVER following.
 func TestDHCPv4ExpiresOnTimeOnVeth(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	lab := lmStart(t, dHCPConfig{})
 	bound := lab.bind(dhcpv4.WithOption(dhcpv4.OptRouter(sfServerIP)))
 	if !lab.hasDefaultRoute() {
@@ -538,6 +556,9 @@ func TestDHCPv4ExpiresOnTimeOnVeth(t *testing.T) {
 // another address. Method: the new address must be configured and the old
 // one removed.
 func TestDHCPv4RenewalMovesToNewAddressOnVeth(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	lab := lmStart(t, dHCPConfig{})
 	lab.bind()
 

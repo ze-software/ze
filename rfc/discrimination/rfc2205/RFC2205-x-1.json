@@ -25,11 +25,11 @@
     "rid": "RFC2205-x-1",
     "polarity": "positive",
     "unit": "internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage",
-    "unit-sha": "faf598686f36e2c5",
+    "unit-sha": "73d39c8ec447f1c2",
     "claim-sha": "a59e8056ba8f6084",
     "route": "revert",
     "producer": "internal/plugins/rsvpte/transport_linux.go::SendPath",
     "producer-sha": "5af4326f04682a71",
-    "break": "body of SendPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of SendPath replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

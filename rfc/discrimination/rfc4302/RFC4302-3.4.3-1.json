@@ -25,22 +25,22 @@
     "rid": "RFC4302-3.4.3-1",
     "polarity": "positive",
     "unit": "internal/plugins/ospf/rfc4302_ipsec_integration_linux_test.go::TestIPsecInstallerXFRMReplayWindow",
-    "unit-sha": "f64493fffbd0cce7",
+    "unit-sha": "888469fb40397faa",
     "claim-sha": "2a4dfd806024f167",
     "route": "revert",
     "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
     "producer-sha": "20b949de8627ad06",
-    "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC4302-3.4.3-1",
     "polarity": "negative",
     "unit": "internal/plugins/ospf/rfc4302_ipsec_integration_linux_test.go::TestIPsecInstallerXFRMReplayWindow",
-    "unit-sha": "f64493fffbd0cce7",
+    "unit-sha": "888469fb40397faa",
     "claim-sha": "70d435f16ff2e785",
     "route": "revert",
     "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
     "producer-sha": "20b949de8627ad06",
-    "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC2205-3-39",
+    "polarity": "positive",
+    "unit": "internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go::TestIntegrationRSVPPathAvoidsDataFEC",
+    "unit-sha": "e6519537625958eb",
+    "claim-sha": "9c6eddc3d98823b9",
+    "route": "mutant",
+    "producer": "internal/plugins/rsvpte/transport_linux.go::openSockets",
+    "producer-sha": "aa57fa280f8afd87",
+    "break": "line 83: \"unix.SetsockoptInt(fd, unix.IPPROTO_IP, unix.IP_ROUTER_ALERT, 1)\" -\u003e \"error(nil)\""
+  }
+]

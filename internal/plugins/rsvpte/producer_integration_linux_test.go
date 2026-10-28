@@ -8,14 +8,16 @@
 // not a computed TE path. All RSVP paths come from the configuration below.
 //
 // Prerequisites: a matching Linux Ze daemon passed with -rsvp-producer-daemon,
-// iproute2, CAP_SYS_ADMIN, CAP_NET_ADMIN, CAP_NET_RAW, and CONFIG_NET_NS,
+// iproute2 and CONFIG_NET_NS,
 // CONFIG_VETH, CONFIG_PACKET, CONFIG_IP_MULTIPLE_TABLES, CONFIG_MPLS_ROUTING and
 // CONFIG_MPLS_IPTUNNEL in Ze's runtime kernel. The daemon needs rsvp-te, ospf,
 // interface/netlink, fib-kernel, sysctl, SSH, and external SDK plugin support.
 // The test binary itself is its read-only external event observer; both binaries
-// MUST be accessible inside the guest. No test callback acknowledges a FIB write.
+// MUST be accessible inside the test namespace. userns.Enter supplies the
+// namespace capabilities; the explicit daemon prerequisite keeps integration.
+// No test callback acknowledges a FIB write.
 //
-// Run the compiled test in the runtime-kernel guest with:
+// Run the compiled test on a Linux host or in the runtime-kernel guest with:
 //
 //	rsvpte.test -test.v -test.run '^TestRSVPNativeProducer$' -test.timeout 4m \
 //	  -rsvp-producer-daemon /absolute/path/to/ze
@@ -53,6 +55,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/rtproto"
+	"github.com/ze-software/ze/internal/test/userns"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -139,6 +142,9 @@ type rsvpProducerObservation struct {
 // shared bus/native FIB acknowledgment, rejection, MPLS delivery, facility repair,
 // protected control traffic, isolated withdrawal, and daemon shutdown.
 func TestRSVPNativeProducer(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	lab := newRSVPProducerLab(t)
 	h, m, e := lab.head, lab.merge, lab.egress
 	for _, node := range lab.nodes {
@@ -418,7 +424,7 @@ func newRSVPProducerLab(t *testing.T) *rsvpProducerLab {
 		output, err := exec.CommandContext(createCtx, "ip", "netns", "add", node.name).CombinedOutput()
 		cancel()
 		if err != nil {
-			t.Skipf("network namespace creation requires CAP_SYS_ADMIN/CAP_NET_ADMIN: %v: %s", err, output)
+			t.Fatalf("create network namespace inside the user namespace: %v: %s", err, output)
 		}
 		t.Cleanup(func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)

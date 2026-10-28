@@ -3,11 +3,11 @@
     "rid": "RFC2131-3.6-1",
     "polarity": "positive",
     "unit": "internal/plugins/iface/dhcp/rfc2131_dhcp_multiiface_integration_linux_test.go::TestRFC2131ClientRunsDHCPOnEachInterfaceIndependently",
-    "unit-sha": "fec50e99d7841d4f",
+    "unit-sha": "22aa2c3250aae2a5",
     "claim-sha": "1128014dc76805d2",
     "route": "revert",
     "producer": "internal/plugins/iface/dhcp/dhcp_v4_linux.go::installV4Lease",
     "producer-sha": "7dad3ddc82f38b80",
-    "break": "body of installV4Lease replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of installV4Lease replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

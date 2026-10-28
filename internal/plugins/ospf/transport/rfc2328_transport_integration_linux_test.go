@@ -1,4 +1,4 @@
-//go:build integration && linux
+//go:build linux
 
 // Design: docs/architecture/ospf/ospf-3-ip-transport.md -- Linux raw OSPF multicast integration
 
@@ -51,8 +51,11 @@ func TestOSPFTransportRawSocketCap(t *testing.T) {
 // configured multicast egress and sends AllSPFRouters across a veth to a peer
 // namespace, whose OSPF socket receives the unchanged datagram.
 func TestOSPFTransportVethMulticastRoundTrip(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	if !rawSocketAvailable() {
-		t.Skip("CAP_NET_RAW unavailable")
+		t.Fatal("open a raw OSPF socket inside the user namespace (CAP_NET_RAW): refused")
 	}
 	loadIfaceBackend(t)
 	withVethPeerNamespace(t, func(lab ospfVethLab) {
@@ -101,8 +104,11 @@ func TestOSPFTransportVethMulticastRoundTrip(t *testing.T) {
 // AllDRouters, a datagram to that group is no longer delivered, with successful
 // receipt before leaving as the positive control over the same peer link.
 func TestOSPFTransportAllDRoutersReceive(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	if !rawSocketAvailable() {
-		t.Skip("CAP_NET_RAW unavailable")
+		t.Fatal("open a raw OSPF socket inside the user namespace (CAP_NET_RAW): refused")
 	}
 	loadIfaceBackend(t)
 	withVethPeerNamespace(t, func(lab ospfVethLab) {
@@ -203,14 +209,14 @@ func withVethPair(t *testing.T, cidrA, cidrB string, fn func(ospfVethLab)) {
 	origNS, err := netns.Get()
 	if err != nil {
 		unlock()
-		t.Skipf("requires CAP_NET_ADMIN: cannot get current namespace: %v", err)
+		t.Fatalf("get network namespace inside the user namespace: %v", err)
 	}
 	nsName := ospfNSName(t.Name())
 	peerNS, err := netns.NewNamed(nsName)
 	if err != nil {
 		origNS.Close() //nolint:errcheck // best-effort cleanup
 		unlock()
-		t.Skipf("requires CAP_NET_ADMIN: cannot create namespace: %v", err)
+		t.Fatalf("create network namespace inside the user namespace (CAP_NET_ADMIN): %v", err)
 	}
 	if err := netns.Set(origNS); err != nil {
 		peerNS.Close() //nolint:errcheck // best-effort cleanup
@@ -239,7 +245,7 @@ func withVethPair(t *testing.T, cidrA, cidrB string, fn func(ospfVethLab)) {
 	})
 	veth := &netlink.Veth{Name: nameA, PeerName: nameB}
 	if err := netlink.LinkAdd(veth); err != nil {
-		t.Skipf("add veth (needs CAP_NET_ADMIN): %v", err)
+		t.Fatalf("add veth inside the user namespace (CAP_NET_ADMIN): %v", err)
 	}
 	linkB, err := netlink.LinkByName(nameB)
 	if err != nil {

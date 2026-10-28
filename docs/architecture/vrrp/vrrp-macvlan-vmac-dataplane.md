@@ -260,9 +260,9 @@ unchanged. Linux's normal redirect eligibility and rate limits still apply.
 `TestVRRPRedirectSourceFollowsVirtualMAC` injects packets through two private
 macvlans with distinct VIPs and virtual MACs on one parent, and captures the
 forwarded packets and redirects on the peer. Its physical-MAC control expects
-the parent's real source address. The test runs under `integration && linux`
-against the runtime kernel; it exercises the product's netlink backend,
-`vipCIDRs`, and the apply/reassert sysctl path.
+the parent's real source address. The test runs under `linux` and re-executes
+in private user/network namespaces against the running kernel; it exercises
+the product's netlink backend, `vipCIDRs`, and the apply/reassert sysctl path.
 
 IPv6 needs no knob. `net/ipv6/ndisc.c::ndisc_send_redirect` always takes the
 redirect's source from a link-local address of the device the packet arrived

@@ -1,4 +1,4 @@
-//go:build integration && linux
+//go:build linux
 
 // Design: docs/architecture/vrrp/vrrp-macvlan-vmac-dataplane.md
 package vrrp
@@ -14,9 +14,13 @@ import (
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/core/rtproto"
 	"github.com/ze-software/ze/internal/plugins/vrrp/packet"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 func TestVRRPRedirectSourceFollowsVirtualMAC(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	// RFC requirement: RFC3768-8.1-1 positive -- two non-owner Master dataplanes on one LAN return redirects sourced from the distinct VIP selected by the received destination virtual MAC, despite a reverse route through the real interface.
 	// RFC requirement: RFC3768-8.1-1 negative -- a packet addressed to the physical router MAC is redirected from the physical router address, not either virtual router's VIP.
 	// RFC requirement: RFC5798-8.1.1-2 positive -- two non-owner Master dataplanes on one LAN (per-group virtual-MAC macvlan, virtual address and the product's sysctl recipe, none of which reads the group's VRRP version) return redirects sourced from the distinct virtual address that the received destination virtual MAC selects, despite a reverse route through the real interface.

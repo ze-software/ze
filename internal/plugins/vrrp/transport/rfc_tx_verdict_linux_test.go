@@ -1,4 +1,4 @@
-//go:build integration && linux
+//go:build linux
 
 // Design: docs/architecture/vrrp/vrrp-first-hop-redundancy.md -- QEMU proof of the RFC Section 7.2 transmit fields on the wire.
 // Related: transport_integration_linux_test.go -- the veth lab and capture helpers these tests reuse.
@@ -13,6 +13,7 @@ import (
 	"github.com/vishvananda/netlink"
 
 	"github.com/ze-software/ze/internal/plugins/vrrp/packet"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // The expected wire values are literals from the RFCs, never the package
@@ -46,6 +47,9 @@ var (
 // RFC requirement: RFC5798-7.2-4 positive -- a captured VRRPv3 IPv4 advertisement carries IP protocol 112 and destination 224.0.0.18, compared with literals (buildIPv4Header transport.go).
 // RFC requirement: RFC9568-7.2-4 positive -- a captured VRRPv3 IPv4 advertisement carries IP protocol 112 and destination 224.0.0.18, compared with literals (buildIPv4Header transport.go).
 func TestTxAdvertV4OnWire(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	lab := setupLab(t, packet.V4)
 	parentLink, err := netlink.LinkByName(lab.parent)
 	if err != nil {
@@ -104,6 +108,9 @@ func TestTxAdvertV4OnWire(t *testing.T) {
 // RFC requirement: RFC5798-7.2-4 positive -- a captured IPv6 advertisement carries next header 112 and destination ff02::12, compared with literals (SendAdvert backend_linux.go).
 // RFC requirement: RFC9568-7.2-4 positive -- a captured IPv6 advertisement carries next header 112 and destination ff02::12, compared with literals (SendAdvert backend_linux.go).
 func TestTxAdvertV6OnWire(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	lab := setupLab(t, packet.V6)
 	tr, key := openTransportInstance(t, lab, packet.V6)
 	ll := waitLinkLocal(t, lab.macvlan)

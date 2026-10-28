@@ -7,7 +7,7 @@
 // PREVENTS: a client that runs one exchange for the host, or applies the lease
 // one interface obtained to another interface.
 
-//go:build integration && linux
+//go:build linux
 
 package ifacedhcp
 
@@ -21,6 +21,7 @@ import (
 	"github.com/vishvananda/netlink"
 
 	"github.com/ze-software/ze/internal/core/clock"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // TestRFC2131ClientRunsDHCPOnEachInterfaceIndependently drives two real clients
@@ -28,6 +29,9 @@ import (
 // REQUEST with a different address; each interface must then carry the address
 // its own exchange leased, and never the other interface's.
 func TestRFC2131ClientRunsDHCPOnEachInterfaceIndependently(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	labs := []struct {
 		name   string
 		leased net.IP

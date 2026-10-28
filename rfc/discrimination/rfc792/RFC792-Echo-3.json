@@ -14,22 +14,22 @@
     "rid": "RFC792-Echo-3",
     "polarity": "positive",
     "unit": "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply",
-    "unit-sha": "64d39e2e6c392099",
+    "unit-sha": "63d9ad51bdef1b22",
     "claim-sha": "3cb0d3f779c3c86a",
     "route": "revert",
     "producer": "internal/plugins/iface/netlink/manage_linux.go::AddAddress",
     "producer-sha": "8891a051c78a5dc7",
-    "break": "body of AddAddress replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of AddAddress replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC792-Echo-3",
     "polarity": "negative",
     "unit": "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply",
-    "unit-sha": "64d39e2e6c392099",
+    "unit-sha": "63d9ad51bdef1b22",
     "claim-sha": "f55f2df666dff946",
     "route": "revert",
     "producer": "internal/plugins/iface/netlink/manage_linux.go::AddAddress",
     "producer-sha": "8891a051c78a5dc7",
-    "break": "body of AddAddress replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of AddAddress replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

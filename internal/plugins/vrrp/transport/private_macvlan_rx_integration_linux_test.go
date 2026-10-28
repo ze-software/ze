@@ -1,4 +1,4 @@
-//go:build integration && linux
+//go:build linux
 
 // Design: docs/architecture/vrrp/vrrp-macvlan-vmac-dataplane.md -- peer advertisements share the local virtual MAC.
 

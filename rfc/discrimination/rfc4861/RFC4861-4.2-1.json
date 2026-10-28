@@ -3,7 +3,7 @@
     "rid": "RFC4861-4.2-1",
     "polarity": "positive",
     "unit": "internal/plugins/iface/ra/rfc4861_ra_integration_linux_test.go::TestRASenderWireFormat",
-    "unit-sha": "c6eb741ab757745f",
+    "unit-sha": "6fc621df15ed14df",
     "claim-sha": "c867c923d5d11d68",
     "route": "revert",
     "producer": "internal/plugins/iface/ra/sender_linux.go::openRASocket",

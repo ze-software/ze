@@ -1,4 +1,4 @@
-//go:build integration && linux
+//go:build linux
 
 // Design: docs/architecture/vrrp/vrrp-macvlan-vmac-dataplane.md -- the non-owner's ARP answers and the Backup's virtual-MAC traffic
 // Related: dataplane_linux.go -- applyDataplaneSysctls, the recipe under test
@@ -15,6 +15,7 @@ import (
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/core/rtproto"
 	"github.com/ze-software/ze/internal/plugins/vrrp/packet"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // nonOwnerVIP is the virtual address of the groups below. The parent holds
@@ -76,6 +77,9 @@ func nonOwnerCIDRs() []string {
 // RFC requirement: RFC3768-6.4.3-1 positive -- a non-owner Master holding its virtual address on the virtual router MAC macvlan answers an ARP request for that address, observed on the wire by a LAN host
 // RFC requirement: RFC3768-6.4.3-1 negative -- contrast: with the address removed, as a Backup holds none, no ARP reply for it is observed, so the capture detects a router that does not answer.
 func TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	w := newGatewayWire(t)
 	parent := w.parent.Attrs().Name
 	vmac := nonOwnerMacvlan(t, w, "zn4", 20)
@@ -132,6 +136,9 @@ func TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly(t *testing.T) {
 // RFC requirement: RFC3768-6.4.3-2 positive -- with the filter withdrawn and the address installed, as a promotion leaves them, a datagram sent to the virtual router MAC is forwarded to its next hop, observed by the capture
 // RFC requirement: RFC3768-6.4.3-2 negative -- contrast: while the Backup filter is in place the datagram is not forwarded, so the capture detects a router that does not forward for the virtual router MAC.
 func TestVRRPBackupDoesNotForwardVirtualMACFrames(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	w := newGatewayWire(t)
 	parent := w.parent.Attrs().Name
 	gatewayNeighbor(t, w.parent, netip.MustParseAddr("192.0.2.20"), w.peer.Attrs().HardwareAddr)

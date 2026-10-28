@@ -100,3 +100,10 @@ the OSPF multicast groups and carries datagrams to and from the engine.
   The single-process fixture reloads the real interface backend on each
   namespace transition: its persistent netlink counter socket does not move
   when the calling thread changes namespace.
+- **Loose reverse-path filtering still needs a route.** The unnumbered wire
+  fixture enters a fresh user/network namespace, with no ambient default route.
+  Its dummy donor and borrowing veth both retain `10.255.0.1/32`; a link-scope
+  `10.255.0.2/32` route over the veth lets loose reverse-path filtering accept
+  the peer's reply. The donor-source and receive-interface assertions stay
+  intact. This is fixture topology, not an OSPF route-learning shortcut.
+  <!-- source: internal/plugins/ospf/transport/rfc2328_unnumbered_source_linux_test.go -- TestOSPFUnnumberedSourcesFromDonorAddress, setReversePath -->

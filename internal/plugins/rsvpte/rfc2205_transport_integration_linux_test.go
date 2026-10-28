@@ -1,4 +1,4 @@
-//go:build integration && linux
+//go:build linux
 
 // Design: docs/architecture/rsvpte/mpls-rsvp-te.md -- production raw RSVP carriage.
 //
@@ -7,7 +7,7 @@
 // the frames before the peer's production transport diverts Router Alert traffic.
 // These tests require CAP_SYS_ADMIN, CAP_NET_ADMIN and CAP_NET_RAW: a test that
 // calls userns.Enter first holds them unprivileged in a user namespace of its
-// own; the others need QEMU or root. The bypass test also requires Linux MPLS IP
+// own. Every top-level caller enters first. The bypass test also requires Linux MPLS IP
 // encapsulation. No fake transport is involved.
 package rsvpte
 
@@ -91,7 +91,7 @@ func newRSVPWireLab(t *testing.T) *rsvpWireLab {
 			PeerMTU:       9000,
 		}
 		if err := router.LinkAdd(veth); err != nil {
-			if errors.Is(err, unix.EPERM) || errors.Is(err, unix.EOPNOTSUPP) {
+			if errors.Is(err, unix.EOPNOTSUPP) {
 				t.Skipf("veth creation unavailable: %v", err)
 			}
 			t.Fatal(err)
@@ -149,10 +149,7 @@ func rsvpWireNamespace(t *testing.T) netns.NsHandle {
 	t.Helper()
 	ns, err := netns.New()
 	if err != nil {
-		if errors.Is(err, unix.EPERM) || errors.Is(err, unix.EACCES) {
-			t.Skipf("network namespaces require CAP_SYS_ADMIN: %v", err)
-		}
-		t.Fatal(err)
+		t.Fatalf("create network namespace inside the user namespace: %v", err)
 	}
 	t.Cleanup(func() {
 		if err := ns.Close(); err != nil {
@@ -166,15 +163,12 @@ func rsvpWireNetlink(t *testing.T, ns netns.NsHandle) *netlink.Handle {
 	t.Helper()
 	h, err := netlink.NewHandleAt(ns, unix.NETLINK_ROUTE)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("configure netlink inside the user namespace: %v", err)
 	}
 	t.Cleanup(h.Close)
 	lo := rsvpWireFindLink(t, h, "lo")
 	if err := h.LinkSetUp(lo); err != nil {
-		if errors.Is(err, unix.EPERM) {
-			t.Skipf("link configuration requires CAP_NET_ADMIN: %v", err)
-		}
-		t.Fatal(err)
+		t.Fatalf("configure netlink inside the user namespace: %v", err)
 	}
 	return h
 }
@@ -230,10 +224,7 @@ func rsvpWireTransport(t *testing.T, local netip.Addr) Transport {
 	t.Helper()
 	tr, err := openRawTransport(local)
 	if err != nil {
-		if errors.Is(err, unix.EPERM) || errors.Is(err, unix.EACCES) {
-			t.Skipf("raw RSVP transport requires CAP_NET_RAW: %v", err)
-		}
-		t.Fatal(err)
+		t.Fatalf("open raw RSVP transport inside the user namespace (CAP_NET_RAW): %v", err)
 	}
 	t.Cleanup(func() {
 		if err := tr.Close(); err != nil {
@@ -397,6 +388,9 @@ func rsvpWirePSB() *pathStateBlock {
 // RFC requirement: RFC2205-3-41 positive -- native carriage selects the explicit hop's link while preserving an IP destination routed through the other link.
 // RFC requirement: RFC2205-3-42 positive -- the captured PATH carries the requested sender source and Send_TTL in its IPv4 header.
 func TestIntegrationRSVPPathCarriage(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	lab := newRSVPWireLab(t)
 	local, err := lab.sender.LocalAddresses()
 	if err != nil {
@@ -482,6 +476,9 @@ func TestIntegrationRSVPPathCarriage(t *testing.T) {
 // RFC requirement: RFC2205-3-37 positive -- an ordinary PATH reaches the selected RSVP hop even after a data FEC is installed for its IP destination.
 // RFC requirement: RFC2205-3-39 positive -- the adjacent production receiver receives a nonlocal IPv4 PATH despite an installed endpoint data FEC.
 func TestIntegrationRSVPPathAvoidsDataFEC(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	lab := newRSVPWireLab(t)
 	link := lab.links[1]
 	const dataLabel = 16011

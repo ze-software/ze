@@ -9,7 +9,7 @@
 // carry it. The renewal has the same shape: dhcpv4.NewRenewFromAck fills the
 // renewing REQUEST's flags from the ACK.
 
-//go:build integration && linux
+//go:build linux
 
 package ifacedhcp
 
@@ -21,6 +21,7 @@ import (
 	"github.com/insomniacslk/dhcp/dhcpv4"
 
 	"github.com/ze-software/ze/internal/core/clock"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // flagsReserved masks bits 1 to 15 of the flags field. Bit 0, the most
@@ -32,6 +33,9 @@ const flagsReserved = 0x7fff
 // answers it sets every flags bit, and the REQUEST ze builds from that OFFER
 // is read next.
 func TestRFC2131ClientSetsReservedFlagsBitsToZero(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	zeSide, peerConn := sfSetupLab(t)
 
 	bus := &recordingBus{}
@@ -92,6 +96,9 @@ const renewalReadsMax = 5
 // v4RequestModifiers, whose clearReservedFlags runs after NewRenewFromAck
 // copies the ACK's flags, and dropping it sends the ACK's reserved bits back.
 func TestRFC2131ClientRenewalSetsReservedFlagsBitsToZero(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	zeSide, peerConn := sfSetupLab(t)
 
 	bus := &recordingBus{}

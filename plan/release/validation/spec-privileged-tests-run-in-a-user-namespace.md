@@ -357,7 +357,7 @@ privilege skip.
 | 111 | `internal/plugins/ospf/v3/transport/transport_integration_linux_test.go` | B | P7 routing | 0 | `integration && linux` | `linux` |
 | 112 | `internal/plugins/policyroute/rules_integration_linux_test.go` | A | P6 dataplane | 0 | `integration && linux` | `linux` |
 | 113 | `internal/plugins/rsvpte/freertr_interop_integration_linux_test.go` | C | out of scope | 0 | `integration && linux` | unchanged |
-| 114 | `internal/plugins/rsvpte/producer_integration_linux_test.go` | B | P7 routing | 0 | `integration && linux` | `linux` (execs `ip`, which `./le setup` installs as `iproute2`) |
+| 114 | `internal/plugins/rsvpte/producer_integration_linux_test.go` | B | P7 routing | 0 | `integration && linux` | `integration && linux`: converted; explicitly supplied matching Ze executable prerequisite retained; custom flag forwarded |
 | 115 | `internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go` | A | P7 routing | 7 | `integration && linux` | `linux` |
 | 116 | `internal/plugins/static/resolve_integration_linux_test.go` | B | P7 routing | 0 | `integration && linux` | `linux` |
 | 117 | `internal/plugins/tftpserver/rfc1350_socket_integration_linux_test.go` | A | P8 services | 1 | `integration && linux` | `linux` |
@@ -378,6 +378,12 @@ privilege skip.
 | 132 | `internal/plugins/vrrp/transport/transport_integration_linux_test.go` | A | P7 routing | 2 | `integration && linux` | `linux` |
 | 133 | `internal/plugins/vrrp/vmac_state_integration_linux_test.go` | A | P7 routing | 30 | `integration && linux` | `linux` |
 | 134 | `pkg/zefs/check_tree_unix_test.go` | C | out of scope | 0 | `linux` or `darwin` | unchanged |
+
+P7's helper closure also moves
+`internal/plugins/ospf/transport/raw_probe_integration_linux_test.go` and
+`internal/plugins/vrrp/transport/raw_probe_integration_linux_test.go` to `linux`
+with their callers. These helper-only files add no top-level test to the
+privilege-skipping inventory.
 
 Counts: A 68 files (25 tagged), B 62 (6 tagged), D 2, C 4. Rows 26a and
 36a add dependencies found during implementation without renumbering the

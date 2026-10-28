@@ -1,4 +1,4 @@
-//go:build integration && linux
+//go:build linux
 
 // Design: docs/architecture/vrrp/vrrp-first-hop-redundancy.md -- QEMU integration: raw proto-112 sockets,
 // macvlan tx identity, GARP/NA on-wire, rx delivery (veth + netns).
@@ -9,7 +9,7 @@
 // AF_PACKET capture socket observes them (payload-predicate waits with deadlines,
 // never fixed sleeps). Namespace creation needs CAP_NET_ADMIN and the raw
 // sockets CAP_NET_RAW: a test that calls userns.Enter first holds both
-// unprivileged in a user namespace of its own; without them the others Skip.
+// unprivileged in a user namespace of its own. Every top-level caller enters first.
 // This file validates A-1..A-5 and R-7 on a real kernel.
 
 package transport
@@ -46,8 +46,7 @@ const (
 // verifyV6Upper verifies any IPv6 upper-layer checksum (the payload includes its
 // own checksum field) under the RFC 8200 pseudo-header for the given next
 // header. Used with proto 112 to prove the kernel really filled the VRRP v6
-// checksum (A-5). Lives here, not in na_test.go, because the integration suite
-// is its only caller and the default build tags would make it dead code.
+// checksum (A-5). The raw-socket wire tests are its callers.
 func verifyV6Upper(src, dst netip.Addr, payload []byte, nextHeader uint8) bool {
 	return foldSum(pseudoSum(src, dst, payload, nextHeader)) == 0xffff
 }
@@ -76,17 +75,17 @@ type vrrpLab struct {
 	captureFD int
 }
 
-func skipNoRaw(t *testing.T) {
+func requireRaw(t *testing.T) {
 	t.Helper()
 	if !rawSocketAvailable() {
-		t.Skip("CAP_NET_RAW unavailable")
+		t.Fatal("open raw VRRP socket inside the user namespace (CAP_NET_RAW): refused")
 	}
 }
 
 // setupLab enters a fresh netns and builds the veth + macvlan lab for family.
 func setupLab(t *testing.T, family uint8) vrrpLab {
 	t.Helper()
-	skipNoRaw(t)
+	requireRaw(t)
 	if err := iface.LoadBackend("netlink"); err != nil {
 		t.Fatalf("load iface backend: %v", err)
 	}
@@ -96,13 +95,13 @@ func setupLab(t *testing.T, family uint8) vrrpLab {
 	orig, err := netns.Get()
 	if err != nil {
 		runtime.UnlockOSThread()
-		t.Skipf("requires CAP_NET_ADMIN: get namespace: %v", err)
+		t.Fatalf("get network namespace inside the user namespace: %v", err)
 	}
 	newNS, err := netns.New()
 	if err != nil {
 		orig.Close() //nolint:errcheck // best-effort cleanup
 		runtime.UnlockOSThread()
-		t.Skipf("requires CAP_NET_ADMIN: create namespace: %v", err)
+		t.Fatalf("create network namespace inside the user namespace (CAP_NET_ADMIN): %v", err)
 	}
 	t.Cleanup(func() {
 		_ = netns.Set(orig)
@@ -120,7 +119,7 @@ func setupLab(t *testing.T, family uint8) vrrpLab {
 
 	veth := &netlink.Veth{Name: parent, PeerName: peer}
 	if err := netlink.LinkAdd(veth); err != nil {
-		t.Skipf("add veth (needs CAP_NET_ADMIN): %v", err)
+		t.Fatalf("add veth inside the user namespace (CAP_NET_ADMIN): %v", err)
 	}
 	parentLink, err := netlink.LinkByName(parent)
 	if err != nil {
@@ -261,6 +260,9 @@ func linuxHandle(t *testing.T, tr *Transport, key InstanceKey) *linuxInstance {
 // RFC requirement: RFC9568-5.1.2.3-1 positive -- the v6 tx socket is opened with IPV6_MULTICAST_HOPS 255, so every transmitted IPv6 advertisement carries hop limit 255, and the getsockopt read-back below proves the kernel took the value (openV6 backend_linux.go:185).
 // RFC requirement: RFC5798-5.1.2.3-1 positive -- the v6 tx socket is opened with IPV6_MULTICAST_HOPS 255, which is what RFC 5798 Section 5.1.2.3 requires of every transmitted IPv6 advertisement, and the getsockopt read-back below proves the kernel took the value (openV6 backend_linux.go:185).
 func TestIntegrationOpenInstanceSocketOptions(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	// VALIDATES: AC-1/AC-2 -- getsockopt read-back of the full option matrix.
 	t.Run("v4", func(t *testing.T) {
 		lab := setupLab(t, packet.V4)

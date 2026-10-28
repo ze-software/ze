@@ -58,11 +58,11 @@
     "rid": "RFC1195-4.4-2",
     "polarity": "positive",
     "unit": "internal/plugins/isis/transport/rfc1195_ish_integration_linux_test.go::TestRFC1195ISHVethTransport",
-    "unit-sha": "26ca59a9b0db9f2c",
+    "unit-sha": "04f92339d3dd0516",
     "claim-sha": "b4d6a8a02723e5fe",
     "route": "revert",
     "producer": "internal/plugins/isis/transport/transport.go::SendISH",
     "producer-sha": "706e2acee0bd58fb",
-    "break": "body of SendISH replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of SendISH replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

@@ -1,4 +1,4 @@
-//go:build integration && linux
+//go:build linux
 
 // Design: docs/architecture/vrrp/vrrp-first-hop-redundancy.md -- QEMU proof that receive is scoped to the interface the VRID is configured on.
 // Related: transport_integration_linux_test.go -- the veth lab and the IP_HDRINCL helpers these tests reuse.
@@ -17,6 +17,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/ze-software/ze/internal/plugins/vrrp/packet"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 const otherVRID = 20
@@ -131,6 +132,9 @@ func collectRx(tr *Transport, send func(), window time.Duration) []RxItem {
 // RFC requirement: RFC3768-7.1-4 positive -- a VRRPv2 advert for VRID 10 arriving on the interface where VRID 10 is configured is delivered to that interface's instance and decodes (openV4 backend_linux.go, Decode packet/validate.go).
 // RFC requirement: RFC3768-7.1-4 negative -- the same VRRPv2 advert arriving on another interface, where only VRID 20 is configured, never reaches the VRID 10 instance and is refused there with ErrUnknownVRID (openV4 backend_linux.go, Decode packet/validate.go).
 func TestRxAdvertScopedToReceivingInterface(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	lab := setupLab(t, packet.V4)
 	otherParent, otherPeer, otherMacvlan := addOtherInterface(t, lab)
 	tr, keyA := openTransportInstance(t, lab, packet.V4)

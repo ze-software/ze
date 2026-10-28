@@ -1,4 +1,4 @@
-//go:build integration && linux
+//go:build linux
 
 // Design: docs/architecture/isis/isis-3-l2-transport.md -- ISO 9542 raw transport.
 // Goal: prove ISH multicast reaches an actual AF_PACKET receiver without promiscuous mode.
@@ -8,28 +8,28 @@ package transport
 
 import (
 	"bytes"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/ze-software/ze/internal/plugins/isis/packet"
 	"github.com/ze-software/ze/internal/plugins/isis/types"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // RFC requirement: RFC1195-4.4-2 positive -- the production AF_PACKET transport
 // transmits an ISO 9542 ISH to AllESs and receives its intact NET and protocol
 // options over the peer veth using normal OSI 802.3/LLC encapsulation.
 func TestRFC1195ISHVethTransport(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withVethPair(t, func() {
 		tr := New(NewBackend())
 		t.Cleanup(tr.Close)
 		for _, name := range []string{vethA, vethB} {
 			tr.EnableInterface(name, Level1)
 			if err := tr.HandleLinkUp(name); err != nil {
-				if strings.Contains(err.Error(), "CAP_NET_RAW") {
-					t.Skipf("requires CAP_NET_RAW: %v", err)
-				}
-				t.Fatal(err)
+				t.Fatalf("HandleLinkUp(%s) inside the user namespace (CAP_NET_RAW): %v", name, err)
 			}
 		}
 		net, err := types.ParseNET("49.0001.0000.0000.0001.00")

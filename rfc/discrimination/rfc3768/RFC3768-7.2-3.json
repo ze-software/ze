@@ -3,11 +3,11 @@
     "rid": "RFC3768-7.2-3",
     "polarity": "positive",
     "unit": "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire",
-    "unit-sha": "d1defdd9ea537b29",
+    "unit-sha": "2c1808e9d4f25ccb",
     "claim-sha": "a4c88369a7ba9a6e",
     "route": "revert",
     "producer": "internal/plugins/vrrp/transport/transport.go::resolveParentPrimaryV4",
     "producer-sha": "93e7bfe0ac1b9d0c",
-    "break": "body of resolveParentPrimaryV4 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of resolveParentPrimaryV4 replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

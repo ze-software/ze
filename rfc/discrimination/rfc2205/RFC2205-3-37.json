@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2205-3-37",
+    "polarity": "positive",
+    "unit": "internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go::TestIntegrationRSVPPathAvoidsDataFEC",
+    "unit-sha": "e6519537625958eb",
+    "claim-sha": "6fb6af85721f2c61",
+    "route": "mutant",
+    "producer": "internal/plugins/rsvpte/transport_linux.go::SendPath",
+    "producer-sha": "5af4326f04682a71",
+    "break": "line 258: \"lookup := route.NextHop\" -\u003e \"lookup := route.Destination\""
+  },
+  {
+    "rid": "RFC2205-3-37",
+    "polarity": "positive",
+    "unit": "internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage",
+    "unit-sha": "73d39c8ec447f1c2",
+    "claim-sha": "58f0f0d2e4435ced",
+    "route": "mutant",
+    "producer": "internal/plugins/rsvpte/transport_linux.go::SendPath",
+    "producer-sha": "5af4326f04682a71",
+    "break": "line 258: \"lookup := route.NextHop\" -\u003e \"lookup := route.Destination\""
+  }
+]

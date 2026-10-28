@@ -1,4 +1,4 @@
-//go:build integration && linux
+//go:build linux
 
 // Design: docs/architecture/ospf/ospf-3-ip-transport.md -- Linux backend resolver
 // Related: rfc2328_transport_integration_linux_test.go -- veth lab and namespace helpers
@@ -15,6 +15,8 @@ import (
 
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
+
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // unnumberedDonor is the router address the unnumbered device borrows. The
@@ -30,14 +32,29 @@ const unnumberedDonor = "10.255.0.1"
 // socket reads the IP header source, then the peer answers on AllSPFRouters
 // and the unnumbered end must receive it.
 func TestOSPFUnnumberedSourcesFromDonorAddress(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	if !rawSocketAvailable() {
-		t.Skip("CAP_NET_RAW unavailable")
+		t.Fatal("open a raw OSPF socket inside the user namespace (CAP_NET_RAW): refused")
 	}
 	loadIfaceBackend(t)
 	donor := netip.MustParseAddr(unnumberedDonor)
 	withVethPair(t, unnumberedDonor+"/32", "10.255.0.2/32", func(lab ospfVethLab) {
 		addDonorDevice(t, unnumberedDonor+"/32")
 		setReversePath(t, lab.nameA, reversePathLoose)
+		// Loose reverse-path filtering still needs a route to the peer's /32.
+		link, err := netlink.LinkByName(lab.nameA)
+		if err != nil {
+			t.Fatalf("look up unnumbered device %s: %v", lab.nameA, err)
+		}
+		if err := netlink.RouteAdd(&netlink.Route{
+			LinkIndex: link.Attrs().Index,
+			Dst:       &net.IPNet{IP: net.IPv4(10, 255, 0, 2).To4(), Mask: net.CIDRMask(32, 32)},
+			Scope:     netlink.SCOPE_LINK,
+		}); err != nil {
+			t.Fatalf("route peer 10.255.0.2/32 over %s: %v", lab.nameA, err)
+		}
 		backend := NewBackend()
 		ha, err := backend.OpenInterface(lab.nameA, nil)
 		if err != nil {
@@ -88,8 +105,11 @@ func TestOSPFUnnumberedSourcesFromDonorAddress(t *testing.T) {
 // the veth end, and a control raw socket proves the kernel accepts the
 // AllSPFRouters membership there. The backend must still refuse the device.
 func TestOSPFRefusesDeviceWithoutRouterAddress(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	if !rawSocketAvailable() {
-		t.Skip("CAP_NET_RAW unavailable")
+		t.Fatal("open a raw OSPF socket inside the user namespace (CAP_NET_RAW): refused")
 	}
 	loadIfaceBackend(t)
 	withVethPair(t, unnumberedDonor+"/32", "", func(lab ospfVethLab) {
@@ -116,7 +136,7 @@ func addDonorDevice(t *testing.T, cidr string) {
 	t.Helper()
 	name := "zeospd" + strconv.Itoa(osPidSuffix())
 	if err := netlink.LinkAdd(&netlink.Dummy{Name: name}); err != nil {
-		t.Skipf("add dummy (needs CAP_NET_ADMIN): %v", err)
+		t.Fatalf("add dummy inside the user namespace (CAP_NET_ADMIN): %v", err)
 	}
 	t.Cleanup(func() {
 		if link, err := netlink.LinkByName(name); err == nil {
@@ -136,17 +156,13 @@ const (
 // setReversePath writes a reverse-path filtering mode for conf, a device name
 // or "all", in the namespace of the calling thread.
 //
-// The lab needs it because neither end has a route to the other's /32: a
-// router learns that route from OSPF, and this lab runs no OSPF. The QEMU
-// guest's Alpine root namespace runs strict filtering (rp_filter 1 on "all"
-// and "default") with a default route out eth0, and a new namespace inherits
-// those IPv4 settings. Strict filtering drops a datagram whose route back
-// leaves by another device, and loose filtering drops one whose source has no
-// route at all. The kernel applies max(all, device), so the unnumbered end in
-// the root namespace takes loose (its default route answers the loose check,
-// and "all" stays as the host set it), and the peer namespace, which has no
-// route at all and dies with the test, turns filtering off on "all" and on
-// its device. Each setting goes with its device or namespace.
+// The lab runs no OSPF to learn routes between the /32 endpoints. Its fresh
+// namespace has no host default route, so the unnumbered end installs an
+// explicit peer /32 route and uses loose filtering. This preserves the donor
+// source and the reply's arrival-interface assertion without relying on host
+// routes. The kernel applies max(all, device); the peer, which has no return
+// route, turns filtering off on both "all" and its device. Every setting dies
+// with the test's private namespace.
 func setReversePath(t *testing.T, conf, mode string) {
 	t.Helper()
 	path := "/proc/sys/net/ipv4/conf/" + conf + "/rp_filter"

@@ -1,4 +1,4 @@
-//go:build integration && linux
+//go:build linux
 
 // Design: docs/architecture/vrrp/vrrp-macvlan-vmac-dataplane.md -- the Active router's solicited ND answers
 // Related: dataplane_linux.go -- vmacV6Sysctls, the macvlan's forwarding knob
@@ -16,6 +16,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/plugins/vrrp/packet"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // TestVRRPSolicitedNACarriesRouterFlag checks the Router flag of the Neighbor
@@ -29,6 +30,9 @@ import (
 // knob, and the same solicitation draws advertisements with R clear, so the
 // capture tells a missing Router flag from a present one.
 func TestVRRPSolicitedNACarriesRouterFlag(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	// RFC requirement: RFC9568-6.4.3-3 positive -- with host IPv6 forwarding off and the virtual addresses installed on the Virtual Router MAC macvlan under the product's IPv6 recipe (applyDataplaneSysctls dataplane_linux.go), every Neighbor Advertisement a LAN host's Neighbor Solicitation draws for a virtual IPv6 address carries the Router flag (R), observed on the wire
 	// RFC requirement: RFC9568-6.4.3-3 negative -- control: with the macvlan's forwarding knob cleared, the same solicitation draws Neighbor Advertisements whose Router flag is clear, so the capture detects an answer without the R flag
 	w := newGatewayWire(t)

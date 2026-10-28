@@ -3,22 +3,22 @@
     "rid": "RFC2131-3.1-5",
     "polarity": "negative",
     "unit": "internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go::TestDHCPv4ExtendIgnoresServerEchoesOnVeth",
-    "unit-sha": "093b21a989f48623",
+    "unit-sha": "ea82378b6bcbbcbd",
     "claim-sha": "1bc6747c12d34f5c",
     "route": "revert",
     "producer": "internal/plugins/iface/dhcp/dhcp_v4_linux.go::v4ExtendRequest",
     "producer-sha": "c2ff65fb9f3cd7c1",
-    "break": "body of v4ExtendRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of v4ExtendRequest replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2131-3.1-5",
     "polarity": "positive",
     "unit": "internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go::TestDHCPv4RebindAcceptsAnyServerOnVeth",
-    "unit-sha": "2d1355b41b127e77",
+    "unit-sha": "9a61379208cebc4b",
     "claim-sha": "86262a50d6fe4bb0",
     "route": "revert",
     "producer": "internal/plugins/iface/dhcp/dhcp_v4_linux.go::v4ExtendRequest",
     "producer-sha": "c2ff65fb9f3cd7c1",
-    "break": "body of v4ExtendRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of v4ExtendRequest replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

@@ -1,4 +1,4 @@
-//go:build integration && linux
+//go:build linux
 
 // Design: docs/architecture/vrrp/vrrp-macvlan-vmac-dataplane.md -- the macvlan's only link-local is the virtual one
 // Related: dataplane_linux.go -- applyDataplaneSysctls, the IPv6 recipe on the macvlan
@@ -16,6 +16,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/plugins/vrrp/packet"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // TestVRRPMacvlanDerivesNoLinkLocalFromVirtualMAC checks that the virtual-MAC
@@ -29,6 +30,9 @@ import (
 // group creates it and given the IPv6 recipe, must then hold no link-local
 // derived from its own Virtual Router MAC for longer than the control needed.
 func TestVRRPMacvlanDerivesNoLinkLocalFromVirtualMAC(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	// RFC requirement: RFC9568-7.4-1 positive -- a virtual-MAC macvlan created through the iface backend's CreateMacvlanDevice (internal/plugins/iface/netlink/macvlan_linux.go) and given the product's IPv6 recipe holds no IPv6 link-local whose interface identifier is the Modified EUI-64 of its Virtual Router MAC, observed in the kernel's address list after the control's derivation window
 	// RFC requirement: RFC9568-7.4-1 negative -- control: a macvlan carrying a Virtual Router MAC created with the kernel's default address generation holds the Modified EUI-64 link-local of that MAC, so the probe detects an identifier derived from the Virtual Router MAC
 	// RFC requirement: RFC5798-7.4-2 positive -- a virtual-MAC macvlan created through the iface backend's CreateMacvlanDevice (internal/plugins/iface/netlink/macvlan_linux.go) and given the product's IPv6 recipe holds no IPv6 link-local whose interface identifier is the Modified EUI-64 of its virtual router MAC, observed in the kernel's address list after the control's derivation window
@@ -87,6 +91,9 @@ func TestVRRPMacvlanDerivesNoLinkLocalFromVirtualMAC(t *testing.T) {
 // settled before the virtual addresses arrive, and its redirect then comes from
 // that derived address, so the probe tells the two apart.
 func TestVRRPIPv6RedirectSourcedFromVirtualLinkLocal(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	// RFC requirement: RFC9568-8.2.1-1 positive -- on a non-owner Active router dataplane (virtual-MAC macvlan created through the iface backend's CreateMacvlanDevice, the product's IPv6 recipe, the virtual link-local and a global virtual address installed), the ICMPv6 redirect for a host's datagram sent to the Virtual Router MAC is sourced from the virtual link-local, observed on the wire
 	// RFC requirement: RFC9568-8.2.1-1 negative -- control: on a macvlan created with the kernel's default address generation, holding the link-local derived from the Virtual Router MAC before the same virtual addresses, the redirect is sourced from an address other than the virtual link-local, so the probe detects a redirect a host would not attribute to its first hop
 	// RFC requirement: RFC5798-8.2.1-1 positive -- on a non-owner Master dataplane (virtual-MAC macvlan created through the iface backend's CreateMacvlanDevice, the product's IPv6 recipe, the virtual link-local and a global virtual address installed), the ICMPv6 redirect for a host's datagram sent to the virtual router MAC is sourced from the virtual link-local, observed on the wire

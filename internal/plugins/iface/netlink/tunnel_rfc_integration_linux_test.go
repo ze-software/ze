@@ -16,7 +16,7 @@
 // link installed without its remote, and a wildcard (0.0.0.0) remote that
 // makes the sit tunnel decapsulate from any source.
 
-//go:build integration && linux
+//go:build linux
 
 package ifacenetlink
 
@@ -31,6 +31,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // ip6TnlFlagIgnEncapLimit is IP6_TNL_F_IGN_ENCAP_LIMIT (include/uapi/linux/ip6_tunnel.h).
@@ -43,7 +44,7 @@ func hostToNet16(v uint16) uint16 { return v<<8 | v>>8 }
 func underlayDummy(t *testing.T, name, cidr string) netlink.Link {
 	t.Helper()
 	if err := netlink.LinkAdd(&netlink.Dummy{Name: name}); err != nil {
-		t.Skipf("dummy link unavailable: %v", err)
+		t.Fatalf("dummy link %s: %v", name, err)
 	}
 	link := upLink(t, name)
 	addr, err := netlink.ParseAddr(cidr)
@@ -190,6 +191,9 @@ func encapLimitOption(t *testing.T, outer []byte) (byte, bool) {
 // with a Tunnel Encapsulation Limit of 3 leaves on the underlay with an
 // encapsulating Tunnel Encapsulation Limit option of 2.
 func TestRFC2473EncapLimitDecrementedIntoTheOuterHeader(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withTunnelNetNS(t, func(b iface.Backend) {
 		spec := iface.TunnelSpec{
 			Kind: iface.TunnelKindIP6Tnl, Name: "tel0",
@@ -223,6 +227,9 @@ func TestRFC2473EncapLimitDecrementedIntoTheOuterHeader(t *testing.T) {
 // packet, never the configured 4, and the installed link carries no
 // IP6_TNL_F_IGN_ENCAP_LIMIT flag.
 func TestRFC2473EncapLimitFromThePacketNotTheConfiguredLimit(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withTunnelNetNS(t, func(b iface.Backend) {
 		spec := iface.TunnelSpec{
 			Kind: iface.TunnelKindIP6Tnl, Name: "tel0",
@@ -326,6 +333,9 @@ func sitWithRemote(t *testing.T, b iface.Backend, remote string) {
 // whose outer source is that remote is decapsulated by the tunnel (its
 // received counter moves).
 func TestRFC4213SitDecapsulatesFromTheConfiguredRemote(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withTunnelNetNS(t, func(b iface.Backend) {
 		sitWithRemote(t, b, "198.51.100.1")
 
@@ -357,6 +367,9 @@ func TestRFC4213SitDecapsulatesFromTheConfiguredRemote(t *testing.T) {
 // refuses a sit tunnel whose remote is missing or the wildcard 0.0.0.0, which
 // would decapsulate from any source.
 func TestRFC4213SitRefusesAnUnverifiedSource(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withTunnelNetNS(t, func(b iface.Backend) {
 		sitWithRemote(t, b, "198.51.100.1")
 

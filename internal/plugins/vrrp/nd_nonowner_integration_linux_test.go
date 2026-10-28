@@ -1,4 +1,4 @@
-//go:build integration && linux
+//go:build linux
 
 // Design: docs/architecture/vrrp/vrrp-macvlan-vmac-dataplane.md -- the non-owner's ND answers
 // Related: dataplane_linux.go -- applyDataplaneSysctls, the IPv6 recipe on the macvlan
@@ -14,6 +14,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/plugins/vrrp/packet"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly checks what a host on the
@@ -37,6 +38,9 @@ import (
 // RFC requirement: RFC5798-8.2.2-8 positive -- a LAN host's Neighbor Solicitation for a non-owner Master's virtual IPv6 address, held on the virtual router MAC macvlan under the product's IPv6 recipe (applyDataplaneSysctls dataplane_linux.go), is answered with Neighbor Advertisements whose Target Link-Layer Address option carries only the virtual router MAC, observed on the wire
 // RFC requirement: RFC5798-8.2.2-8 negative -- control: with the same address on the parent the solicitation is answered with the physical MAC, and with the address removed no answer is observed, so the capture detects an answer that does not carry the virtual router MAC.
 func TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	w := newGatewayWire(t)
 	parent := w.parent.Attrs().Name
 	physical := w.parent.Attrs().HardwareAddr

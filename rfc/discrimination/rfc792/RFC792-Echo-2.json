@@ -14,11 +14,11 @@
     "rid": "RFC792-Echo-2",
     "polarity": "positive",
     "unit": "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply",
-    "unit-sha": "64d39e2e6c392099",
+    "unit-sha": "63d9ad51bdef1b22",
     "claim-sha": "3137d39e4d5cbebb",
     "route": "revert",
     "producer": "internal/plugins/iface/netlink/manage_linux.go::AddAddress",
     "producer-sha": "8891a051c78a5dc7",
-    "break": "body of AddAddress replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of AddAddress replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

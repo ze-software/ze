@@ -1,4 +1,4 @@
-//go:build integration && linux
+//go:build linux
 
 // Design: docs/architecture/vrrp/vrrp-macvlan-vmac-dataplane.md
 // Related: redirect_integration_linux_test.go -- the IPv4 counterpart
@@ -20,6 +20,7 @@ import (
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/core/rtproto"
 	"github.com/ze-software/ze/internal/plugins/vrrp/packet"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // TestVRRPIPv6RedirectFollowsVirtualMAC proves that an ICMPv6 redirect is
@@ -32,6 +33,9 @@ import (
 // predicate. The capture on the host side names the redirect's source address,
 // and the test asks which device holds it.
 func TestVRRPIPv6RedirectFollowsVirtualMAC(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	// RFC requirement: RFC9568-8.2.1-2 positive -- two non-owner Active Router dataplanes on one LAN (per-group virtual-MAC macvlan, link-local and global virtual addresses, the product's IPv6 sysctl recipe) forward a host's datagram and return the ICMPv6 redirect from a link-local address held by the macvlan whose virtual MAC the datagram was sent to, and held by neither the other virtual router's macvlan nor the physical interface.
 	// RFC requirement: RFC9568-8.2.1-2 negative -- a datagram sent to the physical router MAC is redirected from a link-local address of the physical interface, held by neither virtual router's macvlan, so a packet not sent to a virtual router is not attributed to one.
 	// RFC requirement: RFC5798-8.2.1-2 positive -- two non-owner Master dataplanes on one LAN (per-group virtual-MAC macvlan, link-local and global virtual addresses, the product's IPv6 sysctl recipe, none of which reads the group's VRRP version) return the ICMPv6 redirect from a link-local address held by the macvlan whose virtual MAC the datagram was sent to, and held by neither the other virtual router's macvlan nor the physical interface.

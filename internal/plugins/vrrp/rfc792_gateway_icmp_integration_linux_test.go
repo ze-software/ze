@@ -1,4 +1,4 @@
-//go:build integration && linux
+//go:build linux
 
 // Design: docs/architecture/diagnostics/active-probes.md
 // Linux is Ze's IPv4 forwarding and ICMP-error producer. These tests enter an
@@ -24,6 +24,7 @@ import (
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/core/rtproto"
 	_ "github.com/ze-software/ze/internal/plugins/iface/netlink" // register the product backend
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 type gatewayWire struct {
@@ -47,9 +48,6 @@ func newGatewayWire(t *testing.T) gatewayWire {
 	if err != nil {
 		_ = original.Close()
 		runtime.UnlockOSThread()
-		if errors.Is(err, unix.EPERM) {
-			t.Skipf("requires CAP_NET_ADMIN: %v", err)
-		}
 		t.Fatalf("create namespace: %v", err)
 	}
 	t.Cleanup(func() {
@@ -315,6 +313,9 @@ func gatewayICMP(t *testing.T, captured []gatewayCapture, fd int, sent []byte, t
 }
 
 func TestGatewayICMPDFDiscard(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	// RFC requirement: RFC792-Unreachable-1 positive -- a DF datagram above the egress MTU never appears on that link, and Linux returns Fragmentation Needed.
 	// RFC requirement: RFC792-Unreachable-1 negative -- a DF datagram exactly at the MTU forwards; the oversized datagram with DF clear forwards in fragments with its entire payload intact.
 	// RFC requirement: RFC792-Format-1 positive -- Fragmentation Needed leaves the reserved octet zero while carrying the RFC1191 next-hop MTU in its assigned field.
@@ -339,6 +340,9 @@ func TestGatewayICMPDFDiscard(t *testing.T) {
 }
 
 func TestGatewayICMPTTLDiscard(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	// RFC requirement: RFC792-TimeExceeded-1 positive -- TTL zero and TTL one are discarded and answered with Time Exceeded.
 	// RFC requirement: RFC792-TimeExceeded-1 negative -- TTL two traverses the same route with TTL one and unchanged payload.
 	// RFC requirement: RFC792-Format-1 positive -- emitted Time Exceeded reserved fields are zero; the RFC4884 length octet is not mistaken for unused space.
@@ -363,6 +367,9 @@ func TestGatewayICMPTTLDiscard(t *testing.T) {
 }
 
 func TestGatewayICMPHeaderDiscard(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	// RFC requirement: RFC792-ParamProblem-1 positive -- an invalid Record Route pointer and a corrupt IPv4 checksum are absent on egress; the invalid option elicits Parameter Problem.
 	// RFC requirement: RFC792-ParamProblem-1 negative -- the otherwise identical Record Route option with a valid pointer forwards, as does the uncorrupted fixed header.
 	// RFC requirement: RFC792-Format-1 positive -- Parameter Problem carries its nonzero pointer while the remaining unused bytes are zero (RFC4884 allocates byte 5 to length).
@@ -389,6 +396,9 @@ func TestGatewayICMPHeaderDiscard(t *testing.T) {
 }
 
 func TestGatewayICMPEchoReply(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	// RFC requirement: RFC792-Echo-1 positive -- the reply Linux forms for a Type 8 request carries Type 0.
 	// RFC requirement: RFC792-Echo-2 positive -- the reply Linux forms carries Code 0.
 	// RFC requirement: RFC792-Echo-3 positive -- the reply's checksum, summed from the ICMP Type over the whole message, verifies.
@@ -467,6 +477,9 @@ func gatewayEchoRequest(target netip.Addr, sequence uint16, data []byte) []byte 
 // returned exactly (a short, an odd and a long payload, each with its own
 // bytes). Every request is valid, so a missing reply is a failure too.
 func TestGatewayICMPEchoReplyToTheQueriedAddress(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	// RFC requirement: RFC792-Echo-5 negative -- three requests of 1, 333 and 1400 data octets to one gateway each get back exactly their own data, never another request's data nor a padded or truncated copy.
 	// RFC requirement: RFC792-Echo-6 negative -- a request to the gateway's secondary address 192.0.2.253 is never answered from the primary 192.0.2.254: the reply's source is the request's destination and its destination the request's source.
 	w := newGatewayWire(t)

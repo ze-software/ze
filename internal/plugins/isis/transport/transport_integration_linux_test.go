@@ -47,8 +47,8 @@ func nsName(testName string) string {
 }
 
 // withVethPair creates a veth pair in a fresh network namespace and brings both
-// ends up, running fn inside that namespace. It skips when the required
-// capabilities are absent.
+// ends up, running fn inside that namespace. Callers MUST enter their own user
+// namespace first; setup failures are fatal.
 func withVethPair(t *testing.T, fn func()) {
 	t.Helper()
 	// Both ends run the standard Ethernet MTU. No test here varies it, and a
@@ -67,7 +67,7 @@ func withVethPair(t *testing.T, fn func()) {
 	origNS, err := netns.Get()
 	if err != nil {
 		unlock()
-		t.Skipf("requires CAP_NET_ADMIN: %v", err)
+		t.Fatalf("get network namespace inside the user namespace: %v", err)
 	}
 
 	name := nsName(t.Name())
@@ -75,7 +75,7 @@ func withVethPair(t *testing.T, fn func()) {
 	if err != nil {
 		origNS.Close() //nolint:errcheck // best-effort cleanup
 		unlock()
-		t.Skipf("requires CAP_NET_ADMIN: %v", err)
+		t.Fatalf("create network namespace inside the user namespace (CAP_NET_ADMIN): %v", err)
 	}
 
 	t.Cleanup(func() {
@@ -93,7 +93,7 @@ func withVethPair(t *testing.T, fn func()) {
 		MTU:      mtuA,
 		PeerName: vethB,
 	}); err != nil {
-		t.Skipf("add veth (needs CAP_NET_ADMIN): %v", err)
+		t.Fatalf("add veth inside the user namespace (CAP_NET_ADMIN): %v", err)
 	}
 	for name, mtu := range map[string]int{vethA: mtuA, vethB: mtuB} {
 		link, lerr := netlink.LinkByName(name)

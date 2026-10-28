@@ -1,11 +1,10 @@
-//go:build integration && linux
+//go:build linux
 
 // VALIDATES: spec-ospf-ext-16 AC-2/AC-7/AC-10/AC-13 + A-1/A-6/R-2b -- the RFC 4552
 // installer and the extended XFRM dataplane program real kernel state: an AH transport SA
 // with integrity only (no encryption), a proto-89 transport-mode policy, and the full
 // install/remove lifecycle visible in `ip xfrm`. Requires CAP_NET_ADMIN: a test that
-// calls userns.Enter first holds it unprivileged in a user namespace of its own; the
-// others need QEMU or root.
+// calls userns.Enter first holds it unprivileged in a user namespace of its own.
 // PREVENTS: a malformed AH state, a policy that matches all traffic instead of proto 89,
 // and orphaned XFRM state after interface down.
 package ospf
@@ -21,11 +20,12 @@ import (
 	"github.com/ze-software/ze/internal/test/userns"
 )
 
-// requireXFRM skips unless the kernel XFRM stack is usable (CAP_NET_ADMIN).
+// requireXFRM requires kernel XFRM access inside the caller's user namespace.
+// Backend absence remains a separate prerequisite skip.
 func requireXFRM(t *testing.T) dataplane.Dataplane {
 	t.Helper()
 	if _, err := netlink.XfrmPolicyList(netlink.FAMILY_ALL); err != nil {
-		t.Skipf("requires CAP_NET_ADMIN / kernel XFRM: %v", err)
+		t.Fatalf("list XFRM policies inside the user namespace (CAP_NET_ADMIN): %v", err)
 	}
 	if err := dataplane.Load("xfrm"); err != nil {
 		t.Skipf("xfrm backend load: %v", err)
@@ -182,6 +182,9 @@ func TestIPsecInstallerXFRMEndToEnd(t *testing.T) {
 // RFC requirement: RFC4302-3.4.3-1 negative -- explicit zero and the absent leaf
 // install all three AH states with replay disabled, rather than forcing it on.
 func TestIPsecInstallerXFRMReplayWindow(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	requireXFRM(t)
 	for _, tc := range []struct {
 		name   string
