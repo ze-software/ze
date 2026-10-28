@@ -255,9 +255,9 @@
     "showcase": {
       "assets": {
         "cast": {
-          "bytes": 670595,
+          "bytes": 674186,
           "path": "showcase.cast",
-          "sha256": "fa585da9e01ceee18ed3b8ea95431d3b33f96a26ae496de787bd1b3949c8db70"
+          "sha256": "23212c48da186da9d86b398e8b27f8208e5054163212146d909dbd083c2afcc2"
         },
         "transcript": {
           "bytes": 8739,
@@ -265,10 +265,10 @@
           "sha256": "1eea1ac5857bd2ebd4bd839070142758ac85f6d5d4fcad1efa6db3d87a8b59d1"
         }
       },
-      "binary-sha256": "bb5f142ee2b0dbcb56cbae7fcf5faa5fd5dccdde2b04110ebaada91b2ec5c99f",
+      "binary-sha256": "792f028afe58eac6c933010e31d93bf8cca4f633f225d156b14efbdbabf2216d",
       "definition-sha256": "99e3ea587a3b0f119e757326cedd567f7f2529999deb5db6673f46f333751966",
-      "release": "26.10.27",
-      "source-sha256": "499cba56bdd7f91f6a49748f3e042ff0d047c644f66e7a1385a5864e926527a7"
+      "release": "26.10.28",
+      "source-sha256": "2673acf14e09898d870d92a733c685f2a911c46b9134311d9981c2af7ff0ce37"
     },
     "traceroute": {
       "assets": {
