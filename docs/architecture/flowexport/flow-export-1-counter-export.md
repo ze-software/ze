@@ -176,3 +176,37 @@ privilege errors fail. No supplied path means a prerequisite skip; an unusable
 supplied daemon fails. The child is terminated and reaped before the namespace
 is released.
 <!-- source: internal/plugins/flowexport/producer_integration_linux_test.go -- TestFlowExportDaemonCounterGeneration -->
+
+## Daemon agent-address warning tests
+
+sFlow v5 Section 4.3 says: "In the case of a multi-homed agent, this should be
+the loopback address of the agent."
+
+The unverified draft cases
+`test/draft/flow-export/sflow-agent-address-multihomed-routed.ci` and
+`test/draft/flow-export/sflow-agent-address-multihomed-loopback.ci` create two
+real, addressed veth interfaces before starting Ze. The collector reads back their
+kernel type, addresses and up state. Unlike dummy interfaces, these interfaces
+exercise the routed multi-homed classification.
+
+The routed case requires the daemon's warning to name the owned address, its
+interface, the identity risk and the command for moving it to a loopback. It
+rejects the absent-address and unavailable-interface-list warnings, which would
+exercise different branches. The loopback counterpart rejects any agent-address
+warning across the complete daemon output. Both wait for a real UDP counter
+sample for the created interface, with the configured agent address in its
+header, before the observer requests shutdown. No fixture emits the warning.
+
+These cases require Linux and `CAP_NET_ADMIN`. They share the exclusive group
+`sflow-agent-address-topology`, because their fixture owns a named veth pair.
+An existing link makes creation fail; the fixture never removes it to make room.
+The fixture deletes its own pair after reaping the daemon, including on failure.
+Run the two drafts with `flow-export --draft --pattern
+sflow-agent-address-multihomed` inside the runtime-kernel QEMU guest. They have
+not been run or load-tested and are not live suite coverage; promotion remains
+pending that proof. The existing absent-address case and classifier unit tests
+remain separate coverage.
+
+<!-- source: test/draft/flow-export/sflow-agent-address-multihomed-routed.ci -->
+<!-- source: test/draft/flow-export/sflow-agent-address-multihomed-loopback.ci -->
+<!-- source: internal/test/fixture/register_sflow_agent_address_linux.go -- sflowAgentAddressDaemon, sflowAgentAddressReceiver, sflowAgentAddressDatagram -->
