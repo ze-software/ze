@@ -2,22 +2,23 @@
 
 | Field | Value |
 |-------|-------|
-| Status | blocked |
+| Status | in-progress |
 | Priority | P2 |
 | Release reason | The delivered appliance must contain the kernel facilities its VPN configuration requires. |
 | Scope | config \| tooling |
 | Depends | `plan/release/delivery/spec-appliance-ships-ze-kernel.md` (AC-6 and AC-7 only; AC-1..AC-5 land without it) |
-| Phase | 6/7 — AC receipts accepted; RFC proof freshness blocks closure |
+| Phase | 7/7 — all ACs demonstrated; RFC repair reviewed; closing |
 | Handoff | - |
 | Updated | 2026-10-28 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
-## Blocker: RFC proof records invalidated by the ESP prerequisite
+## RFC evidence repair accepted
 
-The Mac cache receipt is accepted. It is not the blocker. The required static
-`./le rfc check` on 2026-10-28 returned 79 violations across the working tree.
-The scoped blocker is the subset whose producers changed in `ba03d7c2c7`:
+The first closure review found 79 violations in the global static RFC gate.
+The following 13 unit/polarity records and four audits were attributable to
+`ba03d7c2c7`, and were the precise blocker in handback `6ce48b98f1`.
+This historical table records what was stale, not a remaining closure debt.
 
 | Record | Changed producer | Affected tagged unit(s) or audit |
 |--------|------------------|---------------------------------|
@@ -30,33 +31,44 @@ The scoped blocker is the subset whose producers changed in `ba03d7c2c7`:
 | RFC5282-8-1 negative/positive | `crypto/proposal.go::matchESP` | `engine/rfc5282_aead_send_test.go::TestRFC5282AEADESPOfferWithIntegrityIsRefused`, `TestRFC5282AEADESPSelectionCarriesNoIntegrityAlgorithm`; audit also stale |
 | RFC5282-8-2 positive/negative | `engine/initiator.go::espProposalWire` | `engine/rfc5282_aead_send_test.go::TestRFC5282AEADESPProposalCarriesNoIntegrityTransform`, `TestRFC5282NonAEADESPProposalKeepsItsIntegrityTransform`; audit also stale |
 
-Paths in the table are relative to `internal/component/ike/`. The native output
-is retained as closure transcript artifact `2189`. It reports `producer-changed`,
-not mechanical line shifts. The committed prerequisite diff changes each named
-producer. These records are not repaired by `rfc reseal`.
+Paths in the table are relative to `internal/component/ike/`. The initial
+native output is retained as closure transcript artifact `2189`; it reported
+producer changes, not line shifts. Resealing would not have repaired the proofs.
 
-Diagnosis: the prerequisite widened ESP admission and key derivation but did not
-refresh all RFC records tied to those producers. The owning layer is the
-implementation phase's discrimination and independent RFC audit. A workaround
-would reseal, delete tags or call the passing kernel matrix equivalent evidence;
-none demonstrates those individual requirement tests on the current producer.
-The source fix is to re-record the 13 affected unit/polarity proofs above and
-independently re-audit the four named verdicts against current source.
-Closure does not write those proofs or audit verdicts. No passing native VPN
-proof, kernel build or unsafe `verify changed` run is needed to clear this gap.
+Implementation repair `51a44b026c` re-recorded all 13 entries using native
+clean controls and claim-specific compiling mutations, and independently
+rejudged all four audits. Ten fresh entries remained unchanged. The approved
+NULL test correction uses the ESP integrity registry, so its universal claim
+also covers SHA1; all assertions and tags remain. The API comment now correctly
+identifies the other registry as IKE-only. No product behavior changed.
 
-The rest of the broad gate's failures were not attributed to this spec.
-`repo check` also reported three unrelated numberparse allowlist mismatches;
-`test weakened check base origin/main` reported the unrelated
-`health.TestPartialHealthExplainsScopedEvidence` change. These are recorded
-limits, not excuses to waive the scoped RFC blocker.
+Round 2 read the exact repair diff, four audit judgments, corrected test and
+registry producers, and all 13 actual clean/red recording logs. Every clean
+named unit passed; each mutated unit failed its specific assertion. The MSK
+break now installs a direct MSK prefix in `createFirstChildSA` rather than
+halting derivation. The other breaks target KEYMAT ordering, NULL admission,
+CCM nonce size, salt size, AEAD selection and Type 3 wire transforms.
+Logs and exact commands are indexed by
+`scratch/vpn-rfc-discrimination-observations.json` in the session directory.
+
+The parent's final `rfc update` and `rfc check` completed after the repair:
+artifact `2247` reports 62 unrelated violations, exactly 17 fewer than before.
+None of the scoped record IDs or changed producers remains in that output.
+All scoped RFC proof/audit freshness is satisfied; no whole-tree green claim
+is made. No native VPN proof, kernel build or unsafe verifier was repeated.
+
+The remaining global failures are outside this spec's producer changes.
+The earlier `repo check` reported three unrelated numberparse allowlist
+mismatches; the weakened audit named unrelated
+`health.TestPartialHealthExplainsScopedEvidence`. These are preserved limits,
+not reopened work or grounds for claiming aggregate verification.
 
 
 ## Mac receipt reconciled
 
-The owner returned the selected-tree readback on 2026-10-28. This clears the
-evidence-delivery blocker recorded in `a1d2f0abf3`; it does not claim that the
-final Review Gate has run.
+The owner returned the selected-tree readback on 2026-10-28, clearing the
+evidence-delivery blocker in `a1d2f0abf3`. The final independent review below
+accepts this receipt without demanding another transfer or native run.
 
 The Mac agent exported the recorded revision `ceb83b7140`, built only its
 host tool and queried `appliance kernel --target runtime --arch arm64
@@ -354,7 +366,7 @@ Yes: the native matrix retains strongSwan as the independent peer. Fixed-key ESP
 | 6 | Has a user guide page? | Yes | `docs/guide/appliance.md` "Runtime Kernel Requirements" |
 | 7 | Wire format changed? | N-A | none |
 | 8 | Plugin SDK/protocol changed? | N-A | none |
-| 9 | RFC behavior implemented, changed, or newly proven? | Yes | RFC4303/7634 public coverage now names kernel interop producers; Partial status and requirement gaps stay unchanged. RFC proof freshness blocks closure separately. |
+| 9 | RFC behavior implemented, changed, or newly proven? | Yes | RFC4303/7634 public coverage names kernel interop producers; Partial status and requirement gaps stay unchanged. Scoped record freshness was repaired in `51a44b026c`. |
 | 10 | Test infrastructure changed? | Yes | QEMU integration and interop architecture describe the shared Docker-host matrix, not a MOBIKE extension |
 | 11 | Affects daemon comparison? | N-A | none |
 | 12 | Internal architecture changed? | Yes | `docs/architecture/appliance/kernel-profiles.md` |
@@ -489,7 +501,7 @@ CONFIG_CRYPTO_SHA512=y
 
 ## AC-6 Implementation and Native Proof
 
-Native amd64/KVM traffic passed on 2026-10-27. The repaired arm64/HVF run at `ceb83b7140` also passed, as recorded below. All four prescribed deliberate breaks and an unmutated Linux restoration are proved. The owner's read-only Mac cache/config/module-tree receipt is accepted; RFC proof freshness, not native traffic or cache evidence, now blocks closure.
+Native amd64/KVM traffic passed on 2026-10-27. The repaired arm64/HVF run at `ceb83b7140` also passed, as recorded below. All four prescribed deliberate breaks and an unmutated Linux restoration are proved. The owner's read-only Mac cache/config/module-tree receipt is accepted. The later RFC evidence repair is independently accepted above.
 
 - `internal/le/test/qemu/mobike.go` `runIPsecMOBIKEHere` boots through
   `NewRun` with `iproute2 iputils util-linux strongswan`. This is the Alpine
@@ -812,8 +824,8 @@ at the top of this spec and in handover 27; copying the retained files to
 Linux was not an acceptance requirement. Both earlier failure receipts remain
 preserved. Linux completed the four deliberate breaks, unmutated restoration
 and default-image readback below. These prove kernel support, not the separate
-product WireGuard configuration-commit workflow. The new blocker is RFC proof
-freshness for changed ESP prerequisite producers.
+product WireGuard configuration-commit workflow. The subsequent RFC freshness
+blocker was repaired in `51a44b026c`, without repeating these native proofs.
 
 ## Current native amd64 kernel and AC-7 default-image evidence
 
@@ -957,7 +969,8 @@ No kernel proof claims the product WireGuard configuration-commit workflow.
 | assumption | A-5 expected MOBIKE to select every transform | Its selector runs movement scenarios | Producer audit | Use the shared Docker-host VPN matrix |
 | approach | NULL proposal logs were buffered | An established SA did not make the log observable | Native NULL proof | Flush the peer log without changing assertions |
 | documentation | Coverage and dependency prose lagged the accepted native receipts | Both native runs and the returned cache readback were already sufficient for the kernel ACs | Source/receipt reconciliation | Update RFC public coverage without promoting conformance; repoint durable citations |
-| evidence | ESP prerequisite changed RFC-recorded producers without refreshing all records | Native matrix PASS does not refresh per-requirement proof fingerprints | Static `rfc check`, artifact `2189` | Block closure; return the 13 unit/polarity records and four audits to implementation |
+| evidence | ESP prerequisite changed RFC-recorded producers without refreshing all records | Native matrix PASS does not refresh per-requirement proof fingerprints | Static `rfc check`, artifact `2189` | Handback `6ce48b98f1`; native discrimination and independent audits repaired in `51a44b026c` |
+| test population | The NULL acceptance test enumerated IKE-only integrity names | Its universal ESP claim includes SHA1 | Independent RFC audit | Owner-approved correction uses `SupportedESPIntegrityNames` and `LookupESPIntegrity`; retains every assertion and tag |
 
 ## Implementation Audit
 
@@ -968,7 +981,7 @@ No kernel proof claims the product WireGuard configuration-commit workflow.
 | Transform-derived requirements | Demonstrated | `TestXfrmTransformsHaveRequiredKernelSymbol` | Actual XFRM tables drive the check |
 | Refuse missing/modular facilities | Demonstrated | `enforceKernelRequirements`, `enforceRequiredSymbols`, per-symbol fixtures | Emitted config, not request fragments |
 | Received traffic on a booted kernel | Demonstrated | `runVPNKernelAt`, `verifyESPDirectionsToward`, `requireWireGuardReceipt` | Five ESP cases plus WireGuard on both native architectures |
-| Closure evidence freshness | Blocked | RFC records named in Blocker | Implementation must refresh producer-bound proofs and independent audits |
+| Closure evidence freshness | Demonstrated | `51a44b026c`, native logs and final gate artifact `2247` | All 13 scoped proofs and four audits fresh; unrelated global failures remain |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
@@ -990,7 +1003,7 @@ No kernel proof claims the product WireGuard configuration-commit workflow.
 | Guest preparation and receipts | Implemented; source reviewed | QEMU/deployment VPN tests | Empty versus loaded/unreadable proc files, helper symlink, receipt identity/counters |
 | Native matrix | Retained passes accepted | Mac HVF and Linux KVM logs above | No emulation or new run |
 | Four deliberate breaks | Retained refusals accepted | Scratch logs named above | CBC mismatch is negotiation refusal; SHA substitution tests the observer, not actual SHA1 negotiation; wrong WireGuard allowed IP loses packets; helper guard fails |
-| RFC tagged units | Blocked freshness | Blocker table | Kernel matrix does not substitute for these records |
+| RFC tagged units | Scoped freshness repaired | `51a44b026c` and all 13 native recording logs | Clean controls pass; claim-specific mutated units fail; independent audits enforced |
 
 ### Files from Plan
 | File | Status | Notes |
@@ -998,12 +1011,19 @@ No kernel proof claims the product WireGuard configuration-commit workflow.
 | Runtime config/require and kernel floor/pairing | Implemented | Reused existing enforcement |
 | XFRM mapping and Linux consistency test | Implemented | Reused `xfrmTransformKernel`; no duplicate map |
 | QEMU/deployment/interop proof producers and fixtures | Implemented | Shared Docker-host transport; fixed five-case matrix |
-| Fixed-key ESP prerequisite | Implemented; evidence refresh owed | `ba03d7c2c7`; source review found no product blocker, but stale RFC proofs block closure |
+| Fixed-key ESP prerequisite | Implemented and evidence repaired | `ba03d7c2c7` plus `51a44b026c`; no remaining scoped blocker |
 | Architecture, guides and feature declaration | Updated | Existing producer anchors retained; public RFC coverage and durable citers reconciled here |
 
 ### Audit Summary
 
-All eight product ACs are demonstrated. The independent source review found no new product-code defect. Closure is blocked by stale scoped RFC proof/audit records, not by Mac receipt delivery or unsafe broad verification.
+All eight product ACs are demonstrated. Round 1 found the scoped RFC freshness blocker; implementation repaired it and the bounded independent Round 2 is clean. No product behavior was changed by the repair. Remaining global gate failures and unsafe aggregate verification are explicitly outside the closure claim.
+
+Risks and observations: changing kernel fragments changes cache identity and
+requires a new native kernel build; existing accepted caches are not purged.
+Legacy 3DES/SHA1 and NULL remain explicit policy choices, not defaults. Private
+negative XFRM logs may contain disposable lab keys and are not public artifacts.
+Hardware boot, other image/L2TP obligations and product WireGuard config-commit
+remain with the named neighboring owners.
 
 ## Goal Validation
 
@@ -1017,12 +1037,15 @@ All eight product ACs are demonstrated. The independent source review found no n
 
 ## Work Not Done
 
+No in-scope deliverable remains unfinished. These are existing neighboring
+contracts and the separately owned verification limitation, not work transferred
+out of this spec to permit closure.
+
 | What was not done | Why | The spec that now owns it |
 |-------------------|-----|---------------------------|
 | Product WireGuard config-commit proof | Explicitly separate from kernel proof | `plan/release/validation/spec-wireguard-runtime-proof.md` |
 | Other default-image/L2TP and owner-deferred hardware obligations | This spec proves packaged config only | `plan/release/delivery/spec-appliance-ships-ze-kernel.md` |
 | Safe scoped verification | Known selector defect; do not rerun unchanged | `plan/post-release/engineering/spec-verify-scope-0-umbrella.md` |
-| Scoped RFC proof refresh | In-scope implementation handback, not deferred closure debt | `plan/release/delivery/spec-appliance-kernel-vpn-modules.md` |
 
 ## Review Gate
 
@@ -1035,20 +1058,32 @@ Lenses: wiring and acceptance; security and fail-closed behavior; lifecycle,
 test discrimination, allocation and Go style. This is independent of the
 implementation phase and does not import unrelated intervening changes.
 
+### Run 2: scoped repair review
+
+Reviewed `51a44b026c` and its native observations, not untouched Round 1 code.
+The test change broadens the derived population to ESP-only SHA1 without
+removing assertions or adding a copied algorithm list. Its loop is bounded by
+the registry; no peer-reachable panic, new lifecycle obligation or production
+allocation is introduced. Each repaired record names the actual observation
+and a changed producer; the four independent audits retain their exact scope.
+The final native RFC output has no failure for these records or audits.
+Result: 0 BLOCKER, 0 ISSUE; the historical blocker is fixed.
+
 | Field | Value |
 |-------|-------|
-| Artifact | `tmp/review/appliance-kernel-vpn-modules-644a4e78-0122-4eeb-8642-eb50638a1641.md`; FINDINGS over 11 source files |
-| `./le spec review check` | Not run: known FINDINGS verdict; parent stopped further checks after accepting scoped attribution |
-| Rounds | 1 |
+| Artifact | `tmp/review/appliance-kernel-vpn-modules-644a4e78-0122-4eeb-8642-eb50638a1641.md`; CLEAN over 24 files (13 code files and 11 RFC evidence files) |
+| `./le spec review check` | OK: 13 code files, clean, hashes match; same 24-file population supplied |
+| Rounds | 2 |
 | Reviewer lenses used | Wiring/acceptance; security/guards; lifecycle/discrimination/style |
-| Final verdict | One closure BLOCKER (RFC freshness); no new product-code finding. Parent accepted the exact 13-record/four-audit repair scope. |
+| Final verdict | CLEAN: 0 BLOCKER, 0 ISSUE after `51a44b026c`; all eight ACs demonstrated |
 
 ### Findings fixed
 | # | Severity | Finding | Location | Fixed by |
 |---|----------|---------|----------|----------|
 | 1 | NOTE | Stale missing-Mac-receipt and dependency wording | Spec/handover/citers | This documentation handback |
 | 2 | NOTE | Public RFC coverage omitted native kernel evidence | RFC4303/7634 metadata | Bounded producer-backed coverage; no conformance promotion |
-| 3 | BLOCKER | Changed ESP prerequisite invalidates 13 unit/polarity proofs and four audits | Blocker table | Not fixed in closure; implementation-phase evidence work required |
+| 3 | BLOCKER | Changed ESP prerequisite invalidated 13 unit/polarity proofs and four audits | Historical table above | `51a44b026c`, accepted by independent Round 2 |
+| 4 | ISSUE | NULL test's IKE-only integrity population missed ESP-only SHA1 | `crypto/rfc4303_integrity_only_test.go::TestRFC4303IntegrityOnlyESPIsAccepted` | Owner-approved strengthening and fresh native proof in `51a44b026c` |
 
 ## Pre-Commit Verification
 
@@ -1090,6 +1125,8 @@ implementation phase and does not import unrelated intervening changes.
 | Appliance command and scope | `runVPNKernelHere`, `vpnGuestPreparation`, `runVPNKernelAt`, `checkWireGuardProof` | Yes; no product config-commit claim |
 | ESP-only choices and framing | Crypto registries, config parser, key sizing and parity guards | Yes; explicit legacy choices, not defaults |
 | Feature maturity/public RFC coverage | Feature declaration remains experimental; RFC4303/7634 remain Partial | Yes; kernel interop is not new RFC-tag coverage |
-| Citation survival | Actual full-path citers repointed to durable architecture | Prepared; no spec removal while blocked |
-| Static checks | `repo check`, `test weakened check`, `rfc check` | Not globally green; scoped RFC failures block as detailed above |
-| Pending checks | Parent stopped checks after confirming the scoped blocker | `doc check all`, final CLEAN artifact/check and citation check await repaired RFC records; unsafe aggregate verify remains separately owned |
+| Citation survival | Whole-tree full-path search found only this spec's now-removed self-citer | Durable citers landed in `6ce48b98f1`; native final citation check accompanies removal |
+| Static checks | Initial repo/weakened checks and final parent RFC result `2247` | No global green claim; all 17 scoped RFC freshness failures removed |
+| Website and aggregate verification | Parent owns final site regeneration/check; scoped verifier defect owned separately | Prior website evidence covers earlier content only; do not run unsafe `verify changed` unchanged |
+| Documentation gate | `./le doc check all`, transcript artifact `2249`, exit 1 | Only three unrelated source-anchor failures: `core-design.md:156` → `dispatch.go::commandWordsMax`; `ipsec-9-ikev2-eap-nat.md:292` → `eap/pool.go::Available`; `ci-workflows.md:126` → `rfc/carriers.go::workflowNestedLe`. No scoped doc failure or rerun. |
+| Review gate | Native CLEAN record and matching check over the same 24-file population | Passed: two rounds, 13 code-file hashes match |
