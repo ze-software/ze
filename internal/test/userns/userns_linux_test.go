@@ -4,10 +4,12 @@ package userns
 
 import (
 	"errors"
+	"flag"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"syscall"
@@ -213,6 +215,107 @@ func TestEnterMountFailureNamesTheStep(t *testing.T) {
 	}
 	if want := "mount tmpfs on " + target; !strings.Contains(err.Error(), want) {
 		t.Fatalf("mountNetnsDir error %q does not name the step %q", err, want)
+	}
+}
+
+// forwardProbe is a test's own flag, the shape of `-flowexport-ze-path`. Only
+// TestEnterForwardsTheParentsFlags sets it, and only in the parent.
+var forwardProbe = flag.String("userns-forward-probe", "", "Set by TestEnterForwardsTheParentsFlags in the parent only")
+
+// TestEnterForwardsTheParentsFlags proves a flag the parent was given reaches
+// the body in the child. The parent sets the flag on flag.CommandLine, as a
+// command-line argument would, before Enter; the child never sets it, so the
+// value it reads can only have arrived on its own command line.
+func TestEnterForwardsTheParentsFlags(t *testing.T) {
+	const want = "forwarded-by-the-parent"
+	if os.Getenv(childEnv) == "" {
+		if err := flag.Set("userns-forward-probe", want); err != nil {
+			t.Fatalf("set the probe flag in the parent: %v", err)
+		}
+	}
+	if !Enter(t) {
+		return
+	}
+	if *forwardProbe != want {
+		t.Fatalf("-userns-forward-probe in the child = %q, want %q: the parent's flag did not reach the child", *forwardProbe, want)
+	}
+}
+
+// TestChildArgsForwardsSetFlagsAndWithholdsEnters proves the child's command line
+// from a flag set: Enter's own selection first, then every flag that was set, in
+// lexical order with its value, minus each flag childFlagsWithheld names. A flag
+// that was registered but never set is not passed.
+func TestChildArgsForwardsSetFlagsAndWithholdsEnters(t *testing.T) {
+	fs := flag.NewFlagSet("probe", flag.ContinueOnError)
+	fs.String("flowexport-ze-path", "", "")
+	fs.Bool("rsvp-verbose", false, "")
+	fs.String("never-set", "default", "")
+	fs.String("test.gocoverdir", "", "")
+	fs.Duration("test.timeout", 0, "")
+	for name := range childFlagsWithheld {
+		fs.String(name, "", "")
+	}
+	args := []string{
+		"-flowexport-ze-path=/tmp/ze", "-rsvp-verbose", "-test.gocoverdir=/tmp/cover", "-test.timeout=5m",
+	}
+	for name := range childFlagsWithheld {
+		args = append(args, "-"+name+"=parent-value")
+	}
+	if err := fs.Parse(args); err != nil {
+		t.Fatalf("parse the probe flags: %v", err)
+	}
+	got := childArgs(fs, "TestProbe")
+	want := []string{
+		"-test.run", "^TestProbe$", "-test.v", "-test.count=1",
+		"-flowexport-ze-path=/tmp/ze", "-rsvp-verbose=true", "-test.gocoverdir=/tmp/cover", "-test.timeout=5m0s",
+	}
+	if !slices.Equal(got, want) {
+		t.Fatalf("childArgs =\n%q\nwant\n%q", got, want)
+	}
+}
+
+// TestChildResultReadsOnlyTheTestsOwnLine proves the guard against a child that
+// ran nothing: only a column-0 result line naming exactly the test counts, so
+// an output with no tests, a subtest's line or another test's line answers
+// childRanNothing or the top-level verdict, never a pass or skip by accident.
+func TestChildResultReadsOnlyTheTestsOwnLine(t *testing.T) {
+	cases := []struct {
+		name string
+		out  string
+		want childOutcome
+	}{
+		{"pass", "=== RUN   TestX\n--- PASS: TestX (0.01s)\nPASS\n", childPassed},
+		{"skip", "=== RUN   TestX\n    x_test.go:1: no kernel\n--- SKIP: TestX (0.00s)\nPASS\n", childSkipped},
+		{"fail", "=== RUN   TestX\n--- FAIL: TestX (0.00s)\nFAIL\n", childFailed},
+		{"no tests ran", "testing: warning: no tests to run\nPASS\n", childRanNothing},
+		{"empty output", "", childRanNothing},
+		{"another test whose name extends it", "=== RUN   TestXY\n--- PASS: TestXY (0.00s)\nPASS\n", childRanNothing},
+		{"subtest skip only", "=== RUN   TestX/sub\n    --- SKIP: TestX/sub (0.00s)\nPASS\n", childRanNothing},
+		{"subtest skip under a pass", "    --- SKIP: TestX/sub (0.00s)\n--- PASS: TestX (0.00s)\nPASS\n", childPassed},
+	}
+	for _, c := range cases {
+		if got := childResult("TestX", []byte(c.out)); got != c.want {
+			t.Errorf("%s: childResult = %d, want %d", c.name, got, c.want)
+		}
+	}
+}
+
+// TestEnterRefusesAChildThatRanNoTest proves the guard end to end over the real
+// re-executed binary: the command Enter builds, asked for a test name the binary
+// does not hold, exits 0 with no result line, and childResult answers
+// childRanNothing, the outcome on which Enter fails the parent. The namespace
+// clone flags are cleared, because a child that selects no test never reaches
+// childSetup, so the run needs no namespace and cannot be refused one.
+func TestEnterRefusesAChildThatRanNoTest(t *testing.T) {
+	const name = "TestNoSuchTestInThisBinary"
+	cmd := childCommand(t, name)
+	cmd.SysProcAttr = nil
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("child selecting no test exited %v, want 0:\n%s", err, out)
+	}
+	if got := childResult(name, out); got != childRanNothing {
+		t.Fatalf("childResult over a child that ran nothing = %d, want childRanNothing (%d):\n%s", got, childRanNothing, out)
 	}
 }
 

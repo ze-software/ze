@@ -15,12 +15,12 @@ package userns
 
 import (
 	"errors"
+	"flag"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strconv"
-	"strings"
 	"syscall"
 	"testing"
 
@@ -41,8 +41,10 @@ const hostNetnsDeviceEnv = "ZE_TEST_USERNS_HOST_NETNS_DEV"
 // and returns true only in that child, where the test body runs as root over
 // its own namespaces, with loopback up and a private tmpfs on /run/netns.
 // The parent returns false once the child has finished: the test has then failed
-// when the child failed, and skipped when the kernel refused the namespace or the
-// child skipped. The caller returns at once on false.
+// when the child failed or ran no test of that name, and skipped when the kernel
+// refused the namespace or the child skipped the test itself. The child receives
+// every flag the parent was given except those childFlagsWithheld names, so a
+// test's own flags reach the body. The caller returns at once on false.
 //
 // Enter MUST be the first statement of a top-level test: the child is selected by
 // the test's name, and a subtest name would select its parent as well.
@@ -54,21 +56,44 @@ func Enter(t *testing.T) bool {
 		childSetup(t)
 		return true
 	}
+	out, err := childCommand(t, t.Name()).CombinedOutput()
+	var exitErr *exec.ExitError
+	if err != nil && !errors.As(err, &exitErr) {
+		t.Skip(refusal(err))
+	}
+	if err != nil {
+		t.Fatalf("test in its own namespace failed: %v\n%s", err, out)
+	}
+	switch childResult(t.Name(), out) {
+	case childPassed:
+		t.Logf("namespace output:\n%s", out)
+	case childSkipped:
+		t.Skipf("test skipped in its own namespace:\n%s", out)
+	case childFailed:
+		t.Fatalf("test in its own namespace reported a failure with exit status 0:\n%s", out)
+	case childRanNothing:
+		// A child that selects no test exits 0, so without this guard a name the
+		// child does not match passes the parent on nothing.
+		t.Fatalf("test in its own namespace never ran: the child output holds no "+
+			"`--- PASS: %s` or `--- SKIP: %s` line, so -test.run selected nothing:\n%s",
+			t.Name(), t.Name(), out)
+	case childResultUnspecified:
+		panic("BUG: childResult answered no result")
+	}
+	return false
+}
+
+// childCommand answers the command that re-executes the test binary in a new
+// user, network and mount namespace, selecting the one top-level test called
+// name. Run, an error that is not an *exec.ExitError means the child never
+// started, which on Linux is the kernel refusing the namespaces.
+func childCommand(t *testing.T, name string) *exec.Cmd {
+	t.Helper()
 	hostDevice, err := netnsDevice("/")
 	if err != nil {
 		t.Fatalf("userns: read the host's /run/netns before entering a namespace: %v", err)
 	}
-	args := []string{"-test.run", "^" + regexp.QuoteMeta(t.Name()) + "$", "-test.v", "-test.count=1"}
-	// A coverage run hands the binary a counter directory, and the parent's profile
-	// is built from every counter file in it. Passing it on lets the code the child
-	// runs appear in that profile, which is what `./le rfc record`
-	// reads.
-	for _, arg := range os.Args[1:] {
-		if strings.HasPrefix(arg, "-test.gocoverdir=") {
-			args = append(args, arg)
-		}
-	}
-	cmd := exec.CommandContext(t.Context(), os.Args[0], args...) //nolint:gosec // The test binary re-executes itself with its own flags.
+	cmd := exec.CommandContext(t.Context(), os.Args[0], childArgs(flag.CommandLine, name)...) //nolint:gosec // The test binary re-executes itself with its own flags.
 	cmd.Env = append(os.Environ(),
 		childEnv+"=1",
 		hostNetnsDeviceEnv+"="+string(strconv.AppendUint(nil, hostDevice, 10)))
@@ -77,19 +102,87 @@ func Enter(t *testing.T) bool {
 		UidMappings: []syscall.SysProcIDMap{{ContainerID: 0, HostID: os.Getuid(), Size: 1}},
 		GidMappings: []syscall.SysProcIDMap{{ContainerID: 0, HostID: os.Getgid(), Size: 1}},
 	}
-	out, err := cmd.CombinedOutput()
-	var exitErr *exec.ExitError
-	if err != nil && !errors.As(err, &exitErr) {
-		t.Skip(refusal(err))
+	return cmd
+}
+
+// childFlagsWithheld names the flags the parent was given that the child does
+// not receive, each with the reason. Every other flag the parent was given
+// reaches the child with its value: a test's own flag (`-flowexport-ze-path`,
+// `-rsvp-producer-daemon`), and testing's own flags such as `-test.gocoverdir`,
+// which lets the code the child runs appear in a coverage run's profile, the one
+// `./le rfc record` reads.
+var childFlagsWithheld = map[string]string{
+	"test.run":          "Enter selects the one test itself",
+	"test.v":            "Enter sets plain -test.v, whose result lines childResult reads; test2json framing would hide them",
+	"test.count":        "Enter runs the test once; the parent already repeats it once per count",
+	"test.cpu":          "the parent already repeats the test once per value, and the child's result line would carry a -N suffix",
+	"test.bench":        "the child would run benchmarks as well as the test",
+	"test.fuzz":         "the child would fuzz rather than run the test",
+	"test.fuzzworker":   "a fuzzing worker is a process the fuzz engine starts, never a test run",
+	"test.list":         "the child would list names and run nothing",
+	"test.testlogfile":  "the parent writes it on exit, and go test's result cache reads it",
+	"test.coverprofile": "the parent writes it on exit from the counter directory the child shares",
+	"test.cpuprofile":   parentWritesOnExit,
+	"test.memprofile":   parentWritesOnExit,
+	"test.blockprofile": parentWritesOnExit,
+	"test.mutexprofile": parentWritesOnExit,
+	"test.trace":        parentWritesOnExit,
+}
+
+// parentWritesOnExit is the reason a profile or trace file is withheld: the
+// child writing the same path would race with the parent and be overwritten.
+const parentWritesOnExit = "the parent writes it on exit"
+
+// childArgs answers the child's command line: the one top-level test called
+// name, verbose so childResult can read its result line, once, followed by every
+// flag set on fs (the flags the parent was given) that childFlagsWithheld does
+// not hold. flag.Visit walks only flags that were set, in lexical order.
+func childArgs(fs *flag.FlagSet, name string) []string {
+	args := []string{"-test.run", "^" + regexp.QuoteMeta(name) + "$", "-test.v", "-test.count=1"}
+	fs.Visit(func(f *flag.Flag) {
+		if _, withheld := childFlagsWithheld[f.Name]; withheld {
+			return
+		}
+		args = append(args, "-"+f.Name+"="+f.Value.String())
+	})
+	return args
+}
+
+// childOutcome is what the child's output says happened to the selected test.
+type childOutcome uint8
+
+const (
+	childResultUnspecified childOutcome = iota
+	// childPassed: the output holds `--- PASS: <name> (`.
+	childPassed
+	// childSkipped: the output holds `--- SKIP: <name> (`.
+	childSkipped
+	// childFailed: the output holds `--- FAIL: <name> (`.
+	childFailed
+	// childRanNothing: no result line names the test, so the child selected
+	// nothing (a name mismatch) or never reached it.
+	childRanNothing
+)
+
+// childResult reads the top-level result line `-test.v` writes for the test
+// called name. Only a line at column 0 counts: a subtest's result line is
+// indented, so a skipped subtest neither skips nor passes the test it belongs
+// to, and a test whose name merely starts with name is a different test.
+func childResult(name string, out []byte) childOutcome {
+	line := regexp.MustCompile(`(?m)^--- (PASS|SKIP|FAIL): ` + regexp.QuoteMeta(name) + ` \(`)
+	match := line.FindSubmatch(out)
+	if match == nil {
+		return childRanNothing
 	}
-	if err != nil {
-		t.Fatalf("test in its own namespace failed: %v\n%s", err, out)
+	switch string(match[1]) {
+	case "PASS":
+		return childPassed
+	case "SKIP":
+		return childSkipped
+	case "FAIL":
+		return childFailed
 	}
-	if strings.Contains(string(out), "--- SKIP") {
-		t.Skipf("test skipped in its own namespace:\n%s", out)
-	}
-	t.Logf("namespace output:\n%s", out)
-	return false
+	panic("BUG: the result-line pattern admits only PASS, SKIP and FAIL")
 }
 
 // refusal is the skip text for a kernel that would not create the namespaces.

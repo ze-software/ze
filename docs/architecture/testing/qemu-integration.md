@@ -820,8 +820,28 @@ own, and skips only when the kernel refuses them; the skip names
 statement of a top-level test, and such a test never calls `t.Parallel`,
 because the child re-runs that one named test in a fresh process. A well-known
 port bound there never collides with a ze running on the host or with a
-parallel run of the same package, and a coverage run passes its counter
-directory to the child, so `./le rfc record` sees the code the child ran. The
+parallel run of the same package.
+
+The child runs with `-test.run '^<Name>$' -test.v -test.count=1`, and the
+parent reads the child's own top-level result line, `--- PASS: <Name> (` or
+`--- SKIP: <Name> (` at the start of a line. A child that exits 0 with neither
+line ran no test (a name the binary does not hold selects nothing and still
+exits 0), and the parent then fails rather than pass on nothing. A subtest's
+result line is indented and does not count: a skipped subtest neither skips nor
+passes the test it belongs to.
+
+Every flag the parent was given reaches the child with its value, read from
+`flag.CommandLine` through `flag.Visit`, so a test's own flag
+(`-flowexport-ze-path`, `-rsvp-producer-daemon`) reaches the body, and a
+coverage run's `-test.gocoverdir` lets `./le rfc record` see the code the child
+ran. `childFlagsWithheld` names the flags withheld, each with its reason: the
+ones Enter sets itself (`-test.run`, `-test.v`, `-test.count`), the ones that
+change what the child runs (`-test.cpu`, `-test.bench`, `-test.fuzz`,
+`-test.fuzzworker`, `-test.list`), and the files the parent writes on exit
+(`-test.testlogfile`, `-test.coverprofile` and the profile and trace flags).
+<!-- source: internal/test/userns/userns_linux.go -- childCommand, childArgs, childFlagsWithheld, childResult -->
+
+The
 BFD wire tests (`internal/component/bfd/rfc5881_wire_port_linux_test.go`,
 `internal/component/bfd/engine/rfc5881_ttl_wire_linux_test.go`) use it.
 `Enter` brings up the literal kernel-created `lo` inside that new namespace.
