@@ -173,7 +173,7 @@
 <tr>
 <td><a href="https://github.com/ze-software/ze/blob/main/docs/guide/dns-resolver.md" target="_blank" rel="noopener">LAN DNS Resolver</a></td>
 <td>Experimental (partial)</td>
-<td>Caching LAN DNS resolver (<code>service dns-resolver</code>) for the hosts behind Ze. It answers recursive queries on the listener addresses the operator names (UDP and TCP, wildcard addresses refused), only from <code>allow-from</code> source prefixes, and resolves by forwarding to the ordered <code>forward server</code> list with failover, TCP retry on truncation and RFC 5452 reply matching. Answer and negative caches with TTL caps, trust ranking and bailiwick checks; bounds on outstanding resolutions, per-client rate and per-query work. <code>show dns-resolver</code>, <code>clear dns-resolver cache all</code>, two <code>ze doctor</code> checks and <code>ze_dns_resolver_*</code> metrics. It does not recurse from the root and does not validate DNSSEC. <!-- source: internal/plugins/dnsresolver/register.go -- dnsresolver registration --> <!-- source: internal/plugins/dnsresolver/resolve.go -- resolver.forward, resolver.absorb --> <strong>Scope gaps:</strong> forwarding only: no recursion from the root (spec-dns-resolver-recursion); no DNSSEC validation (spec-dns-resolver-dnssec-validation); no DoT or DoH listener; no recorded green run or red of the three interop scenarios yet.</td>
+<td>Caching LAN DNS resolver (<code>service dns-resolver</code>) for the hosts behind Ze. It answers recursive queries on the listener addresses the operator names (UDP and TCP, wildcard addresses refused), only from <code>allow-from</code> source prefixes, and resolves by forwarding to the ordered <code>forward server</code> list with failover, TCP retry on truncation and RFC 5452 reply matching. Answer and negative caches with TTL caps, trust ranking and bailiwick checks; bounds on outstanding resolutions, per-client rate and per-query work. <code>show dns-resolver</code>, <code>clear dns-resolver cache all</code>, two <code>ze doctor</code> checks and <code>ze_dns_resolver_*</code> metrics. It does not recurse from the root and does not validate DNSSEC. <!-- source: internal/plugins/dnsresolver/register.go -- dnsresolver registration --> <!-- source: internal/plugins/dnsresolver/resolve.go -- resolver.forward, resolver.absorb --> <strong>Scope gaps:</strong> forwarding only: no recursion from the root (spec-dns-resolver-recursion); no DNSSEC validation (spec-dns-resolver-dnssec-validation); no DoT or DoH listener.</td>
 </tr>
 <tr>
 <td><a href="../../features/mcp-integration/">MCP Integration</a></td>
@@ -798,7 +798,7 @@
 <tr>
 <td>IPsec Interop Testing</td>
 <td>Experimental</td>
-<td>Docker-based interop test infrastructure against strongSwan as the remote IKE peer, covering Ze as initiator (PSK, EAP-MSCHAPv2, EAP-TLS, EAP method negotiation by Nak, BGP redistribute, child rekey) and as responder (PSK, EAP-MSCHAPv2, IKE-SA rekey) via. The dataplane checks require Linux XFRM: a scenario waits up to 30 seconds for the ESP state on each peer and fails when none appears. <!-- source: internal/le/interoplab/ipsec/ipsec.go -- native interop lab runner --> <!-- source: internal/le/interoplab/ipsec/helpers.go -- waitXFRM, xfrmWaitTimeout -->. <span class="ev-src"><span class="ev-ref"><code>test/interop-ipsec/scenarios/</code></span></span></td>
+<td>Docker-based interop test infrastructure against strongSwan as the remote IKE peer, covering Ze as initiator (PSK, EAP-MSCHAPv2, EAP-TLS, EAP method negotiation by Nak, BGP redistribute, child rekey) and as responder (PSK, EAP-MSCHAPv2, IKE-SA rekey) via. The dataplane checks require Linux XFRM: a scenario waits up to 30 seconds for the ESP state on each peer and fails when none appears. <!-- source: internal/le/interoplab/ipsec/ipsec.go -- native interop lab runner --> <!-- source: internal/le/interoplab/ipsec/helpers.go -- waitXFRM, xfrmWaitTimeout --> The manual <code>./le test qemu vpn-kernel-test</code> additionally proves the kernel facilities for AES-GCM, AES-CBC/SHA256, ChaCha20-Poly1305, 3DES/SHA1 and NULL/SHA256 against strongSwan. It requires installed ESP states and received tunnel traffic with module loading disabled. Native amd64/KVM and arm64/HVF receipts cover that five-scenario subset; they are not a pass count for the whole IPsec suite and do not promote this feature's maturity. <!-- source: internal/le/test/qemu/vpnproof.go -- runVPNKernelHere, vpnGuestPreparation --> <!-- source: internal/le/test/deployment/vpnproof.go -- runVPNKernelAt --> <!-- source: internal/le/interoplab/ipsec/vpnproof.go -- checkESPKernel -->. <span class="ev-src"><span class="ev-ref"><code>test/interop-ipsec/scenarios/</code></span></span></td>
 </tr>
 </tbody>
 </table>
@@ -815,7 +815,7 @@
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 02:50 UTC</span>
+                    <span class="footer-published">Published 28 October 2026 09:51 UTC</span>
                 </div>
             </div>
         </footer>
