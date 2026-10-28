@@ -51,12 +51,20 @@ type Setup struct {
 	UsernsProc string
 	// KvmDev overrides the device the KVM state is read from.
 	KvmDev string
+	// PppDev overrides the device the /dev/ppp state is read from.
+	PppDev string
+	// PppRule overrides the udev rule file the /dev/ppp step reads and writes.
+	PppRule string
 	// Env answers an environment variable. Nil means the real environment.
 	Env func(key string) string
 	// User answers the invoking user's login name.
 	User func() string
 	// KvmGroupMember reports whether that user is in the kvm group.
 	KvmGroupMember func() bool
+	// DipGroupID answers the dip group's id, and whether the group exists.
+	DipGroupID func() (int, bool)
+	// DipGroupMember reports whether the invoking user is in the dip group.
+	DipGroupMember func() bool
 	// Bindable reports whether one address can be bound right now.
 	Bindable func(addr string) bool
 	// LoopbackPrefixes reads addresses on the loopback interface, preserving host bits.
@@ -174,6 +182,8 @@ func (s *Setup) Run() (*Report, int) {
 		report.Add(s.visitUserns(report))
 		report.Add(s.visitKvm(report))
 	}
+	// visitPpp answers macOS itself, so the skip and its reason reach the report.
+	report.Add(s.visitPpp(report))
 	report.Add(s.visitLoopback(report))
 
 	if s.Check {

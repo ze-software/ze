@@ -141,6 +141,10 @@ const kvmDevDefault = "/dev/kvm"
 // KVMGroup is the group /dev/kvm belongs to.
 const KVMGroup = "kvm"
 
+// usermodBin is the program that adds the user to a group, for the kvm and the
+// /dev/ppp steps.
+const usermodBin = "usermod"
+
 // kvm is whether QEMU can use KVM as this user.
 type kvm string
 
@@ -175,7 +179,15 @@ func (s *Setup) inKvmGroup() bool {
 	if s.KvmGroupMember != nil {
 		return s.KvmGroupMember()
 	}
-	group, err := user.LookupGroup(KVMGroup)
+	return groupDatabaseLists(KVMGroup)
+}
+
+// groupDatabaseLists reports whether the group database lists the invoking
+// user in the named group, as its primary or a supplementary group. A group or
+// user it cannot look up answers false: the caller then names the command that
+// adds the membership, which is the fix in either case.
+func groupDatabaseLists(name string) bool {
+	group, err := user.LookupGroup(name)
 	if err != nil {
 		return false
 	}
@@ -248,7 +260,7 @@ func (s *Setup) noteKvmFix(report *Report) {
 // NOT the same as usable: this process keeps the groups it started with, so the
 // caller must still say to log back in.
 func (s *Setup) applyKvm(report *Report) bool {
-	ok, detail := s.Shell.runPrivileged(report, []string{"usermod", "-aG", KVMGroup, s.userName()}, nil, "")
+	ok, detail := s.Shell.runPrivileged(report, []string{usermodBin, "-aG", KVMGroup, s.userName()}, nil, "")
 	if !ok {
 		var tb textbuf.Buffer
 		report.Note(tb.Str("  FAIL: ").Str(detail).String())
