@@ -2110,6 +2110,13 @@ an unsigned EAP answer, as it did before the discard, and ze rebuilt, it fails
 with "assertion 6: ze completed an EAP login for radiusop through answers whose
 Message-Authenticator the relay removed".
 
+`radius-admin-pap-unsigned-freeradius` passed on 2026-10-28 and discriminates:
+with the presence check in `dispatchResponse` disabled (`if
+w.requireMessageAuthenticator {` made `if false && ...`) and ze rebuilt, it
+fails with "assertion 6: ze completed a PAP login for radiusop on an
+Access-Accept whose Message-Authenticator the relay removed", and passes again
+once the check is restored.
+
 The third scenario is the one that proves `docs/guide/radius.md` is telling the
 truth. RFC 2865 Section 2.2:
 
