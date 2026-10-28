@@ -1,6 +1,7 @@
 package rfc
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"slices"
@@ -98,10 +99,10 @@ func TestResealWritesOnlyTheStemsItWasGiven(t *testing.T) {
 	if len(report.Refused) != 0 {
 		t.Errorf("a stem nobody named reached the refusals: %v", report.Refused)
 	}
-	if string(readAuditRecord(t, root, selftestStemSecond, resealRIDSecond)) != string(secondBefore) {
+	if !bytes.Equal(readAuditRecord(t, root, selftestStemSecond, resealRIDSecond), secondBefore) {
 		t.Errorf("the reseal of %s rewrote %s's verdict file", selftestStem, selftestStemSecond)
 	}
-	if string(readAuditRecord(t, root, selftestStem, selftestRIDSend)) == string(firstBefore) {
+	if bytes.Equal(readAuditRecord(t, root, selftestStem, selftestRIDSend), firstBefore) {
 		t.Errorf("the reseal of %s left its own shifted verdict as it was", selftestStem)
 	}
 	states := stampFreshness(t, root)
@@ -126,7 +127,7 @@ func TestResealRefusesWithoutAStemAndForAStemNotEnrolled(t *testing.T) {
 	if _, err := resealStems(root, []string{"rfc7777"}); err == nil || !strings.Contains(err.Error(), "rfc7777 is not an enrolled RFC") {
 		t.Errorf("a reseal naming an unknown stem answered %v, want the refusal naming it", err)
 	}
-	if string(readStampAudit(t, root)) != string(before) {
+	if !bytes.Equal(readStampAudit(t, root), before) {
 		t.Error("a refused reseal wrote a verdict file")
 	}
 }
