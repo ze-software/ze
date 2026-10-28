@@ -294,6 +294,70 @@ func TestRecursiveBadVersion(t *testing.T) {
 	}
 }
 
+// TestRecursiveTwoOPT proves a query carrying more than one OPT RR draws
+// FORMERR, as RFC 6891 Section 6.1.1 requires, in the recursive shape and
+// counted, without reaching the answer func. Method: build queries whose
+// additional section holds two OPTs (version 1 then version 0, and two of
+// version 0), run them through a handler whose answer func fails the test if
+// called, pack the reply as it goes on the wire, and read back the rcode, RA,
+// the single reply OPT and what rejected was told. The version 1 then 0 case
+// catches a check that reads only the last OPT, which is version 0 and would
+// pass the version check as a well-formed query.
+// PREVENTS: a malformed EDNS query answered or forwarded as if it were valid.
+func TestRecursiveTwoOPT(t *testing.T) {
+	cases := []struct {
+		name     string
+		versions [2]uint8
+	}{
+		{"version 1 then 0", [2]uint8{1, 0}},
+		{"version 0 twice", [2]uint8{0, 0}},
+	}
+	for _, tc := range cases {
+		q := recursiveQuery("example.test.", 1232)
+		q.IsEdns0().SetVersion(tc.versions[0])
+		second := &dns.OPT{Hdr: dns.RR_Header{Name: ".", Rrtype: dns.TypeOPT}}
+		second.SetUDPSize(1232)
+		second.SetVersion(tc.versions[1])
+		q.Extra = append(q.Extra, second)
+		var rejected []int
+		handler := Recursive(nil, func(msg, r *dns.Msg, p Peer) bool {
+			t.Errorf("%s: a query with two OPT RRs reached the answer func", tc.name)
+			return true
+		}, func(_ Peer, rcode int) { rejected = append(rejected, rcode) })
+		fw := &fakeResponseWriter{}
+		handler(fw, q)
+		if fw.written == nil {
+			t.Fatalf("%s: no reply written", tc.name)
+		}
+		wire, err := fw.written.Pack()
+		if err != nil {
+			t.Fatalf("%s: pack reply: %v", tc.name, err)
+		}
+		reply := new(dns.Msg)
+		if err := reply.Unpack(wire); err != nil {
+			t.Fatalf("%s: unpack reply: %v", tc.name, err)
+		}
+		if reply.Rcode != dns.RcodeFormatError {
+			t.Errorf("%s: wire rcode %d, want FORMERR (1)", tc.name, reply.Rcode)
+		}
+		if !reply.RecursionAvailable {
+			t.Errorf("%s: RA=0, want the recursive shape", tc.name)
+		}
+		opts := 0
+		for _, rr := range reply.Extra {
+			if _, isOPT := rr.(*dns.OPT); isOPT {
+				opts++
+			}
+		}
+		if opts != 1 {
+			t.Errorf("%s: reply carries %d OPT RRs, want 1", tc.name, opts)
+		}
+		if len(rejected) != 1 || rejected[0] != dns.RcodeFormatError {
+			t.Errorf("%s: rejected reported %v, want one FORMERR", tc.name, rejected)
+		}
+	}
+}
+
 // TestRecursiveAccept pins every branch of the recursive header filter.
 // Goal: a response is ignored, a header claiming sections the library would
 // unpack at length is rejected, and a query the default filter would answer

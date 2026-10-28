@@ -41,11 +41,14 @@ const RecursiveUDPSize = 1232
 // A query whose opcode is not a standard query draws that reply here and
 // never reaches fn, so no opcode Ze does not implement is forwarded upstream.
 //
-// An EDNS query of a version other than 0 draws BADVERS here, before the
-// opcode check, and never reaches fn either (RFC 6891 Section 6.1.3).
+// A query carrying more than one OPT RR draws Format error here, first of
+// all (RFC 6891 Section 6.1.1). Otherwise an EDNS query whose one OPT names a
+// version other than 0 draws BADVERS, before the opcode check (RFC 6891
+// Section 6.1.3). Neither reaches fn.
 //
 // rejected, when not nil, is called once for each reply Recursive writes
-// without consulting fn (the Not Implemented and BADVERS replies above), so
+// without consulting fn (the Format error, Not Implemented and BADVERS
+// replies above), so
 // the consumer counts every query it answers and not only those fn saw.
 //
 // If fn panics, queryGuard contains it as it does for Authoritative: the panic
@@ -59,7 +62,21 @@ func Recursive(log *slog.Logger, fn AnswerFunc, rejected RejectFunc) dns.Handler
 	task := queryGuard.Task(taskRecursiveQuery, queryRestart)
 	return func(w dns.ResponseWriter, r *dns.Msg) {
 		defer task.Contain(describeQuery(w, r), nil)
-		if opt := r.IsEdns0(); opt != nil {
+		var opt *dns.OPT
+		for _, rr := range r.Extra {
+			found, isOPT := rr.(*dns.OPT)
+			if !isOPT {
+				continue
+			}
+			if opt != nil {
+				// RFC 6891 Section 6.1.1: "If a query message with more than one
+				// OPT RR is received, a FORMERR (RCODE=1) MUST be returned."
+				rejectRecursive(w, r, dns.RcodeFormatError, rejected, log)
+				return
+			}
+			opt = found
+		}
+		if opt != nil {
 			// RFC 6891 Section 6.1.3: "If a responder does not implement the
 			// VERSION level of the request, then it MUST respond with
 			// RCODE=BADVERS."

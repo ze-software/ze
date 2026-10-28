@@ -196,6 +196,7 @@ The iface owned-device and owned-address registries, the RIB event bus, the fire
 | `test-against-broken-path` | 2026-10-27 | 12 `firewall-*.ci` assert `firewall config applied` under the fixture cmd |
 | `key-omits-a-fact-the-builder-uses` | 2026-10-28 | geodns and as112 `listener_up` gauges labelled by IP without port |
 | `rfc-extension-not-implemented` | 2026-10-28 | dnsserver `Authoritative` answers no OPT and no BADVERS (RFC 6891 Section 6.1.3) |
+| `rfc-extension-not-implemented` | 2026-10-28 | dnsserver `Authoritative` answers a query with more than one OPT RR, no FORMERR (RFC 6891 Section 6.1.1) |
 
 ## Rows found already fixed
 
