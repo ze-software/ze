@@ -20,9 +20,9 @@ const tapeCardCommand = "Card"
 
 const (
 	// cardHoldBase and cardHoldPerWord set how long a card stays on screen:
-	// a fixed moment to notice the card, then 200 words a minute to read it.
+	// a fixed moment to notice the card, then 300 words a minute to read it.
 	cardHoldBase    = 2 * time.Second
-	cardHoldPerWord = 300 * time.Millisecond
+	cardHoldPerWord = 200 * time.Millisecond
 
 	// cardClear resets the colors, homes the cursor and erases the screen, so
 	// a card and the repaint after it each start from a blank screen.

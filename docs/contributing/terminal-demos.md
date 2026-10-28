@@ -30,7 +30,7 @@ explanation takes two kinds of card. The owner chose both on 2026-10-11:
 
 The recorder writes a section card into the recording only. The editor never
 sees it, so the candidate and the session stay as they were. The card stays on
-screen for two seconds plus 300 milliseconds a word, then the recorder repaints
+screen for two seconds plus 200 milliseconds a word, then the recorder repaints
 the editor's screen and the section loads. The card text lives in
 `internal/le/site/terminaldemo/cards.json` under `topic-<topic>:<section>`, and
 the card's first line is its title.
@@ -38,7 +38,7 @@ the card's first line is its title.
 Every screen stays up long enough to read. The recorder holds a result a tape
 waited for (a loaded section, a commit, a show command's output) on screen for
 at least four seconds before the next action may change it, and a card printed
-in the outer shell with `ze-demo card` for the same two seconds plus 300
+in the outer shell with `ze-demo card` for the same two seconds plus 200
 milliseconds a word. A `Sleep` in the tape counts toward that time, so a tape
 sleeps only where a screen needs longer. Nothing is held while the recording is
 hidden.
