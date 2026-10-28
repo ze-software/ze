@@ -1,7 +1,7 @@
 # Handover: privilege-skipping tests run unprivileged in a user namespace
 
 Spec: `plan/release/validation/spec-privileged-tests-run-in-a-user-namespace.md`
-(efa14b976e, status in-progress). Claim it with
+(status in-progress). Claim it with
 `./le spec claim plan/release/validation/spec-privileged-tests-run-in-a-user-namespace.md`.
 Thomas ordered this work ("convert A and B", plus the `/dev/ppp` setup step).
 Session rule from Thomas for the session that wrote this: ask before starting
@@ -12,6 +12,12 @@ Evidence and per-batch handoffs live in the old session's directory
 `state/session-state-spec-privileged-tests-run-in-a-user-namespace-f3ae7c00-09af-4420-914f-39f2f7169980.md`
 (batch handoffs) and `scratch/userns-spec-edits.md` (every spec edit owed,
 collected while the spec was frozen for parallel agents). Read both first.
+
+Continuation evidence is in
+`tmp/session/2026-10-22-644a4e78-0122-4eeb-8642-eb50638a1641/`,
+`state/session-state-privileged-tests-run-in-a-user-namespace-644a4e78-0122-4eeb-8642-eb50638a1641.md`.
+It supersedes the old session for P3/P6 and records the current kernel
+prerequisites. Keep the old files for pending P5/P7 proposals and P10 edits.
 
 ## Landed
 
@@ -27,23 +33,14 @@ collected while the spec was frozen for parallel agents). Read both first.
 | 82a6aa53b6, 353feb201b | P5 iface plugins, untagged files |
 | dbeedd8ffe, 25fbb6e890 | P7 routing, untagged files incl. ospfv3 (test fix for a netns-bound netlink socket) |
 | 6f24b5afaf | Journal rows for two reds the conversion exposed (owned elsewhere) |
+| 4ee1012c93 | Enter fails every child/startup error, including namespace denial; owner chose this policy |
+| ad1c2c3884 | Inherited P3 dataplane conversion, independently rejudged |
+| c76d6a29ed | Inherited P6 FIB conversion, retaining four reviewed privileged exceptions |
+| 409b985e1e | Error-queue producer repair: retain offender alongside packet-info ancillary data; reject truncated control messages |
+| 2a54edc280 | Require built-in GACT in runtime fragment, manifest and compiled floor; old-floor red/fixed green regression |
+| a2e7df256c | Remaining P3 engine, oversized-DF and RFC4301 conversions; capture paths stay privileged |
+| b00e3c6710 | Remaining P6: 28 conversions, six fresh FIB/zero-rate records and reviewed privileged exceptions |
 
-## Uncommitted in the shared tree (do these first)
-
-1. **P3 ike, 17 files in `internal/component/ike/dataplane/`.** Compile and lint
-   clean, 47/48 PASS (TestXFRMReadbackWildcardOwners is a known red, journalled,
-   owned by spec-ike-eap-one-off-defects). Patch backup:
-   `scratch/userns-P3/dataplane-conversion.patch`. The commit gate wants four
-   weakening approvals. Recorded already (session 99a74e76's file
-   `tmp/commit-weakening-approved-99a74e76.md`): `dataplane.skipWithoutPolicyPermission`,
-   `dataplane.skipUnprivileged`. Still owed, now that 2bdc5103d8 carries the guard:
-   a ze-test-judge confirms and records `dataplane.encapOwnProcess` and
-   `dataplane.encap_dualform_integration_linux_test` (verdict text in
-   `scratch/userns-spec-edits.md`, replace `<sha>` with 2bdc5103d8).
-2. **P6 fib, 15 files in `internal/plugins/fib/kernel/`.** 108 PASS, 4 named
-   SKIP (`skipWithoutInitNamespacePrivilege`), 1 known red (rfc1195_onlink, tagged,
-   not converted: name it in the body). Weakening approval
-   `kernel.mplsmtu_integration_linux_test` is recorded in session 99a74e76's file.
 
 Approval rows are keyed by the session that recorded them
 (`tmp/commit-*-approved-<session>.md`). A new session's `./le commit create`
@@ -51,6 +48,42 @@ may not read session 99a74e76's rows: check how the gate reads them
 (`docs/contributing/committing.md`, `internal/le/commit/rfcchange.go`) and, if it
 does not, have a judge re-record the same verdicts in the new session. Never
 self-approve.
+
+## Continuation verification
+
+- Remaining P3: both engine paths passed under race; oversized DF passed with
+  its offender assertion unchanged after `409b985e1e`. RFC4301's clean run
+  passed and the native direction mutation failed its forbidden-FWD assertion.
+  Capture prerequisites skipped; no privileged capture proof is claimed.
+- Remaining P6: 25 converted tests passed, including the real flowexport
+  daemon. Three failed ENOENT: `TestApplyAcceptsAFlowOffloadToATableFlowtable`,
+  `TestNetlinkIntegration_IngressPolicerReachesTheKernel`, and
+  `TestNetlinkIntegration_IngressPolicerLeavesOtherHookOwnersAlone`.
+- Seven new/retaken records (one IKE, six FIB/zero-rate) are fresh. The
+  per-requirement check also reports four unproven ISIS claims in pending P7;
+  those are not discharged by FIB's proof.
+- Logs: current scratch `job-userns-remaining-plain-cdf2a222.log`,
+  `job-userns-errqueue-fixed-f42fc6eb.log`,
+  `job-userns-flowexport-producer-1f800cfb.log`, and
+  `job-userns-flowspec-diagnostic-03ec1f4f.log`.
+- The disposable flowexport executable was unused and removed, recovering
+  52 MiB. Keep logs, immutable review inputs and mutation reports until spec
+  closure; no local service was started by this continuation.
+
+The scoped 12-package lint run failed with 17 distinct findings, all outside
+this continuation's edited files. Linux ordinary and integration reported the
+same 17; FreeBSD repeated the misspelling. Darwin, Linux arm64/riscv64,
+capability, appliance and compile-out rows reported zero. No rerun or unrelated
+source edit was made.
+
+| File | Findings |
+|---|---|
+| `internal/plugins/traffic/netlink/tbf_linux_test.go` | unchecked type assertions at 24, 49, 72, 79, 80, 143 |
+| `internal/component/ike/engine/esp_fixed_test.go` | defer-in-loop at 89, 94, 103, 137, 142 |
+| `internal/appliance/cache_download_test.go` | misspelling at 16 |
+| `internal/component/ike/engine/child.go` | modernization at 214, 680 |
+| `internal/component/ike/engine/rfc3948_inner_selector_ordered_transport_test.go` | unused parameter/result at 25, 190 |
+| `internal/component/ike/engine/rfc3948_inner_selector_transport_test.go` | constant parameter at 45 |
 
 ## Judged, waiting to be applied
 
@@ -74,28 +107,39 @@ AvoidsDataFEC units, and the vrrp tagged units. Root (QEMU) runs are unaffected.
 
 - A judge confirms P4's hand-written RFC9915-18.2.12-2 negative break
   (`scratch/userns-P4/linkmoved-mutant.json`, same change as the old record, line moved 137 -> 144).
-- P3 remainder: `engine/child_policy_delete_integration_linux_test.go`,
-  `engine/rfc3948_encap_port_integration_linux_test.go` (check the RFC file-naming
-  rule), `transport/udp_df_integration_linux_test.go`; proposal for the tagged
-  `dataplane.TestXFRMPortScopedBypassIsNeverStoredOnTheForwardPath` (RFC4301-7.4-2).
-- P6 remainder: copp, policyroute, firewall/nft (counter, integration),
-  traffic/netlink (cs6, integration), flowexport/conntrack, trafficusage; proposals
-  for fib `rfc1195_onlink` and flowspec-firewall `rfc8955_packet_zero`,
-  `rfc8955_selected`.
-- Now convertible after 2bdc5103d8 (flags forwarded): `flowexport/producer_integration_linux_test.go`
-  (`-flowexport-ze-path`), `rsvpte/producer_integration_linux_test.go` (`-rsvp-producer-daemon`).
+- Flowexport's explicit-daemon path has now passed through Enter. RSVP
+  `rsvpte/producer_integration_linux_test.go` (`-rsvp-producer-daemon`) remains
+  to be converted.
 - P8 services batch: not started (inventory rows in the spec).
 - P10: docs (`docs/contributing/testing.md`, `qemu-integration.md` userns section,
   `developer-setup.md`, `ci-workflows.md` line 37), apply every line in
   `scratch/userns-spec-edits.md` to the spec (inventory additions, reclassified
   rows, evidence, AC annotations), review rounds, closure.
 
-## Reclassified (need more than Enter; keep their skips, rows owed in the spec)
+## Runtime prerequisites and privileged exceptions
 
-fib mplsipmtuprobe, mplstransitmtu, mplsmtu FragmentProgress (kernelcap probe binds
-/proc/sys: EINVAL in a user namespace); fib srv6 (no SRv6 packet within 3s, cause
-untraced); iface/netlink vlanqoslab EgressPCPOnWire, DSCPFullChain (kernel lacks
-`CONFIG_NF_TABLES_NETDEV`, journalled, owned by spec-kernel-capability-gate).
+The spec's Reclassified table is current for P3/P6. It distinguishes the
+untraced SRv6 timeout from source-backed restrictions; do not generalize either
+to all kernel tests.
+
+- IKE capture: `SO_RCVBUFFORCE` needs initial-userns `CAP_NET_ADMIN`. Both
+  original privileged capture paths, 8 MiB buffers and packet counts remain.
+- Selected FlowSpec DSCP: Linux 7.2.9 `nft_payload_set_init` rejects a netns
+  owned outside the initial user namespace. The original test and all four
+  claims/assertions remain. Zero-rate discard is converted and proven.
+- Trafficusage: Enter-only experiment stopped at memlock EPERM, before TCX.
+  Original tests remain; no accounting proof is claimed.
+- Running host disables `NF_FLOW_TABLE`, `NET_ACT_POLICE`, `NET_ACT_GACT`.
+  The unchanged flowtable and two ingress tests fail ENOENT. All three are now
+  required by the source runtime profile, but build/boot and runtime proof
+  remain owed. Do not turn these failures into skips.
+- Earlier VLAN QoS `NF_TABLES_NETDEV` debt remains owned by
+  `spec-kernel-capability-gate`; XFRM wildcard-owner fixture overlap remains
+  owned by `spec-ike-eap-one-off-defects`.
+
+The GACT regression passed all four emitted-config states under race, and the
+old-floor overlay failed the three rejecting states. This does not prove a
+built or booted kernel. Only the owner installs/reboots the shared host.
 
 ## Rules that bit during this work
 
