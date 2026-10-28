@@ -66,7 +66,7 @@ All leaves are under `service { dns-resolver { ... } }`.
 | Leaf | Type | Default | Description |
 |------|------|---------|-------------|
 | `enabled` | boolean | false | Binds the listeners and answers queries. true needs at least one `listener`, one `allow-from` prefix and one `forward server`. |
-| `listener <name> ip` | IP address | (none) | A LAN or loopback address to answer on. A wildcard (0.0.0.0 or ::) is refused, because the resolver would also answer on the WAN side. |
+| `listener <name> ip` | IP address | (none) | A LAN or loopback address to answer on. A wildcard (0.0.0.0, ::, or its IPv4-mapped form ::ffff:0:0) is refused, because the resolver would also answer on the WAN side. |
 | `listener <name> port` | port | 53 | The port to answer on, UDP and TCP. 0 is refused. |
 | `allow-from` | leaf-list of prefixes | (none) | Source prefixes the resolver answers. Any other source gets REFUSED. |
 | `mode` | enumeration | `forward` | `forward` is the only value. |

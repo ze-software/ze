@@ -30,10 +30,12 @@ type clientWindow struct {
 	count  uint32
 }
 
-// limiter holds the outstanding-resolution count and the per-client rate
-// windows. Safe for concurrent use.
+// limiter holds the outstanding-resolution count, the count of queries
+// waiting on a resolution in flight, and the per-client rate windows. Safe
+// for concurrent use.
 type limiter struct {
 	outstanding atomic.Int64
+	waiters     atomic.Int64
 
 	mu      sync.Mutex
 	clients map[clientKey]clientWindow
@@ -51,6 +53,21 @@ func (l *limiter) acquire(limit uint32) bool {
 
 // release returns a slot taken by acquire. MUST follow a true acquire.
 func (l *limiter) release() { l.outstanding.Add(-1) }
+
+// acquireWaiter takes one slot for a query waiting on a resolution already
+// in flight, under limit, and reports false when every slot is taken. A
+// true answer MUST be paired with releaseWaiter.
+func (l *limiter) acquireWaiter(limit uint32) bool {
+	if l.waiters.Add(1) > int64(limit) {
+		l.waiters.Add(-1)
+		return false
+	}
+	return true
+}
+
+// releaseWaiter returns a slot taken by acquireWaiter. MUST follow a true
+// acquireWaiter.
+func (l *limiter) releaseWaiter() { l.waiters.Add(-1) }
 
 // admit counts one query from source against rate queries per second, and
 // reports whether it is answered. Over the rate, one in

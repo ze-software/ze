@@ -47,31 +47,58 @@ func servfail() result {
 // resolveShared answers q from upstream, coalescing identical questions in
 // flight and bounding concurrent resolutions by the policy's outstanding
 // limit. A query over that limit is dropped.
+//
+// A query that joins a resolution already in flight takes no resolution
+// slot, but it parks its request goroutine and a timer, so the waiters are
+// bounded too: at most the outstanding limit of them at once, and one beyond
+// it is dropped, as a new resolution beyond the limit is. Unbound bounds the
+// same way: num-queries-per-thread counts every client waiting for an
+// answer, not only the resolutions.
 func (r *resolver) resolveShared(pol *policy, q dns.Question) result {
 	key := keyOf(q.Name, q.Qtype, q.Qclass)
 	f, leader := r.flights.join(key)
 	if !leader {
-		r.stats.coalesced.Add(1)
-		t := time.NewTimer(pol.timeout)
-		defer t.Stop()
-		select {
-		case <-f.done:
-			return f.res
-		case <-t.C:
-			return servfail()
-		}
+		return r.awaitFlight(pol, f)
 	}
+	// The flight is finished on every exit, a panic in resolve included, so
+	// its waiters are released and a later identical question can lead.
+	res := result{outcome: outcomeDropped}
+	defer func() { r.flights.finish(key, f, res) }()
 	if !r.limits.acquire(pol.outstanding) {
-		res := result{outcome: outcomeDropped}
-		r.flights.finish(key, f, res)
 		return res
 	}
-	r.outstandingGauge()
-	res := r.resolve(pol, q)
-	r.limits.release()
-	r.outstandingGauge()
-	r.flights.finish(key, f, res)
+	// What the waiters are given when resolve panics.
+	res = servfail()
+	res = r.resolveCounted(pol, q)
 	return res
+}
+
+// resolveCounted runs resolve under the outstanding slot acquire took, and
+// releases the slot on every exit, a panic included. MUST follow a true
+// acquire.
+func (r *resolver) resolveCounted(pol *policy, q dns.Question) result {
+	r.outstandingGauge()
+	defer r.outstandingGauge()
+	defer r.limits.release()
+	return r.resolve(pol, q)
+}
+
+// awaitFlight waits for the leader of f within the policy's timeout. The
+// query is dropped when the outstanding limit of waiters is already parked.
+func (r *resolver) awaitFlight(pol *policy, f *flight) result {
+	if !r.limits.acquireWaiter(pol.outstanding) {
+		return result{outcome: outcomeDropped}
+	}
+	defer r.limits.releaseWaiter()
+	r.stats.coalesced.Add(1)
+	t := time.NewTimer(pol.timeout)
+	defer t.Stop()
+	select {
+	case <-f.done:
+		return f.res
+	case <-t.C:
+		return servfail()
+	}
 }
 
 // resolve forwards q, following a CNAME chain the upstream left unfinished,
@@ -181,11 +208,20 @@ type step struct {
 // the chain's last name or one of its ancestors are used. Everything else
 // in the reply is neither cached nor returned, so an upstream cannot plant
 // data about a name nobody asked for.
+//
+// An ANY query is answered with every answer-section RRset name owns, and
+// follows no alias (storeOwned, followsAlias).
 func (r *resolver) absorb(pol *policy, reply *dns.Msg, name string, q dns.Question, b *budget, seen *[]string) step {
 	now := r.now()
 	sets := groupAnswer(reply.Answer, q.Qclass)
 	var s step
 	current := name
+	if q.Qtype == dns.TypeANY {
+		if s.answer = r.storeOwned(pol, reply, sets, name, now); len(s.answer) > 0 {
+			s.kind, s.rcode = stepDone, dns.RcodeSuccess
+			return s
+		}
+	}
 	for {
 		if rrs, ok := sets[keyOf(current, q.Qtype, q.Qclass)]; ok {
 			// RFC 2181 Section 5.4.1
@@ -193,7 +229,7 @@ func (r *resolver) absorb(pol *policy, reply *dns.Msg, name string, q dns.Questi
 			s.kind, s.rcode = stepDone, dns.RcodeSuccess
 			return s
 		}
-		if q.Qtype == dns.TypeCNAME {
+		if !followsAlias(q.Qtype) {
 			break
 		}
 		rrs, ok := sets[keyOf(current, dns.TypeCNAME, q.Qclass)]
@@ -236,6 +272,58 @@ func (r *resolver) absorb(pol *policy, reply *dns.Msg, name string, q dns.Questi
 	return s
 }
 
+// followsAlias reports whether a query of qtype restarts at a CNAME's
+// target. A CNAME query asks for the alias record itself, and an ANY query
+// is matched by the CNAME as by any other type at the node.
+//
+// RFC 1034 Section 4.3.2: "If the data at the node is a CNAME, and QTYPE
+// doesn't match CNAME, copy the CNAME RR into the answer section of the
+// response, change QNAME to the canonical name in the CNAME RR, and go back
+// to step 1."
+func followsAlias(qtype uint16) bool {
+	if qtype == dns.TypeCNAME {
+		return false
+	}
+	return qtype != dns.TypeANY
+}
+
+// storeOwned caches every answer-section RRset owned by name, of the
+// question's class, and returns them in the order the reply carries them:
+// the answer to an ANY query.
+//
+// RFC 2181 Section 5.3.1: "However, where SIG records are being returned in
+// the answer section, in response to a query for SIG records, or a query for
+// all records associated with a name (type=ANY) the entire SIG RRSet must be
+// included, as for any other RR type."
+//
+// Each RRset is cached under its own type, so a later query for that type
+// is answered from the cache. The ANY answer itself is never cached: the
+// per-type entries cannot prove they are every RRset the node holds, so an
+// ANY query answered from them could leave sets out. Every ANY query is
+// forwarded, where Unbound caches the whole ANY reply as one message.
+func (r *resolver) storeOwned(pol *policy, reply *dns.Msg, sets map[cacheKey][]dns.RR, name string, now time.Time) []dns.RR {
+	var answer []dns.RR
+	var taken []cacheKey
+	for _, rr := range reply.Answer {
+		h := rr.Header()
+		k := keyOf(h.Name, h.Rrtype, h.Class)
+		rrs, ok := sets[k]
+		if !ok {
+			continue
+		}
+		if !strings.EqualFold(dns.Fqdn(h.Name), dns.Fqdn(name)) {
+			continue
+		}
+		if slices.Contains(taken, k) {
+			continue
+		}
+		taken = append(taken, k)
+		// RFC 2181 Section 5.4.1
+		answer = append(answer, r.storeRRset(pol, rrs, rankOf(reply, name, name), now)...)
+	}
+	return answer
+}
+
 // groupAnswer groups the answer section's records of class qclass into
 // RRsets by owner and type.
 func groupAnswer(rrs []dns.RR, qclass uint16) map[cacheKey][]dns.RR {
@@ -270,7 +358,10 @@ func findSOA(ns []dns.RR, name string, qclass uint16) *dns.SOA {
 }
 
 // storeRRset caches one RRset under the TTL it is trusted for and returns
-// the copies the reply carries.
+// the copies the reply carries. When the cache keeps a live higher-ranked
+// RRset under the same key, that RRset is returned instead, at its
+// remaining TTL: the client is given the data the resolver trusts, never the
+// lower-ranked copy the cache refused.
 //
 // RFC 2181 Section 5.2: "Should an authoritative source send such a
 // malformed RRSet, the client should treat the RRs for all purposes as if
@@ -287,10 +378,19 @@ func (r *resolver) storeRRset(pol *policy, rrs []dns.RR, rk rank, now time.Time)
 	}
 	stored := withTTL(rrs, ttl)
 	h := rrs[0].Header()
-	r.answers.put(&cacheEntry{
-		key: keyOf(h.Name, h.Rrtype, h.Class), rrs: stored, rank: rk, stored: now, ttl: ttl,
-	}, now)
-	return stored
+	e := &cacheEntry{key: keyOf(h.Name, h.Rrtype, h.Class), rrs: stored, rank: rk, stored: now, ttl: ttl}
+	held := r.answers.store(e, now)
+	if held == nil {
+		return stored
+	}
+	if held == e {
+		return stored
+	}
+	left, live := held.remaining(now)
+	if !live {
+		panic("BUG: dnsresolver: the cache kept an expired entry over a new one")
+	}
+	return withTTL(held.rrs, left)
 }
 
 // storeNegative caches a negative answer under key and returns the

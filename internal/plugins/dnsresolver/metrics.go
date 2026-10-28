@@ -103,7 +103,7 @@ func buildMetrics(reg metrics.Registry) *resolverMetrics {
 		queries:       reg.CounterVec("ze_dns_resolver_queries_total", "Queries answered, by transport and response code; a dropped query is counted by ze_dns_resolver_rate_limited_total or ze_dns_resolver_dropped_total.", []string{"transport", "rcode"}),
 		refused:       reg.CounterVec("ze_dns_resolver_refused_total", "Queries refused, by reason: acl (source outside allow-from) or rd-clear (recursion not desired).", []string{"reason"}),
 		rateLimited:   reg.Counter("ze_dns_resolver_rate_limited_total", "Queries dropped because their source exceeded limit per-client-rate."),
-		dropped:       reg.Counter("ze_dns_resolver_dropped_total", "Queries dropped because limit outstanding resolutions were in progress."),
+		dropped:       reg.Counter("ze_dns_resolver_dropped_total", "Queries dropped because limit outstanding resolutions, or limit outstanding queries waiting on one, were in progress."),
 		outstanding:   reg.Gauge("ze_dns_resolver_outstanding", "Resolutions in progress."),
 		cacheEntries:  reg.GaugeVec("ze_dns_resolver_cache_entries", "Entries held, by cache: answer or negative.", []string{"cache"}),
 		cacheHits:     reg.Counter("ze_dns_resolver_cache_hits_total", "Queries answered from the cache."),

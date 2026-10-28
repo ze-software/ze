@@ -160,27 +160,36 @@ func (c *lru) get(key cacheKey, now time.Time) (*cacheEntry, uint32, bool) {
 // A live entry of a higher rank keeps its place and e is ignored; otherwise
 // the old entry is discarded whole.
 func (c *lru) put(e *cacheEntry, now time.Time) bool {
+	return c.store(e, now) == e
+}
+
+// store is put, answering the entry the cache holds for e's key afterward:
+// e when it was stored, the live higher-ranked entry that kept its place
+// when e was ignored, and nil when the cache stores nothing for e (a limit
+// of zero, or a TTL of zero). The held entry is immutable, so its records
+// may be read after the lock is released.
+func (c *lru) store(e *cacheEntry, now time.Time) *cacheEntry {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if e.rank == rankUnspecified {
 		panic("BUG: dnsresolver: cache entry without a rank")
 	}
 	if c.limit <= 0 {
-		return false
+		return nil
 	}
 	if e.ttl == 0 {
-		return false
+		return nil
 	}
 	if old, ok := c.entries[e.key]; ok {
 		if _, live := old.remaining(now); live && old.rank > e.rank {
-			return false
+			return old
 		}
 		c.removeLocked(old)
 	}
 	e.elem = c.order.PushFront(e)
 	c.entries[e.key] = e
 	c.evictLocked()
-	return true
+	return e
 }
 
 // setLimit changes the bound, evicting least-recently-used entries over it.
@@ -276,7 +285,7 @@ func (r *resolver) lookup(q dns.Question, now time.Time) (result, bool) {
 			res.rcode = dns.RcodeSuccess
 			return res, true
 		}
-		if q.Qtype != dns.TypeCNAME {
+		if followsAlias(q.Qtype) {
 			if e, ttl, ok := r.answers.get(keyOf(name, dns.TypeCNAME, q.Qclass), now); ok {
 				target := cnameTarget(e.rrs)
 				if target == "" {

@@ -81,3 +81,26 @@ func TestParseForwardRefusesUnorderedList(t *testing.T) {
 		t.Errorf("refusal %q names neither the forward list nor the missing order", err)
 	}
 }
+
+// VALIDATES: AC-3 for every spelling of a wildcard listener address,
+// the IPv4-mapped any address included.
+// METHOD: parse one listener entry per spelling and require the wildcard
+// refusal; a loopback address in each family is accepted.
+// PREVENTS: `ip ::ffff:0:0`, which Go binds as 0.0.0.0, slipping past a
+// check that asks netip whether the mapped form is unspecified.
+func TestParseListenerRefusesEveryWildcard(t *testing.T) {
+	for _, ip := range []string{"0.0.0.0", "::", "::ffff:0:0", "::ffff:0.0.0.0"} {
+		_, err := parseListener("lan", map[string]any{"ip": ip})
+		if err == nil {
+			t.Fatalf("listener ip %s accepted, want the wildcard refusal", ip)
+		}
+		if !strings.Contains(err.Error(), "wildcard") {
+			t.Fatalf("listener ip %s: %v, want the wildcard refusal", ip, err)
+		}
+	}
+	for _, ip := range []string{"127.0.0.1", "::1"} {
+		if _, err := parseListener("lan", map[string]any{"ip": ip}); err != nil {
+			t.Fatalf("listener ip %s: %v, want accepted", ip, err)
+		}
+	}
+}

@@ -159,7 +159,10 @@ func parseListener(name string, em map[string]any) (listenerEndpoint, error) {
 	if err != nil {
 		return listenerEndpoint{}, fmt.Errorf("listener %q ip %q is not an IP address", name, ipText)
 	}
-	if ip.IsUnspecified() {
+	// The IPv4-mapped form of 0.0.0.0 (::ffff:0:0) is a wildcard too: Go's
+	// listener binds it as the IPv4 any address, while netip calls it
+	// specified until it is unmapped.
+	if ip.Unmap().IsUnspecified() {
 		return listenerEndpoint{}, fmt.Errorf("listener %q ip %s is a wildcard address: the resolver would also answer "+
 			"on the WAN side and serve the whole internet; set `listener %s ip` to a LAN or loopback address", name, ip, name)
 	}

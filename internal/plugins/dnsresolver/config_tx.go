@@ -61,30 +61,45 @@ func (in *resolverInstaller) configureAtBoot(tx *sdk.ConfigTx[resolverConfig], s
 }
 
 // install applies cfg. On a reload a listener that cannot be bound fails the
-// install, and dnsserver binds the previous listeners again, so the running
-// config keeps serving and the commit is refused. When a previous listener
-// cannot be bound again the error wraps sdk.ErrRunningConfigLost, so the
+// install: dnsserver binds the previous listeners again and the running
+// policy is published again, so the running config keeps serving, show
+// reports it, and the commit is refused. When a previous listener cannot be
+// bound again the error wraps sdk.ErrRunningConfigLost, so the
 // transaction's rollback installs the running config again or restarts the
 // plugin. At boot such a failure is logged, and what bound serves.
+//
+// While a reload changes the listeners, the resolver answers under the
+// running policy narrowed to the sources both allow-from lists admit
+// (resolver.narrow). A listener the reload binds then never answers a
+// source the running config refuses, a listener it keeps never answers a
+// source the candidate refuses, and a refused reload never serves under the
+// candidate's forward list or limits. The candidate is published whole only
+// once every listener it names is bound.
 func (in *resolverInstaller) install(cfg resolverConfig) error {
-	policy := dnsserver.BindStrict
 	if in.boot {
-		policy = dnsserver.BindLenient
-	}
-	// The policy is published before the listeners change, so a listener
-	// bound by this install never answers under the previous allow-from.
-	// A failed reload installs the running config again, policy included.
-	in.res.apply(&cfg)
-	if err := in.srv.reconcile(cfg, policy); err != nil {
-		if !in.boot {
-			if errors.Is(err, dnsserver.ErrPreviousListenersLost) {
-				return fmt.Errorf("dns-resolver: %w (%w).\n%s", err, sdk.ErrRunningConfigLost, sdk.RunningConfigLostNext)
-			}
-			return fmt.Errorf("dns-resolver: %w", err)
+		// No previous config exists to keep, and the binds are lenient.
+		in.res.apply(&cfg)
+		if err := in.srv.reconcile(cfg, dnsserver.BindLenient); err != nil {
+			in.log.Error("dns-resolver: listener setup failed", "error", err)
 		}
-		in.log.Error("dns-resolver: listener setup failed", "error", err)
+		in.applied(cfg)
+		return nil
 	}
+	running := in.res.narrow(&cfg)
+	if err := in.srv.reconcile(cfg, dnsserver.BindStrict); err != nil {
+		in.res.restore(running)
+		if errors.Is(err, dnsserver.ErrPreviousListenersLost) {
+			return fmt.Errorf("dns-resolver: %w (%w).\n%s", err, sdk.ErrRunningConfigLost, sdk.RunningConfigLostNext)
+		}
+		return fmt.Errorf("dns-resolver: %w", err)
+	}
+	in.res.apply(&cfg)
+	in.applied(cfg)
+	return nil
+}
+
+// applied logs that cfg is the running config.
+func (in *resolverInstaller) applied(cfg resolverConfig) {
 	in.log.Info("dns-resolver: config applied", "enabled", cfg.Enabled,
 		"listeners", len(cfg.Listeners), "allow-from", len(cfg.AllowFrom), "forward", len(cfg.Forward))
-	return nil
 }

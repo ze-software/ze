@@ -62,9 +62,22 @@ The leader takes one slot of `limit outstanding` before it resolves. When every
 slot is taken, the query is dropped with no reply, and every waiter on that key
 is dropped with it: the client sends the query again after its own timeout.
 
-<!-- source: internal/plugins/dnsresolver/resolve.go -- resolveShared -->
-<!-- source: internal/plugins/dnsresolver/limit.go -- flightTable, limiter.acquire -->
+A waiter takes no resolution slot, but it holds a request goroutine and a
+timer, so the waiters are bounded as well: at most `limit outstanding` of them
+at once, counted apart from the resolutions. A query that would wait beyond
+that is dropped and counted in `ze_dns_resolver_dropped_total`, so a flood of
+one uncached question cannot park unbounded work. Unbound's
+`num-queries-per-thread` bounds the same way, counting every client waiting for
+an answer.
+
+The leader finishes its flight and returns its slot on every exit, a panic
+included, so its waiters are released and the next identical question can
+lead.
+
+<!-- source: internal/plugins/dnsresolver/resolve.go -- resolveShared, resolveCounted, awaitFlight -->
+<!-- source: internal/plugins/dnsresolver/limit.go -- flightTable, limiter.acquire, limiter.acquireWaiter -->
 <!-- test: internal/plugins/dnsresolver/server_test.go -- TestCoalescing, TestOutstandingBound, TestSlowUpstreamDoesNotBlockCache -->
+<!-- test: internal/plugins/dnsresolver/resolve_test.go -- TestCoalescedWaitersBounded, TestLeaderPanicReleasesFlight -->
 
 ## Per-client rate
 
@@ -144,8 +157,18 @@ nobody asked for.
 When the upstream followed a CNAME but sent nothing about its target, and no
 SOA says the target is empty, the resolver asks again for the target.
 
-<!-- source: internal/plugins/dnsresolver/resolve.go -- resolver.absorb, groupAnswer, findSOA -->
+An ANY query is answered with every answer-section RRset the question name
+owns, in the order the reply carries them, a whole RRSIG RRset included (RFC
+2181 Section 5.3.1). A CNAME matches ANY as any other type at the node does, so
+an ANY query follows no alias (RFC 1034 Section 4.3.2). Each RRset is cached
+under its own type, where a later query for that type finds it, but the ANY
+answer itself is never cached: the per-type entries cannot prove they are every
+RRset the node holds, so every ANY query is forwarded. Unbound caches a whole
+ANY reply as one message instead.
+
+<!-- source: internal/plugins/dnsresolver/resolve.go -- resolver.absorb, followsAlias, resolver.storeOwned, groupAnswer, findSOA -->
 <!-- test: internal/plugins/dnsresolver/forward_test.go -- TestBailiwick -->
+<!-- test: internal/plugins/dnsresolver/resolve_test.go -- TestAnyReturnsEveryOwnedRRset, TestAnyDoesNotFollowAlias -->
 
 ## The answer cache
 
@@ -156,7 +179,7 @@ SOA says the target is empty, the resolver asks again for the target.
 | TTL 0 | not cached |
 | Aging | a hit returns the records with the TTL left, in whole seconds; an expired entry is a miss |
 | Replace | a new RRset replaces the cached one whole, and is never merged with it (RFC 2181 Section 5.4) |
-| Rank | the RRset owned by the name a reply was sought for, in a reply with AA set, outranks every other answer-section RRset; in an authoritative reply to an alias only the CNAME is authoritative, and the data at its target ranks as a non-authoritative answer; a live entry of the higher rank is kept and the lower-ranked RRset ignored (RFC 2181 Section 5.4.1) |
+| Rank | the RRset owned by the name a reply was sought for, in a reply with AA set, outranks every other answer-section RRset; in an authoritative reply to an alias only the CNAME is authoritative, and the data at its target ranks as a non-authoritative answer; a live entry of the higher rank is kept and the lower-ranked RRset ignored (RFC 2181 Section 5.4.1), and the client is answered with the kept RRset at its remaining TTL, never the ignored copy |
 | Bound | `cache size` entries; the least recently used entry is evicted to make room; 0 caches nothing |
 
 A forwarding upstream answers without AA, and RFC 2181 Section 5.2 lets a
@@ -167,8 +190,9 @@ data is cached, so additional-section data is never returned as an answer.
 A cache lookup follows cached CNAMEs within the restart bound. When any link
 of the chain is missing, the whole question is resolved again from the start.
 
-<!-- source: internal/plugins/dnsresolver/cache.go -- keyOf, rankOf, lru.put, lru.get, receivedTTL, resolver.lookup -->
+<!-- source: internal/plugins/dnsresolver/cache.go -- keyOf, rankOf, lru.put, lru.store, lru.get, receivedTTL, resolver.lookup -->
 <!-- source: internal/plugins/dnsresolver/resolve.go -- resolver.storeRRset -->
+<!-- test: internal/plugins/dnsresolver/resolve_test.go -- TestRefusedLowerRankAnswersCachedSet -->
 <!-- test: internal/plugins/dnsresolver/cache_test.go -- TestCacheTTLDecrement, TestCacheCaseFold, TestCacheReplaceNotMerge, TestTTLHighBit, TestCacheMaxTTL, TestTrustRanking -->
 <!-- test: internal/plugins/dnsresolver/rfc2181_resolver_test.go -- TestRFC2181LowerTrustNeverDisplacesHigher, TestRFC2181HigherTrustReplacesLower, TestRFC2181AliasTargetNotAuthoritative, TestRFC2181WholeSIGRRSet, TestRFC2181SectionSIGNotTheRRSet, TestRFC2181SectionSIGNotCached -->
 
@@ -204,9 +228,14 @@ answered. The goroutine starts with the plugin and stops when it stops.
 
 The config transaction parses the `service` section with the same `parseConfig`
 the offline verifier runs, so `ze config validate` and a commit refuse the same
-configs. An install publishes the new policy first and reconciles the listeners
-second, so a listener bound by the install never answers under the previous
-`allow-from`. An unchanged listener set does not rebind: a reload that changes
+configs. While a reload reconciles the listeners, the resolver answers under the
+running policy with its `allow-from` narrowed to the sources both the running
+and the candidate list admit (`resolver.narrow`). A listener the reload binds
+then never answers a source the running config refuses, a listener it keeps
+never answers a source the candidate refuses, and a refused reload never
+serves under the candidate's forward list or limits. The candidate's policy,
+cache bound and shown config are published only once every listener it names
+is bound. An unchanged listener set does not rebind: a reload that changes
 only `allow-from`, `forward`, the cache or the limits keeps every socket, and a
 TCP connection open across the reload carries on under the new policy.
 
@@ -220,12 +249,17 @@ sysctl such as `net.ipv4.ip_nonlocal_bind` is needed. On another platform the
 option has no effect, and such a bind fails.
 
 At boot a listener that cannot bind is logged and the others serve. On a reload
-a bind failure fails the commit, and the harness binds the previous listeners
-again. When even those cannot bind again, the error carries
-`sdk.ErrRunningConfigLost`, so the transaction installs the running config
-again or restarts the plugin.
+a bind failure fails the commit, the harness binds the previous listeners
+again, and the running policy and shown config are published again
+(`resolver.restore`), so the running config keeps serving and `show
+dns-resolver` reports it. When even those listeners cannot bind again, the
+error carries `sdk.ErrRunningConfigLost`, so the transaction installs the
+running config again or restarts the plugin.
 
 <!-- source: internal/plugins/dnsresolver/config_tx.go -- resolverInstaller.install, configureAtBoot -->
+<!-- source: internal/plugins/dnsresolver/state.go -- resolver.narrow, resolver.restore, intersectPrefixes -->
+<!-- test: internal/plugins/dnsresolver/config_tx_test.go -- TestRefusedReloadKeepsRunningPolicy -->
+<!-- test: internal/plugins/dnsresolver/resolve_test.go -- TestIntersectPrefixes -->
 <!-- source: internal/plugins/dnsresolver/server.go -- resolverServer.reconcile -->
 <!-- source: internal/plugins/dnsresolver/config.go -- parseConfig, checkEnabled -->
 <!-- source: internal/plugins/dnsresolver/server.go -- newResolverServer -->
@@ -273,7 +307,7 @@ any reply counts, whatever its RCODE.
 | `ze_dns_resolver_queries_total` | CounterVec | transport, rcode | queries answered, by transport (`udp`, `tcp`) and RCODE name |
 | `ze_dns_resolver_refused_total` | CounterVec | reason | REFUSED answers: `acl` or `rd-clear` |
 | `ze_dns_resolver_rate_limited_total` | Counter | | queries dropped by `limit per-client-rate` |
-| `ze_dns_resolver_dropped_total` | Counter | | queries dropped because every `limit outstanding` slot was taken |
+| `ze_dns_resolver_dropped_total` | Counter | | queries dropped because every `limit outstanding` slot was taken, for a resolution or for a query waiting on one |
 | `ze_dns_resolver_outstanding` | Gauge | | resolutions in progress |
 | `ze_dns_resolver_cache_entries` | GaugeVec | cache | entries held: `answer` or `negative`, published by the sweeper and by a clear |
 | `ze_dns_resolver_cache_hits_total` | Counter | | queries answered from the cache |

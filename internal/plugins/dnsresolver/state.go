@@ -63,7 +63,7 @@ func newPolicy(cfg *resolverConfig) *policy {
 // goroutine; stop MUST be called once the plugin stops, and waits for it.
 type resolver struct {
 	policy    atomic.Pointer[policy]
-	shown     atomic.Pointer[resolverConfig] // the applied config, for show only
+	shown     atomic.Pointer[resolverConfig] // the applied config, for show and for a reload's narrowed window (narrow)
 	answers   *lru
 	negatives *lru
 	flights   flightTable
@@ -97,6 +97,58 @@ func (r *resolver) apply(cfg *resolverConfig) {
 	shown := *cfg
 	r.shown.Store(&shown)
 	r.policy.Store(newPolicy(cfg))
+}
+
+// runningState is the published policy and shown config of the running
+// config, held by an install so a refused reload can put them back.
+type runningState struct {
+	policy *policy
+	shown  *resolverConfig
+}
+
+// narrow publishes, for the window a reload rebinds its listeners in, the
+// running policy whose allow-from is narrowed to the sources both it and
+// next admit, and answers the running state for restore. With no running
+// policy nothing is published: every query is answered SERVFAIL until the
+// candidate is applied. The shown config stays the running one.
+func (r *resolver) narrow(next *resolverConfig) runningState {
+	running := runningState{policy: r.policy.Load(), shown: r.shown.Load()}
+	// refuse-by-default: guards apply -- no running config means no running policy, the SERVFAIL state newResolver leaves
+	if running.shown == nil {
+		return running
+	}
+	window := *running.shown
+	window.AllowFrom = intersectPrefixes(running.shown.AllowFrom, next.AllowFrom)
+	r.policy.Store(newPolicy(&window))
+	return running
+}
+
+// restore publishes the running state narrow answered again, after a
+// refused reload. The cache bound was never changed by the reload.
+func (r *resolver) restore(running runningState) {
+	r.shown.Store(running.shown)
+	r.policy.Store(running.policy)
+}
+
+// intersectPrefixes is the prefix list that holds exactly the addresses
+// some prefix of a and some prefix of b hold. Two prefixes that overlap
+// share the longer one, since one holds the other. Bounded by
+// len(a)*len(b), at config time only.
+func intersectPrefixes(a, b []netip.Prefix) []netip.Prefix {
+	var out []netip.Prefix
+	for _, pa := range a {
+		for _, pb := range b {
+			if !pa.Overlaps(pb) {
+				continue
+			}
+			if pa.Bits() >= pb.Bits() {
+				out = append(out, pa)
+				continue
+			}
+			out = append(out, pb)
+		}
+	}
+	return out
 }
 
 // addrPort is the upstream's transport address.
