@@ -47,8 +47,8 @@ Retain the existing command actions, exit-code contract and supported input
 forms. Prove preservation through operator-visible writeback, including comments
 attached to statements and parse/format/parse equivalence. The design below
 carries comments on the parsed tree, fixes the quoting defect that changes a
-value's meaning, and proves both over the repository's config corpus. No
-implementation or passing evidence is claimed yet.
+value's meaning, and proves both over the repository's config corpus. The
+evidence is in Goal Validation and Pre-Commit Verification below.
 
 **Information this spec preserves:** every comment, byte for byte after its
 `#`, attached to the statement it was written beside; the schema stamp on the
@@ -306,7 +306,7 @@ built 2026-10-27 from that tree.
 - `internal/component/config/flatten.go` - `canFlattenContainer` refuses the same
 - `internal/component/config/list_key.go` - `quoteIfNeeded` quotes `[`, `]`, newline, carriage return, and a leading `(` or `)`; a newline inside quotes is written `\n`
 - `internal/component/config/prune.go` - `pruneUnchangedListEntries` compares entries without comments
-- `internal/component/config/cli/cmd_fmt.go` - `cmdFmt` calls `configFmtBytes`; `DetectFormat` refusal of set and set-meta input naming `ze config migrate --format hierarchical <file>`
+- `internal/component/config/cli/cmd_fmt.go` - `cmdFmt` calls `configFmtBytes`; `DetectFormat` refusal of set and set-meta input naming `ze config migrate format hierarchical <file>`
 - `internal/component/config/fuzz_test.go` - two fuzz targets
 - `docs/architecture/config/syntax.md` - new Comments subsection; Schema Stamp says fmt keeps it
 - `docs/architecture/config/tokenizer.md` - the `#` row
@@ -456,15 +456,24 @@ and its own commit.
 | An `ordered-by user` list prints in the order the tree recorded; every other list stays sorted by key (`ListNode.UserOrdered` from the YANG `ListAttr.OrderedByUser`, `listBlockKeys`) | Sort every list; keep operator order for every list | Phase 1 found `serializeListBlocks` sorting every list, which reorders a first-match list (firewall terms, prefix/aspath/community filter entries, policy-route rules, AAA and RPKI servers, RSVP-TE explicit routes). Order of the other lists is owner Q-2. IKE and ESP proposals are not user-ordered and their order carries no meaning: `ike/ipsec/config.go` sorts them by `number` after `GetListOrdered` |
 | fmt and migrate hash a `plaintext-password` through one helper (`hashPlaintextPasswords`) before printing | Refuse the file | The daemon's load path and a commit apply the same hash; unhashed, the hierarchical form deleted the credential and the set form printed it in clear |
 | OWNER DECISION (Thomas, 2026-10-28): fmt never prints a secret in clear (Junos model). A `ze:bcrypt` plaintext keeps its one-way hash; every other `ze:sensitive` leaf is written in `$9$` form through `secret.Encode` | Print the decoded plaintext (today) | Someone glancing at a screen must not read a secret, even though `$9$` is reversible. Blocker resolved by preserving the original encoding, the Junos model: `secret.Encode` draws a random salt, so every parser (hierarchical, inline list entry, set, set-meta, inline args) decodes through one helper, `decodeSecretLeaf` (`config/secret_text.go`), which keeps the `$9$` text it read (`Tree.SetStoredSecret`), and every printer (`Serialize`, `SerializeSet`, `SerializeSetWithMeta`, so fmt, both migrate forms and the editor) prints through `encodeSecrets`, which writes that text while it still decodes to the value held; only a value given in clear is encoded, once, and that encoding is recorded as the stored text, so the second print changes no byte. `secret.Encode` stays random, so equal keys never print equal strings. The set form was the gap the first pass left: the set parser read a `$9$` string as the literal key. Tests: `TestConfigFmtPrintsSecretEncoded`, `TestConfigFmtKeepsStoredSecretEncoding`, `TestConfigMigratePrintsSecretEncoded`, `TestConfigMigrateSetFormPrintsSecretEncoded`, `TestSetFormKeepsStoredSecretEncoding`, `TestEditorKeepsStoredSecretEncoding` |
+| OWNER DECISION (same ruling): the `$9$` rule covers every surface that publishes a configured secret, not only the file printers. `SerializeSetWithMeta` writes each session entry of a `ze:sensitive` leaf, its `^previous` key included, in the `$9$` form (`encodeSecretMeta`) and the set-meta parser decodes both back; gNMI Get and Subscribe read the copy `EncodeSecrets` answers, and the Set echo to subscribers goes out through `SecretValueAtPath`; `Editor.SetValue` decodes a `$9$` value a client sends and keeps its text (`decodeSecretValue`, `keepStoredSecret`) | Leave gNMI and the meta entries in clear | Three leaks found in review of the first pass: the `^previous` key and a contested entry printed in clear in set-meta, gNMI Get/Subscribe answered keys in clear, and the Set echo carried one client's key to every subscriber. Tests: `TestSetMetaWritesContestedSecretEncoded`, `TestContestedSecretNeverWrittenInClear`, `TestSetMetaRefusesUndecodablePrevious`, `TestGetAnswersSecretsEncoded`, `TestSubscribeOnceAnswersSecretsEncoded`, `TestSetEchoesSecretsEncoded`, `TestSetValueDecodesStoredSecret`, `TestEncodeSecretsFollowsEveryNodeKind`, `TestEncodeSecretMetaFollowsEveryNodeKind` |
+| `SerializeSubtree` prints a secret as the tree holds it, unencoded | Encode there too | `pruneUnchangedListEntries` compares two `SerializeSubtree` texts, and a fresh random salt on each side would make every entry look changed; every display caller masks first (`MaskSecrets`) |
+| The editor's displays print comments (R-5). `show` prints them through `Serialize`; the change view compares comment-free trees (`config.WithoutComments` in `computeTreeAnnotatedDiff`), so a comment never marks a line changed, and maps each diff line to the n-th statement line of the working text (`renderDiffLines`, `workingStatementLines`), so a validation highlight lands below comment lines | Strip comments from every display | R-5 made concrete. Tests: `TestTreeDiffIgnoresComments`, `TestTreeDiffGutterHighlightsLineBelowComments` |
+| A writer that persists the hierarchical form with a fresh stamp replaces the stamp the tree kept (`SerializeStamped`, `withoutSchemaStamp`) | Prepend the stamp as before | The parser keeps a first-line stamp as root head, so the editor commit stacked one more stamp per commit (`test/editor/lifecycle/history-dedup.et` went red). Test: `TestSerializeStampedReplacesStamp` |
+| `Serialize` prints `ze:hidden` nodes, skipping only `ze:ephemeral` | Keep skipping hidden | fmt and migrate deleted the whole `redistribute` root and bgp `prefix maximum updated`, both hidden; `SerializeSet` never skipped them. Display views still skip hidden. Evidence: `TestFormatCorpusRoundTrip` map equality |
+| The positional multi-block list form is used only when every entry's set children form a prefix of the child order and no key equals a child name (`entriesArePositional`) | Always positional | `nbma-neighbor X { priority 1 }` printed `X 1` and read back as another field; `plugin internal use 000` read back as an anonymous entry. Tests: `TestFormatOneLineListEntries`, corpus |
+| The parser refuses an unterminated quote (`tokenizer.unterminated`, `refuseUnterminated`) and a one-line list value that falls on a container child (`refuseInlineSlot`) | Accept as before | Fuzz finds (`FuzzFormatRoundTrip` seeds a55eddd91b490dde, c8a6ea94bdee9abd, bd2ba0ef98c970e2): an unterminated quote silently swallowed the rest of the file, and the inline value was stored where no reader or printer looks, so fmt deleted it. Both are meaning losses at the parser. Tests: `TestParserRefusesUnterminatedQuote`, `TestParserRefusesInlineValueOnContainer` |
 
 ### Every writer of config text
 
 | Writer | Printer | Keeps comments after this spec |
 |--------|---------|--------------------------------|
 | `ze config fmt` stdout, `-w`, `--diff`, `--check` | `Serialize` | Yes |
-| `ze config migrate --format hierarchical` | `Serialize` | Yes, for every node migration keeps (comments ride `Clone`) |
+| `ze config migrate format hierarchical` | `Serialize` | Yes, for every node migration keeps (comments ride `Clone`) |
 | `ze config migrate` default set output | `SerializeSet` | No: owned row |
-| Editor commit from the CLI editor, `ze config set`, `ze config deactivate`, `ze config rollback`, the web editor, gNMI Set | `FormatSchemaStamp` + `SerializeSetWithMeta` | No: owned row |
+| Editor commit within an editing session: the daemon's CLI editor, `ze config set`, `ze config deactivate`, `ze config rollback`, the web editor, gNMI Set | `FormatSchemaStamp` + `SerializeSetWithMeta` (`Editor.stampedWorkingContent`) | No: owned row |
+| Editor commit with no editing session, over a hierarchical file | `SerializeStamped` (`Editor.stampedWorkingContent`): `Serialize` with the kept stamp replaced, never stacked | Yes |
+| gNMI Get, Subscribe, and the Set echo to subscribers | values read from `EncodeSecrets(tree)`; the echo through `SecretValueAtPath` | N-A: no config text; every `ze:sensitive` key in the `$9$` form |
 | Hub schema evolution at start (`cmd/ze/hub/main_evolve.go`), downgrade recovery (`stamp.go`) | `SerializeSetWithMeta` | No: owned row |
 | Editor drafts and change files | `SerializeChangeFile`, `SerializeSetWithMeta` | No: editor-internal set text, same row |
 | `ze config import` | raw bytes | Yes already: copies the file |
@@ -535,3 +544,160 @@ N-A: no protocol code.
 The defect occurs at the producer at HEAD, its targets all resolve, and nothing
 landed that does the work, so the spec runs as designed above. The parent's
 split stands: it owns canonical presentation, this spec owns preservation.
+
+## Implementation Summary
+
+### What Was Implemented
+- Phase 1 (b4eb89e4c5): `configFmtBytes` is the one fmt path; set and set-meta input refused by name with `ze config migrate format hierarchical <file>`; `quoteIfNeeded` quotes every value `bareWordReadsBack` would not read back; both set parsers decode escapes through `splitQuotedTokens`; `Serialize` prints `ze:hidden` nodes; `entriesArePositional`; `ordered-by user` lists keep tree order (`listBlockKeys`); fmt and migrate hash `plaintext-password` (`hashPlaintextPasswords`).
+- `$9$` secrets (cb8db32a25, 6a450e4d0d, 8b428a13ac, 3f236d38c6, 4ee25c4062): `config/secret_text.go` decodes on every parser and encodes on every printer, the meta entries and gNMI.
+- Corpus test (1b44cefd82): `TestFormatCorpusRoundTrip`.
+- Phase 2 (82e42f2c2d): tokenizer trivia, `commentScope` attachment, comments on `Tree`.
+- Phase 3 (4d7174214d): the printer writes comments (`serialize_comments.go`), inline and flatten refuse commented containers, `PruneUnchanged` compares comment-free trees, the editor diff ignores comments and maps its gutter past comment lines, `SerializeStamped`, and three fuzz-found parser fixes.
+
+### Bugs Found/Fixed
+- `quoteIfNeeded` printed `]`, `[`, newline, CR and a leading paren bare: `TestQuoteRoundTripHierarchical`, `FuzzQuoteRoundTrip`.
+- Set parsers decoded no escape and trimmed Unicode spaces: `TestQuoteRoundTripSet`.
+- fmt and migrate deleted hidden roots and the `plaintext-password` credential: corpus map equality, `TestWritersKeepPlaintextPasswordAsHash`.
+- `ordered-by user` lists were sorted: `TestConfigFmtKeepsUserOrderedEntries`.
+- Secrets in clear in set-meta `^previous`, contested entries, gNMI Get, Subscribe and Set echo: the tests named in Key Design Decisions.
+- Unterminated quote swallowed the file; inline value on a container child stored where nothing reads it; key named like a child printed positionally: `TestParserRefusesUnterminatedQuote`, `TestParserRefusesInlineValueOnContainer`, `TestFormatOneLineListEntries`.
+- Editor commit stacked schema stamps: `TestSerializeStampedReplacesStamp`, `history-dedup.et`.
+
+### Documentation Updates
+- `docs/architecture/config/syntax.md`: Leaf quoting, Comments subsection, stamp, unterminated quote, one-line entries; closure added the editor commit and display paragraph with anchors to `Editor.stampedWorkingContent`, `Model.renderTreeAtPath`, `computeTreeAnnotatedDiff`.
+- `docs/architecture/config/tokenizer.md`: `#` row and the Go tokenizer Comments section.
+- `docs/config-migration.md`: migrate `format` keyword, fmt paragraphs; closure fixed the stale `cmd_fmt.go -- encodeSecrets` anchor.
+- `docs/guide/configuration.md`: Comments row; closure corrected "an editor commit still drops them".
+- `docs/guide/gnmi.md`, `docs/architecture/api/architecture.md`, `docs/architecture/config/yang-config-design.md`, `docs/architecture/ssh/fixit-bcrypt-hash-credential.md`: `$9$` surfaces.
+- `./le doc check all`: no finding in these files; its reds are foreign (wiki command catalog drift; anchors in `core-design.md`, `ipsec-9-ikev2-eap-nat.md`, `ci-workflows.md`).
+
+### Deviations from Plan
+- Scope grew under owner rulings and found defects, each recorded in Key Design Decisions: `$9$` on every surface, user-ordered lists, password hashing, hidden nodes, positional lists, the parser refusals, the stamp writer, the display and diff paths.
+- AC-12 names `ze config migrate format hierarchical`: `--format` does not exist.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-4: the set parser reads back any value `quoteIfNeeded` quotes | `tokenizeLine` decoded no escape | `TestQuoteRoundTripSet` red | Fixed at the reader |
+| approach | An implementation agent edited `serialize.go`, `serialize_set.go`, `cli/cmd_fmt.go`, `cli/cmd_migrate.go` and an import in `parser.go` with python and sed, past the per-edit hooks | Repo files are edited with Edit and Write only | The agent's own handoff | Closure reviewed those hunks of cb8db32a25 line by line: call-site swaps to the encoder (later renamed `EncodeSecrets`), the import removal, two comments; no defect |
+| approach | Phase docs said every editor commit drops comments | A commit with no editing session writes the hierarchical form and keeps them | Closure review | Docs corrected |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Preserve every comment and its association | Done | `config/parser_comments.go` `commentScope`, `config/serialize_comments.go` `writeBlock` | |
+| Preserve configuration meaning | Done | `config/list_key.go` `quoteIfNeeded`, `config/serialize.go` `entriesArePositional`, `listBlockKeys` | |
+| Second pass byte-identical | Done | `TestFormatCorpusRoundTrip`, `FuzzFormatRoundTrip` | |
+| Reuse the existing formatter | Done | `config/cli/cmd_fmt.go` `cmdFmt` calls `configFmtBytes` | |
+| Keep flags and exit codes | Done | `cmdFmt` | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestSerializeComments`, `config-fmt-comments.ci` | |
+| AC-2 | Done | `TestSerializeComments`, `config-fmt-comments.ci` | |
+| AC-3 | Done | `TestSerializeComments`, `config-fmt-comments.ci` | |
+| AC-4 | Done | `TestSerializeComments`, `config-fmt-comments.ci` | |
+| AC-5 | Done | `TestSerializeKeepsStampFirst`, `TestSerializeStampedReplacesStamp` | |
+| AC-6 | Done | `TestSerializeBracketComment`, `TestParserBracketComment` | |
+| AC-7 | Done | `TestParserMergedStatementComments`, `config-fmt-comments.ci` | |
+| AC-8 | Done | `TestSerializeCommentBlocksInline` | |
+| AC-9 | Done | `TestQuoteRoundTripHierarchical`, `FuzzQuoteRoundTrip`, `config-fmt-value-meaning.ci` | |
+| AC-10 | Done | `TestFormatCorpusRoundTrip`, `FuzzFormatRoundTrip` | |
+| AC-11 | Done | `config-fmt-comments.ci` | |
+| AC-12 | Done | `TestConfigFmtSetInputRefused`, `config-fmt-set-refused.ci` | |
+| AC-13 | Done | existing `serialize*_test.go` and `cli/main_test.go` expectations unedited | |
+| AC-14 | Done | `TestPruneIgnoresComments` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| Every row of the TDD table | Done | files named in the table | Pass in the closure run below |
+| `FuzzQuoteRoundTrip`, `FuzzFormatRoundTrip` | Done | `config/fuzz_test.go` | 40 s fuzz runs clean (phase handoffs); seeds pass in the closure run |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Every file in Files to Modify and Files to Create | Done | Plus the files the scope growth needed: `secret_text.go`, `tree_comments.go`, `serialize_comments.go`, `stamp.go`, `cli/diff_tree.go`, `cli/editor*.go`, `gnmi/{get,set,subscribe}.go` |
+
+### Audit Summary
+- **Total items:** 14 ACs, 5 task requirements
+- **Done:** all
+- **Partial:** none
+- **Skipped:** none
+- **Changed:** AC-12 wording; scope growth in Deviations
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| fmt keeps every comment beside its statement | functional + corpus | `test/parse/config-fmt-comments.ci` passes (parse suite 380/380); red walk with `writeCommentLines`/`writeCommentAfter` emptied failed it at seq 3. `TestFormatCorpusRoundTrip`, closure run: "carriers 1926, hierarchical 1912, parsed and checked 1105, ... comments 3472", every comment multiset equal |
+| fmt keeps meaning | functional + corpus + fuzz | `config-fmt-value-meaning.ci`; corpus map equality over 1105 configs and user order over 19 lists (red with the user-order branch disabled: 3 diffs); `FuzzFormatRoundTrip` and `FuzzQuoteRoundTrip` 40 s clean after three finds fixed |
+| Second pass byte-identical | functional + corpus | `config-fmt-comments.ci` seq 2 `--check` exits 0; corpus idempotence check |
+| Set input refused with its fix | functional | `config-fmt-set-refused.ci`, exit 2 and the migrate command |
+| No secret printed in clear (owner ruling) | unit, every surface | `TestConfigFmtPrintsSecretEncoded`, `TestConfigMigrateSetFormPrintsSecretEncoded`, `TestContestedSecretNeverWrittenInClear`, `TestGetAnswersSecretsEncoded`, `TestSetEchoesSecretsEncoded`: each red before its fix |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| The set and set-meta writers print no comment | Needs a set-meta comment spelling, a storage-format design | `plan/release/fixes/spec-web-cli-config-one-off-defects.md` |
+| Whether lists with no meaningful order keep operator order, and blank lines | Owner decision Q-2, open | `plan/post-release/engineering/spec-ze-config-fmt.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/config-fmt-preserves-operator-information-ed626c22-d6a4-4293-a5f7-287a2deb8cf2.md` |
+| `./le spec review check` | clean |
+| Rounds | 2 |
+| Reviewer lenses used | wiring, docs drift, removed behaviour, secrets and security, data flow, style pass on every changed Go file, the hook-bypassed hunks of cb8db32a25 |
+
+Round 1: 0 BLOCKER, 3 ISSUE (below), NOTEs: a key whose plaintext itself begins `$9$` prints unencoded and reads back decoded (Junos behaves the same; `secret encode` refuses such a key); `withoutSchemaStamp` clones before the memo of a fresh encoding when nothing printed the tree first, so that one commit draws a new salt; `EncodeSecrets` panics only when `crypto/rand` fails, which Go 1.27 never returns, so no peer reaches it; spec prose (`--format`, writer table, Key Design Decisions missing the scope growth) corrected in one edit. The style pass ran on every changed Go file: no other finding. The `$9$`, positional and parser-refusal changes were checked against the corpus and fuzz evidence rather than re-derived.
+Round 2 (over the three doc fixes): 0 BLOCKER, 0 ISSUE; `./le doc check all` shows no finding in these files.
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | The guide said every editor commit drops comments; `Editor.stampedWorkingContent` writes the hierarchical form, comments kept, when there is no session | `docs/guide/configuration.md` Comments row | Row states both paths, anchor added |
+| 2 | ISSUE | syntax.md did not say what the editor displays and change view do with comments, or which commit keeps them | `docs/architecture/config/syntax.md` Comments | Paragraph with anchors to the producers |
+| 3 | ISSUE | Source anchor named `encodeSecrets` in `cmd_fmt.go`; it lives in `secret_text.go` | `docs/config-migration.md` | Anchors repointed |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `parser_comments_test.go`, `tree_comments_test.go`, `serialize_comments_test.go`, `cli/fmt_corpus_test.go` | Yes | `ls -la`: 6925, 4295, 8491, 9594 bytes |
+| `test/parse/config-fmt-comments.ci`, `config-fmt-value-meaning.ci`, `config-fmt-set-refused.ci` | Yes | `ls -la`: 2396, 1903, 1481 bytes |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-14 | Tests named in the Audit pass | Closure run, `go test -race -tags <all> ./internal/component/config/ ./internal/component/config/cli/ ./internal/component/gnmi/ -run 'Comment|Stamp|Quote|Corpus|Prune|Secret|Fmt|Migrate|Refuses|OneLine|Inline|Fuzz'`: three `ok`, 1768 PASS, no FAIL |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `ze config fmt -w`, then `--check` | `test/parse/config-fmt-comments.ci` | Read: seq 1 `-w` exit 0 with `Formatted:`, seq 2 `--check` exit 0, seq 3 patterns for each comment placement |
+| `ze config fmt` on a value needing quotes | `test/parse/config-fmt-value-meaning.ci` | Parse suite 380/380 (phase 3 handoff) |
+| `ze config fmt` on set input | `test/parse/config-fmt-set-refused.ci` | Parse suite 380/380 |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `TestTokenizerCommentTrivia` |
+| A-2 | confirmed | grep at phase 2 start |
+| A-3 | confirmed | `TestParserBracketComment` |
+| A-4 | broken, fixed | `TestQuoteRoundTripSet`; Mistake Log row |
+| A-5 | confirmed | corpus: 1105 parsed at closure, none lost |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Comments and editor paths (syntax.md, configuration.md) | `Editor.stampedWorkingContent`, `Model.renderTreeAtPath`, `computeTreeAnnotatedDiff` read | Yes |
+| fmt secrets and quoting (config-migration.md) | `fmtTree`, `encodeSecretLeaf`, `quoteIfNeeded`, tokenizer `:[` case | Yes |
+| gNMI `$9$` (gnmi.md, yang-config-design.md) | `gnmi/get.go`, `subscribe.go` `EncodeSecrets`; `set.go` `publishedUpdate` | Yes |

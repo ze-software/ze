@@ -473,12 +473,26 @@ keeps the one-line spelling.
 
 Blank lines are presentation: fmt keeps only the one after a head group.
 A comment never makes `PruneUnchanged` keep an unchanged node. The set and
-set-meta printers, and so the editor's stored form, do not print comments yet.
+set-meta printers do not print comments yet, so a commit from an editing
+session, which writes the set-meta form, drops them; an editor with no session
+writes the hierarchical form and keeps them, its stamp replaced rather than
+stacked (`SerializeStamped`).
+
+The editor's displays print the operator's comments where the tree carries
+them: `show` prints through `config.Serialize`, or `SerializeSubtree` below
+the root (the set display prints set lines, which carry none). The
+editor's change view
+compares comment-free trees, so a comment never marks a line changed, and it
+prints no comment line; its validation highlight still lands on the
+statement's line in the working text, below any comment above it.
 <!-- source: internal/component/config/parser_comments.go -- commentScope -->
 <!-- source: internal/component/config/serialize_comments.go -- writeBlock, writeCommentsAbove -->
 <!-- source: internal/component/config/serialize.go -- canInlineContainer -->
 <!-- source: internal/component/config/flatten.go -- canFlattenContainer -->
 <!-- source: internal/component/config/prune.go -- PruneUnchanged -->
+<!-- source: internal/component/cli/editor.go -- Editor.stampedWorkingContent -->
+<!-- source: internal/component/cli/model_commands_show.go -- Model.renderTreeAtPath -->
+<!-- source: internal/component/cli/diff_tree.go -- computeTreeAnnotatedDiff, renderDiffLines -->
 
 ### Schema Stamp
 

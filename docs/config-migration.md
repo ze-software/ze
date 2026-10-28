@@ -226,7 +226,7 @@ Convert it to the hierarchical form first:
   ze config migrate format hierarchical stored.conf
 ```
 
-fmt never changes a value. A value that would not read back as itself when
+fmt never changes what a value means. A value that would not read back as itself when
 written bare is written quoted: one holding whitespace, a quote, `#`, `;`, a
 brace or a bracket (other than a `:[address]` such as
 `redirect:[2001:db8::1]:100`), or starting with `(` or `)`. Inside the quotes, `"`, `\`, a
@@ -239,7 +239,8 @@ A key in a `ze:sensitive` leaf (an MD5 password, a pre-shared key) is never
 written in clear: a key given in clear is written in the `$9$` form, and a key
 already in the `$9$` form is written back exactly as it was read, so a second
 fmt changes nothing. `ze secret decode` reads the key back.
-<!-- source: internal/component/config/cli/cmd_fmt.go -- encodeSecrets -->
+<!-- source: internal/component/config/cli/cmd_fmt.go -- fmtTree, hashPlaintextPasswords -->
+<!-- source: internal/component/config/secret_text.go -- encodeSecrets, encodeSecretLeaf -->
 <!-- source: internal/component/config/tree.go -- SetStoredSecret -->
 
 ## Unsupported ExaBGP Features

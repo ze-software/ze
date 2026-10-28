@@ -13,7 +13,7 @@
 | Priority | P3 |
 | Release reason | Repository-wide canonicalization and corpus gate are engineering work; operator-information preservation remains with its separate release-fix owner. |
 | Scope | tooling |
-| Depends | spec-config-fmt-preserves-operator-information.md |
+| Depends | - |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-08-15 |
@@ -40,7 +40,10 @@ is implemented in `internal/component/config/cli/cmd_fmt.go` (`cmdFmt`,
 `configFmtBytes`), with `-w`, `--check`, `--diff`, and stdin support. It parses
 with `config.NewParser` and prints with `config.Serialize`. This parent owns
 canonical-form and repository-gate policy. Operator information preservation
-is owned by `plan/release/fixes/spec-config-fmt-preserves-operator-information.md`.
+was delivered by spec-config-fmt-preserves-operator-information, closed
+2026-10-28: fmt keeps every comment and the meaning of every value, as
+`docs/architecture/config/syntax.md` ("Comments") states, proven over the
+corpus by `TestFormatCorpusRoundTrip`.
 `ai/rules/no-layering.md` applies: a second formatter must not be added beside
 this one.
 
@@ -227,7 +230,7 @@ Q-5 chooses how to meet it and cannot make comments optional.
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | `ze config fmt -w` deletes an operator's comments today | `cmdFmt` writes `config.Serialize` output after the tokenizer has discarded comments | `plan/release/fixes/spec-config-fmt-preserves-operator-information.md` owns the G-2/AC-4 repair and proof. This parent's corpus gate remains blocked on that evidence |
+| R-1 | `ze config fmt -w` deletes an operator's comments today | `cmdFmt` writes `config.Serialize` output after the tokenizer has discarded comments | Repaired by spec-config-fmt-preserves-operator-information (closed 2026-10-28): comments ride the parsed tree and `config.Serialize` prints them (`docs/architecture/config/syntax.md`, "Comments"); `TestFormatCorpusRoundTrip` is the G-2/AC-4 evidence this parent's corpus gate waited on |
 | R-2 | Formatting the whole `.conf` corpus is a very large diff that collides with every session working this checkout | The completed `spec-fixit-peer-process-event-filter` rename touched about 500 files | Sequence the sweep, and never run it while another config-touching spec is open |
 | R-3 | Changing the canonical form moves `ze config show`, the editor, and the `zefs` diff path at once | Golden files and `.ci` expectations across `test/` | Treat the printed form as a published interface. Any change to it is its own phase with its own evidence |
 | R-4 | A gate over doc examples fires on intentional fragments and gets weakened until it proves nothing | Q-8. The first exclusion added for an ellipsis is the signal | Decide up front how a fragment declares itself, and never let the gate learn shapes by pattern. The four-round patching described in the Task is what that failure looks like |
