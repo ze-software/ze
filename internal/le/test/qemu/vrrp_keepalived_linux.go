@@ -98,9 +98,7 @@ type vrrpNames struct {
 	kaVeth, kaBridge                 string
 	obVeth, obBridge, bridge         string
 	// trackVeth and trackPeer are the veth pair inside the ze namespace that
-	// the tracked-uplink scenario watches. A veth pair rather than a dummy,
-	// because a dummy device reports oper-state UNKNOWN even when it is
-	// administratively up, and tracking reads oper-state.
+	// the tracked-uplink scenario watches.
 	trackVeth, trackPeer string
 }
 
