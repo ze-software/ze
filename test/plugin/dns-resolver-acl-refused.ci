@@ -1,6 +1,6 @@
 # Test: the LAN resolver refuses a client outside allow-from, and a query with
 #       RD clear from an allowed client, and forwards neither upstream.
-# Spec: plan/post-release/features/spec-lan-dns-resolver.md -- AC-2, AC-12
+# Spec: spec-lan-dns-resolver (closed 2026-10-28) -- AC-2, AC-12
 # VALIDATES: the access check in front of the cache and the forwarder
 #            (internal/plugins/dnsresolver/server.go): a source outside every
 #            allow-from prefix is answered REFUSED with AA clear, an RD=0 query

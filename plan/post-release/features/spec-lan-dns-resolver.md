@@ -702,3 +702,188 @@ same commit (`ai/rules/planning.md`).
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove <the spec's path in its bucket>` only, in the same `./le commit create` script (commit A preserves the spec in history)
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- `dnsserver.Recursive` and `shapeRecursive` (`internal/core/dnsserver/recursive.go`): the recursive answer shape (QR, RA=1, AA=0, Z=0, AD=0, CD copied) beside `Authoritative`, with `RecursiveAccept` as the listener's header filter, `RejectFunc` counting, NOTIMP for non-QUERY, FORMERR for two OPT RRs, BADVERS for an EDNS version other than 0; `Options.UDPSize`, `Options.TCPConnMax` (`connlimit.go`), `Options.MsgAcceptFunc`; `OnListenerChange` keyed by `netip.AddrPort` (2fd39406cd, ccec99640f, 3506c1ac42, fb95542fc8, 0f7cec0c2a, 3003bba373).
+- The `dnsresolver` plugin (`internal/plugins/dnsresolver/`): config transaction with wildcard, empty-ACL and empty-forward refusals; ACL, RD=0 and QDCOUNT checks in `(*resolver).answer`; forwarding with failover, TCP retry on TC, reply matching and bailiwick in `forward.go`; ranked answer and negative caches with LRU in `cache.go`; coalescing, bounded waiters and the per-resolution budget (32 upstream queries, 11 restarts) in `resolve.go` and `limit.go`; `show dns-resolver` with per-listener state and `clear dns-resolver cache all`; metrics; doctor checks; `IP_FREEBIND` listeners (12c0ef5d2e, 2c67ac4254, 786b63ae5d, 19d71988dc, c0c6bb0cc5, ad5f325dd0, 25edf4021d, da761bc6c2, d5b7c287fb, 5703c9e25c).
+- Harness tools: `le dns query` (`internal/le/dns/query`, `internal/test/dnsquery`) and `le mock dns` `--log-queries`, `--delay`, `--drop`, `--drop-first`, `--address`, and its help word (46c273da1a, 634d51d320).
+- DHCP reply delivery for AC-32 (`replyDestination`, `internal/plugins/dhcpserver/register.go`): neighbor entry before the unicast, NAK broadcast when giaddr is zero, an operator's PERMANENT or NOARP entry kept (dafac43371, 3dcb766bbf, 285c47b0f0, f6522aef8c).
+- Interop scenarios `dns-resolver-forward-unbound`, `dns-resolver-dhcp-lan`, `dns-resolver-l2tp-subscriber`, with `test/interop/Dockerfile.unbound` and `Dockerfile.knot` (85f6892d03, 835d147952, ceb83b7140, b977bbc09b, 7f6ce2288b).
+- RFC rows: RFC 2181 `RFC gaps` rows and the resolver-side RFC 1035 and RFC 2181 cases tagged with discrimination records (2d6e24a788, 1466ff3d8d, c532819895, 4ed684c1a8, 0bf856490c); audit verdicts RFC2181-5.4-2 and 8-1 re-judged by independent `ze-rfc-audit` judges (82f9584d47, d7f6b58e48).
+
+### Bugs Found/Fixed
+- DHCP OFFER unicast to yiaddr with no chaddr neighbor, NAK to ciaddr: `TestOfferReachesClientHardware`, `TestNakBroadcastWhenGiaddrZero` (dafac43371).
+- The resolver could not bind the L2TP pool gateway before a session existed: `TestListenBeforeAddressIsUp` (c0c6bb0cc5). A lab sysctl that hid it was refused by the test judge.
+- miekg's default accept function answered malformed headers itself with RA=0, uncounted: `TestMalformedQueryShapedAndCounted` (fb95542fc8).
+- A held higher-ranked CNAME was answered while the chain followed the reply's alias: `TestHeldAliasRedirectsTheChain` (da761bc6c2).
+- The interop lab wrapped a special checker's failure twice: 7f6ce2288b.
+- Review NOTEs fixed as well: BADVERS for an EDNS version other than 0 (`TestRecursiveBadVersion`, 0f7cec0c2a), an operator's NOARP neighbor kept (`TestOperatorHeldNeighborStates`, 285c47b0f0).
+- Alias-target data in an AA reply ranked as authoritative: `TestRFC2181AliasTargetNotAuthoritative` (2d6e24a788).
+
+### Documentation Updates
+- `docs/architecture/dns/lan-resolver.md`, `docs/guide/dns-resolver.md`, `docs/architecture/dns/server-harness.md`, `ai/digests/dns-services.md`, `docs/architecture/provisioning/dhcp-server.md`, `docs/plugin-development/metrics.md`, `docs/guide/command-reference.md`, `docs/features/dns-resolver.md`, `features/lan-dns-resolver.md`, `rfc/short/rfc1035.md`, `rfc/short/rfc2181.md`, `rfc/short/rfc4035.md`, each in the commit of the code it describes.
+- `./le doc check all` at closure (`scratch/doc-check-close2.log`): exit 1 on findings outside this spec only: the `../wiki/command-catalog.md` drift (see Work Not Done) and three stale anchors in `docs/architecture/core-design.md`, `docs/architecture/ike/ipsec-9-ikev2-eap-nat.md` and `docs/architecture/testing/ci-workflows.md`.
+
+### Deviations from Plan
+- DNSSEC validation and recursion moved to their own specs before implementation (D-1 answered (b); D-2 open).
+- No `Dockerfile.dnsclient`: the Knot image serves the `knot` and `dnsclient` roles.
+- RFC1035-4.1.4-5 negative carrier `TestRFC1035ResolverDiscardsPointerLoop` breaks the resolver's own reply check (`forward.go`), because miekg's `Unpack` loop refusal has no in-tree break.
+- The authoritative services do not answer BADVERS: they emit no OPT; homed under `spec-network-services-one-off-defects` (journal `rfc-extension-not-implemented`).
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | A lab sysctl `net.ipv4.ip_nonlocal_bind=1` made the L2TP scenario bind the pool gateway | A real LNS has no such setting; the product needed `IP_FREEBIND` | ze-test-judge refusal | fixed in c0c6bb0cc5; lesson 1 of `plan/learned/045-lan-dns-resolver.md` |
+| approach | Phase 4 reported the RFC rows proven | The resolver-side RFC 1035 and RFC 2181 cases the spec required were untagged | first closure's deliverables check (cad9658672) | tagged in c532819895; lesson 4 |
+| approach | Four tagged units claimed more than their assertions observed (8-1 vs 8-2, port-53 parse vs bind, two negatives) | the judge refused them | ze-test-judge over c532819895 | reworked in 4ed684c1a8, 0bf856490c; lesson 5 |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Caching resolver for LANs and L2TP subscribers | Done | `internal/plugins/dnsresolver/server.go` `(*resolver).answer` | interop `dns-resolver-dhcp-lan`, `dns-resolver-l2tp-subscriber` |
+| Answer only on named addresses and to named prefixes | Done | `config.go` wildcard and empty `allow-from` refusals; `answer` ACL | AC-2, AC-3, AC-4 |
+| Forward to the operator's upstreams | Done | `forward.go` | AC-1, AC-15..AC-18; `dns-resolver-forward-unbound` |
+| Not security-aware | Done | `forward.go` upstream DO clear; `shapeRecursive` AD clear | AC-8, AC-10 |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `dns-resolver-forward.ci` | |
+| AC-2 | Done | `dns-resolver-acl-refused.ci`, `TestACLRefused` | |
+| AC-3, AC-4 | Done | `dns-resolver-config-refused.ci`, `TestParseListenerRefusesEveryWildcard`, `TestParseConfigRefusals` | |
+| AC-5, AC-6, AC-21, AC-27 | Done | `TestCacheTTLDecrement`, `TestCacheReplaceNotMerge`, `TestTTLHighBit`, `TestCacheCaseFold` | |
+| AC-7 | Done | `TestNegativeCacheTTL` | |
+| AC-8, AC-10 | Done | `TestUpstreamQueryShape` | |
+| AC-9 | Done | `TestSIGRRSetHandling`, RFC 2181 5.3.1 tagged units | |
+| AC-11 | Done | `TestWorkBudget` | |
+| AC-12 | Done | `dns-resolver-acl-refused.ci`, `TestRDZeroRefused` | |
+| AC-13, AC-14 | Done | `TestRecursiveUDPSize`, `TestRFC2181TruncatedWhenRRSetDoesNotFit` | |
+| AC-15, AC-16, AC-17 | Done | `TestFailoverAndTimeout`, `TestTCPRetryOnTC`, `dns-resolver-timeout.ci`, `dns-resolver-failover.ci` | |
+| AC-18, AC-19 | Done | `TestReplyMatching`, `TestBailiwick` | |
+| AC-20 | Done | `TestTrustRanking` | |
+| AC-22 | Done | `TestCoalescing` | |
+| AC-23, AC-24 | Done | `TestOutstandingBound`, `TestRateLimit` | |
+| AC-25, AC-26 | Done | `TestQDCount`, `TestRecursiveOpcode`, `TestMalformedQueryShapedAndCounted` | |
+| AC-28 | Done | `dns-resolver-listener-conflict.ci` | |
+| AC-29 | Done | `TestDisabledBindsNoListener`, `TestDisableReleasesListener`, `TestResolverLeavesSystemNameServers` | |
+| AC-30 | Done | `TestReloadKeepsListeners`, `dns-resolver-reload.ci` | |
+| AC-31 | Done | `dns-resolver-show.ci`, `TestListenerStateByPort` | |
+| AC-32 | Done | interop `dns-resolver-dhcp-lan` | recorded red |
+| AC-33 | Done | interop `dns-resolver-l2tp-subscriber` | recorded reds |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| 85 unit test functions named in the TDD Unit Tests table | Done | each found as `func Test...(` by `git grep` at closure, none missing | `go test -race` over dnsresolver, dnsserver, dhcpserver, dnsquery, mock dns: ok |
+| 10 functional `.ci` | Done | `test/plugin/dns-resolver-*.ci`, `test/parse/dns-resolver-boundary-refused.ci`, `test/reload/dns-resolver-reload.ci` | 10/10 PASS at closure |
+| 3 interop scenarios | Done | Interop Tests table | each green with a recorded red |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Files to Create | Done | every path listed in that section exists at closure (`ls`) |
+| Files to Modify | Done | each changed in the commits named in What Was Implemented |
+
+### Audit Summary
+- **Total items:** 4 task requirements, 33 ACs, 85 unit tests, 10 functional tests, 3 interop scenarios
+- **Done:** all
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 3 (recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Ze serves DHCP-addressed LAN segments as a caching resolver on the advertised address | interop | `dns-resolver-dhcp-lan`: dhcpcd leases from Ze, option 6 is exactly Ze's address, `kdig` resolves through it, the host's other address is REFUSED; green `scratch/p3/dhcp-green-ok.log`, red `dhcp-red.log` (ACL break) |
+| Ze serves L2TP subscribers on the IPCP-advertised address | interop | `dns-resolver-l2tp-subscriber`: pppd's resolv.conf names Ze's resolver and it resolves `www.lab.example` over the PPP link; green `scratch/p3/l2tp-green-final.log`, reds `l2tp-red-a.log` (IPCP DNS break) and `l2tp-red-b.log` (ACL break) |
+| It answers only on named addresses and to named prefixes | functional + interop | `dns-resolver-config-refused.ci` (wildcard, empty `allow-from` refused), `dns-resolver-acl-refused.ci` (REFUSED, mock logs nothing), interop assertion 4 of `dns-resolver-dhcp-lan` |
+| It forwards to the operator's upstreams with answers equal to a reference resolver | interop | `dns-resolver-forward-unbound`: per query RCODE and RRsets equal Unbound's, TC and TCP retry; green `scratch/p3/forward-green-4.log`, red `forward-red.log` (cache break) |
+| It caches | functional | `dns-resolver-forward.ci` seq=4/5: one upstream question for two queries; `dns-resolver-show.ci` clear then upstream again |
+| It is not security-aware | unit | `TestUpstreamQueryShape` (DO clear upstream, AD and AA clear on reply) |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| DNSSEC validation | D-1 answered (b); optional for fttx-edge, runs once Thomas brings DNSSEC into scope | `plan/post-release/features/spec-dns-resolver-dnssec-validation.md` |
+| Full recursion from the root | waits on Thomas's D-2 | `plan/post-release/features/spec-dns-resolver-recursion.md` |
+| Published command catalogs (gh-pages site and `../wiki/command-catalog.md`) lack `show dns-resolver` and `clear dns-resolver cache all` | they live in other checkouts, written by the main thread with `./le cli catalog update file <catalog.md>` and `./le site build`; not a blocker of this spec | main thread, site and wiki work (no spec: the catalog is regenerated from the registry) |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/lan-dns-resolver-f3ae7c00-09af-4420-914f-39f2f7169980.md` (17 files, verdict clean), written by `./le spec review record spec spec-lan-dns-resolver verdict CLEAN rounds 8 ...` over every commit-A file |
+| `./le spec review check` | clean at closure, over the same 17 files |
+| Rounds | 8 independent `/ze-review` rounds over the implementation; round 8 clean (0 BLOCKER, 0 ISSUE). Rounds 6, 7 and 8 authorised by Thomas ("approved", "round 7", "round 8"). Round 6 found the library FORMERR shape overstated and a non-existent checker in AC-33 (5f9b4ef731); round 7 found AC-29 untested and AC-33 claiming an unobserved secondary DNS (5408fc20e0) and the interop lab double-wrapping failures (7f6ce2288b); round 8 clean |
+| After round 8 | c532819895, 4ed684c1a8 and 0bf856490c add RFC-tagged tests and discrimination records only, and 82f9584d47 and d7f6b58e48 add audit verdicts only: no production code. Each was ruled by independent ze-test-judges (every hand-written break) and ze-rfc-audit judges (RFC2181-5.4-2, RFC2181-8-1) |
+| Reviewer lenses used | logic and wiring, security and edge cases, RFC 1035/2181/5452 conformance, interop vacuity, documentation against source |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | no TCP connection cap on the resolver listener | `dnsserver` connection limiter | ccec99640f |
+| 2 | ISSUE | listener state not reported per bound socket | `listener_state.go`, `OnListenerChange` | 3506c1ac42, 25edf4021d |
+| 3 | ISSUE | malformed headers answered by miekg with RA=0, uncounted | `RecursiveAccept` | fb95542fc8 |
+| 4 | ISSUE | operator's permanent neighbor replaced | `replyDestination` | 3dcb766bbf (the NOARP case, a round 2 NOTE, in 285c47b0f0) |
+| 5 | ISSUE | reload window answered sources one config refuses | `resolver.narrow` | ad5f325dd0, da761bc6c2 |
+| 6 | ISSUE | CNAME chain followed the reply's alias while answering the held one | `absorb` | da761bc6c2 |
+| 7 | ISSUE | doctor accepted an absent address without a freebind bind | `bindProbe`, `probeBindable` | d5b7c287fb |
+| 8 | ISSUE | a query with two OPT RRs passed the BADVERS check (RFC 6891 Section 6.1.1 FORMERR MUST) | `Recursive` | 3003bba373 |
+| 9 | ISSUE | RD judged before the question count, so a QDCOUNT 0 or 2 query with RD=0 drew REFUSED, not FORMERR (AC-25) | `(*resolver).answer` | 5703c9e25c |
+| 10 | ISSUE | library FORMERR shape overstated, non-existent checker named | spec, docs | 5f9b4ef731 |
+| 11 | ISSUE | AC-29 untested; AC-33 claimed an unobserved secondary DNS | `disabled_test.go`, AC-33 | 5408fc20e0 |
+| 12 | ISSUE | interop lab reported a special checker's failure twice | `internal/le/interoplab` | 7f6ce2288b |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/plugins/dnsresolver/` (register, config, config_tx, state, server, resolve, limit, forward, cache, listener_state, show, doctor, metrics, yang/) | Yes | `ls` at closure lists every file |
+| `internal/le/dns/query/register.go`, `internal/test/dnsquery/query.go` | Yes | `ls` |
+| `test/interop/scenarios/dns-resolver-forward-unbound`, `dns-resolver-dhcp-lan`, `test/interop-l2tp/scenarios/dns-resolver-l2tp-subscriber`, `test/interop/Dockerfile.unbound`, `Dockerfile.knot` | Yes | `ls -d` |
+| `internal/le/interoplab/bgp/check_dns_resolver.go`, `check_dns_resolver_predicate.go`, `internal/le/interoplab/l2tp/dns_resolver.go` | Yes | `ls` |
+| `features/lan-dns-resolver.md`, `docs/guide/dns-resolver.md`, `docs/architecture/dns/lan-resolver.md` | Yes | `ls` |
+| the 10 `.ci` files of the Functional Tests table | Yes | `ls`; 10/10 PASS (`scratch/job-close-dns-ci-plugin-422574e4.log`, `job-close-dns-ci-parse-30987813.log`, `job-close-dns-ci-reload-06a295f9.log`) |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-31 unit-tested | every named test exists and passes | `go test -race -count=1` over dnsresolver, dnsserver, dhcpserver, dnsquery, mock dns: all ok (`scratch/job-close-dns-race-ca13dc78.log`) |
+| AC-1, 2, 3, 4, 5, 12, 16, 17, 28, 30, 31 functional | `.ci` pass | plugin 8/8, parse 1/1, reload 1/1 PASS at closure |
+| AC-32, AC-33 | interop green with recorded reds | Interop Tests table logs |
+| RFC rows | every record verifies | `./le rfc check` (`scratch/rfc-check-close2.log`): exit 1, no violation for rfc1035, rfc2181, rfc2131, rfc4035, rfc6891, rfc7858 |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| forward config + `le dns query` | `test/plugin/dns-resolver-forward.ci` | seq=3 runs `le dns query --server 127.0.0.1:$PORT --rd` against the running daemon; PASS |
+| source outside `allow-from` | `test/plugin/dns-resolver-acl-refused.ci` | asserts REFUSED with AA clear and no upstream question; PASS |
+| wildcard listener or empty `allow-from` | `test/plugin/dns-resolver-config-refused.ci` | feeds each config through the commit path and asserts the refusal text; PASS |
+| `show dns-resolver`, `clear dns-resolver cache all` | `test/plugin/dns-resolver-show.ci` | runs both commands against the daemon; PASS |
+| DHCP-leased host, L2TP subscriber | interop `dns-resolver-dhcp-lan`, `dns-resolver-l2tp-subscriber` | green with recorded reds |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-2 | confirmed | `dns-resolver-listener-conflict.ci` PASS; `listener.go` unchanged |
+| A-3 | confirmed | `TestListenBeforeAddressIsUp`; interop `dns-resolver-l2tp-subscriber` |
+| A-4 | confirmed | `TestReplyMatching` (ID, question and source mismatches ignored) |
+| A-7 | confirmed | interop `dns-resolver-dhcp-lan` green after dafac43371 |
+| A-8 | confirmed | `TestSlowUpstreamDoesNotBlockCache` |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| guide, design, harness, digest, metrics, command reference, feature record | updated in the commits of the code they describe (What Was Implemented) | `./le doc check all`: no finding on these pages |
+| RFC summaries 1035, 2181, 4035 | `./le rfc check` lists none of their rows | Yes |
+| published wiki command catalog | `../wiki/command-catalog.md` disagrees with the live catalog | No: Work Not Done row, main thread |

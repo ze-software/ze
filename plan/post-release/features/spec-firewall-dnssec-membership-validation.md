@@ -36,7 +36,7 @@ This ownership split preserves the original obligations and evidence. Migration 
 - [ ] `internal/component/resolve/dns/resolver.go` - `dnssecDecision` trusts the upstream resolver's SERVFAIL; no signature is validated locally
 - [ ] `internal/component/firewall/plugins/domain/domain.go` - installs DNS-sourced membership from the resolver's answer
 
-Not re-read for this move; the two rows above are carried from `spec-lan-dns-resolver.md` Q-1 and must be re-verified at the producer when the work reopens.
+Not re-read for this move; the two rows above are carried from `spec-lan-dns-resolver` Q-1 (closed 2026-10-28) and must be re-verified at the producer when the work reopens.
 
 ## Data Flow
 

@@ -6,7 +6,7 @@
 #           query from 127.0.0.2 is answered, on the listener the boot config
 #           bound.
 #
-# Spec: plan/post-release/features/spec-lan-dns-resolver.md -- AC-30
+# Spec: spec-lan-dns-resolver (closed 2026-10-28) -- AC-30
 # VALIDATES: the resolver's verify/apply pair (internal/plugins/dnsresolver/
 #            config_tx.go) publishes the reloaded policy to the query path: a
 #            source the reload removed is refused (RFC-less policy, AC-2's

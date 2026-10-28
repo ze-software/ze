@@ -1,6 +1,6 @@
 # Test: a client inside allow-from resolves a name through the LAN resolver,
 #       which forwards to the `le mock dns` upstream.
-# Spec: plan/post-release/features/spec-lan-dns-resolver.md -- Wiring Test row 1, AC-1
+# Spec: spec-lan-dns-resolver (closed 2026-10-28) -- Wiring Test row 1, AC-1
 # VALIDATES: the path from `service dns-resolver` through the listener the
 #            plugin binds (internal/plugins/dnsresolver/server.go) and
 #            dnsserver.Recursive (internal/core/dnsserver/recursive.go) to the

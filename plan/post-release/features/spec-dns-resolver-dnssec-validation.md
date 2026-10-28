@@ -7,7 +7,7 @@
 | Priority | P3 |
 | Release reason | Optional DNSSEC work: the fttx-edge profile lists RFC 4033, 4034 and 4035 under `Optional use cases` only, `rfc/short/rfc4034.md` records the owner ruling that DNSSEC is not urgent and optional only, and `ai/META-DECISIONS.md` counts an optional RFC only once Thomas brings it into scope. This spec runs only once he brings DNSSEC into scope. |
 | RFC gaps | RFC2181-5.4.1-8, RFC4035-3-5, RFC4035-3.1.6-6, RFC4035-3.2.1-1, RFC4035-3.2.1-2, RFC4035-3.2.1-3, RFC4035-3.2.2-1, RFC4035-3.2.2-4, RFC4035-3.2.3-2, RFC4035-4.2-1, RFC4035-4.2-3, RFC4035-4.2-5, RFC4035-4.2-6, RFC4035-4.3-1, RFC4035-4.4-1, RFC4035-4.7-2, RFC4035-4.7-3, RFC4035-4.7-7, RFC4035-4.8-1, RFC4035-5-1, RFC4035-5-2, RFC4035-5-3, RFC4035-5.2-1, RFC4035-5.2-3, RFC4035-5.3.1-1, RFC4035-5.3.1-2, RFC4035-5.3.1-3, RFC4035-5.3.1-4, RFC4035-5.3.1-5, RFC4035-5.3.1-6, RFC4035-5.3.1-7, RFC4035-5.3.1-8, RFC4035-5.3.1-9, RFC4035-5.3.1-10, RFC4035-5.3.2-1, RFC4035-5.3.2-2, RFC4035-5.3.2-3, RFC4035-5.3.3-1, RFC4035-5.3.3-2, RFC4035-5.4-1, RFC4035-5.4-2, RFC4035-5.4-3, RFC4035-5.4-4, RFC4035-5.5-2, RFC4035-5.5-3 |
-| Depends | spec-lan-dns-resolver.md |
+| Depends | - (spec-lan-dns-resolver closed 2026-10-28) |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-10-27 |
@@ -16,7 +16,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-Make the LAN resolver of `plan/post-release/features/spec-lan-dns-resolver.md`
+Make the LAN resolver of `spec-lan-dns-resolver` (closed 2026-10-28)
 a security-aware, validating recursive server (RFC 4033, 4034, 4035), with Ze's
 own Go validator in `internal/core/dnssec`, which
 `plan/post-release/features/spec-firewall-dnssec-membership-validation.md` also
@@ -41,7 +41,7 @@ scope:
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `plan/post-release/features/spec-lan-dns-resolver.md` - the resolver this spec makes security-aware; its harness wrapper `Recursive`, cache and limits
+- [ ] `docs/architecture/dns/lan-resolver.md` (the design of `spec-lan-dns-resolver`, closed 2026-10-28) - the resolver this spec makes security-aware; its harness wrapper `Recursive`, cache and limits
   → Constraint: the plugin reaches nothing but its own state, `internal/core/dnsserver` and `internal/core/dnssec`; the validator package holds no plugin or config vocabulary
 - [ ] `docs/architecture/dns/server-harness.md` - the shared listener and the enforced answer shape
 - [ ] `rfc/profiles/fttx-edge.md` - RFC 4033, 4034, 4035 and 8106 are optional

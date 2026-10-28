@@ -1,6 +1,6 @@
 # Test: a resolver listener on the address and port geodns already binds is
 #       refused by the cross-service listener conflict check.
-# Spec: plan/post-release/features/spec-lan-dns-resolver.md -- AC-28, A-2
+# Spec: spec-lan-dns-resolver (closed 2026-10-28) -- AC-28, A-2
 # VALIDATES: the resolver's `listener` list joins config.DiscoverListenerServices
 #            through its zt:listener marking alone (no edit to listener.go),
 #            and its UDP and TCP protocols are both registered.

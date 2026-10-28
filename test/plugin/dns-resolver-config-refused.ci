@@ -1,7 +1,7 @@
 # Test: a resolver config that would answer the WAN side, refuse every client,
 #       or have nowhere to resolve is refused at commit, and each refusal
 #       names the leaf that fixes it.
-# Spec: plan/post-release/features/spec-lan-dns-resolver.md -- Wiring Test row 3, AC-3, AC-4
+# Spec: spec-lan-dns-resolver (closed 2026-10-28) -- Wiring Test row 3, AC-3, AC-4
 # VALIDATES: the plugin verifier (parseConfig, internal/plugins/dnsresolver/config.go)
 #            refuses a wildcard listener, an empty allow-from and an empty
 #            forward list through `ze config validate`, which runs the verifier

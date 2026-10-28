@@ -1,7 +1,7 @@
 # Test: every numeric bound of `service dns-resolver` refuses the first value
 #       past it and accepts the last value inside it, through `ze config
 #       validate`, the operator's own pre-commit check.
-# Spec: plan/post-release/features/spec-lan-dns-resolver.md -- Boundary Tests
+# Spec: spec-lan-dns-resolver (closed 2026-10-28) -- Boundary Tests
 # VALIDATES: the YANG ranges of yang/ze-dns-resolver-conf.yang (cache size,
 #            max-ttl, max-negative-ttl, timeout, limit outstanding,
 #            per-client-rate, forward server max-elements) and the plugin's

@@ -1,7 +1,7 @@
 # Test: the first forward server is silent and the second answers: the LAN
 #       resolver tries them in order and answers from the second within its
 #       timeout.
-# Spec: plan/post-release/features/spec-lan-dns-resolver.md -- AC-17
+# Spec: spec-lan-dns-resolver (closed 2026-10-28) -- AC-17
 # VALIDATES: the forward loop (internal/plugins/dnsresolver/resolve.go,
 #            forward) gives each server a share of the time left, moves to the
 #            next server when one times out, and returns that server's answer:

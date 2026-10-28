@@ -1,7 +1,7 @@
 # Test: `show dns-resolver` reports the running resolver's policy and counters,
 #       and `clear dns-resolver cache all` empties the cache, so the next
 #       query goes upstream again.
-# Spec: plan/post-release/features/spec-lan-dns-resolver.md -- AC-31
+# Spec: spec-lan-dns-resolver (closed 2026-10-28) -- AC-31
 # VALIDATES: through the real entry point, the CLI dialing the daemon's SSH
 #            server: ze-dns-resolver-cmd dispatches handleShowDNSResolver and
 #            handleClearDNSResolverCache (internal/plugins/dnsresolver/show.go)

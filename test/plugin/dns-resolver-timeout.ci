@@ -1,6 +1,6 @@
 # Test: a silent upstream makes the LAN resolver answer SERVFAIL within its
 #       timeout, caches nothing, and asks upstream again on the next query.
-# Spec: plan/post-release/features/spec-lan-dns-resolver.md -- AC-16
+# Spec: spec-lan-dns-resolver (closed 2026-10-28) -- AC-16
 # VALIDATES: the forward loop (internal/plugins/dnsresolver/resolve.go,
 #            forward) gives up when `timeout` runs out and answers SERVFAIL
 #            (never NOERROR with no data), and a failed resolution is not

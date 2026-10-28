@@ -1,7 +1,7 @@
 # Test: an upstream that is silent for one question and then serves again: the
 #       LAN resolver answers SERVFAIL within its timeout, then answers the
 #       same question from the upstream once it is served.
-# Spec: plan/post-release/features/spec-lan-dns-resolver.md -- AC-16,
+# Spec: spec-lan-dns-resolver (closed 2026-10-28) -- AC-16,
 #       Functional Tests row dns-resolver-timeout ("then answered once the
 #       mock serves it")
 # VALIDATES: the forward loop (internal/plugins/dnsresolver/resolve.go,

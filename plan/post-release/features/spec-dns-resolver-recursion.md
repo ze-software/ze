@@ -5,9 +5,9 @@
 | Status | skeleton |
 | Scope | protocol |
 | Priority | P3 |
-| Release reason | Waits on Thomas's D-2 choice (`plan/post-release/features/spec-lan-dns-resolver.md`, Owner decisions): whether the LAN resolver also recurses from the root. Recommended default: ship it, because recursion removes the dependency on an operator upstream. No RFC the fttx-edge profile lists requires either mode. |
+| Release reason | Waits on Thomas's D-2 choice (the D-2 table under Task, carried from `spec-lan-dns-resolver`, closed 2026-10-28): whether the LAN resolver also recurses from the root. Recommended default: ship it, because recursion removes the dependency on an operator upstream. No RFC the fttx-edge profile lists requires either mode. |
 | RFC gaps | - |
-| Depends | spec-lan-dns-resolver.md |
+| Depends | - (spec-lan-dns-resolver closed 2026-10-28) |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-10-27 |
@@ -17,7 +17,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 ## Task
 
 Add full recursion from the root to the forwarding LAN resolver of
-`plan/post-release/features/spec-lan-dns-resolver.md`: a `recursive` value of
+`spec-lan-dns-resolver` (closed 2026-10-28): a `recursive` value of
 the `dns-resolver mode` leaf, built-in IANA root hints replaceable by config,
 the delegation walk, and glue hardening.
 
@@ -34,7 +34,7 @@ AC-34 and AC-35 kept. It is a skeleton: it runs only once Thomas answers D-2
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `plan/post-release/features/spec-lan-dns-resolver.md` - the forwarding resolver, its cache, ranking, bailiwick check and per-resolution budget, which recursion reuses
+- [ ] `docs/architecture/dns/lan-resolver.md` (the design of `spec-lan-dns-resolver`, closed 2026-10-28) - the forwarding resolver, its cache, ranking, bailiwick check and per-resolution budget, which recursion reuses
   → Constraint: the per-resolution budget (32 upstream queries, 11 CNAME restarts, deadline) bounds the delegation walk too; no goroutine per exchange
 - [ ] `docs/architecture/testing/interop.md` - scenario naming and the recorded red
 
@@ -45,7 +45,7 @@ AC-34 and AC-35 kept. It is a skeleton: it runs only once Thomas answers D-2
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `plan/post-release/features/spec-lan-dns-resolver.md` - forward mode only; the `mode` leaf has the single value `forward`
+- [ ] `internal/plugins/dnsresolver/yang/ze-dns-resolver-conf.yang` (from `spec-lan-dns-resolver`, closed 2026-10-28) - forward mode only; the `mode` leaf has the single value `forward`
 - [ ] `vendor/github.com/miekg/dns/client.go` - the client; miekg has no iterative resolver
 
 Carried from the previous draft and to be re-verified when this spec is designed.
