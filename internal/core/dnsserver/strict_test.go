@@ -115,7 +115,7 @@ type portThief struct {
 	stolen net.PacketConn
 }
 
-func (p *portThief) onListenerChange(_, _ string, up bool) {
+func (p *portThief) onListenerChange(_ string, _ netip.AddrPort, up bool) {
 	if up {
 		return
 	}

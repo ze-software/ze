@@ -341,12 +341,13 @@ func answerQuery(msg, r *dns.Msg, p dnsserver.Peer) bool {
 // listenerUp gauge, whose label values are this plugin's listen addresses.
 // The harness owns only the metric no consumer can see, the write-failure
 // counter of internal/core/dnsserver/metrics.go.
-func onListenerChange(proto, addr string, up bool) {
+// The gauge is labeled by the listen IP alone, as it always was.
+func onListenerChange(proto string, listen netip.AddrPort, up bool) {
 	v := 0.0
 	if up {
 		v = 1
 	}
-	gmetrics().listenerUp.With(proto, addr).Set(v)
+	gmetrics().listenerUp.With(proto, listen.Addr().String()).Set(v)
 }
 
 // geodnsServer is a thin adapter over dnsserver.Manager, keeping geodns's own

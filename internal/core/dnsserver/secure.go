@@ -206,7 +206,7 @@ func (m *Manager) bindListeners(l Listeners) (Listeners, []error) {
 	var failed []error
 	for _, e := range l.Plain {
 		ep := net.JoinHostPort(e.IP.String(), strconv.Itoa(int(e.Port)))
-		if err := m.bind(ep, e.IP.String()); err != nil {
+		if err := m.bind(ep, netip.AddrPortFrom(e.IP, e.Port)); err != nil {
 			failed = append(failed, fmt.Errorf("cannot listen on %s: %w", ep, err))
 			continue
 		}
@@ -217,7 +217,7 @@ func (m *Manager) bindListeners(l Listeners) (Listeners, []error) {
 	}
 	for _, e := range l.DoT {
 		ep := net.JoinHostPort(e.IP.String(), strconv.Itoa(int(e.Port)))
-		if err := m.bindDoT(ep, e.IP.String(), l.TLSConfig); err != nil {
+		if err := m.bindDoT(ep, netip.AddrPortFrom(e.IP, e.Port), l.TLSConfig); err != nil {
 			failed = append(failed, fmt.Errorf("cannot listen for DoT on %s: %w", ep, err))
 			continue
 		}
@@ -225,7 +225,7 @@ func (m *Manager) bindListeners(l Listeners) (Listeners, []error) {
 	}
 	for _, e := range l.DoH {
 		ep := net.JoinHostPort(e.IP.String(), strconv.Itoa(int(e.Port)))
-		if err := m.bindDoH(ep, e.IP.String(), l.TLSConfig, l.DoHPath); err != nil {
+		if err := m.bindDoH(ep, netip.AddrPortFrom(e.IP, e.Port), l.TLSConfig, l.DoHPath); err != nil {
 			failed = append(failed, fmt.Errorf("cannot listen for DoH on %s: %w", ep, err))
 			continue
 		}
@@ -504,7 +504,7 @@ func tlsFingerprint(cfg *tls.Config) string {
 // it. DoT is TCP-only -- there is no UDP counterpart -- so unlike bind() this
 // opens a single listener. It reuses m.serve (and its generation-based crash
 // detection) because a TLS listener is an ordinary net.Listener to miekg/dns.
-func (m *Manager) bindDoT(ep, addr string, tlsConfig *tls.Config) error {
+func (m *Manager) bindDoT(ep string, listen netip.AddrPort, tlsConfig *tls.Config) error {
 	lc := listenConfig(m.opts.Freebind)
 	ln, err := lc.Listen(context.Background(), "tcp", ep)
 	if err != nil {
@@ -517,14 +517,14 @@ func (m *Manager) bindDoT(ep, addr string, tlsConfig *tls.Config) error {
 		NotifyStartedFunc: func() { close(started) },
 	}
 	m.servers = append(m.servers, srv)
-	m.boundSecureAddrs = append(m.boundSecureAddrs, secureAddr{proto: "dot", addr: addr})
+	m.boundSecureAddrs = append(m.boundSecureAddrs, secureAddr{proto: "dot", addr: listen})
 	if m.opts.OnListenerChange != nil {
-		m.opts.OnListenerChange("dot", addr, true)
+		m.opts.OnListenerChange("dot", listen, true)
 	}
 	m.mu.Lock()
 	gen := m.generation
 	m.mu.Unlock()
-	go m.serve(srv, ep, addr, "dot", gen)
+	go m.serve(srv, ep, listen, "dot", gen)
 	<-started
 	return nil
 }
@@ -532,7 +532,7 @@ func (m *Manager) bindDoT(ep, addr string, tlsConfig *tls.Config) error {
 // bindDoH opens a TLS-wrapped TCP listener and serves DNS-over-HTTPS (RFC 8484)
 // on it, mounting the DoH handler at path. Binding happens before the serve
 // goroutine starts, so there is no advertise-before-bind gap.
-func (m *Manager) bindDoH(ep, addr string, tlsConfig *tls.Config, path string) error {
+func (m *Manager) bindDoH(ep string, listen netip.AddrPort, tlsConfig *tls.Config, path string) error {
 	lc := listenConfig(m.opts.Freebind)
 	ln, err := lc.Listen(context.Background(), "tcp", ep)
 	if err != nil {
@@ -543,14 +543,14 @@ func (m *Manager) bindDoH(ep, addr string, tlsConfig *tls.Config, path string) e
 	mux.HandleFunc(path, m.dohHandler(tlsLn.Addr()))
 	srv := &http.Server{Handler: mux, ReadHeaderTimeout: dohReadHeaderTimeout}
 	m.httpServers = append(m.httpServers, srv)
-	m.boundSecureAddrs = append(m.boundSecureAddrs, secureAddr{proto: "doh", addr: addr})
+	m.boundSecureAddrs = append(m.boundSecureAddrs, secureAddr{proto: "doh", addr: listen})
 	if m.opts.OnListenerChange != nil {
-		m.opts.OnListenerChange("doh", addr, true)
+		m.opts.OnListenerChange("doh", listen, true)
 	}
 	m.mu.Lock()
 	gen := m.generation
 	m.mu.Unlock()
-	go m.serveHTTP(srv, tlsLn, ep, addr, gen)
+	go m.serveHTTP(srv, tlsLn, ep, listen, gen)
 	return nil
 }
 
@@ -560,7 +560,7 @@ func (m *Manager) bindDoH(ep, addr string, tlsConfig *tls.Config, path string) e
 // Shutdown, which makes this generation stale first), so it must surface and
 // mark the manager unapplied. http.ErrServerClosed from a graceful Shutdown lands
 // on the stale-generation (debug) path.
-func (m *Manager) serveHTTP(srv *http.Server, ln net.Listener, ep, addr string, gen int) {
+func (m *Manager) serveHTTP(srv *http.Server, ln net.Listener, ep string, listen netip.AddrPort, gen int) {
 	err := srv.Serve(ln)
 
 	m.mu.Lock()
@@ -576,7 +576,7 @@ func (m *Manager) serveHTTP(srv *http.Server, ln net.Listener, ep, addr string, 
 	}
 	m.log.Error("dnsserver: doh listener crashed unexpectedly", "endpoint", ep, logKeyError, err)
 	if m.opts.OnListenerChange != nil {
-		m.opts.OnListenerChange("doh", addr, false)
+		m.opts.OnListenerChange("doh", listen, false)
 	}
 }
 

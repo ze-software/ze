@@ -188,15 +188,17 @@ func newServerManager(log *slog.Logger, onServing func()) *as112Server {
 // means an IPv6-only outage (all v6 binds fail while v4 is up) fires an edge and
 // withdraws only the v6 covering prefixes, rather than leaving them announced
 // into a dead v6 server. Loopback listeners are diagnostic only and do not gate
-// the anycast covering-prefix announcement.
-func (s *as112Server) listenerChanged(proto, addr string, up bool) {
-	onListenerChange(proto, addr, up) // per-listener gauge (unchanged)
+// the anycast covering-prefix announcement. The serving key carries the port,
+// so two listeners on one IP with different ports are tracked apart and the
+// loss of one does not withdraw a family the other still serves.
+func (s *as112Server) listenerChanged(proto string, listen netip.AddrPort, up bool) {
+	ip := listen.Addr()
+	onListenerChange(proto, ip.String(), up) // per-listener gauge, labeled by IP
 
-	ip, err := netip.ParseAddr(addr)
-	if err != nil || ip.IsLoopback() {
+	if ip.IsLoopback() {
 		return
 	}
-	key := proto + "/" + addr
+	key := proto + "/" + listen.String()
 	s.mu.Lock()
 	m := s.upV6
 	if ip.Is4() {

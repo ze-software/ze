@@ -56,12 +56,14 @@ type Options struct {
 	Freebind bool
 
 	// OnListenerChange, if set, is called after each bind/unbind with the
-	// protocol ("udp"/"tcp"), the listen address, and whether the listener is
-	// now up. The listener gauge stays with the consumer, whose listen
+	// protocol ("udp", "tcp", "dot" or "doh"), the bound address with its
+	// port, and whether the listener is now up. The port is carried because
+	// two listeners may share an IP on different ports, and a consumer that
+	// keys its state by the IP alone would merge them. The listener gauge stays with the consumer, whose listen
 	// addresses are its label values, and this callback is how it gets one.
 	// The harness owns only the metric a consumer cannot see, which today is
 	// the write-failure counter in metrics.go.
-	OnListenerChange func(proto, addr string, up bool)
+	OnListenerChange func(proto string, listen netip.AddrPort, up bool)
 
 	// TLSMaterialResolver resolves a certificate NAME into serving PEM material
 	// (leaf plus any intermediates, and the private key). It exists because
@@ -107,7 +109,7 @@ type Manager struct {
 
 	servers          []*dns.Server
 	httpServers      []*http.Server
-	boundAddrs       []string
+	boundAddrs       []netip.AddrPort
 	boundSecureAddrs []secureAddr
 
 	// selfSigned caches the ephemeral self-signed certificate used when no
@@ -137,7 +139,7 @@ type Manager struct {
 // OnListenerChange down-edge with the right proto label ("dot"/"doh").
 type secureAddr struct {
 	proto string
-	addr  string
+	addr  netip.AddrPort
 }
 
 // New creates a Manager serving handler for every endpoint ApplyWithSecure binds.
@@ -193,7 +195,7 @@ func (m *Manager) setRunning(sig string, enabled bool, l Listeners) {
 // the port. NotifyStartedFunc fires unconditionally, early inside
 // serveUDP/serveTCP, strictly after ActivateAndServe sets srv.started=true
 // (miekg/dns server.go), so waiting on it closes the race window exactly.
-func (m *Manager) bind(ep, addr string) error {
+func (m *Manager) bind(ep string, listen netip.AddrPort) error {
 	lc := listenConfig(m.opts.Freebind)
 	pc, err := lc.ListenPacket(context.Background(), "udp", ep)
 	if err != nil {
@@ -219,7 +221,7 @@ func (m *Manager) bind(ep, addr string) error {
 		NotifyStartedFunc: func() { close(tcpStarted) },
 	}
 	m.servers = append(m.servers, udp, tcp)
-	m.boundAddrs = append(m.boundAddrs, addr)
+	m.boundAddrs = append(m.boundAddrs, listen)
 	// Fire the up-edge here, right after the sockets are BOUND (ListenPacket/
 	// Listen above) and before the serve goroutines start. A serving-gated
 	// consumer (as112's BGP announce, RFC 7534 Section 3.3) thus sees "up" a
@@ -232,14 +234,14 @@ func (m *Manager) bind(ep, addr string) error {
 	// serving tracker stuck "up". Ordering up-before-serve keeps up strictly
 	// before any possible down.
 	if m.opts.OnListenerChange != nil {
-		m.opts.OnListenerChange("udp", addr, true)
-		m.opts.OnListenerChange("tcp", addr, true)
+		m.opts.OnListenerChange("udp", listen, true)
+		m.opts.OnListenerChange("tcp", listen, true)
 	}
 	m.mu.Lock()
 	gen := m.generation
 	m.mu.Unlock()
-	go m.serve(udp, ep, addr, "udp", gen)
-	go m.serve(tcp, ep, addr, "tcp", gen)
+	go m.serve(udp, ep, listen, "udp", gen)
+	go m.serve(tcp, ep, listen, "tcp", gen)
 	<-udpStarted
 	<-tcpStarted
 	return nil
@@ -279,7 +281,7 @@ func (m *Manager) capTCP(ln net.Listener) net.Listener {
 // ran. The concurrent Stop/apply was already replacing this listener, so
 // the crash is moot once it completes -- only a diagnostic log line is
 // lost, not correctness.
-func (m *Manager) serve(s *dns.Server, ep, addr, proto string, gen int) {
+func (m *Manager) serve(s *dns.Server, ep string, listen netip.AddrPort, proto string, gen int) {
 	err := s.ActivateAndServe()
 
 	m.mu.Lock()
@@ -295,7 +297,7 @@ func (m *Manager) serve(s *dns.Server, ep, addr, proto string, gen int) {
 	}
 	m.log.Error("dnsserver: listener crashed unexpectedly", "endpoint", ep, "proto", proto, logKeyError, err)
 	if m.opts.OnListenerChange != nil {
-		m.opts.OnListenerChange(proto, addr, false)
+		m.opts.OnListenerChange(proto, listen, false)
 	}
 }
 
@@ -320,9 +322,9 @@ func (m *Manager) Stop() {
 		cancel()
 	}
 	if m.opts.OnListenerChange != nil {
-		for _, addr := range m.boundAddrs {
-			m.opts.OnListenerChange("udp", addr, false)
-			m.opts.OnListenerChange("tcp", addr, false)
+		for _, listen := range m.boundAddrs {
+			m.opts.OnListenerChange("udp", listen, false)
+			m.opts.OnListenerChange("tcp", listen, false)
 		}
 		for _, addr := range m.boundSecureAddrs {
 			m.opts.OnListenerChange(addr.proto, addr.addr, false)

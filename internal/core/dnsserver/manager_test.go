@@ -255,7 +255,7 @@ func TestManager_UnexpectedListenerCrashInvalidatesApplied(t *testing.T) {
 	var mu sync.Mutex
 	var changes []string
 	mgr := New(testLogger(), echoHandler("10.0.0.5"), Options{
-		OnListenerChange: func(proto, a string, up bool) {
+		OnListenerChange: func(proto string, a netip.AddrPort, up bool) {
 			mu.Lock()
 			changes = append(changes, fmt.Sprintf("%s:%s:%v", proto, a, up))
 			mu.Unlock()
@@ -283,7 +283,7 @@ func TestManager_UnexpectedListenerCrashInvalidatesApplied(t *testing.T) {
 		mu.Lock()
 		found := false
 		for _, c := range changes {
-			if c == "udp:127.0.0.1:false" {
+			if c == "udp:"+addr+":false" {
 				found = true
 			}
 		}
