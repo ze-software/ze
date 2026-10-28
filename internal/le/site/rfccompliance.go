@@ -802,7 +802,7 @@ func rfcComplianceBody(snapshot *rfcCompliance, ledger rfcLedger) string {
 		"Source: <code>internal/le/rfc</code>, <code>rfc/short/*.md</code>, and "+
 			"<code>rfc/audit/*/*.json</code>.",
 		"Quality", ` id="rfc-compliance-title"`, heroClasses)).Byte('\n')
-	body.Str(rfcComplianceStyle)
+	body.Str(rfcComplianceStyle).Str(rfcProfileStyle)
 	body.Str(rfcCardGrid(snapshot, ledger))
 	body.Str(rfcGateVerdictHTML(snapshot))
 	// The per-profile pages come straight after the verdict: a reader asking
@@ -2070,20 +2070,24 @@ func rfcEnrolledIndexHTML(ledger rfcLedger) string {
 	if len(rows) == 0 {
 		return "<p>No summary is enrolled.</p>"
 	}
+	figures := rfcStemRows(ledger)
 	var body textbuf.Buffer
 	for index := range rows {
 		entry := rows[index]
-		body.Str(rfcStemRowCells(entry.Stem,
+		mandatory, optional := rfcFigureCells(figures[entry.Stem])
+		body.Str(rfcFigureRowCells(entry.Stem, figures[entry.Stem],
 			"<a href=\""+html.EscapeString(rfcStemHref(entry.Stem))+"\"><code>"+
 				html.EscapeString(entry.Display)+"</code></a> "+html.EscapeString(entry.Title),
 			html.EscapeString(rfcIndexStatus(entry)),
+			mandatory, optional,
 			strconv.Itoa(entry.Coverage.Gated),
 			strconv.Itoa(entry.Coverage.Gaps),
 			strconv.Itoa(entry.Coverage.DemonstratedGaps),
 			strconv.Itoa(entry.Coverage.Missing)))
 	}
-	return rfcTableHTML(rfcHeadCells("RFC", "Public status", "Gated MUSTs",
-		rfcDeclaredGapsLabel, rfcDemonstratedGapsLabel, "Gated with no test"), body.String())
+	return rfcIndexLegendHTML() + rfcTableHTML(rfcHeadCells("RFC", rfcIndexStatusLabel,
+		rfcIndexMandatoryLabel, rfcIndexOptionalLabel, rfcIndexMustsLabel, rfcIndexGapsLabel,
+		rfcIndexGapsTested, rfcIndexUntestedLabel), body.String())
 }
 
 // rfcDeclinedIndexHTML links every summary that is not enrolled, with the kind
@@ -2097,17 +2101,20 @@ func rfcDeclinedIndexHTML(ledger rfcLedger) string {
 	if len(rows) == 0 {
 		return "<p>Every summary is enrolled.</p>"
 	}
+	figures := rfcStemRows(ledger)
 	var body textbuf.Buffer
 	for index := range rows {
 		entry := rows[index]
-		body.Str(rfcStemRowCells(entry.Stem,
+		mandatory, optional := rfcFigureCells(figures[entry.Stem])
+		body.Str(rfcFigureRowCells(entry.Stem, figures[entry.Stem],
 			"<a href=\""+html.EscapeString(rfcStemHref(entry.Stem))+"\"><code>"+
 				html.EscapeString(entry.Display)+"</code></a> "+html.EscapeString(entry.Title),
+			mandatory, optional,
 			html.EscapeString(rfcIndexDispositionKind(entry)),
 			html.EscapeString(rfcIndexDispositionReason(entry))))
 	}
 	return rfcDispositionLegendHTML(rows) +
-		rfcTableHTML(rfcHeadCells("RFC", "Disposition", "Reason"), body.String())
+		rfcTableHTML(rfcHeadCells("RFC", rfcIndexMandatoryLabel, rfcIndexOptionalLabel, "Disposition", "Reason"), body.String())
 }
 
 // rfcDispositionsUsed answers the kinds this index actually shows, in the
@@ -2157,18 +2164,22 @@ func rfcDispositionLegendMirror(rows []*rfcLedgerStem) string {
 // rfcIndexMirror states both link tables in the Markdown sibling.
 func rfcIndexMirror(ledger rfcLedger) string {
 	var out textbuf.Buffer
+	figures := rfcStemRows(ledger)
 	out.Str("\n## Enrolled RFCs\n\n")
 	enrolled := rfcIndexRows(ledger, true)
 	if len(enrolled) == 0 {
 		out.Str("No summary is enrolled.\n")
 	} else {
-		out.Str("| RFC | Public status | Gated MUSTs | ").Str(rfcDeclaredGapsLabel).Str(" | ").
-			Str(rfcDemonstratedGapsLabel).Str(" | Gated with no test |\n|---|---|---:|---:|---:|---:|\n")
+		out.Str(rfcIndexLegendMirror())
+		out.Str(rfcMirrorHead("RFC", rfcIndexStatusLabel, rfcIndexMandatoryLabel, rfcIndexOptionalLabel,
+			rfcIndexMustsLabel, rfcIndexGapsLabel, rfcIndexGapsTested, rfcIndexUntestedLabel))
 		for index := range enrolled {
 			entry := enrolled[index]
+			mandatory, optional := rfcFigureMirrorCells(figures[entry.Stem])
 			out.Str("| [`").Str(entry.Display).Str("`](").Str(rfcStemHref(entry.Stem)).
 				Str(pageMirrorFile).Str(") ").Str(rfc.TableCell(entry.Title)).Str(" | ").
 				Str(rfc.TableCell(rfcIndexStatus(entry))).Str(" | ").
+				Str(mandatory).Str(" | ").Str(optional).Str(" | ").
 				Int(int64(entry.Coverage.Gated)).Str(" | ").
 				Int(int64(entry.Coverage.Gaps)).Str(" | ").
 				Int(int64(entry.Coverage.DemonstratedGaps)).Str(" | ").
@@ -2182,11 +2193,13 @@ func rfcIndexMirror(ledger rfcLedger) string {
 		return out.String()
 	}
 	out.Str(rfcDispositionLegendMirror(declined))
-	out.Str("| RFC | Disposition | Reason |\n|---|---|---|\n")
+	out.Str(rfcMirrorHead("RFC", rfcIndexMandatoryLabel, rfcIndexOptionalLabel, "Disposition", "Reason"))
 	for index := range declined {
 		entry := declined[index]
+		mandatory, optional := rfcFigureMirrorCells(figures[entry.Stem])
 		out.Str("| [`").Str(entry.Display).Str("`](").Str(rfcStemHref(entry.Stem)).
 			Str(pageMirrorFile).Str(") ").Str(rfc.TableCell(entry.Title)).Str(" | ").
+			Str(mandatory).Str(" | ").Str(optional).Str(" | ").
 			Str(rfcIndexDispositionKind(entry)).Str(" | ").
 			Str(rfc.TableCell(rfcIndexDispositionReason(entry))).Str(" |\n")
 	}

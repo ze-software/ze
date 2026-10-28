@@ -991,8 +991,8 @@ func TestTheGateVerdictIsAStatusAndNotTerminalOutput(t *testing.T) {
 	// container, as every table on a detail page does. A stem row carries a
 	// title and a disposition reason, both of them prose.
 	for _, want := range []string{
-		`<div class="rfc-table-wrap">` + "\n" + `<table class="rfc-table">` + "\n<thead><tr><th>RFC</th><th>Public status</th>",
-		`<div class="rfc-table-wrap">` + "\n" + `<table class="rfc-table">` + "\n<thead><tr><th>RFC</th><th>Disposition</th>",
+		`<div class="rfc-table-wrap">` + "\n" + `<table class="rfc-table">` + "\n<thead><tr><th>RFC</th><th>" + rfcIndexStatusLabel + "</th>",
+		`<div class="rfc-table-wrap">` + "\n" + `<table class="rfc-table">` + "\n<thead><tr><th>RFC</th><th>" + rfcIndexMandatoryLabel + "</th><th>" + rfcIndexOptionalLabel + "</th><th>Disposition</th>",
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("the index carries a link table outside a scrolling container: %q", want)
@@ -2048,6 +2048,43 @@ func TestTheComplianceIndexRowsCanBeFiltered(t *testing.T) {
 	for _, want := range []string{`<section id="` + rfcListAnchor + `">`, `id="rfc-filter-text"`, `params.get("rfc")`} {
 		if !strings.Contains(page, want) {
 			t.Errorf("the index carries no %s", want)
+		}
+	}
+}
+
+// TestTheComplianceIndexShowsEachRFCsFigures proves an RFC a profile lists
+// shows, on the compliance index, the mandatory and optional figures its
+// profile page shows, carries them for the overview to sum, and that the
+// table's short column names come with the legend that explains them.
+// Method: give the two-stem ledger a profile listing rfc9998 and render.
+func TestTheComplianceIndexShowsEachRFCsFigures(t *testing.T) {
+	ledger := twoStemLedger()
+	row := &rfc.TreeRow{Stem: "rfc9998", Summary: true, Walked: true,
+		MandatoryProven: 3, MandatoryTotal: 4, OptionalProven: 1, OptionalTotal: 2}
+	ledger.Profiles = []*rfc.TreeReport{{Profile: "widgets", Kind: "use-case",
+		Rollup: &rfc.ScopeRollup{Rollup: rfc.Rollup{RFCs: 1}}, Rows: []*rfc.TreeRow{row}}}
+	paths := rfcCompliancePathsWith(t, publishedRFCComplianceRef(t), ledger)
+	if _, err := renderRFCCompliance(paths); err != nil {
+		t.Fatal(err)
+	}
+	page := readArtifact(t, paths.Output, rfcComplianceDest)
+	mirror := readArtifact(t, paths.Output, rfcComplianceDirectory+"/"+pageMirrorFile)
+	for _, want := range []string{
+		`<tr data-rfc="rfc9998" data-walked="1" data-mp="3" data-mt="4" data-op="1" data-ot="2">`,
+		"3 of 4 (75.0%)", "1 of 2 (50.0%)",
+		"<th>" + rfcIndexGapsTested + "</th>", `<dl class="rfc-legend">`, rfcIndexCeiling,
+		`id="rfc-overview"`,
+	} {
+		if !strings.Contains(page, want) {
+			t.Errorf("the index carries no %s", want)
+		}
+	}
+	if strings.Contains(page, "<th>"+rfcDemonstratedGapsLabel+"</th>") {
+		t.Error("the index table still carries the long gaps header")
+	}
+	for _, want := range []string{"| 3 of 4 (75.0%) | 1 of 2 (50.0%) |", "**" + rfcIndexGapsTested + "**", rfcIndexCeiling} {
+		if !strings.Contains(mirror, want) {
+			t.Errorf("the index mirror carries no %s", want)
 		}
 	}
 }
