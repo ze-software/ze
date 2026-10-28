@@ -42,7 +42,8 @@ options. It also carries the PXE options the provisioning path needs.
   grants. When it fails (no capability, an interface gone, a chaddr the link
   layer cannot hold, or a non-Linux build), the reply is broadcast instead and
   an info line names the reason. The server reads the neighbor table first
-  and never replaces a PERMANENT entry an operator wrote for yiaddr: one that
+  and never replaces a PERMANENT or NOARP entry an operator wrote for yiaddr
+  (`operatorHeld`; the kernel neither ages nor resolves either): one that
   names chaddr already delivers the unicast, so nothing is written; one that
   names another hardware address would send the reply to that host, so the
   reply is broadcast. A table that cannot be read is broadcast too, because
@@ -54,8 +55,9 @@ options. It also carries the PXE options the provisioning path needs.
 <!-- source: internal/plugins/dhcpserver/socket_linux.go -- SO_BINDTODEVICE binding -->
 <!-- source: internal/plugins/dhcpserver/socket_other.go -- the non-Linux fallback -->
 <!-- source: internal/plugins/dhcpserver/register.go -- responseAddr, replyDestination, toClientHardware, broadcastReply -->
-<!-- source: internal/plugins/dhcpserver/neighbor_linux.go -- installNeighbor, readNeighbor -->
+<!-- source: internal/plugins/dhcpserver/neighbor_linux.go -- installNeighbor, readNeighbor, operatorHeld -->
 <!-- test: internal/plugins/dhcpserver/neighbor_permanent_test.go -- TestOfferKeepsPermanentNeighbor -->
+<!-- test: internal/plugins/dhcpserver/neighbor_state_linux_test.go -- TestOperatorHeldNeighborStates -->
 
 ## Address ranges
 

@@ -39,11 +39,11 @@ func installNeighbor(iface string, addr netip.Addr, hardware net.HardwareAddr) e
 }
 
 // readNeighbor reports whether the interface named iface holds a PERMANENT
-// IPv4 neighbor entry for addr, and its hardware address. Only an operator
-// writes a permanent entry (ip neigh add ... nud permanent), and NeighSet
-// would replace it with ze's reachable one, so the caller reads it first. An
-// entry in any other state is the kernel's or ze's own and reads as not
-// permanent. Safe for concurrent use: each call is one netlink dump.
+// or NOARP IPv4 neighbor entry for addr, and its hardware address. Only an
+// operator writes such an entry (ip neigh add ... nud permanent, or nud
+// noarp), and NeighSet would replace it with ze's reachable one, so the
+// caller reads it first (operatorHeld). An entry in any other state is the
+// kernel's or ze's own and reads as not permanent. Safe for concurrent use: each call is one netlink dump.
 func readNeighbor(iface string, addr netip.Addr) (neighborEntry, error) {
 	link, err := netlink.LinkByName(iface)
 	if err != nil {
@@ -61,10 +61,18 @@ func readNeighbor(iface string, addr netip.Addr) (neighborEntry, error) {
 		if ip.Unmap() != addr {
 			continue
 		}
-		if neighbors[i].State&netlink.NUD_PERMANENT == 0 {
+		if !operatorHeld(neighbors[i].State) {
 			continue
 		}
 		return neighborEntry{permanent: true, hardware: neighbors[i].HardwareAddr}, nil
 	}
 	return neighborEntry{}, nil
+}
+
+// operatorHeld reports whether a neighbor entry in state is one an operator
+// wrote and NeighSet must not replace: NUD_PERMANENT (ip neigh ... nud
+// permanent) or NUD_NOARP (nud noarp). The kernel ages neither and never
+// resolves either, so both are configuration, not learned state.
+func operatorHeld(state int) bool {
+	return state&(netlink.NUD_PERMANENT|netlink.NUD_NOARP) != 0
 }

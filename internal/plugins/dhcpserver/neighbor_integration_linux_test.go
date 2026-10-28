@@ -96,6 +96,24 @@ func TestReadNeighborFindsPermanentEntry(t *testing.T) {
 	if !entry.permanent || entry.hardware.String() != operatorMAC.String() {
 		t.Errorf("readNeighbor %s = %+v, want permanent with %s", permanent, entry, operatorMAC)
 	}
+	noarp := netip.MustParseAddr("198.51.100.63")
+	noarpMAC := net.HardwareAddr{0x02, 0, 0x5e, 0x10, 0, 0x63}
+	if err := netlink.NeighSet(&netlink.Neigh{
+		LinkIndex:    link.Attrs().Index,
+		Family:       netlink.FAMILY_V4,
+		State:        netlink.NUD_NOARP,
+		IP:           noarp.AsSlice(),
+		HardwareAddr: noarpMAC,
+	}); err != nil {
+		t.Fatalf("write noarp entry: %v", err)
+	}
+	entry, err = readNeighbor("zedhcpn1", noarp)
+	if err != nil {
+		t.Fatalf("readNeighbor %s: %v", noarp, err)
+	}
+	if !entry.permanent || entry.hardware.String() != noarpMAC.String() {
+		t.Errorf("readNeighbor %s = %+v, want the operator's noarp entry held with %s", noarp, entry, noarpMAC)
+	}
 	if _, err := readNeighbor("zedhcp-missing", permanent); err == nil {
 		t.Error("readNeighbor on a missing interface answered nil, want an error")
 	}
