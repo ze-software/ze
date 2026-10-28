@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | blocked |
 | Scope | protocol |
 | Priority | P0 |
 | Release reason | Security fix in shipped code: Ze's RADIUS client accepts a forged Access-Accept (BlastRADIUS, CVE-2024-3596) on every PAP, CHAP and MS-CHAP login, admin and subscriber alike |
@@ -479,6 +479,25 @@ servers in `internal/test/fixture/tunnel_fixture_l2tp_radius.go` and
 | Functional test fails | Check the AC: wrong AC → DESIGN, correct AC → IMPLEMENT |
 | Audit finds a missing AC | Back to the relevant phase and implement |
 | 3 fix attempts failed | STOP. Report all 3 approaches. Ask the user |
+
+## Blocker
+
+Closure (/ze-close, 2026-10-28) stopped before the Review Gate record and the
+closing commits. One deliverable has no evidence:
+
+| What blocks | Producer | What clears it |
+|-------------|----------|----------------|
+| Interop Tests row 1 owes a red phase: "revert the signing, scenario fails". It was never run, so A-2 (FreeRADIUS 3.2.10 with `require_message_authenticator = yes` drops an Access-Request without a Message-Authenticator) is still `unvalidated`, and the claim in `docs/architecture/testing/interop.md` that every scenario "also proves that FreeRADIUS verifies the signature ze computed" has no recorded red | `internal/component/radius/client.go` `encodeRequest`, the `insertMessageAuthenticatorFirst` call under `pkt.Code == CodeAccessRequest` | Skip that call, let the harness rebuild the lab image, run `./le test integration interop-radius` scenario `radius-admin-pap-freeradius`: expect red with FreeRADIUS dropping the request; restore, green. Record it in interop.md beside the clients.conf paragraph, set A-2 confirmed, then rerun /ze-close |
+
+Closure review round 1, already landed (the next closure re-reads, it does not redo):
+- ISSUE, fixed in 3dd07256c9: the `ze-test l2tp scale` responder (`internal/test/cli/cmd_l2tp_scale.go` `handlePacket`, also driven by `internal/le/test/deployment/l2tpscale.go`) answered Access-Request unsigned, so every scale-run login was discarded. It now signs; `TestMockRADIUSAnswersZesDefaultClient` is red without the signing and green restored.
+- ISSUE, fixed in 3dd07256c9: `docs/guide/l2tp.md` never named the per-server `require-message-authenticator` leaf or the BlastRADIUS discard (risk R-2).
+- ISSUE, fixed in 3fa8b278a9 and 8bc5e1c3c3 (verdicts f6a0a90142, b607fceb53): the RFC2865-4.2-1 negative lost isolation once mock answers were signed.
+- NOTE: `SendToServers` ends with "radius: all servers unreachable" when every server answered unsigned; the per-server warning carries the real cause.
+- NOTE: the rate-limited discard warning names the leaf but not the full `set <row>` command, because the waiter knows only the address; `ErrUnsignedResponse` and the doctor text carry it.
+- NOTE: the authradius doctor reports an unparsable `require-message-authenticator` under `doctor-radius-unreachable`; YANG refuses such a value at commit.
+- Environment, not code: `radius-coa-disconnect-freeradius` fails on this host because the running kernel lacks CONFIG_NET_ACT_POLICE, which `gokrazy/kernel/runtime.config` carries since 80175d768d.
+- Fresh evidence 2026-10-28: `go test -race` of radius, authradius and mock/radius ok; `./le rfc check` shows nothing on rfc2865, rfc2866, rfc3579, rfc5176; `./le repo compiles check` OK after 3dd07256c9; `./le doc check all` red only on a foreign `show policy test peer` wiki drift.
 
 ## Design Insights
 
