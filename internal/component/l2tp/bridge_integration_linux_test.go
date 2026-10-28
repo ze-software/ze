@@ -2,14 +2,13 @@
 
 // Design: docs/architecture/l2tp/followup-l2tp-call.md -- AC-3 / A-4 LAC bridge integration
 //
-// EXECUTION IS ENVIRONMENT-BLOCKED in the dev sandbox: PPPIOCBRIDGECHAN /
-// PPPIOCGCHAN require CAP_NET_ADMIN and a /dev/ppp node, neither available
-// here (plan/known-failures/: no root/CAP_NET_ADMIN/netns). The test is
-// authored + compiled (`go test -tags 'integration linux' -run xxx -count=0
-// ./internal/component/l2tp/`) and gated with t.Skipf so it no-ops without
-// the capability. Runbook to run it on a capable host:
-//   ./le test deployment gokrazy-l2tp-ppp
-// (or include ./internal/component/l2tp/... in a direct integration-tagged run).
+// The test runs unprivileged: userns.Enter gives it a user and network
+// namespace of its own, in which root holds CAP_NET_ADMIN, the capability
+// PPPIOCGCHAN and PPPIOCUNBRIDGECHAN need. Opening /dev/ppp still needs the
+// host grant `./le setup install` applies (its `ppp-access` step puts the node
+// in group dip, mode 0660), so the file keeps the integration tag: a host
+// without that grant fails here on its setup rather than on Ze. The full
+// PPPoE<->pppol2tp bridge is driven by `./le test deployment gokrazy-l2tp-ppp`.
 
 package l2tp
 
@@ -18,15 +17,18 @@ import (
 	"testing"
 
 	"golang.org/x/sys/unix"
+
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
-// openPPPChannel opens /dev/ppp and returns an fd, or skips the test when the
-// node or the capability is missing.
+// openPPPChannel opens /dev/ppp and returns an fd. A refused open fails the
+// test: inside the namespace the only missing piece can be the host grant.
 func openPPPChannel(t *testing.T) int {
 	t.Helper()
 	fd, err := os.OpenFile("/dev/ppp", os.O_RDWR, 0)
 	if err != nil {
-		t.Skipf("requires CAP_NET_ADMIN and /dev/ppp: %v", err)
+		t.Fatalf("open /dev/ppp read-write: %v; grant it with `./le setup install` "+
+			"(step ppp-access), then log in again so the group dip membership applies", err)
 	}
 	t.Cleanup(func() { _ = fd.Close() })
 	return int(fd.Fd())
@@ -38,9 +40,12 @@ func openPPPChannel(t *testing.T) int {
 // PPPoE<->pppol2tp bridge requires two connected pppox sockets; that end-to-end
 // path is driven by `./le test deployment gokrazy-l2tp-ppp`.
 //
-// VALIDATES (on a capable host): the PPPIOCBRIDGECHAN/PPPIOCGCHAN constants
-// are the correct arch values and the ioctl wrappers reach the kernel.
+// VALIDATES: the PPPIOCBRIDGECHAN/PPPIOCGCHAN constants are the correct arch
+// values and the ioctl wrappers reach the kernel.
 func TestLACChannelBridge(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	chanFD := openPPPChannel(t)
 
 	// A fresh /dev/ppp fd is not attached to a channel, so PPPIOCGCHAN on it

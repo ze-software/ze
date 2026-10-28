@@ -23,13 +23,22 @@ import (
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 	"github.com/ze-software/ze/internal/component/l2tp/pppoe"
 	_ "github.com/ze-software/ze/internal/plugins/iface/netlink"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // TestPADTRetainsUnitUntilOwnerCleanup completes real Dial against a wire peer,
 // then receives PADT before the owner configures the returned pppN. A competing
 // subscriber cannot acquire that unit until Cleanup; late MTU setup therefore
 // cannot modify another subscriber's interface.
+//
+// The test runs unprivileged in a user, network and mount namespace of its own
+// (userns.Enter), where root holds the capabilities the veth, the raw socket
+// and PPPIOCNEWUNIT need, so a refusal of any of them fails the test. Opening
+// /dev/ppp needs the host grant from `./le setup install` (step ppp-access).
 func TestPADTRetainsUnitUntilOwnerCleanup(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	if iface.GetBackend() == nil {
 		if err := iface.LoadBackend("netlink"); err != nil {
 			t.Fatalf("load netlink backend: %v", err)
@@ -45,7 +54,7 @@ func TestPADTRetainsUnitUntilOwnerCleanup(t *testing.T) {
 	ns, err := netns.New()
 	if err != nil {
 		_ = original.Close()
-		t.Skipf("network namespace requires CAP_SYS_ADMIN: %v", err)
+		t.Fatalf("create a network namespace inside the user namespace: %v", err)
 	}
 	t.Cleanup(func() {
 		if err := netns.Set(original); err != nil {
@@ -57,14 +66,12 @@ func TestPADTRetainsUnitUntilOwnerCleanup(t *testing.T) {
 	// Check the prerequisite before starting a peer or allocating a session.
 	probe, err := unix.Open("/dev/ppp", unix.O_RDWR|unix.O_CLOEXEC, 0)
 	if err != nil {
-		t.Skipf("requires /dev/ppp: %v", err)
+		t.Fatalf("open /dev/ppp read-write: %v; grant it with `./le setup install` "+
+			"(step ppp-access), then log in again so the group dip membership applies", err)
 	}
 	_ = unix.Close(probe)
 	if err := netlink.LinkAdd(&netlink.Veth{Name: "zec0", PeerName: "zea0"}); err != nil {
-		if isPermErr(err) {
-			t.Skipf("veth requires CAP_NET_ADMIN: %v", err)
-		}
-		t.Fatal(err)
+		t.Fatalf("create veth zec0/zea0: %v", err)
 	}
 	for _, name := range []string{"zec0", "zea0"} {
 		link, err := netlink.LinkByName(name)
@@ -81,10 +88,7 @@ func TestPADTRetainsUnitUntilOwnerCleanup(t *testing.T) {
 	}
 	fd, err := unix.Socket(unix.AF_PACKET, unix.SOCK_RAW|unix.SOCK_CLOEXEC, int(unitPeerNetworkOrder(unix.ETH_P_ALL)))
 	if err != nil {
-		if isPermErr(err) {
-			t.Skipf("wire peer requires CAP_NET_RAW: %v", err)
-		}
-		t.Fatal(err)
+		t.Fatalf("open the wire peer's AF_PACKET socket: %v", err)
 	}
 	t.Cleanup(func() { _ = unix.Close(fd) })
 	if err := unix.Bind(fd, &unix.SockaddrLinklayer{Ifindex: peerLink.Attrs().Index, Protocol: unitPeerNetworkOrder(unix.ETH_P_ALL)}); err != nil {
