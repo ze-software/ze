@@ -68,10 +68,14 @@ type neighborCall struct {
 }
 
 // recordNeighbors replaces neighborInstall for the test with a recorder that
-// answers refusal, and restores it at cleanup. Tests that call it MUST NOT run
-// in parallel: neighborInstall is package state.
+// answers refusal, and neighborRead with a table holding no entry, and
+// restores both at cleanup. Tests that call it MUST NOT run in parallel:
+// neighborInstall and neighborRead are package state.
 func recordNeighbors(t *testing.T, refusal error) *[]neighborCall {
 	t.Helper()
+	savedRead := neighborRead
+	neighborRead = func(string, netip.Addr) (neighborEntry, error) { return neighborEntry{}, nil }
+	t.Cleanup(func() { neighborRead = savedRead })
 	calls := &[]neighborCall{}
 	saved := neighborInstall
 	neighborInstall = func(iface string, addr netip.Addr, hardware net.HardwareAddr) error {

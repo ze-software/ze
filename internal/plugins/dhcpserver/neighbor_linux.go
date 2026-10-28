@@ -37,3 +37,34 @@ func installNeighbor(iface string, addr netip.Addr, hardware net.HardwareAddr) e
 	}
 	return nil
 }
+
+// readNeighbor reports whether the interface named iface holds a PERMANENT
+// IPv4 neighbor entry for addr, and its hardware address. Only an operator
+// writes a permanent entry (ip neigh add ... nud permanent), and NeighSet
+// would replace it with ze's reachable one, so the caller reads it first. An
+// entry in any other state is the kernel's or ze's own and reads as not
+// permanent. Safe for concurrent use: each call is one netlink dump.
+func readNeighbor(iface string, addr netip.Addr) (neighborEntry, error) {
+	link, err := netlink.LinkByName(iface)
+	if err != nil {
+		return neighborEntry{}, fmt.Errorf("find interface %q: %w", iface, err)
+	}
+	neighbors, err := netlink.NeighList(link.Attrs().Index, netlink.FAMILY_V4)
+	if err != nil {
+		return neighborEntry{}, fmt.Errorf("list neighbors on %q: %w", iface, err)
+	}
+	for i := range neighbors {
+		ip, ok := netip.AddrFromSlice(neighbors[i].IP)
+		if !ok {
+			continue
+		}
+		if ip.Unmap() != addr {
+			continue
+		}
+		if neighbors[i].State&netlink.NUD_PERMANENT == 0 {
+			continue
+		}
+		return neighborEntry{permanent: true, hardware: neighbors[i].HardwareAddr}, nil
+	}
+	return neighborEntry{}, nil
+}

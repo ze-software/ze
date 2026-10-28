@@ -41,15 +41,21 @@ options. It also carries the PXE options the provisioning path needs.
   produces. The write needs CAP_NET_ADMIN, which the daemon's systemd unit
   grants. When it fails (no capability, an interface gone, a chaddr the link
   layer cannot hold, or a non-Linux build), the reply is broadcast instead and
-  an info line names the reason. The socket is a kernel socket under every
+  an info line names the reason. The server reads the neighbor table first
+  and never replaces a PERMANENT entry an operator wrote for yiaddr: one that
+  names chaddr already delivers the unicast, so nothing is written; one that
+  names another hardware address would send the reply to that host, so the
+  reply is broadcast. A table that cannot be read is broadcast too, because
+  the write could replace an entry the server could not see. The socket is a kernel socket under every
   dataplane, so the kernel neighbor table chooses the frame's destination;
   whether VPP's linux-cp pair carries that frame unchanged to the wire has not
   been proven by a VPP lab run.
 
 <!-- source: internal/plugins/dhcpserver/socket_linux.go -- SO_BINDTODEVICE binding -->
 <!-- source: internal/plugins/dhcpserver/socket_other.go -- the non-Linux fallback -->
-<!-- source: internal/plugins/dhcpserver/register.go -- responseAddr, replyDestination, toClientHardware -->
-<!-- source: internal/plugins/dhcpserver/neighbor_linux.go -- installNeighbor -->
+<!-- source: internal/plugins/dhcpserver/register.go -- responseAddr, replyDestination, toClientHardware, broadcastReply -->
+<!-- source: internal/plugins/dhcpserver/neighbor_linux.go -- installNeighbor, readNeighbor -->
+<!-- test: internal/plugins/dhcpserver/neighbor_permanent_test.go -- TestOfferKeepsPermanentNeighbor -->
 
 ## Address ranges
 

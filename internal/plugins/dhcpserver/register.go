@@ -3,6 +3,7 @@
 package dhcpserver
 
 import (
+	"bytes"
 	"fmt"
 	"log/slog"
 	"net"
@@ -283,10 +284,28 @@ func logExchange(log *slog.Logger, req, resp []byte, serverIPs []netip.Addr) {
 // tests can observe the call and model a refusal without CAP_NET_ADMIN).
 var neighborInstall = installNeighbor
 
+// neighborRead reads the entry an install would replace (a var so tests can
+// model an operator's permanent entry without a kernel table).
+var neighborRead = readNeighbor
+
+// neighborEntry is what neighborRead found for one address. permanent false
+// means no entry, or one the kernel learned or ze wrote, which ze may
+// replace; hardware is set only when permanent is true.
+type neighborEntry struct {
+	permanent bool
+	hardware  net.HardwareAddr
+}
+
 // replyDestination answers where resp goes, and first installs the neighbor
 // entry a reply to a client with no address needs. Without it the kernel ARPs
 // for yiaddr, which the client does not hold yet, the neighbor ends FAILED and
 // the reply never leaves.
+//
+// An operator's PERMANENT entry for yiaddr is never replaced: when it names
+// chaddr the unicast already reaches the client and nothing is written; when
+// it names another host a unicast would reach that host, so the reply is
+// broadcast. A table that cannot be read is broadcast too, because the write
+// could then replace an entry nobody could see.
 func replyDestination(iface string, req, resp []byte, log *slog.Logger) *net.UDPAddr {
 	dst := responseAddr(req, resp)
 	if !toClientHardware(req, resp) {
@@ -294,22 +313,43 @@ func replyDestination(iface string, req, resp []byte, log *slog.Logger) *net.UDP
 	}
 	yiaddr := netip.AddrFrom4([4]byte(resp[16:20]))
 	chaddr := extractMAC(req)
+	entry, err := neighborRead(iface, yiaddr)
+	if err != nil {
+		log.Info("dhcpserver: reply broadcast, the neighbor table could not be read",
+			"interface", iface, "ip", yiaddr.String(), "mac", chaddr.String(), "error", err)
+		return broadcastReply()
+	}
+	if entry.permanent {
+		if bytes.Equal(entry.hardware, chaddr) {
+			return dst
+		}
+		log.Info("dhcpserver: reply broadcast, a permanent neighbor entry names another hardware address",
+			"interface", iface, "ip", yiaddr.String(), "mac", chaddr.String(), "permanent-mac", entry.hardware.String())
+		return broadcastReply()
+	}
 	// RFC 2131 Section 4.1: "If the BROADCAST bit is cleared to 0, the message
 	// SHOULD be sent as an IP unicast to the IP address specified in the
 	// 'yiaddr' field and the link-layer address specified in the 'chaddr'
 	// field."
 	// The kernel refuses a chaddr whose length is not the interface's
 	// link-layer address length, and the reply is then broadcast.
-	err := neighborInstall(iface, yiaddr, chaddr)
+	err = neighborInstall(iface, yiaddr, chaddr)
 	if err == nil {
 		return dst
 	}
 	log.Info("dhcpserver: reply broadcast, the client's hardware address could not be installed",
 		"interface", iface, "ip", yiaddr.String(), "mac", chaddr.String(), "error", err)
-	// RFC 2131 Section 4.1: "If unicasting is not possible, the message MAY be
-	// sent as an IP broadcast using an IP broadcast address (preferably
-	// 0xffffffff) as the IP destination address and the link-layer broadcast
-	// address as the link-layer destination address."
+	return broadcastReply()
+}
+
+// broadcastReply is the destination of a reply that cannot be unicast to the
+// client's hardware address.
+//
+// RFC 2131 Section 4.1: "If unicasting is not possible, the message MAY be
+// sent as an IP broadcast using an IP broadcast address (preferably
+// 0xffffffff) as the IP destination address and the link-layer broadcast
+// address as the link-layer destination address."
+func broadcastReply() *net.UDPAddr {
 	return &net.UDPAddr{IP: net.IPv4bcast, Port: 68}
 }
 

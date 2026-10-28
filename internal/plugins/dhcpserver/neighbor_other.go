@@ -20,3 +20,9 @@ var errNoNeighborInstall = errors.New("installing a neighbor entry is implemente
 func installNeighbor(string, netip.Addr, net.HardwareAddr) error {
 	return errNoNeighborInstall
 }
+
+// readNeighbor cannot read a neighbor table off Linux, so it refuses and the
+// caller broadcasts.
+func readNeighbor(string, netip.Addr) (neighborEntry, error) {
+	return neighborEntry{}, errNoNeighborInstall
+}

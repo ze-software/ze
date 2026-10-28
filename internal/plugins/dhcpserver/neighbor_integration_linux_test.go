@@ -53,3 +53,50 @@ func TestInstallNeighborWritesKernelEntry(t *testing.T) {
 		t.Error("installNeighbor on a missing interface answered nil, want an error")
 	}
 }
+
+// TestReadNeighborFindsPermanentEntry proves readNeighbor tells an operator's
+// PERMANENT entry from the reachable one installNeighbor writes, and returns
+// the permanent entry's hardware address. METHOD: a dummy interface under
+// CAP_NET_ADMIN; write one entry of each state with NeighSet and read both
+// back. The test skips without the capability.
+func TestReadNeighborFindsPermanentEntry(t *testing.T) {
+	createDummyForTest(t, "zedhcpn1")
+	link, err := netlink.LinkByName("zedhcpn1")
+	if err != nil {
+		t.Fatalf("find zedhcpn1: %v", err)
+	}
+
+	learned := netip.MustParseAddr("198.51.100.61")
+	if err := installNeighbor("zedhcpn1", learned, net.HardwareAddr{0x02, 0, 0x5e, 0x10, 0, 0x61}); err != nil {
+		t.Fatalf("installNeighbor: %v", err)
+	}
+	permanent := netip.MustParseAddr("198.51.100.62")
+	operatorMAC := net.HardwareAddr{0x02, 0, 0x5e, 0x10, 0, 0x62}
+	if err := netlink.NeighSet(&netlink.Neigh{
+		LinkIndex:    link.Attrs().Index,
+		Family:       netlink.FAMILY_V4,
+		State:        netlink.NUD_PERMANENT,
+		IP:           permanent.AsSlice(),
+		HardwareAddr: operatorMAC,
+	}); err != nil {
+		t.Fatalf("write permanent entry: %v", err)
+	}
+
+	entry, err := readNeighbor("zedhcpn1", learned)
+	if err != nil {
+		t.Fatalf("readNeighbor %s: %v", learned, err)
+	}
+	if entry.permanent {
+		t.Errorf("readNeighbor %s = permanent, want the reachable entry ze wrote read as replaceable", learned)
+	}
+	entry, err = readNeighbor("zedhcpn1", permanent)
+	if err != nil {
+		t.Fatalf("readNeighbor %s: %v", permanent, err)
+	}
+	if !entry.permanent || entry.hardware.String() != operatorMAC.String() {
+		t.Errorf("readNeighbor %s = %+v, want permanent with %s", permanent, entry, operatorMAC)
+	}
+	if _, err := readNeighbor("zedhcp-missing", permanent); err == nil {
+		t.Error("readNeighbor on a missing interface answered nil, want an error")
+	}
+}
