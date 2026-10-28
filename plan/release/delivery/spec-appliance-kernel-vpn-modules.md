@@ -2,16 +2,68 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | blocked |
 | Priority | P2 |
 | Release reason | The delivered appliance must contain the kernel facilities its VPN configuration requires. |
 | Scope | config \| tooling |
 | Depends | `plan/release/delivery/spec-appliance-ships-ze-kernel.md` (AC-6 and AC-7 only; AC-1..AC-5 land without it) |
-| Phase | 5/7 — native traffic, four deliberate breaks and restoration proved; Mac cache readback and closure reconciliation pending |
+| Phase | 5/7 — native proof accepted; closure handed back for the promised Mac cache receipt |
 | Handoff | - |
 | Updated | 2026-10-28 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Blocker
+
+Independent closure decision, 2026-10-28: hand back for the missing read-only
+Mac cache receipt requested by
+`plan/handover/27-macos-vpn-kernel-proof.md`, “Return to the Linux session”.
+This is an evidence-delivery gap, not a failed VPN test or a demonstrated
+kernel defect.
+
+### Receipt sufficiency
+
+- AC-5's literal post-AC-1 native-build and pasted-symbol requirements have
+  historical arm64 and amd64 receipts below. They remain evidence for those
+  builds; they are not copies from the repaired Mac tree.
+- The Mac run at `ceb83b7140c088445a1f7edcdfa682186201e3f2`, image
+  `4c4d23d6ca4234aa`, supplies native arm64/HVF traffic and no-module evidence.
+  `internal/le/test/qemu/vpnproof.go` `runVPNKernelHere` calls
+  `vpnKernelConfig` before boot; `requireVPNBuiltins` rejects a manifest symbol
+  unless the selected emitted config contains `=y`. That prerequisite is
+  stronger than checking requested fragments, but it returns only a verdict:
+  it does not return the config, provenance or installed module manifest.
+- The transferred build log shows non-modular compilation of `pwm-fan.o`
+  and installation of `modules.builtin`; the console shows missing
+  `pwm-fan.ko` and an empty loaded-module list. Neither contains the requested
+  installed manifest entry or the selected cache's complete config and
+  `kernel.version`. The five transferred files therefore do not discharge
+  the explicit post-repair handover. The older AC-5 tables cannot replace it.
+
+### Diagnosis and clearing condition
+
+| Item | Finding |
+|------|---------|
+| Symptom | The successful Mac transfer has host, revision, image-build, VPN and console logs only; the requested selected-cache readback is absent. |
+| Producer | `internal/le/test/qemu/vpnproof.go` `vpnKernelConfig` reads the config but emits no success receipt. `internal/appliance/runtimekernel.go` `ImageRuntimeKernelTree` selects the runtime tree; `internal/appliance/cache.go` `kernelCacheVariantFor` keys it from resolver inputs. `internal/appliance/kernelbuilder/worker.go` `copyRuntimeOutputs` installs the module tree. |
+| Owning layer | Evidence transfer under handover 27, owned by the Mac agent through the parent session; no change to kernel enforcement or traffic assertions is required. |
+| [workaround] | Treat the historical symbol paste and current PASS as the requested direct cache receipt. Rejected: this silently drops a promised artifact and does not identify the repaired installed tree. |
+| [source] | Return the retained run's selected kernel key, actual `config` and `kernel.version` paths and contents, the three fan-related `=y` lines, installed `modules.builtin` fan entry, and an absence check for loadable `pwm-fan.ko` in that same tree. Reconcile selection with the run's resolver inputs, never the cache date. |
+
+The parent must obtain that read-only transfer from the Mac agent. No identified
+Mac SSH destination is available to this closure phase. If the retained tree
+cannot be identified, return that fact; do not rebuild, boot, purge caches,
+choose a newer tree or repeat passing traffic. Once reconciled, the parent
+sets this spec back to `in-progress` and resumes the independent closure gate
+and its two-commit removal. This spec continues to own the missing receipt.
+
+This phase read the five transferred files and the producing source; it ran no
+build, test, formatter, lint or broad verification. It did not run the final
+Review Gate or claim a CLEAN review artifact. The unsafe `verify changed`
+scope recorded in `bfc1ec9876` remains separately owned by
+`plan/post-release/engineering/spec-verify-scope-0-umbrella.md`; it is not the
+pre-closing blocker and must not be rerun unchanged. L2TP privileged proof and
+the WireGuard configuration-commit workflow are not blockers for this spec.
 
 ## Task
 
