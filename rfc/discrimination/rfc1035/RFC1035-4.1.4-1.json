@@ -7,8 +7,8 @@
     "claim-sha": "6fc9276bf19701e1",
     "route": "revert",
     "producer": "internal/core/dnsserver/handler.go::send",
-    "producer-sha": "e577d1b0576c1949",
-    "break": "body of send replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "0749cf8876496bea",
+    "break": "body of send replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC1035-4.1.4-1",
@@ -18,19 +18,8 @@
     "claim-sha": "9113c7b5d8da1258",
     "route": "revert",
     "producer": "internal/core/dnsserver/handler.go::send",
-    "producer-sha": "e577d1b0576c1949",
-    "break": "body of send replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-  },
-  {
-    "rid": "RFC1035-4.1.4-1",
-    "polarity": "positive",
-    "unit": "internal/plugins/geodns/rfc1035_compression_test.go::TestRFC1035_LabelLengthOctetBeginsWithTwoZeroBits",
-    "unit-sha": "b3ba7a10226148d5",
-    "claim-sha": "cec729859fc50be0",
-    "route": "revert",
-    "producer": "internal/core/dnsserver/handler.go::send",
-    "producer-sha": "e577d1b0576c1949",
-    "break": "body of send replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "0749cf8876496bea",
+    "break": "body of send replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC1035-4.1.4-1",
@@ -42,5 +31,16 @@
     "producer": "internal/plugins/geodns/config.go::checkName",
     "producer-sha": "2bb29c3e67838c08",
     "break": "body of checkName replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1035-4.1.4-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/geodns/rfc1035_compression_test.go::TestRFC1035_LabelLengthOctetBeginsWithTwoZeroBits",
+    "unit-sha": "b3ba7a10226148d5",
+    "claim-sha": "cec729859fc50be0",
+    "route": "revert",
+    "producer": "internal/core/dnsserver/handler.go::send",
+    "producer-sha": "0749cf8876496bea",
+    "break": "body of send replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]
