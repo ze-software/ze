@@ -30,7 +30,7 @@ explanation takes two kinds of card. The owner chose both on 2026-10-11:
 
 The recorder writes a section card into the recording only. The editor never
 sees it, so the candidate and the session stay as they were. The card stays on
-screen for two seconds plus 200 milliseconds a word, then the recorder repaints
+screen for two seconds plus 200 milliseconds a word, at most ten seconds, then the recorder repaints
 the editor's screen and the section loads. The card text lives in
 `internal/le/site/terminaldemo/cards.json` under `topic-<topic>:<section>`, and
 the card's first line is its title.

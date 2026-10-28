@@ -23,6 +23,9 @@ const (
 	// a fixed moment to notice the card, then 300 words a minute to read it.
 	cardHoldBase    = 2 * time.Second
 	cardHoldPerWord = 200 * time.Millisecond
+	// cardHoldMax bounds the hold of a long card: past ten seconds a card
+	// stalls the recording, and a viewer who wants every word pauses it.
+	cardHoldMax = 10 * time.Second
 
 	// cardClear resets the colors, homes the cursor and erases the screen, so
 	// a card and the repaint after it each start from a blank screen.
@@ -50,9 +53,10 @@ func tapeCard(argument string) (string, time.Duration, error) {
 	return text, cardHold(text), nil
 }
 
-// cardHold answers how long a card stays on screen, from its word count.
+// cardHold answers how long a card stays on screen, from its word count, at
+// most cardHoldMax.
 func cardHold(text string) time.Duration {
-	return cardHoldBase + time.Duration(len(strings.Fields(text)))*cardHoldPerWord
+	return min(cardHoldBase+time.Duration(len(strings.Fields(text)))*cardHoldPerWord, cardHoldMax)
 }
 
 // requireSectionCards refuses a tape that loads a configuration section with no

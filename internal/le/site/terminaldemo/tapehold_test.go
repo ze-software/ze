@@ -120,3 +120,17 @@ func TestTypedCardEarnsItsReadingTime(t *testing.T) {
 		t.Fatalf("parse error = %v, want the refusal naming the missing card", err)
 	}
 }
+
+// TestCardHoldIsCapped proves a long card is held for cardHoldMax and no
+// longer, while a short card keeps its word-count reading time.
+// Method: compare cardHold for a 76-word text and a 5-word text.
+func TestCardHoldIsCapped(t *testing.T) {
+	long := strings.Repeat("word ", 76)
+	if got := cardHold(long); got != cardHoldMax {
+		t.Fatalf("a 76-word card holds %v, want the cap %v", got, cardHoldMax)
+	}
+	short := "one two three four five"
+	if got, want := cardHold(short), cardHoldBase+5*cardHoldPerWord; got != want {
+		t.Fatalf("a 5-word card holds %v, want %v", got, want)
+	}
+}
