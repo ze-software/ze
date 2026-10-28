@@ -16,14 +16,13 @@
 // that a loopback egress bypasses the outbound XFRM hook entirely, so every reading here
 // would be a false "no policy claimed it" (xfrm_policy_owner_integration_linux_test.go).
 
-//go:build integration && linux
+//go:build linux
 
 package engine
 
 import (
 	"net"
 	"os"
-	"os/exec"
 	"runtime"
 	"strconv"
 	"strings"
@@ -35,6 +34,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 const (
@@ -52,54 +52,18 @@ const (
 	delEgressDev = "ze-del0"
 
 	delOwner = "site-a"
-
-	// delChildEnv marks the re-executed probe process.
-	delChildEnv = "ZE_CHILD_DELETE_PROBE_OWN_PROCESS"
 )
-
-// delOwnProcess gives this probe a process to itself, and returns true only in the child
-// where the body must run.
-//
-// The dataplane package measured that one test BINARY supports exactly one network
-// namespace unshare: a second probe in the same process reports that no xfrm counter moved
-// at all, which is this file's NEGATIVE reading, so a probe sharing a process would
-// manufacture its own false pass. The engine package's binary has one probe today, and this
-// keeps that from being an ordering assumption.
-func delOwnProcess(t *testing.T) bool {
-	t.Helper()
-	if os.Getenv(delChildEnv) == "1" {
-		return true
-	}
-	cmd := exec.CommandContext(t.Context(), os.Args[0], "-test.run", "^"+t.Name()+"$", "-test.v")
-	cmd.Env = append(os.Environ(), delChildEnv+"=1")
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("probe in its own process failed: %v\n%s", err, out)
-	}
-	if strings.Contains(string(out), "--- SKIP") {
-		// This propagates the child's skip. The child runs every assertion; it skips only
-		// when the kernel refuses CLONE_NEWNET or CAP_NET_ADMIN. Reporting that as a
-		// parent PASS is the fail-open reading of the same result.
-		t.Skipf("probe skipped in its own process:\n%s", out)
-	}
-	if !strings.Contains(string(out), "--- PASS") {
-		t.Fatalf("probe in its own process reported neither PASS nor SKIP:\n%s", out)
-	}
-	// The counter deltas are the whole measurement, and they are printed in the child.
-	// Surfacing them here is what makes a green run readable as evidence rather than as a
-	// bare PASS.
-	t.Logf("probe output from its own process:\n%s", out)
-	return false
-}
 
 // delNetns puts the probe in a namespace of its own, with a real egress device carrying an
 // address inside the policy's SOURCE prefix and a route to its DESTINATION prefix. XFRM's
 // outbound hook sits in route resolution, so a datagram with no route never reaches it.
+// Each caller MUST enter through userns.Enter first, giving the probe its own
+// process and the privilege to unshare without a host grant.
 func delNetns(t *testing.T) {
 	t.Helper()
 	runtime.LockOSThread()
 	if err := unix.Unshare(unix.CLONE_NEWNET); err != nil {
-		t.Skipf("no CLONE_NEWNET (needs root): %v", err)
+		t.Fatalf("unshare CLONE_NEWNET in the test's own user namespace: %v", err)
 	}
 	lo, err := netlink.LinkByName("lo")
 	if err != nil {
@@ -256,10 +220,6 @@ func delInstallPolicies(t *testing.T, dp dataplane.Dataplane, child *ChildSA) {
 	t.Helper()
 	for _, dir := range []dataplane.SADir{dataplane.SADirIn, dataplane.SADirOut} {
 		if err := dp.InstallPolicy(childPolicies(child, dir)[0]); err != nil {
-			if strings.Contains(err.Error(), "operation not permitted") ||
-				strings.Contains(err.Error(), "permission denied") {
-				t.Skipf("XFRM policy install needs CAP_NET_ADMIN: %v", err)
-			}
 			t.Fatalf("install the %v policy: %v", dir, err)
 		}
 	}
@@ -274,7 +234,7 @@ func delInstallPolicies(t *testing.T, dp dataplane.Dataplane, child *ChildSA) {
 // traffic. Before the fix, closeDesignatedChildSAs removed it and the promoted Child SA
 // came up with states and no policy.
 func TestPeerDeleteKeepsKernelPolicyForPendingChild(t *testing.T) {
-	if !delOwnProcess(t) {
+	if !userns.Enter(t) {
 		return
 	}
 	delNetns(t)

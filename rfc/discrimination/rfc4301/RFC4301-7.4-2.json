@@ -1,6 +1,17 @@
 [
   {
     "rid": "RFC4301-7.4-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/dataplane/rfc4301_fragment_integration_linux_test.go::TestXFRMPortScopedBypassIsNeverStoredOnTheForwardPath",
+    "unit-sha": "5afdaee62bec6aab",
+    "claim-sha": "dd0a36c3799455cb",
+    "route": "mutant",
+    "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmPolicyFromParams",
+    "producer-sha": "9560ce5abe6dc41e",
+    "break": "line 483: \"netlink.Dir(p.Dir - 1)\" -\u003e \"netlink.Dir(p.Dir)\""
+  },
+  {
+    "rid": "RFC4301-7.4-2",
     "polarity": "negative",
     "unit": "internal/component/ike/engine/rfc4301_fragment_test.go::TestIKEBypassIsPortScopedSoSection74Binds",
     "unit-sha": "ba3f32331dbd341a",

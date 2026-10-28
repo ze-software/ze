@@ -7,10 +7,10 @@
 //
 // RFC naming: untagged -- the kernel read-back for RFC3948-2.1-2 (spec-ike-eap-rfc-defects AC-1); it carries no tag until a root guest run has observed it and recorded its discrimination.
 //
-// Needs root for the network namespace (delNetns skips without CLONE_NEWNET) and runs
-// in its own process (delOwnProcess), as the sibling Child SA policy probe does.
+// userns.Enter gives the probe its own process and user namespace, as for the
+// sibling Child SA policy probe; delNetns builds its isolated egress topology.
 
-//go:build integration && linux
+//go:build linux
 
 package engine
 
@@ -21,10 +21,11 @@ import (
 
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 func TestRFC3948InstalledStateCarriesTheIKEPeerPort(t *testing.T) {
-	if !delOwnProcess(t) {
+	if !userns.Enter(t) {
 		return
 	}
 	delNetns(t)

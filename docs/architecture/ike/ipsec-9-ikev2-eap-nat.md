@@ -485,9 +485,12 @@ The option is socket-wide, which is why `Send` and `SendFrom` take the same lock
 a datagram from another SA that left while the option was toggled
 would carry the probe's DF setting. `TestDFSendRestoresSocketMode` reads the
 option back after each mode, and `TestPlainSendNeverLeavesUnderTheProbeOption`
-(`udp_df_integration_linux_test.go`, root, three namespaces) races plain
-sends against DF-off sends and reads the DF bit of every datagram off an
-AF_PACKET capture on the router. Off Linux `SendDF` answers
+(`udp_df_integration_linux_test.go`) builds three network namespaces on the
+privileged integration path. Its 8 MiB capture buffer uses `SO_RCVBUFFORCE`,
+which needs `CAP_NET_ADMIN` in the initial user namespace; `userns.Enter`
+cannot supply it. It races plain sends against DF-off sends and reads every
+datagram's DF bit from the router's AF_PACKET capture. The separate oversized
+send/error-queue test uses `Enter` without a capture buffer. Off Linux `SendDF` answers
 `probe.ErrDFUnsupported` and writes nothing (`udp_other.go`).
 
 Both sockets carry `IP_RECVERR` from creation (`probe.EnableErrorQueue`), so

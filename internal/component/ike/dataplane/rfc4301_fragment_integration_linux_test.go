@@ -7,17 +7,18 @@
 // conversion is one off-by-one away from putting a port-scoped exemption on the
 // forward path, where a non-initial fragment IS classified with unreadable ports.
 
-//go:build integration && linux
+//go:build linux
 
 package dataplane
 
 import (
-	"errors"
 	"net"
 	"testing"
 
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
+
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // fragTestPort is the local IKE-like port these policies are scoped to. It is not 500
@@ -69,14 +70,14 @@ func fragBypassPair() []SPParams {
 // RFC requirement: RFC4301-7.4-2 positive -- the kernel stores no port-scoped bypass
 // on the forward path.
 func TestXFRMPortScopedBypassIsNeverStoredOnTheForwardPath(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	b := &xfrmBackend{}
 
 	installed := 0
 	for _, p := range fragBypassPair() {
 		if err := b.InstallPolicy(p); err != nil {
-			if errors.Is(err, unix.EPERM) || errors.Is(err, unix.EACCES) {
-				t.Skipf("XFRM policy install needs CAP_NET_ADMIN: %v", err)
-			}
 			t.Fatalf("install the port-scoped bypass (dir %d): %v", p.Dir, err)
 		}
 		t.Cleanup(func() { _ = b.RemovePolicyParams(p) })

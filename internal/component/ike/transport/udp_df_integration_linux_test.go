@@ -20,9 +20,10 @@
 //
 // The router forwards and its far-side link is clamped to 1400, so a
 // 1500-octet DF datagram from the sender is refused there with Fragmentation
-// Needed reporting 1400. Every test skips, never fails, when the namespaces
-// or the raw socket are out of reach: the QEMU runner (./le test qemu all)
-// is where they run for real.
+// Needed reporting 1400. The capture tests retain the privileged QEMU path:
+// SO_RCVBUFFORCE needs CAP_NET_ADMIN in the initial user namespace, which
+// userns.Enter cannot grant. The error-queue test uses Enter because it needs
+// no capture buffer. Setup failures after either entry path fail the test.
 
 package transport
 
@@ -46,6 +47,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/ze-software/ze/internal/core/probe"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // The addresses and sizes of the clamped path.
@@ -90,19 +92,17 @@ type clampedPath struct {
 
 // withClampedPath builds the topology, leaves the calling goroutine locked
 // to its thread and inside the sender namespace, runs fn, and tears
-// everything down. It skips, never fails, when a namespace or a link cannot
-// be created.
+// everything down. Callers MUST either enter through userns.Enter or run
+// with the host privileges needed for named namespaces and raw sockets.
+// Capture callers need initial-user-namespace CAP_NET_ADMIN as well.
 func withClampedPath(t *testing.T, fn func(p *clampedPath)) {
 	t.Helper()
-	if os.Geteuid() != 0 {
-		t.Skip("requires root: network namespaces, veth links and raw sockets")
-	}
 	runtime.LockOSThread()
 	t.Cleanup(runtime.UnlockOSThread)
 
 	orig, err := netns.Get()
 	if err != nil {
-		t.Skipf("requires CAP_NET_ADMIN: current namespace: %v", err)
+		t.Fatalf("read current namespace: %v", err)
 	}
 	t.Cleanup(func() {
 		if setErr := netns.Set(orig); setErr != nil {
@@ -153,7 +153,7 @@ func newNamespace(t *testing.T, orig netns.NsHandle, name string) netns.NsHandle
 	t.Helper()
 	ns, err := netns.NewNamed(name)
 	if err != nil {
-		t.Skipf("requires CAP_NET_ADMIN: create namespace %s: %v", name, err)
+		t.Fatalf("create namespace %s: %v", name, err)
 	}
 	// NewNamed moves the thread into the new namespace; go back at once.
 	if setErr := netns.Set(orig); setErr != nil {
@@ -184,7 +184,7 @@ func addVeth(t *testing.T, h *netlink.Handle, name, peer string, peerNS netns.Ns
 	veth.Name = name
 	veth.MTU = pathLinkMTU
 	if err := h.LinkAdd(veth); err != nil {
-		t.Skipf("add veth %s/%s (needs CAP_NET_ADMIN): %v", name, peer, err)
+		t.Fatalf("add veth %s/%s: %v", name, peer, err)
 	}
 }
 
@@ -264,7 +264,7 @@ func openCapture(t *testing.T, p *clampedPath, name string) int {
 	proto := int(htons(unix.ETH_P_IP))
 	fd, err := unix.Socket(unix.AF_PACKET, unix.SOCK_RAW|unix.SOCK_CLOEXEC, proto)
 	if err != nil {
-		t.Skipf("requires CAP_NET_RAW: AF_PACKET socket: %v", err)
+		t.Fatalf("open AF_PACKET socket: %v", err)
 	}
 	t.Cleanup(func() { unix.Close(fd) }) //nolint:errcheck // best-effort cleanup
 	if err := unix.Bind(fd, &unix.SockaddrLinklayer{Protocol: htons(unix.ETH_P_IP), Ifindex: link.Attrs().Index}); err != nil {
@@ -394,6 +394,9 @@ func payloadTagged(tag string, size int) []byte {
 // retransmission: the same bytes from the IKE header on, only the IP header
 // differs.
 func TestDFSendThenPlainCopyOnTheWire(t *testing.T) {
+	if os.Geteuid() != 0 {
+		t.Skip("requires privileged QEMU: SO_RCVBUFFORCE needs initial-user-namespace CAP_NET_ADMIN; run `./le test qemu all`")
+	}
 	withClampedPath(t, func(p *clampedPath) {
 		listenFar(t, p)
 		capture := openCapture(t, p, "rs0")
@@ -437,6 +440,9 @@ func TestDFSendThenPlainCopyOnTheWire(t *testing.T) {
 // left while a DF-off send held the option, which the lock forbids. The
 // DF-off sends are repeated so a leak has every chance to show.
 func TestPlainSendNeverLeavesUnderTheProbeOption(t *testing.T) {
+	if os.Geteuid() != 0 {
+		t.Skip("requires privileged QEMU: SO_RCVBUFFORCE needs initial-user-namespace CAP_NET_ADMIN; run `./le test qemu all`")
+	}
 	withClampedPath(t, func(p *clampedPath) {
 		listenFar(t, p)
 		capture := openCapture(t, p, "rs0")
@@ -502,6 +508,9 @@ func TestPlainSendNeverLeavesUnderTheProbeOption(t *testing.T) {
 // knows of an unconnected socket's destination port (__ip_append_data
 // hands ip_local_error inet_dport).
 func TestOversizedDFSendQueuesRefusalForThePeer(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withClampedPath(t, func(p *clampedPath) {
 		tr := openTransport(t)
 		go tr.Run()
