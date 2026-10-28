@@ -42,6 +42,10 @@ tests) is not a rule: it goes in the spec or commit it applies to.
 - RFC validation scope does not grow: no summary is written or enrolled for an
   RFC that no profile lists, because too many enrolled RFCs are still not fully
   implemented. Adding an RFC text under `rfc/full/` is fine.
+- ISO/IEC 10589 (IS-IS) is not counted in any conformance figure. Ze holds no
+  authoritative text for it, only a reconstruction the project wrote, and a
+  requirement list drawn from that reconstruction proves nothing about the
+  standard.
 - Full YANG (RFC 7950) coverage runs after the first release. Before it, YANG
   work is limited to what blocks something Ze needs.
 - A question the RFC text answers is not asked. Where the RFC is silent or
