@@ -520,6 +520,14 @@ servers in `internal/test/fixture/tunnel_fixture_l2tp_radius.go` and
 - RADIUS/TLS and RADIUS/DTLS (the draft's real fix) are separate transports not
   implemented in Ze; this spec covers RADIUS/UDP only.
 
+## Pending judge record
+
+The independent ze-test-judge approved the fixture change in 1bd7f3ce49 after
+it landed. No `./le` approve route covers an interop fixture, so the next
+commit touching this area MUST carry this body line:
+
+`Test-judge: test/interop-radius/scenarios/radius-admin-eap-unsigned-freeradius/ze.conf: (a) the legacy row isolates the RFC 3579 Section 3.1 unsigned-EAP discard (dispatchResponse, responseIntegrityUnsignedEAP) from the presence-check path, which also bumps the EAP counter and is proven by radius-admin-pap-unsigned-freeradius; checker assertions unchanged.`
+
 ## RFC Documentation (Scope: protocol)
 
 Add `// draft-ietf-radext-deprecating-radius-10 Section 4.N: "<quoted text>"`
