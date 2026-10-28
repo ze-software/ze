@@ -23,14 +23,14 @@ func nullESP(integ IntegrityTransform) ESPProposal {
 //
 // RFC requirement: RFC4303-1-2 positive -- for every implemented integrity transform, NegotiateESP accepts an ENCR_NULL proposal carrying no Key Length attribute beside that transform against a local policy of the same suite, and returns the null cipher and the integrity transform unchanged.
 func TestRFC4303IntegrityOnlyESPIsAccepted(t *testing.T) {
-	names := SupportedIntegrityNames()
+	names := SupportedESPIntegrityNames()
 	if len(names) == 0 {
 		t.Fatal("the integrity registry is empty, so nothing below would run")
 	}
 	for _, name := range names {
-		integ, err := LookupIntegrity(name)
+		integ, err := LookupESPIntegrity(name)
 		if err != nil {
-			t.Fatalf("LookupIntegrity(%s): %v", name, err)
+			t.Fatalf("LookupESPIntegrity(%s): %v", name, err)
 		}
 		offer := nullESP(integ)
 		got, err := NegotiateESP([]ESPProposal{offer}, []ESPProposal{nullESP(integ)})

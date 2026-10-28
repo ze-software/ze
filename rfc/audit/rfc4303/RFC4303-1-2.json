@@ -1,19 +1,19 @@
 {
   "code": {
-    "internal/component/ike/crypto/proposal.go::acceptESPEncryption": "df294c8e1c7965c1",
+    "internal/component/ike/crypto/proposal.go::acceptESPEncryption": "24c221ce29a834aa",
     "internal/component/ike/crypto/proposal.go::espProposalComplete": "c5f29bdf757e8f55"
   },
-  "note": "Re-judged 2026-10-20 (independent judge, after 967dbf7883, 5450fa29e9, b87fdb0b43; HEAD 6dce69a77c). Section 1: \"Integrity-only ESP MUST be offered as a service selection option, e.g., it must be negotiable in SA management protocols and MUST be configurable via management interfaces.\" STALE trigger is ec006f283e, which added only an RFC4303-3.2-1 tag comment above TestIntegrityOnlyESPRefusals; no assertion changed and its RFC4303-1-2 claim is unchanged. The 2026-10-19 judgement (positive accept of ENCR_NULL beside every integrity transform, negative bounds, two-Ze engine negotiation, ze_vpp SAD install) stands; crypto and engine units PASS at HEAD.",
+  "note": "Independently re-judged 2026-10-28 after the ba03d7c2c7 ESP cipher change, from rfc/full/rfc4303.txt Section 1: \"Integrity-only ESP MUST be offered as a service selection option, e.g., it must be negotiable in SA management protocols and MUST be configurable via management interfaces.\" This row covers service selection and negotiation; the management-interface clause is separately listed as RFC4303-1-1, not newly audited here. Read all four tagged units and their helpers, then independently re-read the approved crypto-test strengthening. TestRFC4303IntegrityOnlyESPIsAccepted now enumerates SupportedESPIntegrityNames and resolves each entry with LookupESPIntegrity, including ESP-only SHA1 alongside SHA256/384/512; it requires a nonempty registry and pins the selected NULL ID, zero key length and unchanged integrity ID for every entry. This closes the discovered mismatch between its universal ESP claim and the former IKE-only enumeration without removing or weakening an assertion. TestRFC4303IntegrityOnlyESPIsNegotiated drives real IKE_SA_INIT/IKE_AUTH handlers, asserts the NULL/no-attribute plus SHA256 offer, established state and both installed Child-SA parameter sets, including no encryption key and 32-octet SHA256 keys. TestRFC4303VPPIntegrityOnlyESPIsInstalled asserts the exact emitted SAD cipher and integrity enums; this is the VPP API boundary, not observed packet forwarding. TestIntegrityOnlyESPRefusals supplies distinct negative bounds, asserting ErrProposalIncomplete for NULL/NONE and ErrNoProposalChosen for a keyed NULL offer or an unoffered NULL suite; these bounds do not themselves prove service availability. The positives do: refusing NULL cannot satisfy their exact acceptance assertions. In the changed acceptESPEncryption, FixedKeyOctets recognizes NULL with zero key octets, matching IDs are required and a nonzero wire Key Length is rejected; espProposalComplete independently excludes NULL/NONE. The service remains implemented and these assertions discriminate its loss. Read the native engine recording: the clean control names TestRFC4303IntegrityOnlyESPIsNegotiated as PASS; adding remote.ID == ENCR_NULL to the admission refusal makes the same unit FAIL with state = dead rather than established. That break directly removes the required service, unlike a generic producer panic. No tests were launched by this auditor; the corrected crypto unit's fresh native observation belongs to the discrimination repair, not an inferred result here.",
   "requirement_sha": "46f85f32b9b3e82e",
   "tests": {
-    "internal/component/ike/crypto/rfc4303_integrity_only_test.go::TestIntegrityOnlyESPRefusals": "136da942e7ad3470",
-    "internal/component/ike/crypto/rfc4303_integrity_only_test.go::TestRFC4303IntegrityOnlyESPIsAccepted": "136da942e7ad3470",
+    "internal/component/ike/crypto/rfc4303_integrity_only_test.go::TestIntegrityOnlyESPRefusals": "a37ecac440a748ff",
+    "internal/component/ike/crypto/rfc4303_integrity_only_test.go::TestRFC4303IntegrityOnlyESPIsAccepted": "a37ecac440a748ff",
     "internal/component/ike/dataplane/rfc4301_esp_null_vpp_test.go::TestRFC4303VPPIntegrityOnlyESPIsInstalled": "6f3708836e4ccb4a",
     "internal/component/ike/engine/rfc4303_integrity_only_test.go::TestRFC4303IntegrityOnlyESPIsNegotiated": "cb7338e66c27038b"
   },
   "units": {
     "internal/component/ike/crypto/rfc4303_integrity_only_test.go::TestIntegrityOnlyESPRefusals": "03b83a17081fb8fe",
-    "internal/component/ike/crypto/rfc4303_integrity_only_test.go::TestRFC4303IntegrityOnlyESPIsAccepted": "5c4f22672e01dd19",
+    "internal/component/ike/crypto/rfc4303_integrity_only_test.go::TestRFC4303IntegrityOnlyESPIsAccepted": "b448ae4c23054e63",
     "internal/component/ike/dataplane/rfc4301_esp_null_vpp_test.go::TestRFC4303VPPIntegrityOnlyESPIsInstalled": "f2b7b772eb8f0604",
     "internal/component/ike/engine/rfc4303_integrity_only_test.go::TestRFC4303IntegrityOnlyESPIsNegotiated": "af11da8c7492db45"
   },

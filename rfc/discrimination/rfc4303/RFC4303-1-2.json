@@ -14,12 +14,12 @@
     "rid": "RFC4303-1-2",
     "polarity": "positive",
     "unit": "internal/component/ike/crypto/rfc4303_integrity_only_test.go::TestRFC4303IntegrityOnlyESPIsAccepted",
-    "unit-sha": "67d6505006e24ba3",
+    "unit-sha": "57cf627fa491c61e",
     "claim-sha": "ffba8ca9af8e3ff3",
     "route": "mutant",
     "producer": "internal/component/ike/crypto/proposal.go::acceptESPEncryption",
-    "producer-sha": "9abd5b90eca7a949",
-    "break": "line 503: \"local.ID != ENCR_NULL\" -\u003e \"true\""
+    "producer-sha": "67a9c8b48e70bf4f",
+    "break": "line 497: \"if local.ID != remote.ID {\" -\u003e \"if local.ID != remote.ID || remote.ID == ENCR_NULL { // MUTATION-APPLIED\""
   },
   {
     "rid": "RFC4303-1-2",
@@ -40,7 +40,7 @@
     "claim-sha": "427cb4d00a76205d",
     "route": "mutant",
     "producer": "internal/component/ike/crypto/proposal.go::acceptESPEncryption",
-    "producer-sha": "9abd5b90eca7a949",
-    "break": "line 503: \"local.ID != ENCR_NULL\" -\u003e \"true\""
+    "producer-sha": "67a9c8b48e70bf4f",
+    "break": "line 497: \"if local.ID != remote.ID {\" -\u003e \"if local.ID != remote.ID || remote.ID == ENCR_NULL { // MUTATION-APPLIED\""
   }
 ]

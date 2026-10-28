@@ -375,7 +375,7 @@ func SupportedESPEncryptionNames() []string {
 	return names
 }
 
-// SupportedIntegrityNames lists every integrity algorithm this build implements, in
+// SupportedIntegrityNames lists every integrity algorithm admitted for IKE, in
 // sorted order. SupportedEncryptionNames gives the reason it is derived.
 func SupportedIntegrityNames() []string {
 	return sortedKeys(integrityRegistry)

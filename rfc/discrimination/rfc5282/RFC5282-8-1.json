@@ -5,10 +5,10 @@
     "unit": "internal/component/ike/engine/rfc5282_aead_send_test.go::TestRFC5282AEADESPOfferWithIntegrityIsRefused",
     "unit-sha": "c20a5c9c0836ff89",
     "claim-sha": "b5da258a9e6f0b36",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/ike/crypto/proposal.go::matchESP",
-    "producer-sha": "dd6c6d9bbdc60051",
-    "break": "body of matchESP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "d81b7a45b78966c0",
+    "break": "line 517: \"if remote.Encryption.ID.IsAEAD() \u0026\u0026 remote.Integrity.ID != AUTH_NONE {\" -\u003e \"if remote.Encryption.ID.IsAEAD() { return *remote, nil }; if remote.Encryption.ID.IsAEAD() \u0026\u0026 remote.Integrity.ID != AUTH_NONE { // MUTATION-APPLIED\""
   },
   {
     "rid": "RFC5282-8-1",
@@ -16,10 +16,10 @@
     "unit": "internal/component/ike/engine/rfc5282_aead_send_test.go::TestRFC5282AEADESPSelectionCarriesNoIntegrityAlgorithm",
     "unit-sha": "fd9a36592403d071",
     "claim-sha": "4506eba43095764f",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/ike/crypto/proposal.go::matchESP",
-    "producer-sha": "dd6c6d9bbdc60051",
-    "break": "body of matchESP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "d81b7a45b78966c0",
+    "break": "line 530: \"return *remote, nil\" -\u003e \"chosen := *remote; if chosen.Encryption.ID.IsAEAD() { chosen.Integrity.ID = AUTH_HMAC_SHA2_256_128 }; return chosen, nil // MUTATION-APPLIED\""
   },
   {
     "rid": "RFC5282-8-1",

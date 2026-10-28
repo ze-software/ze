@@ -27,10 +27,10 @@
     "unit": "internal/component/ike/engine/rfc5282_aead_send_test.go::TestRFC5282AEADESPProposalCarriesNoIntegrityTransform",
     "unit-sha": "36ae76a9220dcfe0",
     "claim-sha": "8a86576e581760d1",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/ike/engine/initiator.go::espProposalWire",
-    "producer-sha": "556059c9898aebda",
-    "break": "body of espProposalWire replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "2d361fc226c9def6",
+    "break": "line 874: \"if !p.Encryption.IsAEAD() {\" -\u003e \"if true { // MUTATION-APPLIED\""
   },
   {
     "rid": "RFC5282-8-2",
@@ -38,9 +38,9 @@
     "unit": "internal/component/ike/engine/rfc5282_aead_send_test.go::TestRFC5282NonAEADESPProposalKeepsItsIntegrityTransform",
     "unit-sha": "d12569cea547e834",
     "claim-sha": "19a0905e33795aaf",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/ike/engine/initiator.go::espProposalWire",
-    "producer-sha": "556059c9898aebda",
-    "break": "body of espProposalWire replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "2d361fc226c9def6",
+    "break": "line 874: \"if !p.Encryption.IsAEAD() {\" -\u003e \"if false { // MUTATION-APPLIED\""
   }
 ]

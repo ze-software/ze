@@ -5,10 +5,10 @@
     "unit": "internal/component/ike/engine/rfc5282_ccm_sk_test.go::TestRFC5282CCMNonceIsElevenOctets",
     "unit-sha": "9f21208be4590400",
     "claim-sha": "e01bc2c8eea57564",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/ike/crypto/aead.go::newIKEAEAD",
-    "producer-sha": "577ca63b0a0d14d7",
-    "break": "body of newIKEAEAD replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "2b1fe21903b44f6f",
+    "break": "line 207: \"aead, err := t.mode(block, t.icvOctets, t.saltOctets+ikeIVOctets)\" -\u003e \"nonceOctets := t.saltOctets+ikeIVOctets; if t.saltOctets == 3 { nonceOctets++; keyWithSalt = append(keyWithSalt[:cut:cut], append([]byte{0}, keyWithSalt[cut:]...)...) }; aead, err := t.mode(block, t.icvOctets, nonceOctets) // MUTATION-APPLIED\""
   },
   {
     "rid": "RFC5282-4-4",
@@ -16,9 +16,9 @@
     "unit": "internal/component/ike/engine/rfc5282_ccm_sk_test.go::TestRFC5282CCMRefusesANonceThatIsNotElevenOctets",
     "unit-sha": "22ad332b20fc650d",
     "claim-sha": "0447b80192352590",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/ike/crypto/aead.go::newIKEAEAD",
-    "producer-sha": "577ca63b0a0d14d7",
-    "break": "body of newIKEAEAD replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "2b1fe21903b44f6f",
+    "break": "line 207: \"aead, err := t.mode(block, t.icvOctets, t.saltOctets+ikeIVOctets)\" -\u003e \"nonceOctets := t.saltOctets+ikeIVOctets; if t.saltOctets == 3 { nonceOctets++; keyWithSalt = append(keyWithSalt[:cut:cut], append([]byte{0}, keyWithSalt[cut:]...)...) }; aead, err := t.mode(block, t.icvOctets, nonceOctets) // MUTATION-APPLIED\""
   }
 ]
