@@ -211,6 +211,11 @@ so do its `--dry-run` line, the `set` status line of the SSH CLI editor, the
 adoption prompt of `ze config edit`, and both sides of a commit conflict. A
 refusal names the rule the value broke and not the value. The path stays in the
 clear, so the operator still reads which leaf was written.
+
+To read the actual value of a `ze:sensitive` leaf, copy its `$9$` form from
+the config file and run `ze secret decode '$9$...'`, or `ze secret decode -`
+to keep the value out of the shell history. A `ze:bcrypt` leaf holds a one-way
+hash, which no command can decode.
 <!-- source: internal/component/config/mask.go -- LeafHoldsSecret, MaskSecrets, SecretKeys, DisplayValueAtPath, DisplayMessageAtPath -->
 <!-- source: internal/component/config/cli/cmd_diff.go -- maskDiffSecrets -->
 <!-- source: internal/component/config/cli/cmd_set.go -- cmdSetImpl -->

@@ -48,7 +48,7 @@ _ze() {
         cword=${COMP_CWORD}
     fi
 
-    local commands="cli completion config data doctor env interface plugin resolve schema show signal status sysctl tacacs"
+    local commands="cli completion config data doctor env interface plugin resolve schema secret show signal status sysctl tacacs"
 
     # Complete argument for flags that take a value
     case "${prev}" in

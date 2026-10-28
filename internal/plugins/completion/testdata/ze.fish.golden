@@ -288,6 +288,7 @@ complete -c ze -n __ze_needs_command -a interface -d 'Manage OS network interfac
 complete -c ze -n __ze_needs_command -a plugin -d 'Plugin system'
 complete -c ze -n __ze_needs_command -a resolve -d 'DNS resolver tools'
 complete -c ze -n __ze_needs_command -a schema -d 'Schema discovery'
+complete -c ze -n __ze_needs_command -a secret -d 'Decode a $9$ secret to its plaintext, or encode a plaintext'
 complete -c ze -n __ze_needs_command -a show -d 'Show daemon state (read-only commands)'
 complete -c ze -n __ze_needs_command -a signal -d 'Send signals to the daemon via SSH'
 complete -c ze -n __ze_needs_command -a status -d 'Check if daemon is running'

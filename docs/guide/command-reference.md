@@ -225,6 +225,40 @@ ze config migrate <file>         # Convert old format to current
 | `--list` | List available transformations (migrate) |
 | `--format <fmt>` | Output format: `set` (default) or `hierarchical` (migrate) |
 
+### ze secret
+
+Decode a `$9$` secret to its plaintext, or encode a plaintext. A `ze:sensitive`
+leaf (a BGP MD5 password, an API token, a pre-shared key) is stored in the
+reversible `$9$` form, and every display path masks it. `ze secret decode`
+gives the operator the actual key from a config. It works offline, reads no
+config and reaches no daemon.
+
+```
+ze secret decode '$9$...'        # Print the plaintext behind a $9$ value
+ze secret decode -               # Read the $9$ value from stdin
+ze secret encode '<plaintext>'   # Print a $9$ value for a plaintext
+ze secret encode -               # Read the plaintext from stdin
+```
+
+Put the value in single quotes: an unquoted `$` starts a shell variable, and
+the shell changes the value before ze sees it. Pass `-` to read the value from
+stdin, so it stays out of the shell history. One trailing line ending is
+dropped from stdin. A value that starts with `-` reads as an option, so pass it
+on stdin.
+
+A `ze:bcrypt` leaf holds a one-way hash (`$2a$`, `$2b$`, `$2y$`, and the crypt
+forms `$1$`, `$5$`, `$6$`). A hash keeps no copy of the password, so
+`ze secret decode` refuses it and names `ze config set` to set a new password.
+`ze secret encode` refuses a value that already starts with `$9$`, because the
+config reads such a value as encoded.
+
+| Exit code | Meaning |
+|-----------|---------|
+| 0 | Success |
+| 1 | The value cannot be decoded or encoded: a one-way hash, no `$9$` prefix, a damaged `$9$` value, or an empty value |
+| 2 | Usage error (no value, two values, an unknown option or action), or stdin could not be read |
+<!-- source: internal/component/config/cli/cmd_secret.go -- runSecret, decodeSecret, encodeSecret -->
+
 ### ze signal
 
 Send commands to the running daemon via SSH.

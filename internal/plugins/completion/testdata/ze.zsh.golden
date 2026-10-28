@@ -15,6 +15,7 @@ _ze() {
         'plugin:Plugin system'
         'resolve:DNS resolver tools'
         'schema:Schema discovery'
+        'secret:Decode a $9$ secret to its plaintext, or encode a plaintext'
         'show:Show daemon state (read-only commands)'
         'signal:Send signals to the daemon via SSH'
         'status:Check if daemon is running'

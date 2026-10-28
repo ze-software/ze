@@ -50,6 +50,18 @@ func init() {
 		Subs:      subcommands(),
 	})
 
+	// `ze secret` sits beside `ze config`: both read and write config values
+	// offline, and the $9$ codec it calls belongs to this component. Its
+	// actions are root Subs so shell completion offers decode and encode.
+	registry.MustRegisterRootHandler("secret", func(_ *registry.RuntimeContext, args []string) int {
+		return cmdSecret(args)
+	}, registry.Meta{
+		ShortHelp: "Decode a $9$ secret to its plaintext, or encode a plaintext",
+		Mode:      modeOffline,
+		Section:   registry.SectionConfiguration,
+		Subs:      secretSubs(),
+	})
+
 	// Flag inventory for shell completion (registration over hardcoding).
 	// Mirrors the flag.FlagSet declarations in cmd_import.go.
 	registry.RegisterCommandFlags("config import", []registry.FlagSpec{

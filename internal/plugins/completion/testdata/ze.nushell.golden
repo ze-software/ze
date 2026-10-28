@@ -16,6 +16,7 @@ def "nu-complete ze commands" [] {
         { value: "plugin ", description: "Plugin system" }
         { value: "resolve ", description: "DNS resolver tools" }
         { value: "schema ", description: "Schema discovery" }
+        { value: "secret ", description: "Decode a $9$ secret to its plaintext, or encode a plaintext" }
         { value: "show ", description: "Show daemon state (read-only commands)" }
         { value: "signal ", description: "Send signals to the daemon via SSH" }
         { value: "status ", description: "Check if daemon is running" }

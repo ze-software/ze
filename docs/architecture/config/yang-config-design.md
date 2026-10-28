@@ -85,7 +85,7 @@ standard YANG tools ignore but ze interprets at runtime.
 | `ze:related` | workbench: declares an operator tool descriptor on a config node | descriptor string |
 | `ze:required` | Field must hold a value after config inheritance resolves | path |
 | `ze:route-attributes` | Node accepts standard BGP route attributes | (none) |
-| `ze:sensitive` | Leaf holds sensitive data. Display obfuscates it with JunOS-compatible `$9$` encoding | (none) |
+| `ze:sensitive` | Leaf holds sensitive data. Display obfuscates it with JunOS-compatible `$9$` encoding, which `ze secret decode` reverses offline (`docs/guide/command-reference.md`, "ze secret") | (none) |
 | `ze:suggest` | Field appears in a creation dialog with its inherited default. The entry is created without it | path |
 | `ze:syntax` | Config parser syntax mode (flex, freeform, inline-list) | mode name |
 | `ze:task-support` | MCP task-support level for a command | `required`, `optional`, `forbidden` |
