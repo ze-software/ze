@@ -2,14 +2,14 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Scope | tooling |
 | Priority | P2 |
 | Release reason | The public RFC compliance page and every release profile publish what share of an RFC Ze can reach. Today a fixed sentence says every RFC can reach 100%, which the figure arithmetic already contradicts, and the owner's one exception to full coverage (a primitive Linux cannot provide) has no state in the ledger. Accurate support claims are release validation |
 | RFC gaps | - |
 | Depends | - |
-| Phase | - |
-| Handoff | - |
+| Phase | 6/6 |
+| Handoff | plan/handover/29-rfc-linux-limit-annotation.md |
 | Updated | 2026-10-28 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
@@ -99,7 +99,7 @@ is defined so the page states this truthfully (Open decision D-3).
 
 **Behavior to preserve:**
 - Every existing figure, share and bucket count is unchanged for a corpus that carries no new annotation, except the ceiling sentence, which becomes computed.
-- `TestNoAnnotationExceptSinglePolarityMovesThePublishedShare` (`internal/le/site/rfcdetail_test.go`) keeps holding over the new kind.
+- `TestNoAnnotationExceptSinglePolarityMovesThePublishedShare` (`internal/le/site/rfcfilter_test.go`) now holds over parsed fixture summaries, including the new kind; the originally named existing test was absent (A-3).
 - The register stays the one home of every Linux limitation fact.
 - Existing JSON keys keep their names and meaning; new keys are added beside them.
 
@@ -127,36 +127,36 @@ is defined so the page states this truthfully (Open decision D-3).
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Summary file to gate | `rfc/short/*.md` row annotation text | No |
-| Register page to gate | `docs/architecture/linux-limitations.md` entry fields | No |
-| Gate to site | `rfc.Requirement`, `TreeRow`, `Rollup` structs and their JSON | No |
-| Commit to push | commit message trailers read by `personActs` | No |
+| Summary file to gate | `rfc/short/*.md` row annotation text | Yes: parsed-fixture gate tests and actual `./le rfc check` valid/refusal runs |
+| Register page to gate | `docs/architecture/linux-limitations.md` entry fields | Yes: malformed/current/stale evidence cases and shared-parser/appliance tests |
+| Gate to site | `rfc.Requirement`, `TreeRow`, `Rollup` structs and their JSON | Yes: parsed ledger tests, publication fixtures, browser filters and canonical site build/check |
+| Commit to push | commit message trailers read by `personActs` | Yes: `TestALinuxLimitCommitOwesTheOwnersAttestation` runs generated fixture commits and checks push refusal before, and clearance after, owner attestation |
 
 ### Integration Points
 - `annotationKinds` (`rfc.go`) - the new constant joins the set; `AnnotationKinds()` answers it.
-- `rfcAnnotationBucket` (`rfccompliance.go`) - its default arm already counts an unknown kind as unmapped, so a missing arm is visible, not silent.
+- `rfcAnnotationBucket` (`rfccompliance.go`) - reads the registered bucket trait; an unknown kind remains visibly unmapped.
 - `personActs` (`owed_trailers.go`) and `attestationTrailer` (`attest.go`) - one new owed key.
 - `TestLinuxLimitsCheckedAtShippedVersions` - keeps its assertions, reads the moved parser.
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers (data flows through the intended path) | Yes | Ceiling computed only in `figuresByStem`/`rollupOf`; the site reads `TreeRow`/`Rollup` and computes none, as `rfcStemRows` already does for the two figures |
+| No bypassed layers (data flows through the intended path) | Yes | `rowCounts` and `figuresByStem` classify attainable rows; `rollupOf` and `CeilingOf` aggregate them. Site renderers and the browser read and sum those published counts, never classify requirements again |
 | No unintended coupling (components stay isolated) | Yes | The register parser moves to a package both `internal/appliance` (its test) and `internal/le/rfc` import; `internal/le/rfc` does not import `internal/appliance` |
 | No duplicated functionality (extends existing, does not recreate) | Yes | Evidence lives in the register (no second copy in the row); approval reuses owed trailers and `attest` |
 | Zero-copy preserved where applicable (refs, not copies) | N-A | Tooling, no wire path |
-| Registration over hardcoding, outbound | Yes | The kind is one constant in the closed set `annotationKinds`, which is the registry of kinds |
-| Registration over hardcoding, inbound | No | Lists searched for the kind names: `annotationKinds` (rfc.go), `parseAnnotation` (summary.go), `annotationBarsATest` and `rollupTargetState` (check_core.go), `rowCounts` (profilecoverage.go), `checkStatusAgreement` and `checkGapCountAgreement` (check_status.go), `verdictClaims` (check_audit.go), `ruledAnnotation` (coverage_ruling.go), `annotatedGap` (gaps.go), the kind lists in the refusal messages of `unprovenChecklist` (check_status.go) and `checkNewSummaries` (check_ratchets.go), `rfcAnnotationBucket`, `rfcSatisfaction`, `rfcStanding` and `rfcLedgerCoverage.Bucket` (rfccompliance.go), the `rfcLedgerCoverage` counters (rfcledger.go), `rfcGlossary` (rfcreader.go), `densityMetric` (health collect_rfc.go). Each must learn the kind. The two refusal-message lists should derive from `AnnotationKinds()`; the per-kind behaviour switches are an existing pattern this spec extends, and D-6 asks whether to fold them into one per-kind trait table first |
+| Registration over hardcoding, outbound | Yes | `annotationKinds` in `rfc.go` holds the parser and per-kind traits; `AnnotationKinds()` derives its vocabulary |
+| Registration over hardcoding, inbound | Yes | Gate, status, audit, rollup, coverage, health and site consumers read `AnnotationTraitsOf`; parser dispatch and refusal vocabularies derive from the registry. `TestAnnotationTraitsPreserveRowBehavior`, public-share invariants and the gap/partial disclosure controls passed |
 
 ## Risks & Assumptions
 
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The register is the right evidence source and its fields are stable enough to check | Owner order 2026-10-20 quoted on the page; `TestLinuxLimitsCheckedAtShippedVersions` already validates `Kind`, `Effect`, `Status`, `Checked` | Annotation would need its own source citation, a second copy of the fact | Thomas answers D-1 | unvalidated |
-| A-2 | Only `Kind: kernel`, `Effect: blocks`, `Status: verified` entries prove "Linux cannot" | Register "What belongs here": `constrains design` means "Ze can implement the feature"; a library limit is fixable by a carried diff (`ai/META-DECISIONS.md`) | A library or unverified limit would excuse work Ze owes | Thomas answers D-1 | unvalidated |
-| A-3 | The share-invariance test iterates every kind, so it covers the new one without edit | Test name and the gates page ("for every kind but `{single-polarity}`") | The new kind could move the share unseen | Read `rfcdetail_test.go` in phase 1 | unvalidated |
-| A-4 | `attest` answers any owed trailer key once the key is registered in `personActs` | `committing.md`: `Owner-attested` "answers every person act the named commit owes"; `attestationTrailer` lists accepted keys in its refusal | A second edit in `attest.go` is owed | Read `attestationTrailer` in phase 4 | unvalidated |
+| A-1 | The register is the right evidence source and its fields are stable enough to check | Owner order 2026-10-20 quoted on the page; register field contract | Annotation would need its own source citation, a second copy of the fact | Thomas approved D-1(a) | confirmed |
+| A-2 | Only `Kind: kernel`, `Effect: blocks`, `Status: verified` entries prove "Linux cannot" | Register "What belongs here": `constrains design` means "Ze can implement the feature"; a library limit is fixable by a carried diff | A library or unverified limit would excuse work Ze owes | Thomas approved D-1(a) | confirmed |
+| A-3 | The share-invariance test iterates every kind, so it covers the new one without edit | The named test is absent from the current site package; LSP and a search with the existing `TestPartialProofPublicationsAgree` as a positive control confirm this | The new kind could move the share unseen | Added `TestAnnotationsNeverInflateThePublishedShare`; it and `TestPartialProofPublicationsAgree` passed in `job-linux-limit-final-corrections-19f68aed.log` | broken; repaired |
+| A-4 | `attest` answers any owed trailer key once the key is registered in `personActs` | `attestationTrailer` reads `parsePersonActs` and accepts any nonempty owed list; its refusal text names the current keys | The refusal text also needs the new key | `TestALinuxLimitCommitOwesTheOwnersAttestation` passed through generated commits, push derivation and owner attestation; ordinary RFC approval did not discharge it | confirmed |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -180,9 +180,9 @@ is defined so the page states this truthfully (Open decision D-3).
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
 | `./le rfc check` over a fixture tree with a `{linux-limit}` row and a register entry | → | `parseAnnotation`, `checkLinuxLimit` | `TestCheckLinuxLimitReadsTheRegisterAndTheRow` |
-| `./le rfc tree` / priority report over the same fixture | → | `figuresByStem`, `rollupOf` ceiling | `TestALinuxLimitLowersTheCeilingAndNotTheFigure` |
-| site build over the same fixture | → | computed ceiling statement, ledger counter, overview attributes | `TestTheIndexStatesTheComputedCeiling` |
-| `./le commit create` over a staged summary adding the annotation | → | owed trailer writer, push derivation | `TestALinuxLimitCommitOwesTheOwnersAttestation` |
+| `./le rfc tree` and priority entry points | → | `figuresByStem`, `rollupOf`, `TreeRow` | `TestRFCTreeOverRealCorpus`, plus `TestALinuxLimitLowersTheCeilingAndNotTheFigure` for exact fixture arithmetic |
+| site build over a fixture ledger | → | computed ceiling statement, ledger counter, overview attributes | `TestCeilingPublicationsAgree`, `TestTheLedgerCountsLinuxLimitRows`, browser fixture smoke and canonical `site build`/`site check` |
+| `./le commit create` over selected summary content adding the annotation | → | owed trailer writer, generated commit, push derivation | `TestALinuxLimitCommitOwesTheOwnersAttestation`, `TestLinuxLimitCreateJudgesSelectedBlobs` |
 
 ## Acceptance Criteria
 
@@ -204,7 +204,7 @@ is defined so the page states this truthfully (Open decision D-3).
 | AC-14 | Corpus with unattainable rows | The statement names how many requirements, split by reason (Linux cannot, and the D-3 kinds), and the lowest ceiling |
 | AC-15 | Commit adds or rewords a `{linux-limit}` annotation | Message carries one `Linux-limit-owed: <RID>: <LL-id>` trailer per such row; the commit lands; the push is refused until an `Owner-attested:` for that commit lands |
 | AC-16 | Commit touches the summary without changing an existing `{linux-limit}` annotation | No trailer owed |
-| AC-17 | Public row says `Supported` over a summary holding a `{linux-limit}` row | `checkStatusAgreement` refuses, as for `{gap}`; the Remaining cell counts the row among unmet MUSTs (D-4) |
+| AC-17 | Public row says `Supported` over a summary holding a `{linux-limit}` row | `checkStatusAgreement` refuses even when Remaining discloses the limitation; the Remaining cell counts the row among unmet MUSTs (D-4). Ordinary gap/partial disclosure behavior stays unchanged |
 | AC-18 | Audit verdict over a `{linux-limit}` row | `unimplemented` accepted; `not-applicable` refused, because the obligation binds |
 | AC-19 | Site build over a corpus with the kind | Ledger counter `linux-cannot` counts it; bucket `linux_limit` labelled "Linux cannot do this"; `UnmappedAnnotations` stays zero |
 
@@ -213,23 +213,23 @@ is defined so the page states this truthfully (Open decision D-3).
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestALinuxLimitAnnotationCarriesItsRegisterID` | `internal/le/rfc/linux_limit_test.go` | AC-1 parse | |
-| `TestALinuxLimitReasonIsRefusedWithoutBothFacts` | `internal/le/rfc/linux_limit_test.go` | AC-2 | |
-| `TestCheckLinuxLimitReadsTheRegisterAndTheRow` | `internal/le/rfc/linux_limit_test.go` | AC-1, AC-3 to AC-7, table over entry shapes | |
-| `TestALinuxLimitAnnotationIsStaleBesideATaggedTest` | `internal/le/rfc/linux_limit_test.go` | AC-8 | |
-| `TestALinuxLimitAnnotationCannotDisplaceAGap` | `internal/le/rfc/linux_limit_test.go` | AC-9 | |
-| `TestALinuxLimitRequirementIsAnnotatedAndNotProven` | `internal/le/rfc/linux_limit_test.go` | AC-10 at the rfc layer | |
-| `TestALinuxLimitLowersTheCeilingAndNotTheFigure` | `internal/le/rfc/profilecoverage_test.go` | AC-10, AC-11 | |
-| `TestTheRollupCeilingSumsWalkedMembersOnly` | `internal/le/rfc/profilecoverage_test.go` | AC-11, AC-12 | |
-| `TestALinuxLimitRowCountsAsUnmetInTheStatusRow` | `internal/le/rfc/check_status_test.go` | AC-17 | |
-| `TestUnimplementedVerdictStandsOverLinuxLimit` | `internal/le/rfc/check_audit_test.go` | AC-18 | |
-| `TestParseLinuxLimitsForm` (moved with the parser) | new register package test | register parse unchanged by the move | |
-| `TestTheIndexStatesTheComputedCeiling` | `internal/le/site/rfcfilter_test.go` | AC-13, AC-14, legend, overview, mirror | |
-| `TestTheOverviewSumsTheCeilingTheRollupSums` | `internal/le/site/rfcfilter_test.go` | AC-12 data attributes | |
-| `TestTheLedgerCountsLinuxLimitRows` | `internal/le/site/rfcledger_test.go` | AC-19 | |
-| `TestNoAnnotationExceptSinglePolarityMovesThePublishedShare` (existing) | `internal/le/site/rfcdetail_test.go` | AC-10 over the real corpus | |
-| `TestALinuxLimitCommitOwesTheOwnersAttestation` | `internal/le/commit/owed_test.go` | AC-15 | |
-| `TestAnUnchangedLinuxLimitOwesNothing` | `internal/le/commit/owed_test.go` | AC-16 | |
+| `TestALinuxLimitAnnotationCarriesItsRegisterID` | `internal/le/rfc/linux_limit_test.go` | AC-1 parse | Passed in remaining-RFC run |
+| `TestALinuxLimitReasonIsRefusedWithoutBothFacts` | `internal/le/rfc/linux_limit_test.go` | AC-2 | Passed in remaining-RFC run |
+| `TestCheckLinuxLimitReadsTheRegisterAndTheRow` | `internal/le/rfc/linux_limit_test.go` | AC-1, AC-3 to AC-7, table over entry shapes | Passed in remaining-RFC run |
+| `TestALinuxLimitAnnotationIsStaleBesideATaggedTest` | `internal/le/rfc/linux_limit_test.go` | AC-8 | Passed in remaining-RFC run |
+| `TestALinuxLimitAnnotationCannotDisplaceAGap` | `internal/le/rfc/linux_limit_test.go` | AC-9 | Passed in remaining-RFC run |
+| `TestALinuxLimitRequirementIsAnnotatedAndNotProven` | `internal/le/rfc/linux_limit_test.go` | AC-10 at the rfc layer | Passed in remaining-RFC run |
+| `TestALinuxLimitLowersTheCeilingAndNotTheFigure` | `internal/le/rfc/profilecoverage_test.go` | AC-10, AC-11 | Passed in remaining-RFC run |
+| `TestTheRollupCeilingSumsWalkedMembersOnly` | `internal/le/rfc/profilecoverage_test.go` | AC-11, AC-12 | Passed in remaining-RFC run |
+| `TestALinuxLimitRowCountsAsUnmetInTheStatusRow`, `TestCheckLinuxLimitRefusesSupportedDespiteDisclosure` | `internal/le/rfc/linux_limit_test.go` | AC-17, including Supported with an accurate Remaining cell | Passed in final corrections run; actual CLI refusal also observed |
+| `TestUnimplementedVerdictStandsOverLinuxLimit` | `internal/le/rfc/linux_limit_test.go` | AC-18 | Passed in remaining-RFC run |
+| `TestParseLinuxLimitsForm` (moved with the parser) | `internal/le/linuxlimit/register_test.go` | register parse unchanged by the move | Passed |
+| `TestTheIndexStatesTheComputedCeiling` | `internal/le/site/rfcfilter_test.go` | AC-13, AC-14, legend, overview, mirror | Passed |
+| `TestTheOverviewSumsTheCeilingTheRollupSums` | `internal/le/site/rfcfilter_test.go` | AC-12 data attributes | Passed |
+| `TestTheLedgerCountsLinuxLimitRows` | `internal/le/site/rfcfilter_test.go` | AC-19 and register ID in detail and gap-table HTML/Markdown | Passed in final corrections run; corrected gap table observed in browser |
+| `TestNoAnnotationExceptSinglePolarityMovesThePublishedShare` (added) | `internal/le/site/rfcfilter_test.go` | AC-10 over parsed fixture summaries, including Linux-limit | Passed |
+| `TestALinuxLimitCommitOwesTheOwnersAttestation` | `internal/le/commit/linux_limit_test.go` | AC-15 | Passed in final corrections run |
+| `TestAnUnchangedLinuxLimitOwesNothing` | `internal/le/commit/linux_limit_test.go` | AC-16 | Passed in final corrections run |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -245,21 +245,24 @@ is defined so the page states this truthfully (Open decision D-3).
 N-A: tooling, no protocol peer.
 
 ## Files to Modify
-- `internal/le/rfc/rfc.go` - new kind constant in `annotationKinds`; new `Annotation` field for the register id; kind comment
-- `internal/le/rfc/summary.go` - parser and its one format sentence
-- `internal/le/rfc/check_core.go` - `checkLinuxLimit`; `annotationBarsATest`; `rollupTargetState` (a linux-limit target is a gap)
+- `internal/le/rfc/rfc.go` - kind constant, register-ID field, registered parsers and shared annotation traits
+- `internal/le/rfc/summary.go` - dispatch through registered parsers; shared text parser for selected commit blobs
+- `internal/le/rfc/check_core.go` - trait-derived `annotationBarsATest` and `rollupTargetState` (a linux-limit target is a gap)
 - `internal/le/rfc/check.go` - run `checkLinuxLimit` in `CheckAnnotations`
-- `internal/le/rfc/profilecoverage.go` - attainable count on `Figure`, `StemFigures`, `Rollup`; `figuresByStem`, `rollupOf`, `String`
+- `internal/le/rfc/profilecoverage.go` - attainable and per-kind excluded counts; `figuresByStem`, `rollupOf`, `CeilingOf`, `CeilingString`
 - `internal/le/rfc/tree.go` - `TreeRow` attainable JSON fields, `Cells`, `Text`
 - `internal/le/rfc/check_status.go` - status agreement and Remaining count read the kind; kind list in the message derived from `AnnotationKinds()`
 - `internal/le/rfc/check_ratchets.go` - kind list in the message derived from `AnnotationKinds()`
 - `internal/le/rfc/check_audit.go` - `verdictClaims`
 - `internal/le/rfc/coverage_ruling.go`, `internal/le/rfc/gaps.go` - read the kind where they read `{gap}` as unmet, per each function's contract
-- `internal/le/site/rfccompliance.go` - bucket, card, count switch
+- `internal/le/site/rfccompliance.go` - trait-derived bucket, card and coverage readers
 - `internal/le/site/rfcledger.go` - `LinuxLimit` counter, JSON `linux-cannot`
 - `internal/le/site/rfcfilter.go` - delete `rfcIndexCeiling`; computed statement in overview, legend, mirror; `data-ma`/`data-oa` attributes; overview script ceiling
 - `internal/le/site/rfcprofiles.go` - ceiling on cards, rows and mirror
 - `internal/le/site/rfcreader.go` - glossary entry
+- `internal/le/site/rfcdetail.go`, `internal/le/site/rfcevidence.go` - retain the register ID in requirement marks and gap disclosures; derive unmet rows from the shared traits
+- `internal/le/rfc/render.go`, `internal/le/rfc/render_test.go` - retain the register ID in core requirement rows and shards
+- `internal/le/rfc/lowerlayer_corpus_test.go` - preserve every real corpus input and assertion; add an in-memory Linux-limit row and independent counterfactual matrix case without annotating the real corpus
 - `internal/le/test/health/collect_rfc.go` - kind count
 - `internal/le/commit/owed_trailers.go`, `internal/le/commit/actions.go`, `internal/le/commit/attest.go`, `internal/le/commit/prepare.go` - `Linux-limit-owed:` trailer
 - `internal/appliance/linux_limits_test.go` - use the moved parser; delete the local one (no layering)
@@ -270,10 +273,16 @@ N-A: tooling, no protocol peer.
 - `docs/architecture/testing/test-health.md` - the kind in the RFC annotation counts
 - `docs/contributing/gh-pages.md` - ceiling on the compliance pages
 - `ai/skills/ze-rfc.md` - the kind in the annotation vocabulary and when to use it
+- `docs/architecture/appliance/kernel-profiles.md` - name the shared register parser used by the shipped-kernel check
+- `docs/contributing/rfc-implementation-guide.md` - annotation eligibility, unmet Remaining count, strict Supported refusal and owner-only attestation route
+- `ai/INDEX.md` - annotation and ceiling lookup entries
 
 ## Files to Create
-- `internal/le/rfc/linux_limit_test.go` - unit tests above
-- A non-test register parser package (name per D-5), with the moved `parseLinuxLimits` and its test
+- `internal/le/rfc/linux_limit.go`, `internal/le/rfc/linux_limit_test.go` - registered evidence check, advisory candidates and regressions
+- `internal/le/rfc/annotation_traits_test.go` - existing annotation behavior across consumers
+- `internal/le/linuxlimit/register.go`, `internal/le/linuxlimit/register_test.go` - shared register parser and its preserved and extended tests
+- `internal/le/commit/linux_limit.go`, `internal/le/commit/linux_limit_test.go` - immutable-blob approval obligations and push-attestation regressions
+- `internal/le/site/rfcfilter_test.go` - computed ceilings and publication invariants
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -336,6 +345,38 @@ N-A: tooling, no protocol peer.
    - Verify: tests fail, implement, tests pass
 6. **Phase: Docs** -- each page listed in Files to Modify, in the same commit as the code it describes
 
+### Implementation evidence
+
+Evidence files below live under `tmp/session/2026-10-22-644a4e78-0122-4eeb-8642-eb50638a1641/scratch/` until closure.
+
+| Surface | Observed evidence | Remaining |
+|---------|-------------------|-----------|
+| Actual `./le rfc check` entry point | `linux-limit-cli-valid.log`, `linux-limit-cli-empty-evidence.log`, `linux-limit-cli-stale-checked.log`: accepted valid evidence; refused empty Evidence and a stale kernel pin. `linux-limit-cli-supported.log`: refused Supported despite `One MUST unmet`, with the Linux-limit-specific public-status finding | None for implementation |
+| Core package tests | Initial commit/parser packages passed. `job-linux-limit-final-corrections-19f68aed.log` passed the corrected trait matrix, in-memory corpus invariant, strict status guards, register-reference rendering and all approval guards except one fixture-setup failure. `job-linux-limit-final-smoke-cfc3f8b2.log` passed that repaired ancestor-materialization fixture unchanged in its assertions | None for implementation |
+| Real-corpus entry points | `job-linux-limit-corpus-only-0baead0f.log`: `TestRFCTreeOverRealCorpus` passed alone under the default timeout and rendered actual tree/priority results, including ceiling counts | None |
+| Register/appliance | `job-linux-limit-appliance-final-c68ac1b6.log`: shipped-version pin passed. `job-linux-limit-final-guards-db74093f.log`: all parser tests passed. `job-linux-limit-parser-boundary-a4406c82.log`: malformed Checked case passed; both coverage profiles together exercised all 87 parser statements | None |
+| Site and health packages | `job-linux-limit-site-be12bc74.log`: scoped race run passed, excluding the full-route build test. `job-linux-limit-site-corrections-2cc0e25c.log`: register-reference and draft-ordering regressions passed. Final corrections log also passed gap-table, ordinary-gap, demonstrated-gap and partial-publication regressions | None |
+| Browser | `linux-limit-browser-evidence.json`: profile/filter sums, exclusions, empty populations, unwalked exclusion, RFC/draft ties and neutral detail card observed. Final gap table displayed `{linux-limit}`, `LL-WIDGET` and the reason. Final canonical index was visually inspected | None |
+| Canonical site | Final `./le --name linux-limit site build` and `site check` passed: 23 producers, 1,091 published/written paths, 197 files. Source digest `a5f183ab810ffc7e3efce144eea7155e822df61bd5b884d8a34461864d9e2a8f` | Existing unrelated stale-feature proof warnings and two unstamped talks were reported, not refreshed |
+| Independent review | Core round 4, site follow-up, implementation-guide review and final fixture-setup review found no remaining source defect in their scopes. Independent test judge approved the corpus fixture and preserved expectations | Formal Review Gate and committed verification belong to `/ze-close` |
+
+The shared BGP compilation blocker was repaired by its owner before the final
+runs. No foreign source was changed. The only last-run failure was test setup:
+the direct snapshot fixture omitted the `tmp/` directory production `Create`
+initializes. Its setup was corrected without changing a scenario or assertion,
+independently reviewed, and the failing test passed. No product fix is claimed
+for that fixture maintenance. Two legacy migration tests skipped themselves
+because their generated files already exist at HEAD; no test was weakened.
+
+### Goal Validation
+
+| Task goal | Concrete evidence |
+|-----------|-------------------|
+| Evidence-backed annotation with per-instance owner approval | Actual CLI accepted the valid register reference and refused empty/stale evidence and a false Supported claim. The approval integration test ran generated fixture commits, observed an owed trailer and push refusal, rejected ordinary RFC approval as an answer, then observed owner attestation clear the debt |
+| Annotation never raises a published figure | Parsed public-ledger invariant passed for Linux-limit; the real corpus plus an isolated in-memory Linux-limit row retained every original input and proved zero whole credit even beside both ordinary polarities. Independent fixed-expectation cases covered empty, one-sided, gap-only and excluded populations |
+| Computed ceiling on each RFC, profile tier and filtered overview | Publication tests agreed across model, JSON, HTML and Markdown. Browser filtering observed 3/6 mandatory attainable overall, 1/3 for the Linux-limit RFC, 2/3 for the lower-layer RFC, no measurement for unwalked/no-match selections, and stable RFC/draft minima. Canonical build/check passed and its actual index rendered computed counts |
+
+
 ### Critical Review Checklist
 | Check | What to verify for this spec |
 |-------|------------------------------|
@@ -351,7 +392,7 @@ N-A: tooling, no protocol peer.
 | Deliverable | Verification method |
 |-------------|---------------------|
 | Kind in the vocabulary | an `AnnotationKinds()` test lists it |
-| Fixed sentence gone | grep `rfcIndexCeiling` in `internal/le/site` returns nothing |
+| Fixed sentence gone | The fixed `rfcIndexCeiling` declaration is gone; computed statements are exercised by index, profile and browser tests. `rfcIndexCeilingRows` is a distinct row-selection helper, not that retired constant |
 | Ceiling in JSON | `./le rfc tree` JSON rows carry the attainable fields |
 | Trailer | owed tests above, and the `docs/contributing/committing.md` row |
 
@@ -400,6 +441,20 @@ N-A: tooling, no protocol peer.
 | D-5 | Where the register parser lives | (A) `internal/le/linuxlimit` (le-only); (B) a package under `internal/core/` | (A). Only le tooling and an appliance test read it |
 | D-6 | The per-kind switches (about a dozen across `internal/le/rfc` and `internal/le/site`) | (A) add the kind to each, as `{feature-declined}` did; (B) first fold them into one per-kind trait table in `rfc.go` that every reader derives from | (A) in this spec, with (B) as its own engineering spec if you want it: (B) is the principled shape but restructures every existing kind |
 | D-7 | Tone of the new bucket on the compliance cards | neutral (as `{lower-layer}`), or bad (as gaps) | neutral, with its own note: the obligation binds and is unmet, and you have accepted that Ze cannot meet it on Linux |
+
+### Owner approval
+
+Thomas approved D-1(a), D-2(A), D-3(B), D-4(A), D-5(A), D-6(B), and D-7 neutral in this session on 2026-10-28. This approval replaces the recommendations above where they differ. It approves the design, not any requirement instance.
+
+D-6(B) requires one per-kind trait declaration from which readers derive their behavior. Migrate existing readers instead of adding another independently maintained kind switch. Preserve every existing kind's behavior and reject missing kind declarations rather than supplying a plausible default. This migration belongs to the first implementation phase, before the Linux-limit gate and figures.
+
+D-3's ceiling is attainable under current classifications, not an immutable platform ceiling. Publish each excluded kind separately. Proven and Total remain unchanged, and an unwalked RFC has no published ceiling.
+
+Documentation changes belong to the phase that changes the documented behavior; Phase 6 verifies their completeness rather than postponing those edits.
+
+### Audit correction
+
+The named `TestNoAnnotationExceptSinglePolarityMovesThePublishedShare` does not exist in the current site package. The site phase must add the public-share invariant proof rather than rely on automatic coverage of a new kind. This changes the test plan, not AC-10.
 
 ## Known Limitations
 - No reverse check that a `blocks` entry's listed requirement ids carry the annotation: annotating needs your approval per instance, so the gate cannot force it. `./le rfc check` can list such rows as candidates in its report; that is in scope only if D-2 lands as A or B.
