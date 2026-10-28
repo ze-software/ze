@@ -598,9 +598,10 @@ does (walked RFCs only, the rest counted apart), so a profile's link reads that
 profile's percentages. Every row of both tables carries the RFC's mandatory and
 optional bars, the figures its profile page shows, or "no profile" for an RFC
 no profile lists. The enrolled table uses short column names and a legend
-under its heading says what each counts, ending with the ceiling: every gap is
-owed work and none is recorded as impossible on Linux, so every RFC can reach
-100%. A page carries both coverage figures of its rollup and the not-walked
+under its heading says what each counts, ending with why a figure can stay
+below 100%: every gap is owed work and none is recorded as impossible on Linux,
+but a requirement that does not bind Ze, that a layer under Ze performs, or
+whose optional feature Ze does not offer stays in the denominator unproven. A page carries both coverage figures of its rollup and the not-walked
 count, then its RFCs grouped by DAG level, roots first, each with a bar for
 the mandatory and the optional figure. For a use case those are its required
 RFCs, the only tier its figures count. Its optional RFCs follow in a separate

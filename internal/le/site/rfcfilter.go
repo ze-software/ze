@@ -263,11 +263,17 @@ func rfcIndexLegend() [][2]string {
 	}
 }
 
-// rfcIndexCeiling says what a gap is. No requirement is recorded as one Linux
-// cannot provide, the one exception to full coverage the owner allows, so no
-// RFC's attainable figure is below 100%.
-const rfcIndexCeiling = "Every gap is work Ze owes. No requirement is recorded as impossible on Linux, " +
-	"so every RFC here can reach 100%."
+// rfcIndexCeiling says what a gap is and why a figure can stay below 100%
+// with no gap left. No requirement is recorded as one Linux cannot provide,
+// the one exception to full coverage the owner allows. A requirement that
+// does not bind Ze, that a layer under Ze performs, or whose optional feature
+// Ze does not offer stays in the figure's denominator and is never proven
+// (figuresByStem, internal/le/rfc/profilecoverage.go), so an RFC holding one
+// cannot read 100%.
+const rfcIndexCeiling = "Every gap is work Ze owes, and no requirement is recorded as impossible on Linux. " +
+	"A requirement that does not bind Ze, that a layer under Ze performs, or whose optional feature " +
+	"Ze does not offer still counts in the share but is never counted as proven, so an RFC with such " +
+	"requirements stays below 100% with nothing left to do."
 
 // rfcIndexLegendHTML renders the legend under the enrolled table's heading.
 func rfcIndexLegendHTML() string {
