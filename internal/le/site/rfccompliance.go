@@ -823,9 +823,11 @@ func rfcComplianceBody(snapshot *rfcCompliance, ledger rfcLedger) string {
 	body.Str("<section><h2>How this is checked</h2>\n").Str(rfcMechanismHTML(snapshot)).
 		Str("\n</section>\n")
 	body.Str("<section><h2>Check results</h2>\n").Str(rfcCheckHTML(snapshot.Gate)).Str("\n</section>\n")
-	body.Str("<section><h2>Enrolled RFCs</h2>\n").Str(rfcEnrolledIndexHTML(ledger)).Str("\n</section>\n")
+	body.Str(`<section id="`).Str(rfcListAnchor).Str(`"><h2>Enrolled RFCs</h2>`).Byte('\n').
+		Str(rfcFilterHTML).Str(rfcEnrolledIndexHTML(ledger)).Str("\n</section>\n")
 	body.Str("<section><h2>Summaries that are not enrolled</h2>\n").
 		Str(rfcDeclinedIndexHTML(ledger)).Str("\n</section>\n")
+	body.Str(rfcFilterScript)
 	body.Str("            </section>\n")
 	return body.String()
 }
@@ -2071,7 +2073,7 @@ func rfcEnrolledIndexHTML(ledger rfcLedger) string {
 	var body textbuf.Buffer
 	for index := range rows {
 		entry := rows[index]
-		body.Str(rfcRowCells(
+		body.Str(rfcStemRowCells(entry.Stem,
 			"<a href=\""+html.EscapeString(rfcStemHref(entry.Stem))+"\"><code>"+
 				html.EscapeString(entry.Display)+"</code></a> "+html.EscapeString(entry.Title),
 			html.EscapeString(rfcIndexStatus(entry)),
@@ -2098,7 +2100,7 @@ func rfcDeclinedIndexHTML(ledger rfcLedger) string {
 	var body textbuf.Buffer
 	for index := range rows {
 		entry := rows[index]
-		body.Str(rfcRowCells(
+		body.Str(rfcStemRowCells(entry.Stem,
 			"<a href=\""+html.EscapeString(rfcStemHref(entry.Stem))+"\"><code>"+
 				html.EscapeString(entry.Display)+"</code></a> "+html.EscapeString(entry.Title),
 			html.EscapeString(rfcIndexDispositionKind(entry)),

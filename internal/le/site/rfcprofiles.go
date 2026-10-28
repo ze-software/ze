@@ -545,7 +545,7 @@ func rfcProfilesIndexBody(profiles []*rfc.TreeReport) string {
 				`<a href="`+html.EscapeString(report.Profile)+`/">`+html.EscapeString(rfcProfileTitle(report))+"</a>",
 				rfcProfileRollupBarHTML(report.Rollup.Mandatory),
 				rfcProfileRollupBarHTML(report.Rollup.Optional),
-				strconv.Itoa(report.Rollup.RFCs), strconv.Itoa(report.Rollup.NotWalked),
+				`<a href="`+html.EscapeString(rfcProfileListHref(report))+`">`+strconv.Itoa(report.Rollup.RFCs)+"</a>", strconv.Itoa(report.Rollup.NotWalked),
 				rfcProfileComplete(report.Rollup)))
 		}
 		if rows.Len() == 0 {
@@ -570,7 +570,7 @@ func rfcProfilesIndexMirror(profiles []*rfc.TreeReport) string {
 			}
 			rows.Str(rfcMirrorRow("["+rfcMirrorCell(rfcProfileTitle(report))+"]("+report.Profile+"/)",
 				report.Rollup.Mandatory.String(), report.Rollup.Optional.String(),
-				strconv.Itoa(report.Rollup.RFCs), strconv.Itoa(report.Rollup.NotWalked),
+				"["+strconv.Itoa(report.Rollup.RFCs)+"]("+rfcProfileListHref(report)+")", strconv.Itoa(report.Rollup.NotWalked),
 				rfcProfileComplete(report.Rollup)))
 		}
 		if rows.Len() == 0 {

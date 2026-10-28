@@ -586,7 +586,11 @@ technology aggregate, and an index listing them with the release profiles
 first, then the other use cases, then the aggregates. Each index row carries
 both figures, the RFC and not-walked counts, and whether the mandatory
 register is complete, so a 100% bar beside an unwalked RFC cannot read as
-done. A page carries both coverage figures of its rollup and the not-walked
+done. A row's RFC count links to the compliance index with the profile's
+counted RFCs named in the link (`?profile=<name>&rfc=<stem>,<stem>#rfc-list`).
+There a script shows only those rows of the enrolled and not-enrolled tables,
+names any listed RFC with no summary, and offers a text filter by RFC number
+or title; without scripts every row stays visible. A page carries both coverage figures of its rollup and the not-walked
 count, then its RFCs grouped by DAG level, roots first, each with a bar for
 the mandatory and the optional figure. For a use case those are its required
 RFCs, the only tier its figures count. Its optional RFCs follow in a separate
@@ -610,6 +614,7 @@ profile no file under `rfc/profiles/` declares refuses the build. The homepage
 regression-prevention block and the Examples menu both link to the profile
 index.
 <!-- source: internal/le/site/rfcprofiles.go -- renderRFCProfiles, rfcProfileGroups, rfcProfileBarHTML, removeRetiredRFCProfilePages, rfcProfileUseCases, rfcProfileUseCasesKnown -->
+<!-- source: internal/le/site/rfcfilter.go -- rfcProfileListHref, rfcFilterHTML, rfcFilterScript -->
 
 One page per RFC sits under that route, one for every summary in `rfc/short/`,
 190 of them today. The compliance page itself is the index over them: two link tables, one for the

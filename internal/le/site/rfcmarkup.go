@@ -76,6 +76,12 @@ func rfcRowCells(cells ...string) string {
 	return out.String()
 }
 
+// rfcStemRowCells answers one table row of the RFC named by stem. The row
+// carries the stem, so the filter on the compliance index can select it.
+func rfcStemRowCells(stem string, cells ...string) string {
+	return `<tr data-rfc="` + html.EscapeString(stem) + `">` + strings.TrimPrefix(rfcRowCells(cells...), "<tr>")
+}
+
 // rfcMirrorRow answers one markdown row from cells that are already escaped for
 // a table.
 func rfcMirrorRow(cells ...string) string {

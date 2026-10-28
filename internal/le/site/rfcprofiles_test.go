@@ -2,6 +2,7 @@ package site
 
 import (
 	"encoding/json"
+	"html"
 	"os"
 	"path/filepath"
 	"slices"
@@ -282,5 +283,25 @@ func TestRFCProfilesRefuseAUseCaseLinkingAnUnknownProfile(t *testing.T) {
 	_, err := renderRFCProfilesWithUseCases(t, source)
 	if err == nil || !strings.Contains(err.Error(), `"no-such-profile"`) {
 		t.Fatalf("err = %v, want the refusal naming the unknown profile", err)
+	}
+}
+
+// TestRFCProfileCountLinksToItsRFCs proves each profile's RFC count on the
+// index links to the compliance index filtered to exactly the RFCs it counts,
+// in the page and in its mirror.
+// Method: render the fixture and look for the route-server link naming its
+// three required stems and not its optional one.
+func TestRFCProfileCountLinksToItsRFCs(t *testing.T) {
+	output, _ := renderRFCProfilesFixture(t, rfcProfilesFixtureLedger())
+	const href = "../?profile=route-server&rfc=rfc4271%2Crfc7947%2Crfc4762#" + rfcListAnchor
+	index := readRFCProfilePage(t, output, "", pageIndexFile)
+	if want := `<a href="` + html.EscapeString(href) + `">3</a>`; !strings.Contains(index, want) {
+		t.Errorf("index does not link the route-server RFC count as %s", want)
+	}
+	if strings.Contains(index, "rfc2918") {
+		t.Error("the RFC count link names the optional rfc2918, which the count does not count")
+	}
+	if mirror := readRFCProfilePage(t, output, "", "index.md"); !strings.Contains(mirror, "[3]("+href+")") {
+		t.Errorf("index mirror does not link the route-server RFC count:\n%s", mirror)
 	}
 }

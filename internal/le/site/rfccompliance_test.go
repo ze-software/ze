@@ -2028,3 +2028,26 @@ func TestThePublishedPageSaysWhoImplementsEachDocument(t *testing.T) {
 	}
 	t.Logf("%d summaries name an implementer beside Ze, each named on the page", delegated)
 }
+
+// TestTheComplianceIndexRowsCanBeFiltered proves every RFC row on the
+// compliance index carries its stem for the filter, and that the filter and
+// the anchor the profile index links to are on the page.
+// Method: render the two-stem ledger and look for each row's stem attribute.
+func TestTheComplianceIndexRowsCanBeFiltered(t *testing.T) {
+	ledger := twoStemLedger()
+	paths := rfcCompliancePathsWith(t, publishedRFCComplianceRef(t), ledger)
+	if _, err := renderRFCCompliance(paths); err != nil {
+		t.Fatal(err)
+	}
+	page := readArtifact(t, paths.Output, rfcComplianceDest)
+	for index := range ledger.Stems {
+		if stem := ledger.Stems[index].Stem; !strings.Contains(page, `<tr data-rfc="`+stem+`">`) {
+			t.Errorf("the row of %s carries no stem for the filter", stem)
+		}
+	}
+	for _, want := range []string{`<section id="` + rfcListAnchor + `">`, `id="rfc-filter-text"`, `params.get("rfc")`} {
+		if !strings.Contains(page, want) {
+			t.Errorf("the index carries no %s", want)
+		}
+	}
+}
