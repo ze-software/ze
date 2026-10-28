@@ -86,15 +86,15 @@ func TestReadNeighborFindsPermanentEntry(t *testing.T) {
 	if err != nil {
 		t.Fatalf("readNeighbor %s: %v", learned, err)
 	}
-	if entry.permanent {
-		t.Errorf("readNeighbor %s = permanent, want the reachable entry ze wrote read as replaceable", learned)
+	if entry.held {
+		t.Errorf("readNeighbor %s = held, want the reachable entry ze wrote read as replaceable", learned)
 	}
 	entry, err = readNeighbor("zedhcpn1", permanent)
 	if err != nil {
 		t.Fatalf("readNeighbor %s: %v", permanent, err)
 	}
-	if !entry.permanent || entry.hardware.String() != operatorMAC.String() {
-		t.Errorf("readNeighbor %s = %+v, want permanent with %s", permanent, entry, operatorMAC)
+	if !entry.held || entry.hardware.String() != operatorMAC.String() {
+		t.Errorf("readNeighbor %s = %+v, want the permanent entry held with %s", permanent, entry, operatorMAC)
 	}
 	noarp := netip.MustParseAddr("198.51.100.63")
 	noarpMAC := net.HardwareAddr{0x02, 0, 0x5e, 0x10, 0, 0x63}
@@ -111,7 +111,7 @@ func TestReadNeighborFindsPermanentEntry(t *testing.T) {
 	if err != nil {
 		t.Fatalf("readNeighbor %s: %v", noarp, err)
 	}
-	if !entry.permanent || entry.hardware.String() != noarpMAC.String() {
+	if !entry.held || entry.hardware.String() != noarpMAC.String() {
 		t.Errorf("readNeighbor %s = %+v, want the operator's noarp entry held with %s", noarp, entry, noarpMAC)
 	}
 	if _, err := readNeighbor("zedhcp-missing", permanent); err == nil {

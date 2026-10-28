@@ -285,15 +285,16 @@ func logExchange(log *slog.Logger, req, resp []byte, serverIPs []netip.Addr) {
 var neighborInstall = installNeighbor
 
 // neighborRead reads the entry an install would replace (a var so tests can
-// model an operator's permanent entry without a kernel table).
+// model a held entry without a kernel table).
 var neighborRead = readNeighbor
 
-// neighborEntry is what neighborRead found for one address. permanent false
-// means no entry, or one the kernel learned or ze wrote, which ze may
-// replace; hardware is set only when permanent is true.
+// neighborEntry is what neighborRead found for one address. held is true for
+// a PERMANENT or NOARP entry, which ze never replaces (neighborHeld); held
+// false means no entry, or one ARP learned or ze wrote, which ze may replace.
+// hardware is set only when held is true.
 type neighborEntry struct {
-	permanent bool
-	hardware  net.HardwareAddr
+	held     bool
+	hardware net.HardwareAddr
 }
 
 // replyDestination answers where resp goes, and first installs the neighbor
@@ -301,7 +302,7 @@ type neighborEntry struct {
 // for yiaddr, which the client does not hold yet, the neighbor ends FAILED and
 // the reply never leaves.
 //
-// An operator's PERMANENT entry for yiaddr is never replaced: when it names
+// A held entry for yiaddr (PERMANENT or NOARP) is never replaced: when it names
 // chaddr the unicast already reaches the client and nothing is written; when
 // it names another host a unicast would reach that host, so the reply is
 // broadcast. A table that cannot be read is broadcast too, because the write
@@ -319,12 +320,12 @@ func replyDestination(iface string, req, resp []byte, log *slog.Logger) *net.UDP
 			"interface", iface, "ip", yiaddr.String(), "mac", chaddr.String(), "error", err)
 		return broadcastReply()
 	}
-	if entry.permanent {
+	if entry.held {
 		if bytes.Equal(entry.hardware, chaddr) {
 			return dst
 		}
-		log.Info("dhcpserver: reply broadcast, a permanent neighbor entry names another hardware address",
-			"interface", iface, "ip", yiaddr.String(), "mac", chaddr.String(), "permanent-mac", entry.hardware.String())
+		log.Info("dhcpserver: reply broadcast, a permanent or noarp neighbor entry names another hardware address",
+			"interface", iface, "ip", yiaddr.String(), "mac", chaddr.String(), "held-mac", entry.hardware.String())
 		return broadcastReply()
 	}
 	// RFC 2131 Section 4.1: "If the BROADCAST bit is cleared to 0, the message

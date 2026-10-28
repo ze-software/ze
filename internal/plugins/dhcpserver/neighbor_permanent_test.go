@@ -39,8 +39,8 @@ func TestOfferKeepsPermanentNeighbor(t *testing.T) {
 		readErr   error
 		broadcast bool
 	}{
-		{"permanent entry for another MAC", neighborEntry{permanent: true, hardware: other}, nil, true},
-		{"permanent entry for chaddr", neighborEntry{permanent: true, hardware: mac}, nil, false},
+		{"permanent entry for another MAC", neighborEntry{held: true, hardware: other}, nil, true},
+		{"permanent entry for chaddr", neighborEntry{held: true, hardware: mac}, nil, false},
 		{"unreadable table", neighborEntry{}, errors.New("netlink dump refused"), true},
 	}
 	for _, tc := range cases {

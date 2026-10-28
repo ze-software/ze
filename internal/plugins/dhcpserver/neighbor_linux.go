@@ -39,11 +39,14 @@ func installNeighbor(iface string, addr netip.Addr, hardware net.HardwareAddr) e
 }
 
 // readNeighbor reports whether the interface named iface holds a PERMANENT
-// or NOARP IPv4 neighbor entry for addr, and its hardware address. Only an
-// operator writes such an entry (ip neigh add ... nud permanent, or nud
-// noarp), and NeighSet would replace it with ze's reachable one, so the
-// caller reads it first (operatorHeld). An entry in any other state is the
-// kernel's or ze's own and reads as not permanent. Safe for concurrent use: each call is one netlink dump.
+// or NOARP IPv4 neighbor entry for addr, and its hardware address. Neither is
+// learned by ARP: an operator writes PERMANENT (ip neigh add ... nud
+// permanent), and NOARP comes from an operator (nud noarp) or from the kernel
+// itself, for a multicast or broadcast address and for every entry on a
+// device that does no ARP. NeighSet would replace either with ze's reachable
+// one, so the caller reads it first and such an entry reads as held
+// (neighborHeld). An entry in any other state is ARP's or ze's own and reads
+// as not held. Safe for concurrent use: each call is one netlink dump.
 func readNeighbor(iface string, addr netip.Addr) (neighborEntry, error) {
 	link, err := netlink.LinkByName(iface)
 	if err != nil {
@@ -61,18 +64,20 @@ func readNeighbor(iface string, addr netip.Addr) (neighborEntry, error) {
 		if ip.Unmap() != addr {
 			continue
 		}
-		if !operatorHeld(neighbors[i].State) {
+		if !neighborHeld(neighbors[i].State) {
 			continue
 		}
-		return neighborEntry{permanent: true, hardware: neighbors[i].HardwareAddr}, nil
+		return neighborEntry{held: true, hardware: neighbors[i].HardwareAddr}, nil
 	}
 	return neighborEntry{}, nil
 }
 
-// operatorHeld reports whether a neighbor entry in state is one an operator
-// wrote and NeighSet must not replace: NUD_PERMANENT (ip neigh ... nud
-// permanent) or NUD_NOARP (nud noarp). The kernel ages neither and never
-// resolves either, so both are configuration, not learned state.
-func operatorHeld(state int) bool {
+// neighborHeld reports whether a neighbor entry in state is one NeighSet must
+// not replace: NUD_PERMANENT, which an operator writes, or NUD_NOARP, which an
+// operator writes or the kernel creates for a multicast or broadcast address
+// and on a device that does no ARP. The kernel neither ages nor resolves
+// either by ARP, so neither is state ze may overwrite with what it learned
+// from a DHCP request.
+func neighborHeld(state int) bool {
 	return state&(netlink.NUD_PERMANENT|netlink.NUD_NOARP) != 0
 }

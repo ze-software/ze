@@ -10,12 +10,13 @@ import (
 	"github.com/vishvananda/netlink"
 )
 
-// TestOperatorHeldNeighborStates proves readNeighbor's state test keeps both
-// entries only an operator writes, PERMANENT and NOARP, and lets ze replace
-// every state the kernel or ze itself produces. Method: ask operatorHeld for
-// each NUD state netlink names.
-// PREVENTS: a DHCP reply overwriting an operator's nud noarp entry with ze's
-// reachable one.
+// TestOperatorHeldNeighborStates proves readNeighbor's state test keeps the two
+// states ARP never learns, PERMANENT (an operator's) and NOARP (an
+// operator's, or the kernel's for a multicast or broadcast address and on a
+// device that does no ARP), and lets ze replace every state ARP or ze itself
+// produces. Method: ask neighborHeld for each NUD state netlink names.
+// PREVENTS: a DHCP reply overwriting a nud noarp entry with ze's reachable
+// one.
 func TestOperatorHeldNeighborStates(t *testing.T) {
 	cases := []struct {
 		name  string
@@ -33,8 +34,8 @@ func TestOperatorHeldNeighborStates(t *testing.T) {
 		{"NONE", netlink.NUD_NONE, false},
 	}
 	for _, c := range cases {
-		if got := operatorHeld(c.state); got != c.want {
-			t.Errorf("operatorHeld(%s) = %v, want %v", c.name, got, c.want)
+		if got := neighborHeld(c.state); got != c.want {
+			t.Errorf("neighborHeld(%s) = %v, want %v", c.name, got, c.want)
 		}
 	}
 }
