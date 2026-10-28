@@ -1,0 +1,50 @@
+# Test: the l2tp RADIUS CoA leaf is coa-require-message-authenticator, and the
+#       old radius-level require-message-authenticator spelling is refused.
+# VALIDATES: spec-radius-blastradius-message-authenticator AC-17 (YANG half).
+#            require-message-authenticator now lives on each server entry and
+#            decides whether that server's unsigned Access answers are accepted;
+#            the radius-level leaf that governed the CoA listener was renamed so
+#            the two meanings never share a name.
+# PREVENTS:  a config written for the old CoA leaf loading silently under a
+#            name that now means something else.
+#
+# The accepted counterpart is validated second, with the per-server leaf set,
+# so this test fails if the refusal ever widens into "radius block rejected".
+stdin=old:terminator=EOF_OLD
+l2tp {
+    enabled true;
+    auth {
+        radius {
+            require-message-authenticator true;
+            server main {
+                address 127.0.0.1;
+                shared-key testing123;
+            }
+        }
+    }
+}
+EOF_OLD
+
+stdin=new:terminator=EOF_NEW
+l2tp {
+    enabled true;
+    auth {
+        radius {
+            coa-require-message-authenticator true;
+            server main {
+                address 127.0.0.1;
+                shared-key testing123;
+                require-message-authenticator false;
+            }
+        }
+    }
+}
+EOF_NEW
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=old
+expect=exit:code=1
+# The needles carry no ':' because the directive splits on it.
+expect=stdout:contains=unknown field in radius
+expect=stdout:contains=did you mean coa-require-message-authenticator
+cmd=foreground:seq=2:exec=ze config validate -:stdin=new
+expect=exit:code=0

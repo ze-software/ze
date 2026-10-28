@@ -47,6 +47,11 @@ const (
 	relayModePass  = "pass"
 	relayModeStrip = "strip"
 
+	// The states unsigned-relay.pl's rewrite reports for an attribute.
+	relayPresent  = "present"
+	relayAbsent   = "absent"
+	relayStripped = "stripped"
+
 	// relayListening is the line the relay writes once its socket is bound.
 	relayListening = "listening port=" + relayPort
 
@@ -96,7 +101,7 @@ func checkEAPUnsigned(ctx context.Context, lab *scenarioLab) error {
 	if err := lab.assertServerRecord(ctx, wantRecord(verdictAccept, radiusUser, eapShape)); err != nil {
 		return fmt.Errorf("assertion 3: %w", err)
 	}
-	if err := lab.assertRelayed(ctx, relayModePass, relayAccessAccept, "present"); err != nil {
+	if err := lab.assertRelayed(ctx, relayModePass, relayAccessAccept, relayPresent, relayPresent); err != nil {
 		return fmt.Errorf("assertion 4: %w", err)
 	}
 	discards, err := lab.readUnsignedDiscards(ctx)
@@ -126,7 +131,7 @@ func checkEAPUnsigned(ctx context.Context, lab *scenarioLab) error {
 		return fmt.Errorf("assertion 6: ze completed an EAP login for %s through answers whose Message-Authenticator the relay removed; RFC 3579 Section 3.1 discards them: %s",
 			radiusUser, result.Output)
 	}
-	if err := lab.assertRelayed(ctx, relayModeStrip, relayAccessChallenge, "stripped"); err != nil {
+	if err := lab.assertRelayed(ctx, relayModeStrip, relayAccessChallenge, relayPresent, relayStripped); err != nil {
 		return fmt.Errorf("assertion 7: %w", err)
 	}
 	if err := lab.assertUnsignedDiscardLogged(ctx); err != nil {
@@ -185,13 +190,14 @@ func (l *scenarioLab) readRelayLog(ctx context.Context) (string, error) {
 }
 
 // assertRelayed waits for the relay's record of an answer it carried in mode,
-// with the server's code, an EAP-Message, and the Message-Authenticator in the
-// named state. It is the server-side evidence that FreeRADIUS answered and
-// what reached ze.
-func (l *scenarioLab) assertRelayed(ctx context.Context, mode string, code int, signature string) error {
+// with the server's code, the EAP-Message and the Message-Authenticator each in
+// the named state (relayPresent, relayAbsent or relayStripped, the words
+// unsigned-relay.pl writes). It is the server-side evidence that FreeRADIUS
+// answered and what reached ze.
+func (l *scenarioLab) assertRelayed(ctx context.Context, mode string, code int, eap, signature string) error {
 	var tb textbuf.Buffer
 	want := tb.Str("relayed mode=").Str(mode).Str(" code=").Int(int64(code)).String()
-	tail := tb.Reset().Str("eap-message=present message-authenticator=").Str(signature).String()
+	tail := tb.Reset().Str("eap-message=").Str(eap).Str(" message-authenticator=").Str(signature).String()
 	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
 		Timeout:     l.timeout,
 		Interval:    time.Second,

@@ -1090,6 +1090,26 @@ same value as `port`.
 <!-- source: internal/component/l2tp/plugins/authradius/yang/ze-l2tp-auth-radius-conf.yang -- leaf accounting-port -->
 <!-- source: internal/component/l2tp/plugins/authradius/config.go -- parseConfigFromTree -->
 
+### RADIUS answer signing (BlastRADIUS)
+
+Ze puts a Message-Authenticator first in every Access-Request it sends, on the
+admin login path and the subscriber path alike, and no leaf turns that off
+(draft-ietf-radext-deprecating-radius-10 Section 4.2). What a server row
+decides is whether an UNSIGNED answer from that server is accepted.
+
+| Leaf | Where | Default | Description |
+|------|-------|---------|-------------|
+| `require-message-authenticator` | each `server` under `system authentication radius` and under `l2tp auth radius` | true | Discard an Access-Accept, Access-Reject, Access-Challenge or Protocol-Error from this server that carries no Message-Authenticator, before its Response Authenticator is checked (Section 4.6). Set it false only for a server that cannot sign its answers |
+| `coa-require-message-authenticator` | `l2tp auth radius` | false | Discard a CoA-Request or Disconnect-Request that carries no Message-Authenticator. This leaf was `require-message-authenticator` at the same level; the old spelling is refused |
+
+Each discard steps `ze_radius_unsigned_response_discards_total{server}` and
+logs a rate-limited warning naming the server and the leaf. `ze doctor` reports
+a server that answers only unsigned (`doctor-radius-admin-unsigned-response`,
+`doctor-radius-unsigned-response`).
+<!-- source: internal/component/radius/yang/ze-radius-conf.yang -- leaf require-message-authenticator -->
+<!-- source: internal/component/l2tp/plugins/authradius/yang/ze-l2tp-auth-radius-conf.yang -- leaf require-message-authenticator, leaf coa-require-message-authenticator -->
+<!-- source: internal/component/radius/client.go -- dispatchResponse, discardUnsignedResponse -->
+
 ## Removed Syntax
 
 | Form | State |

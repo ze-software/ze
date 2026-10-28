@@ -2065,9 +2065,17 @@ than one request.
 | `radius-admin-chap-freeradius` | The same, with `auth-method chap` against a `Cleartext-Password` entry | `verdict=accept` with a CHAP-Password present and NO User-Password beside it, which is what RFC 2865 Section 4.1 demands of an Access-Request |
 | `radius-admin-chap-hashed-freeradius` | The CHAP login is REFUSED, and ze authenticates the user through no backend at all | A `radclient` probe first proves the same entry accepts the same password over PAP, then `verdict=reject` for the CHAP request |
 | `radius-admin-eap-freeradius` | The same, with `auth-method eap-mschapv2`. Ze answers the EAP conversation itself from the operator's password, Naks the server's MD5-Challenge toward MSCHAPv2, and returns the State on every later round | `verdict=state-echo` for at least one round carrying the State the server issued, then `verdict=accept`, both with an EAP-Message present and NEITHER password attribute beside it |
-| `radius-admin-eap-unsigned-freeradius` | The EAP login through the relay twice. With the relay passing the answers, the login completes and `ze_radius_unsigned_eap_discards_total` reads 0. With the relay removing the Message-Authenticator, the login fails, ze logs `radius: discarding the answer` with the RFC 3579 Section 3.1 reason, and the counter is above 0 | `verdict=state-echo` and `verdict=accept` for the passed login. The relay's own log records each answer it carried: an Access-Accept with the signature `present`, then an Access-Challenge with an EAP-Message and the signature `stripped` |
+| `radius-admin-eap-unsigned-freeradius` | On a server row with `require-message-authenticator false`, so the BlastRADIUS presence check stays out of the way and the RFC 3579 check is the one that runs: the EAP login through the relay twice. With the relay passing the answers, the login completes and `ze_radius_unsigned_eap_discards_total` reads 0. With the relay removing the Message-Authenticator, the login fails, ze logs `radius: discarding the answer` with the RFC 3579 Section 3.1 reason, and the counter is above 0 | `verdict=state-echo` and `verdict=accept` for the passed login. The relay's own log records each answer it carried: an Access-Accept with the signature `present`, then an Access-Challenge with an EAP-Message and the signature `stripped` |
+| `radius-admin-pap-unsigned-freeradius` | BlastRADIUS (CVE-2024-3596) on a default server row: the PAP login through the relay twice. With the relay passing the signed Access-Accept, the login completes. With the relay removing its Message-Authenticator, the login fails, ze logs `radius: discarding an answer without Message-Authenticator`, `ze_radius_unsigned_response_discards_total` is above 0, and the RADIUS login count does not move | `verdict=accept` for both requests: the server accepted, and only ze refused. The relay records an Access-Accept with no EAP-Message and the signature `present`, then the same with the signature `stripped` |
+| `radius-admin-pap-unsigned-legacy-freeradius` | The same stripped Access-Accept on a server row with `require-message-authenticator false`: the login completes with `source=radius`, and ze logs no BlastRADIUS discard | `verdict=accept`, and the relay records the Access-Accept it carried with the signature `stripped`, so the login cannot have ridden a signed answer |
 
-The unsigned scenario needs an answer FreeRADIUS will not send. RFC 3579
+Both lab `clients.conf` files set `require_message_authenticator = yes`, so
+FreeRADIUS discards any Access-Request without a valid Message-Authenticator.
+Ze signs every Access-Request (draft-ietf-radext-deprecating-radius-10 Section
+4.2), so every scenario in this suite and in the subscriber suite also proves
+that FreeRADIUS verifies the signature ze computed.
+
+The unsigned scenarios need an answer FreeRADIUS will not send. RFC 3579
 Section 3.1:
 
 > Access-Challenge, Access-Accept, or Access-Reject packets including
@@ -2127,6 +2135,7 @@ as evidence.
 <!-- source: internal/le/interoplab/radius/checkers.go -- every observation, on ze's side and on the server's -->
 <!-- source: test/interop-radius/mods-ze-request-log -- the linelog module the server's record comes from -->
 <!-- source: internal/le/interoplab/radius/check_unsigned_eap.go -- checkEAPUnsigned, startRelay, unsignedDiscardCount -->
+<!-- source: internal/le/interoplab/radius/check_unsigned_accept.go -- checkPAPUnsigned, checkPAPUnsignedLegacy, labeledCounterSum -->
 <!-- source: test/interop-radius/unsigned-relay.pl -- the relay that removes the server's Message-Authenticator -->
 
 ### The FreeRADIUS subscriber suite
@@ -2187,6 +2196,20 @@ logs. This keeps the checker's CHAP-refusal observation connected to the peer.
 <!-- source: test/interop-radius-subscriber/ppp-options -- logfd -->
 <!-- source: internal/le/interoplab/radiussubscriber/check_coa_disconnect.go -- checkCoADisconnect -->
 <!-- source: internal/le/interoplab/radiussubscriber/check_framed_protocol.go -- configureFramedServerPeer, checkFramedReject, setFramedProtocol -->
+
+### Independent TFTP duplicate-ACK recovery
+
+The Linux, Docker-tagged `TestTFTPCurlDuplicateACKInterop` uses digest-pinned
+curl 8.23.0 through `labtest.Run` against Ze's production TFTP handlers.
+A bounded UDP relay drops DATA 2 and replays curl's previous ACK 1. It requires
+no immediate DATA response, timeout recovery and an exact 1,500-byte download.
+Linux receive timestamps distinguish timeout recovery from an immediate
+duplicate that sat unread in a socket queue; missing timestamps or an ACK replay
+outside the fault window refuse the run. The relay neither constructs client
+requests nor generates acknowledgments.
+The new carrier still owes green and forced-red execution evidence.
+<!-- source: internal/plugins/tftpserver/tftp_curl_docker_test.go -- TestTFTPCurlDuplicateACKInterop, curlTFTPRelay.transfer -->
+
 
 ### The freeRouter RSVP-TE suite
 
@@ -2736,6 +2759,13 @@ preserves LSAs and routes during prepared shutdown, and
 [`daemon_down`, `wakeup_down`, and `try_restart`](https://github.com/FRRouting/frr/blob/frr-10.7.1/watchfrr/watchfrr.c)
 drive the supervised restart.
 <!-- source: internal/le/interoplab/bgp/check_extras.go -- scenarioExtras, ospfGRSignalPrepared, ospfGRReplacementNeighbor -->
+
+`ospf-sr-frr` and `ospfv3-sr-frr` read the kernel label table with the installed
+iproute2 command `ip -f mpls route show 16100`, not the absent `mpls -ls`
+utility. The destination filter selects label 16100; the existing content
+assertion still requires that label, so an empty successful query fails.
+Their 60-second label deadlines and adjacency assertions are unchanged.
+<!-- source: internal/le/interoplab/bgp/check_extras.go -- scenarioExtras -->
 
 `ospf-sr-anycast-nexthop-frr` proves RFC 8665 Section 5's rule that a router
 "MUST take into account ... the E-, NP-, and M-Flags advertised by the next-hop
