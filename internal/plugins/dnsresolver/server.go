@@ -112,11 +112,16 @@ type resolverServer struct {
 // TCPConnMax bounds the TCP connections each listener holds, whoever opens
 // them: the ACL is checked per query, after the connection is accepted, so
 // without the cap a source outside the ACL could still hold descriptors.
+//
+// OnListenerChange records each bind and unbind edge, a crashed listener's
+// included, in res.listeners, which show dns-resolver and
+// ze_dns_resolver_listener_up read.
 func newResolverServer(log *slog.Logger, res *resolver) *resolverServer {
 	return &resolverServer{mgr: dnsserver.New(log, recursiveHandler(log, res), dnsserver.Options{
-		UDPSize:    dnsserver.RecursiveUDPSize,
-		Freebind:   true,
-		TCPConnMax: resolverTCPConnMax,
+		UDPSize:          dnsserver.RecursiveUDPSize,
+		Freebind:         true,
+		TCPConnMax:       resolverTCPConnMax,
+		OnListenerChange: res.listeners.change,
 	})}
 }
 

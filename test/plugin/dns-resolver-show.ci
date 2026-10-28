@@ -17,8 +17,10 @@
 #
 # DISCRIMINATION: (1) the same file with `cache { size 0 }` goes red: seq=6
 # reports no hit and no entry. (2) A clear that empties nothing (a temporary
-# no-op clearCaches) goes red: seq=8 still counts the entry, seq=9 is answered
+# no-op clearCaches) goes red: seq=9 still counts the entry, seq=10 is answered
 # from the cache, and the mock logs cached.example.test once.
+# (3) Without the OnListenerChange wiring in newResolverServer the listener
+# state reads "unknown", and seq=6 goes red on "udp": "up".
 #
 # No cmd= line carries `:timeout=`: a foreground command's timeout replaces
 # option=timeout as the budget of the whole test (resolveOrchestratedTimeout,
@@ -72,7 +74,7 @@ EOF_CONF
 cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
 cmd=background:seq=2:exec=le mock dns --port $PORT2 --log-queries
 # A background span runs to the end of the test, so this reads the lines seq=4
-# and seq=9 caused: two questions, one before the clear and one after it. The
+# and seq=10 caused: two questions, one before the clear and one after it. The
 # '.' after "dns" stands for the colon, which a needle cannot hold.
 expect=stderr:pattern=(?s)mock dns. query cached\.example\.test\. A.*mock dns. query cached\.example\.test\. A
 cmd=background:seq=3:exec=ze start running.conf:name=daemon:ready=Ze running.
@@ -95,17 +97,25 @@ expect=stdout:contains="cache-hits": 1
 expect=stdout:contains="cache-misses": 1
 expect=stdout:contains="queries": 2
 expect=stdout:contains="refused-acl": 0
+expect=stdout:contains="udp": "up"
+expect=stdout:contains="tcp": "up"
 
-cmd=foreground:seq=7:exec=ze cli -c "clear dns-resolver cache all | json":exit=0
+# The bare form names no target: it exits 1 listing the one target, all, and
+# clears nothing, so seq=8 still finds the one entry.
+cmd=foreground:seq=7:exec=ze clear dns-resolver cache:exit=1
+expect=stderr:contains=clear dns-resolver cache subcommands:
+expect=stderr:pattern=\n  all +\S
+
+cmd=foreground:seq=8:exec=ze cli -c "clear dns-resolver cache all | json":exit=0
 expect=stdout:contains="cleared-answer": 1
 
-cmd=foreground:seq=8:exec=ze cli -c "show dns-resolver | json":exit=0
+cmd=foreground:seq=9:exec=ze cli -c "show dns-resolver | json":exit=0
 expect=stdout:contains="cache-answer-entries": 0
 
 # After the clear the question goes upstream again: the mock's second line.
-cmd=foreground:seq=9:exec=le dns query --server 127.0.0.1:$PORT --name cached.example.test --type A --rd
+cmd=foreground:seq=10:exec=le dns query --server 127.0.0.1:$PORT --name cached.example.test --type A --rd
 expect=stdout:contains=203.0.113.20
 
 # One question before the clear and one after, never a third.
 reject=stderr:pattern=(?s)(mock dns. query cached\.example\.test\. A.*){3}
-cmd=stop:seq=10:name=daemon:signal=term
+cmd=stop:seq=11:name=daemon:signal=term

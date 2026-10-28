@@ -71,6 +71,13 @@ func replyMatches(query, r *dns.Msg) bool {
 	return strings.EqualFold(got.Name, want.Name)
 }
 
+// The two DNS transports, as net names them: the network of an exchange and
+// the protocol of a listener edge.
+const (
+	networkUDP = "udp"
+	networkTCP = "tcp"
+)
+
 // exchange sends query to up over network ("udp" or "tcp") and returns the
 // first reply that matches it, before deadline.
 //
@@ -109,7 +116,7 @@ func exchange(network string, up netip.AddrPort, query *dns.Msg, deadline time.T
 			if errors.As(err, &ne) && ne.Timeout() {
 				return nil, errUpstreamTimeout
 			}
-			if network != "udp" {
+			if network != networkUDP {
 				return nil, err
 			}
 			if errors.As(err, &ne) {
@@ -121,7 +128,7 @@ func exchange(network string, up netip.AddrPort, query *dns.Msg, deadline time.T
 		if replyMatches(query, r) {
 			return r, nil
 		}
-		if network != "udp" {
+		if network != networkUDP {
 			return nil, errReplyMismatch
 		}
 	}

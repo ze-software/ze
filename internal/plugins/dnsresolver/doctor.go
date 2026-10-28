@@ -135,14 +135,14 @@ func probeBindable(endpoint netip.AddrPort) error {
 	addr := endpoint.String()
 	var lc net.ListenConfig
 	ctx := context.Background()
-	pc, err := lc.ListenPacket(ctx, "udp", addr)
+	pc, err := lc.ListenPacket(ctx, networkUDP, addr)
 	if err != nil {
 		return err
 	}
 	if cerr := pc.Close(); cerr != nil {
 		loggerPtr.Load().Debug("dns-resolver: close udp port probe", "error", cerr)
 	}
-	ln, err := lc.Listen(ctx, "tcp", addr)
+	ln, err := lc.Listen(ctx, networkTCP, addr)
 	if err != nil {
 		return err
 	}
@@ -200,6 +200,6 @@ func upstreamDiagnostics(forward []upstream, timeout time.Duration) []rpc.Doctor
 // the error when no matching reply came back within timeout.
 func probeUpstream(up netip.AddrPort, timeout time.Duration) error {
 	query := upstreamQuery(dns.Question{Name: ".", Qtype: dns.TypeNS, Qclass: dns.ClassINET}, dns.Id())
-	_, err := exchange("udp", up, query, time.Now().Add(timeout))
+	_, err := exchange(networkUDP, up, query, time.Now().Add(timeout))
 	return err
 }

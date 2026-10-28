@@ -5,6 +5,7 @@ package dnsresolver
 
 import (
 	"errors"
+	"net/netip"
 
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
@@ -54,7 +55,7 @@ func (r *resolver) show() plugin.Map {
 	cfg := r.shown.Load()
 	listeners := make([]plugin.Map, 0, len(cfg.Listeners))
 	for _, l := range cfg.Listeners {
-		listeners = append(listeners, plugin.Map{"name": l.Name, "ip": l.IP.String(), "port": l.Port})
+		listeners = append(listeners, plugin.Map{"name": l.Name, "ip": l.IP.String(), "port": l.Port, "state": r.listeners.show(netip.AddrPortFrom(l.IP, l.Port))})
 	}
 	upstreams := make([]string, 0, len(pol.forward))
 	for _, u := range pol.forward {

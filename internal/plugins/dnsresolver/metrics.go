@@ -94,6 +94,7 @@ type resolverMetrics struct {
 	cacheEntries  metrics.GaugeVec // cache
 	cacheHits     metrics.Counter
 	upstreamQuery metrics.CounterVec // result
+	listenerUp    metrics.GaugeVec   // protocol, address
 }
 
 var metricsPtr atomic.Pointer[resolverMetrics]
@@ -108,6 +109,7 @@ func buildMetrics(reg metrics.Registry) *resolverMetrics {
 		cacheEntries:  reg.GaugeVec("ze_dns_resolver_cache_entries", "Entries held, by cache: answer or negative.", []string{"cache"}),
 		cacheHits:     reg.Counter("ze_dns_resolver_cache_hits_total", "Queries answered from the cache."),
 		upstreamQuery: reg.CounterVec("ze_dns_resolver_upstream_queries_total", "Upstream exchanges, by result.", []string{"result"}),
+		listenerUp:    reg.GaugeVec("ze_dns_resolver_listener_up", "1 while a listener socket is bound, by protocol and listen address.", []string{"protocol", "address"}),
 	}
 }
 

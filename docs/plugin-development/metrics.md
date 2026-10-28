@@ -233,6 +233,7 @@ Use labels for runtime dimensions. Never encode variable data in metric names.
 | `ze_dns_resolver_cache_entries` | GaugeVec | cache | dnsresolver: entries in the `answer` and `negative` caches |
 | `ze_dns_resolver_cache_hits_total` | Counter | | dnsresolver: one per query answered from the cache |
 | `ze_dns_resolver_upstream_queries_total` | CounterVec | result | dnsresolver: one per upstream exchange, `answered`, `timeout`, `error`, `failure` or `truncated` |
+| `ze_dns_resolver_listener_up` | GaugeVec | protocol, address | dnsresolver: 1 while a listener socket is bound, by protocol and address with port |
 | `ze_dns_tcp_connection_refused_total` | Counter | | DNS server harness: one per TCP connection closed at accept because its listener held `Options.TCPConnMax` (the LAN resolver sets it) |
 
 The three iface link-event counters answer the same question from different

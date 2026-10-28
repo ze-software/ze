@@ -151,7 +151,7 @@ func (r *resolver) forward(pol *policy, b *budget, q dns.Question) (*dns.Msg, bo
 		addr := up.addrPort()
 		attemptEnd := time.Now().Add(left / time.Duration(len(pol.forward)-i))
 		query := upstreamQuery(q, dns.Id())
-		reply, err := exchange("udp", addr, query, attemptEnd)
+		reply, err := exchange(networkUDP, addr, query, attemptEnd)
 		if err == nil && reply.Truncated {
 			// RFC 1035 Section 4.2.1: "Messages carried by UDP are restricted
 			// to 512 bytes (not counting the IP or UDP headers).  Longer
@@ -161,7 +161,7 @@ func (r *resolver) forward(pol *policy, b *budget, q dns.Question) (*dns.Msg, bo
 				return nil, false
 			}
 			query = upstreamQuery(q, dns.Id())
-			reply, err = exchange("tcp", addr, query, attemptEnd)
+			reply, err = exchange(networkTCP, addr, query, attemptEnd)
 		}
 		if err != nil {
 			if err == errUpstreamTimeout { //nolint:errorlint // exchange returns the sentinel itself

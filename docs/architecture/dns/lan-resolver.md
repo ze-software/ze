@@ -271,14 +271,19 @@ running config again or restarts the plugin.
 ## Show and clear
 
 `show dns-resolver` reads the published policy, the applied config and the
-counters, which are the state the query path reads. `clear dns-resolver cache
+counters, which are the state the query path reads. Each listener also
+carries its `state`, one entry per transport (`udp`, `tcp`): `up` or `down` from
+the harness's `OnListenerChange` edges, a crash included, keyed by address and
+port, and `unknown` before the first edge. `clear dns-resolver cache
 all` empties both caches and keeps the counters. The bare
 `clear dns-resolver cache` has no handler, so a word typed by mistake never
 empties the cache. Both RPCs are owned by the plugin (`ze-dnsresolver:*`).
 
 <!-- source: internal/plugins/dnsresolver/show.go -- handleShowDNSResolver, handleClearDNSResolverCache, resolver.show -->
 <!-- source: internal/plugins/dnsresolver/yang/ze-dns-resolver-cmd.yang -- show and clear command tree -->
+<!-- source: internal/plugins/dnsresolver/listener_state.go -- listenerStates -->
 <!-- test: internal/plugins/dnsresolver/show_test.go -- TestShowAndClear -->
+<!-- test: internal/plugins/dnsresolver/listener_state_test.go -- TestListenerStateByPort -->
 
 ## Doctor
 
@@ -318,6 +323,7 @@ any reply counts, whatever its RCODE.
 | `ze_dns_resolver_cache_entries` | GaugeVec | cache | entries held: `answer` or `negative`, published by the sweeper and by a clear |
 | `ze_dns_resolver_cache_hits_total` | Counter | | queries answered from the cache |
 | `ze_dns_resolver_upstream_queries_total` | CounterVec | result | upstream exchanges: `answered`, `timeout`, `error`, `failure` (an RCODE other than NOERROR or NXDOMAIN), `truncated` (TC set, asked again over TCP) |
+| `ze_dns_resolver_listener_up` | GaugeVec | protocol, address | 1 while a listener socket is bound, 0 once it is unbound or crashed; `address` is the IP and port (`127.0.0.1:53`), so two listeners on one IP are two series |
 
 A dropped query gets no reply and is not counted in
 `ze_dns_resolver_queries_total`. No label carries a client address or a queried

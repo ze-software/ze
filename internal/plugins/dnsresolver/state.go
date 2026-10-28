@@ -69,6 +69,7 @@ type resolver struct {
 	flights   flightTable
 	limits    limiter
 	stats     resolverStats
+	listeners listenerStates // which listener sockets are bound, for show and the gauge
 	now       func() time.Time
 
 	quit chan struct{}

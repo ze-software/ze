@@ -137,7 +137,9 @@ ze show dns-resolver                   # Config in force, cache sizes and hit ra
 ze clear dns-resolver cache all        # Empty the answer and the negative cache
 ```
 
-`show dns-resolver` reports `enabled`, `mode`, `listeners`, the `allow-from`
+`show dns-resolver` reports `enabled`, `mode`, `listeners` (each with its
+`state`: `udp` and `tcp`, each `up`, `down`, or `unknown` until the listener
+has been bound once), the `allow-from`
 prefix count, `upstreams`, `timeout-seconds`, the limits, `outstanding`, the
 cache bounds and entry counts, `cache-hits`, `cache-misses`,
 `cache-hit-rate`, `queries`, `coalesced`, `refused-acl`, `refused-rd-clear`,
@@ -146,7 +148,7 @@ not running it reports `running false`.
 
 `clear dns-resolver cache all` reports how many entries it removed from each
 cache and keeps the counters. `clear dns-resolver cache` alone does nothing:
-you must type `all`.
+it exits 1 and lists `all`, the word you must type.
 
 <!-- source: internal/plugins/dnsresolver/show.go -- resolver.show, handleClearDNSResolverCache -->
 <!-- source: internal/plugins/dnsresolver/yang/ze-dns-resolver-cmd.yang -- show and clear command tree -->
@@ -171,7 +173,10 @@ gateway is ready before the first subscriber connects.
 
 The `ze_dns_resolver_*` series count queries by transport and RCODE,
 refusals by reason, rate-limited and dropped queries, cache hits and entries,
-resolutions in progress and upstream exchanges by result. The list is in
+resolutions in progress and upstream exchanges by result.
+`ze_dns_resolver_listener_up` is 1 while a listener socket is bound, by protocol
+and address with port. The list is in
 [Plugin Metrics](../plugin-development/metrics.md#full-inventory).
 
 <!-- source: internal/plugins/dnsresolver/metrics.go -- buildMetrics -->
+<!-- source: internal/plugins/dnsresolver/listener_state.go -- listenerStates.change, listenerStates.show -->
