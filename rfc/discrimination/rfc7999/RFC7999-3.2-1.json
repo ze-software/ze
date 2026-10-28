@@ -7,8 +7,8 @@
     "claim-sha": "f158f7dc2652efa8",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/filter_community/blackhole.go::blackholePropagationGuard",
-    "producer-sha": "cc1100954b43612f",
-    "break": "body of blackholePropagationGuard replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "08a807e5b8cf5494",
+    "break": "body of blackholePropagationGuard replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC7999-3.2-1",
@@ -18,7 +18,7 @@
     "claim-sha": "87b450841a5f4911",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/filter_community/blackhole.go::blackholePropagationGuard",
-    "producer-sha": "cc1100954b43612f",
-    "break": "body of blackholePropagationGuard replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "08a807e5b8cf5494",
+    "break": "body of blackholePropagationGuard replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]
