@@ -29,6 +29,10 @@ type ListenerEndpoint struct {
 	Protocol string // ProtocolTCP or ProtocolUDP
 	IP       net.IP // Parsed IP address; nil or unspecified means wildcard
 	Port     uint16 // Listening port number
+	// Freebind is set when the service binds with IP_FREEBIND
+	// (RegisterListenerFreebind), so its address may be absent from the host
+	// and still bind.
+	Freebind bool
 }
 
 // ListenerService describes one ze:listener service the YANG schema declares: its
@@ -263,6 +267,39 @@ func listenerProtocolsFor(serviceName, fallback string) []string {
 	return []string{fallback}
 }
 
+// listenerFreebind holds the ze:listener services whose sockets bind with
+// IP_FREEBIND, so they bind an address the host does not hold yet. Guarded by
+// listenerFreebindMu.
+var (
+	listenerFreebindMu sync.RWMutex
+	listenerFreebind   = map[string]struct{}{}
+)
+
+// RegisterListenerFreebind records that a named ze:listener service binds its
+// endpoints with IP_FREEBIND. `ze doctor` then does not report an endpoint
+// whose address is not on the host yet: the service binds it anyway (a PPP
+// pool gateway that exists only once the first subscriber is up, an anycast
+// address another daemon adds later), so the finding would be false. A port
+// another process holds is still reported.
+//
+// Like RegisterListenerProtocols, it is called from the service's own
+// register.go, before the first probe.
+func RegisterListenerFreebind(serviceName string) {
+	listenerFreebindMu.Lock()
+	listenerFreebind[serviceName] = struct{}{}
+	listenerFreebindMu.Unlock()
+}
+
+// listenerFreebindFor reports whether a named service registered with
+// RegisterListenerFreebind; every ListenerEndpoint built for it carries the
+// answer. Safe for concurrent use.
+func listenerFreebindFor(serviceName string) bool {
+	listenerFreebindMu.RLock()
+	defer listenerFreebindMu.RUnlock()
+	_, ok := listenerFreebind[serviceName]
+	return ok
+}
+
 // CollectListeners walks the config tree and collects all listener endpoints
 // from services marked with ze:listener in the YANG schema. Services with
 // enabled=false are skipped.
@@ -326,6 +363,7 @@ func CollectListeners(tree *Tree, schema *Schema) []ListenerEndpoint {
 						Protocol: protocol,
 						IP:       net.IPv4zero,
 						Port:     uint16(port), //nolint:gosec // ParseUint bitSize=16 bounds value
+						Freebind: listenerFreebindFor(svc.Name),
 					})
 				}
 			}
@@ -374,7 +412,7 @@ func parseListenerEntry(service, protocol, key string, entry *Tree) *ListenerEnd
 		return nil
 	}
 
-	return &ListenerEndpoint{Service: listenerEndpointName(service, key), Protocol: protocol, IP: ip, Port: port}
+	return &ListenerEndpoint{Service: listenerEndpointName(service, key), Protocol: protocol, IP: ip, Port: port, Freebind: listenerFreebindFor(service)}
 }
 
 // ListenerConflict describes a pair of conflicting listener endpoints.
@@ -687,5 +725,6 @@ func defaultListenerEndpoint(service, protocol, key, defIP, defPort string) *Lis
 		Protocol: protocol,
 		IP:       ip,
 		Port:     uint16(port), //nolint:gosec // ParseUint bitSize=16 bounds value
+		Freebind: listenerFreebindFor(service),
 	}
 }

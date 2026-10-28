@@ -290,14 +290,20 @@ resolver whose config parses (config validation reports one that does not).
 | `dns-resolver-listen-capability` | `doctor-dns-resolver-port-unavailable` | a listener's bind is refused for lack of permission: a port below 1024 needs `CAP_NET_BIND_SERVICE` or root |
 | `dns-resolver-upstream-reachable` | `doctor-dns-resolver-upstream-unreachable` | no `forward server` answers a probe for the root NS RRset within the doctor probe timeout (3 seconds at most); each server tried is named with its error |
 
-A busy port or an address that is not on the host is reported by the generic
-listener probe (`doctor-listen-unavailable`), which sees the resolver's
-listeners through the `ze:listener` marking, for UDP and TCP. The upstream
+A busy port is reported by the generic listener probe
+(`doctor-listen-unavailable`), which sees the resolver's listeners through the
+`ze:listener` marking, for UDP and TCP. An address that is not on the host yet
+is not reported: the resolver binds with `IP_FREEBIND`, so a PPP pool gateway
+that appears with the first subscriber session still binds, and the plugin
+tells the probe so with `config.RegisterListenerFreebind`. The probe then
+accepts `EADDRNOTAVAIL` for those listeners and still fails any other bind
+error. The upstream
 probe sends the query the resolver itself sends, through the same exchange, and
 any reply counts, whatever its RCODE.
 
 <!-- source: internal/plugins/dnsresolver/doctor.go -- doctorChecks, listenerDiagnostics, upstreamDiagnostics, probeUpstream -->
-<!-- source: internal/plugins/dnsresolver/register.go -- RegisterListenerProtocols, RegisterListenerEntryDefault -->
+<!-- source: internal/plugins/dnsresolver/register.go -- RegisterListenerProtocols, RegisterListenerFreebind, RegisterListenerEntryDefault -->
+<!-- source: internal/component/doctor/checks_listener.go -- probeListener, bindProbe -->
 <!-- test: internal/plugins/dnsresolver/doctor_test.go -- TestDoctorListenerPortUnavailable, TestDoctorUpstreamUnreachable -->
 
 ## Metrics

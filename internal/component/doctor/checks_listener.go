@@ -25,6 +25,7 @@ import (
 	"net"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/config"
@@ -51,6 +52,10 @@ type serviceListener struct {
 	port     string
 	code     string
 	severity diagnostic.Severity
+	// freebind is set for a service that binds with IP_FREEBIND
+	// (config.RegisterListenerFreebind): its address may be absent from the
+	// host and still bind, so probeListener does not report that.
+	freebind bool
 }
 
 var listenerProbe = probeListener
@@ -86,6 +91,7 @@ func collectSchemaListeners(tree *config.Tree) ([]serviceListener, error) {
 			port:     textbuf.StringUint16(ep.Port),
 			code:     diagnostic.CodeDoctorListenUnavailable,
 			severity: diagnostic.SeverityWarning,
+			freebind: ep.Freebind,
 		}
 		listeners = append(listeners, l)
 	}
@@ -167,16 +173,28 @@ func probeListener(l serviceListener) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
+	err := bindProbe(ctx, l.network, addr)
+	if l.freebind && errors.Is(err, syscall.EADDRNOTAVAIL) {
+		// The address is not on the host yet, and the service binds it anyway
+		// with IP_FREEBIND, so the service will bind. A port conflict on an
+		// address the host holds still fails with EADDRINUSE above.
+		return nil
+	}
+	return err
+}
+
+// bindProbe binds addr on network and releases it at once.
+func bindProbe(ctx context.Context, network, addr string) error {
 	var lc net.ListenConfig
-	if l.network == "udp" {
-		pc, err := lc.ListenPacket(ctx, l.network, addr)
+	if network == "udp" {
+		pc, err := lc.ListenPacket(ctx, network, addr)
 		if err != nil {
 			return err
 		}
 		return pc.Close()
 	}
 
-	ln, err := lc.Listen(ctx, l.network, addr)
+	ln, err := lc.Listen(ctx, network, addr)
 	if err != nil {
 		return err
 	}

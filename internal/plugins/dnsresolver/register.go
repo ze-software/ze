@@ -65,6 +65,10 @@ func init() {
 	// zt:listener shape says TCP alone, so ze doctor and the conflict check
 	// are told both.
 	config.RegisterListenerProtocols(listenerService, config.ProtocolUDP, config.ProtocolTCP)
+	// The listeners bind with IP_FREEBIND (newResolverServer, server.go), so a
+	// PPP pool gateway the host does not hold yet still binds, and ze doctor
+	// must not report it as unavailable.
+	config.RegisterListenerFreebind(listenerService)
 	// A listener entry that omits its port binds port 53 (parseListener,
 	// config.go), so the listener conflict check and ze doctor's probe see
 	// the endpoint the resolver binds. parseListener refuses an entry with

@@ -160,8 +160,10 @@ you must type `all`.
 | `doctor-dns-resolver-port-unavailable` | the system refuses to let ze bind a listener: a port below 1024 needs `CAP_NET_BIND_SERVICE` or root | run ze with that capability, or set the listener port to 1024 or above |
 | `doctor-dns-resolver-upstream-unreachable` | no `forward server` answered a probe query; each server tried is named with its error | check the `forward server` addresses and the route and firewall to each upstream |
 
-A port that another program holds, or an address that is not on the host, is
-reported by the general listener check, `doctor-listen-unavailable`.
+A port that another program holds is reported by the general listener check,
+`doctor-listen-unavailable`. A listen address that is not on the host yet is
+not a finding: the resolver binds it anyway, so a listener on a PPP pool
+gateway is ready before the first subscriber connects.
 
 <!-- source: internal/plugins/dnsresolver/doctor.go -- listenerDiagnostics, upstreamDiagnostics -->
 

@@ -91,12 +91,14 @@ func checkResolverListeners(ctx registry.DoctorCheckContext) []rpc.DoctorCheckDi
 }
 
 // listenerDiagnostics is the decision: one warning for each listener whose
-// bind is refused for lack of permission. A busy port or an address that is
-// not on this host is reported by ze doctor's listener probe, which probes
-// every ze:listener endpoint (doctor-listen-unavailable,
-// internal/component/doctor checkListeners), so this check names only the
-// cause that probe cannot: port 53 needs CAP_NET_BIND_SERVICE. bind is a
-// seam for testing.
+// bind is refused for lack of permission. A busy port is reported by ze
+// doctor's listener probe, which probes every ze:listener endpoint
+// (doctor-listen-unavailable, internal/component/doctor checkListeners), so
+// this check names only the cause that probe cannot: port 53 needs
+// CAP_NET_BIND_SERVICE. An address that is not on this host yet is no finding
+// at all: the resolver binds with IP_FREEBIND, and register.go tells the
+// listener probe so (config.RegisterListenerFreebind). bind is a seam for
+// testing.
 func listenerDiagnostics(listeners []listenerEndpoint, bind func(netip.AddrPort) error) []rpc.DoctorCheckDiagnostic {
 	var out []rpc.DoctorCheckDiagnostic
 	for _, l := range listeners {

@@ -189,6 +189,11 @@ func init() {
 	// transport nearly every resolver uses -- was held by something else.
 	config.RegisterListenerProtocols("service-as112-ipv4-anycast-listener", config.ProtocolUDP, config.ProtocolTCP)
 	config.RegisterListenerProtocols("service-as112-ipv6-anycast-listener", config.ProtocolUDP, config.ProtocolTCP)
+	// The listeners bind with IP_FREEBIND (newServerManager, server.go), so an
+	// anycast address the host does not hold yet still binds, and ze doctor
+	// must not report it as unavailable.
+	config.RegisterListenerFreebind("service-as112-ipv4-anycast-listener")
+	config.RegisterListenerFreebind("service-as112-ipv6-anycast-listener")
 
 	pluginserver.RegisterRPCs(pluginserver.RPCRegistration{
 		WireMethod: "ze-as112:show-as112",
