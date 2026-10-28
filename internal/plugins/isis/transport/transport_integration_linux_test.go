@@ -1,13 +1,13 @@
-//go:build integration && linux
+//go:build linux
 
-// Design: docs/architecture/isis/isis-3-l2-transport.md -- raw L2 QEMU integration tests
+// Design: docs/architecture/isis/isis-3-l2-transport.md -- raw L2 integration tests
 //
 // These exercise the real AF_PACKET/SOCK_RAW backend on a veth pair inside a
-// dedicated network namespace. They require CAP_NET_ADMIN (to create the netns
-// and veth) and CAP_NET_RAW (to open the raw socket); when those are missing the
-// tests t.Skip rather than fail (e.g. on a developer laptop). They run under the
-// native QEMU test qemu all action, which derives its package set from
-// `integration && linux`; the same population is listed in
+// dedicated network namespace. They need CAP_NET_ADMIN (to create the netns
+// and veth) and CAP_NET_RAW (to open the raw socket). Each test enters a user
+// namespace of its own first (userns.Enter), where root holds both, so it runs
+// unprivileged and a raw-socket refusal fails it. They also run under the
+// native QEMU test qemu all action; the population is listed in
 // internal/le/test/qemu/alltests.go.
 //
 // They validate spec assumptions A-1 (PPPoE AF_PACKET pattern generalises to
@@ -30,6 +30,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/iface"
 	_ "github.com/ze-software/ze/internal/plugins/iface/netlink" // register the netlink iface backend so iface.Resolve works
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 const (
@@ -121,14 +122,14 @@ func withVethPair(t *testing.T, fn func()) {
 
 func TestISISTransportRawSocketCap(t *testing.T) {
 	// VALIDATES: A-5 -- raw-socket open succeeds under CAP_NET_RAW on a real veth.
+	if !userns.Enter(t) {
+		return
+	}
 	withVethPair(t, func() {
 		be := NewBackend()
 		h, err := be.OpenCircuit(vethA)
 		if err != nil {
-			if strings.Contains(err.Error(), "CAP_NET_RAW") {
-				t.Skipf("requires CAP_NET_RAW: %v", err)
-			}
-			t.Fatalf("OpenCircuit(%s): %v", vethA, err)
+			t.Fatalf("OpenCircuit(%s) inside the user namespace (CAP_NET_RAW): %v", vethA, err)
 		}
 		if cerr := h.Close(); cerr != nil {
 			t.Errorf("Close: %v", cerr)
@@ -140,15 +141,15 @@ func TestISISTransportVethRoundTrip(t *testing.T) {
 	// VALIDATES: AC-1 / A-1 / A-2 -- a frame sent to the level multicast MAC on
 	// one veth end is received on the peer with the correct source ifindex, and
 	// the PDU arrives byte-for-byte (no padding/alteration by the transport).
+	if !userns.Enter(t) {
+		return
+	}
 	withVethPair(t, func() {
 		be := NewBackend()
 
 		sender, err := be.OpenCircuit(vethA)
 		if err != nil {
-			if strings.Contains(err.Error(), "CAP_NET_RAW") {
-				t.Skipf("requires CAP_NET_RAW: %v", err)
-			}
-			t.Fatalf("open sender: %v", err)
+			t.Fatalf("open sender inside the user namespace (CAP_NET_RAW): %v", err)
 		}
 		t.Cleanup(func() { _ = sender.Close() })
 
@@ -190,18 +191,16 @@ func TestISISTransportConcurrentSendNoTear(t *testing.T) {
 	// frame received on the peer is one of those PDUs byte-for-byte (a torn frame
 	// would be a splice of both, or fail ParseFrame). Under the race-instrumented
 	// integration run, the unsynchronized sendBuf access is also flagged.
+	if !userns.Enter(t) {
+		return
+	}
 	withVethPair(t, func() {
 		be := NewBackend()
 
 		sender, err := be.OpenCircuit(vethA)
 		if err != nil {
-			// Missing CAP_NET_RAW means no raw socket on this host, so this skips as
-			// the sibling veth tests do. The QEMU integration pass supplies both
-			// CAP_NET_ADMIN and CAP_NET_RAW.
-			if strings.Contains(err.Error(), "CAP_NET_RAW") {
-				t.Skipf("requires CAP_NET_RAW: %v", err)
-			}
-			t.Fatalf("open sender: %v", err)
+			// The user namespace grants CAP_NET_RAW, so a refusal is a defect.
+			t.Fatalf("open sender inside the user namespace (CAP_NET_RAW): %v", err)
 		}
 		t.Cleanup(func() { _ = sender.Close() })
 
@@ -288,14 +287,14 @@ func TestISISTransportConcurrentSendNoTear(t *testing.T) {
 func TestISISTransportMTUExpose(t *testing.T) {
 	// VALIDATES: A-4 -- the transport exposes the ioctl MTU; a smaller peer frame
 	// surfaces an inferred neighbor MTU and a mismatch (ISO/IEC 10589 sec 8.2.3).
+	if !userns.Enter(t) {
+		return
+	}
 	withVethPair(t, func() {
 		tr := New(NewBackend())
 		tr.EnableInterface(vethA, Level2)
 		if err := tr.HandleLinkUp(vethA); err != nil {
-			if strings.Contains(err.Error(), "CAP_NET_RAW") {
-				t.Skipf("requires CAP_NET_RAW: %v", err)
-			}
-			t.Fatalf("HandleLinkUp: %v", err)
+			t.Fatalf("HandleLinkUp inside the user namespace (CAP_NET_RAW): %v", err)
 		}
 		t.Cleanup(tr.Close)
 

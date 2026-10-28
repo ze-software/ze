@@ -28,6 +28,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	ospfv3transport "github.com/ze-software/ze/internal/plugins/ospf/v3/transport"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // ahHeaderOctets is the IPv6 AH header Linux prepends for the integrity algorithm this
@@ -226,6 +227,9 @@ func xfrmStat(t *testing.T, name string) uint64 {
 // dataplane from inside Ze: the send succeeds, no error is logged, and every unit test
 // over the builder stays green.
 func TestAHPolicyResolvesToTheSAItNames(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	requireXFRM(t)
 	const spi = 0x4552c2
 	pmtuLink(t)
@@ -248,7 +252,7 @@ func TestAHPolicyResolvesToTheSAItNames(t *testing.T) {
 
 	fd, err := unix.Socket(unix.AF_INET6, unix.SOCK_RAW, int(ospfv3transport.Protocol))
 	if err != nil {
-		t.Skipf("a raw IPv6 OSPF socket needs CAP_NET_RAW: %v", err)
+		t.Fatalf("open a raw IPv6 OSPF socket inside the user namespace (CAP_NET_RAW): %v", err)
 	}
 	defer func() { _ = unix.Close(fd) }()
 	to := &unix.SockaddrInet6{Addr: netip.MustParseAddr("ff02::5").As16(), ZoneId: uint32(pmtuIfIndex)}

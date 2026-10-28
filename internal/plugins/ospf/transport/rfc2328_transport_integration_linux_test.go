@@ -21,13 +21,19 @@ import (
 
 	"github.com/ze-software/ze/internal/component/iface"
 	_ "github.com/ze-software/ze/internal/plugins/iface/netlink" // register netlink backend so iface.Resolve works
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // VALIDATES: under CAP_NET_RAW the production backend opens its raw OSPF
-// socket on a real veth and closes it cleanly.
+// socket on a real veth and closes it cleanly. It runs unprivileged in a user
+// namespace of its own (userns.Enter), where root holds CAP_NET_RAW, so a
+// refusal fails it.
 func TestOSPFTransportRawSocketCap(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	if !rawSocketAvailable() {
-		t.Skip("CAP_NET_RAW unavailable")
+		t.Fatal("open a raw OSPF socket inside the user namespace (CAP_NET_RAW): refused")
 	}
 	loadIfaceBackend(t)
 	withVethPeerNamespace(t, func(lab ospfVethLab) {

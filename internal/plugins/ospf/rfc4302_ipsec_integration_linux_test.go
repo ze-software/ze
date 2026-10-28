@@ -3,7 +3,9 @@
 // VALIDATES: spec-ospf-ext-16 AC-2/AC-7/AC-10/AC-13 + A-1/A-6/R-2b -- the RFC 4552
 // installer and the extended XFRM dataplane program real kernel state: an AH transport SA
 // with integrity only (no encryption), a proto-89 transport-mode policy, and the full
-// install/remove lifecycle visible in `ip xfrm`. Requires CAP_NET_ADMIN (QEMU/root).
+// install/remove lifecycle visible in `ip xfrm`. Requires CAP_NET_ADMIN: a test that
+// calls userns.Enter first holds it unprivileged in a user namespace of its own; the
+// others need QEMU or root.
 // PREVENTS: a malformed AH state, a policy that matches all traffic instead of proto 89,
 // and orphaned XFRM state after interface down.
 package ospf
@@ -16,6 +18,7 @@ import (
 	"github.com/vishvananda/netlink"
 
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // requireXFRM skips unless the kernel XFRM stack is usable (CAP_NET_ADMIN).
@@ -35,6 +38,9 @@ func requireXFRM(t *testing.T) dataplane.Dataplane {
 }
 
 func TestXFRMInstallAHSA(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	dp := requireXFRM(t)
 	sa := dataplane.SAParams{
 		SPI:      0x4552a1,
@@ -85,6 +91,9 @@ func TestXFRMInstallAHSA(t *testing.T) {
 }
 
 func TestXFRMTransportPolicyUpperProto(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	dp := requireXFRM(t)
 	anyNet := &net.IPNet{IP: net.IPv6zero, Mask: net.CIDRMask(0, 128)}
 	llNet := &net.IPNet{IP: net.ParseIP("fe80::1"), Mask: net.CIDRMask(128, 128)}
@@ -118,6 +127,9 @@ func TestXFRMTransportPolicyUpperProto(t *testing.T) {
 }
 
 func TestIPsecInstallerXFRMEndToEnd(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	requireXFRM(t)
 	inst := newIPsecInstaller(nil, nil)
 	inst.setTransportSource(func(string) (netip.Addr, int, bool) {

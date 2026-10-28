@@ -1,15 +1,16 @@
-//go:build integration && linux
+//go:build linux
 
-// Design: docs/architecture/isis/isis-5-adjacency.md -- adjacency QEMU integration test.
+// Design: docs/architecture/isis/isis-5-adjacency.md -- adjacency integration test.
 //
 // VALIDATES (AC-1/AC-3, Wiring Test "two engines on a veth"): two real IS-IS
 // engines, each on one end of a veth pair inside a dedicated network namespace,
 // open AF_PACKET circuits, exchange padded LAN IIHs over real Layer 2, run the
 // LAN three-way check, and BOTH adjacencies reach Up. This is the raw-L2 proof
-// the in-memory TestISISAdjacencyUp cannot give; it requires CAP_NET_ADMIN (to
-// create the netns/veth) and CAP_NET_RAW (to open the raw socket) and t.Skips
-// when those are absent. It runs under ze-qemu-integration-test (build tag
-// `integration && linux`) and is listed in internal/le/test/qemu/alltests.go.
+// the in-memory TestISISAdjacencyUp cannot give. It needs CAP_NET_ADMIN (to
+// create the netns/veth) and CAP_NET_RAW (to open the raw socket), which
+// userns.Enter grants unprivileged inside a user namespace of its own, so a
+// refusal of either fails the test. It also runs under ze-qemu-integration-test
+// and is listed in internal/le/test/qemu/alltests.go.
 // PREVENTS: a regression where the engine forms adjacencies in-memory but not
 // over a real socket (e.g. wrong multicast MAC, padding that the kernel rejects,
 // or the source-MAC threading breaking the three-way echo).
@@ -18,7 +19,6 @@ package isis
 
 import (
 	"runtime"
-	"strings"
 	"testing"
 	"time"
 
@@ -28,6 +28,7 @@ import (
 	"github.com/ze-software/ze/internal/component/iface"
 	_ "github.com/ze-software/ze/internal/plugins/iface/netlink" // register the netlink iface backend so iface.Resolve works
 	"github.com/ze-software/ze/internal/plugins/isis/transport"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 const (
@@ -36,9 +37,10 @@ const (
 )
 
 // withVethPair creates a veth pair in a fresh network namespace, brings both
-// ends up, and runs fn inside that namespace. It skips when CAP_NET_ADMIN is
-// absent. Mirrors the transport package's helper (kept local to avoid exporting
-// test-only plumbing across packages).
+// ends up, and runs fn inside that namespace. The caller has entered a user
+// namespace (userns.Enter), so a refusal fails the test. Mirrors the transport
+// package's helper (kept local to avoid exporting test-only plumbing across
+// packages).
 func withVethPair(t *testing.T, fn func()) {
 	t.Helper()
 	runtime.LockOSThread()
@@ -53,13 +55,13 @@ func withVethPair(t *testing.T, fn func()) {
 	origNS, err := netns.Get()
 	if err != nil {
 		unlock()
-		t.Skipf("requires CAP_NET_ADMIN: %v", err)
+		t.Fatalf("read the current network namespace: %v", err)
 	}
 	newNS, err := netns.NewNamed("zeisisadj")
 	if err != nil {
 		origNS.Close() //nolint:errcheck // best-effort cleanup
 		unlock()
-		t.Skipf("requires CAP_NET_ADMIN: %v", err)
+		t.Fatalf("create network namespace zeisisadj inside the user namespace (CAP_NET_ADMIN): %v", err)
 	}
 	t.Cleanup(func() {
 		if rerr := netns.Set(origNS); rerr != nil {
@@ -76,7 +78,7 @@ func withVethPair(t *testing.T, fn func()) {
 		MTU:      1500,
 		PeerName: vethB,
 	}); err != nil {
-		t.Skipf("add veth (needs CAP_NET_ADMIN): %v", err)
+		t.Fatalf("add veth inside the user namespace (CAP_NET_ADMIN): %v", err)
 	}
 	for _, name := range []string{vethA, vethB} {
 		link, lerr := netlink.LinkByName(name)
@@ -91,8 +93,8 @@ func withVethPair(t *testing.T, fn func()) {
 }
 
 // startRealEngine builds an engine over the real AF_PACKET backend, configured
-// for IS-IS on the given veth interface, and opens its circuits. It skips when
-// CAP_NET_RAW is unavailable.
+// for IS-IS on the given veth interface, and opens its circuits. A CAP_NET_RAW
+// refusal fails the test: the caller's user namespace grants it.
 func startRealEngine(t *testing.T, ifaceName, jsonCfg string) *engine {
 	t.Helper()
 	// IS-IS now resolves its interfaces through the iface resolver, which needs
@@ -108,10 +110,7 @@ func startRealEngine(t *testing.T, ifaceName, jsonCfg string) *engine {
 	eng := newEngine(transport.New(transport.NewBackend()))
 	eng.setConfig(cfg)
 	if oerr := eng.openCircuits(); oerr != nil {
-		if strings.Contains(oerr.Error(), "CAP_NET_RAW") {
-			t.Skipf("requires CAP_NET_RAW: %v", oerr)
-		}
-		t.Fatalf("openCircuits(%s): %v", ifaceName, oerr)
+		t.Fatalf("openCircuits(%s) inside the user namespace: %v", ifaceName, oerr)
 	}
 	return eng
 }
@@ -119,6 +118,9 @@ func startRealEngine(t *testing.T, ifaceName, jsonCfg string) *engine {
 // TestISISAdjacencyUpVeth: two engines on opposite ends of a veth pair form an
 // L1 adjacency that reaches Up over real Layer 2.
 func TestISISAdjacencyUpVeth(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withVethPair(t, func() {
 		const cfgA = `{"isis":{"net":"49.0001.0000.0000.0001.00","interfaces":{"interface":{"zeisisadj0":{"hello-interval":"1","level":"l1"}}}}}`
 		const cfgB = `{"isis":{"net":"49.0001.0000.0000.0002.00","interfaces":{"interface":{"zeisisadj1":{"hello-interval":"1","level":"l1"}}}}}`

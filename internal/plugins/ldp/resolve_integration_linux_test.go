@@ -1,4 +1,4 @@
-//go:build integration && linux
+//go:build linux
 
 // VALIDATES: waitForInterface resolves a logical interface name through the
 // shared iface resolver and returns the real *net.Interface the multicast
@@ -8,6 +8,8 @@
 // mac-match remapping itself is proven centrally in the iface package.
 // PREVENTS: a regression to net.InterfaceByName(name), which would fail for a
 // logical name aliased via os-name/mac-match, and a hang when no backend loaded.
+// The test runs unprivileged in a user and network namespace of its own
+// (userns.Enter), where root holds CAP_NET_ADMIN, so a refusal fails it.
 
 package ldp
 
@@ -22,9 +24,13 @@ import (
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	_ "github.com/ze-software/ze/internal/plugins/iface/netlink" // register the netlink backend for iface.LoadBackend
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 func TestWaitForInterfaceFoundResolves(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withLDPNetNS(t, func() {
 		if iface.GetBackend() == nil {
 			if err := iface.LoadBackend("netlink"); err != nil {
@@ -55,12 +61,12 @@ func withLDPNetNS(t *testing.T, fn func()) {
 	runtime.LockOSThread()
 	orig, err := netns.Get()
 	if err != nil {
-		t.Skipf("requires CAP_NET_ADMIN: %v", err)
+		t.Fatalf("read the current network namespace: %v", err)
 	}
 	ns, err := netns.NewNamed("zeldpdisc")
 	if err != nil {
 		orig.Close() //nolint:errcheck // best-effort cleanup
-		t.Skipf("requires CAP_NET_ADMIN: %v", err)
+		t.Fatalf("create network namespace zeldpdisc inside the user namespace (CAP_NET_ADMIN): %v", err)
 	}
 	t.Cleanup(func() {
 		if rerr := netns.Set(orig); rerr != nil {

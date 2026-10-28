@@ -1,4 +1,4 @@
-//go:build integration && linux
+//go:build linux
 
 // VALIDATES: a static route's nexthop interface is resolved through the shared
 // iface resolver (iface.Resolve), not the static backend's own netlink handle,
@@ -21,9 +21,13 @@ import (
 
 	"github.com/ze-software/ze/internal/component/iface"
 	_ "github.com/ze-software/ze/internal/plugins/iface/netlink" // register the netlink backend for iface.LoadBackend
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 func TestResolveNexthopIndexUsesResolver(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withStaticNetNS(t, func() {
 		if iface.GetBackend() == nil {
 			if err := iface.LoadBackend("netlink"); err != nil {
@@ -59,20 +63,21 @@ func TestResolveNexthopIndexUsesResolver(t *testing.T) {
 	})
 }
 
-// withStaticNetNS runs fn in a fresh network namespace, skipping if the host
-// lacks CAP_NET_ADMIN. Mirrors the per-package netns helper used by the isis /
-// fib / traffic integration tests (there is no shared helper).
+// withStaticNetNS runs fn in a fresh network namespace. The caller has entered
+// a user namespace (userns.Enter), where root holds CAP_NET_ADMIN, so a refusal
+// fails the test. Mirrors the per-package netns helper used by the isis / fib /
+// traffic integration tests (there is no shared helper).
 func withStaticNetNS(t *testing.T, fn func()) {
 	t.Helper()
 	runtime.LockOSThread()
 	orig, err := netns.Get()
 	if err != nil {
-		t.Skipf("requires CAP_NET_ADMIN: %v", err)
+		t.Fatalf("read the current network namespace: %v", err)
 	}
 	ns, err := netns.NewNamed("zestaticrt")
 	if err != nil {
 		orig.Close() //nolint:errcheck // best-effort cleanup
-		t.Skipf("requires CAP_NET_ADMIN: %v", err)
+		t.Fatalf("create network namespace zestaticrt inside the user namespace (CAP_NET_ADMIN): %v", err)
 	}
 	t.Cleanup(func() {
 		if rerr := netns.Set(orig); rerr != nil {
