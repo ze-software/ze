@@ -199,6 +199,7 @@ The command registry, `DisplayValueAtPath` masking, the audit log, the editor co
 | `declared-format-contradicts-payload` | 2026-09-28 | REST `api.CommandMeta` has no json tags |
 | `declared-format-contradicts-payload` | 2026-10-10 | SSH exec JSON answer followed by plugin frame trailer |
 | `declared-format-contradicts-payload` | 2026-10-14 | workbench `entryHasPendingChange` reads `/`, paths joined by spaces |
+| `declared-format-contradicts-payload` | 2026-10-26 | command YAML formatter writes strings and keys without quoting |
 | `gate-excludes-part-of-its-population` | 2026-09-05 | `cmdBgpChildren` alias barrier is a hand list missing `reject-asn` |
 | `gate-excludes-part-of-its-population` | 2026-09-08 | `TestDeclaredShapesReachTheRegistry` red: `show bgp irr`, `show bgp rib` |
 | `gate-fires-outside-its-population` | 2026-10-10 | CLI grammar R1: five root commands open with no verb |
