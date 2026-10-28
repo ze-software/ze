@@ -34,7 +34,7 @@
     "target_display": "11",
     "targets": 11
   },
-  "published_at": "2026-10-28T09:28:54Z",
+  "published_at": "2026-10-28T10:35:49Z",
   "repo": {
     "design_comments": 7434,
     "design_comments_display": "7,400+",
@@ -71,7 +71,7 @@
     "editor_display": "170+",
     "fuzz": 93,
     "fuzz_display": "93",
-    "unit": 39553,
+    "unit": 39557,
     "unit_display": "39,500+"
   }
 }
