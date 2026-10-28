@@ -9,6 +9,8 @@ package dnsserver
 
 import "net"
 
-func listenConfig(_ bool) net.ListenConfig {
+// ListenConfig returns a plain net.ListenConfig: off Linux a socket cannot
+// bind an address the host does not hold.
+func ListenConfig(_ bool) net.ListenConfig {
 	return net.ListenConfig{}
 }

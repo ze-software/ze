@@ -18,12 +18,12 @@ import (
 func TestFreebindAllowsNonLocalBind(t *testing.T) {
 	const nonLocalAddr = "203.0.113.5:0"
 
-	lc := listenConfig(false)
+	lc := ListenConfig(false)
 	if _, err := lc.ListenPacket(context.Background(), "udp", nonLocalAddr); err == nil {
 		t.Fatal("expected bind to a non-local address to fail without Freebind")
 	}
 
-	lcFree := listenConfig(true)
+	lcFree := ListenConfig(true)
 	pc, err := lcFree.ListenPacket(context.Background(), "udp", nonLocalAddr)
 	if err != nil {
 		t.Skipf("IP_FREEBIND bind failed (needs CAP_NET_ADMIN): %v", err)

@@ -358,10 +358,10 @@ func TestManager_BindThenImmediateStopNeverLeaksListener(t *testing.T) {
 // PREVENTS: the default (Freebind:false) silently gaining a Control hook it
 // never had, and documents the cross-platform contract for Freebind:true.
 func TestFreebindOptionInstallsControlHook(t *testing.T) {
-	if listenConfig(false).Control != nil {
+	if ListenConfig(false).Control != nil {
 		t.Error("Freebind:false must not install a Control hook")
 	}
-	hasHook := listenConfig(true).Control != nil
+	hasHook := ListenConfig(true).Control != nil
 	wantHook := runtime.GOOS == "linux"
 	if hasHook != wantHook {
 		t.Errorf("Freebind:true on %s: Control hook installed = %v, want %v", runtime.GOOS, hasHook, wantHook)

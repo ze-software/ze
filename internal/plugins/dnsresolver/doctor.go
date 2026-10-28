@@ -7,7 +7,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"net"
 	"net/netip"
 	"os"
 	"time"
@@ -17,6 +16,7 @@ import (
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/dnsserver"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -96,9 +96,10 @@ func checkResolverListeners(ctx registry.DoctorCheckContext) []rpc.DoctorCheckDi
 // (doctor-listen-unavailable, internal/component/doctor checkListeners), so
 // this check names only the cause that probe cannot: port 53 needs
 // CAP_NET_BIND_SERVICE. An address that is not on this host yet is no finding
-// at all: the resolver binds with IP_FREEBIND, and register.go tells the
-// listener probe so (config.RegisterListenerFreebind). bind is a seam for
-// testing.
+// by itself: bind probes with IP_FREEBIND, as the resolver binds, so such an
+// address binds and the permission answer still reaches this check; register.go
+// tells the listener probe the same (config.RegisterListenerFreebind). bind is
+// a seam for testing.
 func listenerDiagnostics(listeners []listenerEndpoint, bind func(netip.AddrPort) error) []rpc.DoctorCheckDiagnostic {
 	var out []rpc.DoctorCheckDiagnostic
 	for _, l := range listeners {
@@ -130,10 +131,14 @@ func listenerDiagnostics(listeners []listenerEndpoint, bind func(netip.AddrPort)
 	return out
 }
 
-// probeBindable binds endpoint for UDP and TCP and releases both at once.
+// probeBindable binds endpoint for UDP and TCP and releases both at once. It
+// binds with IP_FREEBIND, as the resolver's listeners do (newResolverServer,
+// Freebind: true): Linux checks the address before the port, so a plain bind
+// of an address the host does not hold yet fails EADDRNOTAVAIL and hides the
+// permission or port answer the resolver would meet.
 func probeBindable(endpoint netip.AddrPort) error {
 	addr := endpoint.String()
-	var lc net.ListenConfig
+	lc := dnsserver.ListenConfig(true)
 	ctx := context.Background()
 	pc, err := lc.ListenPacket(ctx, networkUDP, addr)
 	if err != nil {

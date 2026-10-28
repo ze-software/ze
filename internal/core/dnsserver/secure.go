@@ -505,7 +505,7 @@ func tlsFingerprint(cfg *tls.Config) string {
 // opens a single listener. It reuses m.serve (and its generation-based crash
 // detection) because a TLS listener is an ordinary net.Listener to miekg/dns.
 func (m *Manager) bindDoT(ep string, listen netip.AddrPort, tlsConfig *tls.Config) error {
-	lc := listenConfig(m.opts.Freebind)
+	lc := ListenConfig(m.opts.Freebind)
 	ln, err := lc.Listen(context.Background(), "tcp", ep)
 	if err != nil {
 		return fmt.Errorf("tcp: %w", err)
@@ -534,7 +534,7 @@ func (m *Manager) bindDoT(ep string, listen netip.AddrPort, tlsConfig *tls.Confi
 // on it, mounting the DoH handler at path. Binding happens before the serve
 // goroutine starts, so there is no advertise-before-bind gap.
 func (m *Manager) bindDoH(ep string, listen netip.AddrPort, tlsConfig *tls.Config, path string) error {
-	lc := listenConfig(m.opts.Freebind)
+	lc := ListenConfig(m.opts.Freebind)
 	ln, err := lc.Listen(context.Background(), "tcp", ep)
 	if err != nil {
 		return fmt.Errorf("tcp: %w", err)

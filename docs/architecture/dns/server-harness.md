@@ -196,13 +196,15 @@ names its policy, tests included: no entry point binds leniently by default.
 
 ## Freebind
 
-`Options.Freebind` is off by default. The Linux build sets `IP_FREEBIND` with
+`Options.Freebind` is off by default. `ListenConfig(freebind)` is exported so
+a probe that must bind as a listener does (the resolver's and `ze doctor`'s
+bind probes) uses the same socket option. The Linux build sets `IP_FREEBIND` with
 `syscall.SetsockoptInt` and the raw constant 15, which the stdlib `syscall`
 package does not export. This needs no `golang.org/x/sys/unix` dependency, and
 mirrors the `SO_BINDTODEVICE` split in `internal/plugins/dhcpserver`.
 
-<!-- source: internal/core/dnsserver/freebind_linux.go -- listenConfig -->
-<!-- source: internal/core/dnsserver/freebind_other.go -- listenConfig -->
+<!-- source: internal/core/dnsserver/freebind_linux.go -- ListenConfig -->
+<!-- source: internal/core/dnsserver/freebind_other.go -- ListenConfig -->
 
 `net.ListenConfig.ListenPacket` and `Listen` have pointer receivers. Chaining
 them on a function-call result does not compile, because the result is not

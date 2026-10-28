@@ -165,9 +165,11 @@ it exits 1 and lists `all`, the word you must type.
 A port that another program holds is reported by the general listener check,
 `doctor-listen-unavailable`. A listen address that is not on the host yet is
 not a finding: the resolver binds it anyway, so a listener on a PPP pool
-gateway is ready before the first subscriber connects.
+gateway is ready before the first subscriber connects. Both checks probe such
+an address the way the resolver binds it, so a port another program holds, or
+a port below 1024 without the capability, is still reported for it.
 
-<!-- source: internal/plugins/dnsresolver/doctor.go -- listenerDiagnostics, upstreamDiagnostics -->
+<!-- source: internal/plugins/dnsresolver/doctor.go -- listenerDiagnostics, upstreamDiagnostics, probeBindable -->
 
 ## Metrics
 

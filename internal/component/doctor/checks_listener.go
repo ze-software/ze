@@ -25,12 +25,12 @@ import (
 	"net"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/kernelcap"
 	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/dnsserver"
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -54,7 +54,7 @@ type serviceListener struct {
 	severity diagnostic.Severity
 	// freebind is set for a service that binds with IP_FREEBIND
 	// (config.RegisterListenerFreebind): its address may be absent from the
-	// host and still bind, so probeListener does not report that.
+	// host and still bind, so probeListener binds it with IP_FREEBIND too.
 	freebind bool
 }
 
@@ -173,19 +173,17 @@ func probeListener(l serviceListener) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	err := bindProbe(ctx, l.network, addr)
-	if l.freebind && errors.Is(err, syscall.EADDRNOTAVAIL) {
-		// The address is not on the host yet, and the service binds it anyway
-		// with IP_FREEBIND, so the service will bind. A port conflict on an
-		// address the host holds still fails with EADDRINUSE above.
-		return nil
-	}
-	return err
+	return bindProbe(ctx, l.network, addr, l.freebind)
 }
 
-// bindProbe binds addr on network and releases it at once.
-func bindProbe(ctx context.Context, network, addr string) error {
-	var lc net.ListenConfig
+// bindProbe binds addr on network and releases it at once. A freebind
+// service is probed with IP_FREEBIND set, as the service binds: an address
+// the host does not hold yet then binds, and a port another socket holds
+// still fails with EADDRINUSE. Probing it plainly and forgiving
+// EADDRNOTAVAIL would hide that conflict, because Linux checks the address
+// before the port.
+func bindProbe(ctx context.Context, network, addr string, freebind bool) error {
+	lc := dnsserver.ListenConfig(freebind)
 	if network == "udp" {
 		pc, err := lc.ListenPacket(ctx, network, addr)
 		if err != nil {

@@ -16,10 +16,10 @@ import (
 // standard syscall package.
 const ipFreebind = 15
 
-// listenConfig returns a net.ListenConfig that sets IP_FREEBIND on the socket
+// ListenConfig returns a net.ListenConfig that sets IP_FREEBIND on the socket
 // before bind when freebind is true, allowing a bind to an address not yet
 // present on any local interface (e.g. an anycast VIP added after startup).
-func listenConfig(freebind bool) net.ListenConfig {
+func ListenConfig(freebind bool) net.ListenConfig {
 	if !freebind {
 		return net.ListenConfig{}
 	}

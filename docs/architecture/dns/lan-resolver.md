@@ -279,7 +279,7 @@ running config again or restarts the plugin.
 <!-- source: internal/plugins/dnsresolver/server.go -- resolverServer.reconcile -->
 <!-- source: internal/plugins/dnsresolver/config.go -- parseConfig, checkEnabled -->
 <!-- source: internal/plugins/dnsresolver/server.go -- newResolverServer -->
-<!-- source: internal/core/dnsserver/freebind_linux.go -- listenConfig -->
+<!-- source: internal/core/dnsserver/freebind_linux.go -- ListenConfig -->
 <!-- test: internal/plugins/dnsresolver/config_tx_test.go -- TestReloadKeepsListeners -->
 <!-- test: internal/plugins/dnsresolver/freebind_linux_test.go -- TestListenBeforeAddressIsUp -->
 <!-- test: internal/plugins/dnsresolver/server_test.go -- TestAllowFromReload -->
@@ -319,16 +319,22 @@ A busy port is reported by the generic listener probe
 `ze:listener` marking, for UDP and TCP. An address that is not on the host yet
 is not reported: the resolver binds with `IP_FREEBIND`, so a PPP pool gateway
 that appears with the first subscriber session still binds, and the plugin
-tells the probe so with `config.RegisterListenerFreebind`. The probe then
-accepts `EADDRNOTAVAIL` for those listeners and still fails any other bind
-error. The upstream
+tells the probe so with `config.RegisterListenerFreebind`. Both probes then
+bind with `IP_FREEBIND` too (`dnsserver.ListenConfig(true)`), as the resolver
+does, so an absent address binds while a port another socket holds still
+fails with `EADDRINUSE` and a refused permission still fails. A plain bind
+would stop at `EADDRNOTAVAIL`, because Linux checks the address before the
+port, and hide both. The upstream
 probe sends the query the resolver itself sends, through the same exchange, and
 any reply counts, whatever its RCODE.
 
 <!-- source: internal/plugins/dnsresolver/doctor.go -- doctorChecks, listenerDiagnostics, upstreamDiagnostics, probeUpstream -->
 <!-- source: internal/plugins/dnsresolver/register.go -- RegisterListenerProtocols, RegisterListenerFreebind, RegisterListenerEntryDefault -->
+<!-- source: internal/plugins/dnsresolver/doctor.go -- probeBindable -->
 <!-- source: internal/component/doctor/checks_listener.go -- probeListener, bindProbe -->
 <!-- test: internal/plugins/dnsresolver/doctor_test.go -- TestDoctorListenerPortUnavailable, TestDoctorUpstreamUnreachable -->
+<!-- test: internal/plugins/dnsresolver/freebind_linux_test.go -- TestProbeBindableFreebind -->
+<!-- test: internal/component/doctor/checks_listener_freebind_linux_test.go -- TestProbeListenerFreebindAcceptsAbsentAddress, TestProbeListenerFreebindAbsentAddressBusyPort -->
 
 ## Metrics
 

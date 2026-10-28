@@ -6,8 +6,10 @@ package dnsresolver
 
 import (
 	"context"
+	"errors"
 	"net"
 	"net/netip"
+	"syscall"
 	"testing"
 	"time"
 
@@ -62,5 +64,33 @@ func TestListenBeforeAddressIsUp(t *testing.T) {
 	}
 	if reply.Rcode != dns.RcodeSuccess || len(reply.Answer) != 1 {
 		t.Fatalf("reply rcode %s answer %v, want NOERROR with one A", dns.RcodeToString[reply.Rcode], reply.Answer)
+	}
+}
+
+// TestProbeBindableFreebind proves the doctor's bind probe binds as the
+// resolver does, with IP_FREEBIND: a listener on an address the host does not
+// hold binds on a free port, and still fails on a port another socket holds.
+// Linux checks the address before the port, so a plain probe meets
+// EADDRNOTAVAIL and never sees the conflict. Method: probe notHeldAddr on a
+// free port, then on a wildcard port held for UDP.
+func TestProbeBindableFreebind(t *testing.T) {
+	free := netip.AddrPortFrom(netip.MustParseAddr(notHeldAddr), freeLoopbackPort(t))
+	if err := probeBindable(free); err != nil {
+		t.Fatalf("probe of %s on a free port = %v, want nil: the resolver binds it with IP_FREEBIND", free, err)
+	}
+
+	var lc net.ListenConfig
+	pc, err := lc.ListenPacket(context.Background(), "udp4", "0.0.0.0:0")
+	if err != nil {
+		t.Fatalf("hold a udp port: %v", err)
+	}
+	t.Cleanup(func() { _ = pc.Close() }) //nolint:errcheck // test socket
+	held, err := netip.ParseAddrPort(pc.LocalAddr().String())
+	if err != nil {
+		t.Fatalf("held address %v: %v", pc.LocalAddr(), err)
+	}
+	busy := netip.AddrPortFrom(netip.MustParseAddr(notHeldAddr), held.Port())
+	if err := probeBindable(busy); !errors.Is(err, syscall.EADDRINUSE) {
+		t.Fatalf("probe of %s on a held port = %v, want EADDRINUSE", busy, err)
 	}
 }

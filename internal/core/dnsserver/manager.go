@@ -203,7 +203,7 @@ func (m *Manager) setRunning(sig string, enabled bool, l Listeners) {
 // serveUDP/serveTCP, strictly after ActivateAndServe sets srv.started=true
 // (miekg/dns server.go), so waiting on it closes the race window exactly.
 func (m *Manager) bind(ep string, listen netip.AddrPort) error {
-	lc := listenConfig(m.opts.Freebind)
+	lc := ListenConfig(m.opts.Freebind)
 	pc, err := lc.ListenPacket(context.Background(), "udp", ep)
 	if err != nil {
 		return fmt.Errorf("udp: %w", err)
