@@ -14,12 +14,12 @@
     "rid": "RFC3579-3.1-1",
     "polarity": "negative",
     "unit": "internal/component/radius/rfc3579_eap_test.go::TestEAPMessageKeepsTheRunConsecutive",
-    "unit-sha": "d78d840d0a8bf01e",
+    "unit-sha": "a392a842b2b3794b",
     "claim-sha": "b79c3ae87b515fd2",
     "route": "revert",
-    "producer": "internal/component/radius/authenticator_eap.go::eapCredential",
-    "producer-sha": "127159291cffa17d",
-    "break": "body of eapCredential replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer": "internal/component/radius/eap.go::appendEAPMessage",
+    "producer-sha": "a1289efb37044957",
+    "break": "body of appendEAPMessage replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC3579-3.1-1",
