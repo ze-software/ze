@@ -7,8 +7,8 @@
     "claim-sha": "7df8fbe9376aa8b9",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/session_negotiate.go::negotiateWith",
-    "producer-sha": "937241ab3fa56222",
-    "break": "body of negotiateWith replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "26f7c275cde54f3c",
+    "break": "body of negotiateWith replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC4271-4.4-2",

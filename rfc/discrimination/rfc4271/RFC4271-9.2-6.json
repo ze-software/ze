@@ -7,7 +7,7 @@
     "claim-sha": "fece4d1c3bab23bf",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/reactor_api_forward.go::forwardUpdateSection",
-    "producer-sha": "bab6d8f9021cab50",
-    "break": "body of forwardUpdateSection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "679a7a9648446671",
+    "break": "body of forwardUpdateSection replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]
