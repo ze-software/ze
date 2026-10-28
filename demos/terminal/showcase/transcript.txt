@@ -160,7 +160,7 @@ Confirmed commit rollback and explicit acceptance:
 $ ze-demo card topic-commit-confirmed lab
 ze# load file absolute merge /src/demos/terminal/topics/commit-confirmed/1-trial-host.conf
 ze# show | compare
-ze# commit confirmed 8
+ze# commit confirmed 15
 ze# show system host
 ze# show system host
 ze# show | compare

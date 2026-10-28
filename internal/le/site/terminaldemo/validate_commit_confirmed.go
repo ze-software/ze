@@ -22,7 +22,7 @@ func checkTopicCommitConfirmed() error {
 		"--command", "load file absolute merge /src/demos/terminal/topics/commit-confirmed/1-trial-host.conf",
 		"--command", "@wait merged from",
 		"--command", "show | compare",
-		"--command", "commit confirmed 8",
+		"--command", "commit confirmed 15",
 		"--command", "@wait Confirm within",
 		"--command", "show system host",
 		"--command", "@wait automatically rolled back",

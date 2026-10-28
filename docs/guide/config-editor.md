@@ -591,7 +591,7 @@ confirmed` needs config history. An editor without one, such as
 writes the file and names `ze init`; `commit now` still works there.
 
 The demonstration uses the running daemon's SSH editor, not file mode. It
-load-merges a trial hostname and uses `commit confirmed 8`. After the
+load-merges a trial hostname and uses `commit confirmed 15`. After the
 unaccepted window expires, it checks the restored `edge-original` hostname
 and an empty `show | compare`, followed by `show | changes` reporting no
 pending changes. A second change, committed with `commit confirmed 15`,

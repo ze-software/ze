@@ -21,7 +21,10 @@ Type "show | compare"
 Enter
 Wait+Screen /\*\s+system host edge-trial/
 Sleep 3s
-Type "commit confirmed 8"
+# Fifteen seconds, not fewer: the reading floor after Confirm within, the
+# typing of show system host and its settle must all land before the rollback,
+# or the rollback resets the input line and edge-trial is never shown.
+Type "commit confirmed 15"
 Enter
 Wait+Screen /Confirm within/
 Type "show system host"
