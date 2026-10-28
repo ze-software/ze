@@ -9,7 +9,7 @@
 | Depends | `plan/release/delivery/spec-appliance-ships-ze-kernel.md` (AC-6 and AC-7 only; AC-1..AC-5 land without it) |
 | Phase | 5/7 — native amd64/KVM and arm64/HVF traffic proved; live discrimination and final reconciliation pending |
 | Handoff | - |
-| Updated | 2026-10-27 |
+| Updated | 2026-10-28 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -630,9 +630,50 @@ The explicit emitted-config and installed `modules.builtin` readback requested
 by handover 27 was not among these five files. Preserve the Mac cache for that
 read-only reconciliation; no new boot or traffic run is needed to retrieve it.
 The earlier two failure receipts and image remain preserved. Live deliberate
-breaks, default-appliance acceptance reconciliation and the final review still
-remain. This successful Docker-host run alone does not close the spec or prove
-the separate product WireGuard configuration-commit workflow.
+breaks and final review still remain. This successful Docker-host run alone
+does not close the spec or prove the separate product WireGuard
+configuration-commit workflow.
+
+## Current native amd64 kernel and AC-7 default-image evidence
+
+On 2026-10-28, the native runtime build through
+`ze appliance kernel --target runtime --arch amd64 --builder docker --jobs 4`
+passed and published
+`7.2.9-runtime-amd64-runtime-docker-43d6bdb1-34cba457`.
+Its emitted config contains all 156 symbols in `kernel.require` and
+`runtime.require` as `=y`, including HWMON, PWM and SENSORS_PWM_FAN.
+The installed `modules.builtin` names the fan; the only loadable module in
+that tree is `x86_pkg_temp_thermal.ko`.
+
+The first attempt completed kernel compilation but failed before cache
+publication when the ownership-repair invocation exceeded its two-minute
+deadline, leaving a created but unstarted container. Resuming that exact owned
+container passed. The subsequent bounded native build used the unchanged
+deadline and passed. The first outputs remain preserved separately, with an
+explicit stale-provenance warning; they were not manually imported into the
+kernel cache.
+
+The normal `ze appliance build t2` entry point then built the default amd64
+image from that warm kernel, with no kernel/image override. Readback extracted
+`vmlinuz` from the actual GPT EFI partition, then read its x86-header-defined
+zstd payload and embedded kernel config. Both kernel bytes and config bytes
+match the selected cache. All 156 required symbols are built in; none is
+missing. This satisfies the packaged-config condition of AC-7, not a boot,
+L2TP/PPP or WireGuard configuration-commit proof.
+
+| Artifact | SHA-256 |
+|----------|---------|
+| Default `t2/ze-20261028-005448.img` | `761f0cccb37042c42c1da4d41ea139c68811ef7605cf09f5934e53ddc6ab4b17` |
+| Packaged and cached kernel | `c7f8358004c5e5efa8bd7d4ace48cdfa09f101b98c2b3ea78e78eab2eb64cf67` |
+| Embedded and cached config | `7647aa85ab64e089250d61a2873cb03f732a20ba053ee36de3efba8521a11399` |
+
+Receipts are under session
+`2026-10-22-644a4e78-0122-4eeb-8642-eb50638a1641`:
+`scratch/job-vpn-kernel-four-jobs-654b7451.log`,
+`scratch/job-vpn-default-image-032c88df.log` and
+`scratch/vpn-default-readback/receipt.json`. The native Docker-host prerequisite
+also built successfully from this kernel, as image `6fff09d78be893ac`;
+that image is separate from the default appliance image above.
 
 
 ## Known Limitations
