@@ -217,11 +217,17 @@ func (p *Parser) parseListInlineEntry(tree *Tree, name string, node *ListNode, k
 		}
 
 		if childIdx < lastIdx {
-			// Positional assignment for children before the last
-			if err := validateInlineListChildValue(node, children[childIdx], tok.value); err != nil {
+			// Positional assignment for children before the last. A $9$
+			// key decodes here as it does in the block form (parseLeaf).
+			leaf, _ := node.Get(children[childIdx]).(*LeafNode)
+			value, err := decodeSecretLeaf(entry, children[childIdx], leaf, tok.value)
+			if err != nil {
+				return p.errorf(tok, "%v", err)
+			}
+			if err := validateInlineListChildValue(node, children[childIdx], value); err != nil {
 				return p.errorf(tok, "invalid value for %s.%s: %v", name, children[childIdx], err)
 			}
-			entry.Set(children[childIdx], tok.value)
+			entry.Set(children[childIdx], value)
 			childIdx++
 		} else if lastIdx >= 0 {
 			// Collect into last child
@@ -270,7 +276,13 @@ func (p *Parser) setInlineLastChild(entry *Tree, name string, node *ListNode, ch
 		return p.storeValueOrArray(entry, childName, child, parts, tok)
 	}
 
-	value := textbuf.Join(parts, " ")
+	// A $9$ key decodes here as it does in the block form (parseLeaf), which
+	// is what `user { alice $9$...; }` reads back through.
+	leaf, _ := node.Get(childName).(*LeafNode)
+	value, err := decodeSecretLeaf(entry, childName, leaf, textbuf.Join(parts, " "))
+	if err != nil {
+		return p.errorf(tok, "%v", err)
+	}
 	if err := validateInlineListChildValue(node, childName, value); err != nil {
 		return p.errorf(tok, "invalid value for %s.%s: %v", name, childName, err)
 	}

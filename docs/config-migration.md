@@ -181,7 +181,9 @@ Flags:
 
 A `plaintext-password` in the input is written as its bcrypt hash in the
 `password` leaf, in both output forms, as `ze config fmt` and a commit do; a
-weak password is named on stderr.
+weak password is named on stderr. Both forms write each `ze:sensitive` key
+in the `$9$` form, as `ze config fmt` does, and both read a `$9$` string back
+as the key it encodes.
 
 ### `ze config fmt`
 
@@ -224,9 +226,15 @@ brace or a bracket (other than a `:[address]` such as
 `redirect:[2001:db8::1]:100`), or starting with `(` or `)`. Inside the quotes, `"`, `\`, a
 newline and a tab are written `\"`, `\\`, `\n` and `\t`.
 
-The one value fmt rewrites is a `plaintext-password`: it is written as its
+Two kinds of value fmt rewrites. A `plaintext-password` is written as its
 bcrypt hash in the `password` leaf, the hash a commit would store, because the
 plaintext leaf is never written to a file. A weak password is named on stderr.
+A key in a `ze:sensitive` leaf (an MD5 password, a pre-shared key) is never
+written in clear: a key given in clear is written in the `$9$` form, and a key
+already in the `$9$` form is written back exactly as it was read, so a second
+fmt changes nothing. `ze secret decode` reads the key back.
+<!-- source: internal/component/config/cli/cmd_fmt.go -- encodeSecrets -->
+<!-- source: internal/component/config/tree.go -- SetStoredSecret -->
 
 ## Unsupported ExaBGP Features
 

@@ -228,7 +228,11 @@ func (p *SetParser) walkAndSet(tree *Tree, parent Node, tokens []string, lineNum
 		if len(tokens) != 1 {
 			return fmt.Errorf("line %d: leaf %s expects exactly one value", lineNum, name)
 		}
-		value := tokens[0]
+		// A $9$ key decodes as it does in the hierarchical form (parseLeaf).
+		value, err := decodeSecretLeaf(tree, name, leaf, tokens[0])
+		if err != nil {
+			return fmt.Errorf("line %d: %w", lineNum, err)
+		}
 		if err := ValidateLeafValue(leaf, value); err != nil {
 			return fmt.Errorf("line %d: invalid value for %s: %w", lineNum, name, err)
 		}

@@ -58,10 +58,15 @@ func consumeOneField(tree *Tree, parent Node, tokens []string) (int, error) {
 		if len(tokens) < 2 {
 			return 0, fmt.Errorf("missing value for %s", name)
 		}
-		if err := validateLeafValue(child, name, tokens[1]); err != nil {
+		// A $9$ key decodes as it does in the hierarchical form (parseLeaf).
+		secretLeaf, _ := child.(*LeafNode)
+		value, err := decodeSecretLeaf(tree, name, secretLeaf, tokens[1])
+		if err != nil {
 			return 0, err
 		}
-		value := tokens[1]
+		if err := validateLeafValue(child, name, value); err != nil {
+			return 0, err
+		}
 		if leaf, ok := child.(*LeafNode); ok {
 			value = NormalizeLeafValue(leaf.Type, value)
 		}

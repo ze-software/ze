@@ -13,7 +13,6 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/ze-software/ze/internal/component/config/secret"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -356,17 +355,13 @@ func (p *Parser) parseLeaf(tree *Tree, name string, node *LeafNode) error {
 	value = tok.value
 	p.tok.next()
 
-	// Decode $9$-encoded values on sensitive leaves.
-	// Skipped for ze:bcrypt leaves: bcrypt is one-way, cannot share the
-	// $9$ reversible path. A $9$-prefixed string on a bcrypt leaf is
-	// preserved verbatim (and will fail bcrypt format validation later).
-	if node.Sensitive && !node.Bcrypt && secret.IsEncoded(value) {
-		decoded, err := secret.Decode(value)
-		if err != nil {
-			return p.errorf(tok, "invalid $9$ encoding for %s: %v", name, err)
-		}
-		value = decoded
+	// Decode a $9$-encoded value on a sensitive leaf, keeping the text read
+	// beside it (decodeSecretLeaf, shared with the set parsers).
+	decoded, err := decodeSecretLeaf(tree, name, node, value)
+	if err != nil {
+		return p.errorf(tok, "%v", err)
 	}
+	value = decoded
 
 	// Validate value type and YANG restrictions (works on decoded plaintext too).
 	if err := ValidateLeafValue(node, value); err != nil {

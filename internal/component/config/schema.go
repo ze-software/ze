@@ -16,6 +16,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"unicode/utf8"
 
 	configyang "github.com/ze-software/ze/internal/component/config/yang"
@@ -257,6 +258,20 @@ func (n *ListNode) Children() []string {
 // Schema holds the configuration schema definition.
 type Schema struct {
 	root *ContainerNode
+	// sensitiveNames caches SensitiveKeys for the printers, which ask on
+	// every print (encodeSecrets). Define and ExtendCapability clear it.
+	sensitiveNames atomic.Pointer[map[string]bool]
+}
+
+// sensitiveKeyNames answers SensitiveKeys(s), computed once until the next
+// Define or ExtendCapability. Safe for concurrent use.
+func (s *Schema) sensitiveKeyNames() map[string]bool {
+	if names := s.sensitiveNames.Load(); names != nil {
+		return *names
+	}
+	names := SensitiveKeys(s)
+	s.sensitiveNames.Store(&names)
+	return names
 }
 
 // NewSchema creates a new empty schema.
@@ -273,6 +288,7 @@ func NewSchema() *Schema {
 // so multiple YANG modules can contribute children under a shared path
 // (e.g., ze-ssh-conf and ze-tacacs-conf both extend system.authentication).
 func (s *Schema) Define(name string, node Node) {
+	s.sensitiveNames.Store(nil)
 	existing, exists := s.root.children[name]
 	if exists {
 		if ec, ok := existing.(*ContainerNode); ok {
@@ -445,6 +461,7 @@ func (s *Schema) Lookup(path string) (Node, error) {
 // Extends standalone peers (bgp.peer), grouped peers (bgp.group.peer),
 // and group-level capability (bgp.group).
 func (s *Schema) ExtendCapability(name string, fields ...FieldDef) error {
+	s.sensitiveNames.Store(nil)
 	bgpNode := s.Get("bgp")
 	if bgpNode == nil {
 		return errBgpNodeNotFoundInSchema

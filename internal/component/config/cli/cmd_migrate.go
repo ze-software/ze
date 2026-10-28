@@ -346,6 +346,7 @@ func configMigrateWithWarnings(inputPath, outputPath, outputForm string) (string
 	printPasswordWeaknesses(weaknesses)
 
 	// Serialize in the requested output form (default: set).
+	// Both printers write each ze:sensitive key in the $9$ form, as fmt does.
 	var output string
 	if outputForm == formHierarchical {
 		output = config.Serialize(result.Tree, schema)

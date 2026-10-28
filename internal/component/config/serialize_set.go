@@ -91,10 +91,11 @@ func DetectFormat(content string) ConfigFormat {
 }
 
 // SerializeSet converts a Tree to flat set commands in YANG schema order.
-// Each leaf value becomes one "set <path> <value>" line.
+// Each leaf value becomes one "set <path> <value>" line. A ze:sensitive leaf
+// prints in its $9$ form (encodeSecrets), never in clear.
 func SerializeSet(tree *Tree, schema *Schema) string {
 	var b textbuf.Buffer
-	serializeSetNode(&b, tree, schema.root, "")
+	serializeSetNode(&b, mustEncodeSecrets(tree, schema), schema.root, "")
 	return b.String()
 }
 
@@ -537,9 +538,11 @@ func serializeSetExtraValues(b *textbuf.Buffer, tree *Tree, children []string, p
 // SerializeSetWithMeta converts a Tree to flat set commands with metadata prefixes.
 // Each leaf value becomes one line: [#user @time %session] set <path> <value>.
 // Lines without metadata in the MetaTree are emitted as bare set commands.
+// A ze:sensitive leaf prints in its $9$ form (encodeSecrets), never in clear,
+// and so does a contested session entry for one (secretEntrySpelling).
 func SerializeSetWithMeta(tree *Tree, meta *MetaTree, schema *Schema) string {
 	var b textbuf.Buffer
-	serializeSetMetaNode(&b, tree, meta, schema.root, "")
+	serializeSetMetaNode(&b, mustEncodeSecrets(tree, schema), meta, schema.root, "")
 	return b.String()
 }
 
@@ -630,7 +633,11 @@ func serializeSetMetaChild(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name s
 	case *LeafNode:
 		if v, ok := tree.values[name]; ok {
 			pathPfx := tb.Reset().Str(prefix).Str(name).Byte(' ').String()
-			writeMetaLeafLineCmd(b, meta, name, setOrNop(tree, name), pathPfx, quoteIfNeeded(normalizeBool(v)))
+			entryValue := quoteIfNeeded
+			if reversibleSecret(n) {
+				entryValue = secretEntrySpelling(v)
+			}
+			writeMetaLeafLineFormat(b, meta, name, setOrNop(tree, name), pathPfx, quoteIfNeeded(normalizeBool(v)), entryValue)
 		}
 
 	case *MultiLeafNode:

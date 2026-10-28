@@ -64,6 +64,8 @@ func fmtTree(tree *config.Tree, schema *config.Schema) (string, []string, error)
 	if err != nil {
 		return "", nil, err
 	}
+	// config.Serialize never prints a key in clear: it keeps the $9$ text a
+	// key was read in, and encodes a key given in clear once.
 	return config.Serialize(tree, schema), weaknesses, nil
 }
 

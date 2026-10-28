@@ -53,10 +53,18 @@ type Tree struct {
 	// A name with members but no mirror (AppendValue: freeform entries, the
 	// plugin-map singleton view) is not in this set, because its values are not
 	// space-joined members and splitting them would corrupt them.
-	mirrored   map[string]bool
-	containers map[string]*Tree
-	lists      map[string]map[string]*Tree
-	listOrder  map[string][]string // Preserves insertion order for list keys
+	mirrored map[string]bool
+	// storedSecrets keeps, for a ze:sensitive leaf the parser read in the $9$
+	// form, the exact text it read; values holds the decoded key. A printer
+	// writes this text back while it still decodes to the value held
+	// (StoredSecret), the Junos model: secret.Encode draws a random salt, so
+	// re-encoding on every print would rewrite every key on every fmt. A
+	// write to the leaf leaves the entry stale rather than clearing it, and
+	// the decode check is what makes a stale entry harmless.
+	storedSecrets map[string]string
+	containers    map[string]*Tree
+	lists         map[string]map[string]*Tree
+	listOrder     map[string][]string // Preserves insertion order for list keys
 }
 
 // NewTree creates an empty config tree.
@@ -67,10 +75,29 @@ func NewTree() *Tree {
 		inactiveValues:  make(map[string]bool),
 		inactiveMembers: make(map[string]map[string]bool),
 		mirrored:        make(map[string]bool),
+		storedSecrets:   make(map[string]string),
 		containers:      make(map[string]*Tree),
 		lists:           make(map[string]map[string]*Tree),
 		listOrder:       make(map[string][]string),
 	}
+}
+
+// SetStoredSecret records the $9$ text the parser read for the ze:sensitive
+// leaf name, beside the decoded value Set stores (see Tree.storedSecrets).
+func (t *Tree) SetStoredSecret(name, encoded string) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.storedSecrets[name] = encoded
+}
+
+// StoredSecret answers the $9$ text recorded for the leaf name, and false
+// when the leaf was not read in the $9$ form. The caller MUST check that the
+// text still decodes to the leaf's value before printing it.
+func (t *Tree) StoredSecret(name string) (string, bool) {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	encoded, ok := t.storedSecrets[name]
+	return encoded, ok
 }
 
 // SetInactive marks this tree node (container or list entry) as deactivated.
@@ -435,6 +462,7 @@ func (t *Tree) Clone() *Tree {
 	}
 
 	maps.Copy(clone.mirrored, t.mirrored)
+	maps.Copy(clone.storedSecrets, t.storedSecrets)
 
 	// Clone inactiveValues (leaf-level deactivation markers)
 	maps.Copy(clone.inactiveValues, t.inactiveValues)
@@ -626,6 +654,7 @@ func (t *Tree) mergeFrom(other *Tree, schema ChildProvider) error {
 		return err
 	}
 	maps.Copy(t.values, other.values)
+	maps.Copy(t.storedSecrets, other.storedSecrets)
 	// The second block's leaf-list statements accumulate onto the first's, as
 	// repeated statements in one block do (RFC 7950 Section 7.7): a set keeps
 	// one copy of each member, an ordered sequence keeps its repeats, and a

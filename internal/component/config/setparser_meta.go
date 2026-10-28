@@ -277,7 +277,13 @@ func (p *SetParser) walkAndSetWithMeta(tree *Tree, meta *MetaTree, parent Node, 
 		if len(tokens) != 1 {
 			return fmt.Errorf("line %d: leaf %s expects exactly one value", lineNum, name)
 		}
-		value := tokens[0]
+		// A $9$ key decodes as it does in the hierarchical form (parseLeaf).
+		// The session entry holds the decoded key too, as the tree does: the
+		// editor replays and compares entries against tree values.
+		value, err := decodeSecretLeaf(tree, name, leaf, tokens[0])
+		if err != nil {
+			return fmt.Errorf("line %d: %w", lineNum, err)
+		}
 		if err := ValidateLeafValue(leaf, value); err != nil {
 			return fmt.Errorf("line %d: invalid value for %s: %w", lineNum, name, err)
 		}

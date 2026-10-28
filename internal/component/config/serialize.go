@@ -167,10 +167,12 @@ func normalizeBool(v string) string {
 	}
 }
 
-// Serialize converts a Tree back to config text format.
+// Serialize converts a Tree back to config text format. A ze:sensitive leaf
+// prints in its $9$ form (encodeSecrets), never in clear: every writer of
+// config text (fmt, migrate, the editor) prints through here or SerializeSet.
 func Serialize(tree *Tree, schema *Schema) string {
 	var b textbuf.Buffer
-	serializeTree(&b, tree, schema.root, 0)
+	serializeTree(&b, mustEncodeSecrets(tree, schema), schema.root, 0)
 	return b.String()
 }
 
