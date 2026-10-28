@@ -620,7 +620,8 @@ never sums the two, because a nightly tier is not merge-gate proof.
     disposition; otherwise it lands in this session's scratch and the command
     prints the `mv` that ends the walk.
   - `./le rfc extraction report` prints the sign-off counts.
-  - `./le rfc reseal` re-stamps an audit verdict after a mechanical edit.
+  - `./le rfc reseal stem <stem>` re-stamps the audit verdicts of the named
+    RFC after a mechanical edit, and no other RFC's.
   - `./le rfc audit-stamp stem <stem> from <path>` adds new audit verdicts from a
     pending file, computing their fingerprints. With `mode rejudge` it replaces
     recorded verdicts a judge re-made, in place, and accepts `upgrade_reason`.
@@ -703,12 +704,12 @@ never sums the two, because a nightly tier is not merge-gate proof.
 - **A `SHIFTED` verdict is not your problem to re-read.** When the gate says a
   verdict is SHIFTED, the tagged unit is byte-identical and only the file around it
   moved: a line shift, a sibling test, or a rewritten import. Run
-  `./le rfc reseal` then `./le rfc update`. Reseal owns mechanical
+  `./le rfc reseal stem <stem>` then `./le rfc update`. Reseal owns mechanical
   fingerprint shifts, not independent rejudgment. Semantic changes require a
   new audit and `audit-stamp ... mode rejudge`; regeneration never authorizes
   a broader claim.
   <!-- source: internal/le/rfc/freshness.go -- auditFreshness -->
-  <!-- source: internal/le/rfc/reseal.go -- resealTree -->
+  <!-- source: internal/le/rfc/reseal.go -- resealStems -->
 - **A `STALE` verdict is.** The tagged unit itself changed, so re-run
   `/ze-rfc-audit <rfc>`. The re-seal refuses that case by design.
 - **Never change a tagged test to make it pass.** Once a test carries an

@@ -295,7 +295,7 @@ var unprovenMeaning = map[string]string{
 // when one mechanical command clears it.
 var stateMeaning = map[string]string{
 	ShiftedState: "the tagged unit is byte-identical and only the file around it moved; " +
-		"nothing was re-judged, so re-stamp it with `./le rfc reseal`",
+		"nothing was re-judged, so re-stamp it with `./le rfc reseal stem <rfc>`",
 	StaleUnitState: "what it judged changed -- the tagged unit itself, or the producing " +
 		"code it cites; it must be re-judged with the `ze-rfc-audit` skill before it " +
 		"counts as anything",

@@ -108,9 +108,14 @@ var actions = leaction.New(area,
 		"staled: the tagged unit is byte-identical and only the file around it moved, " +
 		"so nothing was re-judged and no human should be asked to re-read. A verdict " +
 		"whose unit, cited producer code, or requirement text MOVED is refused and " +
-		"stays stale: that one needs /ze-rfc-audit <rfc>, then `./le rfc update`",
+		"stays stale: that one needs /ze-rfc-audit <rfc>, then `./le rfc update`. It writes only " +
+		"the stems named, so a shift another session's edit caused in another RFC stays untouched",
 		Writes: true,
-		Answer: resealAnswer},
+		Parameters: []leaction.Parameter{
+			{Keyword: keyStem, Kind: leaction.KindLabel, Help: "an RFC or draft stem whose shifted verdicts are re-stamped", Value: keyStem,
+				Requirement: leaction.Required, Repeat: true},
+		},
+		AnswerArgs: resealAnswer},
 	leaction.Action{Verb: "evidence-split", Does: "migrate", Summary: "convert evidence files from the retired layout", Why: "convert each per-stem evidence file of the retired layout, " +
 		"rfc/discrimination/<stem>.json and rfc/audit/<stem>.json, into one file per requirement under " +
 		"<dir>/<stem>/<requirement-id>.json, so two sessions working different requirements never edit " +
@@ -390,20 +395,21 @@ func checkAnswer() (any, int) {
 	return &report, code
 }
 
-// resealAnswer re-stamps the shifted verdicts of this checkout.
+// resealAnswer re-stamps the shifted verdicts of the named stems in this
+// checkout.
 //
 // It answers 0 whether or not anything was re-stamped, and whether or not
 // anything was refused, which is what the script answers. A refusal is a
 // verdict a human must re-read, not a broken tree: reporting it as a failure
-// would make the ledger generator that follows look like the remedy. Only a
-// tree the writer could not READ answers 2.
-func resealAnswer() (any, int) {
+// would make the ledger generator that follows look like the remedy. A tree
+// the writer could not READ, no stem, or a stem that is not enrolled answers 2.
+func resealAnswer(args leaction.Arguments) (any, int) {
 	tree, err := lepath.Root()
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 2
 	}
-	report, err := resealTree(tree)
+	report, err := resealStems(tree, args.Values(keyStem))
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 2

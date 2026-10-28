@@ -20,6 +20,7 @@ package rfc
 
 import (
 	"bytes"
+	"errors"
 	"os"
 	"strings"
 
@@ -51,10 +52,43 @@ func (r ResealReport) Text() string {
 		Str(" refused. The ledger now needs: ./le rfc update\n").String()
 }
 
-// resealTree re-stamps every SHIFTED verdict in the checkout and answers what it
-// did.
-func resealTree(tree string) (ResealReport, error) {
-	return reseal(tree, nil)
+// resealScope names the stems one reseal may write.
+//
+// A shifted verdict is any verdict whose tagged file moved around an unchanged
+// unit, and in a checkout several sessions edit, files move under every RFC all
+// day. A reseal scoped to the whole corpus therefore re-stamps verdicts nobody
+// asked about, and leaves their files modified in a tree where nobody owns them.
+// The scope is the caller's list, so a reseal writes only the stems named.
+type resealScope struct {
+	// every admits each enrolled stem. Only ResealWithProof sets it, because its
+	// per-file proof callback is what bounds what it may write.
+	every bool
+	// stems are the stems the caller named, each of which must be enrolled.
+	stems map[string]bool
+}
+
+// admits reports whether the scope lets the reseal write stem.
+func (s resealScope) admits(stem string) bool {
+	if s.every {
+		return true
+	}
+	return s.stems[stem]
+}
+
+// resealStems re-stamps the SHIFTED verdicts of the named stems, and only
+// those, and answers what it did. A verdict of any other stem is neither read
+// for refusal nor written, whatever its state.
+func resealStems(tree string, stems []string) (ResealReport, error) {
+	if len(stems) == 0 {
+		return ResealReport{}, errors.New("rfc reseal requires stem <stem>: name each RFC " +
+			"whose verdicts your own edit shifted, for example `./le rfc reseal stem rfc4271`, " +
+			"so verdicts of RFCs you did not touch stay as they are")
+	}
+	named := make(map[string]bool, len(stems))
+	for _, stem := range stems {
+		named[stem] = true
+	}
+	return reseal(tree, resealScope{stems: named}, nil)
 }
 
 // ResealWithProof re-stamps mechanically shifted verdicts after the caller
@@ -64,15 +98,25 @@ func resealTree(tree string) (ResealReport, error) {
 // transitional stale-unit verdict with no recorded units, because that legacy
 // record has no unit fingerprint to compare and therefore needs the caller's
 // independent per-file proof. A false proof refuses only the verdict that names
-// the file.
+// the file. It walks every enrolled stem: a module rename moves files under
+// every RFC at once, and the proof, not a stem list, bounds what it writes.
 func ResealWithProof(tree string, prove func(string) bool) (ResealReport, error) {
-	return reseal(tree, prove)
+	return reseal(tree, resealScope{every: true}, prove)
 }
 
-func reseal(tree string, prove func(string) bool) (ResealReport, error) {
+func reseal(tree string, scope resealScope, prove func(string) bool) (ResealReport, error) {
 	collected, err := Collect(tree)
 	if err != nil {
 		return ResealReport{}, err
+	}
+	for _, stem := range sortedSet(scope.stems) {
+		if collected.Enrolled[stem] {
+			continue
+		}
+		var message textbuf.Buffer
+		return ResealReport{}, errors.New(message.Str("rfc reseal: ").Str(stem).
+			Str(" is not an enrolled RFC, so it holds no verdict to re-seal: name the stem ").
+			Str("of a summary under rfc/short/ whose Enrolment is enrolled").String())
 	}
 	audits, err := loadAudits(tree, collected.Enrolled)
 	if err != nil {
@@ -92,6 +136,9 @@ func reseal(tree string, prove func(string) bool) (ResealReport, error) {
 
 	report := ResealReport{Resealed: []string{}, Refused: []string{}}
 	for _, rfcStem := range sortedSet(collected.Enrolled) {
+		if !scope.admits(rfcStem) {
+			continue
+		}
 		audit := audits[rfcStem]
 		if len(audit.Verdicts) == 0 {
 			continue

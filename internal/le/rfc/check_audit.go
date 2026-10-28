@@ -204,7 +204,7 @@ func checkAuditFreshness(requirements []Requirement, states map[string]Freshness
 			var tb textbuf.Buffer
 			errs = append(errs, tb.Str(where).Str(": ").Str(req.RID).
 				Str(" has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (").Str(detail).
-				Str("), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal").String())
+				Str("), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem ").Str(req.RFC).String())
 		case StaleRequirementState:
 			var tb textbuf.Buffer
 			errs = append(errs, tb.Str(where).Str(": ").Str(req.RID).

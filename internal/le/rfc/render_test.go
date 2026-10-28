@@ -236,7 +236,7 @@ func TestAVerdictInAnUnpublishedStateSaysSoRatherThanRenderingAnEmptyCell(t *tes
 	// an unknown STATE and an unknown VERDICT WORD.
 	cases := []struct{ name, reason, want string }{
 		{"a known verdict", "weak", "cannot fail on non-compliance"},
-		{"a known state", "weak (shifted)", "re-stamp it with `./le rfc reseal`"},
+		{"a known state", "weak (shifted)", "re-stamp it with `./le rfc reseal stem <rfc>`"},
 		{"an unknown state", "weak (invented)",
 			"unpublished freshness state `invented` -- add it to _STATE_MEANING"},
 		{"an unknown verdict", "invented", "outside the recorded vocabulary"},

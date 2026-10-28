@@ -108,7 +108,7 @@ func runAuditSelftest() ([]leroot.SelftestResult, error) {
 		Tree: root, Requirements: collected.Requirements, Tags: shiftedTags,
 		Enrolled: collected.Enrolled, Audits: audits,
 	})
-	resealReport, err := resealTree(root)
+	resealReport, err := resealStems(root, []string{selftestStem})
 	if err != nil {
 		return nil, err
 	}

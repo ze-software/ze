@@ -330,12 +330,12 @@ func leRFCAnswers(ctx context.Context) (err error) {
 	// Prime the owned audit once so the no-op contract starts from fresh data.
 	checkoutAuditBefore := leRFCAnswersAuditState(root)
 	noopTree := leRFCAnswersCopyTree(root, here, "reseal-noop")
-	prime := runLE(noopTree, "rfc", "reseal")
+	prime := runLE(noopTree, "rfc", "reseal", "stem", "rfc4456")
 	leRFCAnswersRequire(prime.code == 0 && prime.stderr == "",
 		"priming rfc reseal on the owned copy failed with exit %d\nstdout:\n%s\nstderr:\n%s",
 		prime.code, prime.stdout, prime.stderr)
 	noopAuditBefore := leRFCAnswersAuditState(noopTree)
-	reseal := runLE(noopTree, "rfc", "reseal")
+	reseal := runLE(noopTree, "rfc", "reseal", "stem", "rfc4456")
 	leRFCAnswersRequire(reseal.code == 0,
 		"rfc reseal refused the primed owned copy with exit %d\nstdout:\n%s\nstderr:\n%s",
 		reseal.code, reseal.stdout, reseal.stderr)
@@ -345,7 +345,7 @@ func leRFCAnswers(ctx context.Context) (err error) {
 	leRFCAnswersRequire(!strings.Contains(reseal.stdout, "\x1b["),
 		"rfc reseal emitted terminal escapes: %q", reseal.stdout)
 
-	resealAgain := runLE(noopTree, "rfc", "reseal")
+	resealAgain := runLE(noopTree, "rfc", "reseal", "stem", "rfc4456")
 	leRFCAnswersRequire(resealAgain.code == 0 && resealAgain.stderr == "",
 		"second primed-export rfc reseal failed with exit %d\nstdout:\n%s\nstderr:\n%s",
 		resealAgain.code, resealAgain.stdout, resealAgain.stderr)
@@ -353,7 +353,7 @@ func leRFCAnswers(ctx context.Context) (err error) {
 		"two no-op re-seals rendered different bytes\nfirst:\n%s\nsecond:\n%s",
 		reseal.stdout, resealAgain.stdout)
 
-	resealJSON := runLE(noopTree, "rfc", "reseal", "|", "json")
+	resealJSON := runLE(noopTree, "rfc", "reseal", "stem", "rfc4456", "|", "json")
 	leRFCAnswersRequire(resealJSON.code == 0,
 		"rfc reseal | json exited %d\nstdout:\n%s\nstderr:\n%s",
 		resealJSON.code, resealJSON.stdout, resealJSON.stderr)
@@ -382,8 +382,8 @@ func leRFCAnswers(ctx context.Context) (err error) {
 	leRFCAnswersRequire(reflect.DeepEqual(shiftedBeforeA, shiftedBeforeB),
 		"two owned copies began with different rfc/audit bytes")
 
-	shiftedA := runLE(resealTreeA, "rfc", "reseal")
-	shiftedB := runLE(resealTreeB, "rfc", "reseal")
+	shiftedA := runLE(resealTreeA, "rfc", "reseal", "stem", "rfc4456")
+	shiftedB := runLE(resealTreeB, "rfc", "reseal", "stem", "rfc4456")
 	for name, result := range map[string]leRFCAnswersResult{"reseal-a": shiftedA, "reseal-b": shiftedB} {
 		leRFCAnswersRequire(result.code == 0,
 			"%s rfc reseal exited %d\nstdout:\n%s\nstderr:\n%s",
@@ -408,7 +408,7 @@ func leRFCAnswers(ctx context.Context) (err error) {
 
 	// Once re-sealed, the same shifted export is fresh and a second invocation
 	// must be a byte-preserving no-op.
-	shiftedFresh := runLE(resealTreeA, "rfc", "reseal")
+	shiftedFresh := runLE(resealTreeA, "rfc", "reseal", "stem", "rfc4456")
 	leRFCAnswersRequire(shiftedFresh.code == 0 && shiftedFresh.stderr == "",
 		"second shifted-export rfc reseal failed with exit %d\nstdout:\n%s\nstderr:\n%s",
 		shiftedFresh.code, shiftedFresh.stdout, shiftedFresh.stderr)

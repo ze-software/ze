@@ -191,7 +191,7 @@ a test that no longer enforces its requirement.
 | State | What moved | What clears it |
 |-------|-----------|----------------|
 | `fresh` | nothing | — |
-| `shifted` | the FILE around a tagged unit: a line shift, a sibling test, an import rewrite. The unit itself is byte-identical, so nothing was re-judged | `./le rfc reseal`, then `./le rfc update`. **No re-reading is asked for** |
+| `shifted` | the FILE around a tagged unit: a line shift, a sibling test, an import rewrite. The unit itself is byte-identical, so nothing was re-judged | `./le rfc reseal stem <rfc>`, then `./le rfc update`. **No re-reading is asked for** |
 | `stale-unit` | the tagged unit itself, or a cited producer in a `code` map | `/ze-rfc-audit <rfc>` — read it again |
 | `stale-requirement` | the checklist line's own text | `/ze-rfc-audit <rfc>` — every judgement under it is void |
 
@@ -242,6 +242,6 @@ in a commit.
 | Which tags carry a replayable proof that the test discriminates its claim | `./le rfc discriminate stem <stem>`, and the **Claim discrimination** section of `ai/RFC-REQUIREMENTS.md` |
 | Record new verdicts | a pending file, then `./le rfc audit-stamp stem <stem> from <path>`, then `./le rfc update` |
 | Replace a verdict you re-judged | a pending file, then `./le rfc audit-stamp stem <stem> from <path> mode rejudge`, then `./le rfc update` |
-| Clear a `shifted` verdict | `./le rfc reseal`, then `./le rfc update` |
+| Clear a `shifted` verdict | `./le rfc reseal stem <rfc>` (only the RFC named is written), then `./le rfc update` |
 | Write or re-author a summary | `/ze-rfc <rfc>` |
 | Public support claims | The `Support` rows of `rfc/short/<stem>.md`; `./le rfc update` renders `docs/features/rfc-status.md` from them |

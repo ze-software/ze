@@ -232,7 +232,7 @@ Thomas's to start").
      changed, run `./le rfc record` until it records the red
      (`docs/contributing/rfc-conformance-gates.md`, "Producing a record: the two
      proof routes"). Then run `./le rfc check` and re-judge every audit verdict it
-     reports stale for this change: `./le rfc reseal` when the unit only shifted,
+     reports stale for this change: `./le rfc reseal stem <rfc>` when the unit only shifted,
      `/ze-rfc-audit` and `./le rfc audit-stamp ... mode rejudge` when its scope
      changed. The records and verdicts go in the same commit as the code they
      prove. `/ze-close` checks them and does not write them.

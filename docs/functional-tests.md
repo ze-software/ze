@@ -1540,7 +1540,7 @@ A verdict goes stale when what it judged changes, in one of three ways, and only
 wants a human:
 
 ```
-./le rfc reseal                   # clears SHIFTED: a line shift or a sibling edit
+./le rfc reseal stem <rfc>        # clears SHIFTED in that RFC only: a line shift or a sibling edit
 /ze-rfc-audit <rfc>                  # clears STALE: the tagged test itself changed
 ```
 
@@ -1570,8 +1570,9 @@ depend on this page being read.
 moved. The unit is the enclosing top-level Go function or the whole `.ci`,
 `.et`, or native interop fixture.
 
-`./le rfc reseal` is the only thing that re-stamps a recorded verdict nobody
-re-judged. `./le rfc audit-stamp stem <stem> from <path>` adds new verdicts an
+`./le rfc reseal stem <rfc>` is the only thing that re-stamps a recorded
+verdict nobody re-judged. It writes only the stems named (the keyword repeats),
+so a shift another session's edit caused in another RFC stays as it was. `./le rfc audit-stamp stem <stem> from <path>` adds new verdicts an
 author judged in a pending file outside `rfc/audit/`, computing their
 fingerprints, and refuses a requirement that already has one. With
 `mode rejudge` it replaces the verdicts a judge re-made after re-reading the
