@@ -20,7 +20,7 @@ Docker-based interop test infrastructure against strongSwan as the remote IKE pe
 
 The manual `./le test qemu vpn-kernel-test` additionally proves the kernel
 facilities for AES-GCM, AES-CBC/SHA256, ChaCha20-Poly1305, 3DES/SHA1 and
-NULL/SHA256 against strongSwan. It requires installed transforms and received
+NULL/SHA256 against strongSwan. It requires installed ESP states and received
 tunnel traffic with module loading disabled. Native amd64/KVM and arm64/HVF
 receipts cover that five-scenario subset; they are not a pass count for the
 whole IPsec suite and do not promote this feature's maturity.

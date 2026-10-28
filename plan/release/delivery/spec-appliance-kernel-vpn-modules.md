@@ -7,7 +7,7 @@
 | Release reason | The delivered appliance must contain the kernel facilities its VPN configuration requires. |
 | Scope | config \| tooling |
 | Depends | `plan/release/delivery/spec-appliance-ships-ze-kernel.md` (AC-6 and AC-7 only; AC-1..AC-5 land without it) |
-| Phase | 5/7 — native amd64/KVM and arm64/HVF traffic proved; live discrimination and final reconciliation pending |
+| Phase | 5/7 — native traffic, four deliberate breaks and restoration proved; Mac cache readback and closure reconciliation pending |
 | Handoff | - |
 | Updated | 2026-10-28 |
 
@@ -67,8 +67,8 @@ carry traffic.
   → Decision: the IPsec/WireGuard row there names the symbols this spec requires; edited in the same change.
 - [ ] `docs/guide/ipsec.md` - line 139 already states the XFRM backend needs Linux 7.2 `XFRM_MSG_MIGRATE_STATE` and `CONFIG_XFRM_MIGRATE`
   → Decision: the guide gains the per-cipher kernel requirement only if an operator can meet a refusal; with every transform built in, the guide states the appliance carries them all.
-- [ ] `docs/architecture/testing/qemu-integration.md` - QEMU guests boot `tmp/kernel/build/vmlinuz`
-  → Constraint: `ipsec-mobike-test` (`internal/le/test/qemu/mobike.go`) already boots Ze's runtime kernel and runs IPsec in the guest; the SA proof extends that lab rather than adding a second one.
+- [ ] `docs/architecture/testing/qemu-integration.md` - native Docker-host guest and VPN proof
+  → Constraint: `vpn-kernel-test` uses the shared Docker-host transport, not the MOBIKE movement scenarios. `runVPNKernelAt` selects the ESP matrix and WireGuard kernel check; A-5 records why the original MOBIKE-extension plan was replaced.
 - [ ] `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md` - declared by `xfrm_linux.go`; Child SA install into XFRM, refusals before the kernel
   → Constraint: the page names no per-cipher kernel requirement today; if the NULL spelling changes under AC-6, or the transform tables gain the symbol mapping, the page gains one paragraph naming the kernel symbol each transform needs, in the same change.
 - [ ] `ai/rules/platform-linux.md`
@@ -81,10 +81,12 @@ carry traffic.
 - [ ] `internal/component/ike/dataplane/xfrm_linux.go` - `xfrmEncNames`, `xfrmAEADNames`, `xfrmAuthNames`
 - [ ] `internal/component/ike/engine/kernelcap_linux.go` - runtime capability enrolment (`CONFIG_XFRM_USER`)
 - [ ] `internal/plugins/flowexport/conntrack_setup_appliance_linux.go` - states modprobe is absent on gokrazy
+- [ ] `internal/le/test/qemu/vpnproof.go`, `internal/le/test/deployment/vpnproof.go` - native kernel/config preparation and matrix entry point
+- [ ] `internal/le/test/deployment/wireguardproof.go`, `internal/le/interoplab/ipsec/vpnproof.go` - live guest-root, traffic and transform checks
 
 **Key insights:**
 - Ze's runtime kernel ALREADY carries the core VPN options built in. The open work is (1) three crypto transforms Ze's XFRM code names that the kernel does not hold, (2) the enforcement gap (several symbols set but required nowhere), (3) proof on a booted kernel. Adding the options to rtr7 is impossible (it is a pinned upstream binary package) and would be layering under `ai/rules/no-layering.md` in any case; the rtr7 removal is the other spec.
-- `=m` is not "present" on the appliance: gokrazy ships no `modprobe`, so the kernel's `request_module` finds no helper and a modular transform is never loaded. Every requirement here is `=y`.
+- Every VPN requirement here is `=y`. The proof disables module loading and refuses loaded modules before traffic; absence of a `modprobe` helper alone does not exclude gokrazy's direct boot-module loader.
 
 -> Constraint (found at implementation, 2026-10-10): ad0931ae26 had already set AC-1's three lines `=y` in `runtime.config` and declared every VPN and CRYPTO symbol in `runtime.require`, and `xfrmTransformKernel` (`internal/component/ike/dataplane/kernelcap_linux.go`) already maps each table transform to its symbol for the kernelcap enrolment. The derivation test reads that map; no second map was written. The test is `xfrm_kernelsym_linux_test.go`, because the tables are Linux-only.
 -> Constraint (read from linux-7.2 `net/xfrm/Kconfig`, 2026-10-10): `config XFRM_ESP` selects `CRYPTO_AES`, `CRYPTO_AUTHENC`, `CRYPTO_CBC`, `CRYPTO_ECHAINIV`, `CRYPTO_GCM`, `CRYPTO_HMAC`, `CRYPTO_SEQIV` and `CRYPTO_SHA256`, so `CONFIG_INET_ESP=y` forces the templates every transform uses; `crypto/sha256.c` implements `hmac(sha256)` itself. The per-transform requirement is therefore the one distinguishing symbol each `xfrmTransformKernel` entry names.
@@ -191,8 +193,9 @@ State of each VPN symbol in the arm64 emitted config:
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| `ze appliance kernel --target runtime` | → | `enforceKernelRequirements` over the emitted config | `TestRuntimeFloorCarriesVPNSymbols` (`internal/appliance/kernelreq_test.go`) |
-| Ze IKE SA install | → | `xfrmEncName` / `xfrmAEADName` / `xfrmAuthName` → kernel transform | `TestXfrmTransformsHaveRequiredKernelSymbol` (`internal/component/ike/dataplane/xfrm_kernelsym_test.go`) |
+| Runtime floor and manifest declarations | → | required-symbol membership | `TestRuntimeFloorCarriesVPNSymbols` (`internal/appliance/kernelreq_test.go`); declaration consistency, not command execution |
+| `ze appliance kernel --target runtime` | → | resolver enforcement over the emitted config | Native build/readback receipts below; `TestRuntimeKernelFloorRejectsMissing` (`internal/appliance/cmd_kernel_test.go`) separately exercises resolver refusal with a fake builder |
+| XFRM algorithm tables | → | transform-to-symbol mapping, fragment and manifest correspondence | `TestXfrmTransformsHaveRequiredKernelSymbol` (`internal/component/ike/dataplane/xfrm_kernelsym_linux_test.go`); declaration consistency, not SA installation |
 | booted Ze runtime kernel | → | IKE SA per transform + WireGuard link | `./le test qemu vpn-kernel-test`, using the existing docker-host guest and interop infrastructure |
 
 ## Acceptance Criteria
@@ -215,7 +218,7 @@ State of each VPN symbol in the arm64 emitted config:
 |------|------|-----------|--------|
 | `TestRuntimeFloorCarriesVPNSymbols` | `internal/appliance/kernelreq_test.go` | AC-2 | |
 | `TestEnforceRefusesModularVPNSymbol` | `internal/appliance/kernelreq_test.go` | AC-4 | |
-| `TestXfrmTransformsHaveRequiredKernelSymbol` | `internal/component/ike/dataplane/xfrm_kernelsym_test.go` | AC-3, reads `gokrazy/kernel/runtime.require` from the repo root | |
+| `TestXfrmTransformsHaveRequiredKernelSymbol` | `internal/component/ike/dataplane/xfrm_kernelsym_linux_test.go` | AC-3, reads `gokrazy/kernel/runtime.require` from the repo root | |
 | existing `kernelconfig_pairing_test.go` | `internal/appliance/` | AC-1 lines are required, not unverified | |
 
 ### Boundary Tests (numeric inputs)
@@ -234,11 +237,12 @@ N-A: no wire behavior changes; the kernel gains transforms Ze already negotiates
 - `gokrazy/kernel/runtime.config`, `gokrazy/kernel/runtime.require`
 - `internal/appliance/kernelreq.go`, `internal/appliance/kernelconfig_pairing_test.go`
 - `internal/component/ike/dataplane/xfrm_linux.go` (the NULL spelling note resolved by AC-6)
-- `internal/le/test/qemu/mobike.go`, `internal/le/test/deployment/mobike.go`
+- `internal/le/test/qemu/vpnproof.go`, `internal/le/test/deployment/vpnproof.go`
+- `internal/le/test/deployment/wireguardproof.go`, `internal/le/interoplab/ipsec/vpnproof.go`
 - `docs/architecture/appliance/kernel-profiles.md`, `docs/guide/appliance.md`, `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md`
 
 ## Files to Create
-- `internal/component/ike/dataplane/xfrm_kernelsym_test.go`
+- `internal/component/ike/dataplane/xfrm_kernelsym_linux_test.go`
 - `internal/appliance/kernelreq_test.go` (if absent; else extend)
 
 ### Integration Checklist
@@ -324,11 +328,16 @@ N-A: no wire behavior changes; the kernel gains transforms Ze already negotiates
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
 | separate spec, depending on ships-ze-kernel for AC-6/AC-7's default-image claim | fold into ships-ze-kernel | owner decision 2026-10-09 |
-| every VPN symbol `=y` | `=m` plus a module loader in Ze | gokrazy has no modprobe; the repo's rule for flow export and nftables logging is already "built in" |
+| every VPN symbol `=y` | `=m` plus a module loader in Ze | required facilities must not depend on runtime module loading; the build enforces `=y` and the native proof disables loading |
 | derive the cipher symbols from the XFRM name tables | hand list in `runtime.require` only | a cipher added to Ze's tables without its kernel symbol is the exact defect found here |
 | build DES and NULL in | drop them from Ze's tables | Ze accepts them in config today; removing them is a scope change the owner has not asked for |
 
 ## AC-5 Evidence
+
+The two tables below are historical build receipts from October 10–12.
+Current amd64 build and packaged-image evidence is recorded later in this spec.
+The current Mac run passed its emitted-config prerequisite, but its selected
+cache/config/module-tree copies still need the read-only handover receipt.
 
 ### arm64 (built 2026-10-10, native Docker builder in colima's aarch64 VM, Mac)
 - Cache entry: `~/.cache/ze/runtime-kernel/7.2.9-runtime-arm64-runtime-7c0d8f79-bf3ac1c9` (`vmlinuz`, `config`, `lib/modules/7.2.9-ze`, 1612 `.ko`; `kernel.version`: version=7.2.9, target=runtime, profile=runtime, arch=arm64, modules=yes, builder=docker). Log: `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scratch/kernel-build-arm64.log`.
@@ -394,7 +403,7 @@ CONFIG_CRYPTO_SHA512=y
 
 ## AC-6 Implementation and Native Proof
 
-Native amd64/KVM traffic passed on 2026-10-27. The repaired arm64/HVF run at `ceb83b7140` also passed, as recorded below. AC-6 remains open for the live discriminating breaks; another passing Mac run is not requested.
+Native amd64/KVM traffic passed on 2026-10-27. The repaired arm64/HVF run at `ceb83b7140` also passed, as recorded below. All four prescribed deliberate breaks and an unmutated Linux restoration are now proved. The remaining Mac request is read-only cache/config/module-tree evidence, not another traffic run.
 
 - `internal/le/test/qemu/mobike.go` `runIPsecMOBIKEHere` boots through
   `NewRun` with `iproute2 iputils util-linux strongswan`. This is the Alpine
@@ -525,8 +534,35 @@ the mutation's verdict. KVM, the guest kernel probe, no leftovers and a stopped
 VM are recorded. Independent review accepted the targeted allowed-IP case;
 the spec's alternative wrong-key mutation is not additionally required.
 
-The modprobe-present case remains open, followed by one unmutated native
-restoration run.
+The modprobe-present break passed its discrimination check. The original
+preparation first disabled loading, verified an empty module list and verified
+helper absence. Only then did the private intervention create `/sbin/modprobe`;
+the console records `VPN-MODPROBE-SETUP-APPLIED`. All five ESP cases passed,
+then the unchanged WireGuard guest-root guard rejected the helper path before
+interface setup or traffic. This proves helper-path detection, not an attempted
+module load or a WireGuard traffic failure.
+
+Evidence is `scratch/job-vpn-break-modprobe-present-1a52e208.log`, with
+`scratch/vpn-wg-breaks/modprobe-present/console.log` lines 515–531, in the same
+session. KVM, guest kernel probe pass, expected lab exit 1, no leftovers and a
+stopped VM are recorded. Independent review accepted this fourth negative.
+
+### Unmutated native restoration, 2026-10-28
+
+After all four interventions, the normal native command ran with `GOFLAGS`
+unset and without the SSH tracing wrapper:
+`./le --name vpn-discrimination test qemu vpn-kernel-test timeout 30m`.
+All five ESP cases and WireGuard passed on image `6fff09d78be893ac`.
+The outer report records KVM, check-exit 0, lab-exit 0, no interruption, no
+leftovers and a stopped VM.
+
+Evidence:
+`tmp/session/2026-10-22-644a4e78-0122-4eeb-8642-eb50638a1641/scratch/job-vpn-restored-native-positive-fe3e7ddf.log`;
+the console is preserved as `scratch/vpn-restored-native-positive-console.log`
+in that session. Independent review confirmed that the four targeted negatives
+and this restored positive complete the prescribed discrimination requirement.
+The negative assertions retain their narrow meanings above; this is not proof
+that every later assertion independently rejects every possible bad receipt.
 
 ### Native amd64 result, 2026-10-27
 
@@ -536,7 +572,7 @@ KVM, check and lab exit zero, no leftover resources, and a stopped VM.
 
 | Evidence | Observed result |
 |----------|-----------------|
-| `psk-site-to-site`, `esp-aes-cbc-sha256`, `esp-chacha20poly1305`, `esp-3des-sha1`, `esp-integrity-only-null` | Each passed its installed-transform and bidirectional traffic assertions |
+| `psk-site-to-site`, `esp-aes-cbc-sha256`, `esp-chacha20poly1305`, `esp-3des-sha1`, `esp-integrity-only-null` | Each passed installed ESP-state and bidirectional traffic checks; CBC, ChaCha and 3DES additionally assert the installed transform tokens |
 | WireGuard | Tunnel traffic, matching-peer handshake and received bytes passed with module loading disabled, no loaded modules and no `/sbin/modprobe` |
 | Guest provenance | Ze kernel `7.2.9-ze`, cached amd64 image `c8263f4fef5e9c76`, runtime kernel key `7.2.9-runtime-amd64-runtime-docker-36272e92-34cba457` |
 | Initial failure and correction | NULL established its Child SA but its proposal log was buffered. `8544ee50de` selects stderr and `flush_line`; assertions, proposals and deadlines are unchanged |
@@ -687,10 +723,11 @@ Their SHA-256 receipts are:
 The explicit emitted-config and installed `modules.builtin` readback requested
 by handover 27 was not among these five files. Preserve the Mac cache for that
 read-only reconciliation; no new boot or traffic run is needed to retrieve it.
-The earlier two failure receipts and image remain preserved. Live deliberate
-breaks and final review still remain. This successful Docker-host run alone
-does not close the spec or prove the separate product WireGuard
-configuration-commit workflow.
+The earlier two failure receipts and image remain preserved. Linux has since
+completed the four deliberate breaks, unmutated restoration and default-image
+readback recorded above and below. The missing Mac cache/config/module-tree
+copies and closure gates still prevent closure; none of these kernel proofs
+proves the separate product WireGuard configuration-commit workflow.
 
 ## Current native amd64 kernel and AC-7 default-image evidence
 
@@ -702,6 +739,29 @@ Its emitted config contains all 156 symbols in `kernel.require` and
 `runtime.require` as `=y`, including HWMON, PWM and SENSORS_PWM_FAN.
 The installed `modules.builtin` names the fan; the only loadable module in
 that tree is `x86_pkg_temp_thermal.ko`.
+
+Current AC-2/AC-3 and fan lines read from that emitted config:
+
+```text
+CONFIG_XFRM_USER=y
+CONFIG_XFRM_INTERFACE=y
+CONFIG_INET_AH=y
+CONFIG_INET_ESP=y
+CONFIG_INET6_AH=y
+CONFIG_INET6_ESP=y
+CONFIG_WIREGUARD=y
+CONFIG_CRYPTO_CBC=y
+CONFIG_CRYPTO_DES=y
+CONFIG_CRYPTO_NULL=y
+CONFIG_CRYPTO_GCM=y
+CONFIG_CRYPTO_CHACHA20POLY1305=y
+CONFIG_CRYPTO_SHA1=y
+CONFIG_CRYPTO_SHA256=y
+CONFIG_CRYPTO_SHA512=y
+CONFIG_HWMON=y
+CONFIG_PWM=y
+CONFIG_SENSORS_PWM_FAN=y
+```
 
 The first attempt completed kernel compilation but failed before cache
 publication when the ownership-repair invocation exceeded its two-minute

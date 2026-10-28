@@ -146,7 +146,8 @@ Before boot, the action checks the emitted native kernel configuration against `
 - Native `le help setup docker host build`: verified `arch arm64` and image-build action.
 
 **Verification limit:** Native arm64/HVF preparation and all six traffic
-scenarios passed after the fan repair. That is not the missing direct
-config/module-tree receipt, live deliberate-break evidence or default-appliance
-image proof. The spec remains open for those reconciliation and review steps;
-the Mac passing run must not be repeated merely to refresh its timestamp.
+scenarios passed after the fan repair. Linux subsequently completed all four
+deliberate breaks, an unmutated six-case restoration and the default-image
+packaged-config readback. The direct Mac selected-cache/config/module-tree
+receipt remains missing, and wider closure gates remain open. The Mac passing
+run must not be repeated merely to refresh its timestamp.
