@@ -7,8 +7,10 @@
 // MAC) in an ephemeral network namespace, then drive the real Transport. Frames
 // egressing the macvlan on the parent veth end arrive at the peer end, where an
 // AF_PACKET capture socket observes them (payload-predicate waits with deadlines,
-// never fixed sleeps). Namespace creation needs CAP_NET_ADMIN; without it the
-// tests Skip. This file validates A-1..A-5 and R-7 on a real kernel.
+// never fixed sleeps). Namespace creation needs CAP_NET_ADMIN and the raw
+// sockets CAP_NET_RAW: a test that calls userns.Enter first holds both
+// unprivileged in a user namespace of its own; without them the others Skip.
+// This file validates A-1..A-5 and R-7 on a real kernel.
 
 package transport
 
@@ -32,6 +34,7 @@ import (
 	"github.com/ze-software/ze/internal/component/iface"
 	_ "github.com/ze-software/ze/internal/plugins/iface/netlink" // register netlink backend so iface.Resolve works
 	"github.com/ze-software/ze/internal/plugins/vrrp/packet"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 const (
@@ -319,6 +322,9 @@ func requireRcvTimeout(t *testing.T, fd int) {
 const igmpProcPath = "/proc/thread-self/net/igmp"
 
 func TestIntegrationMulticastJoinVisible(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	// VALIDATES: A-1 -- 224.0.0.18 appears in the parent's IGMP table while the
 	// instance is open, and is gone after Close.
 	lab := setupLab(t, packet.V4)
@@ -346,11 +352,16 @@ func containsHexV4(t *testing.T, path, wantHex string) bool {
 }
 
 func TestIntegrationAdvertOnPeerVeth(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	// VALIDATES: AC-3 + A-1/A-2/A-3 -- captured advert has virtual-MAC L2 src, TTL
 	// 255, TOS 0xc0, proto 112, dst 224.0.0.18, src = parent primary IPv4.
 	lab := setupLab(t, packet.V4)
 	tr, key := openTransportInstance(t, lab, packet.V4)
-	if err := tr.UpdateAdvert(key, AdvertParams{Version: packet.VersionV3, Priority: 100, AdverIntervalMS: 1000, VIPs: []netip.Addr{netip.MustParseAddr("192.0.2.1")}}); err != nil {
+	// A v3/IPv4 advertisement carries its group's checksum form; no group holds
+	// ChecksumUnspecified, so FillChecksum refuses it. RFC 9568 is the default.
+	if err := tr.UpdateAdvert(key, AdvertParams{Version: packet.VersionV3, Checksum: packet.ChecksumRFC9568, Priority: 100, AdverIntervalMS: 1000, VIPs: []netip.Addr{netip.MustParseAddr("192.0.2.1")}}); err != nil {
 		t.Fatalf("UpdateAdvert: %v", err)
 	}
 	if err := tr.SendAdvert(key); err != nil {
@@ -392,6 +403,9 @@ func TestIntegrationAdvertOnPeerVeth(t *testing.T) {
 }
 
 func TestIntegrationAdvertV6OnWire(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	// VALIDATES: AC-4 + A-5 + R-7 -- captured v6 advert has hop limit 255, next
 	// header 112, dst ff02::12, src = macvlan link-local.
 	lab := setupLab(t, packet.V6)
@@ -429,6 +443,9 @@ func TestIntegrationAdvertV6OnWire(t *testing.T) {
 }
 
 func TestIntegrationGARPOnWire(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	// VALIDATES: AC-8 -- captured GARP frames byte-equal the golden frame; the
 	// burst count is observed.
 	lab := setupLab(t, packet.V4)
@@ -447,6 +464,9 @@ func TestIntegrationGARPOnWire(t *testing.T) {
 }
 
 func TestIntegrationNAOnWire(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	// VALIDATES: AC-9 + A-4 -- captured NA has hop limit 255, dst ff02::1, ICMPv6
 	// type 136, and a valid kernel-computed checksum.
 	lab := setupLab(t, packet.V6)
@@ -474,6 +494,9 @@ func TestIntegrationNAOnWire(t *testing.T) {
 }
 
 func TestIntegrationRxDeliversFromPeer(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	// VALIDATES: AC-6 + A-1 -- a proto-112 datagram sent toward the parent is
 	// delivered with correct RxMeta (TTL preserved unmodified).
 	lab := setupLab(t, packet.V4)

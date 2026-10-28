@@ -13,13 +13,19 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/ze-software/ze/internal/plugins/vrrp/packet"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // TestVRRPBackupReceivesMulticastPeerAdvertisements installs the production
 // Backup filter, then sends a VRRP multicast frame from the peer using the
 // shared virtual MAC. The raw socket on the PRIVATE macvlan must receive it.
 // TestVRRPBackupDoesNotForwardVirtualMACFrames covers the complementary drop.
+// It runs unprivileged in a user namespace of its own (userns.Enter), where it
+// holds CAP_NET_ADMIN and CAP_NET_RAW.
 func TestVRRPBackupReceivesMulticastPeerAdvertisements(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	w := newGatewayWire(t)
 	vmac := nonOwnerMacvlan(t, w, "zbmc4", 30)
 	// These owned namespace settings MUST be restored before wire teardown.

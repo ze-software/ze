@@ -5,8 +5,10 @@
 // Two isolated namespaces share two veth links. The normal endpoint route uses
 // the second link; the explicit hop uses the first. AF_PACKET captures inspect
 // the frames before the peer's production transport diverts Router Alert traffic.
-// These tests require CAP_SYS_ADMIN, CAP_NET_ADMIN and CAP_NET_RAW. The bypass
-// test also requires Linux MPLS IP encapsulation. No fake transport is involved.
+// These tests require CAP_SYS_ADMIN, CAP_NET_ADMIN and CAP_NET_RAW: a test that
+// calls userns.Enter first holds them unprivileged in a user namespace of its
+// own; the others need QEMU or root. The bypass test also requires Linux MPLS IP
+// encapsulation. No fake transport is involved.
 package rsvpte
 
 import (
@@ -26,6 +28,8 @@ import (
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 	"golang.org/x/sys/unix"
+
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 const rsvpWireWait = 3 * time.Second
@@ -555,6 +559,9 @@ func TestIntegrationRSVPPathAvoidsDataFEC(t *testing.T) {
 // TestIntegrationRSVPSelectedBypass proves that two bypasses to the same merge
 // point select distinct labeled paths, while ordinary sends remain unmarked.
 func TestIntegrationRSVPSelectedBypass(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	lab := newRSVPWireLab(t)
 	var routes [2]netlink.Route
 	var rules [2]*netlink.Rule
@@ -701,6 +708,9 @@ func TestIntegrationRSVPSelectedBypass(t *testing.T) {
 // TestIntegrationRSVPReceiveOversize sends a datagram larger than the common
 // IPv4 Router Alert carrier permits, followed by a valid one.
 func TestIntegrationRSVPReceiveOversize(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	lab := newRSVPWireLab(t)
 	oversized := make([]byte, maxRSVPPacket+4)
 	copy(oversized, encodeMessage(MsgTypeResv, defaultIPTTL, nil))
@@ -727,6 +737,9 @@ func TestIntegrationRSVPReceiveOversize(t *testing.T) {
 // TestIntegrationRSVPCloseIdle verifies that Close wakes a receiver blocked in
 // the poller and makes both send paths fail rather than use a recycled fd.
 func TestIntegrationRSVPCloseIdle(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	lab := newRSVPWireLab(t)
 	if err := lab.sender.Close(); err != nil {
 		t.Fatal(err)

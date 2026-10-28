@@ -16,13 +16,20 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/ze-software/ze/internal/plugins/vrrp/packet"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // TestIntegrationPrivateMacvlanReceivesPeerVMAC sends a valid peer advertisement
 // with the same source MAC as the local PRIVATE macvlan, as a real VRRP peer
 // does. Linux redirects this multicast to the macvlan, not the parent. Both
 // address families must deliver the packet with the configured parent's identity.
+//
+// It runs unprivileged in a user namespace of its own (userns.Enter), where it
+// holds CAP_NET_ADMIN and CAP_NET_RAW.
 func TestIntegrationPrivateMacvlanReceivesPeerVMAC(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	for _, family := range []uint8{packet.V4, packet.V6} {
 		t.Run(fmt.Sprintf("IPv%d", family), func(t *testing.T) {
 			lab := setupLab(t, family)

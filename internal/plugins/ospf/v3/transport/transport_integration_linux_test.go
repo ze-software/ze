@@ -1,10 +1,14 @@
-//go:build integration && linux
+//go:build linux
 
 // Design: docs/architecture/ospf/ospfv3-3-ipv6-transport.md -- Linux raw IPv6 OSPFv3 multicast
 // integration. Validates A-1 (ipv6.PacketConn raw proto 89), A-2 (multicast
 // receive), A-3 (control-message dst/ifindex/hoplimit), A-4 (hop limit 1 / loop
 // off), A-6 (checksum source binding: peer VerifyPacketChecksum passes), A-5
 // (ff02::6 join/leave), A-7 (pending link-local), A-8 (CAP_NET_RAW).
+//
+// Each test runs unprivileged in a user and network namespace of its own
+// (userns.Enter), where root holds CAP_NET_ADMIN and CAP_NET_RAW, so a refusal
+// of either fails the test.
 
 package transport
 
@@ -26,6 +30,7 @@ import (
 	"github.com/ze-software/ze/internal/component/iface"
 	_ "github.com/ze-software/ze/internal/plugins/iface/netlink" // register netlink backend so iface.Resolve works
 	"github.com/ze-software/ze/internal/plugins/ospf/v3/packet"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // ospfv3SampleHello is a minimal 24-byte OSPFv3 Hello (version 3, type 1,
@@ -41,14 +46,20 @@ func ospfv3SampleHello() []byte {
 }
 
 func TestOSPFv3TransportRawSocketCap(t *testing.T) {
-	if checkRawSocket() != nil {
-		t.Skip("CAP_NET_RAW unavailable")
+	if !userns.Enter(t) {
+		return
+	}
+	if err := checkRawSocket(); err != nil {
+		t.Fatalf("open a raw IPv6 OSPF socket inside the user namespace (CAP_NET_RAW): %v", err)
 	}
 }
 
 func TestOSPFv3TransportVethMulticastRoundTrip(t *testing.T) {
-	if checkRawSocket() != nil {
-		t.Skip("CAP_NET_RAW unavailable")
+	if !userns.Enter(t) {
+		return
+	}
+	if err := checkRawSocket(); err != nil {
+		t.Fatalf("open a raw IPv6 OSPF socket inside the user namespace (CAP_NET_RAW): %v", err)
 	}
 	loadIfaceBackend(t)
 	withVethPeerNamespace(t, func(lab ospfv3VethLab) {
@@ -60,13 +71,10 @@ func TestOSPFv3TransportVethMulticastRoundTrip(t *testing.T) {
 		}
 		expectHopLimitAndLoop(t, ha)
 
-		var hb InterfaceHandle
-		runInNS(t, lab.peerNS, func() {
-			hb = openWithRetry(t, backend, lab.nameB, lab.peerNS.String())
-			if err := hb.JoinAllSPFRouters(); err != nil {
-				t.Fatalf("JoinAllSPFRouters B: %v", err)
-			}
-		})
+		hb := openPeerEnd(t, backend, lab)
+		if err := hb.JoinAllSPFRouters(); err != nil {
+			t.Fatalf("JoinAllSPFRouters B: %v", err)
+		}
 		defer hb.Close() //nolint:errcheck // best-effort cleanup
 
 		src := ha.LinkLocalSource()
@@ -87,8 +95,11 @@ func TestOSPFv3TransportVethMulticastRoundTrip(t *testing.T) {
 }
 
 func TestOSPFv3TransportAllDRoutersReceive(t *testing.T) {
-	if checkRawSocket() != nil {
-		t.Skip("CAP_NET_RAW unavailable")
+	if !userns.Enter(t) {
+		return
+	}
+	if err := checkRawSocket(); err != nil {
+		t.Fatalf("open a raw IPv6 OSPF socket inside the user namespace (CAP_NET_RAW): %v", err)
 	}
 	loadIfaceBackend(t)
 	withVethPeerNamespace(t, func(lab ospfv3VethLab) {
@@ -99,10 +110,7 @@ func TestOSPFv3TransportAllDRoutersReceive(t *testing.T) {
 			t.Fatalf("JoinAllSPFRouters A: %v", err)
 		}
 
-		var hb InterfaceHandle
-		runInNS(t, lab.peerNS, func() {
-			hb = openWithRetry(t, backend, lab.nameB, lab.peerNS.String())
-		})
+		hb := openPeerEnd(t, backend, lab)
 		defer hb.Close() //nolint:errcheck // best-effort cleanup
 
 		if err := hb.JoinAllDRouters(); err != nil {
@@ -173,6 +181,29 @@ func loadIfaceBackend(t *testing.T) {
 	t.Cleanup(func() { _ = iface.CloseBackend() })
 }
 
+// openPeerEnd opens the veth end that lives in the peer namespace.
+//
+// The netlink iface backend reads links over one netlink socket, opened in the
+// network namespace of its first read and kept there (counterSource in
+// internal/plugins/iface/netlink/counter_linux.go). The backend that resolved
+// the near end therefore cannot see the peer end, which a namespace switch of
+// the calling thread alone used to reach. So the helper loads a backend inside
+// the peer namespace for the open, then loads a fresh one back in the test's own
+// namespace, so later reads of the near end resolve where it lives. The raw
+// socket keeps the namespace it was created in, so the handle stays bound to
+// the peer end. The calling goroutine MUST hold its OS thread, as
+// withVethPeerNamespace does.
+func openPeerEnd(t *testing.T, backend Backend, lab ospfv3VethLab) InterfaceHandle {
+	t.Helper()
+	var h InterfaceHandle
+	runInNS(t, lab.peerNS, func() {
+		loadIfaceBackend(t)
+		h = openWithRetry(t, backend, lab.nameB, lab.peerNS.String())
+	})
+	loadIfaceBackend(t)
+	return h
+}
+
 func expectHopLimitAndLoop(t *testing.T, h InterfaceHandle) {
 	t.Helper()
 	li, ok := h.(*linuxInterface)
@@ -206,14 +237,14 @@ func withVethPeerNamespace(t *testing.T, fn func(ospfv3VethLab)) {
 	origNS, err := netns.Get()
 	if err != nil {
 		unlock()
-		t.Skipf("requires CAP_NET_ADMIN: cannot get current namespace: %v", err)
+		t.Fatalf("read the current network namespace: %v", err)
 	}
 	nsName := ospfv3NSName(t.Name())
 	peerNS, err := netns.NewNamed(nsName)
 	if err != nil {
 		origNS.Close() //nolint:errcheck // best-effort cleanup
 		unlock()
-		t.Skipf("requires CAP_NET_ADMIN: cannot create namespace: %v", err)
+		t.Fatalf("create network namespace %s inside the user namespace (CAP_NET_ADMIN): %v", nsName, err)
 	}
 	if err := netns.Set(origNS); err != nil {
 		peerNS.Close() //nolint:errcheck // best-effort cleanup
@@ -236,7 +267,7 @@ func withVethPeerNamespace(t *testing.T, fn func(ospfv3VethLab)) {
 	})
 	veth := &netlink.Veth{Name: nameA, PeerName: nameB}
 	if err := netlink.LinkAdd(veth); err != nil {
-		t.Skipf("add veth (needs CAP_NET_ADMIN): %v", err)
+		t.Fatalf("add veth inside the user namespace (CAP_NET_ADMIN): %v", err)
 	}
 	linkB, err := netlink.LinkByName(nameB)
 	if err != nil {
