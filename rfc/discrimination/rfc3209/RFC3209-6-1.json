@@ -18,8 +18,8 @@
     "claim-sha": "0d4c4b4139a94ba4",
     "route": "revert",
     "producer": "internal/plugins/rsvpte/reroute.go::reroute",
-    "producer-sha": "45e00f8c798f2136",
-    "break": "body of reroute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "5b9a8337d5fa554c",
+    "break": "body of reroute replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC3209-6-1",
@@ -29,8 +29,8 @@
     "claim-sha": "06df8d4f79ba93dd",
     "route": "revert",
     "producer": "internal/plugins/rsvpte/reroute.go::reroute",
-    "producer-sha": "45e00f8c798f2136",
-    "break": "body of reroute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "5b9a8337d5fa554c",
+    "break": "body of reroute replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC3209-6-1",
@@ -40,7 +40,7 @@
     "claim-sha": "7917604f14f5b78b",
     "route": "revert",
     "producer": "internal/plugins/rsvpte/reroute.go::reroute",
-    "producer-sha": "45e00f8c798f2136",
-    "break": "body of reroute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "5b9a8337d5fa554c",
+    "break": "body of reroute replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]
