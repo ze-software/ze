@@ -3,6 +3,7 @@
 // Related: serialize_set.go — set-format serialization (inverse of this file)
 // Related: meta.go — MetaTree for metadata-aware parsing
 // Detail: setparser_inline.go — inline arg parsing (ParseInlineArgs)
+// Detail: setparser_entries.go — Flex, freeform, list and inline-list entry writers
 // Related: setparser_meta.go — metadata-annotated parsing (ParseWithMeta)
 
 package config
@@ -191,21 +192,10 @@ func (p *SetParser) walkAndSet(tree *Tree, parent Node, tokens []string, lineNum
 	name := tokens[0]
 	tokens = tokens[1:]
 
-	var node Node
-	if parent == nil {
-		// Start from schema root
-		node = p.schema.Get(name)
-	} else {
-		switch n := parent.(type) {
-		case *ContainerNode:
-			node = n.Get(name)
-		case *ListNode:
-			node = n.Get(name)
-		default:
-			return fmt.Errorf("line %d: cannot traverse %T", lineNum, parent)
-		}
-	}
-
+	// The children of a Flex block or an InlineList entry are reached here
+	// too, as walkAndSetWithMeta reaches them: setFlexValue and
+	// walkAndSetInlineListEntry recurse with that node as the parent.
+	node := resolveSchemaNode(p.schema, parent, name)
 	if node == nil {
 		if p.preMigration {
 			var bw textbuf.Buffer
@@ -723,10 +713,19 @@ func (p *SetParser) walkAndDelete(tree *Tree, parent Node, tokens []string, line
 
 	if flex, ok := node.(*FlexNode); ok {
 		if len(tokens) == 0 {
-			// Delete the flex value/container.
+			// Delete the flex value/container and its named block entries.
 			tree.Delete(name)
 			tree.DeleteContainer(name)
+			tree.DeleteList(name)
 			return nil
+		}
+		// A named block entry, as setFlexValue stores it.
+		if entry := tree.GetList(name)[tokens[0]]; entry != nil && flex.Get(tokens[0]) == nil {
+			if len(tokens) == 1 {
+				tree.RemoveListEntry(name, tokens[0])
+				return nil
+			}
+			return p.walkAndDelete(entry, flex, tokens[1:], lineNum)
 		}
 		child := tree.GetContainer(name)
 		if child == nil {
@@ -978,70 +977,5 @@ func bracketItems(tokens []string) []string {
 	return tokens
 }
 
-// setFreeformValue stores a freeform key-value pair.
-// Format: set <path> <freeform-name> <key> [value]
-// Stored as container[name] -> Tree with key=value (or key="true" for flags).
-func setFreeformValue(tree *Tree, name string, tokens []string, lineNum int) error {
-	if len(tokens) < 1 {
-		return fmt.Errorf("line %d: freeform %s requires at least a key", lineNum, name)
-	}
-	child := tree.GetOrCreateContainer(name)
-	key := tokens[0]
-	value := configTrue
-	if len(tokens) > 1 {
-		value = textbuf.Join(tokens[1:], " ")
-	}
-	child.Set(key, value)
-	return nil
-}
-
-// setFlexValue handles FlexNode's multiple forms: flag, value, or container with children.
-// If remaining tokens match a known child name, recurse. Otherwise treat as a leaf value.
-func (p *SetParser) setFlexValue(tree *Tree, flex *FlexNode, name string, tokens []string, lineNum int) error {
-	if len(tokens) == 0 {
-		// Flag form: just the name with no value.
-		tree.Set(name, configTrue)
-		return nil
-	}
-
-	// If the first token matches a child in the flex schema, recurse into container form.
-	if flex.Get(tokens[0]) != nil {
-		child := tree.GetOrCreateContainer(name)
-		return p.walkAndSet(child, flex, tokens, lineNum)
-	}
-
-	// Otherwise treat as a simple value.
-	tree.Set(name, textbuf.Join(tokens, " "))
-	return nil
-}
-
-// walkAndSetListEntry creates or finds a list entry and recurses.
-func (p *SetParser) walkAndSetListEntry(tree *Tree, list *ListNode, name string, tokens []string, lineNum int) error {
-	if err := ValidateListKey(list, tokens[0]); err != nil {
-		return fmt.Errorf("line %d: invalid key for %s: %w", lineNum, name, err)
-	}
-	addr, err := ParseListAddress(name, list, tokens)
-	if err != nil {
-		return fmt.Errorf("line %d: %w", lineNum, err)
-	}
-	entry := EnsureListEntry(tree, name, addr)
-	return p.walkAndSet(entry, list, tokens[addr.Tokens:], lineNum)
-}
-
-// walkAndSetInlineListEntry creates or finds an inline list entry and recurses.
-func (p *SetParser) walkAndSetInlineListEntry(tree *Tree, il *InlineListNode, name string, tokens []string, lineNum int) error {
-	key := tokens[0]
-	tokens = tokens[1:]
-	entries := tree.GetList(name)
-	if entries == nil {
-		entries = make(map[string]*Tree)
-	}
-	entry := entries[key]
-	if entry == nil {
-		entry = NewTree()
-		tree.AddListEntry(name, key, entry)
-	}
-	return p.walkAndSet(entry, il, tokens, lineNum)
-}
-
-// Inline arg parsing moved to setparser_inline.go
+// The entry writers (Flex, freeform, list and inline-list entries) are in
+// setparser_entries.go, and inline arg parsing is in setparser_inline.go.

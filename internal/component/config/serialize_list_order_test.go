@@ -124,14 +124,6 @@ type listOrderTree struct {
 }
 
 // listOrderBuilders are the parsers that build a tree from operator text.
-//
-// The two set parsers do not build every list kind from the set form the set
-// printer writes, and that is a parser defect, not an order one, so each
-// builds only the kinds it reads back: the set parser refuses
-// `set route <key> next-hop <value>` ("cannot traverse
-// *config.InlineListNode") and keeps only the last of three
-// `set vpls <key> rd <value>` lines, and the set-meta parser reads
-// `set vpls <key> rd <value>` as the one value "<key> rd <value>".
 var listOrderBuilders = []listOrderTree{
 	{"parser", []string{"peer", "server", "vpls", "route", "term"},
 		func(t *testing.T, schema *Schema, _ []string) (*Tree, *MetaTree) {
@@ -142,7 +134,7 @@ var listOrderBuilders = []listOrderTree{
 			}
 			return tree, NewMetaTree()
 		}},
-	{"set parser", []string{"peer", "server", "term"},
+	{"set parser", []string{"peer", "server", "vpls", "route", "term"},
 		func(t *testing.T, schema *Schema, lists []string) (*Tree, *MetaTree) {
 			t.Helper()
 			tree, err := NewSetParser(schema).Parse(listOrderSetLines(lists, ""))
@@ -151,7 +143,7 @@ var listOrderBuilders = []listOrderTree{
 			}
 			return tree, NewMetaTree()
 		}},
-	{"set-meta parser", []string{"peer", "server", "route", "term"},
+	{"set-meta parser", []string{"peer", "server", "vpls", "route", "term"},
 		func(t *testing.T, schema *Schema, lists []string) (*Tree, *MetaTree) {
 			t.Helper()
 			// The committed file's form: each line carries the author, the

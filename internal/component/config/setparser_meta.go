@@ -426,6 +426,12 @@ func (p *SetParser) walkAndSetWithMeta(tree *Tree, meta *MetaTree, parent Node, 
 			childMeta := meta.GetOrCreateContainer(name)
 			return p.walkAndSetWithMeta(child, childMeta, flex, entry, tokens, lineNum)
 		}
+		// A named block entry, as walkAndSet reads it (setFlexValue).
+		if isFlexListEntry(flex, tokens) {
+			key := tokens[0]
+			entryMeta := meta.GetOrCreateContainer(name).GetOrCreateListEntry(key)
+			return p.walkAndSetWithMeta(ensureFlexListEntry(tree, name, key), entryMeta, flex, entry, tokens[1:], lineNum)
+		}
 		// Otherwise treat as value/flag leaf.
 		value := configTrue
 		if len(tokens) > 0 {
