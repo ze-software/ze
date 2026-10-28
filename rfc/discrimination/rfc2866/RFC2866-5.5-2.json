@@ -7,7 +7,7 @@
     "claim-sha": "fb1982ee343d021e",
     "route": "revert",
     "producer": "internal/component/l2tp/plugins/authradius/acct.go::onSessionIPAssigned",
-    "producer-sha": "253e901268d65011",
-    "break": "body of onSessionIPAssigned replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "47c83aeaf1f2097d",
+    "break": "body of onSessionIPAssigned replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]
