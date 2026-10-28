@@ -22,7 +22,10 @@ func (r *resolver) answer(msg, q *dns.Msg, p dnsserver.Peer) bool {
 	transport := p.RemoteAddr().Network()
 	pol := r.policy.Load()
 	if pol == nil {
-		// RFC 1035 Section 4.1.1: no policy yet, so no answer can be built.
+		// No policy is published yet, so no answer can be built.
+		// RFC 1035 Section 4.1.1: "Server failure - The name server was
+		// unable to process this query due to a problem with the name
+		// server."
 		msg.Rcode = dns.RcodeServerFailure
 		r.countQuery(transport, msg.Rcode)
 		return true

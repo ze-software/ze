@@ -78,6 +78,9 @@ func Recursive(log *slog.Logger, fn AnswerFunc) dns.HandlerFunc {
 // smaller advertised sizes to work around firewall or other network
 // limitations."
 //
+// RFC 6891 Section 6.2.5: "Values of less than 512 bytes MUST be treated as
+// equal to 512 bytes."
+//
 // A responder that answered up to any size a client offered would send
 // datagrams that fragment, so the service's own bound wins when it is the
 // smaller of the two.
