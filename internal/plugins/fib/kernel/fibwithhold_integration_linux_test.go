@@ -1,4 +1,4 @@
-//go:build integration && linux
+//go:build linux
 
 // Design: docs/architecture/core-design.md -- selection, and the FIB write that follows it
 // Related: ../../../component/sysrib/fibimport.go -- fibPermitted, the gate this test drives
@@ -30,6 +30,7 @@ import (
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/redistevents"
 	"github.com/ze-software/ze/internal/core/rib/locrib"
+	"github.com/ze-software/ze/internal/test/userns"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/ze"
 )
@@ -80,6 +81,9 @@ const withholdConfigText = `rib {
 // (internal/component/sysrib/sysrib.go) and the BGP prefix is programmed, so the
 // second assertion goes red.
 func TestFIBWithholdLeavesNoKernelRoute(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withNetNS(t, func() {
 		handle, err := netlink.NewHandle()
 		if err != nil {

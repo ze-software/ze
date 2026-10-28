@@ -1,4 +1,4 @@
-//go:build integration && linux
+//go:build linux
 
 // Design: docs/architecture/core-design.md -- resolved gateways reach the Linux FIB.
 // Related: ../../../component/sysrib/nhresolver.go -- recursive terminal adjacency
@@ -25,6 +25,7 @@ import (
 	"github.com/ze-software/ze/internal/core/rib/locrib"
 	"github.com/ze-software/ze/internal/core/rib/nexthop"
 	_ "github.com/ze-software/ze/internal/plugins/iface/netlink" // real interface-name resolver
+	"github.com/ze-software/ze/internal/test/userns"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -34,6 +35,9 @@ import (
 // IPv4/IPv6 gateway group. Every route passes through the running system RIB
 // and the actual FIB writer, with no direct invocation of the netlink builder.
 func TestFIBRecursiveIPv4ViaIPv6(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withNetNS(t, func() {
 		h, err := netlink.NewHandle()
 		require.NoError(t, err)
@@ -43,11 +47,7 @@ func TestFIBRecursiveIPv4ViaIPv6(t *testing.T) {
 		indices := make([]int, len(devices))
 		for index, device := range devices {
 			link := &netlink.Dummy{Name: device}
-			err = h.LinkAdd(link)
-			if errors.Is(err, unix.EPERM) || errors.Is(err, unix.EACCES) {
-				t.Skipf("requires CAP_NET_ADMIN to create %s: %v", device, err)
-			}
-			require.NoError(t, err)
+			require.NoError(t, h.LinkAdd(link), "create %s", device)
 			require.NoError(t, h.LinkSetUp(link))
 			address, parseErr := netlink.ParseAddr("fe80::1/64")
 			require.NoError(t, parseErr)

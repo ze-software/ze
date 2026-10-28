@@ -299,20 +299,20 @@ privilege skip.
 | 60 | `internal/plugins/dhcpserver/socket_integration_linux_test.go` | A | P8 services | 0 | `integration && linux` | `linux` |
 | 61 | `internal/plugins/fib/kernel/bgplu_mpls_integration_linux_test.go` | B | P6 dataplane | 0 | `integration && linux` | `linux` |
 | 62 | `internal/plugins/fib/kernel/crossfamily_integration_linux_test.go` | B | P6 dataplane | 0 | `integration && linux` | `linux` |
-| 63 | `internal/plugins/fib/kernel/ecmp_labels_integration_linux_test.go` | B | P6 dataplane | 0 | `integration && linux` | `linux` |
+| 63 | `internal/plugins/fib/kernel/ecmp_labels_integration_linux_test.go` | B | P6 dataplane | 0 | `integration && linux` | `integration && linux`: converted, but uses helpers in the retained MPLS MTU file |
 | 64 | `internal/plugins/fib/kernel/fibwithhold_integration_linux_test.go` | B | P6 dataplane | 0 | `integration && linux` | `linux` |
 | 65 | `internal/plugins/fib/kernel/integration_linux_test.go` | B | P6 dataplane | 0 | `integration && linux` | `linux` |
 | 66 | `internal/plugins/fib/kernel/mplscontext_integration_linux_test.go` | B | P6 dataplane | 0 | `integration && linux` | `linux` |
 | 67 | `internal/plugins/fib/kernel/mplsentry_integration_linux_test.go` | B | P6 dataplane | 0 | `integration && linux` | `linux`; its best-effort `modprobe` and feature skip stay (Behavior to preserve) |
 | 68 | `internal/plugins/fib/kernel/mplsframe_integration_linux_test.go` | A | P6 dataplane | 0 | `integration && linux` | `linux` |
-| 69 | `internal/plugins/fib/kernel/mplsipmtuprobe_integration_linux_test.go` | B | P6 dataplane | 0 | `integration && linux` | `linux` |
-| 70 | `internal/plugins/fib/kernel/mplsmtu_integration_linux_test.go` | B | P6 dataplane | 0 | `integration && linux` | `linux` |
+| 69 | `internal/plugins/fib/kernel/mplsipmtuprobe_integration_linux_test.go` | B | P6 dataplane | 0 | `integration && linux` | `integration && linux`: reclassified below |
+| 70 | `internal/plugins/fib/kernel/mplsmtu_integration_linux_test.go` | B | P6 dataplane | 0 | `integration && linux` | `integration && linux`: PathMTU and TransitIPv4Options converted; FragmentProgress reclassified below |
 | 71 | `internal/plugins/fib/kernel/mplsowner_integration_linux_test.go` | B | P6 dataplane | 0 | `integration && linux` | `linux` |
-| 72 | `internal/plugins/fib/kernel/mplstransitmtu_integration_linux_test.go` | B | P6 dataplane | 0 | `integration && linux` | `linux` |
+| 72 | `internal/plugins/fib/kernel/mplstransitmtu_integration_linux_test.go` | B | P6 dataplane | 0 | `integration && linux` | `integration && linux`: reclassified below |
 | 73 | `internal/plugins/fib/kernel/ownership_integration_linux_test.go` | B | P6 dataplane | 0 | `integration && linux` | `linux` |
 | 74 | `internal/plugins/fib/kernel/rfc1195_onlink_integration_linux_test.go` | B | P6 dataplane | 4 | `integration && linux` | `linux` |
 | 75 | `internal/plugins/fib/kernel/richroute_discard_integration_linux_test.go` | B | P6 dataplane | 0 | `integration && linux` | `linux` |
-| 76 | `internal/plugins/fib/kernel/srv6_integration_linux_test.go` | B | P6 dataplane | 0 | `integration && linux` | `linux` |
+| 76 | `internal/plugins/fib/kernel/srv6_integration_linux_test.go` | B | P6 dataplane | 0 | `integration && linux` | `integration && linux`: reclassified below |
 | 77 | `internal/plugins/firewall/nft/counter_integration_linux_test.go` | B | P6 dataplane | 0 | `integration && linux` | `linux` |
 | 78 | `internal/plugins/firewall/nft/integration_linux_test.go` | B | P6 dataplane | 0 | `integration && linux` | `linux` |
 | 79 | `internal/plugins/flowexport/conntrack/reader_integration_linux_test.go` | A | P6 dataplane | 0 | `integration && linux` | `linux` |
@@ -393,6 +393,17 @@ Counts: A 67 files (25 tagged), B 61 (6 tagged), D 2, C 4.
 ### Reclassified during implementation
 | File | Test | From | To | Reason |
 |------|------|------|----|--------|
+| `internal/plugins/fib/kernel/mplsipmtuprobe_integration_linux_test.go` | `TestMPLSIntegration_ProbeAnswersFromAFreshNamespace` | B | privileged integration | The prior userns trial reported `bind /proc/sys: invalid argument` from the MPLS IP MTU probe; old session scratch `job-p6-fib2-52444b02.log`. Effective-capability skip retained, independently approved. |
+| `internal/plugins/fib/kernel/mplstransitmtu_integration_linux_test.go` | `TestMPLSIntegration_TransitPathMTUFollowsTheProbe` | B | privileged integration | The same probe returned unknown after its `/proc/sys` bind failed in the prior userns trial; same log. Effective-capability skip retained, independently approved. |
+| `internal/plugins/fib/kernel/mplsmtu_integration_linux_test.go` | `TestMPLSIntegration_FragmentProgress` | B | privileged integration | The probe cannot establish its prerequisite in the observed userns trial. PathMTU and TransitIPv4Options use Enter and pass; this case retains its capability guard and all packet assertions. |
+| `internal/plugins/fib/kernel/srv6_integration_linux_test.go` | `TestFIBServiceSIDEncapsulationOnWire` | B | privileged integration | The prior userns trial timed out waiting for an SRv6 packet; cause remains untraced, not a proven universal userns restriction. The capability guard preserves the existing privileged run. |
+| `internal/plugins/fib/kernel/ecmp_labels_integration_linux_test.go` | `TestFIBECMPMemberLabelsOnWire` | B | converted; integration tag retained | Uses helpers from the retained MPLS MTU file. Current `-race` run passes in Enter. |
+
+Current FIB evidence: session 644a4e78 scratch
+`job-userns-batch-smoke-9d2dbdbc.log` records PASS for ECMP labels, PathMTU,
+and TransitIPv4Options, and the four named capability skips above. The
+independent judge approved the retained guards without changing their packet
+inputs or assertions. This is partial P6 evidence, not completion of P6.
 
 ## Files to Modify
 - `internal/test/userns/userns_linux.go` - mount namespace, private `/run/netns`, every process error fails, conditional namespace-policy fix guidance

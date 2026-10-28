@@ -20,6 +20,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/kernelcap"
 	mplsfibevents "github.com/ze-software/ze/internal/core/mplsfib"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // skipWithoutMPLSIPMTU skips a case whose bound only Ze's MPLS IP MTU patch
@@ -57,11 +58,30 @@ func requireMPLSIPMTU(t *testing.T) {
 	}
 }
 
+// skipWithoutInitNamespacePrivilege checks effective CAP_SYS_ADMIN for cases
+// that still run without userns.Enter, for the reason why names. It does not
+// establish that the process is in the initial user namespace. An unprivileged
+// run skips here before withNetNS attempts namespace creation.
+func skipWithoutInitNamespacePrivilege(t *testing.T, why string) {
+	t.Helper()
+	header := unix.CapUserHeader{Version: unix.LINUX_CAPABILITY_VERSION_3}
+	var data [2]unix.CapUserData
+	if err := unix.Capget(&header, &data[0]); err != nil {
+		t.Fatalf("read this process's capabilities: %v", err)
+	}
+	if data[0].Effective&(1<<unix.CAP_SYS_ADMIN) == 0 {
+		t.Skipf("requires effective CAP_SYS_ADMIN: %s; run `./le test integration fib` as root in the QEMU guest", why)
+	}
+}
+
 // TestMPLSIntegration_PathMTU exercises RFC 3209 Section 2.6 through the native
 // forwarding owner's acknowledged installation. PathMTU is deliberately different
 // from the device MTU. Transit retains label 900 while replacing 100 with two
 // labels, so the packet itself determines the full outgoing stack overhead.
 func TestMPLSIntegration_PathMTU(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	loadMPLSModules(t)
 	for _, transit := range []bool{false, true} {
 		role := "push"
@@ -161,6 +181,7 @@ func TestMPLSIntegration_PathMTU(t *testing.T) {
 // The marker follows the offending frame on the same veth receive queue: its
 // arrival proves the forwarding CPU escaped the fragmentation operation.
 func TestMPLSIntegration_FragmentProgress(t *testing.T) {
+	skipWithoutInitNamespacePrivilege(t, "the kernelcap MPLS IP MTU probe binds /proc/sys, which a user namespace refuses (EINVAL)")
 	loadMPLSModules(t)
 	for _, tc := range []struct {
 		name               string
@@ -237,6 +258,9 @@ func TestMPLSIntegration_FragmentProgress(t *testing.T) {
 // MPLS transit has no IP forwarding pass to complete option slots reserved by
 // ip_options_compile. Fragmentation must preserve them; ICMP needs route context.
 func TestMPLSIntegration_TransitIPv4Options(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	loadMPLSModules(t)
 	options := []byte{
 		7, 7, 4, 0, 0, 0, 0, 1, // Record Route with one empty slot, then NOP.

@@ -1,4 +1,4 @@
-//go:build integration && linux
+//go:build linux
 
 // Design: docs/architecture/mpls/mpls-kernel.md -- the labeled frame an AF_MPLS proof forwards
 // Overview: mplsentry_integration_linux_test.go -- the swap and pop proofs this harness carries
@@ -164,13 +164,15 @@ func (b *mplsTestbed) enableInput() {
 
 // openPacketSocket opens a raw packet socket bound to the peer end, seeing
 // every frame in both directions. The read timeout is what turns "the kernel
-// never answered" into a test failure rather than a hung run.
+// never answered" into a test failure rather than a hung run. Callers MUST
+// provide CAP_NET_RAW through userns.Enter or their privileged test setup.
+// A refused socket fails the test.
 func (b *mplsTestbed) openPacketSocket() int {
 	b.t.Helper()
 
 	fd, err := unix.Socket(unix.AF_PACKET, unix.SOCK_RAW, int(ethPAllNetworkOrder))
 	if err != nil {
-		b.t.Skipf("needs CAP_NET_RAW to open a packet socket: %v", err)
+		b.t.Fatalf("open a packet socket: %v", err)
 	}
 	b.t.Cleanup(func() { unix.Close(fd) }) //nolint:errcheck // best-effort cleanup
 

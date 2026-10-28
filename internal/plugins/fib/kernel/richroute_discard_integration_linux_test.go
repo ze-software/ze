@@ -8,7 +8,7 @@
 // programmed nothing. It did so silently, on the only surface an operator can
 // check.
 
-//go:build integration && linux
+//go:build linux
 
 package fibkernel
 
@@ -24,9 +24,13 @@ import (
 	"golang.org/x/sys/unix"
 
 	sysribevents "github.com/ze-software/ze/internal/component/sysrib/events"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 func TestNetlinkIntegration_BlackholeRouteWithNextHop(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withNetNS(t, func() {
 		h, err := netlink.NewHandle()
 		require.NoError(t, err)

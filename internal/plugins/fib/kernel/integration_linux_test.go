@@ -1,9 +1,8 @@
-//go:build integration && linux
+//go:build linux
 
 package fibkernel
 
 import (
-	"errors"
 	"net"
 	"net/netip"
 	"runtime"
@@ -19,11 +18,14 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/ze-software/ze/internal/core/rtproto"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // withNetNS creates an ephemeral network namespace, switches into it,
 // runs fn, then restores the original namespace in t.Cleanup.
-// Namespace creation requires CAP_SYS_ADMIN; route programming needs CAP_NET_ADMIN.
+// Callers MUST provide CAP_SYS_ADMIN for namespace creation and CAP_NET_ADMIN
+// for route programming, through userns.Enter or their privileged test setup.
+// A refused operation fails the test.
 func withNetNS(t *testing.T, fn func()) {
 	t.Helper()
 
@@ -49,9 +51,6 @@ func withNetNS(t *testing.T, fn func()) {
 		origNS.Close()  //nolint:errcheck // best-effort after namespace restoration
 		require.NoError(t, restoreErr, "restore namespace after failed creation")
 		runtime.UnlockOSThread()
-		if errors.Is(err, unix.EPERM) || errors.Is(err, unix.EACCES) {
-			t.Skipf("requires CAP_SYS_ADMIN to create and mount a network namespace; route programming also requires CAP_NET_ADMIN: %v", err)
-		}
 		t.Fatalf("cannot create test network namespace: %v", err)
 	}
 
@@ -220,6 +219,9 @@ func withdrawChange(prefix string) incomingChange {
 // PREVENTS: a route the kernel holds but never selects (discarding type, wrong
 // table, unresolvable next-hop) passing as installed.
 func TestNetlinkIntegration_AddRoute(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withNetNS(t, func() {
 		h, err := netlink.NewHandle()
 		require.NoError(t, err)
@@ -255,6 +257,9 @@ func TestNetlinkIntegration_AddRoute(t *testing.T) {
 // PREVENTS: Withdrawn routes lingering in kernel.
 // PREVENTS: a withdrawn prefix the kernel still forwards.
 func TestNetlinkIntegration_RemoveRoute(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withNetNS(t, func() {
 		h, err := netlink.NewHandle()
 		require.NoError(t, err)
@@ -285,6 +290,9 @@ func TestNetlinkIntegration_RemoveRoute(t *testing.T) {
 // PREVENTS: Stale next-hops in kernel after route update.
 // PREVENTS: a replace that leaves the kernel forwarding through the old next-hop.
 func TestNetlinkIntegration_ReplaceRoute(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withNetNS(t, func() {
 		h, err := netlink.NewHandle()
 		require.NoError(t, err)
@@ -319,6 +327,9 @@ func TestNetlinkIntegration_ReplaceRoute(t *testing.T) {
 // PREVENTS: stale-mark-then-sweep failing to find routes.
 // PREVENTS: a sweep list naming a route the kernel does not forward through.
 func TestNetlinkIntegration_ListZeRoutes(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withNetNS(t, func() {
 		h, err := netlink.NewHandle()
 		require.NoError(t, err)
@@ -358,6 +369,9 @@ func TestNetlinkIntegration_ListZeRoutes(t *testing.T) {
 // PREVENTS: a sweep that removes the refreshed route's forwarding, or leaves
 // the stale prefix forwarding.
 func TestNetlinkIntegration_StartupSweep(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withNetNS(t, func() {
 		h, err := netlink.NewHandle()
 		require.NoError(t, err)
@@ -404,6 +418,9 @@ func TestNetlinkIntegration_StartupSweep(t *testing.T) {
 // PREVENTS: a sweep after which the kernel stops forwarding through another
 // producer's route, or keeps forwarding through the swept one.
 func TestNetlinkIntegration_StartupSweepPreservesOtherZeProtocols(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withNetNS(t, func() {
 		h, err := netlink.NewHandle()
 		require.NoError(t, err)
@@ -444,6 +461,9 @@ func TestNetlinkIntegration_StartupSweepPreservesOtherZeProtocols(t *testing.T) 
 // PREVENTS: a flush after which the kernel stops forwarding through another
 // producer's route, or keeps forwarding through the flushed one.
 func TestNetlinkIntegration_FlushRoutesPreservesOtherZeProtocols(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withNetNS(t, func() {
 		h, err := netlink.NewHandle()
 		require.NoError(t, err)
@@ -482,6 +502,9 @@ func TestNetlinkIntegration_FlushRoutesPreservesOtherZeProtocols(t *testing.T) {
 // PREVENTS: Routes lingering after graceful shutdown with flush-on-stop.
 // PREVENTS: a flushed prefix the kernel still forwards.
 func TestNetlinkIntegration_FlushRoutes(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withNetNS(t, func() {
 		h, err := netlink.NewHandle()
 		require.NoError(t, err)
@@ -527,6 +550,9 @@ func TestNetlinkIntegration_FlushRoutes(t *testing.T) {
 // PREVENTS: a metric that reaches RTA_PRIORITY but loses the kernel's ranking,
 // and a withdraw whose key (prefix + protocol) deletes the other owner's route.
 func TestNetlinkIntegration_RemoveRichRouteWithMetric(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withNetNS(t, func() {
 		h, err := netlink.NewHandle()
 		require.NoError(t, err)

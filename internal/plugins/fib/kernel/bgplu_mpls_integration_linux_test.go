@@ -1,4 +1,4 @@
-//go:build integration && linux
+//go:build linux
 
 // Design: docs/architecture/mpls/mpls-kernel.md -- BGP labeled-unicast -> kernel MPLS route,
 // the F1 end-to-end path. The deep review found BGP best-paths flow through the
@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/core/bgp/routeaction"
+	"github.com/ze-software/ze/internal/test/userns"
 
 	"github.com/stretchr/testify/require"
 	"github.com/vishvananda/netlink"
@@ -49,6 +50,9 @@ func labeledChange(action routeaction.Action, prefix string, labels []uint32) in
 // PREVENTS: regression of F1, where labels were dropped before the kernel and a
 // labeled-unicast route silently became a plain IP route.
 func TestMPLSIntegration_BGPLabeledUnicastPush(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	loadMPLSModules(t)
 	withNetNS(t, func() {
 		h, err := netlink.NewHandle()
@@ -96,6 +100,9 @@ func TestMPLSIntegration_BGPLabeledUnicastPush(t *testing.T) {
 // PREVENTS: a BGP-LU label install stomping a static/connected route for the same
 // prefix.
 func TestMPLSIntegration_BGPLabeledUnicastNoClobberForeign(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	loadMPLSModules(t)
 	withNetNS(t, func() {
 		h, err := netlink.NewHandle()

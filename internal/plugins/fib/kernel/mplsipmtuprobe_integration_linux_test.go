@@ -27,6 +27,7 @@ import (
 // PREVENTS: the Docker kernel check refusing every kernel with
 // "mpls-transit-mtu: unknown: the MPLS label space holds no unreserved label".
 func TestMPLSIntegration_ProbeAnswersFromAFreshNamespace(t *testing.T) {
+	skipWithoutInitNamespacePrivilege(t, "the kernelcap MPLS IP MTU probe binds /proc/sys, which a user namespace refuses (EINVAL)")
 	loadMPLSModules(t)
 	withNetNS(t, func() {
 		before := readLabelSpace(t)

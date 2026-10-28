@@ -1,4 +1,4 @@
-//go:build integration && linux
+//go:build linux
 
 // Design: docs/architecture/mpls/mpls-kernel.md -- scoped push acceptance and cleanup.
 // These tests exercise Apply against a real netlink backend in an isolated netns.
@@ -16,6 +16,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	mplsfibevents "github.com/ze-software/ze/internal/core/mplsfib"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 func contextPush(table, label uint32) mplsfibevents.Entry {
@@ -76,6 +77,9 @@ func requireContextBlocked(t *testing.T, h *netlink.Handle, entry *mplsfibevents
 // TestMPLSIntegration_ScopedContexts distinguishes two bypasses with the same
 // merge point by mark, then withdraws one without changing the other or main FIB.
 func TestMPLSIntegration_ScopedContexts(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	loadMPLSModules(t)
 	withNetNS(t, func() {
 		h, err := netlink.NewHandle()
@@ -138,6 +142,9 @@ func TestMPLSIntegration_ScopedContexts(t *testing.T) {
 // TestMPLSIntegration_ScopedRuleFailureRollback makes selector installation fail
 // after route creation, then verifies the route is gone and the foreign rule survives.
 func TestMPLSIntegration_ScopedRuleFailureRollback(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	loadMPLSModules(t)
 	withNetNS(t, func() {
 		h, err := netlink.NewHandle()
@@ -184,6 +191,9 @@ func TestMPLSIntegration_ScopedRuleFailureRollback(t *testing.T) {
 // TestMPLSIntegration_ScopedForeignRoute preserves another writer's private-table
 // route across a refused add and a compensating remove, then permits a clean retry.
 func TestMPLSIntegration_ScopedForeignRoute(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	loadMPLSModules(t)
 	withNetNS(t, func() {
 		h, err := netlink.NewHandle()
@@ -234,6 +244,9 @@ func TestMPLSIntegration_ScopedForeignRoute(t *testing.T) {
 // TestMPLSIntegration_ScopedShutdown verifies backend close removes private
 // contexts without letting late marked traffic use ordinary or foreign routes.
 func TestMPLSIntegration_ScopedShutdown(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	loadMPLSModules(t)
 	withNetNS(t, func() {
 		h, err := netlink.NewHandle()
@@ -295,6 +308,9 @@ func TestMPLSIntegration_ScopedShutdown(t *testing.T) {
 // TestMPLSIntegration_ScopedSharedTable retains a table's selector until its last
 // FEC is removed. Removing a route after link failure must still clean it up.
 func TestMPLSIntegration_ScopedSharedTable(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	loadMPLSModules(t)
 	withNetNS(t, func() {
 		h, err := netlink.NewHandle()

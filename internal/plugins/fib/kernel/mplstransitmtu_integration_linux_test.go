@@ -29,6 +29,7 @@ import (
 // installer-sends.md: EINVAL on every transit install carrying an ADSPEC MTU,
 // so no Ze transit LSP came up.
 func TestMPLSIntegration_TransitPathMTUFollowsTheProbe(t *testing.T) {
+	skipWithoutInitNamespacePrivilege(t, "the kernelcap MPLS IP MTU probe binds /proc/sys, which a user namespace refuses (EINVAL)")
 	loadMPLSModules(t)
 	withNetNS(t, func() {
 		h, err := netlink.NewHandle()

@@ -1,4 +1,4 @@
-//go:build integration && linux
+//go:build linux
 
 // Design: docs/architecture/mpls/mpls-kernel.md -- native label ownership and next-hop devices.
 package fibkernel
@@ -17,6 +17,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	mplsfibevents "github.com/ze-software/ze/internal/core/mplsfib"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 func requireOwnedSwapFrame(t *testing.T, bed *mplsTestbed, labels []uint32, nextHop net.HardwareAddr) {
@@ -32,6 +33,9 @@ func requireOwnedSwapFrame(t *testing.T, bed *mplsTestbed, labels []uint32, next
 // TestMPLSIntegration_LabelSourceOwnership rejects another producer's update and
 // withdrawal, while a same-source RSVP repair changes the observed label stack.
 func TestMPLSIntegration_LabelSourceOwnership(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	loadMPLSModules(t)
 	withNetNS(t, func() {
 		h, err := netlink.NewHandle()
@@ -84,6 +88,9 @@ func TestMPLSIntegration_LabelSourceOwnership(t *testing.T) {
 // TestMPLSIntegration_ForeignLabelPreserved checks the real kernel's EEXIST
 // refusal on first install and preserves foreign state during compensating remove.
 func TestMPLSIntegration_ForeignLabelPreserved(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	loadMPLSModules(t)
 	withNetNS(t, func() {
 		h, err := netlink.NewHandle()
@@ -141,6 +148,9 @@ func TestMPLSIntegration_ForeignLabelPreserved(t *testing.T) {
 // TestMPLSIntegration_IPv6LabelNextHopZone installs the same link-local next-hop
 // address on two devices. Named and numeric zones must choose the requested one.
 func TestMPLSIntegration_IPv6LabelNextHopZone(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	loadMPLSModules(t)
 	withNetNS(t, func() {
 		h, err := netlink.NewHandle()
@@ -204,6 +214,9 @@ func TestMPLSIntegration_IPv6LabelNextHopZone(t *testing.T) {
 // TestMPLSIntegration_OwnerReadiness sends the first label operation as soon as
 // run reports ready, then verifies shutdown removes the acknowledgment boundary.
 func TestMPLSIntegration_OwnerReadiness(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	loadMPLSModules(t)
 	withNetNS(t, func() {
 		h, err := netlink.NewHandle()
@@ -256,6 +269,9 @@ func TestMPLSIntegration_OwnerReadiness(t *testing.T) {
 // A restarted producer has no local label list. Source cleanup must use the
 // native owner's retained claims and keep failed deletions claimed until retry.
 func TestMPLSIntegration_SourceResetRetainsFailedDeletes(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	loadMPLSModules(t)
 	withNetNS(t, func() {
 		h, err := netlink.NewHandle()

@@ -1,4 +1,4 @@
-//go:build integration && linux
+//go:build linux
 
 // Design: docs/architecture/mpls/mpls-kernel.md, plan/spec-mpls-2-ldp.md -- live-kernel MPLS
 // dataplane verification. Exercises the real netlink backend (mplsentry_linux.go,
@@ -24,13 +24,15 @@ import (
 	"golang.org/x/sys/unix"
 
 	mplsfibevents "github.com/ze-software/ze/internal/core/mplsfib"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 const mplsPlatformLabels = "/proc/sys/net/mpls/platform_labels"
 
-// loadMPLSModules best-effort loads the kernel MPLS modules in the host (init)
-// namespace before any netns switch. Modules are global; the per-netns sysctl
-// tree (net.mpls) only appears once mpls_router is loaded.
+// loadMPLSModules best-effort loads the kernel MPLS modules. Modules are global;
+// the per-netns sysctl tree (net.mpls) only appears once mpls_router is loaded.
+// Under userns.Enter the modprobe is refused (loading a module needs the host's
+// root), so a host whose kernel has not loaded them skips here, naming them.
 func loadMPLSModules(t *testing.T) {
 	t.Helper()
 	for _, m := range []string{"mpls_router", "mpls_iptunnel"} {
@@ -42,11 +44,13 @@ func loadMPLSModules(t *testing.T) {
 }
 
 // enableNetnsMPLS raises the per-netns MPLS label space so the kernel accepts
-// AF_MPLS routes. Must run after the netns switch (the sysctl is per-netns).
+// AF_MPLS routes. Callers MUST switch to the test's network namespace first
+// and provide the write privilege through userns.Enter or privileged test setup.
+// A refused write fails the test.
 func enableNetnsMPLS(t *testing.T) {
 	t.Helper()
 	if err := os.WriteFile(mplsPlatformLabels, []byte("1048575"), 0o644); err != nil {
-		t.Skipf("cannot set net.mpls.platform_labels in netns: %v", err)
+		t.Fatalf("cannot set net.mpls.platform_labels in netns: %v", err)
 	}
 }
 
@@ -95,6 +99,9 @@ func mplsRoutes(t *testing.T, h *netlink.Handle) map[int]netlink.Route {
 // PREVENTS: the netlink AF_MPLS encoding silently failing on a real kernel, and
 // a read-back reading green over a plane that forwards nothing.
 func TestMPLSIntegration_Swap(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	loadMPLSModules(t)
 	withNetNS(t, func() {
 		h, err := netlink.NewHandle()
@@ -157,6 +164,9 @@ func TestMPLSIntegration_Swap(t *testing.T) {
 // PREVENTS: the facility-backup label stacking silently failing on a real kernel,
 // and a repair that reads back replaced while the frame still takes the old path.
 func TestMPLSIntegration_FacilityBackupSwap(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	loadMPLSModules(t)
 	withNetNS(t, func() {
 		h, err := netlink.NewHandle()
@@ -228,6 +238,9 @@ func TestMPLSIntegration_FacilityBackupSwap(t *testing.T) {
 // PREVENTS: a pop that reads back correct while the interface discards every
 // labeled frame.
 func TestMPLSIntegration_PopWithNextHop(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	loadMPLSModules(t)
 	withNetNS(t, func() {
 		h, err := netlink.NewHandle()
@@ -281,6 +294,9 @@ func TestMPLSIntegration_PopWithNextHop(t *testing.T) {
 // QEMU run surfaced for no-via pops, and a loopback disposition that reads back
 // while the popped packet never re-enters the IP receive path.
 func TestMPLSIntegration_EgressPopNoNextHop(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	loadMPLSModules(t)
 	withNetNS(t, func() {
 		h, err := netlink.NewHandle()
@@ -324,6 +340,9 @@ func TestMPLSIntegration_EgressPopNoNextHop(t *testing.T) {
 // VALIDATES: mpls-3 dataplane -- a push entry installs an IP route with an MPLS
 // label encap (ingress imposition), reusing the rich-route path.
 func TestMPLSIntegration_Push(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	loadMPLSModules(t)
 	withNetNS(t, func() {
 		h, err := netlink.NewHandle()
@@ -376,6 +395,9 @@ func TestMPLSIntegration_Push(t *testing.T) {
 // label was Implicit NULL, RFC 3032 Section 2.1) installs a plain IP route via
 // the next hop, with no MPLS encap, and the withdraw removes it.
 func TestMPLSIntegration_PushImplicitNull(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	loadMPLSModules(t)
 	withNetNS(t, func() {
 		h, err := netlink.NewHandle()
@@ -442,6 +464,9 @@ func pushEncapLabels(t *testing.T, h *netlink.Handle, dst string) []int { //noli
 // does NOT clobber that route (first install uses RouteAdd, which fails EEXIST).
 // The MPLS push bypasses sysrib arbitration, so it must not stomp foreign routes.
 func TestMPLSIntegration_PushNoClobberForeignRoute(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	loadMPLSModules(t)
 	withNetNS(t, func() {
 		h, err := netlink.NewHandle()
@@ -477,6 +502,9 @@ func TestMPLSIntegration_PushNoClobberForeignRoute(t *testing.T) {
 // VALIDATES: mpls-2 -- re-advertising a FEC with a new label updates the kernel
 // route (RouteReplace), rather than leaving the old label imposed (RouteAdd EEXIST).
 func TestMPLSIntegration_PushRelabel(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	loadMPLSModules(t)
 	withNetNS(t, func() {
 		h, err := netlink.NewHandle()

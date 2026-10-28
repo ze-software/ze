@@ -17,6 +17,7 @@ import (
 )
 
 func TestFIBServiceSIDEncapsulationOnWire(t *testing.T) {
+	skipWithoutInitNamespacePrivilege(t, "the userns.Enter trial timed out waiting for an SRv6-encapsulated packet on the capture link")
 	loadMPLSModules(t)
 	withNetNS(t, func() {
 		h, err := netlink.NewHandle()

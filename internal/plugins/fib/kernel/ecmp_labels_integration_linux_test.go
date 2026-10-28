@@ -14,6 +14,7 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/routeaction"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/routewatch"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // The real FIB writer programs different stacks on two next hops. Varying the
@@ -21,6 +22,9 @@ import (
 // use the label stack owned by the neighbor it addresses. A relabel repeats the
 // same traffic without changing the first member.
 func TestFIBECMPMemberLabelsOnWire(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	loadMPLSModules(t)
 	withNetNS(t, func() {
 		h, err := netlink.NewHandle()

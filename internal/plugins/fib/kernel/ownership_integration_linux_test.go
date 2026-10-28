@@ -1,4 +1,4 @@
-//go:build integration && linux
+//go:build linux
 
 // Design: docs/architecture/rib/unified-locrib.md -- a refused install never grants ownership.
 package fibkernel
@@ -19,6 +19,7 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/routeaction"
 	"github.com/ze-software/ze/internal/core/routewatch"
 	_ "github.com/ze-software/ze/internal/plugins/iface/netlink" // real interface-name resolver
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // startRouteMonitor uses an isolated watcher in the caller's network namespace.
@@ -90,6 +91,9 @@ func awaitMonitorEvent(t *testing.T, events <-chan routewatch.RouteEvent, want r
 // priority has different kernel semantics, but neither family may replace a
 // foreign route after its initial exclusive add was refused.
 func TestFIBIPRouteOwnership(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	for _, version := range []string{"ipv4", "ipv6"} {
 		for _, mode := range []string{"plain", "rich"} {
 			t.Run(version+"/"+mode, func(t *testing.T) {
@@ -207,6 +211,9 @@ func TestFIBIPRouteOwnership(t *testing.T) {
 }
 
 func TestFIBRestartReplayRetainsOwnedRoute(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withNetNS(t, func() {
 		h, err := netlink.NewHandle()
 		require.NoError(t, err)
@@ -296,6 +303,9 @@ func TestFIBRestartReplayRetainsOwnedRoute(t *testing.T) {
 }
 
 func TestFIBDefaultRouteRecovery(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withNetNS(t, func() {
 		h, err := netlink.NewHandle()
 		require.NoError(t, err)
