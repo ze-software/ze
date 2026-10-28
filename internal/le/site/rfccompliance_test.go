@@ -2073,7 +2073,7 @@ func TestTheComplianceIndexShowsEachRFCsFigures(t *testing.T) {
 		`<tr data-rfc="rfc9998" data-walked="1" data-mp="3" data-mt="4" data-op="1" data-ot="2">`,
 		"3 of 4 (75.0%)", "1 of 2 (50.0%)",
 		"<th>" + rfcIndexGapsTested + "</th>", `<dl class="rfc-legend">`, rfcIndexCeiling,
-		`id="rfc-overview"`,
+		`id="rfc-overview"`, rfcListSlot, `<section id="` + rfcDeclinedAnchor + `">`,
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("the index carries no %s", want)

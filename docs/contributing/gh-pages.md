@@ -590,7 +590,9 @@ done. A row's RFC count links to the compliance index with the profile's
 counted RFCs named in the link (`?profile=<name>&rfc=<stem>,<stem>#rfc-list`).
 There a script shows only those rows of the enrolled and not-enrolled tables,
 names any listed RFC with no summary, and offers a text filter by RFC number
-or title; without scripts every row stays visible. Above the rows, an overview
+or title; without scripts every row stays visible. Such a link also moves both
+RFC tables to the top of the page, under its title, so the reader does not
+scroll past the gate cards to reach them. Above the rows, an overview
 sums the shown RFCs' mandatory and optional figures the way a profile rollup
 does (walked RFCs only, the rest counted apart), so a profile's link reads that
 profile's percentages. Every row of both tables carries the RFC's mandatory and

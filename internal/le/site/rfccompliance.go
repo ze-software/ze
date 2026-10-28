@@ -803,6 +803,7 @@ func rfcComplianceBody(snapshot *rfcCompliance, ledger rfcLedger) string {
 			"<code>rfc/audit/*/*.json</code>.",
 		"Quality", ` id="rfc-compliance-title"`, heroClasses)).Byte('\n')
 	body.Str(rfcComplianceStyle).Str(rfcProfileStyle)
+	body.Str(rfcListSlot)
 	body.Str(rfcCardGrid(snapshot, ledger))
 	body.Str(rfcGateVerdictHTML(snapshot))
 	// The per-profile pages come straight after the verdict: a reader asking
@@ -825,7 +826,7 @@ func rfcComplianceBody(snapshot *rfcCompliance, ledger rfcLedger) string {
 	body.Str("<section><h2>Check results</h2>\n").Str(rfcCheckHTML(snapshot.Gate)).Str("\n</section>\n")
 	body.Str(`<section id="`).Str(rfcListAnchor).Str(`"><h2>Enrolled RFCs</h2>`).Byte('\n').
 		Str(rfcFilterHTML).Str(rfcEnrolledIndexHTML(ledger)).Str("\n</section>\n")
-	body.Str("<section><h2>Summaries that are not enrolled</h2>\n").
+	body.Str(`<section id="`).Str(rfcDeclinedAnchor).Str(`"><h2>Summaries that are not enrolled</h2>`).Byte('\n').
 		Str(rfcDeclinedIndexHTML(ledger)).Str("\n</section>\n")
 	body.Str(rfcFilterScript)
 	body.Str("            </section>\n")

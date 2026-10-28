@@ -14,8 +14,18 @@ import (
 	"github.com/ze-software/ze/internal/le/rfc"
 )
 
-// rfcListAnchor is the id of the enrolled-RFC section, where the filter sits.
-const rfcListAnchor = "rfc-list"
+// rfcListAnchor is the id of the enrolled-RFC section, where the filter sits,
+// and rfcDeclinedAnchor the id of the not-enrolled one after it.
+const (
+	rfcListAnchor     = "rfc-list"
+	rfcDeclinedAnchor = "rfc-declined"
+)
+
+// rfcListSlot marks the top of the compliance index, under its title. A link
+// that names RFCs is asking about those RFCs, so the script moves both RFC
+// tables here, and the reader meets the overview first rather than after
+// every gate card.
+const rfcListSlot = `<div id="rfc-list-slot"></div>` + "\n"
 
 // rfcFilterHTML is the filter above the enrolled-RFC table. It is hidden until
 // the script runs, so a reader without scripts sees every row and no control
@@ -127,6 +137,13 @@ const rfcFilterScript = `<style>
       all.textContent = "Show every RFC";
       note.appendChild(all);
     }
+  }
+  var slot = document.getElementById("rfc-list-slot");
+  if (wanted && slot) {
+    ["` + rfcListAnchor + `", "` + rfcDeclinedAnchor + `"].forEach(function (id) {
+      var section = document.getElementById(id);
+      if (section) { slot.parentNode.insertBefore(section, slot); }
+    });
   }
   input.addEventListener("input", apply);
   box.hidden = false;
