@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Scope | protocol |
 | Priority | P1 |
 | Release reason | The route-server release profile requires RFC 8212. Today an EBGP session with no import or export policy accepts every route into the Decision Process and advertises every route, which is the route-leak default RFC 8212 exists to remove |
@@ -693,15 +693,15 @@ judgment and renewed discrimination/audit evidence as already recorded.
 
 | ID | Risk | Early signal | Mitigation |
 |----|------|--------------|------------|
-| R-8 | Paused receive consumes HoldTimer budget | Admission/drain deadline approaches the remaining session budget | Bound prepare/apply/abort; retain normal timers; never promise immunity to independent transport failure |
-| R-9 | Undo released at operation commit before outer acceptance | Later participant failure cannot restore imported paths | Keep transaction pins until acknowledged whole-reload acceptance; inject both later-commit and outer-rejection failures |
-| R-10 | Old workers acquire the current epoch | Withdrawn routes return after a successful policy commit | Capture epoch at admission and preserve it through every forwarding/replay/validation path |
-| R-11 | Import denial overwrites validation state or RFC 7947 retention | Validation reply reactivates a route or diagnostic entries disappear | Independent eligibility reasons; preserve filtered population and test mixed UPDATE overlap |
-| R-12 | External owner acknowledges dispatch rather than completion | Reload returns before downstream withdrawal, or legacy scripts need new code | Registered completion contract, real external-process tests and bridge-owned compatibility handling |
+| R-11 | Paused receive consumes HoldTimer budget | Admission/drain deadline approaches the remaining session budget | Bound prepare/apply/abort; retain normal timers; never promise immunity to independent transport failure |
+| R-12 | Undo released at operation commit before outer acceptance | Later participant failure cannot restore imported paths | Keep transaction pins until acknowledged whole-reload acceptance; inject both later-commit and outer-rejection failures |
+| R-13 | Old workers acquire the current epoch | Withdrawn routes return after a successful policy commit | Capture epoch at admission and preserve it through every forwarding/replay/validation path |
+| R-14 | Import denial overwrites validation state or RFC 7947 retention | Validation reply reactivates a route or diagnostic entries disappear | Independent eligibility reasons; preserve filtered population and test mixed UPDATE overlap |
+| R-15 | External owner acknowledges dispatch rather than completion | Reload returns before downstream withdrawal, or legacy scripts need new code | Registered completion contract, real external-process tests and bridge-owned compatibility handling |
 
 | ID | Assumption | Basis | If wrong | Validation |
 |----|------------|-------|----------|------------|
-| A-7 | Existing pause and ownership mechanisms can be extended without a permanent store | `Session.Pause`, source-owned advertisements and current RIB references exist | If wrong, the proposed reversible design is incomplete | Admission/rollback fault tests with no refresh and no optional store; verify references are released after accept/abort |
+| A-9 | Existing pause and ownership mechanisms can be extended without a permanent store | `Session.Pause`, source-owned advertisements and current RIB references exist | If wrong, the proposed reversible design is incomplete | Admission/rollback fault tests with no refresh and no optional store; verify references are released after accept/abort |
 
 ### Design alternatives and triple challenge
 
@@ -720,3 +720,216 @@ https://github.com/FRRouting/frr/blob/master/bgpd/bgp_route.c
 `~/Code/gitlab.nic.cz/labs/bird/proto/bgp/bgp.c`, `bgp_postconfig`.
 These justify the runtime-versus-config design comparison, not an assertion
 that either daemon already supplies Ze's selected reload transaction contract.
+
+## Approved implementation contract, 2026-10-28
+
+The owner approved the completed design proposal at the design gate. The
+authoritative contract is that proposal, its AC amendments and AC-12 through
+AC-15, together with this section. Earlier research and rejected alternatives
+remain as history, not alternative implementation instructions. Status remains
+`design` until the final save gate.
+
+### Reading amendments
+
+- [ ] `docs/guide/redistribution.md`
+  → Constraint: preserve inherited policy presence and most-specific configured
+  final; do not turn automatic filters into operator intent.
+- [ ] `rfc/short/rfc4271.md` and the RFC's own Sections 9.1 and 9.1.3
+  → Constraint: RFC 8212 changes EBGP eligibility and Adj-RIB-Out admission,
+  not explicit withdrawal processing or the existence of pre-policy storage.
+- [ ] `docs/architecture/config/transaction-protocol.md`
+  → Constraint: use the existing config event stream and callback bridge.
+  Operation commit precedes whole-reload acceptance; irreversible retirement
+  belongs after durable candidate publication, not in the earlier journal discard.
+- [ ] `docs/architecture/api/process-protocol.md`
+  → Constraint: extend registered typed callback declarations and their existing
+  transport; application receipts and downstream writer settlement are distinct.
+- [ ] `docs/architecture/behavior/peer-lifecycle.md`
+  → Constraint: source invalidation does not synthesize DOWN/UP, reset export
+  availability, or activate GR retention.
+- [ ] `docs/architecture/plugin/rib-storage-design.md`
+  → Constraint: preserve existing state ownership and reference lifetimes;
+  temporary undo pins do not create a second route store.
+- [ ] `ai/patterns/registration.md`
+  → Constraint: support and event routing derive from registrations, not a
+  hand-maintained enumeration of participating plugins.
+
+### Transaction boundary details
+
+| Concern | Required contract |
+|---------|-------------------|
+| Trigger | Compare effective final decisions, not raw final enum values. D-1 governs established EBGP rejection-to-acceptance recovery; D-2's invalidation mechanism handles acceptance-to-rejection, including loss of explicit policy. A change that still inherits the same decision does not trigger a false transition |
+| Participants | Capture state-owning receive consumers and their process lifetimes through registration. Ordinary observers are not required to implement route storage; state owners must declare support. Do not infer state ownership from a plugin's spelling |
+| Ordering | The existing transaction stream orders prepare/apply/abort/finalize through its callback bridge. No second coordinator, bus or unsequenced side RPC is introduced. Keep FIFO event application live while waiting for downstream settlement |
+| Request identity | Every operation carries transaction ID, source identity, peer incarnation, session generation, policy epoch, operation phase and the admitted receive frontier. Validate all fields before mutation; reject stale, foreign or replacement-session tokens |
+| Duplicate delivery | Repeated delivery of the same phase/token returns its recorded outcome without repeating writes or releasing references twice. A stale phase cannot undo a later accepted transaction |
+| Concurrency | Retain the short-lock order reactor then peer. Never wait for plugins, admission receipts or destination writes while holding either lock. The admission guard is released before callbacks that can re-enter the reactor |
+| Deadline | Use the existing transaction budgets and live remaining HoldTimer budget. Reserve abort/resume time before pausing; refuse before mutation if no safe budget remains. Apply and rollback cannot extend the hold timer or leave the pause waiting for an unbounded callback |
+| Successful apply | Every affected owner has excluded source paths, async work is fenced, alternatives are selected and destination writer barriers have completed. Keep all undo references while any later participant or outer publication can fail |
+| Rejection before acceptance | Restore configuration/filter definitions, owner eligibility and downstream advertisements before resuming preserved input. Failed compensation stays an error with the affected peer and owner; never report that the previous state was restored when it was not |
+| Whole-reload acceptance | The accepted decision is reached only after all rollback-capable work and durable publication have succeeded. Deliver acknowledged finalization to each captured owner and release only this transaction's pause and pins |
+| Failure after the accepted decision | Do not pretend an irreversible accepted decision was rolled back. Report that the candidate is active but finalization failed, naming the owner and operator recovery command. Preserve fail-closed epoch fencing; bound resource cleanup and release the transaction's receive pause without enabling old source paths. A missing finalization receipt is not successful reload completion |
+| Session/owner death | Never apply the captured operation to a successor. Ordinary lifecycle cleanup releases the dead owner's transaction references. Report real loss rather than simulate a successful no-reset transition |
+
+The failure-after-acceptance row distinguishes cleanup failure from a
+rollback-capable apply failure; it does not authorize partial successful
+invalidation. Apply receipts already prove eligibility and downstream changes
+before the accepted decision. No route recovery or RFC compliance claim follows
+from a request being queued.
+
+### Final integration checklist
+
+This table supersedes the earlier Integration Checklist.
+
+| Integration point | Applies? | File / reason |
+|-------------------|----------|---------------|
+| YANG schema | Yes | `internal/core/ipc/yang/ze-plugin-callback.yang`, `internal/core/ipc/yang/ze-plugin-engine.yang`: registered source-invalidation and completion contract; no new operator policy leaf |
+| YANG validation constraints | Yes | Typed identities, bounded strings, operation enumeration and generation/frontier integer constraints in those schemas |
+| YANG custom validators | N-A | No operator-entered dynamic value or new completion source; runtime ownership/session validation belongs at the callback boundary |
+| CLI commands/flags | Yes, output only | Existing policy handler and peer detail expose effective default; no new verb or flag |
+| CLI grammar | N-A | Existing commands and config paths remain unchanged |
+| Editor autocomplete | N-A | No new editable configuration leaf |
+| Functional test for RPC/API | Yes | `test/plugin/rfc8212-policy-status.ci`, `test/reload/rfc8212-import-owner-failure.ci` exercise actual command and external callback paths |
+| Pipe completeness | Yes, preservation | Existing policy command response pipeline must retain new fields through JSON output and normal filtering; assert in the status fixture |
+| Environment registration | N-A | No new environment variable |
+| Doctor check and diagnostic code | N-A | No new host dependency, socket, executable, file prerequisite or kernel feature; unsupported owner is a transaction preflight error |
+| Prometheus counters/metrics | No | Preserve current rejection accounting; no new reason label, counter or cardinality is required |
+| New BGP family/capability/attribute | N-A | Existing families and negotiated Route Refresh are used; no wire capability is added |
+
+### Final documentation update checklist
+
+Every row supersedes the earlier row with the same number. A phase updates
+the page as it changes the producing behavior; the last phase checks those edits.
+
+| # | Surface | Applies? | Files / reason |
+|---|---------|----------|----------------|
+| 1 | Feature scope and evidence | Yes | `features/bgp-protocol.md`; currently experimental. Record only implemented and exercised RFC 8212 behavior |
+| 2 | Config semantics and examples | Yes | `docs/architecture/config/syntax.md`, `docs/guide/configuration.md`; absent EBGP policy rejects, inheritance unchanged |
+| 3 | CLI output | Yes | `docs/guide/bgp-policy.md`, `docs/guide/command-reference.md`; effective default, undetermined state and dry-run policy context |
+| 4 | API/RPC | Yes | `docs/architecture/api/commands.md`, `docs/architecture/api/architecture.md`; operational fields and registered lifecycle boundary |
+| 5 | Existing plugins | Yes | `docs/guide/plugins.md`, `docs/architecture/plugin/rib-storage-design.md`; source-state owner participation and rollback |
+| 6 | User guides | Yes | `docs/guide/bgp-policy.md`, `docs/guide/bgp-peering.md`, `docs/guide/redistribution.md`, `docs/guide/config-reload.md`; D-1, D-2 and retained-source recovery limits |
+| 7 | BGP wire format | No | No changed packet layout. Existing withdrawal and refresh wire formats remain authoritative; implementation comments cite their applicable RFC sections |
+| 8 | SDK/protocol | Yes | `docs/architecture/api/process-protocol.md`; phase/token/receipt semantics and internal/external parity. Follow existing plugin rules rather than adding a duplicate rule |
+| 9 | RFC support | Yes | `rfc/short/rfc8212.md`; remove mandatory gaps only after recorded proof. Generate `docs/features/rfc-status.md` from the ledger, never edit its derived row by hand |
+| 10 | Test infrastructure | No | New scenarios use the existing harness; do not add a new test runner |
+| 11 | Daemon comparison | Yes | `docs/comparison.md`; correct support scope only when implementation evidence warrants it |
+| 12 | Internal architecture | Yes | Core-design, structural-forwarding, peer-lifecycle, rib-storage-design and `docs/architecture/config/transaction-protocol.md`, as named above |
+| 13 | Route metadata | Yes, internal eligibility | `docs/architecture/plugin/rib-storage-design.md` documents import-denied versus validation eligibility and undo pins. No new public `meta/*` key is proposed |
+| 14 | Metrics | No | No new metric or label; existing metric docs remain unchanged unless implementation changes their actual meaning |
+| 15 | Registered lifecycle surface | Yes | `docs/architecture/api/process-protocol.md` and `docs/guide/plugins.md`; source-owner declarations and notifications. Regenerate schema-derived inventories affected by the new registered method |
+| 16 | Source anchors | Yes | Run `./le spec citation anchors spec plan/release/fixes/spec-bgp-rfc8212-ebgp-default-reject.md`; every affected page carries the producing source anchor, and unrelated mentions are explicitly distinguished |
+| 17 | Examples and migration | Yes | The guides above, `docs/exabgp/exabgp-migration.md`, `docs/exabgp/exabgp-differences.md`; add explicit policy where exchange is intended, not to examples or tests deliberately demonstrating default rejection |
+
+### Discovery and drift prevention
+
+| Question | Answer |
+|----------|--------|
+| Where an agent looks first | `ai/INDEX.md`: RFC 8212/default-reject keywords point to `docs/guide/bgp-policy.md` and `rfc/short/rfc8212.md`; config-transaction and process-protocol entries remain the lifecycle references |
+| What prevents regression | Existing RFC-compliance, registration, documentation and testing rules; recorded discrimination for each mandatory requirement, plus AC-12 through AC-15 transition/fault tests |
+| What inventory owns the fact | `filterapi.Policy` owns explicit presence; the captured session owns external/internal type; callback/schema registration owns participant support; RFC and feature registries own published support |
+| What proves reachability | Named real-entry `.ci` fixtures, external-owner lifecycle coverage and the FRR scenario; a callback signature or unit helper alone proves nothing |
+
+### Final implementation phases
+
+This dependency-ordered table supersedes the earlier six-step implementation
+list. Each phase has its own implementation agent and independent review under
+the implementation skill; no implementation is authorized by this spec-writing
+session alone.
+
+| Phase | Inputs and files | Output and proof |
+|-------|------------------|------------------|
+| 1. Wiring | Existing BGP startup, reload, policy commands, migration and external callback entry points | Draft the named functional fixtures outside `test/` per the functional-test skill; connect actual paths and show the specific missing behavior goes red. Tests assert exchanged routes, policy state and session identity, not scaffolding |
+| 2. Verdict | `filterapi/policy.go` and all exhaustion/fast-forward/pre-snapshot/dry-run consumers | Session-aware scalar verdict; explicit presence and IBGP preserved; absent EBGP import/export blocked from all route origins. Truth-table and no-policy fixtures pass; policy semantics docs updated |
+| 3. Reversible lifecycle | Session admission, source-policy epochs, current source owners, callback schemas/SDK and existing transaction/outer-acceptance paths | Prepare/apply/abort/finalize works in process and externally; tokens remain valid only for their captured source/session; rollback works without refresh. AC-12 through AC-15 fault/epoch tests exercise actual owners; lifecycle and transaction docs updated |
+| 4. Reload and operations | Peer settings/dynamic templates, captured-session refresh writes, export reconciliation, policy projections and establishment warnings | D-1 refuses unsupported relaxation before publication; D-2 invalidates in place; status/dry-run/warnings follow the approved table. Reload and status fixtures pass; guides/API fields updated |
+| 5. Fixture compatibility | Existing EBGP route-exchange fixtures and RFC-tagged carriers affected by the new default | Add only their intended explicit policy, preserve assertions and purpose, obtain independent test judgment where required. Renew every stale discrimination unit and independent RFC audit judgment; do not merely reseal stale proofs |
+| 6. ExaBGP migration | `internal/exabgp/migration/migrate.go`, serializer as required, existing migration goldens and bridge compatibility cases | Per-migrated-peer import/export accept and explanatory output; no global policy or bridge exemption. Existing 4.2/5.0/6.0 contracts remain valid; migration/differences pages updated |
+| 7. Interop and proof closure | `test/interop/scenarios/bgp-rfc8212-default-reject-frr/`, mandatory RFC carriers and feature/support ledgers | Latest stable FRR with explicit peer policies proves both defaults, explicit-policy exchange and the selected live transition. Record forced-red/green proof through the RFC tool, scoped regression evidence and accurate generated support surfaces |
+
+Additional new Go tests belong in
+`internal/component/bgp/reactor/rfc8212_default_reject_test.go` and the existing
+owner/transaction test files that exercise each real boundary. Do not create a
+parallel mock-only lifecycle suite. Additional functional files are exactly
+those named in the acceptance amendments. The interop directory above replaces
+the draft's incorrect path directly under `test/interop/`.
+
+Scoped verification includes affected filterapi/reactor, source-owner plugins,
+plugin process/server/SDK, config transaction and migration packages, with their
+actual feature tags, not just the draft's three-package list. Run the named
+functional cases and affected existing cases, not every suite. The scenario
+selector is `INTEROP_SCENARIO=bgp-rfc8212-default-reject-frr ./le test integration interop`.
+Commit verification uses `./le verify changed`; no full verification or
+performance run is authorized on this Linux host.
+
+### Final interpretation of older assumptions
+
+| Earlier row | Final disposition |
+|-------------|-------------------|
+| A-1 | A signature change forces ordinary callers to update; it does not prove cached forwarding, direct-write admission or replay is fenced. AC-14 supplies that proof |
+| A-2 | Ingress rejection prevents eligible publication. It does not require deleting a future RFC 7947 pre-policy diagnostic population |
+| A-3 | Runtime decisions use a coherent session/policy snapshot; status before dynamic establishment uses the explicit undetermined state |
+| A-4 and the optional-switch design row | Explicit policy satisfies the mandatory rule; it is not implementation of the RFC's optional deviation switch. No switch is added, and the RFC ledger must not claim one |
+| A-5 | Migration preserves ExaBGP policy intent per peer; compatibility is proved by running migrated configurations and their scripts, not by absence of a keyword search alone |
+| A-6 | Fixture edits inside `.ci` stdin change the recorded behavior unit and can stale discrimination and audit records. Renew the applicable evidence; do not assume semantic equivalence keeps hashes valid |
+| A-7 | Refresh recovery requires observed routes, not just successful request writes; AC-6 and its functional fixture are the proof |
+| A-8 | Preserve the RFC 7947 overlap contract for mixed UPDATEs; no hard dependency on implementing that separate retention feature |
+| A-9 | Reversible admission/state ownership is an implementation hypothesis with the fault tests specified above, not a claim of existing behavior |
+| Blast Radius: revert | The old verdict-only reversal description is obsolete. This design reaches transaction and plugin lifecycle contracts; any rollback of implementation must follow git-safety and account for all changed contracts, never issue a destructive git command |
+
+### Specification independence
+
+| Check | Answer |
+|-------|--------|
+| Another session can find the authoritative design | Yes: this section identifies the approved proposal and explicit superseding AC/checklist/phase rows |
+| Tests can be written without guessing intended behavior | Yes: AC-1 through AC-15 define exchange, eligibility, session identity, refusal, rollback, status and failure outcomes; named fixtures cover the real entry points |
+| Implementation inputs, outputs and constraints are stated | Yes: phases name ownership boundaries, dependency order, receipts, undo lifetime and proof; existing registries and storage are the required mechanisms |
+| User decisions preserved | Yes: D-1 refusal without refresh, D-2 in-place invalidation, and approval of reversible admission/whole-reload acceptance are recorded here |
+| Strongest remaining implementation risk | Bounded pause and reliable acceptance across real external owners; A-9 and R-11 through R-15 require fault proof before implementation can close |
+
+## Review Gate
+
+Reserved for independent implementation review, not approval of this prose.
+The current design template places this in the closure supplement; the spec
+skill explicitly requires its empty record here. Do not duplicate it at closure.
+
+| Field | Value |
+|-------|-------|
+| Artifact | |
+| `./le spec review check` | |
+| Rounds | |
+| Reviewer lenses used | |
+
+### Findings fixed
+
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+
+### Final surface audit
+
+→ Constraint: `cmd/ze/hub/main_reload.go`, `runReloadContext`, currently calls
+the void `acceptReload(true)` after candidate promotion and returns nil.
+Include this caller and standalone server reload entry points in Phase 3 so
+finalization errors reach the operator and cannot be mistaken for successful
+reload. The default outer timeout is not a substitute for a session's live
+HoldTimer budget.
+
+| Additional affected surface | Documentation obligation |
+|-----------------------------|--------------------------|
+| `cmd/ze/hub/main_reload.go` and reload acceptance callers | `docs/architecture/config/transaction-protocol.md`: separate accepted-with-finalization-error from pre-acceptance rollback |
+| Undo reference lifetime and preserved receive buffers | `docs/architecture/memory/lifetime-contracts.md`: named retain/release boundaries; do not retain borrowed wire bytes after their owner can recycle them |
+| Registered source-state ownership | `docs/architecture/plugin/plugin-system.md`: declaration-driven participation and no hardcoded plugin list |
+| Bridge lifecycle compatibility | `docs/architecture/exabgp-bridge.md`: bridge-owned handling without new obligations on 4.2/5.0/6.0 scripts |
+| Originated export admission | `docs/architecture/bgp/on-demand-origination.md`: absent-EBGP export default at the existing session gate |
+
+The expanded citation check ran without a blocking missing declared page and
+reported advisory source mentions. The table above captures additional affected
+surfaces identified from those mentions. The implementation checks the final
+changed symbols against the remaining advisory pages; a shared-file mention is
+not itself evidence that the page's described behavior changes.
+
+### Final save approval
+
+The owner selected **Save as ready** on 2026-10-28. Design and final save gates
+are approved. The spec is ready for implementation; no implementation,
+runtime verification or RFC conformance proof is claimed by this session.
