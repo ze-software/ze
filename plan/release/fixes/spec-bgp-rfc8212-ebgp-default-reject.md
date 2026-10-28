@@ -14,6 +14,10 @@
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
+Current implementation status and restart instructions are in
+[Implementation checkpoint](#implementation-checkpoint). The task and design
+audit below describe the pre-implementation baseline, not the current verdict.
+
 ## Task
 
 RFC 8212 Section 3 adds two paragraphs to RFC 4271 (`rfc/full/rfc8212.txt`):
@@ -1089,3 +1093,88 @@ injections remain behind the missing invalidation, as the approved dependency
 order requires; no lifecycle success is claimed. Phase 2 now implements the
 session-aware scalar verdict. Later phases still owe every remaining AC,
 fixture migration and RFC proof.
+
+## Implementation checkpoint
+
+Update this section at every phase boundary, including an unfinished package's
+handoff. Record what was implemented, what actually ran, unresolved failures
+and the next action before continuing. The specification, not only transient
+session context, must identify where implementation resumes.
+
+Current phase: **3/7, reversible lifecycle**. No whole-spec success, closure or
+RFC conformance claim is made. The approved acceptance criteria remain intact.
+
+Implementation paused at the owner's request on 2026-10-28. Resume from
+`plan/handover/30-bgp-rfc8212-phase3.md`; no acceptance criterion was removed.
+All active implementation agents parked without partial source edits.
+
+| Phase | Status | Observed evidence and remaining work |
+|-------|--------|--------------------------------------|
+| 1. Wiring | Finished | Real-entry drafts reached the intended missing verdict, reload and status behavior after the documented automatic-filter and subscription prerequisites were repaired. Rollback/owner-fault fixtures still need the lifecycle before their later fault assertions can run |
+| 2. Verdict | Implemented and scoped verification passed | Session-aware exhaustion, coherent session snapshots and raw injection admission are implemented. Focused race tests, native import/IBGP drafts and the seven-origin export draft passed. Raw body, full-packet and concatenated-control bypasses were observed red before repair. Fourteen documentation configurations passed native validation. RFC proof records, draft promotion and broader affected-fixture checks remain in Phases5/7 |
+| 3. Reversible lifecycle | In progress | Captured-session admission and timer-budget tests passed. Original journal retention and acknowledged completion are implemented; targeted ordering, decision-decoding and captured-lifetime repairs passed. A newly reproduced removed-infrastructure/retained-owner compensation defect remains under repair. Lifecycle protocol, policy-epoch transport and stored provenance are being implemented; actual owner invalidation, undo pins and whole-reload source coordination remain owed |
+| 4. Reload and operations | Not started | D-1 preflight/refresh, D-2 integration, complete static/dynamic boundaries, status projections and establishment warnings remain owed |
+| 5. Fixture compatibility | Not started | Existing EBGP fixtures, independent judgments and renewed affected RFC discrimination/audit records remain owed |
+| 6. ExaBGP migration | Implemented; compatibility verification incomplete | Migration package race tests, revised serialized-policy unit and native migration/validation draft passed. Actual CLI smoke verified each peer's explanatory warning. Six golden changes received independent judgment. Old-4.2, old-5.0 and current scripts plus the external-peer wire control and affected compatibility regression remain owed |
+| 7. Interop and proof closure | Not started | FRR scenario, forced-red records, support ledgers and final scoped regression evidence remain owed. Closure stays a separate `/ze-close` phase |
+
+### Phase 3 current packages
+
+| Package | State | Resume instruction |
+|---------|-------|--------------------|
+| Admission and timer budget | Implemented; focused race tests passed | Preserve receipt ownership, work versus hard completion deadlines and terminal-NOTIFICATION ordering when connecting the coordinator |
+| Acceptance and compensation | Paused before the third ordering repair | Both opposing arrangements have observed bridge/wire failures. The current producer is the second, autoload-first repair; the dependency-ordered third repair has not begun. Interleave removed-owner reconstruction and original retained inverses by actual dependencies, under one rollback deadline. Recovery startup currently lacks caller-context propagation. Preserve full inverse diffs, original journals and retained-root exclusion; prove both arrangements before continuing |
+| Registered lifecycle transport | Normal transport controls passed; effective deadline regression red | Both bridge and wire let an owner commit after an earlier caller budget because the transmitted deadline is later. The producer remains unchanged. Transmit the derived context's effective deadline in `PluginConn.SendSourcePolicy`, then rerun that failed regression and review the repair. Actual owner invalidation remains separate |
+| Live policy-epoch provenance | Plumbing compiled; stale-write regressions red; final gates unchanged | Actual direct, cached and pool-fallback writers leak stale work; stale/replaced/unrecorded replay and expected-owner stale announcements also fail. Reconnect control passes. Finish final gates without dropping authorized removals, local origins or GR withdrawals. The independently approved 13-file fixture patch is saved but not applied |
+| Stored policy-epoch provenance | New replay test passed; two independent source reviews found no issue in their assigned scope | `TestInitialReplayUsesReceivedPolicyEpoch` passed all eight cases; transport-format controls also passed. Storage and replay/dispatch reviews exclude pending final gates and lifecycle work. The new equality test still has no observed pre-fix discrimination; do not claim one. Full affected package checks, eligibility and undo pins remain owed |
+| Owner invalidation and coordinator | Not implemented | After the transport packages, implement independent import eligibility, accepted-reference pins, async-worker/downstream settlement and whole-reload bounded abort/finalize. No optional-store prerequisite, synthetic DOWN or permanent denied-route store |
+
+The four earlier acceptance review defects have targeted passing after-runs:
+inner infrastructure-before-service undo, retained-root reconstruction,
+mandatory completion decision decoding, and process/connection replacement
+during completion. Mixed removed/retained-owner dependency ordering remains
+open: both opposing arrangements have observed failing regressions. The third
+dependency-ordered source repair is not yet written. Two independent stored
+provenance reviews found no issue within their assigned scope, not across the
+unfinished lifecycle.
+Admission tests and these prerequisite tests do **not** prove AC-12 through
+AC-15 end to end.
+
+### Evidence and recovery pointers
+
+Canonical detailed handoff:
+`tmp/session/2026-10-22-644a4e78-0122-4eeb-8642-eb50638a1641/state/session-state-bgp-rfc8212-ebgp-default-reject-644a4e78-0122-4eeb-8642-eb50638a1641.md`.
+It records file/symbol maps, approved test changes, exact command selectors and
+package contracts. Its older reports are chronological; later verification and
+repair entries supersede earlier claims of work not yet run.
+
+The committed continuation handover above is the durable restart summary.
+The detailed state ends with explicit paused-agent handoffs and preserves
+producer maps and the remaining gate locations. Keep the session's scratch
+evidence and approval ledgers until implementation and closure consume them.
+
+The following logs are under that session's `scratch/` directory:
+
+| Evidence | Log |
+|----------|-----|
+| Verdict focused race run; two fixture corrections documented in the handoff | `job-rfc8212-phase2-verdict-after-prepend-9acb1dbe.log` |
+| Raw injection repair and existing raw-path controls passed | `job-rfc8212-phase2-raw-after-77061f90.log` |
+| Admission, residual HoldTimer and terminal controls passed | `job-rfc8212-phase3-admission-4f37a0e7.log` |
+| Original journal acceptance cases passed on both transports | `job-rfc8212-acceptance-fixture-corrected-ddecf303.log` |
+| Actual hub publication failure and accepted-finalization error cases passed | `job-rfc8212-hub-fixture-corrected-b13c6a7e.log` |
+| Inner compensation dependency repair passed | `job-rfc8212-inner-rollback-after-0188b3f4.log` |
+| Mandatory request/receipt decisions passed | `job-rfc8212-completion-request-after-91120df1.log`; `job-rfc8212-completion-receipt-after-a4e5b87e.log` |
+| Mixed retained-owner reconstruction passed | `job-rfc8212-mixed-rollback-after-c5e04bf8.log` |
+| Captured completion lifetime red, then passing repair | `job-rfc8212-completion-lifetime-before-413649b0.log`; `job-rfc8212-completion-lifetime-after-413649b0.log` |
+| Current removed-infrastructure compensation failure | `job-rfc8212-removed-infrastructure-before-24532dbd.log` |
+| Opposing removed-service compensation failure on both transports | `job-rfc8212-removed-service-before-4a4d2804.log` |
+| Effective owner deadline failure on both transports | `job-rfc8212-source-deadline-before-d8817e4b.log` |
+| Actual stale-policy writer/replay failures; reconnect control passed | `job-rfc8212-source-epoch-before-79abcafe.log` |
+| Normal lifecycle transport, required fields/receipts, retained replay and format controls passed | `job-rfc8212-source-transport-controls-a2e07e28.log` |
+| Migration package and revised policy unit passed | `job-rfc8212-phase6-migration-20335d73.log`; `job-rfc8212-migration-policy-after-1e0f3c65.log` |
+| Actual per-peer explanatory warning smoke passed | `job-rfc8212-migration-warning-smoke-dddf9ca4.log` |
+
+Resume Phase3 from the current packages above; do not repeat already observed
+passing checks merely to confirm them. Run each failed regression after its
+producer repair, then the scoped targets reached by the coherent changes.
+No full verification or performance run is authorized on this Linux host.
