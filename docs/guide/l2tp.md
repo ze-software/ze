@@ -642,12 +642,16 @@ Access-Reject. A server that predates 2024 and cannot sign its answers fails
 every subscriber login until it is upgraded or its entry sets
 `require-message-authenticator false`. Each discard steps
 `ze_radius_unsigned_response_discards_total{server}` and logs a rate-limited
-warning naming the server and the leaf, and `ze doctor` reports such a server as
-`doctor-radius-unsigned-response`. The leaf never applies to accounting.
+warning naming the server and the exact `set` command that accepts it, and
+`ze doctor` reports such a server as `doctor-radius-unsigned-response`. A
+`require-message-authenticator` value other than true or false is reported as
+`doctor-radius-invalid`, with the command that sets it, and that server is not
+probed. The leaf never applies to accounting.
 `docs/config-reference.md` ("RADIUS answer signing") has both RADIUS leaves.
 
 <!-- source: internal/component/l2tp/plugins/authradius/config.go -- parseConfigFromTree -->
 <!-- source: internal/component/radius/client.go -- dispatchResponse, discardUnsignedResponse -->
+<!-- source: internal/component/l2tp/plugins/authradius/doctor.go -- checkRADIUSServers -->
 <!-- source: internal/component/l2tp/plugins/authradius/doctor.go -- udpServerReachable -->
 
 `nas-port-id-format` is the template for the NAS-Port-Id attribute (RFC 2869

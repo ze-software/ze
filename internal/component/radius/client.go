@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/taskguard"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // Server holds configuration for a single RADIUS server.
@@ -96,6 +97,9 @@ type responseWaiter struct {
 	// Section 4.6 says the flag "MUST NOT be consulted for responses to other
 	// types of request packets", so an Accounting-Request waiter never has it.
 	requireMessageAuthenticator bool
+	// configPath is the server's config row (Server.ConfigPath), so the
+	// discard warning can give the exact command that accepts this server.
+	configPath string
 	// unsignedDiscarded records that dispatchResponse discarded an answer to
 	// this waiter for carrying no Message-Authenticator. Exchange reads it to
 	// report ErrUnsignedResponse rather than an unreachable server.
@@ -209,7 +213,7 @@ func (c *Client) Exchange(ctx context.Context, pkt *Packet, srv Server) (*Packet
 	// be consulted for responses to other types of request packets."
 	requireMessageAuthenticator := pkt.Code == CodeAccessRequest && !srv.AllowUnsignedResponse
 	key := responseKey{server: addr.String(), id: pkt.Identifier}
-	waiter, err := c.registerWaiter(key, requestAuth, secret, requireMessageAuthenticator)
+	waiter, err := c.registerWaiter(key, requestAuth, secret, requireMessageAuthenticator, srv.ConfigPath)
 	if err != nil {
 		return nil, err
 	}
@@ -249,7 +253,7 @@ retryLoop:
 				return nil, err
 			}
 			key = responseKey{server: addr.String(), id: pkt.Identifier}
-			waiter, err = c.registerWaiter(key, requestAuth, secret, requireMessageAuthenticator)
+			waiter, err = c.registerWaiter(key, requestAuth, secret, requireMessageAuthenticator, srv.ConfigPath)
 			if err != nil {
 				return nil, err
 			}
@@ -303,15 +307,20 @@ retryLoop:
 // why they were dropped, and the two fixes: a server that signs, or the leaf
 // that accepts a legacy server.
 func unsignedResponseError(srv Server) error {
-	row := srv.ConfigPath
+	return fmt.Errorf("radius: server %s: %w, so Ze discarded it (BlastRADIUS, CVE-2024-3596); %s",
+		srv.Address, ErrUnsignedResponse, unsignedResponseFix(srv.ConfigPath))
+}
+
+// unsignedResponseFix answers the two fixes for a server that answers
+// unsigned, with the exact command for its config row. The error and the
+// rate-limited discard warning both carry it.
+func unsignedResponseFix(configPath string) string {
+	row := configPath
 	if row == "" {
 		row = "<this server's config row>"
 	}
-	return fmt.Errorf(
-		"radius: server %s: %w, so Ze discarded it (BlastRADIUS, CVE-2024-3596); "+
-			"configure the server to sign its answers, or accept a legacy server with "+
-			"'set %s require-message-authenticator false'",
-		srv.Address, ErrUnsignedResponse, row)
+	return "configure the server to sign its answers, or accept a legacy server with " +
+		"'set " + row + " require-message-authenticator false'"
 }
 
 // encodeRequest writes the packet into buf and returns its length and the
@@ -572,13 +581,16 @@ func (c *Client) readAnswers(buf []byte) (again bool) {
 	}
 }
 
-func (c *Client) registerWaiter(key responseKey, auth [AuthenticatorLen]byte, secret []byte, requireMessageAuthenticator bool) (*responseWaiter, error) {
+func (c *Client) registerWaiter(key responseKey, auth [AuthenticatorLen]byte, secret []byte,
+	requireMessageAuthenticator bool, configPath string,
+) (*responseWaiter, error) {
 	w := &responseWaiter{
 		auth:   auth,
 		secret: secret,
 		ch:     make(chan []byte, 4),
 
 		requireMessageAuthenticator: requireMessageAuthenticator,
+		configPath:                  configPath,
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -630,7 +642,7 @@ func (c *Client) dispatchResponse(key responseKey, data []byte) {
 				if datagramCarriesAttr(data, AttrEAPMessage) {
 					countUnsignedEAPDiscard()
 				}
-				c.discardUnsignedResponse(key.server)
+				c.discardUnsignedResponse(key.server, w.configPath)
 				judged = true
 				continue
 			}
@@ -671,11 +683,12 @@ func (c *Client) dispatchResponse(key responseKey, data []byte) {
 
 // discardUnsignedResponse counts one unsigned answer from server and warns at
 // most once per unsignedLogInterval for that server, reporting in the next
-// warning how many it suppressed. The caller MUST hold c.mu.
+// warning how many it suppressed. The warning carries the exact command for
+// configPath, the server's config row. The caller MUST hold c.mu.
 //
 // draft-ietf-radext-deprecating-radius-10 Section 4.6: "The client SHOULD log
 // the fact that the packet was discarded (with rate limits)".
-func (c *Client) discardUnsignedResponse(server string) {
+func (c *Client) discardUnsignedResponse(server, configPath string) {
 	countUnsignedResponseDiscard(server)
 	state := c.unsignedLog[server]
 	if state == nil {
@@ -690,7 +703,7 @@ func (c *Client) discardUnsignedResponse(server string) {
 	c.logger.Warn("radius: discarding an answer without Message-Authenticator (BlastRADIUS, CVE-2024-3596)",
 		"server", server,
 		"suppressed", state.suppressed,
-		"fix", "configure the server to sign its answers, or set require-message-authenticator false on its server row")
+		"fix", unsignedResponseFix(configPath))
 	state.last = now
 	state.suppressed = 0
 }
@@ -735,8 +748,10 @@ func prepareWirePacket(pkt *Packet, secret []byte) *Packet {
 }
 
 // SendToServers sends a request to RADIUS servers in failover order.
-// Returns the first successful response.
+// Returns the first successful response, or a serverFailures error naming
+// every server tried and why its answer was not used.
 func (c *Client) SendToServers(ctx context.Context, pkt *Packet) (*Packet, error) {
+	var failures serverFailures
 	for _, srv := range c.config.Servers {
 		pkt.Identifier = c.NextID()
 
@@ -760,9 +775,35 @@ func (c *Client) SendToServers(ctx context.Context, pkt *Packet) (*Packet, error
 		if err != nil {
 			c.logger.Warn("radius: no usable answer from server, trying the next",
 				"server", srv.Address, "error", err)
+			failures = append(failures, err)
 			continue
 		}
 		return resp, nil
 	}
-	return nil, errors.New("radius: all servers unreachable")
+	if len(failures) == 0 {
+		return nil, errors.New("radius: no server is configured, so the request was not sent")
+	}
+	return nil, failures
 }
+
+// serverFailures is the error of a SendToServers call in which no server gave
+// a usable answer: one Exchange error per server tried, in order. Each already
+// names its server and its cause (a timeout, a send failure, an answer
+// discarded as unsigned with the command that accepts it), so the joined text
+// tells the operator why, which "all servers unreachable" did not when the
+// servers did answer. Unwrap keeps errors.Is(err, ErrUnsignedResponse) true.
+type serverFailures []error
+
+func (f serverFailures) Error() string {
+	var tb textbuf.Buffer
+	tb.Str("radius: no configured server gave a usable answer: ")
+	for i, err := range f {
+		if i > 0 {
+			tb.Str("; ")
+		}
+		tb.Err(err)
+	}
+	return tb.String()
+}
+
+func (f serverFailures) Unwrap() []error { return f }

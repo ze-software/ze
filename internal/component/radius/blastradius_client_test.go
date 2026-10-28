@@ -417,7 +417,8 @@ func TestAccountingResponseNotJudgedByRequireFlag(t *testing.T) {
 // TestUnsignedDiscardLogIsRateLimited proves AC-13.
 //
 // VALIDATES: 1000 unsigned answers from one server in under 60 s write one
-// warning and count 1000.
+// warning and count 1000, and that warning carries the exact set command for
+// the server's own config row.
 // PREVENTS: a log flood under attack, and a counter that follows the limiter.
 func TestUnsignedDiscardLogIsRateLimited(t *testing.T) {
 	reg := bindTestRadiusMetrics(t)
@@ -425,7 +426,7 @@ func TestUnsignedDiscardLogIsRateLimited(t *testing.T) {
 	client, sink := blastClient(t, nil, time.Second, 1)
 	key := responseKey{server: "192.0.2.7:1812", id: 3}
 	var reqAuth [AuthenticatorLen]byte
-	waiter, err := client.registerWaiter(key, reqAuth, secret, true)
+	waiter, err := client.registerWaiter(key, reqAuth, secret, true, "system authentication radius server 192.0.2.7")
 	require.NoError(t, err)
 	defer client.unregisterWaiter(key, waiter)
 
@@ -436,7 +437,44 @@ func TestUnsignedDiscardLogIsRateLimited(t *testing.T) {
 		client.dispatchResponse(key, answer)
 	}
 	assert.Equal(t, 1, strings.Count(sink.String(), "without Message-Authenticator"))
+	assert.Contains(t, sink.String(),
+		"configure the server to sign its answers, or accept a legacy server with "+
+			"'set system authentication radius server 192.0.2.7 require-message-authenticator false'")
 	assert.Equal(t, float64(1000), scrapeUnsignedResponseDiscards(t, reg, key.server))
 	assert.True(t, waiter.unsignedDiscarded.Load())
 	assert.Empty(t, waiter.ch, "no discarded answer reached the waiter")
+}
+
+// TestSendToServersNamesEachUnsignedServer asks SendToServers for a login when
+// both configured servers answer only unsigned.
+//
+// VALIDATES: the error wraps ErrUnsignedResponse, names each server with the
+// exact set command for its row, and does not call the servers unreachable.
+// PREVENTS: "radius: all servers unreachable" for servers that answered, which
+// sent the operator to the network instead of the leaf.
+func TestSendToServersNamesEachUnsignedServer(t *testing.T) {
+	secret := []byte("blast-secret")
+	unsigned := func(req []byte) [][]byte { return [][]byte{unsignedAnswer(CodeAccessAccept, req, secret)} }
+	serverA := newScriptedServer(t, unsigned)
+	serverB := newScriptedServer(t, unsigned)
+	client, _ := blastClient(t, []Server{
+		{Address: serverA.addr, SharedKey: secret, ConfigPath: "system authentication radius server a"},
+		{Address: serverB.addr, SharedKey: secret, ConfigPath: "system authentication radius server b"},
+	}, 100*time.Millisecond, 1)
+
+	resp, err := client.SendToServers(context.Background(), accessRequest(t, 0))
+	require.Error(t, err)
+	assert.Nil(t, resp)
+	require.ErrorIs(t, err, ErrUnsignedResponse)
+	text := err.Error()
+	assert.True(t, strings.HasPrefix(text, "radius: no configured server gave a usable answer: "), text)
+	assert.NotContains(t, text, "unreachable")
+	for _, want := range []string{
+		"radius: server " + serverA.addr + ": the answer carried no Message-Authenticator",
+		"'set system authentication radius server a require-message-authenticator false'",
+		"radius: server " + serverB.addr + ": the answer carried no Message-Authenticator",
+		"'set system authentication radius server b require-message-authenticator false'",
+	} {
+		assert.Contains(t, text, want)
+	}
 }

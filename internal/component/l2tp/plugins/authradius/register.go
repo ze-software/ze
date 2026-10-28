@@ -68,7 +68,7 @@ func init() {
 			Order:        710,
 			Dependencies: []string{"radius-server"},
 			Platforms:    []string{"any"},
-			Codes:        []string{"doctor-radius-unreachable", "doctor-radius-unsigned-response"},
+			Codes:        []string{"doctor-radius-unreachable", "doctor-radius-unsigned-response", "doctor-radius-invalid"},
 			Check:        checkRADIUSServers,
 		}},
 	}

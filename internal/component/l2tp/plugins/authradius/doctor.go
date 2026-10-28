@@ -21,7 +21,9 @@ import (
 var udpReachable = udpServerReachable
 
 // checkRADIUSServers probes every server under l2tp.auth.radius with a RADIUS
-// Access-Request and emits doctor-radius-unreachable when none responds.
+// Access-Request and emits doctor-radius-unreachable when none responds,
+// doctor-radius-unsigned-response when one answers only unsigned, and
+// doctor-radius-invalid when a server row holds a value the probe cannot use.
 // This plugin owns the l2tp.auth.radius config block, so it owns the
 // readiness check (see ai/rules/repo-maintenance.md "Where to Register Checks").
 func checkRADIUSServers(ctx registry.DoctorCheckContext) []rpc.DoctorCheckDiagnostic {
@@ -50,10 +52,15 @@ func checkRADIUSServers(ctx registry.DoctorCheckContext) []rpc.DoctorCheckDiagno
 		checked = true
 		require, err := radius.ParseRequireMessageAuthenticator(s.Value.Get("require-message-authenticator"))
 		if err != nil {
+			// The server was never probed, so "unreachable" would send the
+			// operator to the network. The fault is the leaf, and so is the fix.
+			row := "l2tp auth radius server " + s.Key
 			return []rpc.DoctorCheckDiagnostic{{
-				Code:     "doctor-radius-unreachable",
+				Code:     "doctor-radius-invalid",
 				Severity: "warning",
-				Message:  "RADIUS server " + s.Key + " is misconfigured: " + err.Error(),
+				Message: "RADIUS server " + s.Key + " was not probed: " + err.Error() +
+					"; set it with 'set " + row + " require-message-authenticator true', " +
+					"or false only for a server that cannot sign its answers",
 			}}
 		}
 		srv := radius.Server{

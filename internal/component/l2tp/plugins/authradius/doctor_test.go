@@ -137,3 +137,37 @@ func TestDoctorRadiusUnsignedResponse(t *testing.T) {
 	assert.Equal(t, "doctor-radius-unsigned-response", diags[0].Code)
 	assert.Contains(t, diags[0].Message, "'set l2tp auth radius server primary require-message-authenticator false'")
 }
+
+// TestDoctorRadiusInvalidLeaf asks the l2tp doctor about a server row whose
+// require-message-authenticator is neither true nor false.
+//
+// VALIDATES: the row is reported as doctor-radius-invalid, naming the value and
+// the exact set command, and the server is never probed.
+// PREVENTS: an operator reading "unreachable" and debugging the network for a
+// config value.
+func TestDoctorRadiusInvalidLeaf(t *testing.T) {
+	oldProbe := udpReachable
+	udpReachable = func(radius.Server, net.IP, string, time.Duration) error {
+		t.Error("a server row with an invalid leaf was probed")
+		return errors.New("probe: should not run")
+	}
+	t.Cleanup(func() { udpReachable = oldProbe })
+
+	tree := config.NewTree()
+	radiusBlock := tree.GetOrCreateContainer("l2tp").GetOrCreateContainer("auth").GetOrCreateContainer("radius")
+	server := config.NewTree()
+	server.Set("address", "192.0.2.1")
+	server.Set("shared-key", "testing123")
+	server.Set("require-message-authenticator", "maybe")
+	radiusBlock.AddListEntry("server", "primary", server)
+
+	diags := checkRADIUSServers(registry.DoctorCheckContext{Tree: tree})
+	require.Len(t, diags, 1)
+	assert.Equal(t, "doctor-radius-invalid", diags[0].Code)
+	assert.Equal(t, "warning", diags[0].Severity)
+	assert.Equal(t,
+		`RADIUS server primary was not probed: require-message-authenticator is "maybe"; it takes true or false; `+
+			`set it with 'set l2tp auth radius server primary require-message-authenticator true', `+
+			`or false only for a server that cannot sign its answers`,
+		diags[0].Message)
+}

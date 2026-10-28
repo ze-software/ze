@@ -1099,6 +1099,12 @@ var builtinCodes = []CodeMeta{
 		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-radius-unreachable"},
 	},
 	{
+		Code:        "doctor-radius-invalid",
+		Title:       "RADIUS server row holds an invalid value",
+		Description: "An L2TP RADIUS server row holds a require-message-authenticator value that is neither true nor false, so the readiness probe did not run against it. Set the leaf on that row to true, or to false only for a server that cannot sign its answers.",
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-radius-invalid"},
+	},
+	{
 		Code:        "doctor-radius-admin-unreachable",
 		Title:       "RADIUS admin servers unreachable",
 		Description: "No configured system/authentication/radius server answered an Access-Request probe, so operator logins via RADIUS may fall through to local or fail.",
