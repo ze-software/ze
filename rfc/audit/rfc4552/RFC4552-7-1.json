@@ -2,7 +2,7 @@
   "note": "Re-judged 2026-09-29 (independent judge). TestRFC4552EveryStateSharesSPIAndKeys builds the ESP interface's whole SA set (inbound unicast plus the two bidirectional multicast states) and asserts every state carries the one configured SPI and byte-identical integrity and encryption keys; the second half configures another SPI and other keys and finds those on every state, which refuses keys not taken from manual configuration. Records on buildIPsecInterfaceSAs and buildIPsecSA. The stale {single-polarity} annotation was removed from the row by the judge (./le rfc check demanded it). Not driven: the per-neighbour outbound unicast state (onNeighborSeen), which calls the same buildIPsecSA with the same spec.",
   "requirement_sha": "6b651075953b9d6e",
   "tests": {
-    "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAPerDestinationWithOSPFSelector": "976d07eeb9539b2b",
+    "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAPerDestinationWithOSPFSelector": "ef2210b72b5a1430",
     "internal/plugins/ospf/rfc4552_same_keys_test.go::TestRFC4552EveryStateSharesSPIAndKeys": "3024909f4b444b0f",
     "internal/plugins/ospf/rfc4552_same_keys_test.go::TestRFC4552EveryStateSharesSPIAndKeys#2": "3024909f4b444b0f"
   },

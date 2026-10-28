@@ -2,10 +2,10 @@
   "note": "Rejudged 2026-10-14 by a reader who did not author the tests. Forbidden: two sessions whose records carry the same Acct-Session-Id in the log. Within one process: TestRFC2866AcctSessionIDUnique (1600 concurrent ids distinct) and TestRFC2866AcctSessionIDNoCollisionOnReusedKey. Across a restart: TestRFC2866AcctSessionIDUniqueAcrossRestart (two accountants built in turn give the same tunnel and session two ids on the Accounting-Start) and TestRFC2866AcctSessionIDUniqueWhenClockRepeats (same clock second: time digits equal, random digits differ, ids differ). Producer authradius/acct.go genSessionID, T-S-<boot tag>-N, the boot tag minted once by mintBootTag at first use from Unix seconds and 64 random bits; uniqueness across boots at one clock second is probabilistic over those 64 bits.",
   "requirement_sha": "e704960c264c68e5",
   "tests": {
-    "internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go::TestRFC2866AcctSessionIDNoCollisionOnReusedKey": "dfbffaac55a01b67",
-    "internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go::TestRFC2866AcctSessionIDUnique": "dfbffaac55a01b67",
-    "internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go::TestRFC2866AcctSessionIDUniqueAcrossRestart": "dfbffaac55a01b67",
-    "internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go::TestRFC2866AcctSessionIDUniqueWhenClockRepeats": "dfbffaac55a01b67"
+    "internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go::TestRFC2866AcctSessionIDNoCollisionOnReusedKey": "9244051a48acf3e8",
+    "internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go::TestRFC2866AcctSessionIDUnique": "9244051a48acf3e8",
+    "internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go::TestRFC2866AcctSessionIDUniqueAcrossRestart": "9244051a48acf3e8",
+    "internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go::TestRFC2866AcctSessionIDUniqueWhenClockRepeats": "9244051a48acf3e8"
   },
   "units": {
     "internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go::TestRFC2866AcctSessionIDNoCollisionOnReusedKey": "019d01c2d9602d26",

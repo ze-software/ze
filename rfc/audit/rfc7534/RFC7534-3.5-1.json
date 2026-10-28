@@ -3,8 +3,8 @@
   "requirement_sha": "03a38b1e814d657d",
   "tests": {
     "internal/plugins/as112/rfc7534_direct_delegation_test.go::TestRFC7534EveryDirectDelegationZoneAuthoritativeAndBare": "067e1ca0797c0743",
-    "internal/plugins/as112/zones_test.go::TestZoneAnswer_OutOfZoneRefused": "99aa05744211cc95",
-    "internal/plugins/as112/zones_test.go::TestZoneAnswer_ReverseZoneNoData": "99aa05744211cc95"
+    "internal/plugins/as112/zones_test.go::TestZoneAnswer_OutOfZoneRefused": "29b246441fd37805",
+    "internal/plugins/as112/zones_test.go::TestZoneAnswer_ReverseZoneNoData": "29b246441fd37805"
   },
   "units": {
     "internal/plugins/as112/rfc7534_direct_delegation_test.go::TestRFC7534EveryDirectDelegationZoneAuthoritativeAndBare": "d780aabfba166d76",

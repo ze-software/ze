@@ -3,7 +3,7 @@
   "requirement_sha": "2af799f338be795e",
   "tests": {
     "internal/component/ike/engine/rfc4301_esp_test.go::TestRFC4301ChildSAIsInstalledAsESP": "13fc15f78a76bf95",
-    "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAProtocolNumber": "976d07eeb9539b2b",
+    "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAProtocolNumber": "ef2210b72b5a1430",
     "internal/plugins/ospf/rfc4303_esp_probe_linux_test.go::TestRFC4303ESPPacketOnTheWireCarriesProtocol50": "1b959a720a9dcc8e",
     "internal/plugins/ospf/rfc4303_esp_probe_linux_test.go::TestRFC4303IntegrityOnlyESPOnTheWireIsNotAH": "1b959a720a9dcc8e"
   },

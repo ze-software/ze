@@ -8,8 +8,8 @@
     "internal/plugins/vrrp/packet/validate_test.go::TestValidationOrder": "5bbc8ddba98cd418",
     "internal/plugins/vrrp/rfc3768_rx_interface_test.go::TestRxVRIDCheckedOnTheReceivingInterface": "62a79cca13e6ae8c",
     "internal/plugins/vrrp/rfc3768_rx_interface_test.go::TestRxVRIDCheckedOnTheReceivingInterface#2": "62a79cca13e6ae8c",
-    "internal/plugins/vrrp/transport/rfc_rx_iface_verdict_linux_test.go::TestRxAdvertScopedToReceivingInterface": "8c88ea859d3cefd7",
-    "internal/plugins/vrrp/transport/rfc_rx_iface_verdict_linux_test.go::TestRxAdvertScopedToReceivingInterface#2": "8c88ea859d3cefd7"
+    "internal/plugins/vrrp/transport/rfc_rx_iface_verdict_linux_test.go::TestRxAdvertScopedToReceivingInterface": "5a5e0ffa70cb777c",
+    "internal/plugins/vrrp/transport/rfc_rx_iface_verdict_linux_test.go::TestRxAdvertScopedToReceivingInterface#2": "5a5e0ffa70cb777c"
   },
   "units": {
     "internal/plugins/vrrp/instance_test.go::TestInstanceV2OwnerDiscardsAdvert": "f8d21be29af8eccc",

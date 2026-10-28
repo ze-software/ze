@@ -3,7 +3,7 @@
   "requirement_sha": "ae48aac3a4def396",
   "tests": {
     "internal/plugins/geodns/rfc4035_do_clear_test.go::TestRFC4035DOClearQueryGetsNoDNSSECProcessing": "e9b5857344920370",
-    "internal/plugins/geodns/rfc4035_server_test.go::TestRFC4035_NoDNSSECAdditionalProcessing": "0d5a4b0eaf3ac272"
+    "internal/plugins/geodns/rfc4035_server_test.go::TestRFC4035_NoDNSSECAdditionalProcessing": "851157af9bc3757d"
   },
   "units": {
     "internal/plugins/geodns/rfc4035_do_clear_test.go::TestRFC4035DOClearQueryGetsNoDNSSECProcessing": "4f51d31fb48998e8",

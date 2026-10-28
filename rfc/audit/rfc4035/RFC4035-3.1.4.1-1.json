@@ -2,8 +2,8 @@
   "note": "an apex DS query through geodns answerQuery under the real harness must return NOERROR, AA set, empty Answer, SOA in Authority, and no RA; an NXDOMAIN or REFUSED answer at the apex goes red; the negative pins that the no-data answer is not given for an out-of-zone name",
   "requirement_sha": "65f0e74ca589723c",
   "tests": {
-    "internal/plugins/geodns/rfc4035_server_test.go::TestRFC4035_DSQueryIsAuthoritativeNoData": "0d5a4b0eaf3ac272",
-    "internal/plugins/geodns/rfc4035_server_test.go::TestRFC4035_DSQueryIsAuthoritativeNoData#2": "0d5a4b0eaf3ac272"
+    "internal/plugins/geodns/rfc4035_server_test.go::TestRFC4035_DSQueryIsAuthoritativeNoData": "851157af9bc3757d",
+    "internal/plugins/geodns/rfc4035_server_test.go::TestRFC4035_DSQueryIsAuthoritativeNoData#2": "851157af9bc3757d"
   },
   "units": {
     "internal/plugins/geodns/rfc4035_server_test.go::TestRFC4035_DSQueryIsAuthoritativeNoData": "40b1458588e048b8",
