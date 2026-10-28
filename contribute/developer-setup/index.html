@@ -637,6 +637,40 @@ virtualisation, or a VM without nested virt) reports <code>n/a</code>: QEMU runs
 <code>tcg</code> there, only slower. macOS has no <code>/dev/kvm</code> and needs no group; the
 native QEMU actions select the Apple hypervisor (<code>hvf</code>) by platform.</p>
 <!-- source: internal/le/test/qemu/actions.go -- Answer -->
+<p><strong>PPP device access.</strong> The L2TP and PPPoE tests open <code>/dev/ppp</code> to drive the
+kernel PPP channel. A stock Debian host makes it <code>root:root</code> mode 0600, so a
+test run as you cannot open it. Setup checks this as <code>ppp-access</code> and grants
+the device to the <code>dip</code> group. Debian ships <code>dip</code> (gid 30) for PPP dial-up,
+pppd's documentation names it, and you are usually in it already, so a second
+group of Ze's own would grant the same device to the same person under another
+name. A host with no <code>dip</code> group gets one as a system group. In install mode
+setup runs only the steps whose piece is absent, in this order:</p>
+<pre><code class="language-bash">sudo groupadd --system dip
+printf '%s\n' '# ./le setup install: the dip group may open /dev/ppp, for the L2TP and PPPoE tests.' 'KERNEL=="ppp", GROUP="dip", MODE="0660", OPTIONS+="static_node=ppp"' | sudo tee /etc/udev/rules.d/60-ze-ppp.rules
+sudo udevadm control --reload
+sudo modprobe ppp_generic
+sudo chgrp dip /dev/ppp
+sudo chmod 0660 /dev/ppp
+sudo usermod -aG dip $USER
+</code></pre>
+<p>The rule keeps the grant across module loads and reboots: <code>KERNEL=="ppp"</code>
+applies when <code>ppp_generic</code> registers the device, and <code>static_node=ppp</code> applies
+at boot to the node systemd creates before the module loads (systemd grants
+<code>/dev/kvm</code> with the same line). The first open of that node loads the module.
+<code>modprobe</code> runs only when <code>/dev/ppp</code> does not exist. The node is changed with
+<code>chgrp</code> and <code>chmod</code> rather than <code>udevadm trigger</code>, because a static node with
+no module loaded has no device udev can act on.</p>
+<p><code>ppp-access</code> is <code>present</code> when your session can open <code>/dev/ppp</code> read-write. It
+is <code>pending</code> when the rule, the node and the group database are all in place
+but your session predates the membership: log out and back in, or run
+<code>sg dip -c '&lt;command&gt;'</code>. Otherwise <code>./le setup check</code> reports it <code>MISSING</code>
+with the absent pieces, and <code>./le setup install</code> grants them. The check judges
+the device with <code>access(2)</code> and does not open it, because opening <code>/dev/ppp</code>
+loads <code>ppp_generic</code> and a check changes nothing. When root is out of reach, the
+install prints the commands above with <code>sudo</code> instead of running them. macOS
+reports the step <code>skipped</code>: it has no <code>/dev/ppp</code>, and the PPP tests run in the
+Linux VM.</p>
+<!-- source: internal/le/setup/ppp.go -- visitPpp, pppSteps, pppProbe, pppRuleBody -->
 <p><strong>Loopback addresses.</strong> The functional fixtures give each end of a BGP session
 its own address: RFC 4271 Section 5.1.3 forbids a peer its own address as
 NEXT_HOP, so a session whose two ends share one address has every originated
@@ -714,7 +748,7 @@ preventing the lists from drifting apart.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
+                    <span class="footer-published">Published 28 October 2026 18:35 UTC</span>
                 </div>
             </div>
         </footer>

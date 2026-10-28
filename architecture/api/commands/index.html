@@ -531,6 +531,12 @@ Detail &gt; 16 keys) are rejected at the boundary with a debug log, protecting
 the bus from buggy or malicious producers.</p>
 <!-- source: internal/core/report/report.go -- validFields, RaiseWarning, RaiseError, ClearWarning, ClearSource, Warnings, Errors -->
 <h3 id="query-rpcs">Query RPCs</h3>
+<p>For <code>ze-bgp:show-policy-test</code>, <code>action</code> describes the external per-peer policy
+stage and its final, not the full protocol pipeline. A named in-process check
+has a trace entry with <code>action: "not-evaluated"</code> and empty <code>text-after</code>; no
+filter-update RPC was made for it. Selecting such a check as a single-filter
+override is refused with instructions to test it on the peer session.</p>
+<!-- source: internal/component/bgp/reactor/policy_dryrun.go -- tracePolicyFilterChain, PolicyDryRun -->
 <table>
 <thead>
 <tr>
@@ -4142,7 +4148,7 @@ unconditionally, and the <code>ui://</code> asset it points at is readable by ev
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 02:50 UTC</span>
+                    <span class="footer-published">Published 28 October 2026 18:35 UTC</span>
                 </div>
             </div>
         </footer>

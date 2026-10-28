@@ -137,9 +137,9 @@ zero.
 
 Enable eBPF accounting on the running router, attribute an unexpected ICMP and HTTP burst to its source and port, stop the sender, and observe recovery.
 
-[Download the asciicast recording](../../assets/demos/traffic-anomaly.cast?v=5bfc138dad) · [Plain-text transcript](../../assets/demos/traffic-anomaly.txt?v=8c33b2924c)
+[Download the asciicast recording](../../assets/demos/traffic-anomaly.cast?v=e0f89040c5) · [Plain-text transcript](../../assets/demos/traffic-anomaly.txt?v=8c33b2924c)
 
-Recorded with Ze 26.10.27 in a Linux namespace lab using Ze recorder. Duration: 3 minutes 11 seconds.
+Recorded with Ze 26.10.28 in a Linux namespace lab using Ze recorder. Duration: 3 minutes 9 seconds.
 
 ```console
 Traffic usage live attribution walkthrough

@@ -7,7 +7,7 @@ Technology aggregate. BGP session operations: graceful restart, shutdown, route 
 Use case: [Chaos-Tested BGP Peering](../../../../use-cases/chaos-tested-peering/)
 
 - **Mandatory**: 50.0% (38 of 76 (50.0%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
-- **Optional**: 4.9% (6 of 122 (4.9%)). MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.
+- **Optional**: 3.3% (4 of 122 (3.3%)). MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.
 - **Not walked**: 3 (of 13 RFCs). RFCs with no valid extraction sign-off: their rows count in neither figure.
 - **Mandatory register**: not complete (every row proven, none unwalked). A profile is complete only when it requires at least one RFC and none of them is unwalked.
 
@@ -34,7 +34,7 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 | RFC | Title | Mandatory | Optional |
 |---|---|---|---|
 | [RFC 4724](../../rfc4724/) | Graceful Restart Mechanism for BGP | 14 of 26 (53.8%) | 1 of 5 (20.0%) |
-| [RFC 7947](../../rfc7947/) | Internet Exchange BGP Route Server | 1 of 2 (50.0%) | 4 of 5 (80.0%) |
+| [RFC 7947](../../rfc7947/) | Internet Exchange BGP Route Server | 1 of 2 (50.0%) | 2 of 5 (40.0%) |
 
 ### Level 7
 

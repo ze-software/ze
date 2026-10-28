@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 1.3% | 1 of 76 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 76 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 76 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 84.3% | 75 of 89 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 82.0% | 73 of 89 tagged units, 0 escaped and 2 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -1004,8 +1004,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC9012TunnelFilterDoesNotAffectOtherSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_session_filter_test.go#L50) | unit/verify | revert, verified |
-| positive | [`TestRFC9012TunnelFilterSelectedSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_session_filter_test.go#L37) | unit/verify | revert, verified |
+| negative | [`TestRFC9012TunnelFilterDoesNotAffectOtherSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_session_filter_test.go#L50) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC9012TunnelFilterSelectedSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_session_filter_test.go#L37) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ## Extraction sign-off
 

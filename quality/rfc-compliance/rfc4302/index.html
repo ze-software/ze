@@ -506,8 +506,8 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
 <td>MUST</td>
 <td>3.3.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4302-3.3.4-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4302_ipsec_pmtu_integration_linux_test.go#L133" title="internal/plugins/ospf/rfc4302_ipsec_pmtu_integration_linux_test.go" target="_blank" rel="noopener"><code>TestAHPathMTUIsSignaledToTheLocalSender</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4302_ipsec_pmtu_integration_linux_test.go#L143" title="internal/plugins/ospf/rfc4302_ipsec_pmtu_integration_linux_test.go" target="_blank" rel="noopener"><code>TestAHPathMTUIsSignaledToTheLocalSender</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4302_ipsec_pmtu_integration_linux_test.go#L134" title="internal/plugins/ospf/rfc4302_ipsec_pmtu_integration_linux_test.go" target="_blank" rel="noopener"><code>TestAHPathMTUIsSignaledToTheLocalSender</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4302_ipsec_pmtu_integration_linux_test.go#L144" title="internal/plugins/ospf/rfc4302_ipsec_pmtu_integration_linux_test.go" target="_blank" rel="noopener"><code>TestAHPathMTUIsSignaledToTheLocalSender</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4302-3.4.1-1">RFC4302-3.4.1-1</code></td><td colspan="3"><span class="rfc-subject">If a packet offered to AH for processing appears to be an IP fragment, i.e., the OFFSET field is nonzero or the MORE FRAGMENTS flag is set, the receiver MUST discard the packet; this is an auditable event. (§3.4.1)</span></td></tr>
@@ -535,9 +535,9 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
 <td>MUST</td>
 <td>3.4.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4302-3.4.3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4302_ipsec_integration_linux_test.go#L168" title="internal/plugins/ospf/rfc4302_ipsec_integration_linux_test.go" target="_blank" rel="noopener"><code>TestIPsecInstallerXFRMReplayWindow</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4302_ipsec_integration_linux_test.go#L180" title="internal/plugins/ospf/rfc4302_ipsec_integration_linux_test.go" target="_blank" rel="noopener"><code>TestIPsecInstallerXFRMReplayWindow</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L430" title="internal/plugins/ospf/ipsec_install_test.go" target="_blank" rel="noopener"><code>TestIPsecSAReplayWindow</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4302_ipsec_integration_linux_test.go#L170" title="internal/plugins/ospf/rfc4302_ipsec_integration_linux_test.go" target="_blank" rel="noopener"><code>TestIPsecInstallerXFRMReplayWindow</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4302_ipsec_integration_linux_test.go#L182" title="internal/plugins/ospf/rfc4302_ipsec_integration_linux_test.go" target="_blank" rel="noopener"><code>TestIPsecInstallerXFRMReplayWindow</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L435" title="internal/plugins/ospf/ipsec_install_test.go" target="_blank" rel="noopener"><code>TestIPsecSAReplayWindow</code></a></span></div>
 </div></td>
 </tr>
@@ -1004,18 +1004,18 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
 <p>No test carries RFC4302-3.3.3.2.2-4, so no unit is bound to it.</p>
 <h3><a href="#rfc4302-3.3.4-1"><code>RFC4302-3.3.4-1</code></a></h3>
 <p>In any case, an AH implementation MUST support generation of ICMP PMTU messages (or equivalent internal signaling for native host implementations) to minimize the likelihood of fragmentation. (§3.3.4)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) forbidden: an AH native-host implementation that gives the local sender no PMTU signal for the AH overhead. (b) TestAHPathMTUIsSignaledToTheLocalSender (real XFRM): the IPV6_MTU of a raw OSPF socket must drop by at least ahHeaderOctets after the installer writes the AH state and policy (protected &gt;= clear is red), and return to the clear value when the state is removed. Ze is transport-mode host only, so the internal-signalling alternative the sentence gives native hosts is the one owed; ICMP generation for forwarded traffic is not exercised.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/plugins/ospf/rfc4302_ipsec_pmtu_integration_linux_test.go::TestAHPathMTUIsSignaledToTheLocalSender, internal/plugins/ospf/rfc4302_ipsec_pmtu_integration_linux_test.go::TestAHPathMTUIsSignaledToTheLocalSender#2 moved. (a) forbidden: an AH native-host implementation that gives the local sender no PMTU signal for the AH overhead. (b) TestAHPathMTUIsSignaledToTheLocalSender (real XFRM): the IPV6_MTU of a raw OSPF socket must drop by at least ahHeaderOctets after the installer writes the AH state and policy (protected &gt;= clear is red), and return to the clear value when the state is removed. Ze is transport-mode host only, so the internal-signalling alternative the sentence gives native hosts is the one owed; ICMP generation for forwarded traffic is not exercised.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4302_ipsec_pmtu_integration_linux_test.go#L143" title="internal/plugins/ospf/rfc4302_ipsec_pmtu_integration_linux_test.go" target="_blank" rel="noopener"><code>TestAHPathMTUIsSignaledToTheLocalSender</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4302_ipsec_pmtu_integration_linux_test.go#L144" title="internal/plugins/ospf/rfc4302_ipsec_pmtu_integration_linux_test.go" target="_blank" rel="noopener"><code>TestAHPathMTUIsSignaledToTheLocalSender</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4302_ipsec_pmtu_integration_linux_test.go#L133" title="internal/plugins/ospf/rfc4302_ipsec_pmtu_integration_linux_test.go" target="_blank" rel="noopener"><code>TestAHPathMTUIsSignaledToTheLocalSender</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4302_ipsec_pmtu_integration_linux_test.go#L134" title="internal/plugins/ospf/rfc4302_ipsec_pmtu_integration_linux_test.go" target="_blank" rel="noopener"><code>TestAHPathMTUIsSignaledToTheLocalSender</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1058,7 +1058,7 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
 </div>
 <h3><a href="#rfc4302-3.4.3-1"><code>RFC4302-3.4.3-1</code></a></h3>
 <p>All AH implementations MUST support the anti-replay service, though its use may be enabled or disabled by the receiver on a per-SA basis. (§3.4.3)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent judgment: RFC 4302 section 3.4.3 says, &#34;All AH implementations MUST support the anti-replay service, though its use may be enabled or disabled by the receiver on a per-SA basis.&#34; TestIPsecInstallerXFRMReplayWindow parses and validates the actual interface config, invokes the real installer/XFRM backend, and dumps installed kernel states. For replay-window 64, explicit 0, and omitted leaf it requires every expected AH destination (ff02::5, ff02::6, fe80::1) exactly once and its exact replay window 64/0/0; absent, extra, duplicate or non-AH states fail. The existing builder carrier additionally pins both directions for AH and ESP. This closes the earlier struct-only weakness at the boundary Ze owns; it does not claim to reimplement or independently prove Linux&#39;s per-packet sequence verification, nor multicast multi-sender anti-replay beyond section 3.4.3&#39;s stated boundary. Inspected native xfrmStateFromParams halt observations in runtime-kernel guest-56809/57490 and fresh discrimination entries; those prove producer reachability, while the exact state assertions establish field discrimination. No new judge test run.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/plugins/ospf/rfc4302_ipsec_integration_linux_test.go::TestIPsecInstallerXFRMReplayWindow, internal/plugins/ospf/rfc4302_ipsec_integration_linux_test.go::TestIPsecInstallerXFRMReplayWindow#2 moved. Independent judgment: RFC 4302 section 3.4.3 says, &#34;All AH implementations MUST support the anti-replay service, though its use may be enabled or disabled by the receiver on a per-SA basis.&#34; TestIPsecInstallerXFRMReplayWindow parses and validates the actual interface config, invokes the real installer/XFRM backend, and dumps installed kernel states. For replay-window 64, explicit 0, and omitted leaf it requires every expected AH destination (ff02::5, ff02::6, fe80::1) exactly once and its exact replay window 64/0/0; absent, extra, duplicate or non-AH states fail. The existing builder carrier additionally pins both directions for AH and ESP. This closes the earlier struct-only weakness at the boundary Ze owns; it does not claim to reimplement or independently prove Linux&#39;s per-packet sequence verification, nor multicast multi-sender anti-replay beyond section 3.4.3&#39;s stated boundary. Inspected native xfrmStateFromParams halt observations in runtime-kernel guest-56809/57490 and fresh discrimination entries; those prove producer reachability, while the exact state assertions establish field discrimination. No new judge test run.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1069,7 +1069,7 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4302_ipsec_integration_linux_test.go#L170" title="internal/plugins/ospf/rfc4302_ipsec_integration_linux_test.go" target="_blank" rel="noopener"><code>TestIPsecInstallerXFRMReplayWindow</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4302_ipsec_integration_linux_test.go#L182" title="internal/plugins/ospf/rfc4302_ipsec_integration_linux_test.go" target="_blank" rel="noopener"><code>TestIPsecInstallerXFRMReplayWindow</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1079,7 +1079,7 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4302_ipsec_integration_linux_test.go#L168" title="internal/plugins/ospf/rfc4302_ipsec_integration_linux_test.go" target="_blank" rel="noopener"><code>TestIPsecInstallerXFRMReplayWindow</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4302_ipsec_integration_linux_test.go#L180" title="internal/plugins/ospf/rfc4302_ipsec_integration_linux_test.go" target="_blank" rel="noopener"><code>TestIPsecInstallerXFRMReplayWindow</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1579,7 +1579,7 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
+                    <span class="footer-published">Published 28 October 2026 18:35 UTC</span>
                 </div>
             </div>
         </footer>

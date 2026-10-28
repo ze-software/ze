@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0.0% | 0 of 30 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 30 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 30 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 81.1% | 73 of 90 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 82.2% | 74 of 90 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -64,7 +64,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 90 |
 | Tagged units | 90 |
 | Recorded audit verdicts | 29 |
-| Discrimination records | 73 |
+| Discrimination records | 74 |
 | Summary | `rfc/short/rfc5176.md` |
 | Requirement shard | `rfc/requirements/rfc5176.md` |
 | RFC text | `rfc/full/rfc5176.txt` |
@@ -362,11 +362,11 @@ Audit verdict: not audited: no reader has judged these tests
 
 The Message-Authenticator Attribute MAY be used to authenticate and integrity-protect CoA-Request, CoA-ACK, CoA-NAK, Disconnect-Request, Disconnect-ACK, and Disconnect-NAK packets in order to prevent spoofing. (§3.4)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. (a) forbidden: treating the MAY as a MUST by discarding a request without Message-Authenticator by default. (b) TestRFC5176MessageAuthenticatorAbsentIsAcceptedByDefault asserts Disconnect-ACK and one teardown with no Message-Authenticator; TestCoAListenerMissingMessageAuthenticatorDroppedWhenRequired asserts discard only when the operator leaf requires it.
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go::TestCoAListenerMissingMessageAuthenticatorDroppedWhenRequired, internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_optional_test.go::TestRFC5176MessageAuthenticatorAbsentIsAcceptedByDefault moved. (a) forbidden: treating the MAY as a MUST by discarding a request without Message-Authenticator by default. (b) TestRFC5176MessageAuthenticatorAbsentIsAcceptedByDefault asserts Disconnect-ACK and one teardown with no Message-Authenticator; TestCoAListenerMissingMessageAuthenticatorDroppedWhenRequired asserts discard only when the operator leaf requires it.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestCoAListenerMissingMessageAuthenticatorDroppedWhenRequired`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go#L371) | unit/verify | unproven |
+| negative | [`TestCoAListenerMissingMessageAuthenticatorDroppedWhenRequired`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go#L371) | unit/verify | mutant, verified |
 | positive | [`TestRFC5176MessageAuthenticatorAbsentIsAcceptedByDefault`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_optional_test.go#L26) | unit/verify | unproven |
 
 ### [`RFC5176-3.5-5`](#rfc5176-3.5-5)

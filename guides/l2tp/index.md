@@ -774,7 +774,7 @@ request still has to come from a configured Dynamic Authorization Client and
 still has to carry a correct Request Authenticator, both keyed on the shared
 secret, so an absent attribute is not an unauthenticated request.
 
-Set `require-message-authenticator true` to refuse a request that carries none.
+Set `coa-require-message-authenticator true` to refuse a request that carries none.
 Requiring the attribute is the mitigation for the Blast-RADIUS class of attack on
 the RADIUS/UDP MD5 authenticator, so enable it wherever the Dynamic Authorization
 Client can send one. FreeRADIUS `radclient` and the `radiusd` CoA originator both

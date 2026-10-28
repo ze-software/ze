@@ -225,6 +225,18 @@ refuses what it cannot support, from the answer it has in hand, after it runs.</
 <!-- source: internal/component/config/cli/cmd_migrate.go -- migrate command -->
 <!-- source: internal/component/config/cli/cmd_dump.go -- dump command -->
 <!-- source: internal/component/config/cli/cmd_diff.go -- diff command -->
+<p><code>ze config diff</code> compares resolved BGP values after template expansion and
+reports entry-order changes for every YANG <code>ordered-by user</code> list, including
+nested lists outside BGP. Plain-list reorder alone reports <code>No differences</code>.
+Firewall-only comparisons need no BGP block. Ordered sequences use the existing
+<code>@&lt;list-name&gt;</code> metadata key at their full config path: text shows, for example,
+<code>~ firewall/table/wan/chain/input/@term: [b a] -&gt; [a b]</code>; JSON puts that path
+under <code>changed</code> with <code>old</code> and <code>new</code> arrays. Inserting or deleting entries changes
+the sequence too; adding or removing the whole list uses <code>added</code> or <code>removed</code>.
+This does not add general non-BGP value comparison. Files, stored sources and
+rollback revisions use the same comparison, and changed secret values remain
+masked in both output shapes.</p>
+<!-- source: internal/component/config/cli/cmd_diff.go -- resolveDiff, diffListOrders, maskDiffSecrets -->
 <p>Interactive <code>ze config edit</code> and <code>ze cli</code> run their models in the daemon over
 SSH. The daemon owns their drafts, commits, and command history. A named stored
 config selects that config, not another config with the daemon's active path.
@@ -470,7 +482,7 @@ The dashboard polls three local BGP sessions. Press &#34;s&#34; to sort by the n
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 02:50 UTC</span>
+                    <span class="footer-published">Published 28 October 2026 18:35 UTC</span>
                 </div>
             </div>
         </footer>

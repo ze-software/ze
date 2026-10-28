@@ -56,6 +56,7 @@ over Ethernet to the BNG without an intermediate LAC/LNS tunnel.</p>
 <li><a href="#architecture">Architecture</a></li>
 <li><a href="#configuration">Configuration</a>
 <ol>
+<li><a href="#changing-the-configuration">Changing the configuration</a></li>
 <li><a href="#subscriber-authentication">Subscriber authentication</a></li>
 </ol></li>
 <li><a href="#interoperability">Interoperability</a></li>
@@ -112,9 +113,41 @@ Auth/Pool/Shaper plugins (shared with L2TP)
 }
 </code></pre>
 <p>See <a href="../configuration-model/#pppoe-access">configuration guide</a> for all settings.</p>
-<p>The subsystem starts only when <code>enabled</code> is true and the block lists at least
-one <code>interface</code>. A <code>pppoe</code> block with no <code>interface</code> entry registers nothing and
-answers no PADI.</p>
+<p>Discovery runs only when <code>enabled</code> is true and the block lists at least one
+<code>interface</code>. A <code>pppoe</code> block with no <code>interface</code> entry answers no PADI.</p>
+<h3 id="changing-the-configuration">Changing the configuration</h3>
+<p>A committed change to the <code>pppoe</code> block applies to the running access
+concentrator at once, with no restart:</p>
+<table>
+<thead>
+<tr>
+<th>Change</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ac-name</code>, <code>service-name</code>, <code>cookie-timeout</code>, <code>padi-rate-limit</code>, <code>max-sessions</code>, <code>max-sessions-per-mac</code>, <code>auth-method</code>, <code>allow-no-auth</code></td>
+<td>Apply to the next PADI and the next admitted session. A session already up keeps the terms it was admitted under. A lowered <code>max-sessions</code> refuses new sessions and ends none. AC-Cookies already handed out stay valid</td>
+</tr>
+<tr>
+<td>An added <code>interface</code></td>
+<td>Served at once. An interface that does not exist refuses the commit, naming it and the <code>delete pppoe interface &lt;name&gt;</code> that undoes it</td>
+</tr>
+<tr>
+<td>A removed <code>interface</code></td>
+<td>Stops answering PADI. Each of its sessions gets a PADT and its PPP session is stopped</td>
+</tr>
+<tr>
+<td><code>enabled true</code>, or a first <code>interface</code></td>
+<td>Starts discovery, even when the daemon booted with PPPoE disabled</td>
+</tr>
+<tr>
+<td><code>enabled false</code>, or no <code>interface</code> left</td>
+<td>Ends every session with a PADT and stops discovery</td>
+</tr>
+</tbody>
+</table>
 <h3 id="subscriber-authentication">Subscriber authentication</h3>
 <p><code>auth-method</code> is the PPP Auth-Protocol the access concentrator puts in its own
 LCP Configure-Request: <code>chap-md5</code> (the default), <code>pap</code>, <code>ms-chap-v2</code>, or <code>none</code>.
@@ -376,7 +409,7 @@ ID for L2TP) and SessionID.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 02:50 UTC</span>
+                    <span class="footer-published">Published 28 October 2026 18:35 UTC</span>
                 </div>
             </div>
         </footer>

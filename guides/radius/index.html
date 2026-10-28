@@ -269,8 +269,8 @@ attribute.</p>
 <td>Attribute</td>
 <td>User-Password (2)</td>
 <td>CHAP-Password (3) plus CHAP-Challenge (60)</td>
-<td>EAP-Message (79) plus Message-Authenticator (80)</td>
-<td>EAP-Message (79) plus Message-Authenticator (80)</td>
+<td>EAP-Message (79)</td>
+<td>EAP-Message (79)</td>
 </tr>
 <tr>
 <td>What travels</td>
@@ -348,6 +348,22 @@ they do for PAP.</li>
 </ol>
 <p>Each round is a <strong>new</strong> Access-Request with its own Identifier and Request
 Authenticator, not a retransmission of the previous one.</p>
+<p><strong>Every Access-Request is signed, and unsigned answers are discarded
+(BlastRADIUS, CVE-2024-3596).</strong> Whatever the auth method, Ze puts a
+Message-Authenticator (80) as the FIRST attribute of every Access-Request, at
+octets 20 to 37, keyed with the secret of the server it goes to, as
+draft-ietf-radext-deprecating-radius Section 4.2 requires; this is not
+configurable. Each server row carries <code>require-message-authenticator</code>, default
+<code>true</code>: an Access-Accept, Access-Reject, Access-Challenge or Protocol-Error from
+that server without a Message-Authenticator is silently discarded before any
+authenticator is checked (Section 4.6), counted on
+<code>ze_radius_unsigned_response_discards_total{server}</code>, and logged at most once a
+minute per server. When every retry ends that way, the error and
+<code>ze doctor</code> (<code>doctor-radius-admin-unsigned-response</code>) name the server and the
+fix. A server that predates 2024 and cannot sign gets
+<code>set system authentication radius server &lt;address&gt; require-message-authenticator false</code>.
+The flag never applies to accounting.</p>
+<!-- source: internal/component/radius/client.go -- insertMessageAuthenticatorFirst, dispatchResponse, discardUnsignedResponse -->
 <p><strong>Every EAP packet is protected.</strong> RFC 3579 §3.1: "the Message-Authenticator
 attribute MUST be used to protect all Access-Request, Access-Challenge,
 Access-Accept, and Access-Reject packets containing an EAP-Message attribute."
@@ -359,7 +375,8 @@ forged packet cannot end a login. A reply that carries an EAP-Message and no
 Message-Authenticator at all is discarded the same way (RFC 3579 §3.1), logged
 with that reason and counted on <code>ze_radius_unsigned_eap_discards_total</code> (see
 <a href="#metrics">Metrics</a>); a
-reply with neither attribute is still accepted, as RFC 2869 §5.14 allows. If the conversation then runs out of retries
+reply with neither attribute is accepted only from a server whose
+<code>require-message-authenticator</code> is <code>false</code>. If the conversation then runs out of retries
 the login fails as an infrastructure error and the chain tries the next backend.</p>
 <p><strong>The EAP header is checked in both directions</strong> (RFC 3579 §2.2). A packet from
 the server whose Length does not fit the octets carried, or an Access-Challenge
@@ -497,9 +514,23 @@ ze show diagnostic doctor-radius-admin-unreachable
 <td><code>aaa-radius-eap.ci</code></td>
 <td><code>auth-method eap-mschapv2</code> -&gt; the mock challenges, ze answers with the State copied back, and the login completes. The mock computes the Message-Authenticator itself and DISCARDS a request whose signature does not verify, so a signer covering the wrong octets ends this test in a timeout</td>
 </tr>
+<tr>
+<td><code>aaa-radius-unsigned-accept-refused.ci</code></td>
+<td>The mock runs as a legacy server (<code>--sign-responses=false</code>) and answers Access-Accept with no Message-Authenticator. With the server row at its default, ze discards it, warns with the <code>require-message-authenticator false</code> fix, and the login succeeds only through the local user (<code>source=local</code>)</td>
+</tr>
+<tr>
+<td><code>aaa-radius-unsigned-accept-legacy.ci</code></td>
+<td>The same unsigned mock with <code>require-message-authenticator false</code> on the server row: the login succeeds through RADIUS (<code>source=radius</code>) and nothing is discarded</td>
+</tr>
 </tbody>
 </table>
-<p>Those four drive <code>internal/test/mock/radius/radius.go</code>, which ze wrote. A mock
+<p>The mock behaves as a server updated for BlastRADIUS unless told otherwise:
+<code>--require-message-authenticator</code> (default true) makes it discard an
+Access-Request whose Message-Authenticator is missing or does not verify, and
+<code>--sign-responses</code> (default true) makes it put a signed Message-Authenticator
+first in every Access answer. <code>--sign-responses=false</code> is the legacy server the
+unsigned-answer tests need.</p>
+<p>Those six drive <code>internal/test/mock/radius/radius.go</code>, which ze wrote. A mock
 built beside ze's own encoder agrees with ze by construction, so a second set of
 proofs runs the same paths against a real FreeRADIUS server at a pinned tag:</p>
 <table>
@@ -528,7 +559,15 @@ proofs runs the same paths against a real FreeRADIUS server at a pinned tag:</p>
 </tr>
 <tr>
 <td><code>radius-admin-eap-unsigned-freeradius</code></td>
-<td>An EAP answer without a Message-Authenticator is discarded (RFC 3579 §3.1). FreeRADIUS always signs, so a relay in its container removes the attribute from its real answers: with the attribute left in place the same login completes, with it removed ze discards the Access-Challenge, logs the reason, steps <code>ze_radius_unsigned_eap_discards_total</code>, and the login fails</td>
+<td>On a server row with <code>require-message-authenticator false</code>, an EAP answer without a Message-Authenticator is discarded (RFC 3579 §3.1). FreeRADIUS always signs, so a relay in its container removes the attribute from its real answers: with the attribute left in place the same login completes, with it removed ze discards the Access-Challenge, logs the reason, steps <code>ze_radius_unsigned_eap_discards_total</code>, and the login fails</td>
+</tr>
+<tr>
+<td><code>radius-admin-pap-unsigned-freeradius</code></td>
+<td>BlastRADIUS (CVE-2024-3596): on a default server row, an Access-Accept whose Message-Authenticator the relay removed is discarded. The same login through the relay passing the signed answer completes; the stripped one fails, ze logs the discard, and <code>ze_radius_unsigned_response_discards_total</code> steps</td>
+</tr>
+<tr>
+<td><code>radius-admin-pap-unsigned-legacy-freeradius</code></td>
+<td>The same stripped Access-Accept on a server row with <code>require-message-authenticator false</code> completes the login</td>
 </tr>
 </tbody>
 </table>
@@ -551,6 +590,12 @@ bcrypt user accepted the credentials.</p>
 <!-- source: test/interop-radius/scenarios/ -- the four interop scenario directories -->
 <h2 id="metrics">Metrics</h2>
 <ul>
+<li><code>ze_radius_unsigned_response_discards_total{server}</code> -- Access-Accept,
+Access-Reject, Access-Challenge and Protocol-Error answers that carried no
+Message-Authenticator, discarded because the server row requires one
+(BlastRADIUS, CVE-2024-3596). The <code>server</code> label is the server's address. A
+value that keeps rising names a server that does not sign: configure it to
+sign, or set <code>require-message-authenticator false</code> on its row.</li>
 <li><code>ze_radius_unsigned_eap_discards_total</code> -- answers that carried an
 EAP-Message and no Message-Authenticator, discarded under RFC 3579
 Section 3.1. One series serves every RADIUS client in the daemon, the admin
@@ -640,7 +685,7 @@ Local summary: <code>rfc/short/rfc2865.md</code>.</li>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 02:50 UTC</span>
+                    <span class="footer-published">Published 28 October 2026 18:35 UTC</span>
                 </div>
             </div>
         </footer>

@@ -2,7 +2,7 @@ Commit confirmed: rollback and acceptance on the running router
 
 Connect with sshpass -e ssh ze-demo. The SSH editor starts from edge-original.
 Load /src/demos/terminal/topics/commit-confirmed/1-trial-host.conf, review
-show | compare, then run commit confirmed 8. Ze's timeout is in seconds,
+show | compare, then run commit confirmed 15. Ze's timeout is in seconds,
 unlike Junos commit confirmed, whose timeout is in minutes.
 
 $ ze-demo card topic-commit-confirmed lab
@@ -11,7 +11,7 @@ $ sshpass -e ssh ze-demo
 ze# show system host
 ze# load file absolute merge /src/demos/terminal/topics/commit-confirmed/1-trial-host.conf
 ze# show | compare
-ze# commit confirmed 8
+ze# commit confirmed 15
 
 Show the active edge-trial value, then deliberately leave the change
 unaccepted. Wait for the actual automatic rollback notice. Inspect show
@@ -26,12 +26,12 @@ ze# show | compare
 ze# show | changes
 
 Load /src/demos/terminal/topics/commit-confirmed/2-confirmed-host.conf,
-compare, commit confirmed 8, then commit accept. Wait beyond the eight-second
+compare, commit confirmed 15, then commit accept. Wait beyond the fifteen-second
 deadline and inspect edge-confirmed again. The accepted value must remain.
 
 ze# load file absolute merge /src/demos/terminal/topics/commit-confirmed/2-confirmed-host.conf
 ze# show | compare
-ze# commit confirmed 8
+ze# commit confirmed 15
 ze# commit accept
 
 After waiting beyond the deadline:

@@ -79,6 +79,11 @@ refused commit leaves your changes pending there too.
 <!-- source: internal/component/web/editor_commit_window.go -- runCommit, validateTransition -->
 <!-- source: internal/component/web/cli.go -- handleCLICommit -->
 
+Inline validation hints follow the highlighted configuration line; they never
+replace it. An invalid intermediate edit, such as copying a peer before changing
+its duplicate remote IP, therefore keeps the peer's configuration visible.
+<!-- source: internal/component/cli/model_render.go -- highlightValidationIssues -->
+
 In the SSH editor and the web terminal, `commit now` is refused when your
 change conflicts with another user's pending change (LIVE) or with a value
 committed since you made it (STALE). `commit now force` applies your change
@@ -195,6 +200,18 @@ store exposes those change files to both display surfaces, so the reviewed diff
 includes the operations that commit will apply.
 <!-- source: internal/component/cli/editor.go -- listChangeFiles, readChangeFileContent -->
 <!-- source: internal/component/config/change_file.go -- StructuralOp and its seven types -->
+
+`show` follows the working configuration's recorded list-entry order.
+`show | compare` omits unchanged entries, except for the context retained within
+a reordered `ordered-by user` list. Reordering a plain list alone creates no
+change marker. For a list declared `ordered-by user` in YANG, order is part of
+the configuration: a moved entry is shown removed at its old position and added
+at its new position. Surviving entries follow working order;
+deleted entries appear after their original predecessor. Removed rows have no
+working line number, so they do not shift validation highlighting onto another
+entry.
+<!-- source: internal/component/cli/diff_tree.go -- diffList, renderDiffLines -->
+<!-- source: internal/component/config/prune.go -- PruneUnchanged -->
 
 ### Secrets are masked on every display path
 
@@ -424,6 +441,16 @@ tracked change, the same entry a typed `set` or `delete` records, so a leaf
 equal to its current value records nothing and `show | changes` lists exactly
 what the load changed.
 
+For a list of named entries, both forms keep existing entries in their current
+positions and append new entries in the order the input names them. A `replace`
+removes omitted entries but does not move the entries it retains; it is not a
+list-reordering command.
+
+Entries created by typed `set` commands keep their creation order through draft
+save, commit and reload too. Session replay takes that order from the candidate
+tree, not from metadata map iteration or the session's timestamp.
+<!-- source: internal/component/config/meta.go -- SessionEntriesOrdered -->
+
 A load is all or nothing. A parse error, a refused entry, or a failed write of
 the change file leaves the candidate exactly as it was, and the error says
 `load refused, candidate unchanged`. In session mode the load holds the change
@@ -591,7 +618,7 @@ confirmed` needs config history. An editor without one, such as
 writes the file and names `ze init`; `commit now` still works there.
 
 The demonstration uses the running daemon's SSH editor, not file mode. It
-load-merges a trial hostname and uses `commit confirmed 8`. After the
+load-merges a trial hostname and uses `commit confirmed 15`. After the
 unaccepted window expires, it checks the restored `edge-original` hostname
 and an empty `show | compare`, followed by `show | changes` reporting no
 pending changes. A second change, committed with `commit confirmed 15`,
@@ -612,16 +639,16 @@ stored revisions after the automatic rollback, before testing acceptance.
 
 Load a risky hostname change over SSH, observe automatic rollback, then accept a second change and prove it persists on the same running router.
 
-[Download the asciicast recording](../../assets/demos/commit-confirmed.cast?v=ada9d531b2) · [Plain-text transcript](../../assets/demos/commit-confirmed.txt?v=cc3b9170bf)
+[Download the asciicast recording](../../assets/demos/commit-confirmed.cast?v=d61a5f86c6) · [Plain-text transcript](../../assets/demos/commit-confirmed.txt?v=bba89459a1)
 
-Recorded with Ze 26.10.27 in a Linux namespace lab using Ze recorder. Duration: 1 minute 38 seconds.
+Recorded with Ze 26.10.28 in a Linux namespace lab using Ze recorder. Duration: 2 minutes 38 seconds.
 
 ```console
 Commit confirmed: rollback and acceptance on the running router
 
 Connect with sshpass -e ssh ze-demo. The SSH editor starts from edge-original.
 Load /src/demos/terminal/topics/commit-confirmed/1-trial-host.conf, review
-show | compare, then run commit confirmed 8. Ze's timeout is in seconds,
+show | compare, then run commit confirmed 15. Ze's timeout is in seconds,
 unlike Junos commit confirmed, whose timeout is in minutes.
 
 $ ze-demo card topic-commit-confirmed lab
@@ -630,7 +657,7 @@ $ sshpass -e ssh ze-demo
 ze# show system host
 ze# load file absolute merge /src/demos/terminal/topics/commit-confirmed/1-trial-host.conf
 ze# show | compare
-ze# commit confirmed 8
+ze# commit confirmed 15
 
 Show the active edge-trial value, then deliberately leave the change
 unaccepted. Wait for the actual automatic rollback notice. Inspect show
@@ -645,12 +672,12 @@ ze# show | compare
 ze# show | changes
 
 Load /src/demos/terminal/topics/commit-confirmed/2-confirmed-host.conf,
-compare, commit confirmed 8, then commit accept. Wait beyond the eight-second
+compare, commit confirmed 15, then commit accept. Wait beyond the fifteen-second
 deadline and inspect edge-confirmed again. The accepted value must remain.
 
 ze# load file absolute merge /src/demos/terminal/topics/commit-confirmed/2-confirmed-host.conf
 ze# show | compare
-ze# commit confirmed 8
+ze# commit confirmed 15
 ze# commit accept
 
 After waiting beyond the deadline:

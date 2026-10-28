@@ -518,6 +518,46 @@ native QEMU actions select the Apple hypervisor (`hvf`) by platform.
 
 <!-- source: internal/le/test/qemu/actions.go -- Answer -->
 
+**PPP device access.** The L2TP and PPPoE tests open `/dev/ppp` to drive the
+kernel PPP channel. A stock Debian host makes it `root:root` mode 0600, so a
+test run as you cannot open it. Setup checks this as `ppp-access` and grants
+the device to the `dip` group. Debian ships `dip` (gid 30) for PPP dial-up,
+pppd's documentation names it, and you are usually in it already, so a second
+group of Ze's own would grant the same device to the same person under another
+name. A host with no `dip` group gets one as a system group. In install mode
+setup runs only the steps whose piece is absent, in this order:
+
+```bash
+sudo groupadd --system dip
+printf '%s\n' '# ./le setup install: the dip group may open /dev/ppp, for the L2TP and PPPoE tests.' 'KERNEL=="ppp", GROUP="dip", MODE="0660", OPTIONS+="static_node=ppp"' | sudo tee /etc/udev/rules.d/60-ze-ppp.rules
+sudo udevadm control --reload
+sudo modprobe ppp_generic
+sudo chgrp dip /dev/ppp
+sudo chmod 0660 /dev/ppp
+sudo usermod -aG dip $USER
+```
+
+The rule keeps the grant across module loads and reboots: `KERNEL=="ppp"`
+applies when `ppp_generic` registers the device, and `static_node=ppp` applies
+at boot to the node systemd creates before the module loads (systemd grants
+`/dev/kvm` with the same line). The first open of that node loads the module.
+`modprobe` runs only when `/dev/ppp` does not exist. The node is changed with
+`chgrp` and `chmod` rather than `udevadm trigger`, because a static node with
+no module loaded has no device udev can act on.
+
+`ppp-access` is `present` when your session can open `/dev/ppp` read-write. It
+is `pending` when the rule, the node and the group database are all in place
+but your session predates the membership: log out and back in, or run
+`sg dip -c '<command>'`. Otherwise `./le setup check` reports it `MISSING`
+with the absent pieces, and `./le setup install` grants them. The check judges
+the device with `access(2)` and does not open it, because opening `/dev/ppp`
+loads `ppp_generic` and a check changes nothing. When root is out of reach, the
+install prints the commands above with `sudo` instead of running them. macOS
+reports the step `skipped`: it has no `/dev/ppp`, and the PPP tests run in the
+Linux VM.
+
+<!-- source: internal/le/setup/ppp.go -- visitPpp, pppSteps, pppProbe, pppRuleBody -->
+
 **Loopback addresses.** The functional fixtures give each end of a BGP session
 its own address: RFC 4271 Section 5.1.3 forbids a peer its own address as
 NEXT_HOP, so a session whose two ends share one address has every originated

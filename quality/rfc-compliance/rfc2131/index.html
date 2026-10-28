@@ -499,8 +499,8 @@ Both roles. Server: DORA, leases, static mappings, PXE support -- every OFFER/AC
 <td>MUST</td>
 <td>2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-2-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L442" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4RenewCarriesClientID</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L492" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4ExtendIgnoresServerEchoesOnVeth</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L447" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4RenewCarriesClientID</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L497" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4ExtendIgnoresServerEchoesOnVeth</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-3.1-1">RFC2131-3.1-1</code></td><td colspan="3"><span class="rfc-subject">The client broadcasts a DHCPREQUEST message that MUST include the &#39;server identifier&#39; option to indicate which server it has selected (§3.1)</span></td></tr>
@@ -544,8 +544,8 @@ Both roles. Server: DORA, leases, static mappings, PXE support -- every OFFER/AC
 <td>MUST NOT</td>
 <td>4.3.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-3.1-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L375" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4RebindAcceptsAnyServerOnVeth</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L487" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4ExtendIgnoresServerEchoesOnVeth</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L380" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4RebindAcceptsAnyServerOnVeth</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L492" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4ExtendIgnoresServerEchoesOnVeth</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-3.2-1">RFC2131-3.2-1</code></td><td colspan="3"><span class="rfc-subject">As the client has not received its network address, it MUST NOT fill in the &#39;ciaddr&#39; field. (§3.2)</span></td></tr>
@@ -580,8 +580,8 @@ Both roles. Server: DORA, leases, static mappings, PXE support -- every OFFER/AC
 <td>MUST</td>
 <td>4.4.5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.4.5-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L321" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4RenewsRepeatedlyOnVeth</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L520" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4ExpiresOnTimeOnVeth</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L322" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4RenewsRepeatedlyOnVeth</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L525" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4ExpiresOnTimeOnVeth</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-3-1">RFC2131-3-1</code></td><td colspan="3"><span class="rfc-subject">The first four octets of the &#39;options&#39; field of the DHCP message contain the (decimal) values 99, 130, 83 and 99, respectively (§3)</span></td></tr>
@@ -674,8 +674,8 @@ Both roles. Server: DORA, leases, static mappings, PXE support -- every OFFER/AC
 <td>MUST</td>
 <td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.1-10">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L405" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4RenewIsUnicastToServer</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L469" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4ExtendIgnoresServerEchoesOnVeth</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L410" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4RenewIsUnicastToServer</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L474" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4ExtendIgnoresServerEchoesOnVeth</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-3.4-1">RFC2131-3.4-1</code></td><td colspan="3"><span class="rfc-subject">The server SHOULD check the network address in a DHCPINFORM message for consistency, but MUST NOT check for an existing lease. (§3.4)</span></td></tr>
@@ -1096,8 +1096,8 @@ Both roles. Server: DORA, leases, static mappings, PXE support -- every OFFER/AC
 <td>MUST</td>
 <td>4.3.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.3.2-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L361" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4RebindAcceptsAnyServerOnVeth</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L479" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4ExtendIgnoresServerEchoesOnVeth</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L366" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4RebindAcceptsAnyServerOnVeth</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L484" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4ExtendIgnoresServerEchoesOnVeth</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.4.5-5">RFC2131-4.4.5-5</code></td><td colspan="3"><span class="rfc-subject">If the client is given a new network address, it MUST NOT continue using the previous network address (§4.4.5)</span></td></tr>
@@ -1105,8 +1105,8 @@ Both roles. Server: DORA, leases, static mappings, PXE support -- every OFFER/AC
 <td>MUST NOT</td>
 <td>4.4.5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.4.5-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L543" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4RenewalMovesToNewAddressOnVeth</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L320" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4RenewsRepeatedlyOnVeth</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L548" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4RenewalMovesToNewAddressOnVeth</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L321" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4RenewsRepeatedlyOnVeth</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.4.5-6">RFC2131-4.4.5-6</code></td><td colspan="3"><span class="rfc-subject">The client MUST NOT include a &#39;server identifier&#39; in the DHCPREQUEST message. (§4.4.5)</span></td></tr>
@@ -1114,8 +1114,8 @@ Both roles. Server: DORA, leases, static mappings, PXE support -- every OFFER/AC
 <td>MUST NOT</td>
 <td>4.4.5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.4.5-6">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L418" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4RenewIsUnicastToServer</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L473" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4ExtendIgnoresServerEchoesOnVeth</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L423" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4RenewIsUnicastToServer</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L478" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4ExtendIgnoresServerEchoesOnVeth</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.4.5-7">RFC2131-4.4.5-7</code></td><td colspan="3"><span class="rfc-subject">The client MUST NOT include a &#39;server identifier&#39; in the DHCPREQUEST message. (§4.4.5)</span></td></tr>
@@ -1123,8 +1123,8 @@ Both roles. Server: DORA, leases, static mappings, PXE support -- every OFFER/AC
 <td>MUST NOT</td>
 <td>4.4.5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.4.5-7">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L371" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4RebindAcceptsAnyServerOnVeth</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L483" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4ExtendIgnoresServerEchoesOnVeth</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L376" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4RebindAcceptsAnyServerOnVeth</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L488" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4ExtendIgnoresServerEchoesOnVeth</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-3.2-3">RFC2131-3.2-3</code></td><td colspan="3"><span class="rfc-subject">As the client has not received its network address, it MUST NOT fill in the &#39;ciaddr&#39; field. (§3.2)</span></td></tr>
@@ -1744,12 +1744,12 @@ Both roles. Server: DORA, leases, static mappings, PXE support -- every OFFER/AC
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L492" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4ExtendIgnoresServerEchoesOnVeth</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L497" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4ExtendIgnoresServerEchoesOnVeth</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L442" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4RenewCarriesClientID</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L447" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4RenewCarriesClientID</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1780,12 +1780,12 @@ Both roles. Server: DORA, leases, static mappings, PXE support -- every OFFER/AC
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L487" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4ExtendIgnoresServerEchoesOnVeth</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L492" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4ExtendIgnoresServerEchoesOnVeth</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L375" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4RebindAcceptsAnyServerOnVeth</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L380" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4RebindAcceptsAnyServerOnVeth</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1812,12 +1812,12 @@ Both roles. Server: DORA, leases, static mappings, PXE support -- every OFFER/AC
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L520" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4ExpiresOnTimeOnVeth</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L525" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4ExpiresOnTimeOnVeth</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L321" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4RenewsRepeatedlyOnVeth</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L322" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4RenewsRepeatedlyOnVeth</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1968,12 +1968,12 @@ Both roles. Server: DORA, leases, static mappings, PXE support -- every OFFER/AC
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L469" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4ExtendIgnoresServerEchoesOnVeth</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L474" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4ExtendIgnoresServerEchoesOnVeth</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L405" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4RenewIsUnicastToServer</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L410" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4RenewIsUnicastToServer</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -2216,12 +2216,12 @@ Both roles. Server: DORA, leases, static mappings, PXE support -- every OFFER/AC
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L479" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4ExtendIgnoresServerEchoesOnVeth</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L484" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4ExtendIgnoresServerEchoesOnVeth</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L361" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4RebindAcceptsAnyServerOnVeth</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L366" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4RebindAcceptsAnyServerOnVeth</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -2236,12 +2236,12 @@ Both roles. Server: DORA, leases, static mappings, PXE support -- every OFFER/AC
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L320" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4RenewsRepeatedlyOnVeth</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L321" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4RenewsRepeatedlyOnVeth</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L543" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4RenewalMovesToNewAddressOnVeth</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L548" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4RenewalMovesToNewAddressOnVeth</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -2256,12 +2256,12 @@ Both roles. Server: DORA, leases, static mappings, PXE support -- every OFFER/AC
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L473" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4ExtendIgnoresServerEchoesOnVeth</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L478" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4ExtendIgnoresServerEchoesOnVeth</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L418" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4RenewIsUnicastToServer</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L423" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4RenewIsUnicastToServer</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -2276,12 +2276,12 @@ Both roles. Server: DORA, leases, static mappings, PXE support -- every OFFER/AC
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L483" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4ExtendIgnoresServerEchoesOnVeth</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L488" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4ExtendIgnoresServerEchoesOnVeth</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L371" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4RebindAcceptsAnyServerOnVeth</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L376" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4RebindAcceptsAnyServerOnVeth</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -2857,7 +2857,7 @@ Both roles. Server: DORA, leases, static mappings, PXE support -- every OFFER/AC
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 09:31 UTC</span>
+                    <span class="footer-published">Published 28 October 2026 18:35 UTC</span>
                 </div>
             </div>
         </footer>

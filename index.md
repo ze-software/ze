@@ -88,7 +88,7 @@ Tests help catch changes that break existing behavior. Go tests, end-to-end scen
 - Across 167 RFCs
 - Tests tied to requirements
 
- RFC requirement ledger.](https://ze-software.net/quality/rfc-compliance/) [**39,500+ Go tests**
+ RFC requirement ledger.](https://ze-software.net/quality/rfc-compliance/) [**39,600+ Go tests**
 
 - Check encoded bytes and parsed values.
 - Verify config, state transitions and plugins.
@@ -100,7 +100,7 @@ Tests help catch changes that break existing behavior. Go tests, end-to-end scen
 - Run editor commands, commits and reloads.
 - Check output, errors and saved state.
 
- Scenarios and expected results.](https://ze-software.net/quality/functional-ci/) [**93 fuzz targets**
+ Scenarios and expected results.](https://ze-software.net/quality/functional-ci/) [**95 fuzz targets**
 
 - Generate inputs for parsers and decoders.
 - Probe packets and config text for crashes.

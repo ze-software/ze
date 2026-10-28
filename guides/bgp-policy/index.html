@@ -105,6 +105,18 @@ even if it has no references. Use <code>insert</code> in the editor when order m
 the policy final. An absent direction keeps the existing automatic-filter
 behavior and accepts when those filters finish; it is not a configured empty
 policy.</p>
+<p>Named <code>loop-detection</code> instances remain visible in the effective import policy,
+including when the direction has no operator <code>final</code>. Plain <code>no-self-as</code>,
+<code>loop-detection:no-self-as</code>, and canonical <code>loop:no-self-as</code> references select
+the same instance. Its settings control the existing protocol-stage loop check;
+the instance is not an external plugin and is not executed a second time in
+the policy RPC chain. Deactivating its import reference disables that check
+for the peer. Earlier named automatic references could incorrectly attempt an
+RPC to the instance name and fail with <code>unknown plugin</code>.
+An active named internal reference on export is refused: these instances
+configure ingress checks, not an export policy. Remove that export reference
+or deactivate it to record a deliberate no-check decision. Automatic import
+references never populate export.</p>
 <p>A reload compares the whole effective policy. Changing only the export <code>final</code>
 therefore reconciles advertisements on the existing session without a source
 UPDATE. Rejecting withdraws prior advertisements. Returning to acceptance,
@@ -461,6 +473,14 @@ With <code>final reject</code>, a pure withdrawal remains <code>accept</code> wi
 text. A mixed announcement and withdrawal reports <code>modify</code>, with only its explicit
 withdrawals in the resulting text. A filter execution failure or teardown still
 reports <code>reject</code> without resulting text; neither is a successful withdrawal.</p>
+<p>The dry-run covers the per-peer external-policy stage, not the full ingress
+protocol pipeline. An active named in-process check appears in <code>trace</code> with
+<code>action: not-evaluated</code> and empty <code>text-after</code>; it is not an accepting filter
+invocation. The overall <code>action</code> describes the external-policy stage and its
+final only, not whether that unevaluated guard would pass on a live session.
+A single-filter override selecting an in-process check is refused with an
+explanation; exercise it with an UPDATE on the peer session instead. Inactive
+references do not execute and have no trace entry.</p>
 <p>Use the same route at each boundary:</p>
 <pre><code class="language-console">ze cli -c "show bgp rib peer transit-a"
 ze cli -c "show bgp rib best"
@@ -528,7 +548,7 @@ ze cli -c "show bgp peer transit-b rib"
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
+                    <span class="footer-published">Published 28 October 2026 18:35 UTC</span>
                 </div>
             </div>
         </footer>

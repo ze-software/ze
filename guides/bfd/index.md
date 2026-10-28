@@ -730,9 +730,9 @@ retirement and restores the link without replacing the shown Ze process.
 
 Commit BFD onto an established FRR BGP peer, cut the link, inspect diagnostics and peer history, then restore both sessions without restarting Ze.
 
-[Download the asciicast recording](../../assets/demos/bfd-failover.cast?v=a37cfae7d2) · [Plain-text transcript](../../assets/demos/bfd-failover.txt?v=1d2f779b15)
+[Download the asciicast recording](../../assets/demos/bfd-failover.cast?v=a134574836) · [Plain-text transcript](../../assets/demos/bfd-failover.txt?v=1d2f779b15)
 
-Recorded with Ze 26.10.27 in a Linux namespace lab using Ze recorder. Duration: 2 minutes 33 seconds.
+Recorded with Ze 26.10.28 in a Linux namespace lab using Ze recorder. Duration: 3 minutes 5 seconds.
 
 ```console
 BFD live opt-in and link-failure walkthrough

@@ -3122,6 +3122,11 @@ expect=json:conn=1:seq=1:json={...}
 <td><code>expect=content:lines=5</code></td>
 </tr>
 <tr>
+<td><code>expect=content:pattern=&lt;regex&gt;</code></td>
+<td>Config content or displayed output matches a Go regular expression (RE2). <code>.</code> stops at a newline unless the expression starts with <code>(?s)</code>; an empty or invalid expression fails the step</td>
+<td><code>expect=content:pattern=(?s)peer zulu.*peer alpha</code></td>
+</tr>
+<tr>
 <td><code>expect=viewport:contains=&lt;text&gt;</code></td>
 <td>Displayed output includes text</td>
 <td><code>expect=viewport:contains=10.0.0.1</code></td>
@@ -3130,6 +3135,11 @@ expect=json:conn=1:seq=1:json={...}
 <td><code>expect=viewport:not-contains=&lt;text&gt;</code></td>
 <td>Displayed output must NOT include</td>
 <td><code>expect=viewport:not-contains=error</code></td>
+</tr>
+<tr>
+<td><code>expect=viewport:pattern=&lt;regex&gt;</code></td>
+<td>Displayed output matches a Go regular expression, as <code>content:pattern</code>. The way to assert order: <code>(?s)a.*b</code> passes only when <code>a</code> prints before <code>b</code></td>
+<td><code>expect=viewport:pattern=(?s)peer zulu.*peer alpha</code></td>
 </tr>
 <tr>
 <td><code>expect=errors:count=&lt;N&gt;</code></td>
@@ -3205,6 +3215,13 @@ expect=json:conn=1:seq=1:json={...}
 </table>
 <!-- source: internal/component/cli/testing/expect.go -- editor expectation types -->
 <!-- source: internal/component/cli/testing/runner_store.go -- createRunnerStore -->
+<p>Pattern expectations match displayed output after stripping ANSI escape sequences,
+so a line anchor sees the configuration row rather than its color prefix. The
+viewport is not trimmed or reordered, and missing rows still fail. The working
+configuration alternative of <code>expect=content:pattern=</code> remains literal. Literal
+<code>contains</code> and <code>not-contains</code> expectations are unchanged. Failed viewport patterns
+retain the original output in their diagnostic.</p>
+<!-- source: internal/component/cli/testing/expect.go -- checkContent, checkViewport -->
 <p>Editor tests use a tree store by default; <code>option=storage:value=tree</code> states
 that choice explicitly. The tree mode is held in memory (<code>storage.CreateMemory</code>),
 not on disk: it is the live store's contract (name mapping, guards, versions,
@@ -3341,7 +3358,7 @@ expect=completion:contains=router-id,local-as,peer
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 27 October 2026 17:34 UTC</span>
+                    <span class="footer-published">Published 28 October 2026 18:35 UTC</span>
                 </div>
             </div>
         </footer>

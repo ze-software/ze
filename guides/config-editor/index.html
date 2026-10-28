@@ -204,6 +204,10 @@ refused commit leaves your changes pending there too.</p>
 <!-- source: internal/component/cli/contract/commit.go -- ForcedCommand -->
 <!-- source: internal/component/web/editor_commit_window.go -- runCommit, validateTransition -->
 <!-- source: internal/component/web/cli.go -- handleCLICommit -->
+<p>Inline validation hints follow the highlighted configuration line; they never
+replace it. An invalid intermediate edit, such as copying a peer before changing
+its duplicate remote IP, therefore keeps the peer's configuration visible.</p>
+<!-- source: internal/component/cli/model_render.go -- highlightValidationIssues -->
 <p>In the SSH editor and the web terminal, <code>commit now</code> is refused when your
 change conflicts with another user's pending change (LIVE) or with a value
 committed since you made it (STALE). <code>commit now force</code> applies your change
@@ -312,6 +316,17 @@ store exposes those change files to both display surfaces, so the reviewed diff
 includes the operations that commit will apply.</p>
 <!-- source: internal/component/cli/editor.go -- listChangeFiles, readChangeFileContent -->
 <!-- source: internal/component/config/change_file.go -- StructuralOp and its seven types -->
+<p><code>show</code> follows the working configuration's recorded list-entry order.
+<code>show | compare</code> omits unchanged entries, except for the context retained within
+a reordered <code>ordered-by user</code> list. Reordering a plain list alone creates no
+change marker. For a list declared <code>ordered-by user</code> in YANG, order is part of
+the configuration: a moved entry is shown removed at its old position and added
+at its new position. Surviving entries follow working order;
+deleted entries appear after their original predecessor. Removed rows have no
+working line number, so they do not shift validation highlighting onto another
+entry.</p>
+<!-- source: internal/component/cli/diff_tree.go -- diffList, renderDiffLines -->
+<!-- source: internal/component/config/prune.go -- PruneUnchanged -->
 <h3 id="secrets-are-masked-on-every-display-path">Secrets are masked on every display path</h3>
 <p>One predicate answers whether a leaf holds a secret, and every display path reads
 it. A leaf the schema marks <code>ze:sensitive</code> or <code>ze:bcrypt</code> is masked in the tree
@@ -556,6 +571,14 @@ markers too. In session mode each applied difference is one
 tracked change, the same entry a typed <code>set</code> or <code>delete</code> records, so a leaf
 equal to its current value records nothing and <code>show | changes</code> lists exactly
 what the load changed.</p>
+<p>For a list of named entries, both forms keep existing entries in their current
+positions and append new entries in the order the input names them. A <code>replace</code>
+removes omitted entries but does not move the entries it retains; it is not a
+list-reordering command.</p>
+<p>Entries created by typed <code>set</code> commands keep their creation order through draft
+save, commit and reload too. Session replay takes that order from the candidate
+tree, not from metadata map iteration or the session's timestamp.</p>
+<!-- source: internal/component/config/meta.go -- SessionEntriesOrdered -->
 <p>A load is all or nothing. A parse error, a refused entry, or a failed write of
 the change file leaves the candidate exactly as it was, and the error says
 <code>load refused, candidate unchanged</code>. In session mode the load holds the change
@@ -767,7 +790,7 @@ which reverts from the record. The countdown never shows a negative number.</p>
 <code>ze config edit -f</code> on a file whose folder holds no store, refuses before it
 writes the file and names <code>ze init</code>; <code>commit now</code> still works there.</p>
 <p>The demonstration uses the running daemon's SSH editor, not file mode. It
-load-merges a trial hostname and uses <code>commit confirmed 8</code>. After the
+load-merges a trial hostname and uses <code>commit confirmed 15</code>. After the
 unaccepted window expires, it checks the restored <code>edge-original</code> hostname
 and an empty <code>show | compare</code>, followed by <code>show | changes</code> reporting no
 pending changes. A second change, committed with <code>commit confirmed 15</code>,
@@ -800,7 +823,7 @@ stored revisions after the automatic rollback, before testing acceptance.</p>
     <div
       class="terminal-demo__player"
       data-terminal-demo-player
-      data-cast-src="../../assets/demos/commit-confirmed.cast?v=ada9d531b2"
+      data-cast-src="../../assets/demos/commit-confirmed.cast?v=d61a5f86c6"
       data-cols="137"
       data-rows="36"
       style="--demo-aspect: 82.2 / 47.52"
@@ -808,13 +831,13 @@ stored revisions after the automatic rollback, before testing acceptance.</p>
     ></div>
     <noscript>
       <p class="terminal-demo__noscript">This recording is replayed by the
-      page's own player. <a href="../../assets/demos/commit-confirmed.cast?v=ada9d531b2">Download the asciicast</a> or
-      <a href="../../assets/demos/commit-confirmed.txt?v=cc3b9170bf">read the transcript</a>.</p>
+      page's own player. <a href="../../assets/demos/commit-confirmed.cast?v=d61a5f86c6">Download the asciicast</a> or
+      <a href="../../assets/demos/commit-confirmed.txt?v=bba89459a1">read the transcript</a>.</p>
     </noscript>
   </div>
   <figcaption>
-    <span>Ze 26.10.27</span><span>1 minute 38 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>Ze recorder</span>
-    <a href="../../assets/demos/commit-confirmed.txt?v=cc3b9170bf">Plain-text transcript</a>
+    <span>Ze 26.10.28</span><span>2 minutes 38 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>Ze recorder</span>
+    <a href="../../assets/demos/commit-confirmed.txt?v=bba89459a1">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
     <summary>Read the demonstration transcript</summary>
@@ -822,7 +845,7 @@ stored revisions after the automatic rollback, before testing acceptance.</p>
 
 Connect with sshpass -e ssh ze-demo. The SSH editor starts from edge-original.
 Load /src/demos/terminal/topics/commit-confirmed/1-trial-host.conf, review
-show | compare, then run commit confirmed 8. Ze&#39;s timeout is in seconds,
+show | compare, then run commit confirmed 15. Ze&#39;s timeout is in seconds,
 unlike Junos commit confirmed, whose timeout is in minutes.
 
 $ ze-demo card topic-commit-confirmed lab
@@ -831,7 +854,7 @@ $ sshpass -e ssh ze-demo
 ze# show system host
 ze# load file absolute merge /src/demos/terminal/topics/commit-confirmed/1-trial-host.conf
 ze# show | compare
-ze# commit confirmed 8
+ze# commit confirmed 15
 
 Show the active edge-trial value, then deliberately leave the change
 unaccepted. Wait for the actual automatic rollback notice. Inspect show
@@ -846,12 +869,12 @@ ze# show | compare
 ze# show | changes
 
 Load /src/demos/terminal/topics/commit-confirmed/2-confirmed-host.conf,
-compare, commit confirmed 8, then commit accept. Wait beyond the eight-second
+compare, commit confirmed 15, then commit accept. Wait beyond the fifteen-second
 deadline and inspect edge-confirmed again. The accepted value must remain.
 
 ze# load file absolute merge /src/demos/terminal/topics/commit-confirmed/2-confirmed-host.conf
 ze# show | compare
-ze# commit confirmed 8
+ze# commit confirmed 15
 ze# commit accept
 
 After waiting beyond the deadline:
@@ -950,7 +973,7 @@ ze config archive prod config.conf # Archive to named destination
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 13:31 UTC</span>
+                    <span class="footer-published">Published 28 October 2026 18:35 UTC</span>
                 </div>
             </div>
         </footer>

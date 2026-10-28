@@ -121,7 +121,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 25 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 25 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 25 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>66.3%</strong><b>65 of 98 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>64.3%</strong><b>63 of 98 tagged units, 0 escaped and 2 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -1392,7 +1392,7 @@ Five MUST or SHOULD NOT rows annotated in <a href="https://github.com/ze-softwar
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9494_llgr_cached_forward_test.go#L259" title="internal/component/bgp/reactor/rfc9494_llgr_cached_forward_test.go" target="_blank" rel="noopener"><code>TestRFC9494RouteServerForwardWithholdsReceivedStale</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9494_relay_rebuilt_test.go#L76" title="internal/component/bgp/reactor/rfc9494_relay_rebuilt_test.go" target="_blank" rel="noopener"><code>TestBuildRelayUpdateMarksRebuilt</code></a></td>
@@ -1432,7 +1432,7 @@ Five MUST or SHOULD NOT rows annotated in <a href="https://github.com/ze-softwar
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9494_llgr_cached_forward_test.go#L257" title="internal/component/bgp/reactor/rfc9494_llgr_cached_forward_test.go" target="_blank" rel="noopener"><code>TestRFC9494RouteServerForwardWithholdsReceivedStale</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9494_relay_rebuilt_test.go#L72" title="internal/component/bgp/reactor/rfc9494_relay_rebuilt_test.go" target="_blank" rel="noopener"><code>TestBuildRelayUpdateMarksRebuilt</code></a></td>
@@ -1726,7 +1726,7 @@ Five MUST or SHOULD NOT rows annotated in <a href="https://github.com/ze-softwar
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 09:31 UTC</span>
+                    <span class="footer-published">Published 28 October 2026 18:35 UTC</span>
                 </div>
             </div>
         </footer>

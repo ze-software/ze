@@ -450,9 +450,9 @@ through each transition.
 
 Commit VRRP and uplink tracking live, observe priority reduction and backup demotion, then prove master failover and recovery while the shown Ze stays running.
 
-[Download the asciicast recording](../../assets/demos/vrrp-tracking.cast?v=d55609ce3e) · [Plain-text transcript](../../assets/demos/vrrp-tracking.txt?v=d48d9109d5)
+[Download the asciicast recording](../../assets/demos/vrrp-tracking.cast?v=682f44f6d3) · [Plain-text transcript](../../assets/demos/vrrp-tracking.txt?v=d48d9109d5)
 
-Recorded with Ze 26.10.27 in a Linux namespace lab using Ze recorder. Duration: 2 minutes 50 seconds.
+Recorded with Ze 26.10.28 in a Linux namespace lab using Ze recorder. Duration: 3 minutes 28 seconds.
 
 ```console
 VRRP tracking and peer-failover walkthrough

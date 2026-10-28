@@ -1037,7 +1037,7 @@ Client role only. The <code>iface-dhcp</code> plugin (<code>internal/plugins/ifa
 <td>MUST NOT</td>
 <td>18.2.8</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9915-18.2.8-6">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc9915_dhcp_v6_dad_integration_linux_test.go#L36" title="internal/component/iface/rfc9915_dhcp_v6_dad_integration_linux_test.go" target="_blank" rel="noopener"><code>TestRFC9915DuplicateAddressDeclinedOnTheLink</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc9915_dhcp_v6_dad_integration_linux_test.go#L37" title="internal/component/iface/rfc9915_dhcp_v6_dad_integration_linux_test.go" target="_blank" rel="noopener"><code>TestRFC9915DuplicateAddressDeclinedOnTheLink</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_attach_linux_test.go#L103" title="internal/plugins/iface/dhcp/rfc9915_dhcp_v6_attach_linux_test.go" target="_blank" rel="noopener"><code>TestRFC9915Section182101DuplicateAddressDeclined</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the declined address leaves the device before the Decline is built, so no input puts it back</p></td>
@@ -1101,7 +1101,7 @@ Client role only. The <code>iface-dhcp</code> plugin (<code>internal/plugins/ifa
 <td>MUST</td>
 <td>18.2.10.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9915-18.2.10.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc9915_dhcp_v6_dad_integration_linux_test.go#L35" title="internal/component/iface/rfc9915_dhcp_v6_dad_integration_linux_test.go" target="_blank" rel="noopener"><code>TestRFC9915DuplicateAddressDeclinedOnTheLink</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc9915_dhcp_v6_dad_integration_linux_test.go#L36" title="internal/component/iface/rfc9915_dhcp_v6_dad_integration_linux_test.go" target="_blank" rel="noopener"><code>TestRFC9915DuplicateAddressDeclinedOnTheLink</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_attach_linux_test.go#L97" title="internal/plugins/iface/dhcp/rfc9915_dhcp_v6_attach_linux_test.go" target="_blank" rel="noopener"><code>TestRFC9915Section182101DuplicateAddressDeclined</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_attach_linux_test.go#L183" title="internal/plugins/iface/dhcp/rfc9915_dhcp_v6_attach_linux_test.go" target="_blank" rel="noopener"><code>TestRFC9915Section182101UniqueAddressKept</code></a></span></div>
 </div></td>
@@ -1156,9 +1156,9 @@ Client role only. The <code>iface-dhcp</code> plugin (<code>internal/plugins/ifa
 <td>MUST</td>
 <td>18.2.12</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9915-18.2.12-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc9915_dhcp_v6_link_move_integration_linux_test.go#L49" title="internal/component/iface/rfc9915_dhcp_v6_link_move_integration_linux_test.go" target="_blank" rel="noopener"><code>TestRFC9915LinkMoveRebindsThroughTheMonitor</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc9915_dhcp_v6_link_move_integration_linux_test.go#L50" title="internal/component/iface/rfc9915_dhcp_v6_link_move_integration_linux_test.go" target="_blank" rel="noopener"><code>TestRFC9915LinkMoveRebindsThroughTheMonitor</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_attach_linux_test.go#L398" title="internal/plugins/iface/dhcp/rfc9915_dhcp_v6_attach_linux_test.go" target="_blank" rel="noopener"><code>TestRFC9915Section18212MoveRebindsWithConfirmParameters</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc9915_dhcp_v6_link_move_integration_linux_test.go#L96" title="internal/component/iface/rfc9915_dhcp_v6_link_move_integration_linux_test.go" target="_blank" rel="noopener"><code>TestRFC9915LinkChangeWithoutDownSendsNothing</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc9915_dhcp_v6_link_move_integration_linux_test.go#L100" title="internal/component/iface/rfc9915_dhcp_v6_link_move_integration_linux_test.go" target="_blank" rel="noopener"><code>TestRFC9915LinkChangeWithoutDownSendsNothing</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_attach_linux_test.go#L446" title="internal/plugins/iface/dhcp/rfc9915_dhcp_v6_attach_linux_test.go" target="_blank" rel="noopener"><code>TestRFC9915Section18212NoMoveNoRebind</code></a></span></div>
 </div></td>
 </tr>
@@ -2608,7 +2608,7 @@ Client role only. The <code>iface-dhcp</code> plugin (<code>internal/plugins/ifa
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc9915_dhcp_v6_dad_integration_linux_test.go#L36" title="internal/component/iface/rfc9915_dhcp_v6_dad_integration_linux_test.go" target="_blank" rel="noopener"><code>TestRFC9915DuplicateAddressDeclinedOnTheLink</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc9915_dhcp_v6_dad_integration_linux_test.go#L37" title="internal/component/iface/rfc9915_dhcp_v6_dad_integration_linux_test.go" target="_blank" rel="noopener"><code>TestRFC9915DuplicateAddressDeclinedOnTheLink</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -2712,7 +2712,7 @@ Client role only. The <code>iface-dhcp</code> plugin (<code>internal/plugins/ifa
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc9915_dhcp_v6_dad_integration_linux_test.go#L35" title="internal/component/iface/rfc9915_dhcp_v6_dad_integration_linux_test.go" target="_blank" rel="noopener"><code>TestRFC9915DuplicateAddressDeclinedOnTheLink</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc9915_dhcp_v6_dad_integration_linux_test.go#L36" title="internal/component/iface/rfc9915_dhcp_v6_dad_integration_linux_test.go" target="_blank" rel="noopener"><code>TestRFC9915DuplicateAddressDeclinedOnTheLink</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -2790,7 +2790,7 @@ Client role only. The <code>iface-dhcp</code> plugin (<code>internal/plugins/ifa
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc9915_dhcp_v6_link_move_integration_linux_test.go#L96" title="internal/component/iface/rfc9915_dhcp_v6_link_move_integration_linux_test.go" target="_blank" rel="noopener"><code>TestRFC9915LinkChangeWithoutDownSendsNothing</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc9915_dhcp_v6_link_move_integration_linux_test.go#L100" title="internal/component/iface/rfc9915_dhcp_v6_link_move_integration_linux_test.go" target="_blank" rel="noopener"><code>TestRFC9915LinkChangeWithoutDownSendsNothing</code></a></td>
 <td>unit/verify</td>
 <td>mutant, verified</td>
 </tr>
@@ -2800,7 +2800,7 @@ Client role only. The <code>iface-dhcp</code> plugin (<code>internal/plugins/ifa
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc9915_dhcp_v6_link_move_integration_linux_test.go#L49" title="internal/component/iface/rfc9915_dhcp_v6_link_move_integration_linux_test.go" target="_blank" rel="noopener"><code>TestRFC9915LinkMoveRebindsThroughTheMonitor</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc9915_dhcp_v6_link_move_integration_linux_test.go#L50" title="internal/component/iface/rfc9915_dhcp_v6_link_move_integration_linux_test.go" target="_blank" rel="noopener"><code>TestRFC9915LinkMoveRebindsThroughTheMonitor</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -4574,7 +4574,7 @@ Client role only. The <code>iface-dhcp</code> plugin (<code>internal/plugins/ifa
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
+                    <span class="footer-published">Published 28 October 2026 18:35 UTC</span>
                 </div>
             </div>
         </footer>

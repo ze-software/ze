@@ -5,7 +5,7 @@ Technology aggregate. BGP segment routing, SRv6, and tunnel encapsulation. The R
 [All profiles](../) · [All RFCs](../../)
 
 - **Mandatory**: 36.5% (89 of 244 (36.5%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
-- **Optional**: 2.9% (4 of 136 (2.9%)). MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.
+- **Optional**: 2.2% (3 of 136 (2.2%)). MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.
 - **Not walked**: 0 (of 5 RFCs). RFCs with no valid extraction sign-off: their rows count in neither figure.
 - **Mandatory register**: not complete (every row proven, none unwalked). A profile is complete only when it requires at least one RFC and none of them is unwalked.
 
@@ -23,7 +23,7 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 
 | RFC | Title | Mandatory | Optional |
 |---|---|---|---|
-| [RFC 9012](../../rfc9012/) | The BGP Tunnel Encapsulation Attribute | 25 of 76 (32.9%) | 1 of 22 (4.5%) |
+| [RFC 9012](../../rfc9012/) | The BGP Tunnel Encapsulation Attribute | 25 of 76 (32.9%) | 0 of 22 (0.0%) |
 
 ### Level 11
 

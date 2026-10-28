@@ -34,7 +34,7 @@
     "target_display": "11",
     "targets": 11
   },
-  "published_at": "2026-10-28T13:30:05Z",
+  "published_at": "2026-10-28T18:32:31Z",
   "repo": {
     "design_comments": 7434,
     "design_comments_display": "7,400+",
@@ -65,13 +65,13 @@
     "summaries_display": "229"
   },
   "tests": {
-    "e2e": 2611,
+    "e2e": 2617,
     "e2e_display": "2,600+",
     "editor": 179,
     "editor_display": "170+",
-    "fuzz": 93,
-    "fuzz_display": "93",
-    "unit": 39573,
-    "unit_display": "39,500+"
+    "fuzz": 95,
+    "fuzz_display": "95",
+    "unit": 39675,
+    "unit_display": "39,600+"
   }
 }

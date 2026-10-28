@@ -130,6 +130,19 @@ refuses what it cannot support, from the answer it has in hand, after it runs.
 <!-- source: internal/component/config/cli/cmd_dump.go -- dump command -->
 <!-- source: internal/component/config/cli/cmd_diff.go -- diff command -->
 
+`ze config diff` compares resolved BGP values after template expansion and
+reports entry-order changes for every YANG `ordered-by user` list, including
+nested lists outside BGP. Plain-list reorder alone reports `No differences`.
+Firewall-only comparisons need no BGP block. Ordered sequences use the existing
+`@<list-name>` metadata key at their full config path: text shows, for example,
+`~ firewall/table/wan/chain/input/@term: [b a] -> [a b]`; JSON puts that path
+under `changed` with `old` and `new` arrays. Inserting or deleting entries changes
+the sequence too; adding or removing the whole list uses `added` or `removed`.
+This does not add general non-BGP value comparison. Files, stored sources and
+rollback revisions use the same comparison, and changed secret values remain
+masked in both output shapes.
+<!-- source: internal/component/config/cli/cmd_diff.go -- resolveDiff, diffListOrders, maskDiffSecrets -->
+
 Interactive `ze config edit` and `ze cli` run their models in the daemon over
 SSH. The daemon owns their drafts, commits, and command history. A named stored
 config selects that config, not another config with the daemon's active path.

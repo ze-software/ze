@@ -23103,7 +23103,7 @@
               "polarity": "negative",
               "unit": "internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go::TestDHCPv4ExtendIgnoresServerEchoesOnVeth",
               "file": "internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go",
-              "line": 492,
+              "line": 497,
               "carrier": "unit/verify",
               "claim": "-- the ACK echoes a different client identifier, and the RENEWING and REBINDING DHCPREQUESTs still carry the one that bound the lease.",
               "tags": 1,
@@ -23120,7 +23120,7 @@
               "polarity": "positive",
               "unit": "internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go::TestDHCPv4RenewCarriesClientID",
               "file": "internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go",
-              "line": 442,
+              "line": 447,
               "carrier": "unit/verify",
               "claim": "-- the RENEWING and REBINDING DHCPREQUESTs carry the client identifier option byte for byte as the DHCPREQUEST that bound the lease.",
               "tags": 1,
@@ -23210,7 +23210,7 @@
               "polarity": "negative",
               "unit": "internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go::TestDHCPv4ExtendIgnoresServerEchoesOnVeth",
               "file": "internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go",
-              "line": 487,
+              "line": 492,
               "carrier": "unit/verify",
               "claim": "-- the ACK the REBIND extends carries a server identifier and a requested IP address option, and the REBINDING DHCPREQUEST carries neither.",
               "tags": 1,
@@ -23227,7 +23227,7 @@
               "polarity": "positive",
               "unit": "internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go::TestDHCPv4RebindAcceptsAnyServerOnVeth",
               "file": "internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go",
-              "line": 375,
+              "line": 380,
               "carrier": "unit/verify",
               "claim": "-- the DHCPREQUEST the client sends in REBINDING carries neither a server identifier nor a requested IP address option.",
               "tags": 1,
@@ -23302,7 +23302,7 @@
               "polarity": "negative",
               "unit": "internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go::TestDHCPv4ExpiresOnTimeOnVeth",
               "file": "internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go",
-              "line": 520,
+              "line": 525,
               "carrier": "unit/verify",
               "claim": "-- with no DHCPACK before the lease expires, the client removes the address and its default route within a second of expiry and sends a DHCPDISCOVER.",
               "tags": 1,
@@ -23319,7 +23319,7 @@
               "polarity": "positive",
               "unit": "internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go::TestDHCPv4RenewsRepeatedlyOnVeth",
               "file": "internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go",
-              "line": 321,
+              "line": 322,
               "carrier": "unit/verify",
               "claim": "-- while every RENEW draws a DHCPACK the lease never expires: across four renewals spanning more than one lease the client keeps its address and sends no DHCPDISCOVER.",
               "tags": 1,
@@ -23710,7 +23710,7 @@
               "polarity": "negative",
               "unit": "internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go::TestDHCPv4ExtendIgnoresServerEchoesOnVeth",
               "file": "internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go",
-              "line": 469,
+              "line": 474,
               "carrier": "unit/verify",
               "claim": "-- an ACK whose siaddr differs from its server identifier does not move the RENEW: it is unicast to the server identifier, not to siaddr.",
               "tags": 1,
@@ -23727,7 +23727,7 @@
               "polarity": "positive",
               "unit": "internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go::TestDHCPv4RenewIsUnicastToServer",
               "file": "internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go",
-              "line": 405,
+              "line": 410,
               "carrier": "unit/verify",
               "claim": "-- the RENEWING DHCPREQUEST is unicast to the address the server identifier option of the ACK named, on port 67.",
               "tags": 1,
@@ -24654,7 +24654,7 @@
               "polarity": "negative",
               "unit": "internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go::TestDHCPv4ExtendIgnoresServerEchoesOnVeth",
               "file": "internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go",
-              "line": 479,
+              "line": 484,
               "carrier": "unit/verify",
               "claim": "-- with the leasing server's identifier known and reachable by unicast, the REBINDING DHCPREQUEST is still broadcast to 255.255.255.255.",
               "tags": 1,
@@ -24671,7 +24671,7 @@
               "polarity": "positive",
               "unit": "internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go::TestDHCPv4RebindAcceptsAnyServerOnVeth",
               "file": "internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go",
-              "line": 361,
+              "line": 366,
               "carrier": "unit/verify",
               "claim": "-- the DHCPREQUEST the client sends in REBINDING goes to 255.255.255.255.",
               "tags": 1,
@@ -24701,7 +24701,7 @@
               "polarity": "negative",
               "unit": "internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go::TestDHCPv4RenewsRepeatedlyOnVeth",
               "file": "internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go",
-              "line": 320,
+              "line": 321,
               "carrier": "unit/verify",
               "claim": "-- a renewal DHCPACK for the address already held is not a new address, and the client keeps it configured.",
               "tags": 1,
@@ -24718,7 +24718,7 @@
               "polarity": "positive",
               "unit": "internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go::TestDHCPv4RenewalMovesToNewAddressOnVeth",
               "file": "internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go",
-              "line": 543,
+              "line": 548,
               "carrier": "unit/verify",
               "claim": "-- given a new address by a renewal DHCPACK, the client removes the previous address from the interface.",
               "tags": 1,
@@ -24748,7 +24748,7 @@
               "polarity": "negative",
               "unit": "internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go::TestDHCPv4ExtendIgnoresServerEchoesOnVeth",
               "file": "internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go",
-              "line": 473,
+              "line": 478,
               "carrier": "unit/verify",
               "claim": "-- the ACK the RENEW extends carries a server identifier, and the RENEWING DHCPREQUEST still carries none.",
               "tags": 1,
@@ -24765,7 +24765,7 @@
               "polarity": "positive",
               "unit": "internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go::TestDHCPv4RenewIsUnicastToServer",
               "file": "internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go",
-              "line": 418,
+              "line": 423,
               "carrier": "unit/verify",
               "claim": "-- the DHCPREQUEST the client sends in RENEWING carries no server identifier option.",
               "tags": 1,
@@ -24795,7 +24795,7 @@
               "polarity": "negative",
               "unit": "internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go::TestDHCPv4ExtendIgnoresServerEchoesOnVeth",
               "file": "internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go",
-              "line": 483,
+              "line": 488,
               "carrier": "unit/verify",
               "claim": "-- the ACK the REBIND extends carries a server identifier, and the REBINDING DHCPREQUEST still carries none.",
               "tags": 1,
@@ -24812,7 +24812,7 @@
               "polarity": "positive",
               "unit": "internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go::TestDHCPv4RebindAcceptsAnyServerOnVeth",
               "file": "internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go",
-              "line": 371,
+              "line": 376,
               "carrier": "unit/verify",
               "claim": "-- the DHCPREQUEST the client sends in REBINDING carries no server identifier option.",
               "tags": 1,
@@ -29321,7 +29321,7 @@
           "gated": true,
           "positive-test": "`internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go` `TestIntegrationRSVPPathCarriage` (unit/verify)",
           "negative-test": "`internal/plugins/rsvpte/rfc2205_carrier_test.go` `TestRFC2205PathNeverLeavesWithoutRouterAlertCarrier` (unit/verify), `internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go` `TestRFC2205ResvConfNeverLeavesWithoutRouterAlertCarrier` (unit/verify)",
-          "note": "",
+          "note": "**audit: enforced, shifted**",
           "nightly-only": false,
           "covers": [
             {
@@ -29362,7 +29362,7 @@
               "polarity": "positive",
               "unit": "internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage",
               "file": "internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go",
-              "line": 390,
+              "line": 394,
               "carrier": "unit/verify",
               "claim": "-- production PATH carriage includes the IPv4 Router Alert option on the captured frame.",
               "tags": 1,
@@ -29380,7 +29380,10 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "Judged 2026-09-29 (routing child, continuation judge). Positive TestIntegrationRSVPPathCarriage proves SendPath writes Router Alert. Negatives: TestRFC2205PathNeverLeavesWithoutRouterAlertCarrier for Path/PathTear and TestRFC2205ResvConfNeverLeavesWithoutRouterAlertCarrier for both the originated and the relayed ResvConf going through SendPath, closing the vacuous ResvConf arm.",
-            "freshness": "fresh"
+            "freshness": "shifted",
+            "moved": [
+              "internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage"
+            ]
           }
         },
         {
@@ -31253,7 +31256,7 @@
           "gated": true,
           "positive-test": "`internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go` `TestIntegrationRSVPPathCarriage` (unit/verify), `internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go` `TestIntegrationRSVPPathAvoidsDataFEC` (unit/verify)",
           "negative-test": "--",
-          "note": "{single-polarity} a capability obligation (\"must be able to\"): the RFC names no behavior the node must avoid, so a negative case has nothing to show absent. The integration tests show the RSVP process resolving native routes for PATH and PathTear",
+          "note": "**audit: enforced, shifted** {single-polarity} a capability obligation (\"must be able to\"): the RFC names no behavior the node must avoid, so a negative case has nothing to show absent. The integration tests show the RSVP process resolving native routes for PATH and PathTear",
           "nightly-only": false,
           "annotation": {
             "kind": "single-polarity",
@@ -31265,7 +31268,7 @@
               "polarity": "positive",
               "unit": "internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go::TestIntegrationRSVPPathAvoidsDataFEC",
               "file": "internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go",
-              "line": 478,
+              "line": 482,
               "carrier": "unit/verify",
               "claim": "-- an ordinary PATH reaches the selected RSVP hop even after a data FEC is installed for its IP destination.",
               "tags": 1
@@ -31274,7 +31277,7 @@
               "polarity": "positive",
               "unit": "internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage",
               "file": "internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go",
-              "line": 391,
+              "line": 395,
               "carrier": "unit/verify",
               "claim": "-- native route queries send PATH and PathTear toward the explicit hop rather than the endpoint's ordinary route.",
               "tags": 1
@@ -31284,7 +31287,11 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "Single-polarity capability. Forbidden: forwarding PATH or PathTear without a routing query. TestIntegrationRSVPPathCarriage sends PATH and PathTear through SendPath, which calls RouteGetWithOptions, and fails unless the frame's L2 destination is the explicit hop; TestIntegrationRSVPPathAvoidsDataFEC resolves through ResolveRoute and asserts the PATH reaches the selected hop.",
-            "freshness": "fresh"
+            "freshness": "shifted",
+            "moved": [
+              "internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go::TestIntegrationRSVPPathAvoidsDataFEC",
+              "internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage"
+            ]
           }
         },
         {
@@ -31322,7 +31329,7 @@
               "polarity": "positive",
               "unit": "internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go::TestIntegrationRSVPPathAvoidsDataFEC",
               "file": "internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go",
-              "line": 479,
+              "line": 483,
               "carrier": "unit/verify",
               "claim": "-- the adjacent production receiver receives a nonlocal IPv4 PATH despite an installed endpoint data FEC.",
               "tags": 1
@@ -31337,7 +31344,7 @@
           "gated": true,
           "positive-test": "`internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go` `TestIntegrationRSVPPathCarriage` (unit/verify)",
           "negative-test": "--",
-          "note": "{single-polarity} a capability obligation (\"must be able to\"): the RFC names no behavior the node must avoid, so a negative case has nothing to show absent. The integration test shows the receiver observing the arrival interface, IP source and IP TTL of a diverted message",
+          "note": "**audit: enforced, shifted** {single-polarity} a capability obligation (\"must be able to\"): the RFC names no behavior the node must avoid, so a negative case has nothing to show absent. The integration test shows the receiver observing the arrival interface, IP source and IP TTL of a diverted message",
           "nightly-only": false,
           "annotation": {
             "kind": "single-polarity",
@@ -31349,7 +31356,7 @@
               "polarity": "positive",
               "unit": "internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage",
               "file": "internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go",
-              "line": 392,
+              "line": 396,
               "carrier": "unit/verify",
               "claim": "-- the transit receiver observes the actual incoming interface, original IP source and IP TTL.",
               "tags": 1
@@ -31359,7 +31366,10 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "Single-polarity capability. Forbidden: the RSVP process not seeing arrival interface, IP source or IP TTL of a diverted message. TestIntegrationRSVPPathCarriage fails unless packet.Src, Dst, TTL and IfIndex match the sent route, TTL and receiving link, for a destination not local to the receiver.",
-            "freshness": "fresh"
+            "freshness": "shifted",
+            "moved": [
+              "internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage"
+            ]
           }
         },
         {
@@ -31370,7 +31380,7 @@
           "gated": true,
           "positive-test": "`internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go` `TestIntegrationRSVPPathCarriage` (unit/verify)",
           "negative-test": "--",
-          "note": "{single-polarity} a capability obligation (\"must be able to\"): the RFC names no behavior the node must avoid, so a negative case has nothing to show absent. The integration test shows SendPath pinning the explicit hop link through IP_PKTINFO against the ordinary route",
+          "note": "**audit: enforced, shifted** {single-polarity} a capability obligation (\"must be able to\"): the RFC names no behavior the node must avoid, so a negative case has nothing to show absent. The integration test shows SendPath pinning the explicit hop link through IP_PKTINFO against the ordinary route",
           "nightly-only": false,
           "annotation": {
             "kind": "single-polarity",
@@ -31382,7 +31392,7 @@
               "polarity": "positive",
               "unit": "internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage",
               "file": "internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go",
-              "line": 393,
+              "line": 397,
               "carrier": "unit/verify",
               "claim": "-- native carriage selects the explicit hop's link while preserving an IP destination routed through the other link.",
               "tags": 1
@@ -31392,7 +31402,10 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "Single-polarity capability. Forbidden: a PATH following the ordinary route instead of the forced link. TestIntegrationRSVPPathCarriage fails unless the frame's L2 destination is link 0's peer while the endpoint's ordinary route uses link 1, as the Send control on link 1 shows.",
-            "freshness": "fresh"
+            "freshness": "shifted",
+            "moved": [
+              "internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage"
+            ]
           }
         },
         {
@@ -31415,7 +31428,7 @@
               "polarity": "positive",
               "unit": "internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage",
               "file": "internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go",
-              "line": 394,
+              "line": 398,
               "carrier": "unit/verify",
               "claim": "-- the captured PATH carries the requested sender source and Send_TTL in its IPv4 header.",
               "tags": 1
@@ -34400,7 +34413,7 @@
           "gated": true,
           "positive-test": "`internal/plugins/ospf/transport/rfc2328_socket_linux_test.go` `TestOSPFMulticastMembershipInstalled` (unit/verify), `internal/plugins/ospf/transport/rfc2328_transport_integration_linux_test.go` `TestOSPFTransportVethMulticastRoundTrip` (unit/verify)",
           "negative-test": "`internal/plugins/ospf/transport/rfc2328_socket_linux_test.go` `TestOSPFMulticastMembershipRefusesForeignGroup` (unit/verify), `internal/plugins/ospf/transport/rfc2328_transport_integration_linux_test.go` `TestOSPFTransportAllDRoutersReceive` (unit/verify)",
-          "note": "",
+          "note": "**audit: enforced, shifted**",
           "nightly-only": false,
           "covers": [
             {
@@ -34424,7 +34437,7 @@
               "polarity": "negative",
               "unit": "internal/plugins/ospf/transport/rfc2328_transport_integration_linux_test.go::TestOSPFTransportAllDRoutersReceive",
               "file": "internal/plugins/ospf/transport/rfc2328_transport_integration_linux_test.go",
-              "line": 94,
+              "line": 100,
               "carrier": "unit/verify",
               "claim": "-- after the receiver leaves AllDRouters, a datagram to that group is no longer delivered, with successful receipt before leaving as the positive control over the same peer link.",
               "tags": 1,
@@ -34458,7 +34471,7 @@
               "polarity": "positive",
               "unit": "internal/plugins/ospf/transport/rfc2328_transport_integration_linux_test.go::TestOSPFTransportVethMulticastRoundTrip",
               "file": "internal/plugins/ospf/transport/rfc2328_transport_integration_linux_test.go",
-              "line": 44,
+              "line": 50,
               "carrier": "unit/verify",
               "claim": "-- the production backend selects the configured multicast egress and sends AllSPFRouters across a veth to a peer namespace, whose OSPF socket receives the unchanged datagram.",
               "tags": 1,
@@ -34476,7 +34489,11 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "Re-judged 2026-10-12 (independent auditor). SHIFTED by 6e063fb498 (tests: give ten assert-nothing tests a real assertion), whose hunks sit in untagged sibling tests and the import block. The tagged unit is byte-identical (gate-verified) and no helper it calls changed. Verdict stands. Independent judgment: RFC 2328 section 4.4 says, \"Support for receiving and sending IP multicast datagrams, along with the appropriate lower-level protocol support, is required.\" The production raw protocol-89 backend now has proof on both sides: TestOSPFTransportVethMulticastRoundTrip reads IP_MULTICAST_IF == 192.0.2.1 and TTL 1, sends AllSPFRouters over a real veth into a peer namespace, and asserts receiving interface, source and exact payload. TestOSPFTransportAllDRoutersReceive first receives on that same link, leaves AllDRouters and requires subsequent delivery to be absent. The original duplicate-join/drop errno assertions prove actual socket membership installation/removal; the foreign-group refusal is supplementary OSPF API confinement, not a general IP multicast forwarding obligation. Inspected runInNS: caller pins its thread, namespace entry and deferred restoration each load the real netlink backend, LoadBackend closes the old counter socket and the replacement lazily opens in its lookup namespace; no fake resolver bypass. Inspected four native recorded producer-halt observations and fresh records. This proves Ze's configured socket/send/receive boundary, not Linux multicast forwarding (expressly not required by this section). No new judge test run.",
-            "freshness": "fresh"
+            "freshness": "shifted",
+            "moved": [
+              "internal/plugins/ospf/transport/rfc2328_transport_integration_linux_test.go::TestOSPFTransportAllDRoutersReceive",
+              "internal/plugins/ospf/transport/rfc2328_transport_integration_linux_test.go::TestOSPFTransportVethMulticastRoundTrip"
+            ]
           }
         },
         {
@@ -51340,14 +51357,14 @@
           "gated": true,
           "positive-test": "`internal/component/radius/rfc2865_client_test.go` `TestClientAuthenticatorVerify` (unit/verify)",
           "negative-test": "`internal/component/radius/rfc2865_client_test.go` `TestClientAuthenticatorVerify` (unit/verify)",
-          "note": "",
+          "note": "**audit: enforced, stale-unit**",
           "nightly-only": false,
           "covers": [
             {
               "polarity": "negative",
               "unit": "internal/component/radius/rfc2865_client_test.go::TestClientAuthenticatorVerify",
               "file": "internal/component/radius/rfc2865_client_test.go",
-              "line": 389,
+              "line": 394,
               "carrier": "unit/verify",
               "claim": "-- the first reply, signed with the wrong secret, fails Response Authenticator verification and is silently discarded, so the client must retransmit (\u003e= 2 attempts) before it accepts the correctly signed reply.",
               "tags": 1,
@@ -51355,7 +51372,7 @@
                 "route": "revert",
                 "state": "verified",
                 "producer": "internal/component/radius/packet.go::VerifyResponseAuth",
-                "break": "body of VerifyResponseAuth replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "break": "body of VerifyResponseAuth replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
                 "verified": true,
                 "proves": true
               }
@@ -51364,7 +51381,7 @@
               "polarity": "positive",
               "unit": "internal/component/radius/rfc2865_client_test.go::TestClientAuthenticatorVerify",
               "file": "internal/component/radius/rfc2865_client_test.go",
-              "line": 384,
+              "line": 389,
               "carrier": "unit/verify",
               "claim": "-- the client trusts and returns the response whose Response Authenticator verifies against the shared secret.",
               "tags": 1,
@@ -51372,7 +51389,7 @@
                 "route": "revert",
                 "state": "verified",
                 "producer": "internal/component/radius/packet.go::VerifyResponseAuth",
-                "break": "body of VerifyResponseAuth replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "break": "body of VerifyResponseAuth replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
                 "verified": true,
                 "proves": true
               }
@@ -51382,7 +51399,11 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "Judged 2026-09-30 (rfc/full/rfc2865.txt:1015-1018, Section 4.2, 'Invalid packets are silently discarded.', MUST under D-3). Forbidden: a client trusting an Access-Accept whose Response Authenticator does not verify. TestClientAuthenticatorVerify answers the first attempt with an Accept signed with the wrong secret and every later one correctly signed: attempts \u003e= 2 fails if the first reply is accepted rather than dropped (the client retransmits only when it discarded it), and the Code assertion fails if the correctly signed reply is not accepted. Only the secret differs between the two replies, so the buffer isolates the authenticator. Producer packet.go::VerifyResponseAuth via Client.Exchange; both polarities recorded and observed red. Tags moved from the retired RFC2865-3-4 under ruling R11; test body unchanged.",
-            "freshness": "fresh"
+            "freshness": "stale-unit",
+            "moved": [
+              "internal/component/radius/rfc2865_client_test.go::TestClientAuthenticatorVerify",
+              "internal/component/radius/rfc2865_client_test.go::TestClientAuthenticatorVerify#2"
+            ]
           }
         },
         {
@@ -51393,7 +51414,7 @@
           "gated": true,
           "positive-test": "`internal/component/radius/rfc2865_client_test.go` `TestClientRetransmit` (unit/verify), `internal/component/radius/rfc2865_wire_rules_test.go` `TestRFC2865RetransmitRepeatsIdentifierAuthenticatorAndSourcePort` (unit/verify)",
           "negative-test": "--",
-          "note": "{single-polarity} a retransmission resends the identical pre-encoded request buffer (internal/component/radius/client.go:159), so the Identifier and Request Authenticator are unchanged by construction and there is no divergent-retransmit code path",
+          "note": "**audit: enforced, stale-unit** {single-polarity} a retransmission resends the identical pre-encoded request buffer (internal/component/radius/client.go:159), so the Identifier and Request Authenticator are unchanged by construction and there is no divergent-retransmit code path",
           "nightly-only": false,
           "annotation": {
             "kind": "single-polarity",
@@ -51405,7 +51426,7 @@
               "polarity": "positive",
               "unit": "internal/component/radius/rfc2865_client_test.go::TestClientRetransmit",
               "file": "internal/component/radius/rfc2865_client_test.go",
-              "line": 195,
+              "line": 200,
               "carrier": "unit/verify",
               "claim": "-- Exchange resends the identical pre-encoded request buffer on retransmit, so the Identifier and Request Authenticator are unchanged across attempts and the server can still match the reply.",
               "tags": 1,
@@ -51413,7 +51434,7 @@
                 "route": "revert",
                 "state": "verified",
                 "producer": "internal/component/radius/client.go::Exchange",
-                "break": "body of Exchange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "break": "body of Exchange replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
                 "verified": true,
                 "proves": true
               }
@@ -51430,7 +51451,7 @@
                 "route": "revert",
                 "state": "verified",
                 "producer": "internal/component/radius/client.go::Exchange",
-                "break": "body of Exchange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "break": "body of Exchange replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
                 "verified": true,
                 "proves": true
               }
@@ -51440,7 +51461,11 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "TestRFC2865RetransmitRepeatsIdentifierAuthenticatorAndSourcePort drives a real retransmit through Client.Exchange (first datagram unanswered), asserts the attribute octets unchanged first, then byte-compares the Identifier, all 16 Request Authenticator octets and the source addr:port of every retransmit against the first. A client that re-encoded with a new ID or authenticator, or opened a new socket, goes red. The {single-polarity: positive} annotation holds: a same-ID MUST has no inbound input to refuse. TestClientRetransmit remains a floor assertion.",
-            "freshness": "fresh"
+            "freshness": "stale-unit",
+            "moved": [
+              "internal/component/radius/rfc2865_client_test.go::TestClientRetransmit",
+              "internal/component/radius/rfc2865_wire_rules_test.go::TestRFC2865RetransmitRepeatsIdentifierAuthenticatorAndSourcePort"
+            ]
           }
         },
         {
@@ -52043,7 +52068,7 @@
                 "route": "revert",
                 "state": "verified",
                 "producer": "internal/component/radius/client.go::Exchange",
-                "break": "body of Exchange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "break": "body of Exchange replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
                 "verified": true,
                 "proves": true
               }
@@ -52069,7 +52094,7 @@
                 "route": "revert",
                 "state": "verified",
                 "producer": "internal/component/radius/client.go::Exchange",
-                "break": "body of Exchange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "break": "body of Exchange replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
                 "verified": true,
                 "proves": true
               }
@@ -52108,7 +52133,7 @@
               "polarity": "positive",
               "unit": "internal/component/l2tp/plugins/authradius/rfc2865_handler_test.go::TestRADIUSAuthNASIPAddress",
               "file": "internal/component/l2tp/plugins/authradius/rfc2865_handler_test.go",
-              "line": 423,
+              "line": 424,
               "carrier": "unit/verify",
               "claim": "-- the packet ze transmits to authenticate a subscriber carries 1 (Access-Request) in its Code field.",
               "tags": 1,
@@ -52116,7 +52141,7 @@
                 "route": "revert",
                 "state": "verified",
                 "producer": "internal/component/radius/packet.go::EncodeTo",
-                "break": "body of EncodeTo replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "break": "body of EncodeTo replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
                 "verified": true,
                 "proves": true
               }
@@ -52172,7 +52197,7 @@
                 "route": "revert",
                 "state": "verified",
                 "producer": "internal/component/radius/client.go::Exchange",
-                "break": "body of Exchange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "break": "body of Exchange replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
                 "verified": true,
                 "proves": true
               }
@@ -52198,7 +52223,7 @@
                 "route": "revert",
                 "state": "verified",
                 "producer": "internal/component/radius/client.go::SendToServers",
-                "break": "body of SendToServers replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "break": "body of SendToServers replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
                 "verified": true,
                 "proves": true
               }
@@ -52213,7 +52238,7 @@
           "gated": true,
           "positive-test": "`internal/component/l2tp/plugins/authradius/rfc2865_handler_test.go` `TestRADIUSAuthNASIPAddress` (unit/verify), `internal/component/radius/rfc2865_walk_test.go` `TestAdminAccessRequestIdentifiesTheNAS` (unit/verify)",
           "negative-test": "`internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go` `TestRFC2865AccessRequestNamesTheNASWithNoIdentityConfigured` (unit/verify)",
-          "note": "",
+          "note": "**audit: enforced, stale-unit**",
           "nightly-only": false,
           "covers": [
             {
@@ -52237,7 +52262,7 @@
               "polarity": "positive",
               "unit": "internal/component/l2tp/plugins/authradius/rfc2865_handler_test.go::TestRADIUSAuthNASIPAddress",
               "file": "internal/component/l2tp/plugins/authradius/rfc2865_handler_test.go",
-              "line": 425,
+              "line": 426,
               "carrier": "unit/verify",
               "claim": "-- that same packet carries a NAS-IP-Address attribute holding the configured source address.",
               "tags": 1,
@@ -52245,7 +52270,7 @@
                 "route": "revert",
                 "state": "verified",
                 "producer": "internal/component/l2tp/plugins/authradius/nasidentity.go::appendNASIdentity",
-                "break": "body of appendNASIdentity replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "break": "body of appendNASIdentity replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
                 "verified": true,
                 "proves": true
               }
@@ -52272,7 +52297,10 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "Forbidden: an Access-Request with neither NAS-IP-Address nor NAS-Identifier. radius TestAdminAccessRequestIdentifiesTheNAS asserts hasIP || hasID on the wire; authradius TestRFC2865AccessRequestNamesTheNASWithNoIdentityConfigured asserts a non-empty NAS-Identifier even with nothing configured (red if the request goes out naming no NAS).",
-            "freshness": "fresh"
+            "freshness": "stale-unit",
+            "moved": [
+              "internal/component/l2tp/plugins/authradius/rfc2865_handler_test.go::TestRADIUSAuthNASIPAddress"
+            ]
           }
         },
         {
@@ -52383,7 +52411,7 @@
                 "route": "revert",
                 "state": "verified",
                 "producer": "internal/component/radius/authenticator_eap.go::eapCredential",
-                "break": "body of eapCredential replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "break": "body of eapCredential replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
                 "verified": true,
                 "proves": true
               }
@@ -52813,7 +52841,7 @@
               "polarity": "positive",
               "unit": "internal/component/radius/rfc2865_authenticator_test.go::TestRadiusAdminChapAttributes",
               "file": "internal/component/radius/rfc2865_authenticator_test.go",
-              "line": 404,
+              "line": 419,
               "carrier": "unit/verify",
               "claim": "-- an Access-Request built for auth-method chap carries a CHAP-Password and no User-Password, so the two credentials are never both present.",
               "tags": 1,
@@ -52868,7 +52896,7 @@
                 "route": "revert",
                 "state": "verified",
                 "producer": "internal/component/radius/client.go::Exchange",
-                "break": "body of Exchange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "break": "body of Exchange replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
                 "verified": true,
                 "proves": true
               }
@@ -53143,7 +53171,7 @@
                 "route": "revert",
                 "state": "verified",
                 "producer": "internal/component/radius/authenticator_eap.go::eapCredential",
-                "break": "body of eapCredential replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "break": "body of eapCredential replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
                 "verified": true,
                 "proves": true
               }
@@ -53160,7 +53188,7 @@
                 "route": "revert",
                 "state": "verified",
                 "producer": "internal/component/radius/authenticator_eap.go::eapCredential",
-                "break": "body of eapCredential replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "break": "body of eapCredential replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
                 "verified": true,
                 "proves": true
               }
@@ -53214,7 +53242,7 @@
               "polarity": "positive",
               "unit": "internal/component/radius/rfc2865_authenticator_test.go::TestRadiusClassIsNotInterpretedLocally",
               "file": "internal/component/radius/rfc2865_authenticator_test.go",
-              "line": 307,
+              "line": 322,
               "carrier": "unit/verify",
               "claim": "-- an Access-Accept whose only candidate carrier is Class (25) resolves to no profile, so the login is rejected rather than authorized from a locally interpreted Class value.",
               "tags": 1
@@ -54202,7 +54230,7 @@
                 "route": "revert",
                 "state": "verified",
                 "producer": "internal/component/radius/client.go::encodeRequest",
-                "break": "body of encodeRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "break": "body of encodeRequest replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
                 "verified": true,
                 "proves": true
               }
@@ -54561,7 +54589,7 @@
               "polarity": "negative",
               "unit": "internal/component/l2tp/plugins/authradius/rfc2866_zero_marked_login_test.go::TestRFC2866LoginCredentialsAndAcceptStateNeverReachAccounting",
               "file": "internal/component/l2tp/plugins/authradius/rfc2866_zero_marked_login_test.go",
-              "line": 260,
+              "line": 261,
               "carrier": "unit/verify",
               "claim": "-- after logins whose Access-Requests carried User-Password, CHAP-Password and CHAP-Challenge and whose Access-Accept carried State and Reply-Message, no Start or Stop of either session carries one of those attributes or the value any of them held (handler.go doRADIUS, acct.go buildAcctPacket).",
               "tags": 1,
@@ -54595,7 +54623,7 @@
               "polarity": "positive",
               "unit": "internal/component/l2tp/plugins/authradius/rfc2866_zero_marked_login_test.go::TestRFC2866LoggedInSessionAccountsWithoutZeroMarkedAttributes",
               "file": "internal/component/l2tp/plugins/authradius/rfc2866_zero_marked_login_test.go",
-              "line": 232,
+              "line": 233,
               "carrier": "unit/verify",
               "claim": "-- the Start and the Stop a real CHAP login's session sends are Accounting-Requests naming its user and an Acct-Session-Id, and neither carries User-Password, CHAP-Password, Reply-Message, State or CHAP-Challenge (handler.go doRADIUS, acct.go onSessionIPAssigned, onSessionDown, buildAcctPacket).",
               "tags": 1,
@@ -54624,7 +54652,7 @@
           "gated": true,
           "positive-test": "`internal/component/radius/rfc2866_accounting_test.go` `TestRFC2866AccountingRetransmitTakesANewIdentifier` (unit/verify), `internal/component/radius/rfc2866_acct_delay_time_omit_test.go` `TestRFC2866AccountingRetransmitWithoutDelayTimeKeepsIdentifier` (unit/verify), `internal/component/radius/rfc2866_sent_request_test.go` `TestRFC2866AccountingRetransmitTakesANewIdentifierAndRequestAuthenticator` (unit/verify)",
           "negative-test": "`internal/component/radius/rfc2866_accounting_test.go` `TestRFC2866AccountingDistinctRequestsDifferIdentifier` (unit/verify)",
-          "note": "",
+          "note": "**audit: enforced, stale-unit**",
           "nightly-only": false,
           "covers": [
             {
@@ -54656,7 +54684,7 @@
                 "route": "revert",
                 "state": "verified",
                 "producer": "internal/component/radius/client.go::setAcctDelayTime",
-                "break": "body of setAcctDelayTime replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "break": "body of setAcctDelayTime replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
                 "verified": true,
                 "proves": true
               }
@@ -54673,7 +54701,7 @@
                 "route": "revert",
                 "state": "verified",
                 "producer": "internal/component/radius/client.go::Exchange",
-                "break": "body of Exchange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "break": "body of Exchange replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
                 "verified": true,
                 "proves": true
               }
@@ -54690,7 +54718,7 @@
                 "route": "revert",
                 "state": "verified",
                 "producer": "internal/component/radius/client.go::Exchange",
-                "break": "body of Exchange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "break": "body of Exchange replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
                 "verified": true,
                 "proves": true
               }
@@ -54700,7 +54728,11 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "Clause 1: TestRFC2866AccountingRetransmitWithoutDelayTimeKeepsIdentifier goes red on a changed Identifier for identical contents. Clause 2: TestRFC2866AccountingRetransmitTakesANewIdentifierAndRequestAuthenticator forces a retransmit whose Acct-Delay-Time moves 0-\u003e1 and asserts a new Identifier, a new Request Authenticator, and each authenticator equal to the Section 3 MD5 of its own datagram. The two clauses are opposite polarities of one rule, so a client that always or never changes the ID goes red. TestRFC2866AccountingDistinctRequestsDifferIdentifier is mislabeled: it proves RFC2866-4.1-4.",
-            "freshness": "fresh"
+            "freshness": "stale-unit",
+            "moved": [
+              "internal/component/radius/rfc2866_accounting_test.go::TestRFC2866AccountingRetransmitTakesANewIdentifier",
+              "internal/component/radius/rfc2866_acct_delay_time_omit_test.go::TestRFC2866AccountingRetransmitWithoutDelayTimeKeepsIdentifier"
+            ]
           }
         },
         {
@@ -54885,7 +54917,7 @@
                 "route": "revert",
                 "state": "verified",
                 "producer": "internal/component/radius/client.go::SendToServers",
-                "break": "body of SendToServers replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "break": "body of SendToServers replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
                 "verified": true,
                 "proves": true
               }
@@ -54902,7 +54934,7 @@
                 "route": "revert",
                 "state": "verified",
                 "producer": "internal/component/radius/client.go::Exchange",
-                "break": "body of Exchange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "break": "body of Exchange replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
                 "verified": true,
                 "proves": true
               }
@@ -54919,7 +54951,7 @@
                 "route": "revert",
                 "state": "verified",
                 "producer": "internal/component/radius/client.go::SendToServers",
-                "break": "body of SendToServers replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "break": "body of SendToServers replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
                 "verified": true,
                 "proves": true
               }
@@ -56853,7 +56885,7 @@
               "polarity": "negative",
               "unit": "internal/component/radius/rfc2869_credential_types_test.go::TestRFC2869EAPBesideAnotherCredentialIsRefused",
               "file": "internal/component/radius/rfc2869_credential_types_test.go",
-              "line": 70,
+              "line": 69,
               "carrier": "unit/verify",
               "claim": "-- an Access-Request carrying EAP-Message beside a User-Password, beside a CHAP-Password, or beside an ARAP-Password, is refused by Client.Exchange with an error, and no datagram reaches the server (client.go encodeRequest, oneCredentialType).",
               "tags": 1,
@@ -56887,7 +56919,7 @@
               "polarity": "positive",
               "unit": "internal/component/radius/rfc2869_credential_types_test.go::TestRFC2869EAPOnlyAccessRequestIsSent",
               "file": "internal/component/radius/rfc2869_credential_types_test.go",
-              "line": 53,
+              "line": 52,
               "carrier": "unit/verify",
               "claim": "-- an Access-Request carrying EAP-Message attributes and none of User-Password, CHAP-Password or ARAP-Password is sent: Client.Exchange succeeds, and the server reads one datagram whose EAP-Message is present and which carries none of the other three (client.go encodeRequest, oneCredentialType).",
               "tags": 1,
@@ -57949,7 +57981,7 @@
         "audited": 7,
         "discrimination-records": 11,
         "escapes": 0,
-        "stale-records": 0
+        "stale-records": 2
       },
       "requirements": [
         {
@@ -58262,10 +58294,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/egress_inject_filter.go::exportFilterForBody",
                 "break": "body of exportFilterForBody replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -58313,10 +58346,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/egress_inject_filter.go::exportFilterForBody",
                 "break": "body of exportFilterForBody replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -67825,7 +67859,7 @@
               "polarity": "negative",
               "unit": "internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapAcceptWithEapFailureStillAuthorizes",
               "file": "internal/component/radius/authenticator_eap_test.go",
-              "line": 880,
+              "line": 881,
               "carrier": "unit/verify",
               "claim": "-- a decision that followed anything OTHER than the RADIUS Packet Type would refuse this login; it succeeds, so the packet type alone decided it (authenticator_eap.go authenticateEAP, authenticator.go result).",
               "tags": 1,
@@ -67895,7 +67929,7 @@
               "polarity": "positive",
               "unit": "internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapAcceptWithEapFailureStillAuthorizes",
               "file": "internal/component/radius/authenticator_eap_test.go",
-              "line": 884,
+              "line": 885,
               "carrier": "unit/verify",
               "claim": "-- \"The access control decision MUST NOT be based on the contents of the EAP packet encapsulated in one or more EAP-Message attributes, if present\": the reply here carries an EAP-Failure and the login is granted.",
               "tags": 1,
@@ -68077,7 +68111,7 @@
           "gated": true,
           "positive-test": "`internal/component/radius/rfc3579_eap_test.go` `TestEAPMessageSplitsAtTheAttributeLimit` (unit/verify), `internal/component/radius/rfc3579_eap_test.go` `TestEAPMessageConcatenatesOnTheWayIn` (unit/verify)",
           "negative-test": "`internal/component/radius/rfc3579_eap_test.go` `TestEAPMessageKeepsTheRunConsecutive` (unit/verify)",
-          "note": "",
+          "note": "**audit: enforced, stale-unit**",
           "nightly-only": false,
           "covers": [
             {
@@ -68091,8 +68125,8 @@
               "proof": {
                 "route": "revert",
                 "state": "verified",
-                "producer": "internal/component/radius/authenticator_eap.go::eapCredential",
-                "break": "body of eapCredential replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "producer": "internal/component/radius/eap.go::appendEAPMessage",
+                "break": "body of appendEAPMessage replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
                 "verified": true,
                 "proves": true
               }
@@ -68136,7 +68170,10 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "split at 253 in order (join reproduces the packet), no foreign attribute inside the run (Message-Authenticator and State after it), and receive-side concatenation around foreign attributes",
-            "freshness": "fresh"
+            "freshness": "stale-unit",
+            "moved": [
+              "internal/component/radius/rfc3579_eap_test.go::TestEAPMessageKeepsTheRunConsecutive"
+            ]
           }
         },
         {
@@ -68199,13 +68236,13 @@
           "text": "Therefore the Message-Authenticator attribute MUST be used to protect all Access-Request, Access-Challenge, Access-Accept, and Access-Reject packets containing an EAP-Message attribute. (§3.1, restated §3.2, §3.3 Note 1 and §4.3.2)",
           "gated": true,
           "positive-test": "`internal/component/radius/authenticator_eap_test.go` `TestRadiusAdminEapAccessRequestIsSignedAndCarriesEAPMessage` (unit/verify)",
-          "negative-test": "`internal/component/radius/authenticator_eap_test.go` `TestEAPRequestWithoutMessageAuthenticatorIsRefused` (unit/verify)",
-          "note": "",
+          "negative-test": "`internal/component/radius/authenticator_eap_test.go` `TestEAPRequestWithoutMessageAuthenticatorIsSigned` (unit/verify)",
+          "note": "**audit: enforced, stale-unit**",
           "nightly-only": false,
           "covers": [
             {
               "polarity": "negative",
-              "unit": "internal/component/radius/authenticator_eap_test.go::TestEAPRequestWithoutMessageAuthenticatorIsRefused",
+              "unit": "internal/component/radius/authenticator_eap_test.go::TestEAPRequestWithoutMessageAuthenticatorIsSigned",
               "file": "internal/component/radius/authenticator_eap_test.go",
               "line": 749,
               "carrier": "unit/verify",
@@ -68214,8 +68251,8 @@
               "proof": {
                 "route": "revert",
                 "state": "verified",
-                "producer": "internal/component/radius/client.go::carriesEAPMessage",
-                "break": "body of carriesEAPMessage replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "producer": "internal/component/radius/client.go::insertMessageAuthenticatorFirst",
+                "break": "body of insertMessageAuthenticatorFirst replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
                 "verified": true,
                 "proves": true
               }
@@ -68242,7 +68279,11 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "every EAP-bearing Access-Request carries a 16-octet Message-Authenticator that the mock server verifies; encodeRequest refuses an EAP-Message without the placeholder and replaces it with the HMAC. Ze sends only Access-Requests, so the Challenge/Accept/Reject clauses bind the server",
-            "freshness": "fresh"
+            "freshness": "stale-unit",
+            "moved": [
+              "internal/component/radius/authenticator_eap_test.go::TestEAPRequestWithoutMessageAuthenticatorIsRefused",
+              "internal/component/radius/authenticator_eap_test.go::TestEAPRequestWithoutMessageAuthenticatorIsSigned"
+            ]
           }
         },
         {
@@ -68277,7 +68318,7 @@
               "polarity": "positive",
               "unit": "internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapVerifiedChallengeIsAccepted",
               "file": "internal/component/radius/authenticator_eap_test.go",
-              "line": 915,
+              "line": 916,
               "carrier": "unit/verify",
               "claim": "-- \"A NAS supporting the EAP-Message attribute MUST calculate the correct value of the Message-Authenticator\": a reply whose value matches is accepted and answered, and the exchange reaches an Access-Accept (client.go dispatchResponse, packet.go verifyResponseMessageAuthenticator).",
               "tags": 1,
@@ -68374,7 +68415,7 @@
                 "route": "revert",
                 "state": "verified",
                 "producer": "internal/component/radius/client.go::encodeRequest",
-                "break": "body of encodeRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "break": "body of encodeRequest replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
                 "verified": true,
                 "proves": true
               }
@@ -68391,7 +68432,7 @@
                 "route": "revert",
                 "state": "verified",
                 "producer": "internal/component/radius/client.go::encodeRequest",
-                "break": "body of encodeRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "break": "body of encodeRequest replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
                 "verified": true,
                 "proves": true
               }
@@ -68412,14 +68453,14 @@
           "gated": true,
           "positive-test": "`internal/component/radius/authenticator_eap_test.go` `TestRadiusAdminEapAccessRequestIsSignedAndCarriesEAPMessage` (unit/verify), `internal/component/radius/authenticator_eap_test.go` `TestRFC3579EachCredentialTypeAloneEncodes` (unit/verify)",
           "negative-test": "`internal/component/radius/authenticator_eap_test.go` `TestAccessRequestRefusesTwoCredentialTypes` (unit/verify), `internal/component/radius/rfc3579_credential_types_test.go` `TestRFC3579ARAPBesideEAPIsRefusedAtExchange` (unit/verify)",
-          "note": "",
+          "note": "**audit: enforced, stale-unit**",
           "nightly-only": false,
           "covers": [
             {
               "polarity": "negative",
               "unit": "internal/component/radius/authenticator_eap_test.go::TestAccessRequestRefusesTwoCredentialTypes",
               "file": "internal/component/radius/authenticator_eap_test.go",
-              "line": 958,
+              "line": 959,
               "carrier": "unit/verify",
               "claim": "-- \"An Access-Request that contains either a User-Password or CHAP-Password or ARAP-Password or one or more EAP-Message attributes MUST NOT contain more than one type of those four attributes\" (client.go encodeRequest, oneCredentialType).",
               "tags": 1,
@@ -68427,7 +68468,7 @@
                 "route": "revert",
                 "state": "verified",
                 "producer": "internal/component/radius/client.go::oneCredentialType",
-                "break": "body of oneCredentialType replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "break": "body of oneCredentialType replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
                 "verified": true,
                 "proves": true
               }
@@ -68461,7 +68502,7 @@
                 "route": "revert",
                 "state": "verified",
                 "producer": "internal/component/radius/client.go::oneCredentialType",
-                "break": "body of oneCredentialType replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "break": "body of oneCredentialType replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
                 "verified": true,
                 "proves": true
               }
@@ -68478,7 +68519,7 @@
                 "route": "revert",
                 "state": "verified",
                 "producer": "internal/component/radius/authenticator_eap.go::eapCredential",
-                "break": "body of eapCredential replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "break": "body of eapCredential replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
                 "verified": true,
                 "proves": true
               }
@@ -68488,7 +68529,11 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "Rejudged 2026-10-14 by a reader who did not author the tests. (a) forbidden: an Access-Request carrying two of User-Password, CHAP-Password, ARAP-Password, EAP-Message. - TestAccessRequestRefusesTwoCredentialTypes drives all six pairs of the four types through encodeRequest and requires an error naming both types and zero octets; + TestRFC3579EachCredentialTypeAloneEncodes encodes each type alone, so the refusal is the pair's; - TestRFC3579ARAPBesideEAPIsRefusedAtExchange shows the guard at Client.Exchange, with no datagram reaching the server. Producer client.go oneCredentialType now names ARAP-Password (70), called by encodeRequest for every CodeAccessRequest. Several EAP-Message fragments (one type) are allowed by the code and not separately asserted.",
-            "freshness": "fresh"
+            "freshness": "stale-unit",
+            "moved": [
+              "internal/component/radius/authenticator_eap_test.go::TestAccessRequestRefusesTwoCredentialTypes",
+              "internal/component/radius/authenticator_eap_test.go::TestRFC3579EachCredentialTypeAloneEncodes"
+            ]
           }
         },
         {
@@ -68606,7 +68651,7 @@
                 "route": "revert",
                 "state": "verified",
                 "producer": "internal/component/radius/authenticator_eap.go::eapCredential",
-                "break": "body of eapCredential replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "break": "body of eapCredential replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
                 "verified": true,
                 "proves": true
               }
@@ -68865,7 +68910,7 @@
               "polarity": "negative",
               "unit": "internal/component/radius/rfc3579_client_test.go::TestRadiusDiscardsEAPAnswerWithoutMessageAuthenticator",
               "file": "internal/component/radius/rfc3579_client_test.go",
-              "line": 75,
+              "line": 78,
               "carrier": "unit/verify",
               "claim": "-- an Access-Accept, Access-Reject or Access-Challenge carrying an EAP-Message and no Message-Authenticator is not returned by Client.Exchange, and ze_radius_unsigned_eap_discards_total counts it (client.go dispatchResponse, packet.go verifyResponseMessageAuthenticator).",
               "tags": 1,
@@ -91084,7 +91129,7 @@
         "audited": 95,
         "discrimination-records": 240,
         "escapes": 0,
-        "stale-records": 1
+        "stale-records": 6
       },
       "requirements": [
         {
@@ -96272,10 +96317,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/filter_ordered.go::runEgressPolicyChainASN4",
                 "break": "body of runEgressPolicyChainASN4 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -96289,10 +96335,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/filter_ordered.go::runEgressPolicyChainASN4",
                 "break": "body of runEgressPolicyChainASN4 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -96645,10 +96692,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/filter_ordered.go::runIngressPolicyChain",
                 "break": "body of runIngressPolicyChain replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             }
@@ -97134,10 +97182,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/filter_ordered.go::runIngressPolicyChain",
                 "break": "body of runIngressPolicyChain replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -97757,10 +97806,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/filter_ordered.go::runIngressPolicyChain",
                 "break": "body of runIngressPolicyChain replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -106119,14 +106169,14 @@
           "gated": true,
           "positive-test": "`internal/plugins/ospf/rfc4302_ipsec_pmtu_integration_linux_test.go` `TestAHPathMTUIsSignaledToTheLocalSender` (unit/verify)",
           "negative-test": "`internal/plugins/ospf/rfc4302_ipsec_pmtu_integration_linux_test.go` `TestAHPathMTUIsSignaledToTheLocalSender` (unit/verify)",
-          "note": "",
+          "note": "**audit: enforced, shifted**",
           "nightly-only": false,
           "covers": [
             {
               "polarity": "negative",
               "unit": "internal/plugins/ospf/rfc4302_ipsec_pmtu_integration_linux_test.go::TestAHPathMTUIsSignaledToTheLocalSender",
               "file": "internal/plugins/ospf/rfc4302_ipsec_pmtu_integration_linux_test.go",
-              "line": 143,
+              "line": 144,
               "carrier": "unit/verify",
               "claim": "-- the reduction is caused by the state Ze installs rather than by the link: the same socket over the same interface, measured before the AH interface is configured and again after onInterfaceDown removes it, reports the unreduced MTU both times, so an installer that signals a smaller MTU when no AH is configured fails here.",
               "tags": 1,
@@ -106143,7 +106193,7 @@
               "polarity": "positive",
               "unit": "internal/plugins/ospf/rfc4302_ipsec_pmtu_integration_linux_test.go::TestAHPathMTUIsSignaledToTheLocalSender",
               "file": "internal/plugins/ospf/rfc4302_ipsec_pmtu_integration_linux_test.go",
-              "line": 133,
+              "line": 134,
               "carrier": "unit/verify",
               "claim": "-- RFC 4302 Section 3.3.4: \"In any case, an AH implementation MUST support generation of ICMP PMTU messages (or equivalent internal signaling for native host implementations) to minimize the likelihood of fragmentation.\" Ze installs transport-mode AH for the host's own OSPFv3, which is the native host case, and RFC 4301 Section 8.2.1 states the obligation for it: \"Signaling of the PMTU information is internal to the host.\" The body drives the real installer so buildIPsecSA writes the AH state and buildIPsecPolicies writes the outbound require-policy, then asks the kernel for the path MTU of a raw OSPF socket over the scoped interface, and asserts the reported MTU dropped by at least the AH header the configured integrity algorithm needs.",
               "tags": 1,
@@ -106161,7 +106211,11 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "(a) forbidden: an AH native-host implementation that gives the local sender no PMTU signal for the AH overhead. (b) TestAHPathMTUIsSignaledToTheLocalSender (real XFRM): the IPV6_MTU of a raw OSPF socket must drop by at least ahHeaderOctets after the installer writes the AH state and policy (protected \u003e= clear is red), and return to the clear value when the state is removed. Ze is transport-mode host only, so the internal-signalling alternative the sentence gives native hosts is the one owed; ICMP generation for forwarded traffic is not exercised.",
-            "freshness": "fresh"
+            "freshness": "shifted",
+            "moved": [
+              "internal/plugins/ospf/rfc4302_ipsec_pmtu_integration_linux_test.go::TestAHPathMTUIsSignaledToTheLocalSender",
+              "internal/plugins/ospf/rfc4302_ipsec_pmtu_integration_linux_test.go::TestAHPathMTUIsSignaledToTheLocalSender#2"
+            ]
           }
         },
         {
@@ -106275,7 +106329,7 @@
           "gated": true,
           "positive-test": "`internal/plugins/ospf/ipsec_install_test.go` `TestIPsecSAReplayWindow` (unit/verify), `internal/plugins/ospf/rfc4302_ipsec_integration_linux_test.go` `TestIPsecInstallerXFRMReplayWindow` (unit/verify)",
           "negative-test": "`internal/plugins/ospf/ipsec_install_test.go` `TestIPsecSAReplayWindow` (unit/verify), `internal/plugins/ospf/rfc4302_ipsec_integration_linux_test.go` `TestIPsecInstallerXFRMReplayWindow` (unit/verify)",
-          "note": "",
+          "note": "**audit: enforced, shifted**",
           "nightly-only": false,
           "covers": [
             {
@@ -106299,7 +106353,7 @@
               "polarity": "negative",
               "unit": "internal/plugins/ospf/rfc4302_ipsec_integration_linux_test.go::TestIPsecInstallerXFRMReplayWindow",
               "file": "internal/plugins/ospf/rfc4302_ipsec_integration_linux_test.go",
-              "line": 170,
+              "line": 182,
               "carrier": "unit/verify",
               "claim": "-- explicit zero and the absent leaf install all three AH states with replay disabled, rather than forcing it on.",
               "tags": 1,
@@ -106333,7 +106387,7 @@
               "polarity": "positive",
               "unit": "internal/plugins/ospf/rfc4302_ipsec_integration_linux_test.go::TestIPsecInstallerXFRMReplayWindow",
               "file": "internal/plugins/ospf/rfc4302_ipsec_integration_linux_test.go",
-              "line": 168,
+              "line": 180,
               "carrier": "unit/verify",
               "claim": "-- parsing and validating replay-window 64 installs three AH states whose kernel replay windows are all 64.",
               "tags": 1,
@@ -106351,7 +106405,11 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "Independent judgment: RFC 4302 section 3.4.3 says, \"All AH implementations MUST support the anti-replay service, though its use may be enabled or disabled by the receiver on a per-SA basis.\" TestIPsecInstallerXFRMReplayWindow parses and validates the actual interface config, invokes the real installer/XFRM backend, and dumps installed kernel states. For replay-window 64, explicit 0, and omitted leaf it requires every expected AH destination (ff02::5, ff02::6, fe80::1) exactly once and its exact replay window 64/0/0; absent, extra, duplicate or non-AH states fail. The existing builder carrier additionally pins both directions for AH and ESP. This closes the earlier struct-only weakness at the boundary Ze owns; it does not claim to reimplement or independently prove Linux's per-packet sequence verification, nor multicast multi-sender anti-replay beyond section 3.4.3's stated boundary. Inspected native xfrmStateFromParams halt observations in runtime-kernel guest-56809/57490 and fresh discrimination entries; those prove producer reachability, while the exact state assertions establish field discrimination. No new judge test run.",
-            "freshness": "fresh"
+            "freshness": "shifted",
+            "moved": [
+              "internal/plugins/ospf/rfc4302_ipsec_integration_linux_test.go::TestIPsecInstallerXFRMReplayWindow",
+              "internal/plugins/ospf/rfc4302_ipsec_integration_linux_test.go::TestIPsecInstallerXFRMReplayWindow#2"
+            ]
           }
         },
         {
@@ -131855,7 +131913,7 @@
         "tags": 90,
         "units": 90,
         "audited": 29,
-        "discrimination-records": 73,
+        "discrimination-records": 74,
         "escapes": 0,
         "stale-records": 0
       },
@@ -133052,7 +133110,7 @@
               "file": "internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_optional_test.go",
               "line": 71,
               "carrier": "unit/verify",
-              "claim": "-- with require-message-authenticator false, a Disconnect-Request whose Message-Authenticator is present and wrong is still silently discarded. The leaf gates the PRESENCE check alone; the verification RFC 5176 Section 3.4 makes mandatory is never configurable (coa.go coaListener.handlePacket).",
+              "claim": "-- with coa-require-message-authenticator false, a Disconnect-Request whose Message-Authenticator is present and wrong is still silently discarded. The leaf gates the PRESENCE check alone; the verification RFC 5176 Section 3.4 makes mandatory is never configurable (coa.go coaListener.handlePacket).",
               "tags": 1
             },
             {
@@ -133083,7 +133141,7 @@
           "gated": false,
           "positive-test": "`internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_optional_test.go` `TestRFC5176MessageAuthenticatorAbsentIsAcceptedByDefault` (unit/verify)",
           "negative-test": "`internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go` `TestCoAListenerMissingMessageAuthenticatorDroppedWhenRequired` (unit/verify)",
-          "note": "",
+          "note": "**audit: enforced, stale-unit**",
           "nightly-only": false,
           "covers": [
             {
@@ -133092,8 +133150,16 @@
               "file": "internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go",
               "line": 371,
               "carrier": "unit/verify",
-              "claim": "-- an operator who sets require-message-authenticator gets the strictness RFC 5176 Section 3.4 leaves optional: a CoA-Request carrying no Message-Authenticator is discarded with no reply (coa.go coaListener.handlePacket).",
-              "tags": 1
+              "claim": "-- an operator who sets coa-require-message-authenticator gets the strictness RFC 5176 Section 3.4 leaves optional: a CoA-Request carrying no Message-Authenticator is discarded with no reply (coa.go coaListener.admitRequest).",
+              "tags": 1,
+              "proof": {
+                "route": "mutant",
+                "state": "verified",
+                "producer": "internal/component/l2tp/plugins/authradius/coa.go::admitRequest",
+                "break": "line 199: \"\u0026\u0026 cl.cfg.CoARequireMessageAuthenticator\" -\u003e \"\u0026\u0026 false\"",
+                "verified": true,
+                "proves": true
+              }
             },
             {
               "polarity": "positive",
@@ -133101,7 +133167,7 @@
               "file": "internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_optional_test.go",
               "line": 26,
               "carrier": "unit/verify",
-              "claim": "-- with require-message-authenticator false, the YANG default, a Disconnect-Request carrying no Message-Authenticator is acted on: the session it names is torn down and a Disconnect-ACK is sent (coa.go coaListener.handlePacket).",
+              "claim": "-- with coa-require-message-authenticator false, the YANG default, a Disconnect-Request carrying no Message-Authenticator is acted on: the session it names is torn down and a Disconnect-ACK is sent (coa.go coaListener.handlePacket).",
               "tags": 1
             }
           ],
@@ -133109,7 +133175,11 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "(a) forbidden: treating the MAY as a MUST by discarding a request without Message-Authenticator by default. (b) TestRFC5176MessageAuthenticatorAbsentIsAcceptedByDefault asserts Disconnect-ACK and one teardown with no Message-Authenticator; TestCoAListenerMissingMessageAuthenticatorDroppedWhenRequired asserts discard only when the operator leaf requires it.",
-            "freshness": "fresh"
+            "freshness": "stale-unit",
+            "moved": [
+              "internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go::TestCoAListenerMissingMessageAuthenticatorDroppedWhenRequired",
+              "internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_optional_test.go::TestRFC5176MessageAuthenticatorAbsentIsAcceptedByDefault"
+            ]
           }
         },
         {
@@ -159459,7 +159529,7 @@
           "gated": true,
           "positive-test": "`internal/plugins/vrrp/transport/transport_integration_linux_test.go` `TestIntegrationOpenInstanceSocketOptions` (unit/verify)",
           "negative-test": "--",
-          "note": "{single-polarity} the hop limit is a socket option, IPV6_MULTICAST_HOPS 255 set once in openV6 internal/plugins/vrrp/transport/backend_linux.go, so every advertisement leaving that socket carries 255 and no configuration reaches another value; discarding a received hop limit that is not 255 is the separate RFC5798-5.1.2.3-2. The one positive test is internal/plugins/vrrp/transport/transport_integration_linux_test.go, gated //go:build integration \u0026\u0026 linux and skipped without CAP_NET_RAW and CAP_NET_ADMIN, so it runs under the privileged QEMU suite and on an unprivileged host this requirement is proven by nothing {superseded: restated RFC9568-5.1.2.3-1} RFC 9568 Section 5.1.2.3 keeps the Hop Limit of 255 on transmit",
+          "note": "**audit: enforced, shifted** {single-polarity} the hop limit is a socket option, IPV6_MULTICAST_HOPS 255 set once in openV6 internal/plugins/vrrp/transport/backend_linux.go, so every advertisement leaving that socket carries 255 and no configuration reaches another value; discarding a received hop limit that is not 255 is the separate RFC5798-5.1.2.3-2. The one positive test is internal/plugins/vrrp/transport/transport_integration_linux_test.go, gated //go:build integration \u0026\u0026 linux and skipped without CAP_NET_RAW and CAP_NET_ADMIN, so it runs under the privileged QEMU suite and on an unprivileged host this requirement is proven by nothing {superseded: restated RFC9568-5.1.2.3-1} RFC 9568 Section 5.1.2.3 keeps the Hop Limit of 255 on transmit",
           "nightly-only": false,
           "annotation": {
             "kind": "single-polarity",
@@ -159476,7 +159546,7 @@
               "polarity": "positive",
               "unit": "internal/plugins/vrrp/transport/transport_integration_linux_test.go::TestIntegrationOpenInstanceSocketOptions",
               "file": "internal/plugins/vrrp/transport/transport_integration_linux_test.go",
-              "line": 259,
+              "line": 262,
               "carrier": "unit/verify",
               "claim": "-- the v6 tx socket is opened with IPV6_MULTICAST_HOPS 255, which is what RFC 5798 Section 5.1.2.3 requires of every transmitted IPv6 advertisement, and the getsockopt read-back below proves the kernel took the value (openV6 backend_linux.go:185).",
               "tags": 1
@@ -159486,7 +159556,10 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "single-polarity by annotation: integration test reads IPV6_MULTICAST_HOPS 255 back from the tx socket; runs only under the privileged QEMU suite",
-            "freshness": "fresh"
+            "freshness": "shifted",
+            "moved": [
+              "internal/plugins/vrrp/transport/transport_integration_linux_test.go::TestIntegrationOpenInstanceSocketOptions"
+            ]
           }
         },
         {
@@ -232536,7 +232609,7 @@
         "audited": 7,
         "discrimination-records": 11,
         "escapes": 0,
-        "stale-records": 0
+        "stale-records": 3
       },
       "requirements": [
         {
@@ -232560,10 +232633,11 @@
               "tags": 1,
               "proof": {
                 "route": "mutant",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/forward_rs.go::reactorForwardRSSection",
                 "break": "line 629: \"!facts.rsClient\" -\u003e \"false\"",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -232738,10 +232812,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/filter_ordered.go::runEgressPolicyChainASN4",
                 "break": "body of runEgressPolicyChainASN4 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -232755,10 +232830,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/filter_ordered.go::runEgressPolicyChainASN4",
                 "break": "body of runEgressPolicyChainASN4 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             }
@@ -271841,7 +271917,7 @@
         "audited": 31,
         "discrimination-records": 75,
         "escapes": 0,
-        "stale-records": 0
+        "stale-records": 2
       },
       "requirements": [
         {
@@ -274586,10 +274662,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/filter_ordered.go::runEgressPolicyChainASN4",
                 "break": "body of runEgressPolicyChainASN4 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -274603,10 +274680,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/filter_ordered.go::runEgressPolicyChainASN4",
                 "break": "body of runEgressPolicyChainASN4 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             }
@@ -289212,7 +289290,7 @@
         "audited": 18,
         "discrimination-records": 53,
         "escapes": 0,
-        "stale-records": 0
+        "stale-records": 1
       },
       "requirements": [
         {
@@ -290454,10 +290532,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/egress_inject_filter.go::exportFilterForBody",
                 "break": "body of exportFilterForBody replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -294664,7 +294743,7 @@
         "audited": 19,
         "discrimination-records": 65,
         "escapes": 0,
-        "stale-records": 0
+        "stale-records": 2
       },
       "requirements": [
         {
@@ -296361,10 +296440,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/forward_rs.go::reactorForwardRSSection",
                 "break": "body of reactorForwardRSSection replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -296497,10 +296577,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/forward_rs.go::reactorForwardRSSection",
                 "break": "body of reactorForwardRSSection replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -302757,7 +302838,7 @@
           "gated": true,
           "positive-test": "`internal/plugins/vrrp/transport/transport_integration_linux_test.go` `TestIntegrationOpenInstanceSocketOptions` (unit/verify)",
           "negative-test": "--",
-          "note": "{single-polarity} the hop limit is a socket option, IPV6_MULTICAST_HOPS 255 set once at openV6 internal/plugins/vrrp/transport/backend_linux.go:185, so every advertisement on that socket carries 255 and no input produces another value -- the receive-side hop-limit discard is the separate RFC9568-5.1.2.3-2. EVIDENCE DISCLOSURE: the sole positive test is internal/plugins/vrrp/transport/transport_integration_linux_test.go:239, which does NOT run in the ordinary unit suite -- the file is gated //go:build integration \u0026\u0026 linux and its setupLab (internal/plugins/vrrp/transport/transport_integration_linux_test.go:86) skips without CAP_NET_RAW (skipNoRaw, internal/plugins/vrrp/transport/transport_integration_linux_test.go:76-80) and without CAP_NET_ADMIN (internal/plugins/vrrp/transport/transport_integration_linux_test.go:96, :102, :120). It runs under the privileged QEMU integration suite; on an unprivileged host it skips and this requirement is proven by nothing. The evidence itself is genuine: the test getsockopt reads IPV6_MULTICAST_HOPS back from both the tx and the NA socket and requires 255, so the kernel accepted the value",
+          "note": "**audit: enforced, shifted** {single-polarity} the hop limit is a socket option, IPV6_MULTICAST_HOPS 255 set once at openV6 internal/plugins/vrrp/transport/backend_linux.go:185, so every advertisement on that socket carries 255 and no input produces another value -- the receive-side hop-limit discard is the separate RFC9568-5.1.2.3-2. EVIDENCE DISCLOSURE: the sole positive test is internal/plugins/vrrp/transport/transport_integration_linux_test.go:239, which does NOT run in the ordinary unit suite -- the file is gated //go:build integration \u0026\u0026 linux and its setupLab (internal/plugins/vrrp/transport/transport_integration_linux_test.go:86) skips without CAP_NET_RAW (skipNoRaw, internal/plugins/vrrp/transport/transport_integration_linux_test.go:76-80) and without CAP_NET_ADMIN (internal/plugins/vrrp/transport/transport_integration_linux_test.go:96, :102, :120). It runs under the privileged QEMU integration suite; on an unprivileged host it skips and this requirement is proven by nothing. The evidence itself is genuine: the test getsockopt reads IPV6_MULTICAST_HOPS back from both the tx and the NA socket and requires 255, so the kernel accepted the value",
           "nightly-only": false,
           "annotation": {
             "kind": "single-polarity",
@@ -302769,7 +302850,7 @@
               "polarity": "positive",
               "unit": "internal/plugins/vrrp/transport/transport_integration_linux_test.go::TestIntegrationOpenInstanceSocketOptions",
               "file": "internal/plugins/vrrp/transport/transport_integration_linux_test.go",
-              "line": 258,
+              "line": 261,
               "carrier": "unit/verify",
               "claim": "-- the v6 tx socket is opened with IPV6_MULTICAST_HOPS 255, so every transmitted IPv6 advertisement carries hop limit 255, and the getsockopt read-back below proves the kernel took the value (openV6 backend_linux.go:185).",
               "tags": 1
@@ -302779,7 +302860,10 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "TestIntegrationOpenInstanceSocketOptions/v6 reads IPV6_MULTICAST_HOPS back from the tx and NA sockets and requires 255; runs only under integration \u0026\u0026 linux with CAP_NET_RAW/ADMIN, as the row's marker discloses",
-            "freshness": "fresh"
+            "freshness": "shifted",
+            "moved": [
+              "internal/plugins/vrrp/transport/transport_integration_linux_test.go::TestIntegrationOpenInstanceSocketOptions"
+            ]
           }
         },
         {
@@ -318588,7 +318672,7 @@
               "polarity": "positive",
               "unit": "internal/component/iface/rfc9915_dhcp_v6_dad_integration_linux_test.go::TestRFC9915DuplicateAddressDeclinedOnTheLink",
               "file": "internal/component/iface/rfc9915_dhcp_v6_dad_integration_linux_test.go",
-              "line": 36,
+              "line": 37,
               "carrier": "unit/verify",
               "claim": "-- the Decline leaves from the device's link-local address, never from the declined address, which is no longer on the device.",
               "tags": 1,
@@ -318596,7 +318680,7 @@
                 "route": "revert",
                 "state": "verified",
                 "producer": "internal/plugins/iface/dhcp/dhcp_v6_attach_linux.go::decline",
-                "break": "body of decline replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "break": "body of decline replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
                 "verified": true,
                 "proves": true
               }
@@ -318842,7 +318926,7 @@
               "polarity": "positive",
               "unit": "internal/component/iface/rfc9915_dhcp_v6_dad_integration_linux_test.go::TestRFC9915DuplicateAddressDeclinedOnTheLink",
               "file": "internal/component/iface/rfc9915_dhcp_v6_dad_integration_linux_test.go",
-              "line": 35,
+              "line": 36,
               "carrier": "unit/verify",
               "claim": "-- a leased address another node on the link holds fails the kernel's DAD, and the client declines it to the server and removes it from the device.",
               "tags": 1,
@@ -318850,7 +318934,7 @@
                 "route": "revert",
                 "state": "verified",
                 "producer": "internal/plugins/iface/dhcp/dhcp_v6_attach_linux.go::checkDAD",
-                "break": "body of checkDAD replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "break": "body of checkDAD replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
                 "verified": true,
                 "proves": true
               }
@@ -319037,7 +319121,7 @@
               "polarity": "negative",
               "unit": "internal/component/iface/rfc9915_dhcp_v6_link_move_integration_linux_test.go::TestRFC9915LinkChangeWithoutDownSendsNothing",
               "file": "internal/component/iface/rfc9915_dhcp_v6_link_move_integration_linux_test.go",
-              "line": 96,
+              "line": 100,
               "carrier": "unit/verify",
               "claim": "-- an up the netlink monitor reports for a link change with no disconnection before it starts no Rebind, although a delegated prefix is held.",
               "tags": 1,
@@ -319045,7 +319129,7 @@
                 "route": "mutant",
                 "state": "verified",
                 "producer": "internal/plugins/iface/dhcp/dhcp_v6_attach_linux.go::linkMoved",
-                "break": "line 137: \"!w.linkDown\" -\u003e \"false\"",
+                "break": "line 144: \"!w.linkDown\" -\u003e \"false\"",
                 "verified": true,
                 "proves": true
               }
@@ -319071,7 +319155,7 @@
               "polarity": "positive",
               "unit": "internal/component/iface/rfc9915_dhcp_v6_link_move_integration_linux_test.go::TestRFC9915LinkMoveRebindsThroughTheMonitor",
               "file": "internal/component/iface/rfc9915_dhcp_v6_link_move_integration_linux_test.go",
-              "line": 49,
+              "line": 50,
               "carrier": "unit/verify",
               "claim": "-- with a delegated prefix held, a carrier loss then return on the bound device, reported by the kernel through the netlink monitor, starts a Rebind carrying the IA_NA and IA_PD leases.",
               "tags": 1,
@@ -319079,7 +319163,7 @@
                 "route": "revert",
                 "state": "verified",
                 "producer": "internal/plugins/iface/dhcp/dhcp_v6_attach_linux.go::rebindAfterMove",
-                "break": "body of rebindAfterMove replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "break": "body of rebindAfterMove replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
                 "verified": true,
                 "proves": true
               }
@@ -323441,6 +323525,7 @@
           "rfc2866"
         ],
         "updated-by": [
+          "draft-ietf-radext-deprecating-radius-10",
           "rfc2868",
           "rfc5080"
         ],
@@ -323468,6 +323553,7 @@
           "rfc2865"
         ],
         "updated-by": [
+          "draft-ietf-radext-deprecating-radius-10",
           "rfc2867",
           "rfc5080"
         ],
@@ -324691,7 +324777,7 @@
         "walked": true,
         "mandatory-proven": 1,
         "mandatory-total": 2,
-        "optional-proven": 4,
+        "optional-proven": 2,
         "optional-total": 5,
         "profiles": [
           "route-server"
@@ -324914,12 +325000,14 @@
           "rfc3579",
           "rfc7542"
         ],
-        "updated-by": [],
+        "updated-by": [
+          "draft-ietf-radext-deprecating-radius-10"
+        ],
         "summary": true,
         "walked": true,
         "mandatory-proven": 26,
         "mandatory-total": 30,
-        "optional-proven": 0,
+        "optional-proven": 1,
         "optional-total": 1,
         "profiles": [
           "lns"
@@ -326140,6 +326228,26 @@
         "profiles": [
           "ddos-flowspec"
         ],
+        "optional-profiles": [],
+        "path": ""
+      },
+      {
+        "stem": "draft-ietf-radext-deprecating-radius-10",
+        "title": "",
+        "level": 1,
+        "component": [],
+        "aggregate": "",
+        "builds-on": [
+          "rfc2865"
+        ],
+        "updated-by": [],
+        "summary": false,
+        "walked": false,
+        "mandatory-proven": 0,
+        "mandatory-total": 0,
+        "optional-proven": 0,
+        "optional-total": 0,
+        "profiles": [],
         "optional-profiles": [],
         "path": ""
       },
@@ -330236,7 +330344,7 @@
         "walked": true,
         "mandatory-proven": 25,
         "mandatory-total": 76,
-        "optional-proven": 1,
+        "optional-proven": 0,
         "optional-total": 22,
         "profiles": [],
         "optional-profiles": [],
@@ -331461,6 +331569,26 @@
         "from": "draft-ietf-idr-operational-message",
         "kind": "builds-on",
         "to": "rfc6793"
+      },
+      {
+        "from": "draft-ietf-radext-deprecating-radius-10",
+        "kind": "builds-on",
+        "to": "rfc2865"
+      },
+      {
+        "from": "draft-ietf-radext-deprecating-radius-10",
+        "kind": "updates",
+        "to": "rfc2865"
+      },
+      {
+        "from": "draft-ietf-radext-deprecating-radius-10",
+        "kind": "updates",
+        "to": "rfc2866"
+      },
+      {
+        "from": "draft-ietf-radext-deprecating-radius-10",
+        "kind": "updates",
+        "to": "rfc5176"
       },
       {
         "from": "draft-ietf-sidrops-8210bis",
@@ -338389,7 +338517,7 @@
           "total": 458
         },
         "optional": {
-          "proven": 6,
+          "proven": 7,
           "total": 161
         },
         "mandatory-complete": false
@@ -338428,6 +338556,7 @@
             "rfc2866"
           ],
           "updated-by": [
+            "draft-ietf-radext-deprecating-radius-10",
             "rfc2868",
             "rfc5080"
           ],
@@ -338455,6 +338584,7 @@
             "rfc2865"
           ],
           "updated-by": [
+            "draft-ietf-radext-deprecating-radius-10",
             "rfc2867",
             "rfc5080"
           ],
@@ -338778,12 +338908,14 @@
             "rfc3579",
             "rfc7542"
           ],
-          "updated-by": [],
+          "updated-by": [
+            "draft-ietf-radext-deprecating-radius-10"
+          ],
           "summary": true,
           "walked": true,
           "mandatory-proven": 26,
           "mandatory-total": 30,
-          "optional-proven": 0,
+          "optional-proven": 1,
           "optional-total": 1,
           "profiles": [
             "lns"
@@ -339001,6 +339133,13 @@
           "level": 0,
           "summary": false,
           "via": "rfc5176 builds-on rfc7542"
+        },
+        {
+          "stem": "draft-ietf-radext-deprecating-radius-10",
+          "title": "",
+          "level": 1,
+          "summary": false,
+          "via": "rfc2865 updated-by draft-ietf-radext-deprecating-radius-10"
         },
         {
           "stem": "rfc1034",
@@ -340653,7 +340792,7 @@
           "total": 395
         },
         "optional": {
-          "proven": 19,
+          "proven": 17,
           "total": 221
         },
         "mandatory-complete": false
@@ -340972,7 +341111,7 @@
           "walked": true,
           "mandatory-proven": 1,
           "mandatory-total": 2,
-          "optional-proven": 4,
+          "optional-proven": 2,
           "optional-total": 5,
           "profiles": [
             "route-server"
@@ -344788,7 +344927,7 @@
           "total": 76
         },
         "optional": {
-          "proven": 6,
+          "proven": 4,
           "total": 122
         },
         "mandatory-complete": false
@@ -344922,7 +345061,7 @@
           "walked": true,
           "mandatory-proven": 1,
           "mandatory-total": 2,
-          "optional-proven": 4,
+          "optional-proven": 2,
           "optional-total": 5,
           "profiles": [
             "route-server"
@@ -345109,7 +345248,7 @@
           "total": 244
         },
         "optional": {
-          "proven": 4,
+          "proven": 3,
           "total": 136
         },
         "mandatory-complete": false
@@ -345163,7 +345302,7 @@
           "walked": true,
           "mandatory-proven": 25,
           "mandatory-total": 76,
-          "optional-proven": 1,
+          "optional-proven": 0,
           "optional-total": 22,
           "profiles": [],
           "optional-profiles": [],
@@ -349283,7 +349422,7 @@
           "total": 202
         },
         "optional": {
-          "proven": 2,
+          "proven": 3,
           "total": 105
         },
         "mandatory-complete": false
@@ -349301,6 +349440,7 @@
             "rfc2866"
           ],
           "updated-by": [
+            "draft-ietf-radext-deprecating-radius-10",
             "rfc2868",
             "rfc5080"
           ],
@@ -349328,6 +349468,7 @@
             "rfc2865"
           ],
           "updated-by": [
+            "draft-ietf-radext-deprecating-radius-10",
             "rfc2867",
             "rfc5080"
           ],
@@ -349555,12 +349696,14 @@
             "rfc3579",
             "rfc7542"
           ],
-          "updated-by": [],
+          "updated-by": [
+            "draft-ietf-radext-deprecating-radius-10"
+          ],
           "summary": true,
           "walked": true,
           "mandatory-proven": 26,
           "mandatory-total": 30,
-          "optional-proven": 0,
+          "optional-proven": 1,
           "optional-total": 1,
           "profiles": [
             "lns"

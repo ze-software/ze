@@ -618,7 +618,7 @@ Expected result: Ze commits the browser user&#39;s isolated draft and the active
     <div
       class="terminal-demo__player"
       data-terminal-demo-player
-      data-cast-src="../../assets/demos/commit-confirmed.cast?v=ada9d531b2"
+      data-cast-src="../../assets/demos/commit-confirmed.cast?v=d61a5f86c6"
       data-cols="137"
       data-rows="36"
       style="--demo-aspect: 82.2 / 47.52"
@@ -626,13 +626,13 @@ Expected result: Ze commits the browser user&#39;s isolated draft and the active
     ></div>
     <noscript>
       <p class="terminal-demo__noscript">This recording is replayed by the
-      page's own player. <a href="../../assets/demos/commit-confirmed.cast?v=ada9d531b2">Download the asciicast</a> or
-      <a href="../../assets/demos/commit-confirmed.txt?v=cc3b9170bf">read the transcript</a>.</p>
+      page's own player. <a href="../../assets/demos/commit-confirmed.cast?v=d61a5f86c6">Download the asciicast</a> or
+      <a href="../../assets/demos/commit-confirmed.txt?v=bba89459a1">read the transcript</a>.</p>
     </noscript>
   </div>
   <figcaption>
-    <span>Ze 26.10.27</span><span>1 minute 38 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>Ze recorder</span>
-    <a href="../../assets/demos/commit-confirmed.txt?v=cc3b9170bf">Plain-text transcript</a>
+    <span>Ze 26.10.28</span><span>2 minutes 38 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>Ze recorder</span>
+    <a href="../../assets/demos/commit-confirmed.txt?v=bba89459a1">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
     <summary>Read the demonstration transcript</summary>
@@ -640,7 +640,7 @@ Expected result: Ze commits the browser user&#39;s isolated draft and the active
 
 Connect with sshpass -e ssh ze-demo. The SSH editor starts from edge-original.
 Load /src/demos/terminal/topics/commit-confirmed/1-trial-host.conf, review
-show | compare, then run commit confirmed 8. Ze&#39;s timeout is in seconds,
+show | compare, then run commit confirmed 15. Ze&#39;s timeout is in seconds,
 unlike Junos commit confirmed, whose timeout is in minutes.
 
 $ ze-demo card topic-commit-confirmed lab
@@ -649,7 +649,7 @@ $ sshpass -e ssh ze-demo
 ze# show system host
 ze# load file absolute merge /src/demos/terminal/topics/commit-confirmed/1-trial-host.conf
 ze# show | compare
-ze# commit confirmed 8
+ze# commit confirmed 15
 
 Show the active edge-trial value, then deliberately leave the change
 unaccepted. Wait for the actual automatic rollback notice. Inspect show
@@ -664,12 +664,12 @@ ze# show | compare
 ze# show | changes
 
 Load /src/demos/terminal/topics/commit-confirmed/2-confirmed-host.conf,
-compare, commit confirmed 8, then commit accept. Wait beyond the eight-second
+compare, commit confirmed 15, then commit accept. Wait beyond the fifteen-second
 deadline and inspect edge-confirmed again. The accepted value must remain.
 
 ze# load file absolute merge /src/demos/terminal/topics/commit-confirmed/2-confirmed-host.conf
 ze# show | compare
-ze# commit confirmed 8
+ze# commit confirmed 15
 ze# commit accept
 
 After waiting beyond the deadline:
@@ -709,7 +709,7 @@ must succeed before this source is published as a recording.</code></pre>
     <div
       class="terminal-demo__player"
       data-terminal-demo-player
-      data-cast-src="../../assets/demos/rpki.cast?v=a3e919d818"
+      data-cast-src="../../assets/demos/rpki.cast?v=c8eada776e"
       data-cols="137"
       data-rows="36"
       style="--demo-aspect: 82.2 / 47.52"
@@ -717,12 +717,12 @@ must succeed before this source is published as a recording.</code></pre>
     ></div>
     <noscript>
       <p class="terminal-demo__noscript">This recording is replayed by the
-      page's own player. <a href="../../assets/demos/rpki.cast?v=a3e919d818">Download the asciicast</a> or
+      page's own player. <a href="../../assets/demos/rpki.cast?v=c8eada776e">Download the asciicast</a> or
       <a href="../../assets/demos/rpki.txt?v=8853dceca8">read the transcript</a>.</p>
     </noscript>
   </div>
   <figcaption>
-    <span>Ze 26.10.27</span><span>2 minutes 35 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>Ze recorder</span>
+    <span>Ze 26.10.28</span><span>3 minutes 57 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>Ze recorder</span>
     <a href="../../assets/demos/rpki.txt?v=8853dceca8">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
@@ -808,7 +808,7 @@ must succeed before this source is published as a recording.</code></pre>
     <div
       class="terminal-demo__player"
       data-terminal-demo-player
-      data-cast-src="../../assets/demos/irr-filter.cast?v=132c1244b0"
+      data-cast-src="../../assets/demos/irr-filter.cast?v=9312a6df11"
       data-cols="137"
       data-rows="36"
       style="--demo-aspect: 82.2 / 47.52"
@@ -816,12 +816,12 @@ must succeed before this source is published as a recording.</code></pre>
     ></div>
     <noscript>
       <p class="terminal-demo__noscript">This recording is replayed by the
-      page's own player. <a href="../../assets/demos/irr-filter.cast?v=132c1244b0">Download the asciicast</a> or
+      page's own player. <a href="../../assets/demos/irr-filter.cast?v=9312a6df11">Download the asciicast</a> or
       <a href="../../assets/demos/irr-filter.txt?v=46836a5e6e">read the transcript</a>.</p>
     </noscript>
   </div>
   <figcaption>
-    <span>Ze 26.10.27</span><span>3 minutes 42 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>Ze recorder</span>
+    <span>Ze 26.10.28</span><span>4 minutes 57 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>Ze recorder</span>
     <a href="../../assets/demos/irr-filter.txt?v=46836a5e6e">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
@@ -1044,7 +1044,7 @@ Hierarchical and set syntax are alternate presentations of the same parsed confi
     <div
       class="terminal-demo__player"
       data-terminal-demo-player
-      data-cast-src="../../assets/demos/bfd-failover.cast?v=a37cfae7d2"
+      data-cast-src="../../assets/demos/bfd-failover.cast?v=a134574836"
       data-cols="137"
       data-rows="36"
       style="--demo-aspect: 82.2 / 47.52"
@@ -1052,12 +1052,12 @@ Hierarchical and set syntax are alternate presentations of the same parsed confi
     ></div>
     <noscript>
       <p class="terminal-demo__noscript">This recording is replayed by the
-      page's own player. <a href="../../assets/demos/bfd-failover.cast?v=a37cfae7d2">Download the asciicast</a> or
+      page's own player. <a href="../../assets/demos/bfd-failover.cast?v=a134574836">Download the asciicast</a> or
       <a href="../../assets/demos/bfd-failover.txt?v=1d2f779b15">read the transcript</a>.</p>
     </noscript>
   </div>
   <figcaption>
-    <span>Ze 26.10.27</span><span>2 minutes 33 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>Ze recorder</span>
+    <span>Ze 26.10.28</span><span>3 minutes 5 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>Ze recorder</span>
     <a href="../../assets/demos/bfd-failover.txt?v=1d2f779b15">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
@@ -1120,7 +1120,7 @@ $ ze-demo card topic-bfd recap</code></pre>
     <div
       class="terminal-demo__player"
       data-terminal-demo-player
-      data-cast-src="../../assets/demos/ospf-adjacency.cast?v=6b38530780"
+      data-cast-src="../../assets/demos/ospf-adjacency.cast?v=a6fe1973c6"
       data-cols="137"
       data-rows="36"
       style="--demo-aspect: 82.2 / 47.52"
@@ -1128,12 +1128,12 @@ $ ze-demo card topic-bfd recap</code></pre>
     ></div>
     <noscript>
       <p class="terminal-demo__noscript">This recording is replayed by the
-      page's own player. <a href="../../assets/demos/ospf-adjacency.cast?v=6b38530780">Download the asciicast</a> or
+      page's own player. <a href="../../assets/demos/ospf-adjacency.cast?v=a6fe1973c6">Download the asciicast</a> or
       <a href="../../assets/demos/ospf-adjacency.txt?v=fc63b795c8">read the transcript</a>.</p>
     </noscript>
   </div>
   <figcaption>
-    <span>Ze 26.10.27</span><span>5 minutes 57 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>Ze recorder</span>
+    <span>Ze 26.10.28</span><span>4 minutes 24 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>Ze recorder</span>
     <a href="../../assets/demos/ospf-adjacency.txt?v=fc63b795c8">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
@@ -1202,7 +1202,7 @@ $ ze-demo card topic-ospf recap</code></pre>
     <div
       class="terminal-demo__player"
       data-terminal-demo-player
-      data-cast-src="../../assets/demos/ipsec.cast?v=1aff2bf168"
+      data-cast-src="../../assets/demos/ipsec.cast?v=95f50fd1c5"
       data-cols="137"
       data-rows="36"
       style="--demo-aspect: 82.2 / 47.52"
@@ -1210,12 +1210,12 @@ $ ze-demo card topic-ospf recap</code></pre>
     ></div>
     <noscript>
       <p class="terminal-demo__noscript">This recording is replayed by the
-      page's own player. <a href="../../assets/demos/ipsec.cast?v=1aff2bf168">Download the asciicast</a> or
+      page's own player. <a href="../../assets/demos/ipsec.cast?v=95f50fd1c5">Download the asciicast</a> or
       <a href="../../assets/demos/ipsec.txt?v=f5fa147589">read the transcript</a>.</p>
     </noscript>
   </div>
   <figcaption>
-    <span>Ze 26.10.27</span><span>2 minutes 40 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>Ze recorder</span>
+    <span>Ze 26.10.28</span><span>5 minutes 33 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>Ze recorder</span>
     <a href="../../assets/demos/ipsec.txt?v=f5fa147589">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
@@ -1316,7 +1316,7 @@ https://www.juniper.net/documentation/us/en/software/junos/cli-reference/topics/
     <div
       class="terminal-demo__player"
       data-terminal-demo-player
-      data-cast-src="../../assets/demos/traffic-anomaly.cast?v=5bfc138dad"
+      data-cast-src="../../assets/demos/traffic-anomaly.cast?v=e0f89040c5"
       data-cols="137"
       data-rows="36"
       style="--demo-aspect: 82.2 / 47.52"
@@ -1324,12 +1324,12 @@ https://www.juniper.net/documentation/us/en/software/junos/cli-reference/topics/
     ></div>
     <noscript>
       <p class="terminal-demo__noscript">This recording is replayed by the
-      page's own player. <a href="../../assets/demos/traffic-anomaly.cast?v=5bfc138dad">Download the asciicast</a> or
+      page's own player. <a href="../../assets/demos/traffic-anomaly.cast?v=e0f89040c5">Download the asciicast</a> or
       <a href="../../assets/demos/traffic-anomaly.txt?v=8c33b2924c">read the transcript</a>.</p>
     </noscript>
   </div>
   <figcaption>
-    <span>Ze 26.10.27</span><span>3 minutes 11 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>Ze recorder</span>
+    <span>Ze 26.10.28</span><span>3 minutes 9 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>Ze recorder</span>
     <a href="../../assets/demos/traffic-anomaly.txt?v=8c33b2924c">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
@@ -1392,7 +1392,7 @@ $ ze-demo card topic-traffic recap</code></pre>
     <div
       class="terminal-demo__player"
       data-terminal-demo-player
-      data-cast-src="../../assets/demos/vrrp-tracking.cast?v=d55609ce3e"
+      data-cast-src="../../assets/demos/vrrp-tracking.cast?v=682f44f6d3"
       data-cols="137"
       data-rows="36"
       style="--demo-aspect: 82.2 / 47.52"
@@ -1400,12 +1400,12 @@ $ ze-demo card topic-traffic recap</code></pre>
     ></div>
     <noscript>
       <p class="terminal-demo__noscript">This recording is replayed by the
-      page's own player. <a href="../../assets/demos/vrrp-tracking.cast?v=d55609ce3e">Download the asciicast</a> or
+      page's own player. <a href="../../assets/demos/vrrp-tracking.cast?v=682f44f6d3">Download the asciicast</a> or
       <a href="../../assets/demos/vrrp-tracking.txt?v=d48d9109d5">read the transcript</a>.</p>
     </noscript>
   </div>
   <figcaption>
-    <span>Ze 26.10.27</span><span>2 minutes 50 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>Ze recorder</span>
+    <span>Ze 26.10.28</span><span>3 minutes 28 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>Ze recorder</span>
     <a href="../../assets/demos/vrrp-tracking.txt?v=d48d9109d5">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
@@ -1575,7 +1575,7 @@ No reporting helper creates the displayed relationships. The command filters Ze&
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 13:31 UTC</span>
+                    <span class="footer-published">Published 28 October 2026 18:35 UTC</span>
                 </div>
             </div>
         </footer>

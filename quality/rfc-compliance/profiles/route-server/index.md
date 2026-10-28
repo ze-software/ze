@@ -7,7 +7,7 @@ Release profile. The RFCs this use case requires, each declared by the Use cases
 Use case: [Route Server at an IXP](../../../../use-cases/route-server/)
 
 - **Mandatory**: 47.8% (189 of 395 (47.8%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
-- **Optional**: 8.6% (19 of 221 (8.6%)). MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.
+- **Optional**: 7.7% (17 of 221 (7.7%)). MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.
 - **Not walked**: 0 (of 24 RFCs). RFCs with no valid extraction sign-off: their rows count in neither figure.
 - **Mandatory register**: not complete (every row proven, none unwalked). A profile is complete only when it requires at least one RFC and none of them is unwalked.
 
@@ -45,7 +45,7 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 |---|---|---|---|---|
 | [RFC 6793](../../rfc6793/) (cycle with rfc5668) | BGP Support for Four-Octet Autonomous System (AS) Number Space | 20 of 30 (66.7%) | 0 of 6 (0.0%) | route-server: required by rfc/short/rfc6793.md |
 | [RFC 7911](../../rfc7911/) | Advertisement of Multiple Paths in BGP | 9 of 9 (100.0%) | 0 of 4 (0.0%) | route-server: required by rfc/short/rfc7911.md |
-| [RFC 7947](../../rfc7947/) | Internet Exchange BGP Route Server | 1 of 2 (50.0%) | 4 of 5 (80.0%) | route-server: required by rfc/short/rfc7947.md |
+| [RFC 7947](../../rfc7947/) | Internet Exchange BGP Route Server | 1 of 2 (50.0%) | 2 of 5 (40.0%) | route-server: required by rfc/short/rfc7947.md |
 
 ### Level 7
 

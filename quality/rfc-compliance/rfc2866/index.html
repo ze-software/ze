@@ -358,8 +358,8 @@ Admin/operator RADIUS accounting is not wired; the admin backend is authenticati
 <td>5.13 - Table of Attributes</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2866-5.13-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_attribute_table_test.go#L160" title="internal/component/l2tp/plugins/authradius/rfc2866_attribute_table_test.go" target="_blank" rel="noopener"><code>TestRFC2866AccountingRequestOnTheWireCarriesNoZeroMarkedAttribute</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_zero_marked_login_test.go#L232" title="internal/component/l2tp/plugins/authradius/rfc2866_zero_marked_login_test.go" target="_blank" rel="noopener"><code>TestRFC2866LoggedInSessionAccountsWithoutZeroMarkedAttributes</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_zero_marked_login_test.go#L260" title="internal/component/l2tp/plugins/authradius/rfc2866_zero_marked_login_test.go" target="_blank" rel="noopener"><code>TestRFC2866LoginCredentialsAndAcceptStateNeverReachAccounting</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_zero_marked_login_test.go#L233" title="internal/component/l2tp/plugins/authradius/rfc2866_zero_marked_login_test.go" target="_blank" rel="noopener"><code>TestRFC2866LoggedInSessionAccountsWithoutZeroMarkedAttributes</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_zero_marked_login_test.go#L261" title="internal/component/l2tp/plugins/authradius/rfc2866_zero_marked_login_test.go" target="_blank" rel="noopener"><code>TestRFC2866LoginCredentialsAndAcceptStateNeverReachAccounting</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_attribute_table_test.go#L196" title="internal/component/l2tp/plugins/authradius/rfc2866_attribute_table_test.go" target="_blank" rel="noopener"><code>TestRFC2866SubscriberTextNeverBecomesAZeroMarkedAttribute</code></a></span></div>
 </div></td>
 </tr>
@@ -624,7 +624,7 @@ Admin/operator RADIUS accounting is not wired; the admin backend is authenticati
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_zero_marked_login_test.go#L260" title="internal/component/l2tp/plugins/authradius/rfc2866_zero_marked_login_test.go" target="_blank" rel="noopener"><code>TestRFC2866LoginCredentialsAndAcceptStateNeverReachAccounting</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_zero_marked_login_test.go#L261" title="internal/component/l2tp/plugins/authradius/rfc2866_zero_marked_login_test.go" target="_blank" rel="noopener"><code>TestRFC2866LoginCredentialsAndAcceptStateNeverReachAccounting</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -634,7 +634,7 @@ Admin/operator RADIUS accounting is not wired; the admin backend is authenticati
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_zero_marked_login_test.go#L232" title="internal/component/l2tp/plugins/authradius/rfc2866_zero_marked_login_test.go" target="_blank" rel="noopener"><code>TestRFC2866LoggedInSessionAccountsWithoutZeroMarkedAttributes</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_zero_marked_login_test.go#L233" title="internal/component/l2tp/plugins/authradius/rfc2866_zero_marked_login_test.go" target="_blank" rel="noopener"><code>TestRFC2866LoggedInSessionAccountsWithoutZeroMarkedAttributes</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -643,7 +643,7 @@ Admin/operator RADIUS accounting is not wired; the admin backend is authenticati
 </div>
 <h3><a href="#rfc2866-3-3"><code>RFC2866-3-3</code></a></h3>
 <p>For retransmissions where the contents are identical, the Identifier MUST remain unchanged. Note that if Acct-Delay-Time is included in the attributes of an Accounting-Request then the Acct-Delay-Time value will be updated when the packet is retransmitted, changing the content of the Attributes field and requiring a new Identifier and Request Authenticator. (§4.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Clause 1: TestRFC2866AccountingRetransmitWithoutDelayTimeKeepsIdentifier goes red on a changed Identifier for identical contents. Clause 2: TestRFC2866AccountingRetransmitTakesANewIdentifierAndRequestAuthenticator forces a retransmit whose Acct-Delay-Time moves 0-&gt;1 and asserts a new Identifier, a new Request Authenticator, and each authenticator equal to the Section 3 MD5 of its own datagram. The two clauses are opposite polarities of one rule, so a client that always or never changes the ID goes red. TestRFC2866AccountingDistinctRequestsDifferIdentifier is mislabeled: it proves RFC2866-4.1-4.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/radius/rfc2866_accounting_test.go::TestRFC2866AccountingRetransmitTakesANewIdentifier, internal/component/radius/rfc2866_acct_delay_time_omit_test.go::TestRFC2866AccountingRetransmitWithoutDelayTimeKeepsIdentifier moved. Clause 1: TestRFC2866AccountingRetransmitWithoutDelayTimeKeepsIdentifier goes red on a changed Identifier for identical contents. Clause 2: TestRFC2866AccountingRetransmitTakesANewIdentifierAndRequestAuthenticator forces a retransmit whose Acct-Delay-Time moves 0-&gt;1 and asserts a new Identifier, a new Request Authenticator, and each authenticator equal to the Section 3 MD5 of its own datagram. The two clauses are opposite polarities of one rule, so a client that always or never changes the ID goes red. TestRFC2866AccountingDistinctRequestsDifferIdentifier is mislabeled: it proves RFC2866-4.1-4.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1193,7 +1193,7 @@ Admin/operator RADIUS accounting is not wired; the admin backend is authenticati
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 09:31 UTC</span>
+                    <span class="footer-published">Published 28 October 2026 18:35 UTC</span>
                 </div>
             </div>
         </footer>

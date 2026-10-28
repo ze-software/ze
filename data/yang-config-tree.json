@@ -19742,6 +19742,14 @@
                 "type": "uint16"
               },
               {
+                "description": "RFC 5176 Section 3.4 makes the Message-Authenticator attribute\noptional, so the default is false. Ze then processes a request without the attribute\nonce its Request Authenticator verifies against the shared secret. Set this leaf to\ntrue when every Dynamic Authorization Client sends the attribute. The attribute is an\nHMAC-MD5 keyed with the shared secret, and it is the mitigation for the Blast-RADIUS\nclass of attack (CVE-2024-3596), which forges a RADIUS UDP packet with a chosen-prefix\nMD5 collision against the authenticator. A client that sends no attribute gets no\nanswer while this leaf is true.",
+                "kind": "leaf",
+                "name": "coa-require-message-authenticator",
+                "short-help": "Discard a CoA-Request or a Disconnect-Request that carries no Message-Authenticator.",
+                "source": "config",
+                "type": "boolean"
+              },
+              {
                 "description": "Ze sends this text as the NAS-Identifier attribute in each\nAccess-Request and each Accounting-Request. RFC 2865 Section\n4.1 requires either NAS-IP-Address or NAS-Identifier in an\nAccess-Request. With this leaf empty and source-address empty,\nZe sends the hostname, and the plugin name where the host\ncarries none.",
                 "kind": "leaf",
                 "name": "nas-identifier",
@@ -19756,14 +19764,6 @@
                 "short-help": "Template for the NAS-Port-Id attribute sent in RADIUS requests.",
                 "source": "config",
                 "type": "string"
-              },
-              {
-                "description": "RFC 5176 Section 3.4 makes the Message-Authenticator attribute\noptional, so the default is false. Ze then processes a request without the attribute\nonce its Request Authenticator verifies against the shared secret. Set this leaf to\ntrue when every Dynamic Authorization Client sends the attribute. The attribute is an\nHMAC-MD5 keyed with the shared secret, and it is the mitigation for the Blast-RADIUS\nclass of attack (CVE-2024-3596), which forges a RADIUS UDP packet with a chosen-prefix\nMD5 collision against the authenticator. A client that sends no attribute gets no\nanswer while this leaf is true.",
-                "kind": "leaf",
-                "name": "require-message-authenticator",
-                "short-help": "Discard a CoA-Request or a Disconnect-Request that carries no Message-Authenticator.",
-                "source": "config",
-                "type": "boolean"
               },
               {
                 "description": "The default is 3 and the range is 1 to 10. Ze sends the request\nthat many times to one server, then moves to the next entry of\nthe list. An Access-Request is replayed byte for byte. An\nAccounting-Request gets a new identifier and a new\nAcct-Delay-Time on each attempt, which RFC 2866 Section 4.1\nrequires.",
@@ -19798,6 +19798,14 @@
                     "short-help": "RADIUS server UDP port for Access-Request packets.",
                     "source": "config",
                     "type": "uint16"
+                  },
+                  {
+                    "description": "When true, Ze silently discards an Access-Accept,\nAccess-Reject, Access-Challenge or Protocol-Error from this server that carries no\nMessage-Authenticator. This closes BlastRADIUS (CVE-2024-3596), where an attacker\nforges an Access-Accept from an Access-Reject. draft-ietf-radext-deprecating-radius\nSection 4.1 asks for this per-server flag. Set it false only for a server that\npredates 2024 and cannot sign its answers. Ze signs every Access-Request whatever\nthis leaf says, and the leaf never applies to accounting.",
+                    "kind": "leaf",
+                    "name": "require-message-authenticator",
+                    "short-help": "Discard answers without Message-Authenticator (default true).",
+                    "source": "config",
+                    "type": "boolean"
                   },
                   {
                     "description": "RFC 2865 Section 3 states that the secret MUST NOT be\nempty, that is length 0, because an empty secret makes a forged packet easy to\nbuild.",
@@ -26986,6 +26994,14 @@
                     "short-help": "UDP authentication port (default 1812)",
                     "source": "config",
                     "type": "uint16"
+                  },
+                  {
+                    "description": "When true, Ze silently discards an Access-Accept,\nAccess-Reject, Access-Challenge or Protocol-Error\nfrom this server that carries no\nMessage-Authenticator. This closes BlastRADIUS\n(CVE-2024-3596), where an attacker forges an\nAccess-Accept from an Access-Reject.\ndraft-ietf-radext-deprecating-radius Section 4.1\nasks for this per-server flag. Set it false only for\na server that predates 2024 and cannot sign its\nanswers. Ze signs every Access-Request whatever this\nleaf says.",
+                    "kind": "leaf",
+                    "name": "require-message-authenticator",
+                    "short-help": "Discard answers without Message-Authenticator (default true)",
+                    "source": "config",
+                    "type": "boolean"
                   }
                 ],
                 "description": "Ze sends the Access-Request to the first server, and it\nmoves to the next one when that server does not answer.\nThe order is the config order, because the list is\nordered-by user. Each server gets a new Identifier, a new\nRequest Authenticator, and the User-Password hidden again\nunder the key of that server. RFC 2865 Section 4.1\nrequires the new Request Authenticator: 'The Request\nAuthenticator value MUST be changed each time a new\nIdentifier is used.' Where every server fails, the AAA\nchain moves on to the local accounts, so an unreachable\nserver never locks the operator out. A row that carries\nno key builds no RADIUS backend at all, rather than a\nshorter server list.",

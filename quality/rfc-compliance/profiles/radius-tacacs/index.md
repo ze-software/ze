@@ -5,7 +5,7 @@ Technology aggregate. RADIUS and TACACS+ authentication, authorization, and acco
 [All profiles](../) · [All RFCs](../../)
 
 - **Mandatory**: 60.9% (123 of 202 (60.9%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
-- **Optional**: 1.9% (2 of 105 (1.9%)). MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.
+- **Optional**: 2.9% (3 of 105 (2.9%)). MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.
 - **Not walked**: 0 (of 11 RFCs). RFCs with no valid extraction sign-off: their rows count in neither figure.
 - **Mandatory register**: not complete (every row proven, none unwalked). A profile is complete only when it requires at least one RFC and none of them is unwalked.
 
@@ -51,7 +51,7 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 | RFC | Title | Mandatory | Optional |
 |---|---|---|---|
 | [RFC 3579](../../rfc3579/) (cycle with rfc5176) | RADIUS (Remote Authentication Dial In User Service) Support For Extensible Authentication Protocol (EAP) | 17 of 31 (54.8%) | 2 of 19 (10.5%) |
-| [RFC 5176](../../rfc5176/) (cycle with rfc3579) | Dynamic Authorization Extensions to Remote Authentication Dial In User Service (RADIUS) | 26 of 30 (86.7%) | 0 of 1 (0.0%) |
+| [RFC 5176](../../rfc5176/) (cycle with rfc3579) | Dynamic Authorization Extensions to Remote Authentication Dial In User Service (RADIUS) | 26 of 30 (86.7%) | 1 of 1 (100.0%) |
 
 ### Level 9
 

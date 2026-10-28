@@ -266,6 +266,13 @@ the bus from buggy or malicious producers.
 
 ### Query RPCs
 
+For `ze-bgp:show-policy-test`, `action` describes the external per-peer policy
+stage and its final, not the full protocol pipeline. A named in-process check
+has a trace entry with `action: "not-evaluated"` and empty `text-after`; no
+filter-update RPC was made for it. Selecting such a check as a single-filter
+override is refused with instructions to test it on the peer session.
+<!-- source: internal/component/bgp/reactor/policy_dryrun.go -- tracePolicyFilterChain, PolicyDryRun -->
+
 | WireMethod | Handler | Response shape |
 |------------|---------|----------------|
 | `ze-cmd:show-warnings` | `handleShowWarnings` in `internal/component/cmd/show/show.go` | `{"warnings": [Issue, ...], "count": N}` |

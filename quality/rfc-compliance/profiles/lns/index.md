@@ -5,7 +5,7 @@ Release profile. The RFCs this use case requires, each declared by the Use cases
 [All profiles](../) · [All RFCs](../../)
 
 - **Mandatory**: 55.9% (256 of 458 (55.9%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
-- **Optional**: 3.7% (6 of 161 (3.7%)). MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.
+- **Optional**: 4.3% (7 of 161 (4.3%)). MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.
 - **Not walked**: 0 (of 14 RFCs). RFCs with no valid extraction sign-off: their rows count in neither figure.
 - **Mandatory register**: not complete (every row proven, none unwalked). A profile is complete only when it requires at least one RFC and none of them is unwalked.
 
@@ -70,7 +70,7 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 
 | RFC | Title | Mandatory | Optional | Why it is here |
 |---|---|---|---|---|
-| [RFC 5176](../../rfc5176/) (cycle with rfc3579) | Dynamic Authorization Extensions to Remote Authentication Dial In User Service (RADIUS) | 26 of 30 (86.7%) | 0 of 1 (0.0%) | lns: required by rfc/short/rfc5176.md |
+| [RFC 5176](../../rfc5176/) (cycle with rfc3579) | Dynamic Authorization Extensions to Remote Authentication Dial In User Service (RADIUS) | 26 of 30 (86.7%) | 1 of 1 (100.0%) | lns: required by rfc/short/rfc5176.md |
 
 ## Optional (not counted)
 

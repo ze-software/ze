@@ -697,9 +697,9 @@ Restoring interval 10 must restore the adjacency and route in the same process.
 
 Commit OSPF live, follow a Full neighbor through the router database to its loopback route, then diagnose and repair mismatched Hello timers.
 
-[Download the asciicast recording](../../assets/demos/ospf-adjacency.cast?v=6b38530780) · [Plain-text transcript](../../assets/demos/ospf-adjacency.txt?v=fc63b795c8)
+[Download the asciicast recording](../../assets/demos/ospf-adjacency.cast?v=a6fe1973c6) · [Plain-text transcript](../../assets/demos/ospf-adjacency.txt?v=fc63b795c8)
 
-Recorded with Ze 26.10.27 in a Linux namespace lab using Ze recorder. Duration: 5 minutes 57 seconds.
+Recorded with Ze 26.10.28 in a Linux namespace lab using Ze recorder. Duration: 4 minutes 24 seconds.
 
 ```console
 OSPF live adjacency and Hello-mismatch walkthrough

@@ -259,9 +259,9 @@ The failure changes the peer to `AS-V4ONLY`, which lacks the customer prefix. Af
 
 Load the local test IRR server, AS-SET and import policy over SSH, prove route acceptance and refusal, then diagnose and repair a wrong AS-SET without restarting Ze.
 
-[Download the asciicast recording](../../assets/demos/irr-filter.cast?v=132c1244b0) · [Plain-text transcript](../../assets/demos/irr-filter.txt?v=46836a5e6e)
+[Download the asciicast recording](../../assets/demos/irr-filter.cast?v=9312a6df11) · [Plain-text transcript](../../assets/demos/irr-filter.txt?v=46836a5e6e)
 
-Recorded with Ze 26.10.27 in a Linux namespace lab using Ze recorder. Duration: 3 minutes 42 seconds.
+Recorded with Ze 26.10.28 in a Linux namespace lab using Ze recorder. Duration: 4 minutes 57 seconds.
 
 ```console
 IRR: live import filtering and repair

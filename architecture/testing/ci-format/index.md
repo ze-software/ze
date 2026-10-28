@@ -2401,8 +2401,10 @@ Named keys `input=key:name=<key>` accepts: `tab`, `enter`, `esc`, `escape`,
 | `expect=content:contains=<text>` | Config content includes text | `expect=content:contains=router-id` |
 | `expect=content:not-contains=<text>` | Config content must NOT include | `expect=content:not-contains=old-value` |
 | `expect=content:lines=<N>` | Config content line count | `expect=content:lines=5` |
+| `expect=content:pattern=<regex>` | Config content or displayed output matches a Go regular expression (RE2). `.` stops at a newline unless the expression starts with `(?s)`; an empty or invalid expression fails the step | `expect=content:pattern=(?s)peer zulu.*peer alpha` |
 | `expect=viewport:contains=<text>` | Displayed output includes text | `expect=viewport:contains=10.0.0.1` |
 | `expect=viewport:not-contains=<text>` | Displayed output must NOT include | `expect=viewport:not-contains=error` |
+| `expect=viewport:pattern=<regex>` | Displayed output matches a Go regular expression, as `content:pattern`. The way to assert order: `(?s)a.*b` passes only when `a` prints before `b` | `expect=viewport:pattern=(?s)peer zulu.*peer alpha` |
 | `expect=errors:count=<N>` | Validation error count | `expect=errors:count=0` |
 | `expect=status:contains=<text>` | Status message | `expect=status:contains=committed` |
 | `expect=hint:contains=<text>` | Second message line includes text | `expect=hint:contains=show the peers` |
@@ -2419,6 +2421,14 @@ Named keys `input=key:name=<key>` accepts: `tab`, `enter`, `esc`, `escape`,
 | `expect=key:path=<key>:absent` | Key does not exist | `expect=key:path=file/active/test.conf.draft:absent` |
 <!-- source: internal/component/cli/testing/expect.go -- editor expectation types -->
 <!-- source: internal/component/cli/testing/runner_store.go -- createRunnerStore -->
+
+Pattern expectations match displayed output after stripping ANSI escape sequences,
+so a line anchor sees the configuration row rather than its color prefix. The
+viewport is not trimmed or reordered, and missing rows still fail. The working
+configuration alternative of `expect=content:pattern=` remains literal. Literal
+`contains` and `not-contains` expectations are unchanged. Failed viewport patterns
+retain the original output in their diagnostic.
+<!-- source: internal/component/cli/testing/expect.go -- checkContent, checkViewport -->
 
 Editor tests use a tree store by default; `option=storage:value=tree` states
 that choice explicitly. The tree mode is held in memory (`storage.CreateMemory`),

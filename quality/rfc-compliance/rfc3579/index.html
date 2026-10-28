@@ -403,7 +403,7 @@ Fourteen MUST requirements are unproven, unreached or unmet, none of which chang
 <td>2.6.3 - Conflicting Messages</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3579-2.6.3-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L603" title="internal/component/radius/authenticator_eap_test.go" target="_blank" rel="noopener"><code>TestRadiusAdminEapDecisionFollowsTheRadiusCode</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L880" title="internal/component/radius/authenticator_eap_test.go" target="_blank" rel="noopener"><code>TestRadiusAdminEapAcceptWithEapFailureStillAuthorizes</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L881" title="internal/component/radius/authenticator_eap_test.go" target="_blank" rel="noopener"><code>TestRadiusAdminEapAcceptWithEapFailureStillAuthorizes</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3579-2.6.3-2">RFC3579-2.6.3-2</code></td><td colspan="3"><span class="rfc-subject">The access control decision MUST NOT be based on the contents of the EAP packet encapsulated in one or more EAP-Message attributes, if present. (§2.6.3)</span></td></tr>
@@ -411,7 +411,7 @@ Fourteen MUST requirements are unproven, unreached or unmet, none of which chang
 <td>MUST NOT</td>
 <td>2.6.3 - Conflicting Messages</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3579-2.6.3-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L884" title="internal/component/radius/authenticator_eap_test.go" target="_blank" rel="noopener"><code>TestRadiusAdminEapAcceptWithEapFailureStillAuthorizes</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L885" title="internal/component/radius/authenticator_eap_test.go" target="_blank" rel="noopener"><code>TestRadiusAdminEapAcceptWithEapFailureStillAuthorizes</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L606" title="internal/component/radius/authenticator_eap_test.go" target="_blank" rel="noopener"><code>TestRadiusAdminEapDecisionFollowsTheRadiusCode</code></a></span></div>
 </div></td>
 </tr>
@@ -477,7 +477,7 @@ Fourteen MUST requirements are unproven, unreached or unmet, none of which chang
 <td>3.1 - EAP-Message</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3579-3.1-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L392" title="internal/component/radius/authenticator_eap_test.go" target="_blank" rel="noopener"><code>TestRadiusAdminEapAccessRequestIsSignedAndCarriesEAPMessage</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L749" title="internal/component/radius/authenticator_eap_test.go" target="_blank" rel="noopener"><code>TestEAPRequestWithoutMessageAuthenticatorIsRefused</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L749" title="internal/component/radius/authenticator_eap_test.go" target="_blank" rel="noopener"><code>TestEAPRequestWithoutMessageAuthenticatorIsSigned</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3579-3.1-4">RFC3579-3.1-4</code></td><td colspan="3"><span class="rfc-subject">A NAS supporting the EAP-Message attribute MUST calculate the correct value of the Message-Authenticator and MUST silently discard the packet if it does not match the value sent. (§3.1, restated for any RADIUS client receiving an Access-Accept, Access-Reject or Access-Challenge at §3.2)</span></td></tr>
@@ -485,7 +485,7 @@ Fourteen MUST requirements are unproven, unreached or unmet, none of which chang
 <td>MUST</td>
 <td>3.1 - EAP-Message</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3579-3.1-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L915" title="internal/component/radius/authenticator_eap_test.go" target="_blank" rel="noopener"><code>TestRadiusAdminEapVerifiedChallengeIsAccepted</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L916" title="internal/component/radius/authenticator_eap_test.go" target="_blank" rel="noopener"><code>TestRadiusAdminEapVerifiedChallengeIsAccepted</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L501" title="internal/component/radius/authenticator_eap_test.go" target="_blank" rel="noopener"><code>TestRadiusAdminEapDiscardsUnauthenticatedChallenge</code></a></span></div>
 </div></td>
 </tr>
@@ -514,7 +514,7 @@ Fourteen MUST requirements are unproven, unreached or unmet, none of which chang
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3579-3.3-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L1025" title="internal/component/radius/authenticator_eap_test.go" target="_blank" rel="noopener"><code>TestRFC3579EachCredentialTypeAloneEncodes</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L396" title="internal/component/radius/authenticator_eap_test.go" target="_blank" rel="noopener"><code>TestRadiusAdminEapAccessRequestIsSignedAndCarriesEAPMessage</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L958" title="internal/component/radius/authenticator_eap_test.go" target="_blank" rel="noopener"><code>TestAccessRequestRefusesTwoCredentialTypes</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L959" title="internal/component/radius/authenticator_eap_test.go" target="_blank" rel="noopener"><code>TestAccessRequestRefusesTwoCredentialTypes</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc3579_credential_types_test.go#L25" title="internal/component/radius/rfc3579_credential_types_test.go" target="_blank" rel="noopener"><code>TestRFC3579ARAPBesideEAPIsRefusedAtExchange</code></a></span></div>
 </div></td>
 </tr>
@@ -697,7 +697,7 @@ Fourteen MUST requirements are unproven, unreached or unmet, none of which chang
 <td>3.1 - EAP-Message</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3579-3.1-6">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc3579_client_test.go#L75" title="internal/component/radius/rfc3579_client_test.go" target="_blank" rel="noopener"><code>TestRadiusDiscardsEAPAnswerWithoutMessageAuthenticator</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc3579_client_test.go#L78" title="internal/component/radius/rfc3579_client_test.go" target="_blank" rel="noopener"><code>TestRadiusDiscardsEAPAnswerWithoutMessageAuthenticator</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3579-4.2-4">RFC3579-4.2-4</code></td><td colspan="3"><span class="rfc-subject">To address the security vulnerabilities of RADIUS/EAP, implementations of this specification SHOULD support IPsec [RFC2401] along with IKE [RFC2409] for key management. IPsec ESP [RFC2406] with non-null transform SHOULD be supported, and IPsec ESP with a non-null encryption transform and authentication support SHOULD be used to provide per-packet confidentiality, authentication, integrity and replay protection. (§4.2)</span></td></tr>
@@ -992,7 +992,7 @@ Fourteen MUST requirements are unproven, unreached or unmet, none of which chang
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L880" title="internal/component/radius/authenticator_eap_test.go" target="_blank" rel="noopener"><code>TestRadiusAdminEapAcceptWithEapFailureStillAuthorizes</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L881" title="internal/component/radius/authenticator_eap_test.go" target="_blank" rel="noopener"><code>TestRadiusAdminEapAcceptWithEapFailureStillAuthorizes</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1017,7 +1017,7 @@ Fourteen MUST requirements are unproven, unreached or unmet, none of which chang
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L884" title="internal/component/radius/authenticator_eap_test.go" target="_blank" rel="noopener"><code>TestRadiusAdminEapAcceptWithEapFailureStillAuthorizes</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L885" title="internal/component/radius/authenticator_eap_test.go" target="_blank" rel="noopener"><code>TestRadiusAdminEapAcceptWithEapFailureStillAuthorizes</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1079,7 +1079,7 @@ Fourteen MUST requirements are unproven, unreached or unmet, none of which chang
 </div>
 <h3><a href="#rfc3579-3.1-1"><code>RFC3579-3.1-1</code></a></h3>
 <p>If multiple EAP-Message attributes are contained within an Access-Request or Access-Challenge packet, they MUST be in order and they MUST be consecutive attributes in the Access-Request or Access-Challenge packet. (§3.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. split at 253 in order (join reproduces the packet), no foreign attribute inside the run (Message-Authenticator and State after it), and receive-side concatenation around foreign attributes</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/radius/rfc3579_eap_test.go::TestEAPMessageKeepsTheRunConsecutive moved. split at 253 in order (join reproduces the packet), no foreign attribute inside the run (Message-Authenticator and State after it), and receive-side concatenation around foreign attributes</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1124,13 +1124,13 @@ Fourteen MUST requirements are unproven, unreached or unmet, none of which chang
 </div>
 <h3><a href="#rfc3579-3.1-3"><code>RFC3579-3.1-3</code></a></h3>
 <p>Therefore the Message-Authenticator attribute MUST be used to protect all Access-Request, Access-Challenge, Access-Accept, and Access-Reject packets containing an EAP-Message attribute. (§3.1, restated §3.2, §3.3 Note 1 and §4.3.2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. every EAP-bearing Access-Request carries a 16-octet Message-Authenticator that the mock server verifies; encodeRequest refuses an EAP-Message without the placeholder and replaces it with the HMAC. Ze sends only Access-Requests, so the Challenge/Accept/Reject clauses bind the server</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/radius/authenticator_eap_test.go::TestEAPRequestWithoutMessageAuthenticatorIsRefused, internal/component/radius/authenticator_eap_test.go::TestEAPRequestWithoutMessageAuthenticatorIsSigned moved. every EAP-bearing Access-Request carries a 16-octet Message-Authenticator that the mock server verifies; encodeRequest refuses an EAP-Message without the placeholder and replaces it with the HMAC. Ze sends only Access-Requests, so the Challenge/Accept/Reject clauses bind the server</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L749" title="internal/component/radius/authenticator_eap_test.go" target="_blank" rel="noopener"><code>TestEAPRequestWithoutMessageAuthenticatorIsRefused</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L749" title="internal/component/radius/authenticator_eap_test.go" target="_blank" rel="noopener"><code>TestEAPRequestWithoutMessageAuthenticatorIsSigned</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1155,7 +1155,7 @@ Fourteen MUST requirements are unproven, unreached or unmet, none of which chang
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L915" title="internal/component/radius/authenticator_eap_test.go" target="_blank" rel="noopener"><code>TestRadiusAdminEapVerifiedChallengeIsAccepted</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L916" title="internal/component/radius/authenticator_eap_test.go" target="_blank" rel="noopener"><code>TestRadiusAdminEapVerifiedChallengeIsAccepted</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1204,13 +1204,13 @@ Fourteen MUST requirements are unproven, unreached or unmet, none of which chang
 </div>
 <h3><a href="#rfc3579-3.3-2"><code>RFC3579-3.3-2</code></a></h3>
 <p>An Access-Request that contains either a User-Password or CHAP-Password or ARAP-Password or one or more EAP-Message attributes MUST NOT contain more than one type of those four attributes. (§3.3 Note 1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-14 by a reader who did not author the tests. (a) forbidden: an Access-Request carrying two of User-Password, CHAP-Password, ARAP-Password, EAP-Message. - TestAccessRequestRefusesTwoCredentialTypes drives all six pairs of the four types through encodeRequest and requires an error naming both types and zero octets; + TestRFC3579EachCredentialTypeAloneEncodes encodes each type alone, so the refusal is the pair&#39;s; - TestRFC3579ARAPBesideEAPIsRefusedAtExchange shows the guard at Client.Exchange, with no datagram reaching the server. Producer client.go oneCredentialType now names ARAP-Password (70), called by encodeRequest for every CodeAccessRequest. Several EAP-Message fragments (one type) are allowed by the code and not separately asserted.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/radius/authenticator_eap_test.go::TestAccessRequestRefusesTwoCredentialTypes, internal/component/radius/authenticator_eap_test.go::TestRFC3579EachCredentialTypeAloneEncodes moved. Rejudged 2026-10-14 by a reader who did not author the tests. (a) forbidden: an Access-Request carrying two of User-Password, CHAP-Password, ARAP-Password, EAP-Message. - TestAccessRequestRefusesTwoCredentialTypes drives all six pairs of the four types through encodeRequest and requires an error naming both types and zero octets; + TestRFC3579EachCredentialTypeAloneEncodes encodes each type alone, so the refusal is the pair&#39;s; - TestRFC3579ARAPBesideEAPIsRefusedAtExchange shows the guard at Client.Exchange, with no datagram reaching the server. Producer client.go oneCredentialType now names ARAP-Password (70), called by encodeRequest for every CodeAccessRequest. Several EAP-Message fragments (one type) are allowed by the code and not separately asserted.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L958" title="internal/component/radius/authenticator_eap_test.go" target="_blank" rel="noopener"><code>TestAccessRequestRefusesTwoCredentialTypes</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L959" title="internal/component/radius/authenticator_eap_test.go" target="_blank" rel="noopener"><code>TestAccessRequestRefusesTwoCredentialTypes</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1322,7 +1322,7 @@ Fourteen MUST requirements are unproven, unreached or unmet, none of which chang
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc3579_client_test.go#L75" title="internal/component/radius/rfc3579_client_test.go" target="_blank" rel="noopener"><code>TestRadiusDiscardsEAPAnswerWithoutMessageAuthenticator</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc3579_client_test.go#L78" title="internal/component/radius/rfc3579_client_test.go" target="_blank" rel="noopener"><code>TestRadiusDiscardsEAPAnswerWithoutMessageAuthenticator</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1777,7 +1777,7 @@ Fourteen MUST requirements are unproven, unreached or unmet, none of which chang
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
+                    <span class="footer-published">Published 28 October 2026 18:35 UTC</span>
                 </div>
             </div>
         </footer>

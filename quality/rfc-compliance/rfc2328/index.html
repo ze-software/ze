@@ -123,7 +123,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 67 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 67 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 <article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>87.6%</strong><b>191 of 218 tagged units, 2 escaped and 0 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
-<article class="rfc-card rfc-ok"><span>Audit verdicts</span><strong>69</strong><b>of 67 gated MUSTs judged</b><p>0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -186,7 +185,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -657,9 +656,9 @@ The 2026-09-21 extraction added obligations that require current positive/negati
 <td>4.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2328-4.4-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/transport/rfc2328_socket_linux_test.go#L76" title="internal/plugins/ospf/transport/rfc2328_socket_linux_test.go" target="_blank" rel="noopener"><code>TestOSPFMulticastMembershipInstalled</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/transport/rfc2328_transport_integration_linux_test.go#L44" title="internal/plugins/ospf/transport/rfc2328_transport_integration_linux_test.go" target="_blank" rel="noopener"><code>TestOSPFTransportVethMulticastRoundTrip</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/transport/rfc2328_transport_integration_linux_test.go#L50" title="internal/plugins/ospf/transport/rfc2328_transport_integration_linux_test.go" target="_blank" rel="noopener"><code>TestOSPFTransportVethMulticastRoundTrip</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/transport/rfc2328_socket_linux_test.go#L97" title="internal/plugins/ospf/transport/rfc2328_socket_linux_test.go" target="_blank" rel="noopener"><code>TestOSPFMulticastMembershipRefusesForeignGroup</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/transport/rfc2328_transport_integration_linux_test.go#L94" title="internal/plugins/ospf/transport/rfc2328_transport_integration_linux_test.go" target="_blank" rel="noopener"><code>TestOSPFTransportAllDRoutersReceive</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/transport/rfc2328_transport_integration_linux_test.go#L100" title="internal/plugins/ospf/transport/rfc2328_transport_integration_linux_test.go" target="_blank" rel="noopener"><code>TestOSPFTransportAllDRoutersReceive</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2328-4.4-2">RFC2328-4.4-2</code></td><td colspan="3"><span class="rfc-subject">The router&#39;s IP protocol support must include the ability to divide a single IP class A, B, or C network number into many subnets of various sizes. This is commonly called variable-length subnetting; see Section 3.5 for details. IP supernetting support The router&#39;s IP protocol support must include the ability to aggregate contiguous collections of IP class A, B, and C networks into larger quantities called supernets. (§4.4)</span></td></tr>
@@ -2023,7 +2022,7 @@ The 2026-09-21 extraction added obligations that require current positive/negati
 </div>
 <h3><a href="#rfc2328-4.4-1"><code>RFC2328-4.4-1</code></a></h3>
 <p>Support for receiving and sending IP multicast datagrams, along with the appropriate lower-level protocol support, is required. (§4.4)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-12 (independent auditor). SHIFTED by 6e063fb498 (tests: give ten assert-nothing tests a real assertion), whose hunks sit in untagged sibling tests and the import block. The tagged unit is byte-identical (gate-verified) and no helper it calls changed. Verdict stands. Independent judgment: RFC 2328 section 4.4 says, &#34;Support for receiving and sending IP multicast datagrams, along with the appropriate lower-level protocol support, is required.&#34; The production raw protocol-89 backend now has proof on both sides: TestOSPFTransportVethMulticastRoundTrip reads IP_MULTICAST_IF == 192.0.2.1 and TTL 1, sends AllSPFRouters over a real veth into a peer namespace, and asserts receiving interface, source and exact payload. TestOSPFTransportAllDRoutersReceive first receives on that same link, leaves AllDRouters and requires subsequent delivery to be absent. The original duplicate-join/drop errno assertions prove actual socket membership installation/removal; the foreign-group refusal is supplementary OSPF API confinement, not a general IP multicast forwarding obligation. Inspected runInNS: caller pins its thread, namespace entry and deferred restoration each load the real netlink backend, LoadBackend closes the old counter socket and the replacement lazily opens in its lookup namespace; no fake resolver bypass. Inspected four native recorded producer-halt observations and fresh records. This proves Ze&#39;s configured socket/send/receive boundary, not Linux multicast forwarding (expressly not required by this section). No new judge test run.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/plugins/ospf/transport/rfc2328_transport_integration_linux_test.go::TestOSPFTransportAllDRoutersReceive, internal/plugins/ospf/transport/rfc2328_transport_integration_linux_test.go::TestOSPFTransportVethMulticastRoundTrip moved. Re-judged 2026-10-12 (independent auditor). SHIFTED by 6e063fb498 (tests: give ten assert-nothing tests a real assertion), whose hunks sit in untagged sibling tests and the import block. The tagged unit is byte-identical (gate-verified) and no helper it calls changed. Verdict stands. Independent judgment: RFC 2328 section 4.4 says, &#34;Support for receiving and sending IP multicast datagrams, along with the appropriate lower-level protocol support, is required.&#34; The production raw protocol-89 backend now has proof on both sides: TestOSPFTransportVethMulticastRoundTrip reads IP_MULTICAST_IF == 192.0.2.1 and TTL 1, sends AllSPFRouters over a real veth into a peer namespace, and asserts receiving interface, source and exact payload. TestOSPFTransportAllDRoutersReceive first receives on that same link, leaves AllDRouters and requires subsequent delivery to be absent. The original duplicate-join/drop errno assertions prove actual socket membership installation/removal; the foreign-group refusal is supplementary OSPF API confinement, not a general IP multicast forwarding obligation. Inspected runInNS: caller pins its thread, namespace entry and deferred restoration each load the real netlink backend, LoadBackend closes the old counter socket and the replacement lazily opens in its lookup namespace; no fake resolver bypass. Inspected four native recorded producer-halt observations and fresh records. This proves Ze&#39;s configured socket/send/receive boundary, not Linux multicast forwarding (expressly not required by this section). No new judge test run.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -2034,7 +2033,7 @@ The 2026-09-21 extraction added obligations that require current positive/negati
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/transport/rfc2328_transport_integration_linux_test.go#L94" title="internal/plugins/ospf/transport/rfc2328_transport_integration_linux_test.go" target="_blank" rel="noopener"><code>TestOSPFTransportAllDRoutersReceive</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/transport/rfc2328_transport_integration_linux_test.go#L100" title="internal/plugins/ospf/transport/rfc2328_transport_integration_linux_test.go" target="_blank" rel="noopener"><code>TestOSPFTransportAllDRoutersReceive</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -2044,7 +2043,7 @@ The 2026-09-21 extraction added obligations that require current positive/negati
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/transport/rfc2328_transport_integration_linux_test.go#L44" title="internal/plugins/ospf/transport/rfc2328_transport_integration_linux_test.go" target="_blank" rel="noopener"><code>TestOSPFTransportVethMulticastRoundTrip</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/transport/rfc2328_transport_integration_linux_test.go#L50" title="internal/plugins/ospf/transport/rfc2328_transport_integration_linux_test.go" target="_blank" rel="noopener"><code>TestOSPFTransportVethMulticastRoundTrip</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -3450,7 +3449,7 @@ The 2026-09-21 extraction added obligations that require current positive/negati
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 09:31 UTC</span>
+                    <span class="footer-published">Published 28 October 2026 18:35 UTC</span>
                 </div>
             </div>
         </footer>

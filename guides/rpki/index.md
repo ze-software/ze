@@ -709,9 +709,9 @@ the check waits for a strictly newer event.
 
 Commit the RTR cache and validation binding live, distinguish Valid, NotFound and ineligible Invalid routes, diagnose a stopped cache, and restore synchronization.
 
-[Download the asciicast recording](../../assets/demos/rpki.cast?v=a3e919d818) · [Plain-text transcript](../../assets/demos/rpki.txt?v=8853dceca8)
+[Download the asciicast recording](../../assets/demos/rpki.cast?v=c8eada776e) · [Plain-text transcript](../../assets/demos/rpki.txt?v=8853dceca8)
 
-Recorded with Ze 26.10.27 in a Linux namespace lab using Ze recorder. Duration: 2 minutes 35 seconds.
+Recorded with Ze 26.10.28 in a Linux namespace lab using Ze recorder. Duration: 3 minutes 57 seconds.
 
 ```console
 RPKI: live policy, failure diagnosis and recovery

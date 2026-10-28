@@ -48,6 +48,19 @@ the policy final. An absent direction keeps the existing automatic-filter
 behavior and accepts when those filters finish; it is not a configured empty
 policy.
 
+Named `loop-detection` instances remain visible in the effective import policy,
+including when the direction has no operator `final`. Plain `no-self-as`,
+`loop-detection:no-self-as`, and canonical `loop:no-self-as` references select
+the same instance. Its settings control the existing protocol-stage loop check;
+the instance is not an external plugin and is not executed a second time in
+the policy RPC chain. Deactivating its import reference disables that check
+for the peer. Earlier named automatic references could incorrectly attempt an
+RPC to the instance name and fail with `unknown plugin`.
+An active named internal reference on export is refused: these instances
+configure ingress checks, not an export policy. Remove that export reference
+or deactivate it to record a deliberate no-check decision. Automatic import
+references never populate export.
+
 A reload compares the whole effective policy. Changing only the export `final`
 therefore reconciles advertisements on the existing session without a source
 UPDATE. Rejecting withdraws prior advertisements. Returning to acceptance,
@@ -391,6 +404,15 @@ With `final reject`, a pure withdrawal remains `accept` with unchanged resulting
 text. A mixed announcement and withdrawal reports `modify`, with only its explicit
 withdrawals in the resulting text. A filter execution failure or teardown still
 reports `reject` without resulting text; neither is a successful withdrawal.
+
+The dry-run covers the per-peer external-policy stage, not the full ingress
+protocol pipeline. An active named in-process check appears in `trace` with
+`action: not-evaluated` and empty `text-after`; it is not an accepting filter
+invocation. The overall `action` describes the external-policy stage and its
+final only, not whether that unevaluated guard would pass on a live session.
+A single-filter override selecting an in-process check is refused with an
+explanation; exercise it with an UPDATE on the peer session instead. Inactive
+references do not execute and have no trace entry.
 
 Use the same route at each boundary:
 

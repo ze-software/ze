@@ -46600,7 +46600,7 @@
   {
     "path": "show policy test peer",
     "short-help": "Test what your policy does to a specific UPDATE.",
-    "description": "Feed a hex-encoded BGP UPDATE through a peer's filter chain and see\nthe accept/reject result plus attribute modifications at each stage.\nRead-only: no routes are actually forwarded. Great for validating\npolicy changes before you commit.\nThe selector and the direction, filter, update and source-asn4 tokens are\nparsed by the handler, so the peer selector can be a free-form name or\naddress and the tokens can arrive in any order.",
+    "description": "Feed a hex-encoded BGP UPDATE through a peer's external policy chain and\nsee its final decision and attribute modifications. Named in-process protocol\nchecks are marked not-evaluated, not simulated; the result does not establish\nthat those checks would accept a live UPDATE. Selecting one as a single-filter\noverride is refused. Read-only: no routes are actually forwarded.\nThe selector and the direction, filter, update and source-asn4 tokens are\nparsed by the handler, so the peer selector can be a free-form name or\naddress and the tokens can arrive in any order.",
     "mode": "read-only",
     "wire-method": "ze-bgp:show-policy-test",
     "args": [

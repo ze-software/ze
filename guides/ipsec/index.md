@@ -36,9 +36,9 @@ for the installed IPsec SAs and SPIs.
 
 Commit IKE, ESP, selectors and XFRM routing over SSH, prove kernel SPIs with protected traffic, diagnose an ESP mismatch, and restore the tunnel.
 
-[Download the asciicast recording](../../assets/demos/ipsec.cast?v=1aff2bf168) · [Plain-text transcript](../../assets/demos/ipsec.txt?v=f5fa147589)
+[Download the asciicast recording](../../assets/demos/ipsec.cast?v=95f50fd1c5) · [Plain-text transcript](../../assets/demos/ipsec.txt?v=f5fa147589)
 
-Recorded with Ze 26.10.27 in a Linux namespace lab using Ze recorder. Duration: 2 minutes 40 seconds.
+Recorded with Ze 26.10.28 in a Linux namespace lab using Ze recorder. Duration: 5 minutes 33 seconds.
 
 ```console
 Native IKEv2 and Linux IPsec, configured live

@@ -374,16 +374,16 @@ Expected result: Ze commits the browser user's isolated draft and the active YAN
 
 Load a risky hostname change over SSH, observe automatic rollback, then accept a second change and prove it persists on the same running router.
 
-[Download the asciicast recording](../../assets/demos/commit-confirmed.cast?v=ada9d531b2) · [Plain-text transcript](../../assets/demos/commit-confirmed.txt?v=cc3b9170bf)
+[Download the asciicast recording](../../assets/demos/commit-confirmed.cast?v=d61a5f86c6) · [Plain-text transcript](../../assets/demos/commit-confirmed.txt?v=bba89459a1)
 
-Recorded with Ze 26.10.27 in a Linux namespace lab using Ze recorder. Duration: 1 minute 38 seconds.
+Recorded with Ze 26.10.28 in a Linux namespace lab using Ze recorder. Duration: 2 minutes 38 seconds.
 
 ```console
 Commit confirmed: rollback and acceptance on the running router
 
 Connect with sshpass -e ssh ze-demo. The SSH editor starts from edge-original.
 Load /src/demos/terminal/topics/commit-confirmed/1-trial-host.conf, review
-show | compare, then run commit confirmed 8. Ze's timeout is in seconds,
+show | compare, then run commit confirmed 15. Ze's timeout is in seconds,
 unlike Junos commit confirmed, whose timeout is in minutes.
 
 $ ze-demo card topic-commit-confirmed lab
@@ -392,7 +392,7 @@ $ sshpass -e ssh ze-demo
 ze# show system host
 ze# load file absolute merge /src/demos/terminal/topics/commit-confirmed/1-trial-host.conf
 ze# show | compare
-ze# commit confirmed 8
+ze# commit confirmed 15
 
 Show the active edge-trial value, then deliberately leave the change
 unaccepted. Wait for the actual automatic rollback notice. Inspect show
@@ -407,12 +407,12 @@ ze# show | compare
 ze# show | changes
 
 Load /src/demos/terminal/topics/commit-confirmed/2-confirmed-host.conf,
-compare, commit confirmed 8, then commit accept. Wait beyond the eight-second
+compare, commit confirmed 15, then commit accept. Wait beyond the fifteen-second
 deadline and inspect edge-confirmed again. The accepted value must remain.
 
 ze# load file absolute merge /src/demos/terminal/topics/commit-confirmed/2-confirmed-host.conf
 ze# show | compare
-ze# commit confirmed 8
+ze# commit confirmed 15
 ze# commit accept
 
 After waiting beyond the deadline:
@@ -440,9 +440,9 @@ must succeed before this source is published as a recording.
 
 Commit the RTR cache and validation binding live, distinguish Valid, NotFound and ineligible Invalid routes, diagnose a stopped cache, and restore synchronization.
 
-[Download the asciicast recording](../../assets/demos/rpki.cast?v=a3e919d818) · [Plain-text transcript](../../assets/demos/rpki.txt?v=8853dceca8)
+[Download the asciicast recording](../../assets/demos/rpki.cast?v=c8eada776e) · [Plain-text transcript](../../assets/demos/rpki.txt?v=8853dceca8)
 
-Recorded with Ze 26.10.27 in a Linux namespace lab using Ze recorder. Duration: 2 minutes 35 seconds.
+Recorded with Ze 26.10.28 in a Linux namespace lab using Ze recorder. Duration: 3 minutes 57 seconds.
 
 ```console
 RPKI: live policy, failure diagnosis and recovery
@@ -514,9 +514,9 @@ must succeed before this source is published as a recording.
 
 Load the local test IRR server, AS-SET and import policy over SSH, prove route acceptance and refusal, then diagnose and repair a wrong AS-SET without restarting Ze.
 
-[Download the asciicast recording](../../assets/demos/irr-filter.cast?v=132c1244b0) · [Plain-text transcript](../../assets/demos/irr-filter.txt?v=46836a5e6e)
+[Download the asciicast recording](../../assets/demos/irr-filter.cast?v=9312a6df11) · [Plain-text transcript](../../assets/demos/irr-filter.txt?v=46836a5e6e)
 
-Recorded with Ze 26.10.27 in a Linux namespace lab using Ze recorder. Duration: 3 minutes 42 seconds.
+Recorded with Ze 26.10.28 in a Linux namespace lab using Ze recorder. Duration: 4 minutes 57 seconds.
 
 ```console
 IRR: live import filtering and repair
@@ -677,9 +677,9 @@ Hierarchical and set syntax are alternate presentations of the same parsed confi
 
 Commit BFD onto an established FRR BGP peer, cut the link, inspect diagnostics and peer history, then restore both sessions without restarting Ze.
 
-[Download the asciicast recording](../../assets/demos/bfd-failover.cast?v=a37cfae7d2) · [Plain-text transcript](../../assets/demos/bfd-failover.txt?v=1d2f779b15)
+[Download the asciicast recording](../../assets/demos/bfd-failover.cast?v=a134574836) · [Plain-text transcript](../../assets/demos/bfd-failover.txt?v=1d2f779b15)
 
-Recorded with Ze 26.10.27 in a Linux namespace lab using Ze recorder. Duration: 2 minutes 33 seconds.
+Recorded with Ze 26.10.28 in a Linux namespace lab using Ze recorder. Duration: 3 minutes 5 seconds.
 
 ```console
 BFD live opt-in and link-failure walkthrough
@@ -728,9 +728,9 @@ $ ze-demo card topic-bfd recap
 
 Commit OSPF live, follow a Full neighbor through the router database to its loopback route, then diagnose and repair mismatched Hello timers.
 
-[Download the asciicast recording](../../assets/demos/ospf-adjacency.cast?v=6b38530780) · [Plain-text transcript](../../assets/demos/ospf-adjacency.txt?v=fc63b795c8)
+[Download the asciicast recording](../../assets/demos/ospf-adjacency.cast?v=a6fe1973c6) · [Plain-text transcript](../../assets/demos/ospf-adjacency.txt?v=fc63b795c8)
 
-Recorded with Ze 26.10.27 in a Linux namespace lab using Ze recorder. Duration: 5 minutes 57 seconds.
+Recorded with Ze 26.10.28 in a Linux namespace lab using Ze recorder. Duration: 4 minutes 24 seconds.
 
 ```console
 OSPF live adjacency and Hello-mismatch walkthrough
@@ -785,9 +785,9 @@ $ ze-demo card topic-ospf recap
 
 Commit IKE, ESP, selectors and XFRM routing over SSH, prove kernel SPIs with protected traffic, diagnose an ESP mismatch, and restore the tunnel.
 
-[Download the asciicast recording](../../assets/demos/ipsec.cast?v=1aff2bf168) · [Plain-text transcript](../../assets/demos/ipsec.txt?v=f5fa147589)
+[Download the asciicast recording](../../assets/demos/ipsec.cast?v=95f50fd1c5) · [Plain-text transcript](../../assets/demos/ipsec.txt?v=f5fa147589)
 
-Recorded with Ze 26.10.27 in a Linux namespace lab using Ze recorder. Duration: 2 minutes 40 seconds.
+Recorded with Ze 26.10.28 in a Linux namespace lab using Ze recorder. Duration: 5 minutes 33 seconds.
 
 ```console
 Native IKEv2 and Linux IPsec, configured live
@@ -874,9 +874,9 @@ https://www.juniper.net/documentation/us/en/software/junos/cli-reference/topics/
 
 Enable eBPF accounting on the running router, attribute an unexpected ICMP and HTTP burst to its source and port, stop the sender, and observe recovery.
 
-[Download the asciicast recording](../../assets/demos/traffic-anomaly.cast?v=5bfc138dad) · [Plain-text transcript](../../assets/demos/traffic-anomaly.txt?v=8c33b2924c)
+[Download the asciicast recording](../../assets/demos/traffic-anomaly.cast?v=e0f89040c5) · [Plain-text transcript](../../assets/demos/traffic-anomaly.txt?v=8c33b2924c)
 
-Recorded with Ze 26.10.27 in a Linux namespace lab using Ze recorder. Duration: 3 minutes 11 seconds.
+Recorded with Ze 26.10.28 in a Linux namespace lab using Ze recorder. Duration: 3 minutes 9 seconds.
 
 ```console
 Traffic usage live attribution walkthrough
@@ -925,9 +925,9 @@ $ ze-demo card topic-traffic recap
 
 Commit VRRP and uplink tracking live, observe priority reduction and backup demotion, then prove master failover and recovery while the shown Ze stays running.
 
-[Download the asciicast recording](../../assets/demos/vrrp-tracking.cast?v=d55609ce3e) · [Plain-text transcript](../../assets/demos/vrrp-tracking.txt?v=d48d9109d5)
+[Download the asciicast recording](../../assets/demos/vrrp-tracking.cast?v=682f44f6d3) · [Plain-text transcript](../../assets/demos/vrrp-tracking.txt?v=d48d9109d5)
 
-Recorded with Ze 26.10.27 in a Linux namespace lab using Ze recorder. Duration: 2 minutes 50 seconds.
+Recorded with Ze 26.10.28 in a Linux namespace lab using Ze recorder. Duration: 3 minutes 28 seconds.
 
 ```console
 VRRP tracking and peer-failover walkthrough

@@ -21,7 +21,7 @@ Test what your policy does to a specific UPDATE\.
 - Command pipes: none
 - Pipe aliases: none
 
-Feed a hex\-encoded BGP UPDATE through a peer\'s filter chain and see the accept\/reject result plus attribute modifications at each stage\. Read\-only\: no routes are actually forwarded\. Great for validating policy changes before you commit\. The selector and the direction\, filter\, update and source\-asn4 tokens are parsed by the handler\, so the peer selector can be a free\-form name or address and the tokens can arrive in any order\.
+Feed a hex\-encoded BGP UPDATE through a peer\'s external policy chain and see its final decision and attribute modifications\. Named in\-process protocol checks are marked not\-evaluated\, not simulated\; the result does not establish that those checks would accept a live UPDATE\. Selecting one as a single\-filter override is refused\. Read\-only\: no routes are actually forwarded\. The selector and the direction\, filter\, update and source\-asn4 tokens are parsed by the handler\, so the peer selector can be a free\-form name or address and the tokens can arrive in any order\.
 
 ## Arguments
 

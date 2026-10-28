@@ -2409,12 +2409,27 @@ than one request.</p>
 </tr>
 <tr>
 <td><code>radius-admin-eap-unsigned-freeradius</code></td>
-<td>The EAP login through the relay twice. With the relay passing the answers, the login completes and <code>ze_radius_unsigned_eap_discards_total</code> reads 0. With the relay removing the Message-Authenticator, the login fails, ze logs <code>radius: discarding the answer</code> with the RFC 3579 Section 3.1 reason, and the counter is above 0</td>
+<td>On a server row with <code>require-message-authenticator false</code>, so the BlastRADIUS presence check stays out of the way and the RFC 3579 check is the one that runs: the EAP login through the relay twice. With the relay passing the answers, the login completes and <code>ze_radius_unsigned_eap_discards_total</code> reads 0. With the relay removing the Message-Authenticator, the login fails, ze logs <code>radius: discarding the answer</code> with the RFC 3579 Section 3.1 reason, and the counter is above 0</td>
 <td><code>verdict=state-echo</code> and <code>verdict=accept</code> for the passed login. The relay's own log records each answer it carried: an Access-Accept with the signature <code>present</code>, then an Access-Challenge with an EAP-Message and the signature <code>stripped</code></td>
+</tr>
+<tr>
+<td><code>radius-admin-pap-unsigned-freeradius</code></td>
+<td>BlastRADIUS (CVE-2024-3596) on a default server row: the PAP login through the relay twice. With the relay passing the signed Access-Accept, the login completes. With the relay removing its Message-Authenticator, the login fails, ze logs <code>radius: discarding an answer without Message-Authenticator</code>, <code>ze_radius_unsigned_response_discards_total</code> is above 0, and the RADIUS login count does not move</td>
+<td><code>verdict=accept</code> for both requests: the server accepted, and only ze refused. The relay records an Access-Accept with no EAP-Message and the signature <code>present</code>, then the same with the signature <code>stripped</code></td>
+</tr>
+<tr>
+<td><code>radius-admin-pap-unsigned-legacy-freeradius</code></td>
+<td>The same stripped Access-Accept on a server row with <code>require-message-authenticator false</code>: the login completes with <code>source=radius</code>, and ze logs no BlastRADIUS discard</td>
+<td><code>verdict=accept</code>, and the relay records the Access-Accept it carried with the signature <code>stripped</code>, so the login cannot have ridden a signed answer</td>
 </tr>
 </tbody>
 </table>
-<p>The unsigned scenario needs an answer FreeRADIUS will not send. RFC 3579
+<p>Both lab <code>clients.conf</code> files set <code>require_message_authenticator = yes</code>, so
+FreeRADIUS discards any Access-Request without a valid Message-Authenticator.
+Ze signs every Access-Request (draft-ietf-radext-deprecating-radius-10 Section
+4.2), so every scenario in this suite and in the subscriber suite also proves
+that FreeRADIUS verifies the signature ze computed.</p>
+<p>The unsigned scenarios need an answer FreeRADIUS will not send. RFC 3579
 Section 3.1:</p>
 <blockquote>
 <p>Access-Challenge, Access-Accept, or Access-Reject packets including
@@ -2470,6 +2485,7 @@ as evidence.</p>
 <!-- source: internal/le/interoplab/radius/checkers.go -- every observation, on ze's side and on the server's -->
 <!-- source: test/interop-radius/mods-ze-request-log -- the linelog module the server's record comes from -->
 <!-- source: internal/le/interoplab/radius/check_unsigned_eap.go -- checkEAPUnsigned, startRelay, unsignedDiscardCount -->
+<!-- source: internal/le/interoplab/radius/check_unsigned_accept.go -- checkPAPUnsigned, checkPAPUnsignedLegacy, labeledCounterSum -->
 <!-- source: test/interop-radius/unsigned-relay.pl -- the relay that removes the server's Message-Authenticator -->
 <h3 id="the-freeradius-subscriber-suite">The FreeRADIUS subscriber suite</h3>
 <p><code>./le test integration interop-radius-subscriber</code> puts FreeRADIUS 3.2.10, the
@@ -4102,7 +4118,7 @@ ExaBGP compat covers wire encoding for all supported address families.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 02:50 UTC</span>
+                    <span class="footer-published">Published 28 October 2026 18:35 UTC</span>
                 </div>
             </div>
         </footer>

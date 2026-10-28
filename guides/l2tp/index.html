@@ -898,7 +898,7 @@ is accepted, and one that carries a wrong value is discarded with no reply. The
 request still has to come from a configured Dynamic Authorization Client and
 still has to carry a correct Request Authenticator, both keyed on the shared
 secret, so an absent attribute is not an unauthenticated request.</p>
-<p>Set <code>require-message-authenticator true</code> to refuse a request that carries none.
+<p>Set <code>coa-require-message-authenticator true</code> to refuse a request that carries none.
 Requiring the attribute is the mitigation for the Blast-RADIUS class of attack on
 the RADIUS/UDP MD5 authenticator, so enable it wherever the Dynamic Authorization
 Client can send one. FreeRADIUS <code>radclient</code> and the <code>radiusd</code> CoA originator both
@@ -1621,7 +1621,7 @@ goroutine-per-tunnel.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 02:50 UTC</span>
+                    <span class="footer-published">Published 28 October 2026 15:30 UTC</span>
                 </div>
             </div>
         </footer>
