@@ -4,6 +4,8 @@ package cli
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/md5" //nolint:gosec // RFC 2869 Section 5.14 defines the Message-Authenticator as HMAC-MD5
 	"encoding/binary"
 	"encoding/json"
 	"flag"
@@ -244,6 +246,12 @@ func (m *zeTestMockRADIUSServer) handlePacket(data []byte, remote *net.UDPAddr) 
 		Code:       respCode,
 		Identifier: pkt.Identifier,
 	}
+	if pkt.Code == radius.CodeAccessRequest {
+		// Ze discards an unsigned answer to an Access-Request by default
+		// (BlastRADIUS), so this server answers as one updated for it does:
+		// a Message-Authenticator first, filled below.
+		resp.Attrs = []radius.Attr{{Type: radius.AttrMessageAuthenticator, Value: make([]byte, radius.AuthenticatorLen)}}
+	}
 
 	var respBuf [radius.MaxPacketLen]byte
 	n, encErr := resp.EncodeTo(respBuf[:], 0)
@@ -252,6 +260,13 @@ func (m *zeTestMockRADIUSServer) handlePacket(data []byte, remote *net.UDPAddr) 
 	}
 
 	if pkt.Code == radius.CodeAccessRequest {
+		// RFC 2869 Section 5.14: the Message-Authenticator of a response is the
+		// HMAC-MD5 over the packet with the Request Authenticator in the
+		// authenticator field, computed before the Response Authenticator.
+		copy(respBuf[4:4+radius.AuthenticatorLen], pkt.Authenticator[:])
+		mac := hmac.New(md5.New, m.sharedKey)
+		mac.Write(respBuf[:n])
+		copy(respBuf[radius.HeaderLen+2:radius.HeaderLen+2+radius.AuthenticatorLen], mac.Sum(nil))
 		auth := radius.ResponseAuthenticator(
 			respCode, pkt.Identifier,
 			binary.BigEndian.Uint16(respBuf[2:4]),

@@ -635,6 +635,21 @@ the entry's address, shared key and failover position.
 <!-- source: internal/component/l2tp/plugins/authradius/config.go -- parseConfigFromTree, serverPort -->
 <!-- source: internal/component/l2tp/plugins/authradius/register.go -- activateRadiusConfig -->
 
+Ze signs every Access-Request with a Message-Authenticator, and by default it
+discards any answer to one that carries no Message-Authenticator: this closes
+BlastRADIUS (CVE-2024-3596), where an attacker forges an Access-Accept from an
+Access-Reject. A server that predates 2024 and cannot sign its answers fails
+every subscriber login until it is upgraded or its entry sets
+`require-message-authenticator false`. Each discard steps
+`ze_radius_unsigned_response_discards_total{server}` and logs a rate-limited
+warning naming the server and the leaf, and `ze doctor` reports such a server as
+`doctor-radius-unsigned-response`. The leaf never applies to accounting.
+`docs/config-reference.md` ("RADIUS answer signing") has both RADIUS leaves.
+
+<!-- source: internal/component/l2tp/plugins/authradius/config.go -- parseConfigFromTree -->
+<!-- source: internal/component/radius/client.go -- dispatchResponse, discardUnsignedResponse -->
+<!-- source: internal/component/l2tp/plugins/authradius/doctor.go -- udpServerReachable -->
+
 `nas-port-id-format` is the template for the NAS-Port-Id attribute (RFC 2869
 Section 5.17). An LNS has no physical port to number, so the operator composes
 one from `{nas-id}`, `{tunnel-id}` and `{session-id}`. Every other character is

@@ -258,3 +258,49 @@ func TestMockRADIUSLatency(t *testing.T) {
 		t.Errorf("response too fast: %v < %v", elapsed, latency)
 	}
 }
+
+// TestMockRADIUSAnswersZesDefaultClient proves the scale responder answers in a
+// form Ze's own RADIUS client accepts at its defaults.
+//
+// VALIDATES: an Access-Request sent through radius.Client.Exchange with a
+// zero-value AllowUnsignedResponse (Ze's default, BlastRADIUS protection on) gets
+// the responder's Access-Accept.
+// PREVENTS: a scale run in which every subscriber login fails because the
+// responder answers without a Message-Authenticator and Ze discards it.
+func TestMockRADIUSAnswersZesDefaultClient(t *testing.T) {
+	secret := []byte("test-secret")
+	rad, err := zeTestNewMockRADIUS("127.0.0.1:0", secret, 0)
+	if err != nil {
+		t.Fatalf("zeTestNewMockRADIUS: %v", err)
+	}
+	go rad.serve(t.Context())
+	defer rad.shutdown()
+
+	client, err := radius.NewClient(radius.ClientConfig{Timeout: time.Second, Retries: 1})
+	if err != nil {
+		t.Fatalf("NewClient: %v", err)
+	}
+	defer func() {
+		if closeErr := client.Close(); closeErr != nil {
+			t.Logf("close: %v", closeErr)
+		}
+	}()
+
+	auth, err := radius.RandomAuthenticator()
+	if err != nil {
+		t.Fatalf("RandomAuthenticator: %v", err)
+	}
+	pkt := &radius.Packet{
+		Code:          radius.CodeAccessRequest,
+		Identifier:    client.NextID(),
+		Authenticator: auth,
+		Attrs:         []radius.Attr{{Type: radius.AttrUserName, Value: []byte("test-user")}},
+	}
+	resp, err := client.Exchange(t.Context(), pkt, radius.Server{Address: rad.addr(), SharedKey: secret})
+	if err != nil {
+		t.Fatalf("Exchange: %v", err)
+	}
+	if resp.Code != radius.CodeAccessAccept {
+		t.Fatalf("got code %d, want Access-Accept %d", resp.Code, radius.CodeAccessAccept)
+	}
+}
