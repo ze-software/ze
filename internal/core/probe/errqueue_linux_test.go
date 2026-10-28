@@ -12,8 +12,11 @@ package probe
 import (
 	"encoding/binary"
 	"errors"
+	"net"
 	"net/netip"
+	"strings"
 	"testing"
+	"time"
 	"unsafe"
 
 	"golang.org/x/sys/unix"
@@ -267,5 +270,72 @@ func TestDrainErrorQueueRefusesAConnWithoutRawDescriptor(t *testing.T) {
 	err := DrainErrorQueue(nil, FamilyIPv4, func(QueuedError) { t.Error("visited an entry on a nil conn") })
 	if !errors.Is(err, errNoErrQueueAccess) {
 		t.Errorf("DrainErrorQueue(nil) err = %v, want errNoErrQueueAccess", err)
+	}
+}
+
+// TestDrainErrorQueueRefusesTruncatedControlMessages requests more ancillary
+// data than the queue reader accepts, then queues a real loopback port refusal.
+// A truncated read MUST fail before the callback receives a partial entry.
+func TestDrainErrorQueueRefusesTruncatedControlMessages(t *testing.T) {
+	peer, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
+	if err != nil {
+		t.Fatalf("listen for peer address: %v", err)
+	}
+	t.Cleanup(func() { _ = peer.Close() })
+	peerAddr, ok := peer.LocalAddr().(*net.UDPAddr)
+	if !ok {
+		t.Fatalf("peer address has type %T, want *net.UDPAddr", peer.LocalAddr())
+	}
+	conn, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
+	if err != nil {
+		t.Fatalf("listen for queued errors: %v", err)
+	}
+	t.Cleanup(func() { _ = conn.Close() })
+	raw, err := conn.SyscallConn()
+	if err != nil {
+		t.Fatalf("raw descriptor: %v", err)
+	}
+	if err := EnableErrorQueue(raw, FamilyIPv4); err != nil {
+		t.Fatalf("enable error queue: %v", err)
+	}
+	var optionErr error
+	if err := raw.Control(func(fd uintptr) {
+		for _, option := range []struct{ level, name int }{
+			{unix.SOL_SOCKET, unix.SO_TIMESTAMPNS},
+			{unix.IPPROTO_IP, unix.IP_PKTINFO},
+			{unix.IPPROTO_IP, unix.IP_RECVTTL},
+			{unix.IPPROTO_IP, unix.IP_RECVTOS},
+		} {
+			if optionErr = unix.SetsockoptInt(int(fd), option.level, option.name, 1); optionErr != nil {
+				return
+			}
+		}
+	}); err != nil {
+		t.Fatalf("set ancillary options: %v", err)
+	}
+	if optionErr != nil {
+		t.Fatalf("enable ancillary data: %v", optionErr)
+	}
+	if err := peer.Close(); err != nil {
+		t.Fatalf("close peer to trigger port refusal: %v", err)
+	}
+	if err := conn.SetReadDeadline(time.Now().Add(time.Second)); err != nil {
+		t.Fatalf("set refusal deadline: %v", err)
+	}
+	if _, err := conn.WriteToUDP([]byte("queue truncation"), peerAddr); err != nil {
+		t.Fatalf("send to closed peer: %v", err)
+	}
+	var data [1]byte
+	if _, _, err := conn.ReadFromUDP(data[:]); !errors.Is(err, unix.ECONNREFUSED) {
+		t.Fatalf("wait for queued port refusal: %v, want ECONNREFUSED", err)
+	}
+	err = DrainErrorQueue(conn, FamilyIPv4, func(QueuedError) {
+		t.Error("truncated control messages reached the callback")
+	})
+	if err == nil {
+		t.Fatal("truncated control messages were accepted")
+	}
+	if !strings.Contains(err.Error(), "control messages truncated") {
+		t.Fatalf("drain error = %v, want control-message truncation", err)
 	}
 }

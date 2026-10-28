@@ -94,6 +94,8 @@ const errQueueDatagramMax = 1500
 // so the control-message parser is declared once. conn MUST carry
 // IP_RECVERR, which EnableErrorQueue installs; without it the kernel queues
 // nothing and every drain reads an empty queue.
+// The read reserves packet-info ancillary data alongside the extended error.
+// A truncated control-message read is refused before visit sees an incomplete entry.
 func DrainErrorQueue(conn net.PacketConn, family Family, visit func(QueuedError)) error {
 	sc, ok := conn.(syscall.Conn)
 	if !ok {
@@ -104,16 +106,23 @@ func DrainErrorQueue(conn net.PacketConn, family Family, visit func(QueuedError)
 		return fmt.Errorf("probe: raw descriptor: %w", err)
 	}
 	data := make([]byte, errQueueDatagramMax)
-	oob := make([]byte, unix.CmsgSpace(sockExtendedErrLen+unix.SizeofSockaddrInet6))
+	// A foreign socket can also request packet info, which the kernel writes
+	// before IP_RECVERR. Reserve both messages so the offender is not truncated.
+	oob := make([]byte, unix.CmsgSpace(sockExtendedErrLen+unix.SizeofSockaddrInet6)+
+		unix.CmsgSpace(unix.SizeofInet6Pktinfo))
 	var readErr error
 	controlErr := raw.Control(func(fd uintptr) {
 		for range ErrQueueDrainMax {
-			n, oobn, _, from, recvErr := unix.Recvmsg(int(fd), data, oob, unix.MSG_ERRQUEUE|unix.MSG_DONTWAIT)
+			n, oobn, flags, from, recvErr := unix.Recvmsg(int(fd), data, oob, unix.MSG_ERRQUEUE|unix.MSG_DONTWAIT)
 			if errors.Is(recvErr, unix.EAGAIN) {
 				return
 			}
 			if recvErr != nil {
 				readErr = fmt.Errorf("probe: read error queue: %w", recvErr)
+				return
+			}
+			if flags&unix.MSG_CTRUNC != 0 {
+				readErr = errors.New("probe: error-queue control messages truncated")
 				return
 			}
 			entry, parseErr := parseQueuedError(family, data[:n], oob[:oobn], from)

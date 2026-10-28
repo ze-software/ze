@@ -138,6 +138,13 @@ write on that socket for the whole call. Neither export has a non-Linux
 stub of its own: the transport's Linux file is the only caller, and the
 transport's own stub answers `probe.ErrDFUnsupported` there.
 
+The queue reader reserves space for packet-info ancillary data as well as the
+extended error and its offender address. This matters for IKE's UDP sockets:
+destination capture enables `IP_PKTINFO`, and Linux writes that control message
+before `IP_RECVERR`. A read carrying `MSG_CTRUNC` is refused before any entry is
+delivered, rather than reporting an incomplete refusal with no offender.
+<!-- source: internal/core/probe/errqueue_linux.go -- DrainErrorQueue -->
+
 ### What the payload says
 
 A refused probe is a row of its own on ping and a hop record on traceroute,
