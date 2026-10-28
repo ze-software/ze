@@ -17,14 +17,16 @@ Wait+Screen /merged from \S*2-confirmed-host\.conf/
 Type "show | compare"
 Enter
 Wait+Screen /edge-confirmed/
-Type "commit confirmed 8"
+Type "commit confirmed 15"
 Enter
 Wait+Screen /Confirm within/
 Type "commit accept"
 Enter
 Wait+Screen /Commit accepted/
-# Keep the accepted change visible beyond the same eight-second deadline.
-Sleep 9s
+# Keep the accepted change visible beyond its fifteen-second deadline. The
+# window is longer than the trial's because the reading floor and the typing
+# of commit accept must fit inside it.
+Sleep 12s
 Type "show system host"
 Enter
 Wait+Screen /edge-confirmed/

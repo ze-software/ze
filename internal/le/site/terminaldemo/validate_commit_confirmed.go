@@ -50,12 +50,12 @@ func checkTopicCommitConfirmed() error {
 		"--command", "load file absolute merge /src/demos/terminal/topics/commit-confirmed/2-confirmed-host.conf",
 		"--command", "@wait merged from",
 		"--command", "show | compare",
-		"--command", "commit confirmed 8",
+		"--command", "commit confirmed 15",
 		"--command", "@wait Confirm within",
 		"--command", "commit accept",
 		"--command", "@wait Commit accepted",
-		// sleep(timer): commit confirmed 8 above sets the deadline the accepted value must survive.
-		"--command", "@sleep 9",
+		// sleep(timer): commit confirmed 15 above sets the deadline the accepted value must survive.
+		"--command", "@sleep 16",
 		"--command", "show system host",
 		"--command", "exit", "--command", `@wait operational\]`, "--command", "exit",
 		"--", "sshpass", "-e", "ssh", "ze-demo")
