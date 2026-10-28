@@ -1,0 +1,24 @@
+2. spec-l2tp-pool-reload-applies
+3. spec-ppp-ncp-independent-lifetime
+4. spec-lifecycle-invariants (PPPoE timeouts)
+5. spec-pppoe-refuse-vpp-backend
+
+ ┌──────────────────────────────────────────────┬────────────────────────────────────────────────────────────────────────────────────────────────┬──────────────────────────────────────┐
+ │ Work                                         │ Spec                                                                                           │ Recorded status                      │
+ ├──────────────────────────────────────────────┼────────────────────────────────────────────────────────────────────────────────────────────────┼──────────────────────────────────────┤
+ │ WireGuard configuration-to-traffic proof     │ wireguard-runtime-proof (plan/release/validation/spec-wireguard-runtime-proof.md)              │ Skeleton                             │
+ ├──────────────────────────────────────────────┼────────────────────────────────────────────────────────────────────────────────────────────────┼──────────────────────────────────────┤
+ │ Live configuration and IRR commit proof      │ showcase-live-config-proof (plan/release/validation/spec-showcase-live-config-proof.md)        │ Skeleton                             │
+ ├──────────────────────────────────────────────┼────────────────────────────────────────────────────────────────────────────────────────────────┼──────────────────────────────────────┤
+ │ WebP/playback editorial acceptance and       │ terminal-demo-showcase (plan/post-release/engineering/spec-terminal-demo-showcase.md)          │ In progress                          │
+ │ closure                                      │                                                                                                │                                      │
+ ├──────────────────────────────────────────────┼────────────────────────────────────────────────────────────────────────────────────────────────┼──────────────────────────────────────┤
+ │ DelayOpen timeouts and FRR interoperability  │ bgp-fsm-delayopen-and-automatic-start                                                          │ In progress                          │
+ │ proof                                        │ (plan/post-release/features/spec-bgp-fsm-delayopen-and-automatic-start.md)                     │                                      │
+ ├──────────────────────────────────────────────┼────────────────────────────────────────────────────────────────────────────────────────────────┼──────────────────────────────────────┤
+ │ Separate plugin startup-timeout defect       │ plugin-startup-stall-covers-stage-work                                                         │ Skeleton, P1                         │
+ │                                              │ (plan/release/fixes/spec-plugin-startup-stall-covers-stage-work.md)                            │                                      │
+ ├──────────────────────────────────────────────┼────────────────────────────────────────────────────────────────────────────────────────────────┼──────────────────────────────────────┤
+ │ Verification running outside its intended    │ verify-scope-0-umbrella (plan/post-release/engineering/spec-verify-scope-0-umbrella.md)        │ Owns the recorded VPN verification   │
+ │ scope                                        │                                                                                                │ incident                             │
+ └──────────────────────────────────────────────┴────────────────────────────────────────────────────────────────────────────────────────────────┴──────────────────────────────────────┘
