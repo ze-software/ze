@@ -1110,7 +1110,18 @@ background child writes that report to `tmp/store-trim/last.log`, which holds
 the latest run. The action exits 1 when a budget, a cache path or the
 `ze.le.store.trim` value was refused; a contended entry or an unmet budget is
 reported and exits 0.
-<!-- source: internal/le/scratch/storetrim.go -- storeTrimBeforeDispatch, startTrimWhenDue, trimStores, trimReport -->
+
+Every trim, the background child and `./le scratch trim` alike, first checks
+that its root is the Ze checkout, by the same `go.mod` and `feature-gates.txt`
+markers `./le commit create` reads (`lepath.IsCheckout`). Only `ZE_REPO_ROOT`
+can point le at another tree, such as `../wiki`, and the trigger then starts
+the child against that tree. There the trim judges nothing: it reports one
+`SKIP` line naming the root and why, with no budget and no row, and exits 0.
+Every row judges what it finds by Ze's layout, and another repository's `bin/`
+holds its own tracked files, which the `agent-files` row would remove once idle
+for a day.
+<!-- source: internal/le/scratch/storetrim.go -- storeTrimBeforeDispatch, startTrimWhenDue, trimStores, trimStoresScanning, notCheckoutSkip, trimReport -->
+<!-- source: internal/le/le/path/lepath.go -- IsCheckout -->
 <!-- source: internal/le/scratch/cachetrim.go -- trimCaches, removeOldest, walkGoFormatCache -->
 
 After the caches, the same child trims the stores a live session may be using,
@@ -1137,7 +1148,7 @@ command still running from a superseded build keeps its file.
 | `builds` | `.staging-<pid>/` | nothing in it was written for an hour |
 | `builds` | `.previous-legacy/` | a build of this checkout's own platform exists |
 | `builds` | `.building/`, anything else | never: the launcher reclaims a lock whose owner died |
-| `agent-files` | any `bin/` entry but `le`, `le-*`, `le.*`, `ze*` and `builds` | nothing in it (its newest mtime, the whole tree for a directory) was written for a day; a symbolic link is never removed |
+| `agent-files` | any `bin/` entry but `le`, `le-*`, `le.*`, `ze*` and `builds`, in the Ze checkout only, whose `.gitignore` ignores `/bin/` | nothing in it (its newest mtime, the whole tree for a directory) was written for a day; a symbolic link is never removed |
 
 The last row, `test-temp`, is the per-user test temp base `~/.zt` (see "Where a
 Go test keeps its temp dirs"). Age alone judges it, with or without a Claude

@@ -369,7 +369,9 @@ func failedRecordSuffix(suffix string) bool {
 
 // trimAgentFiles removes what agents made directly in bin/ (O-8): every entry
 // that is not le's own (leOwnedBinEntry) and that nothing wrote to for a day
-// and no running process names.
+// and no running process names. It removes whatever else bin/ holds, so it
+// relies on trimStoresScanning running it only in the Ze checkout, whose
+// .gitignore ignores /bin/: in another repository bin/ holds tracked source.
 func trimAgentFiles(ctx context.Context, row *StoreTrim, pass *livenessPass) {
 	entries, err := os.ReadDir(row.Path)
 	if errors.Is(err, fs.ErrNotExist) {

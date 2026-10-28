@@ -36,6 +36,19 @@ func agedDir(t *testing.T, path string, now time.Time, age time.Duration) string
 	return path
 }
 
+// zeCheckoutRoot answers a temporary directory carrying the two markers
+// lepath.IsCheckout reads, so a whole trim judges it as the Ze checkout.
+func zeCheckoutRoot(t *testing.T) string {
+	t.Helper()
+	root := t.TempDir()
+	for _, marker := range []string{"go.mod", "feature-gates.txt"} {
+		if err := os.WriteFile(filepath.Join(root, marker), nil, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return root
+}
+
 // agedFile writes a small file with an mtime age before now.
 func agedFile(t *testing.T, path string, now time.Time, age time.Duration) {
 	t.Helper()
@@ -311,7 +324,7 @@ func TestTrimSessionsAgePlusReap(t *testing.T) {
 // its sessions, judging every session dead.
 func TestTrimSkipsLivenessWithoutSessions(t *testing.T) {
 	now := time.Now()
-	root := t.TempDir()
+	root := zeCheckoutRoot(t)
 	t.Setenv("XDG_CACHE_HOME", t.TempDir())
 	day := 25 * time.Hour
 	agedFile(t, filepath.Join(gotoolchain.NamedLauncherDir(root, "old"), "le"), now, day)
@@ -770,6 +783,53 @@ func TestTrimRemovesIdleAgentBinFiles(t *testing.T) {
 	}
 	if !exists(t, target) {
 		t.Error("the target of a symbolic link under bin/ was removed")
+	}
+}
+
+// TestTrimSkipsRootThatIsNotTheCheckout proves a whole trim judges nothing
+// under a root that is not the Ze checkout.
+//
+// VALIDATES: with a Claude CLI visible, so every liveness row would run, a
+// trim over a git repository lacking Ze's markers keeps its idle tracked
+// bin/ file, reports no budget and no row, names the root and why in its skip,
+// and exits 0.
+// PREVENTS: `ZE_REPO_ROOT=../wiki ./le ...` starting the hourly trim against
+// the wiki, whose agent-files row removed the tracked tools in its bin/.
+func TestTrimSkipsRootThatIsNotTheCheckout(t *testing.T) {
+	now := time.Now()
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example.com/wiki\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	tool := filepath.Join(root, "bin", "push-wiki")
+	agedFile(t, tool, now, 25*time.Hour)
+	for _, args := range [][]string{{"init", "-q"}, {"add", "bin/push-wiki"}} {
+		git := exec.CommandContext(t.Context(), "git", args...)
+		git.Dir = root
+		if out, err := git.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+	t.Setenv("HOME", t.TempDir())
+	telemetryOffUnderHome(t)
+
+	withCLI := []procscan.Process{{PID: 2, Start: "x", Argv: []string{"claude"}, CLI: true}}
+	report, code := trimStoresScanning(root, storeTrimOn, func() ([]procscan.Process, error) { return withCLI, nil })
+	if !exists(t, tool) {
+		t.Error("the trim removed bin/push-wiki, a tracked file of a repository that is not the Ze checkout")
+	}
+	if code != 0 {
+		t.Errorf("trim over a root that is not the Ze checkout exited %d, want 0", code)
+	}
+	if len(report.Budgets) != 0 || len(report.Stores) != 0 {
+		t.Errorf("trim reported %d budgets and %d stores, want none: %+v", len(report.Budgets), len(report.Stores), report)
+	}
+	if !strings.Contains(report.Skipped, root) || !strings.Contains(report.Skipped, "not the Ze checkout") {
+		t.Errorf("skip = %q, want it to name the root and say it is not the Ze checkout", report.Skipped)
+	}
+	if text := report.Text(); !strings.Contains(text, "SKIP "+root) {
+		t.Errorf("text report does not carry the skip:\n%s", text)
 	}
 }
 

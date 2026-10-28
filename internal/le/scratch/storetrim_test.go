@@ -1011,7 +1011,7 @@ func TestTrimReportJSON(t *testing.T) {
 		// A fresh HOME with no .zt, and longer than 19 bytes, so the test-temp row is a
 		// skip and nothing of the user's is trimmed.
 		t.Setenv("HOME", t.TempDir())
-		root := t.TempDir()
+		root := zeCheckoutRoot(t)
 		report, code := trimStores(root, "maybe")
 		if code != 1 || !strings.Contains(report.Refusal, StoreTrimKey) {
 			t.Errorf("trimStores(maybe) = %d, refusal %q; want 1 naming the key", code, report.Refusal)

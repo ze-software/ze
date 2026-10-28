@@ -463,10 +463,12 @@ const (
 )
 
 // trimReport is the answer of one store trim: whether the automatic trim is
-// on, one line for each budget, and one row for each store.
+// on, one line for each budget, and one row for each store. Skipped carries
+// the reason a root that is not the Ze checkout got no budgets and no rows.
 type trimReport struct {
 	Automatic string       `json:"automatic"`
 	Refusal   string       `json:"refusal,omitempty"`
+	Skipped   string       `json:"skipped,omitempty"`
 	Budgets   []BudgetTrim `json:"budgets"`
 	Stores    []StoreTrim  `json:"stores"`
 }
@@ -526,8 +528,8 @@ func (r trimReport) verdict() int {
 	return 0
 }
 
-// Text renders the switch state, then one line for each budget, then one
-// line for each store.
+// Text renders the switch state, then the skip of a root that is not the Ze
+// checkout, or else one line for each budget, then one line for each store.
 func (r trimReport) Text() string {
 	var text textbuf.Buffer
 	text.Reset()
@@ -538,6 +540,9 @@ func (r trimReport) Text() string {
 		text.Str("automatic trim: off (").Str(StoreTrimKey).Str("=off); this trim ran because it was asked for\n")
 	default:
 		text.Str("automatic trim: on, at most once an hour\n")
+	}
+	if r.Skipped != "" {
+		text.Str("SKIP ").Str(r.Skipped).Byte('\n')
 	}
 	for _, budget := range r.Budgets {
 		var line textbuf.Buffer
@@ -632,7 +637,8 @@ const storeTrimTimeout = time.Hour
 // whether le starts a trim by itself: a trim that runs was asked for, by name
 // or by the trigger, so an unreadable switch is refused by name in the report
 // and exits 1 while every store is still trimmed, the rule a bad budget follows
-// (AC-13).
+// (AC-13). A root that is not the Ze checkout is skipped whole, with its reason
+// in the report, and exits 0 unless the switch was refused.
 func trimStores(root, automatic string) (trimReport, int) {
 	return trimStoresScanning(root, automatic, procscan.Scan)
 }
@@ -647,6 +653,14 @@ func trimStoresScanning(root, automatic string, scan func() ([]procscan.Process,
 		report.Refusal = err.Error()
 	case !enabled:
 		report.Automatic = storeTrimOff
+	}
+	// The one guard every trim passes, the trigger's background child and
+	// `le scratch trim` alike: each row judges what it finds under root by
+	// Ze's own layout, and in another repository bin/ holds its tracked
+	// source, which the agent-files row would remove once idle for a day.
+	if !lepath.IsCheckout(root) {
+		report.Skipped = notCheckoutSkip(root)
+		return report, report.verdict()
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), storeTrimTimeout)
@@ -671,6 +685,18 @@ func trimStoresScanning(root, automatic string, scan func() ([]procscan.Process,
 	trimTestTemp(ctx, &testTemp, &livenessPass{now: time.Now(), remove: os.RemoveAll})
 	report.Stores = append(report.Stores, testTemp)
 	return report, report.verdict()
+}
+
+// notCheckoutSkip says why a trim judged nothing under root. Only
+// ZE_REPO_ROOT can name such a root, because a discovered root carries the
+// markers by construction.
+func notCheckoutSkip(root string) string {
+	var reason textbuf.Buffer
+	reason.Str(root).Str(" is not the Ze checkout (it lacks go.mod or feature-gates.txt), ").
+		Str("so no store under it is trimmed: every row judges Ze's own layout, and elsewhere ").
+		Str("it would remove the repository's own files. ZE_REPO_ROOT named this root; run ").
+		Str("./le scratch trim from the Ze checkout to trim its stores")
+	return reason.String()
 }
 
 // livenessStores scans the process table once and trims the stores a live
