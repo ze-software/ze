@@ -233,3 +233,38 @@ func padded1232Answered(t *testing.T, opts Options) bool {
 	// (what the handler above answers) shows the query was read whole.
 	return resp.Rcode == dns.RcodeSuccess
 }
+
+// TestRecursiveAccept pins every branch of the recursive header filter.
+// Goal: a response is ignored, a header claiming sections the library would
+// unpack at length is rejected, and a query the default filter would answer
+// unshaped (a question count other than one, an opcode other than QUERY)
+// reaches the handler. Method: one header per bound, at and one past it.
+func TestRecursiveAccept(t *testing.T) {
+	opcode := func(op int) uint16 { return uint16(op) << 11 }
+	cases := []struct {
+		name   string
+		header dns.Header
+		want   dns.MsgAcceptAction
+	}{
+		{"normal query", dns.Header{Qdcount: 1}, dns.MsgAccept},
+		{"no question", dns.Header{Qdcount: 0}, dns.MsgAccept},
+		{"two questions", dns.Header{Qdcount: 2}, dns.MsgAccept},
+		{"questions at the bound", dns.Header{Qdcount: recursiveQuestionsMax}, dns.MsgAccept},
+		{"questions past the bound", dns.Header{Qdcount: recursiveQuestionsMax + 1}, dns.MsgReject},
+		{"response", dns.Header{Bits: headerQR, Qdcount: 1}, dns.MsgIgnore},
+		{"response past every bound", dns.Header{Bits: headerQR, Qdcount: 1000, Ancount: 9}, dns.MsgIgnore},
+		{"opcode STATUS", dns.Header{Bits: opcode(dns.OpcodeStatus), Qdcount: 1}, dns.MsgAccept},
+		{"opcode NOTIFY", dns.Header{Bits: opcode(dns.OpcodeNotify), Qdcount: 1}, dns.MsgAccept},
+		{"one answer record", dns.Header{Qdcount: 1, Ancount: 1}, dns.MsgAccept},
+		{"two answer records", dns.Header{Qdcount: 1, Ancount: 2}, dns.MsgReject},
+		{"one authority record", dns.Header{Qdcount: 1, Nscount: 1}, dns.MsgAccept},
+		{"two authority records", dns.Header{Qdcount: 1, Nscount: 2}, dns.MsgReject},
+		{"two additional records", dns.Header{Qdcount: 1, Arcount: 2}, dns.MsgAccept},
+		{"three additional records", dns.Header{Qdcount: 1, Arcount: 3}, dns.MsgReject},
+	}
+	for _, c := range cases {
+		if got := RecursiveAccept(c.header); got != c.want {
+			t.Errorf("%s: RecursiveAccept(%+v) = %v, want %v", c.name, c.header, got, c.want)
+		}
+	}
+}
