@@ -516,6 +516,13 @@ D-2 is pending owner choice. In-place source invalidation is not implied by
 the existing export reconciliation, and no implementation starts before this
 transition is specified.
 
+Owner decision, 2026-10-28: **Invalidate in place**. D-2 is resolved:
+removing the last accepting import policy keeps the source TCP session up
+and invalidates its formerly eligible routes and downstream advertisements.
+The implementation must order this against queued received UPDATEs,
+forwarding and transaction rollback. Neither refusal of the live removal
+nor an automatic restart is the normal successful path.
+
 ### Surface corrections for the final spec
 
 | Surface | Required correction |
@@ -536,3 +543,180 @@ tool commands `./le feature report` and `./le spec citation anchors spec
 plan/release/fixes/spec-bgp-rfc8212-ebgp-default-reject.md` ran. The citation
 command reported advisory document mentions and no blocking missing declared
 page. No BGP runtime test, implementation, or conformance proof was performed.
+
+## Completed design proposal, 2026-10-28
+
+This section is proposed for the design gate. Once approved it supersedes
+conflicting draft rows above; it does not record implementation or test success.
+D-1 and D-2 remain the owner's decisions.
+
+### In-place import invalidation and rollback
+
+→ Constraint: `receivePublication.wait` proves publication into process queues,
+not application. `Process.DrainEventsApplied` supplies the next receipt, but a
+route-server handler can enqueue departure work and return before downstream
+writes finish (`rs.handleStateDown`, `enqueueDeparture`). All three boundaries
+must finish before reporting that invalidation succeeded.
+
+→ Constraint: `forwardSourceCurrent` checks session generation, whereas
+`adjOutOwnerCurrent` additionally checks revocation. An unchanged TCP session
+does not invalidate queued forwarding. The source policy epoch must be captured
+at admission and checked at the final writer, never stamped onto old work later.
+
+→ Constraint: `inboundEmpty` clears selecting-RIB storage only; `releaseRoutes`
+acts on retained peers. Neither is the required operation. Synthetic DOWN/UP
+would change export-destination availability, GR state and replay, so it is not
+an implementation of live import invalidation.
+
+→ Decision: extend existing receive backpressure and route ownership with
+transaction-scoped reversible invalidation, not a permanent denied-route store.
+`Session.Pause` currently lacks an acknowledgement that an in-flight message
+has stopped. Add a session-bound admission receipt before policy evaluation;
+preserve an already-read message and any coalesced messages without evaluating
+them under a tentative policy.
+
+| Stage | Required state and completion |
+|-------|-------------------------------|
+| Prepare | Preflight the complete candidate, static peers and instantiated dynamic peers included. Capture transaction, peer incarnation, session generation, policy epoch, template generation and participating owner lifetimes. Pin existing route/attribute and advertisement ownership references needed for undo. Refuse an unsupported state owner before policy publication, naming that owner and its remedy |
+| Pause and drain | Close source admission before policy evaluation; await its receipt, the captured receive-publication frontier, strict process application receipts, and already-admitted forwarding. Leave later bytes in existing bounded transport buffers. Hold neither reactor nor peer locks across these waits |
+| Apply | Advance the monotonic source-policy epoch. Mark formerly eligible paths ineligible in their existing stores; stop their validation, replay and GR/LLGR work from restoring eligibility. Re-elect alternatives and settle downstream replacement/withdrawal writes. Keep source TCP, negotiated capabilities, export-to-source routes and unrelated origins unchanged |
+| Abort | After restoring the old configuration and filter definitions, restore eligibility and advertisement ownership from the pinned references, reconcile downstream state, advance the epoch again, then resume unread input through the restored policy. Do not require Route Refresh for this inverse |
+| Accept | After the whole reload can no longer compensate, finalize the invalidation, release undo references and resume input through default reject. No denied announcements accumulated during an accepted default-reject period are retained for later policy recovery |
+
+The registered source-invalidation contract has prepare, apply, abort and
+finalize operations, carrying transaction ID, source identity, captured session
+generation, policy epoch and receive frontier. Internal and external state
+owners implement the same acknowledged contract through the existing callback
+registry and protocol schema, not a switch over plugin names. Delivery follows
+each owner's event FIFO and fences its asynchronous workers. An acknowledgement
+identifies the exact operation and includes downstream settlement, not enqueue.
+Observers receive a distinct policy-invalidation notification, not a false
+session-state transition. The bridge implements any required lifecycle handling
+on behalf of ExaBGP scripts; this must not require changing those scripts.
+
+→ Constraint: operation commit is acknowledged by `OperationExecutor.Commit`,
+but a later owner's failure still calls rollback in `runOperationPath`.
+BGP's current operation-commit callback discards its journal, and the outer
+`reloadAcceptance.finish` can compensate after that boundary. D2 undo ownership
+must survive both boundaries until whole-reload acceptance. Extend that existing
+acceptance path with a reliable bounded acknowledgement; a fire-and-forget
+accepted event that merely logs delivery failure cannot release a paused peer.
+This transaction integration is required by D2, not a separable future feature.
+
+Pause ownership must compose with existing backpressure: releasing the reload's
+pause must not release another pause owner. The pause deadline must be bounded
+by the transaction deadline and the captured session's remaining HoldTimer
+budget, reserving time for abort and resumption. Zero HoldTime still has the
+transaction deadline. Never suspend BGP timers. Outgoing keepalives continue,
+but incoming keepalives cannot bypass unread TCP data. Deadline exhaustion aborts
+the transaction; real TCP loss, owner death or failed compensation is reported
+as failure, never as successful rollback or a normal automatic restart.
+
+### Recovery, retention and preservation
+
+| Boundary | Contract |
+|----------|----------|
+| Absent to explicit accepting import | D-1: without negotiated Route Refresh refuse before changing policies or templates, even if optional storage exists. Otherwise publish against the captured session and send one request for each negotiated family; return partial-send failure to the transaction |
+| Refresh completion | Successful request writes mean recovery was initiated, not that all routes arrived. Basic Route Refresh has no universal completion marker; tests assert eventual route recovery separately |
+| Failed import relaxation | Restore rejection through a fresh epoch and invalidate candidate-admitted paths before reporting compensation complete. Late refresh responses cannot repopulate eligible state |
+| Accepting import to absent | D-2 applies with or without Route Refresh. A removed child whose parent still supplies explicit policy is not an absent-policy transition |
+| Optional receive store | Preserve RFC 7947 filtered entries when that feature is implemented. Import denial is independent of validation ineligibility; validation acceptance cannot clear it. No requirement that a pre-policy diagnostic store be empty |
+| Mixed UPDATE | Retain explicit withdrawals and suppress denied announcements. Coordinate the RFC 7947 spec using the original rejected announcement population, not only the final boolean or withdrawal-only projection |
+| Export restoration | Retained received sources, configured/static/default and plugin sources follow existing export reconciliation. One-shot API and ExaBGP injections require their producer to reannounce; no desired-state store is added |
+| Arbitrary filter edits | Existing behavior remains; this spec does not add general re-evaluation of stored routes for arbitrary filter-definition changes |
+| Dynamic peers | Resolve policy and negotiated session type coherently. Establishment and peer creation join the reload admission boundary; template generation alone does not fence receive work |
+
+### Operational representation
+
+Use the existing `PolicyInfo` representation, extended with optional
+`final-source`. The only new source value is `rfc8212`; it explains a derived
+default, not operator configuration. The CLI policy-chain projection must carry
+the same field. Configured policies retain their existing representation.
+
+| Policy and session | Reported direction |
+|--------------------|--------------------|
+| Explicit configured policy | Existing filters and configured `final`; omit `final-source` |
+| Absent policy, known EBGP | Existing automatic filters, if any; `final` is `reject`, `final-source` is `rfc8212` |
+| Absent policy, known IBGP | Preserve existing omission for an empty direction and existing automatic-only filter representation |
+| Absent policy, unresolved dynamic AS | `final` is `undetermined`; omit `final-source`. Do not infer EBGP from remote AS zero |
+
+Dry-run adds an optional `policy` using that same representation so its UPDATE
+action stays distinct from the exhaustion verdict: a pure withdrawal can be
+accepted under a default-reject policy. For unresolved session type it returns
+action `undetermined`, no executed trace and no resulting route, explaining that
+the peer must establish before the command can predict live behavior. It must
+not call filters or claim an accepting/rejecting result from an unknown AS.
+Known-session filter overrides retain the direction's effective final.
+
+The establishment warning is once per absent direction per captured session,
+after dynamic resolution. It names the peer, direction, RFC 8212 and blocked
+route exchange. Its repair uses the concrete configured peer or group path:
+`set bgp peer <name> filter import final accept` (or export), followed by
+`commit now` in the configuration editor. Dynamic peers name their actual group,
+not an invented static peer. Explicit accept is an example requiring operator
+intent, not an automatic repair. D-1 refusal additionally prints the concrete
+disable, commit, enable sequence already recorded above.
+
+### Acceptance amendments and additional proof
+
+| AC | Authoritative assertion | Concrete proof |
+|----|-------------------------|----------------|
+| AC-1 amendment | Denied EBGP announcements cannot become eligible, selected, redistributed or forwarded; diagnostic pre-policy retention is permitted | `test/plugin/rfc8212-ebgp-no-import-policy.ci` checks eligible RIB and downstream output, not absence of all retained data |
+| AC-6 amendment | Import recovery uses negotiated refresh on the same session; without refresh the entire candidate remains unchanged. Export restoration observes the retained-source limits above | `test/reload/rfc8212-explicit-policy-reload.ci`; `test/reload/rfc8212-import-no-refresh.ci` |
+| AC-8 amendment | Detail, chain and dry-run expose the table above; configured reject differs from default reject, and unresolved dynamic type never produces a fabricated route verdict | `test/plugin/rfc8212-policy-status.ci`, including explicit, absent, automatic-only and dynamic directions |
+| AC-12 | Removing the last accepting import policy invalidates source routes and downstream advertisements without changing source session identity or export-to-source routes; alternatives and unrelated/local-origin paths survive | `test/reload/rfc8212-import-invalidate.ci`, with and without Route Refresh and optional storage |
+| AC-13 | A later apply failure, later operation-commit failure or outer reload rejection restores policy, eligible state and downstream advertisements without refresh; input arriving during the tentative change is processed exactly once under the restored policy | `test/reload/rfc8212-import-rollback.ci`; `TestRFC8212ImportRollbackAcrossAcceptance` |
+| AC-14 | Old ingress, queued/direct forwarding, cached replay, late validation, GR timers and sent projections cannot reinstall invalidated paths, including across dynamic establishment and a replacement session | `TestRFC8212ImportEpochFences`; the real-process invalidation fixture pauses work across the boundary |
+| AC-15 | Internal and external lifecycle owners acknowledge actual invalidation; unsupported owners fail preflight; owner death, deadlines and failed finalization never report successful reload or leave a live session indefinitely paused | `test/reload/rfc8212-import-owner-failure.ci`; `TestRFC8212ImportAdmissionDeadline` |
+
+Boundary coverage includes IPv4 legacy and MP IPv6 announcements, explicit
+withdrawals, mixed UPDATEs and EOR; ADD-PATH ID zero and nonzero; selected
+ordinary, labeled/VPN and FlowSpec paths through their existing owners.
+Tests preserve protocol assertions and prove observable state, not copies of
+new fields or callback wiring alone. RFC-tagged fixture edits require independent
+judgment and renewed discrimination/audit evidence as already recorded.
+
+### Added files and documentation surfaces
+
+| Surface | Files and required work |
+|---------|-------------------------|
+| Receive pause and source epoch | Under `internal/component/bgp/reactor/`: `session_flow.go`, `session.go`, `reactor_notify.go`, `receive_publication.go`, `delivery.go`, `forward_pool.go`, `forward_rs.go`; session-bound admission receipt and final-writer checks |
+| Reload and source ownership | Under `internal/component/bgp/reactor/`: `peer_settings_apply.go`, `reactor_dynamic.go`, `relay_recovery.go`, `rib_recovery.go`, `policy_reload.go`; static/dynamic prepare, reversible invalidation and session-bound refresh errors |
+| Existing source-state owners | `internal/component/bgp/plugins/rib/`, `adj_rib_in/`, `rs/`, `rr/`, `gr/`; preserve/revoke the appropriate state rather than imitate DOWN |
+| Transaction acceptance | `internal/component/bgp/plugin/register.go`, `internal/component/config/transaction/orchestrator.go`, `executor.go`, `internal/component/plugin/server/reload_tx.go`; preserve undo through outer acceptance and propagate bounded finalization receipts |
+| Registered callback surface | `pkg/plugin/sdk/sdk_callbacks.go`, `pkg/plugin/rpc/`, `internal/core/ipc/yang/ze-plugin-callback.yang` and `ze-plugin-engine.yang`; typed internal/external source-invalidation operations, `ze:method` declarations and registration-derived support |
+| Status projection | `internal/component/plugin/types_bgp.go`, `internal/component/bgp/plugins/cmd/policy/handler.go`, reactor API and dry-run; `final-source` and dry-run policy context |
+| Architecture pages | `docs/architecture/core-design.md`, `docs/architecture/behavior/peer-lifecycle.md`, `docs/architecture/plugin/rib-storage-design.md`, `docs/architecture/bgp/structural-forwarding.md`, `docs/architecture/api/process-protocol.md`, `docs/architecture/config/transaction-protocol.md`; document admission, undo lifetime and acknowledged completion beside the implementation phase |
+| Checklist amendments | YANG/RPC, plugin implementation, SDK protocol, registered lifecycle callbacks and route eligibility metadata now apply. No new user config leaf, CLI verb, environment variable, host dependency, metric or BGP capability is proposed |
+
+### Additional risks and assumptions
+
+| ID | Risk | Early signal | Mitigation |
+|----|------|--------------|------------|
+| R-8 | Paused receive consumes HoldTimer budget | Admission/drain deadline approaches the remaining session budget | Bound prepare/apply/abort; retain normal timers; never promise immunity to independent transport failure |
+| R-9 | Undo released at operation commit before outer acceptance | Later participant failure cannot restore imported paths | Keep transaction pins until acknowledged whole-reload acceptance; inject both later-commit and outer-rejection failures |
+| R-10 | Old workers acquire the current epoch | Withdrawn routes return after a successful policy commit | Capture epoch at admission and preserve it through every forwarding/replay/validation path |
+| R-11 | Import denial overwrites validation state or RFC 7947 retention | Validation reply reactivates a route or diagnostic entries disappear | Independent eligibility reasons; preserve filtered population and test mixed UPDATE overlap |
+| R-12 | External owner acknowledges dispatch rather than completion | Reload returns before downstream withdrawal, or legacy scripts need new code | Registered completion contract, real external-process tests and bridge-owned compatibility handling |
+
+| ID | Assumption | Basis | If wrong | Validation |
+|----|------------|-------|----------|------------|
+| A-7 | Existing pause and ownership mechanisms can be extended without a permanent store | `Session.Pause`, source-owned advertisements and current RIB references exist | If wrong, the proposed reversible design is incomplete | Admission/rollback fault tests with no refresh and no optional store; verify references are released after accept/abort |
+
+### Design alternatives and triple challenge
+
+| Question | Decision and trade-off |
+|----------|------------------------|
+| Runtime default versus config rejection | Runtime enforcement remains recommended. FRR's `bgp_update` uses `reason = "inbound policy missing"` and `subgroup_announce_check` returns false without outbound policy; BIRD's `bgp_postconfig` instead calls `cf_error("EBGP requires explicit import policy")` and the export equivalent. Runtime enforcement admits dynamic templates and establishes a diagnosable session without leaking routes |
+| Reversible pause versus shadow processing | Reversible pause reuses bounded TCP backpressure and existing state references. Continuing old-policy shadow evaluation would also require stable old filter-plugin configurations and a second processing lifecycle; irreversible deletion cannot satisfy rollback without refresh |
+| Simplicity | The session-aware final is small; D2 necessarily adds source invalidation and transaction lifetime work. Refusal/reset were simpler but the owner selected in-place invalidation. No generic route store or arbitrary filter re-evaluation is added |
+| Uniformity | Existing registries, event application receipts, source ownership and transaction journals are reused. The new acknowledgement is needed because neither existing enqueue receipts nor commit notifications prove this operation completed |
+| Performance | Final evaluation stays scalar and allocation-free. Epochs travel with existing ownership records. Transaction-only pins, receipts and rollback bookkeeping allocate on the cold reload path; retained wire/attribute data are referenced, not duplicated per route or UPDATE |
+
+FRR source inspected at
+https://github.com/FRRouting/frr/blob/master/bgpd/bgp_route.c
+(`bgp_inbound_policy_exists`, `bgp_outbound_policy_exists`, `bgp_update`,
+`subgroup_announce_check`); BIRD source inspected at
+`~/Code/gitlab.nic.cz/labs/bird/proto/bgp/bgp.c`, `bgp_postconfig`.
+These justify the runtime-versus-config design comparison, not an assertion
+that either daemon already supplies Ze's selected reload transaction contract.
