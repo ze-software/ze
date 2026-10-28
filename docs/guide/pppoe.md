@@ -61,9 +61,21 @@ pppoe {
 
 See [configuration guide](configuration.md#pppoe-access) for all settings.
 
-The subsystem starts only when `enabled` is true and the block lists at least
-one `interface`. A `pppoe` block with no `interface` entry registers nothing and
-answers no PADI.
+Discovery runs only when `enabled` is true and the block lists at least one
+`interface`. A `pppoe` block with no `interface` entry answers no PADI.
+
+### Changing the configuration
+
+A committed change to the `pppoe` block applies to the running access
+concentrator at once, with no restart:
+
+| Change | Effect |
+|--------|--------|
+| `ac-name`, `service-name`, `cookie-timeout`, `padi-rate-limit`, `max-sessions`, `max-sessions-per-mac`, `auth-method`, `allow-no-auth` | Apply to the next PADI and the next admitted session. A session already up keeps the terms it was admitted under. A lowered `max-sessions` refuses new sessions and ends none. AC-Cookies already handed out stay valid |
+| An added `interface` | Served at once. An interface that does not exist refuses the commit, naming it and the `delete pppoe interface <name>` that undoes it |
+| A removed `interface` | Stops answering PADI. Each of its sessions gets a PADT and its PPP session is stopped |
+| `enabled true`, or a first `interface` | Starts discovery, even when the daemon booted with PPPoE disabled |
+| `enabled false`, or no `interface` left | Ends every session with a PADT and stops discovery |
 
 ### Subscriber authentication
 

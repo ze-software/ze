@@ -51,6 +51,18 @@ mapping and needs no translation layer.
 interface, and dispatch is by the interface index from the receive call. This
 matches the accel-ppp design.
 
+**A reload applies the diff live, and refuses only what cannot apply.** The
+hub registers the subsystem whatever the boot config says, so a commit that
+enables PPPoE has a `Reload` to reach. `Reload` (`subsystem_reload.go`) parses
+the `pppoe` root with the same `ExtractParameters` boot uses. A kept interface
+gets a new `InterfaceServer` carrying the new settings over the same session
+table and cookie key, swapped in while the discovery reader is between frames
+(`dispatchMu`), so live sessions and outstanding cookies survive. A removed
+interface leaves the map first, then each of its sessions gets a PADT and its
+PPP session is stopped. An added interface that does not resolve refuses the
+reload before anything changed. Disabling stops discovery and leaves the
+subsystem started and idle, so a later reload can start it again.
+
 **Session state is per interface.** Each interface holds its own session table
 with an independent session id space over the range 1 to 65534: 0 is the
 discovery value and 0xffff is the value RFC 2516 Section 4 reserves and forbids.

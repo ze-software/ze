@@ -26,8 +26,8 @@ func init() {
 
 // registerBNGSubsystems is the moved main.go construction block: it registers
 // the L2TP subsystem when the operator asked for it (Enabled or at least one
-// listener configured) and the PPPoE subsystem when it has access interfaces,
-// and returns the web portal entries to advertise.
+// listener configured) and the PPPoE subsystem always (it starts idle when the
+// config does not enable it), and returns the web portal entries to advertise.
 func registerBNGSubsystems(loadTree *zeconfig.Tree, configTree map[string]any, eng *engine.Engine) ([]webPortalService, error) {
 	var portals []webPortalService
 
@@ -45,17 +45,17 @@ func registerBNGSubsystems(loadTree *zeconfig.Tree, configTree map[string]any, e
 		portals = append(portals, webPortalService{Key: "l2tp", Title: "L2TP Sessions", Path: "/l2tp"})
 	}
 
-	// PPPoE subsystem. ExtractParameters returns defaults when the config
-	// tree has no `pppoe {}` block; we only register when the operator
-	// configured at least one access interface.
+	// PPPoE subsystem. It is registered whatever the boot config says: a
+	// subsystem that is disabled, or names no access interface, starts idle,
+	// and its Reload starts it when a commit enables it. Registering it only
+	// for a boot config that already enabled it left a later `pppoe` commit
+	// with no Reload to reach, accepted and never applied.
 	pppoeParams, pppoeErr := pppoe.ExtractParameters(configTree)
 	if pppoeErr != nil {
 		return nil, fmt.Errorf("parse pppoe config: %w", pppoeErr)
 	}
-	if pppoeParams.Enabled && len(pppoeParams.Interfaces) > 0 {
-		if regErr := eng.RegisterSubsystem(pppoe.NewSubsystem(pppoeParams)); regErr != nil {
-			return nil, fmt.Errorf("register pppoe subsystem: %w", regErr)
-		}
+	if regErr := eng.RegisterSubsystem(pppoe.NewSubsystem(pppoeParams)); regErr != nil {
+		return nil, fmt.Errorf("register pppoe subsystem: %w", regErr)
 	}
 	return portals, nil
 }

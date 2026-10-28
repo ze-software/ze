@@ -370,3 +370,27 @@ func (st *SessionTable) Count() int {
 	defer st.mu.Unlock()
 	return len(st.sessions)
 }
+
+// sids returns the session id of every session in the table, in no order.
+// Reload uses it to end each session on an access interface it removes.
+func (st *SessionTable) sids() []uint16 {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	out := make([]uint16, 0, len(st.sessions))
+	for sid := range st.sessions {
+		out = append(out, sid)
+	}
+	return out
+}
+
+// setMaxSessions changes the admission cap, with the clamp newSessionTable
+// applies. Sessions already above a lowered cap stay up: the cap refuses the
+// next AllocSID, it never ends a live session.
+func (st *SessionTable) setMaxSessions(maxSessions int) {
+	if maxSessions <= 0 || maxSessions > usableSIDs {
+		maxSessions = usableSIDs
+	}
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	st.maxSessions = maxSessions
+}

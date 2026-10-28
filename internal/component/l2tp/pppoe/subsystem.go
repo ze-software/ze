@@ -48,15 +48,19 @@ type Subsystem struct {
 	logger *slog.Logger
 
 	lifecycleMu sync.Mutex
-	mu          sync.Mutex
-	started     bool
-	discFD      int
-	servers     map[int]*InterfaceServer
-	pppDriver   *ppp.Driver
-	readDone    chan struct{}
-	eventDone   chan struct{}
-	drainDones  []<-chan struct{}
-	bus         ze.EventBus
+	// dispatchMu is held by the discovery reader for each frame it dispatches,
+	// and by Reload while it swaps the server map (dispatchFrame). Order:
+	// lifecycleMu, then dispatchMu, then mu.
+	dispatchMu sync.Mutex
+	mu         sync.Mutex
+	started    bool
+	discFD     int
+	servers    map[int]*InterfaceServer
+	pppDriver  *ppp.Driver
+	readDone   chan struct{}
+	eventDone  chan struct{}
+	drainDones []<-chan struct{}
+	bus        ze.EventBus
 
 	// stop interrupts paced retries and is checked after each receive timeout.
 	// discFD remains open until discovery and PPP event consumers have joined.
@@ -99,14 +103,30 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 		return errPppoeSubsystemAlreadyStarted
 	}
 
+	s.bus = bus
+	if err := s.startLocked(); err != nil {
+		return err
+	}
+	s.started = true
+	return nil
+}
+
+// startLocked brings up discovery for s.params: the discovery socket, the PPP
+// driver, one InterfaceServer per resolved access interface, and the workers
+// that serve them. A disabled configuration, or one naming no interface, or
+// one whose interfaces all fail to resolve, starts nothing and answers nil:
+// the subsystem is then started and idle, and a Reload can bring it up.
+//
+// MUST be called with lifecycleMu and mu held, on a subsystem that is not
+// running (readDone nil). Start calls it at boot, and Reload when a reload
+// enables an idle subsystem.
+func (s *Subsystem) startLocked() error {
 	if !s.params.Enabled {
 		s.logger.Info("PPPoE subsystem disabled in config, skipping start")
-		s.started = true
 		return nil
 	}
 	if len(s.params.Interfaces) == 0 {
 		s.logger.Warn("PPPoE subsystem enabled but no interfaces configured, skipping start")
-		s.started = true
 		return nil
 	}
 
@@ -145,43 +165,15 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 	registerDiscoveryMetrics()
 
 	s.servers = make(map[int]*InterfaceServer)
-	for _, ic := range s.params.Interfaces {
-		ifindex, hwaddr, mtu, resolveErr := resolveInterface(ic.Name)
-		if resolveErr != nil {
-			s.logger.Error("pppoe: failed to resolve interface", "interface", ic.Name, "error", resolveErr)
+	for i := range s.params.Interfaces {
+		ic := &s.params.Interfaces[i]
+		srv, srvErr := s.newInterfaceServer(ic, &s.params)
+		if srvErr != nil {
+			s.logger.Error("pppoe: access interface not started", "interface", ic.Name, "error", srvErr)
 			continue
 		}
-		svcNames := ic.ServiceNames
-		if len(svcNames) == 0 {
-			svcNames = s.params.ServiceNames
-		}
-
-		cookieKey, keyErr := NewCookieKey()
-		if keyErr != nil {
-			s.logger.Error("pppoe: failed to generate cookie key", "interface", ic.Name, "error", keyErr)
-			continue
-		}
-
-		srv := &InterfaceServer{
-			ifName:            ic.Name,
-			ifIndex:           ifindex,
-			hwAddr:            hwaddr,
-			mtu:               mtu,
-			sessions:          newSessionTable(ic.Name, ic.MaxSessions),
-			maxSessionsPerMAC: ic.MaxSessionsPerMAC,
-			cookieKey:         cookieKey,
-			limiter:           NewPADILimiter(s.params.PADIRateLimit),
-			cookieTimeout:     s.params.CookieTimeout,
-			acName:            s.params.ACName,
-			serviceNames:      svcNames,
-			authMethod:        s.params.AuthMethod,
-			authRequired:      !s.params.AllowNoAuth,
-			discFD:            s.discFD,
-			pppDriver:         s.pppDriver,
-			logger:            s.logger.With("interface", ic.Name),
-		}
-		s.servers[ifindex] = srv
-		s.logger.Info("PPPoE interface configured", "interface", ic.Name, "ifindex", ifindex)
+		s.servers[srv.ifIndex] = srv
+		s.logger.Info("PPPoE interface configured", "interface", ic.Name, "ifindex", srv.ifIndex)
 	}
 
 	if len(s.servers) == 0 {
@@ -192,7 +184,6 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 		}
 		closeDiscoverySocket(s.discFD)
 		s.discFD = -1
-		s.started = true
 		return nil
 	}
 
@@ -209,16 +200,14 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 		if poolH == nil {
 			s.logger.Error("pppoe: no pool handler registered; all IP requests will be rejected")
 		}
-		s.bus = bus
 		s.drainDones = append(s.drainDones,
-			startPPPoEAuthDrain(s.logger, s.pppDriver, subscriber.GetAuthHandler, bus, &s.pendingAuth),
+			startPPPoEAuthDrain(s.logger, s.pppDriver, subscriber.GetAuthHandler, s.bus, &s.pendingAuth),
 			startPPPoEPoolDrain(s.logger, s.pppDriver, poolH),
 		)
 		s.eventDone = make(chan struct{})
 		go s.eventConsumer()
 	}
 
-	s.started = true
 	PublishService(s)
 	return nil
 }
@@ -231,7 +220,16 @@ func (s *Subsystem) Stop(_ context.Context) error {
 	if !s.started {
 		return nil
 	}
+	s.stopLocked()
+	return nil
+}
 
+// stopLocked stops discovery and the PPP driver and joins every worker
+// startLocked started, leaving the subsystem not started. It sends no PADT:
+// a caller that ends sessions on the wire closes their interfaces first
+// (closeInterface). MUST be called with lifecycleMu held and mu not held,
+// because the workers it joins take mu.
+func (s *Subsystem) stopLocked() {
 	PublishService(nil)
 	s.logger.Info("PPPoE subsystem stopping")
 
@@ -266,12 +264,6 @@ func (s *Subsystem) Stop(_ context.Context) error {
 	s.stop = nil
 	s.servers = nil
 	s.started = false
-	return nil
-}
-
-// Reload implements ze.Subsystem.
-func (s *Subsystem) Reload(_ context.Context, _ ze.ConfigProvider) error {
-	return nil
 }
 
 // discoveryReader is the one goroutine that reads the shared AF_PACKET
@@ -321,17 +313,26 @@ func (s *Subsystem) discoveryReader() {
 		if n < MinDiscFrame {
 			continue
 		}
-
-		s.mu.Lock()
-		srv := s.servers[ifindex]
-		s.mu.Unlock()
-
-		if srv == nil {
-			continue
-		}
-
-		s.dispatchDiscovery(srv, buf[:n])
+		s.dispatchFrame(ifindex, buf[:n])
 	}
+}
+
+// dispatchFrame hands one discovery frame to the server of the interface it
+// arrived on. It holds dispatchMu across the lookup and the handler, so a
+// Reload that swaps or removes a server waits for the frame in flight: no
+// session is admitted on an interface after Reload has closed it, and no
+// server is copied while the reader writes its admission state.
+func (s *Subsystem) dispatchFrame(ifindex int, frame []byte) {
+	s.dispatchMu.Lock()
+	defer s.dispatchMu.Unlock()
+
+	s.mu.Lock()
+	srv := s.servers[ifindex]
+	s.mu.Unlock()
+	if srv == nil {
+		return
+	}
+	s.dispatchDiscovery(srv, frame)
 }
 
 func pppoeSessionID(ifindex int, sid uint16) string {
