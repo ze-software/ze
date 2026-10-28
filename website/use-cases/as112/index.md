@@ -2,6 +2,8 @@
 
 Run Ze as the AS112 sink for RFC 1918 and link-local reverse DNS, then learn the four AS112 covering prefixes from Ze over BGP.
 
+**RFC completion:** the [DNS coverage page](../../quality/rfc-compliance/profiles/dns/) shows how much of the RFC work behind this use case is proven by tests.
+
 This is a local-network deployment shape. If you intend to advertise an AS112 node to public Internet peers, coordinate it first as RFC 7534 expects, and keep the import and export filters below. The software cannot do that human coordination for you.
 
 ## Topology

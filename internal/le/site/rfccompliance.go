@@ -805,6 +805,10 @@ func rfcComplianceBody(snapshot *rfcCompliance, ledger rfcLedger) string {
 	body.Str(rfcComplianceStyle)
 	body.Str(rfcCardGrid(snapshot, ledger))
 	body.Str(rfcGateVerdictHTML(snapshot))
+	// The per-profile pages come straight after the verdict: a reader asking
+	// how complete one use case is should not scroll past every disclosure.
+	body.Str("<section><h2>").Str(rfcProfilesPointerHeading).Str("</h2>\n").
+		Str(rfcProfilesPointerHTML()).Str("\n</section>\n")
 
 	// Who implements the document comes BEFORE the buckets, because it decides
 	// what the buckets are taken over. A reader meeting a share first has
@@ -819,8 +823,6 @@ func rfcComplianceBody(snapshot *rfcCompliance, ledger rfcLedger) string {
 	body.Str("<section><h2>How this is checked</h2>\n").Str(rfcMechanismHTML(snapshot)).
 		Str("\n</section>\n")
 	body.Str("<section><h2>Check results</h2>\n").Str(rfcCheckHTML(snapshot.Gate)).Str("\n</section>\n")
-	body.Str("<section><h2>").Str(rfcProfilesPointerHeading).Str("</h2>\n").
-		Str(rfcProfilesPointerHTML()).Str("\n</section>\n")
 	body.Str("<section><h2>Enrolled RFCs</h2>\n").Str(rfcEnrolledIndexHTML(ledger)).Str("\n</section>\n")
 	body.Str("<section><h2>Summaries that are not enrolled</h2>\n").
 		Str(rfcDeclinedIndexHTML(ledger)).Str("\n</section>\n")
@@ -1891,6 +1893,7 @@ func rfcComplianceMirror(snapshot *rfcCompliance, ledger rfcLedger) string {
 	}
 
 	split := rfcBindingOf(snapshot)
+	mirror.Str("\n## ").Str(rfcProfilesPointerHeading).Str("\n\n").Str(rfcProfilesPointerMirror())
 	mirror.Str("\n## Who implements each document\n\n")
 	mirror.Str(rfcImplementationMirror(ledger))
 
@@ -2152,7 +2155,6 @@ func rfcDispositionLegendMirror(rows []*rfcLedgerStem) string {
 // rfcIndexMirror states both link tables in the Markdown sibling.
 func rfcIndexMirror(ledger rfcLedger) string {
 	var out textbuf.Buffer
-	out.Str("\n## ").Str(rfcProfilesPointerHeading).Str("\n\n").Str(rfcProfilesPointerMirror())
 	out.Str("\n## Enrolled RFCs\n\n")
 	enrolled := rfcIndexRows(ledger, true)
 	if len(enrolled) == 0 {

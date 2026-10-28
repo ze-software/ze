@@ -2,6 +2,8 @@
 
 This deployment shape uses Ze at an Internet edge with two transit sessions, origin validation, explicit import policy, and local preference for deterministic failover.
 
+**RFC completion:** the [RPKI coverage page](../../quality/rfc-compliance/profiles/rpki/) shows how much of the RFC work behind this use case is proven by tests.
+
 ## Topology
 
 ```text

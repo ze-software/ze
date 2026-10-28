@@ -4,6 +4,8 @@ Use these pages when you want Ze to play a concrete role in a network.
 
 They are deployment examples: the Ze config, the neighbouring network config, and the lab evidence behind each setup. Feature guides explain every knob. Use-case pages show how the knobs fit together.
 
+To see how complete each use case is, the [completion by use case](../quality/rfc-compliance/profiles/) page counts the RFC requirements its tests prove.
+
 ## Examples
 
 | Example | Ze role | Network side | Evidence |

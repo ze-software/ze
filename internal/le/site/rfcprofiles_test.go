@@ -214,3 +214,73 @@ func TestRFCProfilesRefuseALedgerWithNoProfile(t *testing.T) {
 		t.Fatalf("err = %v, want the refusal naming the missing profiles", err)
 	}
 }
+
+// writeRFCProfileUseCase writes one use-case page under source, carrying the
+// stated body.
+func writeRFCProfileUseCase(t *testing.T, source, name, body string) {
+	t.Helper()
+	directory := filepath.Join(source, "use-cases", name)
+	if err := os.MkdirAll(directory, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(directory, "index.md"), []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// renderRFCProfilesWithUseCases publishes the fixture ledger with the stated
+// source tree and answers the output and the producer's error.
+func renderRFCProfilesWithUseCases(t *testing.T, source string) (string, error) {
+	t.Helper()
+	output := t.TempDir()
+	content, err := json.Marshal(rfcProfilesFixtureLedger())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := writeNamedArtifact(output, rfcLedgerFile, string(content)); err != nil {
+		t.Fatal(err)
+	}
+	_, err = renderRFCProfiles(Paths{Repository: t.TempDir(), Source: source, Output: output})
+	return output, err
+}
+
+// VALIDATES: a profile page links back to every use-case page that links to it.
+// PREVENTS: a reader who arrives on a profile's coverage page from the menu
+// having no way to the use case it measures, and the two directions drifting.
+//
+// TestRFCProfilePageLinksBackToItsUseCase writes one use-case page linking the
+// route-server profile and one linking nothing, renders, and reads both forms
+// of each profile page: only route-server names the use case.
+func TestRFCProfilePageLinksBackToItsUseCase(t *testing.T) {
+	source := t.TempDir()
+	writeRFCProfileUseCase(t, source, "ixp", "# Route Server at an IXP\n\nSee the "+
+		"[coverage](../../quality/rfc-compliance/profiles/route-server/).\n")
+	writeRFCProfileUseCase(t, source, "other", "# Unrelated\n\nNo profile link.\n")
+	output, err := renderRFCProfilesWithUseCases(t, source)
+	if err != nil {
+		t.Fatalf("renderRFCProfiles: %v", err)
+	}
+	page := readRFCProfilePage(t, output, "route-server", pageIndexFile)
+	if !strings.Contains(page, `<p>Use case: <a href="../../../../use-cases/ixp/">Route Server at an IXP</a></p>`) {
+		t.Error("the route-server page does not link back to the use case that links to it")
+	}
+	mirror := readRFCProfilePage(t, output, "route-server", "index.md")
+	if !strings.Contains(mirror, "Use case: [Route Server at an IXP](../../../../use-cases/ixp/)") {
+		t.Error("the route-server mirror does not link back to its use case")
+	}
+	if strings.Contains(readRFCProfilePage(t, output, "bgp-core", pageIndexFile), "Use case:") {
+		t.Error("bgp-core names a use case although no use-case page links to it")
+	}
+}
+
+// VALIDATES: a use-case link to a profile that does not exist is refused.
+// PREVENTS: a use-case page publishing a link to a coverage page nobody builds.
+func TestRFCProfilesRefuseAUseCaseLinkingAnUnknownProfile(t *testing.T) {
+	source := t.TempDir()
+	writeRFCProfileUseCase(t, source, "ghost", "# Ghost\n\n"+
+		"[coverage](../../quality/rfc-compliance/profiles/no-such-profile/)\n")
+	_, err := renderRFCProfilesWithUseCases(t, source)
+	if err == nil || !strings.Contains(err.Error(), `"no-such-profile"`) {
+		t.Fatalf("err = %v, want the refusal naming the unknown profile", err)
+	}
+}

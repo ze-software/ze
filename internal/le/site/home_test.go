@@ -684,10 +684,10 @@ func TestTheHomepageCarriesTheShellAndItsMirror(t *testing.T) {
 
 // TestTheHomepageShowcaseKeepsItsImagesAndRecording checks the no-script
 // consumer: every screenshot is available, while the recorded demonstration
-// and its manifest-derived transcript remain on the page.
+// opens the showcase as its first, selected panel with its transcript.
 func TestTheHomepageShowcaseKeepsItsImagesAndRecording(t *testing.T) {
 	page, mirror := renderHomeFixture(t)
-	for _, panel := range []string{"product-routes", "product-web", "product-editor", "product-dashboard"} {
+	for _, panel := range []string{"product-terminal", "product-routes", "product-web", "product-editor", "product-dashboard"} {
 		if !strings.Contains(page, `id="`+panel+`" data-product-panel>`) {
 			t.Errorf("the screenshot %s is absent or hidden before JavaScript runs", panel)
 		}
@@ -703,6 +703,15 @@ func TestTheHomepageShowcaseKeepsItsImagesAndRecording(t *testing.T) {
 	}
 	if !strings.Contains(page, `data-cols="137"`) || !strings.Contains(page, `data-rows="36"`) {
 		t.Error("the product screenshots displaced the manifest-derived recording")
+	}
+	terminal := strings.Index(page, `id="product-terminal" data-product-panel>`)
+	routes := strings.Index(page, `id="product-routes" data-product-panel>`)
+	player := strings.Index(page, `data-cols="137"`)
+	if terminal < 0 || terminal >= player || player >= routes {
+		t.Error("the recording is not the showcase's first panel, ahead of the looking glass")
+	}
+	if !strings.Contains(page, `aria-controls="product-terminal" aria-pressed="true"`) {
+		t.Error("the recording's tab is not the one selected when the page opens")
 	}
 	for _, phrase := range []string{"its own built-in SSH server", "without a host SSH service or shell"} {
 		if !strings.Contains(page, phrase) || !strings.Contains(mirror, phrase) {

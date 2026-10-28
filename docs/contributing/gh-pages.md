@@ -599,9 +599,17 @@ producer reads the `profiles` of the published requirement ledger, which
 `rfc.PriorityOf` fills, so a page counts what `./le rfc tree profile <name>`
 counts. It refuses a ledger with no profile, and it retires a page of a profile
 that no longer exists by the marker its pages carry, never by name. The
-compliance index links to it under "Coverage by profile", which makes the
-compliance index the all-RFCs view.
-<!-- source: internal/le/site/rfcprofiles.go -- renderRFCProfiles, rfcProfileGroups, rfcProfileBarHTML, removeRetiredRFCProfilePages -->
+compliance index links to it under "Coverage by profile", the first section
+after the gate verdict, which makes the compliance index the all-RFCs view.
+
+A use-case page under `website/use-cases/` declares which profile measures it
+by linking to that profile's page. The producer reads those links and gives
+each profile page a link back to every use-case page that names it, so the
+pairing is written once and the two directions cannot disagree. A link to a
+profile no file under `rfc/profiles/` declares refuses the build. The homepage
+regression-prevention block and the Examples menu both link to the profile
+index.
+<!-- source: internal/le/site/rfcprofiles.go -- renderRFCProfiles, rfcProfileGroups, rfcProfileBarHTML, removeRetiredRFCProfilePages, rfcProfileUseCases, rfcProfileUseCasesKnown -->
 
 One page per RFC sits under that route, one for every summary in `rfc/short/`,
 190 of them today. The compliance page itself is the index over them: two link tables, one for the

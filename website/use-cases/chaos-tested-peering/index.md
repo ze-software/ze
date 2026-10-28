@@ -2,6 +2,8 @@
 
 Use `le chaos run` before deployment to prove that a peer configuration converges, survives selected faults, and produces a reproducible failure record when it does not.
 
+**RFC completion:** the [BGP session operations coverage page](../../quality/rfc-compliance/profiles/bgp-session-ops/) shows how much of the RFC work behind this use case is proven by tests.
+
 ## Start from a validated peer
 
 Build the intended peer or group with the [BGP peering guide](../../guides/bgp-peering/). Validate the configuration and run ordinary interop or lab checks first. Chaos testing is useful after the normal path works, not as a substitute for basic configuration validation.

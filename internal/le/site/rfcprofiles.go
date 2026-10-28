@@ -8,6 +8,7 @@ import (
 	"html"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -60,7 +61,14 @@ func renderRFCProfiles(paths Paths) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	useCases, err := rfcProfileUseCases(paths.Source)
+	if err != nil {
+		return nil, err
+	}
 	profiles := rfcProfilesOrdered(ledger.Profiles)
+	if err := rfcProfileUseCasesKnown(useCases, profiles); err != nil {
+		return nil, err
+	}
 	display := make(map[string]string, len(ledger.Stems))
 	for index := range ledger.Stems {
 		display[ledger.Stems[index].Stem] = ledger.Stems[index].Display
@@ -85,7 +93,7 @@ func renderRFCProfiles(paths Paths) ([]string, error) {
 		if report.Profile == "" {
 			return nil, fmt.Errorf("the published %s carries a profile tree with no profile name", rfcLedgerFile)
 		}
-		route, err := writeRFCProfilePage(paths.Output, report, display, links)
+		route, err := writeRFCProfilePage(paths.Output, report, display, links, useCases[report.Profile])
 		if err != nil {
 			return nil, err
 		}
@@ -167,7 +175,7 @@ func rfcProfileTitle(report *rfc.TreeReport) string {
 // writeRFCProfilePage publishes one profile's page and its mirror, and
 // answers the route it wrote.
 func writeRFCProfilePage(output string, report *rfc.TreeReport, display map[string]string,
-	links pageLinks) (string, error) {
+	links pageLinks, useCases []rfcProfileUseCase) (string, error) {
 	route := rfcProfilesRoute + report.Profile + "/"
 	destination := rfcProfilesDirectory + "/" + report.Profile + "/" + pageIndexFile
 	shell := pageShell{
@@ -178,10 +186,81 @@ func writeRFCProfilePage(output string, report *rfc.TreeReport, display map[stri
 		Sidebar:     pageSidebar(rfcProfileRoot, route[1:], links),
 	}
 	if err := writePublishedPage(output, destination,
-		shell.render(rfcProfileBody(report, display)), rfcProfileMirror(report, display)); err != nil {
+		shell.render(rfcProfileBody(report, display, useCases)),
+		rfcProfileMirror(report, display, useCases)); err != nil {
 		return "", err
 	}
 	return route, nil
+}
+
+// rfcProfileUseCase is one use-case page that links to a profile's coverage
+// page: its route under the site root and its heading.
+type rfcProfileUseCase struct {
+	Route, Title string
+}
+
+// rfcProfileUseCaseLink finds the link a use-case page makes to a profile's
+// coverage page, and captures the profile name.
+var rfcProfileUseCaseLink = regexp.MustCompile(`quality/rfc-compliance/profiles/([a-z0-9-]+)/`)
+
+// rfcProfileUseCases answers, for each profile, the use-case pages that link to
+// its coverage page. The pairing is declared once, by the link the use-case
+// page carries, and the profile page derives its link back from it, so the two
+// directions cannot disagree. A use-case page with no heading is refused,
+// because the link back would have nothing to name.
+func rfcProfileUseCases(source string) (map[string][]rfcProfileUseCase, error) {
+	pages, err := filepath.Glob(filepath.Join(source, "use-cases", "*", "index.md"))
+	if err != nil {
+		return nil, err
+	}
+	useCases := map[string][]rfcProfileUseCase{}
+	for _, page := range pages {
+		content, err := os.ReadFile(page) //nolint:gosec // a site build reads the checkout it was pointed at
+		if err != nil {
+			return nil, err
+		}
+		matches := rfcProfileUseCaseLink.FindAllSubmatch(content, -1)
+		if len(matches) == 0 {
+			continue
+		}
+		heading, found := strings.CutPrefix(string(content), "# ")
+		if !found {
+			return nil, fmt.Errorf("%s links to an RFC profile page but does not open with a `# ` heading, "+
+				"so the profile page cannot name it; add the heading as its first line", page)
+		}
+		heading, _, _ = strings.Cut(heading, "\n")
+		useCase := rfcProfileUseCase{
+			Route: "use-cases/" + filepath.Base(filepath.Dir(page)) + "/",
+			Title: strings.TrimSpace(heading),
+		}
+		named := map[string]bool{}
+		for _, match := range matches {
+			profile := string(match[1])
+			if named[profile] {
+				continue
+			}
+			named[profile] = true
+			useCases[profile] = append(useCases[profile], useCase)
+		}
+	}
+	return useCases, nil
+}
+
+// rfcProfileUseCasesKnown refuses a use-case page that links to a profile no
+// file under rfc/profiles/ declares: its link would publish as a dead page.
+func rfcProfileUseCasesKnown(useCases map[string][]rfcProfileUseCase, profiles []*rfc.TreeReport) error {
+	known := make(map[string]bool, len(profiles))
+	for _, report := range profiles {
+		known[report.Profile] = true
+	}
+	for profile, pages := range useCases {
+		if known[profile] {
+			continue
+		}
+		return fmt.Errorf("website/%sindex.md links to the RFC profile %q, which no file under rfc/profiles/ "+
+			"declares; link one of the profiles listed at quality/rfc-compliance/profiles/", pages[0].Route, profile)
+	}
+	return nil
 }
 
 // rfcProfileCard is one card of a profile's grid: its label, its value, the
@@ -234,13 +313,17 @@ func rfcProfilePercent(figure rfc.Figure) string {
 }
 
 // rfcProfileBody renders one profile's page.
-func rfcProfileBody(report *rfc.TreeReport, display map[string]string) string {
+func rfcProfileBody(report *rfc.TreeReport, display map[string]string, useCases []rfcProfileUseCase) string {
 	var body textbuf.Buffer
 	body.Str(`            <section aria-labeledby="rfc-profile-title" class="md-content reveal cat-observe">`).Byte('\n')
 	body.Str(pageHero(html.EscapeString(rfcProfileTitle(report)), html.EscapeString(rfcProfileLead(report)),
 		rfcProfileKindLabel(report), rfcProfileMarker, heroClasses)).Byte('\n')
 	body.Str(rfcComplianceStyle).Str(rfcProfileStyle)
 	body.Str(`<p><a href="../">All profiles</a> · <a href="../../">All RFCs</a></p>`).Byte('\n')
+	for _, useCase := range useCases {
+		body.Str(`<p>Use case: <a href="`).Str(rfcProfileRoot).Str(useCase.Route).Str(`">`).
+			Str(html.EscapeString(useCase.Title)).Str("</a></p>\n")
+	}
 	body.Str(`<div class="rfc-card-grid">`).Byte('\n')
 	for _, card := range rfcProfileCards(report.Rollup) {
 		body.Str(`<div class="rfc-card rfc-neutral"><span>`).Str(html.EscapeString(card.Label)).
@@ -294,11 +377,14 @@ func rfcProfileOptionalProse(rollup *rfc.ScopeRollup) string {
 }
 
 // rfcProfileMirror states the same page in Markdown, in the page's order.
-func rfcProfileMirror(report *rfc.TreeReport, display map[string]string) string {
+func rfcProfileMirror(report *rfc.TreeReport, display map[string]string, useCases []rfcProfileUseCase) string {
 	var out textbuf.Buffer
 	out.Str("# ").Str(rfcProfileTitle(report)).Str("\n\n")
 	out.Str(rfcProfileKindLabel(report)).Str(". ").Str(rfcProfileLead(report)).Str("\n\n")
 	out.Str("[All profiles](../) · [All RFCs](../../)\n\n")
+	for _, useCase := range useCases {
+		out.Str("Use case: [").Str(useCase.Title).Str("](").Str(rfcProfileRoot).Str(useCase.Route).Str(")\n\n")
+	}
 	for _, card := range rfcProfileCards(report.Rollup) {
 		out.Str("- **").Str(card.Label).Str("**: ").Str(card.Value).Str(" (").Str(card.Arithmetic).
 			Str("). ").Str(card.Meaning).Byte('\n')

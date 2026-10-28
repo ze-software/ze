@@ -68,35 +68,25 @@ const homeTemplate = `        <div class="site-home">
                                     <a class="button ghost" href="guides/quickstart/">Try the BGP quickstart <span aria-hidden="true">↗</span></a>
                                 </div>
                             </div>
-            <section class="home-section-panel home-section-panel-demo" aria-labelledby="recording-title">
-                <div class="section-head">
-                    <h2 id="recording-title">Watch Ze at work.</h2>
-                    <p>Follow a real terminal lab, with its transcript alongside it. Explore the individual interfaces below.</p>
-                </div>
-                <figure class="hero-product-demo" aria-labelledby="hero-demo-title">
-                    <div class="hero-product-frame">
-                        <div class="hero-product-bar" aria-hidden="true">
-                            <span class="terminal-demo__dots"><i></i><i></i><i></i></span>
-                            <span>{hero_demo_file}</span>
-                            <span>CAST</span>
-                        </div>
-                        {hero_demo}
-                    </div>
-                    <figcaption>
-                        <strong id="hero-demo-title">{hero_demo_title}</strong>
-                        <span>Replayable Ze terminal lab</span>
-                        <a href="{hero_demo_transcript}">Read transcript</a>
-                    </figcaption>
-                </figure>
-            </section>
                             <div class="showcase" data-product-showcase>
                                 <div class="screen-tabs" role="group" aria-label="Choose a product interface" hidden>
-                                    <button type="button" data-product-target="product-routes" aria-controls="product-routes" aria-pressed="true">Looking glass</button>
+                                    <button type="button" data-product-target="product-terminal" aria-controls="product-terminal" aria-pressed="true">Watch Ze at work</button>
+                                    <button type="button" data-product-target="product-routes" aria-controls="product-routes" aria-pressed="false">Looking glass</button>
                                     <button type="button" data-product-target="product-web" aria-controls="product-web" aria-pressed="false">Web configuration</button>
                                     <button type="button" data-product-target="product-editor" aria-controls="product-editor" aria-pressed="false">CLI editor</button>
                                     <button type="button" data-product-target="product-dashboard" aria-controls="product-dashboard" aria-pressed="false">CLI dashboard</button>
                                 </div>
                                 <div class="product-panels">
+                                <figure class="screen product-screen" id="product-terminal" data-product-panel>
+                                    <div class="screen-toolbar"><strong>Ze / <span>{hero_demo_file}</span></strong><a href="{hero_demo_transcript}">Read transcript</a></div>
+                                    <div class="screen-media">{hero_demo}</div>
+                                    <figcaption class="screen-description">
+                                        <strong id="hero-demo-title">{hero_demo_title}</strong>
+                                        <p>Watch Ze at work: follow a real terminal lab, with its transcript alongside it.</p>
+                                        <a href="demos/terminal/">Watch the other demos →</a>
+                                        <p class="capture-caption">A replayable Ze terminal lab.</p>
+                                    </figcaption>
+                                </figure>
                                 <figure class="screen product-screen" id="product-routes" data-product-panel>
                                     <div class="screen-toolbar"><strong>Ze / Looking glass</strong><a href="assets/product-routes.webp" target="_blank" rel="noopener">Open full size ↗</a></div>
                                     <a href="assets/product-routes.webp" target="_blank" rel="noopener"><img src="assets/product-routes.webp" alt="Ze looking glass with prefix, AS path and community filters, a route graph and route table" width="2820" height="1848" /></a>
@@ -216,11 +206,24 @@ const homeTemplate = `        <div class="site-home">
                         </p>
                     </div>
                     <div class="home-proof-actions">
+                        <a class="button" href="quality/rfc-compliance/profiles/">See completion by use case</a>
                         <a class="button" href="quality/">Read the evidence map</a>
                         <a class="button" href="demos/terminal/">Watch product demos</a>
                     </div>
                 </div>
                 <div class="proof-strip" aria-label="Project evidence">
+                    <a class="proof" href="quality/rfc-compliance/">
+                        <strong
+                            >{rfc_proven_percent}%
+                            <span class="label">RFC MUSTs tested</span></strong
+                        >
+                        <ul>
+                            <li>{rfc_proven} of {rfc_gated_implemented} tracked MUSTs</li>
+                            <li>Across {rfc_implemented} RFCs</li>
+                            <li>Tests tied to requirements</li>
+                        </ul>
+                        <span class="proof-check concept-evidence">RFC requirement ledger.</span>
+                    </a>
                     <a class="proof" href="quality/unit-fuzz-mutation/">
                         <strong
                             >{unit_tests} <span class="label">Go tests</span></strong
@@ -243,18 +246,6 @@ const homeTemplate = `        <div class="site-home">
                             <li>Check output, errors and saved state.</li>
                         </ul>
                         <span class="proof-check concept-evidence">Scenarios and expected results.</span>
-                    </a>
-                    <a class="proof" href="quality/rfc-compliance/">
-                        <strong
-                            >{rfc_proven_percent}%
-                            <span class="label">RFC MUSTs tested</span></strong
-                        >
-                        <ul>
-                            <li>{rfc_proven} of {rfc_gated_implemented} tracked MUSTs</li>
-                            <li>Across {rfc_implemented} RFCs</li>
-                            <li>Tests tied to requirements</li>
-                        </ul>
-                        <span class="proof-check concept-evidence">RFC requirement ledger.</span>
                     </a>
                     <a class="proof" href="quality/unit-fuzz-mutation/#fuzz-targets-are-still-tests">
                         <strong>{fuzz_targets} <span class="label">fuzz targets</span></strong>
