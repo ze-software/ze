@@ -37,27 +37,40 @@ the query ends it.
 
 | Step | Check | Result when it decides |
 |------|-------|------------------------|
-| 1 | The source address is inside an `allow-from` prefix | REFUSED, counted as reason `acl` |
-| 2 | The source is under `limit per-client-rate` | dropped, no reply |
-| 3 | RD is set | REFUSED, counted as reason `rd-clear`, whether or not the name is cached, so the cache cannot be snooped |
-| 4 | The query holds exactly one question | FORMERR |
-| 5 | The cache holds the answer | the cached answer, TTLs aged |
-| 6 | The resolution (coalescing, outstanding bound, forwarding) | its answer, SERVFAIL, or a drop |
+| 1 | A policy is published | SERVFAIL |
+| 2 | The source address is inside an `allow-from` prefix | REFUSED, counted as reason `acl` |
+| 3 | The source is under `limit per-client-rate` | dropped, no reply |
+| 4 | The query holds exactly one question | FORMERR, whatever its RD bit |
+| 5 | RD is set | REFUSED, counted as reason `rd-clear`, whether or not the name is cached, so the cache cannot be snooped |
+| 6 | The cache holds the answer | the cached answer, TTLs aged |
+| 7 | The resolution (coalescing, outstanding bound, forwarding) | its answer, SERVFAIL, or a drop |
 
 The source is the packet source (`dnsserver.RemoteAddr`), never an EDNS0
-client-subnet option. A query with an opcode other than QUERY never reaches
-these steps: the wrapper answers it Not Implemented, and `countRejected`
-counts it in `ze_dns_resolver_queries_total` like every other reply. A query
-whose OPT names an EDNS version other than 0 is answered BADVERS the same way
-(RFC 6891 Section 6.1.3), and counted under the `BADVERS` rcode label
-(`rcodeName`; the DNS library names RCODE 16 `BADSIG`, its TSIG meaning). The
-listeners run `dnsserver.RecursiveAccept` as their header filter, so both that
-query and one with two questions reach the resolver's handler and are
-answered in the recursive shape (RA set) rather than by the DNS library's own
-filter (`server-harness.md`).
+client-subnet option. Before these steps, the wrapper (`dnsserver.Recursive`)
+runs three checks of its own, in this order, and a query one of them decides
+never reaches `resolver.answer`:
+
+| Order | Query | Answer |
+|-------|-------|--------|
+| 1 | carries more than one OPT RR | FORMERR (RFC 6891 Section 6.1.1) |
+| 2 | its OPT names an EDNS version other than 0 | BADVERS (RFC 6891 Section 6.1.3) |
+| 3 | its opcode is not QUERY | Not Implemented |
+
+`countRejected` counts each of these replies in
+`ze_dns_resolver_queries_total` like every other reply, BADVERS under the
+`BADVERS` rcode label (`rcodeName`; the DNS library names RCODE 16 `BADSIG`,
+its TSIG meaning). The listeners run `dnsserver.RecursiveAccept` as their
+header filter, so a query with a non-QUERY opcode or with other than one
+question reaches the resolver's handler and is answered in the recursive
+shape (RA set) rather than by the DNS library's own filter
+(`server-harness.md`). That filter still rejects a query with more than two
+additional records, so one with three or more OPT RRs draws the library's
+FORMERR, without the recursive shape, and is not counted.
 
 <!-- source: internal/plugins/dnsresolver/server.go -- resolver.answer, resolver.countRejected, newResolverServer -->
 <!-- source: internal/plugins/dnsresolver/metrics.go -- rcodeName -->
+<!-- source: internal/core/dnsserver/recursive.go -- Recursive, RecursiveAccept -->
+<!-- test: internal/core/dnsserver/recursive_test.go -- TestRecursiveTwoOPT, TestRecursiveBadVersion -->
 <!-- test: internal/plugins/dnsresolver/accept_test.go -- TestMalformedQueryShapedAndCounted, TestRcodeNameBadVers -->
 <!-- test: internal/plugins/dnsresolver/server_test.go -- TestACLRefused, TestRDZeroRefused, TestQDCount, TestRateLimit -->
 

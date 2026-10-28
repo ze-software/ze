@@ -135,13 +135,15 @@ func newResolverServer(log *slog.Logger, res *resolver) *resolverServer {
 
 // recursiveHandler is the handler every listener serves: res's answer
 // function inside the harness's recursive wrapper, which reports the
-// Not Implemented and BADVERS replies it writes itself to countRejected.
+// Format error (more than one OPT RR), BADVERS and Not Implemented replies it
+// writes itself to countRejected.
 func recursiveHandler(log *slog.Logger, res *resolver) dns.HandlerFunc {
 	return dnsserver.Recursive(log, res.answer, res.countRejected)
 }
 
 // countRejected counts a query the recursive wrapper answered without
-// calling answer (an opcode or an EDNS version Ze does not implement), so
+// calling answer (more than one OPT RR, or an EDNS version or an opcode Ze
+// does not implement), so
 // ze_dns_resolver_queries_total holds every reply the resolver wrote.
 func (r *resolver) countRejected(p dnsserver.Peer, rcode int) {
 	r.countQuery(p.RemoteAddr().Network(), rcode)

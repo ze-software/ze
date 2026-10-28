@@ -101,8 +101,10 @@ the answer function receives `Peer`, the wrapper owns the single write, and
 
 Both wrappers answer a non-QUERY opcode with Not Implemented before the answer
 function runs, and both share `send`, which takes the datagram bound the wrapper
-chose. `Recursive` first answers an EDNS query whose OPT version is not 0 with
-BADVERS (RFC 6891 Section 6.1.3), its upper bits in the reply OPT, version 0.
+chose. `Recursive` first answers a query carrying more than one OPT RR with
+FORMERR (RFC 6891 Section 6.1.1), then an EDNS query whose one OPT version is
+not 0 with BADVERS (RFC 6891 Section 6.1.3), its upper bits in the reply OPT,
+version 0. Both run before the opcode check.
 `Authoritative` emits no OPT at all, so it cannot carry BADVERS; its EDNS
 response handling is owed with the rest of its RFC 6891 work. A consumer of `Recursive` also sets `Options.UDPSize` to
 `RecursiveUDPSize`, so the UDP listener reads a query of that size whole; with
@@ -127,7 +129,7 @@ calling the answer function, so the consumer counts it. A nil
 
 <!-- source: internal/core/dnsserver/recursive.go -- Recursive, RejectFunc, RecursiveAccept, shapeRecursive, recursiveReplyLimit, RecursiveUDPSize, rejectRecursive, recursiveEDNSVersion -->
 <!-- source: internal/core/dnsserver/manager.go -- Options.UDPSize, Options.MsgAcceptFunc -->
-<!-- test: internal/core/dnsserver/recursive_test.go -- TestRecursiveShape, TestRecursiveOpcode, TestRecursiveUDPSize, TestRecursiveBadVersion, TestRecursiveAccept -->
+<!-- test: internal/core/dnsserver/recursive_test.go -- TestRecursiveShape, TestRecursiveOpcode, TestRecursiveUDPSize, TestRecursiveBadVersion, TestRecursiveTwoOPT, TestRecursiveAccept -->
 <!-- test: internal/core/dnsserver/handler_test.go -- TestAuthoritativeUnchanged -->
 
 ## An apply must never believe a stale signature

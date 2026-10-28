@@ -104,10 +104,11 @@ service already uses is refused by the config's cross-service listener check.
 |-------|--------|
 | from a source outside `allow-from` | REFUSED |
 | from a source over `limit per-client-rate` | no reply |
+| with more or less than one question | FORMERR, whatever RD is |
 | with RD clear | REFUSED, also for a cached name |
-| with more or less than one question | FORMERR |
-| an opcode other than QUERY | Not Implemented |
+| with more than one OPT RR | FORMERR |
 | an EDNS version other than 0 | BADVERS |
+| an opcode other than QUERY | Not Implemented |
 | cached | the cached records, TTLs aged |
 | not cached | forwarded upstream; the answer is cached and returned |
 | no upstream answers in time, or the work budget runs out | SERVFAIL, not cached |
