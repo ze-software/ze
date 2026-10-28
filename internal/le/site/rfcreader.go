@@ -101,12 +101,15 @@ func rfcReaderIntroHTML() string {
 	for _, paragraph := range rfcReaderParagraphs {
 		out.Str("<p>").Str(html.EscapeString(paragraph)).Str("</p>\n")
 	}
+	// The glossary is folded: the figures come first, and a reader opens it
+	// when a term stops them.
+	out.Str("<details class=\"rfc-glossary-fold\"><summary>Glossary of the terms this page uses</summary>\n")
 	out.Str("<dl class=\"rfc-glossary\">\n")
 	for _, term := range rfcGlossary() {
 		out.Str("<dt>").Str(html.EscapeString(term.Term)).Str("</dt><dd>").
 			Str(html.EscapeString(term.Meaning)).Str("</dd>\n")
 	}
-	out.Str("</dl>\n</section>\n")
+	out.Str("</dl>\n</details>\n</section>\n")
 	return out.String()
 }
 

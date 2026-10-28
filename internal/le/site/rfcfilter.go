@@ -68,9 +68,12 @@ const rfcFilterScript = `<style>
 .rfc-overview-figures { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: 1rem; }
 .rfc-overview-figures strong { display: block; font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1.1; color: var(--text); }
 .rfc-overview-figures small { color: var(--muted); }
-.rfc-legend { display: grid; grid-template-columns: max-content 1fr; gap: .2rem .8rem; margin: .6rem 0; }
-.rfc-legend dt { font-weight: 700; }
-.rfc-legend dd { margin: 0; color: var(--muted); }
+.rfc-legend, .rfc-glossary { display: grid; grid-template-columns: max-content 1fr; gap: .35rem .8rem; margin: .6rem 0; }
+.rfc-legend dt, .rfc-glossary dt { font-weight: 700; }
+.rfc-legend dd, .rfc-glossary dd { margin: 0; color: var(--muted); }
+.rfc-glossary-fold { margin: .8rem 0; padding: .6rem 1rem; border-radius: 14px; background: var(--panel-strong); border: 1px solid var(--line); }
+.rfc-glossary-fold summary { cursor: pointer; font-weight: 700; }
+@media (max-width: 640px) { .rfc-legend, .rfc-glossary { grid-template-columns: 1fr; } .rfc-legend dd, .rfc-glossary dd { margin-bottom: .4rem; } }
 </style>
 <script>
 (function () {
