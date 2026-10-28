@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | blocked |
+| Status | in-progress |
 | Scope | protocol |
 | Priority | P0 |
 | Release reason | Security fix in shipped code: Ze's RADIUS client accepts a forged Access-Accept (BlastRADIUS, CVE-2024-3596) on every PAP, CHAP and MS-CHAP login, admin and subscriber alike |
@@ -247,7 +247,7 @@ server, a rate-limited log line and a counter on every discard.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | FreeRADIUS 3.2.10 signs every Access-Accept, Access-Reject and Access-Challenge over UDP | `internal/le/interoplab/radius/check_unsigned_eap.go` header (rad_encode in release_3_2_10) | the default-true leaf breaks every existing interop scenario | existing PAP/CHAP interop scenarios pass with the leaf at its default | unvalidated |
-| A-2 | FreeRADIUS 3.2.10 with `require_message_authenticator = yes` drops an Access-Request without MA | radiusd.conf.in text, "yes" | the clients.conf flip proves nothing | revert signing, run `radius-admin-pap-freeradius`, see it fail | unvalidated |
+| A-2 | FreeRADIUS 3.2.10 with `require_message_authenticator = yes` drops an Access-Request without MA | radiusd.conf.in text, "yes" | the clients.conf flip proves nothing | revert signing, run `radius-admin-pap-freeradius`, see it fail | confirmed 2026-10-28: signing skipped, FAIL assertion 1 (no request logged by FreeRADIUS); restored, PASS |
 | A-3 | `unsigned-relay.pl` in strip mode handles a PAP Access-Accept | relay walks any attribute list and drops type 80 (lines 69-90) | new scenario needs a relay change | the passthrough leg of the new scenario completes | unvalidated |
 | A-4 | Ze sends no Status-Server | grep `CodeStatusServer` / `Status-Server` under `internal/`: no producer | Section 4.7 owes work | the same grep at implementation (2026-10-28: no non-test hit) | confirmed |
 | A-5 | No operator config uses the CoA leaf name outside the repo | Ze is pre-release (`ai/META-DECISIONS.md`) | none | - | confirmed |
@@ -362,7 +362,7 @@ servers in `internal/test/fixture/tunnel_fixture_l2tp_radius.go` and
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| all existing `radius-admin-*-freeradius` | `test/interop-radius/scenarios/` | FreeRADIUS 3.2.10, clients.conf `require_message_authenticator = yes` | AC-1, AC-18: Ze signs every Access-Request in a form FreeRADIUS verifies. Red phase: revert the signing, scenario fails | |
+| all existing `radius-admin-*-freeradius` | `test/interop-radius/scenarios/` | FreeRADIUS 3.2.10, clients.conf `require_message_authenticator = yes` | AC-1, AC-18: Ze signs every Access-Request in a form FreeRADIUS verifies. Red phase: revert the signing, scenario fails | red/green recorded 2026-10-28 on `radius-admin-pap-freeradius` (interop.md) |
 | `radius-admin-pap-unsigned-freeradius` | `test/interop-radius/scenarios/` | FreeRADIUS 3.2.10 behind `unsigned-relay.pl` | AC-5: passthrough leg completes the PAP login; strip leg is refused, logged, counted; third leg with leaf false completes. Red phase: make the presence check a no-op, strip leg goes green login | |
 | radius subscriber lab scenarios | `test/interop-radius-subscriber/` | FreeRADIUS 3.2.10, clients.conf `yes` | AC-18 on the l2tp path | |
 
@@ -482,12 +482,17 @@ servers in `internal/test/fixture/tunnel_fixture_l2tp_radius.go` and
 
 ## Blocker
 
-Closure (/ze-close, 2026-10-28) stopped before the Review Gate record and the
-closing commits. One deliverable has no evidence:
+Cleared 2026-10-28; /ze-close is owed again. The A-2 red walk ran: with the
+`insertMessageAuthenticatorFirst` call in `encodeRequest` skipped and the lab
+binary rebuilt, `radius-admin-pap-freeradius` FAILED at assertion 1 (FreeRADIUS
+never wrote its request log); restored, PASS. Recorded in
+`docs/architecture/testing/interop.md`; A-2 confirmed. The working tree then
+held a foreign uncompilable `bgp/reactor` edit, so both lab builds ran with a Go
+`-overlay` pinning every other session's non-test Go file to HEAD.
 
-| What blocks | Producer | What clears it |
-|-------------|----------|----------------|
-| Interop Tests row 1 owes a red phase: "revert the signing, scenario fails". It was never run, so A-2 (FreeRADIUS 3.2.10 with `require_message_authenticator = yes` drops an Access-Request without a Message-Authenticator) is still `unvalidated`, and the claim in `docs/architecture/testing/interop.md` that every scenario "also proves that FreeRADIUS verifies the signature ze computed" has no recorded red | `internal/component/radius/client.go` `encodeRequest`, the `insertMessageAuthenticatorFirst` call under `pkt.Code == CodeAccessRequest` | Skip that call, let the harness rebuild the lab image, run `./le test integration interop-radius` scenario `radius-admin-pap-freeradius`: expect red with FreeRADIUS dropping the request; restore, green. Record it in interop.md beside the clients.conf paragraph, set A-2 confirmed, then rerun /ze-close |
+The two NOTEs on message text below were fixed in e6f4255655, and so was the
+third ("all servers unreachable"), because `ai/rules/user-facing-errors.md`
+applies to it too: the text was false when the servers answered.
 
 Closure review round 1, already landed (the next closure re-reads, it does not redo):
 - ISSUE, fixed in 3dd07256c9: the `ze-test l2tp scale` responder (`internal/test/cli/cmd_l2tp_scale.go` `handlePacket`, also driven by `internal/le/test/deployment/l2tpscale.go`) answered Access-Request unsigned, so every scale-run login was discarded. It now signs; `TestMockRADIUSAnswersZesDefaultClient` is red without the signing and green restored.
