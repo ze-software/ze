@@ -39,10 +39,11 @@ const (
 	// `blocked` is DEBT: the text is fetchable and somebody will fetch it. This
 	// says the standard's own text may not be redistributed, so it can never
 	// sit under rfc/full/ and checkEnrolment can never accept an enrolment for
-	// it. ISO/IEC 10589 is the case it was written for: Ze implements the IS-IS
-	// base protocol, the public page says so truthfully, and no checklist can
-	// ever be bounded against a document this repository is not allowed to
-	// hold. A gap is an ISSUE and an exclusion is a DECISION
+	// it. It was written for ISO/IEC 10589, whose summary is gone: the owner
+	// ruled that IS-IS is counted in no conformance figure, because the only
+	// text this repository holds for it is a reconstruction the project wrote,
+	// so no checklist drawn from it bounds anything (ai/META-DECISIONS.md). A
+	// gap is an ISSUE and an exclusion is a DECISION
 	// (ai/rules/rfc-compliance.md); this is the second.
 	dispositionSourceRestricted = "source-restricted"
 	// dispositionOutOfScope is a SCOPE decision rather than a claim about the

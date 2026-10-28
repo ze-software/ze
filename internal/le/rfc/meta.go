@@ -827,8 +827,10 @@ var statusRowRFC = regexp.MustCompile(`\Arfc(\d+)\z`)
 //
 // Derived from the stem, because the stem already says which document this is
 // and a second spelling of it is a future disagreement. The override exists for
-// the one row whose name a stem cannot carry: ISO/IEC 10589 is not an RFC, not
-// a draft, and its published name holds a slash, a space and upper case.
+// a row whose name a stem cannot carry: a standard that is not an RFC and not a
+// draft, whose published name holds a slash, a space or upper case. ISO/IEC
+// 10589 was that row, and is no longer one: IS-IS is counted in no conformance
+// figure (ai/META-DECISIONS.md).
 func publicRowName(stem string, meta Meta) string {
 	if meta.Name != "" {
 		return meta.Name

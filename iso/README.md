@@ -5,6 +5,10 @@ not belong under `rfc/`. ISO/IEC documents (for example ISO/IEC 10589, the base
 IS-IS standard) are not freely redistributable, so this tree holds clean-room
 summaries only, never the standard text itself.
 
+No ISO/IEC 10589 text here is counted in any conformance figure, because that
+text is a project reconstruction rather than the standard; the owner rule is in
+`ai/META-DECISIONS.md`.
+
 Layout mirrors `rfc/`:
 
 | Path | Contents |
