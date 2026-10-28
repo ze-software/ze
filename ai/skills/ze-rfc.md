@@ -39,7 +39,7 @@ named `not walked` owes its extraction sign-off.
    and gating none of them is how a compliance claim rots. Enrolling does not mean every
    MUST is met — classify each honestly as tested, `{single-polarity}`, `{gap}` (with a
    non-"Supported" `Support status` row in the summary's own `## Meta` table),
-   `{lower-layer}`, `{feature-declined}` or `{not-applicable}`. The gate also fails a new summary that does not parse, or that
+   `{lower-layer}`, `{feature-declined}`, `{linux-limit}` (with register evidence and instance approval), or `{not-applicable}`. The gate also fails a new summary that does not parse, or that
    captures zero requirements while
    `rfc/full/<stem>.txt` contains MUST-level keywords. **Enrolling a stem that was not
    enrolled at HEAD also requires an extraction sign-off** (`rfc/extraction/<stem>.json`);
@@ -380,10 +380,11 @@ rejected by `./le rfc check`.
 | `{single-polarity: positive\|negative; why}` | Genuinely testable only one way | Requires tags of that polarity only, instead of the usual pair |
 | `{lower-layer: <layer>; <path>.go::<Symbol> ...}` | A layer under Ze performs the behavior, on state Ze installs into it, and Ze's own boundary carries no value to assert | Passes. MUST NOT coexist with any test tag. The reason MUST name the layer and the producer, and `./le rfc check` refuses a producer this tree cannot show |
 | `{feature-declined: "<RFC sentence>"; <path>.go::<Symbol> ...}` | The obligation is conditional on a feature the RFC makes OPTIONAL, and Ze declined it, so the condition is false | Passes. MUST NOT coexist with any test tag. The reason MUST open with the RFC's own sentence making the feature optional, in double quotes, and MUST name the producer that does the narrower thing. `./le rfc check` refuses a quote that is not in `rfc/full/<stem>.txt` and a producer this tree cannot show |
+| `{linux-limit: LL-<ID>; why no Ze code substitutes}` | The obligation binds, but a verified kernel primitive blocks it on Linux | The register entry MUST be `kernel`, `blocks`, `verified`, checked at the shipped kernel version, name the exact requirement in `Blocks`, and carry `Evidence`. No test tag may coexist. The row stays unmet, counted and unproven; each instance owes owner approval before push |
 
 **These are not escape hatches.** If a requirement has no test because nobody wrote one
 yet, that is not `not-applicable` — write the test, or leave the RFC un-enrolled.
-`{not-applicable}`, `{gap}`, `{lower-layer}` and `{feature-declined}` each FAIL the gate
+`{not-applicable}`, `{gap}`, `{lower-layer}`, `{feature-declined}` and `{linux-limit}` each FAIL the gate
 the moment a test tags the requirement (a stale annotation is a lie the ratchet catches).
 The one tag a `{gap}` row accepts is a gap tag.
 
@@ -426,6 +427,21 @@ absent feature DISCLOSED on the summary's own `Support status` and `Support rema
 rows? The feature is an implementation gap a later scope decision can revisit, and never a
 conformance gap. This kind is the coverage register's word for what an extraction sign-off
 records as `feature-out-of-scope`.
+
+**When to reach for `{linux-limit}`, and when not to.** Read the named entry in
+`docs/architecture/linux-limitations.md`. A library limit can be fixed with a
+carried diff; `constrains design` says Ze can implement the behavior in another
+shape; an unverified entry proves nothing. All remain gaps. Only a verified
+kernel `blocks` entry, current at the shipped version and naming this exact
+requirement with evidence, supports the classification. Keep the evidence in
+the register, not a second copy in the annotation. Disclose the row as unmet
+in `Support status` and `Support remaining`. The honest audit verdict is
+`unimplemented`, never `not-applicable`.
+
+`./le rfc check` lists qualifying rows as candidates without annotating them.
+Neither a candidate nor design approval approves an instance. An added or
+reworded annotation owes `Linux-limit-owed: <RID>: <LL-id>` through
+`./le commit create`, and push waits for the owner's `Owner-attested:` answer.
 
 **`{rollup: <id or stem>, ...; why}`** is for a row that asserts nothing of its own,
 such as RFC 4302 §5 "MUST fully implement the AH syntax and processing described here".
@@ -485,10 +501,10 @@ word would collide with the requirement tables.
 | `unresolved; why` | the successor's text is not in this repository | that text is ABSENT |
 
 **This marker is a fact about the DOCUMENT, never about coverage.** It composes with
-`{not-applicable}`, `{gap}`, `{single-polarity}`, `{lower-layer}`, `{feature-declined}` and
-`{rollup}` instead of replacing one. It lowers nothing. A marked requirement stays
+`{not-applicable}`, `{gap}`, `{single-polarity}`, `{lower-layer}`, `{feature-declined}`,
+`{linux-limit}` and `{rollup}` instead of replacing one. It lowers nothing. A marked requirement stays
 gated, stays counted and stays ratcheted.
-Writing one is therefore NOT the owner-reserved judgement the six annotations above
+Writing one is therefore NOT the owner-reserved judgement the coverage annotations above
 are. It records where the IETF put the obligation, and it says nothing about what Ze
 owes.
 
@@ -652,7 +668,7 @@ Step-by-step, pseudocode if RFC provides it.
 - Never commit a generated ledger file. `ai/RFC-REQUIREMENTS.md`, `rfc/requirements/`,
   `rfc/enrolled.txt`, `rfc/not-enrolled.txt` and `docs/features/rfc-status.md` are derived and
   untracked: a write to a tag carrier removes them and a read rebuilds them
-- Never annotate `{not-applicable}` / `{gap}` / `{lower-layer}` / `{feature-declined}` to reach green. Write the test, or leave
+- Never annotate `{not-applicable}` / `{gap}` / `{lower-layer}` / `{feature-declined}` / `{linux-limit}` to reach green. Write the test, or leave
   the RFC un-enrolled and say so
 - Enrolment (`| Enrolment | enrolled |` in the summary's `## Meta` table) means "every
   MUST here is CLASSIFIED": tested, or annotated with a reason that names what is

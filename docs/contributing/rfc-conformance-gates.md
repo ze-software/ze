@@ -177,7 +177,7 @@ test deleted, or a finding it turned into `enforced`, is seen in the detached
 verify worktree.
 
 Requirement IDs are permanent. `parseChecklistLine` checks every row's ID form,
-summary stem and positive ordinal, and `parseSummaryText` rejects duplicate IDs.
+summary stem and positive ordinal, and `ParseSummaryText` rejects duplicate IDs.
 `checkIDAllocation` requires an ID known to be absent from the `HEAD^` baseline
 to match the row's cited section, using `x` when it has no citation. A readable
 baseline with no requirements still enforces this rule. The baseline is
@@ -354,11 +354,29 @@ by a verified record: `{rollup}` rows are out of both sides, and every other
 annotated row stays in the denominator. `{single-polarity}` is the one
 annotation a row can be proven under, and only by a verifying record on its
 one side; `ProvenShareOf` credits such a row from its annotation alone. A `{not-applicable}`,
-`{lower-layer}` or `{feature-declined}` row is never proven by Ze, whatever
-records its tags carry, so annotating a row cannot raise its figure. A `{gap}`
+`{lower-layer}`, `{feature-declined}` or `{linux-limit}` row is never proven by Ze,
+whatever records its tags carry, so annotating a row cannot raise its figure. A `{gap}`
 or `{partial}` row stays in and is never proven either, because the summary
 itself says the obligation is unmet: that is what keeps a requirement only
 unreached code meets at 0%.
+
+Each figure also carries a CEILING: attainable rows over the same total, or
+`(Total - excluded) / Total`. The annotation declaration's `CeilingExcluded`
+trait excludes `{linux-limit}`, `{lower-layer}`, `{feature-declined}` and
+`{not-applicable}` from attainable rows, never from Total. Gaps and partials
+remain attainable future work. This ceiling describes current classifications,
+not an immutable platform limit: not-applicable and feature-declined decisions
+can be revisited. Each excluded kind has its own count so Linux limits are
+never hidden among classification decisions.
+
+`Figure` JSON retains `proven` and `total`, adding `attainable` and `excluded`
+(positive counts keyed by annotation kind). Tree rows expose
+`mandatory-attainable`, `optional-attainable`, `mandatory-excluded` and
+`optional-excluded` beside the existing proof fields. `TreeRow.CeilingCells`
+renders these counts; `CeilingOf` sums walked rows and identifies the lowest
+nonempty mandatory and optional RFC ceilings. Equal ceilings choose numbered
+RFCs in numeric order before other stems, which sort by name. A zero total
+renders `no rows`, not 100%.
 
 An RFC with no valid extraction sign-off renders `not walked` rather than a
 figure. Every RFC a profile lists has a summary (owner: "all RFC should have a
@@ -368,7 +386,36 @@ states how many are not walked. It is never complete while that count is
 above zero, nor while the set has no member: 0 of 0 measures nothing. A
 use-case profile's percentage is the rollup of its required tier alone; its
 optional tier carries a rollup of its own beside it.
+The same walked-only rule applies to ceilings and per-kind exclusion counts.
+Rollups sum counts before dividing, never average RFC percentages. An unwalked
+RFC publishes neither proof nor ceiling measurements; its raw JSON counts are
+retained under the existing `walked: false` convention.
 <!-- source: internal/le/rfc/profilecoverage.go -- figuresByStem, rowCounts, rollupOf, Rollup.mandatoryComplete -->
+
+### One declaration for annotation meaning
+
+`annotationKinds` in `internal/le/rfc/rfc.go` declares each coverage kind's
+parser and traits together. `AnnotationKinds` derives the accepted vocabulary;
+`AnnotationTraitsOf` supplies the same meaning to coverage, rollup derivation,
+public-status checks, audit legality, site buckets and health accounting. A new
+kind does not add another list of exceptions in each reader.
+
+The traits keep distinct questions separate: whether a row belongs in a
+denominator, whether a verified record may prove it, whether polarity tags
+contradict it, whether it is unmet, which audit verdicts agree with it, and
+what it contributes to a rollup. Parser-specific payload checks still belong
+to the registered parser and the gate that verifies that payload.
+
+Unknown kinds are refused by the parser and the coverage and audit gates.
+Render-only arithmetic keeps an unknown row in the denominator without proof
+credit; the site records it as unmapped. It never inherits an exemption from
+the zero value of a missing declaration. The existing annotation counts and
+published shares are unchanged by this shared declaration.
+<!-- source: internal/le/rfc/rfc.go -- annotationKinds, AnnotationKinds, AnnotationTraitsOf -->
+<!-- source: internal/le/rfc/check_core.go -- evaluate, rollupTargetState -->
+<!-- source: internal/le/rfc/check_status.go -- checkStatusAgreement, checkGapCountAgreement -->
+<!-- source: internal/le/rfc/check_audit.go -- verdictClaims -->
+
 
 
 | Guard | Refuses |
@@ -379,7 +426,8 @@ optional tier carries a rollup of its own beside it.
 | `checkPublicRowMonotonic` | a `Support` cell that named an aggregate at HEAD and reads `-` now, while the summary is still there, and a newly enrolled RFC that arrives with no row at all. It is keyed on the ROW, never on enrolment, because `checkSupportedSignoff` bills any row whose Status promises conformance. RFCs enrolled before it existed are grandfathered, so the count of enrolled RFCs with no row can only shrink |
 | `checkLowerLayerProducer` | a `{lower-layer}` annotation whose producer this checkout cannot show: the file is absent, or it declares no function of that name. The kind rests on a fact a reader can open, and a producer that was renamed or deleted under the annotation is the event this catches |
 | `checkFeatureDeclined` | a `{feature-declined}` annotation whose quote is not in the RFC's own text, whose RFC has no text in this repository, or whose producer this checkout cannot show. Two facts, because the kind makes two claims: the DOCUMENT makes the feature optional, and ZE built the narrower thing |
-| `checkGapCountAgreement` | a Remaining cell whose spelled number (including zero), sitting immediately before MUST or SHALL, disagrees with the number of `{gap}` plus `{partial}` rows. The COUNT is the only fact on that page a machine can own: it counts unmet requirement rows, never distinct protocol obligations or whether their classifications are right |
+| `checkLinuxLimit` | a `{linux-limit}` annotation whose register is unreadable or malformed, whose entry is missing, is not a verified blocking kernel limitation, names another requirement, lacks evidence, or was checked at a kernel version other than the shipped one |
+| `checkGapCountAgreement` | a Remaining cell whose spelled number (including zero), sitting immediately before MUST or SHALL, disagrees with the number of unmet rows (`{gap}`, `{partial}` and `{linux-limit}`). The COUNT is the only fact on that page a machine can own: it counts unmet requirement rows, never distinct protocol obligations or whether their classifications are right |
 
 Un-enrolment exempts only the MISSING-ROW branch of `checkStatusAgreement`. An
 un-enrolled RFC with no row makes no public claim to contradict; one that HAS a
@@ -880,6 +928,52 @@ not deliver, which is the claim the annotation denies.
 It cannot take a `{gap}`'s slot, for the reason recorded about `SupersededKind`:
 one checklist line carries ONE disposition, so a line carrying both is refused
 rather than silently relabeled.
+
+## The linux-limit annotation
+
+`{linux-limit: LL-<ID>; <why no Ze code substitutes>}` says the obligation
+binds, but Linux cannot provide the primitive it needs. The id names the entry
+in `docs/architecture/linux-limitations.md`; the row does not copy its evidence.
+A missing id or reason is refused, and a line cannot carry another disposition
+beside this one.
+
+`checkLinuxLimit`, in the annotations check group, requires all of these:
+
+- The register parses without diagnostics and holds the named entry.
+- Its `Kind` is `kernel`, `Effect` is `blocks`, and `Status` is `verified`.
+  A library limit is fixed by a carried diff; `constrains design` means Ze can
+  implement the behavior in another shape. Both remain `{gap}`. An unverified
+  entry's `Re-check` names what must be settled first.
+- `Blocks` names the exact requirement id, not a longer id sharing its prefix.
+  `Evidence` is nonempty, and `Checked` names the kernel version in
+  `internal/appliance/kernel.version`.
+
+Every refusal identifies the summary row and the register source. Missing or
+malformed inputs fail closed for annotations, even on unenrolled summaries.
+A corpus without this annotation acquires no required register dependency.
+
+The obligation stays counted and unproven. It is unmet in the public status
+and Remaining count, and contributes a gap to a rollup. A tagged test makes
+the annotation stale. The audit verdict `unimplemented` is legal (with its
+usual code evidence); `not-applicable` is not, because the obligation binds.
+The per-kind trait declaration supplies these decisions and the ceiling exclusion.
+A summary carrying this annotation must never claim `Supported`, including
+scoped `Supported ...` and legacy `Yes` claims, even when Remaining correctly
+says `One MUST unmet`. Set `Support status` to `Partial` and retain the unmet
+disclosure. This prohibition is declared only for `{linux-limit}`; ordinary
+gap and partial annotations retain their existing disclosure rules.
+
+Each added or reworded instance owes `Linux-limit-owed: <RID>: <LL-id>` in
+the commit. It may land, but publication waits for the owner's
+`Owner-attested:` answer through the existing commit approval machinery.
+Design approval does not approve an instance.
+
+`CheckReport.linux-limit-candidates` and the prose report list existing rows
+named by eligible, current entries but not annotated with this kind. These
+are evidence for an owner decision, not violations or approval: the report
+never edits a summary, and an ineligible entry proposes nothing.
+<!-- source: internal/le/rfc/linux_limit.go -- parseLinuxLimit, checkLinuxLimit, linuxLimitEntryRefusal -->
+<!-- source: internal/le/rfc/check.go -- CheckReport, check -->
 
 ## The rollup annotation
 

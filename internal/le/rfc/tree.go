@@ -34,12 +34,16 @@ type TreeRow struct {
 	UpdatedBy []string `json:"updated-by"`
 	// Summary is whether rfc/short/ holds a summary. A node without one has
 	// a text the graph reached and no requirement list.
-	Summary         bool `json:"summary"`
-	Walked          bool `json:"walked"`
-	MandatoryProven int  `json:"mandatory-proven"`
-	MandatoryTotal  int  `json:"mandatory-total"`
-	OptionalProven  int  `json:"optional-proven"`
-	OptionalTotal   int  `json:"optional-total"`
+	Summary             bool           `json:"summary"`
+	Walked              bool           `json:"walked"`
+	MandatoryProven     int            `json:"mandatory-proven"`
+	MandatoryTotal      int            `json:"mandatory-total"`
+	OptionalProven      int            `json:"optional-proven"`
+	OptionalTotal       int            `json:"optional-total"`
+	MandatoryAttainable int            `json:"mandatory-attainable"`
+	OptionalAttainable  int            `json:"optional-attainable"`
+	MandatoryExcluded   map[string]int `json:"mandatory-excluded"`
+	OptionalExcluded    map[string]int `json:"optional-excluded"`
 	// Profiles is the use-case profiles the node's summary is required by,
 	// and OptionalProfiles those listing it as optional.
 	Profiles         []string `json:"profiles"`
@@ -261,6 +265,8 @@ func (c *priorityCorpus) treeRow(stem string, useCases []profileScope) *TreeRow 
 		Summary: summarized, Walked: figures.Walked,
 		MandatoryProven: figures.Mandatory.Proven, MandatoryTotal: figures.Mandatory.Total,
 		OptionalProven: figures.Optional.Proven, OptionalTotal: figures.Optional.Total,
+		MandatoryAttainable: figures.Mandatory.Attainable, OptionalAttainable: figures.Optional.Attainable,
+		MandatoryExcluded: figures.Mandatory.Excluded, OptionalExcluded: figures.Optional.Excluded,
 		Profiles: []string{}, OptionalProfiles: []string{}}
 	if members, held := c.graph.Component(stem); held {
 		for _, member := range members {
@@ -287,10 +293,29 @@ func (r *TreeRow) Cells() (mandatory, optional string) {
 	if !r.Summary {
 		return noSummaryCell, noSummaryCell
 	}
-	figures := StemFigures{Stem: r.Stem, Walked: r.Walked,
-		Mandatory: Figure{Proven: r.MandatoryProven, Total: r.MandatoryTotal},
-		Optional:  Figure{Proven: r.OptionalProven, Total: r.OptionalTotal}}
+	figures := r.figures()
 	return figures.mandatoryCell(), figures.optionalCell()
+}
+
+// CeilingCells answers ceiling cells with the same measurement boundary as Cells.
+func (r *TreeRow) CeilingCells() (mandatory, optional string) {
+	if !r.Summary {
+		return noSummaryCell, noSummaryCell
+	}
+	if !r.Walked {
+		return notWalked, notWalked
+	}
+	figures := r.figures()
+	return figures.Mandatory.CeilingString(), figures.Optional.CeilingString()
+}
+
+// figures reads the counts carried by a row, including one decoded from JSON.
+func (r *TreeRow) figures() StemFigures {
+	return StemFigures{Stem: r.Stem, Walked: r.Walked,
+		Mandatory: Figure{Proven: r.MandatoryProven, Total: r.MandatoryTotal,
+			Attainable: r.MandatoryAttainable, Excluded: r.MandatoryExcluded},
+		Optional: Figure{Proven: r.OptionalProven, Total: r.OptionalTotal,
+			Attainable: r.OptionalAttainable, Excluded: r.OptionalExcluded}}
 }
 
 // Text renders the tree, one line per node, for a reader at a terminal: the
@@ -348,6 +373,13 @@ func writeTreeRow(tb *textbuf.Buffer, row *TreeRow) {
 		tb.Str(" (cycle with ").Str(strings.Join(row.Component, ", ")).Byte(')')
 	}
 	tb.Str("  mandatory ").Str(mandatory).Str(", optional ").Str(optional)
+	mandatoryCeiling, optionalCeiling := row.CeilingCells()
+	tb.Str("; ceiling mandatory ").Str(mandatoryCeiling).Str(", optional ").Str(optionalCeiling)
+	if row.Summary && row.Walked {
+		figures := row.figures()
+		writeFigureExclusions(tb, "mandatory", figures.Mandatory)
+		writeFigureExclusions(tb, "optional", figures.Optional)
+	}
 	if row.Aggregate != "" {
 		tb.Str("  [").Str(row.Aggregate).Byte(']')
 	}

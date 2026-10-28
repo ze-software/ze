@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ze-software/ze/internal/le/linuxlimit"
 	"github.com/ze-software/ze/internal/le/rfc"
 )
 
@@ -123,6 +124,21 @@ func (acts *personActs) readLine(sha, line string) {
 			strings.TrimSpace(key)+" trailer "+strconv.Quote(line)+
 			": the derivation cannot tell what it owes, so the push waits until that line is corrected")
 	}
+	// Trimming message whitespace must not make an empty declared trailer
+	// disappear just because its declaration includes a trailing space.
+	for _, declaration := range declaredTrailers {
+		key := strings.TrimSpace(declaration.Key)
+		if strings.HasPrefix(line, key) {
+			if !strings.HasPrefix(line, declaration.Key) {
+				malformed(declaration.Key)
+				return
+			}
+			if _, _, valid := cutOwed(strings.TrimPrefix(line, declaration.Key)); !valid {
+				malformed(declaration.Key)
+				return
+			}
+		}
+	}
 	if value, ok := strings.CutPrefix(line, trailerReviewOwed); ok {
 		subject, reason, ok := cutOwed(value)
 		if !ok {
@@ -141,16 +157,39 @@ func (acts *personActs) readLine(sha, line string) {
 		acts.owed = append(acts.owed, owedTrailer{commit: sha, kind: owedItemRFCApproval, subject: subject, reason: reason})
 		return
 	}
-	if value, ok := strings.CutPrefix(line, trailerOwnerAttested); ok {
-		if patchID, _, split := strings.Cut(value, ": "); split && patchID != "" {
-			acts.attested[patchID] = true
+	if value, ok := strings.CutPrefix(line, trailerLinuxLimitOwed); ok {
+		subject, limitID, ok := cutOwed(value)
+		if !ok {
+			malformed(trailerLinuxLimitOwed)
+			return
 		}
+		if len(strings.Fields(subject)) != 1 {
+			malformed(trailerLinuxLimitOwed)
+			return
+		}
+		if !linuxlimit.ValidID(limitID) {
+			malformed(trailerLinuxLimitOwed)
+			return
+		}
+		acts.owed = append(acts.owed, owedTrailer{commit: sha, kind: owedItemLinuxLimit, subject: subject, reason: limitID})
+		return
+	}
+	if value, ok := strings.CutPrefix(line, trailerOwnerAttested); ok {
+		patchID, _, valid := cutOwed(value)
+		if !valid {
+			malformed(trailerOwnerAttested)
+			return
+		}
+		acts.attested[patchID] = true
 		return
 	}
 	if value, ok := strings.CutPrefix(line, rfc.ApprovalTrailer); ok {
-		if unit, _, split := strings.Cut(value, ": "); split && unit != "" {
-			acts.approved[unit] = true
+		unit, _, valid := cutOwed(value)
+		if !valid {
+			malformed(rfc.ApprovalTrailer)
+			return
 		}
+		acts.approved[unit] = true
 		return
 	}
 	if value, ok := strings.CutPrefix(line, trailerLedgerCarried); ok {
@@ -166,6 +205,9 @@ func cutOwed(value string) (subject, reason string, ok bool) {
 		return "", "", false
 	}
 	if strings.TrimSpace(subject) == "" {
+		return "", "", false
+	}
+	if strings.TrimSpace(reason) == "" {
 		return "", "", false
 	}
 	return subject, reason, true
@@ -241,9 +283,8 @@ func unreadProblem(commit, subject string, err error) string {
 
 // answered says whether one obligation on commit is answered: not applicable,
 // closed, reviewed or attested for a review; not applicable, approved or
-// attested for an RFC approval. A commit whose facts git could not read
-// answers nothing, so its item stays open, and the read failure is recorded in
-// problems.
+// attested for an RFC approval; only attested for a Linux limit. A commit whose
+// facts git could not read answers nothing, and the read failure is recorded.
 func (a *answering) answered(commit string, kind owedItemKind, subject string) bool {
 	if patchID := a.patchIDs[commit]; patchID != "" && a.acts.attested[patchID] {
 		return true
@@ -272,6 +313,8 @@ func (a *answering) answered(commit string, kind owedItemKind, subject string) b
 			return false
 		}
 		return !slices.Contains(changed, subject)
+	case owedItemLinuxLimit:
+		return false
 	case owedItemUnspecified:
 	}
 	return false

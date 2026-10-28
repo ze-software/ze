@@ -97,7 +97,7 @@ func quoteBackfill(tree, stem string, apply bool) (*quoteBackfillReport, error) 
 		return nil, err
 	}
 	summaryName := stemPath(summaryRel, stem, ".md")
-	requirements, err := parseSummaryText(string(body), stem, summaryName)
+	requirements, err := ParseSummaryText(string(body), stem, summaryName)
 	if err != nil {
 		return nil, err
 	}

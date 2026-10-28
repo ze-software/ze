@@ -2,13 +2,13 @@
 
 | Status | Next action |
 |--------|-------------|
-| Implementation and scoped verification complete; no open implementation blocker | Run `/ze-close` for the formal Review Gate, scoped committed verification and closure commits. Do not re-ask the approved design decisions |
+| Closed through the native two-commit script, with one independent CLEAN Review Gate | Parent runs `./le verify changed` over the committed change. No full verification or push is authorized |
 
 ## Goal
 
 Thomas asked (2026-10-28): "Add a 'Linux can't do this' for requirements".
 At design time the RFC ledger could not distinguish a requirement Linux cannot
-meet from work Ze still owes. The implemented, uncommitted change adds that
+meet from work Ze still owes. The completed change adds that
 state, checked register evidence and per-instance owner approval, plus computed
 per-RFC and per-profile attainable ceilings without increasing proof figures.
 
@@ -16,15 +16,17 @@ per-RFC and per-profile attainable ceilings without increasing proof figures.
 
 Branch: `main`.
 
-- Spec: `plan/release/validation/spec-rfc-linux-limit-annotation.md`, claimed,
-  `in-progress`, Phase 6/6. Thomas approved the design in this session:
+- Closed spec: `spec-rfc-linux-limit-annotation`. The implementation and closure
+  record are retained in commit A before commit B removes the spec.
+  Thomas approved the design in this session:
   D-1(a), D-2(A), D-3(B), D-4(A), D-5(A), **D-6(B)** and D-7 neutral.
   Do not ask those decisions again. The approval covers the design, not any
   requirement instance.
-- Implementation code, tests and accompanying docs remain uncommitted.
+- Implementation code, tests and accompanying docs are carried by commit A.
   Independent core and site reviews drove fixes for summary/ancestor symlink
   approval bypasses, Supported-with-Remaining admission, missing register IDs
-  and draft tie order. Their final scoped source reviews are clean.
+  and draft tie order. The independent closure Review Gate is CLEAN, one round,
+  with no outstanding BLOCKER or ISSUE.
 - The corrected guards, in-memory corpus invariant and affected publication
   regressions passed. The real-corpus test passed alone under its unchanged
   default timeout. A final direct-snapshot fixture needed the `tmp/` setup
@@ -33,10 +35,10 @@ Branch: `main`.
   covered filters, profiles, neutral Linux-limit standing, register IDs, empty
   populations and draft ties. Final canonical `site build` and `site check`
   passed, and its actual index was visually inspected.
-- The earlier shared BGP compilation blocker was repaired by its owner; no
-  foreign source was changed. This is the `/ze-implement` handoff, not closure.
-- Nothing in `rfc/short/` is annotated. The spec's "Candidates found" section
-  lists the rows that cite `docs/architecture/linux-limitations.md`; none
+- The earlier shared BGP compilation blocker was repaired by its owner.
+  No foreign source was changed or included in closure.
+- Nothing in `rfc/short/` is annotated. The closed spec's historical candidates
+  list records rows that cite `docs/architecture/linux-limitations.md`. None
   qualifies today (each cited entry is `constrains design`, a library entry, or
   unverified).
 
@@ -59,10 +61,9 @@ Branch: `main`.
   (`internal/le/rfc/profilecoverage.go`) keeps `{not-applicable}`,
   `{lower-layer}` and `{feature-declined}` rows in the denominator unproven
   (RFC 4302 has sixteen lower-layer rows). It was corrected in `b4a36b70be`
-  before publication; the published wording now says such RFCs stay below 100%
-  with nothing left to do. D-3 replaces that fixed sentence with a computed
-  ceiling. The implementation replaces the fixed declaration; the similarly
-  named `rfcIndexCeilingRows` is only the measured-row selector.
+  before publication. D-3 replaces that fixed sentence with a computed
+  ceiling. The fixed declaration is removed. The similarly named
+  `rfcIndexCeilingRows` is only the measured-row selector.
 - The RFC compliance index was rewritten for readers on 2026-10-28
   (`d09a3cc477`, `2b02bd4125`): a glossary in `internal/le/site/rfcreader.go`
   and plain check-group lines from `internal/le/rfc/checkgroups.go`. The new
@@ -80,11 +81,11 @@ Branch: `main`.
 
 - Session: `644a4e78-0122-4eeb-8642-eb50638a1641`.
 - State: `tmp/session/2026-10-22-644a4e78-0122-4eeb-8642-eb50638a1641/state/session-state-rfc-linux-limit-annotation-644a4e78-0122-4eeb-8642-eb50638a1641.md`.
-- Scratch: the same session's `scratch/`. Its `linux-limit-owned-files.txt`
-  names the owned paths; `linux-limit-review.diff` is the initial captured
-  review, not the final diff. Later corrections are recorded in state.
-- The spec's Implementation evidence and Goal validation tables identify the
-  actual logs and separate completed implementation proof from formal closure.
+- Scratch: the same session's `scratch/`. `linux-limit-closure-files.txt`
+  names commit A's whole-file population. Its `linux-limit-index.patch`
+  selects only the RFC discovery row from shared `ai/INDEX.md`.
+- The closed spec's implementation and closure tables identify the producing
+  functions and concrete runtime evidence for all 19 acceptance criteria.
 - Independent test approvals are in `tmp/commit-weakening-approved-0cf1e0e8.md`.
   They preserve all original parser cases and corpus inputs. The final parser
   extension adds a malformed Checked pin and requires zero usable entries on
@@ -94,11 +95,11 @@ Branch: `main`.
 - Own preview servers and browser tabs were stopped. The disposable Go
   emitter, six generated smoke-fixture directories and two emitter recipes
   were removed after the completed proof. Retain logs, browser JSON and
-  `linux-limit-final-gap.webp` / `linux-limit-final-canonical.webp` until closure.
+  `linux-limit-final-gap.webp` / `linux-limit-final-canonical.webp` as evidence.
   The canonical `../gh-pages` output remains a deliverable, not scratch.
-- `ai/INDEX.md` initially carried another session's terminal-demo row beside
-  this task's entries. At closure apply the shared-hunk rule against HEAD,
-  rather than treating every hunk in an owned path as this task's work.
+- The foreign terminal-demo index row and health fixture edit were excluded.
+  Four parser-move structural audit reports received independent native
+  approvals after checking the preserved original assertions.
 
 ## Verified evidence
 
@@ -121,14 +122,20 @@ already exist at HEAD. The site build reported existing stale proof warnings
 for seven unrelated features and two unstamped talks; none was refreshed to
 manufacture a green result. No full verification or performance run was made.
 
-## Then
+## Closure and remaining verification
 
-No known product edit or implementation test remains. Do not repeat passing
-checks merely to confirm their logs. Continue with `/ze-close` on the claimed
-spec: formal Review Gate, closure record, two scoped commits and
-`./le verify changed` over those commits. The full release check is Thomas's,
-not an agent task.
+The machine review artifact is
+`tmp/review/rfc-linux-limit-annotation-644a4e78-0122-4eeb-8642-eb50638a1641.md`.
+LinuxLimitClosure independently checked logic/wiring, security/edge cases and
+publication/proof preservation. No product edit was needed during closure.
+The spec records the scoped review-check result and the closure prose correction.
 
-No requirement instance was approved or annotated. No feature commit, formal
-Review Gate, closure, owner attestation, push or deployment has occurred.
-Pushing either repository still needs Thomas's explicit instruction.
+Global repository and documentation compositions were not run under the standing
+host ban. Scoped citation anchors passed. The existing actual CLI, browser,
+targeted tests and canonical site evidence were inspected, not repeated.
+The parent owes `./le verify changed` once over the committed change.
+The full release check remains Thomas's, not an agent task.
+
+No requirement instance was approved or annotated. No owner attestation,
+push or deployment was made. Pushing either repository still requires Thomas's
+explicit instruction.

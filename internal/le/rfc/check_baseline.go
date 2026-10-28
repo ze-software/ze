@@ -358,7 +358,7 @@ func baselineLevels(tree string) (map[string]string, map[string]bool, bool) {
 			unreadable[stem] = true
 			continue
 		}
-		requirements, err := parseSummaryText(text, stem, rel)
+		requirements, err := ParseSummaryText(text, stem, rel)
 		if err != nil {
 			unreadable[stem] = true
 			continue

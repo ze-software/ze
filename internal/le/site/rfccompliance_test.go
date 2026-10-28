@@ -2162,7 +2162,8 @@ func TestTheComplianceIndexRowsCanBeFiltered(t *testing.T) {
 func TestTheComplianceIndexShowsEachRFCsFigures(t *testing.T) {
 	ledger := twoStemLedger()
 	row := &rfc.TreeRow{Stem: "rfc9998", Summary: true, Walked: true,
-		MandatoryProven: 3, MandatoryTotal: 4, OptionalProven: 1, OptionalTotal: 2}
+		MandatoryProven: 3, MandatoryTotal: 4, MandatoryAttainable: 4,
+		OptionalProven: 1, OptionalTotal: 2, OptionalAttainable: 2}
 	ledger.Profiles = []*rfc.TreeReport{{Profile: "widgets", Kind: "use-case",
 		Rollup: &rfc.ScopeRollup{Rollup: rfc.Rollup{RFCs: 1}}, Rows: []*rfc.TreeRow{row}}}
 	paths := rfcCompliancePathsWith(t, publishedRFCComplianceRef(t), ledger)
@@ -2172,9 +2173,9 @@ func TestTheComplianceIndexShowsEachRFCsFigures(t *testing.T) {
 	page := readArtifact(t, paths.Output, rfcComplianceDest)
 	mirror := readArtifact(t, paths.Output, rfcComplianceDirectory+"/"+pageMirrorFile)
 	for _, want := range []string{
-		`<tr data-rfc="rfc9998" data-walked="1" data-mp="3" data-mt="4" data-op="1" data-ot="2">`,
+		`<tr data-rfc="rfc9998" data-walked="1" data-mp="3" data-mt="4" data-op="1" data-ot="2" data-ma="4" data-oa="2" data-me="{}" data-oe="{}">`,
 		"3 of 4 (75.0%)", "1 of 2 (50.0%)",
-		"<th>" + rfcIndexGapsTested + "</th>", `<dl class="rfc-legend">`, rfcIndexCeiling,
+		"<th>" + rfcIndexGapsTested + "</th>", `<dl class="rfc-legend">`, "Every RFC shown with measured rows can reach 100% under current classifications.",
 		`id="rfc-overview"`, rfcListSlot, `<section id="` + rfcDeclinedAnchor + `">`,
 	} {
 		if !strings.Contains(page, want) {
@@ -2184,7 +2185,7 @@ func TestTheComplianceIndexShowsEachRFCsFigures(t *testing.T) {
 	if strings.Contains(page, "<th>"+rfcDemonstratedGapsLabel+"</th>") {
 		t.Error("the index table still carries the long gaps header")
 	}
-	for _, want := range []string{"| 3 of 4 (75.0%) | 1 of 2 (50.0%) |", "**" + rfcIndexGapsTested + "**", rfcIndexCeiling} {
+	for _, want := range []string{"| 3 of 4 (75.0%); ceiling 4 of 4 (100.0%) | 1 of 2 (50.0%); ceiling 2 of 2 (100.0%) |", "**" + rfcIndexGapsTested + "**", "Every RFC shown with measured rows can reach 100% under current classifications."} {
 		if !strings.Contains(mirror, want) {
 			t.Errorf("the index mirror carries no %s", want)
 		}

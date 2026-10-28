@@ -20,6 +20,37 @@ func TestAnnotationsNeverInflateThePublishedShare(t *testing.T) {
 	if err != nil {
 		t.Fatalf("collect the corpus: %v", err)
 	}
+	// No real requirement may acquire this annotation without owner approval.
+	// Keep the real corpus intact and exercise the newly declared kind in memory,
+	// including stale ordinary tags that must not earn whole-proof credit.
+	const fixtureStem = "rfc999999"
+	const fixtureRID = "RFC999999-1-1"
+	if _, exists := collected.Metas[fixtureStem]; exists {
+		t.Fatal("linux-limit fixture stem collides with the real corpus")
+	}
+	for _, requirement := range collected.Requirements {
+		if requirement.RFC == fixtureStem || requirement.RID == fixtureRID {
+			t.Fatal("linux-limit fixture requirement collides with the real corpus")
+		}
+	}
+	for _, tag := range collected.Tags {
+		if tag.RID == fixtureRID {
+			t.Fatal("linux-limit fixture tag collides with the real corpus")
+		}
+	}
+	fixture, err := ParseSummaryText(
+		"- [ ] [RFC999999-1-1] [MUST] Exercise the kernel primitive. (§1) {linux-limit: LL-FIXTURE; kernel has no primitive}\n",
+		fixtureStem, "in-memory-linux-limit-fixture",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	collected.Metas[fixtureStem] = Meta{Enrolment: enrolmentEnrolled, Implementation: implementationZe, Aggregate: "bgp-core", Row: true, Status: "Partial"}
+	collected.Requirements = append(collected.Requirements, fixture...)
+	collected.Tags = append(collected.Tags,
+		Tag{RID: fixtureRID, Polarity: PolarityPositive},
+		Tag{RID: fixtureRID, Polarity: PolarityNegative},
+	)
 	with, err := ProvenShareOf(collected.Metas, collected.Requirements, collected.Tags, nil)
 	if err != nil {
 		t.Fatalf("the share over the corpus: %v", err)
@@ -87,7 +118,7 @@ func annotationWholeCreditDelta(requirement Requirement, meta Meta, tags []Tag) 
 		return 0
 	}
 	kind := requirement.Annotation.Kind
-	if kind != AnnotationPartial && kind != AnnotationGap {
+	if kind != AnnotationPartial && kind != AnnotationGap && kind != AnnotationLinuxLimit {
 		return 0
 	}
 	if !requirement.Gated() {
@@ -120,7 +151,7 @@ func annotationWholeCreditDelta(requirement Requirement, meta Meta, tags []Tag) 
 // refuses it (TestCheckStillRefusesPolarityTagOnGapRow).
 func TestAnnotationWholeCreditCounterfactual(t *testing.T) {
 	const rid = "RFC2-1-1"
-	for _, kind := range []string{AnnotationGap, AnnotationPartial} {
+	for _, kind := range []string{AnnotationGap, AnnotationPartial, AnnotationLinuxLimit} {
 		for _, evidence := range []struct {
 			name  string
 			tags  []Tag

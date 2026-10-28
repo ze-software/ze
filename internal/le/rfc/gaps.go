@@ -168,7 +168,8 @@ func annotatedGap(req *Requirement) bool {
 	if req.Annotation == nil {
 		return false
 	}
-	return req.Annotation.Kind == AnnotationGap
+	traits, known := AnnotationTraitsOf(req.Annotation.Kind)
+	return known && traits.Gap
 }
 
 // gapRefusal is why the gate refuses one gap tag: the short issue a finding

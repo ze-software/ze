@@ -56,6 +56,8 @@ const (
 	// owedItemRFCApproval is an `RFC-approval-owed:` trailer, or a carried
 	// rfc-change-ok row.
 	owedItemRFCApproval
+	// owedItemLinuxLimit requires the owner's attestation of a Linux limit.
+	owedItemLinuxLimit
 )
 
 // owedCommit is one commit the derivation names for display: the full SHA and
@@ -73,8 +75,8 @@ type owedItem struct {
 	Commit string
 	Kind   owedItemKind
 	// Subject is what the act is about: the spec stem for a review, the
-	// `<package>.<Test>` unit for an RFC approval. It is empty for a carried
-	// row no commit in range matched.
+	// `<package>.<Test>` unit for an RFC approval, or the RID for a Linux limit.
+	// It is empty for a carried row no commit in range matched.
 	Subject string
 	Reason  string
 }
@@ -458,6 +460,9 @@ func (item *owedItem) describe() string {
 		return "commit " + shortSHA(item.Commit) + " (" + strings.TrimSpace(trailerRFCApprovalOwed) + ") owes a ze-test-judge approval of RFC-tagged test " +
 			subjectOr(item.Subject) + " (" + item.Reason + "): ./le rfc approve unit " + item.Subject +
 			` reason "<the judge's verdict>" and commit it, or the owner's ` + attest
+	case owedItemLinuxLimit:
+		return "commit " + shortSHA(item.Commit) + " (" + strings.TrimSpace(trailerLinuxLimitOwed) +
+			") owes the owner's approval of " + item.Subject + " (" + item.Reason + "): " + attest
 	case owedItemUnspecified:
 	}
 	return "BUG: commit " + shortSHA(item.Commit) + " carries an owed item of no kind"

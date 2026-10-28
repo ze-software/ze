@@ -596,12 +596,13 @@ scroll past the gate cards to reach them. Above the rows, an overview
 sums the shown RFCs' mandatory and optional figures the way a profile rollup
 does (walked RFCs only, the rest counted apart), so a profile's link reads that
 profile's percentages. Every row of both tables carries the RFC's mandatory and
-optional bars, the figures its profile page shows, or "no profile" for an RFC
-no profile lists. The enrolled table uses short column names and a legend
-under its heading says what each counts, ending with why a figure can stay
-below 100%: every gap is owed work and none is recorded as impossible on Linux,
-but a requirement that does not bind Ze, that a layer under Ze performs, or
-whose optional feature Ze does not offer stays in the denominator unproven. A page carries both coverage figures of its rollup and the not-walked
+optional proof bars, followed by attainable ceilings and per-kind exclusion
+counts and shares. These come from the corpus graph, including RFCs no profile
+lists. The enrolled table uses short column names; its legend states the
+computed ceiling over the RFCs shown. Linux limits, lower-layer behavior,
+not-applicable requirements and declined optional features stay in the proof
+denominator but are excluded from the attainable count. The statement names
+the lowest nonempty mandatory and optional RFC ceilings. A page carries both coverage figures of its rollup and the not-walked
 count, then its RFCs grouped by DAG level, roots first, each with a bar for
 the mandatory and the optional figure. For a use case those are its required
 RFCs, the only tier its figures count. Its optional RFCs follow in a separate
@@ -625,7 +626,24 @@ profile no file under `rfc/profiles/` declares refuses the build. The homepage
 regression-prevention block and the Examples menu both link to the profile
 index.
 <!-- source: internal/le/site/rfcprofiles.go -- renderRFCProfiles, rfcProfileGroups, rfcProfileBarHTML, removeRetiredRFCProfilePages, rfcProfileUseCases, rfcProfileUseCasesKnown -->
-<!-- source: internal/le/site/rfcfilter.go -- rfcProfileListHref, rfcFilterHTML, rfcFilterScript, rfcStemRows, rfcIndexLegend, rfcIndexCeiling -->
+<!-- source: internal/le/site/rfcfilter.go -- rfcProfileListHref, rfcFilterHTML, rfcFilterScript, rfcStemRows, rfcIndexLegend, rfcCeilingStatement -->
+
+Ceilings describe current classifications, not an immutable Linux maximum.
+Not-applicable and feature-declined classifications can be revisited. The
+browser reads `data-ma`/`data-oa` attainable counts and `data-me`/`data-oe`
+per-kind exclusion counts from each RFC row, plus registered reason labels.
+It sums only walked rows, as `rfc.CeilingOf` does, and compares exact count
+ratios to identify the lowest ceiling. Ties put numbered RFCs first in numeric
+order, then other stems by name, matching the Go model. Profile links and text
+filters update the same sums. Empty figures say `no rows`, never a percentage;
+an unwalked RFC has no published ceiling. The JSON ledger retains its proof fields and
+adds attainable and excluded counts to the graph, profiles and each stem's
+`figures` member. Profile cards, profile tables, detail pages and their
+Markdown mirrors read those same model counts.
+<!-- source: internal/le/site/rfcfilter.go -- rfcFigureRowCells, rfcCeilingStatement, rfcFilterScript -->
+<!-- source: internal/le/site/rfcledger.go -- rfcLedgerStem, requirementLedgerFrom -->
+<!-- source: internal/le/site/rfcprofiles.go -- rfcProfileCards, rfcProfileBody, rfcProfileMirror -->
+<!-- source: internal/le/site/rfcdetail.go -- rfcDetailCeilingMirror -->
 
 One page per RFC sits under that route, one for every summary in `rfc/short/`.
 The compliance page itself is the index over them: two link tables, one for the
@@ -648,6 +666,14 @@ adds them lands on the whole. Publishing two parts of a four-part split left
 between the index's bucket keys and a stem's own counters, so the two pages
 cannot publish different partitions of one idea. The proof ratio is over TAGGED
 UNITS, a different population, and the sentence under the grid says so.
+
+The `linux_limit` bucket is labeled **Linux cannot do this** and has a neutral
+tone. Its obligation still binds Ze and remains unmet. It is neither proven
+nor removed from any denominator. The stem coverage JSON counts it under
+`linux-cannot`, separately from ordinary gaps and scope classifications; the
+row's annotation names the Linux Limitations Register entry.
+<!-- source: internal/le/site/rfccompliance.go -- rfcSatisfaction, rfcStanding, rfcLedgerCoverage.Bucket -->
+<!-- source: internal/le/site/rfcledger.go -- rfcLedgerCoverage, rfcLedgerCoverageOf -->
 
 The one bucket in no card is `rollup`, marked `Derived` in `rfcSatisfaction`. A
 `{rollup}` row carries no obligation of its own, and `rfc.CoverageRows` never
@@ -748,6 +774,14 @@ the accounting total it is, and the bucket table states it as the sum of the two
 populations. The page led with that count until 2026-09-01, when the owner
 called the arrangement deceptive: a count of obligations judged reads as a count
 of obligations met.
+
+The mapping from annotation kind to site bucket comes from
+`rfc.AnnotationTraitsOf`, the same declaration that drives the RFC gate's
+coverage and rollup rules. `rfcAnnotationBucket` reads that mapping rather than
+enumerating kinds again. A kind the declaration does not know is counted as
+unmapped, never silently dropped from the accounting.
+<!-- source: internal/le/site/rfccompliance.go -- rfcAnnotationBucket -->
+<!-- source: internal/le/site/rfcledger.go -- rfcLedgerCoverageOf -->
 
 **The proof ratio sits immediately after the shares it corrects**, because a
 test pair is not a proof. A break is observed ONCE and never re-run: what

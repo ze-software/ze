@@ -46,14 +46,32 @@ Each entry is a `###` heading that holds its id, followed by these fields:
 `TestLinuxLimitsCheckedAtShippedVersions` (`internal/appliance/linux_limits_test.go`)
 fails when a `kernel` entry's `Checked` version differs from
 `internal/appliance/kernel.version`, or a `library` entry's version differs
-from the requirement in `go.mod`. It also fails on a heading under `## Entries`
-that is not an `LL-` id, a missing or repeated `Kind`, `Effect`, `Status` or
-`Checked` line, a value outside the forms above, and a date that is not a
-calendar date. A kernel bump therefore owes a pass over
-this page: re-read each entry at the new version, update `Checked`, and lift
-any entry the new source no longer supports.
+from the requirement in `go.mod`. Both this test and the RFC gate read entries
+through `internal/le/linuxlimit.Parse`. The parser refuses a heading under
+`## Entries` that is not an `LL-` id, duplicate entry ids, missing `Kind`,
+`Effect`, `Status` or `Checked` lines, repeated fields, malformed or unknown
+field names, values outside the forms above, and dates that are not calendar
+dates. It returns no entries when any form is invalid. Indented continuation
+lines belong to the preceding field; `Blocks`, `Evidence` and `Re-check` retain
+them, so a requirement id or source quote on a continuation is not lost.
+A kernel bump therefore owes a pass over this page: re-read each entry at the
+new version, update `Checked`, and lift any entry the new source no longer
+supports.
 
 <!-- source: internal/appliance/linux_limits_test.go -- TestLinuxLimitsCheckedAtShippedVersions -->
+<!-- source: internal/le/linuxlimit/register.go -- Parse, ValidID, readLimitChecked -->
+
+An RFC row can name an entry as `{linux-limit: LL-<ID>; <reason>}` only when
+its `Kind` is `kernel`, its `Effect` is `blocks`, and its `Status` is `verified`.
+The entry's `Blocks` must name that exact requirement id, and `Evidence` must
+not be empty. A library limitation can be fixed by carrying a library change;
+a design constraint means Ze can implement the behavior in another shape.
+Neither establishes that Linux cannot meet the requirement. An unverified
+entry's `Re-check` states what must be settled before it can support the claim.
+An annotation names the entry rather than copying its evidence, and does not
+make the requirement implemented or proven.
+<!-- source: internal/le/rfc/linux_limit.go -- linuxLimitEntryRefusal -->
+<!-- source: internal/le/rfc/profilecoverage.go -- rowCounts -->
 
 ## How to fetch the source for a re-check
 

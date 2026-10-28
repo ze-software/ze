@@ -24,7 +24,13 @@ func rowDisclosesGap(row LedgerRow) bool {
 		return true
 	}
 	remaining := strings.TrimSpace(row.Remaining)
-	return remaining != "" && !noGapRE.MatchString(remaining)
+	if remaining == "" {
+		return false
+	}
+	if strings.EqualFold(remaining, "none") {
+		return false
+	}
+	return !noGapRE.MatchString(remaining)
 }
 
 func checkStatusAgreement(requirements []Requirement, rows map[string]LedgerRow,
@@ -34,7 +40,12 @@ func checkStatusAgreement(requirements []Requirement, rows map[string]LedgerRow,
 		if req.Annotation == nil {
 			continue
 		}
-		if req.Annotation.Kind != AnnotationGap && req.Annotation.Kind != AnnotationPartial {
+		traits, known := AnnotationTraitsOf(req.Annotation.Kind)
+		if !known {
+			errs = append(errs, requirementWhere(req)+": unknown annotation kind "+req.Annotation.Kind)
+			continue
+		}
+		if !traits.Unmet {
 			continue
 		}
 		row, held := rows[req.RFC]
@@ -47,8 +58,15 @@ func checkStatusAgreement(requirements []Requirement, rows map[string]LedgerRow,
 				Str(" has no row in docs/features/rfc-status.md; the public ledger must disclose it").String())
 			continue
 		}
+		if traits.BarsSupported && statusPromisesSupport(row.Status) {
+			var tb textbuf.Buffer
+			errs = append(errs, tb.Str(requirementWhere(req)).Str(": ").Str(req.RID).
+				Str(" is annotated {").Str(req.Annotation.Kind).Str("} but its public row says ").
+				Str(pyRepr(row.Status)).Str(". This annotation bars a Supported claim even when `Support remaining` discloses the unmet obligation; change `Support status` to `Partial` in the summary's Meta table, then run ./le rfc update").String())
+			continue
+		}
 		disclosed := rowDisclosesGap(row)
-		if req.Annotation.Kind == AnnotationPartial {
+		if traits.RemainingRequired {
 			remaining := strings.TrimSpace(row.Remaining)
 			disclosed = disclosed && remaining != "" && !strings.EqualFold(remaining, "none") && !noGapRE.MatchString(remaining)
 		}
@@ -243,7 +261,8 @@ func unprovenChecklist(stem string, row LedgerRow, gated int, cover CoverageRow)
 	return []string{tb.Str("docs/features/rfc-status.md claims ").Str(stem).Str(" is ").
 		Str(pyRepr(strings.TrimSpace(row.Status))).Str(", and not one of the ").Int(int64(gated)).
 		Str(" MUST-level requirement(s) rfc/short/").Str(stem).
-		Str(".md gates carries a test in both polarities, so the promise rests on a checklist nothing passes. An annotation is not a proof: {gap}, {not-applicable}, {single-polarity}, {lower-layer} and {feature-declined} each record why a requirement is NOT proven, and the row's Proof cell counts them apart; a {rollup} asserts nothing of its own and derives its state from the rows it names. Prove one requirement -- a positive AND a negative test tagged `RFC requirement: <ID> <polarity>`, with the break each goes red under recorded by ./le rfc record -- or state what is true in the summary's own Meta table, `| Support status | Partial |`, and run ./le rfc update").String()}
+		Str(".md gates carries a test in both polarities, so the promise rests on a checklist nothing passes. The declared annotations (").Str(strings.Join(AnnotationKinds(), ", ")).
+		Str(") explain scope or derive state; none is a substitute for a tagged proof. Prove one requirement -- a positive AND a negative test tagged `RFC requirement: <ID> <polarity>`, with the break each goes red under recorded by ./le rfc record -- or state what is true in the summary's own Meta table, `| Support status | Partial |`, and run ./le rfc update").String()}
 }
 
 func spelledNumbers() map[string]int {
@@ -286,7 +305,16 @@ func spelledGapCount(remaining string) (int, bool) {
 func checkGapCountAgreement(requirements []Requirement, rows map[string]LedgerRow) []string {
 	gaps := map[string]int{}
 	for _, req := range requirements {
-		if req.Annotation != nil && (req.Annotation.Kind == AnnotationGap || req.Annotation.Kind == AnnotationPartial) {
+		if req.Annotation == nil {
+			continue
+		}
+		traits, known := AnnotationTraitsOf(req.Annotation.Kind)
+		if !known {
+			// Unknown annotations cannot lower the number of unmet rows.
+			gaps[req.RFC]++
+			continue
+		}
+		if traits.Unmet {
 			gaps[req.RFC]++
 		}
 	}
@@ -299,7 +327,7 @@ func checkGapCountAgreement(requirements []Requirement, rows map[string]LedgerRo
 		var tb textbuf.Buffer
 		errs = append(errs, tb.Str("rfc/short/").Str(stem).Str(".md says in its `Support remaining` cell that it has ").Int(int64(claimed)).
 			Str(" MUST-level gap(s), and its own checklist carries ").Int(int64(gaps[stem])).
-			Str(" {gap} or {partial} annotation(s), counted once per requirement row, not per protocol obligation. One of the two is wrong. Only a spelled number sitting immediately before MUST or SHALL is read as a gap count; a digit count, or a number further from the keyword, is outside this check").String())
+			Str(" unmet annotation(s), counted once per requirement row, not per protocol obligation. One of the two is wrong. Only a spelled number sitting immediately before MUST or SHALL is read as a gap count; a digit count, or a number further from the keyword, is outside this check").String())
 	}
 	return errs
 }

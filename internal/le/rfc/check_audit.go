@@ -79,11 +79,19 @@ func verdictClaims(rfc, rid string, verdict map[string]any, req Requirement, fou
 	var prefix textbuf.Buffer
 	rel := prefix.Str(auditRecordRel(rfc, rid)).Str(": ").Str(rid).String()
 	var errs []string
+	var traits AnnotationTraits
+	if req.Annotation != nil {
+		var known bool
+		traits, known = AnnotationTraitsOf(req.Annotation.Kind)
+		if !known {
+			return []string{rel + " has unknown annotation kind " + req.Annotation.Kind}
+		}
+	}
 	if value == VerdictPartial {
 		if req.Annotation == nil {
 			return []string{rel + " is 'partial' without a matching {partial} annotation"}
 		}
-		if req.Annotation.Kind != AnnotationPartial {
+		if !traits.Partial {
 			return []string{rel + " is 'partial' without a matching {partial} annotation"}
 		}
 		if why := partialScopeRefusal(&req); why != "" {
@@ -110,14 +118,14 @@ func verdictClaims(rfc, rid string, verdict map[string]any, req Requirement, fou
 		}
 	}
 	if value == VerdictEnforced {
-		if req.Annotation != nil && req.Annotation.Kind == AnnotationPartial {
+		if traits.Partial {
 			errs = append(errs, rel+" cannot be 'enforced' while a {partial} scope remains")
 		}
 		if len(recordedMap(verdict, fingerprintTests)) == 0 {
 			var tb textbuf.Buffer
 			errs = append(errs, tb.Str(rel).Str(" is 'enforced' with an empty 'tests' map. 'enforced' means the tests would fail if the code stopped complying, so it must cite at least one. If no reachable code path could satisfy or violate the requirement, the honest verdict is 'not-applicable' with a 'no_code_path' reason and an agreeing {not-applicable} or {feature-declined} annotation").String())
 		}
-		if req.Annotation == nil || req.Annotation.Kind != AnnotationSinglePolarity {
+		if !traits.SinglePolarity {
 			var missing []string
 			for _, polarity := range []string{PolarityNegative, PolarityPositive} {
 				if !polarities[polarity] {
@@ -144,10 +152,17 @@ func verdictClaims(rfc, rid string, verdict map[string]any, req Requirement, fou
 			var tb textbuf.Buffer
 			errs = append(errs, tb.Str(rel).Str(" is 'unimplemented' with an empty 'code' map. A claim that the CODE does not comply must name the producing code, or it is unfalsifiable: with neither tests nor code fingerprinted, the verdict can never go stale and no one is ever asked to look again").String())
 		}
-		if req.Annotation == nil || (req.Annotation.Kind != AnnotationGap && req.Annotation.Kind != AnnotationNotApplicable) {
+		if !traits.AuditUnimplemented {
+			var admitted []string
+			for _, kind := range AnnotationKinds() {
+				if annotationKinds[kind].traits.AuditUnimplemented {
+					admitted = append(admitted, "{"+kind+"}")
+				}
+			}
 			var tb textbuf.Buffer
 			errs = append(errs, tb.Str(rel).Str(" is 'unimplemented' but ").Str(req.Source).Byte(':').Int(int64(req.Line)).
-				Str(" carries no {gap} or {not-applicable} annotation. The record and the checklist must agree: a divergence Ze knows about must be declared where a reader of the summary will meet it").String())
+				Str(" carries none of the annotations that admit this verdict: ").Str(strings.Join(admitted, ", ")).
+				Str(". The record and the checklist must agree: a divergence Ze knows about must be declared where a reader of the summary will meet it").String())
 		}
 	}
 	if value == VerdictNotApplicable {
@@ -168,14 +183,7 @@ func verdictClaims(rfc, rid string, verdict map[string]any, req Requirement, fou
 		var tb textbuf.Buffer
 		kind := "no annotation"
 		if req.Annotation != nil {
-			if req.Annotation.Kind == AnnotationNotApplicable {
-				return errs
-			}
-			// {feature-declined} is the other exclusion this verdict agrees with:
-			// the obligation is conditional on a feature the RFC makes optional and
-			// Ze declined, so no reachable path can satisfy or violate it.
-			// checkFeatureDeclined holds that line's quote and producer.
-			if req.Annotation.Kind == AnnotationFeatureDeclined {
+			if traits.AuditNotApplicable {
 				return errs
 			}
 			kind = tb.Byte('{').Str(req.Annotation.Kind).Byte('}').String()

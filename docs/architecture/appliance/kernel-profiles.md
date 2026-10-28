@@ -110,9 +110,10 @@ the series against the new release.
 A bump also owes a pass over the
 [Linux limitations register](../linux-limitations.md): re-read each `kernel`
 entry at the new release and update its `Checked` line.
-`TestLinuxLimitsCheckedAtShippedVersions` fails while any entry names another
-release.
+`TestLinuxLimitsCheckedAtShippedVersions` reads the register through the shared
+`linuxlimit.Parse` parser and fails while any entry names another release.
 <!-- source: internal/appliance/linux_limits_test.go -- TestLinuxLimitsCheckedAtShippedVersions -->
+<!-- source: internal/le/linuxlimit/register.go -- Parse -->
 
 The runtime profile requires `CONFIG_XFRM_MIGRATE` for atomic MOBIKE state
 migration and `CONFIG_MPLS_IP_MTU` for native labeled-IP fragmentation and ICMP.

@@ -13,24 +13,6 @@ import (
 	"github.com/ze-software/ze/internal/le/rfc/graph"
 )
 
-// annotationBarsATest answers the kinds whose claim is contradicted by a tagged
-// test on the same requirement.
-//
-// Each of the five says NO test carries this id, for a different reason: the
-// obligation does not bind Ze, Ze does not meet it, a layer under Ze meets it
-// and Ze's own boundary holds nothing to assert, its condition is a feature
-// Ze declined, or its status is derived from other rows and a test on it would
-// claim more than its body checks. A tag falsifies all five the same way, so
-// the annotation is stale rather than the tag being wrong. It is also what
-// keeps {lower-layer}, {feature-declined} and {rollup} out of the proven
-// numerator by more than bookkeeping: a requirement Ze can prove is one this
-// annotation MUST NOT cover.
-func annotationBarsATest(kind string) bool {
-	return kind == AnnotationNotApplicable || kind == AnnotationGap ||
-		kind == AnnotationLowerLayer || kind == AnnotationFeatureDeclined ||
-		kind == AnnotationRollup
-}
-
 // evaluate answers one finding per coverage violation, in the PARTS it had
 // before it formatted them.
 //
@@ -82,7 +64,19 @@ func evaluate(requirements []Requirement, tags []Tag, enrolled map[string]bool) 
 				Str(" has a ticked checkbox. The box is a template marker, not coverage state -- a tick is a claim, and this gate exists because claims are what rot. Untick it; coverage comes from the test tags").String()))
 		}
 		annotation := req.Annotation
-		if annotation != nil && annotationBarsATest(annotation.Kind) {
+		var traits AnnotationTraits
+		if annotation != nil {
+			var known bool
+			traits, known = AnnotationTraitsOf(annotation.Kind)
+			if !known {
+				var tb textbuf.Buffer
+				errs = append(errs, requirementFinding(*req, "has an unknown annotation kind",
+					tb.Str(where).Str(": unknown annotation kind ").Str(pyRepr(annotation.Kind)).
+						Str("; use a declared kind from ./le rfc check").String()))
+				continue
+			}
+		}
+		if traits.BarsTests {
 			if len(found) > 0 {
 				locations := make([]string, 0, len(found))
 				for _, tag := range found {
@@ -104,7 +98,7 @@ func evaluate(requirements []Requirement, tags []Tag, enrolled map[string]bool) 
 			// (owner decision, 2026-09-15).
 			continue
 		}
-		if annotation != nil && annotation.Kind == AnnotationPartial {
+		if traits.Partial {
 			for _, value := range []string{PolarityPositive, PolarityNegative} {
 				if !polarity[value] {
 					var tb textbuf.Buffer
@@ -117,7 +111,7 @@ func evaluate(requirements []Requirement, tags []Tag, enrolled map[string]bool) 
 		if !req.Gated() {
 			continue
 		}
-		if annotation != nil && annotation.Kind == AnnotationSinglePolarity {
+		if traits.SinglePolarity {
 			other := PolarityNegative
 			if annotation.Polarity == PolarityNegative {
 				other = PolarityPositive
@@ -675,23 +669,17 @@ func rollupTargetState(req Requirement, polarity map[string]bool) RollupState {
 		}
 		return RollupUnproven
 	}
-	switch annotation.Kind {
-	case AnnotationGap, AnnotationPartial:
-		return RollupGap
-	case AnnotationSinglePolarity:
+	traits, known := AnnotationTraitsOf(annotation.Kind)
+	if !known {
+		return RollupUnproven
+	}
+	if traits.SinglePolarity {
 		if polarity[annotation.Polarity] {
 			return RollupMet
 		}
 		return RollupUnproven
-	case AnnotationNotApplicable, AnnotationLowerLayer, AnnotationFeatureDeclined:
-		return RollupMet
-	default:
-		// A kind this switch does not name contributes nothing a rollup can
-		// rest on. The parser refuses an unknown kind and the builder above
-		// never passes a rollup here, so this arm is the closed answer
-		// rather than a case.
-		return RollupUnproven
 	}
+	return traits.RollupState
 }
 
 // fill writes the derived state and its cause onto every rollup row, whatever

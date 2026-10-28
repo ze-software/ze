@@ -19,28 +19,28 @@ import (
 func rfcProfilesFixtureLedger() rfcLedger {
 	zero, one := 0, 1
 	walked := &rfc.TreeRow{Stem: "rfc4271", Title: "A Border Gateway Protocol 4 (BGP-4)", Level: &zero,
-		Aggregate: "bgp-core", Summary: true, Walked: true, MandatoryProven: 3, MandatoryTotal: 4,
-		OptionalProven: 1, OptionalTotal: 2, Component: []string{}, Path: "route-server: required by rfc/short/rfc4271.md"}
+		Aggregate: "bgp-core", Summary: true, Walked: true, MandatoryProven: 3, MandatoryTotal: 4, MandatoryAttainable: 4,
+		OptionalProven: 1, OptionalTotal: 2, OptionalAttainable: 2, Component: []string{}, Path: "route-server: required by rfc/short/rfc4271.md"}
 	unwalked := &rfc.TreeRow{Stem: "rfc7947", Title: "Internet Exchange BGP Route Server", Level: &one,
-		Aggregate: "bgp-core", Summary: true, MandatoryTotal: 9, Component: []string{"rfc7948"},
+		Aggregate: "bgp-core", Summary: true, MandatoryTotal: 9, MandatoryAttainable: 9, Component: []string{"rfc7948"},
 		Path: "route-server: required by rfc/short/rfc7947.md"}
 	noLevel := &rfc.TreeRow{Stem: "rfc4762", Title: "VPLS", Summary: true, Walked: true,
 		MandatoryProven: 0, MandatoryTotal: 0, Component: []string{}, Path: "route-server: required by rfc/short/rfc4762.md"}
 	listed := &rfc.TreeRow{Stem: "rfc2918", Title: "Route Refresh Capability for BGP-4", Level: &zero,
-		Summary: true, Walked: true, MandatoryProven: 1, MandatoryTotal: 2, Component: []string{},
+		Summary: true, Walked: true, MandatoryProven: 1, MandatoryTotal: 2, MandatoryAttainable: 2, Component: []string{},
 		Path: "route-server: optional in rfc/short/rfc2918.md"}
 	release := &rfc.TreeReport{Profile: "route-server", Title: "Route server", Kind: "use-case", Release: true,
 		Rollup: &rfc.ScopeRollup{Rollup: rfc.Rollup{RFCs: 3, NotWalked: 1,
-			Mandatory: rfc.Figure{Proven: 3, Total: 4}, Optional: rfc.Figure{Proven: 1, Total: 2}}},
+			Mandatory: rfc.Figure{Proven: 3, Total: 4, Attainable: 4}, Optional: rfc.Figure{Proven: 1, Total: 2, Attainable: 2}}},
 		Rows: []*rfc.TreeRow{walked, unwalked, noLevel},
 		Optional: &rfc.TreeTier{Rollup: rfc.ScopeRollup{Rollup: rfc.Rollup{RFCs: 1,
-			Mandatory: rfc.Figure{Proven: 1, Total: 2}}}, Rows: []*rfc.TreeRow{listed}}}
+			Mandatory: rfc.Figure{Proven: 1, Total: 2, Attainable: 2}}}, Rows: []*rfc.TreeRow{listed}}}
 	other := &rfc.TreeReport{Profile: "vpn-concentrator", Title: "VPN concentrator", Kind: "use-case",
-		Rollup: &rfc.ScopeRollup{RFCs: 1, NotWalked: 1},
+		Rollup: &rfc.ScopeRollup{Rollup: rfc.Rollup{RFCs: 1, NotWalked: 1}},
 		Rows:   []*rfc.TreeRow{unwalked}}
 	aggregate := &rfc.TreeReport{Profile: "bgp-core", Title: "BGP core", Heading: "BGP core protocol",
-		Kind: "technology", Rollup: &rfc.ScopeRollup{RFCs: 2, NotWalked: 1,
-			Mandatory: rfc.Figure{Proven: 3, Total: 4}, Optional: rfc.Figure{Proven: 1, Total: 2}},
+		Kind: "technology", Rollup: &rfc.ScopeRollup{Rollup: rfc.Rollup{RFCs: 2, NotWalked: 1,
+			Mandatory: rfc.Figure{Proven: 3, Total: 4, Attainable: 4}, Optional: rfc.Figure{Proven: 1, Total: 2, Attainable: 2}}},
 		Rows: []*rfc.TreeRow{walked, unwalked}}
 	return rfcLedger{
 		Stems: []rfcLedgerStem{

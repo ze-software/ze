@@ -155,7 +155,7 @@ is defined so the page states this truthfully (Open decision D-3).
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | The register is the right evidence source and its fields are stable enough to check | Owner order 2026-10-20 quoted on the page; register field contract | Annotation would need its own source citation, a second copy of the fact | Thomas approved D-1(a) | confirmed |
 | A-2 | Only `Kind: kernel`, `Effect: blocks`, `Status: verified` entries prove "Linux cannot" | Register "What belongs here": `constrains design` means "Ze can implement the feature"; a library limit is fixable by a carried diff | A library or unverified limit would excuse work Ze owes | Thomas approved D-1(a) | confirmed |
-| A-3 | The share-invariance test iterates every kind, so it covers the new one without edit | The named test is absent from the current site package; LSP and a search with the existing `TestPartialProofPublicationsAgree` as a positive control confirm this | The new kind could move the share unseen | Added `TestAnnotationsNeverInflateThePublishedShare`; it and `TestPartialProofPublicationsAgree` passed in `job-linux-limit-final-corrections-19f68aed.log` | broken; repaired |
+| A-3 | The share-invariance test iterates every kind, so it covers the new one without edit | The named site test was absent at design time | The new kind could move the share unseen | Added `TestNoAnnotationExceptSinglePolarityMovesThePublishedShare` and extended `TestAnnotationsNeverInflateThePublishedShare` with an in-memory Linux-limit row. Both passed | broken; repaired |
 | A-4 | `attest` answers any owed trailer key once the key is registered in `personActs` | `attestationTrailer` reads `parsePersonActs` and accepts any nonempty owed list; its refusal text names the current keys | The refusal text also needs the new key | `TestALinuxLimitCommitOwesTheOwnersAttestation` passed through generated commits, push derivation and owner attestation; ordinary RFC approval did not discharge it | confirmed |
 
 ### Risks
@@ -305,16 +305,16 @@ N-A: tooling, no protocol peer.
 |---|----------|----------|---------------|
 | 1 | New user-facing feature, or a feature's scope, evidence or level changed? | No | Developer tooling and the public ledger page, not a `ze` feature |
 | 2 | Config syntax changed? | No | - |
-| 3 | CLI command added/changed? | No | - |
+| 3 | CLI command added/changed? | Yes, output only | `rfc-conformance-gates.md` documents computed tree figures and evidence refusals. `committing.md` documents automatic debt. No new grammar |
 | 4 | API/RPC added/changed? | No | - |
 | 5 | Plugin added/changed? | No | - |
 | 6 | Has a user guide page? | No | - |
 | 7 | Wire format changed? | No | - |
 | 8 | Plugin SDK/protocol changed? | No | - |
-| 9 | RFC behavior implemented, changed, or newly proven? | Yes | `docs/contributing/rfc-conformance-gates.md`; the rendered `docs/features/rfc-status.md` regenerates through `./le rfc update` |
+| 9 | RFC behavior implemented, changed, or newly proven? | No | Only tooling changes. No protocol producer, real summary, audit verdict or support row changed |
 | 10 | Test infrastructure changed? | Yes | `docs/contributing/rfc-conformance-gates.md`, `docs/architecture/linux-limitations.md` (parser moves) |
 | 11 | Affects daemon comparison? | No | - |
-| 12 | Internal architecture changed? | No | - |
+| 12 | Internal architecture changed? | Yes | `linux-limitations.md` and `appliance/kernel-profiles.md` name the shared parser. `rfc-conformance-gates.md` documents the shared trait registry |
 | 13 | Route metadata keys added/changed? | No | - |
 | 14 | Prometheus counters added/changed? | No | - |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | - |
@@ -399,7 +399,7 @@ because their generated files already exist at HEAD; no test was weakened.
 ### Security Review Checklist
 | Check | What to look for |
 |-------|-----------------|
-| Approval forgery | Only the owner-ordered push discharges the trailer; no gate accepts approval text inside the summary |
+| Approval forgery | `Owner-attested:` answers the trailer through stable patch identity. Push checks outstanding debt and requires the owner's order. Summary text grants no approval |
 | Fail-open parse | A malformed register entry is a refusal of every annotation naming it, never a pass |
 
 ### Failure Routing
@@ -454,7 +454,7 @@ Documentation changes belong to the phase that changes the documented behavior; 
 
 ### Audit correction
 
-The named `TestNoAnnotationExceptSinglePolarityMovesThePublishedShare` does not exist in the current site package. The site phase must add the public-share invariant proof rather than rely on automatic coverage of a new kind. This changes the test plan, not AC-10.
+At design time, `TestNoAnnotationExceptSinglePolarityMovesThePublishedShare` did not exist in the site package. The implementation added it and extended the existing core corpus invariant. Both passed. AC-10 is unchanged.
 
 ## Known Limitations
 - No reverse check that a `blocks` entry's listed requirement ids carry the annotation: annotating needs your approval per instance, so the gate cannot force it. `./le rfc check` can list such rows as candidates in its report; that is in scope only if D-2 lands as A or B.
@@ -511,3 +511,189 @@ The named `TestNoAnnotationExceptSinglePolarityMovesThePublishedShare` does not 
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove plan/release/validation/spec-rfc-linux-limit-annotation.md` only, in the same `./le commit create` script
+
+## Implementation Summary
+
+### What Was Implemented
+
+The shared annotation registry drives parsing, gate behavior, coverage, status,
+audit, health and publication. Linux-limit rows require current register evidence.
+They remain owed and unproven. RFCs, profile tiers and filtered views publish
+attainable counts and separate exclusion shares. Selected commit blobs generate
+owner-attestation debt without borrowing unrelated checkout content.
+
+### Bugs Found/Fixed
+
+Implementation review repaired linked-summary and linked-ancestor approval bypasses,
+Supported-with-Remaining admission, missing register IDs in rendered gaps, and
+draft minimum ordering. Closure found no further product defect.
+
+### Documentation Updates
+
+The changed sections of the nine documentation pages in Files to Modify match
+their producing functions. The annotation skill and discovery index expose the
+new vocabulary. The handover records closure without a dangling spec citation.
+No daemon feature, wire format, config, RPC, SDK, comparison or wiki change applies.
+No protocol behavior changed, so no public RFC support row requires regeneration.
+
+Global repository and documentation compositions were not run under the standing
+host ban. The scoped citation-anchor query passed. Source-anchor claims, changed
+examples and handler contracts were checked against the reviewed producers.
+The final canonical site build/check already passed and was not repeated.
+
+### Deviations from Plan
+
+A-3 was broken: public-share coverage needed a new site test and an in-memory
+Linux-limit fixture in the core corpus test. No real requirement was annotated.
+D-6(B), not the original recommendation, governs the implemented shared registry.
+Closure uses source-aware scoped review in place of banned global checks.
+
+### Risks & observations
+
+R-1 and R-2 remain controlled by exact row membership, verified kernel evidence
+and the current shipped version. R-3 retains the existing human authorization
+boundary: trailer words are not cryptographic proof of the owner's intent.
+R-4 is addressed by separate exclusion shares and revisitable-classification
+wording. R-5 is covered by matching model, publication and actual browser sums.
+No runtime dependency or protocol peer was added.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| Broken assumption | A-3 assumed automatic coverage of the new kind | The named site test was absent, and no real row has this kind | Source and corpus review | Added parsed site proof and a collision-checked core fixture |
+| Fixture setup | Direct snapshot test lacked `tmp/` | `Create` makes that directory before snapshotting | Final corrections test | Added directory setup, retained every assertion, passing final smoke |
+| Closure record | Checklist described protocol change and push as discharge | Tooling output changed, and owner attestation answers debt | Independent producer review | Corrected these statements and historical test wording |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Evidence-backed Linux-limit annotation | Complete | `rfc/linux_limit.go`: `parseLinuxLimit`, `linuxLimitEntryRefusal`; `linuxlimit/register.go`: `Parse` | Exact RID, verified kernel blocks entry, current pin, nonempty evidence |
+| Owner approval per instance | Complete | `commit/linux_limit.go`: `linuxLimitTrailers`; `owed_trailers.go`: `readPersonActs`; `attest.go`: `attestationTrailer` | Generated commits prove owed-before and cleared-after attestation |
+| Never raise proof | Complete | `rfc/profilecoverage.go`: `rowCounts`; `site/rfcledger.go`: `rfcLedgerCoverageOf` | Original denominator and proof invariants retained |
+| Computed ceilings everywhere | Complete | `figuresByStem`, `rollupOf`, `CeilingOf`; site filter/profile/detail renderers | Go publishes counts. Browser sums measured visible rows |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Complete | `parseLinuxLimit`, `checkLinuxLimit`; `TestCheckLinuxLimitReadsTheRegisterAndTheRow` | Actual CLI valid fixture accepted |
+| AC-2 | Complete | `parseLinuxLimit`; `TestALinuxLimitReasonIsRefusedWithoutBothFacts` | Missing ID and reason refused |
+| AC-3 | Complete | `linuxLimitEntryRefusal`; register matrix | Missing entry names ID and path |
+| AC-4 | Complete | `linuxLimitEntryRefusal`; register matrix | Design constraint remains Ze work |
+| AC-5 | Complete | `linuxLimitEntryRefusal`; register matrix | Unverified entry points to Re-check |
+| AC-6 | Complete | `linuxLimitEntryRefusal`; register matrix | Library limit cannot excuse work |
+| AC-7 | Complete | `linuxLimitEntryRefusal`, `namesRequirement`; register matrix | Exact RID tokens and Evidence required |
+| AC-8 | Complete | `evaluate`, registered `BarsTest`; stale-tag regression | Ordinary and gap-demonstration tags refused |
+| AC-9 | Complete | `parseAnnotation`; `TestALinuxLimitAnnotationCannotDisplaceAGap` | One disposition per row |
+| AC-10 | Complete | `rowCounts`, `rfcLedgerCoverageOf`; core and site share invariants | Mandatory and optional proof unchanged |
+| AC-11 | Complete | `figuresByStem`, `TreeRow`; `TestALinuxLimitLowersTheCeilingAndNotTheFigure` | JSON includes attainable counts, unwalked has no measurement |
+| AC-12 | Complete | `rollupOf`, `rfcFilterScript`; `TestTheOverviewSumsTheCeilingTheRollupSums` | Browser overall 3/6, filtered 1/3 and 2/3 |
+| AC-13 | Complete | `rfcCeilingStatement`; `TestTheIndexStatesTheComputedCeiling` | 100% follows measured counts, not a fixed promise |
+| AC-14 | Complete | `CeilingOf`, `rfcCeilingStatement`; publication and draft-tie tests | Separate reasons, weighted minima and deterministic ties |
+| AC-15 | Complete | `linuxLimitTrailers`, `deriveDebt`; `TestALinuxLimitCommitOwesTheOwnersAttestation` | RFC approval cannot discharge Linux-limit debt |
+| AC-16 | Complete | `linuxLimitTrailers`; `TestAnUnchangedLinuxLimitOwesNothing` | Unchanged annotations owe nothing |
+| AC-17 | Complete | `checkStatusAgreement`, `checkGapCountAgreement`; isolated `TestCheckLinuxLimitRefusesSupportedDespiteDisclosure` | Supported refused despite disclosure, ordinary gap/partial preserved |
+| AC-18 | Complete | `verdictClaims`; `TestUnimplementedVerdictStandsOverLinuxLimit` | Obligation remains binding |
+| AC-19 | Complete | `rfcLedgerCoverageOf`, `rfcAnnotationBucket`; `TestTheLedgerCountsLinuxLimitRows` | Counter, neutral bucket and zero unmapped |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| All 17 Unit Tests rows above | Passed | Named test files in the TDD table | Remaining-RFC, final-corrections, site and core logs inspected |
+| Parser move and shipped pin | Passed | `register_test.go`, `linux_limits_test.go` | All eleven original cases and version assertions preserved |
+| Numeric boundaries | Passed | `profilecoverage_test.go`, `rfcfilter_test.go` | Empty, unwalked, fully attainable and fully excluded populations |
+| Wiring | Passed | RFC corpus, commit integration and site publication tests | Actual CLI and browser evidence supplements fixture tests |
+| Functional `.ci` and interop | Not applicable | Tooling entry points above | No daemon API or protocol behavior changed |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Every Files to Modify entry | Present and reviewed | Actual owned diff covers each named path. Extra trait consumers and fixtures migrated together |
+| Eight Files to Create paths | Present and reviewed | Shared parser, checker, approval producer and their tests, trait matrix, site filter tests |
+| Shared `ai/INDEX.md` | Selected hunks only | `linux-limit-index.patch` excludes the foreign terminal-demo row |
+| `plan/handover/29-rfc-linux-limit-annotation.md` | Updated | Historical stem replaces deleted-spec path |
+
+### Audit Summary
+
+All 19 criteria and all three task goals are implemented. There is no deferred
+in-scope item. No real corpus annotation, instance attestation, push or deployment
+is included. No journal row was written by this task.
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Evidence-backed state with approval | Actual CLI and generated-commit integration | Valid input accepted. Empty Evidence, stale pin and Supported claims refused. Approval integration observes push debt and owner discharge |
+| No higher published proof | Parsed corpus and publication regression | Core fixture retains all real rows and separately proves one stripped-credit counterfactual. Site test covers every registered annotation |
+| Computed ceiling on every surface | Model/publication tests and actual browser | Overall 3/6 mandatory, filtered 1/3 and 2/3, no measurement for unwalked/no-match, profile 3/6 and 1/2. Canonical index shows 4033/5120 and 2278/2302 |
+
+## Work Not Done
+
+No in-scope work remains. Real requirement annotations and owner attestations
+were explicit non-goals. The committed scoped verification belongs to the parent
+after both closure commits, not to an unimplemented feature.
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+
+## Review Gate
+
+Round 1 independently reviewed the final owned diff and all added files through
+logic/wiring, security/edge-case and publication/proof lenses. The Go style pass
+covered each changed Go file. New panics are programmer invariants over fixed
+registry keys or JSON-compatible model values, not socket-reachable inputs.
+No command injection, unsafe HTML insertion, approval bypass or unbounded
+peer-driven loop was found. Malformed register and trailer data fail closed.
+The linked-file and ancestor tests preserve immutable selected-tree semantics.
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/rfc-linux-limit-annotation-644a4e78-0122-4eeb-8642-eb50638a1641.md` |
+| `./le spec review check` | Exit 0: 57 code files, clean, hashes match. `scratch/linux-limit-closure-review-check-final.log` records the result. The native check accepts `file`, not `hunks`. Commit preparation checks the selected Markdown patch |
+| Rounds | 1 |
+| Reviewer lenses used | LinuxLimitClosure: logic/wiring, security/edge cases, publication/proof preservation |
+| Final verdict | CLEAN: 0 BLOCKER, 0 ISSUE |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | NOTE | Historical checklist overstated protocol change and conflated push with attestation | This spec | Closure record correction, no code change |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| Owned population and eight new files | Yes | Actual diff and direct file reads. Included-file manifest prepared for native commit |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 through AC-19 | All producer paths and regressions accounted for | Acceptance table above, final named logs in Implementation evidence, actual CLI/browser JSON inspected during closure |
+| Deliverables | Registered kind, no fixed ceiling, JSON counts and trailer | Registry matrix, computed-statement tests, TreeRow JSON assertions and generated-commit debt integration |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| RFC check/tree, site build, commit create | N/A: tooling | `gopls references` resolves checker registration and shared parser callers. Existing CLI, corpus, browser and generated-commit proof inspected |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | Approved D-1 and register parser/checker contract |
+| A-2 | confirmed | Approved D-1 and negative eligibility matrix |
+| A-3 | broken, repaired | New site invariant and extended core corpus test passed |
+| A-4 | confirmed | Generated-commit integration distinguishes ordinary RFC approval from owner attestation |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Annotation syntax and evidence | `parseLinuxLimit`, `linuxLimitEntryRefusal`, shared `Parse` | Gate guide, implementation guide and register page agree |
+| Computed ceilings and proof invariance | `rowCounts`, `rollupOf`, site model/renderers | Coverage and gh-pages sections agree with actual browser counts |
+| Approval and owner boundary | `linuxLimitTrailers`, `readPersonActs`, `attestationTrailer` | Committing and freshness pages match selected-tree debt |
+| Health and appliance architecture | `annotationCounts.total`, `densityMetric`, shared parser call | Health and kernel-profiles pages updated |
+| Other checklist categories | No daemon/plugin/config/schema/wire source changed | No runtime inventory, doctor, comparison, wiki or RFC support-row change applies |
+| Mechanical scope | Scoped citation anchors exited 0. Whole-tree weakened audit identified four preserved parser-move reports and one foreign health fixture | Four exact migration approvals recorded independently. Foreign file excluded. Global repo/doc/full-RFC compositions not run under host restrictions |
+| Verification handoff | Existing scoped implementation evidence is green, with historical failures superseded by named corrected runs | Parent owes `./le verify changed` once after closure commits. No full or performance run claimed |

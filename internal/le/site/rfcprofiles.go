@@ -279,6 +279,12 @@ func rfcProfileCards(rollup *rfc.ScopeRollup) []rfcProfileCard {
 			rfcKeywordSeries(rfc.MandatoryKeywords()) + " rows of the walked RFCs that a recorded test break proves."},
 		{rfcProfileOptionalLabel, rfcProfilePercent(rollup.Optional), rollup.Optional.String(),
 			rfcKeywordSeries(rfc.OptionalKeywords()) + " rows, counted the same way."},
+		{"Mandatory ceiling", rfcCeilingPercent(rollup.Mandatory),
+			rfcCeilingFigure(rollup.Mandatory.Attainable, rollup.Mandatory.Total, rollup.Mandatory.Excluded),
+			"Attainable mandatory rows under current classifications, over the unchanged total."},
+		{"Optional ceiling", rfcCeilingPercent(rollup.Optional),
+			rfcCeilingFigure(rollup.Optional.Attainable, rollup.Optional.Total, rollup.Optional.Excluded),
+			"Attainable optional rows under current classifications, over the unchanged total."},
 		{"Not walked", strconv.Itoa(rollup.NotWalked), "of " + strconv.Itoa(rollup.RFCs) + " RFCs",
 			"RFCs with no valid extraction sign-off: their rows count in neither figure."},
 		{"Mandatory register", rfcProfileComplete(rollup), "every row proven, none unwalked",
@@ -312,6 +318,14 @@ func rfcProfilePercent(figure rfc.Figure) string {
 	return rfcPercentText(figure.Proven, figure.Total)
 }
 
+// rfcCeilingPercent never publishes a percentage for an empty population.
+func rfcCeilingPercent(figure rfc.Figure) string {
+	if figure.Total == 0 {
+		return "no rows"
+	}
+	return rfcPercentText(figure.Attainable, figure.Total)
+}
+
 // rfcProfileBody renders one profile's page.
 func rfcProfileBody(report *rfc.TreeReport, display map[string]string, useCases []rfcProfileUseCase) string {
 	var body textbuf.Buffer
@@ -332,15 +346,14 @@ func rfcProfileBody(report *rfc.TreeReport, display map[string]string, useCases 
 			Str("</p></div>\n")
 	}
 	body.Str("</div>\n")
+	body.Str("<p>").Str(html.EscapeString(rfcCeilingStatement(report.Rows))).Str("</p>\n")
 	body.Str("<section><h2>Tree</h2>\n<p>").Str(html.EscapeString(rfcProfileTreeProse(report))).Str("</p>\n")
 	for _, level := range rfcProfileLevels(report.Rows) {
 		body.Str("<h3>").Str(html.EscapeString(level.Label)).Str("</h3>\n")
 		var rows textbuf.Buffer
 		for _, row := range level.Rows {
-			mandatory, optional := row.Cells()
-			cells := []string{rfcProfileStemHTML(row, display), html.EscapeString(row.Title),
-				rfcProfileBarHTML(row, mandatory, row.MandatoryProven, row.MandatoryTotal),
-				rfcProfileBarHTML(row, optional, row.OptionalProven, row.OptionalTotal)}
+			mandatory, optional := rfcFigureCells(row)
+			cells := []string{rfcProfileStemHTML(row, display), html.EscapeString(row.Title), mandatory, optional}
 			if !report.IsAggregate() {
 				cells = append(cells, html.EscapeString(row.Path))
 			}
@@ -352,12 +365,12 @@ func rfcProfileBody(report *rfc.TreeReport, display map[string]string, useCases 
 	if report.Optional != nil && len(report.Optional.Rows) != 0 {
 		body.Str("<section><h2>").Str(rfcProfileOptionalHeading).Str("</h2>\n<p>").
 			Str(html.EscapeString(rfcProfileOptionalProse(&report.Optional.Rollup))).Str("</p>\n")
+		body.Str("<p>").Str(html.EscapeString(rfcCeilingStatement(report.Optional.Rows))).Str("</p>\n")
 		var rows textbuf.Buffer
 		for _, row := range report.Optional.Rows {
-			mandatory, optional := row.Cells()
+			mandatory, optional := rfcFigureCells(row)
 			rows.Str(rfcRowCells(rfcProfileStemHTML(row, display), html.EscapeString(row.Title),
-				rfcProfileBarHTML(row, mandatory, row.MandatoryProven, row.MandatoryTotal),
-				rfcProfileBarHTML(row, optional, row.OptionalProven, row.OptionalTotal),
+				mandatory, optional,
 				html.EscapeString(row.Path)))
 		}
 		body.Str(rfcTableHTML(rfcHeadCells(rfcProfileColumns(report)...), rows.String())).Str("\n</section>\n")
@@ -389,11 +402,12 @@ func rfcProfileMirror(report *rfc.TreeReport, display map[string]string, useCase
 		out.Str("- **").Str(card.Label).Str("**: ").Str(card.Value).Str(" (").Str(card.Arithmetic).
 			Str("). ").Str(card.Meaning).Byte('\n')
 	}
+	out.Str("\n").Str(rfcCeilingStatement(report.Rows)).Byte('\n')
 	out.Str("\n## Tree\n\n").Str(rfcProfileTreeProse(report)).Byte('\n')
 	for _, level := range rfcProfileLevels(report.Rows) {
 		out.Str("\n### ").Str(level.Label).Str("\n\n").Str(rfcMirrorHead(rfcProfileColumns(report)...))
 		for _, row := range level.Rows {
-			mandatory, optional := row.Cells()
+			mandatory, optional := rfcFigureMirrorCells(row)
 			cells := []string{rfcProfileStemMirror(row, display), rfcMirrorCell(row.Title), mandatory, optional}
 			if !report.IsAggregate() {
 				cells = append(cells, rfcMirrorCell(row.Path))
@@ -404,9 +418,10 @@ func rfcProfileMirror(report *rfc.TreeReport, display map[string]string, useCase
 	if report.Optional != nil && len(report.Optional.Rows) != 0 {
 		out.Str("\n## ").Str(rfcProfileOptionalHeading).Str("\n\n").
 			Str(rfcProfileOptionalProse(&report.Optional.Rollup)).Str("\n\n").
+			Str(rfcCeilingStatement(report.Optional.Rows)).Str("\n\n").
 			Str(rfcMirrorHead(rfcProfileColumns(report)...))
 		for _, row := range report.Optional.Rows {
-			mandatory, optional := row.Cells()
+			mandatory, optional := rfcFigureMirrorCells(row)
 			out.Str(rfcMirrorRow(rfcProfileStemMirror(row, display), rfcMirrorCell(row.Title), mandatory,
 				optional, rfcMirrorCell(row.Path)))
 		}
@@ -428,7 +443,8 @@ func rfcProfileColumns(report *rfc.TreeReport) []string {
 func rfcProfileTreeProse(report *rfc.TreeReport) string {
 	prose := "Roots first: an RFC sits one level above the highest level of the RFCs it builds on, " +
 		"and the RFCs of one citation cycle share a level. Each bar is the share of that figure's rows " +
-		"a recorded break proves; an RFC that is not walked shows an empty bar and no figure."
+		"a recorded break proves; the ceiling below it shows attainable rows under current classifications. " +
+		"An RFC that is not walked shows an empty bar and no figure or ceiling."
 	if report.IsAggregate() {
 		return prose
 	}
@@ -524,6 +540,7 @@ const rfcProfileStyle = `<style>
 .rfc-bar span { display: block; height: 100%; background: var(--teal-base); }
 .rfc-bar-unmeasured { border-style: dashed; }
 .rfc-bar-note { display: block; color: var(--muted); font-size: .85rem; white-space: nowrap; }
+.rfc-ceiling { display: block; color: var(--muted); font-size: .8rem; white-space: normal; }
 </style>
 `
 
@@ -569,7 +586,8 @@ func rfcProfilesIndexMirror(profiles []*rfc.TreeReport) string {
 				continue
 			}
 			rows.Str(rfcMirrorRow("["+rfcMirrorCell(rfcProfileTitle(report))+"]("+report.Profile+"/)",
-				report.Rollup.Mandatory.String(), report.Rollup.Optional.String(),
+				report.Rollup.Mandatory.String()+"; ceiling "+rfcCeilingFigure(report.Rollup.Mandatory.Attainable, report.Rollup.Mandatory.Total, report.Rollup.Mandatory.Excluded),
+				report.Rollup.Optional.String()+"; ceiling "+rfcCeilingFigure(report.Rollup.Optional.Attainable, report.Rollup.Optional.Total, report.Rollup.Optional.Excluded),
 				"["+strconv.Itoa(report.Rollup.RFCs)+"]("+rfcProfileListHref(report)+")", strconv.Itoa(report.Rollup.NotWalked),
 				rfcProfileComplete(report.Rollup)))
 		}
@@ -618,7 +636,8 @@ func rfcProfileRollupBarHTML(figure rfc.Figure) string {
 	}
 	escaped := html.EscapeString(figure.String())
 	return `<div class="` + class + `" role="img" aria-label="` + escaped + `"><span style="width:` +
-		width + `%"></span></div><span class="rfc-bar-note">` + escaped + "</span>"
+		width + `%"></span></div><span class="rfc-bar-note">` + escaped + "</span>" +
+		`<small class="rfc-ceiling">Ceiling: ` + html.EscapeString(rfcCeilingFigure(figure.Attainable, figure.Total, figure.Excluded)) + "</small>"
 }
 
 // removeRetiredRFCProfilePages deletes the page of a profile this build no

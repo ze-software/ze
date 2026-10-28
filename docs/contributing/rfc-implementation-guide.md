@@ -530,6 +530,16 @@ inside a `terminator=` block):
   facts their gates check: the layer and the producer, the quoted sentence and
   the producer, or the target list
   (`docs/contributing/rfc-conformance-gates.md`).
+
+  `{linux-limit: LL-<ID>; why no Ze code substitutes}` names a verified blocking
+  kernel entry in the [Linux limitations register](../architecture/linux-limitations.md).
+  The obligation still binds and remains unmet; the annotation earns no proof
+  credit. Its evidence must qualify under
+  [the Linux-limit gate](rfc-conformance-gates.md#the-linux-limit-annotation),
+  and each new or reworded instance owes the owner's attestation before push.
+  <!-- source: internal/le/rfc/linux_limit.go -- linuxLimitEntryRefusal -->
+  <!-- source: internal/le/commit/linux_limit.go -- linuxLimitTrailers -->
+
 - **Demonstrate a `{gap}` rather than only describe it.** A test that asserts
   the correct behavior Ze does not have yet takes the word `gap` in the
   polarity's place, and runs its assertions inside `rfcgap.Demonstrate`
@@ -669,7 +679,7 @@ never sums the two, because a nightly tier is not merge-gate proof.
   No profile file lists a member and no citation adds one, so a forgotten row
   is a parse error rather than an RFC quietly not owed.
 
-  Three related reds come from the same place. First, a public row that claims support
+  Four related reds come from the same place. First, a public row that claims support
   over a summary with zero gated requirements. The escape is evidence that zero is
   real: a `non-normative` disposition, or a `manual-walk`
   extraction sign-off whose `register-reason` says why. Second, a row that PROMISES
@@ -679,9 +689,11 @@ never sums the two, because a nightly tier is not merge-gate proof.
   is unproven. Prove one requirement, or write `| Support status | Partial |`, which is
   what the public page's own vocabulary calls "not proven". Third, a `Support remaining`
   cell that spells a gap count, including zero, immediately before MUST or SHALL
-  must agree with the summary's `{gap}` plus `{partial}` row count.
+  must agree with the summary's unmet requirement count, including Linux-limit
+  rows. Fourth, a Linux-limit row bars `Supported` even when `Support remaining`
+  correctly discloses it: use `Partial` while the obligation remains unmet.
   <!-- source: internal/le/rfc/meta.go -- ParseMeta, readEnrolment, readSupport -->
-  <!-- source: internal/le/rfc/check_status.go -- checkSummaryDisposition, checkSourceRestricted, checkUnprovenSupport, checkGapCountAgreement -->
+  <!-- source: internal/le/rfc/check_status.go -- checkSummaryDisposition, checkSourceRestricted, checkUnprovenSupport, checkGapCountAgreement, checkStatusAgreement -->
 - **Audit letter and spirit with `/ze-rfc-audit <rfc>`.** The gate proves a link
   exists, but it cannot read the test. The audit reads the RFC itself and each
   tagged test. It then judges whether the test would fail if the code stopped
@@ -779,6 +791,15 @@ words>`. Nothing outside the commits records either
 (`docs/architecture/testing/verify-freshness-scope.md`).
 <!-- source: internal/le/commit/prepare.go -- admissionTrailer -->
 <!-- source: internal/le/commit/owed_trailers.go -- readPersonActs -->
+
+Linux-limit instances use the same owner-attestation route, but not an RFC
+test-review approval. `./le commit create` automatically records
+`Linux-limit-owed: <RID>: <LL-id>` for each added or reworded annotation in its
+selected summary content. The commit may land; only the owner's attestation
+for that commit discharges its Linux-limit obligation before push. See
+[committing](committing.md) for selected-content checks and the attestation
+command.
+<!-- source: internal/le/commit/linux_limit.go -- linuxLimitTrailers -->
 
 A trailer commit that cannot be read is never counted as discharging the act:
 `./le commit create` refuses with `commit <sha>: cannot judge "<subject>", so it

@@ -342,7 +342,8 @@ func (a annotationCounts) get(kind string) int { return a.counts[kind] }
 func (a annotationCounts) total() int {
 	sum := 0
 	for kind, count := range a.counts {
-		if kind == rfc.AnnotationRollup {
+		traits, known := rfc.AnnotationTraitsOf(kind)
+		if known && !traits.Counts {
 			continue
 		}
 		sum += count
@@ -441,11 +442,14 @@ func densityMetric(rows, unproven []coverageRow, kinds annotationCounts, density
 			"count in the denominator above and never in the share, ").
 		Int(int64(kinds.get(rfc.AnnotationFeatureDeclined))).
 		Str(" conditional on an optional feature ze does not offer, each quoting the RFC " +
-			"sentence that makes it optional: the condition is false, so nothing is owed, and ").
+			"sentence that makes it optional: the condition is false, so nothing is owed, ").
+		Int(int64(kinds.get(rfc.AnnotationLinuxLimit))).
+		Str(" blocked by a verified Linux kernel limitation: the obligation still binds and remains " +
+			"unmet, with no proof credit and no denominator reduction, and ").
 		Int(int64(noTest)).
 		Str(" with no test and no annotation at all, which is what `./le rfc check` is red " +
-			"about. Only the gap column and that last one are untested work. Apart from every " +
-			"figure above, ").
+			"about. Gaps, remaining partial obligations and unexcused rows are work Ze owes; " +
+			"Linux limits separately name the primitive the kernel cannot provide. Apart from every figure above, ").
 		Int(int64(kinds.get(rfc.AnnotationRollup))).
 		Str(" rows carry {rollup}: each derives its state from rows already counted here, " +
 			"and none is in the denominator.").String()

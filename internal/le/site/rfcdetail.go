@@ -91,6 +91,7 @@ var rfcDetailSections = []struct {
 	{rfcEnrolmentLabel, rfcEnrolmentHTML, rfcEnrolmentMirror},
 	{"What the public ledger says", rfcPublicLedgerHTML, rfcPublicLedgerMirror},
 	{"Coverage", rfcCoverageHTML, rfcCoverageMirror},
+	{"Attainable ceiling", rfcDetailCeilingHTML, rfcDetailCeilingMirror},
 	{"Requirements", rfcRequirementsHTML, rfcRequirementsMirror},
 	{"Gaps and untested MUSTs", rfcGapsHTML, rfcGapsMirror},
 	{"Proof state", rfcProofHTML, rfcProofMirror},
@@ -138,6 +139,22 @@ func rfcDetailMirror(entry *rfcLedgerStem) string {
 		out.Str("\n## ").Str(section.Heading).Str("\n\n").Str(section.Mirror(entry))
 	}
 	return out.String()
+}
+
+// rfcDetailCeilingMirror reads the same model row as the index and profiles.
+func rfcDetailCeilingMirror(entry *rfcLedgerStem) string {
+	if entry.Figures == nil {
+		return "No ceiling measurement is available.\n"
+	}
+	if !entry.Figures.Walked {
+		return "Not walked: no proof figure or ceiling is published.\n"
+	}
+	return rfcCeilingStatement([]*rfc.TreeRow{entry.Figures}) + "\n"
+}
+
+// rfcDetailCeilingHTML publishes the mirror's exact ceiling statement.
+func rfcDetailCeilingHTML(entry *rfcLedgerStem) string {
+	return "<p>" + html.EscapeString(strings.TrimSpace(rfcDetailCeilingMirror(entry))) + "</p>"
 }
 
 // rfcDetailHeading is the page's own H1: the display name, and the RFC's title
@@ -918,7 +935,7 @@ func rfcRequirementMarks(requirement *rfcLedgerRequirement) [][2]string {
 	var marks [][2]string
 	if requirement.Annotation != nil {
 		marks = append(marks, [2]string{"{" + requirement.Annotation.Kind + "}",
-			requirement.Annotation.Reason})
+			requirement.Annotation.explanation()})
 		// A rollup asserts nothing itself, so its derived state is a mark of
 		// its own: what the rows its reason names add up to today.
 		if requirement.Annotation.Derived != "" {

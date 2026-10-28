@@ -70,6 +70,8 @@ const (
 	trailerReviewOwed = "Review-owed: "
 	// trailerRFCApprovalOwed is `RFC-approval-owed: <package>.<Test>: <reason>`.
 	trailerRFCApprovalOwed = "RFC-approval-owed: "
+	// trailerLinuxLimitOwed is `Linux-limit-owed: <RID>: <LL-id>`.
+	trailerLinuxLimitOwed = "Linux-limit-owed: "
 	// trailerOwnerAttested is `Owner-attested: <stable patch-id>: <owner words>`.
 	trailerOwnerAttested = "Owner-attested: "
 	// trailerLedgerCarried is `Ledger-carried: <sha> [<stable patch-id>] <gate key>: <reason>`.
@@ -87,6 +89,7 @@ var declaredTrailers = []struct {
 }{
 	{trailerReviewOwed, `create ... ` + keywordReviewOverride + ` "<reason>"`},
 	{trailerRFCApprovalOwed, `create ... ` + keywordRFCChangeOK + ` "<reason>"`},
+	{trailerLinuxLimitOwed, "create automatically from added or reworded Linux-limit annotations"},
 	{trailerOwnerAttested, `create ... ` + keywordAttest + ` <commit> "<owner words>"`},
 	{trailerLedgerCarried, `the ledger-deletion commit: create ... remove <path> ` + keywordLedgerCarried + ` "<sha> <gate key>: <reason>"`},
 	{rfc.ApprovalTrailer, "create from ./le rfc approve"},

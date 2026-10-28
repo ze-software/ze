@@ -334,7 +334,7 @@ func TestQuoteBackfillRealCorpusHasNothingLeft(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		requirements, err := parseSummaryText(string(body), stem, stemPath(summaryRel, stem, ".md"))
+		requirements, err := ParseSummaryText(string(body), stem, stemPath(summaryRel, stem, ".md"))
 		if err != nil {
 			t.Fatalf("%s: %v", stem, err)
 		}

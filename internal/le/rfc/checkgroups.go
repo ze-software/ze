@@ -53,8 +53,10 @@ var CheckGroups = []CheckGroup{
 			"claimed to be."},
 	{Key: CheckAnnotations, Name: "Requirement annotations",
 		Verifies: "Every annotation that excuses a requirement from Ze's own tests still names " +
-			"code that exists, or quotes the RFC sentence it relies on.",
-		Failure: "An excuse for a requirement no longer holds as written and must be justified again."},
+			"code that exists, quotes the RFC sentence it relies on, or names a verified blocking " +
+			"kernel entry in the Linux limitations register with evidence for that exact requirement " +
+			"at the shipped kernel version.",
+		Failure: "An annotation no longer holds as written and must be justified again."},
 	{Key: CheckPublicStatus, Name: "Published support status",
 		Verifies: "The support status each RFC publishes agrees with its requirements and its " +
 			"declared gaps, and a status that promises support is backed by a review of the RFC text.",

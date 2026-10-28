@@ -9,6 +9,7 @@ package rfc
 
 import (
 	"encoding/json"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -255,14 +256,14 @@ func TestTreeOptionalTierNotCounted(t *testing.T) {
 	if err != nil {
 		t.Fatalf("tree edge: %v", err)
 	}
-	if *withReport.Rollup != *withoutReport.Rollup {
+	if !reflect.DeepEqual(withReport.Rollup, withoutReport.Rollup) {
 		t.Errorf("required rollup %+v with optional members, %+v without", *withReport.Rollup, *withoutReport.Rollup)
 	}
 	if !withReport.Rollup.MandatoryComplete {
 		t.Errorf("required rollup %+v, want complete: every required row is proven", withReport.Rollup)
 	}
 	optional := withReport.Optional.Rollup
-	if optional.RFCs != 1 || optional.Mandatory != (Figure{Proven: 0, Total: 1}) || optional.MandatoryComplete {
+	if optional.RFCs != 1 || !reflect.DeepEqual(optional.Mandatory, Figure{Proven: 0, Total: 1, Attainable: 1}) || optional.MandatoryComplete {
 		t.Errorf("optional rollup %+v, want rfc9 alone, 0 of 1, incomplete", optional)
 	}
 	text := withReport.Text()

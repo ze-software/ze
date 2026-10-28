@@ -70,10 +70,15 @@ func ruledAnnotation(annotation *Annotation, polarity string) string {
 	if annotation == nil {
 		return ""
 	}
-	if annotation.Kind == AnnotationGap {
+	traits, known := AnnotationTraitsOf(annotation.Kind)
+	// refuse-by-default: guards ownerRuledMove -- an unknown kind authorizes no loss of proof.
+	if !known {
+		return ""
+	}
+	if traits.Gap {
 		return ownerRuling(annotation.Reason)
 	}
-	if annotation.Kind != AnnotationSinglePolarity {
+	if !traits.SinglePolarity {
 		return ""
 	}
 	if annotation.Polarity == polarity {

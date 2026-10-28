@@ -37,15 +37,25 @@ func provenRequirements(verdicts []DiscriminationVerdict) map[string]bool {
 	return out
 }
 
-// Figure is rows proven over rows owed.
+// Figure carries proof and attainable counts over the same rows owed.
 type Figure struct {
-	Proven int `json:"proven"`
-	Total  int `json:"total"`
+	Proven     int            `json:"proven"`
+	Total      int            `json:"total"`
+	Attainable int            `json:"attainable"`
+	Excluded   map[string]int `json:"excluded"`
 }
 
-// add sums two figures.
-func (f Figure) add(other Figure) Figure {
-	return Figure{Proven: f.Proven + other.Proven, Total: f.Total + other.Total}
+// add sums counts without sharing the source's exclusion map.
+func (f *Figure) add(other Figure) {
+	f.Proven += other.Proven
+	f.Total += other.Total
+	f.Attainable += other.Attainable
+	for kind, count := range other.Excluded {
+		if f.Excluded == nil {
+			f.Excluded = make(map[string]int)
+		}
+		f.Excluded[kind] += count
+	}
 }
 
 // String renders the figure. A zero Total renders no percentage at all: 0 of 0
@@ -57,6 +67,17 @@ func (f Figure) String() string {
 	}
 	return tb.Int(int64(f.Proven)).Str(" of ").Int(int64(f.Total)).Str(" (").
 		Float(100*float64(f.Proven)/float64(f.Total), 1).Str("%)").String()
+}
+
+// CeilingString renders attainable rows without changing the proof figure.
+// Zero rows measure nothing, so they carry no percentage.
+func (f Figure) CeilingString() string {
+	var tb textbuf.Buffer
+	if f.Total == 0 {
+		return "no rows"
+	}
+	return tb.Int(int64(f.Attainable)).Str(" of ").Int(int64(f.Total)).Str(" (").
+		Float(100*float64(f.Attainable)/float64(f.Total), 1).Str("%)").String()
 }
 
 // StemFigures is one RFC's two figures.
@@ -106,9 +127,9 @@ func (s StemFigures) cell(figure Figure) string {
 //     annotation records why the other side has no input, and the row is
 //     proven only when a verified record proves its one side. ProvenShareOf
 //     credits such a row from its annotation alone; these figures do not.
-//   - `{not-applicable}`, `{lower-layer}` and `{feature-declined}` stay in
-//     the denominator and are never proven by Ze, whatever records their
-//     tags carry: annotating a row may not raise its figure.
+//   - `{not-applicable}`, `{lower-layer}`, `{feature-declined}` and
+//     `{linux-limit}` stay in the denominator and are never proven by Ze,
+//     whatever records their tags carry: annotating a row may not raise its figure.
 //   - `{gap}` and `{partial}` stay in the denominator and are NEVER proven,
 //     whatever records their tags carry: the summary itself says the
 //     obligation is unmet. A test demonstrating a gap, or the half of a
@@ -130,18 +151,34 @@ func figuresByStem(requirements []Requirement, stems, walked, proven map[string]
 		if !owed {
 			continue
 		}
-		row := Figure{Total: 1}
-		if met {
-			row.Proven = 1
-		}
 		if requirement.Gated() {
-			figures.Mandatory = figures.Mandatory.add(row)
+			figures.Mandatory.count(requirement, met)
 		} else {
-			figures.Optional = figures.Optional.add(row)
+			figures.Optional.count(requirement, met)
 		}
 		out[requirement.RFC] = figures
 	}
 	return out
+}
+
+// count adds one owed row. Only declared ceiling exclusions remove attainable
+// work; gaps and partials remain future work, and unknown kinds get no exemption.
+func (f *Figure) count(requirement *Requirement, proven bool) {
+	f.Total++
+	if proven {
+		f.Proven++
+	}
+	if requirement.Annotation != nil {
+		traits, known := AnnotationTraitsOf(requirement.Annotation.Kind)
+		if known && traits.CeilingExcluded {
+			if f.Excluded == nil {
+				f.Excluded = make(map[string]int)
+			}
+			f.Excluded[requirement.Annotation.Kind]++
+			return
+		}
+	}
+	f.Attainable++
 }
 
 // rowCounts answers whether a row is owed (in the denominator) and whether it
@@ -150,13 +187,14 @@ func rowCounts(requirement *Requirement, proven map[string]bool) (owed, met bool
 	if requirement.Annotation == nil {
 		return true, proven[requirement.RID]
 	}
-	switch requirement.Annotation.Kind {
-	case AnnotationRollup:
-		return false, false
-	case AnnotationSinglePolarity:
-		return true, proven[requirement.RID]
+	traits, known := AnnotationTraitsOf(requirement.Annotation.Kind)
+	if !known {
+		return true, false
 	}
-	return true, false
+	if !traits.Counts {
+		return false, false
+	}
+	return true, traits.Proves && proven[requirement.RID]
 }
 
 // Rollup is the figures of a set of RFCs: one tier of a use-case profile's
@@ -184,8 +222,8 @@ func rollupOf(figures map[string]StemFigures, members []string) Rollup {
 			out.NotWalked++
 			continue
 		}
-		out.Mandatory = out.Mandatory.add(one.Mandatory)
-		out.Optional = out.Optional.add(one.Optional)
+		out.Mandatory.add(one.Mandatory)
+		out.Optional.add(one.Optional)
 	}
 	return out
 }
@@ -207,6 +245,90 @@ func (r Rollup) mandatoryComplete() bool {
 func (r Rollup) String() string {
 	var tb textbuf.Buffer
 	tb.Str("mandatory ").Str(r.Mandatory.String()).Str(", optional ").Str(r.Optional.String())
+	tb.Str("; ceiling mandatory ").Str(r.Mandatory.CeilingString()).
+		Str(", optional ").Str(r.Optional.CeilingString())
+	writeFigureExclusions(&tb, "mandatory", r.Mandatory)
+	writeFigureExclusions(&tb, "optional", r.Optional)
 	tb.Str("; ").Int(int64(r.RFCs)).Str(" RFCs, ").Int(int64(r.NotWalked)).Str(" not walked")
 	return tb.String()
+}
+
+// StemCeiling names a measured RFC ceiling; zero-total RFCs have no such minimum.
+type StemCeiling struct {
+	Stem       string `json:"stem"`
+	Attainable int    `json:"attainable"`
+	Total      int    `json:"total"`
+}
+
+// String renders this ceiling with the same arithmetic as its source figure.
+func (s StemCeiling) String() string {
+	return (Figure{Attainable: s.Attainable, Total: s.Total}).CeilingString()
+}
+
+// CeilingSummary carries a view's walked-only sums and lowest measured ceilings.
+type CeilingSummary struct {
+	Rollup
+	LowestMandatory *StemCeiling `json:"lowest-mandatory"`
+	LowestOptional  *StemCeiling `json:"lowest-optional"`
+}
+
+// CeilingOf sums a view's distinct RFC rows. Callers MUST supply each RFC once.
+// Unwalked and summary-less rows contribute no measurements. Minima exclude
+// empty figures, and ties choose RFC-number order rather than input order.
+func CeilingOf(rows []*TreeRow) CeilingSummary {
+	var out CeilingSummary
+	for _, row := range rows {
+		out.RFCs++
+		if !row.Summary {
+			out.NotWalked++
+			continue
+		}
+		if !row.Walked {
+			out.NotWalked++
+			continue
+		}
+		figures := row.figures()
+		out.Mandatory.add(figures.Mandatory)
+		out.Optional.add(figures.Optional)
+		out.LowestMandatory = lowerCeiling(out.LowestMandatory, row.Stem, figures.Mandatory)
+		out.LowestOptional = lowerCeiling(out.LowestOptional, row.Stem, figures.Optional)
+	}
+	return out
+}
+
+// lowerCeiling keeps the lowest nonempty fraction without percentage rounding.
+func lowerCeiling(current *StemCeiling, stem string, figure Figure) *StemCeiling {
+	if figure.Total == 0 {
+		return current
+	}
+	if current != nil {
+		left := int64(figure.Attainable) * int64(current.Total)
+		right := int64(current.Attainable) * int64(figure.Total)
+		if left > right {
+			return current
+		}
+		if left == right && statusRowCompare(stem, current.Stem) >= 0 {
+			return current
+		}
+		current.Stem, current.Attainable, current.Total = stem, figure.Attainable, figure.Total
+		return current
+	}
+	return &StemCeiling{Stem: stem, Attainable: figure.Attainable, Total: figure.Total}
+}
+
+// writeFigureExclusions exposes each declared classification separately.
+func writeFigureExclusions(tb *textbuf.Buffer, label string, figure Figure) {
+	if len(figure.Excluded) == 0 {
+		return
+	}
+	tb.Str("; ").Str(label).Str(" excluded: ")
+	separator := ""
+	for _, kind := range AnnotationKinds() {
+		count := figure.Excluded[kind]
+		if count == 0 {
+			continue
+		}
+		tb.Str(separator).Str(kind).Byte(' ').Int(int64(count))
+		separator = ", "
+	}
 }

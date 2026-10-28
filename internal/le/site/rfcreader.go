@@ -83,6 +83,12 @@ func rfcGlossary() []rfcGlossaryTerm {
 			"offer. {lower-layer}: a layer under Ze performs the behavior, on state Ze " +
 			"installs into that layer. {gap}: a declared gap. A partial requirement has " +
 			"tests for part of it; the rest is unmet or unproven and earns no credit."},
+		{"Linux cannot do this", "a verified kernel limitation prevents the required primitive. " +
+			"The obligation still binds Ze and remains unmet. The annotation names the Linux " +
+			"Limitations Register entry; it earns no proof credit and stays in the denominator."},
+		{"Ceiling", "attainable requirements over the same total as the proof figure, under current " +
+			"classifications. This is not an immutable Linux maximum. Not-applicable and " +
+			"feature-declined classifications can be revisited; unwalked RFCs have no ceiling."},
 		{"Walked, sign-off", "a reviewer read the RFC's own text sentence by sentence and " +
 			"checked the requirement list against it; the sign-off records that review. " +
 			"Not walked means the review has not been done, so no figure is counted."},

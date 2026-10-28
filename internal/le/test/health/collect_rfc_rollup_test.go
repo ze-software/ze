@@ -39,3 +39,22 @@ func TestARollupRowIsCountedApartFromTheSplitSum(t *testing.T) {
 		t.Errorf("the divergence message leaves the rollup count out: %s", pythonDict(kinds))
 	}
 }
+
+// TestAnnotationSplitKeepsExistingAndUnknownRowsInTheDenominator checks every
+// existing non-derived kind and an unknown kind against an explicit total.
+func TestAnnotationSplitKeepsExistingAndUnknownRowsInTheDenominator(t *testing.T) {
+	kinds := annotationCounts{counts: map[string]int{}}
+	for _, kind := range []string{
+		rfc.AnnotationNotApplicable, rfc.AnnotationGap, rfc.AnnotationPartial,
+		rfc.AnnotationSinglePolarity, rfc.AnnotationLowerLayer, rfc.AnnotationFeatureDeclined,
+		rfc.AnnotationRollup, "unknown-kind",
+	} {
+		kinds.add(kind)
+	}
+	if got := kinds.total(); got != 7 {
+		t.Fatalf("annotation total = %d, want six known rows plus the unknown row", got)
+	}
+	if got := kinds.get(rfc.AnnotationRollup); got != 1 {
+		t.Fatalf("derived rows = %d, want one visible outside the total", got)
+	}
+}

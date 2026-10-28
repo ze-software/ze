@@ -85,6 +85,7 @@ after the approvals (`Prepared.Trailers`):
 |-----------|---------|-----------------------------|
 | `review-override "<reason>"` on a closure with no clean review | `Review-owed: <spec stem>: <reason>` | yes, until a clean review, a recorded Review Gate or the owner's attestation answers it |
 | `rfc-change-ok "<reason>"` | `RFC-approval-owed: <package>.<TestName>: <reason>`, one per unit | yes, until a later `RFC-approved:` for the unit or the owner's attestation |
+| Automatic when a selected summary adds or rewords `{linux-limit: LL-ID; reason}` | `Linux-limit-owed: <RID>: <LL-id>`, one per changed annotation | yes, until the owner's attestation of that commit; an RFC approval or review does not answer it |
 
 An admission no gate used records nothing. A reason spanning lines is refused,
 because a trailer is one line. `Message` refuses a subject or a body line that
@@ -92,6 +93,33 @@ starts with any declared trailer key (`declaredTrailers` in
 `internal/le/commit/actions.go`, which also lists `Owner-attested:` and
 `Ledger-carried:`), naming the line and the one route that writes it: a
 trailer is a record the derivation reads back, never the author's prose.
+
+Linux-limit approval needs no admission keyword. `create` compares the selected
+summary blobs with its recorded HEAD through the RFC summary parser and writes
+the obligation automatically. An unchanged annotation in an edited summary owes
+nothing; a new annotation, a different register ID or a reworded reason owes
+the owner's approval. Removing the annotation creates no new obligation.
+Whole-file snapshots and `hunks` selections are judged from the same immutable
+blobs the script commits, not the shared index or unselected working-tree text.
+Before parsing, `create` checks the Git modes of every `rfc/short/*.md` entry
+the prospective commit retains, including untouched summaries from recorded
+HEAD. Each must be a regular file (executable files are regular too), and its
+`rfc` and `rfc/short` ancestors must be Git trees, not links or other files.
+A link at either ancestor or at a summary is refused even when only its target
+was selected: following it would let an annotation change outside the approval
+selector. Remove the linked entry explicitly; a replacement summary must be a
+regular file under real directories. Selected descendants establish their
+prospective tree ancestors without consulting checkout modes. A regular
+replacement owes approval for every Linux-limit annotation it carries; the
+old link's text is not an approved summary baseline. Unselected checkout and
+shared-index modes do not change this judgement.
+The commit can land before approval, but its push waits. After the owner
+approves the instance, prepare an empty attestation with
+`./le commit create subject "<subject>" attest <commit> "<owner words>"`.
+The attestation must be in the range the push publishes; one after the selected
+push target cannot answer that push.
+<!-- source: internal/le/commit/linux_limit.go -- linuxLimitTrailers, linuxLimitHead -->
+<!-- source: internal/le/commit/owed_trailers.go -- readPersonActs, answering.answered -->
 
 No admission exists for a red. A red prevents a release, never a commit
 (`ai/META-DECISIONS.md`, "Ze is pre-release"), so `create` reads no failure
@@ -143,10 +171,10 @@ test-coverage gate reads it first.
 
 These gates judge the selected blob, never the working-tree file, because each
 reads a hunks path through `hunks.Selection.Read`: the weakening gate and the
-prospective index it renames from, the RFC-tagged change gate, the
-test-coverage gate, the journal shape check and the owned-row guard (an owner
-entry or an open row that only the working tree holds counts as absent), the
-spec-closure sides, and the review pin.
+prospective index it renames from, the RFC-tagged change gate, the automatic
+Linux-limit approval obligation, the test-coverage gate, the journal shape check
+and the owned-row guard (an owner entry or an open row that only the working tree
+holds counts as absent), the spec-closure sides, and the review pin.
 
 The review pin compares like with like. Record the review of a hunks code file
 with the same pair, `./le spec review record spec <stem> verdict clean rounds

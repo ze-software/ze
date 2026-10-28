@@ -330,17 +330,27 @@ The walk starts at C and follows `git rev-list --reverse --first-parent C..HEAD`
 
 A review or a recorded approval is an act no verification performs, so it is carried by the commit that owes it, as a trailer `create` writes when it grants the admission (`docs/contributing/committing.md`). `readPersonActs` (`internal/le/commit/owed_trailers.go`) reads every trailer over `P ^@{u}` (`HEAD ^@{u}` with no P) in one `git log`, and keeps each obligation no answer holds. Answers are read over the same range, so an attestation committed after P does not count for a push of P. A malformed declared trailer is a refusal, never skipped.
 
-| Answer | `Review-owed: <stem>: <reason>` | `RFC-approval-owed: <package>.<Test>: <reason>` |
-|--------|---------------------------------|-------------------------------------------------|
-| not applicable | the commit closes no spec (`closedSpecStem`) | the commit does not change that unit (`changedTaggedUnits`) |
-| closed | the removed spec, read at the commit's parent, records its Review Gate, or its Status is design or skeleton (`answerClosed`) | - |
-| reviewed | a clean `tmp/review/<stem>-*.md` artifact whose hashes match the commit's own blobs (`answerReviewed`) | - |
-| approved | - | an `RFC-approved:` trailer for the same unit in range |
-| owner | an `Owner-attested:` trailer in range naming the commit's stable patch-id | the same |
+| Answer | `Review-owed: <stem>: <reason>` | `RFC-approval-owed: <package>.<Test>: <reason>` | `Linux-limit-owed: <RID>: <LL-id>` |
+|--------|---------------------------------|-------------------------------------------------|-----------------------------------|
+| not applicable | the commit closes no spec (`closedSpecStem`) | the commit does not change that unit (`changedTaggedUnits`) | - |
+| closed | the removed spec, read at the commit's parent, records its Review Gate, or its Status is design or skeleton (`answerClosed`) | - | - |
+| reviewed | a clean `tmp/review/<stem>-*.md` artifact whose hashes match the commit's own blobs (`answerReviewed`) | - | - |
+| approved | - | an `RFC-approved:` trailer for the same unit in range | - |
+| owner | an `Owner-attested:` trailer in range naming the commit's stable patch-id | the same | the same |
 
 The producers live in `internal/le/commit/owed_answers.go`. `tmp/review/` is NOT the durable record of a review: it is untracked and is emptied. The Review Gate is committed prose and closure removes the spec, so `git show <closure-sha>^:<spec-path>` recovers it for ever, which is where `closed` reads it. A missing Review Gate has two meanings and they never share a branch: on a `skeleton` or `design` spec there was nothing to review, and on an implemented one the review is missing. The removed spec's own Status at the parent separates them.
 
 The owner answer is keyed by `git patch-id --stable` (`stablePatchIDs`), which a rebase keeps unless conflict resolution changes the diff, and then the commit is owed again. A `Ledger-carried: <sha> <patch-id> <gate key>: <reason>` trailer gates the same way: it is matched to the commit in range with that patch-id and answered over it, and with no match it stays open under the carried SHA until the owner attests the carrying commit. A carried row with no patch-id names a commit already published and is audit only.
+
+`create` writes Linux-limit obligations automatically, one per annotation added
+or reworded in the selected summary blobs compared with HEAD. Editing another
+part of a summary does not renew an unchanged annotation's obligation. Only an
+owner attestation answers this kind: a clean review and an ordinary RFC approval
+cannot discharge a claim that Linux cannot provide a primitive. An empty or
+malformed declared obligation or answer refuses the push, and `attest` refuses
+to attest a commit whose declared trailers cannot be read.
+<!-- source: internal/le/commit/linux_limit.go -- linuxLimitTrailers -->
+<!-- source: internal/le/commit/attest.go -- attestationTrailer -->
 
 <!-- source: internal/le/commit/owed.go -- deriveDebt, pushRefusal -->
 <!-- source: internal/le/commit/owed_trailers.go -- readPersonActs, stablePatchIDs -->

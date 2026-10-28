@@ -39,10 +39,14 @@ func attestationTrailer(root string, native bool, options *Options) (string, err
 		return "", fmt.Errorf("attest refused: read the message of %s: %w", shortSHA(sha), err)
 	}
 	acts := parsePersonActs(body)
+	if len(acts.problems) != 0 {
+		return "", errors.New("attest refused: " + strings.Join(acts.problems, "\n"))
+	}
 	if len(acts.owed) == 0 && len(acts.carried) == 0 {
-		return "", fmt.Errorf("attest refused: commit %s carries no %s, %s or gating %s trailer, so it owes no person act "+
+		return "", fmt.Errorf("attest refused: commit %s carries no %s, %s, %s or gating %s trailer, so it owes no person act "+
 			"to attest; ./le commit debt-status names the commits that do", shortSHA(sha),
-			strings.TrimSpace(trailerReviewOwed), strings.TrimSpace(trailerRFCApprovalOwed), strings.TrimSpace(trailerLedgerCarried))
+			strings.TrimSpace(trailerReviewOwed), strings.TrimSpace(trailerRFCApprovalOwed),
+			strings.TrimSpace(trailerLinuxLimitOwed), strings.TrimSpace(trailerLedgerCarried))
 	}
 	patchID, err := patchIDOf(root, sha)
 	if err != nil {

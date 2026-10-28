@@ -544,7 +544,7 @@ func TestTheCheckLeadsWithAnActionableUnclassifiedCensus(t *testing.T) {
 		t.Fatalf("hand-place the skeleton: %v", err)
 	}
 
-	requirements, err := parseSummaryText(extractionCreateSummary, "rfc9999", "rfc/short/rfc9999.md")
+	requirements, err := ParseSummaryText(extractionCreateSummary, "rfc9999", "rfc/short/rfc9999.md")
 	if err != nil {
 		t.Fatalf("parse the fixture summary: %v", err)
 	}

@@ -104,7 +104,7 @@ func summarySelftestFixture() summaryFixture {
 }
 
 func runSummarySelftest(fixture summaryFixture) ([]leroot.SelftestResult, error) {
-	requirements, err := parseSummaryText(fixture.text, selftestStem, selftestSummaryRel)
+	requirements, err := ParseSummaryText(fixture.text, selftestStem, selftestSummaryRel)
 	if err != nil {
 		return nil, err
 	}
@@ -165,7 +165,7 @@ const selftestUpdatedByRow = "- [ ] [RFC9999-2-3] [MUST] A speaker MUST reset th
 // checkUpdatedBy accepts it while the rfc10000 header updates rfc9999 and
 // refuses it once that header line is gone.
 func updatedBySelftestHolds() (bool, error) {
-	marked, err := parseSummaryText(selftestUpdatedByRow, selftestStem, selftestSummaryRel)
+	marked, err := ParseSummaryText(selftestUpdatedByRow, selftestStem, selftestSummaryRel)
 	if err != nil {
 		return false, err
 	}
@@ -245,7 +245,7 @@ func runCarrierSelftest() ([]leroot.SelftestResult, error) {
 }
 
 func runCoverageSelftest() ([]leroot.SelftestResult, error) {
-	requirements, err := parseSummaryText(selftestSummary, selftestStem, selftestSummaryRel)
+	requirements, err := ParseSummaryText(selftestSummary, selftestStem, selftestSummaryRel)
 	if err != nil {
 		return nil, err
 	}
@@ -301,7 +301,7 @@ type selftestDerivation struct {
 // checkout: the row's state follows its targets, and the row itself is
 // outside every coverage count.
 func selftestDerivedRollup(tags []Tag, enrolled map[string]bool) (selftestDerivation, error) {
-	requirements, err := parseSummaryText(selftestRollupSummary, selftestStem, selftestSummaryRel)
+	requirements, err := ParseSummaryText(selftestRollupSummary, selftestStem, selftestSummaryRel)
 	if err != nil {
 		return selftestDerivation{}, err
 	}
@@ -627,7 +627,7 @@ func selftestDiscriminationFiles(records []DiscriminationRecord) (map[string]str
 // runDiscriminationSelftest exercises the recorded-proof artifact: what loads,
 // what is refused rather than skipped, and what the published figures count.
 func runDiscriminationSelftest() ([]leroot.SelftestResult, error) {
-	requirements, err := parseSummaryText(selftestSummary, selftestStem, selftestSummaryRel)
+	requirements, err := ParseSummaryText(selftestSummary, selftestStem, selftestSummaryRel)
 	if err != nil {
 		return nil, err
 	}

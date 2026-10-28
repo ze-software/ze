@@ -55,7 +55,17 @@ func TestUnimplementedVerdictRefusedOverFeatureDeclined(t *testing.T) {
 	req := Requirement{RID: "RFC9999-2-1", Source: "rfc/short/rfc9999.md", Line: 7,
 		Annotation: &Annotation{Kind: AnnotationFeatureDeclined}}
 	errs := verdictClaims("rfc9999", req.RID, verdict, req, nil)
-	if len(errs) != 1 || !strings.Contains(errs[0], "carries no {gap} or {not-applicable} annotation") {
+	if len(errs) != 1 {
 		t.Fatalf("'unimplemented' over {feature-declined} answered %v, want the one annotation refusal", errs)
+	}
+	if !strings.Contains(errs[0], req.RID) {
+		t.Fatalf("annotation refusal does not identify the requirement: %v", errs)
+	}
+	if !strings.Contains(errs[0], req.Source) {
+		t.Fatalf("annotation refusal does not identify the summary: %v", errs)
+	}
+	req.Annotation = &Annotation{Kind: AnnotationGap}
+	if errs := verdictClaims("rfc9999", req.RID, verdict, req, nil); len(errs) != 0 {
+		t.Fatalf("the same unimplemented verdict over a gap was refused: %v", errs)
 	}
 }

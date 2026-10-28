@@ -193,12 +193,12 @@ var escapeReasons = map[string]bool{
 // escapeReasonNames answers them sorted, for a refusal message.
 func escapeReasonNames() []string { return sortedKeys(escapeReasons) }
 
-// annotationKinds are the seven `{...}` kinds that say something about Ze's
+// annotationKinds are the `{...}` kinds that say something about Ze's
 // COVERAGE. SupersededKind is named apart because it says something about the
 // DOCUMENT, and the two registers must never share a slot: had superseded
 // joined this set, marking a requirement would have EVICTED its {gap} and a
 // document's obsolescence would have become a way out of the gated population.
-// The seven annotation kinds a checklist line can carry. Named, because
+// The annotation kinds a checklist line can carry. Named, because
 // AnnotationSinglePolarity is read in three places -- the parser that demands a
 // polarity beside it, the coverage rule that treats it as complete cover, and
 // the audit schema that lets one test carry an `enforced` verdict -- and a
@@ -268,20 +268,97 @@ const (
 	AnnotationLowerLayer      = "lower-layer"
 	AnnotationFeatureDeclined = "feature-declined"
 	AnnotationRollup          = "rollup"
+	// AnnotationLinuxLimit names a verified kernel primitive Linux cannot
+	// provide. The obligation still binds and remains unmet.
+	AnnotationLinuxLimit = "linux-limit"
 )
 
-var annotationKinds = map[string]bool{
-	AnnotationNotApplicable:   true,
-	AnnotationGap:             true,
-	AnnotationPartial:         true,
-	AnnotationSinglePolarity:  true,
-	AnnotationLowerLayer:      true,
-	AnnotationFeatureDeclined: true,
-	AnnotationRollup:          true,
+// AnnotationTraits is the shared meaning of a coverage annotation. Values
+// returned by AnnotationTraitsOf are copies; changing one cannot change the
+// declaration. The zero value grants no proof or audit permission.
+type AnnotationTraits struct {
+	Counts    bool
+	Proves    bool
+	BarsTests bool
+	// BarsSupported forbids a public conformance promise even when Remaining
+	// discloses the unmet obligation.
+	BarsSupported      bool
+	Unmet              bool
+	RemainingRequired  bool
+	SinglePolarity     bool
+	Gap                bool
+	Partial            bool
+	Rollup             bool
+	RollupState        RollupState
+	Bucket             string
+	AuditUnimplemented bool
+	AuditNotApplicable bool
+	CeilingExcluded    bool
+	CeilingLabel       string
 }
 
-// AnnotationKinds answers them sorted.
-func AnnotationKinds() []string { return sortedKeys(annotationKinds) }
+// annotationKinds declares each kind once, including its specialized parser.
+// A nil parser means the common non-empty reason is the entire payload.
+var annotationKinds = map[string]struct {
+	traits AnnotationTraits
+	parse  func(rest, where string) (*Annotation, error)
+	format string
+}{
+	AnnotationNotApplicable: {
+		traits: AnnotationTraits{Counts: true, BarsTests: true, RollupState: RollupMet,
+			Bucket: "not_applicable", AuditUnimplemented: true, AuditNotApplicable: true,
+			CeilingExcluded: true, CeilingLabel: "Not applicable (classification can be revisited)"},
+	},
+	AnnotationGap: {
+		traits: AnnotationTraits{Counts: true, BarsTests: true, Unmet: true, Gap: true,
+			RollupState: RollupGap, Bucket: "gap", AuditUnimplemented: true},
+	},
+	AnnotationPartial: {
+		traits: AnnotationTraits{Counts: true, Unmet: true, RemainingRequired: true,
+			Partial: true, RollupState: RollupGap, Bucket: "partial-scope"},
+		parse: parsePartial,
+	},
+	AnnotationSinglePolarity: {
+		traits: AnnotationTraits{Counts: true, Proves: true, SinglePolarity: true,
+			RollupState: RollupUnproven, Bucket: "single_polarity"},
+		parse: parseSinglePolarity,
+	},
+	AnnotationLowerLayer: {
+		traits: AnnotationTraits{Counts: true, BarsTests: true,
+			RollupState: RollupMet, Bucket: "lower_layer",
+			CeilingExcluded: true, CeilingLabel: "Met by a lower layer"},
+		parse: parseLowerLayer,
+	},
+	AnnotationFeatureDeclined: {
+		traits: AnnotationTraits{Counts: true, BarsTests: true, RollupState: RollupMet,
+			Bucket: "feature_declined", AuditNotApplicable: true,
+			CeilingExcluded: true, CeilingLabel: "Optional feature not offered (classification can be revisited)"},
+		parse: parseFeatureDeclined,
+	},
+	AnnotationRollup: {
+		traits: AnnotationTraits{BarsTests: true, Rollup: true,
+			RollupState: RollupUnproven, Bucket: "rollup"},
+		parse: parseRollup,
+	},
+	AnnotationLinuxLimit: {
+		traits: AnnotationTraits{Counts: true, BarsTests: true, BarsSupported: true, Unmet: true, RemainingRequired: true,
+			RollupState: RollupGap, Bucket: "linux_limit", AuditUnimplemented: true,
+			CeilingExcluded: true, CeilingLabel: "Linux cannot do this"},
+		parse:  parseLinuxLimit,
+		format: linuxLimitFormat,
+	},
+}
+
+// AnnotationKinds answers the declared kinds sorted.
+func AnnotationKinds() []string { return sortedKeysOf(annotationKinds) }
+
+// AnnotationTraitsOf answers the declared meaning and whether kind is known.
+// Callers MUST handle an unknown kind explicitly: it cannot excuse a row,
+// remove it from a denominator, or grant proof or audit credit.
+func AnnotationTraitsOf(kind string) (AnnotationTraits, bool) {
+	declaration, known := annotationKinds[kind]
+	return declaration.traits, known
+}
 
 const SupersededKind = "superseded"
 
@@ -430,6 +507,8 @@ func isParseError(err error) bool {
 type Annotation struct {
 	Kind     string `json:"kind"`
 	Polarity string `json:"polarity,omitempty"`
+	// LimitID names the Linux limitations register entry, without copying its evidence.
+	LimitID string `json:"limit-id,omitempty"`
 	// Layer names what performs the behavior under Ze. It is {lower-layer}'s
 	// alone, and a layer claim nothing here can falsify is the blanket
 	// exemption that kind exists to avoid being.
@@ -520,7 +599,11 @@ func (r Requirement) Gated() bool { return gatedLevels[r.Level] }
 // Rollup reports whether this requirement is annotated {rollup}: a row that
 // asserts nothing of its own and is left out of every gated population.
 func (r Requirement) Rollup() bool {
-	return r.Annotation != nil && r.Annotation.Kind == AnnotationRollup
+	if r.Annotation == nil {
+		return false
+	}
+	traits, known := AnnotationTraitsOf(r.Annotation.Kind)
+	return known && traits.Rollup
 }
 
 // DerivedMark answers what a page prints for a rollup row's derived state: the

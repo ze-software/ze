@@ -251,6 +251,29 @@ func TestAVerdictInAnUnpublishedStateSaysSoRatherThanRenderingAnEmptyCell(t *tes
 	}
 }
 
+// The parser stores the register reference apart from the reason. Both public
+// row forms must retain it without requiring authors to repeat it in prose.
+func TestLinuxLimitRowsAndShardsKeepTheParsedRegisterReference(t *testing.T) {
+	requirements, err := ParseSummaryText(linuxLimitFixtureLine, "rfc9999", "fixture.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(requirements) != 1 || requirements[0].Annotation == nil ||
+		requirements[0].Annotation.Reason != linuxLimitFixtureReason {
+		t.Fatalf("fixture did not parse a separate register reference: %+v", requirements)
+	}
+	in := RenderInput{Requirements: requirements}
+	rows := RequirementRows(in)["rfc9999"]
+	want := "{linux-limit} " + linuxLimitFixtureID + "; " + linuxLimitFixtureReason
+	if len(rows) != 1 || rows[0].Note != want {
+		t.Fatalf("requirement rows lost the register reference: %+v", rows)
+	}
+	shard := RenderShards(in)["rfc9999"]
+	if !strings.Contains(shard, "| "+want+" |") {
+		t.Fatalf("shard lost the register reference:\n%s", shard)
+	}
+}
+
 func TestARequirementProvenOnlyByNightlyEvidenceIsMarkedOnItsOwnRow(t *testing.T) {
 	// Nothing in HEAD is nightly-only, so the marker never renders there. It is
 	// the distinction between "a tag exists" and "a merge blocks on it".

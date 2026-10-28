@@ -56,6 +56,8 @@ const (
 	// bind, and unlike not-applicable it says WHY in a form a reader can check:
 	// the annotation quotes the sentence that makes the feature optional.
 	rfcFeatureDeclinedBucket = "feature_declined"
+	rfcLinuxLimitBucket      = "linux_limit"
+	rfcLinuxLimitLabel       = "Linux cannot do this"
 	// rfcRollupBucket is the row that asserts nothing of its own and derives
 	// its state from the rows it names. It is shown apart from every other
 	// bucket because none of them describes it: it is not proven, not a gap,
@@ -281,6 +283,8 @@ var rfcSatisfaction = []struct {
 		Condition: "{lower-layer} annotation + named producer", Binds: true},
 	{Key: rfcFeatureDeclinedBucket, Label: rfcFeatureDeclinedLabel, Short: "Feature declined",
 		Condition: "{feature-declined} annotation + quoted RFC sentence", Binds: false},
+	{Key: rfcLinuxLimitBucket, Label: rfcLinuxLimitLabel, Short: rfcLinuxLimitLabel,
+		Condition: "verified kernel limitation; the obligation still binds and remains unmet", Binds: true},
 	// Binds is TRUE for a rollup. The obligation is addressed to Ze and Ze
 	// meets it or not through the rows it names, so marking it non-binding
 	// would publish it as scope beside {not-applicable} and rfcScopeNote would
@@ -312,36 +316,18 @@ func rfcBucketDerived(key string) bool {
 // rfcAnnotationBucket answers the bucket one annotation kind satisfies, and
 // whether this page knows the kind at all.
 //
-// It is the ONE mapping. The index counts buckets over the whole corpus and a
-// stem page splits its own Annotated total by kind, and both read this, so the
-// two cannot disagree about what an annotation means. It was a map beside a
-// second switch in rfcLedgerCoverageOf until 2026-09-02, and the switch had no
-// default: a kind added to rfc.AnnotationKinds and not given a bucket fell out
-// of every counter while the gate went on counting it, so the shares summed to
-// less than their whole with every test green (independent review).
+// The kind declaration in rfc owns the mapping. Both the index and the stem
+// page read it, so adding a kind cannot silently omit it from one partition.
 //
 // The second return is the refusal. A caller MUST NOT read the empty string as
 // a bucket: an unknown kind is a mapping this page has not been taught, and it
 // is counted as one rather than dropped (ai/rules/principles.md).
 func rfcAnnotationBucket(kind string) (string, bool) {
-	switch kind {
-	case rfc.AnnotationNotApplicable:
-		return rfcNotApplyBucket, true
-	case rfc.AnnotationGap:
-		return rfcGapBucket, true
-	case rfc.AnnotationPartial:
-		return rfcPartialBucket, true
-	case rfc.AnnotationSinglePolarity:
-		return rfcSingleBucket, true
-	case rfc.AnnotationLowerLayer:
-		return rfcLowerLayerBucket, true
-	case rfc.AnnotationFeatureDeclined:
-		return rfcFeatureDeclinedBucket, true
-	case rfc.AnnotationRollup:
-		return rfcRollupBucket, true
-	default:
+	traits, known := rfc.AnnotationTraitsOf(kind)
+	if !known {
 		return "", false
 	}
+	return traits.Bucket, true
 }
 
 // rfcStatusOrder is the order the gap-disclosure table lists a public status
@@ -1193,6 +1179,10 @@ var rfcStanding = []struct {
 		Rule: "no color: an obligation whose condition Ze never meets is neither an " +
 			"achievement nor a failure. The absent FEATURE is disclosed on the RFC's own " +
 			"status row, as an implementation gap a later scope decision can revisit"},
+	{Label: rfcLinuxLimitLabel, Keys: []string{rfcLinuxLimitBucket}, Tone: rfcToneNeutral,
+		Meaning: "Linux cannot provide the primitive this requirement needs. The obligation still binds " +
+			"Ze and remains unmet; it stays in every denominator and earns no proof credit",
+		Rule: "neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption"},
 }
 
 // rfcBinding is the gated population of the RFCs Ze implements, and how it is
@@ -1248,6 +1238,8 @@ func (c rfcLedgerCoverage) Bucket(key string) int {
 		return c.LowerLayer
 	case rfcFeatureDeclinedBucket:
 		return c.FeatureDeclined
+	case rfcLinuxLimitBucket:
+		return c.LinuxLimit
 	case rfcRollupBucket:
 		return c.Rollup
 	default:
@@ -2026,6 +2018,7 @@ const rfcComplianceStyle = `<style>
 .rfc-tape-not_applicable { background: var(--grape-chip); }
 .rfc-tape-feature_declined { background: var(--pink-chip); }
 .rfc-tape-lower_layer { background: var(--mint-chip); }
+.rfc-tape-linux_limit { background: var(--muted); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
 .rfc-tape-partial-scope { background: var(--danger-deep); }
@@ -2094,7 +2087,7 @@ func rfcEnrolledIndexHTML(ledger rfcLedger) string {
 			strconv.Itoa(entry.Coverage.DemonstratedGaps),
 			strconv.Itoa(entry.Coverage.Missing)))
 	}
-	return rfcIndexLegendHTML() + rfcTableHTML(rfcHeadCells("RFC", rfcIndexStatusLabel,
+	return rfcIndexLegendHTML(rfcIndexCeilingRows(ledger)) + rfcTableHTML(rfcHeadCells("RFC", rfcIndexStatusLabel,
 		rfcIndexMandatoryLabel, rfcIndexOptionalLabel, rfcIndexMustsLabel, rfcIndexGapsLabel,
 		rfcIndexGapsTested, rfcIndexUntestedLabel), body.String())
 }
@@ -2179,7 +2172,7 @@ func rfcIndexMirror(ledger rfcLedger) string {
 	if len(enrolled) == 0 {
 		out.Str("No summary is enrolled.\n")
 	} else {
-		out.Str(rfcIndexLegendMirror())
+		out.Str(rfcIndexLegendMirror(rfcIndexCeilingRows(ledger)))
 		out.Str(rfcMirrorHead("RFC", rfcIndexStatusLabel, rfcIndexMandatoryLabel, rfcIndexOptionalLabel,
 			rfcIndexMustsLabel, rfcIndexGapsLabel, rfcIndexGapsTested, rfcIndexUntestedLabel))
 		for index := range enrolled {

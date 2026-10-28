@@ -40,8 +40,11 @@ func rfcGapRows(entry *rfcLedgerStem) []rfcGapRow {
 	var rows []rfcGapRow
 	for index := range entry.Requirements {
 		requirement := &entry.Requirements[index]
-		declared := requirement.Annotation != nil &&
-			(requirement.Annotation.Kind == rfc.AnnotationGap || requirement.Annotation.Kind == rfc.AnnotationPartial)
+		declared := false
+		if requirement.Annotation != nil {
+			traits, known := rfc.AnnotationTraitsOf(requirement.Annotation.Kind)
+			declared = known && traits.Unmet
+		}
 		untested := requirement.Gated && len(requirement.Covers) == 0
 		if !declared && !untested {
 			continue
@@ -72,11 +75,11 @@ func rfcGapRows(entry *rfcLedgerStem) []rfcGapRow {
 // where it carries one, and the plain fact otherwise.
 func rfcGapReason(requirement *rfcLedgerRequirement, declared bool) string {
 	if declared {
-		return requirement.Annotation.Reason
+		return requirement.Annotation.explanation()
 	}
 	if requirement.Annotation != nil {
 		return "no test carries this requirement id; annotated {" +
-			requirement.Annotation.Kind + "}: " + requirement.Annotation.Reason
+			requirement.Annotation.Kind + "}: " + requirement.Annotation.explanation()
 	}
 	return "no test carries this requirement id"
 }

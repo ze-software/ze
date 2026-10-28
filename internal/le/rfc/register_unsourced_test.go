@@ -40,7 +40,7 @@ func unsourcedBoundaryArtifact() Extraction {
 // sites, three gated rows, one of them sanctioned as unsourced.
 func TestAnUnsourcedIDIsNotBilledAgainstTheKeywordRegister(t *testing.T) {
 	tree := fixtureTree(t, map[string]string{"rfc/full/rfc9999.txt": extractionCreateSource})
-	requirements, err := parseSummaryText(unsourcedBoundarySummary, "rfc9999", "rfc/short/rfc9999.md")
+	requirements, err := ParseSummaryText(unsourcedBoundarySummary, "rfc9999", "rfc/short/rfc9999.md")
 	if err != nil {
 		t.Fatalf("parse summary: %v", err)
 	}

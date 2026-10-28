@@ -57,7 +57,7 @@ func PriorityOf(in *RenderInput) (PriorityAnswer, error) {
 func RequirementStems(summaries map[string]string) (map[string]string, error) {
 	out := map[string]string{}
 	for _, stem := range sortedKeysOf(summaries) {
-		requirements, err := parseSummaryText(summaries[stem], stem, summaryRel+"/"+stem+".md")
+		requirements, err := ParseSummaryText(summaries[stem], stem, summaryRel+"/"+stem+".md")
 		if err != nil {
 			return nil, err
 		}

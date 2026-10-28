@@ -116,56 +116,58 @@ func (r *Requirement) Quote() string {
 // parseAnnotation reads one `{kind: reason}` body.
 func parseAnnotation(body, where string) (*Annotation, error) {
 	var tb textbuf.Buffer
-	if !strings.Contains(body, ":") {
+	kind, rest, separated := strings.Cut(body, ":")
+	kind = strings.TrimSpace(kind)
+	rest = strings.TrimSpace(rest)
+	declaration, known := annotationKinds[kind]
+	if !separated {
+		if known && declaration.format != "" {
+			return nil, parseErr(tb.Str(where).Str(": annotation needs a register id and a reason. ").Str(declaration.format))
+		}
 		return nil, parseErr(tb.Str(where).Str(": annotation {").Str(body).
 			Str("} has no reason. Every annotation must justify itself: {kind: why}"))
 	}
-	kind, rest, _ := strings.Cut(body, ":")
-	kind = strings.TrimSpace(kind)
-	rest = strings.TrimSpace(rest)
-	if !annotationKinds[kind] {
+	if !known {
 		known := append(AnnotationKinds(), SupersededKind, UpdatedByKind)
 		slices.Sort(known)
 		return nil, parseErr(tb.Str(where).Str(": unknown annotation kind ").Str(pyRepr(kind)).
 			Str("; expected one of ").Str(pyRepr(known)))
 	}
 	if rest == "" {
+		if declaration.format != "" {
+			return nil, parseErr(tb.Str(where).Str(": annotation needs a register id and a reason. ").Str(declaration.format))
+		}
 		return nil, parseErr(tb.Str(where).Str(": annotation {").Str(kind).
 			Str("} has an empty reason. A bare annotation is an escape hatch; say why."))
 	}
-	if kind == AnnotationSinglePolarity {
-		polarity, why, _ := strings.Cut(rest, ";")
-		polarity = strings.TrimSpace(polarity)
-		why = strings.TrimSpace(why)
-		if !polarities[polarity] {
-			return nil, parseErr(tb.Str(where).Str(": single-polarity needs a polarity from ").
-				Str(pyRepr(Polarities())).Str(", got ").Str(pyRepr(polarity)).
-				Str(". Format: {single-polarity: negative; why}"))
-		}
-		if why == "" {
-			return nil, parseErr(tb.Str(where).
-				Str(": single-polarity needs a reason explaining why the other ").
-				Str("polarity cannot be tested. Format: {single-polarity: negative; why}"))
-		}
-		return &Annotation{Kind: kind, Polarity: polarity, Reason: why}, nil
+	if declaration.parse == nil {
+		return &Annotation{Kind: kind, Reason: rest}, nil
 	}
-	if kind == AnnotationLowerLayer {
-		return parseLowerLayer(rest, where)
+	annotation, err := declaration.parse(rest, where)
+	if err != nil {
+		return nil, &ParseError{msg: err.Error()}
 	}
-	if kind == AnnotationFeatureDeclined {
-		return parseFeatureDeclined(rest, where)
+	return annotation, nil
+}
+
+// parseSinglePolarity reads the one required polarity and why the other has
+// no input to drive it.
+func parseSinglePolarity(rest, where string) (*Annotation, error) {
+	var tb textbuf.Buffer
+	polarity, why, _ := strings.Cut(rest, ";")
+	polarity = strings.TrimSpace(polarity)
+	why = strings.TrimSpace(why)
+	if !polarities[polarity] {
+		return nil, parseErr(tb.Str(where).Str(": single-polarity needs a polarity from ").
+			Str(pyRepr(Polarities())).Str(", got ").Str(pyRepr(polarity)).
+			Str(". Format: {single-polarity: negative; why}"))
 	}
-	if kind == AnnotationPartial {
-		annotation, err := parsePartial(rest, where)
-		if err != nil {
-			return nil, &ParseError{msg: err.Error()}
-		}
-		return annotation, nil
+	if why == "" {
+		return nil, parseErr(tb.Str(where).
+			Str(": single-polarity needs a reason explaining why the other ").
+			Str("polarity cannot be tested. Format: {single-polarity: negative; why}"))
 	}
-	if kind == AnnotationRollup {
-		return parseRollup(rest, where)
-	}
-	return &Annotation{Kind: kind, Reason: rest}, nil
+	return &Annotation{Kind: AnnotationSinglePolarity, Polarity: polarity, Reason: why}, nil
 }
 
 var partialRE = regexp.MustCompile(`^tested\s+("(?:[^"\\]|\\.)*")\s*;\s*gap\s+("(?:[^"\\]|\\.)*")\s*;\s*(\S.*)$`)
@@ -748,9 +750,9 @@ func parseChecklistLine(line, stem, source string, lineno int) (*Requirement, er
 	return req, nil
 }
 
-// parseSummaryText parses every checklist line in a summary. It raises on a
-// duplicate id: ids are permanent and unique.
-func parseSummaryText(text, stem, source string) ([]Requirement, error) {
+// ParseSummaryText parses every checklist line in a summary. It raises on a
+// duplicate id: ids are permanent and unique. Source names the input in errors.
+func ParseSummaryText(text, stem, source string) ([]Requirement, error) {
 	var out []Requirement
 	seen := map[string]int{}
 	for i, line := range strings.Split(text, "\n") {
@@ -786,7 +788,7 @@ func parseSummaryFile(tree, path string) ([]Requirement, error) {
 	if err != nil {
 		return nil, err
 	}
-	return parseSummaryText(text, stem, rel)
+	return ParseSummaryText(text, stem, rel)
 }
 
 // summaryStems answers every stem under rfc/short/.

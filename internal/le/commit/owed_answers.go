@@ -48,6 +48,8 @@ func answerNotApplicable(root string, kind owedItemKind, facts commitFacts) erro
 				strings.Join(changed, ", "))
 		}
 		return nil
+	case owedItemLinuxLimit:
+		return errors.New("a Linux-limit obligation requires the owner's attestation")
 	case owedItemUnspecified:
 		return errors.New("BUG: an owed item with no kind has no not-applicable reading")
 	}

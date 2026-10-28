@@ -136,8 +136,13 @@ func CoverageRows(requirements []Requirement, tags []Tag, carriers []Carrier) []
 			if !req.Gated() {
 				continue
 			}
-			if req.Rollup() {
-				continue
+			var traits AnnotationTraits
+			if req.Annotation != nil {
+				var known bool
+				traits, known = AnnotationTraitsOf(req.Annotation.Kind)
+				if known && !traits.Counts {
+					continue
+				}
 			}
 			gated++
 			found := byRID[req.RID]
@@ -147,7 +152,7 @@ func CoverageRows(requirements []Requirement, tags []Tag, carriers []Carrier) []
 			switch {
 			case req.Annotation != nil:
 				row.Annotated++
-				if req.Annotation.Kind == AnnotationPartial {
+				if traits.Partial {
 					row.Partial++
 				}
 			case bothPolarities(found):
@@ -261,11 +266,21 @@ type worklistRow struct {
 // schema disagree about what complete coverage is -- and every annotated
 // requirement fell outside Auditable while the schema was happy to judge it.
 func polarityCovered(req Requirement, found []Tag) bool {
+	var traits AnnotationTraits
+	if req.Annotation != nil {
+		var known bool
+		traits, known = AnnotationTraitsOf(req.Annotation.Kind)
+		if !known {
+			return false
+		}
+	}
 	if bothPolarities(found) {
 		return true
 	}
-	return len(found) > 0 && req.Annotation != nil &&
-		req.Annotation.Kind == AnnotationSinglePolarity
+	if len(found) == 0 {
+		return false
+	}
+	return traits.SinglePolarity
 }
 
 // auditCoverageInput is what the audit rollup reads.
@@ -333,7 +348,12 @@ func auditCoverageRows(in auditCoverageInput) ([]auditCoverage, []worklistRow) {
 			if recordedState, known := in.States[req.RID]; known {
 				state = recordedState.State
 			}
-			if value == VerdictEnforced && state == FreshState && (req.Annotation == nil || req.Annotation.Kind != AnnotationPartial) {
+			whole := true
+			if req.Annotation != nil {
+				traits, known := AnnotationTraitsOf(req.Annotation.Kind)
+				whole = known && !traits.Partial
+			}
+			if value == VerdictEnforced && state == FreshState && whole {
 				row.Proven++
 				continue
 			}

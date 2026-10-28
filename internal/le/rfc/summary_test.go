@@ -191,7 +191,7 @@ func TestEverySupersededDispositionStatesWhatItNames(t *testing.T) {
 
 func TestADuplicateIdIsRefused(t *testing.T) {
 	text := "- [ ] [RFC9999-2-1] [MUST] first (§2)\n- [ ] [RFC9999-2-1] [MUST] second (§2)\n"
-	_, err := parseSummaryText(text, "rfc9999", "rfc/short/rfc9999.md")
+	_, err := ParseSummaryText(text, "rfc9999", "rfc/short/rfc9999.md")
 	if err == nil || !strings.Contains(err.Error(), "duplicate requirement id") {
 		t.Errorf("two rows sharing one id were accepted: %v", err)
 	}

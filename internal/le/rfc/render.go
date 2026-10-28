@@ -432,7 +432,11 @@ func requirementRow(req Requirement, found []Tag, audited string, in RenderInput
 	}
 	if req.Annotation != nil {
 		var tb textbuf.Buffer
-		tb.Byte('{').Str(req.Annotation.Kind).Str("} ").Str(req.Annotation.Reason)
+		tb.Byte('{').Str(req.Annotation.Kind).Str("} ")
+		if req.Annotation.LimitID != "" {
+			tb.Str(req.Annotation.LimitID).Str("; ")
+		}
+		tb.Str(req.Annotation.Reason)
 		// A rollup's reason is its target list and its why; the state those
 		// targets derive follows, because the row asserts nothing itself.
 		if req.Rollup() {

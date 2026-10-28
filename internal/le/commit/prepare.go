@@ -70,9 +70,9 @@ type Prepared struct {
 	// trailers and what its script drops from the session's weakening
 	// approval file once it lands.
 	WeakeningApprovals testweakened.Approvals `json:"weakening-approvals"`
-	// Trailers is the record of each admission a gate granted this commit:
-	// `Review-owed:` and `RFC-approval-owed:`, which the push derivation reads
-	// as owed person acts.
+	// Trailers records the person acts this commit owes: `Review-owed:`,
+	// `RFC-approval-owed:` and automatic `Linux-limit-owed:` annotations,
+	// plus owner attestations and carried obligations.
 	Trailers []string `json:"trailers,omitempty"`
 	// Debt is the derived verification debt as this commit is prepared: how
 	// many commits owe a scoped verify, and since which scoped record. It is
@@ -201,14 +201,6 @@ func Create(root string, options *Options) (Prepared, error) {
 			return result, err
 		}
 		result.Trailers = append(result.Trailers, carried...)
-		// The message is composed once every gate has answered which
-		// trailers it carries: the owner approvals it uses, RFC then
-		// weakening, then the record of each admission the gates granted.
-		trailers := slices.Concat(result.RFCApprovals.Trailers, result.WeakeningApprovals.Trailers, result.Trailers)
-		message, err = Message(options.Subject, options.Body, trailers)
-		if err != nil {
-			return result, err
-		}
 	default:
 		if len(options.LedgerCarried) != 0 {
 			return result, refusedKeywords(errors.New("ledger-carried refused: this tree is not the Ze checkout, and only the Ze checkout carries the ledger"))
@@ -253,6 +245,20 @@ func Create(root string, options *Options) (Prepared, error) {
 	}
 	for _, path := range hunkPaths {
 		entries = append(entries, selection[path].Entry)
+	}
+	if native && !attesting {
+		// This producer MUST read the exact entries and removals commitBlock
+		// receives, not files or modes that a peer can still edit.
+		owed, err := linuxLimitTrailers(root, preparedHead, entries, removed)
+		if err != nil {
+			return result, err
+		}
+		result.Trailers = append(result.Trailers, owed...)
+		trailers := slices.Concat(result.RFCApprovals.Trailers, result.WeakeningApprovals.Trailers, result.Trailers)
+		message, err = Message(options.Subject, options.Body, trailers)
+		if err != nil {
+			return result, err
+		}
 	}
 	block := commitBlock{
 		Tag: tag, Subject: strings.TrimSpace(options.Subject), Paths: paths, Removed: removed,

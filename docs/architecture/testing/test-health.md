@@ -239,6 +239,21 @@ its degradation implies. Every number is derived from committed state; which
 files count comes from `git ls-files`, so an untracked scratch test does not
 move the figures.
 
+The RFC annotation split uses `rfc.AnnotationKinds` for its vocabulary and
+`rfc.AnnotationTraitsOf` for denominator membership. Derived rollup rows remain
+visible in the split but outside its accounting total; every other current
+kind stays in that total. An unknown kind cannot shrink it. These are the same
+traits `rfc.CoverageRows` reads, not a health-specific list of exceptions.
+<!-- source: internal/le/test/health/collect_rfc.go -- annotationCounts.total -->
+<!-- source: internal/le/rfc/rfc.go -- AnnotationTraitsOf -->
+
+Linux-limit annotations stay in that denominator and earn no proof credit.
+The density detail counts them separately as binding, unmet requirements
+blocked by a verified Linux kernel limitation. The annotation split discovers
+the kind from the same registry; it does not treat a Linux limit as a
+not-applicable requirement or as a proof.
+<!-- source: internal/le/test/health/collect_rfc.go -- densityMetric, annotationCounts.total -->
+
 ### What is gated, and what is only published
 
 `./le test health check` compares only the STRUCTURAL facts against the tree: the

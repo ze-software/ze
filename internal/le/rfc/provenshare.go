@@ -134,7 +134,11 @@ func singlePolarityCounts(requirements []Requirement) map[string]int {
 		if !requirement.Gated() || requirement.Annotation == nil {
 			continue
 		}
-		if requirement.Annotation.Kind != AnnotationSinglePolarity {
+		traits, known := AnnotationTraitsOf(requirement.Annotation.Kind)
+		if !known {
+			continue
+		}
+		if !traits.SinglePolarity {
 			continue
 		}
 		out[requirement.RFC]++

@@ -90,7 +90,10 @@ type CheckReport struct {
 	Enrolled      int           `json:"enrolled,omitempty"`
 	Partial       int           `json:"partial"`
 	PartialScopes []Requirement `json:"partial-scopes"`
-	Tags          int           `json:"tags,omitempty"`
+	// LinuxLimitCandidates are register-backed proposals, never approvals or
+	// automatic annotations. They do not change the exit code.
+	LinuxLimitCandidates []LinuxLimitCandidate `json:"linux-limit-candidates,omitempty"`
+	Tags                 int                   `json:"tags,omitempty"`
 	// The two gap figures render even at zero, for the reason the
 	// discrimination figures below do: they are published debt. A demonstrated
 	// gap is a `{gap}` row a test asserts through rfcgap.Demonstrate, which goes
@@ -200,6 +203,7 @@ func (r *CheckReport) Text() string {
 			req := &r.PartialScopes[i]
 			tb.Str(req.RID).Str(": ").Str(req.Text).Str("\n  scoped evidence: ").Str(req.Annotation.Reason).Str("; whole requirement remains unproven.\n")
 		}
+		r.writeLinuxLimitCandidates(&tb)
 		return tb.String()
 	}
 	percentage := 0.0
@@ -275,7 +279,16 @@ func (r *CheckReport) Text() string {
 			Int(int64(unscannedRefused(r.UnscannedTags))).
 			Str(" of those would be refused outright, having no polarity. They read as evidence to a person and are counted by no gate.\n")
 	}
+	r.writeLinuxLimitCandidates(&tb)
 	return tb.String()
+}
+
+func (r *CheckReport) writeLinuxLimitCandidates(tb *textbuf.Buffer) {
+	for _, candidate := range r.LinuxLimitCandidates {
+		tb.Str("linux-limit candidate: ").Str(candidate.RID).Str(" at ").Str(candidate.Where).
+			Str(" is named by ").Str(candidate.LimitID).Str(" in ").Str(linuxLimitRegisterRel).
+			Str("; owner approval is required before this classification is published. No annotation was changed.\n")
+	}
 }
 
 // unscannedRefused counts the production tags no scanner could read even if one
@@ -490,6 +503,8 @@ func check(tree string, today time.Time, approvals map[string]string) (CheckRepo
 	findings = append(findings, inGroup(CheckAnnotations, notes(checkLowerLayerProducer(discriminationSources, collected.Requirements)))...)
 	findings = append(findings, inGroup(CheckAnnotations, notes(checkPartialScopes(discriminationSources, collected.Requirements)))...)
 	findings = append(findings, inGroup(CheckAnnotations, notes(checkFeatureDeclined(tree, discriminationSources, collected.Requirements)))...)
+	linuxLimitFindings, linuxLimitCandidates := checkLinuxLimit(tree, collected.Requirements)
+	findings = append(findings, inGroup(CheckAnnotations, linuxLimitFindings)...)
 	findings = append(findings, inGroup(CheckRequirementLists, notes(checkRowQuotes(tree, collected.Requirements)))...)
 	findings = append(findings, inGroup(CheckRequirementLists, notes(checkRollupTargets(collected.Requirements, collected.Enrolled)))...)
 	findings = append(findings, inGroup(CheckPublicStatus, notes(checkStatusAgreement(collected.Requirements, rows, collected.Enrolled)))...)
@@ -565,7 +580,7 @@ func check(tree string, today time.Time, approvals map[string]string) (CheckRepo
 	findings = append(findings, inGroup(CheckTextReviews, notes(checkExtractionRatchet(tree, extractions)))...)
 	findings = append(findings, inGroup(CheckTextReviews, notes(checkDrainFloor(tree, collected.Enrolled, signed, today)))...)
 
-	report := CheckReport{Findings: findings, Violations: findingMessages(findings)}
+	report := CheckReport{Findings: findings, Violations: findingMessages(findings), LinuxLimitCandidates: linuxLimitCandidates}
 	for i := range collected.Requirements {
 		req := &collected.Requirements[i]
 		if req.Gated() && collected.Enrolled[req.RFC] {

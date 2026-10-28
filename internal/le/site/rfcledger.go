@@ -92,6 +92,9 @@ type rfcLedgerStem struct {
 	Coverage     rfcLedgerCoverage      `json:"coverage"`
 	Requirements []rfcLedgerRequirement `json:"requirements"`
 	Extraction   *rfcLedgerExtraction   `json:"extraction,omitempty"`
+	// Figures is the model's per-RFC proof and ceiling data, shared with the
+	// graph and profile rows. Unwalked rows carry no published measurement.
+	Figures *rfc.TreeRow `json:"figures,omitempty"`
 }
 
 // rfcLedgerDisposition is the decision that keeps one summary out of the gate,
@@ -157,6 +160,9 @@ type rfcLedgerCoverage struct {
 	// TestTheSiteReadsItsRFCVocabularyFromThePackage refuses a closed set's own
 	// word written a second time in this file.
 	FeatureDeclined int `json:"optional-not-offered"`
+	// LinuxLimit counts binding, unmet requirements blocked by a verified
+	// kernel primitive. It grants neither scope exemption nor proof credit.
+	LinuxLimit int `json:"linux-cannot"`
 	// Rollup counts the MUST-level rows a `{rollup}` annotation says derive
 	// their state from the rows they name. A rollup asserts nothing of its
 	// own, so it is neither proven, nor a gap, nor excused: its state is
@@ -263,8 +269,17 @@ type rfcLedgerAnnotation struct {
 	Tested   string   `json:"tested,omitempty"`
 	Gap      string   `json:"gap,omitempty"`
 	Producer string   `json:"producer,omitempty"`
+	LimitID  string   `json:"limit-id,omitempty"`
 	Targets  []string `json:"targets,omitempty"`
 	Derived  string   `json:"derived,omitempty"`
+}
+
+// explanation keeps the register reference beside its reason on every surface.
+func (a *rfcLedgerAnnotation) explanation() string {
+	if a.LimitID != "" {
+		return a.LimitID + "; " + a.Reason
+	}
+	return a.Reason
 }
 
 // rfcLedgerSuccessor is where one requirement of a superseded document lives now.
@@ -450,6 +465,13 @@ func requirementLedgerFrom(tree string, input rfc.RenderInput) (rfcLedger, error
 		return rfcLedger{}, err
 	}
 	ledger.Graph.Nodes = priority.Corpus.Rows
+	figures := make(map[string]*rfc.TreeRow, len(priority.Corpus.Rows))
+	for _, row := range priority.Corpus.Rows {
+		figures[row.Stem] = row
+	}
+	for index := range ledger.Stems {
+		ledger.Stems[index].Figures = figures[ledger.Stems[index].Stem]
+	}
 	edges := input.Graph.Edges()
 	ledger.Graph.Edges = make([]rfcLedgerEdge, 0, len(edges))
 	for _, edge := range edges {
@@ -552,7 +574,8 @@ func rfcLedgerRequirementOf(in *rfcLedgerInput, requirement *rfc.Requirement,
 		entry.Annotation = &rfcLedgerAnnotation{Kind: requirement.Annotation.Kind,
 			Polarity: requirement.Annotation.Polarity, Reason: requirement.Annotation.Reason,
 			Targets: requirement.Annotation.Targets, Tested: requirement.Annotation.Tested,
-			Gap: requirement.Annotation.Gap, Producer: requirement.Annotation.Producer}
+			Gap: requirement.Annotation.Gap, Producer: requirement.Annotation.Producer,
+			LimitID: requirement.Annotation.LimitID}
 		if requirement.Rollup() {
 			entry.Annotation.Derived = requirement.DerivedMark()
 		}
@@ -605,8 +628,13 @@ func rfcLedgerVerdictOf(in *rfcLedgerInput, requirement *rfc.Requirement) *rfcLe
 	if state, known := in.Render.States[requirement.RID]; known {
 		verdict.Freshness, verdict.Moved = state.State, state.Moved
 	}
-	if requirement.Annotation != nil && requirement.Annotation.Kind == rfc.AnnotationPartial {
-		if record.Verdict == rfc.VerdictEnforced {
+	if requirement.Annotation != nil {
+		traits, known := rfc.AnnotationTraitsOf(requirement.Annotation.Kind)
+		if !known {
+			verdict.Meaning = "INVALID: unknown annotation kind; no audit credit"
+			return verdict
+		}
+		if traits.Partial && record.Verdict == rfc.VerdictEnforced {
 			verdict.Meaning = "INVALID: enforced on partial scope; zero whole-requirement credit"
 		}
 	}
@@ -628,31 +656,40 @@ func rfcLedgerCoverageOf(bucket rfc.CoverageRow, requirements []rfcLedgerRequire
 	}
 	for index := range requirements {
 		requirement := &requirements[index]
-		if requirement.Annotation != nil && requirement.Annotation.Kind == rfc.AnnotationPartial {
+		var annotationBucket string
+		if requirement.Annotation != nil {
+			var known bool
+			annotationBucket, known = rfcAnnotationBucket(requirement.Annotation.Kind)
+			if !known {
+				annotationBucket = rfcUnmappedBucket
+			}
+		}
+		if annotationBucket == rfcPartialBucket {
 			coverage.PartialRows++
 		}
-		if requirement.Annotation != nil && requirement.Annotation.Kind == rfc.AnnotationGap {
+		if annotationBucket == rfcGapBucket {
 			coverage.Gaps++
 			if requirement.DemonstratedBy != "" {
 				coverage.DemonstratedGaps++
 			}
 		}
 		if requirement.Gated && requirement.Annotation != nil {
-			bucket, known := rfcAnnotationBucket(requirement.Annotation.Kind)
-			switch {
-			case !known:
+			switch annotationBucket {
+			case rfcUnmappedBucket:
 				coverage.UnmappedAnnotations++
-			case bucket == rfcGapBucket:
+			case rfcGapBucket:
 				coverage.GatedGaps++
-			case bucket == rfcNotApplyBucket:
+			case rfcNotApplyBucket:
 				coverage.NotApplicable++
-			case bucket == rfcSingleBucket:
+			case rfcSingleBucket:
 				coverage.SinglePolarity++
-			case bucket == rfcLowerLayerBucket:
+			case rfcLowerLayerBucket:
 				coverage.LowerLayer++
-			case bucket == rfcFeatureDeclinedBucket:
+			case rfcFeatureDeclinedBucket:
 				coverage.FeatureDeclined++
-			case bucket == rfcRollupBucket:
+			case rfcLinuxLimitBucket:
+				coverage.LinuxLimit++
+			case rfcRollupBucket:
 				coverage.Rollup++
 			}
 		}
