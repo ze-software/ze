@@ -5,6 +5,7 @@
 package completion
 
 import (
+	"slices"
 	"sort"
 	"strings"
 
@@ -64,6 +65,37 @@ func fishRootLines() string {
 	var tb textbuf.Buffer
 	for _, r := range roots {
 		tb.Str("complete -c ze -n __ze_needs_command -a ").Str(r.Name).Str(" -d '").Str(escapeSingleQuote(r.Description)).Str("'\n")
+	}
+	return tb.String()
+}
+
+// shellRootsWithSubVerbs answers the shell-visible registered roots whose Subs
+// names at least one second word (rootSubVerbs), sorted by name. A generator
+// emits a second-word arm for each one, so a root that registers its verbs
+// completes them with no edit to any generator.
+func shellRootsWithSubVerbs() []string {
+	var names []string
+	for _, cmd := range registry.ListRoot() {
+		if !shellVisible(cmd) {
+			continue
+		}
+		if len(rootSubVerbs(cmd.Meta.ResolveSubs())) == 0 {
+			continue
+		}
+		names = append(names, cmd.Name)
+	}
+	slices.Sort(names)
+	return names
+}
+
+// fishRootSubVerbLines emits one fish rule per root with sub-verbs. The words
+// come from `ze completion words <root>` at tab time. Fish drops a candidate
+// it already holds, so a root that also has a hand-written rule below (bgp,
+// signal) gains only the verbs that rule does not list.
+func fishRootSubVerbLines() string {
+	var tb textbuf.Buffer
+	for _, name := range shellRootsWithSubVerbs() {
+		tb.Str("complete -c ze -n 'test (__ze_depth ").Str(name).Str(") = 0' -a '(__ze_complete_dynamic ").Str(name).Str(")'\n")
 	}
 	return tb.String()
 }

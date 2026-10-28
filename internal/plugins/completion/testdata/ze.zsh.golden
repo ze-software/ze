@@ -205,6 +205,15 @@ _ze() {
                         _describe 'shell' shells
                     fi
                     ;;
+                *)
+                    # Every other root: the second word from the sub-verbs it
+                    # registers, so a new root completes with no edit here.
+                    if (( CURRENT == 2 )); then
+                        local -a root_verbs
+                        root_verbs=(${(f)"$(ze completion words ${words[1]} 2>/dev/null | sed $'s/\t/:/')"})
+                        [[ ${#root_verbs} -gt 0 ]] && _describe 'command' root_verbs
+                    fi
+                    ;;
             esac
             ;;
     esac

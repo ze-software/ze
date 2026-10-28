@@ -119,16 +119,8 @@ func rootCommandTree(name string) (*command.Node, bool, error) {
 		subs := cmd.Meta.ResolveSubs()
 		if subs != "" {
 			root.Children = make(map[string]*command.Node)
-			for sub := range strings.SplitSeq(subs, ",") {
-				sub = strings.TrimSpace(sub)
-				if sub == "" {
-					continue
-				}
-				cmdName, hint, _ := strings.Cut(sub, " ")
-				if cmdName[0] == '-' || cmdName[0] == '[' {
-					continue
-				}
-				root.Children[cmdName] = &command.Node{Name: cmdName, ShortHelp: hint}
+			for _, verb := range rootSubVerbs(subs) {
+				root.Children[verb.Name] = &command.Node{Name: verb.Name, ShortHelp: verb.Hint}
 			}
 		}
 		if err := mergeShowDescriptions(name, root); err != nil {
@@ -140,6 +132,56 @@ func rootCommandTree(name string) (*command.Node, bool, error) {
 		return root, true, nil
 	}
 	return nil, false, nil
+}
+
+// rootSubVerb is one second word a root's Subs hint names, with the rest of
+// its item as the hint a completion shows beside it.
+type rootSubVerb struct {
+	Name string
+	Hint string
+}
+
+// rootSubVerbs answers the second words a root's registered Subs hint names:
+// the first word of each comma-separated item, kept only when it is a word an
+// operator types. Subs is a one-line hint for humans (registry.Meta), so an
+// item can open with a flag (`-c`), an optional group (`[`), a placeholder
+// (`<plugin-name>`) or a number; none of those is a verb. Both `ze completion
+// words <root>` and the generated shell scripts read this one parser.
+func rootSubVerbs(subs string) []rootSubVerb {
+	var verbs []rootSubVerb
+	for item := range strings.SplitSeq(subs, ",") {
+		name, hint, _ := strings.Cut(strings.TrimSpace(item), " ")
+		if !isSubVerbWord(name) {
+			continue
+		}
+		verbs = append(verbs, rootSubVerb{Name: name, Hint: hint})
+	}
+	return verbs
+}
+
+// isSubVerbWord reports whether word is spelled like a command verb: a
+// lowercase letter, then lowercase letters, digits or hyphens.
+func isSubVerbWord(word string) bool {
+	if word == "" {
+		return false
+	}
+	if word[0] < 'a' || word[0] > 'z' {
+		return false
+	}
+	for i := 1; i < len(word); i++ {
+		c := word[i]
+		if c >= 'a' && c <= 'z' {
+			continue
+		}
+		if c >= '0' && c <= '9' {
+			continue
+		}
+		if c == '-' {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 func mergeShowDescriptions(name string, root *command.Node) error {

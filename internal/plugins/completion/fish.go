@@ -357,5 +357,7 @@ complete -c ze -n 'test (__ze_depth completion) = 0' -a bash -d 'Generate bash c
 complete -c ze -n 'test (__ze_depth completion) = 0' -a zsh -d 'Generate zsh completion script'
 complete -c ze -n 'test (__ze_depth completion) = 0' -a fish -d 'Generate fish completion script'
 complete -c ze -n 'test (__ze_depth completion) = 0' -a nushell -d 'Generate nushell completion script'
-`).String()
+
+# --- every root that registers sub-verbs (derived from command registry) ---
+`).Str(fishRootSubVerbLines()).String()
 }

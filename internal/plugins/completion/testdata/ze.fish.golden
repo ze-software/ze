@@ -359,3 +359,16 @@ complete -c ze -n 'test (__ze_depth completion) = 0' -a bash -d 'Generate bash c
 complete -c ze -n 'test (__ze_depth completion) = 0' -a zsh -d 'Generate zsh completion script'
 complete -c ze -n 'test (__ze_depth completion) = 0' -a fish -d 'Generate fish completion script'
 complete -c ze -n 'test (__ze_depth completion) = 0' -a nushell -d 'Generate nushell completion script'
+
+# --- every root that registers sub-verbs (derived from command registry) ---
+complete -c ze -n 'test (__ze_depth completion) = 0' -a '(__ze_complete_dynamic completion)'
+complete -c ze -n 'test (__ze_depth config) = 0' -a '(__ze_complete_dynamic config)'
+complete -c ze -n 'test (__ze_depth data) = 0' -a '(__ze_complete_dynamic data)'
+complete -c ze -n 'test (__ze_depth doctor) = 0' -a '(__ze_complete_dynamic doctor)'
+complete -c ze -n 'test (__ze_depth env) = 0' -a '(__ze_complete_dynamic env)'
+complete -c ze -n 'test (__ze_depth interface) = 0' -a '(__ze_complete_dynamic interface)'
+complete -c ze -n 'test (__ze_depth plugin) = 0' -a '(__ze_complete_dynamic plugin)'
+complete -c ze -n 'test (__ze_depth schema) = 0' -a '(__ze_complete_dynamic schema)'
+complete -c ze -n 'test (__ze_depth secret) = 0' -a '(__ze_complete_dynamic secret)'
+complete -c ze -n 'test (__ze_depth signal) = 0' -a '(__ze_complete_dynamic signal)'
+complete -c ze -n 'test (__ze_depth tacacs) = 0' -a '(__ze_complete_dynamic tacacs)'

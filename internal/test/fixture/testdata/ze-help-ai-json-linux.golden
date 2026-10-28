@@ -222,10 +222,16 @@
       "subs": "events, handlers, list, methods, protocol"
     },
     {
+      "name": "secret",
+      "mode": "offline",
+      "short-help": "Decode a $9$ secret to its plaintext, or encode a plaintext",
+      "subs": "decode, encode"
+    },
+    {
       "name": "signal",
       "mode": "daemon",
       "short-help": "Send signals to the daemon via SSH",
-      "subs": "reload, stop, restart, quit"
+      "subs": "reload, stop, restart, reboot, status, quit"
     },
     {
       "name": "start",
@@ -236,8 +242,7 @@
     {
       "name": "status",
       "mode": "daemon",
-      "short-help": "Check if daemon is running",
-      "subs": "exit 0 = running, 1 = not"
+      "short-help": "Check if daemon is running"
     },
     {
       "name": "sysctl",

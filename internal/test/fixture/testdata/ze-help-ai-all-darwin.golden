@@ -91,12 +91,13 @@
     json [<option>], ndjson, table, text, yaml, raw, no-more, log, save <path>, match <text>, count, first <n>, last <n>, display <field>..., fill [<option>], resolve, origin
   ze schema         [offline] Schema discovery
     events, handlers, list, methods, protocol
+  ze secret         [offline] Decode a $9$ secret to its plaintext, or encode a plaintext
+    decode, encode
   ze signal         [daemon ] Send signals to the daemon via SSH
-    reload, stop, restart, quit
+    reload, stop, restart, reboot, status, quit
   ze start          [setup  ] Start the Ze daemon from blob storage config
     --web <port>, --web-only, --insecure-web, --mcp <port>
   ze status         [daemon ] Check if daemon is running
-    exit 0 = running, 1 = not
   ze sysctl         [offline] Kernel sysctl helpers
   ze tacacs         [offline] TACACS+ client helpers
     show

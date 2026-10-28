@@ -228,6 +228,15 @@ _ze() {
                 COMPREPLY=($(compgen -W "bash zsh fish nushell" -- "${cur}"))
             fi
             ;;
+        *)
+            # Every other root: the second word from the sub-verbs it
+            # registers, so a new root completes with no edit here.
+            if [[ ${depth} -eq 1 ]]; then
+                local completions
+                completions=$(ze completion words "${subcmd}" 2>/dev/null | cut -f1)
+                COMPREPLY=($(compgen -W "${completions}" -- "${cur}"))
+            fi
+            ;;
     esac
 }
 
