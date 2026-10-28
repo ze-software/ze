@@ -7,7 +7,7 @@
     "claim-sha": "846ff2549fb39f25",
     "route": "revert",
     "producer": "internal/core/dnsserver/manager.go::bind",
-    "producer-sha": "00cd6ba2df576a94",
+    "producer-sha": "fc3b67ce8c44aa85",
     "break": "body of bind replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -18,7 +18,7 @@
     "claim-sha": "9f59427ac6efddef",
     "route": "revert",
     "producer": "internal/core/dnsserver/manager.go::bind",
-    "producer-sha": "00cd6ba2df576a94",
+    "producer-sha": "fc3b67ce8c44aa85",
     "break": "body of bind replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

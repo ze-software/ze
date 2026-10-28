@@ -18,7 +18,7 @@
     "claim-sha": "e0791f4e4b976237",
     "route": "revert",
     "producer": "internal/core/dnsserver/secure.go::bindDoT",
-    "producer-sha": "9c047991c2e73991",
+    "producer-sha": "451ffeea702cb064",
     "break": "body of bindDoT replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

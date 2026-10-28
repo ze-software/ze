@@ -7,7 +7,7 @@
     "claim-sha": "40f89f63f5607cb2",
     "route": "mutant",
     "producer": "internal/plugins/dnsresolver/resolve.go::absorb",
-    "producer-sha": "230296172e4c7a54",
+    "producer-sha": "59fb61b76048d264",
     "break": "line 216: \"sets := groupAnswer(reply.Answer, q.Qclass)\" -\u003e \"sets := groupAnswer(reply.Answer, q.Qclass); for _, extra := range groupAnswer(reply.Extra, q.Qclass) { r.storeRRset(pol, extra, rankAnswer, now) }\""
   },
   {
@@ -18,7 +18,7 @@
     "claim-sha": "119739509129e922",
     "route": "mutant",
     "producer": "internal/plugins/dnsresolver/resolve.go::storeRRset",
-    "producer-sha": "de6ac704aa97f06f",
-    "break": "line 379: \"stored := withTTL(rrs, ttl)\" -\u003e \"stored := withTTL(rrs, ttl); if rrs[0].Header().Rrtype == dns.TypeRRSIG { return stored }\""
+    "producer-sha": "e84069d6465e4684",
+    "break": "line 401: \"stored := withTTL(rrs, ttl)\" -\u003e \"stored := withTTL(rrs, ttl); if rrs[0].Header().Rrtype == dns.TypeRRSIG { return stored }\""
   }
 ]

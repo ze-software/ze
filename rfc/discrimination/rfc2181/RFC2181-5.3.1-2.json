@@ -7,7 +7,7 @@
     "claim-sha": "60b00c08752c4fd8",
     "route": "mutant",
     "producer": "internal/plugins/dnsresolver/resolve.go::absorb",
-    "producer-sha": "230296172e4c7a54",
+    "producer-sha": "59fb61b76048d264",
     "break": "line 216: \"groupAnswer(reply.Answer, q.Qclass)\" -\u003e \"groupAnswer(append(reply.Answer, reply.Extra...), q.Qclass)\""
   },
   {
@@ -18,7 +18,7 @@
     "claim-sha": "6a40ba02072252ee",
     "route": "mutant",
     "producer": "internal/plugins/dnsresolver/resolve.go::absorb",
-    "producer-sha": "230296172e4c7a54",
-    "break": "line 228: \"r.storeRRset(pol, rrs, rankOf(reply, current, name), now)\" -\u003e \"r.storeRRset(pol, rrs[:1], rankOf(reply, current, name), now)\""
+    "producer-sha": "59fb61b76048d264",
+    "break": "line 230: \"r.storeRRset(pol, rrs, rankOf(reply, current, name), now)\" -\u003e \"r.storeRRset(pol, rrs[:1], rankOf(reply, current, name), now)\""
   }
 ]
