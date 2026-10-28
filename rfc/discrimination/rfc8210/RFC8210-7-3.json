@@ -7,7 +7,7 @@
     "claim-sha": "683991496b537a51",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/rpki/rtr_session.go::handlePDU",
-    "producer-sha": "fcaaae8230f48b20",
-    "break": "body of handlePDU replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "a330c72ba9ad30b7",
+    "break": "body of handlePDU replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

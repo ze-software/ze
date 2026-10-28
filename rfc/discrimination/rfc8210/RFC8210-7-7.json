@@ -7,7 +7,7 @@
     "claim-sha": "229b320a214bcf54",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/rpki/rtr_session.go::readLoop",
-    "producer-sha": "b8981167f4db1e5d",
-    "break": "body of readLoop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "632fc05ef11593b4",
+    "break": "body of readLoop replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]
