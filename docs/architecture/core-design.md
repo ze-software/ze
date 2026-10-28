@@ -153,7 +153,7 @@ area's name and the next word as a nested namespace when that namespace
 registered a summary, and answers it as a bare namespace token is answered:
 its page and exit 0, or the refusal naming its members and exit 2.
 `le help setup docker` prints the same page.
-<!-- source: internal/le/le/root/dispatch.go -- commandWordsMax, nestedNamespace, answerNamespace -->
+<!-- source: internal/le/le/root/dispatch.go -- CommandWordsMax, nestedNamespace, answerNamespace -->
 
 **A namespace says what it is for, and its own package says it.** A namespace
 holds commands without being one, so no area registration describes it. The

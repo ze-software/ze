@@ -123,6 +123,6 @@ in the Go action tables, and that a capability-gated `.ci` test has a VM home.
 <!-- source: internal/component/l2tp/kernelcap_linux.go -- l2tpKernelCapabilities -->
 <!-- source: .github/workflows/evidence-nightly.yml -- fuzz, integration, interop, ipsec-interop, radius-interop, l2tp-interop, pppoe-interop -->
 <!-- source: internal/le/test/qemu/dockerlab.go -- runDockerLabHere -->
-<!-- source: internal/le/rfc/carriers.go -- workflowNestedLe, nestedLeWords -->
+<!-- source: internal/le/rfc/carriers.go -- nativeActionsIn, actionsInCommand, nestedLeWords -->
 <!-- source: .github/workflows/qemu-nightly.yml -- needs-linux, protocol-labs, runtime-kernel-labs -->
 <!-- source: internal/le/workflowcheck/workflowcheck_test.go -- TestVerifyWorkflowIsTheFastMergeGate, TestVerifyPreparesTheRunnerKernelBeforeReadingStages, TestVerifyInstallsPinnedNativeTools, TestEvidenceNightlyScheduleActionsAndPrivileges, TestQEMUNightlyScheduleActionsCachesAndBudgets, TestEveryWorkflowNativeActionExists, TestCapabilityGatedTestsHaveANativeVMHome -->

@@ -289,7 +289,7 @@ one remembered. `NewPool` refuses
 an IPv4 prefix outside /8 to /30 and an IPv6 prefix outside /48 to /126, and an
 IPv6 pool hands out at most 65535 host identifiers, so every scan is bounded.
 
-<!-- source: internal/core/eap/pool.go -- Pool, NewPool, Registry, Acquire, Release, Available -->
+<!-- source: internal/core/eap/pool.go -- Pool, NewPool, Registry, Acquire, Release, HeldIn -->
 
 **NAT detection hashes compare in constant time.** The comparison is not
 security sensitive, because a SHA-1 NAT detection hash is public. The
