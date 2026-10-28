@@ -222,7 +222,9 @@ func (p *SetParser) parseLineWithMeta(tree *Tree, meta *MetaTree, line string, e
 		if err := p.parseDelete(tree, tokens, lineNum); err != nil {
 			return err
 		}
-		p.recordDeleteMeta(meta, entry, tokens)
+		if err := p.recordDeleteMeta(meta, entry, tokens); err != nil {
+			return fmt.Errorf("line %d: %w", lineNum, err)
+		}
 		return nil
 	case cmdInactive:
 		return p.parseInactive(tree, tokens, lineNum)
@@ -283,6 +285,12 @@ func (p *SetParser) walkAndSetWithMeta(tree *Tree, meta *MetaTree, parent Node, 
 		value, err := decodeSecretLeaf(tree, name, leaf, tokens[0])
 		if err != nil {
 			return fmt.Errorf("line %d: %w", lineNum, err)
+		}
+		// The ^previous key is written in the $9$ form too (encodeSecretMeta),
+		// and the editor compares it with the committed key.
+		entry.Previous, _, err = decodeSecretText(name, leaf, entry.Previous)
+		if err != nil {
+			return fmt.Errorf("line %d: previous value: %w", lineNum, err)
 		}
 		if err := ValidateLeafValue(leaf, value); err != nil {
 			return fmt.Errorf("line %d: invalid value for %s: %w", lineNum, name, err)
@@ -462,29 +470,33 @@ func (p *SetParser) walkAndSetWithMeta(tree *Tree, meta *MetaTree, parent Node, 
 // recordDeleteMeta walks the meta tree along the same path as a delete command
 // and records metadata at the leaf. Called after parseDelete has already applied
 // the deletion to the tree.
-func (p *SetParser) recordDeleteMeta(meta *MetaTree, entry MetaEntry, tokens []string) {
+//
+// The only error is a ^previous field in the $9$ form that does not decode.
+func (p *SetParser) recordDeleteMeta(meta *MetaTree, entry MetaEntry, tokens []string) error {
 	hasMetadata := entry.User != "" || !entry.Time.IsZero() || entry.Source != ""
 	if !hasMetadata || len(tokens) == 0 {
-		return
+		return nil
 	}
-	p.walkAndRecordDeleteMeta(meta, p.schema.root, entry, tokens)
+	return p.walkAndRecordDeleteMeta(meta, p.schema.root, entry, tokens)
 }
 
 // walkAndRecordDeleteMeta navigates the meta tree in parallel with the schema
-// to find the correct position for recording delete metadata.
+// to find the correct position for recording delete metadata. A path it
+// cannot follow records nothing: parseDelete has already judged the path.
 //
 //nolint:cyclop // exhaustive node type dispatch mirrors walkAndSetWithMeta
-func (p *SetParser) walkAndRecordDeleteMeta(meta *MetaTree, parent Node, entry MetaEntry, tokens []string) {
+func (p *SetParser) walkAndRecordDeleteMeta(meta *MetaTree, parent Node, entry MetaEntry, tokens []string) error {
 	if len(tokens) == 0 {
-		return
+		return nil
 	}
 
 	name := tokens[0]
 	tokens = tokens[1:]
 
 	node := resolveSchemaNode(p.schema, parent, name)
+	// refuse-by-default: guards parseDelete -- it refused an unknown field before this walk
 	if node == nil {
-		return
+		return nil
 	}
 
 	// Leaf-list member delete: record which member the delete targets, so a
@@ -492,63 +504,69 @@ func (p *SetParser) walkAndRecordDeleteMeta(meta *MetaTree, parent Node, entry M
 	if isMemberLeafList(node) && len(tokens) == 1 {
 		entry.Member = tokens[0]
 		meta.SetEntry(name, entry)
-		return
+		return nil
 	}
 
-	// Leaf-like types: record metadata at this position.
+	// Leaf-like types: record metadata at this position. The ^previous key
+	// of a ze:sensitive leaf is written in the $9$ form (encodeSecretMeta),
+	// and the editor compares it with the committed key.
 	if isLeafLike(node) {
+		leaf, _ := node.(*LeafNode) // A leaf-like node that is no LeafNode holds no secret.
+		previous, _, err := decodeSecretText(name, leaf, entry.Previous)
+		if err != nil {
+			return fmt.Errorf("previous value: %w", err)
+		}
+		entry.Previous = previous
 		meta.SetEntry(name, entry)
-		return
+		return nil
 	}
 
 	// Container: navigate into child.
 	if container, ok := node.(*ContainerNode); ok {
 		if len(tokens) == 0 {
-			return // Container-level delete, no leaf metadata to record.
+			return nil // Container-level delete, no leaf metadata to record.
 		}
 		childMeta := meta.GetOrCreateContainer(name)
-		p.walkAndRecordDeleteMeta(childMeta, container, entry, tokens)
-		return
+		return p.walkAndRecordDeleteMeta(childMeta, container, entry, tokens)
 	}
 
 	// List: navigate to specific entry.
 	if list, ok := node.(*ListNode); ok {
 		if len(tokens) == 0 {
-			return // List-level delete, no leaf metadata.
+			return nil // List-level delete, no leaf metadata.
 		}
 		addr, err := ParseListAddress(name, list, tokens)
+		// refuse-by-default: guards parseDelete -- an address the codec refuses names no entry, and parseDelete judged it
 		if err != nil {
-			return // An address the codec refuses names no entry.
+			return nil //nolint:nilerr // parseDelete reported the address; no entry holds metadata
 		}
 		if len(tokens) == addr.Tokens {
-			return // Entry-level delete, no leaf metadata.
+			return nil // Entry-level delete, no leaf metadata.
 		}
 		listMeta := meta.GetOrCreateContainer(name)
 		entryMeta := listMeta.GetOrCreateListEntry(addr.Key)
-		p.walkAndRecordDeleteMeta(entryMeta, list, entry, tokens[addr.Tokens:])
-		return
+		return p.walkAndRecordDeleteMeta(entryMeta, list, entry, tokens[addr.Tokens:])
 	}
 
 	// Flex: navigate into child.
 	if flex, ok := node.(*FlexNode); ok {
 		if len(tokens) == 0 {
-			return
+			return nil
 		}
 		childMeta := meta.GetOrCreateContainer(name)
-		p.walkAndRecordDeleteMeta(childMeta, flex, entry, tokens)
-		return
+		return p.walkAndRecordDeleteMeta(childMeta, flex, entry, tokens)
 	}
 
 	// InlineList: navigate to specific entry.
 	if il, ok := node.(*InlineListNode); ok {
 		if len(tokens) < 2 {
-			return
+			return nil
 		}
 		key := tokens[0]
 		tokens = tokens[1:]
 		listMeta := meta.GetOrCreateContainer(name)
 		entryMeta := listMeta.GetOrCreateListEntry(key)
-		p.walkAndRecordDeleteMeta(entryMeta, il, entry, tokens)
-		return
+		return p.walkAndRecordDeleteMeta(entryMeta, il, entry, tokens)
 	}
+	return nil
 }

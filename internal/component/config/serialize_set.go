@@ -539,10 +539,12 @@ func serializeSetExtraValues(b *textbuf.Buffer, tree *Tree, children []string, p
 // Each leaf value becomes one line: [#user @time %session] set <path> <value>.
 // Lines without metadata in the MetaTree are emitted as bare set commands.
 // A ze:sensitive leaf prints in its $9$ form (encodeSecrets), never in clear,
-// and so does a contested session entry for one (secretEntrySpelling).
+// and so does every session entry for one, its ^previous key included
+// (encodeSecretMeta).
 func SerializeSetWithMeta(tree *Tree, meta *MetaTree, schema *Schema) string {
 	var b textbuf.Buffer
-	serializeSetMetaNode(&b, mustEncodeSecrets(tree, schema), meta, schema.root, "")
+	printed := mustEncodeSecrets(tree, schema)
+	serializeSetMetaNode(&b, printed, encodeSecretMeta(printed, meta, schema), schema.root, "")
 	return b.String()
 }
 
@@ -633,11 +635,7 @@ func serializeSetMetaChild(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name s
 	case *LeafNode:
 		if v, ok := tree.values[name]; ok {
 			pathPfx := tb.Reset().Str(prefix).Str(name).Byte(' ').String()
-			entryValue := quoteIfNeeded
-			if reversibleSecret(n) {
-				entryValue = secretEntrySpelling(v)
-			}
-			writeMetaLeafLineFormat(b, meta, name, setOrNop(tree, name), pathPfx, quoteIfNeeded(normalizeBool(v)), entryValue)
+			writeMetaLeafLineFormat(b, meta, name, setOrNop(tree, name), pathPfx, quoteIfNeeded(normalizeBool(v)), quoteIfNeeded)
 		}
 
 	case *MultiLeafNode:

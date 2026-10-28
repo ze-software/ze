@@ -5,7 +5,70 @@ package cli
 import (
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
+
+// TestContestedSecretNeverWrittenInClear drives two editor sessions on one
+// store: bob sets a peer's TCP MD5 key (a ze:sensitive leaf), then alice
+// deletes it. The shared draft then holds no value for the leaf while bob's
+// session entry still carries his key, which SerializeSetWithMeta writes as
+// an orphan `set` line (writeDeleteMetaLines).
+//
+// VALIDATES: neither the draft nor either session's change file carries the
+// key bob typed, nor its distinctive tail; the orphan line carries a $9$ form.
+// PREVENTS: the one meta writer the printer encoding did not reach writing a
+// contested credential in clear to disk.
+func TestContestedSecretNeverWrittenInClear(t *testing.T) {
+	const bobKey = "bob-md5-key-7f3e91-tail"
+	const bobKeyTail = "7f3e91-tail"
+	const oldKeyTail = "0c2a5d-tail"
+	md5Path := []string{"bgp", "peer", "peer1", "connection", "md5"}
+
+	// The committed key gives alice's session a leaf to delete.
+	withKey := strings.Replace(validBGPConfig, "\t\tconnection {\n",
+		"\t\tconnection {\n\t\t\tmd5 { password old-md5-key-"+oldKeyTail+"; }\n", 1)
+	require.Contains(t, withKey, oldKeyTail, "the fixture lost its md5 key, so this case proves nothing")
+	configPath := writeTestConfig(t, withKey)
+	store := newTestTreeStore(t, configPath)
+
+	bob, err := NewEditorWithStorage(store, configPath)
+	require.NoError(t, err)
+	t.Cleanup(func() { bob.Close() }) //nolint:errcheck // test cleanup
+	bob.SetSession(NewEditSession("bob", "ssh"))
+
+	alice, err := NewEditorWithStorage(store, configPath)
+	require.NoError(t, err)
+	t.Cleanup(func() { alice.Close() }) //nolint:errcheck // test cleanup
+	alice.SetSession(NewEditSession("alice", "ssh"))
+
+	require.NoError(t, bob.SetValue(md5Path, "password", bobKey))
+	require.NoError(t, bob.SaveDraft())
+	require.NoError(t, alice.DeleteValue(md5Path, "password"))
+	require.NoError(t, alice.SaveDraft())
+
+	draft, err := store.ReadFile(DraftPath(configPath))
+	require.NoError(t, err)
+	require.Contains(t, string(draft), "#bob", "the draft carries no entry of bob's, so this case proves nothing")
+	require.Contains(t, string(draft), "md5 password $9$",
+		"the draft carries no line for the contested key, so this case proves nothing")
+
+	written := map[string]string{"draft": string(draft)}
+	for _, user := range []string{"alice", "bob"} {
+		change, readErr := store.ReadFile(ChangePath(configPath, user))
+		if readErr == nil {
+			written[user+" change file"] = string(change)
+		}
+	}
+	for name, text := range written {
+		if strings.Contains(text, bobKeyTail) {
+			t.Errorf("the %s wrote bob's key in clear:\n%s", name, text)
+		}
+		if strings.Contains(text, oldKeyTail) {
+			t.Errorf("the %s wrote the committed key in clear:\n%s", name, text)
+		}
+	}
+}
 
 // TestEditorKeepsStoredSecretEncoding loads a set config whose TCP MD5 key
 // (a ze:sensitive leaf) is in the $9$ form into the editor, as the store

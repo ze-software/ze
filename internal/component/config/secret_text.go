@@ -26,15 +26,33 @@ func reversibleSecret(leaf *LeafNode) bool {
 // same encoding back. Every other value is answered unchanged. A nil leaf is
 // a child that is not a LeafNode, which holds no secret.
 func decodeSecretLeaf(tree *Tree, name string, leaf *LeafNode, value string) (string, error) {
-	if reversibleSecret(leaf) && secret.IsEncoded(value) {
-		decoded, err := secret.Decode(value)
-		if err != nil {
-			return "", fmt.Errorf("invalid $9$ encoding for %s: %w", name, err)
-		}
-		tree.SetStoredSecret(name, value)
-		return decoded, nil
+	decoded, wasEncoded, err := decodeSecretText(name, leaf, value)
+	if err != nil {
+		return "", err
 	}
-	return value, nil
+	if wasEncoded {
+		tree.SetStoredSecret(name, value)
+	}
+	return decoded, nil
+}
+
+// decodeSecretText answers the key text spells for the leaf name: a $9$
+// string on a ze:sensitive leaf is decoded, and wasEncoded says so; every
+// other text is answered unchanged. It serves a leaf value (decodeSecretLeaf)
+// and a session entry's ^previous field, which a meta writer prints in the
+// $9$ form too (encodeSecretMeta).
+func decodeSecretText(name string, leaf *LeafNode, text string) (key string, wasEncoded bool, err error) {
+	if !reversibleSecret(leaf) {
+		return text, false, nil
+	}
+	if !secret.IsEncoded(text) {
+		return text, false, nil
+	}
+	decoded, err := secret.Decode(text)
+	if err != nil {
+		return "", false, fmt.Errorf("invalid $9$ encoding for %s: %w", name, err)
+	}
+	return decoded, true, nil
 }
 
 // encodeSecrets answers a copy of tree in which every ze:sensitive leaf holds
@@ -171,19 +189,141 @@ func encodeSecretLeaf(source, printed *Tree, name string) error {
 	return nil
 }
 
-// secretEntrySpelling answers how a set-meta writer spells a session entry's
-// value for a ze:sensitive leaf whose printed text is printedValue: an entry
-// holding the key printedValue decodes to repeats that text, and any other
-// key is encoded, so a contested secret never prints in clear either.
-func secretEntrySpelling(printedValue string) func(string) string {
-	return func(value string) string {
-		if decoded, err := secret.Decode(printedValue); err == nil && decoded == value {
-			return quoteIfNeeded(printedValue)
-		}
-		encoded, err := secret.Encode(value)
-		if err != nil {
-			panic("impossible: " + err.Error())
-		}
-		return quoteIfNeeded(encoded)
+// encodeSecretMeta answers a copy of meta in which every session entry of a
+// ze:sensitive leaf holds its value and its ^previous key in the $9$ form,
+// for SerializeSetWithMeta: printed is the tree that printer writes, already
+// encoded (encodeSecrets). So no meta line prints a key in clear, whichever
+// writer emits it: a contested entry (writeMetaLeafLineFormat), a value a
+// session set that another session deleted (writeDeleteMetaLines), and the
+// ^previous field of either (writeMetaPrefix). The parsers decode both
+// fields back (decodeSecretText), so the editor compares keys, never
+// encodings. A meta that holds no entry under a ze:sensitive leaf name is
+// answered as it is, as encodeSecrets does for its tree.
+func encodeSecretMeta(printed *Tree, meta *MetaTree, schema *Schema) *MetaTree {
+	if meta == nil {
+		return nil
 	}
+	if !metaHoldsEntryNamed(meta, schema.sensitiveKeyNames()) {
+		return meta
+	}
+	encoded := meta.Clone()
+	encodeSecretMetaEntries(printed, encoded, schema.root)
+	return encoded
+}
+
+// metaHoldsEntryNamed reports whether meta, or any meta under it, holds an
+// entry under one of names; like holdsValueNamed it may answer true for a
+// name that is not sensitive there, and never false for one that is. The
+// recursion is bounded by the meta tree's depth, which the schema bounds.
+func metaHoldsEntryNamed(meta *MetaTree, names map[string]bool) bool {
+	meta.mu.RLock()
+	defer meta.mu.RUnlock()
+	for name := range meta.entries {
+		if names[name] {
+			return true
+		}
+	}
+	for _, sub := range meta.containers {
+		if metaHoldsEntryNamed(sub, names) {
+			return true
+		}
+	}
+	for _, sub := range meta.lists {
+		if metaHoldsEntryNamed(sub, names) {
+			return true
+		}
+	}
+	return false
+}
+
+// encodeSecretMetaEntries rewrites, in meta (a private copy), each session
+// entry of a ze:sensitive leaf under the schema node cp into its $9$
+// spelling, walking printed beside it: a container's meta is
+// meta.containers[name], a list entry's is meta.containers[name].lists[key]
+// (metaListEntry). printed is nil where the tree holds nothing at that place,
+// which is where a deleted value's entries live. Any other ChildProvider
+// keeps the surrounding tree and meta, as encodeSecretLeaves does. The
+// recursion is bounded by the schema's depth.
+func encodeSecretMetaEntries(printed *Tree, meta *MetaTree, cp ChildProvider) {
+	for _, name := range cp.Children() {
+		switch child := cp.Get(name).(type) {
+		case *LeafNode:
+			if reversibleSecret(child) {
+				encodeSecretMetaLeaf(printed, meta, name)
+			}
+		case *ContainerNode:
+			if sub := meta.containers[name]; sub != nil {
+				encodeSecretMetaEntries(printedContainer(printed, name), sub, child)
+			}
+		case *ListNode:
+			listMeta := meta.containers[name]
+			if listMeta == nil {
+				continue
+			}
+			for key, entryMeta := range listMeta.lists {
+				encodeSecretMetaEntries(printedListEntry(printed, name, key), entryMeta, child)
+			}
+		case ChildProvider:
+			encodeSecretMetaEntries(printed, meta, child)
+		}
+	}
+}
+
+// printedContainer answers the container name of printed, or nil when
+// printed is nil or holds none.
+func printedContainer(printed *Tree, name string) *Tree {
+	if printed == nil {
+		return nil
+	}
+	return printed.GetContainer(name)
+}
+
+// printedListEntry answers the entry key of the list name of printed, or nil
+// when printed is nil or holds no such entry.
+func printedListEntry(printed *Tree, name, key string) *Tree {
+	if printed == nil {
+		return nil
+	}
+	return printed.GetList(name)[key]
+}
+
+// encodeSecretMetaLeaf spells the value and ^previous key of every entry of
+// the leaf name in meta in the $9$ form (secretSpelling), against the text
+// printed holds for the leaf.
+func encodeSecretMetaLeaf(printed *Tree, meta *MetaTree, name string) {
+	var printedValue string
+	if printed != nil {
+		printedValue, _ = printed.Get(name)
+	}
+	entries := meta.entries[name]
+	for i := range entries {
+		entries[i].Value = secretSpelling(printedValue, entries[i].Value)
+		entries[i].Previous = secretSpelling(printedValue, entries[i].Previous)
+	}
+}
+
+// secretSpelling answers the $9$ text a meta writer prints for key: the
+// printed tree's text when it decodes to key, so an entry that holds the
+// tree's own key repeats its stored encoding byte for byte; else a fresh
+// encoding. An empty key (a delete, or no previous value), a key already in
+// the $9$ form and the mask placeholder are printed as they are.
+func secretSpelling(printedValue, key string) string {
+	// refuse-by-default: guards writeDeleteMetaLines -- an empty Value is a session's delete, never a key
+	if key == "" {
+		return key
+	}
+	if secret.IsEncoded(key) {
+		return key
+	}
+	if key == SecretDataPlaceholder {
+		return key
+	}
+	if decoded, err := secret.Decode(printedValue); err == nil && decoded == key {
+		return printedValue
+	}
+	encoded, err := secret.Encode(key)
+	if err != nil {
+		panic("impossible: " + err.Error())
+	}
+	return encoded
 }
