@@ -274,6 +274,46 @@ func TestRuntimeFloorRequiresBuiltInPolicer(t *testing.T) {
 	}
 }
 
+// TestRuntimeFloorRequiresBuiltInGenericAction checks the foreign-filter fixture
+// prerequisite by enforcing each emitted state with a manifest that omits it.
+// Only built-in gact is accepted, so no module loader or skip hides the proof.
+func TestRuntimeFloorRequiresBuiltInGenericAction(t *testing.T) {
+	dir := t.TempDir()
+	manifest := filepath.Join(dir, "runtime.require")
+	if err := os.WriteFile(manifest, []byte("CONFIG_VETH\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	profile := kernelProfileResolution{Name: "runtime", Manifests: []string{manifest}}
+	// Supply the test's emitted value independently of whether the floor
+	// contains it, so removing the floor entry makes the refusal cases fail.
+	base := strings.ReplaceAll(completeRuntimeConfig("CONFIG_VETH"), "CONFIG_NET_ACT_GACT=y\n", "")
+	for _, test := range []struct {
+		name    string
+		emitted string
+		pass    bool
+	}{
+		{name: "built-in", emitted: "CONFIG_NET_ACT_GACT=y\n", pass: true},
+		{name: "modular", emitted: "CONFIG_NET_ACT_GACT=m\n"},
+		{name: "disabled", emitted: "# CONFIG_NET_ACT_GACT is not set\n"},
+		{name: "absent"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			config := filepath.Join(t.TempDir(), "config")
+			if err := os.WriteFile(config, []byte(base+test.emitted), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			err := enforceKernelRequirements(profile, config, runtimeKernelRequirements)
+			if test.pass {
+				if err != nil {
+					t.Fatalf("built-in generic action refused: %v", err)
+				}
+			} else if err == nil || !strings.Contains(err.Error(), "CONFIG_NET_ACT_GACT") {
+				t.Fatalf("emitted %q: error = %v, want CONFIG_NET_ACT_GACT refusal", test.emitted, err)
+			}
+		})
+	}
+}
+
 // VALIDATES: PWM fan support is built in even when the editable manifest omits
 // it. Modular, disabled and absent emitted values fail.
 // PREVENTS: gokrazy loading pwm-fan before services can disable module loading.

@@ -139,6 +139,14 @@ is refused even if an edited manifest omits it.
 <!-- source: internal/component/l2tp/plugins/shaper/shaper.go -- applyTC -->
 <!-- source: internal/plugins/traffic/netlink/policer_linux.go -- ingressPolicerFilter -->
 
+The ingress policer coexistence proof also requires built-in
+`CONFIG_NET_ACT_GACT`: its foreign priority-1 filter carries a generic `PIPE`
+action, not a mirred action. The runtime fragment, manifest and compiled floor
+include that test prerequisite so the guest can exercise coexistence without
+a module loader. This adds no traffic-control configuration surface.
+<!-- source: internal/plugins/traffic/netlink/integration_linux_test.go -- TestNetlinkIntegration_IngressPolicerLeavesOtherHookOwnersAlone -->
+<!-- source: internal/appliance/kernelreq_test.go -- TestRuntimeFloorRequiresBuiltInGenericAction -->
+
 Default nftables logging requires built-in `CONFIG_NF_LOG_SYSLOG` as well as
 `CONFIG_NFT_LOG`. A modular logger leaves log-rule installation failing with
 `ENOENT` in the runtime guest, where Alpine cannot load Ze's kernel modules.

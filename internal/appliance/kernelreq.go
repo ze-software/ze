@@ -52,6 +52,8 @@ var universalKernelRequirements = []string{
 // sampling filter installation failing with ENOENT.
 // Subscriber upload policing likewise needs act_police beside the classifier;
 // its absence must be refused even when an edited manifest omits it.
+// Its coexistence proof uses act_gact for a foreign priority-1 filter; the
+// runtime guest must carry that prerequisite rather than skip the assertion.
 //
 // gokrazy attempts to load pwm-fan before services can disable module loading.
 // Keep fan control built in rather than loading a module before that guard.
@@ -66,6 +68,7 @@ var runtimeKernelRequirements = []string{
 	"CONFIG_PSAMPLE",
 	"CONFIG_NET_ACT_SAMPLE",
 	"CONFIG_NET_ACT_POLICE",
+	"CONFIG_NET_ACT_GACT",
 	"CONFIG_NFT_LOG",
 	"CONFIG_NF_LOG_SYSLOG",
 	"CONFIG_INET_ESP",

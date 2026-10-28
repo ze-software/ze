@@ -112,9 +112,14 @@ are group C's.
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Parent test process to child test process | re-exec of `os.Args[0]` with `-test.run`, `ZE_TEST_USERNS_CHILD=1`, the coverage directory | No |
-| Child to kernel namespaces | `CLONE_NEWUSER`, `CLONE_NEWNET`, `CLONE_NEWNS`; tmpfs and bind mounts inside the child's mount namespace | No |
+| Parent test process to child test process | re-exec of `os.Args[0]` with `-test.run`, `ZE_TEST_USERNS_CHILD=1`, the coverage directory | Yes: `TestEnterRunsTheTestAsRootWithLoopbackUp` and flag-forwarding smoke below |
+| Child to kernel namespaces | `CLONE_NEWUSER`, `CLONE_NEWNET`, `CLONE_NEWNS`; tmpfs and bind mounts inside the child's mount namespace | Yes: `TestEnterGivesAPrivateNetnsDirectory` and `TestEnterServesIPNetns`, smoke below |
 | `./le setup` to host root | the existing `runPrivileged` route (`sudo -n`, root, or printed commands) | No |
+
+Current namespace smoke: session 644a4e78 scratch
+`job-userns-smoke-b033df33.log`, ten tests PASS under `-race`. The private
+directory test checks tmpfs magic, a device distinct from the parent's,
+named-namespace create/lookup identity, and deletion.
 
 ### Integration Points
 - `userns.Enter` - extended in place; every caller gets the mount namespace with no change of its own.
@@ -135,11 +140,11 @@ are group C's.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | An unprivileged user and mount namespace may mount a tmpfs on `/run/netns` and bind-mount a netns file onto a file in it | `unshare -rnm` experiment above; tmpfs is mountable in a user namespace | group B falls back to unnamed `netns.New()` per file (D-1) | P1 test `TestEnterGivesAPrivateNetnsDirectory` | validated by experiment, owed by test |
-| A-2 | A tmpfs mounted in the child never reaches the host | the child's mount namespace is private and owned by the child's user namespace | host `/run/netns` polluted | P1 test compares the device of `/run/netns` in the child with the parent's | unvalidated |
+| A-1 | An unprivileged user and mount namespace may mount a tmpfs on `/run/netns` and bind-mount a netns file onto a file in it | `unshare -rnm` experiment above; tmpfs is mountable in a user namespace | group B falls back to unnamed `netns.New()` per file (D-1) | `TestEnterGivesAPrivateNetnsDirectory`, current namespace smoke | validated |
+| A-2 | A tmpfs mounted in the child never reaches the host | the child's mount namespace is private and owned by the child's user namespace | host `/run/netns` polluted | `TestEnterGivesAPrivateNetnsDirectory` compares the child's device against the parent's, current namespace smoke | validated |
 | A-3 | Supplementary groups survive `Enter` with `setgroups` denied | `/etc/chatscripts` experiment above | D stays in C | P9 run of the D tests | validated by experiment |
-| A-4 | Inside the namespace `/dev/ppp` opens and `PPPIOCNEWUNIT`, `PPPIOCGCHAN`, `PPPIOCUNBRIDGECHAN` behave as for root | `ppp_open` and `ppp_unattached_ioctl` capability checks quoted above | D stays in C, recorded with the errno | P9 run of `TestPADTRetainsUnitUntilOwnerCleanup` and `TestLACChannelBridge` | unvalidated |
-| A-5 | Each inventory test needs nothing a user namespace cannot give beyond `Enter` | read of every skip in the inventory | that test moves to the Reclassified table with its reason | its batch's run-once PASS | unvalidated |
+| A-4 | Inside the namespace `/dev/ppp` opens and `PPPIOCNEWUNIT`, `PPPIOCGCHAN`, `PPPIOCUNBRIDGECHAN` behave as for root | `ppp_open` and `ppp_unattached_ioctl` capability checks quoted above | D stays in C, recorded with the errno | P9 `TestPADTRetainsUnitUntilOwnerCleanup` and `TestLACChannelBridge`: old session scratch `userns-P9/pppoeclient.log` and `l2tp.log`, both PASS | Open and unit reservation/reuse validated; bridge test checks a channel-number error but does not assert the exact ioctl errnos |
+| A-5 | Each inventory test needs nothing a user namespace cannot give beyond `Enter` | read of every skip in the inventory | that test moves to the Reclassified table with its reason | its batch's run-once PASS | Broken for the observed cases in Reclassified during implementation; remaining batches still owe their runs |
 | A-6 | A kernel feature built as a module autoloads from inside the namespace on a stock distribution kernel (hosted CI) | rtnetlink and nf_tables request modules on demand | the test meets its existing feature-absence skip, or fails naming the module | hosted CI unit job after P10 | unvalidated |
 
 ### Risks
@@ -263,6 +268,7 @@ privilege skip.
 | 24 | `internal/component/iface/rfc9915_dhcp_v6_link_move_integration_linux_test.go` | A | P4 iface-core | 2 | `integration && linux` | `linux` |
 | 25 | `internal/component/iface/slaac_integration_linux_test.go` | B | P4 iface-core | 0 | `integration && linux` | `linux` |
 | 26 | `internal/component/iface/unit_integration_linux_test.go` | B | P4 iface-core | 0 | `integration && linux` | `linux` |
+| 26a | `internal/component/iface/netlink_integration_import_test.go` | B | P4 iface-core | 0 | `integration && linux` | `linux`; backend-registration dependency, landed |
 | 27 | `internal/component/ike/dataplane/encap_dualform_integration_linux_test.go` | A | P3 ike | 0 | `integration && linux` | `linux` |
 | 28 | `internal/component/ike/dataplane/encap_formchange_integration_linux_test.go` | A | P3 ike | 0 | `integration && linux` | `linux` |
 | 29 | `internal/component/ike/dataplane/encap_hybrid_integration_linux_test.go` | A | P3 ike | 0 | `integration && linux` | `linux` |
@@ -273,6 +279,7 @@ privilege skip.
 | 34 | `internal/component/ike/dataplane/xfrm_bypass_integration_linux_test.go` | A | P3 ike | 0 | `integration && linux` | `linux` |
 | 35 | `internal/component/ike/dataplane/xfrm_integration_linux_test.go` | A | P3 ike | 0 | `integration && linux` | `linux` |
 | 36 | `internal/component/ike/dataplane/xfrm_migrate_integration_linux_test.go` | A | P3 ike | 0 | `integration && linux` | `linux` |
+| 36a | `internal/component/ike/dataplane/xfrm_forward_migrate_integration_linux_test.go` | A | P3 ike | 0 | `integration && linux` | `linux`; calls the converted migration fixture, landed in `ad1c2c3884` |
 | 37 | `internal/component/ike/dataplane/xfrm_policy_owner_integration_linux_test.go` | A | P3 ike | 0 | `integration && linux` | `linux` |
 | 38 | `internal/component/ike/dataplane/xfrm_readback_integration_linux_test.go` | A | P3 ike | 0 | `integration && linux` | `linux` |
 | 39 | `internal/component/ike/dataplane/xfrm_rekey_policy_integration_linux_test.go` | A | P3 ike | 0 | `integration && linux` | `linux` |
@@ -282,7 +289,7 @@ privilege skip.
 | 43 | `internal/component/ike/dataplane/xfrm_transport_integration_linux_test.go` | A | P3 ike | 0 | `integration && linux` | `linux` |
 | 44 | `internal/component/ike/engine/child_policy_delete_integration_linux_test.go` | A | P3 ike | 0 | `integration && linux` | `linux` |
 | 45 | `internal/component/ike/engine/rfc3948_encap_port_integration_linux_test.go` | A | P3 ike | 0 | `integration && linux` | `linux` |
-| 46 | `internal/component/ike/transport/udp_df_integration_linux_test.go` | B | P3 ike | 0 | `integration && linux` | `linux` |
+| 46 | `internal/component/ike/transport/udp_df_integration_linux_test.go` | B | P3 ike | 0 | `integration && linux` | `integration && linux`: two capture tests need initial-user-namespace `SO_RCVBUFFORCE`; error-queue test converted |
 | 47 | `internal/component/l2tp/bridge_integration_linux_test.go` | D | P9 ppp | 0 | `integration && linux` | `integration && linux`: needs the host `/dev/ppp` grant from P2 (D-8) |
 | 48 | `internal/component/l2tp/pppoeclient/dialer_integration_linux_test.go` | A | P8 services | 0 | `integration && linux` | `linux` |
 | 49 | `internal/component/l2tp/pppoeclient/unit_reservation_integration_linux_test.go` | D | P9 ppp | 0 | `integration && linux` | `integration && linux`: needs the host `/dev/ppp` grant from P2 (D-8) |
@@ -316,7 +323,7 @@ privilege skip.
 | 77 | `internal/plugins/firewall/nft/counter_integration_linux_test.go` | B | P6 dataplane | 0 | `integration && linux` | `linux` |
 | 78 | `internal/plugins/firewall/nft/integration_linux_test.go` | B | P6 dataplane | 0 | `integration && linux` | `linux` |
 | 79 | `internal/plugins/flowexport/conntrack/reader_integration_linux_test.go` | A | P6 dataplane | 0 | `integration && linux` | `linux` |
-| 80 | `internal/plugins/flowexport/producer_integration_linux_test.go` | A | P6 dataplane | 0 | `integration && linux` | `linux` |
+| 80 | `internal/plugins/flowexport/producer_integration_linux_test.go` | A | P6 dataplane | 0 | `integration && linux` | `integration && linux`: converted; explicit Ze executable prerequisite retained (D-5), custom flag now forwarded |
 | 81 | `internal/plugins/flowspec-firewall/rfc8955_packet_zero_integration_linux_test.go` | A | P6 dataplane | 2 | `integration && linux` | `linux` |
 | 82 | `internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go` | A | P6 dataplane | 4 | `integration && linux` | `linux` |
 | 83 | `internal/plugins/iface/dhcp/dhcp_lease_owner_integration_linux_test.go` | A | P5 iface-plugins | 0 | `integration && linux` | `linux` |
@@ -356,7 +363,7 @@ privilege skip.
 | 117 | `internal/plugins/tftpserver/rfc1350_socket_integration_linux_test.go` | A | P8 services | 1 | `integration && linux` | `linux` |
 | 118 | `internal/plugins/traffic/netlink/cs6_integration_linux_test.go` | B | P6 dataplane | 0 | `integration && linux` | `linux` |
 | 119 | `internal/plugins/traffic/netlink/integration_linux_test.go` | B | P6 dataplane | 0 | `integration && linux` | `linux` |
-| 120 | `internal/plugins/trafficusage/attach_integration_linux_test.go` | A | P6 dataplane | 0 | `integration && linux` | `linux` |
+| 120 | `internal/plugins/trafficusage/attach_integration_linux_test.go` | A | P6 dataplane | 0 | `integration && linux` | `integration && linux`: original privileged path retained after memlock EPERM in the Enter experiment |
 | 121 | `internal/plugins/vrrp/backup_multicast_integration_linux_test.go` | A | P7 routing | 0 | `integration && linux` | `linux` |
 | 122 | `internal/plugins/vrrp/nd_nonowner_integration_linux_test.go` | A | P7 routing | 8 | `integration && linux` | `linux` |
 | 123 | `internal/plugins/vrrp/owner_answer_integration_linux_test.go` | A | P7 routing | 20 | `integration && linux` | `linux` |
@@ -372,7 +379,9 @@ privilege skip.
 | 133 | `internal/plugins/vrrp/vmac_state_integration_linux_test.go` | A | P7 routing | 30 | `integration && linux` | `linux` |
 | 134 | `pkg/zefs/check_tree_unix_test.go` | C | out of scope | 0 | `linux` or `darwin` | unchanged |
 
-Counts: A 67 files (25 tagged), B 61 (6 tagged), D 2, C 4.
+Counts: A 68 files (25 tagged), B 62 (6 tagged), D 2, C 4. Rows 26a and
+36a add dependencies found during implementation without renumbering the
+original inventory.
 
 ### Group C, out of scope
 | File | Why it stays privileged |
@@ -398,6 +407,9 @@ Counts: A 67 files (25 tagged), B 61 (6 tagged), D 2, C 4.
 | `internal/plugins/fib/kernel/mplsmtu_integration_linux_test.go` | `TestMPLSIntegration_FragmentProgress` | B | privileged integration | The probe cannot establish its prerequisite in the observed userns trial. PathMTU and TransitIPv4Options use Enter and pass; this case retains its capability guard and all packet assertions. |
 | `internal/plugins/fib/kernel/srv6_integration_linux_test.go` | `TestFIBServiceSIDEncapsulationOnWire` | B | privileged integration | The prior userns trial timed out waiting for an SRv6 packet; cause remains untraced, not a proven universal userns restriction. The capability guard preserves the existing privileged run. |
 | `internal/plugins/fib/kernel/ecmp_labels_integration_linux_test.go` | `TestFIBECMPMemberLabelsOnWire` | B | converted; integration tag retained | Uses helpers from the retained MPLS MTU file. Current `-race` run passes in Enter. |
+| `internal/component/ike/transport/udp_df_integration_linux_test.go` | `TestDFSendThenPlainCopyOnTheWire`, `TestPlainSendNeverLeavesUnderTheProbeOption` | B | privileged integration | Both failed at `SO_RCVBUFFORCE` with EPERM under Enter. Linux checks initial-user-namespace `CAP_NET_ADMIN` for this socket option. Original privileged entry restored after independent judgment; 8 MiB capture buffer and all packet counts/assertions unchanged. |
+| `internal/plugins/trafficusage/attach_integration_linux_test.go` | `TestAttachTCX_CountsTraffic`, `TestMetricsScrape` | A | privileged integration | Enter-only overlay stopped at the existing `requireBPF` memlock prerequisite, EPERM; neither test reached TCX attachment/accounting. Original code retained wholly. Enter supplies no delegated BPF token or initial-user-namespace BPF authority. |
+| `internal/plugins/flowexport/producer_integration_linux_test.go` | `TestFlowExportDaemonCounterGeneration` | A | converted; integration tag retained | Needs an explicitly supplied Ze executable. Parent built that executable and observed the real daemon's counter-generation workflow PASS through Enter with the custom flag. |
 
 Current FIB evidence: session 644a4e78 scratch
 `job-userns-batch-smoke-9d2dbdbc.log` records PASS for ECMP labels, PathMTU,
@@ -524,9 +536,39 @@ Every batch (P3..P9) owes, in order:
 
 ## Design Insights
 
+### Exposed producer and kernel prerequisites
+
+P3's migrated oversized-DF test found `probe.DrainErrorQueue` losing the router
+offender: IKE enables packet info, but the ancillary buffer held only the extended
+error, and `MSG_CTRUNC` was ignored. The repair reserves both messages and refuses
+truncated control data. The unchanged transport assertion failed before and
+passed after; `TestDrainErrorQueueRefusesTruncatedControlMessages` proves the
+refusal with a real UDP error queue. Code and direct documentation landed in
+`409b985e1e`. Current-session scratch `job-userns-errqueue-fixed-f42fc6eb.log`
+records ten probe tests and the oversized transport test passing under race;
+the two initial-privilege capture cases explicitly skip on this host.
+
+P6's current-host run exposed three kernel prerequisites. `/proc/config.gz`
+disables `NF_FLOW_TABLE`, `NET_ACT_POLICE`, and `NET_ACT_GACT`; these are not
+loadable modules. The first two are already required by repository kernel
+profiles. GACT was absent from the runtime fragment, manifest and compiled floor,
+although the unchanged foreign-filter fixture encodes a generic PIPE action.
+The related prerequisite repair adds it to `gokrazy/kernel/runtime.config`,
+`runtime.require`, `internal/appliance/kernelreq.go`, its regression and
+`docs/architecture/appliance/kernel-profiles.md`.
+
+`TestRuntimeFloorRequiresBuiltInGenericAction` passes all four emitted states
+under race; an overlay removing only GACT from the compiled floor fails modular,
+disabled and absent states. `TestRuntimeProfileRequestsFloorSymbols` also passes.
+Evidence: current-session scratch `job-userns-gact-floor-red-cb24ef76.log` and
+`job-userns-gact-floor-green-bccc8dcc.log`. This proves enforcement, not a built
+kernel. A runtime kernel build/boot and the unchanged three failed nft/traffic
+tests remain owed. Do not convert their ENOENT failures into namespace skips.
+
 ## Owned journal rows
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
+| `unwired-feature.md` | 2026-10-28 | Runtime GACT prerequisite for ingress-policer coexistence |
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
