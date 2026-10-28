@@ -476,6 +476,46 @@ D-1 is pending owner choice. No option authorizes leaving accepted source
 paths eligible after import policy removal. R-7 still requires its own
 transition design, whichever recovery option is selected.
 
+Owner decision, 2026-10-28: **Refuse live change**. D-1 is resolved:
+an established peer without negotiated Route Refresh keeps its current policy,
+and the transaction refuses the import relaxation before publication.
+An optional receive store does not bypass this check. With Route Refresh,
+the successful recovery path keeps the session and requests every negotiated
+family. No new retention store or automatic restart is authorized for this
+relaxation. AC-6 must carry both the recovery and refusal cases.
+
+The refusal names this recovery sequence using the peer's concrete selector:
+`request peer <selector> disable`, wait until that session is down, commit
+the policy change, then `request peer <selector> enable`. The commands hold
+and release the peer through `handlePeerDisable` and `handlePeerEnable` in
+`internal/component/bgp/plugins/cmd/peer/admin.go`. A teardown alone is not
+a stable editing window, because it permits reconnection.
+
+### D-2: removal of the last accepting import policy
+
+This transition currently has no acceptance criterion. It must not report a
+successful removal while previously accepted routes remain eligible. D-1
+settled recovery from rejection; it did not authorize a restart or choose
+how tightening invalidates existing source routes.
+
+| Option | Contract | Trade-off |
+|--------|----------|-----------|
+| Refuse live removal (recommended) | Reject an established peer's accepting-to-absent import transition before publication. The operator uses the disable, commit, enable sequence above. Removal while down applies normally; removal of a child that still inherits explicit policy is not this transition. | Uses the same explicit interruption contract as D-1, with no new source-reconciliation machinery; the operator cannot remove the last accepting policy in one live commit |
+| Restart the affected source session | Apply the removal through session-bound configuration-change teardown, wait for ordered source cleanup, then reconnect under default reject. | Makes one commit sufficient, but interrupts the source session, including its otherwise unchanged export direction |
+| In-place source invalidation | Keep TCP up and introduce an ordered invalidation of all formerly eligible source paths and downstream advertisements, fenced against queued old-policy deliveries and rollback. | No transport interruption, but needs a complete cross-plugin lifecycle design rather than changing the final alone |
+
+→ Constraint: `Peer.teardownOf` in `internal/component/bgp/reactor/peer.go`
+can queue a teardown and return success before cleanup. A restart design
+cannot treat that return as proof that source paths have been removed.
+`Peer.sessionDown` in `peer_session_end.go` drains the receive delivery worker
+before announcing down. A restart also needs explicit no-retention handling
+if its NOTIFICATION cannot be delivered: `sessionCloseFor` in `peer_close.go`
+does not classify every local close as `ReasonNotification`.
+
+D-2 is pending owner choice. In-place source invalidation is not implied by
+the existing export reconciliation, and no implementation starts before this
+transition is specified.
+
 ### Surface corrections for the final spec
 
 | Surface | Required correction |
