@@ -14,7 +14,7 @@
 | Release reason | Formatter writeback must not destroy operator comments or configuration meaning. |
 | Scope | cli, config |
 | Depends | - |
-| Phase | 1/3 |
+| Phase | 2/3 |
 | Handoff | - |
 | Updated | 2026-10-28 |
 
@@ -191,7 +191,7 @@ built 2026-10-27 from that tree.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|------------|---------------------------------|----------|--------------|--------|
 | A-1 | `#` to end of line is the only comment form | `skipWhitespaceAndComments`; `tokenizer.md` token table | A block comment form is lost | `TestTokenizerCommentTrivia` covers every `#` position | confirmed by reading |
-| A-2 | No include statement exists, so one file is one tree | `parser.go`, `loader.go` carry no include keyword | An included file's comments need their own carrier | grep at Phase 2 start | confirmed by grep |
+| A-2 | No include statement exists, so one file is one tree | `parser.go`, `loader.go` carry no include keyword | An included file's comments need their own carrier | grep at Phase 2 start | confirmed by grep (phase 2 start, 2026-10-28: no `include` keyword in `parser*.go`, `loader*.go` or `tokenizer.go`; the one hit is a comment in `parser_freeform.go`) |
 | A-3 | Comments inside a bracket list can only follow `[` on its line: a newline inside the brackets after an item is refused by automatic semicolon insertion | Probe: `filters [ # c` newline `zz aa ]` parses, `[ zz` newline `aa ]` is refused | A comment between items needs a member-level anchor | `TestParserBracketComment` | confirmed by probe |
 | A-4 | The set parser's `tokenizeLine` reads a value `quoteIfNeeded` now quotes (`]`, newline) back as one value | `setparser.go` `tokenizeLine` | The meaning fix reddens the set round trip | `TestQuoteRoundTripSet` | broken (phase 1): `tokenizeLine` decoded no escape, so `"l1\nl2"` and `"a\"b"` read back changed, and `strings.TrimSpace` on each line cut a trailing `\v`, `\f` or Unicode space from a bare value. Fixed at the reader: `tokenizeLine` deleted, both set parsers call `splitQuotedTokens` (the inverse of `quoteIfNeeded`), lines trimmed by `trimTokenSpace`. An unterminated quote in a set line is now refused with its line number |
 | A-5 | Every `.conf` and `.ci` config body that parses today still parses after this change | No grammar change; comments were already accepted everywhere whitespace is | A carrier starts failing | `TestFormatCorpusRoundTrip` counts parses before and after | unvalidated |
@@ -256,12 +256,12 @@ built 2026-10-27 from that tree.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestTokenizerCommentTrivia` | `internal/component/config/tokenizer_test.go` | Own-line, same-line, after `{`, after `}`, after `[`, end-of-file comments become trivia with their blank-line and same-line flags; semicolon insertion unchanged | |
-| `TestParserAttachesComments` | `internal/component/config/parser_comments_test.go` | AC-1, AC-2, AC-3, AC-4 attachment on the `Tree` | |
-| `TestParserBracketComment` | `internal/component/config/parser_comments_test.go` | AC-6 | |
-| `TestParserMergedStatementComments` | `internal/component/config/parser_comments_test.go` | AC-7 | |
-| `TestTreeCloneKeepsComments` | `internal/component/config/tree_comments_test.go` | `Clone`, `MergeContainer`, `RenameListEntry` carry comments | |
-| `TestTreeLeafRemovalDropsComments` | `internal/component/config/tree_comments_test.go` | R-2 | |
+| `TestTokenizerCommentTrivia` | `internal/component/config/tokenizer_comments_test.go` (a new file, so `tokenizer_test.go` stays unedited) | Own-line, same-line, after `{`, after `}`, after `[`, end-of-file comments become trivia with their blank-line and same-line flags; semicolon insertion unchanged | phase 2 |
+| `TestParserAttachesComments` | `internal/component/config/parser_comments_test.go` | AC-1, AC-2, AC-3, AC-4, AC-5 (stamp is root head) attachment on the `Tree` | phase 2 |
+| `TestParserBracketComment` | `internal/component/config/parser_comments_test.go` | AC-6 | phase 2 |
+| `TestParserMergedStatementComments` | `internal/component/config/parser_comments_test.go` | AC-7 | phase 2 |
+| `TestTreeCloneKeepsComments` | `internal/component/config/tree_comments_test.go` | `Clone`, `MergeContainer`, `RenameListEntry` carry comments; a merge replacing a list entry keeps the entry's comments | phase 2 |
+| `TestTreeLeafRemovalDropsComments` | `internal/component/config/tree_comments_test.go` | R-2 | phase 2 |
 | `TestSerializeComments` | `internal/component/config/serialize_comments_test.go` | AC-1..AC-4 printed placement, golden strings written by hand | |
 | `TestSerializeKeepsStampFirst` | `internal/component/config/serialize_comments_test.go` | AC-5 | |
 | `TestSerializeCommentBlocksInline` | `internal/component/config/serialize_comments_test.go` | AC-8, both inline and `ze:flatten` | |

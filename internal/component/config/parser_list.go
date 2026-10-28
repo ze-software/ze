@@ -72,9 +72,10 @@ func (p *Parser) parseList(tree *Tree, name string, node *ListNode) error {
 // The opening { has already been consumed.
 func (p *Parser) parseListFieldBlock(tree *Tree, name string, node *ListNode, key string, keyLine int) error {
 	entry := NewTree()
+	comments := p.newCommentScope(entry)
 
 	for {
-		tok := p.tok.peek()
+		tok := comments.begin()
 		if tok.kind == tokenRBrace {
 			p.tok.next()
 			break
@@ -107,15 +108,18 @@ func (p *Parser) parseListFieldBlock(tree *Tree, name string, node *ListNode, ke
 		}
 
 		if markInactive {
-			if err := p.parseNodeInactive(entry, fieldName, fieldNode, tok.line); err != nil {
+			member, err := p.parseNodeInactive(entry, fieldName, fieldNode, tok.line)
+			if err != nil {
 				return prependSyntaxPath(err, key)
 			}
+			comments.end(entry, fieldName, member)
 			continue
 		}
 
 		if err := p.parseNode(entry, fieldName, fieldNode); err != nil {
 			return prependSyntaxPath(err, key)
 		}
+		comments.end(entry, fieldName, "")
 	}
 
 	return p.addParsedListEntry(tree, name, node, key, entry, keyLine)
@@ -318,6 +322,7 @@ func (p *Parser) addParsedListEntry(tree *Tree, name string, node *ListNode, key
 		}
 	}
 	tree.AddListEntry(name, key, entry)
+	p.stmtTree = entry
 	return nil
 }
 

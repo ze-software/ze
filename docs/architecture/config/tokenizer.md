@@ -30,7 +30,7 @@ ExaBGP uses a custom tokenizer for configuration files. The format is similar to
 |-----------|---------|
 | `"` | Double-quoted string (preserves spaces) |
 | `'` | Single-quoted string (preserves spaces) |
-| `#` | Comment (rest of line ignored) |
+| `#` | Comment to the end of the line. ExaBGP drops it; Ze keeps it as trivia for the parser to attach (see "Comments" below) |
 
 ### Whitespace
 
@@ -263,62 +263,50 @@ peer peer-east {
 
 ## Ze Implementation Notes
 
-<!-- source: internal/component/config/tokenizer.go -- Go tokenizer implementation -->
+<!-- source: internal/component/config/tokenizer.go -- tokenizer, token, comment, scan, readComment, peekTrivia, takeConsumed -->
+<!-- source: internal/component/config/parser_comments.go -- commentScope, headCount -->
+<!-- source: internal/component/config/tree_comments.go -- blockComments, statementComments -->
 
 ### Go Tokenizer
 
-```go
-type tokenizer struct {
-    tokens   []string
-    next     []string  // lookahead
-    consumed int
-}
+Ze's tokenizer is a single-pass scanner over the whole input, not ExaBGP's
+line-based one. It produces word, quoted string, `{`, `}`, `[`, `]`, `(`, `)`
+and `;` tokens with their line and column, and the parser reads them with one
+token of lookahead (`peek`, `next`).
 
-func (t *tokenizer) Peek() string {
-    if len(t.next) > 0 {
-        return t.next[0]
-    }
-    // ...
-}
+**Automatic semicolon insertion.** After a value token (a word, a quoted
+string, `]` or `)`), a newline, the end of the input or a `}` produces a
+synthetic `;`. A comment ends its line, so it ends a statement the same way a
+newline does.
 
-func (t *tokenizer) Next() string {
-    t.consumed++
-    // ...
-}
-```
+### Comments
 
-### State Machine
+A `#` comment runs to the end of its line. The tokenizer does not discard it:
+it keeps the text after `#` (the CR of a CRLF line ending excluded) as trivia on
+the next real token, never on a synthetic `;`. Each comment records its line,
+whether it follows a token on that token's line, and whether a blank line comes
+before it. Each token records whether a blank line separates it from the
+comment or token before it.
 
-```go
-type TokenState int
+The parser attaches each comment to a statement on the parsed `Tree`
+(`parser_comments.go`):
 
-const (
-    StateNormal TokenState = iota
-    StateQuoted
-    StateComment
-)
+| Comment | Belongs to |
+|---------|------------|
+| On its own line | The next statement in the same block, as a leading comment |
+| After a statement on its line, after `{`, after `}` | That statement, that block's opening line, or that block statement, as a trailing comment |
+| Before a block's first statement, detached from it by a blank line | The block's head |
+| On the first line of the file, starting `# ze-schema: ` | The file's head, blank line or not, so the stamp stays on line 1 |
+| After a block's last statement | The block, as closing comments (at the root, the end of the file) |
+| Inside a statement (after `[` in a bracket leaf-list) | That statement, as a leading comment |
 
-func tokenize(line string) ([]string, error) {
-    var tokens []string
-    var current strings.Builder
-    state := StateNormal
-    quoteChar := byte(0)
-
-    for i := 0; i < len(line); i++ {
-        c := line[i]
-        switch state {
-        case StateNormal:
-            // Handle normal characters
-        case StateQuoted:
-            // Handle quoted strings
-        case StateComment:
-            // Ignore rest of line
-        }
-    }
-    return tokens, nil
-}
-```
+A leaf statement's comments sit on its parent `Tree` by name, an
+`inactive: <leaf-list> <member>` line's by name and member, and a container's or
+list entry's on its own `Tree`. A statement written twice keeps the comments of
+both, in source order. `Clone`, `MergeContainer` and `RenameListEntry` carry the
+comments with the statement; removing a leaf removes its comments. Comments are
+not configuration: `ToMap`, the diff and the set printers ignore them.
 
 ---
 
-**Last Updated:** 2025-12-19
+**Last Updated:** 2026-10-28

@@ -24,6 +24,10 @@ type Parser struct {
 	schema   *Schema
 	tok      *tokenizer
 	warnings []string
+	// stmtTree is the container or list entry the statement just parsed
+	// landed in, recorded by the parse that stored it so commentScope.end
+	// attaches the statement's comments there. A leaf statement leaves it nil.
+	stmtTree *Tree
 }
 
 // NewParser creates a new parser with the given schema.
@@ -35,6 +39,7 @@ func NewParser(schema *Schema) *Parser {
 func (p *Parser) Parse(input string) (*Tree, error) {
 	p.tok = newTokenizer(input)
 	p.warnings = nil
+	p.stmtTree = nil
 	return p.parseRoot()
 }
 
@@ -63,6 +68,7 @@ func (p *Parser) ParseAt(input string, contextPath []string) (*Tree, error) {
 	}
 	p.tok = newTokenizer(input)
 	p.warnings = nil
+	p.stmtTree = nil
 	context := slices.Clip(slices.Clone(contextPath))
 	var known []string
 	if parent, ok := p.schema.LookupTokenPath(context).(ChildProvider); ok {
@@ -91,9 +97,10 @@ func (p *Parser) parseRoot() (*Tree, error) {
 // replacement, or at the top level the build tag of a compiled-out plugin).
 func (p *Parser) parseBody(unknown string, hint func(name string, known []string) string, known []string, lookup func(name string) Node) (*Tree, error) {
 	tree := NewTree()
+	comments := p.newCommentScope(tree)
 
 	for {
-		tok := p.tok.peek()
+		tok := comments.begin()
 		if tok.kind == tokenEOF {
 			break
 		}
@@ -126,15 +133,18 @@ func (p *Parser) parseBody(unknown string, hint func(name string, known []string
 		}
 
 		if markInactive {
-			if err := p.parseNodeInactive(tree, name, node, tok.line); err != nil {
+			member, err := p.parseNodeInactive(tree, name, node, tok.line)
+			if err != nil {
 				return nil, err
 			}
+			comments.end(tree, name, member)
 			continue
 		}
 
 		if err := p.parseNode(tree, name, node); err != nil {
 			return nil, err
 		}
+		comments.end(tree, name, "")
 	}
 
 	return tree, nil
@@ -149,7 +159,10 @@ func (p *Parser) parseBody(unknown string, hint func(name string, known []string
 // whenever no '[' follows its name. Every other shape parses normally and
 // the whole node is marked inactive.
 // Shared by parseRoot, parseContainer, and parseListFieldBlock.
-func (p *Parser) parseNodeInactive(tree *Tree, name string, node Node, line int) error {
+//
+// member answers the leaf-list member a member-level statement named, so the
+// statement's comments belong to that line; it is empty for a whole-node one.
+func (p *Parser) parseNodeInactive(tree *Tree, name string, node Node, line int) (member string, err error) {
 	if vn, ok := node.(*ValueOrArrayNode); ok {
 		return p.parseInactiveValueOrArray(tree, name, vn, line)
 	}
@@ -159,10 +172,10 @@ func (p *Parser) parseNodeInactive(tree *Tree, name string, node Node, line int)
 		}
 	}
 	if err := p.parseNode(tree, name, node); err != nil {
-		return err
+		return "", err
 	}
 	applyInactive(tree, name, node, p, line)
-	return nil
+	return "", nil
 }
 
 // parseInactiveValueOrArray handles `inactive: <leaf-list> ...` statements.
@@ -172,31 +185,31 @@ func (p *Parser) parseNodeInactive(tree *Tree, name string, node Node, line int)
 // deactivated. The bracket form and multiple values keep the whole-leaf
 // semantics: the items replace the leaf content and the leaf itself is
 // marked inactive.
-func (p *Parser) parseInactiveValueOrArray(tree *Tree, name string, node *ValueOrArrayNode, line int) error {
+func (p *Parser) parseInactiveValueOrArray(tree *Tree, name string, node *ValueOrArrayNode, line int) (member string, err error) {
 	items, bracket, tok, err := p.collectValueOrArrayItems(name)
 	if err != nil {
-		return err
+		return "", err
 	}
 	if !bracket && len(items) == 1 {
 		present, inactive := tree.MultiValueMemberState(name, items[0])
 		if inactive {
-			return nil
+			return items[0], nil
 		}
 		if !present {
 			if err := p.storeValueOrArray(tree, name, node, items, tok); err != nil {
-				return err
+				return "", err
 			}
 		}
 		if err := tree.DeactivateMultiValue(name, items[0]); err != nil {
-			return p.errorf(tok, "deactivate member %s %s: %v", name, items[0], err)
+			return "", p.errorf(tok, "deactivate member %s %s: %v", name, items[0], err)
 		}
-		return nil
+		return items[0], nil
 	}
 	if err := p.storeValueOrArray(tree, name, node, items, tok); err != nil {
-		return err
+		return "", err
 	}
 	applyInactive(tree, name, node, p, line)
-	return nil
+	return "", nil
 }
 
 // parseInactiveBracketMember handles `inactive: <leaf-list> <member>;` for a
@@ -205,31 +218,31 @@ func (p *Parser) parseInactiveValueOrArray(tree *Tree, name string, node *ValueO
 // adds a member the list does not hold, deactivated (owner decision
 // 2026-10-11). `inactive: <leaf-list> [ ... ];` is the whole leaf and does not
 // come here.
-func (p *Parser) parseInactiveBracketMember(tree *Tree, name string, node *BracketLeafListNode) error {
+func (p *Parser) parseInactiveBracketMember(tree *Tree, name string, node *BracketLeafListNode) (string, error) {
 	tok := p.tok.peek()
 	if tok.kind != tokenWord && tok.kind != tokenString {
-		return p.errorf(tok, "expected '[' or a member after inactive: %s, got %s", name, tok.kind)
+		return "", p.errorf(tok, "expected '[' or a member after inactive: %s, got %s", name, tok.kind)
 	}
 	member := tok.value
 	p.tok.next()
 	if end := p.tok.peek(); end.kind != tokenSemicolon {
-		return p.errorf(end, "expected ';' after inactive: %s %s, got %s", name, member, end.kind)
+		return "", p.errorf(end, "expected ';' after inactive: %s %s, got %s", name, member, end.kind)
 	}
 	p.tok.next()
 	present, inactive := tree.MultiValueMemberState(name, member)
 	if inactive {
-		return nil
+		return member, nil
 	}
 	if !present {
 		if err := validateValuePatterns(node.Type, node.Patterns, member); err != nil {
-			return p.errorf(tok, "invalid value for %s: %v", name, err)
+			return "", p.errorf(tok, "invalid value for %s: %v", name, err)
 		}
 		tree.AddMultiValueMember(name, member)
 	}
 	if err := tree.DeactivateMultiValue(name, member); err != nil {
-		return p.errorf(tok, "deactivate member %s %s: %v", name, member, err)
+		return "", p.errorf(tok, "deactivate member %s %s: %v", name, member, err)
 	}
-	return nil
+	return member, nil
 }
 
 // applyInactive records the inactive flag on the just-parsed node. Shared
@@ -436,6 +449,7 @@ func (p *Parser) parseContainer(tree *Tree, name string, node *ContainerNode) er
 				if err := tree.MergeContainer(name, child, node); err != nil {
 					return p.errorf(tok, "%v", err)
 				}
+				p.stmtTree = tree.GetContainer(name)
 				return nil
 			}
 		}
@@ -453,9 +467,10 @@ func (p *Parser) parseContainer(tree *Tree, name string, node *ContainerNode) er
 	p.tok.next()
 
 	child := NewTree()
+	comments := p.newCommentScope(child)
 
 	for {
-		tok = p.tok.peek()
+		tok = comments.begin()
 		if tok.kind == tokenRBrace {
 			p.tok.next()
 			break
@@ -492,26 +507,31 @@ func (p *Parser) parseContainer(tree *Tree, name string, node *ContainerNode) er
 				if err := p.parseUnknownField(child, fieldName); err != nil {
 					return err
 				}
+				comments.end(child, fieldName, "")
 				continue
 			}
 			return p.errorf(tok, "unknown field in %s: %s%s (line %d)", name, fieldName, UnknownKeywordHint(fieldName, node.Children()), tok.line)
 		}
 
 		if markInactive {
-			if err := p.parseNodeInactive(child, fieldName, fieldNode, tok.line); err != nil {
+			member, err := p.parseNodeInactive(child, fieldName, fieldNode, tok.line)
+			if err != nil {
 				return err
 			}
+			comments.end(child, fieldName, member)
 			continue
 		}
 
 		if err := p.parseNode(child, fieldName, fieldNode); err != nil {
 			return err
 		}
+		comments.end(child, fieldName, "")
 	}
 
 	if err := tree.MergeContainer(name, child, node); err != nil {
 		return fmt.Errorf("%s: %w", name, err)
 	}
+	p.stmtTree = tree.GetContainer(name)
 	return nil
 }
 

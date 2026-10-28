@@ -3,6 +3,11 @@
 
 package config
 
+import (
+	"slices"
+	"strings"
+)
+
 // tokenType represents the type of token.
 type tokenType int
 
@@ -46,17 +51,43 @@ func (t tokenType) String() string {
 	}
 }
 
-// token represents a lexical token.
+// token represents a lexical token. comments holds the `#` comments read
+// since the token before it, in source order, and blankBefore whether a blank
+// line separates the token from the last of them (or from the token before it
+// when there is none). A synthetic semicolon carries no comment: the comments
+// it crosses ride on the next real token.
 type token struct {
-	kind  tokenType
-	value string
-	line  int
-	col   int
+	kind        tokenType
+	value       string
+	line        int
+	col         int
+	comments    []comment
+	blankBefore bool
+}
+
+// comment is one `#` comment, kept as trivia for the parser to attach to the
+// statement it belongs to rather than discarded. text is every byte after the
+// `#` to the end of its line, the CR of a CRLF line ending excluded. sameLine
+// is true when the comment follows a token on that token's line; blankBefore
+// when a blank line separates it from the token or comment before it.
+type comment struct {
+	text        string
+	line        int
+	sameLine    bool
+	blankBefore bool
 }
 
 // tokenizer breaks input into tokens.
 // Automatic semicolon insertion adds a synthetic semicolon at a newline or EOF,
 // or before a closing brace, after a value token (word, string, ], or )).
+//
+// Comments become trivia (see comment): trivia collects them until the next
+// real token carries them, newlines counts the newlines since the last token
+// or comment (two make a blank line), and scanned records that a real token
+// was read, so a comment on the first line is never "after a token". taken
+// collects the comments of every token the parser consumed with next; the
+// parser drains it (takeConsumed) at statement boundaries, and takes the
+// comments of a token it only peeked with peekTrivia.
 type tokenizer struct {
 	input      string
 	pos        int
@@ -64,6 +95,10 @@ type tokenizer struct {
 	col        int
 	peeked     *token
 	insertSemi bool // next newline, EOF, or closing brace should produce a semicolon
+	trivia     []comment
+	newlines   int
+	scanned    bool
+	taken      []comment
 }
 
 // newTokenizer creates a new tokenizer for the given input.
@@ -81,27 +116,63 @@ func (t *tokenizer) peek() token {
 	if t.peeked != nil {
 		return *t.peeked
 	}
-	tok := t.next()
+	tok := t.read()
 	t.peeked = &tok
 	return tok
 }
 
-// next returns the next token and advances the tokenizer.
+// peekTrivia returns the next token without consuming it, and hands its
+// comments to the caller: the token keeps none, so consuming it later adds
+// nothing to taken.
+func (t *tokenizer) peekTrivia() (token, []comment) {
+	tok := t.peek()
+	comments := t.peeked.comments
+	t.peeked.comments = nil
+	tok.comments = nil
+	return tok, comments
+}
+
+// next returns the next token and advances the tokenizer. The token's
+// comments join taken.
 func (t *tokenizer) next() token {
 	var tok token
 	if t.peeked != nil {
 		tok = *t.peeked
 		t.peeked = nil
 	} else {
-		tok = t.scan()
+		tok = t.read()
 	}
-	// Automatic semicolon insertion is armed only by value tokens.
+	t.taken = append(t.taken, tok.comments...)
+	return tok
+}
+
+// takenMark answers the position in taken a later takeConsumed starts from.
+func (t *tokenizer) takenMark() int {
+	return len(t.taken)
+}
+
+// takeConsumed removes and answers the comments of the tokens consumed since
+// mark (takenMark), in source order.
+func (t *tokenizer) takeConsumed(mark int) []comment {
+	if mark >= len(t.taken) {
+		return nil
+	}
+	consumed := slices.Clone(t.taken[mark:])
+	t.taken = t.taken[:mark]
+	return consumed
+}
+
+// read scans the next token and arms automatic semicolon insertion, which
+// only value tokens do.
+func (t *tokenizer) read() token {
+	tok := t.scan()
 	t.insertSemi = tok.kind == tokenWord || tok.kind == tokenString ||
 		tok.kind == tokenRBracket || tok.kind == tokenRParen
 	return tok
 }
 
-// scan produces the next raw token, including synthetic semicolons.
+// scan produces the next raw token, including synthetic semicolons. A real
+// token takes the comments read since the token before it.
 func (t *tokenizer) scan() token {
 	semiLine, semiCol := t.line, t.col
 	newlineSeen := t.skipWhitespaceAndComments()
@@ -112,6 +183,14 @@ func (t *tokenizer) scan() token {
 		return token{kind: tokenSemicolon, value: ";", line: semiLine, col: semiCol}
 	}
 
+	tok := t.scanToken()
+	tok.comments, tok.blankBefore = t.trivia, t.newlines >= 2
+	t.trivia, t.newlines, t.scanned = nil, 0, true
+	return tok
+}
+
+// scanToken reads the real token at t.pos, whitespace and comments skipped.
+func (t *tokenizer) scanToken() token {
 	if t.pos >= len(t.input) {
 		return token{kind: tokenEOF, line: t.line, col: t.col}
 	}
@@ -173,8 +252,9 @@ func (t *tokenizer) advance() {
 	}
 }
 
-// skipWhitespaceAndComments skips whitespace and # comments.
-// Returns true if a newline was crossed (used for auto-semicolon insertion).
+// skipWhitespaceAndComments skips whitespace and keeps each # comment as
+// trivia (readComment). Returns true if a newline was crossed (used for
+// auto-semicolon insertion).
 func (t *tokenizer) skipWhitespaceAndComments() bool {
 	newlineSeen := false
 	for t.pos < len(t.input) {
@@ -187,21 +267,39 @@ func (t *tokenizer) skipWhitespaceAndComments() bool {
 
 		if ch == '\n' {
 			newlineSeen = true
+			t.newlines++
 			t.advance()
 			continue
 		}
 
 		if ch == '#' {
 			// Comments end at newline, which counts as a newline crossing
-			for t.pos < len(t.input) && t.input[t.pos] != '\n' {
-				t.advance()
-			}
+			t.readComment()
 			continue
 		}
 
 		break
 	}
 	return newlineSeen
+}
+
+// readComment reads the comment at t.pos up to its newline, which it leaves
+// for the caller, and appends it to trivia.
+func (t *tokenizer) readComment() {
+	line := t.line
+	t.advance() // skip '#'
+	start := t.pos
+	for t.pos < len(t.input) && t.input[t.pos] != '\n' {
+		t.advance()
+	}
+	text := strings.TrimSuffix(t.input[start:t.pos], "\r")
+	t.trivia = append(t.trivia, comment{
+		text:        text,
+		line:        line,
+		sameLine:    t.scanned && t.newlines == 0 && len(t.trivia) == 0,
+		blankBefore: t.newlines >= 2,
+	})
+	t.newlines = 0
 }
 
 // readString reads a quoted string.

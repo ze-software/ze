@@ -62,9 +62,15 @@ type Tree struct {
 	// write to the leaf leaves the entry stale rather than clearing it, and
 	// the decode check is what makes a stale entry harmless.
 	storedSecrets map[string]string
-	containers    map[string]*Tree
-	lists         map[string]map[string]*Tree
-	listOrder     map[string][]string // Preserves insertion order for list keys
+	// comments holds the operator's `#` comments of the block this tree is
+	// the body of, and leafComments those of each leaf statement in it
+	// (tree_comments.go). They carry no configuration: ToMap, the diff and
+	// every set printer ignore them. leafComments is nil until a leaf has one.
+	comments     blockComments
+	leafComments map[leafCommentKey]*statementComments
+	containers   map[string]*Tree
+	lists        map[string]map[string]*Tree
+	listOrder    map[string][]string // Preserves insertion order for list keys
 }
 
 // NewTree creates an empty config tree.
@@ -163,6 +169,7 @@ func (t *Tree) removeValue(name string) {
 	delete(t.mirrored, name)
 	delete(t.inactiveValues, name)
 	delete(t.inactiveMembers, name)
+	t.dropLeafCommentsLocked(name)
 	if len(t.valuesOrder) > 0 {
 		filtered := t.valuesOrder[:0]
 		for _, n := range t.valuesOrder {
@@ -189,6 +196,7 @@ func (t *Tree) pruneInactiveLeaves() {
 		delete(t.multiValues, name)
 		delete(t.mirrored, name)
 		delete(t.inactiveMembers, name)
+		t.dropLeafCommentsLocked(name)
 	}
 	if len(t.valuesOrder) > 0 {
 		filtered := t.valuesOrder[:0]
@@ -463,6 +471,7 @@ func (t *Tree) Clone() *Tree {
 
 	maps.Copy(clone.mirrored, t.mirrored)
 	maps.Copy(clone.storedSecrets, t.storedSecrets)
+	t.cloneCommentsLocked(clone)
 
 	// Clone inactiveValues (leaf-level deactivation markers)
 	maps.Copy(clone.inactiveValues, t.inactiveValues)
@@ -655,6 +664,7 @@ func (t *Tree) mergeFrom(other *Tree, schema ChildProvider) error {
 	}
 	maps.Copy(t.values, other.values)
 	maps.Copy(t.storedSecrets, other.storedSecrets)
+	t.mergeCommentsLocked(other)
 	// The second block's leaf-list statements accumulate onto the first's, as
 	// repeated statements in one block do (RFC 7950 Section 7.7): a set keeps
 	// one copy of each member, an ordered sequence keeps its repeats, and a
@@ -702,8 +712,12 @@ func (t *Tree) mergeFrom(other *Tree, schema ChildProvider) error {
 			continue
 		}
 		for _, key := range other.listOrder[k] {
-			if _, exists := t.lists[k][key]; !exists {
+			replaced, exists := t.lists[k][key]
+			if !exists {
 				t.listOrder[k] = append(t.listOrder[k], key)
+			}
+			if exists {
+				v[key].keepBlockCommentsOf(replaced)
 			}
 			t.lists[k][key] = v[key]
 		}
@@ -1145,8 +1159,11 @@ func (t *Tree) RemoveMultiValueMember(name, value string) bool {
 			delete(t.inactiveMembers, name)
 		}
 	}
+	delete(t.leafComments, leafCommentKey{name: name, member: value})
 	if len(t.multiValues[name]) == 0 {
 		delete(t.multiValues, name)
+		// The last member took the leaf statement with it.
+		t.dropLeafCommentsLocked(name)
 	}
 	t.syncMultiValueToValueLocked(name)
 	return true
