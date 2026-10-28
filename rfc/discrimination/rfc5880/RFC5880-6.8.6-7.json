@@ -7,8 +7,8 @@
     "claim-sha": "1e06928c03a53016",
     "route": "revert",
     "producer": "internal/component/bfd/engine/loop.go::handleInbound",
-    "producer-sha": "f721533856857321",
-    "break": "body of handleInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "d22d0c4c4b80b131",
+    "break": "body of handleInbound replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC5880-6.8.6-7",
@@ -18,8 +18,8 @@
     "claim-sha": "5afee8a50279f59a",
     "route": "revert",
     "producer": "internal/component/bfd/engine/loop.go::handleInbound",
-    "producer-sha": "f721533856857321",
-    "break": "body of handleInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "d22d0c4c4b80b131",
+    "break": "body of handleInbound replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC5880-6.8.6-7",
@@ -29,7 +29,7 @@
     "claim-sha": "4e403efbe49b179c",
     "route": "revert",
     "producer": "internal/component/bfd/engine/loop.go::handleInbound",
-    "producer-sha": "f721533856857321",
-    "break": "body of handleInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "d22d0c4c4b80b131",
+    "break": "body of handleInbound replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

@@ -7,7 +7,7 @@
     "claim-sha": "8f7acd1b0f338fa6",
     "route": "revert",
     "producer": "internal/component/bfd/engine/loop.go::handleInbound",
-    "producer-sha": "f721533856857321",
-    "break": "body of handleInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "d22d0c4c4b80b131",
+    "break": "body of handleInbound replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

@@ -7,8 +7,8 @@
     "claim-sha": "8d0841dfbf3aa6f6",
     "route": "revert",
     "producer": "internal/component/bfd/engine/loop.go::tick",
-    "producer-sha": "4d6c5e086edd0eba",
-    "break": "body of tick replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "5ead7356e7201c32",
+    "break": "body of tick replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC5880-6.1-2",
@@ -18,8 +18,8 @@
     "claim-sha": "f156f6e4d9050ef6",
     "route": "revert",
     "producer": "internal/component/bfd/engine/loop.go::tick",
-    "producer-sha": "4d6c5e086edd0eba",
-    "break": "body of tick replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "5ead7356e7201c32",
+    "break": "body of tick replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC5880-6.1-2",

@@ -7,7 +7,7 @@
     "claim-sha": "11769b388fdcb72d",
     "route": "revert",
     "producer": "internal/component/bfd/engine/loop.go::tick",
-    "producer-sha": "4d6c5e086edd0eba",
-    "break": "body of tick replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "5ead7356e7201c32",
+    "break": "body of tick replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]
