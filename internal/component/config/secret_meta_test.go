@@ -90,3 +90,26 @@ func TestSetMetaRefusesUndecodablePrevious(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "api-secret")
 }
+
+// TestSetMetaRefusesDeleteUnderBadListAddress reads a delete line with
+// session metadata whose list address names a key leaf twice, under a
+// container the tree does not hold. parseDelete stops at that container
+// before it parses the address, so the meta walk is the first to read it.
+//
+// VALIDATES: the set-meta parser refuses the line, naming the codec's reason.
+// PREVENTS: a session's delete record dropped with no error.
+func TestSetMetaRefusesDeleteUnderBadListAddress(t *testing.T) {
+	schema := NewSchema()
+	session := List(TypeString,
+		Field("peer", Leaf(TypeString)),
+		Field("interface", Leaf(TypeString)),
+		Field("profile", Leaf(TypeString)),
+	)
+	session.KeyName = "peer interface"
+	schema.Define("routing", Container(Field("session", session)))
+	line := "#alice @ssh %2026-10-28T10:00:00Z delete routing session fe80::b interface zbl1 interface zbl2 profile\n"
+
+	_, _, err := NewSetParser(schema).ParseWithMeta(line)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "interface is given twice")
+}

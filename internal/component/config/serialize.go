@@ -627,8 +627,11 @@ func listBlockKeys(entries map[string]*Tree, node *ListNode, order []string) []s
 	seen := make(map[string]bool, len(entries))
 	if node.UserOrdered {
 		for _, key := range order {
-			if _, ok := entries[key]; !ok || seen[key] {
-				continue
+			if _, ok := entries[key]; !ok {
+				continue // The entry this key recorded was removed.
+			}
+			if seen[key] {
+				continue // The record names this key twice.
 			}
 			seen[key] = true
 			keys = append(keys, key)

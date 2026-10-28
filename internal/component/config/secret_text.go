@@ -152,8 +152,10 @@ func encodeSecretLeaves(source, printed *Tree, cp ChildProvider) error {
 		var err error
 		switch child := cp.Get(name).(type) {
 		case *LeafNode:
-			if reversibleSecret(child) {
-				err = encodeSecretLeaf(source, printed, name)
+			// Only a leaf the tree sets holds a key to print: the walk
+			// visits every leaf the schema declares.
+			if value, set := printed.Get(name); set && reversibleSecret(child) {
+				err = encodeSecretLeaf(source, printed, name, value)
 			}
 		case *ContainerNode:
 			err = encodeSecretContainer(source, printed, name, child)
@@ -202,15 +204,10 @@ func encodeSecretList(source, printed *Tree, name string, cp ChildProvider) erro
 	return nil
 }
 
-// encodeSecretLeaf sets the leaf name of printed to its $9$ spelling: the
-// stored text when it still decodes to the value held, else a fresh encoding,
-// which source then keeps as its stored text.
-func encodeSecretLeaf(source, printed *Tree, name string) error {
-	value, ok := printed.Get(name)
-	// refuse-by-default: guards encodeSecretLeaves -- a sensitive leaf the config does not set has no key to print
-	if !ok {
-		return nil
-	}
+// encodeSecretLeaf sets the leaf name of printed, which holds value, to its
+// $9$ spelling: the stored text when it still decodes to value, else a fresh
+// encoding, which source then keeps as its stored text.
+func encodeSecretLeaf(source, printed *Tree, name, value string) error {
 	// A value already in the $9$ form is printed as it is: every parser
 	// decodes it on read, so encoding it again would change its meaning.
 	if secret.IsEncoded(value) {
@@ -372,7 +369,7 @@ func encodeSecretMetaLeaf(printed *Tree, meta *MetaTree, name string) {
 // encoding. An empty key (a delete, or no previous value), a key already in
 // the $9$ form and the mask placeholder are printed as they are.
 func secretSpelling(printedValue, key string) string {
-	// refuse-by-default: guards writeDeleteMetaLines -- an empty Value is a session's delete, never a key
+	// refuse-by-default: guards encodeSecretMetaLeaf -- an empty Value is a session's delete, never a key: encoded, the delete line would print as a set
 	if key == "" {
 		return key
 	}

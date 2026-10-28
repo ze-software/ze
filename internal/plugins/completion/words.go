@@ -165,7 +165,10 @@ func isSubVerbWord(word string) bool {
 	if word == "" {
 		return false
 	}
-	if word[0] < 'a' || word[0] > 'z' {
+	if word[0] < 'a' {
+		return false
+	}
+	if word[0] > 'z' {
 		return false
 	}
 	for i := 1; i < len(word); i++ {

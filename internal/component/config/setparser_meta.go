@@ -471,7 +471,8 @@ func (p *SetParser) walkAndSetWithMeta(tree *Tree, meta *MetaTree, parent Node, 
 // and records metadata at the leaf. Called after parseDelete has already applied
 // the deletion to the tree.
 //
-// The only error is a ^previous field in the $9$ form that does not decode.
+// It refuses a ^previous field in the $9$ form that does not decode, and a
+// list address the codec refuses.
 func (p *SetParser) recordDeleteMeta(meta *MetaTree, entry MetaEntry, tokens []string) error {
 	hasMetadata := entry.User != "" || !entry.Time.IsZero() || entry.Source != ""
 	if !hasMetadata || len(tokens) == 0 {
@@ -481,8 +482,9 @@ func (p *SetParser) recordDeleteMeta(meta *MetaTree, entry MetaEntry, tokens []s
 }
 
 // walkAndRecordDeleteMeta navigates the meta tree in parallel with the schema
-// to find the correct position for recording delete metadata. A path it
-// cannot follow records nothing: parseDelete has already judged the path.
+// to find the correct position for recording delete metadata. A field the
+// schema does not hold records nothing, because parseDelete refused it; a
+// list address the codec refuses is an error.
 //
 //nolint:cyclop // exhaustive node type dispatch mirrors walkAndSetWithMeta
 func (p *SetParser) walkAndRecordDeleteMeta(meta *MetaTree, parent Node, entry MetaEntry, tokens []string) error {
@@ -535,10 +537,12 @@ func (p *SetParser) walkAndRecordDeleteMeta(meta *MetaTree, parent Node, entry M
 		if len(tokens) == 0 {
 			return nil // List-level delete, no leaf metadata.
 		}
+		// parseDelete stops at a container the tree does not hold, before
+		// it reaches this address, so the walk is the first to parse it: an
+		// address the codec refuses would drop the session's delete record.
 		addr, err := ParseListAddress(name, list, tokens)
-		// refuse-by-default: guards parseDelete -- an address the codec refuses names no entry, and parseDelete judged it
 		if err != nil {
-			return nil //nolint:nilerr // parseDelete reported the address; no entry holds metadata
+			return fmt.Errorf("delete metadata for %s: %w", name, err)
 		}
 		if len(tokens) == addr.Tokens {
 			return nil // Entry-level delete, no leaf metadata.
