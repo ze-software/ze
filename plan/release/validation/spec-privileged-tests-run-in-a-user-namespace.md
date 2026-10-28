@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling |
 | Priority | P2 |
 | Release reason | Release validation: about 390 kernel-touching tests skip on every unprivileged run, so ordinary package runs and agents' scoped evidence never execute them. Running them in a namespace of their own turns those skips into executed proof of shipped behavior. |
@@ -197,11 +197,13 @@ are group C's.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestEnterGivesAPrivateNetnsDirectory` | `internal/test/userns/userns_linux_test.go` | AC-1, AC-2; red before P1's extension (NewNamed fails with permission denied) | |
-| `TestEnterServesIPNetns` | `internal/test/userns/userns_linux_test.go` | AC-3 | |
-| `TestEnterCreatesAMissingNetnsDirectory` | `internal/test/userns/userns_linux_test.go` | AC-4 | |
-| `TestEnterRunsInPlaceOffLinux` | `internal/test/userns/userns_other_test.go` | AC-7 (compiled on darwin; run on Thomas's Mac) | |
-| `TestEnterRefusalNamesTheFix` | `internal/test/userns/userns_linux_test.go` | AC-5, through the function that builds the skip text | |
+| `TestEnterGivesAPrivateNetnsDirectory` | `internal/test/userns/userns_linux_test.go` | AC-1, AC-2; red before P1's extension (NewNamed fails with permission denied) | P1: written; red under an overlay that drops `CLONE_NEWNS` and the mount step (the device check fires: "/run/netns device 24 is the host's"; the tmpfs magic alone passed, because the host's /run is a tmpfs), green after |
+| `TestEnterServesIPNetns` | `internal/test/userns/userns_linux_test.go` | AC-3 | P1: written; red under the overlay (`ip netns add` exit 1), green after |
+| `TestEnterCreatesAMissingNetnsDirectory` | `internal/test/userns/userns_linux_test.go` | AC-4 | P1: written; red under the overlay (no `run/netns` created), green after |
+| `TestEnterMountFailureNamesTheStep` | `internal/test/userns/userns_linux_test.go` | AC-6, through `mountNetnsDir` over a regular file: the error names `mount tmpfs on <target>` and wraps ENOTDIR; `childSetup` fails the test with it | P1: added; red under the overlay (nil error), green after |
+| `TestEnterRunsTheTestAsRootWithLoopbackUp` | `internal/test/userns/userns_linux_test.go` | the existing contract (euid 0, lo up) the BFD and dhcpserver users rely on | P1: added; green before and after |
+| `TestEnterRunsInPlaceOffLinux` | `internal/test/userns/userns_other_test.go` | AC-7 (compiled on darwin; run on Thomas's Mac) | P1: written; `GOOS=darwin go vet` of `internal/test/userns` and `internal/component/traceroute/cmd` exit 0; not run (owed on the Mac) |
+| `TestEnterRefusalNamesTheFix` | `internal/test/userns/userns_linux_test.go` | AC-5, through the function that builds the skip text | P1: written; red under the overlay (the old text), green after |
 | `TestPPPAccessTellsApartItsStates` | `internal/le/setup/setup_test.go` | AC-12, with injected device and group probes like `TestKvmTellsApartTheThreeWaysItIsNotUsable` | |
 | `TestPPPAccessInstallSteps` | `internal/le/setup/setup_test.go` | AC-13, AC-14, AC-15, over a recording shell | |
 | every inventory test | the inventory files | AC-8: PASS in its namespace | |

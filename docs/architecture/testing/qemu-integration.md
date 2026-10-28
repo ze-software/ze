@@ -813,18 +813,36 @@ keyword; a host observation rejects that keyword. See
 [RFC discrimination placement](../../contributing/rfc-conformance-gates.md).
 
 For tests needing only their own network, a fixed port or an address on `lo`,
-`userns.Enter` (`internal/test/userns`) re-executes the test in a new user and network
-namespace, where the test is root over a namespace of its own, and skips only
-when the kernel refuses one. A well-known port bound there never collides with
-a ze running on the host or with a parallel run of the same package, and a
-coverage run passes its counter directory to the child, so `./le rfc
-record` sees the code the child ran. The BFD wire tests
-(`internal/component/bfd/rfc5881_wire_port_linux_test.go`,
+`userns.Enter` (`internal/test/userns`) re-executes the test in a new user,
+network and mount namespace, where the test is root over namespaces of its
+own, and skips only when the kernel refuses them; the skip names
+`./le setup install` and its `userns-unrestricted` check. `Enter` is the first
+statement of a top-level test, and such a test never calls `t.Parallel`,
+because the child re-runs that one named test in a fresh process. A well-known
+port bound there never collides with a ze running on the host or with a
+parallel run of the same package, and a coverage run passes its counter
+directory to the child, so `./le rfc record` sees the code the child ran. The
+BFD wire tests (`internal/component/bfd/rfc5881_wire_port_linux_test.go`,
 `internal/component/bfd/engine/rfc5881_ttl_wire_linux_test.go`) use it.
 `Enter` brings up the literal kernel-created `lo` inside that new namespace.
 This is fixture topology, not an operator-selected logical interface, so the
 direct lookup in `loopbackUp` is an explicit interface-resolution gate exemption.
-<!-- source: internal/test/userns/userns_linux.go -- Enter, loopbackUp -->
+<!-- source: internal/test/userns/userns_linux.go -- Enter, refusal, loopbackUp -->
+
+Before the test body runs, the child makes its mount tree recursively private
+and mounts a tmpfs on `/run/netns`, so a named network namespace
+(`netns.NewNamed`, `ip netns add`, `ip netns exec`) works without privilege
+and never appears on the host. Where the host has no `/run/netns`, the tmpfs
+goes on `/run` and the child creates `/run/netns` in it, which hides the rest
+of the host's `/run` from that test. The parent passes the device number of
+the host's `/run/netns` to the child, and the child fails the test while its
+own `/run/netns` still sits on that device. A mount step that fails fails the
+test with the step and the errno, never a skip.
+<!-- source: internal/test/userns/userns_linux.go -- childSetup, mountNetnsDir, netnsDevice -->
+
+Off Linux, `Enter` answers true at once and the test runs in place, so a
+portable test (the traceroute command tests) can call it without a build tag.
+<!-- source: internal/test/userns/userns_other.go -- Enter -->
 
 ### File Naming
 
