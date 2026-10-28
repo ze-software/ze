@@ -107,8 +107,23 @@ the field zero the read buffer stays at miekg's 512 octets, and a longer query
 draws FORMERR from miekg without reaching the handler. The authoritative
 consumers leave it zero today.
 
-<!-- source: internal/core/dnsserver/recursive.go -- Recursive, shapeRecursive, recursiveReplyLimit, RecursiveUDPSize -->
-<!-- source: internal/core/dnsserver/manager.go -- Options.UDPSize -->
+miekg runs a header filter before the handler, and its default
+(`dns.DefaultMsgAcceptFunc`) answers a query whose opcode is not QUERY or
+NOTIFY, or whose question count is not one, with its own NOTIMP or FORMERR:
+that reply carries RA=0 and the consumer never sees it. A consumer of
+`Recursive` therefore sets `Options.MsgAcceptFunc` to `RecursiveAccept`, which
+every listener (UDP, TCP, DoT) runs instead. It lets those queries through,
+so `Recursive` answers the opcode and the answer function the question count,
+both shaped. It keeps the default's other protections: a response is ignored,
+and a header claiming more than 16 questions, more than one answer or
+authority record, or more than two additional records still draws miekg's
+unshaped FORMERR before anything is unpacked at length. `Recursive`'s third
+argument, a `RejectFunc`, is told of each reply the wrapper wrote without
+calling the answer function, so the consumer counts it. A nil
+`MsgAcceptFunc` keeps miekg's default, which the authoritative consumers use.
+
+<!-- source: internal/core/dnsserver/recursive.go -- Recursive, RejectFunc, RecursiveAccept, shapeRecursive, recursiveReplyLimit, RecursiveUDPSize -->
+<!-- source: internal/core/dnsserver/manager.go -- Options.UDPSize, Options.MsgAcceptFunc -->
 <!-- test: internal/core/dnsserver/recursive_test.go -- TestRecursiveShape, TestRecursiveOpcode, TestRecursiveUDPSize -->
 <!-- test: internal/core/dnsserver/handler_test.go -- TestAuthoritativeUnchanged -->
 

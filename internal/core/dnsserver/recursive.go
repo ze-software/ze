@@ -41,11 +41,15 @@ const RecursiveUDPSize = 1232
 // A query whose opcode is not a standard query draws that reply here and
 // never reaches fn, so no opcode Ze does not implement is forwarded upstream.
 //
+// rejected, when not nil, is called once for each reply Recursive writes
+// without consulting fn (today the Not Implemented reply above), so the
+// consumer counts every query it answers and not only those fn saw.
+//
 // If fn panics, queryGuard contains it as it does for Authoritative: the panic
 // is logged, counted and recorded, and no reply is written.
 //
 // A nil log discards the write-failure line (see send), never the panic line.
-func Recursive(log *slog.Logger, fn AnswerFunc) dns.HandlerFunc {
+func Recursive(log *slog.Logger, fn AnswerFunc, rejected RejectFunc) dns.HandlerFunc {
 	if log == nil {
 		log = slogutil.DiscardLogger()
 	}
@@ -58,6 +62,9 @@ func Recursive(log *slog.Logger, fn AnswerFunc) dns.HandlerFunc {
 			shapeRecursive(msg, r)
 			// RFC 1035 Section 6.4
 			send(w, msg, recursiveReplyLimit(r), log)
+			if rejected != nil {
+				rejected(w, msg.Rcode)
+			}
 			return
 		}
 		msg.SetReply(r)
@@ -68,6 +75,62 @@ func Recursive(log *slog.Logger, fn AnswerFunc) dns.HandlerFunc {
 		shapeRecursive(msg, r)
 		send(w, msg, recursiveReplyLimit(r), log)
 	}
+}
+
+// RejectFunc observes a reply Recursive wrote without calling the answer
+// func: p is the client and rcode the reply's response code.
+type RejectFunc func(p Peer, rcode int)
+
+// headerQR is the QR bit of the header flags word (dns.Header.Bits).
+//
+// RFC 1035 Section 4.1.1: "QR              A one bit field that specifies
+// whether this message is a query (0), or a response (1)."
+//
+//	                                1  1  1  1  1  1
+//	  0  1  2  3  4  5  6  7  8  9  0  1  2  3  4  5
+//	+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+//	|QR|   Opcode  |AA|TC|RD|RA|   Z    |   RCODE   |   octets 2-3
+//	+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+const headerQR = 1 << 15
+
+// recursiveQuestionsMax is the most questions RecursiveAccept hands to the
+// handler. Every client asks one, and the handler answers any other count
+// with Format error in the recursive shape; the bound only stops a header
+// that claims thousands of questions from being unpacked before that answer.
+const recursiveQuestionsMax = 16
+
+// RecursiveAccept is the header filter a recursive service sets as
+// Options.MsgAcceptFunc. The DNS library's default filter answers a query
+// whose opcode is not QUERY or NOTIFY, or whose question count is not one,
+// with its own NOTIMP or FORMERR before the handler runs, so the reply misses
+// the recursive shape (RA=0) and the consumer never counts it. This filter
+// lets those queries through to Recursive and the answer func, which answer
+// them shaped and counted.
+//
+// It keeps the default filter's other protections, so a message whose
+// sections the library would unpack at length never reaches the handler:
+// a response is ignored (answering it could start a reply loop), and a
+// header claiming more than recursiveQuestionsMax questions, more than one
+// answer or authority record, or more than two additional records is
+// rejected with the library's FORMERR, unshaped. An UPDATE carrying more than
+// one prerequisite or update record is refused there for the same reason.
+func RecursiveAccept(dh dns.Header) dns.MsgAcceptAction {
+	if dh.Bits&headerQR != 0 {
+		return dns.MsgIgnore
+	}
+	if dh.Qdcount > recursiveQuestionsMax {
+		return dns.MsgReject
+	}
+	if dh.Ancount > 1 {
+		return dns.MsgReject
+	}
+	if dh.Nscount > 1 {
+		return dns.MsgReject
+	}
+	if dh.Arcount > 2 {
+		return dns.MsgReject
+	}
+	return dns.MsgAccept
 }
 
 // recursiveReplyLimit returns the largest datagram reply to r: what the

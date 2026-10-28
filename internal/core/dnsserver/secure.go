@@ -514,6 +514,7 @@ func (m *Manager) bindDoT(ep string, listen netip.AddrPort, tlsConfig *tls.Confi
 	srv := &dns.Server{
 		Listener:          tls.NewListener(ln, tlsConfig),
 		Handler:           m.handler,
+		MsgAcceptFunc:     m.opts.MsgAcceptFunc,
 		NotifyStartedFunc: func() { close(started) },
 	}
 	m.servers = append(m.servers, srv)

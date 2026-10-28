@@ -92,6 +92,13 @@ type Options struct {
 	// client. The LAN resolver sets one, because each of its connections can
 	// hold an upstream resolution open. A negative value is a caller defect.
 	TCPConnMax int
+
+	// MsgAcceptFunc is the header filter every listener runs before the
+	// handler (UDP, TCP and DoT). Nil keeps dns.DefaultMsgAcceptFunc, which
+	// the authoritative services use: it answers a non-QUERY, non-NOTIFY
+	// opcode or a question count other than one itself. A recursive service
+	// passes RecursiveAccept, so its handler answers those in its own shape.
+	MsgAcceptFunc dns.MsgAcceptFunc
 }
 
 // Manager owns the bound UDP+TCP listeners for a dns.Handler. The handler is
@@ -202,7 +209,13 @@ func (m *Manager) bind(ep string, listen netip.AddrPort) error {
 		return fmt.Errorf("udp: %w", err)
 	}
 	udpStarted := make(chan struct{})
-	udp := &dns.Server{PacketConn: pc, Handler: m.handler, UDPSize: m.opts.UDPSize, NotifyStartedFunc: func() { close(udpStarted) }}
+	udp := &dns.Server{
+		PacketConn:        pc,
+		Handler:           m.handler,
+		UDPSize:           m.opts.UDPSize,
+		MsgAcceptFunc:     m.opts.MsgAcceptFunc,
+		NotifyStartedFunc: func() { close(udpStarted) },
+	}
 	ln, err := lc.Listen(context.Background(), "tcp", ep)
 	if err != nil {
 		if cerr := pc.Close(); cerr != nil {
@@ -218,6 +231,7 @@ func (m *Manager) bind(ep string, listen netip.AddrPort) error {
 		WriteTimeout:      tcpWriteTimeout,
 		IdleTimeout:       func() time.Duration { return tcpIdleTimeout },
 		MaxTCPQueries:     tcpQueriesMax,
+		MsgAcceptFunc:     m.opts.MsgAcceptFunc,
 		NotifyStartedFunc: func() { close(tcpStarted) },
 	}
 	m.servers = append(m.servers, udp, tcp)

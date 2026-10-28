@@ -43,7 +43,7 @@ func TestRecursiveShape(t *testing.T) {
 			msg.CheckingDisabled = !cd
 			msg.Rcode = dns.RcodeServerFailure
 			return true
-		})
+		}, func(Peer, int) { t.Errorf("cd=%v: a standard query was reported rejected", cd) })
 
 		fw := &fakeResponseWriter{}
 		handler(fw, q)
@@ -84,7 +84,7 @@ func TestRecursiveShape(t *testing.T) {
 		}
 	}
 
-	dropped := Recursive(nil, func(msg, r *dns.Msg, p Peer) bool { return false })
+	dropped := Recursive(nil, func(msg, r *dns.Msg, p Peer) bool { return false }, nil)
 	fw := &fakeResponseWriter{}
 	dropped(fw, recursiveQuery("example.test.", 0))
 	if fw.written != nil {
@@ -92,7 +92,7 @@ func TestRecursiveShape(t *testing.T) {
 	}
 
 	guard, logs := swapQueryGuard(t)
-	panicking := Recursive(nil, func(msg, r *dns.Msg, p Peer) bool { panic("boom") })
+	panicking := Recursive(nil, func(msg, r *dns.Msg, p Peer) bool { panic("boom") }, nil)
 	fw = &fakeResponseWriter{}
 	panicking(fw, recursiveQuery("example.test.", 0))
 	requireQueryContained(t, guard, logs, taskRecursiveQuery)
@@ -105,19 +105,24 @@ func TestRecursiveShape(t *testing.T) {
 // Recursive without reaching the answer func, in the recursive shape (RA=1,
 // AA=0) (AC-26).
 // METHOD: send IQUERY, STATUS, NOTIFY and UPDATE through a handler whose
-// answer func fails the test if called.
+// answer func fails the test if called, and whose rejected func must be
+// told of exactly one NOTIMP reply.
 // PREVENTS: an inverse query or an update reaching the resolution path, where
 // it would be forwarded or answered as if Ze implemented it.
 func TestRecursiveOpcode(t *testing.T) {
 	for _, opcode := range []int{dns.OpcodeIQuery, dns.OpcodeStatus, dns.OpcodeNotify, dns.OpcodeUpdate} {
 		q := recursiveQuery("example.test.", 0)
 		q.Opcode = opcode
+		var rejected []int
 		handler := Recursive(nil, func(msg, r *dns.Msg, p Peer) bool {
 			t.Errorf("opcode %s reached the answer func", dns.OpcodeToString[opcode])
 			return true
-		})
+		}, func(_ Peer, rcode int) { rejected = append(rejected, rcode) })
 		fw := &fakeResponseWriter{}
 		handler(fw, q)
+		if len(rejected) != 1 || rejected[0] != dns.RcodeNotImplemented {
+			t.Errorf("opcode %s: rejected reported %v, want one NOTIMP", dns.OpcodeToString[opcode], rejected)
+		}
 		if fw.written == nil {
 			t.Fatalf("opcode %s: no reply written", dns.OpcodeToString[opcode])
 		}
@@ -145,7 +150,7 @@ func TestRecursiveOpcode(t *testing.T) {
 // without the OPT the client asked for, or a listener that drops every large
 // EDNS query.
 func TestRecursiveUDPSize(t *testing.T) {
-	handler := Recursive(nil, answerN(200))
+	handler := Recursive(nil, answerN(200), nil)
 
 	for _, offer := range []uint16{1232, 4096} {
 		w := udpWriter()
@@ -203,7 +208,7 @@ func TestRecursiveUDPSize(t *testing.T) {
 func padded1232Answered(t *testing.T, opts Options) bool {
 	t.Helper()
 	port := freePort(t)
-	mgr := New(testLogger(), Recursive(nil, func(msg, r *dns.Msg, p Peer) bool { return true }), opts)
+	mgr := New(testLogger(), Recursive(nil, func(msg, r *dns.Msg, p Peer) bool { return true }, nil), opts)
 	if err := mgr.reconcile(true, Listeners{Plain: []Endpoint{{IP: netip.MustParseAddr("127.0.0.1"), Port: port}}}, BindLenient); err != nil {
 		t.Fatalf("reconcile: %v", err)
 	}

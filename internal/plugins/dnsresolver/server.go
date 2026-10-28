@@ -125,13 +125,22 @@ func newResolverServer(log *slog.Logger, res *resolver) *resolverServer {
 		Freebind:         true,
 		TCPConnMax:       resolverTCPConnMax,
 		OnListenerChange: res.listeners.change,
+		MsgAcceptFunc:    dnsserver.RecursiveAccept,
 	})}
 }
 
 // recursiveHandler is the handler every listener serves: res's answer
-// function inside the harness's recursive wrapper.
+// function inside the harness's recursive wrapper, which reports the
+// Not Implemented replies it writes itself to countRejected.
 func recursiveHandler(log *slog.Logger, res *resolver) dns.HandlerFunc {
-	return dnsserver.Recursive(log, res.answer)
+	return dnsserver.Recursive(log, res.answer, res.countRejected)
+}
+
+// countRejected counts a query the recursive wrapper answered without
+// calling answer (an opcode Ze does not implement), so
+// ze_dns_resolver_queries_total holds every reply the resolver wrote.
+func (r *resolver) countRejected(p dnsserver.Peer, rcode int) {
+	r.countQuery(p.RemoteAddr().Network(), rcode)
 }
 
 // reconcile binds the listeners cfg names, or none when it is disabled. An
