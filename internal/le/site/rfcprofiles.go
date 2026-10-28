@@ -521,7 +521,7 @@ func rfcMirrorCell(value string) string { return strings.ReplaceAll(value, "|", 
 // the reason healthStyle is: these rules serve this family and nothing else.
 const rfcProfileStyle = `<style>
 .rfc-bar { display: block; width: 100%; min-width: 7rem; height: .7rem; margin: .2rem 0 .15rem; border-radius: 999px; background: var(--panel); border: 1px solid var(--line-strong); overflow: hidden; }
-.rfc-bar span { display: block; height: 100%; background: var(--teal-chip); }
+.rfc-bar span { display: block; height: 100%; background: var(--teal-base); }
 .rfc-bar-unmeasured { border-style: dashed; }
 .rfc-bar-note { display: block; color: var(--muted); font-size: .85rem; white-space: nowrap; }
 </style>
