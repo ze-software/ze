@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"html"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -190,16 +191,24 @@ func TestTheRFCComplianceSectionsReadAsThePublishedPage(t *testing.T) {
 	// for. What that section owes instead is
 	// TestTheBucketTableAccountsForEveryGatedRequirement, which checks the
 	// arithmetic rather than the bytes.
-	for _, section := range []struct{ name, from, mine, theirs string }{
+	// Each section now opens with a plain lead for a reader who is not a
+	// contributor (rfcreader.go). The published page had none, so the lead is
+	// required at the head of the section and the rest of the section is still
+	// compared character for character.
+	for _, section := range []struct{ name, from, mine, theirs, lead string }{
 		// The exclusion disclosure was inserted between the two on 2026-09-01,
 		// so this section now ends at that heading rather than at the clusters.
 		// What it reads is unchanged, which is what the comparison holds.
-		{"gap disclosure", "Gap disclosure", "Exclusion disclosure", "Top gap clusters"},
+		{"gap disclosure", "Gap disclosure", "Exclusion disclosure", "Top gap clusters", rfcLeadGaps},
 		// The Gate inputs section folded into How this is checked on 2026-09-01:
 		// a mechanism belongs in one place, and it was in two.
-		{"top gap clusters", "Top gap clusters", "How this is checked", "AI guard and gate inputs"},
+		{"top gap clusters", "Top gap clusters", "How this is checked", "AI guard and gate inputs", rfcLeadClusters},
 	} {
 		got := textBetween(t, text, section.from, section.mine)
+		if !strings.HasPrefix(got, section.lead+" ") {
+			t.Errorf("the %s section does not open with its lead %q", section.name, section.lead)
+		}
+		got = strings.TrimPrefix(got, section.lead+" ")
 		want := textBetween(t, published, section.from, section.theirs)
 		if got != want {
 			t.Errorf("the %s section reads as\n  %q\nthe published one reads as\n  %q",
@@ -372,9 +381,10 @@ func TestTheCardGridReadsInFourMovements(t *testing.T) {
 // VALIDATES: the check section publishes the gate's own open issues, and says
 // so when there are none.
 //
-// The Go gate answers one list rather than a count for each check, so the
-// published table of ten named checks has no source. A table of ten zeros
-// nobody could derive would be a number nobody can trace (ai/rules/evidence.md).
+// The Go gate answers one list, and each finding names the group of checks that
+// raised it (rfc.Finding.Check), so the plain line for each group counts what
+// the gate itself filed there. The raw table stays, inside the collapsed block
+// for contributors.
 func TestTheCheckSectionPublishesTheGatesOwnIssues(t *testing.T) {
 	green := rfcCompliancePaths(t)
 	_, text := rfcCompliancePage(t, green)
@@ -418,6 +428,98 @@ func TestTheCheckSectionPublishesTheGatesOwnIssues(t *testing.T) {
 	}
 	if !strings.Contains(redText, "Gate verdictRED2 open gate issues") {
 		t.Error("a red gate does not read as red on its card")
+	}
+
+	// Every group the gate declares gets a plain line, passing or not, and the
+	// two findings that name no group are counted apart rather than filed under
+	// a guess.
+	for _, group := range rfc.CheckGroups {
+		if !strings.Contains(redText, group.Name+": Passed. "+group.Verifies) {
+			t.Errorf("the red page does not show group %q as passed", group.Name)
+		}
+		if !strings.Contains(text, group.Name+": Passed.") {
+			t.Errorf("the green page does not show group %q as passed", group.Name)
+		}
+	}
+	if !strings.Contains(redText, "Other checks: Failed, 2 problems.") {
+		t.Error("findings that name no group are not counted on their own line")
+	}
+	// The raw diagnostics are kept, unchanged, inside the contributor block.
+	start := strings.Index(redPage, `<details class="rfc-contributor"><summary>`+rfcContributorSummary)
+	if start < 0 {
+		t.Fatal("the raw findings are not in a collapsed block for contributors")
+	}
+	block, _, closed := strings.Cut(redPage[start:], "</details>")
+	if !closed {
+		t.Fatal("the collapsed block for contributors is never closed")
+	}
+	if !strings.Contains(block, "rfc9998 has no public row") ||
+		!strings.Contains(block, `<a href="rfc9999/#rfc9999-2-1">`) {
+		t.Error("the contributor block does not carry the raw findings")
+	}
+
+	// A finding filed under a group fails that group's line, with the count and
+	// what the failure means.
+	snapshot.Gate.Findings[0].Check = rfc.CheckTestEvidence
+	snapshot.Gate.Findings[1].Check = rfc.CheckTestEvidence
+	_, groupedText := rfcCompliancePage(t, rfcCompliancePathsFrom(t, &snapshot))
+	evidence := rfc.CheckGroups[slices.IndexFunc(rfc.CheckGroups,
+		func(group rfc.CheckGroup) bool { return group.Key == rfc.CheckTestEvidence })]
+	if !strings.Contains(groupedText, evidence.Name+": Failed, 2 problems. "+evidence.Verifies+
+		" What this means: "+evidence.Failure) {
+		t.Error("a group with findings does not say it failed, how often, and what that means")
+	}
+	if strings.Contains(groupedText, "Other checks") {
+		t.Error("an Other checks line is shown when every finding names its group")
+	}
+}
+
+// VALIDATES: the index explains itself to a reader who is not a contributor:
+// an introduction and a glossary near the top, and a plain lead under every
+// section heading, on the page and in the mirror alike.
+func TestTheIndexExplainsItselfToAReader(t *testing.T) {
+	paths := rfcCompliancePaths(t)
+	page, text := rfcCompliancePage(t, paths)
+	mirror := readArtifact(t, paths.Output, "quality/rfc-compliance/"+pageMirrorFile)
+
+	intro := strings.Index(page, "<h2>"+rfcReaderHeading+"</h2>")
+	verdict := strings.Index(page, `class="rfc-verdict`)
+	if intro < 0 || verdict < 0 || intro > verdict {
+		t.Error("the introduction does not come before the gate verdict")
+	}
+	if !strings.Contains(mirror, "## "+rfcReaderHeading+"\n") {
+		t.Error("the mirror carries no introduction")
+	}
+	for _, term := range rfcGlossary() {
+		if !strings.Contains(text, term.Term+term.Meaning) {
+			t.Errorf("the page glossary does not explain %q", term.Term)
+		}
+		if !strings.Contains(mirror, "- **"+term.Term+"**: "+term.Meaning) {
+			t.Errorf("the mirror glossary does not explain %q", term.Term)
+		}
+	}
+	for _, heading := range []struct{ Title, Lead string }{
+		{rfcProfilesPointerHeading, rfcLeadProfiles},
+		{"Who implements each document", rfcLeadImplements},
+		{"Requirement buckets", rfcLeadBuckets},
+		{"Gap disclosure", rfcLeadGaps},
+		{"Exclusion disclosure", rfcLeadExclusions},
+		{"Top gap clusters", rfcLeadClusters},
+		{"How this is checked", rfcLeadMechanism},
+		{"Check results", rfcLeadChecks},
+		{"Enrolled RFCs", rfcLeadEnrolled},
+		{"Summaries that are not enrolled", rfcLeadDeclined},
+	} {
+		if !strings.Contains(page, heading.Title+"</h2>\n"+rfcLeadHTML(heading.Lead)) {
+			t.Errorf("the page section %q does not open with its lead", heading.Title)
+		}
+		if !strings.Contains(mirror, "## "+heading.Title+"\n\n"+heading.Lead+"\n") {
+			t.Errorf("the mirror section %q does not open with its lead", heading.Title)
+		}
+	}
+	if !strings.Contains(mirror, "## Gate verdict\n\n"+rfcLeadVerdict+"\n") ||
+		!strings.Contains(page, rfcLeadHTML(rfcLeadVerdict)) {
+		t.Error("the gate verdict does not open with its lead")
 	}
 }
 
@@ -979,7 +1081,7 @@ func TestTheGateVerdictIsAStatusAndNotTerminalOutput(t *testing.T) {
 	for _, want := range []string{
 		"Gate verdict",
 		"Every enrolled MUST-level requirement carries both test polarities",
-		"Reproduce it with",
+		"reproduce it with",
 		"The gate's own line reads",
 	} {
 		if !strings.Contains(text, want) {

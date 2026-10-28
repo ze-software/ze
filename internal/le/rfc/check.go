@@ -44,6 +44,8 @@ type Finding struct {
 	Text    string `json:"text,omitempty"`
 	// Issue is what is wrong, without the requirement's own text after it.
 	Issue string `json:"issue,omitempty"`
+	// Check is the group of checks that raised this finding (CheckGroups).
+	Check CheckGroupKey `json:"check,omitempty"`
 }
 
 // note answers a finding that carries a message and no parts.
@@ -425,46 +427,46 @@ func check(tree string, today time.Time, approvals map[string]string) (CheckRepo
 	}
 
 	var findings []Finding
-	findings = append(findings, notes(checkEnrolment(tree, collected.Enrolled, baseEnrolled, stems, signedSet))...)
-	findings = append(findings, notes(checkNewSummaries(deriver, stems, baselineStems, collected.Enrolled,
-		collected.Requirements, collected.ParseByStem, stemsKnown, collected.Metas))...)
+	findings = append(findings, inGroup(CheckRequirementLists, notes(checkEnrolment(tree, collected.Enrolled, baseEnrolled, stems, signedSet)))...)
+	findings = append(findings, inGroup(CheckRequirementLists, notes(checkNewSummaries(deriver, stems, baselineStems, collected.Enrolled,
+		collected.Requirements, collected.ParseByStem, stemsKnown, collected.Metas)))...)
 	if intersects(collected.Enrolled, baseEnrolled) {
 		carriers, err := carriers(tree)
 		if err != nil {
 			return CheckReport{}, err
 		}
-		findings = append(findings, notes(checkRetiredRequirements(collected.Requirements, collected.Enrolled,
-			ids, baseEnrolled, stems, baselineStems, collected.ParseByStem, retired))...)
-		findings = append(findings, notes(checkLevelRatchet(tree, collected.Requirements, collected.Enrolled,
-			levels, baseEnrolled))...)
-		findings = append(findings, notes(checkCoverageRatchet(collected.Requirements, collected.Tags,
-			collected.Enrolled, committed.Head, baseEnrolled, approvals))...)
-		findings = append(findings, notes(checkEvidenceRatchet(collected.Requirements, collected.Tags,
-			collected.Enrolled, carriers, baselineEvidence(tree, committed.Tags), baseEnrolled))...)
+		findings = append(findings, inGroup(CheckRequirementLists, notes(checkRetiredRequirements(collected.Requirements, collected.Enrolled,
+			ids, baseEnrolled, stems, baselineStems, collected.ParseByStem, retired)))...)
+		findings = append(findings, inGroup(CheckRequirementLists, notes(checkLevelRatchet(tree, collected.Requirements, collected.Enrolled,
+			levels, baseEnrolled)))...)
+		findings = append(findings, inGroup(CheckTestEvidence, notes(checkCoverageRatchet(collected.Requirements, collected.Tags,
+			collected.Enrolled, committed.Head, baseEnrolled, approvals)))...)
+		findings = append(findings, inGroup(CheckTestEvidence, notes(checkEvidenceRatchet(collected.Requirements, collected.Tags,
+			collected.Enrolled, carriers, baselineEvidence(tree, committed.Tags), baseEnrolled)))...)
 	}
-	findings = append(findings, notes(collected.ParseErrors)...)
+	findings = append(findings, inGroup(CheckRequirementLists, notes(collected.ParseErrors))...)
 	// A document under reference/ is non-normative until the owner moves it into
 	// rfc/full/ or rfc/drafts/ (reference/README.md).
 	referenceErrors, err := checkReferenceSources(tree, stems)
 	if err != nil {
 		return CheckReport{}, err
 	}
-	findings = append(findings, notes(referenceErrors)...)
-	findings = append(findings, notes(checkIDAllocation(collected.Requirements, ids, unreadableLevels, retired, levelsKnown))...)
-	findings = append(findings, evaluate(collected.Requirements, collected.Tags, collected.Enrolled)...)
-	findings = append(findings, evaluateGapTags(collected.Requirements, collected.GapTags)...)
+	findings = append(findings, inGroup(CheckRequirementLists, notes(referenceErrors))...)
+	findings = append(findings, inGroup(CheckRequirementLists, notes(checkIDAllocation(collected.Requirements, ids, unreadableLevels, retired, levelsKnown)))...)
+	findings = append(findings, inGroup(CheckTestEvidence, evaluate(collected.Requirements, collected.Tags, collected.Enrolled))...)
+	findings = append(findings, inGroup(CheckTestEvidence, evaluateGapTags(collected.Requirements, collected.GapTags))...)
 	successors := successorsFrom(collected.Metas)
-	findings = append(findings, notes(checkSuperseded(tree, collected.Requirements, successors, stems))...)
+	findings = append(findings, inGroup(CheckRequirementLists, notes(checkSuperseded(tree, collected.Requirements, successors, stems)))...)
 	// The dependency graph is parsed from the RFC texts on every check: it is
 	// the header authority both lineage checks read (graph.Load).
 	corpus, err := graph.Load(tree)
 	if err != nil {
 		return CheckReport{}, err
 	}
-	findings = append(findings, notes(checkUpdatedBy(collected.Requirements, corpus, stems))...)
-	findings = append(findings, notes(checkUpdatedByMembership(collected.Requirements, collected.Metas))...)
-	findings = append(findings, notes(checkUseCaseMembers(collected.Profiles, collected.Metas))...)
-	findings = append(findings, notes(checkHeaderLinks(collected.Metas, corpus))...)
+	findings = append(findings, inGroup(CheckRequirementLists, notes(checkUpdatedBy(collected.Requirements, corpus, stems)))...)
+	findings = append(findings, inGroup(CheckRequirementLists, notes(checkUpdatedByMembership(collected.Requirements, collected.Metas)))...)
+	findings = append(findings, inGroup(CheckRequirementLists, notes(checkUseCaseMembers(collected.Profiles, collected.Metas)))...)
+	findings = append(findings, inGroup(CheckRequirementLists, notes(checkHeaderLinks(collected.Metas, corpus)))...)
 	carriers, err := carriers(tree)
 	if err != nil {
 		return CheckReport{}, err
@@ -477,29 +479,29 @@ func check(tree string, today time.Time, approvals map[string]string) (CheckRepo
 	if err != nil {
 		return CheckReport{}, err
 	}
-	findings = append(findings, notes(nameFindings)...)
+	findings = append(findings, inGroup(CheckTestEvidence, notes(nameFindings))...)
 	// A gap test is evidence only when it runs, exactly as a proof test is, so
 	// its package is type-checked with theirs.
 	compileErrors, err := checkTagPackagesCompile(tree, slices.Concat(collected.Tags, collected.GapTags), carriers)
 	if err != nil {
 		return CheckReport{}, err
 	}
-	findings = append(findings, notes(compileErrors)...)
-	findings = append(findings, notes(checkLowerLayerProducer(discriminationSources, collected.Requirements))...)
-	findings = append(findings, notes(checkPartialScopes(discriminationSources, collected.Requirements))...)
-	findings = append(findings, notes(checkFeatureDeclined(tree, discriminationSources, collected.Requirements))...)
-	findings = append(findings, notes(checkRowQuotes(tree, collected.Requirements))...)
-	findings = append(findings, notes(checkRollupTargets(collected.Requirements, collected.Enrolled))...)
-	findings = append(findings, notes(checkStatusAgreement(collected.Requirements, rows, collected.Enrolled))...)
-	findings = append(findings, notes(checkSummaryDisposition(tree, collected.Metas, collected.Requirements))...)
-	findings = append(findings, notes(checkPublicRowMonotonic(collected.Metas, baseMetas,
-		enrolledKnown, newly))...)
+	findings = append(findings, inGroup(CheckTestEvidence, notes(compileErrors))...)
+	findings = append(findings, inGroup(CheckAnnotations, notes(checkLowerLayerProducer(discriminationSources, collected.Requirements)))...)
+	findings = append(findings, inGroup(CheckAnnotations, notes(checkPartialScopes(discriminationSources, collected.Requirements)))...)
+	findings = append(findings, inGroup(CheckAnnotations, notes(checkFeatureDeclined(tree, discriminationSources, collected.Requirements)))...)
+	findings = append(findings, inGroup(CheckRequirementLists, notes(checkRowQuotes(tree, collected.Requirements)))...)
+	findings = append(findings, inGroup(CheckRequirementLists, notes(checkRollupTargets(collected.Requirements, collected.Enrolled)))...)
+	findings = append(findings, inGroup(CheckPublicStatus, notes(checkStatusAgreement(collected.Requirements, rows, collected.Enrolled)))...)
+	findings = append(findings, inGroup(CheckPublicStatus, notes(checkSummaryDisposition(tree, collected.Metas, collected.Requirements)))...)
+	findings = append(findings, inGroup(CheckPublicStatus, notes(checkPublicRowMonotonic(collected.Metas, baseMetas,
+		enrolledKnown, newly)))...)
 	derived, err := derivedRegisters(deriver, signed, collected.Requirements)
 	if err != nil {
 		return CheckReport{}, err
 	}
-	findings = append(findings, notes(checkUnprovenSupport(collected.Requirements, rows, stems, dispositions,
-		signed, derived, CoverageRows(collected.Requirements, collected.Tags, carriers)))...)
+	findings = append(findings, inGroup(CheckPublicStatus, notes(checkUnprovenSupport(collected.Requirements, rows, stems, dispositions,
+		signed, derived, CoverageRows(collected.Requirements, collected.Tags, carriers))))...)
 	// ARMED 2026-09-01, once every support-promising stem carried a sign-off.
 	// It was written unwired on purpose: arming it while 16 stems still owed one
 	// would have redded this gate for every session sharing the checkout, and a
@@ -511,8 +513,8 @@ func check(tree string, today time.Time, approvals map[string]string) (CheckRepo
 	// two checks still divide is the QUESTION -- checkUnprovenSupport asks
 	// whether the checklist is empty, this one whether a walk of the source
 	// bounds what the checklist left out.
-	findings = append(findings, notes(checkSupportedSignoff(rows, signed))...)
-	findings = append(findings, notes(checkGapCountAgreement(collected.Requirements, rows))...)
+	findings = append(findings, inGroup(CheckPublicStatus, notes(checkSupportedSignoff(rows, signed)))...)
+	findings = append(findings, inGroup(CheckPublicStatus, notes(checkGapCountAgreement(collected.Requirements, rows)))...)
 
 	audits, err := loadAudits(tree, collected.Enrolled)
 	if err != nil {
@@ -523,18 +525,18 @@ func check(tree string, today time.Time, approvals map[string]string) (CheckRepo
 	if err != nil {
 		return CheckReport{}, err
 	}
-	findings = append(findings, notes(auditFileErrors)...)
-	findings = append(findings, notes(checkAuditSchema(collected.Requirements, collected.Tags, audits))...)
-	findings = append(findings, notes(checkPartialProofs(collected.Requirements, audits, discriminationCovers, discrimination))...)
+	findings = append(findings, inGroup(CheckAudits, notes(auditFileErrors))...)
+	findings = append(findings, inGroup(CheckAudits, notes(checkAuditSchema(collected.Requirements, collected.Tags, audits)))...)
+	findings = append(findings, inGroup(CheckAudits, notes(checkPartialProofs(collected.Requirements, audits, discriminationCovers, discrimination)))...)
 	states := auditFreshness(auditFreshnessInput{Tree: tree, Requirements: collected.Requirements,
 		Tags: collected.Tags, Enrolled: collected.Enrolled, Audits: audits})
-	findings = append(findings, notes(checkAuditFreshness(collected.Requirements, states))...)
-	findings = append(findings, notes(checkAuditDisclosure(collected.Requirements, rows, collected.Enrolled, audits))...)
-	findings = append(findings, notes(checkAuditNote(tree, collected.Requirements, collected.Tags, collected.Enrolled, audits))...)
-	findings = append(findings, notes(checkAuditFindings(collected.Requirements, collected.Enrolled, audits,
-		baselineAuditSet, auditsKnown))...)
-	findings = append(findings, notes(checkAuditVerdictRatchet(collected.Requirements, collected.Enrolled, audits,
-		baselineAuditSet, auditsKnown, baseEnrolled))...)
+	findings = append(findings, inGroup(CheckAudits, notes(checkAuditFreshness(collected.Requirements, states)))...)
+	findings = append(findings, inGroup(CheckAudits, notes(checkAuditDisclosure(collected.Requirements, rows, collected.Enrolled, audits)))...)
+	findings = append(findings, inGroup(CheckAudits, notes(checkAuditNote(tree, collected.Requirements, collected.Tags, collected.Enrolled, audits)))...)
+	findings = append(findings, inGroup(CheckAudits, notes(checkAuditFindings(collected.Requirements, collected.Enrolled, audits,
+		baselineAuditSet, auditsKnown)))...)
+	findings = append(findings, inGroup(CheckAudits, notes(checkAuditVerdictRatchet(collected.Requirements, collected.Enrolled, audits,
+		baselineAuditSet, auditsKnown, baseEnrolled)))...)
 
 	headRecords, headRecordsKnown := baselineDiscrimination(tree)
 	headRecordBlobs, headRecordBlobsKnown := baselineRecordBlobs(tree, records)
@@ -553,15 +555,15 @@ func check(tree string, today time.Time, approvals map[string]string) (CheckRepo
 		Sources: discriminationSources, Index: discriminationIndex,
 		HeadSources: newTextReader(headRecordBlobs), HeadBlobsKnown: headRecordBlobsKnown,
 		HeadTagBlobs: committed.Blobs}
-	findings = append(findings, notes(checkDiscriminationRatchet(obligations))...)
+	findings = append(findings, inGroup(CheckProofRecords, notes(checkDiscriminationRatchet(obligations)))...)
 
-	findings = append(findings, notes(extractionErrors)...)
+	findings = append(findings, inGroup(CheckTextReviews, notes(extractionErrors))...)
 	extractions, err := LoadExtractions(tree)
 	if err != nil {
 		return CheckReport{}, err
 	}
-	findings = append(findings, notes(checkExtractionRatchet(tree, extractions))...)
-	findings = append(findings, notes(checkDrainFloor(tree, collected.Enrolled, signed, today))...)
+	findings = append(findings, inGroup(CheckTextReviews, notes(checkExtractionRatchet(tree, extractions)))...)
+	findings = append(findings, inGroup(CheckTextReviews, notes(checkDrainFloor(tree, collected.Enrolled, signed, today)))...)
 
 	report := CheckReport{Findings: findings, Violations: findingMessages(findings)}
 	for i := range collected.Requirements {

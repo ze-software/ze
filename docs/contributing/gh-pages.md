@@ -675,13 +675,31 @@ pre-commit stage count, the reproduce command, the inputs it reads, the
 artifacts it publishes -- is one section, "How this is checked". `Pre-commit
 gate / ON` was a card until 2026-09-01; it answers how, not where Ze stands.
 
-**Check results is a table**, one row per finding: the RFC, the requirement id
-linked to its own page and row, the level, what is wrong, and the requirement's
-own text. Those columns come from `rfc.Finding`, which carries the parts each
-check had BEFORE it formatted its line, so nothing on the page parses that line
-back apart. `CheckReport.Findings` is the one list and `Violations` is rendered
-from it. A finding about a file, a ratchet or a ledger row carries no
-requirement and states itself in the column it fills.
+**The index is written for a reader who is not a contributor.** Under the
+title it carries "How to read this page", two paragraphs and a glossary that
+explains each project term once (gated, tagged unit, recorded break, escaped,
+lapsed, walked, each annotation kind). Every section opens with one plain
+paragraph saying what it shows and why it matters to someone choosing a router.
+The words live in `rfcreader.go`, and each glossary entry restates what a card,
+legend or section already says, so it adds no claim of its own.
+<!-- source: internal/le/site/rfcreader.go -- rfcGlossary, rfcReaderIntroHTML, rfcLeadHTML -->
+
+**Check results leads with one plain line for each group of checks**: its
+name, Passed or the number of problems, what the group verifies, and for a
+failed group what that means for the figures. The groups are declared once in
+`rfc.CheckGroups`, and every check `rfc.Check` runs files its findings under
+one through `inGroup`, which `rfc.Finding.Check` carries, so nothing on the
+page parses a message to learn which check raised it. A finding that names no
+group is counted on an "Other checks" line rather than under a guess. Under the
+list, a collapsed block for contributors carries the table, one row per finding:
+the RFC, the requirement id linked to its own page and row, the level, what is
+wrong, and the requirement's own text. Those columns come from `rfc.Finding`,
+which carries the parts each check had BEFORE it formatted its line.
+`CheckReport.Findings` is the one list and `Violations` is rendered from it. A
+finding about a file, a ratchet or a ledger row carries no requirement and
+states itself in the column it fills.
+<!-- source: internal/le/rfc/checkgroups.go -- CheckGroups, inGroup -->
+<!-- source: internal/le/site/rfcreader.go -- rfcCheckLines, rfcCheckLinesHTML -->
 
 **Two mechanisms take an obligation off the gated ledger, and the index
 publishes both.** `{not-applicable}` annotates a requirement that EXISTS, and

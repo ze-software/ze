@@ -107,6 +107,9 @@ const rfcFilterScript = `<style>
     if (absent.length) { scope += "; " + absent.length + " with no summary yet"; }
     document.getElementById("rfc-overview-scope").textContent = scope + ".";
     overview.hidden = false;
+    // The overview states the ceiling, so the legend's copy is hidden.
+    var ceiling = document.getElementById("rfc-legend-ceiling");
+    if (ceiling) { ceiling.hidden = true; }
   }
   function apply() {
     var text = input.value.trim().toLowerCase();
@@ -271,7 +274,7 @@ func rfcIndexLegendHTML() string {
 		out.Str("<dt>").Str(html.EscapeString(entry[0])).Str("</dt><dd>").
 			Str(html.EscapeString(entry[1])).Str("</dd>\n")
 	}
-	out.Str("</dl>\n<p>").Str(html.EscapeString(rfcIndexCeiling)).Str("</p>\n")
+	out.Str("</dl>\n<p id=\"rfc-legend-ceiling\">").Str(html.EscapeString(rfcIndexCeiling)).Str("</p>\n")
 	return out.String()
 }
 

@@ -799,35 +799,37 @@ func rfcComplianceBody(snapshot *rfcCompliance, ledger rfcLedger) string {
 	var body textbuf.Buffer
 	body.Str("            <section aria-labeledby=\"rfc-compliance-title\" class=\"md-content reveal cat-observe\">\n")
 	body.Str(pageHero("RFC Compliance Gate Report",
-		"Source: <code>internal/le/rfc</code>, <code>rfc/short/*.md</code>, and "+
+		html.EscapeString(rfcHeroLead)+" Source: <code>internal/le/rfc</code>, <code>rfc/short/*.md</code>, and "+
 			"<code>rfc/audit/*/*.json</code>.",
 		"Quality", ` id="rfc-compliance-title"`, heroClasses)).Byte('\n')
 	body.Str(rfcComplianceStyle).Str(rfcProfileStyle)
 	body.Str(rfcListSlot)
+	body.Str(rfcReaderIntroHTML())
+	body.Str(rfcLeadHTML(rfcLeadVerdict))
 	body.Str(rfcCardGrid(snapshot, ledger))
 	body.Str(rfcGateVerdictHTML(snapshot))
 	// The per-profile pages come straight after the verdict: a reader asking
 	// how complete one use case is should not scroll past every disclosure.
 	body.Str("<section><h2>").Str(rfcProfilesPointerHeading).Str("</h2>\n").
-		Str(rfcProfilesPointerHTML()).Str("\n</section>\n")
+		Str(rfcLeadHTML(rfcLeadProfiles)).Str(rfcProfilesPointerHTML()).Str("\n</section>\n")
 
 	// Who implements the document comes BEFORE the buckets, because it decides
 	// what the buckets are taken over. A reader meeting a share first has
 	// already been told it measures Ze before anything says whose work it is.
 	body.Str("<section><h2>Who implements each document</h2>\n").
-		Str(rfcImplementationHTML(ledger)).Str("\n</section>\n")
-	body.Str("<section><h2>Requirement buckets</h2>\n").Str(rfcSatisfactionHTML(snapshot)).Str("\n</section>\n")
-	body.Str("<section><h2>Gap disclosure</h2>\n").Str(rfcGapDisclosureHTML(snapshot.Gaps)).Str("\n</section>\n")
+		Str(rfcLeadHTML(rfcLeadImplements)).Str(rfcImplementationHTML(ledger)).Str("\n</section>\n")
+	body.Str("<section><h2>Requirement buckets</h2>\n").Str(rfcLeadHTML(rfcLeadBuckets)).Str(rfcSatisfactionHTML(snapshot)).Str("\n</section>\n")
+	body.Str("<section><h2>Gap disclosure</h2>\n").Str(rfcLeadHTML(rfcLeadGaps)).Str(rfcGapDisclosureHTML(snapshot.Gaps)).Str("\n</section>\n")
 	body.Str("<section><h2>Exclusion disclosure</h2>\n").
-		Str(rfcExclusionDisclosureHTML(ledger)).Str("\n</section>\n")
-	body.Str("<section><h2>Top gap clusters</h2>\n").Str(rfcGapClusterHTML(snapshot.Gaps)).Str("\n</section>\n")
-	body.Str("<section><h2>How this is checked</h2>\n").Str(rfcMechanismHTML(snapshot)).
+		Str(rfcLeadHTML(rfcLeadExclusions)).Str(rfcExclusionDisclosureHTML(ledger)).Str("\n</section>\n")
+	body.Str("<section><h2>Top gap clusters</h2>\n").Str(rfcLeadHTML(rfcLeadClusters)).Str(rfcGapClusterHTML(snapshot.Gaps)).Str("\n</section>\n")
+	body.Str("<section><h2>How this is checked</h2>\n").Str(rfcLeadHTML(rfcLeadMechanism)).Str(rfcMechanismHTML(snapshot)).
 		Str("\n</section>\n")
-	body.Str("<section><h2>Check results</h2>\n").Str(rfcCheckHTML(snapshot.Gate)).Str("\n</section>\n")
+	body.Str("<section><h2>Check results</h2>\n").Str(rfcLeadHTML(rfcLeadChecks)).Str(rfcCheckHTML(snapshot.Gate)).Str("\n</section>\n")
 	body.Str(`<section id="`).Str(rfcListAnchor).Str(`"><h2>Enrolled RFCs</h2>`).Byte('\n').
-		Str(rfcFilterHTML).Str(rfcEnrolledIndexHTML(ledger)).Str("\n</section>\n")
+		Str(rfcLeadHTML(rfcLeadEnrolled)).Str(rfcFilterHTML).Str(rfcEnrolledIndexHTML(ledger)).Str("\n</section>\n")
 	body.Str(`<section id="`).Str(rfcDeclinedAnchor).Str(`"><h2>Summaries that are not enrolled</h2>`).Byte('\n').
-		Str(rfcDeclinedIndexHTML(ledger)).Str("\n</section>\n")
+		Str(rfcLeadHTML(rfcLeadDeclined)).Str(rfcDeclinedIndexHTML(ledger)).Str("\n</section>\n")
 	body.Str(rfcFilterScript)
 	body.Str("            </section>\n")
 	return body.String()
@@ -1495,7 +1497,7 @@ func rfcGateVerdictHTML(snapshot *rfcCompliance) string {
 	return `<div class="rfc-verdict rfc-` + rfcGateTone(snapshot.Gate.OK) + `">` + "\n" +
 		"<p><span>Gate verdict</span><strong>" + rfcGateWord(snapshot.Gate.OK) +
 		"</strong></p>\n<p>" + html.EscapeString(rfcGateVerdictText(snapshot)) +
-		"</p>\n<p>Reproduce it with <code>" + html.EscapeString(snapshot.Verify.Command) +
+		"</p>\n<p>Contributors reproduce it with <code>" + html.EscapeString(snapshot.Verify.Command) +
 		"</code>. The gate's own line reads <code>" + html.EscapeString(snapshot.Gate.Message) +
 		"</code>.</p>\n</div>\n"
 }
@@ -1744,9 +1746,12 @@ func rfcCheckHTML(gate rfcGate) string {
 	var out textbuf.Buffer
 	if len(gate.Findings) == 0 {
 		out.Str("<p>No open issue. Every enrolled MUST-level requirement carries both test ").
-			Str("polarities or an annotation saying why not.</p>")
+			Str("polarities or an annotation saying why not.</p>\n").Str(rfcCheckLinesHTML(gate))
 		return out.String()
 	}
+	out.Str(rfcCheckLinesHTML(gate))
+	out.Str("<details class=\"rfc-contributor\"><summary>").Str(rfcContributorSummary).
+		Str("</summary>\n")
 	shown := gate.Findings
 	if len(shown) > rfcIssuesShown {
 		shown = shown[:rfcIssuesShown]
@@ -1766,6 +1771,7 @@ func rfcCheckHTML(gate rfcGate) string {
 	if left := len(gate.Findings) - len(shown); left > 0 {
 		out.Str("\n<p>").Str(html.EscapeString(rfcFindingsLeftOut(left))).Str("</p>")
 	}
+	out.Str("\n</details>")
 	return out.String()
 }
 
@@ -1773,13 +1779,14 @@ func rfcCheckHTML(gate rfcGate) string {
 func rfcCheckMirror(gate rfcGate) string {
 	if len(gate.Findings) == 0 {
 		return "No open issue. Every enrolled MUST-level requirement carries both test " +
-			"polarities or an annotation saying why not.\n"
+			"polarities or an annotation saying why not.\n\n" + rfcCheckLinesMirror(gate)
 	}
 	shown := gate.Findings
 	if len(shown) > rfcIssuesShown {
 		shown = shown[:rfcIssuesShown]
 	}
 	var out textbuf.Buffer
+	out.Str(rfcCheckLinesMirror(gate)).Str("\n### ").Str(rfcContributorSummary).Str("\n\n")
 	out.Str(rfcMirrorHead("RFC", "Requirement", "Level", "What is wrong",
 		"The requirement"))
 	for index := range shown {
@@ -1869,10 +1876,11 @@ func rfcComplianceMirror(snapshot *rfcCompliance, ledger rfcLedger) string {
 
 	var mirror textbuf.Buffer
 	mirror.Str("# RFC Compliance Gate Report\n\n")
-	mirror.Str("Source: `internal/le/rfc`, `rfc/short/*.md`, and ").
+	mirror.Str(rfcHeroLead).Str(" Source: `internal/le/rfc`, `rfc/short/*.md`, and ").
 		Str("`rfc/audit/*/*.json`.\n\n")
-	mirror.Str("## Gate verdict\n\n").Str(rfcGateWord(snapshot.Gate.OK)).Str(". ").
-		Str(rfcGateVerdictText(snapshot)).Str(" Reproduce it with `").Str(snapshot.Verify.Command).
+	mirror.Str(rfcReaderIntroMirror()).Byte('\n')
+	mirror.Str("## Gate verdict\n\n").Str(rfcLeadVerdict).Str("\n\n").Str(rfcGateWord(snapshot.Gate.OK)).Str(". ").
+		Str(rfcGateVerdictText(snapshot)).Str(" Contributors reproduce it with `").Str(snapshot.Verify.Command).
 		Str("`. The gate's own line reads `").Str(snapshot.Gate.Message).Str("`.\n\n")
 	cards := rfcComplianceCards(snapshot, ledger)
 	mirror.Str(rfcCardsMirror(cards, rfcBindingOf(snapshot).Gated)).Byte('\n').
@@ -1896,11 +1904,11 @@ func rfcComplianceMirror(snapshot *rfcCompliance, ledger rfcLedger) string {
 	}
 
 	split := rfcBindingOf(snapshot)
-	mirror.Str("\n## ").Str(rfcProfilesPointerHeading).Str("\n\n").Str(rfcProfilesPointerMirror())
-	mirror.Str("\n## Who implements each document\n\n")
+	mirror.Str("\n## ").Str(rfcProfilesPointerHeading).Str("\n\n").Str(rfcLeadProfiles).Str("\n\n").Str(rfcProfilesPointerMirror())
+	mirror.Str("\n## Who implements each document\n\n").Str(rfcLeadImplements).Str("\n\n")
 	mirror.Str(rfcImplementationMirror(ledger))
 
-	mirror.Str("\n## Requirement buckets\n\n")
+	mirror.Str("\n## Requirement buckets\n\n").Str(rfcLeadBuckets).Str("\n\n")
 	mirror.Str(rfcScopeNote(split)).Str("\n\n")
 	mirror.Str("| Bucket | Count | Share of gated | Source condition |\n|---|---:|---:|---|\n")
 	accounted := 0
@@ -1920,7 +1928,7 @@ func rfcComplianceMirror(snapshot *rfcCompliance, ledger rfcLedger) string {
 		Str("** | ").Str(rfcPercentText(accounted, split.Gated)).Str(" | ").
 		Str(rfc.TableCell(rfcAccountedNote(split, accounted))).Str(" |\n")
 
-	mirror.Str("\n## Gap disclosure\n\n")
+	mirror.Str("\n## Gap disclosure\n\n").Str(rfcLeadGaps).Str("\n\n")
 	mirror.Str("| Public status for RFCs with gaps | RFCs |\n|---|---:|\n")
 	for _, row := range snapshot.Gaps.StatusCounts {
 		mirror.Str("| ").Str(row.Status).Str(" | ").Str(groupThousands(row.Count)).Str(" |\n")
@@ -1932,19 +1940,19 @@ func rfcComplianceMirror(snapshot *rfcCompliance, ledger rfcLedger) string {
 		}
 	}
 
-	mirror.Str("\n## Exclusion disclosure\n\n")
+	mirror.Str("\n## Exclusion disclosure\n\n").Str(rfcLeadExclusions).Str("\n\n")
 	mirror.Str(rfcExclusionDisclosureMirror(ledger))
 
-	mirror.Str("\n## Top gap clusters\n\n")
+	mirror.Str("\n## Top gap clusters\n\n").Str(rfcLeadClusters).Str("\n\n")
 	mirror.Str("| RFC | Declared gaps | Public status |\n|---|---:|---|\n")
 	for _, row := range snapshot.Gaps.TopRFCs {
 		mirror.Str("| `").Str(row.RFC).Str("` | ").Str(groupThousands(row.Count)).Str(" | ").Str(row.Status).Str(" |\n")
 	}
 
-	mirror.Str("\n## How this is checked\n\n")
+	mirror.Str("\n## How this is checked\n\n").Str(rfcLeadMechanism).Str("\n\n")
 	mirror.Str(rfcMechanismMirror(snapshot))
 
-	mirror.Str("\n## Check results\n\n")
+	mirror.Str("\n## Check results\n\n").Str(rfcLeadChecks).Str("\n\n")
 	mirror.Str(rfcCheckMirror(snapshot.Gate))
 	mirror.Str(rfcIndexMirror(ledger))
 	return mirror.String()
@@ -2166,7 +2174,7 @@ func rfcDispositionLegendMirror(rows []*rfcLedgerStem) string {
 func rfcIndexMirror(ledger rfcLedger) string {
 	var out textbuf.Buffer
 	figures := rfcStemRows(ledger)
-	out.Str("\n## Enrolled RFCs\n\n")
+	out.Str("\n## Enrolled RFCs\n\n").Str(rfcLeadEnrolled).Str("\n\n")
 	enrolled := rfcIndexRows(ledger, true)
 	if len(enrolled) == 0 {
 		out.Str("No summary is enrolled.\n")
@@ -2187,7 +2195,7 @@ func rfcIndexMirror(ledger rfcLedger) string {
 				Int(int64(entry.Coverage.Missing)).Str(" |\n")
 		}
 	}
-	out.Str("\n## Summaries that are not enrolled\n\n")
+	out.Str("\n## Summaries that are not enrolled\n\n").Str(rfcLeadDeclined).Str("\n\n")
 	declined := rfcIndexRows(ledger, false)
 	if len(declined) == 0 {
 		out.Str("Every summary is enrolled.\n")
