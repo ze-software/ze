@@ -4,7 +4,7 @@ Technology aggregate. OSPFv2 and OSPFv3. The RFCs whose summary names the ospf a
 
 [All profiles](../) · [All RFCs](../../)
 
-- **Mandatory**: 36.9% (151 of 409 (36.9%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
+- **Mandatory**: 37.2% (152 of 409 (37.2%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
 - **Optional**: 4.1% (10 of 242 (4.1%)). MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.
 - **Not walked**: 3 (of 23 RFCs). RFCs with no valid extraction sign-off: their rows count in neither figure.
 - **Mandatory register**: not complete (every row proven, none unwalked). A profile is complete only when it requires at least one RFC and none of them is unwalked.
@@ -17,7 +17,7 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 
 | RFC | Title | Mandatory | Optional |
 |---|---|---|---|
-| [RFC 2328](../../rfc2328/) (cycle with rfc3101, rfc5250) | OSPF Version 2 | 57 of 67 (85.1%) | 2 of 15 (13.3%) |
+| [RFC 2328](../../rfc2328/) (cycle with rfc3101, rfc5250) | OSPF Version 2 | 58 of 67 (86.6%) | 2 of 15 (13.3%) |
 | [RFC 3101](../../rfc3101/) (cycle with rfc2328, rfc5250) | The OSPF Not-So-Stubby Area (NSSA) Option | 15 of 28 (53.6%) | 2 of 7 (28.6%) |
 | [RFC 5250](../../rfc5250/) (cycle with rfc2328, rfc3101) | The OSPF Opaque LSA Option | 10 of 15 (66.7%) | 0 of 2 (0.0%) |
 

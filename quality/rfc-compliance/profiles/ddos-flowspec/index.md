@@ -6,8 +6,8 @@ Use-case profile. The RFCs this use case requires, each declared by the Use case
 
 Use case: [FlowSpec Injection](../../../../use-cases/flowspec-injection/)
 
-- **Mandatory**: 52.2% (179 of 343 (52.2%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
-- **Optional**: 12.1% (15 of 124 (12.1%)). MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.
+- **Mandatory**: 53.1% (182 of 343 (53.1%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
+- **Optional**: 12.9% (16 of 124 (12.9%)). MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.
 - **Not walked**: 0 (of 13 RFCs). RFCs with no valid extraction sign-off: their rows count in neither figure.
 - **Mandatory register**: not complete (every row proven, none unwalked). A profile is complete only when it requires at least one RFC and none of them is unwalked.
 
@@ -31,7 +31,7 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 
 | RFC | Title | Mandatory | Optional | Why it is here |
 |---|---|---|---|---|
-| [RFC 4271](../../rfc4271/) | A Border Gateway Protocol 4 (BGP-4) | 80 of 133 (60.2%) | 3 of 34 (8.8%) | ddos-flowspec: required by rfc/short/rfc4271.md |
+| [RFC 4271](../../rfc4271/) | A Border Gateway Protocol 4 (BGP-4) | 83 of 133 (62.4%) | 3 of 34 (8.8%) | ddos-flowspec: required by rfc/short/rfc4271.md |
 | [SFLOW-V5](../../sflow-v5/) | sFlow: A Method for Monitoring Traffic in Switched and Routed Networks | 22 of 32 (68.8%) | 3 of 11 (27.3%) | ddos-flowspec: required by rfc/short/sflow-v5.md |
 
 ### Level 5
@@ -53,7 +53,7 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 
 | RFC | Title | Mandatory | Optional | Why it is here |
 |---|---|---|---|---|
-| [RFC 7999](../../rfc7999/) | BLACKHOLE Community | 3 of 4 (75.0%) | 2 of 12 (16.7%) | ddos-flowspec: required by rfc/short/rfc7999.md |
+| [RFC 7999](../../rfc7999/) | BLACKHOLE Community | 3 of 4 (75.0%) | 3 of 12 (25.0%) | ddos-flowspec: required by rfc/short/rfc7999.md |
 | [RFC 8955](../../rfc8955/) | Dissemination of Flow Specification Rules | 13 of 29 (44.8%) | 6 of 20 (30.0%) | ddos-flowspec: required by rfc/short/rfc8955.md |
 
 ### Level 9

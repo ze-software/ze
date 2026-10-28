@@ -4,8 +4,8 @@ Technology aggregate. MPLS, LDP, RSVP-TE, and fast reroute. The RFCs whose summa
 
 [All profiles](../) · [All RFCs](../../)
 
-- **Mandatory**: 32.9% (105 of 319 (32.9%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
-- **Optional**: 8.5% (5 of 59 (8.5%)). MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.
+- **Mandatory**: 37.6% (120 of 319 (37.6%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
+- **Optional**: 10.2% (6 of 59 (10.2%)). MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.
 - **Not walked**: 0 (of 10 RFCs). RFCs with no valid extraction sign-off: their rows count in neither figure.
 - **Mandatory register**: not complete (every row proven, none unwalked). A profile is complete only when it requires at least one RFC and none of them is unwalked.
 
@@ -17,13 +17,13 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 
 | RFC | Title | Mandatory | Optional |
 |---|---|---|---|
-| [RFC 2205](../../rfc2205/) (cycle with rfc2210, rfc2211, rfc2215) | Resource ReSerVation Protocol (RSVP) -- Version 1 Functional Specification | 20 of 75 (26.7%) | 0 of 5 (0.0%) |
+| [RFC 2205](../../rfc2205/) (cycle with rfc2210, rfc2211, rfc2215) | Resource ReSerVation Protocol (RSVP) -- Version 1 Functional Specification | 26 of 75 (34.7%) | 0 of 5 (0.0%) |
 
 ### Level 1
 
 | RFC | Title | Mandatory | Optional |
 |---|---|---|---|
-| [RFC 5036](../../rfc5036/) | LDP Specification | 27 of 91 (29.7%) | 0 of 4 (0.0%) |
+| [RFC 5036](../../rfc5036/) | LDP Specification | 29 of 91 (31.9%) | 0 of 4 (0.0%) |
 
 ### Level 2
 
@@ -42,13 +42,13 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 
 | RFC | Title | Mandatory | Optional |
 |---|---|---|---|
-| [RFC 3209](../../rfc3209/) | RSVP-TE: Extensions to RSVP for LSP Tunnels | 20 of 59 (33.9%) | 0 of 3 (0.0%) |
+| [RFC 3209](../../rfc3209/) | RSVP-TE: Extensions to RSVP for LSP Tunnels | 23 of 59 (39.0%) | 0 of 3 (0.0%) |
 
 ### Level 5
 
 | RFC | Title | Mandatory | Optional |
 |---|---|---|---|
-| [RFC 4090](../../rfc4090/) | Fast Reroute Extensions to RSVP-TE for LSP Tunnels | 25 of 33 (75.8%) | 5 of 8 (62.5%) |
+| [RFC 4090](../../rfc4090/) | Fast Reroute Extensions to RSVP-TE for LSP Tunnels | 29 of 33 (87.9%) | 6 of 8 (75.0%) |
 | [RFC 5443](../../rfc5443/) | LDP IGP Synchronization | 5 of 8 (62.5%) | 0 of 6 (0.0%) |
 
 ### Level 6

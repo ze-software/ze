@@ -121,7 +121,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>12.5%</strong><b>1 of 8 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 8 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 8 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>44.4%</strong><b>8 of 18 tagged units, 0 escaped and 3 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>61.1%</strong><b>11 of 18 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -472,7 +472,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_8210bis_aspa_record_test.go#L86" title="internal/component/bgp/plugins/rpki/draft_ietf_sidrops_8210bis_aspa_record_test.go" target="_blank" rel="noopener"><code>TestASPAAnnouncementReplacesTheSameCustomer</code></a></td>
 <td>unit/verify</td>
-<td>mutant, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_8210bis_aspa_record_test.go#L73" title="internal/component/bgp/plugins/rpki/draft_ietf_sidrops_8210bis_aspa_record_test.go" target="_blank" rel="noopener"><code>TestASPAAnnouncementReplacesTheSameCustomer</code></a></td>
@@ -527,7 +527,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L205" title="internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRUnknownVersionErrorReportIsNotAnswered</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L223" title="internal/component/bgp/plugins/rpki/rtr_session_test.go" target="_blank" rel="noopener"><code>TestRTRUnknownNegotiationVersion</code></a></td>
@@ -556,7 +556,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_8210bis_version_open_test.go#L95" title="internal/component/bgp/plugins/rpki/draft_ietf_sidrops_8210bis_version_open_test.go" target="_blank" rel="noopener"><code>TestRTRSessionOpensAtTheHighestVersion</code></a></td>
 <td>unit/verify</td>
-<td>mutant, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_8210bis_version_open_test.go#L78" title="internal/component/bgp/plugins/rpki/draft_ietf_sidrops_8210bis_version_open_test.go" target="_blank" rel="noopener"><code>TestRTRSessionOpensAtTheHighestVersion</code></a></td>
@@ -604,7 +604,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 27 October 2026 23:56 UTC</span>
+                    <span class="footer-published">Published 28 October 2026 09:31 UTC</span>
                 </div>
             </div>
         </footer>

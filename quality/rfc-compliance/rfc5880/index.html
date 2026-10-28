@@ -121,7 +121,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>8.1%</strong><b>9 of 111 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 111 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 111 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>72.5%</strong><b>214 of 295 tagged units, 0 escaped and 23 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>80.3%</strong><b>237 of 295 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -2054,7 +2054,7 @@ Eleven MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_role_transmit_test.go#L63" title="internal/component/bfd/engine/rfc5880_role_transmit_test.go" target="_blank" rel="noopener"><code>TestRFC5880ActiveSessionSendsAfterThePeerFallsSilent</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L391" title="internal/component/bfd/session/rfc5880_test.go" target="_blank" rel="noopener"><code>TestRFC5880PassiveRoleSilentUntilReception</code></a></td>
@@ -2069,7 +2069,7 @@ Eleven MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_role_transmit_test.go#L52" title="internal/component/bfd/engine/rfc5880_role_transmit_test.go" target="_blank" rel="noopener"><code>TestRFC5880ActiveSessionSendsBeforeAnyReception</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L358" title="internal/component/bfd/session/rfc5880_test.go" target="_blank" rel="noopener"><code>TestRFC5880ActiveRoleTransmitsWithoutReception</code></a></td>
@@ -2089,7 +2089,7 @@ Eleven MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_role_transmit_test.go#L88" title="internal/component/bfd/engine/rfc5880_role_transmit_test.go" target="_blank" rel="noopener"><code>TestRFC5880PassiveSessionSendsOnceThePeerSpoke</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L414" title="internal/component/bfd/session/rfc5880_test.go" target="_blank" rel="noopener"><code>TestRFC5880PassiveRoleTransmitsAfterReception</code></a></td>
@@ -2099,7 +2099,7 @@ Eleven MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_role_transmit_test.go#L77" title="internal/component/bfd/engine/rfc5880_role_transmit_test.go" target="_blank" rel="noopener"><code>TestRFC5880PassiveSessionSilentThroughTicksUntilReception</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L383" title="internal/component/bfd/session/rfc5880_test.go" target="_blank" rel="noopener"><code>TestRFC5880PassiveRoleSilentUntilReception</code></a></td>
@@ -2967,17 +2967,17 @@ Eleven MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L140" title="internal/component/bfd/engine/rfc5880_test.go" target="_blank" rel="noopener"><code>TestRFC5880UnknownYourDiscriminatorDiscarded</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_discriminator_select_test.go#L9" title="internal/component/bfd/engine/rfc5880_discriminator_select_test.go" target="_blank" rel="noopener"><code>TestRFC5880YourDiscriminatorSelectsAmongSessions</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L124" title="internal/component/bfd/engine/rfc5880_test.go" target="_blank" rel="noopener"><code>TestRFC5880YourDiscriminatorSelectsSession</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -3062,12 +3062,12 @@ Eleven MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_auth_type_test.go#L45" title="internal/component/bfd/engine/rfc5880_auth_type_test.go" target="_blank" rel="noopener"><code>TestRFC5880AuthenticatedUnderEachSessionAuthType</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L241" title="internal/component/bfd/engine/rfc5880_test.go" target="_blank" rel="noopener"><code>TestRFC5880AuthenticatedPacketVerifiedAndDelivered</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -3126,27 +3126,27 @@ Eleven MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_demand_disjunct_test.go#L73" title="internal/component/bfd/engine/rfc5880_demand_disjunct_test.go" target="_blank" rel="noopener"><code>TestRFC5880PeriodicTransmitDemandClearBothUp</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_demand_disjunct_test.go#L90" title="internal/component/bfd/engine/rfc5880_demand_disjunct_test.go" target="_blank" rel="noopener"><code>TestRFC5880PeriodicTransmitDemandSetLocalNotUpRemoteUp</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_demand_disjunct_test.go#L107" title="internal/component/bfd/engine/rfc5880_demand_disjunct_test.go" target="_blank" rel="noopener"><code>TestRFC5880PeriodicTransmitDemandSetLocalUpRemoteNotUp</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_demand_periodic_test.go#L9" title="internal/component/bfd/engine/rfc5880_demand_periodic_test.go" target="_blank" rel="noopener"><code>TestRFC5880PeriodicTransmitWhileDemandBitSetAndNotBothUp</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L368" title="internal/component/bfd/engine/rfc5880_test.go" target="_blank" rel="noopener"><code>TestRFC5880PeriodicTransmitWhenRemoteDemandInactive</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -3186,7 +3186,7 @@ Eleven MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L363" title="internal/component/bfd/engine/rfc5881_test.go" target="_blank" rel="noopener"><code>TestFirstPacketMatchesWhatTheTransportSurfaces</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L135" title="internal/component/bfd/engine/rfc5881_test.go" target="_blank" rel="noopener"><code>TestRFC5881FirstPacketMatchesByTuple</code></a></td>
@@ -3241,7 +3241,7 @@ Eleven MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_jitter_tick_test.go#L64" title="internal/component/bfd/engine/rfc5880_jitter_tick_test.go" target="_blank" rel="noopener"><code>TestRFC5880PeriodicTransmitJitteredPerPacket</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L455" title="internal/component/bfd/engine/rfc5880_test.go" target="_blank" rel="noopener"><code>TestRFC5880JitterIsAppliedPerPacket</code></a></td>
@@ -3266,7 +3266,7 @@ Eleven MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_jitter_tick_test.go#L100" title="internal/component/bfd/engine/rfc5880_jitter_tick_test.go" target="_blank" rel="noopener"><code>TestRFC5880PeriodicTransmitDetectMultOneWindow</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L503" title="internal/component/bfd/engine/rfc5880_test.go" target="_blank" rel="noopener"><code>TestRFC5880JitterDetectMultOneWindow</code></a></td>
@@ -3326,7 +3326,7 @@ Eleven MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_engine_clauses_test.go#L82" title="internal/component/bfd/engine/rfc5880_engine_clauses_test.go" target="_blank" rel="noopener"><code>TestRFC5880PassiveTickSendsNothingWithoutRemoteDiscr</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L388" title="internal/component/bfd/session/rfc5880_test.go" target="_blank" rel="noopener"><code>TestRFC5880PassiveRoleSilentUntilReception</code></a></td>
@@ -3462,17 +3462,17 @@ Eleven MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L659" title="internal/component/bfd/engine/rfc5880_test.go" target="_blank" rel="noopener"><code>TestRFC5880UnknownEchoDropped</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_echo_session_test.go#L122" title="internal/component/bfd/engine/rfc5880_echo_session_test.go" target="_blank" rel="noopener"><code>TestRFC5880EchoDemultiplexedAmongSessions</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L622" title="internal/component/bfd/engine/rfc5880_test.go" target="_blank" rel="noopener"><code>TestRFC5880EchoDemultiplexedToItsSession</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -3710,7 +3710,7 @@ Eleven MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_admindown_transmit_test.go#L55" title="internal/component/bfd/engine/rfc5880_admindown_transmit_test.go" target="_blank" rel="noopener"><code>TestRFC5880AdminDownControlTransmittedForADetectionTime</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -3725,7 +3725,7 @@ Eleven MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L403" title="internal/component/bfd/engine/rfc5880_test.go" target="_blank" rel="noopener"><code>TestRFC5880NoPeriodicTransmitWhileAdminDown</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -4777,7 +4777,7 @@ Eleven MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 27 October 2026 23:56 UTC</span>
+                    <span class="footer-published">Published 28 October 2026 09:31 UTC</span>
                 </div>
             </div>
         </footer>

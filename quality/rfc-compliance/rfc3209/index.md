@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 10.2% | 6 of 59 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 59 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 59 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 76.3% | 45 of 59 tagged units, 0 escaped and 8 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 89.8% | 53 of 59 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -453,7 +453,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRFC3209EgressResvCarriesLabel`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_engine_label_test.go#L30) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC3209EgressResvCarriesLabel`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_engine_label_test.go#L30) | unit/verify | revert, verified |
 
 ### [`RFC3209-4.2.4-2`](#rfc3209-4.2.4-2)
 
@@ -475,7 +475,7 @@ Audit verdict: not audited: no reader has judged these tests
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC3209IngressRefusesResvWithoutLabel`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_engine_label_test.go#L74) | unit/verify | mutant, verified |
-| positive | [`TestRFC3209IngressProcessesResvLabel`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_engine_label_test.go#L48) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC3209IngressProcessesResvLabel`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_engine_label_test.go#L48) | unit/verify | mutant, verified |
 
 ### [`RFC3209-4.2.4-4`](#rfc3209-4.2.4-4)
 
@@ -485,7 +485,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRFC3209TransitCopiesL3PID`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_engine_label_test.go#L106) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC3209TransitCopiesL3PID`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_engine_label_test.go#L106) | unit/verify | revert, verified |
 
 ### [`RFC3209-4.2.5-1`](#rfc3209-4.2.5-1)
 
@@ -585,7 +585,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC3209PathRROForwarded`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_relay_test.go#L330) | unit/verify | unproven |
-| positive | [`TestRFC3209PathRROWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_relay_test.go#L285) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC3209PathRROWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_relay_test.go#L285) | unit/verify | mutant, verified |
 
 ### [`RFC3209-4.6.2-2`](#rfc3209-4.6.2-2)
 
@@ -630,7 +630,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC3209SessionAttributeNotInserted`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_relay_test.go#L195) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC3209SessionAttributeNotInserted`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_relay_test.go#L195) | unit/verify | revert, verified |
 | positive | [`TestRFC3209SessionAttributeRelayedUnmodified`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_relay_test.go#L165) | unit/verify | revert, verified |
 
 ### [`RFC3209-5.2.2-1`](#rfc3209-5.2.2-1)
@@ -770,9 +770,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestSEAdmissionDistinctSessionsDoNotShare`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_admission_se_test.go#L38) | unit/verify | revert, verified |
-| negative | [`TestRFC3209RerouteNeverReusesLSPID`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_signaling_test.go#L211) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestEngineMakeBeforeBreak`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_reroute_test.go#L41) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC3209ReroutePathKeepsSessionNewLSPID`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_signaling_test.go#L195) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC3209RerouteNeverReusesLSPID`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_signaling_test.go#L211) | unit/verify | revert, verified |
+| positive | [`TestEngineMakeBeforeBreak`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_reroute_test.go#L41) | unit/verify | revert, verified |
+| positive | [`TestRFC3209ReroutePathKeepsSessionNewLSPID`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_signaling_test.go#L195) | unit/verify | revert, verified |
 
 ### [`RFC3209-6-2`](#rfc3209-6-2)
 

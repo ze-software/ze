@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0.0% | 0 of 9 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 9 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 9 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 59.0% | 36 of 61 tagged units, 0 escaped and 2 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 62.3% | 38 of 61 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 | Audit verdicts | 9 | of 9 gated MUSTs judged | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 ### Neutral
@@ -195,9 +195,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Now 
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC7911PerFamilyAddPathStaysOneInstance`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_open_family_capability_test.go#L194) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC7911PerFamilyAddPathStaysOneInstance`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_open_family_capability_test.go#L194) | unit/verify | revert, verified |
 | negative | [`TestAddPathCapability`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L374) | unit/verify | unproven |
-| positive | [`TestRFC7911OpenCarriesOneAddPathInstance`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_open_family_capability_test.go#L174) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC7911OpenCarriesOneAddPathInstance`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_open_family_capability_test.go#L174) | unit/verify | revert, verified |
 | positive | [`TestAddPathMultipleFamilies`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L403) | unit/verify | unproven |
 
 ### [`RFC7911-5-1`](#rfc7911-5-1)

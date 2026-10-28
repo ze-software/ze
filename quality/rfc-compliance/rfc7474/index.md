@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 16.7% | 2 of 12 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 12 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 12 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 69.7% | 23 of 33 tagged units, 0 escaped and 2 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 75.8% | 25 of 33 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -242,10 +242,10 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestOSPFAuthType3SourceBinding`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L204) | unit/verify | revert, verified |
-| negative | [`TestRFC7474ReceiveApadOtherThanIPHeaderSourceDropped`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7474_apad_source_test.go#L287) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC7474ReceiveApadOtherThanIPHeaderSourceDropped`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7474_apad_source_test.go#L287) | unit/verify | revert, verified |
 | negative | [`TestRFC7474SentApadNotRouterIDOrZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7474_apad_source_test.go#L238) | unit/verify | revert, verified |
 | positive | [`TestOSPFAuthType3SourceBinding`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L208) | unit/verify | revert, verified |
-| positive | [`TestRFC7474ReceiveApadFromIPHeaderSource`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7474_apad_source_test.go#L278) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC7474ReceiveApadFromIPHeaderSource`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7474_apad_source_test.go#L278) | unit/verify | revert, verified |
 | positive | [`TestRFC7474SentApadIsInterfaceSource`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7474_apad_source_test.go#L228) | unit/verify | revert, verified |
 
 ### [`RFC7474-6-1`](#rfc7474-6-1)

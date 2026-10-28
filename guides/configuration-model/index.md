@@ -8,12 +8,13 @@ Ze uses a JUNOS-like hierarchical configuration format.
 |---------|--------|---------|
 | Blocks | `name { ... }` | `bgp { ... }` |
 | Values | `key value` or `key value;` | `router-id 1.2.3.4` |
-| Comments | `#` to end of line | `# this is a comment` |
+| Comments | `#` to end of line; `ze config fmt` keeps each one beside its statement, and so does an editor commit with no editing session, which writes the hierarchical form; a commit from an editing session writes the set-meta form, which drops them | `# this is a comment` |
 | Lists | `[ item1 item2 ]` | `receive [ update state ]` |
 | Strings | Unquoted or `"double quoted"` | `run "/usr/bin/my-plugin"` |
 | Terminators | `;`, or automatic after a value token at a newline, EOF, or before `}` | Both `edit { default-action deny }` and `edit { default-action deny;}` work |
 | Inline blocks | `name { key value; key value; }` | `remote { ip 10.0.0.1; as 65001; }` |
 <!-- source: internal/component/config/tokenizer.go -- tokenizer.scan -->
+<!-- source: internal/component/cli/editor.go -- Editor.stampedWorkingContent -->
 
 Indentation is not significant. Unknown keys are rejected with a suggestion for the closest valid key.
 

@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 0.0% | 0 of 33 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 33 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 33 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 72.2% | 65 of 90 tagged units, 0 escaped and 17 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 91.1% | 82 of 90 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -238,7 +238,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 |---|---|---|---|
 | negative | [`TestRROProtectionFlagsReflectState`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L863) | unit/verify | revert, verified |
 | positive | [`TestRROProtectionFlagsReflectState`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L871) | unit/verify | revert, verified |
-| positive | [`TestRFC4090RepairSetsInUseAndAvailable`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_plr_flags_test.go#L68) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC4090RepairSetsInUseAndAvailable`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_plr_flags_test.go#L68) | unit/verify | revert, verified |
 
 ### [`RFC4090-4.4-3`](#rfc4090-4.4-3)
 
@@ -261,9 +261,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestLocalRepairFallsBackToTeardown`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L476) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestLocalRepairSendsNotify`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L455) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC4090LocalRepairNotifyLiterals`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/literals_rfc_test.go#L116) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestLocalRepairFallsBackToTeardown`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L476) | unit/verify | revert, verified |
+| positive | [`TestLocalRepairSendsNotify`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L455) | unit/verify | revert, verified |
+| positive | [`TestRFC4090LocalRepairNotifyLiterals`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/literals_rfc_test.go#L116) | unit/verify | revert, verified |
 
 ### [`RFC4090-3.2-1`](#rfc4090-3.2-1)
 
@@ -306,7 +306,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC4090TransitDoesNotReoptimize`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L689) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC4090TransitDoesNotReoptimize`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L689) | unit/verify | revert, verified |
 | positive | [`TestRFC4090HeadEndRevertsGlobally`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L666) | unit/verify | revert, verified |
 
 ### [`RFC4090-6.5.2-1`](#rfc4090-6.5.2-1)
@@ -317,7 +317,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC4090TransitDoesNotReoptimize`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L690) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC4090TransitDoesNotReoptimize`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L690) | unit/verify | revert, verified |
 | positive | [`TestRFC4090HeadEndRevertsGlobally`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L667) | unit/verify | revert, verified |
 
 ### [`RFC4090-4.1-3`](#rfc4090-4.1-3)
@@ -414,7 +414,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. tran
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC4090EgressDoesNotActAsPLR`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L176) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC4090EgressDoesNotActAsPLR`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L176) | unit/verify | revert, verified |
 | positive | [`TestRFC4090FastRerouteAloneRequestsProtection`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L134) | unit/verify | revert, verified |
 
 ### [`RFC4090-6-2`](#rfc4090-6-2)
@@ -460,7 +460,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. in-u
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC4090InUseOnlyWhileRedirecting`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L318) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC4090InUseOnlyWhileRedirecting`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L318) | unit/verify | revert, verified |
 | positive | [`TestRFC4090InUseOnlyWhileRedirecting`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L317) | unit/verify | revert, verified |
 
 ### [`RFC4090-6-6`](#rfc4090-6-6)
@@ -516,8 +516,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. back
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC4090NoBackupPathBeforeRepair`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_bypass_test.go#L281) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC4090ProtectedPathSurvivesRepair`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_bypass_test.go#L144) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC4090NoBackupPathBeforeRepair`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_bypass_test.go#L281) | unit/verify | revert, verified |
+| positive | [`TestRFC4090ProtectedPathSurvivesRepair`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_bypass_test.go#L144) | unit/verify | revert, verified |
 
 ### [`RFC4090-6.4-2`](#rfc4090-6.4-2)
 
@@ -527,7 +527,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. back
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC4090NoBackupPathBeforeRepair`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_bypass_test.go#L282) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC4090NoBackupPathBeforeRepair`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_bypass_test.go#L282) | unit/verify | revert, verified |
 | positive | [`TestRFC4090ProtectedPathSurvivesRepair`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_bypass_test.go#L145) | unit/verify | revert, verified |
 
 ### [`RFC4090-6.4.3-1`](#rfc4090-6.4.3-1)
@@ -538,8 +538,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC4090FailureSwitchesToBackup`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L342) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC4090FailureSwitchesToBackup`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L341) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC4090FailureSwitchesToBackup`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L342) | unit/verify | revert, verified |
+| positive | [`TestRFC4090FailureSwitchesToBackup`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L341) | unit/verify | revert, verified |
 
 ### [`RFC4090-6.4.3-2`](#rfc4090-6.4.3-2)
 
@@ -571,8 +571,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Test
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC4090DifferentPathsDoNotMerge`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_bypass_test.go#L298) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC4090ProtectedPathSurvivesRepair`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_bypass_test.go#L147) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC4090DifferentPathsDoNotMerge`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_bypass_test.go#L298) | unit/verify | revert, verified |
+| positive | [`TestRFC4090ProtectedPathSurvivesRepair`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_bypass_test.go#L147) | unit/verify | revert, verified |
 
 ### [`RFC4090-7.1-2`](#rfc4090-7.1-2)
 
@@ -593,8 +593,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. down
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC4090DownstreamKeepsStateOnUpstreamLinkFailure`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L553) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC4090DownstreamKeepsStateOnUpstreamLinkFailure`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L552) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC4090DownstreamKeepsStateOnUpstreamLinkFailure`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L553) | unit/verify | revert, verified |
+| positive | [`TestRFC4090DownstreamKeepsStateOnUpstreamLinkFailure`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L552) | unit/verify | revert, verified |
 
 ### [`RFC4090-7.2-2`](#rfc4090-7.2-2)
 

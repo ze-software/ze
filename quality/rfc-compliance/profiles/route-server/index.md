@@ -6,8 +6,8 @@ Release profile. The RFCs this use case requires, each declared by the Use cases
 
 Use case: [Route Server at an IXP](../../../../use-cases/route-server/)
 
-- **Mandatory**: 45.6% (180 of 395 (45.6%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
-- **Optional**: 6.8% (15 of 221 (6.8%)). MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.
+- **Mandatory**: 47.8% (189 of 395 (47.8%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
+- **Optional**: 8.6% (19 of 221 (8.6%)). MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.
 - **Not walked**: 0 (of 24 RFCs). RFCs with no valid extraction sign-off: their rows count in neither figure.
 - **Mandatory register**: not complete (every row proven, none unwalked). A profile is complete only when it requires at least one RFC and none of them is unwalked.
 
@@ -19,7 +19,7 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 
 | RFC | Title | Mandatory | Optional | Why it is here |
 |---|---|---|---|---|
-| [RFC 4271](../../rfc4271/) | A Border Gateway Protocol 4 (BGP-4) | 80 of 133 (60.2%) | 3 of 34 (8.8%) | route-server: required by rfc/short/rfc4271.md |
+| [RFC 4271](../../rfc4271/) | A Border Gateway Protocol 4 (BGP-4) | 83 of 133 (62.4%) | 3 of 34 (8.8%) | route-server: required by rfc/short/rfc4271.md |
 | [RFC 9582](../../rfc9582/) | A Profile for Route Origin Authorizations (ROAs) | 0 of 16 (0.0%) | 0 of 6 (0.0%) | route-server: required by rfc/short/rfc9582.md |
 
 ### Level 4
@@ -44,8 +44,8 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 | RFC | Title | Mandatory | Optional | Why it is here |
 |---|---|---|---|---|
 | [RFC 6793](../../rfc6793/) (cycle with rfc5668) | BGP Support for Four-Octet Autonomous System (AS) Number Space | 20 of 30 (66.7%) | 0 of 6 (0.0%) | route-server: required by rfc/short/rfc6793.md |
-| [RFC 7911](../../rfc7911/) | Advertisement of Multiple Paths in BGP | 8 of 9 (88.9%) | 0 of 4 (0.0%) | route-server: required by rfc/short/rfc7911.md |
-| [RFC 7947](../../rfc7947/) | Internet Exchange BGP Route Server | 1 of 2 (50.0%) | 3 of 5 (60.0%) | route-server: required by rfc/short/rfc7947.md |
+| [RFC 7911](../../rfc7911/) | Advertisement of Multiple Paths in BGP | 9 of 9 (100.0%) | 0 of 4 (0.0%) | route-server: required by rfc/short/rfc7911.md |
+| [RFC 7947](../../rfc7947/) | Internet Exchange BGP Route Server | 1 of 2 (50.0%) | 4 of 5 (80.0%) | route-server: required by rfc/short/rfc7947.md |
 
 ### Level 7
 
@@ -62,7 +62,7 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 |---|---|---|---|---|
 | [RFC 7454](../../rfc7454/) | BGP Operations and Security | no rows | 0 of 64 (0.0%) | route-server: required by rfc/short/rfc7454.md |
 | [RFC 7607](../../rfc7607/) | Codification of AS 0 Processing | 0 of 5 (0.0%) | no rows | route-server: required by rfc/short/rfc7607.md |
-| [RFC 7999](../../rfc7999/) | BLACKHOLE Community | 3 of 4 (75.0%) | 2 of 12 (16.7%) | route-server: required by rfc/short/rfc7999.md |
+| [RFC 7999](../../rfc7999/) | BLACKHOLE Community | 3 of 4 (75.0%) | 3 of 12 (25.0%) | route-server: required by rfc/short/rfc7999.md |
 | [RFC 8092](../../rfc8092/) | BGP Large Communities Attribute | 6 of 7 (85.7%) | 0 of 4 (0.0%) | route-server: required by rfc/short/rfc8092.md |
 | [RFC 8893](../../rfc8893/) | Resource Public Key Infrastructure (RPKI) Origin Validation for BGP Export | 0 of 4 (0.0%) | 0 of 2 (0.0%) | route-server: required by rfc/short/rfc8893.md |
 | [RFC 9234](../../rfc9234/) | Route Leak Prevention and Detection Using Roles in UPDATE and OPEN Messages | 8 of 19 (42.1%) | 1 of 5 (20.0%) | route-server: required by rfc/short/rfc9234.md |
@@ -72,7 +72,7 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 
 | RFC | Title | Mandatory | Optional | Why it is here |
 |---|---|---|---|---|
-| [RFC 8210](../../rfc8210/) | The Resource Public Key Infrastructure (RPKI) to Router Protocol, Version 1 | 7 of 59 (11.9%) | 4 of 27 (14.8%) | route-server: required by rfc/short/rfc8210.md |
+| [RFC 8210](../../rfc8210/) | The Resource Public Key Infrastructure (RPKI) to Router Protocol, Version 1 | 12 of 59 (20.3%) | 6 of 27 (22.2%) | route-server: required by rfc/short/rfc8210.md |
 
 ## Optional (not counted)
 

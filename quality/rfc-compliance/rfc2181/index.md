@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0.0% | 0 of 23 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 23 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 23 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 51.5% | 17 of 33 tagged units, 0 escaped and 9 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 78.8% | 26 of 33 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -203,8 +203,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRFC2181ReplySourcedFromTheQueriedAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_clarifications_test.go#L58) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC2181_UDPReplySourceAndPort`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_server_test.go#L347) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC2181ReplySourcedFromTheQueriedAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_clarifications_test.go#L58) | unit/verify | revert, verified |
+| positive | [`TestRFC2181_UDPReplySourceAndPort`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_server_test.go#L347) | unit/verify | revert, verified |
 
 ### [`RFC2181-4.2-1`](#rfc2181-4.2-1)
 
@@ -255,8 +255,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC2181SectionSIGNotTheRRSet`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_test.go#L291) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC2181WholeSIGRRSet`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_test.go#L246) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC2181SectionSIGNotTheRRSet`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_test.go#L291) | unit/verify | mutant, verified |
+| positive | [`TestRFC2181WholeSIGRRSet`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_test.go#L246) | unit/verify | mutant, verified |
 
 ### [`RFC2181-5.3.1-3`](#rfc2181-5.3.1-3)
 
@@ -267,7 +267,7 @@ Audit verdict: not audited: no reader has judged these tests
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC2181WholeSIGRRSet`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_test.go#L234) | unit/verify | mutant, verified |
-| positive | [`TestRFC2181SectionSIGNotTheRRSet`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_test.go#L283) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC2181SectionSIGNotTheRRSet`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_test.go#L283) | unit/verify | mutant, verified |
 
 ### [`RFC2181-5.3.1-4`](#rfc2181-5.3.1-4)
 
@@ -277,8 +277,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC2181SectionSIGNotCached`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_test.go#L323) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC2181WholeSIGRRSet`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_test.go#L256) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC2181SectionSIGNotCached`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_test.go#L323) | unit/verify | mutant, verified |
+| positive | [`TestRFC2181WholeSIGRRSet`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_test.go#L256) | unit/verify | mutant, verified |
 
 ### [`RFC2181-5.4-1`](#rfc2181-5.4-1)
 
@@ -310,9 +310,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC2181HigherTrustReplacesLower`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_test.go#L147) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC2181HigherTrustReplacesLower`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_test.go#L147) | unit/verify | mutant, verified |
 | positive | [`TestRFC2181AliasTargetNotAuthoritative`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_test.go#L185) | unit/verify | mutant, verified |
-| positive | [`TestRFC2181LowerTrustNeverDisplacesHigher`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_test.go#L100) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC2181LowerTrustNeverDisplacesHigher`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_test.go#L100) | unit/verify | mutant, verified |
 
 ### [`RFC2181-5.4.1-8`](#rfc2181-5.4.1-8)
 

@@ -4,7 +4,7 @@ Technology aggregate. PPP, PPPoE, and L2TP subscriber access. The RFCs whose sum
 
 [All profiles](../) · [All RFCs](../../)
 
-- **Mandatory**: 60.1% (178 of 296 (60.1%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
+- **Mandatory**: 60.5% (179 of 296 (60.5%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
 - **Optional**: 4.1% (4 of 97 (4.1%)). MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.
 - **Not walked**: 0 (of 11 RFCs). RFCs with no valid extraction sign-off: their rows count in neither figure.
 - **Mandatory register**: not complete (every row proven, none unwalked). A profile is complete only when it requires at least one RFC and none of them is unwalked.
@@ -25,7 +25,7 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 |---|---|---|---|
 | [RFC 1570](../../rfc1570/) | PPP LCP Extensions | 0 of 22 (0.0%) | 0 of 16 (0.0%) |
 | [RFC 1994](../../rfc1994/) | PPP Challenge Handshake Authentication Protocol (CHAP) | 8 of 16 (50.0%) | 2 of 11 (18.2%) |
-| [RFC 2516](../../rfc2516/) | A Method for Transmitting PPP Over Ethernet (PPPoE) | 24 of 37 (64.9%) | 0 of 3 (0.0%) |
+| [RFC 2516](../../rfc2516/) | A Method for Transmitting PPP Over Ethernet (PPPoE) | 25 of 37 (67.6%) | 0 of 3 (0.0%) |
 
 ### Level 2
 

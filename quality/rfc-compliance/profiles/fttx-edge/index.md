@@ -4,7 +4,7 @@ Release profile. The RFCs this use case requires, each declared by the Use cases
 
 [All profiles](../) · [All RFCs](../../)
 
-- **Mandatory**: 43.5% (325 of 747 (43.5%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
+- **Mandatory**: 44.0% (329 of 747 (44.0%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
 - **Optional**: 1.8% (6 of 335 (1.8%)). MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.
 - **Not walked**: 0 (of 18 RFCs). RFCs with no valid extraction sign-off: their rows count in neither figure.
 - **Mandatory register**: not complete (every row proven, none unwalked). A profile is complete only when it requires at least one RFC and none of them is unwalked.
@@ -24,7 +24,7 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 | RFC | Title | Mandatory | Optional | Why it is here |
 |---|---|---|---|---|
 | [RFC 1994](../../rfc1994/) | PPP Challenge Handshake Authentication Protocol (CHAP) | 8 of 16 (50.0%) | 2 of 11 (18.2%) | fttx-edge: required by rfc/short/rfc1994.md |
-| [RFC 2516](../../rfc2516/) | A Method for Transmitting PPP Over Ethernet (PPPoE) | 24 of 37 (64.9%) | 0 of 3 (0.0%) | fttx-edge: required by rfc/short/rfc2516.md |
+| [RFC 2516](../../rfc2516/) | A Method for Transmitting PPP Over Ethernet (PPPoE) | 25 of 37 (67.6%) | 0 of 3 (0.0%) | fttx-edge: required by rfc/short/rfc2516.md |
 | [RFC 4787](../../rfc4787/) | Network Address Translation (NAT) Behavioral Requirements for Unicast UDP | 0 of 13 (0.0%) | 0 of 16 (0.0%) | fttx-edge: required by rfc/short/rfc4787.md |
 
 ### Level 2
@@ -42,7 +42,7 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 | RFC | Title | Mandatory | Optional | Why it is here |
 |---|---|---|---|---|
 | [RFC 1877](../../rfc1877/) | PPP Internet Protocol Control Protocol Extensions for Name Server Addresses | no rows | no rows | fttx-edge: required by rfc/short/rfc1877.md |
-| [RFC 2181](../../rfc2181/) | Clarifications to the DNS Specification | 8 of 23 (34.8%) | 0 of 47 (0.0%) | fttx-edge: required by rfc/short/rfc2181.md |
+| [RFC 2181](../../rfc2181/) | Clarifications to the DNS Specification | 11 of 23 (47.8%) | 0 of 47 (0.0%) | fttx-edge: required by rfc/short/rfc2181.md |
 | [RFC 3022](../../rfc3022/) | Traditional IP Network Address Translator (Traditional NAT) | no rows | no rows | fttx-edge: required by rfc/short/rfc3022.md |
 | [RFC 4862](../../rfc4862/) | IPv6 Stateless Address Autoconfiguration | 0 of 16 (0.0%) | 0 of 14 (0.0%) | fttx-edge: required by rfc/short/rfc4862.md |
 | [RFC 5382](../../rfc5382/) | NAT Behavioral Requirements for TCP | 0 of 11 (0.0%) | 0 of 11 (0.0%) | fttx-edge: required by rfc/short/rfc5382.md |

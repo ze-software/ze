@@ -121,7 +121,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>8.5%</strong><b>5 of 59 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 59 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 59 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>27.5%</strong><b>25 of 91 tagged units, 0 escaped and 20 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>49.5%</strong><b>45 of 91 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -1264,7 +1264,7 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L494" title="internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRReservedOctetsIgnoredOnReceipt</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu_reserved_test.go#L80" title="internal/component/bgp/plugins/rpki/rtr_pdu_reserved_test.go" target="_blank" rel="noopener"><code>TestReservedPrefixFieldsPreserveValidation</code></a></td>
@@ -1284,7 +1284,7 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L471" title="internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRReservedOctetsIgnoredOnReceipt</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1475,7 +1475,7 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_version_test.go#L23" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_version_test.go" target="_blank" rel="noopener"><code>TestRFC8210V1CacheResponseIsNotTerminated</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L226" title="internal/component/bgp/plugins/rpki/rtr_session_test.go" target="_blank" rel="noopener"><code>TestRTRUnknownNegotiationVersion</code></a></td>
@@ -1495,22 +1495,22 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L290" title="internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRStartupSerialNotifyOfAnyVersionIsIgnored</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L448" title="internal/component/bgp/plugins/rpki/rtr_session_test.go" target="_blank" rel="noopener"><code>TestSerialNotifyIgnoredDuringStartup</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L263" title="internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRStartupSerialNotifyOfAnyVersionIsIgnored</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L424" title="internal/component/bgp/plugins/rpki/rtr_session_test.go" target="_blank" rel="noopener"><code>TestSerialNotifyIgnoredDuringStartup</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1579,12 +1579,12 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L337" title="internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRCacheResetReloadsTheWholeSet</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L320" title="internal/component/bgp/plugins/rpki/rtr_session_test.go" target="_blank" rel="noopener"><code>TestCacheResetTriggersResetQuery</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go#L440" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go" target="_blank" rel="noopener"><code>TestCacheGroupCacheResetFromPreferredReloadsIt</code></a></td>
@@ -1594,12 +1594,12 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L324" title="internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRCacheResetReloadsTheWholeSet</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L304" title="internal/component/bgp/plugins/rpki/rtr_session_test.go" target="_blank" rel="noopener"><code>TestCacheResetTriggersResetQuery</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1902,7 +1902,7 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L204" title="internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRUnknownVersionErrorReportIsNotAnswered</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L225" title="internal/component/bgp/plugins/rpki/rtr_session_test.go" target="_blank" rel="noopener"><code>TestRTRUnknownNegotiationVersion</code></a></td>
@@ -1947,22 +1947,22 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go#L633" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go" target="_blank" rel="noopener"><code>TestCacheSwitchWindowKeepsPreviousSetUntilEndOfData</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go#L127" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go" target="_blank" rel="noopener"><code>TestRTRCacheSwitchKeepsSerialBasesSeparate</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go#L632" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go" target="_blank" rel="noopener"><code>TestCacheSwitchWindowKeepsPreviousSetUntilEndOfData</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go#L126" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go" target="_blank" rel="noopener"><code>TestRTRCacheSwitchKeepsSerialBasesSeparate</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -2132,12 +2132,12 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go#L635" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go" target="_blank" rel="noopener"><code>TestCacheSwitchWindowKeepsPreviousSetUntilEndOfData</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go#L634" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go" target="_blank" rel="noopener"><code>TestCacheSwitchWindowKeepsPreviousSetUntilEndOfData</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -2152,12 +2152,12 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go#L637" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go" target="_blank" rel="noopener"><code>TestCacheSwitchWindowKeepsPreviousSetUntilEndOfData</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go#L636" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go" target="_blank" rel="noopener"><code>TestCacheSwitchWindowKeepsPreviousSetUntilEndOfData</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -2531,7 +2531,7 @@ Five MUST rows carry {gap}. Session ID mismatch handling, received supported-ver
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 27 October 2026 23:56 UTC</span>
+                    <span class="footer-published">Published 28 October 2026 09:31 UTC</span>
                 </div>
             </div>
         </footer>

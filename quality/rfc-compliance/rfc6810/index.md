@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 5.0% | 2 of 40 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 40 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 40 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 23.8% | 5 of 21 tagged units, 0 escaped and 8 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 61.9% | 13 of 21 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -257,9 +257,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Rece
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC6810ReservedPrefixOctetsIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go#L38) | unit/verify | revert, verified |
-| negative | [`TestRTRReservedOctetsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L495) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRTRReservedOctetsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L495) | unit/verify | revert, verified |
 | positive | [`TestRFC6810ReservedPrefixOctetsIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go#L37) | unit/verify | revert, verified |
-| positive | [`TestRTRReservedOctetsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L472) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRTRReservedOctetsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L472) | unit/verify | revert, verified |
 
 ### [`RFC6810-5.6-1`](#rfc6810-5.6-1)
 
@@ -368,10 +368,10 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Same
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRTRCacheResetReloadsTheWholeSet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L338) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| negative | [`TestCacheResetTriggersResetQuery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L318) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRTRCacheResetReloadsTheWholeSet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L325) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestCacheResetTriggersResetQuery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L302) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRTRCacheResetReloadsTheWholeSet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L338) | unit/verify | revert, verified |
+| negative | [`TestCacheResetTriggersResetQuery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L318) | unit/verify | revert, verified |
+| positive | [`TestRTRCacheResetReloadsTheWholeSet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L325) | unit/verify | revert, verified |
+| positive | [`TestCacheResetTriggersResetQuery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L302) | unit/verify | revert, verified |
 
 ### [`RFC6810-6.4-1`](#rfc6810-6.4-1)
 
@@ -381,8 +381,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC6810NoDataAvailableRepeatsResetQuery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go#L72) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC6810NoDataAvailableRepeatsResetQuery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go#L71) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC6810NoDataAvailableRepeatsResetQuery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go#L72) | unit/verify | revert, verified |
+| positive | [`TestRFC6810NoDataAvailableRepeatsResetQuery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go#L71) | unit/verify | revert, verified |
 
 ### [`RFC6810-3-1`](#rfc6810-3-1)
 

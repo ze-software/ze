@@ -584,7 +584,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 The CD bit is controlled by resolvers; a security-aware name server MUST copy the CD bit from a query into the corresponding response. (§3)
 
-Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/core/dnsserver/rfc4035_test.go::TestRFC4035_CDCopiedADIgnored, internal/core/dnsserver/rfc4035_test.go::TestRFC4035_CDCopiedADIgnored#2 moved. TestRFC4035_CDCopiedADIgnored drives the real dnsserver.Authoritative harness: a CD=1 query must draw CD=1 and a CD=0 query CD=0, so both an always-clear and an always-set implementation go red
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-28 after b505e144ab changed the unit: the only edit drops the removed trailing nil onPanic argument from Authoritative(nil, answerOne); every query and assertion is unchanged (RFC-approved in that commit). Judgement unchanged: TestRFC4035_CDCopiedADIgnored drives the real dnsserver.Authoritative harness: a CD=1 query must draw CD=1 and a CD=0 query CD=0, so both an always-clear and an always-set implementation go red
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -595,7 +595,7 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 
 The AD bit is controlled by name servers; a security-aware name server MUST ignore the setting of the AD bit in queries. (§3)
 
-Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/core/dnsserver/rfc4035_test.go::TestRFC4035_CDCopiedADIgnored, internal/core/dnsserver/rfc4035_test.go::TestRFC4035_CDCopiedADIgnored#2 moved. the negative asserts an AD=1 query draws a reply with AD clear through the real harness; the positive's answer-equality half runs over the answerOne test stub, which cannot vary, so the AD-echo assertion is the discriminating one
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-28 after b505e144ab changed the unit: the only edit drops the removed trailing nil onPanic argument from Authoritative(nil, answerOne); every query and assertion is unchanged (RFC-approved in that commit). Judgement unchanged: the negative asserts an AD=1 query draws a reply with AD clear through the real harness; the positive's answer-equality half runs over the answerOne test stub, which cannot vary, so the AD-echo assertion is the discriminating one
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|

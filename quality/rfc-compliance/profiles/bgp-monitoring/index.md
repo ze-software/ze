@@ -4,7 +4,7 @@ Technology aggregate. BGP Monitoring Protocol (BMP). The RFCs whose summary name
 
 [All profiles](../) · [All RFCs](../../)
 
-- **Mandatory**: 42.2% (35 of 83 (42.2%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
+- **Mandatory**: 43.4% (36 of 83 (43.4%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
 - **Optional**: 20.0% (3 of 15 (20.0%)). MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.
 - **Not walked**: 0 (of 4 RFCs). RFCs with no valid extraction sign-off: their rows count in neither figure.
 - **Mandatory register**: not complete (every row proven, none unwalked). A profile is complete only when it requires at least one RFC and none of them is unwalked.
@@ -23,7 +23,7 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 
 | RFC | Title | Mandatory | Optional |
 |---|---|---|---|
-| [RFC 7854](../../rfc7854/) | BGP Monitoring Protocol (BMP) | 24 of 39 (61.5%) | 3 of 9 (33.3%) |
+| [RFC 7854](../../rfc7854/) | BGP Monitoring Protocol (BMP) | 25 of 39 (64.1%) | 3 of 9 (33.3%) |
 
 ### Level 9
 

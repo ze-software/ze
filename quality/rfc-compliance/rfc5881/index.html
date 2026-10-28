@@ -121,7 +121,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>4.3%</strong><b>1 of 23 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 23 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 23 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>73.6%</strong><b>39 of 53 tagged units, 0 escaped and 8 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>88.7%</strong><b>47 of 53 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -769,17 +769,17 @@ Six MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_first_packet_binding_test.go#L21" title="internal/component/bfd/engine/rfc5881_first_packet_binding_test.go" target="_blank" rel="noopener"><code>TestRFC5881FirstPacketBoundToRemoteInterfaceAndProtocol</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L152" title="internal/component/bfd/engine/rfc5881_test.go" target="_blank" rel="noopener"><code>TestRFC5881FirstPacketWrongSourceDropped</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_first_packet_binding_test.go#L17" title="internal/component/bfd/engine/rfc5881_first_packet_binding_test.go" target="_blank" rel="noopener"><code>TestRFC5881FirstPacketBoundToRemoteInterfaceAndProtocol</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_link_local_first_packet_test.go#L57" title="internal/component/bfd/engine/rfc5881_link_local_first_packet_test.go" target="_blank" rel="noopener"><code>TestFirstPacketSelectsALinkLocalPeer</code></a></td>
@@ -799,7 +799,7 @@ Six MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L128" title="internal/component/bfd/engine/rfc5881_test.go" target="_blank" rel="noopener"><code>TestRFC5881FirstPacketMatchesByTuple</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1089,22 +1089,22 @@ Six MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_demux_solely_test.go#L51" title="internal/component/bfd/engine/rfc5881_demux_solely_test.go" target="_blank" rel="noopener"><code>TestRFC5881AddressingNeverOverridesTheDiscriminator</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L201" title="internal/component/bfd/engine/rfc5881_test.go" target="_blank" rel="noopener"><code>TestRFC5881DiscriminatorDemuxUnknownDropped</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_demux_solely_test.go#L34" title="internal/component/bfd/engine/rfc5881_demux_solely_test.go" target="_blank" rel="noopener"><code>TestRFC5881DiscriminatorAloneSelectsTheSession</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L178" title="internal/component/bfd/engine/rfc5881_test.go" target="_blank" rel="noopener"><code>TestRFC5881DiscriminatorDemuxDelivers</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1313,7 +1313,7 @@ Six MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 27 October 2026 23:56 UTC</span>
+                    <span class="footer-published">Published 28 October 2026 09:31 UTC</span>
                 </div>
             </div>
         </footer>

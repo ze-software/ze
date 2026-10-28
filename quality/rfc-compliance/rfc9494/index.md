@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 0.0% | 0 of 25 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 25 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 25 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 58.2% | 57 of 98 tagged units, 0 escaped and 8 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 66.3% | 65 of 98 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -344,16 +344,16 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 | negative | [`TestRFC9494ReceivedLLGRStaleFromNonLLGRNeighborCompetesNormally`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9494_llgr_received_stale_test.go#L194) | unit/verify | revert, verified |
 | negative | [`TestRFC9494ReceivedOtherCommunityCompetesNormally`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9494_llgr_received_stale_test.go#L142) | unit/verify | revert, verified |
 | negative | [`TestRFC9494SelfAttachSkipsRouteLearnedAfterLoss`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9494_llgr_self_attach_test.go#L112) | unit/verify | revert, verified |
-| negative | [`TestRFC9494ReceivedEventNoLLGRSessionStaysFresh`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9494_llgr_ingress_meta_test.go#L117) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| negative | [`TestRFC9494NegotiateWithKeysOnAdvertisedLLGR`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9494_llgr_trigger_test.go#L48) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC9494ReceivedEventNoLLGRSessionStaysFresh`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9494_llgr_ingress_meta_test.go#L117) | unit/verify | revert, verified |
+| negative | [`TestRFC9494NegotiateWithKeysOnAdvertisedLLGR`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9494_llgr_trigger_test.go#L48) | unit/verify | revert, verified |
 | negative | [`llgr-stale-received-depreferenced.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/llgr-stale-received-depreferenced.ci#L11) | functional/verify | mutant, verified |
 | positive | [`TestLLGRIngressFilter_MarksReceivedStale`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_gr_ingress_test.go#L72) | unit/verify | revert, verified |
 | positive | [`TestComparePair_LLGRStale`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L820) | unit/verify | revert, verified |
 | positive | [`TestRFC9494LLGRStaleLosesEveryLaterTieBreak`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9494_llgr_least_preferred_test.go#L37) | unit/verify | revert, verified |
 | positive | [`TestRFC9494ReceivedLLGRStaleIsLeastPreferred`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9494_llgr_received_stale_test.go#L121) | unit/verify | revert, verified |
 | positive | [`TestRFC9494SelfAttachedLLGRStaleIsLeastPreferred`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9494_llgr_self_attach_test.go#L92) | unit/verify | revert, verified |
-| positive | [`TestRFC9494ReceivedEventCarriesIngressStale`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9494_llgr_ingress_meta_test.go#L101) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC9494NegotiateWithKeysOnAdvertisedLLGR`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9494_llgr_trigger_test.go#L46) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC9494ReceivedEventCarriesIngressStale`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9494_llgr_ingress_meta_test.go#L101) | unit/verify | revert, verified |
+| positive | [`TestRFC9494NegotiateWithKeysOnAdvertisedLLGR`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9494_llgr_trigger_test.go#L46) | unit/verify | revert, verified |
 | positive | [`llgr-stale-received-depreferenced.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/llgr-stale-received-depreferenced.ci#L10) | functional/verify | mutant, verified |
 
 ### [`RFC9494-4.3-2`](#rfc9494-4.3-2)
@@ -479,16 +479,16 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 | negative | [`TestLLGREgressFilter_StateLoadedStillAdvertisesToLLGRPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go#L342) | unit/verify | unproven |
 | negative | [`TestPeerUpReplayReportsSourceIngressLevel`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9494_llgr_replay_stale_test.go#L129) | unit/verify | revert, verified |
 | negative | [`TestRIBReplayMetaReadsSourceIngressLevel`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9494_llgr_replay_stale_test.go#L176) | unit/verify | revert, verified |
-| negative | [`TestRFC9494CachedForwardWithholdsReceivedStale`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9494_llgr_cached_forward_test.go#L226) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| negative | [`TestRFC9494RouteServerForwardWithholdsReceivedStale`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9494_llgr_cached_forward_test.go#L259) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC9494CachedForwardWithholdsReceivedStale`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9494_llgr_cached_forward_test.go#L226) | unit/verify | revert, verified |
+| negative | [`TestRFC9494RouteServerForwardWithholdsReceivedStale`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9494_llgr_cached_forward_test.go#L259) | unit/verify | revert, verified |
 | negative | [`TestBuildRelayUpdateMarksRebuilt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9494_relay_rebuilt_test.go#L76) | unit/verify | revert, verified |
 | positive | [`TestLLGREgressFilter_RebuiltRecoversReceivedStale`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_gr_egress_rails_test.go#L106) | unit/verify | revert, verified |
 | positive | [`TestLLGREgressFilter_StateLoadedWithdrawsEBGPNonLLGR`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_gr_egress_rails_test.go#L46) | unit/verify | revert, verified |
 | positive | [`TestLLGREgressFilter_NilStateWithdrawsEBGP`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go#L158) | unit/verify | revert, verified |
 | positive | [`TestPeerUpReplayReportsSourceIngressLevel`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9494_llgr_replay_stale_test.go#L125) | unit/verify | revert, verified |
 | positive | [`TestRIBReplayMetaReadsSourceIngressLevel`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9494_llgr_replay_stale_test.go#L171) | unit/verify | revert, verified |
-| positive | [`TestRFC9494CachedForwardWithholdsReceivedStale`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9494_llgr_cached_forward_test.go#L224) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC9494RouteServerForwardWithholdsReceivedStale`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9494_llgr_cached_forward_test.go#L257) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC9494CachedForwardWithholdsReceivedStale`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9494_llgr_cached_forward_test.go#L224) | unit/verify | revert, verified |
+| positive | [`TestRFC9494RouteServerForwardWithholdsReceivedStale`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9494_llgr_cached_forward_test.go#L257) | unit/verify | revert, verified |
 | positive | [`TestBuildRelayUpdateMarksRebuilt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9494_relay_rebuilt_test.go#L72) | unit/verify | revert, verified |
 | positive | [`llgr-egress-state-unloaded.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/llgr-egress-state-unloaded.ci#L22) | functional/verify | revert, verified |
 

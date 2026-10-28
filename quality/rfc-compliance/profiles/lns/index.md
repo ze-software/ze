@@ -4,7 +4,7 @@ Release profile. The RFCs this use case requires, each declared by the Use cases
 
 [All profiles](../) · [All RFCs](../../)
 
-- **Mandatory**: 55.7% (255 of 458 (55.7%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
+- **Mandatory**: 55.9% (256 of 458 (55.9%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
 - **Optional**: 3.7% (6 of 161 (3.7%)). MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.
 - **Not walked**: 0 (of 14 RFCs). RFCs with no valid extraction sign-off: their rows count in neither figure.
 - **Mandatory register**: not complete (every row proven, none unwalked). A profile is complete only when it requires at least one RFC and none of them is unwalked.
@@ -19,7 +19,7 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 |---|---|---|---|---|
 | [RFC 1661](../../rfc1661/) | The Point-to-Point Protocol (PPP) | 39 of 76 (51.3%) | 0 of 25 (0.0%) | lns: required by rfc/short/rfc1661.md |
 | [RFC 2865](../../rfc2865/) (cycle with rfc2866) | Remote Authentication Dial In User Service (RADIUS) | 27 of 31 (87.1%) | 0 of 1 (0.0%) | lns: required by rfc/short/rfc2865.md |
-| [RFC 2866](../../rfc2866/) (cycle with rfc2865) | RADIUS Accounting | 7 of 15 (46.7%) | 0 of 1 (0.0%) | lns: required by rfc/short/rfc2866.md |
+| [RFC 2866](../../rfc2866/) (cycle with rfc2865) | RADIUS Accounting | 8 of 15 (53.3%) | 0 of 1 (0.0%) | lns: required by rfc/short/rfc2866.md |
 
 ### Level 1
 

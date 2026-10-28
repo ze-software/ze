@@ -122,7 +122,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 31 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 31 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 31 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>68.2%</strong><b>73 of 107 tagged units, 0 escaped and 4 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>72.0%</strong><b>77 of 107 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -938,7 +938,7 @@ Operator/admin login RADIUS is a separate backend under <code>system/authenticat
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go#L54" title="internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go" target="_blank" rel="noopener"><code>TestRFC2865AcceptForAFramingTheLNSLacksIsRejected</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_nas_obligations_test.go#L241" title="internal/component/radius/rfc2865_nas_obligations_test.go" target="_blank" rel="noopener"><code>TestRFC2865UnsupportedServiceTypeIsRejection</code></a></td>
@@ -983,7 +983,7 @@ Operator/admin login RADIUS is a separate backend under <code>system/authenticat
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go#L84" title="internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go" target="_blank" rel="noopener"><code>TestRFC2865UnknownOrUnsupportedServiceTypeIsARejection</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go#L69" title="internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go" target="_blank" rel="noopener"><code>TestRFC2865SupportedServiceTypeIsHonored</code></a></td>
@@ -1188,7 +1188,7 @@ Operator/admin login RADIUS is a separate backend under <code>system/authenticat
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_access_challenge_test.go#L56" title="internal/component/l2tp/plugins/authradius/rfc2865_access_challenge_test.go" target="_blank" rel="noopener"><code>TestRFC2865SubscriberAccessAcceptIsNotTreatedAsReject</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_nas_obligations_test.go#L200" title="internal/component/radius/rfc2865_nas_obligations_test.go" target="_blank" rel="noopener"><code>TestRFC2865AccessChallengeIsRejection</code></a></td>
@@ -1203,7 +1203,7 @@ Operator/admin login RADIUS is a separate backend under <code>system/authenticat
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_access_challenge_test.go#L29" title="internal/component/l2tp/plugins/authradius/rfc2865_access_challenge_test.go" target="_blank" rel="noopener"><code>TestRFC2865SubscriberAccessChallengeIsTreatedAsReject</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_nas_obligations_test.go#L193" title="internal/component/radius/rfc2865_nas_obligations_test.go" target="_blank" rel="noopener"><code>TestRFC2865AccessChallengeIsRejection</code></a></td>
@@ -2289,7 +2289,7 @@ Operator/admin login RADIUS is a separate backend under <code>system/authenticat
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 27 October 2026 23:56 UTC</span>
+                    <span class="footer-published">Published 28 October 2026 09:31 UTC</span>
                 </div>
             </div>
         </footer>

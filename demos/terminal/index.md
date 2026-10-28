@@ -24,9 +24,9 @@ the same configuration and demonstration fragments as this continuous recording.
 
 Migrate ExaBGP, operate the BGP dashboard, then configure, prove, diagnose and repair eight features in one continuous session without restarting Ze.
 
-[Download the asciicast recording](../../assets/demos/showcase.cast?v=fa585da9e0) · [Plain-text transcript](../../assets/demos/showcase.txt?v=1eea1ac585)
+[Download the asciicast recording](../../assets/demos/showcase.cast?v=23212c48da) · [Plain-text transcript](../../assets/demos/showcase.txt?v=1eea1ac585)
 
-Recorded with Ze 26.10.27 in a Linux namespace lab using Ze recorder. Duration: 21 minutes 47 seconds.
+Recorded with Ze 26.10.28 in a Linux namespace lab using Ze recorder. Duration: 32 minutes 37 seconds.
 
 ```console
 One running router, eight live configuration topics

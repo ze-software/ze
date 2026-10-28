@@ -22,7 +22,7 @@ This page answers **is our testing correct**, not *is our testing large*. Those 
 
 ### Tests with no reachable failure call
 
-**113 / 39455 (floor 113)** (ok)
+**113 / 39514 (floor 113)** (ok)
 
 These execute code and pass unconditionally. Breaking the code under test would not turn them red.
 
@@ -84,15 +84,15 @@ Enrolled and gate-green, but no requirement is proven by BOTH polarities. Some o
 
 ### In-repo test inventory
 
-**39494 test functions** (ok)
+**39553 test functions** (ok)
 
-6849 Go test files, 92 fuzz targets, 153 benchmarks, 2610 .ci scenarios, 179 .et editor tests. Counts cover internal, cmd, pkg, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.
+6875 Go test files, 93 fuzz targets, 153 benchmarks, 2611 .ci scenarios, 179 .et editor tests. Counts cover internal, cmd, pkg, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.
 
 *Action if this degrades:* This is volume, not health. It is here to state the counting boundary, because a count that silently includes vendored tests inflates by ~6x.
 
 ### Test files that expect a specific error
 
-**2538 / 6849** (ok)
+**2541 / 6875** (ok)
 
 Counts files using an error-expectation token (wantErr, ErrorIs, assert.Error, ...), with comments stripped. Setup guards of the form `if err != nil { t.Fatal(err) }` are deliberately NOT counted: those assert the happy path. Blind spot: expecting *an* error is weaker than pinning the right one.
 
@@ -108,8 +108,8 @@ Counts files using an error-expectation token (wantErr, ErrorIs, assert.Error, .
 | internal/component/lg | 2 | 27 | 7.4 |
 | internal/chaos/peer | 1 | 11 | 9.1 |
 | internal/component/cmd | 2 | 20 | 10.0 |
+| internal/plugins/completion | 1 | 9 | 11.1 |
 | internal/plugins/ddos | 4 | 36 | 11.1 |
-| internal/plugins/completion | 1 | 8 | 12.5 |
 
 ### Technique adoption by package age
 

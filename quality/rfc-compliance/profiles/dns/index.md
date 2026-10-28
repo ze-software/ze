@@ -6,7 +6,7 @@ Technology aggregate. DNS, DNSSEC, encrypted DNS transports, and AS112. The RFCs
 
 Use case: [AS112 anycast DNS inside a network](../../../../use-cases/as112/)
 
-- **Mandatory**: 6.4% (19 of 299 (6.4%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
+- **Mandatory**: 7.7% (23 of 299 (7.7%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
 - **Optional**: 0.0% (0 of 211 (0.0%)). MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.
 - **Not walked**: 0 (of 11 RFCs). RFCs with no valid extraction sign-off: their rows count in neither figure.
 - **Mandatory register**: not complete (every row proven, none unwalked). A profile is complete only when it requires at least one RFC and none of them is unwalked.
@@ -25,7 +25,7 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 
 | RFC | Title | Mandatory | Optional |
 |---|---|---|---|
-| [RFC 2181](../../rfc2181/) | Clarifications to the DNS Specification | 8 of 23 (34.8%) | 0 of 47 (0.0%) |
+| [RFC 2181](../../rfc2181/) | Clarifications to the DNS Specification | 11 of 23 (47.8%) | 0 of 47 (0.0%) |
 
 ### Level 4
 
@@ -54,4 +54,4 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 
 | RFC | Title | Mandatory | Optional |
 |---|---|---|---|
-| [RFC 7858](../../rfc7858/) | Specification for DNS over Transport Layer Security (TLS) | 2 of 19 (10.5%) | 0 of 19 (0.0%) |
+| [RFC 7858](../../rfc7858/) | Specification for DNS over Transport Layer Security (TLS) | 3 of 19 (15.8%) | 0 of 19 (0.0%) |

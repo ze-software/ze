@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 0.0% | 0 of 27 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 27 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 27 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 3.1% | 2 of 64 tagged units, 0 escaped and 3 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 7.8% | 5 of 64 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -347,10 +347,10 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC1035_CompressionPointersInATruncatedDatagram`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L232) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC1035_CompressionPointersInATruncatedDatagram`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L232) | unit/verify | revert, verified |
 | negative | [`TestRFC1035_LabelLengthOctetBeginsWithTwoZeroBits`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L517) | unit/verify | revert, verified |
-| positive | [`TestRFC1035_CompressionPointersInATruncatedDatagram`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L157) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC1035_LabelLengthOctetBeginsWithTwoZeroBits`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L503) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC1035_CompressionPointersInATruncatedDatagram`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L157) | unit/verify | revert, verified |
+| positive | [`TestRFC1035_LabelLengthOctetBeginsWithTwoZeroBits`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L503) | unit/verify | revert, verified |
 
 ### [`RFC1035-4.1.4-2`](#rfc1035-4.1.4-2)
 

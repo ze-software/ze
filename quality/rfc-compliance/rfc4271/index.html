@@ -121,7 +121,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>1.5%</strong><b>2 of 133 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 133 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 133 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>48.4%</strong><b>221 of 457 tagged units, 0 escaped and 19 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>52.3%</strong><b>239 of 457 tagged units, 0 escaped and 1 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -2400,7 +2400,7 @@ Full conformance is not established. The checklist below retains recorded OPEN e
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_keepalive_session_test.go#L70" title="internal/component/bgp/reactor/rfc4271_keepalive_session_test.go" target="_blank" rel="noopener"><code>TestRFC4271NonZeroNegotiatedHoldSendsPeriodicKeepalives</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -3181,7 +3181,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_header_error_peer_test.go#L174" title="internal/component/bgp/reactor/rfc4271_header_error_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271MessageHeaderAtTheBoundsIsAccepted</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go#L201" title="internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271OpenSentWellFormedOpenKeepsTheConnection</code></a></td>
@@ -3241,7 +3241,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_header_error_peer_test.go#L175" title="internal/component/bgp/reactor/rfc4271_header_error_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271MessageHeaderAtTheBoundsIsAccepted</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go#L203" title="internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271OpenSentWellFormedOpenKeepsTheConnection</code></a></td>
@@ -3271,7 +3271,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_header_error_peer_test.go#L176" title="internal/component/bgp/reactor/rfc4271_header_error_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271MessageHeaderAtTheBoundsIsAccepted</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_header_error_peer_test.go#L159" title="internal/component/bgp/reactor/rfc4271_header_error_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271UnknownMessageTypeIsReported</code></a></td>
@@ -3609,12 +3609,12 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go#L244" title="internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271FailedCycleAfterEstablishedKeepsCounter</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go#L479" title="internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271FailedCycleInboundShortenedBackoffKeepsCounter</code></a></td>
 <td>unit/verify</td>
-<td>mutant, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go#L191" title="internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271FailedCycleRestartKeepsCounter</code></a></td>
@@ -3634,12 +3634,12 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go#L497" title="internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271HoldExpiryInboundShortenedBackoffZeroesCounter</code></a></td>
 <td>unit/verify</td>
-<td>mutant, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go#L518" title="internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271PassiveAutomaticStartReconnectZeroesCounter</code></a></td>
 <td>unit/verify</td>
-<td>mutant, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -3828,7 +3828,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_established_teardown_peer_test.go#L158" title="internal/component/bgp/reactor/rfc4271_established_teardown_peer_test.go" target="_blank" rel="noopener"><code>TestRFC4271EstablishedGoodMessagesKeepTheConnection</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_retry_test.go#L421" title="internal/component/bgp/fsm/rfc4271_connect_retry_test.go" target="_blank" rel="noopener"><code>TestRFC4271ConnectRetryCounterIncrementsOnUpdateError</code></a></td>
@@ -4148,7 +4148,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_hold_time_config_test.go#L75" title="internal/component/bgp/reactor/rfc4271_hold_time_config_test.go" target="_blank" rel="noopener"><code>TestRFC4271HoldTimeUnconfiguredPeerKeepsTheDefault</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L283" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271PerPeerHoldTimeSurvivesNegotiation</code></a></td>
@@ -4158,7 +4158,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_hold_time_config_test.go#L53" title="internal/component/bgp/reactor/rfc4271_hold_time_config_test.go" target="_blank" rel="noopener"><code>TestRFC4271HoldTimeConfiguredPerPeerFromConfig</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L259" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271HoldTimeConfigurablePerPeer</code></a></td>
@@ -4267,7 +4267,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_ibgp_aspath_export_test.go#L283" title="internal/component/bgp/reactor/rfc4271_ibgp_aspath_export_test.go" target="_blank" rel="noopener"><code>TestRFC4271ForwardExportASPathEditsSkipInternalPeers</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_ibgp_aspath_export_test.go#L202" title="internal/component/bgp/reactor/rfc4271_ibgp_aspath_export_test.go" target="_blank" rel="noopener"><code>TestRFC4271PolicyDryRunAgreesNoASPathEditTowardAnInternalPeer</code></a></td>
@@ -4277,7 +4277,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_reactor_a2_forward_test.go#L94" title="internal/component/bgp/reactor/rfc4271_reactor_a2_forward_test.go" target="_blank" rel="noopener"><code>TestRFC4271ForwardASPathUnmodifiedTowardInternalPeer</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L146" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271ASPathPrependedTowardExternalPeer</code></a></td>
@@ -4287,7 +4287,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_reactor_a2_forward_test.go#L93" title="internal/component/bgp/reactor/rfc4271_reactor_a2_forward_test.go" target="_blank" rel="noopener"><code>TestRFC4271ForwardASPathUnmodifiedTowardInternalPeer</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_reactor_batch_test.go#L569" title="internal/component/bgp/reactor/rfc4271_reactor_batch_test.go" target="_blank" rel="noopener"><code>TestEstablishedAnnounce_ExplicitASPath_IBGPVerbatim</code></a></td>
@@ -4367,7 +4367,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_med_ingress_test.go#L43" title="internal/component/bgp/reactor/rfc4271_med_ingress_test.go" target="_blank" rel="noopener"><code>TestRFC4271ReceivedMEDAlteredBeforeTheDecisionProcess</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L455" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271MEDAlterationHappensAtIngress</code></a></td>
@@ -4850,7 +4850,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_overlap_acceptance_test.go#L99" title="internal/component/bgp/reactor/rfc4271_overlap_acceptance_test.go" target="_blank" rel="noopener"><code>TestRFC4271OverlappingRoutesAcceptedByPolicyBothReachTheDecisionProcess</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -4948,7 +4948,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_ibgp_split_horizon_test.go#L35" title="internal/component/bgp/reactor/rfc4271_ibgp_split_horizon_test.go" target="_blank" rel="noopener"><code>TestRFC4271ForwardRailNeverRedistributesInternalRoutesToInternalPeers</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L573" title="internal/component/bgp/reactor/rfc4271_test.go" target="_blank" rel="noopener"><code>TestRFC4271IBGPRedistributionAllowedForReflectorClient</code></a></td>
@@ -4978,7 +4978,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_rs_replacement_test.go#L88" title="internal/component/bgp/reactor/rfc4271_rs_replacement_test.go" target="_blank" rel="noopener"><code>TestRFC4271RouteServerLastSourceWithdrawalIsSent</code></a></td>
 <td>unit/verify</td>
-<td>mutant, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -6356,7 +6356,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 27 October 2026 17:34 UTC</span>
+                    <span class="footer-published">Published 28 October 2026 09:31 UTC</span>
                 </div>
             </div>
         </footer>

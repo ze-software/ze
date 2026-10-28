@@ -1,4 +1,4 @@
-2026-10-28T01:39:53Z store-trim pid 818022: run started
+2026-10-28T09:32:11Z store-trim pid 3027508: run started
 automatic trim: on, at most once an hour
 budget ze.le.store.go-cache-budget=20.0G: 0.0G -> 0.0G, 0 removed
 budget ze.le.store.lint-cache-budget=10.0G: 0.0G -> 0.0G, 0 removed
@@ -13,4 +13,4 @@ sessions    /home/thomas/Code/github.com/ze-software/ze/gh-pages/tmp/session 0.0
 testbins    /home/thomas/Code/github.com/ze-software/ze/gh-pages/tmp/session 0.0G -> 0.0G, 0 removed
 builds      SKIP     /home/thomas/Code/github.com/ze-software/ze/gh-pages/bin/builds: no bin/builds directory
 agent-files SKIP     /home/thomas/Code/github.com/ze-software/ze/gh-pages/bin: no bin/ directory
-test-temp   /home/thomas/.zt                                 0.2G -> 0.2G, 0 removed, 38 kept
+test-temp   /home/thomas/.zt                                 0.0G -> 0.0G, 0 removed

@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0.0% | 0 of 234 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 234 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 234 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 35.8% | 262 of 731 tagged units, 0 escaped and 9 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 36.5% | 267 of 731 tagged units, 0 escaped and 4 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -388,10 +388,10 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. The 
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC7296MismatchedResponderSPIReachesNoSAThroughTheReceiveLoops`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_spi_pair_dispatch_test.go#L43) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC7296MismatchedResponderSPIReachesNoSAThroughTheReceiveLoops`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_spi_pair_dispatch_test.go#L43) | unit/verify | revert, verified |
 | negative | [`TestRFC7296UnknownIKESPIPairMapsToNoSA`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_spi_pair_identifier_test.go#L71) | unit/verify | revert, verified |
 | negative | [`TestDecodeTruncatedHeader`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_header_test.go#L75) | unit/verify | revert, verified |
-| positive | [`TestRFC7296MismatchedResponderSPIReachesNoSAThroughTheReceiveLoops`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_spi_pair_dispatch_test.go#L48) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC7296MismatchedResponderSPIReachesNoSAThroughTheReceiveLoops`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_spi_pair_dispatch_test.go#L48) | unit/verify | revert, verified |
 | positive | [`TestRFC7296IKESPIPairIdentifiesTheIKESA`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_spi_pair_identifier_test.go#L44) | unit/verify | revert, verified |
 | positive | [`TestHeaderRoundtrip`](https://github.com/ze-software/ze/blob/main/internal/component/ike/wire/rfc7296_header_test.go#L9) | unit/verify | revert, verified |
 
@@ -2026,7 +2026,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 A node receiving a suspicious message from an IP address (and port, if NAT traversal is used) with which it has an IKE SA SHOULD send an IKE Notify payload in an IKE INFORMATIONAL exchange over that SA. (§2.21.4)
 
-Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/ike/engine/established.go::maintainSA moved. Re-judged 2026-10-26 (independent judge, clean clone at c8584247bb) after a965d7c0d4 changed maintainSA. RFC 7296 Section 2.21.4: "A node receiving a suspicious message from an IP address (and port, if NAT traversal is used) with which it has an IKE SA SHOULD send an IKE Notify payload in an IKE INFORMATIONAL exchange over that SA." The only maintainSA change moves the IKE SA rekey swap (ownedSA store, retirePendingProbe, setSA, table insert/remove, forgetKeys) into the new adoptRekeyedIKESA, in the same order, adding moveVirtualIP(retired, successor) before the retired SA forgets its keys; the loop then reads sa = out.newSA as before. The Section 2.21.4 path is untouched: maintainSA still defers ps.saEndpoint.Store(nil) on every exit, publishes the SA endpoint at the top of every pass (publishSAEndpoint), so the swapped SA is published on the next pass, and answers ps.suspicious through informSuspicious on the owner goroutine under the current sa. notify_suspicious.go and rfc7296_suspicious_test.go are unchanged by the commit. The five TestSus units assert a protected INFORMATIONAL INVALID_IKE_SPI notify over the existing SA, endpoint and NAT-T port discrimination, response and IKE_SA_INIT exclusion, the rate limit, and notification from a moved endpoint through the real owner loop including endpoint withdrawal on exit; all five pass at HEAD under -race, and their five discrimination records (including the maintainSA publishSAEndpoint mutant) are current.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-28 after 91502e4f4a changed maintainSA: the only change replaces ps.handleOwnedInbound with ps.handleOwnedInboundGuarded on the inbound case, a panic boundary that returns reestablish only when a panic is recovered and otherwise returns handleOwnedInbound's result. publishSAEndpoint, the deferred endpoint withdrawal and informSuspicious are untouched, and the five TestSus units are unchanged; the publishSAEndpoint mutant record was re-taken over today's maintainSA. Earlier judgement follows. Re-judged 2026-10-26 (independent judge, clean clone at c8584247bb) after a965d7c0d4 changed maintainSA. RFC 7296 Section 2.21.4: "A node receiving a suspicious message from an IP address (and port, if NAT traversal is used) with which it has an IKE SA SHOULD send an IKE Notify payload in an IKE INFORMATIONAL exchange over that SA." The only maintainSA change moves the IKE SA rekey swap (ownedSA store, retirePendingProbe, setSA, table insert/remove, forgetKeys) into the new adoptRekeyedIKESA, in the same order, adding moveVirtualIP(retired, successor) before the retired SA forgets its keys; the loop then reads sa = out.newSA as before. The Section 2.21.4 path is untouched: maintainSA still defers ps.saEndpoint.Store(nil) on every exit, publishes the SA endpoint at the top of every pass (publishSAEndpoint), so the swapped SA is published on the next pass, and answers ps.suspicious through informSuspicious on the owner goroutine under the current sa. notify_suspicious.go and rfc7296_suspicious_test.go are unchanged by the commit. The five TestSus units assert a protected INFORMATIONAL INVALID_IKE_SPI notify over the existing SA, endpoint and NAT-T port discrimination, response and IKE_SA_INIT exclusion, the rate limit, and notification from a moved endpoint through the real owner loop including endpoint withdrawal on exit; all five pass at HEAD under -race, and their five discrimination records (including the maintainSA publishSAEndpoint mutant) are current.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -2034,7 +2034,7 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 | negative | [`TestSusRateLimitCapsTheNotify`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_suspicious_test.go#L191) | unit/verify | mutant, verified |
 | positive | [`TestSusMovedSAEndpointDrawsTheNotify`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_suspicious_test.go#L222) | unit/verify | mutant, verified |
 | positive | [`TestSusOutOfSARequestFromSAPeerDrawsProtectedNotify`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_suspicious_test.go#L79) | unit/verify | revert, verified |
-| positive | [`TestSusOwnerLoopPublishesMovedEndpoint`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_suspicious_test.go#L284) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestSusOwnerLoopPublishesMovedEndpoint`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_suspicious_test.go#L284) | unit/verify | mutant, verified |
 
 ### [`RFC7296-3.10.1-1`](#rfc7296-3.10.1-1)
 
@@ -2259,8 +2259,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Send
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC7296ZeroInitiatorSPIIsDroppedOnTheNATTSocket`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_zero_ispi_natt_test.go#L33) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| negative | [`TestRFC7296ZeroInitiatorSPIIsDroppedOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_zero_ispi_test.go#L34) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC7296ZeroInitiatorSPIIsDroppedOnTheNATTSocket`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_zero_ispi_natt_test.go#L33) | unit/verify | revert, verified |
+| negative | [`TestRFC7296ZeroInitiatorSPIIsDroppedOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_zero_ispi_test.go#L34) | unit/verify | revert, verified |
 | positive | [`TestSPIZeroRules`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_header_test.go#L201) | unit/verify | revert, verified |
 
 ### [`RFC7296-3.1-4`](#rfc7296-3.1-4)

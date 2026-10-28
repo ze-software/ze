@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 8.1% | 9 of 111 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 111 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 111 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 72.5% | 214 of 295 tagged units, 0 escaped and 23 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 80.3% | 237 of 295 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -469,10 +469,10 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC5880ActiveSessionSendsAfterThePeerFallsSilent`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_role_transmit_test.go#L63) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC5880ActiveSessionSendsAfterThePeerFallsSilent`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_role_transmit_test.go#L63) | unit/verify | revert, verified |
 | negative | [`TestRFC5880PassiveRoleSilentUntilReception`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L391) | unit/verify | revert, verified |
 | negative | [`TestRFC5880PassiveRoleTransmitsAfterReception`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L409) | unit/verify | revert, verified |
-| positive | [`TestRFC5880ActiveSessionSendsBeforeAnyReception`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_role_transmit_test.go#L52) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC5880ActiveSessionSendsBeforeAnyReception`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_role_transmit_test.go#L52) | unit/verify | revert, verified |
 | positive | [`TestRFC5880ActiveRoleTransmitsWithoutReception`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L358) | unit/verify | revert, verified |
 
 ### [`RFC5880-6.1-2`](#rfc5880-6.1-2)
@@ -483,9 +483,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC5880PassiveSessionSendsOnceThePeerSpoke`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_role_transmit_test.go#L88) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC5880PassiveSessionSendsOnceThePeerSpoke`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_role_transmit_test.go#L88) | unit/verify | revert, verified |
 | negative | [`TestRFC5880PassiveRoleTransmitsAfterReception`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L414) | unit/verify | revert, verified |
-| positive | [`TestRFC5880PassiveSessionSilentThroughTicksUntilReception`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_role_transmit_test.go#L77) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC5880PassiveSessionSilentThroughTicksUntilReception`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_role_transmit_test.go#L77) | unit/verify | revert, verified |
 | positive | [`TestRFC5880PassiveRoleSilentUntilReception`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L383) | unit/verify | revert, verified |
 
 ### [`RFC5880-6.1-3`](#rfc5880-6.1-3)
@@ -918,9 +918,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC5880UnknownYourDiscriminatorDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L140) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC5880YourDiscriminatorSelectsAmongSessions`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_discriminator_select_test.go#L9) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC5880YourDiscriminatorSelectsSession`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L124) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC5880UnknownYourDiscriminatorDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L140) | unit/verify | revert, verified |
+| positive | [`TestRFC5880YourDiscriminatorSelectsAmongSessions`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_discriminator_select_test.go#L9) | unit/verify | revert, verified |
+| positive | [`TestRFC5880YourDiscriminatorSelectsSession`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L124) | unit/verify | revert, verified |
 
 ### [`RFC5880-6.8.6-8`](#rfc5880-6.8.6-8)
 
@@ -965,8 +965,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 |---|---|---|---|
 | negative | [`TestRFC5880AuthenticatedPacketOfAnotherAuthTypeDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_auth_type_test.go#L67) | unit/verify | revert, verified |
 | negative | [`TestRFC5880UnauthenticPacketDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L258) | unit/verify | revert, verified |
-| positive | [`TestRFC5880AuthenticatedUnderEachSessionAuthType`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_auth_type_test.go#L45) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC5880AuthenticatedPacketVerifiedAndDelivered`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L241) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC5880AuthenticatedUnderEachSessionAuthType`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_auth_type_test.go#L45) | unit/verify | revert, verified |
+| positive | [`TestRFC5880AuthenticatedPacketVerifiedAndDelivered`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L241) | unit/verify | revert, verified |
 
 ### [`RFC5880-6.8.6-12`](#rfc5880-6.8.6-12)
 
@@ -1006,11 +1006,11 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRFC5880PeriodicTransmitDemandClearBothUp`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_demand_disjunct_test.go#L73) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC5880PeriodicTransmitDemandSetLocalNotUpRemoteUp`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_demand_disjunct_test.go#L90) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC5880PeriodicTransmitDemandSetLocalUpRemoteNotUp`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_demand_disjunct_test.go#L107) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC5880PeriodicTransmitWhileDemandBitSetAndNotBothUp`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_demand_periodic_test.go#L9) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC5880PeriodicTransmitWhenRemoteDemandInactive`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L368) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC5880PeriodicTransmitDemandClearBothUp`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_demand_disjunct_test.go#L73) | unit/verify | revert, verified |
+| positive | [`TestRFC5880PeriodicTransmitDemandSetLocalNotUpRemoteUp`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_demand_disjunct_test.go#L90) | unit/verify | revert, verified |
+| positive | [`TestRFC5880PeriodicTransmitDemandSetLocalUpRemoteNotUp`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_demand_disjunct_test.go#L107) | unit/verify | revert, verified |
+| positive | [`TestRFC5880PeriodicTransmitWhileDemandBitSetAndNotBothUp`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_demand_periodic_test.go#L9) | unit/verify | revert, verified |
+| positive | [`TestRFC5880PeriodicTransmitWhenRemoteDemandInactive`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L368) | unit/verify | revert, verified |
 
 ### [`RFC5880-6.8.6-16`](#rfc5880-6.8.6-16)
 
@@ -1032,7 +1032,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC5881FirstPacketWrongSourceDropped`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L158) | unit/verify | unproven |
-| positive | [`TestFirstPacketMatchesWhatTheTransportSurfaces`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L363) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestFirstPacketMatchesWhatTheTransportSurfaces`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L363) | unit/verify | revert, verified |
 | positive | [`TestRFC5881FirstPacketMatchesByTuple`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L135) | unit/verify | unproven |
 
 ### [`RFC5880-6.8.7-1`](#rfc5880-6.8.7-1)
@@ -1057,7 +1057,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC5880JitterStaysWithinBand`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L483) | unit/verify | revert, verified |
-| positive | [`TestRFC5880PeriodicTransmitJitteredPerPacket`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_jitter_tick_test.go#L64) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC5880PeriodicTransmitJitteredPerPacket`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_jitter_tick_test.go#L64) | unit/verify | revert, verified |
 | positive | [`TestRFC5880JitterIsAppliedPerPacket`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L455) | unit/verify | revert, verified |
 
 ### [`RFC5880-6.8.7-3`](#rfc5880-6.8.7-3)
@@ -1069,7 +1069,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC5880JitterFloorOnlyForDetectMultOne`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L521) | unit/verify | revert, verified |
-| positive | [`TestRFC5880PeriodicTransmitDetectMultOneWindow`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_jitter_tick_test.go#L100) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC5880PeriodicTransmitDetectMultOneWindow`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_jitter_tick_test.go#L100) | unit/verify | revert, verified |
 | positive | [`TestRFC5880JitterDetectMultOneWindow`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L503) | unit/verify | revert, verified |
 
 ### [`RFC5880-6.8.7-4`](#rfc5880-6.8.7-4)
@@ -1095,7 +1095,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 |---|---|---|---|
 | negative | [`TestRFC5880ActiveRoleTransmitsWithoutReception`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L366) | unit/verify | revert, verified |
 | negative | [`TestRFC5880PassiveTransmitsAgainOnceRemoteDiscrLearned`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L1479) | unit/verify | revert, verified |
-| positive | [`TestRFC5880PassiveTickSendsNothingWithoutRemoteDiscr`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_engine_clauses_test.go#L82) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC5880PassiveTickSendsNothingWithoutRemoteDiscr`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_engine_clauses_test.go#L82) | unit/verify | revert, verified |
 | positive | [`TestRFC5880PassiveRoleSilentUntilReception`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L388) | unit/verify | revert, verified |
 | positive | [`TestRFC5880PassiveSilentOnceRemoteDiscrCleared`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L1439) | unit/verify | revert, verified |
 
@@ -1186,9 +1186,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC5880UnknownEchoDropped`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L659) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC5880EchoDemultiplexedAmongSessions`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_echo_session_test.go#L122) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC5880EchoDemultiplexedToItsSession`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L622) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC5880UnknownEchoDropped`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L659) | unit/verify | revert, verified |
+| positive | [`TestRFC5880EchoDemultiplexedAmongSessions`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_echo_session_test.go#L122) | unit/verify | revert, verified |
+| positive | [`TestRFC5880EchoDemultiplexedToItsSession`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L622) | unit/verify | revert, verified |
 
 ### [`RFC5880-6.8.8-2`](#rfc5880-6.8.8-2)
 
@@ -1320,7 +1320,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRFC5880AdminDownControlTransmittedForADetectionTime`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_admindown_transmit_test.go#L55) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC5880AdminDownControlTransmittedForADetectionTime`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_admindown_transmit_test.go#L55) | unit/verify | revert, verified |
 
 ### [`RFC5880-6.8.16-3`](#rfc5880-6.8.16-3)
 
@@ -1330,7 +1330,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC5880NoPeriodicTransmitWhileAdminDown`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L403) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC5880NoPeriodicTransmitWhileAdminDown`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L403) | unit/verify | revert, verified |
 
 ### [`RFC5880-9-2`](#rfc5880-9-2)
 

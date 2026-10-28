@@ -8,7 +8,7 @@ Use case: [BGP performance testing with Ze](../../../../use-cases/bgp-performanc
 
 Use case: [ExaBGP Migration](../../../../use-cases/exabgp-migration/)
 
-- **Mandatory**: 55.3% (192 of 347 (55.3%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
+- **Mandatory**: 56.5% (196 of 347 (56.5%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
 - **Optional**: 7.0% (8 of 114 (7.0%)). MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.
 - **Not walked**: 0 (of 21 RFCs). RFCs with no valid extraction sign-off: their rows count in neither figure.
 - **Mandatory register**: not complete (every row proven, none unwalked). A profile is complete only when it requires at least one RFC and none of them is unwalked.
@@ -21,7 +21,7 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 
 | RFC | Title | Mandatory | Optional |
 |---|---|---|---|
-| [RFC 4271](../../rfc4271/) | A Border Gateway Protocol 4 (BGP-4) | 80 of 133 (60.2%) | 3 of 34 (8.8%) |
+| [RFC 4271](../../rfc4271/) | A Border Gateway Protocol 4 (BGP-4) | 83 of 133 (62.4%) | 3 of 34 (8.8%) |
 
 ### Level 4
 
@@ -48,7 +48,7 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 | [RFC 4486](../../rfc4486/) | Subcodes for BGP Cease NOTIFICATION Message | 0 of 1 (0.0%) | 0 of 10 (0.0%) |
 | [RFC 6793](../../rfc6793/) (cycle with rfc5668) | BGP Support for Four-Octet Autonomous System (AS) Number Space | 20 of 30 (66.7%) | 0 of 6 (0.0%) |
 | [RFC 7311](../../rfc7311/) | The Accumulated IGP Metric Attribute for BGP | 13 of 22 (59.1%) | 0 of 4 (0.0%) |
-| [RFC 7911](../../rfc7911/) | Advertisement of Multiple Paths in BGP | 8 of 9 (88.9%) | 0 of 4 (0.0%) |
+| [RFC 7911](../../rfc7911/) | Advertisement of Multiple Paths in BGP | 9 of 9 (100.0%) | 0 of 4 (0.0%) |
 
 ### Level 7
 

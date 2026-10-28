@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 4.3% | 1 of 23 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 23 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 23 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 73.6% | 39 of 53 tagged units, 0 escaped and 8 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 88.7% | 47 of 53 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -225,13 +225,13 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC5881FirstPacketBoundToRemoteInterfaceAndProtocol`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_first_packet_binding_test.go#L21) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| negative | [`TestRFC5881FirstPacketWrongSourceDropped`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L152) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC5881FirstPacketBoundToRemoteInterfaceAndProtocol`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_first_packet_binding_test.go#L17) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC5881FirstPacketBoundToRemoteInterfaceAndProtocol`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_first_packet_binding_test.go#L21) | unit/verify | revert, verified |
+| negative | [`TestRFC5881FirstPacketWrongSourceDropped`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L152) | unit/verify | revert, verified |
+| positive | [`TestRFC5881FirstPacketBoundToRemoteInterfaceAndProtocol`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_first_packet_binding_test.go#L17) | unit/verify | revert, verified |
 | positive | [`TestFirstPacketSelectsALinkLocalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_link_local_first_packet_test.go#L57) | unit/verify | mutant, verified |
 | positive | [`TestFirstPacketTakesTheLinkFromTheZone`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_link_local_first_packet_test.go#L79) | unit/verify | mutant, verified |
 | positive | [`TestTwoLinkLocalSessionsStayApart`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_link_local_first_packet_test.go#L103) | unit/verify | mutant, verified |
-| positive | [`TestRFC5881FirstPacketMatchesByTuple`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L128) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC5881FirstPacketMatchesByTuple`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L128) | unit/verify | revert, verified |
 
 ### [`RFC5881-4-1`](#rfc5881-4-1)
 
@@ -402,10 +402,10 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC5881AddressingNeverOverridesTheDiscriminator`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_demux_solely_test.go#L51) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| negative | [`TestRFC5881DiscriminatorDemuxUnknownDropped`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L201) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC5881DiscriminatorAloneSelectsTheSession`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_demux_solely_test.go#L34) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC5881DiscriminatorDemuxDelivers`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L178) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC5881AddressingNeverOverridesTheDiscriminator`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_demux_solely_test.go#L51) | unit/verify | revert, verified |
+| negative | [`TestRFC5881DiscriminatorDemuxUnknownDropped`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L201) | unit/verify | revert, verified |
+| positive | [`TestRFC5881DiscriminatorAloneSelectsTheSession`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_demux_solely_test.go#L34) | unit/verify | revert, verified |
+| positive | [`TestRFC5881DiscriminatorDemuxDelivers`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L178) | unit/verify | revert, verified |
 
 ### [`RFC5881-6-6`](#rfc5881-6-6)
 

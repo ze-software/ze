@@ -197,7 +197,7 @@
 </tr>
 <tr>
 <td>Comments</td>
-<td><code>#</code> to end of line</td>
+<td><code>#</code> to end of line; <code>ze config fmt</code> keeps each one beside its statement, and so does an editor commit with no editing session, which writes the hierarchical form; a commit from an editing session writes the set-meta form, which drops them</td>
 <td><code># this is a comment</code></td>
 </tr>
 <tr>
@@ -223,6 +223,7 @@
 </tbody>
 </table>
 <!-- source: internal/component/config/tokenizer.go -- tokenizer.scan -->
+<!-- source: internal/component/cli/editor.go -- Editor.stampedWorkingContent -->
 <p>Indentation is not significant. Unknown keys are rejected with a suggestion for the closest valid key.</p>
 <p>A block written twice, such as two <code>filter { ... }</code> blocks, is read as one.
 A list both blocks set, such as <code>filters [ a b ]</code> and then <code>filters [ b c ]</code>,
@@ -5519,7 +5520,7 @@ match criteria, actions, reserved ranges, and CLI usage.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 27 October 2026 23:56 UTC</span>
+                    <span class="footer-published">Published 28 October 2026 09:31 UTC</span>
                 </div>
             </div>
         </footer>

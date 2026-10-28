@@ -121,7 +121,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 33 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 33 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 33 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>72.2%</strong><b>65 of 90 tagged units, 0 escaped and 17 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>91.1%</strong><b>82 of 90 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -868,7 +868,7 @@ PLRs now signal and refresh the protected PATH through the bypass, and an MP mer
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_plr_flags_test.go#L68" title="internal/plugins/rsvpte/rfc4090_plr_flags_test.go" target="_blank" rel="noopener"><code>TestRFC4090RepairSetsInUseAndAvailable</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -913,17 +913,17 @@ PLRs now signal and refresh the protected PATH through the bypass, and an MP mer
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L476" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestLocalRepairFallsBackToTeardown</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L455" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestLocalRepairSendsNotify</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/literals_rfc_test.go#L116" title="internal/plugins/rsvpte/literals_rfc_test.go" target="_blank" rel="noopener"><code>TestRFC4090LocalRepairNotifyLiterals</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -998,7 +998,7 @@ PLRs now signal and refresh the protected PATH through the bypass, and an MP mer
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L689" title="internal/plugins/rsvpte/rfc4090_frr_test.go" target="_blank" rel="noopener"><code>TestRFC4090TransitDoesNotReoptimize</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L666" title="internal/plugins/rsvpte/rfc4090_frr_test.go" target="_blank" rel="noopener"><code>TestRFC4090HeadEndRevertsGlobally</code></a></td>
@@ -1018,7 +1018,7 @@ PLRs now signal and refresh the protected PATH through the bypass, and an MP mer
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L690" title="internal/plugins/rsvpte/rfc4090_frr_test.go" target="_blank" rel="noopener"><code>TestRFC4090TransitDoesNotReoptimize</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L667" title="internal/plugins/rsvpte/rfc4090_frr_test.go" target="_blank" rel="noopener"><code>TestRFC4090HeadEndRevertsGlobally</code></a></td>
@@ -1187,7 +1187,7 @@ PLRs now signal and refresh the protected PATH through the bypass, and an MP mer
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L176" title="internal/plugins/rsvpte/rfc4090_frr_test.go" target="_blank" rel="noopener"><code>TestRFC4090EgressDoesNotActAsPLR</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L134" title="internal/plugins/rsvpte/rfc4090_frr_test.go" target="_blank" rel="noopener"><code>TestRFC4090FastRerouteAloneRequestsProtection</code></a></td>
@@ -1277,7 +1277,7 @@ PLRs now signal and refresh the protected PATH through the bypass, and an MP mer
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L318" title="internal/plugins/rsvpte/rfc4090_frr_test.go" target="_blank" rel="noopener"><code>TestRFC4090InUseOnlyWhileRedirecting</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L317" title="internal/plugins/rsvpte/rfc4090_frr_test.go" target="_blank" rel="noopener"><code>TestRFC4090InUseOnlyWhileRedirecting</code></a></td>
@@ -1382,12 +1382,12 @@ PLRs now signal and refresh the protected PATH through the bypass, and an MP mer
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_bypass_test.go#L281" title="internal/plugins/rsvpte/rfc4090_frr_bypass_test.go" target="_blank" rel="noopener"><code>TestRFC4090NoBackupPathBeforeRepair</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_bypass_test.go#L144" title="internal/plugins/rsvpte/rfc4090_frr_bypass_test.go" target="_blank" rel="noopener"><code>TestRFC4090ProtectedPathSurvivesRepair</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1402,7 +1402,7 @@ PLRs now signal and refresh the protected PATH through the bypass, and an MP mer
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_bypass_test.go#L282" title="internal/plugins/rsvpte/rfc4090_frr_bypass_test.go" target="_blank" rel="noopener"><code>TestRFC4090NoBackupPathBeforeRepair</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_bypass_test.go#L145" title="internal/plugins/rsvpte/rfc4090_frr_bypass_test.go" target="_blank" rel="noopener"><code>TestRFC4090ProtectedPathSurvivesRepair</code></a></td>
@@ -1422,12 +1422,12 @@ PLRs now signal and refresh the protected PATH through the bypass, and an MP mer
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L342" title="internal/plugins/rsvpte/rfc4090_frr_test.go" target="_blank" rel="noopener"><code>TestRFC4090FailureSwitchesToBackup</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L341" title="internal/plugins/rsvpte/rfc4090_frr_test.go" target="_blank" rel="noopener"><code>TestRFC4090FailureSwitchesToBackup</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1482,12 +1482,12 @@ PLRs now signal and refresh the protected PATH through the bypass, and an MP mer
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_bypass_test.go#L298" title="internal/plugins/rsvpte/rfc4090_frr_bypass_test.go" target="_blank" rel="noopener"><code>TestRFC4090DifferentPathsDoNotMerge</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_bypass_test.go#L147" title="internal/plugins/rsvpte/rfc4090_frr_bypass_test.go" target="_blank" rel="noopener"><code>TestRFC4090ProtectedPathSurvivesRepair</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1522,12 +1522,12 @@ PLRs now signal and refresh the protected PATH through the bypass, and an MP mer
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L553" title="internal/plugins/rsvpte/rfc4090_frr_test.go" target="_blank" rel="noopener"><code>TestRFC4090DownstreamKeepsStateOnUpstreamLinkFailure</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L552" title="internal/plugins/rsvpte/rfc4090_frr_test.go" target="_blank" rel="noopener"><code>TestRFC4090DownstreamKeepsStateOnUpstreamLinkFailure</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -2025,7 +2025,7 @@ PLRs now signal and refresh the protected PATH through the bypass, and an MP mer
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 27 October 2026 23:56 UTC</span>
+                    <span class="footer-published">Published 28 October 2026 09:31 UTC</span>
                 </div>
             </div>
         </footer>

@@ -68,6 +68,26 @@ TLS certificates are loaded once at startup. Certificate rotation requires resta
 | Subscribe ONCE | Snapshot of current config for requested paths |
 | Subscribe STREAM | Continuous change notifications (from gNMI Set and external commits) |
 
+### Sensitive values
+
+A leaf the YANG model marks `ze:sensitive` (a BGP MD5 password, a TACACS+ or
+RADIUS shared key, the gNMI token) never reaches a client in clear. Get,
+Subscribe ONCE and the STREAM notification that echoes a Set all carry it in
+its reversible `$9$` form, the form `ze config fmt` and the CLI write to the
+config file. A value the config file already holds in `$9$` form is answered
+with that same text. The echo goes to every subscriber, so the key one client sent
+is never shown to another.
+
+Set accepts a sensitive value either in clear or in the `$9$` form a Get
+returned. A `$9$` value is decoded to the key the daemon uses, and the config
+keeps the `$9$` text exactly as written, so a value read with Get and sent
+back with Set leaves the config file unchanged.
+<!-- source: internal/component/gnmi/get.go -- Get -->
+<!-- source: internal/component/gnmi/subscribe.go -- handleSubscribeOnce -->
+<!-- source: internal/component/gnmi/set.go -- publishedUpdate -->
+<!-- source: internal/component/cli/editor_commands.go -- decodeSecretValue, keepStoredSecret -->
+<!-- source: internal/component/config/secret_text.go -- EncodeSecrets, SecretValueAtPath, DecodeSecretText -->
+
 ### When a call meets an internal defect
 
 Every call and every Subscribe stream runs behind a panic boundary, outside the

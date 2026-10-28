@@ -6,8 +6,8 @@ Technology aggregate. RPKI, origin validation, and RPKI to router. The RFCs whos
 
 Use case: [Transit Edge with RPKI](../../../../use-cases/transit-edge-rpki/)
 
-- **Mandatory**: 7.7% (11 of 142 (7.7%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
-- **Optional**: 5.0% (4 of 80 (5.0%)). MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.
+- **Mandatory**: 12.7% (18 of 142 (12.7%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
+- **Optional**: 7.5% (6 of 80 (7.5%)). MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.
 - **Not walked**: 1 (of 9 RFCs). RFCs with no valid extraction sign-off: their rows count in neither figure.
 - **Mandatory register**: not complete (every row proven, none unwalked). A profile is complete only when it requires at least one RFC and none of them is unwalked.
 
@@ -37,7 +37,7 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 
 | RFC | Title | Mandatory | Optional |
 |---|---|---|---|
-| [RFC 6810](../../rfc6810/) | The Resource Public Key Infrastructure (RPKI) to Router Protocol | 3 of 40 (7.5%) | 0 of 28 (0.0%) |
+| [RFC 6810](../../rfc6810/) | The Resource Public Key Infrastructure (RPKI) to Router Protocol | 5 of 40 (12.5%) | 0 of 28 (0.0%) |
 | [RFC 8097](../../rfc8097/) | BGP Prefix Origin Validation State Extended Community | 0 of 5 (0.0%) | 0 of 5 (0.0%) |
 | [RFC 8893](../../rfc8893/) | Resource Public Key Infrastructure (RPKI) Origin Validation for BGP Export | 0 of 4 (0.0%) | 0 of 2 (0.0%) |
 | [RFC 9319](../../rfc9319/) | The Use of maxLength in the Resource Public Key Infrastructure (RPKI) | 0 of 4 (0.0%) | 0 of 7 (0.0%) |
@@ -46,7 +46,7 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 
 | RFC | Title | Mandatory | Optional |
 |---|---|---|---|
-| [RFC 8210](../../rfc8210/) | The Resource Public Key Infrastructure (RPKI) to Router Protocol, Version 1 | 7 of 59 (11.9%) | 4 of 27 (14.8%) |
+| [RFC 8210](../../rfc8210/) | The Resource Public Key Infrastructure (RPKI) to Router Protocol, Version 1 | 12 of 59 (20.3%) | 6 of 27 (22.2%) |
 
 ### Level 10
 

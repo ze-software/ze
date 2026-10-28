@@ -56,6 +56,7 @@
 <li><a href="#tls">TLS</a></li>
 <li><a href="#supported-rpcs">Supported RPCs</a>
 <ol>
+<li><a href="#sensitive-values">Sensitive values</a></li>
 <li><a href="#when-a-call-meets-an-internal-defect">When a call meets an internal defect</a></li>
 </ol></li>
 <li><a href="#cli-status">CLI Status</a></li>
@@ -138,6 +139,23 @@ ze.gnmi.tls.key=/path/to/key.pem
 </tr>
 </tbody>
 </table>
+<h3 id="sensitive-values">Sensitive values</h3>
+<p>A leaf the YANG model marks <code>ze:sensitive</code> (a BGP MD5 password, a TACACS+ or
+RADIUS shared key, the gNMI token) never reaches a client in clear. Get,
+Subscribe ONCE and the STREAM notification that echoes a Set all carry it in
+its reversible <code>$9$</code> form, the form <code>ze config fmt</code> and the CLI write to the
+config file. A value the config file already holds in <code>$9$</code> form is answered
+with that same text. The echo goes to every subscriber, so the key one client sent
+is never shown to another.</p>
+<p>Set accepts a sensitive value either in clear or in the <code>$9$</code> form a Get
+returned. A <code>$9$</code> value is decoded to the key the daemon uses, and the config
+keeps the <code>$9$</code> text exactly as written, so a value read with Get and sent
+back with Set leaves the config file unchanged.</p>
+<!-- source: internal/component/gnmi/get.go -- Get -->
+<!-- source: internal/component/gnmi/subscribe.go -- handleSubscribeOnce -->
+<!-- source: internal/component/gnmi/set.go -- publishedUpdate -->
+<!-- source: internal/component/cli/editor_commands.go -- decodeSecretValue, keepStoredSecret -->
+<!-- source: internal/component/config/secret_text.go -- EncodeSecrets, SecretValueAtPath, DecodeSecretText -->
 <h3 id="when-a-call-meets-an-internal-defect">When a call meets an internal defect</h3>
 <p>Every call and every Subscribe stream runs behind a panic boundary, outside the
 token check. If a Ze defect is reached while one is served, only that call or
@@ -249,7 +267,7 @@ and <code>ze_gnmi_errors_total{code="Internal"}</code>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 27 October 2026 23:56 UTC</span>
+                    <span class="footer-published">Published 28 October 2026 09:31 UTC</span>
                 </div>
             </div>
         </footer>
