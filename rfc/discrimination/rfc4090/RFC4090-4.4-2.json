@@ -29,7 +29,7 @@
     "claim-sha": "262aca8182d7959b",
     "route": "revert",
     "producer": "internal/plugins/rsvpte/frr.go::tryLocalRepair",
-    "producer-sha": "43489f89cbda4243",
-    "break": "body of tryLocalRepair replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "0813deeef463b11b",
+    "break": "body of tryLocalRepair replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

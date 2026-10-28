@@ -7,8 +7,8 @@
     "claim-sha": "70daa53b6ff4b133",
     "route": "revert",
     "producer": "internal/plugins/rsvpte/frr.go::mergeBackupPath",
-    "producer-sha": "dcc8a80e64bdd05d",
-    "break": "body of mergeBackupPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "25d60d6e24bc262b",
+    "break": "body of mergeBackupPath replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC4090-7.1-1",
@@ -18,7 +18,7 @@
     "claim-sha": "bf339163a2e69801",
     "route": "revert",
     "producer": "internal/plugins/rsvpte/frr.go::mergeBackupPath",
-    "producer-sha": "dcc8a80e64bdd05d",
-    "break": "body of mergeBackupPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "25d60d6e24bc262b",
+    "break": "body of mergeBackupPath replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

@@ -7,8 +7,8 @@
     "claim-sha": "71637b8fb5964675",
     "route": "revert",
     "producer": "internal/plugins/rsvpte/engine.go::handleLinkDown",
-    "producer-sha": "a435d7905a0be7ed",
-    "break": "body of handleLinkDown replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "8be9e717c27da971",
+    "break": "body of handleLinkDown replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC4090-7.2-1",
@@ -18,7 +18,7 @@
     "claim-sha": "ee71347b4c3be82d",
     "route": "revert",
     "producer": "internal/plugins/rsvpte/engine.go::handleLinkDown",
-    "producer-sha": "a435d7905a0be7ed",
-    "break": "body of handleLinkDown replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "8be9e717c27da971",
+    "break": "body of handleLinkDown replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

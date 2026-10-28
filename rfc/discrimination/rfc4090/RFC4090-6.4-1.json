@@ -7,8 +7,8 @@
     "claim-sha": "fdac34d722e1b6b6",
     "route": "revert",
     "producer": "internal/plugins/rsvpte/frr.go::tryLocalRepair",
-    "producer-sha": "43489f89cbda4243",
-    "break": "body of tryLocalRepair replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "0813deeef463b11b",
+    "break": "body of tryLocalRepair replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC4090-6.4-1",
@@ -18,7 +18,7 @@
     "claim-sha": "3752eb3e16a0dde0",
     "route": "revert",
     "producer": "internal/plugins/rsvpte/engine.go::sendPath",
-    "producer-sha": "731fc19567d68946",
-    "break": "body of sendPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "477136e01204fe21",
+    "break": "body of sendPath replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

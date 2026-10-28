@@ -18,7 +18,7 @@
     "claim-sha": "0e44859b7d91f494",
     "route": "revert",
     "producer": "internal/plugins/rsvpte/engine.go::handlePathErr",
-    "producer-sha": "45cfd925b7122f9d",
-    "break": "body of handlePathErr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "2ca73944b94521ea",
+    "break": "body of handlePathErr replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]
