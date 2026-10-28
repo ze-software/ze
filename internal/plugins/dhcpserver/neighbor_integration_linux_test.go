@@ -1,6 +1,6 @@
 // Design: docs/architecture/provisioning/dhcp-server.md -- Reply delivery to a client with no address
 
-//go:build integration && linux
+//go:build linux
 
 package dhcpserver
 
@@ -10,21 +10,30 @@ import (
 	"testing"
 
 	"github.com/vishvananda/netlink"
+
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // TestInstallNeighborWritesKernelEntry proves installNeighbor writes the entry
 // the kernel then uses to frame the unicast: after the call, the dummy
 // interface's IPv4 neighbor table holds yiaddr with the client's hardware
 // address, in a state the kernel sends to without an ARP request.
-// METHOD: a dummy interface under CAP_NET_ADMIN, read back with NeighList. The
-// test skips without the capability.
+// METHOD: userns.Enter re-runs the test as root over a user and network
+// namespace of its own, so it needs no host privilege; a dummy interface there,
+// read back with NeighList.
 func TestInstallNeighborWritesKernelEntry(t *testing.T) {
-	createDummyForTest(t, "zedhcpn0")
+	if !userns.Enter(t) {
+		return
+	}
+	addDummyForNeighborTest(t, "zedhcpn0")
 
 	addr := netip.MustParseAddr("198.51.100.60")
 	hardware := net.HardwareAddr{0x02, 0x00, 0x5e, 0x10, 0x00, 0x60}
 	if err := installNeighbor("zedhcpn0", addr, hardware); err != nil {
 		t.Fatalf("installNeighbor: %v", err)
+	}
+	if err := installNeighbor("zedhcp-missing", addr, hardware); err == nil {
+		t.Error("installNeighbor on a missing interface answered nil, want an error")
 	}
 
 	link, err := netlink.LinkByName("zedhcpn0")
@@ -48,19 +57,18 @@ func TestInstallNeighborWritesKernelEntry(t *testing.T) {
 		return
 	}
 	t.Errorf("no neighbor entry for %s on zedhcpn0 after installNeighbor: %+v", addr, neighbors)
-
-	if err := installNeighbor("zedhcp-missing", addr, hardware); err == nil {
-		t.Error("installNeighbor on a missing interface answered nil, want an error")
-	}
 }
 
 // TestReadNeighborFindsPermanentEntry proves readNeighbor tells an operator's
 // PERMANENT entry from the reachable one installNeighbor writes, and returns
-// the permanent entry's hardware address. METHOD: a dummy interface under
-// CAP_NET_ADMIN; write one entry of each state with NeighSet and read both
-// back. The test skips without the capability.
+// the permanent entry's hardware address. METHOD: userns.Enter re-runs the
+// test as root over a user and network namespace of its own; a dummy interface
+// there, one entry of each state written with NeighSet and read back.
 func TestReadNeighborFindsPermanentEntry(t *testing.T) {
-	createDummyForTest(t, "zedhcpn1")
+	if !userns.Enter(t) {
+		return
+	}
+	addDummyForNeighborTest(t, "zedhcpn1")
 	link, err := netlink.LinkByName("zedhcpn1")
 	if err != nil {
 		t.Fatalf("find zedhcpn1: %v", err)
@@ -116,5 +124,20 @@ func TestReadNeighborFindsPermanentEntry(t *testing.T) {
 	}
 	if _, err := readNeighbor("zedhcp-missing", permanent); err == nil {
 		t.Error("readNeighbor on a missing interface answered nil, want an error")
+	}
+}
+
+// addDummyForNeighborTest creates the dummy interface name, up, inside the
+// test's own network namespace. The test is root over that namespace, so a
+// refusal is a failure, never a reason to skip.
+func addDummyForNeighborTest(t *testing.T, name string) {
+	t.Helper()
+	link := &netlink.Dummy{Name: name}
+	if err := netlink.LinkAdd(link); err != nil {
+		t.Fatalf("create dummy %q in the test's namespace: %v", name, err)
+	}
+	t.Cleanup(func() { _ = netlink.LinkDel(link) })
+	if err := netlink.LinkSetUp(link); err != nil {
+		t.Fatalf("set dummy %q up: %v", name, err)
 	}
 }

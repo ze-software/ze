@@ -60,6 +60,7 @@ options. It also carries the PXE options the provisioning path needs.
 <!-- source: internal/plugins/dhcpserver/neighbor_linux.go -- installNeighbor, readNeighbor, neighborHeld -->
 <!-- test: internal/plugins/dhcpserver/neighbor_permanent_test.go -- TestOfferKeepsPermanentNeighbor -->
 <!-- test: internal/plugins/dhcpserver/neighbor_state_linux_test.go -- TestOperatorHeldNeighborStates -->
+<!-- test: internal/plugins/dhcpserver/neighbor_integration_linux_test.go -- TestInstallNeighborWritesKernelEntry, TestReadNeighborFindsPermanentEntry -->
 
 ## Address ranges
 
