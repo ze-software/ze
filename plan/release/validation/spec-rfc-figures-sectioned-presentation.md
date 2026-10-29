@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | design |
 | Scope | tooling |
 | Priority | P2 |
 | Release reason | Accurate support claims: the published RFC coverage figure divides by rows Ze's code does not owe, so it misstates what Ze has done |
@@ -98,12 +98,12 @@ testing gap. Neither waits on the other.
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `docs/contributing/rfc-conformance-gates.md` - "Coverage figures", "The linux-limit annotation"
-  → Constraint: filled at RESEARCH
-- [ ] `docs/contributing/gh-pages.md` - quality pages, profile pages and the filtered RFC list
-  → Constraint: filled at RESEARCH
+- [ ] `docs/contributing/rfc-conformance-gates.md` - "Coverage figures", "The linux-limit annotation", the guard table
+  → Constraint: "Coverage figures" states the 2026-10-25 rule (annotating cannot raise a figure) and the ceiling; both are rewritten with the code. Rollups sum walked members before dividing, an unwalked RFC publishes no figure, a zero total renders `no rows`: all three stay
+- [ ] `docs/contributing/gh-pages.md` - "Quality pages"
+  → Constraint: the page names every renderer of the bars and ceilings (filtered list, profile pages and index, detail pages, mirrors, JSON); each paragraph describing a ceiling or the two bars is rewritten in the same change
 
-**Key insights:** filled at RESEARCH
+**Key insights:** under Current Behavior.
 
 ## Current Behavior (MANDATORY)
 
@@ -114,20 +114,63 @@ testing gap. Neither waits on the other.
   → Decision: the code comment cites an owner ruling of 2026-10-25 that "annotating a row may not raise its figure"; the new owner rules supersede it for the headline, so the comment and `docs/contributing/rfc-conformance-gates.md` "Coverage figures" are rewritten with the code
   → Constraint: `rollupOf` sums only walked members and reports `NotWalked`; the sectioned rollup keeps that rule
   → Constraint: SHOULD / MAY rows (`!Gated()`) go through the same annotation partition into `Optional`; no field records intent, so `not yet`, `not ever` and `not decided` need a new per-row declaration in the summary, with `not decided` the default when absent
+  → Constraint: a row holds ONE coverage annotation (`rowMarkers.add`, `summary.go`, refuses a second), so SHOULD intent cannot share that slot with `{gap}` or `{not-applicable}`; it needs its own marker slot, following `{superseded}` / `{updated-by}` (`stripMarkers`, `rowMarkers.add`)
+  → Constraint: kind to section: none, `{gap}`, `{partial}`, `{single-polarity}` → Ze; `{lower-layer}` (215 rows in the corpus) → OS met; `{linux-limit}` (0) → OS blocked; `{feature-declined}` (63) → declined; `{not-applicable}` (833) → not applicable. `{rollup}` (15) is outside every denominator (`Counts` false) and fits no section, so "All MUST rows" counts non-rollup rows only
+  → Constraint: nothing can prove a `{lower-layer}` row today: it never `Proves`, and `BarsTests` refuses any tagged test on it as a stale annotation (`check_core.go`). "OS verified" needs `BarsTests` off for lower-layer and a new predicate: lower-layer plus a tagged unit with a verifying discrimination record
+- [ ] `internal/le/rfc/check_core.go`, `summary.go`, `linux_limit.go` - the exclusion evidence checks
+  → Constraint: evidence today, against the owner rule (RFC sentence with section, plus the kernel behaviour or role condition): `{not-applicable}` has NO content check (reason must only be non-empty); `{lower-layer}` checks a producer `<path>.go::<Symbol>` exists (`checkLowerLayerProducer`), no RFC quote; `{feature-declined}` checks a quote is somewhere in the RFC text (`featureDeclinedQuote`, whole-text match, section not checked) and a producer; `{linux-limit}` checks the register entry (kernel side complete), no RFC sentence. The new check adds the section-scoped RFC quote to all four and a role condition to not-applicable; 833 not-applicable rows corpus-wide owe a backfill before it can refuse
+- [ ] `internal/le/rfc/tree.go`, `priority.go`, `next.go`, `provenshare.go` - consumers of the figures
+  → Constraint: `./le rfc tree` and `./le rfc next` print `Rollup.String()` and the ceiling; they change with the site (same model, `ai/rules/no-layering.md`)
+  → Constraint: `ProvenShareOf` (`provenshare.go`) is a second figure used by the home page, facts, the compliance cards and test health; it keeps lower-layer and not-applicable in its denominator. DESIGN decides whether it follows the sections or is retired
+  → Constraint: live fttx-edge (`./le rfc tree profile fttx-edge`, 2026-10-29): mandatory 340 of 747, optional 6 of 335, excluded feature-declined 18, lower-layer 119, not-applicable 81, linux-limit 0. Ze 529, MUST bar 648, Ze gap 189
+- [ ] `internal/le/site/rfcfilter.go` - filtered RFC list, overview box, browser script
+  → Constraint: `rfcFigureRowCells` writes `data-mp/mt/op/ot/ma/oa/me/oe` per `tr[data-rfc]`; `rfcFilterScript` `summarize` re-sums visible rows of BOTH the enrolled and the declined tables, walked only, and writes the two single-span overview bars and the ceiling text. It becomes one data attribute per segment and one sum feeding both top bars, a new Total row and its check line. No test runs the script; `TestTheOverviewSumsTheCeilingTheRollupSums` re-implements it in Go
+  → Constraint: without scripts every row is shown, so the static HTML and the Markdown mirror need a server-side Total over all rows
+  → Constraint: removed with the ceiling (`ai/rules/no-layering.md`): `rfcRowCeilingCells`, `rfcCeilingStatement`, `rfcCeilingFigure`, `rfcCeilingReasons`, `rfcExcludedJSON`, `rfcCeilingPolicy`, `rfcCeilingKinds`, `rfcIndexCeilingRows`, the ceiling legend, and in `internal/le/rfc` `CeilingString`, `CeilingSummary`, `CeilingOf`, `lowerCeiling`, `AnnotationTraits.CeilingExcluded` / `CeilingLabel`
+- [ ] `internal/le/site/rfcprofiles.go`, `rfcdetail.go` - profile pages, profile index, RFC detail
+  → Constraint: `rfcProfileBarHTML` / `rfcProfileRollupBarHTML` draw a one-segment `.rfc-bar`; `rfcProfileCards` carries mandatory, optional and two ceiling cards; `rfcDetailCeilingHTML` / `Mirror` is the detail "Attainable ceiling" section, replaced by a total matching the RFC's list row
+- [ ] `internal/le/site/rfccompliance.go` - corpus index cards and "Requirement buckets" tape
+  → Constraint: the existing `.rfc-tape` (`rfcSatisfactionHTML`) partitions gated MUST rows by TAG POLARITY and annotation (`rfcSatisfaction` buckets), not by recorded-break proof, and has no SHOULD rows. Its `.rfc-tape span{width:var(--w)}` markup can be reused; its partition cannot. Two partitions of the same rows on one site would publish two different answers, so DESIGN decides its fate
+  → Constraint: `rfcToneRule`: a colour names what the measure means, never how well Ze scores; segment colours must be read that way. No light-green token exists (`website/assets/css/00-tokens.css`: `--mint-*` are greys, `--gold-*` purple); OS verified needs a new token
+- [ ] `internal/le/site/rfcreader.go` - glossary and reader text
+  → Constraint: becomes false and is rewritten with the code: the "Ceiling" glossary entry, the linux-limit entry ("still binds Ze and remains unmet ... stays in the denominator", which contradicts the OS-blocked owner rule), "every share is over the gated requirements", the `rfcIndexLegend` text, `rfcProfileTreeProse`, `rfcProfileCards` meanings, the `rfcStanding` / `rfcSatisfaction` linux_limit wording
+- [ ] `internal/le/site/actions.go` - `./le site build`, `./le site check`
+  → Constraint: no site check compares figures across surfaces; agreement between top bars, Total row, profile cards and detail totals is held only by unit tests, so this spec adds one
+
+**Key insights:**
+- Every figure comes from `figuresByStem` in `internal/le/rfc`; the site computes none, except the browser re-sum of the filtered list. The sections are a change to that one partition plus every renderer of it.
+- OS verified cannot exist today: `{lower-layer}` refuses tests. Turning that off is part of this spec.
+- Three exclusion kinds carry partial evidence checks; `{not-applicable}` (833 rows corpus-wide) carries none. The owner's evidence rule needs a section-scoped RFC quote on all four.
+- A second partition (`ProvenShareOf`, the corpus tape) publishes a different answer over the same rows.
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- [Where data enters] filled at RESEARCH
+- `rfc/short/<stem>.md` requirement rows (level, annotation, the new SHOULD intent marker), parsed by `parseSummaryFile` (`internal/le/rfc/summary.go`); test tags and `rfc/discrimination/<stem>.json` records give proof
+- Read out by `./le rfc tree`, `./le rfc next`, and `./le site build` (quality pages)
 
 ### Transformation Path
-- filled at RESEARCH
+1. Parse: `parseSummaryFile` → `Requirement` with one coverage annotation, `Gated()` level
+2. Prove: `provenRequirements` over discrimination verdicts
+3. Partition: `rowCounts` / `figuresByStem` → per-stem `StemFigures` (today Mandatory and Optional `Figure` with ceiling `Excluded`); becomes per-section counts
+4. Roll up: `rollupOf` / `ScopeRollup` (walked members only) → profile and aggregate figures
+5. Render: `TreeRow` and its JSON → CLI text, site HTML, Markdown mirrors, `data/rfc-compliance.json`, browser re-summing in the filtered list
 
 ### Boundaries Crossed
-- filled at RESEARCH
+- `internal/le/rfc` (model) → `internal/le/site` (rendering) → `../gh-pages` (published pages and JSON) → browser script
 
 ### Integration Points
-- filled at RESEARCH
+- `annotationKinds` / `AnnotationTraitsOf` (one declaration of what each kind means), `TreeRow` JSON, site consumers named under Current Behavior
+
+## Risks & Assumptions
+
+### Assumptions
+
+| ID | Assumption | Basis | If wrong | Validation |
+|----|------------|-------|----------|------------|
+| A-1 | The excluded rows' existing reasons can be backfilled with a section-scoped RFC quote | `{feature-declined}` already carries a quote; `{lower-layer}` reasons name the kernel path | The evidence check cannot refuse until ~1,100 rows are backfilled, so the new headline waits | Count rows per kind lacking a quote at DESIGN; owner decides rollout (research gate) |
+| A-2 | Declined-table rows belong in the filtered-list sums | `summarize` includes them today | Top bars disagree with the Total row of the enrolled table | Decide at DESIGN; the Total row and the sum read the same row set |
+| A-3 | `ProvenShareOf` and the corpus tape can follow the sections or be retired | Both partition the same gated rows | Two answers over the same rows stay published | DESIGN decision |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
