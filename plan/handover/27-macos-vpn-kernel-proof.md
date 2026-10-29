@@ -97,7 +97,7 @@ git rev-parse HEAD | tee "$run/commit.txt"
 ./le --name mac-vpn-proof job run label mac-vpn-image command \
   ./le --name mac-vpn-proof setup docker host build arch arm64 2>&1 | tee "$run/image-build.log"
 ./le --name mac-vpn-proof job run label mac-vpn-proof command \
-  ./le --name mac-vpn-proof test qemu vpn-kernel-test timeout 30m 2>&1 | tee "$run/vpn-kernel.log"
+  ./le --name mac-vpn-proof test qemu vpn-kernel timeout 30m 2>&1 | tee "$run/vpn-kernel.log"
 
 printf 'Native commands completed successfully. Return the evidence from %s\n' "$run"
 SH

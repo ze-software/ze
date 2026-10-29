@@ -18,7 +18,7 @@
 
 Docker-based interop test infrastructure against strongSwan as the remote IKE peer, covering Ze as initiator (PSK, EAP-MSCHAPv2, EAP-TLS, EAP method negotiation by Nak, BGP redistribute, child rekey) and as responder (PSK, EAP-MSCHAPv2, IKE-SA rekey) via `test/interop-ipsec/scenarios/`. The dataplane checks require Linux XFRM: a scenario waits up to 30 seconds for the ESP state on each peer and fails when none appears. <!-- source: internal/le/interoplab/ipsec/ipsec.go -- native interop lab runner --> <!-- source: internal/le/interoplab/ipsec/helpers.go -- waitXFRM, xfrmWaitTimeout -->
 
-The manual `./le test qemu vpn-kernel-test` additionally proves the kernel
+The manual `./le test qemu vpn-kernel` additionally proves the kernel
 facilities for AES-GCM, AES-CBC/SHA256, ChaCha20-Poly1305, 3DES/SHA1 and
 NULL/SHA256 against strongSwan. It requires installed ESP states and received
 tunnel traffic with module loading disabled. Native amd64/KVM and arm64/HVF

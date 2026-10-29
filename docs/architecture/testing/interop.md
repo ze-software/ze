@@ -1982,9 +1982,9 @@ encryption and both kernels' installed transforms in both directions, then
 lossless traffic and increasing receiver counters. The IKE SA stays on
 AES-GCM/SHA256; the legacy 3DES/SHA1 choice applies only to ESP.
 
-`test deployment vpn-kernel-test` selects these scenarios alongside the
+`test deployment vpn-kernel` selects these scenarios alongside the
 existing GCM and NULL scenarios, then runs the WireGuard kernel proof.
-`test qemu vpn-kernel-test` supplies the disposable Ze-system guest.
+`test qemu vpn-kernel` supplies the disposable Ze-system guest.
 The external scenarios exercise Ze-initiator establishment and bidirectional
 traffic, not both roles' rekey exchanges.
 Cleanup is part of the verdict: a scenario or image cleanup failure makes the

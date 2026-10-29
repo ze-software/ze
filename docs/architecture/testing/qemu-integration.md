@@ -558,7 +558,7 @@ kernel passes.
 
 ### VPN facilities without module loading
 
-`./le test qemu vpn-kernel-test timeout 30m` uses the native-architecture
+`./le test qemu vpn-kernel timeout 30m` uses the native-architecture
 docker-host image and the shared hardware-accelerated guest runner. It accepts
 no image, kernel or architecture override. Before boot, it checks the emitted
 config from the image's runtime-kernel cache resolver against both requirement
@@ -567,7 +567,7 @@ manifests.
 Guest preparation disables module loading, refuses an already-loaded module,
 and removes `/sbin/modprobe` in the disposable snapshot before Docker starts.
 It does not modify the cached image or the parent host. The inner
-`test deployment vpn-kernel-test` runs the five ESP combinations against
+`test deployment vpn-kernel` runs the five ESP combinations against
 strongSwan and a two-peer WireGuard handshake/received-traffic proof.
 The WireGuard checker also reads the guest host's module state through its
 read-only root mount. A scenario or resource-cleanup failure fails the

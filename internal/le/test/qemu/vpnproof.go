@@ -43,7 +43,7 @@ func runVPNKernelHere(args leaction.Arguments) (any, int) {
 		leaction.ReportError(err)
 		return nil, 1
 	}
-	runArgs := leaction.Arguments{keywordLab: {"test deployment vpn-kernel-test"}}
+	runArgs := leaction.Arguments{keywordLab: {"test deployment vpn-kernel"}}
 	if timeout := args.One(keywordTimeout); timeout != "" {
 		runArgs[keywordTimeout] = []string{timeout}
 	}
@@ -61,11 +61,13 @@ func vpnKernelConfig(root string) error {
 	if err != nil {
 		return err
 	}
+	// #nosec G304 -- tree is the kernel tree the native cache resolver returned, not request data.
 	config, err := os.ReadFile(filepath.Join(tree, "config"))
 	if err != nil {
 		return fmt.Errorf("read VPN proof emitted kernel config: %w", err)
 	}
 	for _, manifest := range []string{"kernel.require", "runtime.require"} {
+		// #nosec G304 -- the path is the checkout root joined with one of two fixed manifest names.
 		required, err := os.ReadFile(filepath.Join(root, "gokrazy", "kernel", manifest))
 		if err != nil {
 			return fmt.Errorf("read VPN proof kernel requirements: %w", err)

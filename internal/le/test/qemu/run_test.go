@@ -36,7 +36,7 @@ func TestVPNKernelActionRefusesGuestOverrides(t *testing.T) {
 					t.Error(err)
 				}
 			})
-			answer, code := Answer([]string{"vpn-kernel-test", keyword, "foreign-guest"})
+			answer, code := Answer([]string{"vpn-kernel", keyword, "foreign-guest"})
 			if code != 2 {
 				t.Fatalf("guest override answered %d with %v, want usage refusal", code, answer)
 			}
@@ -44,7 +44,7 @@ func TestVPNKernelActionRefusesGuestOverrides(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			for _, want := range []string{"vpn-kernel-test", "takes no argument keyword \"" + keyword + "\"", "timeout"} {
+			for _, want := range []string{"vpn-kernel", "takes no argument keyword \"" + keyword + "\"", "timeout"} {
 				if !strings.Contains(string(output), want) {
 					t.Errorf("refusal %q does not explain %q", output, want)
 				}
