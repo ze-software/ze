@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Scope | config |
 | Priority | P2 |
 | Release reason | Delivery: `ze install systemd` and the planned DEB and RPM packages install ze on Debian, Ubuntu, Rocky and Fedora, whose kernels ship the features ze needs as modules. Today a feature whose module is not loaded either refuses to start with no load path, or (conntrack helpers, the flowtable, the ingress policer) is accepted and does nothing. Installation is not usable until ze loads what its configuration needs and says what it could not load |
@@ -17,6 +17,8 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 ## Owner Questions
 
 Each row is a choice no RFC, agreed design or `ai/META-DECISIONS.md` rule answers. The design below is written to the recommended answer and names what changes under the other.
+
+→ Decision: Thomas approved every recommendation on 2026-10-29: Q-1 (a), Q-2 (a), Q-3 (a), Q-4 (a). The design below stands as written.
 
 | # | Question | Options | Recommendation and why | What the other answer changes |
 |---|----------|---------|------------------------|-------------------------------|

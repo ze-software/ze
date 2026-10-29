@@ -105,7 +105,10 @@ tests) is not a rule: it goes in the spec or commit it applies to.
 - A test that needs a kernel feature runs on Ze's kernel, which carries it.
 - Ze running on a standard distribution kernel can load the kernel modules it
   needs with `modprobe`, as an optional feature of `ze` itself. `le` is
-  development tooling and never carries a product feature.
+  development tooling and never carries a product feature. It acts only when
+  the running kernel is not Ze's, and is proven on booted Debian, Ubuntu,
+  Rocky and Fedora VMs: the one exception to Ze's kernel in test guests, and
+  only for behaviour that exists off Ze's kernel.
 - The Linux host is too busy for full test runs: there, run scoped package
   tests only, and never run `./le verify worktree`, a full functional suite or
   a full `./le go lint run`. Full runs happen on another host.
