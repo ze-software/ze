@@ -36,11 +36,21 @@ release).
 | OS blocked | MUST rows Linux cannot provide the primitive for, with a verified limit entry | blocked; never counted against Ze, never holds a release |
 | Declined feature | MUST rows conditional on an optional feature Ze does not offer | declined, citing the RFC sentence that makes it optional |
 | Not applicable | MUST rows that do not bind Ze's role | listed with evidence, not counted |
-| Optional features | optional features offered over optional features defined | ratio; needs a per-summary declaration of each optional feature, offered or declined |
-| Optional requirements | SHOULD / MAY rows proven | proven, not proven |
+| Optional features | optional features offered over optional features defined | ratio; owned by `plan/post-release/engineering/spec-rfc-optional-feature-ratio.md`, not this spec |
+| Optional requirements | SHOULD / MAY rows | proven, not yet, not ever, not decided (below) |
 
-Presentation, as agreed against the mockup
-(`tmp/session/2026-10-29-0316d5ab-6d80-4948-9be1-17812c7573b8/scratch/rfc-figures-mockup-fttx.md`):
+Decisions agreed with Thomas, 2026-10-29:
+
+| Decision | Ruling |
+|----------|--------|
+| Leaving Ze's section raises the headline | Yes, but only with checked evidence: a row moves to OS met, OS blocked, declined or not applicable only when it cites the RFC sentence (section, read in `rfc/full/`) and the kernel behaviour or role condition that settles it. A check that refuses a moved row without that evidence lands before the new headline is published. This supersedes the 2026-10-25 ruling that annotating a row may not raise its figure |
+| Gauges | Two bars per RFC set and per RFC row, same colours and same left-to-right order: a MUST bar and an overview bar (below) |
+| MUST bar | The promise Ze must keep to be RFC compliant. Covers only the MUST rows the stack owes (Ze plus OS met); rows not owed (not applicable, declined, OS blocked) are left out of it |
+| Overview bar | Every row of the RFC, MUST and SHOULD / MAY, so a reader sees how much of the optional part Ze supports as well. Counts on each segment, no single percentage |
+| SHOULD / MAY states | Every row starts `not decided`. `not yet`: we intend to support it, not done; set during RFC work. `not ever`: we will not support it; only Thomas sets it (an agent may propose). `proven`: a tagged test with a verifying discrimination record |
+
+Presentation, as agreed against the fttx-edge mockup (tables per section, the
+gauges below):
 
 | Surface | What it shows |
 |---------|---------------|
@@ -48,27 +58,37 @@ Presentation, as agreed against the mockup
 | RFC list (`?profile=<name>&rfc=<stems>#rfc-list`) | One row per RFC: MUST total, then a column pair per section; a Total row at the bottom whose five MUST section columns add up to the MUST total, with a check line |
 | RFC detail page | Each requirement with level, section, status and evidence, ending in a total that matches the RFC's row in the list |
 
-Gauge (owner request, 2026-10-29): the separate mandatory and optional bars
-are replaced by ONE sectioned gauge, because two bars cannot show the split.
+Gauges: the current separate mandatory and optional bars are replaced by the
+MUST bar and the overview bar above. Segments, one colour each, each also
+carrying its name and count in text so the split stays readable without colour:
 
-| Where | Gauge |
-|-------|-------|
-| Top of the filtered RFC list (`quality/rfc-compliance/?profile=...`), before the tables | One gauge for the whole set of RFCs shown, from the same sums as the Total row |
-| Each RFC row of the RFC table | One gauge per row in the same visual language: same segments, same colours, same order |
+| Bar | Left to right |
+|-----|---------------|
+| MUST | Ze proven (green), OS verified (light green), OS testing gap (amber), Ze correctness gap (red) |
+| Overview | Ze MUST proven (green), OS verified (light green), SHOULD proven (teal), not owed (grey), SHOULD not ever (light grey), SHOULD not yet, SHOULD not decided, OS testing gap (amber), Ze correctness gap (red) |
 
-Segments, one colour each, ordered left to right from met to missing: Ze
-proven, OS verified, then the rows not owed (declined, not applicable, OS
-blocked), then OS testing gap, then Ze correctness gap. Segment widths are
-row counts over the gauge's total, so the top gauge and the Total row show the
-same numbers. Each segment carries its section name and count in text as
-well, so the split stays readable without colour.
+Mockup on fttx-edge counts from the live tree on 2026-10-29 (no OS-met row is
+verified yet, and every unproven SHOULD row is still `not decided`):
 
-Open (A-1): whether optional (SHOULD / MAY) rows sit in the same gauge, or the
-gauge covers MUST rows and optional figures are shown as numbers beside it.
+```
+MUST      |███████████████████████████████|▚▚▚▚▚▚▚▚▚▚▚|XXXXXXXXXXXXXXXXXX|  340/648 kept (52%)
+           Ze proven 340                   OS untested 119  Ze gap 189
+
+Overview  |███████████████████|▒|·····|░░░░░░░░░░░░░░░░░░|▚▚▚▚▚▚▚|XXXXXXXXXX|  all 1,082 rows
+           MUST proven 340     S 7 not owed 99  SHOULD not decided 328  OS untested 119  Ze gap 189
+```
+
+| Where | Gauges |
+|-------|--------|
+| Top of the filtered RFC list (`quality/rfc-compliance/?profile=...`), before the tables | Both bars for the whole set of RFCs shown, from the same sums as the Total row |
+| Each RFC row of the RFC table | Both bars per row, same segments, colours and order |
+
+Segment widths are row counts over the bar's total, so the top bars and the
+Total row show the same numbers.
 
 Counts are summed across RFCs and divided once; percentages are never averaged.
-The ceiling presentation is removed, not kept beside the sections
-(`ai/rules/no-layering.md`). Published figures are corrected on the surfaces
+The ceiling presentation and the old mandatory and optional bars are removed,
+not kept beside the sections (`ai/rules/no-layering.md`). Published figures are corrected on the surfaces
 that carried them, saying what the old figure counted.
 
 Related: `plan/release/validation/spec-excluded-requirement-owes-an-observable-test.md`
@@ -93,6 +113,7 @@ testing gap. Neither waits on the other.
   → Constraint: `{gap}` and `{partial}` rows are never proven even with a verifying record; this stays for the Ze section
   → Decision: the code comment cites an owner ruling of 2026-10-25 that "annotating a row may not raise its figure"; the new owner rules supersede it for the headline, so the comment and `docs/contributing/rfc-conformance-gates.md` "Coverage figures" are rewritten with the code
   → Constraint: `rollupOf` sums only walked members and reports `NotWalked`; the sectioned rollup keeps that rule
+  → Constraint: SHOULD / MAY rows (`!Gated()`) go through the same annotation partition into `Optional`; no field records intent, so `not yet`, `not ever` and `not decided` need a new per-row declaration in the summary, with `not decided` the default when absent
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
