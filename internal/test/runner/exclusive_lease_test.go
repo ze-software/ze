@@ -289,18 +289,19 @@ func awaitExclusiveGroupLock(t *testing.T, witness *os.File, held bool) {
 	defer ticker.Stop()
 	for {
 		err := syscall.Flock(int(witness.Fd()), syscall.LOCK_EX|syscall.LOCK_NB)
-		if err == nil {
+		switch {
+		case err == nil:
 			if err := syscall.Flock(int(witness.Fd()), syscall.LOCK_UN); err != nil {
 				t.Fatal(err)
 			}
 			if !held {
 				return
 			}
-		} else if isWouldBlock(err) {
+		case isWouldBlock(err):
 			if held {
 				return
 			}
-		} else {
+		default:
 			t.Fatal(err)
 		}
 		select {

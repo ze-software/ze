@@ -95,7 +95,7 @@ func (c *execClock) watch(w io.Writer) *firstOutput {
 }
 
 // mark records a command whose Start returned without error.
-func (c *execClock) mark(step int, pid int, stderr *firstOutput) {
+func (c *execClock) mark(step, pid int, stderr *firstOutput) {
 	c.marks = append(c.marks, execMark{step: step, started: time.Since(c.start), pid: pid, stderr: stderr})
 }
 
