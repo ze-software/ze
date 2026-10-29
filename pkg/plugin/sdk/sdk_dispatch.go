@@ -12,6 +12,7 @@ import (
 	"log/slog"
 	"net"
 	"strings"
+	"time"
 
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -189,12 +190,31 @@ func (p *Plugin) handleBridgeExecuteCommand(req rpc.ExecuteCommandRequest) (err 
 func (p *Plugin) bridgeEventLoop(ctx context.Context) error {
 	drain, stopDrain := p.startDrainWorker(ctx)
 	defer stopDrain()
+	// A source-policy handler panic fails every bridge callback, as a panic
+	// on this loop does (handleBridgeCallback).
+	sourcePolicy, stopSourcePolicy := p.startSourcePolicyWorker(ctx, func(err error) {
+		p.failBridgeCallbacks(fmt.Errorf("%w: %w", rpc.ErrBridgeFailed, err))
+	})
+	defer stopSourcePolicy()
 
 	for {
 		select {
 		case cb, ok := <-p.bridge.CallbackCh():
 			if !ok {
-				return nil // Bridge closed (shutdown).
+				// Bridge closed: shutdown, or a source-policy handler panic.
+				return sourcePolicy.failure()
+			}
+			// The source-policy handler runs on its worker; the result
+			// channel has capacity 1, so neither a refusal here nor the
+			// worker's answer blocks.
+			if cb.Method == callbackSourcePolicy && sourcePolicy != nil {
+				result := cb.Result
+				if err := sourcePolicy.admit(cb.Params, func(_ time.Time, receipt json.RawMessage, err error) {
+					result <- rpc.BridgeCallbackResult{Data: receipt, Err: err}
+				}); err != nil {
+					result <- rpc.BridgeCallbackResult{Err: err}
+				}
+				continue
 			}
 			// The drain runs on its worker; the result channel has
 			// capacity 1, so the worker's answer never blocks.
@@ -217,7 +237,8 @@ func (p *Plugin) bridgeEventLoop(ctx context.Context) error {
 
 		case req, ok := <-p.bridge.ExecuteCommandRequests():
 			if !ok {
-				return nil // Bridge closed (shutdown).
+				// Bridge closed: shutdown, or a source-policy handler panic.
+				return sourcePolicy.failure()
 			}
 			if err := p.handleBridgeExecuteCommand(req); err != nil {
 				return err
@@ -234,10 +255,19 @@ func (p *Plugin) bridgeEventLoop(ctx context.Context) error {
 func (p *Plugin) eventLoop(ctx context.Context) error {
 	drain, stopDrain := p.startDrainWorker(ctx)
 	defer stopDrain()
+	// A source-policy handler panic closes the connection; the read below
+	// then fails and the loop returns the panic rather than a clean stop.
+	sourcePolicy, stopSourcePolicy := p.startSourcePolicyWorker(ctx, func(error) {
+		p.engineMux.Close() //nolint:errcheck // the failure is returned by the loop, not by Close
+	})
+	defer stopSourcePolicy()
 
 	for {
 		req, err := p.readCallback(ctx)
 		if err != nil {
+			if failure := sourcePolicy.failure(); failure != nil {
+				return failure
+			}
 			// Context canceled or connection closed = clean shutdown.
 			// The engine closes the socket to signal internal plugins to exit;
 			// this races with context cancellation, so check both.
@@ -252,7 +282,22 @@ func (p *Plugin) eventLoop(ctx context.Context) error {
 		// matches answers by ID). A refusal is answered here at once.
 		if req.Method == rpc.MethodDrain && drain != nil {
 			id := req.ID
-			if err := drain.admit(req.Params, func(err error) { p.answerDrain(ctx, id, err) }); err != nil {
+			if err := drain.admit(req.Params, func(err error) { p.answerDrain(ctx, id, req.Params, err) }); err != nil {
+				if sendErr := p.sendCallbackError(ctx, id, err.Error()); sendErr != nil {
+					return sendErr
+				}
+			}
+			continue
+		}
+
+		// The source-policy handler runs on its worker, which answers for
+		// this request's own ID once the handler returns. A malformed request
+		// is refused here at once, before any owner state changes.
+		if req.Method == callbackSourcePolicy && sourcePolicy != nil {
+			id := req.ID
+			if err := sourcePolicy.admit(req.Params, func(deadline time.Time, receipt json.RawMessage, err error) {
+				p.answerSourcePolicy(ctx, id, deadline, receipt, err)
+			}); err != nil {
 				if sendErr := p.sendCallbackError(ctx, id, err.Error()); sendErr != nil {
 					return sendErr
 				}
@@ -305,10 +350,39 @@ func (p *Plugin) eventLoop(ctx context.Context) error {
 	}
 }
 
-// answerDrain sends the drain worker's answer for one drain request. A send
-// that fails means the connection is closing, which ends the event loop on
-// its own read, so the failure is logged and not returned.
-func (p *Plugin) answerDrain(ctx context.Context, id uint64, handlerErr error) {
+// workerAnswerWriteMax is the time a worker's answer may take to write once
+// its request's deadline has passed. A failed answer for an expired request is
+// written after that deadline by definition, so the bound is the later of the
+// two.
+const workerAnswerWriteMax = time.Second
+
+// workerAnswerContext returns the context a drain or source-policy worker
+// writes its answer with. It does not end with the loop's ctx, because an
+// answer at stop is written after the loop has ended, and it ends at the later
+// of deadline and workerAnswerWriteMax from now, so a send is never unbounded.
+func workerAnswerContext(ctx context.Context, deadline time.Time) (context.Context, context.CancelFunc) {
+	bound := time.Now().Add(workerAnswerWriteMax)
+	if deadline.After(bound) {
+		bound = deadline
+	}
+	return context.WithDeadline(context.WithoutCancel(ctx), bound)
+}
+
+// answerDrain sends the drain worker's answer for one drain request. The send
+// outlives the loop's context, because a drain cut short by the loop's stop is
+// answered after the loop has ended, and is bounded by the request's own
+// deadline instead (workerAnswerContext), read from params, which admit already
+// decoded. A send that
+// fails means the connection is closing or the engine stopped waiting, so the
+// failure is logged and not returned.
+func (p *Plugin) answerDrain(ctx context.Context, id uint64, params json.RawMessage, handlerErr error) {
+	var input rpc.DrainInput
+	if err := json.Unmarshal(params, &input); err != nil {
+		slog.Debug("drain answer not sent", "plugin", p.name, "error", err)
+		return
+	}
+	ctx, cancel := workerAnswerContext(ctx, input.Deadline)
+	defer cancel()
 	var err error
 	if handlerErr != nil {
 		err = p.sendCallbackError(ctx, id, handlerErr.Error())

@@ -963,6 +963,30 @@ a fresh epoch, and finalize releases accepted pins. The coordinator MUST retain
 individual prepared handles so partial prepare aborts only prepared owners.
 Transport support alone does not implement route invalidation or reload admission.
 
+The SDK runs the handler off the callback loop, on one long-lived source-policy
+worker per connection, the same way on DirectBridge and on the wire. An owner
+that waits for its own downstream work, or makes an engine RPC whose answer
+needs an event or a callback delivered to the same plugin, would otherwise
+block the loop that delivers it until the deadline expired.
+
+| Property | Behaviour |
+|----------|-----------|
+| Worker | Started with the plugin's callback loop when `OnSourcePolicy` is registered, and stopped with it. No goroutine per request. It shares no state with the stop drain worker |
+| Admission | The loop validates each request where it arrives, so a malformed, unknown or expired request is refused as a callback error before any owner state changes. A valid request joins the worker's queue |
+| Queue | At most 16 admitted requests wait behind the running one. A request that finds the queue full is answered at once with a `status: error` receipt saying the queue is full, and its handler never runs. The loop never blocks on the queue |
+| Order | One handler call at a time, in arrival order, so each source's operations reach the owner in the order the engine sent them |
+| Events | A request is admitted only after every callback that arrived before it has been applied, so the handler never sees state older than an event the engine drained before prepare. Events and other callbacks that arrive while it runs are applied by the loop in their own order, concurrently with the handler. The handler MUST synchronize the state it shares with `OnEvent` and the other callbacks |
+| Deadline | The handler's context ends at the request's absolute `deadline-ms`, or when the plugin stops. A request whose deadline passed while it was queued fails without running the handler. A handler that returns after its deadline fails its receipt |
+| Receipt | Sent only after the handler returns. Requests still queued when the plugin stops are answered with a failed receipt. A receipt is written even after the loop's context has ended, bounded by the later of the request's `deadline-ms` and one second from the moment it is written. The stop `drain` answer is bounded the same way |
+| Panic | The request is answered with an error and the worker runs nothing more, because the owner's state is unknown. Every request already queued is answered with a failed receipt, then the connection ends with the panic: the bridge fails every callback, the wire connection closes, and the loop returns the panic rather than a clean stop |
+
+The coordinator awaits each owner's receipt before it sends that source's next
+operation, so the queue holds at most one request for each source being changed
+at once. A queue-full receipt is a failed operation, handled like any other.
+<!-- source: pkg/plugin/sdk/sdk_source_policy.go -- sourcePolicyWorker, sourcePolicyQueueDepth, admit, run, serve, call, refuseQueued -->
+<!-- source: pkg/plugin/sdk/sdk_dispatch.go -- workerAnswerContext, answerDrain -->
+<!-- source: pkg/plugin/sdk/sdk_dispatch.go -- eventLoop, bridgeEventLoop -->
+
 `StoredRoute.source-policy-epoch` carries original ingress provenance independently
 of dispatch session generation. Zero means unrecorded; replay MUST NOT replace it
 with the source's current policy epoch.
@@ -1890,6 +1914,9 @@ not just a goroutine waiting for an uncancelled writer.
 callback registry (`map[string]callbackHandler`). Each `On*` method registers a typed
 wrapper in the map. Adding a new callback requires only one `On*` method -- zero changes
 to the dispatch or event loop code. See `rules/plugin-design.md` "SDK Is Generic".
+Two lifecycle callbacks are admitted by both loops to their own workers instead:
+the stop `drain` and `source-policy`, whose handlers must wait while the loop
+keeps delivering (see their sections above).
 <!-- source: pkg/plugin/sdk/sdk_dispatch.go -- eventLoop, bridgeEventLoop, getCallback -->
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- initCallbackDefaults, On* methods -->
 

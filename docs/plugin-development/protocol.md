@@ -554,6 +554,29 @@ The SDK returns an exact identity/target receipt only after the handler returns.
 The engine checks the captured process and connection again after acknowledgement.
 Neither this callback transport nor copied epoch fields alone invalidate routes.
 
+The handler does not run on the callback loop. The Go SDK starts one
+source-policy worker for the plugin's connection and stops it with the plugin,
+on both transports, so a handler may wait for events delivered after its
+request, or call the engine during prepare or apply, without blocking the loop
+that delivers them. What that means for your handler:
+
+- It runs concurrently with `OnEvent` and the other callbacks. Protect the
+  state they share. Every event delivered before the request has already been
+  applied when it starts.
+- Calls never overlap and arrive in the order the engine sent them, so one
+  source's prepare, apply, abort and finalize reach you in order.
+- Its context ends at the request deadline or when the plugin stops. A request
+  that expired while queued fails without calling you.
+- At most 16 requests wait behind the running one. A request beyond that is
+  answered at once with an error receipt saying the queue is full, and your
+  handler never sees it.
+- A panic fails the request, and nothing runs after it: every request already
+  queued gets a failed receipt, then the plugin's connection ends with that
+  error.
+  A plugin written in another language owes the same: answer `source-policy`
+  without stopping its event delivery.
+<!-- source: pkg/plugin/sdk/sdk_source_policy.go -- SourcePolicyHandler, sourcePolicyWorker, sourcePolicyQueueDepth -->
+
 Retained/replayed received routes MUST preserve their original
 `StoredRoute.SourcePolicyEpoch` (`source-policy-epoch`), never stamp the current
 epoch onto old work. Zero is unrecorded, independently of session generation.

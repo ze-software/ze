@@ -104,6 +104,11 @@ type Plugin struct {
 	// worker (sdk_drain.go) and declared at Stage 1 as DrainHandler.
 	onDrain DrainHandler
 
+	// onSourcePolicy is the source-policy lifecycle handler, run on the
+	// connection's source-policy worker (sdk_source_policy.go) and declared at
+	// Stage 1 as both source-policy owner and handler.
+	onSourcePolicy SourcePolicyHandler
+
 	// resolverCaches is the Stage 1 declaration OnResolverCacheClear records:
 	// the resolver caches whose clear this plugin answers.
 	resolverCaches []string
@@ -468,7 +473,7 @@ func (p *Plugin) Run(ctx context.Context, declaration *Registration) error {
 		reg.DrainHandler = true
 	}
 	reg.ConfigCompletion = p.callbacks[callbackConfigComplete] != nil
-	reg.SourcePolicy = p.callbacks[callbackSourcePolicy] != nil
+	reg.SourcePolicy = p.onSourcePolicy != nil
 	if reg.SourcePolicy {
 		reg.SourcePolicyOwner = true
 	}

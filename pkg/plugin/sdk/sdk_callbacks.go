@@ -688,43 +688,14 @@ func (p *Plugin) OnConfigComplete(fn func(context.Context, rpc.ConfigCompleteInp
 // The coordinator MUST drain prior event application before prepare. The owner
 // MUST fence its asynchronous workers and downstream settlement before returning,
 // honor ctx cancellation, and retain prepare pins until abort or finalize.
-// Registration MUST finish before Run; no SDK lock survives a handler call.
-func (p *Plugin) OnSourcePolicy(fn func(context.Context, rpc.SourcePolicyInput) error) {
+// The handler runs on the connection's source-policy worker, concurrently with
+// event delivery and the other callbacks (SourcePolicyHandler,
+// sdk_source_policy.go). Registration MUST finish before Run; no SDK lock
+// survives a handler call. A nil fn removes the handler and the declaration.
+func (p *Plugin) OnSourcePolicy(fn SourcePolicyHandler) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	if fn == nil {
-		delete(p.callbacks, callbackSourcePolicy)
-		return
-	}
-	p.callbacks[callbackSourcePolicy] = func(params json.RawMessage) (json.RawMessage, error) {
-		var input rpc.SourcePolicyInput
-		if err := json.Unmarshal(params, &input); err != nil {
-			return nil, fmt.Errorf("unmarshal source-policy: %w", err)
-		}
-		if err := input.Validate(time.Now()); err != nil {
-			return nil, err
-		}
-		ctx, cancel := context.WithDeadline(context.Background(), time.UnixMilli(input.DeadlineMS))
-		defer cancel()
-		out := rpc.SourcePolicyOutput{
-			TransactionID: input.TransactionID, Operation: input.Operation,
-			Source: input.Source, NextPolicyEpoch: input.NextPolicyEpoch, Status: rpc.StatusOK,
-		}
-		err := ctx.Err()
-		if err == nil {
-			err = fn(ctx, input)
-			if err == nil {
-				err = ctx.Err()
-			}
-		}
-		if err != nil {
-			out.Status, out.Error = rpc.StatusError, err.Error()
-			if len(out.Error) > 4096 {
-				return nil, fmt.Errorf("source-policy handler error exceeds 4096 bytes")
-			}
-		}
-		return json.Marshal(out)
-	}
+	p.onSourcePolicy = fn
 }
 
 // OnConfigRollback sets the handler for config rollback requests (transaction protocol).

@@ -101,7 +101,8 @@ handles. Unsupported owners refuse capture before any callback; replacement
 processes cannot acknowledge work for the old lifetime. Prepare follows strict
 event application drain. The callback itself owes asynchronous-worker fencing
 and downstream settlement under its absolute deadline, on both DirectBridge and
-wire transports. See the process protocol's `source-policy` contract for the
+wire transports. The SDK runs the handler on a per-connection worker, so
+event delivery continues while it waits. See the process protocol's `source-policy` contract for the
 prepare/apply/abort/finalize identity and pin obligations. This transport does not
 by itself implement source invalidation.
 <!-- source: pkg/plugin/rpc/types.go -- DeclareRegistrationInput -->
