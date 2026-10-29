@@ -393,14 +393,17 @@ original inventory.
 
 The P10 audit's AC-9 grep (2026-10-29) found three privilege-skipping files
 the derivation missed: its search named neither `CAP_SYS_ADMIN` nor a bare
-`netns.New()`. Each is owed a conversion batch, with a judge pass for the two
-tagged files, before AC-9 holds:
+`netns.New()`. Each was owed a conversion batch, with a judge pass for the
+tagged files, before AC-9 holds. Row 136a joined them in P11: its four tests
+reach the `newTCPEgress` helper that row 136 converts. P11 converted all four
+files, and the judge approved every tagged unit in them:
 
 | # | File | Group | Batch | RFC tag lines | Build tag now | Build tag after |
 |---|------|-------|-------|---------------|---------------|-----------------|
-| 135 | `internal/component/bgp/reactor/rfc4659_configured_ipv6_transport_integration_linux_test.go` | A | owed | 1 | `integration && linux` | `linux` (D-5) |
-| 136 | `internal/core/network/rfc5082_ttl_gtsm_egress_integration_linux_test.go` | A | owed | 1 | `integration && linux` | `linux` (D-5) |
-| 137 | `internal/test/runner/netns_linux_test.go` | B | owed | 0 | `linux` | unchanged |
+| 135 | `internal/component/bgp/reactor/rfc4659_configured_ipv6_transport_integration_linux_test.go` | A | P11 | 1 | `integration && linux` | `linux` (D-5): converted in P11; the EBGP fixture gains the explicit export policy RFC 8212 Section 3 requires |
+| 136 | `internal/core/network/rfc5082_ttl_gtsm_egress_integration_linux_test.go` | A | P11 | 1 | `integration && linux` | `linux` (D-5): converted in P11 |
+| 136a | `internal/core/network/rfc2385_md5_egress_integration_linux_test.go` | A | P11 | 8 | `integration && linux` | `linux` (D-5): converted in P11; all four tests reach `newTCPEgress` |
+| 137 | `internal/test/runner/netns_linux_test.go` | B | P11 | 0 | `linux` | unchanged: converted in P11 |
 
 ### Group C, out of scope
 | File | Why it stays privileged |

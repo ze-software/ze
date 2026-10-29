@@ -1,6 +1,13 @@
-//go:build integration && linux
+//go:build linux
 
 // Design: docs/config-reference.md -- TTL security on a configured TCP egress.
+// Related: rfc2385_md5_egress_integration_linux_test.go -- reuses newTCPEgress.
+//
+// newTCPEgress builds two network namespaces joined by a veth, which needs
+// CAP_SYS_ADMIN and CAP_NET_ADMIN. Every test that reaches it runs in a user
+// namespace of its own (userns.Enter), which holds both, so the file carries
+// no `integration` tag and a refused namespace fails the test rather than
+// skipping it.
 package network
 
 import (
@@ -17,6 +24,8 @@ import (
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 	"golang.org/x/sys/unix"
+
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // TestGTSMConfiguredEgressDoesNotDecrement observes the receiving veth in a
@@ -26,6 +35,9 @@ import (
 // The TTL of GTSM-enabled sessions MUST NOT be decremented."
 // RFC requirement: RFC5082-3-3 positive -- RealDialer configured with OutTTL 255 sends its SYN and data over the configured IPv4 veth egress with TTL 255 at the adjacent peer; the local output path does not decrement them.
 func TestGTSMConfiguredEgressDoesNotDecrement(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	path := newTCPEgress(t, "")
 	dialer := RealDialer{LocalAddr: &net.TCPAddr{IP: net.IPv4(192, 0, 2, 1)}, OutTTL: 255}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -78,6 +90,7 @@ type tcpEgress struct {
 // newTCPEgress configures a /30 directly connected link with MTU 1500. Every
 // socket is opened in its endpoint's namespace, so local routing cannot shortcut
 // the observed link. Cleanup MUST restore the original namespace before unlock.
+// The caller MUST have entered its own user namespace (userns.Enter) first.
 func newTCPEgress(t *testing.T, key string) *tcpEgress {
 	t.Helper()
 	runtime.LockOSThread()
@@ -97,7 +110,7 @@ func newTCPEgress(t *testing.T, key string) *tcpEgress {
 	})
 	sender, err := netns.New()
 	if err != nil {
-		t.Skipf("network namespaces need CAP_SYS_ADMIN: %v", err)
+		t.Fatalf("create sender network namespace: %v", err)
 	}
 	t.Cleanup(func() { _ = sender.Close() })
 	sendHandle, err := netlink.NewHandle()

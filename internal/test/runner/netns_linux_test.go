@@ -16,6 +16,8 @@ import (
 
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
+
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // TestNetnsLaunchChildInheritsNamespace validates assumption A-5 of
@@ -33,10 +35,13 @@ import (
 //
 // It reads namespace identity with `readlink /proc/self/ns/net` (the magic
 // symlink resolves to "net:[<inode>]"); `cat` cannot read the nsfs symlink
-// target. Requires CAP_SYS_ADMIN to create the namespace -- skipped otherwise,
-// so it self-skips on an unprivileged host and is exercised for real in QEMU
-// (./le test qemu all) where the runner is root.
+// target. Creating the named namespace needs CAP_SYS_ADMIN, so the test runs
+// in a user namespace of its own (userns.Enter), which holds it, and a refused
+// namespace fails the test rather than skipping it.
 func TestNetnsLaunchChildInheritsNamespace(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	// The host reference must be captured before any thread switches namespace.
 	// /proc/self/ns/net reflects the caller's netns; at this point nothing has
 	// changed, so it is the host namespace.
@@ -56,23 +61,23 @@ func TestNetnsLaunchChildInheritsNamespace(t *testing.T) {
 	origNS, err := netns.Get()
 	if err != nil {
 		runtime.UnlockOSThread()
-		t.Skipf("requires CAP_SYS_ADMIN: cannot get current namespace: %v", err)
+		t.Fatalf("get current network namespace: %v", err)
 	}
 
 	const nsName = "ze-a5-inherit"
 	newNS, err := netns.NewNamed(nsName)
 	if err != nil {
-		// EPERM/EACCES on an unprivileged host: the assumption can only be
-		// validated where namespace creation is permitted (QEMU root).
-		origNS.Close() //nolint:errcheck // best-effort close on cleanup/skip path
+		// The user namespace grants CAP_SYS_ADMIN, so a refusal here is a
+		// defect or an unmet need, never a reason to skip.
+		origNS.Close() //nolint:errcheck // best-effort close on the failure path
 		runtime.UnlockOSThread()
-		t.Skipf("requires CAP_SYS_ADMIN: cannot create namespace: %v", err)
+		t.Fatalf("create network namespace %q: %v", nsName, err)
 	}
 	t.Cleanup(func() {
 		if restoreErr := netns.Set(origNS); restoreErr != nil {
 			t.Errorf("restore original namespace: %v", restoreErr)
 		}
-		origNS.Close()            //nolint:errcheck // best-effort close on cleanup/skip path
+		origNS.Close()            //nolint:errcheck // best-effort close on cleanup path
 		newNS.Close()             //nolint:errcheck // best-effort close on cleanup path
 		netns.DeleteNamed(nsName) //nolint:errcheck // best-effort cleanup
 		runtime.UnlockOSThread()
@@ -116,16 +121,15 @@ func TestNetnsLaunchChildInheritsNamespace(t *testing.T) {
 //
 // The test enters a fresh netns, provisions eth1/10.0.0.2/24, then performs the
 // exact operation that was failing -- adding a default route via 10.0.0.1 -- and
-// asserts it succeeds. Requires CAP_SYS_ADMIN + CAP_NET_ADMIN; self-skips on an
-// unprivileged host and runs for real in QEMU (./le test qemu all).
+// asserts it succeeds. It needs CAP_SYS_ADMIN and CAP_NET_ADMIN, which its own
+// user namespace (userns.Enter) holds, so a refused namespace or link fails it.
 func TestProvisionNetnsLinksMakesNextHopRoutable(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	restore, _, err := enterTestNetns("ze-provision-link")
 	if err != nil {
-		// new test; capability guard mirrors the sibling
-		// TestNetnsLaunchChildInheritsNamespace -- a netns cannot be created
-		// without CAP_SYS_ADMIN, so the test self-skips off-QEMU and runs for
-		// real in QEMU. Not a relaxation of existing coverage.
-		t.Skipf("requires CAP_SYS_ADMIN to create a per-test netns: %v", err)
+		t.Fatalf("enter per-test network namespace: %v", err)
 	}
 	defer restore()
 

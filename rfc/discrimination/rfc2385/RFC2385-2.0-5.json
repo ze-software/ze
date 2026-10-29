@@ -25,22 +25,22 @@
     "rid": "RFC2385-2.0-5",
     "polarity": "negative",
     "unit": "internal/core/network/rfc2385_md5_egress_integration_linux_test.go::TestRFC2385UnconfiguredSocketSendsNoSignature",
-    "unit-sha": "68856196fdae3b89",
+    "unit-sha": "6954af692baf6e20",
     "claim-sha": "107957f8f749ef8a",
     "route": "revert",
     "producer": "internal/core/network/network.go::DialContext",
     "producer-sha": "f4d5539ec1520bbf",
-    "break": "body of DialContext replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of DialContext replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2385-2.0-5",
     "polarity": "positive",
     "unit": "internal/core/network/rfc2385_md5_egress_integration_linux_test.go::TestRFC2385UnsignedSYNACKDoesNotDisableSignatures",
-    "unit-sha": "e18dc91418aa0d7d",
+    "unit-sha": "6fc8c9c38bfcdb9f",
     "claim-sha": "bec5cec06584e518",
     "route": "revert",
     "producer": "internal/core/network/md5_linux.go::setTCPMD5Sig",
     "producer-sha": "1259fa61f40ba41e",
-    "break": "body of setTCPMD5Sig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of setTCPMD5Sig replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

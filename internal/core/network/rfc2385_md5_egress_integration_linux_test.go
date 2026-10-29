@@ -1,7 +1,12 @@
-//go:build integration && linux
+//go:build linux
 
 // Design: rfc/short/rfc2385.md -- configured TCP MD5 packet evidence.
-// Related: ttl_gtsm_egress_integration_linux_test.go -- isolated veth egress.
+// Related: rfc5082_ttl_gtsm_egress_integration_linux_test.go -- isolated veth egress.
+//
+// The egress needs CAP_SYS_ADMIN and CAP_NET_ADMIN, and the injector a raw
+// socket. Each test runs in a user namespace of its own (userns.Enter), which
+// holds them, so the file carries no `integration` tag and a refused namespace
+// fails the test rather than skipping it.
 package network
 
 import (
@@ -19,6 +24,8 @@ import (
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 	"golang.org/x/sys/unix"
+
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // TestRFC2385CapturedSegmentsHaveIndependentDigests checks both socket producers,
@@ -29,6 +36,9 @@ import (
 // RFC requirement: RFC2385-2.0-6 positive -- RealDialer and RealListenerFactory install the application key through setTCPMD5Sig; every captured SYN, SYNACK, ACK, data and FIN has the independently computed digest over pseudo-header, zero-checksum fixed header, data and key in that order.
 // RFC requirement: RFC2385-3.0-1 positive -- every captured segment in both directions carries exactly one Kind 19 Length 18 option with a 16-octet digest, including handshake, data, ACK and FIN packets.
 func TestRFC2385CapturedSegmentsHaveIndependentDigests(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	path := newRFC2385Egress(t, rfc2385Key)
 	dialer := RealDialer{LocalAddr: &net.TCPAddr{IP: net.IPv4(192, 0, 2, 1)}, PeerAddr: net.IPv4(192, 0, 2, 2), MD5Key: rfc2385Key, Timeout: 3 * time.Second}
 	conn, err := dialer.DialContext(context.Background(), "tcp4", path.listener.Addr().String())
@@ -135,6 +145,9 @@ func TestRFC2385CapturedSegmentsHaveIndependentDigests(t *testing.T) {
 // RFC requirement: RFC2385-2.0-4 positive -- after a valid unsigned SYNACK reaches RealDialer's keyed socket, the same connection retransmits its SYN with an independently verified signature and never completes unsigned.
 // RFC requirement: RFC2385-2.0-5 positive -- the application key installed by RealDialer remains authoritative after the remote endpoint sends an unsigned SYNACK: the retransmitted SYN is still signed and the dial times out instead of downgrading.
 func TestRFC2385UnsignedSYNACKDoesNotDisableSignatures(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	path := newRFC2385Egress(t, "")
 	injector := rfc2385PeerSocket(t, path.capture, 0)
 	link, err := netlink.LinkByName("gtsm-send")
@@ -289,6 +302,9 @@ func rfc2385PeerSocket(t *testing.T, capture, protocol int) int {
 // not a refusal path: an ordinary TCP session has no MD5 option on either SYN.
 // RFC requirement: RFC2385-2.0-5 negative -- with no application key RealDialer and RealListenerFactory send unsigned SYN and SYNACK; the remote host does not turn signing on by itself.
 func TestRFC2385UnconfiguredSocketSendsNoSignature(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	path := newRFC2385Egress(t, "")
 	dialer := RealDialer{LocalAddr: &net.TCPAddr{IP: net.IPv4(192, 0, 2, 1)}, Timeout: 3 * time.Second}
 	conn, err := dialer.DialContext(context.Background(), "tcp4", path.listener.Addr().String())
@@ -326,6 +342,9 @@ func TestRFC2385UnconfiguredSocketSendsNoSignature(t *testing.T) {
 // RFC requirement: RFC2385-2.0-6 negative -- the listener configured by RealListenerFactory drops a SYN whose otherwise valid Kind 19 option has a corrupted digest, while an independently signed SYN with the exact pseudo-header/header/data/key composition receives a signed SYNACK.
 // RFC requirement: RFC2385-3.0-1 negative -- the configured listener sends no response to a SYN missing Kind 19, using a different Kind, or carrying Length 17 instead of 18; a valid Kind 19 Length 18 control SYN receives a signed SYNACK.
 func TestRFC2385MalformedWireSignaturesAreDropped(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	path := newRFC2385Egress(t, rfc2385Key)
 	listener, ok := path.listener.Addr().(*net.TCPAddr)
 	if !ok {

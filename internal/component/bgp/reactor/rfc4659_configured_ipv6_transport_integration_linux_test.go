@@ -1,7 +1,12 @@
-//go:build integration && linux
+//go:build linux
 
 // Design: docs/architecture/update-building.md -- configured routes and the Session writer.
 // Related: ../config/peers.go -- native configuration supplies the static route set.
+//
+// The proof builds two network namespaces joined by a veth, which needs
+// CAP_SYS_ADMIN and CAP_NET_ADMIN. It runs in a user namespace of its own
+// (userns.Enter), which holds both, so it carries no `integration` tag and a
+// refused namespace fails it rather than skipping.
 package reactor_test
 
 import (
@@ -30,6 +35,7 @@ import (
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/internal/core/network"
+	"github.com/ze-software/ze/internal/test/userns"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -53,6 +59,9 @@ import (
 // set value[4] = 1 after clearing the RD. The recipient must reject either wire
 // contract violation, even if the Session admission layer accepts the UPDATE.
 func TestRFC4659ConfiguredIPv6TransportNextHopWire(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	speaker := netip.MustParseAddr("2001:db8:4659:1::1")
 	recipient := netip.MustParseAddr("2001:db8:4659:2::2")
 	selected := netip.MustParseAddr("2001:db8:4659:3::1")
@@ -193,6 +202,9 @@ func rfc4659RequireOwnedHostAddresses(t *testing.T, addresses ...netip.Addr) {
 
 // rfc4659ConfiguredSettings keeps grouping, next-hop selection, labels and NLRI
 // on the operator's parser path rather than patching reactor settings afterward.
+// The recipient is an EBGP peer, so the configuration applies an explicit export
+// policy: without one, RFC 8212 Section 3 keeps the routes out of its
+// Adj-RIB-Out and only the End-of-RIB reaches the recipient.
 func rfc4659ConfiguredSettings(t *testing.T, speaker, recipient netip.Addr, port int, hop string, grouped bool) *reactor.PeerSettings {
 	t.Helper()
 	input := `bgp {
@@ -205,6 +217,7 @@ func rfc4659ConfiguredSettings(t *testing.T, speaker, recipient netip.Addr, port
         }
         session { asn { remote 65001; } family { ipv6/mpls-vpn { prefix { maximum 1000; } } } }
         behavior { group-updates ` + strconv.FormatBool(grouped) + `; }
+        filter { export { final accept; } }
         update {
             attribute { origin igp; next-hop ` + hop + `; }
             nlri {
@@ -377,7 +390,7 @@ func rfc4659TransportFixture(t *testing.T, speaker, recipient, selected netip.Ad
 	}()
 	senderNS, err := netns.New()
 	if err != nil {
-		t.Skipf("network namespaces require CAP_SYS_ADMIN: %v", err)
+		t.Fatalf("create sender network namespace: %v", err)
 	}
 	t.Cleanup(func() {
 		if err := senderNS.Close(); err != nil {

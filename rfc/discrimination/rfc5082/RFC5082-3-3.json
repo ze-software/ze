@@ -3,11 +3,11 @@
     "rid": "RFC5082-3-3",
     "polarity": "positive",
     "unit": "internal/core/network/rfc5082_ttl_gtsm_egress_integration_linux_test.go::TestGTSMConfiguredEgressDoesNotDecrement",
-    "unit-sha": "098071757cd68ee5",
+    "unit-sha": "1e82ea7e0e462060",
     "claim-sha": "37bcce2b5732b4a4",
     "route": "revert",
     "producer": "internal/core/network/ttl_linux.go::setIPTTL",
     "producer-sha": "46e81fbdb8c0773f",
-    "break": "body of setIPTTL replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of setIPTTL replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

@@ -14,11 +14,11 @@
     "rid": "RFC2385-2.0-3",
     "polarity": "positive",
     "unit": "internal/core/network/rfc2385_md5_egress_integration_linux_test.go::TestRFC2385MalformedWireSignaturesAreDropped",
-    "unit-sha": "3f900c6e3553d7c7",
+    "unit-sha": "df227a6d956e2eac",
     "claim-sha": "ab789b9c8abee6b7",
     "route": "revert",
     "producer": "internal/core/network/md5_linux.go::setTCPMD5Sig",
     "producer-sha": "1259fa61f40ba41e",
-    "break": "body of setTCPMD5Sig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of setTCPMD5Sig replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]
