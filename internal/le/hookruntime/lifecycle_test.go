@@ -284,6 +284,13 @@ func TestSessionStartBuildsEveryArtifactDeclaredForIt(t *testing.T) {
 func TestSessionStartRendersNoDeferredArtifact(t *testing.T) {
 	root := derivedFixture(t)
 	rfcCorpusFixture(t, root)
+	// The roadmap renders from a committed plan tree (git HEAD), never the
+	// working tree, so the fixture holds one spec and is a checkout, or that
+	// member cannot render at all.
+	writeHookFixture(t, root, "plan/release/fixes/spec-fixture.md",
+		"# Spec: fixture\n\n| Field | Value |\n|---|---|\n| Status | ready |\n| Depends | - |\n"+
+			"| Phase | 1/1 |\n| Updated | 2026-10-29 |\n| Priority | P1 |\n| Release reason | Session start fixture |\n")
+	commitHookFixture(t, root)
 	artifacts := artifactsWithPolicy(t, derived.SessionStartDefer)
 	for _, artifact := range artifacts {
 		if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(artifact.Path))); !os.IsNotExist(err) {
@@ -303,15 +310,17 @@ func TestSessionStartRendersNoDeferredArtifact(t *testing.T) {
 		}
 	}
 
-	// The tree can render them. Without this, a fixture that simply cannot
-	// build the family would pass every assertion above.
-	rendered := artifacts[0]
-	if err := rendered.Rebuild(root); err != nil {
-		t.Fatalf("the fixture cannot render %s at all, so nothing above was a decision: %v",
-			rendered.Path, err)
-	}
-	if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(rendered.Path))); err != nil {
-		t.Fatalf("%s does not land in this fixture even when rendered on purpose: %v", rendered.Path, err)
+	// The tree can render them, every one. Without this, a fixture that simply
+	// cannot build a member of the family would pass every assertion above for
+	// that member.
+	for _, rendered := range artifacts {
+		if err := rendered.Rebuild(root); err != nil {
+			t.Fatalf("the fixture cannot render %s at all, so nothing above was a decision: %v",
+				rendered.Path, err)
+		}
+		if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(rendered.Path))); err != nil {
+			t.Fatalf("%s does not land in this fixture even when rendered on purpose: %v", rendered.Path, err)
+		}
 	}
 }
 
