@@ -189,8 +189,9 @@ estimate and never a zero.
 
 ### The proof against the kernel
 
-`internal/core/probe/errqueue_integration_linux_test.go` (`integration &&
-linux`, run by `./le test qemu all`) builds three namespaces joined by two
+`internal/core/probe/errqueue_integration_linux_test.go` (`linux`; each test
+runs unprivileged in a user, network and mount namespace of its own through
+`userns.Enter`, so an ordinary `go test` on Linux runs it) builds three namespaces joined by two
 veth pairs, sender, router and far, with the router forwarding and its far
 link clamped to 1400. It is the spec's interop scenario `probe-df-clamped-path`:
 the Linux router is the other implementation.

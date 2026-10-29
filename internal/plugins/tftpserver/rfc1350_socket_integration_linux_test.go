@@ -4,8 +4,8 @@
 // SO_BINDTODEVICE syscall and a real RRQ/DATA/ACK transfer over UDP, plus the
 // device-filtering behavior the option provides. They require root (port 69 is
 // privileged) and, for the negative case, CAP_NET_ADMIN to create a dummy
-// interface. Both prerequisites are present in the QEMU Alpine VM
-// (see ai/rules/platform-linux.md); on hosts without them the tests t.Skip.
+// interface. Each test runs in a user namespace of its own (userns.Enter),
+// which holds both, so a refused bind or dummy link fails it.
 //
 // Why bind to "lo" for the positive round-trip rather than a veth/dummy:
 // locally-routed traffic between two addresses in the same network namespace
@@ -17,7 +17,7 @@
 // dummy-interface negative test below proves the option genuinely filters by
 // device, which is the property that matters.
 
-//go:build integration && linux
+//go:build linux
 
 package tftpserver
 
@@ -34,6 +34,7 @@ import (
 	"github.com/vishvananda/netlink"
 
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // makeTestFile writes n deterministic bytes into dir/name and returns the
@@ -131,13 +132,13 @@ func tftpFetch(t *testing.T, srvAddr *net.UDPAddr, filename string) ([]byte, err
 	}
 }
 
-// createDummyForTest creates a dummy interface and registers cleanup, skipping
-// the test if CAP_NET_ADMIN is unavailable.
+// createDummyForTest creates a dummy interface and registers cleanup, failing
+// the test when the kernel refuses it.
 func createDummyForTest(t *testing.T, name string) {
 	t.Helper()
 	link := &netlink.Dummy{Name: name}
 	if err := netlink.LinkAdd(link); err != nil {
-		t.Skipf("requires CAP_NET_ADMIN: create dummy %q: %v", name, err)
+		t.Fatalf("create dummy %q: %v", name, err)
 	}
 	t.Cleanup(func() { _ = netlink.LinkDel(link) })
 	if err := netlink.LinkSetUp(link); err != nil {
@@ -154,9 +155,12 @@ func createDummyForTest(t *testing.T, name string) {
 // first DATA before it fixes that TID and ACKs every block to it to drive the transfer to
 // completion.
 func TestListenTFTPLoopbackRoundTrip(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	conn, err := listenTFTP("lo")
 	if err != nil {
-		t.Skipf("cannot bind lo:69 (needs root): %v", err)
+		t.Fatalf("bind lo:69: %v", err)
 	}
 	defer func() { _ = conn.Close() }()
 
@@ -180,11 +184,14 @@ func TestListenTFTPLoopbackRoundTrip(t *testing.T) {
 // device: a listener bound to a dummy interface must not answer a request that
 // arrives over loopback.
 func TestListenTFTPDeviceFilter(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	createDummyForTest(t, "zetftpd0")
 
 	conn, err := listenTFTP("zetftpd0")
 	if err != nil {
-		t.Skipf("cannot bind zetftpd0:69 (needs root): %v", err)
+		t.Fatalf("bind zetftpd0:69: %v", err)
 	}
 	defer func() { _ = conn.Close() }()
 
@@ -206,6 +213,9 @@ func TestListenTFTPDeviceFilter(t *testing.T) {
 // and listenTFTP binds it for a real RRQ transfer. The pre-fix code logged a
 // resolve error and dropped the listener, leaving the TFTP server with none.
 func TestTFTPServerBindsViaResolveWithoutBackend(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	device, _ := bindDeviceFor("lo")
 	if device != "lo" {
 		t.Fatalf("bindDeviceFor(%q) = %q, want \"lo\"", "lo", device)
@@ -213,7 +223,7 @@ func TestTFTPServerBindsViaResolveWithoutBackend(t *testing.T) {
 
 	conn, err := listenTFTP(device)
 	if err != nil {
-		t.Skipf("cannot bind %s:69 (needs root): %v", device, err)
+		t.Fatalf("bind %s:69: %v", device, err)
 	}
 	defer func() { _ = conn.Close() }()
 

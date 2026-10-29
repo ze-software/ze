@@ -3,26 +3,43 @@
 package cmd
 
 import (
+	"runtime"
 	"testing"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/probe"
+	"github.com/ze-software/ze/internal/test/userns"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
+// failRefusedTrace fails a trace toward 127.0.0.1 that answered an error.
+// On Linux the test runs in a user, network and mount namespace of its own
+// (userns.Enter), which holds CAP_NET_RAW and has only lo, so no probe leaves
+// the host and a refused raw socket is a defect. Off Linux, Enter runs the
+// test in place as the user who ran go test, and Ze opens no unprivileged ICMP
+// socket there (probe.ErrDatagramICMPUnsupported), so the refusal is the
+// host's missing privilege and the test skips, as it did before Enter.
+func failRefusedTrace(t *testing.T, refusal string) {
+	t.Helper()
+	if runtime.GOOS != "linux" {
+		t.Skipf("off Linux, with no namespace to grant it, the raw ICMP socket is refused: %s", refusal)
+	}
+	t.Fatalf("traceroute 127.0.0.1 inside the test's own namespace: %s", refusal)
+}
+
 func TestTraceroute_Wiring(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	resp, err := handleTraceroute(nil, commandtest.Args("127.0.0.1", "max-hops", "1", "timeout", "1s", "probes", "1"))
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	if resp.Status == "error" {
-		data := resp.Error
-		if data != "" {
-			t.Skipf("traceroute requires CAP_NET_RAW: %s", data)
-		}
+		failRefusedTrace(t, resp.Error)
 	}
 	assert.Equal(t, "done", resp.Status)
 	data, ok := resp.Data.(plugin.Map)

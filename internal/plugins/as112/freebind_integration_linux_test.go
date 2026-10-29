@@ -1,6 +1,6 @@
 // Design: docs/architecture/dns/as112.md -- AC-11 / finding B2: IP_FREEBIND wiring proof
 
-//go:build integration && linux
+//go:build linux
 
 package as112
 
@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/core/dnsserver"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // VALIDATES: AC-11 -- newServerManager wires Options{Freebind: true} through
@@ -23,6 +24,9 @@ import (
 // it starts before iface has applied the anycast address to lo (finding
 // B2's whole reason for existing).
 func TestListener_FreebindBindsWithoutAddress(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	resetAS112State(t)
 	storeState(buildState(as112Config{Enabled: true}, 1))
 
@@ -30,7 +34,7 @@ func TestListener_FreebindBindsWithoutAddress(t *testing.T) {
 	const nonLocalAddr = "203.0.113.5"
 	err := mgr.mgr.ApplyWithSecure(true, []dnsserver.Endpoint{{IP: netip.MustParseAddr(nonLocalAddr), Port: 5391}}, dnsserver.SecureConfig{}, dnsserver.BindLenient, testLogger())
 	if err != nil {
-		t.Skipf("bind to non-local address failed (needs CAP_NET_ADMIN in this environment): %v", err)
+		t.Fatalf("bind %s:5391 through newServerManager with IP_FREEBIND: %v", nonLocalAddr, err)
 	}
 	t.Cleanup(mgr.stopAll)
 }

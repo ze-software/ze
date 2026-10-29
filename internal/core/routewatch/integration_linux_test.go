@@ -1,6 +1,6 @@
 // Design: docs/architecture/core-design.md -- routewatch integration tests
 
-//go:build integration && linux
+//go:build linux
 
 package routewatch
 
@@ -19,6 +19,7 @@ import (
 	"github.com/vishvananda/netns"
 
 	"github.com/ze-software/ze/internal/core/rtproto"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 func withNetNS(t *testing.T, fn func()) {
@@ -27,14 +28,14 @@ func withNetNS(t *testing.T, fn func()) {
 
 	origNS, err := netns.Get()
 	if err != nil {
-		t.Skipf("requires CAP_NET_ADMIN: %v", err)
+		t.Fatalf("get the current network namespace: %v", err)
 	}
 
 	nsName := sanitizeNSName(t.Name())
 	newNS, err := netns.NewNamed(nsName)
 	if err != nil {
 		origNS.Close() //nolint:errcheck // best-effort cleanup
-		t.Skipf("requires CAP_NET_ADMIN: %v", err)
+		t.Fatalf("create network namespace %s: %v", nsName, err)
 	}
 
 	t.Cleanup(func() {
@@ -109,6 +110,9 @@ func hasEvent(events []RouteEvent, prefix string, action Action) bool {
 }
 
 func TestIntegration_FanoutFromNetlink(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withNetNS(t, func() {
 		h, err := netlink.NewHandle()
 		require.NoError(t, err)
@@ -151,6 +155,9 @@ func TestIntegration_FanoutFromNetlink(t *testing.T) {
 }
 
 func TestIntegration_DeliverZeOwned(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withNetNS(t, func() {
 		h, err := netlink.NewHandle()
 		require.NoError(t, err)
@@ -194,6 +201,9 @@ func TestIntegration_DeliverZeOwned(t *testing.T) {
 }
 
 func TestIntegration_RouteDelete(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withNetNS(t, func() {
 		h, err := netlink.NewHandle()
 		require.NoError(t, err)

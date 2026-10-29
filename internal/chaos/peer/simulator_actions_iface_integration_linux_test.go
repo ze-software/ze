@@ -1,4 +1,4 @@
-//go:build integration && linux
+//go:build linux
 
 package peer
 
@@ -12,12 +12,14 @@ import (
 	"github.com/vishvananda/netns"
 
 	"github.com/ze-software/ze/internal/chaos/engine"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // withChaosNetNS runs fn inside a fresh named network namespace so interface
 // faults never touch the host. Mirrors internal/plugins/traffic/netlink's
-// withTrafficNetNS. Skips (never fails) when CAP_NET_ADMIN is unavailable --
-// the QEMU/root run is where it executes.
+// withTrafficNetNS. Fails, never skips, when the namespace cannot be created:
+// every caller runs in a user namespace of its own (userns.Enter), which holds
+// CAP_NET_ADMIN, so a refusal there is a defect.
 func withChaosNetNS(t *testing.T, fn func()) {
 	t.Helper()
 
@@ -33,7 +35,7 @@ func withChaosNetNS(t *testing.T, fn func()) {
 	origNS, err := netns.Get()
 	if err != nil {
 		unlock()
-		t.Skipf("requires CAP_NET_ADMIN: cannot get current namespace: %v", err)
+		t.Fatalf("get the current network namespace: %v", err)
 	}
 
 	nsName := chaosNetNSName(t.Name())
@@ -41,7 +43,7 @@ func withChaosNetNS(t *testing.T, fn func()) {
 	if err != nil {
 		origNS.Close() //nolint:errcheck // best-effort cleanup
 		unlock()
-		t.Skipf("requires CAP_NET_ADMIN: cannot create namespace: %v", err)
+		t.Fatalf("create network namespace %s: %v", nsName, err)
 	}
 
 	t.Cleanup(func() {
@@ -131,6 +133,9 @@ func hasAddr(t *testing.T, name, cidr string) bool {
 // PREVENTS: a link-flap that leaves the interface down, or one that fails to
 // signal the transport teardown that drives reconnection.
 func TestChaosIfaceLinkFlap(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withChaosNetNS(t, func() {
 		const iface = "ze_cf0"
 		addChaosVeth(t, iface, "ze_cf1", "10.242.0.1/24")
@@ -161,6 +166,9 @@ func TestChaosIfaceLinkFlap(t *testing.T) {
 // VALIDATES: AC-6 -- iface-addr-remove performs the netlink addr del/add cycle.
 // PREVENTS: an addr-remove that leaves the interface without its address.
 func TestChaosIfaceAddrRemove(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withChaosNetNS(t, func() {
 		const iface = "ze_cf0"
 		const cidr = "10.242.0.1/24"

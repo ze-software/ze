@@ -1,14 +1,13 @@
-//go:build integration && linux
+//go:build linux
 
 // Design: rfc/short/rfc5082.md -- GTSM, the listen-port floor before the handshake
 // Overview: gtsm.go -- listenPortTerm, the rule these proofs drive
 // Related: netns_linux_test.go, packet_linux_test.go -- the namespace and the frames
 //
 // These proofs drive a real TCP listener in a namespace of its own, so they
-// need CAP_NET_ADMIN, which the merge gate host does not hold. They are tagged
-// `integration` so `./le rfc record` runs them in the QEMU guest that boots
-// Ze's kernel (docs/contributing/rfc-conformance-gates.md, the guest unit),
-// where a skip cannot be read as a pass.
+// need CAP_NET_ADMIN. Each runs in a user namespace of its own
+// (userns.Enter), which holds it, so they carry no `integration` tag and a
+// refused namespace fails them rather than skipping.
 //
 // A SYN is the main protocol packet RFC 5082 Section 3 classifies. The
 // accepted socket's floor (network.SetIPMinTTL) exists only after the
@@ -30,6 +29,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/ze-software/ze/internal/component/firewall"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // The TCP fields the proofs write. A SYN carries no options, so the header is
@@ -65,6 +65,9 @@ var (
 // is dropped by the listen-port rule ze installs and receives no SYN-ACK,
 // while the same SYN at TTL 255 is answered and the handshake completes.
 func TestGTSMListenerSYNBelowFloorDropped(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	listenerFloorProof(t, zeV4, peerV4)
 }
 
@@ -77,6 +80,9 @@ func TestGTSMListenerSYNBelowFloorDropped(t *testing.T) {
 // SYN-ACK, while the same SYN at hop limit 255 is answered and the handshake
 // completes.
 func TestGTSMListenerSYNBelowFloorDroppedIPv6(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	listenerFloorProof(t, zeV6, peerV6)
 }
 
@@ -122,6 +128,9 @@ func listenerFloorProof(t *testing.T, ze, peer netip.Addr) {
 // connection, and no rule of the chain matches it, so GTSM processing drops no
 // SYN classified Trusted.
 func TestGTSMListenerSYNAtFloorAccepted(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	listenerAtFloorProof(t, zeV4, peerV4)
 }
 
@@ -134,6 +143,9 @@ func TestGTSMListenerSYNAtFloorAccepted(t *testing.T) {
 // accepted connection, and no rule of the chain matches it, so GTSM processing
 // drops no SYN classified Trusted.
 func TestGTSMListenerSYNAtFloorAcceptedIPv6(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	listenerAtFloorProof(t, zeV6, peerV6)
 }
 
@@ -163,12 +175,18 @@ func listenerAtFloorProof(t *testing.T, ze, peer netip.Addr) {
 // other than below the floor, or a range rule that judged the peer's SYN by
 // the range's floor, turns this test red.
 func TestGTSMListenerMultihopFloorInsideRange(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	multihopFloorProof(t, zeV4, peerV4, 24)
 }
 
 // TestGTSMListenerMultihopFloorInsideRangeIPv6 is the same proof for IPv6,
 // where the floor is read from the Hop Limit.
 func TestGTSMListenerMultihopFloorInsideRangeIPv6(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	multihopFloorProof(t, zeV6, peerV6, 120)
 }
 
@@ -225,6 +243,9 @@ func multihopFloorProof(t *testing.T, ze, peer netip.Addr, rangeBits int) {
 // session does not use, is answered with a SYN-ACK and matched by no rule of
 // the chain, so GTSM processing drops no SYN classified Unknown.
 func TestGTSMListenerUnknownNotDropped(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	cases := []struct {
 		name   string
 		ze     netip.Addr

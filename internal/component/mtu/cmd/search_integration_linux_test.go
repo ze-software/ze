@@ -1,4 +1,4 @@
-//go:build integration && linux
+//go:build linux
 
 // Design: docs/architecture/diagnostics/path-mtu.md -- the search proven against a Linux router
 //
@@ -19,15 +19,14 @@
 //
 // The helpers below are copied from
 // internal/core/probe/errqueue_integration_linux_test.go, where they are
-// unexported in a test file and cannot be imported. Every test skips,
-// never fails, when the namespaces or the raw socket are out of reach:
-// the QEMU runner (./le test qemu all) is where they run for real.
+// unexported in a test file and cannot be imported. Every test runs in a
+// user namespace of its own (userns.Enter), which holds CAP_NET_ADMIN and
+// CAP_NET_RAW, so a refused namespace, link or raw socket fails it.
 
 package cmd
 
 import (
 	"context"
-	"errors"
 	"net"
 	"net/netip"
 	"os"
@@ -41,6 +40,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/ze-software/ze/internal/core/probe"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 const (
@@ -71,19 +71,17 @@ type clampedPath struct {
 
 // withClampedPath builds the topology, leaves the calling goroutine locked
 // to its thread and inside the sender namespace, runs fn, and tears
-// everything down. It skips, never fails, when a namespace or a link cannot
-// be created.
+// everything down. It fails, never skips, when a namespace or a link cannot
+// be created: every caller runs in a user namespace of its own
+// (userns.Enter), which holds CAP_NET_ADMIN and CAP_NET_RAW.
 func withClampedPath(t *testing.T, fn func(p *clampedPath)) {
 	t.Helper()
-	if os.Geteuid() != 0 {
-		t.Skip("requires root: network namespaces, veth links and raw sockets")
-	}
 	runtime.LockOSThread()
 	t.Cleanup(runtime.UnlockOSThread)
 
 	orig, err := netns.Get()
 	if err != nil {
-		t.Skipf("requires CAP_NET_ADMIN: current namespace: %v", err)
+		t.Fatalf("get the current network namespace: %v", err)
 	}
 	t.Cleanup(func() {
 		if setErr := netns.Set(orig); setErr != nil {
@@ -136,7 +134,7 @@ func newNamespace(t *testing.T, orig netns.NsHandle, name string) netns.NsHandle
 	t.Helper()
 	ns, err := netns.NewNamed(name)
 	if err != nil {
-		t.Skipf("requires CAP_NET_ADMIN: create namespace %s: %v", name, err)
+		t.Fatalf("create network namespace %s: %v", name, err)
 	}
 	// NewNamed moves the thread into the new namespace; go back at once.
 	if setErr := netns.Set(orig); setErr != nil {
@@ -167,7 +165,7 @@ func addVeth(t *testing.T, h *netlink.Handle, name, peer string, peerNS netns.Ns
 	veth.Name = name
 	veth.MTU = pathLinkMTU
 	if err := h.LinkAdd(veth); err != nil {
-		t.Skipf("add veth %s/%s (needs CAP_NET_ADMIN): %v", name, peer, err)
+		t.Fatalf("add veth %s/%s: %v", name, peer, err)
 	}
 }
 
@@ -290,14 +288,11 @@ func (p *clampedPath) dropRouterICMPErrors(t *testing.T) {
 }
 
 // openPathProber opens the wire prober toward the far address in the
-// sender namespace, skipping when the raw socket is refused.
+// sender namespace, failing when the raw socket is refused.
 func openPathProber(t *testing.T, df probe.DFMode) *wireProber {
 	t.Helper()
 	w, err := openWireProber(context.Background(), farAddr4, df)
 	if err != nil {
-		if errors.Is(err, unix.EPERM) {
-			t.Skipf("requires CAP_NET_RAW: %v", err)
-		}
 		t.Fatalf("openWireProber(%v): %v", df, err)
 	}
 	w.wait = pathProbeWait
@@ -308,6 +303,9 @@ func openPathProber(t *testing.T, df probe.DFMode) *wireProber {
 // TestSearchClampedPathViaICMP (AC-1, AC-8): the router reports 1400, the
 // search confirms it on the wire and reports it via ICMP.
 func TestSearchClampedPathViaICMP(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withClampedPath(t, func(_ *clampedPath) {
 		w := openPathProber(t, probe.DFHonorCache)
 		res, err := searchPathMTU(context.Background(), w, farAddr4, false)
@@ -330,6 +328,9 @@ func TestSearchClampedPathViaICMP(t *testing.T) {
 // errors dropped, no figure is ever reported, the ladder and the number
 // line find the clamp, and the method says the answer came from a search.
 func TestSearchFilteredPathLadderThenBisect(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withClampedPath(t, func(p *clampedPath) {
 		p.dropRouterICMPErrors(t)
 		w := openPathProber(t, probe.DFHonorCache)
@@ -358,6 +359,9 @@ func TestSearchFilteredPathLadderThenBisect(t *testing.T) {
 // the clamp is lifted, the kernel still holds 1400, and an exhaustive search
 // in bypass mode answers 1500 while the cache says 1400.
 func TestSearchExhaustiveBypassesPoisonedCache(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withClampedPath(t, func(p *clampedPath) {
 		honor := openPathProber(t, probe.DFHonorCache)
 		res, err := searchPathMTU(context.Background(), honor, farAddr4, false)

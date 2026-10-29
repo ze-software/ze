@@ -4,8 +4,9 @@
 // SO_BINDTODEVICE syscall and a real DISCOVER/OFFER exchange over UDP, asserting
 // the PXE boot options (RFC 4578 / RFC 2132) the installer relies on, plus the
 // device-filtering behavior the option provides. They require root (ports 67/68
-// are privileged) and, for the negative case, CAP_NET_ADMIN. Both are present in
-// the QEMU Alpine VM (see ai/rules/platform-linux.md); otherwise the tests t.Skip.
+// are privileged) and, for the negative case, CAP_NET_ADMIN. Each test runs in a
+// user namespace of its own (userns.Enter), which holds both, so a refused bind
+// or dummy link fails it.
 //
 // See rfc1350_socket_integration_linux_test.go in ../tftpserver for why the positive
 // round-trip binds to "lo": locally-routed traffic ingresses on the loopback
@@ -13,7 +14,7 @@
 // namespace. The OFFER is delivered by unicast to ciaddr:68 (responseAddr), so
 // the DISCOVER carries ciaddr = the client's loopback address.
 
-//go:build integration && linux
+//go:build linux
 
 package dhcpserver
 
@@ -27,6 +28,7 @@ import (
 	"github.com/vishvananda/netlink"
 
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 const pxeVendorClass = "PXEClient:Arch:00000:UNDI:002001"
@@ -75,13 +77,13 @@ func testHandler() *dhcpHandler {
 	return newDHCPHandler(sub, netip.MustParseAddr("127.0.0.1"), pxe)
 }
 
-// createDummyForTest creates a dummy interface and registers cleanup, skipping
-// the test if CAP_NET_ADMIN is unavailable.
+// createDummyForTest creates a dummy interface and registers cleanup, failing
+// the test when the kernel refuses it.
 func createDummyForTest(t *testing.T, name string) {
 	t.Helper()
 	link := &netlink.Dummy{Name: name}
 	if err := netlink.LinkAdd(link); err != nil {
-		t.Skipf("requires CAP_NET_ADMIN: create dummy %q: %v", name, err)
+		t.Fatalf("create dummy %q: %v", name, err)
 	}
 	t.Cleanup(func() { _ = netlink.LinkDel(link) })
 	if err := netlink.LinkSetUp(link); err != nil {
@@ -97,9 +99,12 @@ var clientAddr = netip.MustParseAddr("127.0.0.2")
 // SO_BINDTODEVICE and asserts a real PXE OFFER carries options 43/60/66/67 and
 // the siaddr from the PXE config.
 func TestListenDHCPLoopbackPXEOffer(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	conn, err := listenDHCP("lo")
 	if err != nil {
-		t.Skipf("cannot bind lo:67 (needs root): %v", err)
+		t.Fatalf("bind lo:67: %v", err)
 	}
 	defer func() { _ = conn.Close() }()
 
@@ -107,7 +112,7 @@ func TestListenDHCPLoopbackPXEOffer(t *testing.T) {
 
 	cli, err := net.ListenUDP("udp4", &net.UDPAddr{IP: clientAddr.AsSlice(), Port: 68})
 	if err != nil {
-		t.Skipf("cannot bind client 127.0.0.2:68 (needs root): %v", err)
+		t.Fatalf("bind client 127.0.0.2:68: %v", err)
 	}
 	defer func() { _ = cli.Close() }()
 
@@ -152,11 +157,14 @@ func TestListenDHCPLoopbackPXEOffer(t *testing.T) {
 // device: a listener bound to a dummy interface must not answer a DISCOVER that
 // arrives over loopback.
 func TestListenDHCPDeviceFilter(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	createDummyForTest(t, "zedhcpd0")
 
 	conn, err := listenDHCP("zedhcpd0")
 	if err != nil {
-		t.Skipf("cannot bind zedhcpd0:67 (needs root): %v", err)
+		t.Fatalf("bind zedhcpd0:67: %v", err)
 	}
 	defer func() { _ = conn.Close() }()
 
@@ -164,7 +172,7 @@ func TestListenDHCPDeviceFilter(t *testing.T) {
 
 	cli, err := net.ListenUDP("udp4", &net.UDPAddr{IP: clientAddr.AsSlice(), Port: 68})
 	if err != nil {
-		t.Skipf("cannot bind client 127.0.0.2:68 (needs root): %v", err)
+		t.Fatalf("bind client 127.0.0.2:68: %v", err)
 	}
 	defer func() { _ = cli.Close() }()
 

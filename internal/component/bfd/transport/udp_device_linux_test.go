@@ -4,19 +4,22 @@ package transport
 
 import (
 	"net/netip"
-	"os"
 	"strings"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/bfd/api"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // VALIDATES: SO_BINDTODEVICE on the loopback device succeeds and binds
 // the socket. The loopback device is always present on Linux; binding
-// to it requires CAP_NET_RAW, so we skip when running as an unprivileged
-// user with no capability.
+// to it requires CAP_NET_RAW, which the test holds in a user namespace of
+// its own (userns.Enter), so a refusal fails it.
 // PREVENTS: regression where Device is read but never applied.
 func TestUDPBindToDeviceLoopback(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	u := &UDP{
 		Bind:   netip.MustParseAddrPort("127.0.0.1:0"),
 		Mode:   api.SingleHop,
@@ -24,9 +27,6 @@ func TestUDPBindToDeviceLoopback(t *testing.T) {
 	}
 	err := u.Start()
 	if err != nil {
-		if os.Geteuid() != 0 {
-			t.Skipf("SO_BINDTODEVICE lo requires CAP_NET_RAW (root), skipping: %v", err)
-		}
 		t.Fatalf("Start lo: %v", err)
 	}
 	if stopErr := u.Stop(); stopErr != nil {

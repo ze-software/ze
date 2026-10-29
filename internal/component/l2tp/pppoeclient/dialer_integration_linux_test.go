@@ -1,11 +1,12 @@
 // VALIDATES: the PPPoE dialer's real kernel paths — Dial rejects a non-existent
 // source interface at resolution and, on loopback, opens the PF_PACKET discovery
-// socket and returns (no PADO) rather than hanging. Auto-enrolled in the QEMU
-// integration run via the derived `integration && linux` package list.
+// socket and returns (no PADO) rather than hanging.
 // PREVENTS: a discovery-socket or interface-resolution regression, or a Dial that
 // ignores the stop signal and blocks a caller indefinitely.
+// The loopback test runs in a user namespace of its own (userns.Enter), which
+// holds CAP_NET_RAW, so a refused discovery socket fails it.
 
-//go:build integration && linux
+//go:build linux
 
 package pppoeclient
 
@@ -19,6 +20,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 func isPermErr(err error) bool {
@@ -55,11 +57,14 @@ func TestDialBogusInterface(t *testing.T) {
 }
 
 func TestDialLoopbackDiscovery(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	err := dialWithWatchdog(t, iface.PPPoEClientConfig{SourceInterface: "lo"})
 	if err == nil {
 		t.Error("Dial on loopback with no PPPoE server should return an error")
 	}
 	if isPermErr(err) {
-		t.Skipf("PF_PACKET discovery socket needs CAP_NET_RAW: %v", err)
+		t.Fatalf("open the PF_PACKET discovery socket on lo: %v", err)
 	}
 }

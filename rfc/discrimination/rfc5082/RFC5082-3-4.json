@@ -3,18 +3,18 @@
     "rid": "RFC5082-3-4",
     "polarity": "positive",
     "unit": "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMDeliversAnICMPErrorNoSessionClaims",
-    "unit-sha": "b88c53446cd89c7d",
+    "unit-sha": "1e13b622898f5eea",
     "claim-sha": "aa60a30b3e55d6a3",
     "route": "revert",
     "producer": "internal/plugins/firewall/nft/lower_linux.go::quotedIPv4HeaderGuard",
     "producer-sha": "1a818f5437fd005d",
-    "break": "body of quotedIPv4HeaderGuard replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of quotedIPv4HeaderGuard replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC5082-3-4",
     "polarity": "positive",
     "unit": "internal/component/gtsm/rfc5082_listener_integration_linux_test.go::TestGTSMListenerSYNAtFloorAccepted",
-    "unit-sha": "2bdda30c524ac717",
+    "unit-sha": "34240becba1ba75a",
     "claim-sha": "cb9561a2a0d64d9a",
     "route": "mutant",
     "producer": "internal/plugins/firewall/nft/lower_linux.go::lowerIPv4TTLBelowMatch",
@@ -25,7 +25,7 @@
     "rid": "RFC5082-3-4",
     "polarity": "positive",
     "unit": "internal/component/gtsm/rfc5082_listener_integration_linux_test.go::TestGTSMListenerSYNAtFloorAcceptedIPv6",
-    "unit-sha": "09651af894ce04a6",
+    "unit-sha": "2e905fe1c8861a73",
     "claim-sha": "9b698e1dbd15bdcf",
     "route": "mutant",
     "producer": "internal/plugins/firewall/nft/lower_linux.go::lowerIPv6HopLimitBelowMatch",
@@ -36,12 +36,12 @@
     "rid": "RFC5082-3-4",
     "polarity": "positive",
     "unit": "internal/component/gtsm/rfc5082_listener_integration_linux_test.go::TestGTSMListenerUnknownNotDropped",
-    "unit-sha": "43cd103133593f2c",
+    "unit-sha": "b4ec7cafdf9e0541",
     "claim-sha": "582633f61c93f8ee",
     "route": "mutant",
     "producer": "internal/component/gtsm/gtsm.go::listenPortTerm",
     "producer-sha": "51605d6b456af3d1",
-    "break": "line 374: \"firewall.MatchSourceAddress{Prefix: source},\" -\u003e \"\""
+    "break": "line 391: \"firewall.MatchSourceAddress{Prefix: source},\" -\u003e \"\""
   },
   {
     "rid": "RFC5082-3-4",

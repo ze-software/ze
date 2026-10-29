@@ -11,6 +11,7 @@ import (
 	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 func TestHandleResolveTraceroute_InvalidTarget(t *testing.T) {
@@ -42,6 +43,9 @@ func TestHandleResolveTraceroute_SourceMissingValue(t *testing.T) {
 }
 
 func TestHandleResolveTraceroute_MaxHopsBoundary(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	tests := []struct {
 		name    string
 		args    []string
@@ -60,14 +64,17 @@ func TestHandleResolveTraceroute_MaxHopsBoundary(t *testing.T) {
 			require.NoError(t, err)
 			if tt.wantErr {
 				assert.Equal(t, plugin.StatusError, resp.Status)
-			} else if resp.Status == plugin.StatusError && strings.Contains(resp.Error, "CAP_NET_RAW") {
-				t.Skipf("requires CAP_NET_RAW: %s", resp.Error)
+			} else if resp.Status == plugin.StatusError {
+				failRefusedTrace(t, resp.Error)
 			}
 		})
 	}
 }
 
 func TestHandleResolveTraceroute_TimeoutBoundary(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	tests := []struct {
 		name    string
 		args    []string
@@ -86,14 +93,17 @@ func TestHandleResolveTraceroute_TimeoutBoundary(t *testing.T) {
 			require.NoError(t, err)
 			if tt.wantErr {
 				assert.Equal(t, plugin.StatusError, resp.Status)
-			} else if resp.Status == plugin.StatusError && strings.Contains(resp.Error, "CAP_NET_RAW") {
-				t.Skipf("requires CAP_NET_RAW: %s", resp.Error)
+			} else if resp.Status == plugin.StatusError {
+				failRefusedTrace(t, resp.Error)
 			}
 		})
 	}
 }
 
 func TestHandleResolveTraceroute_ProbesBoundary(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	tests := []struct {
 		name    string
 		args    []string
@@ -112,8 +122,8 @@ func TestHandleResolveTraceroute_ProbesBoundary(t *testing.T) {
 			require.NoError(t, err)
 			if tt.wantErr {
 				assert.Equal(t, plugin.StatusError, resp.Status)
-			} else if resp.Status == plugin.StatusError && strings.Contains(resp.Error, "CAP_NET_RAW") {
-				t.Skipf("requires CAP_NET_RAW: %s", resp.Error)
+			} else if resp.Status == plugin.StatusError {
+				failRefusedTrace(t, resp.Error)
 			}
 		})
 	}

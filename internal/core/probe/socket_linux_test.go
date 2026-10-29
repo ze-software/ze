@@ -11,6 +11,8 @@ import (
 	"testing"
 
 	"golang.org/x/sys/unix"
+
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // readIntOption reads one integer socket option back from conn.
@@ -37,15 +39,12 @@ func readIntOption(t *testing.T, conn net.PacketConn, level, opt int) int {
 	return value
 }
 
-// openOrSkip opens the probe socket, and skips the test when the process
-// holds no CAP_NET_RAW: the option can only be read back off a socket that
-// opened. The QEMU run holds the capability and is where this test counts.
-func openOrSkip(t *testing.T, family Family, df DFMode) net.PacketConn {
+// openRawProbe opens the probe socket the options are read back from. Its
+// callers run in a user namespace of their own (userns.Enter), which holds
+// CAP_NET_RAW, so a refused raw socket fails the test.
+func openRawProbe(t *testing.T, family Family, df DFMode) net.PacketConn {
 	t.Helper()
 	conn, err := OpenICMP(context.Background(), family, netip.Addr{}, df)
-	if errors.Is(err, unix.EPERM) {
-		t.Skipf("raw ICMP socket needs CAP_NET_RAW: %v", err)
-	}
 	if err != nil {
 		t.Fatalf("OpenICMP(%v, %v): %v", family, df, err)
 	}
@@ -58,6 +57,9 @@ func openOrSkip(t *testing.T, family Family, df DFMode) net.PacketConn {
 // IP_PMTUDISC_PROBE, both with IP_RECVERR on, and DFOff is IP_PMTUDISC_DONT with IP_RECVERR left
 // at their kernel default so a probe with DF off is the probe of before.
 func TestOpenICMPInstallsDFMode(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	cases := []struct {
 		name     string
 		family   Family
@@ -72,7 +74,7 @@ func TestOpenICMPInstallsDFMode(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			conn := openOrSkip(t, tc.family, tc.df)
+			conn := openRawProbe(t, tc.family, tc.df)
 			opts := dfOptionsOf(tc.family)
 			if got := readIntOption(t, conn, opts.level, opts.mtuDiscover); got != tc.discover {
 				t.Errorf("IP_MTU_DISCOVER = %d, want %d", got, tc.discover)
@@ -84,7 +86,7 @@ func TestOpenICMPInstallsDFMode(t *testing.T) {
 	}
 
 	t.Run("v4-off-clears-the-bit", func(t *testing.T) {
-		conn := openOrSkip(t, FamilyIPv4, DFOff)
+		conn := openRawProbe(t, FamilyIPv4, DFOff)
 		opts := dfOptionsOf(FamilyIPv4)
 		if got := readIntOption(t, conn, opts.level, opts.mtuDiscover); got != unix.IP_PMTUDISC_DONT {
 			t.Errorf("DFOff left IP_MTU_DISCOVER = %d, want IP_PMTUDISC_DONT: the kernel's WANT default sets the DF bit too", got)

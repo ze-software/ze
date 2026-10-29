@@ -1,12 +1,14 @@
 // Design: docs/architecture/dns/server-harness.md -- IP_FREEBIND kernel wiring proof
 
-//go:build integration && linux
+//go:build linux
 
 package dnsserver
 
 import (
 	"context"
 	"testing"
+
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // VALIDATES: with Freebind enabled, the Control hook actually reaches the
@@ -16,6 +18,9 @@ import (
 // reaches the socket (the manager_test.go unit test only checks the Control
 // func is non-nil, not that the kernel honors it).
 func TestFreebindAllowsNonLocalBind(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	const nonLocalAddr = "203.0.113.5:0"
 
 	lc := ListenConfig(false)
@@ -26,7 +31,7 @@ func TestFreebindAllowsNonLocalBind(t *testing.T) {
 	lcFree := ListenConfig(true)
 	pc, err := lcFree.ListenPacket(context.Background(), "udp", nonLocalAddr)
 	if err != nil {
-		t.Skipf("IP_FREEBIND bind failed (needs CAP_NET_ADMIN): %v", err)
+		t.Fatalf("bind %s with IP_FREEBIND: %v", nonLocalAddr, err)
 	}
 	if cerr := pc.Close(); cerr != nil {
 		t.Fatalf("close: %v", cerr)

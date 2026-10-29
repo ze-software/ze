@@ -263,8 +263,9 @@ flow alone. A send the kernel refuses with `EMSGSIZE` is answered from the
 local entry the kernel queued, or from `probe.KernelPathMTU` when the drain
 finds none. Both matchers are the ones the ping session uses.
 
-`search_integration_linux_test.go` (`integration && linux`, run by
-`./le test qemu all`) proves the prober against the clamped
+`search_integration_linux_test.go` (`linux`; each test runs unprivileged in
+a user, network and mount namespace of its own through `userns.Enter`, so an
+ordinary `go test` on Linux runs it) proves the prober against the clamped
 three-namespace path of `active-probes.md`: the router's 1400 confirmed
 `via ICMP`; with the router's ICMP errors dropped on the sender (strict
 reverse-path filtering plus a blackhole route for the router's address,

@@ -66,9 +66,10 @@ type testbed struct {
 // newTestbed enters a fresh network namespace, builds the veth pair, and opens
 // the two packet sockets the tests read and write through.
 //
-// It SKIPS rather than fails when the namespace or the veth cannot be created.
-// One test file runs unprivileged in the merge gate and privileged in the
-// QEMU and container runs, and a missing capability is not a broken product.
+// It fails, never skips, when the namespace, the veth or a packet socket
+// cannot be created: every caller runs in a user namespace of its own
+// (userns.Enter), which holds CAP_NET_ADMIN and CAP_NET_RAW, so a refusal
+// there is a defect.
 func newTestbed(t *testing.T) *testbed {
 	t.Helper()
 
@@ -76,12 +77,12 @@ func newTestbed(t *testing.T) *testbed {
 	origin, err := netns.Get()
 	if err != nil {
 		runtime.UnlockOSThread()
-		t.Skipf("needs a network namespace of its own: %v", err)
+		t.Fatalf("get the current network namespace: %v", err)
 	}
 	if err := unix.Unshare(unix.CLONE_NEWNET); err != nil {
 		origin.Close() //nolint:errcheck // best-effort cleanup
 		runtime.UnlockOSThread()
-		t.Skipf("needs CAP_NET_ADMIN to unshare a network namespace: %v", err)
+		t.Fatalf("unshare a network namespace: %v", err)
 	}
 	t.Cleanup(func() {
 		if err := netns.Set(origin); err != nil {
@@ -110,7 +111,7 @@ func (b *testbed) buildVeth() {
 		PeerName: "zegtsm1",
 	}
 	if err := netlink.LinkAdd(veth); err != nil {
-		b.t.Skipf("needs CAP_NET_ADMIN to create a veth pair: %v", err)
+		b.t.Fatalf("create veth pair zegtsm0/zegtsm1: %v", err)
 	}
 
 	zeLink, err := netlink.LinkByName("zegtsm0")
@@ -244,7 +245,7 @@ func (b *testbed) openPacketSocket(ifIndex int) int {
 
 	fd, err := unix.Socket(unix.AF_PACKET, unix.SOCK_RAW, int(htons(unix.ETH_P_ALL)))
 	if err != nil {
-		b.t.Skipf("needs CAP_NET_RAW to open a packet socket: %v", err)
+		b.t.Fatalf("open a packet socket: %v", err)
 	}
 	b.t.Cleanup(func() { unix.Close(fd) }) //nolint:errcheck // best-effort cleanup
 

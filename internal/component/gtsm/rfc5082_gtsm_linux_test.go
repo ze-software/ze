@@ -18,7 +18,8 @@
 // runs a tagged unit with an empty build-tag set, so a unit behind that tag
 // matches nothing, `go test` exits 0, and no break can ever be observed to
 // redden it (plan/journal/gate-excludes-part-of-its-population.md, 2026-09-01).
-// They skip when the namespace, the veth or the packet socket is refused.
+// Each runs in a user namespace of its own (userns.Enter), so a refused
+// namespace, veth or packet socket fails it.
 
 package gtsm
 
@@ -42,6 +43,7 @@ import (
 	"github.com/ze-software/ze/internal/component/firewall"
 	"github.com/ze-software/ze/internal/core/network"
 	"github.com/ze-software/ze/internal/core/rtproto"
+	"github.com/ze-software/ze/internal/test/userns"
 
 	// The nft backend registers itself, which is what lets firewall.ApplyAll
 	// reach the kernel from this test binary. The receive proofs assert what
@@ -73,6 +75,9 @@ const (
 // peer leaves with TTL exactly 255, which is what RFC 5082 Section 3 requires
 // of the related ICMP error handling messages of a GTSM-enabled session.
 func TestGTSMTransmittedICMPErrorCarriesTTL255(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	bed := newTestbed(t)
 	installGTSMRoute(t, peerV4)
 
@@ -94,6 +99,9 @@ func TestGTSMTransmittedICMPErrorCarriesTTL255(t *testing.T) {
 // withdrawn, an ICMPv4 error the kernel generates toward the same peer leaves
 // with the system default TTL instead of 255.
 func TestGTSMTransmittedICMPErrorWithoutTheRouteMetricIsNot255(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	bed := newTestbed(t)
 	installGTSMRoute(t, peerV4)
 	withdrawGTSMRoute(t, peerV4)
@@ -118,6 +126,9 @@ func TestGTSMTransmittedICMPErrorWithoutTheRouteMetricIsNot255(t *testing.T) {
 // installs for a GTSM peer, an ICMPv6 error the kernel generates toward that
 // peer leaves with hop limit exactly 255.
 func TestGTSMTransmittedICMPv6ErrorCarriesHopLimit255(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	bed := newTestbed(t)
 	installGTSMRoute(t, peerV6)
 
@@ -136,6 +147,9 @@ func TestGTSMTransmittedICMPv6ErrorCarriesHopLimit255(t *testing.T) {
 // withdrawn, an ICMPv6 error the kernel generates toward the same peer leaves
 // with the interface's default hop limit instead of 255.
 func TestGTSMTransmittedICMPv6ErrorWithoutTheRouteMetricIsNot255(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	bed := newTestbed(t)
 	installGTSMRoute(t, peerV6)
 	withdrawGTSMRoute(t, peerV6)
@@ -200,6 +214,9 @@ func sessionQuote() []byte {
 // address or another host's, which is the verification RFC 5082 Section 6.1
 // mandates for related messages.
 func TestGTSMDropsADangerousQuotedICMPError(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	cases := []quotedICMPv4Case{
 		{name: "from the peer", source: peerV4, quoted: sessionQuote()},
 		{name: "from another host", source: otherHostV4, quoted: sessionQuote()},
@@ -238,6 +255,9 @@ func TestGTSMDropsADangerousQuotedICMPError(t *testing.T) {
 // matched by no drop rule and reaches the kernel's ICMP receive path, so a
 // related message carrying the TTL RFC 5082 Section 3 mandates is delivered.
 func TestGTSMDeliversAQuotedICMPErrorAtTTL255(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	cases := []quotedICMPv4Case{
 		{name: "from the peer", source: peerV4, quoted: sessionQuote()},
 		{name: "from another host", source: otherHostV4, quoted: sessionQuote()},
@@ -286,6 +306,9 @@ var quotedOptionsSpellingTheBGPPort = []byte{0x00, bgpPort, 0x00, bgpPort}
 // destination, or when its quoted header carries IP options, so GTSM
 // processing drops no message classified Unknown.
 func TestGTSMDeliversAnICMPErrorNoSessionClaims(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	cases := []quotedICMPv4Case{
 		{
 			name:   "another port of the peer",
@@ -337,6 +360,9 @@ func TestGTSMDeliversAnICMPErrorNoSessionClaims(t *testing.T) {
 // limit is below the floor is discarded by the kernel and counted in
 // TCPMinTTLDrop, so it never reaches the session it claims to be about.
 func TestGTSMMinHopCountDropsALowHopLimitICMPv6Error(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	bed := newTestbed(t)
 	fd := bed.connectWithMinHopCount(t, 255)
 
@@ -362,6 +388,9 @@ func TestGTSMMinHopCountDropsALowHopLimitICMPv6Error(t *testing.T) {
 // its own hop limit at 255 passes the IPV6_MINHOPCOUNT comparison, is not
 // counted in TCPMinTTLDrop, and reaches the session, which reports the error.
 func TestGTSMWithoutMinHopCountDeliversTheSameICMPv6Error(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	bed := newTestbed(t)
 	fd := bed.connectWithMinHopCount(t, 255)
 

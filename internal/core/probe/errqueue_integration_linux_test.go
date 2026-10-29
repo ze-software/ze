@@ -1,4 +1,4 @@
-//go:build integration && linux
+//go:build linux
 
 // Design: docs/architecture/diagnostics/active-probes.md -- the error queue proven against the kernel
 //
@@ -21,8 +21,9 @@
 // The router forwards and its far-side link is clamped to 1400, so a
 // 1500-octet DF datagram from the sender is refused there with
 // Fragmentation Needed (or Packet Too Big) reporting 1400. Every test
-// skips, never fails, when the namespaces or the raw socket are out of
-// reach: the QEMU runner (./le test qemu all) is where they run for real.
+// runs in a user namespace of its own (userns.Enter), which holds
+// CAP_NET_ADMIN and CAP_NET_RAW, so a refused namespace, link or raw socket
+// fails it.
 
 package probe
 
@@ -42,6 +43,8 @@ import (
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 	"golang.org/x/sys/unix"
+
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // The addresses and sizes of the clamped path.
@@ -84,19 +87,17 @@ type clampedPath struct {
 
 // withClampedPath builds the topology, leaves the calling goroutine locked
 // to its thread and inside the sender namespace, runs fn, and tears
-// everything down. It skips, never fails, when a namespace or a link cannot
-// be created.
+// everything down. It fails, never skips, when a namespace or a link cannot
+// be created: every caller runs in a user namespace of its own
+// (userns.Enter), which holds CAP_NET_ADMIN and CAP_NET_RAW.
 func withClampedPath(t *testing.T, fn func(p *clampedPath)) {
 	t.Helper()
-	if os.Geteuid() != 0 {
-		t.Skip("requires root: network namespaces, veth links and raw sockets")
-	}
 	runtime.LockOSThread()
 	t.Cleanup(runtime.UnlockOSThread)
 
 	orig, err := netns.Get()
 	if err != nil {
-		t.Skipf("requires CAP_NET_ADMIN: current namespace: %v", err)
+		t.Fatalf("get the current network namespace: %v", err)
 	}
 	t.Cleanup(func() {
 		if setErr := netns.Set(orig); setErr != nil {
@@ -150,7 +151,7 @@ func newNamespace(t *testing.T, orig netns.NsHandle, name string) netns.NsHandle
 	t.Helper()
 	ns, err := netns.NewNamed(name)
 	if err != nil {
-		t.Skipf("requires CAP_NET_ADMIN: create namespace %s: %v", name, err)
+		t.Fatalf("create network namespace %s: %v", name, err)
 	}
 	// NewNamed moves the thread into the new namespace; go back at once.
 	if setErr := netns.Set(orig); setErr != nil {
@@ -181,7 +182,7 @@ func addVeth(t *testing.T, h *netlink.Handle, name, peer string, peerNS netns.Ns
 	veth.Name = name
 	veth.MTU = pathLinkMTU
 	if err := h.LinkAdd(veth); err != nil {
-		t.Skipf("add veth %s/%s (needs CAP_NET_ADMIN): %v", name, peer, err)
+		t.Fatalf("add veth %s/%s: %v", name, peer, err)
 	}
 }
 
@@ -277,15 +278,12 @@ func (p *clampedPath) setFarLinkMTU(t *testing.T, mtu int) {
 	}
 }
 
-// openProbe opens a probe socket in the sender namespace, skipping when the
+// openProbe opens a probe socket in the sender namespace, failing when the
 // raw socket is refused.
 func openProbe(t *testing.T, family Family, df DFMode) *Socket {
 	t.Helper()
 	conn, err := OpenICMP(context.Background(), family, netip.Addr{}, df)
 	if err != nil {
-		if errors.Is(err, unix.EPERM) {
-			t.Skipf("requires CAP_NET_RAW: %v", err)
-		}
 		t.Fatalf("OpenICMP(%v, %v): %v", family, df, err)
 	}
 	t.Cleanup(func() { conn.Close() }) //nolint:errcheck // best-effort cleanup
@@ -369,6 +367,9 @@ func drainAll(t *testing.T, conn *Socket, _ Family) []QueuedError {
 // ordinary read returns EMSGSIZE once, which is what the ping receiver
 // relies on to ask for a drain.
 func TestProbeErrorQueueReportsNextHopMTU(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withClampedPath(t, func(_ *clampedPath) {
 		for _, df := range []DFMode{DFHonorCache, DFBypassCache} {
 			conn := openProbe(t, FamilyIPv4, df)
@@ -412,6 +413,9 @@ func TestProbeErrorQueueReportsNextHopMTU(t *testing.T) {
 // TestProbeErrorQueueReportsNextHopMTUIPv6 is A-1 for IPv6: a Packet Too
 // Big from the router reaches the queue with the clamp.
 func TestProbeErrorQueueReportsNextHopMTUIPv6(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withClampedPath(t, func(_ *clampedPath) {
 		conn := openProbe(t, FamilyIPv6, DFBypassCache)
 		const id, seq = 0x5a06, 4
@@ -451,6 +455,9 @@ func TestProbeErrorQueueReportsNextHopMTUIPv6(t *testing.T) {
 // path and is answered: the disagreement is the proof the cache was
 // bypassed.
 func TestProbeBypassCacheDisagreesWithPoisonedCache(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withClampedPath(t, func(p *clampedPath) {
 		honor := openProbe(t, FamilyIPv4, DFHonorCache)
 		const id = 0x5a02
@@ -506,6 +513,9 @@ func TestProbeBypassCacheDisagreesWithPoisonedCache(t *testing.T) {
 // foreign entries is logged: zero means the kernel matched per flow, more
 // means it matched per protocol and Ze's quoted-echo match is the defense.
 func TestProbeErrorQueueAndAnotherFlow(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withClampedPath(t, func(_ *clampedPath) {
 		first := openProbe(t, FamilyIPv4, DFBypassCache)
 		second := openProbe(t, FamilyIPv4, DFBypassCache)
@@ -559,6 +569,9 @@ func TestProbeErrorQueueAndAnotherFlow(t *testing.T) {
 // set for a DF mode, clear for DFOff. The probe is small enough to cross
 // the clamp so the capture sees a forwarded datagram, not a refusal.
 func TestProbeDFBitOnTheWire(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withClampedPath(t, func(p *clampedPath) {
 		capture := openCapture(t, p, "rs0")
 		cases := []struct {
@@ -601,7 +614,7 @@ func openCapture(t *testing.T, p *clampedPath, name string) int {
 	proto := int(htons(unix.ETH_P_IP))
 	fd, err := unix.Socket(unix.AF_PACKET, unix.SOCK_RAW|unix.SOCK_CLOEXEC, proto)
 	if err != nil {
-		t.Skipf("requires CAP_NET_RAW: AF_PACKET socket: %v", err)
+		t.Fatalf("open the AF_PACKET capture socket: %v", err)
 	}
 	t.Cleanup(func() { unix.Close(fd) }) //nolint:errcheck // best-effort cleanup
 	if err := unix.Bind(fd, &unix.SockaddrLinklayer{Protocol: htons(unix.ETH_P_IP), Ifindex: link.Attrs().Index}); err != nil {

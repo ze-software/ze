@@ -1,4 +1,4 @@
-//go:build integration && linux
+//go:build linux
 
 // Design: docs/architecture/diagnostics/active-probes.md -- the unprivileged fallback proven against the kernel
 //
@@ -26,11 +26,14 @@ import (
 	"net/netip"
 	"os"
 	"runtime"
+	"strconv"
 	"strings"
 	"syscall"
 	"testing"
 
 	"golang.org/x/sys/unix"
+
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // pingGroupRangePath is the sender namespace's copy of the sysctl: the
@@ -82,6 +85,9 @@ func dropNetRawOnThisThread(t *testing.T) {
 // quoting the identifier the kernel assigned, which is the one the Socket
 // reports.
 func TestProbeUnprivilegedSocketReportsNextHopMTU(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withClampedPath(t, func(_ *clampedPath) {
 		setPingGroupRange(t, "0 0")
 		dropNetRawOnThisThread(t)
@@ -130,12 +136,45 @@ func TestProbeUnprivilegedSocketReportsNextHopMTU(t *testing.T) {
 	})
 }
 
+// requireGroupOutsidePingRange fails unless the calling process's group lies
+// outside the sender namespace's ping_group_range. A new network namespace
+// starts with the kernel's disabled default, "1 0", which admits no group. The
+// test cannot write that value itself: in the user namespace userns.Enter
+// creates only gid 0 is mapped, and ipv4_ping_group_range answers EINVAL for a
+// gid the writer's namespace does not map (make_kgid). Read back there, the
+// default is the overflow gid twice, "65534 65534", so the check is on the
+// range the kernel reports rather than on its spelling.
+func requireGroupOutsidePingRange(t *testing.T) {
+	t.Helper()
+	raw, err := os.ReadFile(pingGroupRangePath)
+	if err != nil {
+		t.Fatalf("read %s: %v", pingGroupRangePath, err)
+	}
+	fields := strings.Fields(string(raw))
+	if len(fields) != 2 {
+		t.Fatalf("%s reads %q, want two group ids", pingGroupRangePath, raw)
+	}
+	low, lowErr := strconv.Atoi(fields[0])
+	high, highErr := strconv.Atoi(fields[1])
+	if lowErr != nil || highErr != nil {
+		t.Fatalf("%s reads %q, want two group ids", pingGroupRangePath, raw)
+	}
+	gid := os.Getgid()
+	if low <= gid && gid <= high {
+		t.Fatalf("%s is %d-%d, which admits this process's group %d", pingGroupRangePath, low, high, gid)
+	}
+}
+
 // TestProbeUnprivilegedSocketNeedsThePingGroupRange proves the range is
-// what admits the datagram socket: with the kernel's disabled default, no
-// socket opens and the error names both fixes.
+// what admits the datagram socket: with the process's group outside the
+// range (the kernel's disabled default of a new namespace), no socket opens
+// and the error names both fixes.
 func TestProbeUnprivilegedSocketNeedsThePingGroupRange(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withClampedPath(t, func(_ *clampedPath) {
-		setPingGroupRange(t, "1 0")
+		requireGroupOutsidePingRange(t)
 		dropNetRawOnThisThread(t)
 		sock, err := OpenICMP(context.Background(), FamilyIPv4, netip.Addr{}, DFHonorCache)
 		if err == nil {
@@ -160,6 +199,9 @@ func TestProbeUnprivilegedSocketNeedsThePingGroupRange(t *testing.T) {
 // against the live datagram opener: a raw refusal that is not privilege,
 // with ping_group_range open, answers the raw refusal and opens nothing.
 func TestProbeUnprivilegedFallbackIsNotTriedForOtherRefusals(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withClampedPath(t, func(_ *clampedPath) {
 		setPingGroupRange(t, "0 0")
 		openRawICMP = func(context.Context, string, string, func(string, string, syscall.RawConn) error) (net.PacketConn, error) {
@@ -186,6 +228,9 @@ func TestProbeUnprivilegedFallbackIsNotTriedForOtherRefusals(t *testing.T) {
 // the other's queue stays empty, because the kernel looks the socket up by
 // the quoted identifier before queueing.
 func TestProbeUnprivilegedSocketIgnoresAnotherFlow(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	withClampedPath(t, func(_ *clampedPath) {
 		setPingGroupRange(t, "0 0")
 		dropNetRawOnThisThread(t)
