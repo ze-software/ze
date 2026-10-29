@@ -32,7 +32,8 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   Every RFC a profile lists, required or optional, has a valid summary. A
   release profile needs every
   mandatory requirement (MUST, MUST NOT, SHALL, SHALL NOT, REQUIRED) of every
-  declared RFC covered before release, and work moves from root RFCs to
+  declared RFC covered before release, except a requirement the operating
+  system blocks because Linux cannot provide its primitive, and work moves from root RFCs to
   leaves, except where a leaf updates a root's requirements. A requirement
   counts as covered only when a recorded break proved its test goes red.
   Optional requirements (SHOULD, SHOULD NOT, RECOMMENDED, NOT RECOMMENDED,
@@ -66,8 +67,9 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   correctness.
 - A requirement the operating system blocks, because Linux cannot provide the
   primitive it needs and a verified limit entry shows it, is reported in a
-  section of its own, apart from the figure for Ze's own code, and stays
-  unmet there.
+  section of its own as a limit of the kernel. It is not missing coverage in
+  Ze's code, so it never counts against Ze's mandatory coverage or holds a
+  release.
 - An agreed design answers the questions that follow from it.
 
 ## ExaBGP compatibility
