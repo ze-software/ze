@@ -104,8 +104,15 @@ func (l *txLock) acquire(ctx context.Context) error {
 }
 
 // setCancel records the cancel function of the transaction now holding the
-// lock. The holder calls it right after tryAcquire.
+// lock, and marks its acceptance scope as one that entered the transaction.
+// The holder calls it right after tryAcquire. The scope's own mutex is taken
+// and released before l.mu, so no lock order between the two is introduced.
 func (l *txLock) setCancel(cancel context.CancelCauseFunc, acceptance *reloadAcceptance) {
+	if acceptance != nil {
+		acceptance.mu.Lock()
+		acceptance.entered = true
+		acceptance.mu.Unlock()
+	}
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.cancel = cancel

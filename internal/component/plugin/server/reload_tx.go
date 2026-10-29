@@ -63,11 +63,16 @@ type reloadAcceptance struct {
 	compensation   *reloadCompensation
 	previous       *reloadAcceptance
 	claimed        bool
-	accepted       bool
-	completeOnce   sync.Once
-	batches        []*reloadOperationBatch
-	finishDone     chan struct{}
-	finishErr      error
+	// entered records that a transaction of this scope held the lock
+	// (txLock.setCancel). A scope that never entered owns no compensation,
+	// no removal and no place in the owner chain, so its abort has nothing
+	// to wait for.
+	entered      bool
+	accepted     bool
+	completeOnce sync.Once
+	batches      []*reloadOperationBatch
+	finishDone   chan struct{}
+	finishErr    error
 }
 
 // DeferReloadAcceptance keeps irreversible plugin cleanup pending across the
@@ -130,7 +135,7 @@ func (a *reloadAcceptance) finishWithLock(accepted, acquire bool) (result error)
 	a.finishDone = make(chan struct{})
 	a.accepted = accepted
 	transactions := a.transactions
-	claimed, previous := a.claimed, a.previous
+	claimed, previous, entered := a.claimed, a.previous, a.entered
 	a.mu.Unlock()
 	defer func() {
 		if accepted && result != nil {
@@ -141,6 +146,16 @@ func (a *reloadAcceptance) finishWithLock(accepted, acquire bool) (result error)
 		close(a.finishDone)
 		a.mu.Unlock()
 	}()
+	if !accepted && !entered {
+		// The scope never entered the lock itself: a reload refused before it
+		// took the lock (ErrReloadInProgress) or failed before it ran, or a
+		// restoring scope running under its parent's lock. It owns no claim
+		// and no removal. Waiting for the lock here would block the caller
+		// behind another transaction it never joined, so a queued SIGHUP
+		// could not see shutdown begin until that holder ended.
+		a.complete(false)
+		return nil
+	}
 	ctx = context.WithValue(ctx, reloadAcceptanceKey{}, a)
 	if acquire && !accepted {
 		if err := a.server.txLock.acquire(ctx); err != nil {

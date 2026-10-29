@@ -293,6 +293,14 @@ which returns `func(bool) error`. The caller MUST call it with `true` only after
 listener migration and durable candidate publication succeed, and MUST collect
 the error from rejection on earlier exits. A standalone `Server.ReloadConfig`
 or `ReloadFromDisk` accepts at return and returns completion failures too.
+Rejecting a scope that never entered the transaction lock itself completes it
+at once: a SIGHUP reload refused with `ErrReloadInProgress`, a reload that
+failed before it ran, or a restoring scope that runs under its parent's lock.
+Such a scope owns no compensation and no removal, so it does not wait for
+another transaction's lock, and a queued SIGHUP sees shutdown begin while
+another transaction still holds the lock.
+<!-- source: internal/component/plugin/server/reload.go -- setCancel -->
+<!-- source: internal/component/plugin/server/reload_tx.go -- finishWithLock -->
 
 `OnConfigComplete` declares `config-completion` at Stage 1. For each committed
 transaction, the server captures its participant processes, callback connections
