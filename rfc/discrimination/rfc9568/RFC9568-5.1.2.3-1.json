@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC9568-5.1.2.3-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/transport/transport_integration_linux_test.go::TestIntegrationOpenInstanceSocketOptions",
+    "unit-sha": "8adfa2c7a95d440c",
+    "claim-sha": "572af2a9238746ae",
+    "route": "mutant",
+    "producer": "internal/plugins/vrrp/transport/backend_linux.go::openV6",
+    "producer-sha": "f8b193c5e6aef01e",
+    "break": "line 187: \"unix.IPV6_MULTICAST_HOPS, 255\" -\u003e \"unix.IPV6_MULTICAST_HOPS, 254\""
+  }
+]

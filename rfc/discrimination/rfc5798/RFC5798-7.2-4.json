@@ -3,23 +3,23 @@
     "rid": "RFC5798-7.2-4",
     "polarity": "positive",
     "unit": "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire",
-    "unit-sha": "d1defdd9ea537b29",
+    "unit-sha": "2c1808e9d4f25ccb",
     "claim-sha": "ad73c998201cc19c",
     "route": "revert",
     "producer": "internal/plugins/vrrp/transport/transport.go::buildIPv4Header",
     "producer-sha": "e64c42f1d89bd574",
-    "break": "body of buildIPv4Header replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of buildIPv4Header replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC5798-7.2-4",
     "polarity": "positive",
     "unit": "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV6OnWire",
-    "unit-sha": "c0d31136fc3806c0",
+    "unit-sha": "3f7ec5e29f9887ff",
     "claim-sha": "1476c90b23c5c8a1",
     "route": "revert",
     "producer": "internal/plugins/vrrp/transport/backend_linux.go::SendAdvert",
     "producer-sha": "9265e212af6e45ac",
-    "break": "body of SendAdvert replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of SendAdvert replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC5798-7.2-4",

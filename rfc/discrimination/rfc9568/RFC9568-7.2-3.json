@@ -3,23 +3,23 @@
     "rid": "RFC9568-7.2-3",
     "polarity": "positive",
     "unit": "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire",
-    "unit-sha": "d1defdd9ea537b29",
+    "unit-sha": "2c1808e9d4f25ccb",
     "claim-sha": "e09cb63d36fdba9a",
     "route": "revert",
     "producer": "internal/plugins/vrrp/transport/transport.go::resolveParentPrimaryV4",
     "producer-sha": "93e7bfe0ac1b9d0c",
-    "break": "body of resolveParentPrimaryV4 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of resolveParentPrimaryV4 replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC9568-7.2-3",
     "polarity": "positive",
     "unit": "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV6OnWire",
-    "unit-sha": "c0d31136fc3806c0",
+    "unit-sha": "3f7ec5e29f9887ff",
     "claim-sha": "c57823c02d829d32",
     "route": "revert",
     "producer": "internal/plugins/vrrp/transport/backend_linux.go::macvlanLinkLocal",
     "producer-sha": "2d43fc431a81100c",
-    "break": "body of macvlanLinkLocal replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of macvlanLinkLocal replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC9568-7.2-3",

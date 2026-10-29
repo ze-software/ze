@@ -25,22 +25,22 @@
     "rid": "RFC9568-7.1-4",
     "polarity": "positive",
     "unit": "internal/plugins/vrrp/transport/rfc_rx_iface_verdict_linux_test.go::TestRxAdvertScopedToReceivingInterface",
-    "unit-sha": "fdb504bb0624f1b3",
+    "unit-sha": "e51f79d8e40d498d",
     "claim-sha": "8c17c374dfceca0a",
     "route": "revert",
     "producer": "internal/plugins/vrrp/transport/backend_linux.go::openV4",
-    "producer-sha": "c97d0a6c20eda0c8",
-    "break": "body of openV4 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "f69e23ac69cc1202",
+    "break": "body of openV4 replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC9568-7.1-4",
     "polarity": "negative",
     "unit": "internal/plugins/vrrp/transport/rfc_rx_iface_verdict_linux_test.go::TestRxAdvertScopedToReceivingInterface",
-    "unit-sha": "fdb504bb0624f1b3",
+    "unit-sha": "e51f79d8e40d498d",
     "claim-sha": "52744d34625721a9",
     "route": "revert",
     "producer": "internal/plugins/vrrp/transport/backend_linux.go::openRawIP",
     "producer-sha": "d25b5c54b893dffa",
-    "break": "body of openRawIP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of openRawIP replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

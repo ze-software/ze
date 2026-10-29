@@ -3,22 +3,22 @@
     "rid": "RFC9568-8.2.1-2",
     "polarity": "positive",
     "unit": "internal/plugins/vrrp/redirect_v6_integration_linux_test.go::TestVRRPIPv6RedirectFollowsVirtualMAC",
-    "unit-sha": "a07308db6b6d1d10",
+    "unit-sha": "861ec1146ea51d36",
     "claim-sha": "0c211406e1c25b7d",
     "route": "revert",
     "producer": "internal/plugins/vrrp/packet/packet.go::VirtualMAC",
     "producer-sha": "cdd77c9a8bee9c78",
-    "break": "body of VirtualMAC replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of VirtualMAC replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC9568-8.2.1-2",
     "polarity": "negative",
     "unit": "internal/plugins/vrrp/redirect_v6_integration_linux_test.go::TestVRRPIPv6RedirectFollowsVirtualMAC",
-    "unit-sha": "a07308db6b6d1d10",
+    "unit-sha": "861ec1146ea51d36",
     "claim-sha": "07d7bc9c3243f721",
     "route": "revert",
     "producer": "internal/plugins/vrrp/dataplane_linux.go::applyDataplaneSysctls",
     "producer-sha": "18af7d2e3bff87a5",
-    "break": "body of applyDataplaneSysctls replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of applyDataplaneSysctls replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

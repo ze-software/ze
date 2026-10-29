@@ -23,24 +23,24 @@
   },
   {
     "rid": "RFC5798-6.4.3-5",
-    "polarity": "negative",
-    "unit": "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPBackupDoesNotForwardVirtualMACFrames",
-    "unit-sha": "bdc10717c49ebd8d",
-    "claim-sha": "3a4c3f5a617fef72",
-    "route": "revert",
-    "producer": "internal/plugins/vrrp/backupfilter.go::clearBackupFilter",
-    "producer-sha": "0ed7e2c78aa93d89",
-    "break": "body of clearBackupFilter replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-  },
-  {
-    "rid": "RFC5798-6.4.3-5",
     "polarity": "positive",
     "unit": "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPBackupDoesNotForwardVirtualMACFrames",
-    "unit-sha": "bdc10717c49ebd8d",
+    "unit-sha": "c3053cc85224f5d3",
     "claim-sha": "63f3252e26a36ffc",
     "route": "revert",
     "producer": "internal/plugins/vrrp/backupfilter.go::clearBackupFilter",
     "producer-sha": "0ed7e2c78aa93d89",
-    "break": "body of clearBackupFilter replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of clearBackupFilter replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5798-6.4.3-5",
+    "polarity": "negative",
+    "unit": "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPBackupDoesNotForwardVirtualMACFrames",
+    "unit-sha": "c3053cc85224f5d3",
+    "claim-sha": "3a4c3f5a617fef72",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/backupfilter.go::clearBackupFilter",
+    "producer-sha": "0ed7e2c78aa93d89",
+    "break": "body of clearBackupFilter replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]
