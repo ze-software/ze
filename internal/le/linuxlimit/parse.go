@@ -35,13 +35,21 @@ var (
 	limitModule = regexp.MustCompile(`^module (\S+) (v\S+), (\S+)$`)
 )
 
+// The field names an entry carries, as the register page spells them.
+const (
+	fieldKind    = "Kind"
+	fieldEffect  = "Effect"
+	fieldStatus  = "Status"
+	fieldChecked = "Checked"
+)
+
 var limitFieldValues = map[string][]string{
-	"Kind":   {"kernel", "library"},
-	"Effect": {"blocks", "constrains design"},
-	"Status": {"verified", "unverified"},
+	fieldKind:   {"kernel", "library"},
+	fieldEffect: {"blocks", "constrains design"},
+	fieldStatus: {"verified", "unverified"},
 }
 
-var limitRequiredFields = []string{"Kind", "Effect", "Status", "Checked"}
+var limitRequiredFields = []string{fieldKind, fieldEffect, fieldStatus, fieldChecked}
 
 // ValidID reports whether id uses the register's capitals, digits and dashes.
 func ValidID(id string) bool {
@@ -70,15 +78,15 @@ func Parse(page string) ([]Entry, []string) {
 					" line; add `- **"+field+":** ...` in the form the page header gives")
 			}
 		}
-		e.Kind, e.Effect, e.Status = fields["Kind"], fields["Effect"], fields["Status"]
-		e.Checked = fields["Checked"]
+		e.Kind, e.Effect, e.Status = fields[fieldKind], fields[fieldEffect], fields[fieldStatus]
+		e.Checked = fields[fieldChecked]
 		e.Blocks, e.Evidence, e.ReCheck = fields["Blocks"], fields["Evidence"], fields["Re-check"]
 		for _, field := range limitRequiredFields {
 			value, ok := fields[field]
 			if !ok {
 				continue
 			}
-			if field == "Checked" {
+			if field == fieldChecked {
 				problems = append(problems, readLimitChecked(e, value)...)
 				continue
 			}
@@ -143,7 +151,7 @@ func Parse(page string) ([]Entry, []string) {
 			continue
 		}
 		switch m[1] {
-		case "Kind", "Effect", "Status", "Checked", "Limitation", "Blocks", "Evidence", "Alternatives", "Re-check", "Ze meanwhile":
+		case fieldKind, fieldEffect, fieldStatus, fieldChecked, "Limitation", "Blocks", "Evidence", "Alternatives", "Re-check", "Ze meanwhile":
 		default:
 			problems = append(problems, "entry "+entries[len(entries)-1].ID+" has unknown field "+
 				strconv.Quote(m[1])+"; use a field named in the page header")

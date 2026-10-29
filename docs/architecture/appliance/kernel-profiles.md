@@ -113,7 +113,7 @@ entry at the new release and update its `Checked` line.
 `TestLinuxLimitsCheckedAtShippedVersions` reads the register through the shared
 `linuxlimit.Parse` parser and fails while any entry names another release.
 <!-- source: internal/appliance/linux_limits_test.go -- TestLinuxLimitsCheckedAtShippedVersions -->
-<!-- source: internal/le/linuxlimit/register.go -- Parse -->
+<!-- source: internal/le/linuxlimit/parse.go -- Parse -->
 
 The runtime profile requires `CONFIG_XFRM_MIGRATE` for atomic MOBIKE state
 migration and `CONFIG_MPLS_IP_MTU` for native labeled-IP fragmentation and ICMP.

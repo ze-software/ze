@@ -59,7 +59,7 @@ new version, update `Checked`, and lift any entry the new source no longer
 supports.
 
 <!-- source: internal/appliance/linux_limits_test.go -- TestLinuxLimitsCheckedAtShippedVersions -->
-<!-- source: internal/le/linuxlimit/register.go -- Parse, ValidID, readLimitChecked -->
+<!-- source: internal/le/linuxlimit/parse.go -- Parse, ValidID, readLimitChecked -->
 
 An RFC row can name an entry as `{linux-limit: LL-<ID>; <reason>}` only when
 its `Kind` is `kernel`, its `Effect` is `blocks`, and its `Status` is `verified`.
