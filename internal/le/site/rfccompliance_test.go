@@ -2165,7 +2165,7 @@ func TestTheComplianceIndexShowsEachRFCsFigures(t *testing.T) {
 		MandatoryProven: 3, MandatoryTotal: 4, MandatoryAttainable: 4,
 		OptionalProven: 1, OptionalTotal: 2, OptionalAttainable: 2}
 	ledger.Profiles = []*rfc.TreeReport{{Profile: "widgets", Kind: "use-case",
-		Rollup: &rfc.ScopeRollup{Rollup: rfc.Rollup{RFCs: 1}}, Rows: []*rfc.TreeRow{row}}}
+		Rollup: &rfc.ScopeRollup{RFCs: 1}, Rows: []*rfc.TreeRow{row}}}
 	paths := rfcCompliancePathsWith(t, publishedRFCComplianceRef(t), ledger)
 	if _, err := renderRFCCompliance(paths); err != nil {
 		t.Fatal(err)

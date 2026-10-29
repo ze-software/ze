@@ -232,10 +232,10 @@ func nativeActionsIn(source string) []string {
 		}
 		// The fourth word was read only for a three-word command; a shorter
 		// command's nested line starts after its verb.
-		if third != "" {
-			match[1] = match[13]
-		} else {
+		if third == "" {
 			match[1] = match[9]
+		} else {
+			match[1] = match[13]
 		}
 		if leroot.LookupCommand(first+" "+second) != nil {
 			if third == "" {

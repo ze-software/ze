@@ -113,7 +113,8 @@ func renderEnrolled(metas map[string]Meta) string {
 	stems := sortMetaStems(metas)
 	var enrolled []string
 	for _, stem := range stems {
-		if metas[stem].Enrolled() {
+		meta := metas[stem]
+		if meta.Enrolled() {
 			enrolled = append(enrolled, stem)
 		}
 	}
@@ -271,7 +272,7 @@ func renderStatusPage(metas map[string]Meta, aggregates map[string]Aggregate, le
 		}
 		for index := range rows {
 			row := &rows[index]
-			tb.Str("| ").Str(publicRowName(row.Stem, row.Meta)).Str(" | ").Str(row.Meta.Area).
+			tb.Str("| ").Str(publicRowName(row.Stem, &row.Meta)).Str(" | ").Str(row.Meta.Area).
 				Str(" | ").Str(row.Meta.Status).Str(" | ")
 			if !brief {
 				tb.Str(proofCell(proof[row.Stem])).Str(" | ")

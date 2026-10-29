@@ -205,6 +205,12 @@ func parsePartial(rest, where string) (*Annotation, error) {
 	return a, nil
 }
 
+// The two selectors a {partial} annotation names, as its refusals spell them.
+const (
+	partialSelectorTested = "tested"
+	partialSelectorGap    = "gap"
+)
+
 // partialScopeRefusal checks locators, not new requirements. The parent still
 // owes the unchanged source, section and minimum-length checks.
 func partialScopeRefusal(req *Requirement) string {
@@ -217,7 +223,7 @@ func partialScopeRefusal(req *Requirement) string {
 	parent := quoteNeedle(req.Quote())
 	tested := quoteNeedle(req.Annotation.Tested)
 	gap := quoteNeedle(req.Annotation.Gap)
-	for _, selector := range []struct{ name, text string }{{"tested", tested}, {"gap", gap}} {
+	for _, selector := range []struct{ name, text string }{{partialSelectorTested, tested}, {partialSelectorGap, gap}} {
 		if selector.text == "" {
 			return selector.name + " selector is empty"
 		}

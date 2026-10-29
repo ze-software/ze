@@ -461,7 +461,7 @@ func TestLinuxLimitCreateRefusesSelectedAncestorSymlink(t *testing.T) {
 			}
 			writeCommitFixture(t, root, ancestor, "unselected regular ancestor\n")
 			_, err := Create(root, &Options{Subject: "selected linked ancestor", DryRun: true,
-				Hunks: []HunkSelection{{Path: ancestor, Patch: filepath.Join(root, "tmp/ancestor.patch")}}})
+				Hunks: []HunkSelection{{Path: ancestor, Patch: filepath.Join(root, "tmp", "ancestor.patch")}}})
 			assertLinuxLimitAncestorRefusal(t, ancestor, err)
 		})
 	}
@@ -544,7 +544,7 @@ func TestLinuxLimitCreateIgnoresUnselectedAncestorLinks(t *testing.T) {
 					linuxLimitSummary: before, target: before,
 				}, nil)
 				patch := writeHunkPatch(t, root, linuxLimitSummary, after, before)
-				if err := os.Rename(filepath.Join(root, ancestor), filepath.Join(root, "tmp/saved-ancestor")); err != nil {
+				if err := os.Rename(filepath.Join(root, ancestor), filepath.Join(root, "tmp", "saved-ancestor")); err != nil {
 					t.Fatal(err)
 				}
 				writeLinuxLimitAncestorSymlink(t, root, ancestor)

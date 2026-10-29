@@ -17,41 +17,47 @@ import (
 	verifyengine "github.com/ze-software/ze/internal/le/verify/engine"
 )
 
+// The vocabulary verbs the names of this area perform.
+const (
+	doesCheck = "check"
+	doesRun   = "run"
+)
+
 type actionRunner func(context.Context, string, string, verifyengine.Part) (Report, int)
 
 func actionTable(run actionRunner) leaction.Area {
 	return leaction.New(Area,
 		leaction.Action{
 			Verb:    VerbEvidenceVet,
-			Does:    "check",
+			Does:    doesCheck,
 			Summary: "vet the Linux evidence-script packages",
 			Why:     "vet the Linux evidence-script package population without feature tags",
 			Answer:  actionAnswer(VerbEvidenceVet, run),
 		},
 		leaction.Action{
 			Verb:    VerbVulnerability,
-			Does:    "check",
+			Does:    doesCheck,
 			Summary: "scan the dependency graph with govulncheck",
 			Why:     "scan the Linux/amd64 dependency graph with an installed govulncheck",
 			Answer:  actionAnswer(VerbVulnerability, run),
 		},
 		leaction.Action{
 			Verb:    VerbUnitCached,
-			Does:    "run",
+			Does:    doesRun,
 			Summary: "run the cacheable non-race package pass",
 			Why:     "run the full cacheable non-race package pass and bare-core compile-out checks",
 			Answer:  actionAnswer(VerbUnitCached, run),
 		},
 		leaction.Action{
 			Verb:    VerbUnitChanged,
-			Does:    "run",
+			Does:    doesRun,
 			Summary: "test and vet the packages the change reaches",
 			Why:     "test and vet the packages the change set reaches and run the bare-core compile-out check",
 			Answer:  actionAnswer(VerbUnitChanged, run),
 		},
 		leaction.Action{
 			Verb:    VerbUnitRaceChanged,
-			Does:    "run",
+			Does:    doesRun,
 			Summary: "run the changed groups with race and cgo",
 			Why: "derive changed Go groups and run them plus bare-core checks with race and cgo; " +
 				"part <index> of <count> runs one piece of the packages, and the pieces together run every package; " +
@@ -71,7 +77,7 @@ func actionTable(run actionRunner) leaction.Area {
 		},
 		leaction.Action{
 			Verb:    VerbAlloc,
-			Does:    "check",
+			Does:    doesCheck,
 			Summary: "enforce hot-path allocation ceilings",
 			Why:     "measure registered hot-path benchmarks and enforce their allocs/op ceilings",
 			Answer:  actionAnswer(VerbAlloc, run),

@@ -86,7 +86,7 @@ func ProvenShareOf(metas map[string]Meta, requirements []Requirement, tags []Tag
 		}
 		out.Inspected++
 		out.GatedInspected += row.Gated
-		if !Implements(meta) {
+		if !Implements(&meta) {
 			continue
 		}
 		out.RFCs++
@@ -116,7 +116,7 @@ func ProvenShareOf(metas map[string]Meta, requirements []Requirement, tags []Tag
 // page partitions, and the home page card each call this rather than restating
 // it: a second spelling of the predicate is a future disagreement with nothing
 // to arbitrate it (ai/rules/principles.md).
-func Implements(meta Meta) bool {
+func Implements(meta *Meta) bool {
 	if !meta.Enrolled() {
 		return false
 	}

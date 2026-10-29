@@ -1,5 +1,5 @@
 // Design: docs/contributing/rfc-conformance-gates.md -- the linux-limit annotation
-// Related: ../linuxlimit/register.go -- the shared register parser
+// Related: ../linuxlimit/parse.go -- the shared register parser
 package rfc
 
 import (
@@ -84,7 +84,7 @@ func checkLinuxLimit(tree string, requirements []Requirement) ([]Finding, []Linu
 // readLinuxLimitRegister returns the textual entries and shipped kernel pin.
 // Read and parse failures remain explicit; checkLinuxLimit decides which rows they refuse.
 func readLinuxLimitRegister(tree string) ([]linuxlimit.Entry, string, string) {
-	page, err := os.ReadFile(filepath.Join(tree, filepath.FromSlash(linuxLimitRegisterRel)))
+	page, err := os.ReadFile(filepath.Join(tree, filepath.FromSlash(linuxLimitRegisterRel))) //nolint:gosec // a fixed register path under the checkout root the caller names
 	if err != nil {
 		return nil, "", "cannot read " + linuxLimitRegisterRel + ": " + err.Error() + "; restore the register before claiming a Linux limit"
 	}
@@ -92,7 +92,7 @@ func readLinuxLimitRegister(tree string) ([]linuxlimit.Entry, string, string) {
 	if len(problems) != 0 {
 		return nil, "", "malformed register: " + strings.Join(problems, "; ")
 	}
-	kernel, err := os.ReadFile(filepath.Join(tree, filepath.FromSlash(linuxLimitKernelRel)))
+	kernel, err := os.ReadFile(filepath.Join(tree, filepath.FromSlash(linuxLimitKernelRel))) //nolint:gosec // a fixed kernel pin path under the checkout root the caller names
 	if err != nil {
 		return nil, "", "cannot read " + linuxLimitKernelRel + ": " + err.Error() + "; restore the shipped kernel version before claiming a Linux limit"
 	}

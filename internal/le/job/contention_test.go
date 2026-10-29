@@ -231,8 +231,8 @@ func TestAnUnreadableEntryIsDroppedOnceItIsOlderThanTheStallWindow(t *testing.T)
 	if err := os.WriteFile(entry, []byte("PID=not-a-number\nSTATE=running\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	age(t, entry, 2*StallDefault)
-	age(t, logPath, 2*StallDefault)
+	age(t, entry)
+	age(t, logPath)
 	unchanged := preserveRegistryFiles(t, entry, logPath)
 
 	out := observeQueue(t, root, "unreadable entry", "sh", "-c", record(ran, "admitted"))
@@ -257,7 +257,7 @@ func TestAStalledHolderIsBrokenOnItsSilence(t *testing.T) {
 
 	holder := sleeper(t)
 	entry, logPath := heldEntry(t, root, "quiet-holder", holder.Process.Pid)
-	age(t, logPath, 2*StallDefault)
+	age(t, logPath)
 	unchanged := preserveRegistryFiles(t, entry, logPath)
 
 	out := observeQueue(t, root, "has not grown for", "sh", "-c", record(ran, "admitted"))
@@ -334,8 +334,8 @@ func TestADeadHoldersEntryIsReaped(t *testing.T) {
 	stop(t, gone)
 
 	entry, logPath := heldEntry(t, root, "crashed", pid)
-	age(t, entry, 2*StallDefault)
-	age(t, logPath, 2*StallDefault)
+	age(t, entry)
+	age(t, logPath)
 	unchanged := preserveRegistryFiles(t, entry, logPath)
 	if out, code := runHelper(t, root, "probe", nil, "sh", "-c", record(ran, "admitted")); code != 0 {
 		t.Fatalf("the job answered %d, want admission past a dead holder: %s", code, out)
@@ -891,11 +891,11 @@ func stop(t *testing.T, cmd *exec.Cmd) {
 	_ = cmd.Wait()
 }
 
-// age sets a file's timestamps to an earlier time. This lets a case reach a
-// one-minute stall window without a one-minute wait.
-func age(t *testing.T, path string, by time.Duration) {
+// age sets a file's timestamps two default stall windows back. This lets a
+// case reach a stalled job without waiting out the window.
+func age(t *testing.T, path string) {
 	t.Helper()
-	when := time.Now().Add(-by)
+	when := time.Now().Add(-2 * StallDefault)
 	if err := os.Chtimes(path, when, when); err != nil {
 		t.Fatalf("age %s: %v", path, err)
 	}

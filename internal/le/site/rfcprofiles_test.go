@@ -30,17 +30,17 @@ func rfcProfilesFixtureLedger() rfcLedger {
 		Summary: true, Walked: true, MandatoryProven: 1, MandatoryTotal: 2, MandatoryAttainable: 2, Component: []string{},
 		Path: "route-server: optional in rfc/short/rfc2918.md"}
 	release := &rfc.TreeReport{Profile: "route-server", Title: "Route server", Kind: "use-case", Release: true,
-		Rollup: &rfc.ScopeRollup{Rollup: rfc.Rollup{RFCs: 3, NotWalked: 1,
-			Mandatory: rfc.Figure{Proven: 3, Total: 4, Attainable: 4}, Optional: rfc.Figure{Proven: 1, Total: 2, Attainable: 2}}},
+		Rollup: &rfc.ScopeRollup{RFCs: 3, NotWalked: 1,
+			Mandatory: rfc.Figure{Proven: 3, Total: 4, Attainable: 4}, Optional: rfc.Figure{Proven: 1, Total: 2, Attainable: 2}},
 		Rows: []*rfc.TreeRow{walked, unwalked, noLevel},
-		Optional: &rfc.TreeTier{Rollup: rfc.ScopeRollup{Rollup: rfc.Rollup{RFCs: 1,
-			Mandatory: rfc.Figure{Proven: 1, Total: 2, Attainable: 2}}}, Rows: []*rfc.TreeRow{listed}}}
+		Optional: &rfc.TreeTier{Rollup: rfc.ScopeRollup{RFCs: 1,
+			Mandatory: rfc.Figure{Proven: 1, Total: 2, Attainable: 2}}, Rows: []*rfc.TreeRow{listed}}}
 	other := &rfc.TreeReport{Profile: "vpn-concentrator", Title: "VPN concentrator", Kind: "use-case",
-		Rollup: &rfc.ScopeRollup{Rollup: rfc.Rollup{RFCs: 1, NotWalked: 1}},
+		Rollup: &rfc.ScopeRollup{RFCs: 1, NotWalked: 1},
 		Rows:   []*rfc.TreeRow{unwalked}}
 	aggregate := &rfc.TreeReport{Profile: "bgp-core", Title: "BGP core", Heading: "BGP core protocol",
-		Kind: "technology", Rollup: &rfc.ScopeRollup{Rollup: rfc.Rollup{RFCs: 2, NotWalked: 1,
-			Mandatory: rfc.Figure{Proven: 3, Total: 4, Attainable: 4}, Optional: rfc.Figure{Proven: 1, Total: 2, Attainable: 2}}},
+		Kind: "technology", Rollup: &rfc.ScopeRollup{RFCs: 2, NotWalked: 1,
+			Mandatory: rfc.Figure{Proven: 3, Total: 4, Attainable: 4}, Optional: rfc.Figure{Proven: 1, Total: 2, Attainable: 2}},
 		Rows: []*rfc.TreeRow{walked, unwalked}}
 	return rfcLedger{
 		Stems: []rfcLedgerStem{

@@ -136,7 +136,7 @@ const rfcFilterScript = `<style>
   function lowest(label, value) {
     return value ? " Lowest " + label + " ceiling: " + value.stem + " " + ratio(value.attainable, value.total) + "." : "";
   }
-  function summarise(shown) {
+  function summarize(shown) {
     var mp = 0, mt = 0, ma = 0, op = 0, ot = 0, oa = 0, unwalked = 0;
     var me = {}, oe = {}, lm = null, lo = null;
     shown.forEach(function (row) {
@@ -176,7 +176,7 @@ const rfcFilterScript = `<style>
       row.hidden = !keep;
       if (keep) { shown.push(row); }
     });
-    summarise(shown);
+    summarize(shown);
     note.textContent = "";
     var lead = wanted ? "Showing " + shown.length + " of the " + listed.length + " RFCs the link lists" : "Showing " + shown.length + " of " + rows.length + " RFCs";
     note.appendChild(document.createTextNode(lead));

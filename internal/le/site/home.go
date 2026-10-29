@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/site/terminaldemo"
+	siteterminaldemo "github.com/ze-software/ze/internal/le/site/terminaldemo"
 )
 
 // The homepage registers from here.

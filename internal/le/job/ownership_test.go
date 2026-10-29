@@ -166,8 +166,8 @@ func TestAWaiterPreservesOldForeignReceipts(t *testing.T) {
 	if err := os.WriteFile(ownerCopy, []byte("foreign owner evidence\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	age(t, receipt, 2*StallDefault)
-	age(t, ownerCopy, 2*StallDefault)
+	age(t, receipt)
+	age(t, ownerCopy)
 	unchanged := preserveRegistryFiles(t, receipt, ownerCopy)
 	ran := filepath.Join(root, "tmp", "ran")
 	if out, code := runHelper(t, root, "probe", nil, "sh", "-c", record(ran, "admitted")); code != 0 {
@@ -243,7 +243,7 @@ func TestAQuietHolderOccupiesExactlyOneSlot(t *testing.T) {
 	root := fixtureRepo(t)
 	holder := sleeper(t)
 	entry, logPath := heldEntry(t, root, "quiet-holder", holder.Process.Pid)
-	age(t, logPath, 2*StallDefault)
+	age(t, logPath)
 	unchanged := preserveRegistryFiles(t, entry, logPath)
 	ran := filepath.Join(root, "tmp", "ran")
 	if out, code := runHelper(t, root, "probe", []string{"ZE_RUN_SLOTS=2"}, "sh", "-c", record(ran, "admitted")); code != 0 {

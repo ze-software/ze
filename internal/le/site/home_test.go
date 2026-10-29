@@ -13,7 +13,7 @@ import (
 
 	xhtml "golang.org/x/net/html"
 
-	"github.com/ze-software/ze/internal/le/site/terminaldemo"
+	siteterminaldemo "github.com/ze-software/ze/internal/le/site/terminaldemo"
 )
 
 // homeFixture provides stable structured data, controlled articles and weeks,

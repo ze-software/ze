@@ -86,7 +86,8 @@ func TestAnnotationsNeverInflateThePublishedShare(t *testing.T) {
 				if kind == AnnotationRollup {
 					continue
 				}
-				excludedCredit += annotationWholeCreditDelta(requirement, collected.Metas[requirement.RFC], byRID[requirement.RID])
+				meta := collected.Metas[requirement.RFC]
+				excludedCredit += annotationWholeCreditDelta(requirement, &meta, byRID[requirement.RID])
 				requirement.Annotation = nil
 				stripped = append(stripped, requirement)
 			}
@@ -113,7 +114,7 @@ func TestAnnotationsNeverInflateThePublishedShare(t *testing.T) {
 
 // annotationWholeCreditDelta independently counts ordinary polarity presence
 // rather than asking the coverage producer whether it would grant credit.
-func annotationWholeCreditDelta(requirement Requirement, meta Meta, tags []Tag) int {
+func annotationWholeCreditDelta(requirement Requirement, meta *Meta, tags []Tag) int {
 	if requirement.Annotation == nil {
 		return 0
 	}
@@ -232,7 +233,7 @@ func TestAnnotationWholeCreditCounterfactual(t *testing.T) {
 					if scope.owes {
 						delta = evidence.delta
 					}
-					if got := annotationWholeCreditDelta(requirements[1], scope.meta, evidence.tags); got != delta {
+					if got := annotationWholeCreditDelta(requirements[1], &scope.meta, evidence.tags); got != delta {
 						t.Fatalf("independent delta = %d, want %d", got, delta)
 					}
 					with, err := ProvenShareOf(metas, requirements, tags, nil)

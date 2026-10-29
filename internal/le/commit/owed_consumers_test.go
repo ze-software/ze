@@ -114,9 +114,9 @@ func TestDebtReportSaysNothingOwedOnlyWhenCovered(t *testing.T) {
 // attestation and the keyword's reason is recorded nowhere.
 func TestAttestRefusesAdmissionKeywords(t *testing.T) {
 	for keyword, set := range map[string]func(*Options){
-		keywordReviewOverride:  func(o *Options) { o.ReviewOverride = "a reason" },
-		keywordRFCChangeOK:     func(o *Options) { o.RFCChangeOK = "a reason" },
-		"no-test":              func(o *Options) { o.NoTest = "a reason" },
+		keywordReviewOverride: func(o *Options) { o.ReviewOverride = "a reason" },
+		keywordRFCChangeOK:    func(o *Options) { o.RFCChangeOK = "a reason" },
+		"no-test":             func(o *Options) { o.NoTest = "a reason" },
 		keywordLedgerCarried: func(o *Options) {
 			o.LedgerCarried = []string{"0123456789abcdef0123456789abcdef01234567 review: a reason"}
 		},

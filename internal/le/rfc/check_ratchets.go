@@ -499,7 +499,8 @@ func checkNewSummaries(deriver *Deriver, stems, baselineStems, enrolled map[stri
 		// is the failure checkRetiredRequirements exists to prevent.
 		// checkOutOfScope holds the other half: such a summary may not
 		// claim public support.
-		if metas[stem].OutOfScope() {
+		meta := metas[stem]
+		if meta.OutOfScope() {
 			continue
 		}
 		if problem := parseByStem[stem]; problem != "" {

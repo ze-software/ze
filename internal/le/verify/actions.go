@@ -22,6 +22,9 @@ const area = "verify"
 // verbChanged is the scoped verification an agent may start.
 const verbChanged = "changed"
 
+// doesRun is the vocabulary verb every verification name of this area performs.
+const doesRun = "run"
+
 // commitKeyword is the parameter keyword that names the revision a worktree
 // verification judges. The action declares it, the action reads it, and
 // worktreeArgv writes it into the work identity a second session attaches to,
@@ -35,7 +38,7 @@ var configured struct {
 var actions = leaction.New(area,
 	leaction.Action{
 		Verb:    actionName,
-		Does:    "run",
+		Does:    doesRun,
 		Summary: "verify a fixed commit in a fresh worktree",
 		Why: "run the full native verification population against a fixed commit in a fresh detached worktree; " +
 			"commit defaults to HEAD and keep leaves the worktree; part <i> of <m> runs one piece of a cut, " +
@@ -55,7 +58,7 @@ var actions = leaction.New(area,
 	},
 	leaction.Action{
 		Verb:       "current",
-		Does:       "run",
+		Does:       doesRun,
 		Summary:    "run the full verification of the tree",
 		Why:        "verify the tree: full (the default) runs the full population in a fresh detached worktree at HEAD, as worktree does; fast runs the changed-files population in place over the shared checkout; both are release checks only Thomas starts, refused unless stdin and stdout are terminals",
 		Writes:     true,
@@ -65,7 +68,7 @@ var actions = leaction.New(area,
 	},
 	leaction.Action{
 		Verb:    verbChanged,
-		Does:    "run",
+		Does:    doesRun,
 		Summary: "verify what the change set reaches",
 		Why: "run the scoped population (the tests, vet, lint, Staticcheck rows, race groups and functional suites " +
 			"of what the change set reaches) against a fixed commit in a fresh detached worktree; commit defaults to HEAD; " +

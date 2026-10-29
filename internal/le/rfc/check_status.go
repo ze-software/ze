@@ -134,7 +134,7 @@ func checkSummaryDisposition(tree string, metas map[string]Meta, requirements []
 			continue
 		}
 		if meta.Enrolment == dispositionOutOfScope {
-			errs = append(errs, checkOutOfScope(at, meta, gated[stem])...)
+			errs = append(errs, checkOutOfScope(at, &meta, gated[stem])...)
 			continue
 		}
 		if meta.Enrolment != dispositionNonNormative {
@@ -464,7 +464,7 @@ var scopeDecisionRE = regexp.MustCompile(`\b20\d{2}-\d{2}-\d{2}\b`)
 // The second is an undateable reason. Scope decisions are revisited; a gap
 // recorded as out-of-scope in 2026 and never dated reads in 2030 as a decision
 // somebody still stands behind.
-func checkOutOfScope(at string, meta Meta, gated int) []string {
+func checkOutOfScope(at string, meta *Meta, gated int) []string {
 	var errs []string
 	if gated == 0 {
 		var tb textbuf.Buffer
@@ -522,7 +522,8 @@ func checkPublicRowMonotonic(metas, baseMetas map[string]Meta, baselineKnown boo
 	newly map[string]bool) []string {
 	var errs []string
 	for _, stem := range sortedSet(newly) {
-		if metas[stem].HasRow() {
+		meta := metas[stem]
+		if meta.HasRow() {
 			continue
 		}
 		var tb textbuf.Buffer

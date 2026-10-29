@@ -14,10 +14,17 @@ import (
 
 const area = "session"
 
+// doesEnsure is the vocabulary verb both names of this area perform.
+const doesEnsure = "ensure"
+
+// keywordEnsure is the scratch switch that creates the directory. The action
+// declares it and scratchHere reads it.
+const keywordEnsure = "ensure"
+
 var actions = leaction.New(area,
 	leaction.Action{
 		Verb:       "seed-store",
-		Does:       "ensure",
+		Does:       doesEnsure,
 		Summary:    "seed this session's isolated ze store",
 		Why:        "seed this session's isolated ze store once from a ze_core binary",
 		Writes:     true,
@@ -26,11 +33,11 @@ var actions = leaction.New(area,
 	},
 	leaction.Action{
 		Verb:       "scratch",
-		Does:       "ensure",
+		Does:       doesEnsure,
 		Summary:    "print this session's private scratch path",
 		Why:        "print this session's private scratch path; ensure creates it",
 		Writes:     true,
-		Parameters: []leaction.Parameter{{Keyword: "ensure", Kind: leaction.KindSwitch, Help: "create the directory when it is absent"}, {Keyword: "clean", Kind: leaction.KindSwitch, Help: "empty the directory"}},
+		Parameters: []leaction.Parameter{{Keyword: keywordEnsure, Kind: leaction.KindSwitch, Help: "create the directory when it is absent"}, {Keyword: "clean", Kind: leaction.KindSwitch, Help: "empty the directory"}},
 		AnswerArgs: scratchHere,
 	},
 	leaction.Action{
@@ -79,7 +86,7 @@ func scratchHere(args leaction.Arguments) (any, int) {
 		leaction.ReportError(err)
 		return nil, 1
 	}
-	if args.Has("ensure") && args.Has("clean") {
+	if args.Has(keywordEnsure) && args.Has("clean") {
 		leaction.ReportError(errors.New("session scratch: ensure and clean are mutually exclusive"))
 		return nil, 1
 	}
@@ -91,7 +98,7 @@ func scratchHere(args leaction.Arguments) (any, int) {
 		}
 		return report, 0
 	}
-	report, err := Scratch(root, args.Has("ensure"))
+	report, err := Scratch(root, args.Has(keywordEnsure))
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 1

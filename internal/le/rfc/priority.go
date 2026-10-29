@@ -179,11 +179,12 @@ func (s *profileScope) tier(optional bool) map[string]bool {
 func (s *profileScope) path(stem string, optional bool) string {
 	var tb textbuf.Buffer
 	tb.Str(s.name).Str(": ")
-	if optional {
+	switch {
+	case optional:
 		tb.Str("optional in ")
-	} else if s.kind == profileKindTechnology {
+	case s.kind == profileKindTechnology:
 		tb.Str("aggregate named by ")
-	} else {
+	default:
 		tb.Str("required by ")
 	}
 	return tb.Str(summaryRel).Byte('/').Str(stem).Str(".md").String()

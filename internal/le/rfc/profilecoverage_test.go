@@ -143,7 +143,7 @@ func TestRollupNeverCompleteWithUnwalkedOrEmpty(t *testing.T) {
 // should have a valid summary"). Method: a rollup and a tree row, encoded and
 // rendered, carry no `absent` key and no "absent at 0%" text.
 func TestRollupHasNoAbsentState(t *testing.T) {
-	rollup := ScopeRollup{Rollup: Rollup{RFCs: 1, NotWalked: 1}}
+	rollup := ScopeRollup{RFCs: 1, NotWalked: 1}
 	row := &TreeRow{Stem: "rfc1", Summary: true}
 	for label, value := range map[string]any{"rollup": rollup, "row": row} {
 		encoded, err := json.Marshal(value)

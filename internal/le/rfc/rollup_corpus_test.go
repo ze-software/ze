@@ -49,7 +49,8 @@ func TestRollupMovesNeitherShareNorGatedCount(t *testing.T) {
 	// count if a rollup were counted.
 	var synthetic Requirement
 	for _, requirement := range bare {
-		if !requirement.Gated() || !Implements(collected.Metas[requirement.RFC]) {
+		meta := collected.Metas[requirement.RFC]
+		if !requirement.Gated() || !Implements(&meta) {
 			continue
 		}
 		synthetic = Requirement{RFC: requirement.RFC, RID: requirement.RFC + "-rollup-1",

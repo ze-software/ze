@@ -11,6 +11,17 @@ import (
 	"github.com/ze-software/ze/internal/le/rfc"
 )
 
+// linuxLimitSummaryDir is the tracked directory whose summaries carry the
+// Linux-limit annotations this debt bills.
+const linuxLimitSummaryDir = "rfc/short"
+
+// linuxLimitErrorf names the approval debt in front of every refusal it
+// raises, so the operator reads which commit gate refused. The prefix opens
+// with the proper noun Linux, which keeps its capital.
+func linuxLimitErrorf(format string, args ...any) error {
+	return fmt.Errorf("Linux-limit approval: "+format, args...)
+}
+
 // linuxLimitTrailers compares the immutable blobs the script will commit with
 // the HEAD Create recorded before selecting content. It MUST receive the same
 // index entries and removals as commitBlock, so whole files and selected hunks
@@ -25,9 +36,9 @@ func linuxLimitTrailers(root, head string, entries, removed []string) ([]string,
 	for _, entry := range entries {
 		_, name, found := strings.Cut(entry, "\t")
 		if !found {
-			return nil, fmt.Errorf("Linux-limit approval: malformed selected index entry %q", entry)
+			return nil, linuxLimitErrorf("malformed selected index entry %q", entry)
 		}
-		if path.Dir(name) != "rfc/short" {
+		if path.Dir(name) != linuxLimitSummaryDir {
 			continue
 		}
 		if path.Ext(name) != ".md" {
@@ -41,7 +52,7 @@ func linuxLimitTrailers(root, head string, entries, removed []string) ([]string,
 		stem := strings.TrimSuffix(path.Base(name), ".md")
 		rows, err := rfc.ParseSummaryText(string(body), stem, name)
 		if err != nil {
-			return nil, fmt.Errorf("Linux-limit approval: %w", err)
+			return nil, linuxLimitErrorf("%w", err)
 		}
 		before, err := linuxLimitHead(root, head, name, stem)
 		if err != nil {
@@ -75,7 +86,7 @@ func linuxLimitSummaryModes(root, head string, entries, removed []string) error 
 	for _, entry := range entries {
 		metadata, name, found := strings.Cut(entry, "\t")
 		if !found {
-			return fmt.Errorf("Linux-limit approval: malformed selected index entry %q", entry)
+			return linuxLimitErrorf("malformed selected index entry %q", entry)
 		}
 		if err := linuxLimitSummaryMode(name, metadata); err != nil {
 			return err
@@ -84,8 +95,8 @@ func linuxLimitSummaryModes(root, head string, entries, removed []string) error 
 		if strings.HasPrefix(name, "rfc/") {
 			replaced["rfc"] = true
 		}
-		if strings.HasPrefix(name, "rfc/short/") {
-			replaced["rfc/short"] = true
+		if strings.HasPrefix(name, linuxLimitSummaryDir+"/") {
+			replaced[linuxLimitSummaryDir] = true
 		}
 	}
 	for _, name := range removed {
@@ -93,10 +104,10 @@ func linuxLimitSummaryModes(root, head string, entries, removed []string) error 
 	}
 	// Query ancestors separately: Git does not descend into a symlink, unlike
 	// the filesystem readers that discover and parse the summary corpus.
-	for _, scope := range []string{"rfc", "rfc/short", "rfc/short/"} {
+	for _, scope := range []string{"rfc", linuxLimitSummaryDir, linuxLimitSummaryDir + "/"} {
 		listed, err := gitOutput(root, "ls-tree", "-z", head, "--", scope)
 		if err != nil {
-			return fmt.Errorf("Linux-limit approval: read %s modes at %s: %w", scope, head, err)
+			return linuxLimitErrorf("read %s modes at %s: %w", scope, head, err)
 		}
 		for entry := range strings.SplitSeq(listed, "\x00") {
 			if entry == "" {
@@ -104,7 +115,7 @@ func linuxLimitSummaryModes(root, head string, entries, removed []string) error 
 			}
 			metadata, name, found := strings.Cut(entry, "\t")
 			if !found {
-				return fmt.Errorf("Linux-limit approval: malformed summary tree entry %q", entry)
+				return linuxLimitErrorf("malformed summary tree entry %q", entry)
 			}
 			if replaced[name] {
 				continue
@@ -120,9 +131,9 @@ func linuxLimitSummaryModes(root, head string, entries, removed []string) error 
 // linuxLimitSummaryMode refuses links both at summaries and their ancestors.
 // Metadata is the prefix of either ls-tree or ls-files -s, both mode-first.
 func linuxLimitSummaryMode(name, metadata string) error {
-	directory := name == "rfc" || name == "rfc/short"
+	directory := name == "rfc" || name == linuxLimitSummaryDir
 	if !directory {
-		if path.Dir(name) != "rfc/short" {
+		if path.Dir(name) != linuxLimitSummaryDir {
 			return nil
 		}
 		if path.Ext(name) != ".md" {
@@ -131,20 +142,20 @@ func linuxLimitSummaryMode(name, metadata string) error {
 	}
 	mode, _, found := strings.Cut(metadata, " ")
 	if !found {
-		return fmt.Errorf("Linux-limit approval: malformed summary mode for %s: %q", name, metadata)
+		return linuxLimitErrorf("malformed summary mode for %s: %q", name, metadata)
 	}
 	if directory {
 		if mode == "040000" {
 			return nil
 		}
-		return fmt.Errorf("Linux-limit approval: %s has Git mode %s in the prospective commit, not a directory tree; "+
+		return linuxLimitErrorf("%s has Git mode %s in the prospective commit, not a directory tree; "+
 			"annotation approval cannot follow linked summary directories; include remove %s in this commit "+
 			"and select replacement summaries under real directories", name, mode, name)
 	}
 	if linuxLimitRegularMode(mode) {
 		return nil
 	}
-	return fmt.Errorf("Linux-limit approval: %s has Git mode %s in the prospective commit, not a regular file; "+
+	return linuxLimitErrorf("%s has Git mode %s in the prospective commit, not a regular file; "+
 		"annotation approval cannot follow links or other nonregular entries; replace it with a regular file "+
 		"and select that summary, or include remove %s in this commit", name, mode, name)
 }
@@ -160,14 +171,14 @@ func linuxLimitHead(root, head, name, stem string) (map[string]*rfc.Annotation, 
 	before := make(map[string]*rfc.Annotation)
 	entry, err := gitOutput(root, "ls-tree", head, "--", name)
 	if err != nil {
-		return nil, fmt.Errorf("Linux-limit approval: read %s at %s: %w", name, head, err)
+		return nil, linuxLimitErrorf("read %s at %s: %w", name, head, err)
 	}
 	if entry == "" {
 		return before, nil
 	}
 	mode, _, found := strings.Cut(entry, " ")
 	if !found {
-		return nil, fmt.Errorf("Linux-limit approval: malformed summary tree entry %q", entry)
+		return nil, linuxLimitErrorf("malformed summary tree entry %q", entry)
 	}
 	if !linuxLimitRegularMode(mode) {
 		// A link's blob is its target path, not a summary or evidence of prior
@@ -176,11 +187,11 @@ func linuxLimitHead(root, head, name, stem string) (map[string]*rfc.Annotation, 
 	}
 	body, err := gitOutput(root, "show", head+":"+name)
 	if err != nil {
-		return nil, fmt.Errorf("Linux-limit approval: read %s at %s: %w", name, head, err)
+		return nil, linuxLimitErrorf("read %s at %s: %w", name, head, err)
 	}
 	rows, err := rfc.ParseSummaryText(body, stem, head+":"+name)
 	if err != nil {
-		return nil, fmt.Errorf("Linux-limit approval: %w", err)
+		return nil, linuxLimitErrorf("%w", err)
 	}
 	for _, row := range rows {
 		if row.Annotation == nil {

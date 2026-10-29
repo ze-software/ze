@@ -48,6 +48,9 @@ const (
 	modulesVerb       = "appliance-modules"
 )
 
+// doesInstall is the vocabulary verb the install names of this area perform.
+const doesInstall = "install"
+
 // actions is the whole command surface.
 //
 // No action carries a Gate: people and native owners invoke the setup entry
@@ -68,7 +71,7 @@ var actions = leaction.New(area,
 	},
 	leaction.Action{
 		Verb:    toolsVerb,
-		Does:    "install",
+		Does:    doesInstall,
 		Writes:  true,
 		Summary: "install every dev tool, leaving vendor/ alone",
 		Why:     "install as `install` does, and leave vendor/ alone",
@@ -76,7 +79,7 @@ var actions = leaction.New(area,
 	},
 	leaction.Action{
 		Verb:    claudeServerVerb,
-		Does:    "install",
+		Does:    doesInstall,
 		Writes:  true,
 		Summary: "provision the Ubuntu Claude development server",
 		Why:     "provision the pinned Ubuntu Claude development server",
@@ -114,7 +117,7 @@ var actions = leaction.New(area,
 	},
 	leaction.Action{
 		Verb:    modulesVerb,
-		Does:    "install",
+		Does:    doesInstall,
 		Writes:  true,
 		Summary: "download the gokrazy builddir modules",
 		Why:     "download every module each gokrazy/*/builddir needs into gokrazy/modcache, so an image build under GOPROXY=off finds it",

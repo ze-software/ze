@@ -44,11 +44,7 @@ func TestAnnotationTraitsPreserveRowBehavior(t *testing.T) {
 			positive := Tag{RID: req.RID, Polarity: PolarityPositive, File: "fixture_test.go", Line: 1}
 			negative := Tag{RID: req.RID, Polarity: PolarityNegative, File: "fixture_test.go", Line: 2}
 			rows := CoverageRows([]Requirement{req}, []Tag{positive, negative}, nil)
-			if !one.owed {
-				if len(rows) != 0 {
-					t.Fatalf("derived row entered the coverage partition: %+v", rows)
-				}
-			} else {
+			if one.owed {
 				if len(rows) != 1 {
 					t.Fatalf("coverage rows = %+v, want one", rows)
 				}
@@ -63,6 +59,8 @@ func TestAnnotationTraitsPreserveRowBehavior(t *testing.T) {
 				if row.Gated != 1 || row.Annotated != 1 || row.Both != 0 || row.One != 0 || row.Missing != 0 {
 					t.Errorf("annotated row changed the partition: %+v", row)
 				}
+			} else if len(rows) != 0 {
+				t.Fatalf("derived row entered the coverage partition: %+v", rows)
 			}
 			if gap := annotatedGap(&req); gap != (one.kind == AnnotationGap) {
 				t.Errorf("ordinary gap=%v for %s", gap, one.kind)

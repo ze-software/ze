@@ -169,8 +169,8 @@ func TestGeneratedStatusRowsMatchTheAuthoredPage(t *testing.T) {
 		if migrationExempt[stem] {
 			continue
 		}
-		if publicRowName(stem, meta) != cells[0] {
-			t.Errorf("%s renders its first cell as %q, want %q", stem, publicRowName(stem, meta), cells[0])
+		if publicRowName(stem, &meta) != cells[0] {
+			t.Errorf("%s renders its first cell as %q, want %q", stem, publicRowName(stem, &meta), cells[0])
 		}
 		for index, want := range []string{cells[1], cells[2]} {
 			got := []string{meta.Area, meta.Status}[index]
@@ -339,7 +339,7 @@ func TestEveryWideRowPublishesItsOwnProofPartition(t *testing.T) {
 	stemOf := map[string]string{}
 	for stem, meta := range metas {
 		if meta.HasRow() && collected.Profiles.Aggregates[meta.Aggregate].Shape == ShapeWide {
-			stemOf[publicRowName(stem, meta)] = stem
+			stemOf[publicRowName(stem, &meta)] = stem
 		}
 	}
 	if len(stemOf) == 0 {
@@ -412,7 +412,7 @@ func TestStatusPageRowSetUnchanged(t *testing.T) {
 		}
 		rows++
 		cells := [][2]string{
-			{publicRowName(stem, was), publicRowName(stem, now)},
+			{publicRowName(stem, &was), publicRowName(stem, &now)},
 			{was.Area, now.Area},
 			{was.Status, now.Status},
 			{was.Coverage, now.Coverage},
@@ -512,7 +512,8 @@ func summaryMetasAt(t *testing.T, root, revision string) map[string]Meta {
 func countRows(metas map[string]Meta) int {
 	rows := 0
 	for stem := range metas {
-		if metas[stem].HasRow() {
+		meta := metas[stem]
+		if meta.HasRow() {
 			rows++
 		}
 	}

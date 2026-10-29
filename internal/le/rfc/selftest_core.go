@@ -433,7 +433,7 @@ var Gating = []string{suiteParse, suiteUI}
 		map[string]Meta{selftestStem: {Enrolment: dispositionOutOfScope}},
 	)
 	// And the guard that stops it being a way to look green.
-	claimed := checkOutOfScope("rfc/short/rfc9999.md: ", Meta{
+	claimed := checkOutOfScope("rfc/short/rfc9999.md: ", &Meta{
 		Enrolment: dispositionOutOfScope, EnrolmentReason: "declined 2026-09-01 by the owner",
 		Aggregate: FixtureAggregate, Row: true, Status: "Partial",
 	}, 1)

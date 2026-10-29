@@ -558,7 +558,7 @@ func collectRFCCompliance(tree string) (rfcCompliance, error) {
 			continue
 		}
 		inspected = append(inspected, requirement)
-		if rfc.Implements(meta) {
+		if rfc.Implements(&meta) {
 			implemented = append(implemented, requirement)
 		}
 	}

@@ -1006,7 +1006,7 @@ func supportedRowScopeProblems(metas map[string]Meta, aggregates map[string]Aggr
 		if !meta.HasRow() {
 			continue
 		}
-		prefix := "| " + publicRowName(stem, meta) + " | " + meta.Area + " | " + meta.Status + " | "
+		prefix := "| " + publicRowName(stem, &meta) + " | " + meta.Area + " | " + meta.Status + " | "
 		if _, held := expected[prefix]; held {
 			problems = append(problems, "duplicate declared identity: "+stem)
 		}
@@ -1109,12 +1109,13 @@ func TestSupportedRowScopeFixtures(t *testing.T) {
 	if exact != 2 || qualified != 1 || yes != 1 {
 		t.Fatalf("fixture support split = %d/%d/%d, want 2/1/1", exact, qualified, yes)
 	}
+	rfc1000, rfc1001 := metas["rfc1000"], metas["rfc1001"]
 	var rows []string
 	for line := range strings.SplitSeq(page, "\n") {
-		if strings.HasPrefix(line, "| "+publicRowName("rfc1000", metas["rfc1000"])+" |") {
+		if strings.HasPrefix(line, "| "+publicRowName("rfc1000", &rfc1000)+" |") {
 			rows = append(rows, line)
 		}
-		if strings.HasPrefix(line, "| "+publicRowName("rfc1001", metas["rfc1001"])+" |") {
+		if strings.HasPrefix(line, "| "+publicRowName("rfc1001", &rfc1001)+" |") {
 			rows = append(rows, line)
 		}
 	}
@@ -2189,7 +2190,8 @@ func TestRatchetsFireWhenEnrolmentMovesToMeta(t *testing.T) {
 	// The baseline reads that shape rather than answering empty, which is the
 	// one fact the ratchets stand on here.
 	baseline, known := baselineMetas(root)
-	if !known || !baseline[selftestStem].Enrolled() {
+	selftest := baseline[selftestStem]
+	if !known || !selftest.Enrolled() {
 		t.Fatalf("the baseline read %d stem(s) from HEAD's retired ledger, known=%v",
 			len(baseline), known)
 	}
@@ -2430,7 +2432,7 @@ func TestOutOfScopeMustCarryItsExtractionAndItsDate(t *testing.T) {
 		{"neither", "declined by the owner", 0, "NO MUST-level requirement"},
 	} {
 		t.Run(one.name, func(t *testing.T) {
-			errs := checkOutOfScope("rfc/short/rfc9999.md: ", Meta{
+			errs := checkOutOfScope("rfc/short/rfc9999.md: ", &Meta{
 				Enrolment: dispositionOutOfScope, EnrolmentReason: one.reason,
 			}, one.gated)
 			if one.want == "" {

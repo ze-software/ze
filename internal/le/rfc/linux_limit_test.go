@@ -3,6 +3,7 @@
 package rfc
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -319,7 +320,7 @@ func TestLinuxLimitCandidatesAreReportedNotApplied(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(after) != string(before) {
+	if !bytes.Equal(after, before) {
 		t.Fatal("candidate report annotated the summary")
 	}
 	writeFixtureFiles(t, root, map[string]string{linuxLimitRegisterRel: strings.Replace(linuxLimitFixtureRegister, "**Status:** verified", "**Status:** unverified", 1)})

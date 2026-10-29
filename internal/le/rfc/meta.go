@@ -327,7 +327,7 @@ type Meta struct {
 // says (owner directive, 2026-09-21). The ledger answers one question, whether
 // ZE's Go code does what the RFC says, so a published share taken over
 // obligations another layer owns measures the wrong thing.
-func (m Meta) Enrolled() bool {
+func (m *Meta) Enrolled() bool {
 	return m.Enrolment == enrolmentEnrolled && implementationCounts(m.Implementation)
 }
 
@@ -347,10 +347,10 @@ func implementationCounts(kind string) bool {
 // OutOfScope answers whether the owner decided not to offer this document's
 // feature for now. Such a summary declares its obligations in full and gates
 // none of them, so a new one is not asked to enroll.
-func (m Meta) OutOfScope() bool { return m.Enrolment == dispositionOutOfScope }
+func (m *Meta) OutOfScope() bool { return m.Enrolment == dispositionOutOfScope }
 
 // HasRow answers whether this summary renders a row on the public page.
-func (m Meta) HasRow() bool { return m.Row }
+func (m *Meta) HasRow() bool { return m.Row }
 
 // Disposition answers the recorded reason this summary is not gated, for a
 // summary that is not enrolled.
@@ -360,7 +360,7 @@ func (m Meta) HasRow() bool { return m.Row }
 // Go for: such a summary declares `enrolled` and is still not gated (owner
 // directive, 2026-09-21), so reading the enrolment cell alone publishes the
 // word `enrolled` as the reason a summary is not enrolled.
-func (m Meta) Disposition() Disposition {
+func (m *Meta) Disposition() Disposition {
 	// The enrolment row is the first fact, and where it says anything but
 	// `enrolled` it names the reason itself.
 	if m.Enrolment != enrolmentEnrolled {
@@ -831,7 +831,7 @@ var statusRowRFC = regexp.MustCompile(`\Arfc(\d+)\z`)
 // draft, whose published name holds a slash, a space or upper case. ISO/IEC
 // 10589 was that row, and is no longer one: IS-IS is counted in no conformance
 // figure (ai/META-DECISIONS.md).
-func publicRowName(stem string, meta Meta) string {
+func publicRowName(stem string, meta *Meta) string {
 	if meta.Name != "" {
 		return meta.Name
 	}
@@ -1017,7 +1017,8 @@ func summaryMetas(tree string, stems map[string]bool, profiles Profiles) (map[st
 func enrolledFrom(metas map[string]Meta) map[string]bool {
 	out := map[string]bool{}
 	for stem := range metas {
-		if metas[stem].Enrolled() {
+		meta := metas[stem]
+		if meta.Enrolled() {
 			out[stem] = true
 		}
 	}
@@ -1028,7 +1029,8 @@ func enrolledFrom(metas map[string]Meta) map[string]bool {
 func enrolmentReasonsFrom(metas map[string]Meta) map[string]string {
 	out := map[string]string{}
 	for stem := range metas {
-		if metas[stem].Enrolled() {
+		meta := metas[stem]
+		if meta.Enrolled() {
 			out[stem] = metas[stem].EnrolmentReason
 		}
 	}
@@ -1044,8 +1046,9 @@ func enrolmentReasonsFrom(metas map[string]Meta) map[string]string {
 func dispositionsFrom(metas map[string]Meta) map[string]Disposition {
 	out := map[string]Disposition{}
 	for stem := range metas {
-		if !metas[stem].Enrolled() {
-			out[stem] = metas[stem].Disposition()
+		meta := metas[stem]
+		if !meta.Enrolled() {
+			out[stem] = meta.Disposition()
 		}
 	}
 	return out
@@ -1065,7 +1068,8 @@ func dispositionsFrom(metas map[string]Meta) map[string]Disposition {
 func rowsFrom(metas map[string]Meta, aggregates map[string]Aggregate) map[string]LedgerRow {
 	out := map[string]LedgerRow{}
 	for stem := range metas {
-		if !metas[stem].HasRow() {
+		meta := metas[stem]
+		if !meta.HasRow() {
 			continue
 		}
 		remaining := metas[stem].Remaining
