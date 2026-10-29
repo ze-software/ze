@@ -156,8 +156,8 @@ func StageSourceCandidate(store Storage, configPath string, stamp time.Time) (st
 }
 
 // readSourceLocked is ReadConfigSource for a caller holding the config lock:
-// the stored source is read through the guard, because Storage reads take the
-// store's lock again. An explicit file is read from disk, which the lock does
+// the stored source is read through the guard, because a Storage read of a
+// blob waits for the blob mutex the guard holds. An explicit file is read from disk, which the lock does
 // not cover, but every daemon write of it happens while a candidate is staged.
 // AcquireLock already waited for the boot record, so no boot bytes are pending.
 func readSourceLocked(store Storage, guard WriteGuard, configPath string) ([]byte, error) {

@@ -512,6 +512,12 @@ func (t *treeEncoding) Remove(key string) error {
 	return nil
 }
 
+// list walks the tree for every key that string-starts with prefix, sorted. It
+// runs beside a guard's writes (store), so a node a concurrent Remove unlinks
+// before the walk opens it, or a directory it prunes while the walk reads it,
+// is skipped as absent, which it is.
+// The listing holds every key present for the whole walk, which is what a
+// reader in another process sees too.
 func (t *treeEncoding) list(prefix string) ([]string, error) {
 	var keys []string
 	queue := []string{"."}
@@ -525,10 +531,16 @@ func (t *treeEncoding) list(prefix string) ([]string, error) {
 		} else {
 			parent, leaf, parentErr := t.parent(dir, false)
 			if parentErr != nil {
+				if errors.Is(parentErr, fs.ErrNotExist) {
+					continue // pruned by a concurrent Remove: see list.
+				}
 				return nil, parentErr
 			}
 			file, err = openNode(parent, leaf, true)
 			err = errors.Join(err, parent.Close())
+		}
+		if errors.Is(err, fs.ErrNotExist) {
+			continue // pruned by a concurrent Remove: see list.
 		}
 		if err != nil {
 			return nil, err
@@ -536,6 +548,11 @@ func (t *treeEncoding) list(prefix string) ([]string, error) {
 		// Each call consumes the next directory entries; EOF bounds the walk.
 		for {
 			entries, readErr := file.ReadDir(128)
+			if errors.Is(readErr, fs.ErrNotExist) {
+				// Pruned after the open: Linux answers ENOENT for a removed
+				// directory, which was empty when removed. See list.
+				readErr = io.EOF
+			}
 			if readErr != nil {
 				if !errors.Is(readErr, io.EOF) {
 					return nil, errors.Join(readErr, file.Close())
@@ -547,6 +564,9 @@ func (t *treeEncoding) list(prefix string) ([]string, error) {
 					name = dir + "/" + name
 				}
 				child, err := openNode(file, entry.Name(), entry.IsDir())
+				if errors.Is(err, fs.ErrNotExist) {
+					continue // removed after ReadDir listed it: see list.
+				}
 				if err != nil {
 					return nil, errors.Join(err, file.Close())
 				}

@@ -34,16 +34,36 @@ type keyAccess interface {
 	Remove(string) error
 }
 
-// keyEncoding is a key space the store reaches directly, under its own mutex:
-// the live tree, or the memory encoding of the editor test harness. A blob is
-// reached through its BlobStore outside a guard and its WriteLock inside one.
+// keyEncoding is a key space the store reaches directly: the live tree, or the
+// memory encoding of the editor test harness. Each MUST be safe for a read
+// concurrent with one guard's writes, because unguarded reads do not wait for
+// the guard (store). A blob is reached through its BlobStore outside a guard
+// and its WriteLock inside one.
 type keyEncoding interface {
 	keyAccess
 	has(string) bool
 	list(string) ([]string, error)
 }
 
+// store owns one encoding. Safe for concurrent use, under two locks taken in
+// the order writer, then mu:
+//
+//   - writer is held by a guard from acquire to Release, so writers run one at
+//     a time. A guard can hold it across many syncs: the boot record does on a
+//     slow disk. ReadVersion takes it shared, because its two reads (entry,
+//     then object) must not straddle a removal; Stat, because its bytes and
+//     its meta must come from the same side of a guard; and writeConfigFile,
+//     which keeps Close away while it syncs a loose config.
+//   - mu is held briefly. Its read lock covers one unguarded read, so Close
+//     cannot release the encoding under it; Release takes it to publish metas.
+//
+// An unguarded read takes mu only, never writer: a read of one key needs no
+// writer to finish, because the tree replaces a key's bytes with one rename
+// and the memory and blob encodings lock themselves. A read that waited for
+// writer waited for every sync a guard made, of keys it never asked for.
+// closed is written under both locks and read under either.
 type store struct {
+	writer   sync.RWMutex
 	mu       sync.RWMutex
 	tree     *treeEncoding
 	keys     keyEncoding
@@ -213,6 +233,14 @@ func (s *store) Stat(name string) (FileMeta, error) {
 		return FileMeta{}, err
 	}
 	key := resolveKey(name)
+	// writer, held shared, keeps the answer whole: a guard writes a key's bytes
+	// at once but publishes its meta only at Release, so without it Stat could
+	// pair the new bytes with the old ModTime, and the editor would later take
+	// its own draft for another session's change. Stat may then wait for a
+	// slow guard, which only the CLI editor's draft checks pay: no runtime
+	// state read calls it.
+	s.writer.RLock()
+	defer s.writer.RUnlock()
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	if s.closed {
@@ -309,13 +337,15 @@ func (s *store) ListVersions(name string) ([]VersionInfo, error) {
 }
 
 // ReadVersion resolves the history entry of name at stamp to its object and
-// verifies the hash. It holds the store's read lock for both reads, so no
-// removal can delete the object between them.
+// verifies the hash. It holds writer shared for both reads, so no removal can
+// delete the object between them, and mu, so Close waits for them.
 func (s *store) ReadVersion(name, stamp string) ([]byte, error) {
 	key, err := versionPath(s, name, stamp)
 	if err != nil {
 		return nil, err
 	}
+	s.writer.RLock()
+	defer s.writer.RUnlock()
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	if s.closed {
@@ -371,20 +401,20 @@ func (s *store) AcquireLock(name string) (WriteGuard, error) {
 	return s.acquire()
 }
 func (s *store) acquire() (*guard, error) {
-	s.mu.Lock()
+	s.writer.Lock()
 	if s.closed {
-		s.mu.Unlock()
+		s.writer.Unlock()
 		return nil, fs.ErrClosed
 	}
 	if s.readonly {
-		s.mu.Unlock()
+		s.writer.Unlock()
 		return nil, ErrReadOnly
 	}
 	g := &guard{parent: s, access: s.access(), pending: make(map[string]FileMeta), removed: make(map[string]bool)}
 	if s.blob != nil {
 		lock, err := s.blob.Lock()
 		if err != nil {
-			s.mu.Unlock()
+			s.writer.Unlock()
 			return nil, err
 		}
 		g.blobLock = lock
@@ -393,6 +423,8 @@ func (s *store) acquire() (*guard, error) {
 	return g, nil
 }
 func (s *store) Close() error {
+	s.writer.Lock()
+	defer s.writer.Unlock()
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.closed {
@@ -459,9 +491,8 @@ func (g *guard) List(prefix string) ([]string, error) {
 }
 
 // ReadKey reads one raw key through the held guard. It reaches the encoding
-// directly, because the guard already holds the store's mutex and
-// Storage.ReadKey would wait on it forever. On a blob the bytes are valid only
-// until Release.
+// directly, because on a blob Storage.ReadKey would wait forever for the blob
+// mutex the guard's WriteLock holds. On a blob the bytes are valid only until Release.
 func (g *guard) ReadKey(key string) ([]byte, error) {
 	if g.released {
 		return nil, fs.ErrClosed
@@ -572,6 +603,7 @@ func (g *guard) Release() error {
 	if g.blobLock != nil {
 		err = g.blobLock.Release()
 	}
+	g.parent.mu.Lock()
 	if err == nil {
 		maps.Copy(g.parent.metas, g.pending)
 		for key := range g.removed {
@@ -580,6 +612,7 @@ func (g *guard) Release() error {
 	}
 	observer := g.parent.observer
 	g.parent.mu.Unlock()
+	g.parent.writer.Unlock()
 	if err != nil {
 		return err
 	}

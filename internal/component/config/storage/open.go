@@ -402,10 +402,12 @@ func writeConfigFile(s Storage, path string, data []byte, syncFile func(*os.File
 	if !ok {
 		return notLiveTree(path)
 	}
-	// The read lock keeps Close from releasing the folder and the owner lock
-	// while the frame is staged under that lock's name.
-	owned.mu.RLock()
-	defer owned.mu.RUnlock()
+	// writer, held shared, keeps Close from releasing the folder and the owner
+	// lock while the frame is staged under that lock's name. It is not mu: the
+	// write syncs, and a Release waiting on mu behind them would hold every
+	// unguarded read back too (store).
+	owned.writer.RLock()
+	defer owned.writer.RUnlock()
 	if owned.closed {
 		return fmt.Errorf("publish config %s: its store is already closed: %w; publish before the daemon closes it", path, fs.ErrClosed)
 	}
@@ -436,7 +438,7 @@ func writeConfigFile(s Storage, path string, data []byte, syncFile func(*os.File
 
 // configStageLock answers the lock name a loose config's frame is staged
 // under: the live tree's lock, or "" for a memory store, which holds none. A
-// blob store and a read-only tree are refused. The caller MUST hold owned.mu.
+// blob store and a read-only tree are refused. The caller MUST hold owned.writer.
 func configStageLock(owned *store, path string) (string, error) {
 	if owned.tree == nil {
 		if owned.blob != nil {

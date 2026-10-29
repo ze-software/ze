@@ -1531,10 +1531,12 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 
 	// Record the boot configuration (see DeferBootRecord above), now that ze
 	// serves. The record holds the store's write lock across every one of its
-	// syncs, so a store read waits for all of them: started before the plugin
-	// wait, it made bgp's Stage 2 read of its Graceful Restart marker wait on a
-	// slow disk until the startup barrier, which allows only a few seconds with
-	// no plugin progress, failed the start. A config write of the bound name
+	// syncs, so every other store write waits for all of them, and so does a
+	// read of a blob store; a tree or memory read does not. Started before the
+	// plugin wait, when every store read still waited for that lock, it made
+	// bgp's Stage 2 read of its Graceful Restart marker wait on a slow disk
+	// until the startup barrier, which allows only a few seconds with no plugin
+	// progress, failed the start. A config write of the bound name
 	// that arrives earlier (a SIGHUP during startup) waits for the record here.
 	if bootRecord != nil {
 		bootRecord.Start(func(view storage.Storage) error {

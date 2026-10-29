@@ -127,17 +127,41 @@ raw-key pairs too: `guard.ReadKey` and `guard.ListKeys` answer what
 `Storage.ReadKey` and `Storage.ListKeys` answer, literal-prefix, recursive and
 sorted, in the same order on both encodings, and `guard.WriteKey` and
 `guard.RemoveKey` do what `Storage.WriteKey` and `Storage.RemoveKey` do. A
-caller holding a guard MUST use them: the `Storage` methods take the store
-mutex the guard already holds, so calling one inside a guard hangs the process
-rather than returning an error. A walk over the whole store, such as a
-backup, is `guard.ListKeys("")` then `guard.ReadKey` for each key; `List` cannot
+caller holding a guard MUST use them: a `Storage` write, `ReadVersion` and
+`Stat` wait for the write lock the guard already holds, and on a blob every
+`Storage` read waits for the blob mutex its `WriteLock` holds, so calling one
+inside a guard hangs the process rather than returning an error. A walk over
+the whole store, such as a backup, is `guard.ListKeys("")` then `guard.ReadKey` for each key; `List` cannot
 serve it, because it answers only the immediate file children of a resolved
 name. In-process metadata records
 modification time and modifier identity on both encodings; it is not a durable
 audit log. Observers receive resolved keys after successful publication and lock
 release, so a callback may read the store again.
+
+An unguarded read does not wait for a guard. Two locks order the store
+(`store` in `store.go`): a guard holds the write lock from `AcquireLock` to
+`Release`, so writers run one at a time, and a read holds only a short lock
+that keeps `Close` from releasing the encoding under it. A single-key read
+needs no writer to finish, because the tree replaces a key's bytes with one
+rename and the memory encoding locks its own map. A listing of the tree skips
+a directory that a concurrent removal prunes under it, so it holds every key
+present for the whole walk and never fails for that. A read can therefore see a
+guarded transaction part done, a state a crash could also leave and the one a
+reader in another process already sees; a reader that needs two keys to
+agree takes a guard. `ReadVersion` holds the write lock shared, so no removal
+deletes the object between its entry read and its object read. `Stat` holds it
+shared too, because a guard writes a key's bytes at once but publishes its
+metadata only at `Release`: without it, `Stat` could pair new bytes with the
+old modification time, and the CLI editor would take its own draft for another
+session's change. Only the editor's draft checks call `Stat`. A read used to
+wait for the whole guard, including every sync of keys it never asked for, so
+a plugin's runtime-state read at startup passed its deadline behind the boot
+record (below). A blob keeps its own rule: its readers wait for its writer,
+because the writer updates the mapped file in place.
 <!-- source: internal/component/config/storage/tree.go -- treeEncoding.ReadFile, treeEncoding.list -->
 <!-- source: internal/component/config/storage/store.go -- CheckName, ListKeys, List, guard.ReadKey, guard.ListKeys, guard.WriteKey, guard.RemoveKey, guard.Release -->
+<!-- source: internal/component/config/storage/store.go -- store, acquire, ReadVersion, Stat, Close -->
+<!-- source: internal/component/config/storage/memory.go -- memoryEncoding -->
 
 ## Durable publication
 
@@ -328,8 +352,9 @@ listener used to wait for all of them. `DeferBootRecord` arms the record on the
 bound handle where the record used to run. `Start` runs it once in its own
 goroutine, against a view of that handle the gate does not hold, once the hub
 serves: after plugin startup, the service listeners and the ready file. The
-record holds the store's write lock across all of its syncs, so any store read
-waits for it. Started before the plugin wait, it made bgp's Stage 2 read of its
+record holds the store's write lock across all of its syncs, so any store
+write, a runtime-state counter included, waits for it; a read does not
+(above). Started before the plugin wait, it made bgp's Stage 2 read of its
 Graceful Restart marker wait on a slow disk until the startup barrier, which
 allows a few seconds with no plugin progress, failed the start
 (`test/encode/dut-store-slow-boot-record-starts.ci` holds it there). So neither

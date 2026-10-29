@@ -1204,6 +1204,13 @@ counter starts at one. Corrupt data and uint32 exhaustion fail without reset or
 wrap. OSPF uses this operation for its boot word, so separate instances cannot
 allocate the same sequence space.
 
+A mutation waits for the store's write guard, which another writer can hold
+across many syncs: the boot record holds it once the hub serves, on a slow
+disk for seconds. `StateGet` and `StateList` wait for neither that guard nor
+another plugin's mutation, so a plugin reading its state at startup is
+answered at once (`shared` in `statestore.go`, and "An unguarded read does not
+wait for a guard" in [Storage backends](../storage-backends.md)).
+
 The SDK honours caller cancellation before dispatch and when reading the result.
 A disk mutation already in progress is completed by the daemon. Cancellation or
 a lost reply leaves the caller without an acknowledgement, even if the mutation
@@ -1213,7 +1220,7 @@ committed; callers cannot infer that an increment is safe to retry.
 <!-- source: pkg/plugin/sdk/sdk_state.go -- stateCall, StateIncrement -->
 <!-- source: internal/component/plugin/server/dispatch_state.go -- stateInput, opStateGet, opStatePut -->
 <!-- source: internal/core/statestore/permissions.go -- RegisterPluginKeys, PluginList -->
-<!-- source: internal/core/statestore/statestore.go -- Increment, Read, Write -->
+<!-- source: internal/core/statestore/statestore.go -- Increment, Read, Write, shared -->
 <!-- source: pkg/plugin/sdk/state_keys.go -- Plugin.StateKeys -->
 
 For existing raw-key consumers, `Plugin.StateKeys(ctx)` supplies the same SDK

@@ -63,8 +63,10 @@ type WriteGuard interface {
 	SetModifier(string)
 	WriteVersion(string, []byte, time.Time) error
 	// ReadKey and ListKeys are the raw-key pair Storage carries, answered
-	// under the held guard. Storage.ReadKey and Storage.ListKeys take the
-	// store's lock again, so a caller holding a guard MUST use these instead.
+	// under the held guard. On a blob, Storage.ReadKey and Storage.ListKeys
+	// wait for the blob mutex this guard holds, so a caller holding a guard
+	// MUST use these instead. On the tree and memory encodings a Storage read
+	// does not wait for any guard; only a write does.
 	// ListKeys is literal-prefix, recursive and sorted; List answers only the
 	// immediate file children of a resolved name.
 	ReadKey(string) ([]byte, error)

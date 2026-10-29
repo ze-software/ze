@@ -19,10 +19,19 @@ var ErrUnavailable = errors.New("runtime state unavailable: initialize a persist
 // ErrCorrupt means a counter cannot be decoded without losing its history.
 var ErrCorrupt = errors.New("runtime state is corrupt")
 
-// shared serializes state mutations, including read-modify-write counters. Store
-// replacement waits for pending operations; callers MUST unregister before Close.
+// shared holds the registered handle. Its read lock is held for the length of
+// every operation, so SetStore waits for operations in flight: callers MUST
+// unregister before Close. It serializes nothing else. Mutations are
+// serialized by the store itself: Write and Delete go through its guarded
+// WriteKey and RemoveKey, and Increment does its read-modify-write inside one
+// AcquireLock guard, which the WriteGuard contract makes exclusive. A mutation
+// can wait there behind another writer's slow syncs (the boot record holds the
+// store's write lock across all of its syncs), while a read runs beside it:
+// the store replaces a key's bytes atomically, so a read never needs a writer
+// to finish, and one that waited could pass its caller's deadline behind a
+// write of an unrelated key. Safe for concurrent use.
 var shared struct {
-	sync.Mutex
+	sync.RWMutex
 	store Storage
 }
 
@@ -36,8 +45,8 @@ func SetStore(store Storage) {
 
 // Store returns the registered handle, or nil. The daemon retains ownership.
 func Store() Storage {
-	shared.Lock()
-	defer shared.Unlock()
+	shared.RLock()
+	defer shared.RUnlock()
 	return shared.store
 }
 
@@ -70,8 +79,8 @@ func Remove(key string) error {
 
 // Read distinguishes an absent key (false, nil) from every read failure.
 func Read(key string) ([]byte, bool, error) {
-	shared.Lock()
-	defer shared.Unlock()
+	shared.RLock()
+	defer shared.RUnlock()
 	if shared.store == nil {
 		return nil, false, ErrUnavailable
 	}
@@ -87,8 +96,8 @@ func Read(key string) ([]byte, bool, error) {
 
 // Write acknowledges only a successful durable write through the owned handle.
 func Write(key string, data []byte) error {
-	shared.Lock()
-	defer shared.Unlock()
+	shared.RLock()
+	defer shared.RUnlock()
 	if shared.store == nil {
 		return ErrUnavailable
 	}
@@ -97,8 +106,8 @@ func Write(key string, data []byte) error {
 
 // Delete strictly requires storage. An already absent key is successful.
 func Delete(key string) error {
-	shared.Lock()
-	defer shared.Unlock()
+	shared.RLock()
+	defer shared.RUnlock()
 	if shared.store == nil {
 		return ErrUnavailable
 	}
@@ -111,8 +120,8 @@ func Delete(key string) error {
 
 // List returns raw state keys beneath prefix, refusing unavailable storage.
 func List(prefix string) ([]string, error) {
-	shared.Lock()
-	defer shared.Unlock()
+	shared.RLock()
+	defer shared.RUnlock()
 	if shared.store == nil {
 		return nil, ErrUnavailable
 	}
@@ -123,8 +132,8 @@ func List(prefix string) ([]string, error) {
 // after persistence succeeds. Absent counters start at one. Corrupt or exhausted
 // counters are refused so a restart can never reuse an earlier sequence space.
 func Increment(key string) (value uint32, err error) {
-	shared.Lock()
-	defer shared.Unlock()
+	shared.RLock()
+	defer shared.RUnlock()
 	if shared.store == nil {
 		return 0, ErrUnavailable
 	}

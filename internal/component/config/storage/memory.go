@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"slices"
 	"strings"
+	"sync"
 )
 
 // CreateMemory returns an empty store whose keys live in process memory and
@@ -27,16 +28,19 @@ func CreateMemory() Storage {
 	return result
 }
 
-// memoryEncoding holds each key's bytes in a map. It is not safe for
-// concurrent use on its own: the store reaches it only under its mutex,
-// reads under the read lock and writes under a guard's write lock.
+// memoryEncoding holds each key's bytes in a map. Safe for concurrent use:
+// the store serializes writes under a guard, and an unguarded read runs beside
+// that guard's writes, so mu covers the map.
 type memoryEncoding struct {
+	mu     sync.RWMutex
 	values map[string][]byte
 }
 
 // ReadFile returns a copy, so an unlocked read stays caller-owned as the
 // contract says, and a later write cannot change bytes a caller holds.
 func (m *memoryEncoding) ReadFile(key string) ([]byte, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	data, ok := m.values[key]
 	if !ok {
 		return nil, &fs.PathError{Op: "read", Path: key, Err: fs.ErrNotExist}
@@ -47,6 +51,8 @@ func (m *memoryEncoding) ReadFile(key string) ([]byte, error) {
 // WriteFile refuses a key that would be both a value and a directory, as the
 // tree refuses it: a key under an existing value, or a value over existing keys.
 func (m *memoryEncoding) WriteFile(key string, data []byte, _ fs.FileMode) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	for i := range len(key) {
 		if key[i] != '/' {
 			continue
@@ -70,6 +76,8 @@ func (m *memoryEncoding) WriteFile(key string, data []byte, _ fs.FileMode) error
 // Remove deletes one value. An absent key keeps fs.ErrNotExist, as the tree's
 // does, so statestore.Delete can treat absence as success.
 func (m *memoryEncoding) Remove(key string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	if _, ok := m.values[key]; !ok {
 		return &fs.PathError{Op: "remove", Path: key, Err: fs.ErrNotExist}
 	}
@@ -78,6 +86,8 @@ func (m *memoryEncoding) Remove(key string) error {
 }
 
 func (m *memoryEncoding) has(key string) bool {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	_, ok := m.values[key]
 	return ok
 }
@@ -85,6 +95,8 @@ func (m *memoryEncoding) has(key string) bool {
 // list answers what the tree's list answers: every key that string-starts
 // with prefix, at any depth, sorted.
 func (m *memoryEncoding) list(prefix string) ([]string, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	var keys []string
 	for key := range m.values {
 		if strings.HasPrefix(key, prefix) {

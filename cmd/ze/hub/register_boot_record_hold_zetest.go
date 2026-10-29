@@ -16,7 +16,8 @@ import (
 // testBootRecordHoldKey names how long a test DUT's boot record holds the
 // store's write lock before it writes. A slow disk is what it stands for: there
 // each of the record's syncs waits behind another writer, and the record holds
-// the store's mutex across all of them, so every store read waits as long.
+// the store's write lock across all of them, so every store write waits as
+// long, and so does a read of a blob store. A read of the tree does not.
 const testBootRecordHoldKey = "ze.test.boot.record.hold"
 
 func init() {
