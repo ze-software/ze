@@ -222,8 +222,10 @@ Publication (Thomas, 2026-10-29, design gate): the RFC completion data is publis
 | `data/rfc/<stem>.json` | Every requirement row (RID, level, section, status, evidence) and the RFC's section counts, from the model |
 | `data/rfc/profiles/<name>.json` | Profile kind, title, release flag, required and optional members |
 | `data/rfc/index.json` | Every stem with its file, title, walked flag and enrolment |
-| RFC list, profile pages, profile index, detail pages | Static shells: one browser renderer loads the files, sums counts once (walked only, counts before dividing), draws both bars, the Total row and the check line |
-| Markdown mirrors of those pages | Link to the JSON files and say the figures are there; they carry no figures |
+| RFC list, profile pages, profile index, detail pages | One browser renderer loads the files, sums counts once (walked only, counts before dividing), draws both bars, the Total row and the check line. The build writes the last build's values inside the marked elements as fallback text only |
+| Markdown mirrors of those pages | The last build's values, plus links to the JSON files as the source |
+
+Scope split (Thomas, 2026-10-29, agreed with session json-website and `spec-site-values-from-one-file`): site-wide values (header, home, health, compare, CLI reference, release and downloads) live in `data/site-facts.json` and belong to that spec; RFC completion data, the RFC pages and the RFC index aggregates belong to this one. `internal/le/site/facts.go` and `home.go` are shared: whichever lands first, the other rebases. Rule: `ai/META-DECISIONS.md`, "Website design".
 
 The existing whole-ledger `data/rfc-requirements.json` and the per-page server rendering of figures are replaced, not kept beside it (`ai/rules/no-layering.md`). The renderer is tested in a real browser through Playwright, already used for the website demos.
 
