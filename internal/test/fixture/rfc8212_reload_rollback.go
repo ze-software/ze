@@ -52,7 +52,7 @@ func rfc8212ReloadRollback(ctx context.Context, p *sdk.Plugin, wire *rfc8212Relo
 			if !present {
 				return errors.New("outer rejection fixture omitted looking-glass port")
 			}
-			occupied, err = net.Listen("tcp", net.JoinHostPort("127.0.0.9", port))
+			occupied, err = (&net.ListenConfig{}).Listen(ctx, "tcp", net.JoinHostPort("127.0.0.9", port))
 			if err != nil {
 				return fmt.Errorf("reserve real listener collision: %w", err)
 			}
@@ -175,7 +175,10 @@ func rfc8212ReloadOwner(ctx context.Context, p *sdk.Plugin, wire *rfc8212ReloadW
 	}
 	if mode == "unsupported" {
 		if _, err := os.Stat("fault.reached-unsupported"); !errors.Is(err, os.ErrNotExist) {
-			return fmt.Errorf("unsupported state owner reached mutation: marker error=%v", err)
+			if err == nil {
+				return errors.New("unsupported state owner reached mutation: fault.reached-unsupported exists")
+			}
+			return fmt.Errorf("unsupported state owner reached mutation: marker: %w", err)
 		}
 	} else if mode == "finalize" {
 		if !waitForFile(ctx, "fault.finalize", 80, liveStagesPollDelay) {

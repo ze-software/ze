@@ -197,7 +197,7 @@ system {
 }
 
 func displayFillTabAfter(ctx context.Context, env []string, text string) (string, error) {
-	master, slave, err := displayFillOpenPTY(50, 200)
+	master, slave, err := displayFillOpenPTY()
 	if err != nil {
 		return "", fmt.Errorf("open pseudo-terminal: %w", err)
 	}
@@ -321,7 +321,12 @@ func displayFillEnvironment(base []string, updates map[string]string) []string {
 // every darwin host. Nothing it asserts is Linux-only: the completion it reads
 // comes from the column registry, so the fixture owed a portable terminal
 // rather than a platform gate.
-func displayFillOpenPTY(rows, cols uint16) (*os.File, *os.File, error) {
+func displayFillOpenPTY() (*os.File, *os.File, error) {
+	// Every caller's terminal is 200 columns by 50 rows.
+	const (
+		displayFillPTYCols = 200
+		displayFillPTYRows = 50
+	)
 	master, slave, err := pty.Open()
 	if err != nil {
 		return nil, nil, err
@@ -331,7 +336,7 @@ func displayFillOpenPTY(rows, cols uint16) (*os.File, *os.File, error) {
 		_ = master.Close()
 		return nil, nil, err
 	}
-	if err := pty.Setsize(master, &pty.Winsize{Rows: rows, Cols: cols}); err != nil {
+	if err := pty.Setsize(master, &pty.Winsize{Rows: displayFillPTYRows, Cols: displayFillPTYCols}); err != nil {
 		return fail(err)
 	}
 	// The master must sit in Go's poller, which honors the read and write

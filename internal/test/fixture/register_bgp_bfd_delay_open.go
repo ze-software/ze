@@ -71,7 +71,10 @@ func bgpBFDDelayOpen(ctx context.Context, args []string) error {
 		n, readErr := conn.Read(octet[:])
 		var timeout net.Error
 		if n != 0 || !errors.As(readErr, &timeout) || !timeout.Timeout() {
-			return fmt.Errorf("strict Event 20 sent before BFD Up: n=%d error=%v", n, readErr)
+			if readErr == nil {
+				return fmt.Errorf("strict Event 20 sent before BFD Up: n=%d", n)
+			}
+			return fmt.Errorf("strict Event 20 sent before BFD Up: n=%d: %w", n, readErr)
 		}
 		if err := conn.SetReadDeadline(time.Now().Add(12 * time.Second)); err != nil {
 			return err
@@ -137,25 +140,36 @@ func bfdDelayOpenSendInit(ctx context.Context, discriminator uint32) error {
 		if err != nil {
 			return err
 		}
-		if conn.LocalAddr().(*net.UDPAddr).Port < 49152 {
+		local, ok := conn.LocalAddr().(*net.UDPAddr)
+		if !ok {
+			closeErr := conn.Close()
+			return errors.Join(fmt.Errorf("BFD source socket has local address %T, want *net.UDPAddr", conn.LocalAddr()), closeErr)
+		}
+		if local.Port < 49152 {
 			if err := conn.Close(); err != nil {
 				return err
 			}
 			continue
 		}
-		defer conn.Close() //nolint:errcheck // the datagram's write determines success
-		// RFC 5880 Section 4.1: Init, no flags, 24 octets. A Down local
-		// session receiving Init moves Up. Detection multiplier 255 with a
-		// one-second interval keeps the real session alive throughout the
-		// observer; no artificial timer or disabled detector is involved.
-		var packet [24]byte
-		packet[0], packet[1], packet[2], packet[3] = 1<<5, 2<<6, 255, 24
-		binary.BigEndian.PutUint32(packet[4:8], 0xda1a0001)
-		binary.BigEndian.PutUint32(packet[8:12], discriminator)
-		binary.BigEndian.PutUint32(packet[12:16], 1_000_000)
-		binary.BigEndian.PutUint32(packet[16:20], 1_000_000)
-		_, err = conn.WriteToUDP(packet[:], &net.UDPAddr{IP: net.ParseIP("127.0.0.1"), Port: 3784})
-		return err
+		return bfdDelayOpenWriteInit(conn, discriminator)
 	}
 	return errors.New("could not acquire an ephemeral BFD source port in 49152..65535")
+}
+
+// bfdDelayOpenWriteInit sends one Init packet from conn and closes it. It owns
+// conn, so bfdDelayOpenSendInit's port-search loop holds no deferred close.
+func bfdDelayOpenWriteInit(conn *net.UDPConn, discriminator uint32) error {
+	defer conn.Close() //nolint:errcheck // the datagram's write determines success
+	// RFC 5880 Section 4.1: Init, no flags, 24 octets. A Down local
+	// session receiving Init moves Up. Detection multiplier 255 with a
+	// one-second interval keeps the real session alive throughout the
+	// observer; no artificial timer or disabled detector is involved.
+	var packet [24]byte
+	packet[0], packet[1], packet[2], packet[3] = 1<<5, 2<<6, 255, 24
+	binary.BigEndian.PutUint32(packet[4:8], 0xda1a0001)
+	binary.BigEndian.PutUint32(packet[8:12], discriminator)
+	binary.BigEndian.PutUint32(packet[12:16], 1_000_000)
+	binary.BigEndian.PutUint32(packet[16:20], 1_000_000)
+	_, err := conn.WriteToUDP(packet[:], &net.UDPAddr{IP: net.ParseIP("127.0.0.1"), Port: 3784})
+	return err
 }

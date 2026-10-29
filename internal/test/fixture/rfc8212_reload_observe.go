@@ -169,11 +169,11 @@ func rfc8212ReloadSessions(ctx context.Context, p *sdk.Plugin, before map[string
 			}
 		}
 	}
-	oldRefresh, err := rfc8212ReloadCounter(before, "127.0.0.1", "sent", "route-refresh")
+	oldRefresh, err := rfc8212ReloadCounter(before, "sent", "route-refresh")
 	if err != nil {
 		return err
 	}
-	newRefresh, err := rfc8212ReloadCounter(after, "127.0.0.1", "sent", "route-refresh")
+	newRefresh, err := rfc8212ReloadCounter(after, "sent", "route-refresh")
 	if err != nil {
 		return err
 	}
@@ -184,16 +184,18 @@ func rfc8212ReloadSessions(ctx context.Context, p *sdk.Plugin, before map[string
 }
 
 func rfc8212ReloadInputDelta(ctx context.Context, p *sdk.Plugin, before map[string]map[string]any, delta int64) error {
-	prior, err := rfc8212ReloadCounter(before, "127.0.0.1", "received", "updates")
+	prior, err := rfc8212ReloadCounter(before, "received", "updates")
 	if err != nil {
 		return err
 	}
 	return rfc8212ReloadWaitInput(ctx, p, prior, delta)
 }
 
-// rfc8212ReloadCounter reads the JSON counter produced by handleBgpPeerDetail.
-// Zero is a valid count, never a substitute for a missing peer, field or number.
-func rfc8212ReloadCounter(rows map[string]map[string]any, peer, direction, kind string) (int64, error) {
+// rfc8212ReloadCounter reads the JSON counter produced by handleBgpPeerDetail
+// for the observed peer, 127.0.0.1. Zero is a valid count, never a substitute
+// for a missing peer, field or number.
+func rfc8212ReloadCounter(rows map[string]map[string]any, direction, kind string) (int64, error) {
+	peer := addrLoopback
 	row, ok := rows[peer]
 	if !ok {
 		return 0, fmt.Errorf("counter peer %s absent from detail", peer)
@@ -234,7 +236,7 @@ func rfc8212ReloadInput(ctx context.Context, p *sdk.Plugin) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	return rfc8212ReloadCounter(rows, "127.0.0.1", "received", "updates")
+	return rfc8212ReloadCounter(rows, "received", "updates")
 }
 
 func rfc8212ReloadWaitInput(ctx context.Context, p *sdk.Plugin, prior, delta int64) error {
@@ -289,5 +291,8 @@ func rfc8212ReloadBest(ctx context.Context, p *sdk.Plugin, prefix, owner string)
 	}) {
 		return nil
 	}
-	return fmt.Errorf("eligible %s owner want %q: last=%v error=%v", prefix, owner, last, queryErr)
+	if queryErr == nil {
+		return fmt.Errorf("eligible %s owner want %q: last=%v", prefix, owner, last)
+	}
+	return fmt.Errorf("eligible %s owner want %q: last=%v: %w", prefix, owner, last, queryErr)
 }

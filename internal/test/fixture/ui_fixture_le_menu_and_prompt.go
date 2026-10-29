@@ -276,7 +276,7 @@ func leMenuAndPromptCancel(ctx context.Context, dir string, env []string, lePath
 // pipe, and the reverse, bare le prints the root page and exits 0.
 func leMenuAndPromptHalfTerminal(ctx context.Context, dir string, env []string, lePath, _ string) error {
 	for _, stdinTerminal := range []bool{true, false} {
-		master, slave, err := displayFillOpenPTY(50, 200)
+		master, slave, err := displayFillOpenPTY()
 		if err != nil {
 			return fmt.Errorf("open pseudo-terminal: %w", err)
 		}
@@ -348,7 +348,7 @@ func leMenuAndPromptZeLe(ctx context.Context, dir string, env []string, _, zePat
 
 // leMenuAndPromptStart starts program with args at a fresh pseudo-terminal.
 func leMenuAndPromptStart(ctx context.Context, dir string, env []string, program string, args ...string) (*leMenuAndPromptRun, error) {
-	master, slave, err := displayFillOpenPTY(50, 200)
+	master, slave, err := displayFillOpenPTY()
 	if err != nil {
 		return nil, fmt.Errorf("open pseudo-terminal: %w", err)
 	}

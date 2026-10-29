@@ -70,7 +70,10 @@ func delayOpenFixtureExchange(ctx context.Context, plugin *sdk.Plugin, address s
 		n, readErr := conn.Read(octet[:])
 		var timeout net.Error
 		if n != 0 || !errors.As(readErr, &timeout) || !timeout.Timeout() {
-			return fmt.Errorf("DelayOpen wrote before peer OPEN: bytes=%d error=%v", n, readErr)
+			if readErr == nil {
+				return fmt.Errorf("DelayOpen wrote before peer OPEN: bytes=%d", n)
+			}
+			return fmt.Errorf("DelayOpen wrote before peer OPEN: bytes=%d: %w", n, readErr)
 		}
 		if err := conn.SetReadDeadline(time.Now().Add(12 * time.Second)); err != nil {
 			return err
@@ -121,7 +124,10 @@ func delayOpenFixtureState(ctx context.Context, plugin *sdk.Plugin, want string)
 	}) {
 		return nil
 	}
-	return fmt.Errorf("DelayOpen state=%v, want %s (query error %v)", last, want, lastErr)
+	if lastErr == nil {
+		return fmt.Errorf("DelayOpen state=%v, want %s", last, want)
+	}
+	return fmt.Errorf("DelayOpen state=%v, want %s: query: %w", last, want, lastErr)
 }
 
 func delayOpenFixtureRead(conn net.Conn, want byte) error {

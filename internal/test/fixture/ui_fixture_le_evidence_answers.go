@@ -220,8 +220,8 @@ func runLEEvidenceAnswers(ctx context.Context) error {
 		maps.Copy(overrides, extra)
 		return uiLeEvidenceAnswersEnvironment(overrides)
 	}
-	le := func(args []string, status, exitCode, record string, extra map[string]string) uiLeEvidenceAnswersCommandResult {
-		return uiLeEvidenceAnswersRunCommand(ctx, work, binary, args, environment(status, exitCode, record, extra))
+	le := func(args []string, record string, extra map[string]string) uiLeEvidenceAnswersCommandResult {
+		return uiLeEvidenceAnswersRunCommand(ctx, work, binary, args, environment("", "", record, extra))
 	}
 	// leAtTerminal runs a whole-tree verb, which refuses pipes by design.
 	leAtTerminal := func(args []string, status, exitCode, record string) uiLeEvidenceAnswersCommandResult {
@@ -229,7 +229,7 @@ func runLEEvidenceAnswers(ctx context.Context) error {
 	}
 
 	// Both commands must be present in the composition root used by help.
-	usage := le([]string{flagHelp}, "", "", "", nil)
+	usage := le([]string{flagHelp}, "", nil)
 	page := usage.stdout + usage.stderr
 	for _, name := range []string{areaEvidence, areaDeployment} {
 		uiLeEvidenceAnswersRequire(strings.Contains(page, name), "le --help does not list the %s command", name)
@@ -243,7 +243,7 @@ func runLEEvidenceAnswers(ctx context.Context) error {
 		{areaDeployment, "gokrazy-l2tp-ppp"},
 	}
 	for _, item := range listings {
-		listing := le([]string{item.name}, "", "", "", nil)
+		listing := le([]string{item.name}, "", nil)
 		uiLeEvidenceAnswersRequire(listing.code == 0, "le %s exited %d", item.name, listing.code)
 		uiLeEvidenceAnswersRequire(strings.Contains(listing.stdout, item.verb),
 			"le %s does not list %s: %q", item.name, item.verb, listing.stdout)
@@ -294,7 +294,7 @@ func runLEEvidenceAnswers(ctx context.Context) error {
 
 	// The L2TP proof builds its daemon, starts the peer, and observes a session.
 	l2tpRecord := filepath.Join(work, "l2tp-argv")
-	proof := le([]string{areaDeployment, actionL2TPTest, "|", renderJSON}, "", "", l2tpRecord, nil)
+	proof := le([]string{areaDeployment, actionL2TPTest, "|", renderJSON}, l2tpRecord, nil)
 	uiLeEvidenceAnswersRequire(proof.code == 0,
 		"the L2TP proof exited %d: %s", proof.code, uiLeEvidenceAnswersTail(proof.stderr, 800))
 	var verdict map[string]any
@@ -323,7 +323,7 @@ func runLEEvidenceAnswers(ctx context.Context) error {
 
 	// Both machine-touching proofs reject the kernel-probe escape before making
 	// any namespace, lab, image, or container change.
-	escaped := le([]string{areaDeployment, "l2tp-ppp", "|", renderJSON}, "", "", "",
+	escaped := le([]string{areaDeployment, "l2tp-ppp", "|", renderJSON}, "",
 		map[string]string{"ZE_L2TP_SKIP_KERNEL_PROBE": valueTrue})
 	uiLeEvidenceAnswersRequire(escaped.code == 1,
 		"a run carrying the kernel-probe escape exited %d, want 1", escaped.code)
@@ -338,7 +338,7 @@ func runLEEvidenceAnswers(ctx context.Context) error {
 	}
 	uiLeEvidenceAnswersRequire(refused["proven"] == false, "a refused run reports itself proven")
 
-	appliance := le([]string{areaDeployment, "gokrazy-l2tp-ppp", "|", renderJSON}, "", "", "",
+	appliance := le([]string{areaDeployment, "gokrazy-l2tp-ppp", "|", renderJSON}, "",
 		map[string]string{"ZE_L2TP_SKIP_KERNEL_PROBE": valueTrue})
 	uiLeEvidenceAnswersRequire(appliance.code == 1,
 		"the appliance proof exited %d on the escape, want 1", appliance.code)
@@ -373,7 +373,7 @@ func runLEEvidenceAnswers(ctx context.Context) error {
 		if item.wholeTree {
 			out = leAtTerminal(args, "", "", record)
 		} else {
-			out = le(args, "", "", record, nil)
+			out = le(args, record, nil)
 		}
 		uiLeEvidenceAnswersRequire(strings.Contains(out.stdout, item.needle),
 			"`le %s %s | %s` did not render the payload: %q",
@@ -382,9 +382,9 @@ func runLEEvidenceAnswers(ctx context.Context) error {
 
 	// Unknown actions and trailing values remain distinguishable from a gate
 	// which ran and failed, and neither rejected invocation performs work.
-	missing := le([]string{areaEvidence, "no-such-action"}, "", "", "", nil)
+	missing := le([]string{areaEvidence, "no-such-action"}, "", nil)
 	uiLeEvidenceAnswersRequire(missing.code == 2, "an unknown action exited %d, want 2", missing.code)
-	extra := le([]string{areaDeployment, actionL2TPTest, "somewhere"}, "", "", "", nil)
+	extra := le([]string{areaDeployment, actionL2TPTest, "somewhere"}, "", nil)
 	uiLeEvidenceAnswersRequire(extra.code == 2, "a value after an action exited %d, want 2", extra.code)
 	uiLeEvidenceAnswersRequire(len(uiLeEvidenceAnswersRecorded(defaultDockerRecord)) == 0,
 		"a refused invocation still started something")

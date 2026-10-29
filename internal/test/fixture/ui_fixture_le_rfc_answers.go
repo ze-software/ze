@@ -246,10 +246,10 @@ func leRFCAnswers(ctx context.Context) (err error) {
 	// The extraction walk is the sub-area `rfc extraction`, so its actions are
 	// read from that area's page and keyed by their whole words.
 	listed := map[string]string{}
-	listings := ""
+	var listings strings.Builder
 	for _, page := range []string{"rfc", "rfc extraction"} {
 		listing := runLE(root, strings.Fields(page)...)
-		listings += listing.stdout
+		listings.WriteString(listing.stdout)
 		prefix := strings.TrimPrefix(strings.TrimPrefix(page, "rfc"), " ")
 		if prefix != "" {
 			prefix += " "
@@ -303,7 +303,7 @@ func leRFCAnswers(ctx context.Context) (err error) {
 	for action, effect := range wantListed {
 		leRFCAnswersRequire(listed[action] == effect,
 			"rfc listing action %q has effect %q, want %q:\n%s",
-			action, listed[action], effect, listings)
+			action, listed[action], effect, listings.String())
 	}
 	for _, action := range []string{"extraction report", actionCheck, actionSelftest, "reseal", actionUpdate} {
 		refused := runLE(root, append(append([]string{"rfc"}, strings.Fields(action)...), "rfc7606")...)

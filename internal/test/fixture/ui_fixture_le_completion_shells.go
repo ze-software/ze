@@ -248,7 +248,7 @@ func leCompletionShellsStart(ctx context.Context, dir string, env []string, shel
 	if _, err := exec.LookPath(shell.argv[0]); err != nil {
 		return nil, fmt.Errorf("%s is not installed, so its completion cannot be driven: install %s and run the test again", shell.name, shell.name)
 	}
-	master, slave, err := displayFillOpenPTY(50, 200)
+	master, slave, err := displayFillOpenPTY()
 	if err != nil {
 		return nil, fmt.Errorf("open pseudo-terminal: %w", err)
 	}

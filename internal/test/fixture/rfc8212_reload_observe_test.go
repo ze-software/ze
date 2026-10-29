@@ -39,7 +39,7 @@ func TestRFC8212ReloadCounter(t *testing.T) {
 			if err := json.Unmarshal([]byte(tc.row), &rows); err != nil {
 				t.Fatal(err)
 			}
-			got, err := rfc8212ReloadCounter(rows, "127.0.0.1", tc.direction, tc.kind)
+			got, err := rfc8212ReloadCounter(rows, tc.direction, tc.kind)
 			if tc.err != "" {
 				if err == nil {
 					t.Fatalf("counter=%d without required error %q", got, tc.err)

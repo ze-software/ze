@@ -113,7 +113,7 @@ func (state *rfc8212PolicyWire) receive(event string) error {
 	return nil
 }
 
-func (state *rfc8212PolicyWire) wait(ctx context.Context, peer string, withdrawn string, prefixes ...string) error {
+func (state *rfc8212PolicyWire) wait(ctx context.Context, peer, withdrawn string, prefixes ...string) error {
 	matched := Poll(ctx, 80, liveStagesPollDelay, func() bool {
 		state.mu.Lock()
 		defer state.mu.Unlock()
@@ -173,7 +173,7 @@ func rfc8212PolicyImport(ctx context.Context, plugin *sdk.Plugin, state *rfc8212
 		}
 		if !Poll(ctx, 80, liveStagesPollDelay, func() bool {
 			got, err := peerCounter03(ctx, plugin, peer, "updates-received")
-			return err == nil && got >= before+1
+			return err == nil && got > before
 		}) {
 			return fmt.Errorf("%s did not send the import subject", peer)
 		}

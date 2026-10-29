@@ -88,7 +88,10 @@ func rfc8212ReloadAppliedOnce(ctx context.Context, prefix string) error {
 		}
 		return counts[prefix] != 0
 	}) {
-		return fmt.Errorf("external consumer never applied buffered %s: counts=%v error=%v", prefix, counts, lastErr)
+		if lastErr == nil {
+			return fmt.Errorf("external consumer never applied buffered %s: counts=%v", prefix, counts)
+		}
+		return fmt.Errorf("external consumer never applied buffered %s: counts=%v: %w", prefix, counts, lastErr)
 	}
 	if counts[prefix] != 1 {
 		return fmt.Errorf("external consumer applied buffered %s %d times, want exactly once", prefix, counts[prefix])

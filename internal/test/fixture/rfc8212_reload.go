@@ -178,7 +178,10 @@ func rfc8212ReloadNoRefresh(ctx context.Context, p *sdk.Plugin, wire *rfc8212Rel
 		return err
 	}
 	if _, err := os.Stat("refusal.applied"); !errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("no-refresh refusal reached a config apply callback: marker error=%v", err)
+		if err == nil {
+			return errors.New("no-refresh refusal reached a config apply callback: refusal.applied exists")
+		}
+		return fmt.Errorf("no-refresh refusal reached a config apply callback: marker: %w", err)
 	}
 	current, err := done03(ctx, p, "show config running")
 	if err != nil {
