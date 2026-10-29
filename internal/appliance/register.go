@@ -39,6 +39,20 @@ func init() {
 		Subs:      subcommands(),
 	})
 
+	// Flag inventory for shell completion and the flag-register gate. It
+	// mirrors the FlagSet runKernel (cmd_kernel.go) parses: a flag added there
+	// and not here is invisible to completion, and `./le cli grammar` refuses it.
+	registry.RegisterCommandFlags("appliance kernel", []registry.FlagSpec{
+		{Name: "--arch", Description: "target architecture (default: from appliance config or host)", ValueHint: registry.FlagValueNone},
+		{Name: "--builder", Description: "build backend: docker or qemu", ValueHint: registry.FlagValueNone},
+		{Name: "--evict-cache", Description: "bound this kernel's cache namespace and exit, without building", ValueHint: registry.FlagValueNone},
+		{Name: "--jobs", Description: "positive parallel kernel build job count (default: builder CPU count)", ValueHint: registry.FlagValueNone},
+		{Name: "--print-cache-dir", Description: "print this kernel's durable cache path and exit, without building", ValueHint: registry.FlagValueNone},
+		{Name: "--profile", Description: "kernel profile token", ValueHint: registry.FlagValueNone},
+		{Name: "--target", Description: "kernel target: installer (default) or runtime", ValueHint: registry.FlagValueNone},
+		{Name: "--version", Description: "Linux kernel version", ValueHint: registry.FlagValueNone},
+	})
+
 	for _, check := range applianceDoctorChecks() {
 		if err := diagnostic.RegisterDoctorCheck(check); err != nil {
 			fmt.Fprintf(os.Stderr, "appliance doctor check registration: %v\n", err)

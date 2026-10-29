@@ -97,10 +97,6 @@ var flagDeclarationDebt = map[string]flagPathDebt{
 		Reason: "the flags are parsed in internal/appliance/cmd_iso.go and no RegisterCommandFlags call declares them",
 		Flags:  []string{"--builder", "--check", "--image", "--initrd", "--keep-staging", "--kernel", "--output", "--target"},
 	},
-	"appliance kernel": {
-		Reason: "the flags are parsed in internal/appliance/cmd_kernel.go and no RegisterCommandFlags call declares them",
-		Flags:  []string{"--arch", "--builder", "--evict-cache", "--print-cache-dir", "--profile", "--target", "--version"},
-	},
 	"appliance push": {
 		Reason: "the flags are parsed in internal/appliance/cmd_push.go and no RegisterCommandFlags call declares them",
 		Flags:  []string{"--all", "--image", "--no-reboot", "--parallel", "--testboot"},
