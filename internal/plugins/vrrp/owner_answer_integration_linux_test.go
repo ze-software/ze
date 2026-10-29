@@ -162,7 +162,9 @@ func ownerExpect(t *testing.T, phase string, got []net.HardwareAddr, physical, v
 }
 
 // ownerAwaitUsable waits for addr on link to leave DAD, and fails if it is
-// tentative after the bound or DAD declared it a duplicate.
+// tentative after the bound or DAD declared it a duplicate. It then waits for
+// the link's receive filter to admit addr's solicited-node group, so a
+// Neighbor Solicitation sent next reaches the address.
 func ownerAwaitUsable(t *testing.T, link netlink.Link, addr netip.Addr) {
 	t.Helper()
 	deadline := time.Now().Add(5 * time.Second)
@@ -175,12 +177,31 @@ func ownerAwaitUsable(t *testing.T, link netlink.Link, addr netip.Addr) {
 			t.Fatalf("%s: DAD failed for %s", link.Attrs().Name, addr)
 		}
 		if flags&unix.IFA_F_TENTATIVE == 0 {
+			ownerSyncReceiveFilter(t, link)
 			return
 		}
 		if time.Now().After(deadline) {
 			t.Fatalf("%s: %s still tentative after 5s", link.Attrs().Name, addr)
 		}
 		time.Sleep(100 * time.Millisecond)
+	}
+}
+
+// ownerSyncReceiveFilter returns once the receive filter of link reflects
+// every multicast group it has joined. Leaving DAD is not enough: the kernel
+// joins the solicited-node group (addrconf_dad_begin, before it clears the
+// tentative flag) with dev_mc_add, and for a device with ndo_change_rx_flags,
+// a macvlan among them, __dev_set_rx_mode defers the filter install to the
+// netdev work queue (net/core/dev_addr_lists.c, Linux 7.2). Until that work
+// runs, macvlan_handle_frame finds the group in neither port filter and the
+// macvlan never receives the solicitation. The work runs under rtnl_lock
+// (net/core/netdev_work.c), and do_setlink ends in netif_rx_mode_sync, which
+// runs a pending install inline. So a no-op RTM_NEWLINK on link returns only
+// after the install, whether it was pending, running or done.
+func ownerSyncReceiveFilter(t *testing.T, link netlink.Link) {
+	t.Helper()
+	if err := netlink.LinkSetUp(link); err != nil {
+		t.Fatalf("sync the receive filter of %s: %v", link.Attrs().Name, err)
 	}
 }
 

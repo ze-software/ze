@@ -3,22 +3,22 @@
     "rid": "RFC9568-6.4.3-3",
     "polarity": "positive",
     "unit": "internal/plugins/vrrp/rfc9568_nd_router_flag_integration_linux_test.go::TestVRRPSolicitedNACarriesRouterFlag",
-    "unit-sha": "19beafd2e61f03ff",
+    "unit-sha": "3d8dc7fda275b051",
     "claim-sha": "71a9923beaf4dce9",
     "route": "revert",
     "producer": "internal/plugins/vrrp/dataplane_linux.go::vmacV6Sysctls",
     "producer-sha": "3275eaea4bd23fdc",
-    "break": "body of vmacV6Sysctls replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of vmacV6Sysctls replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC9568-6.4.3-3",
     "polarity": "negative",
     "unit": "internal/plugins/vrrp/rfc9568_nd_router_flag_integration_linux_test.go::TestVRRPSolicitedNACarriesRouterFlag",
-    "unit-sha": "19beafd2e61f03ff",
+    "unit-sha": "3d8dc7fda275b051",
     "claim-sha": "cb774518cca46095",
     "route": "revert",
     "producer": "internal/plugins/vrrp/dataplane_linux.go::vmacV6Sysctls",
     "producer-sha": "3275eaea4bd23fdc",
-    "break": "body of vmacV6Sysctls replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of vmacV6Sysctls replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

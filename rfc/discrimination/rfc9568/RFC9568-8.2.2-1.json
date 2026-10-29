@@ -25,23 +25,23 @@
     "rid": "RFC9568-8.2.2-1",
     "polarity": "positive",
     "unit": "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly",
-    "unit-sha": "4a46814e5a4e2bbf",
+    "unit-sha": "307f35cbcc170fce",
     "claim-sha": "21536b0f5062948d",
     "route": "revert",
     "producer": "internal/plugins/vrrp/ownerfilter.go::ownerNDAdvertTerm",
     "producer-sha": "afb4d47d636aef28",
-    "break": "body of ownerNDAdvertTerm replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of ownerNDAdvertTerm replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC9568-8.2.2-1",
     "polarity": "negative",
     "unit": "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly",
-    "unit-sha": "4a46814e5a4e2bbf",
+    "unit-sha": "307f35cbcc170fce",
     "claim-sha": "1fe437cd1ecdb3b9",
     "route": "revert",
     "producer": "internal/plugins/vrrp/ownerfilter.go::ownerFilterTables",
     "producer-sha": "fb7f88e51d55c670",
-    "break": "body of ownerFilterTables replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of ownerFilterTables replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC9568-8.2.2-1",
