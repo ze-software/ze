@@ -233,11 +233,7 @@ func runRouteReflector(conn net.Conn) int {
 		stop := rr.startValidation(ctx, *bus)
 		defer stop()
 	}
-	err := p.Run(ctx, &sdk.Registration{
-		CacheConsumer:          true,
-		CacheConsumerUnordered: true,
-		Commands:               commandDecls(),
-	})
+	err := p.Run(ctx, routeReflectorRegistration())
 
 	if err != nil {
 		logger().Error("rr plugin failed", "error", err)
@@ -923,5 +919,21 @@ func commandDecls() []sdk.CommandDecl {
 	return []sdk.CommandDecl{
 		{Name: "show rr status", ShortHelp: "Show RR status"},
 		{Name: "show rr peers", ShortHelp: "Show peer states"},
+	}
+}
+
+// routeReflectorRegistration is the Stage 1 declaration bgp-rr sends from Run.
+func routeReflectorRegistration() *sdk.Registration {
+	return &sdk.Registration{
+		CacheConsumer:          true,
+		CacheConsumerUnordered: true,
+		// SourcePolicyOwner: this plugin keeps per-source state for the peers
+		// whose UPDATEs it receives (forwarded routes and the withdrawal map),
+		// and registers no OnSourcePolicy handler, so it cannot drop that state
+		// when the source's import policy is removed. Declaring ownership makes
+		// the engine refuse such a change before publication rather than leave
+		// the forwarded routes in place (RFC 8212 Section 3).
+		SourcePolicyOwner: true,
+		Commands:          commandDecls(),
 	}
 }

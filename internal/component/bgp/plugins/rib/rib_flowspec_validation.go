@@ -437,6 +437,10 @@ func (r *RIBManager) reconcileFlowSpecs() {
 					if !prefix.IsValid() || isSRv6Ineligible(fam, entry) || isSelfNextHop(r.selfNextHops.Load(), entryNextHopAddr(fam, entry)) {
 						return true
 					}
+					// RFC 8212 Section 3: a denied path authorizes nothing.
+					if !routes.SourcePolicyEligible(entry.SourcePolicyEpoch) {
+						return true
+					}
 					relevant := false
 					for i := range flows {
 						flow := &flows[i]

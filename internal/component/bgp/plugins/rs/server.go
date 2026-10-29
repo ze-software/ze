@@ -481,24 +481,7 @@ func RunRouteServer(conn net.Conn) int {
 
 	ctx := context.Background()
 	defer rs.stopping.Store(true)
-	err := p.Run(ctx, &sdk.Registration{
-		// CacheConsumer: true is required for bgp-cache-forward to work.
-		// Without it, Activate(id, 0) evicts cache entries immediately after
-		// event delivery, causing the forward worker to find the entry
-		// already gone (ErrUpdateExpired).
-		CacheConsumer: true,
-		// CacheConsumerUnordered: true switches from cumulative (TCP-like) ack
-		// to per-entry ack. bgp-rs uses per-peer workers that process entries
-		// out of global FIFO order — without this, acking a high ID from the
-		// heavy-peer worker would cumulatively evict intermediate entries that
-		// small-peer workers haven't processed yet, causing ErrUpdateExpired.
-		CacheConsumerUnordered: true,
-		// WantsConfig: the engine delivers only the roots a plugin declares
-		// here, so without it OnConfigure never sees bgp { route-server }
-		// and worker-queue-size takes effect from the env var alone.
-		WantsConfig: []string{configRootBGP},
-		Commands:    commandDecls(),
-	})
+	err := p.Run(ctx, routeServerRegistration())
 
 	if err != nil {
 		logger().Error("rr plugin failed", "error", err)
@@ -985,3 +968,32 @@ const maxBatchSize = 500
 
 // topLevelKeywords and nlriTypeKeywords are now shared from textparse package.
 // Use textparse.IsTopLevelKeyword() and textparse.NLRITypeKeywords.
+
+// routeServerRegistration is the Stage 1 declaration bgp-rs sends from Run.
+func routeServerRegistration() *sdk.Registration {
+	return &sdk.Registration{
+		// CacheConsumer: true is required for bgp-cache-forward to work.
+		// Without it, Activate(id, 0) evicts cache entries immediately after
+		// event delivery, causing the forward worker to find the entry
+		// already gone (ErrUpdateExpired).
+		CacheConsumer: true,
+		// CacheConsumerUnordered: true switches from cumulative (TCP-like) ack
+		// to per-entry ack. bgp-rs uses per-peer workers that process entries
+		// out of global FIFO order — without this, acking a high ID from the
+		// heavy-peer worker would cumulatively evict intermediate entries that
+		// small-peer workers haven't processed yet, causing ErrUpdateExpired.
+		CacheConsumerUnordered: true,
+		// SourcePolicyOwner: this plugin keeps per-source state for the peers
+		// whose UPDATEs it receives (forwarded routes and the withdrawal map),
+		// and registers no OnSourcePolicy handler, so it cannot drop that state
+		// when the source's import policy is removed. Declaring ownership makes
+		// the engine refuse such a change before publication rather than leave
+		// the forwarded routes in place (RFC 8212 Section 3).
+		SourcePolicyOwner: true,
+		// WantsConfig: the engine delivers only the roots a plugin declares
+		// here, so without it OnConfigure never sees bgp { route-server }
+		// and worker-queue-size takes effect from the env var alone.
+		WantsConfig: []string{configRootBGP},
+		Commands:    commandDecls(),
+	}
+}

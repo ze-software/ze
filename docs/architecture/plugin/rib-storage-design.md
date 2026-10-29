@@ -85,12 +85,75 @@ Attribute grouping keeps different epochs separate. Initial and refresh replay
 commands carry it in the typed update-route request, not in user route metadata.
 RS and RR retain the admitted epoch in their existing accepted-route inventories,
 including work queued before forwarding; no separate permanent store is added.
-These fields transport provenance. They do not themselves implement owner
-prepare/apply/abort/finalize, eligibility invalidation or transaction pins.
+These fields transport provenance. The source-policy lifecycle owners below
+read them to invalidate and restore a source in place.
 
 <!-- source: internal/component/bgp/plugins/rib/storage/routeentry.go -- RouteEntry, Clone -->
 <!-- source: internal/component/bgp/plugins/adj_rib_in/rib.go -- RawRoute, replayStoredRoute -->
 <!-- source: internal/component/bgp/plugins/rib/rib_replay.go -- groupKey, replayRoutesWithCursor, resendRoutesWithCursor -->
+
+### Source-policy lifecycle owners
+
+`bgp-rib` and `bgp-adj-rib-in` register an `OnSourcePolicy` handler, so each
+declares itself a source-policy owner at Stage 1 and answers the four phases of
+an RFC 8212 Section 3 import invalidation (`docs/architecture/api/process-protocol.md`).
+Both match `source.peer` as the peer address their received-UPDATE events
+carry, parsed to the `netip.Addr` that keys their stores. Each phase changes
+state under the store lock, releases it, and returns only after its downstream
+work is done.
+
+| Phase | `bgp-rib` | `bgp-adj-rib-in` |
+|-------|-----------|------------------|
+| Prepare | Refuses a source whose session is down, a token older than a path it already holds (a stored epoch above `policy-epoch`), and a source another open transaction holds. Pins the identity of every stored path: family, NLRI, received message ID and attribute fingerprint | Same refusals. Pins the `RawRoute` pointers of the source's installed and validation-pending routes |
+| Apply | Records the denial bound on the source's `PeerRIB`, keeping the bound it held before: every path stored at or below the captured epoch leaves candidacy (`candidateAdmitted`) and FlowSpec authorization, in place. Withdraws the forwarded copies those paths own at every destination and holds their sent entries, then re-elects each pinned route and emits the best changes, one batch per family, before the receipt | Records the bound, keeping the previous one; `routeEligible`, replay and `replay-path` exclude the paths, VPN and the other families keyed by NLRI included |
+| Abort | Restamps each pinned path still stored with the same identity to `next-policy-epoch`. After an apply it also drops every other denied path, puts back the bound from before the apply, returns the held copies of restored paths to the sent inventory under the new epoch and announces them again; it then re-elects and emits. No Route Refresh and no import evaluation | Restamps the pinned pointers still stored; after an apply, drops the rest and puts back the previous bound |
+| Finalize | Admitted only after apply: abort closes a transaction that was not applied. Removes the denied paths, so no denied state is retained for a later recovery, and releases the held sent entries. The bound stays | Same, without sent entries |
+
+The ledger both owners keep (stage, captured identity, recorded outcome of
+each phase, and the admission of a phase) is one package,
+`internal/core/bgp/sourcepolicy`; what a phase does to a store stays in each
+owner. `bgp-adj-rib-in` holds no FlowSpec rule, so for FlowSpec it defers to
+the FlowSpec provider `ribevents.RouteEligible` asks first, `bgp-rib`, which
+applies the denial to FlowSpec authorization. For every other family a query
+for a route the store does not hold is answered ineligible.
+
+Best-change publication is the bus emit. An engine subscriber has run when
+the emit returns, but a plugin-process subscriber such as
+`bgp-redistribute-egress`, which feeds destination writes, has the batch
+queued and not yet applied. The event bus offers no emit-and-wait, so the
+owner's receipt does not prove those consumers settled; the coordinator owns
+that barrier after the owner call, beside the destination writers it already
+joins.
+
+Pins are temporary and belong to one transaction: no second route store and no
+copied UPDATE. A path the source withdrew, GR purged or a later UPDATE replaced
+no longer matches its pin and is never restored. A duplicate of a completed
+phase returns its recorded outcome without writing again. A foreign or stale
+token, a phase out of order and an abort after finalize are refused before any
+change. When the source's session goes down, its transaction and held
+references go with its routes, so a later phase is refused rather than applied
+to a successor session. A `PeerRIB` that GR retains keeps its bound, so its
+denied paths stay ineligible until GR purges them.
+
+Losing the session inside the window fails closed. The transaction drops with
+the session and the bound stays; neither owner restores anything locally. The
+coordinator's later abort is refused, and the coordinator reports the
+compensation as incomplete, naming the peer and the owner that refused.
+
+`bgp-rs` and `bgp-rr` keep per-source state for every peer whose UPDATEs they
+receive and implement no lifecycle, so they declare `source-policy-owner`
+without `source-policy`. Preflight then refuses an import-policy removal for
+such a peer before publication and tells the operator to disable the peer,
+commit, set the new policy, re-enable the peer and commit again.
+
+<!-- source: internal/component/bgp/plugins/rib/source_policy.go -- handleSourcePolicy, applySourcePolicy, abortSourcePolicy -->
+<!-- source: internal/component/bgp/plugins/rib/storage/peerrib.go -- DenySourcePolicyThrough, RestoreSourcePolicyDenial, SourcePolicyEligible -->
+<!-- source: internal/component/bgp/plugins/adj_rib_in/source_policy.go -- handleSourcePolicy -->
+<!-- source: internal/component/bgp/plugins/adj_rib_in/rib_eligibility.go -- routeEligible, validationRouteKey -->
+<!-- source: internal/core/bgp/sourcepolicy/ledger.go -- Owner.Admit, Owner.Reprepare, Ledger.Record -->
+<!-- source: internal/component/bgp/plugins/rib/source_policy.go -- restoreSentLocked, reelectSourcePolicy, dropSourcePolicyLocked -->
+<!-- source: internal/component/bgp/plugins/rs/server.go -- routeServerRegistration -->
+<!-- source: internal/component/bgp/plugins/rr/rr.go -- routeReflectorRegistration -->
 
 ### Adj-RIB-Out native inventory
 
@@ -1128,7 +1191,14 @@ The selecting RIB consults `ribevents.RouteEligible` against this receive store.
 After changing it, Adj-RIB-In releases its lock and emits `ValidationChange`;
 `RIBManager.validationChanged` reruns best-path selection and updates the shared
 Loc-RIB, including withdrawal or selection of another peer's path. Recovery
-therefore needs no new UPDATE. No `ValidationChange` is emitted before
+therefore needs no new UPDATE. Each notified `ValidationRoute` names its path
+the way the selection query looks it up: by prefix for the families keyed on
+it, and by the route's native NLRI, without ADD-PATH, for VPN and every other
+family keyed by its decoder (see "Adj-RIB-In route keys"). The store takes
+those bytes from the stored or pending route, so a removal notes its change
+before it deletes, and a change for a route the store does not hold is not
+emitted, because its eligibility was false before and after. No
+`ValidationChange` is emitted before
 `enable-validation` registers the eligibility lookup. Without that lookup every
 path is eligible, so a store change alters no verdict. An event would make the
 route server and the reflector replay a route the live forward already sent.
@@ -1150,7 +1220,7 @@ reconciliation, because the operator gives the store no `send [ update ]`
 (`ribevents.RelayReplayPath`). An absent path uses `StoredRoute.Withdraw`; every
 retained path carries its original `MsgID`.
 <!-- source: internal/component/bgp/plugins/adj_rib_in/rib_validation.go -- applyDecision, applyToInstalled, promoteToInstalled -->
-<!-- source: internal/component/bgp/plugins/adj_rib_in/rib_eligibility.go -- routeEligible, unlockValidation -->
+<!-- source: internal/component/bgp/plugins/adj_rib_in/rib_eligibility.go -- routeEligible, unlockValidation, noteValidationChange, validationNLRILocked -->
 <!-- source: internal/component/bgp/plugins/adj_rib_in/rib_replay_path.go -- replayPathCommand -->
 <!-- source: internal/core/bgp/ribevents/replay.go -- ReplayPathCommand, RelayReplayPath -->
 <!-- source: internal/component/bgp/plugins/rib/rib_validation.go -- validationChanged, validationEligible -->

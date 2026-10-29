@@ -1291,6 +1291,10 @@ func releaseCandidates(candidates []*Candidate) {
 // process at all: the RFC 9252 SRv6 and RFC 4271 Section 5.1.3 exclusions, the
 // same for every family.
 func (r *RIBManager) candidateAdmitted(fam family.Family, peerRIB *storage.PeerRIB, entry storage.RouteEntry, selfNextHops *[]netip.Addr) bool {
+	// RFC 8212 Section 3: an applied import denial excludes the path in place.
+	if !peerRIB.SourcePolicyEligible(entry.SourcePolicyEpoch) {
+		return false
+	}
 	// RFC 9252 Section 5: path with SRv6 Service TLVs but no valid SID is ineligible.
 	if isSRv6Ineligible(fam, entry) {
 		return false

@@ -166,12 +166,13 @@ func (r *AdjRIBInManager) clearPeerPending(peerAddr netip.Addr) {
 }
 
 // removePending removes a specific pending route by routeKey.
-// Caller must hold r.mu write lock.
+// Caller must hold r.mu write lock. The change is noted before the delete,
+// while the route still supplies the NLRI that names it (noteValidationChange).
 func (r *AdjRIBInManager) removePending(peerAddr netip.Addr, routeKey compactRouteKey) {
+	r.noteValidationChange(peerAddr, routeKey)
 	key := pendingKey(peerAddr, routeKey)
 	delete(r.pending, key)
 	delete(r.earlyDecisions, key)
-	r.noteValidationChange(peerAddr, routeKey)
 }
 
 // parseValidationState converts a string state argument to an RFC 6811 state.

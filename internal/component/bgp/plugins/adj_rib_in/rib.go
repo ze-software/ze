@@ -181,6 +181,13 @@ type AdjRIBInManager struct {
 	// anyone read. It stays set after disable-validation: the lookup does too.
 	validationGate bool
 
+	// sourcePolicy holds each source's source-policy transaction and its undo
+	// pins, and policyDenied the epoch at or below which an applied denial makes
+	// the source's routes ineligible (source_policy.go). Both under mu; both
+	// dropped with the source's routes when its session ends.
+	sourcePolicy map[netip.Addr]*sourcePolicyTxn
+	policyDenied map[netip.Addr]uint64
+
 	mu sync.RWMutex
 
 	// keyScratch is where routeKeyFromNLRI decodes a route identity, guarded by
@@ -374,6 +381,9 @@ func runAdjRIBInPlugin(conn net.Conn) int {
 	// Structured event handler for DirectBridge delivery.
 	// State events use metadata fields directly. UPDATE events are dispatched
 	// to the appropriate handler based on EventType.
+	// RFC 8212 Section 3: the source-policy lifecycle (source_policy.go).
+	p.OnSourcePolicy(r.handleSourcePolicy)
+
 	p.OnStructuredEvent(func(events []any) error {
 		for _, event := range events {
 			se, ok := event.(*rpc.StructuredEvent)
@@ -1063,6 +1073,10 @@ func (r *AdjRIBInManager) walkReplayRoutes(targetPeer netip.Addr, fromIndex uint
 				return true
 			}
 			if rt.Ineligible {
+				return true
+			}
+			// RFC 8212 Section 3: an applied import denial excludes the route.
+			if r.sourcePolicyDeniedLocked(sourcePeer, rt.SourcePolicyEpoch) {
 				return true
 			}
 			if seq <= fromIndex {

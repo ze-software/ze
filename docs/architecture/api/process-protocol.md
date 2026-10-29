@@ -934,7 +934,15 @@ Stage 1 `source-policy-owner` declares retained source state; `source-policy`
 declares handler support. `OnSourcePolicy` sets both. A pure observer declares
 neither. The server's `CaptureSourcePolicyOwners(names)` examines the selected
 process registrations, excludes observers and refuses any declared owner without
-support before invoking anyone. Third-party state owners MUST declare ownership.
+support before invoking anyone. Third-party state owners MUST declare ownership;
+a Go plugin with no handler sets `Registration.SourcePolicyOwner` itself. The
+refusal names the plugin, says it cannot remove the peer's routes when the
+import policy is withdrawn, and gives the remedy: disable the peer, commit,
+set the new policy, re-enable the peer and commit again.
+In tree, `bgp-rib` and `bgp-adj-rib-in` are owners with handlers, and `bgp-rs`
+and `bgp-rr` declare ownership without one; what each phase does to
+their stores is in `docs/architecture/plugin/rib-storage-design.md`,
+"Source-policy lifecycle owners".
 
 Each immutable handle captures both `Process` and `PluginConn`. Its `Call` checks
 that lifetime before invocation and after the acknowledged result; a successor

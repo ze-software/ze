@@ -3,11 +3,13 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/plugin/ipc"
 	"github.com/ze-software/ze/internal/component/plugin/process"
+	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -24,7 +26,8 @@ type SourcePolicyOwner struct {
 
 // CaptureSourcePolicyOwners preflights the selected processes' Stage 1 roles.
 // Observers are excluded. A declared owner without a handler refuses the whole
-// capture before any callback runs. Callers MUST capture before policy publication.
+// capture before any callback runs, with an operator remedy that needs no
+// lifecycle support: take the peer down around the change. Callers MUST capture before policy publication.
 func (s *Server) CaptureSourcePolicyOwners(names []string) ([]*SourcePolicyOwner, error) {
 	pm := s.procManager.Load()
 	if pm == nil {
@@ -52,7 +55,10 @@ func (s *Server) CaptureSourcePolicyOwners(names []string) ([]*SourcePolicyOwner
 			continue
 		}
 		if !reg.SourcePolicy {
-			return nil, fmt.Errorf("source-policy owner %s retains source state but has no lifecycle handler; upgrade the plugin to implement source-policy before changing source policy", name)
+			return nil, fmt.Errorf("plugin %s holds routes received from this peer but cannot remove them when the "+
+				"peer's import policy is withdrawn (it declares source-policy-owner without a source-policy handler), "+
+				"so the change is refused before anything is published; to change the policy, disable the peer, "+
+				"commit, set the new policy, re-enable the peer and commit again, or stop using %s for this peer", name, name)
 		}
 		owner := &SourcePolicyOwner{name: name, server: s, proc: proc, conn: proc.Conn()}
 		if err := owner.current(); err != nil {
@@ -61,6 +67,34 @@ func (s *Server) CaptureSourcePolicyOwners(names []string) ([]*SourcePolicyOwner
 		owners = append(owners, owner)
 	}
 	return owners, nil
+}
+
+// DrainEventSubscribers waits until every plugin process subscribed to the
+// (namespace, eventType) event has applied each such event queued for it
+// before the call, so work a subscriber issues in answer (a destination write)
+// has been issued when it returns. The processes are the ones deliverEvent
+// feeds for an event carrying no peer address. Engine-side subscribers need no
+// drain: they run synchronously inside the emit. A coordinator calls it after
+// an owner callback that publishes the event and before it settles the writers
+// that work reaches. ctx bounds every wait. Callers MUST NOT hold locks the
+// subscribers' handlers need. Safe for concurrent use.
+func (s *Server) DrainEventSubscribers(ctx context.Context, namespace, eventType string) error {
+	if !events.IsValidEvent(namespace, eventType) {
+		return fmt.Errorf("drain subscribers of %s/%s: event is not registered", namespace, eventType)
+	}
+	// refuse-by-default: guards deliverEvent -- with no subscription manager deliverEvent queues the event to no process, so none has work to apply
+	if s.subscriptions == nil {
+		return nil
+	}
+	procs := s.subscriptions.getMatching(events.LookupNamespaceID(namespace), events.LookupEventTypeID(eventType),
+		events.DirUnspecified, "", "")
+	var result error
+	for _, proc := range procs {
+		if err := proc.DrainEventsApplied(ctx); err != nil {
+			result = errors.Join(result, fmt.Errorf("subscriber of %s/%s: %w", namespace, eventType, err))
+		}
+	}
+	return result
 }
 
 // Name returns the selected process name, not its implementation alias.

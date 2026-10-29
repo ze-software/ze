@@ -73,6 +73,11 @@ func (r *AdjRIBInManager) replayPathCommand(args []string) (string, any, error) 
 		route.SourcePolicyEpoch = stored.SourcePolicyEpoch
 		route.Withdraw = false
 	}
+	if stored != nil && r.sourcePolicyDeniedLocked(source, stored.SourcePolicyEpoch) {
+		// RFC 8212 Section 3: a denied path is answered as withdrawn.
+		route = rpc.StoredRoute{SourcePeer: route.SourcePeer, Family: route.Family, PathID: route.PathID,
+			NLRIHex: route.NLRIHex, NLRIFraming: route.NLRIFraming, Withdraw: true}
+	}
 	r.mu.RUnlock()
 	return statusDone, ribevents.ReplayPage{Routes: []rpc.StoredRoute{route}}, nil
 }

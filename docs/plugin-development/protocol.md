@@ -532,6 +532,9 @@ never acknowledge completion to the engine; they are malformed messages.
 Plugins retaining source state MUST declare `source-policy-owner` in Stage 1,
 even if they do not implement the lifecycle yet. That unsupported declaration
 refuses policy changes before publication; pure observers are not owners.
+In Go, a plugin with no handler sets `SourcePolicyOwner: true` in the
+`sdk.Registration` it passes to `Run`; the engine then refuses the change and
+tells the operator to take the peer down around it.
 `OnSourcePolicy(func(context.Context, rpc.SourcePolicyInput) error)` automatically
 declares both ownership and `source-policy` handler support. All four operations
 use one registered callback on both transports, not the shutdown `OnDrain` path.

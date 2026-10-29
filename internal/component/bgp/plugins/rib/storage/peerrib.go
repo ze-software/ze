@@ -7,6 +7,7 @@ import (
 	"net/netip"
 	"slices"
 	"sync"
+	"sync/atomic"
 
 	"github.com/ze-software/ze/internal/component/bgp/attrpool"
 	"github.com/ze-software/ze/internal/core/family"
@@ -20,6 +21,12 @@ type PeerRIB struct {
 	mu       sync.RWMutex
 	families map[family.Family]*FamilyRIB
 	addPath  map[family.Family]bool // ADD-PATH negotiated per family
+
+	// policyDeniedThrough is the source-policy epoch at or below which an
+	// applied import denial makes this peer's routes ineligible. Zero is no
+	// denial, which is a guard: rpc.SourcePolicyInput.Validate refuses a zero
+	// captured epoch, so no denial can be recorded as zero.
+	policyDeniedThrough atomic.Uint64
 }
 
 // NewPeerRIB creates a new PeerRIB for the given peer.
@@ -536,4 +543,37 @@ func (r *PeerRIB) getOrCreateFamily(fam family.Family) *FamilyRIB {
 		r.families[fam] = rib
 	}
 	return rib
+}
+
+// DenySourcePolicyThrough marks every route stored with a source-policy epoch
+// at or below epoch ineligible, in place: no route moves or is copied. The
+// bound only rises, so a stale transaction cannot lower a later denial.
+// Callers MUST serialize writers (bgp-rib holds peerMu); readers need no lock.
+//
+// RFC 8212 Section 3: "Routes contained in an Adj-RIB-In associated with an
+// EBGP peer SHALL NOT be considered eligible in the Decision Process if no
+// explicit Import Policy has been applied."
+func (r *PeerRIB) DenySourcePolicyThrough(epoch uint64) {
+	if epoch > r.policyDeniedThrough.Load() {
+		r.policyDeniedThrough.Store(epoch)
+	}
+}
+
+// SourcePolicyDeniedThrough is the current denial bound, zero for none. Safe
+// for concurrent use.
+func (r *PeerRIB) SourcePolicyDeniedThrough() uint64 { return r.policyDeniedThrough.Load() }
+
+// RestoreSourcePolicyDenial puts back the bound an aborted apply raised from,
+// previous, which SourcePolicyDeniedThrough read before that apply: the bound
+// an earlier finalized transaction left stays, zero when there was none.
+// Callers MUST serialize writers.
+func (r *PeerRIB) RestoreSourcePolicyDenial(previous uint64) { r.policyDeniedThrough.Store(previous) }
+
+// SourcePolicyEligible reports whether a route stored with epoch may enter the
+// decision process. Safe for concurrent use.
+//
+// RFC 8212 Section 3.
+func (r *PeerRIB) SourcePolicyEligible(epoch uint64) bool {
+	bound := r.policyDeniedThrough.Load()
+	return bound == 0 || epoch > bound
 }

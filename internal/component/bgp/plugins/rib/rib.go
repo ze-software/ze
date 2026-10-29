@@ -309,6 +309,10 @@ type RIBManager struct {
 	// ran (rib_sent_lifecycle.go, R-12 for forwarded writes). Under peerMu.
 	sourceApplied map[netip.Addr]sourceApplied
 
+	// sourcePolicy holds each source's source-policy transaction and its undo
+	// pins (source_policy.go). Under peerMu; dropped when the session ends.
+	sourcePolicy map[netip.Addr]*sourcePolicyTxn
+
 	// ribInPool stores routes received FROM non-BGP protocols (e.g. BMP),
 	// keyed by source protocol then protocol-defined peer key. BMP keys are
 	// composite "router:peerIP" strings (see bmpCompositeKey and
@@ -710,6 +714,9 @@ func runRIBPlugin(conn net.Conn) int {
 	// Structured event handler for DirectBridge delivery.
 	// Eliminates JSON round-trip: reads peer metadata from StructuredEvent fields,
 	// raw wire bytes from RawMessage's AttrsWire/WireUpdate.
+	// RFC 8212 Section 3: the source-policy lifecycle (source_policy.go).
+	p.OnSourcePolicy(r.handleSourcePolicy)
+
 	p.OnStructuredEvent(func(events []any) error {
 		for _, event := range events {
 			se, ok := event.(*rpc.StructuredEvent)
@@ -1330,6 +1337,7 @@ func (r *RIBManager) handleStructuredState(se *rpc.StructuredEvent) {
 			replayGroups = r.collectPeerUpReplay(peerAddr, seenBefore)
 		}
 	} else if !isUp && wasUp {
+		r.dropSourcePolicyLocked(peerAddr)
 		if r.retainedPeers[peerAddr] {
 			logger().Debug("retaining Adj-RIB-In for GR", "peer", peerAddr)
 		} else {
@@ -1394,6 +1402,7 @@ func (r *RIBManager) handleState(event *Event) {
 			replayGroups = r.collectPeerUpReplay(peerAddr, seenBefore)
 		}
 	} else if !isUp && wasUp {
+		r.dropSourcePolicyLocked(peerAddr)
 		// Peer went down - clear Adj-RIB-In unless retained for GR.
 		if r.retainedPeers[peerAddr] {
 			logger().Debug("retaining Adj-RIB-In for GR", "peer", peerAddr)
