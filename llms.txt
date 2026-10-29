@@ -14,10 +14,10 @@ This file is intentionally denormalized for AI use. It includes the high-signal 
 - Dataplane: Linux netlink, nftables, eBPF, AF_PACKET, psample, optional VPP integrations, and namespace-aware testing.
 - Release state: pre-release, main-branch builds, no tagged stable release yet.
 - License and repos: AGPLv3. Canonical repository: https://github.com/ze-software/ze. Discord: https://discord.gg/T8s7CjPDne.
-- Current generated counts: 52 shipped or experimental feature cards, 490 CLI commands, 38 config sections, 95 plugin registrations, 52 direct Go dependencies, 45 weekly change entries.
+- Current generated counts: 52 shipped or experimental feature cards, 490 CLI commands, 38 config sections, 95 plugin registrations, 53 direct Go dependencies, 45 weekly change entries.
 - Test evidence counts: 39,800+ unit tests, 95 fuzz targets, 2,600+ end-to-end transcript steps, 218 interop scenarios across 11 target implementations.
 - Classified planning inventory (not release-readiness proof): [roadmap](https://ze-software.net/project/roadmap/index.md), [snapshot JSON](https://ze-software.net/data/release-roadmap.json).
-- Generated date: 2026-10-28.
+- Generated date: 2026-10-29.
 
 ## Quality and verification model
 
@@ -830,7 +830,7 @@ Vendors: Junos MX (object-rooted), IOS XR (family-rooted-for-routing), SR OS (in
 
 Direct Go modules are grouped by why Ze needs them. This is generated from go.mod plus curated rationale, not copied from package names alone.
 
-### Terminal, Web & SSH Interfaces (9)
+### Terminal, Web & SSH Interfaces (10)
 - `charm.land/bubbletea/v2`: The Elm-style TUI framework driving Ze's interactive CLI: config editor, dashboard, monitor, ping and traceroute views, run per SSH session.
 - `charm.land/bubbles/v2`: Pre-built TUI widgets (text input, viewport) for the CLI's interactive screens.
 - `charm.land/lipgloss/v2`: Styling and layout for the CLI's colors, borders, and widths.
@@ -838,6 +838,7 @@ Direct Go modules are grouped by why Ze needs them. This is generated from go.mo
 - `charm.land/ssh`: SSH session and public-key types that the wish server and the CLI's key-based auth build on.
 - `github.com/a-h/templ`: Compiles the typed server-rendered components used by Ze's web configuration interface and BGP looking glass into Go.
 - `github.com/charmbracelet/colorprofile`: Forces a deterministic color profile in render tests, so CLI screenshot/layout tests don't depend on the terminal running them.
+- `github.com/charmbracelet/x/ansi`: Strips terminal escape codes in the CLI editor tests, so a pattern matches the text the operator sees rather than its color codes.
 - `github.com/muesli/reflow`: ANSI-aware text width calculation, so the CLI's prompt and status bar line up correctly despite embedded color codes.
 - `github.com/creack/pty`: Opens a pseudo-terminal in a Linux integration test that exercises serial console handling.
 
@@ -1050,7 +1051,7 @@ Every link points to the page Markdown mirror first. The web URL is the human-re
 - [Code quality](https://ze-software.net/quality/index.md): Tests, QEMU, fuzzing, and mutation checks (web: https://ze-software.net/quality/)
 - [Testing health](https://ze-software.net/quality/health/index.md): Measured test state and how it moves over time (web: https://ze-software.net/quality/health/)
 - [RFC compliance gate](https://ze-software.net/quality/rfc-compliance/index.md): RFC requirements, tests, gaps, and public claims checked by AI (web: https://ze-software.net/quality/rfc-compliance/)
-- [Dependencies](https://ze-software.net/reference/dependencies/index.md): 52 direct packages, generated from go.mod (web: https://ze-software.net/reference/dependencies/)
+- [Dependencies](https://ze-software.net/reference/dependencies/index.md): 53 direct packages, generated from go.mod (web: https://ze-software.net/reference/dependencies/)
 - [Security](https://ze-software.net/security/index.md): Security policy and vulnerability reporting (web: https://ze-software.net/security/)
 
 ## Docs

@@ -122,7 +122,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>7.0%</strong><b>5 of 71 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 71 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 71 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>52.6%</strong><b>41 of 78 tagged units, 0 escaped and 10 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>65.4%</strong><b>51 of 78 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -1755,12 +1755,12 @@ Both roles. Server: DORA, leases, static mappings, PXE support -- every OFFER/AC
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L512" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4ExtendIgnoresServerEchoesOnVeth</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L459" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4RenewCarriesClientID</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1791,7 +1791,7 @@ Both roles. Server: DORA, leases, static mappings, PXE support -- every OFFER/AC
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L507" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4ExtendIgnoresServerEchoesOnVeth</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L386" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4RebindAcceptsAnyServerOnVeth</code></a></td>
@@ -1823,7 +1823,7 @@ Both roles. Server: DORA, leases, static mappings, PXE support -- every OFFER/AC
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L543" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4ExpiresOnTimeOnVeth</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L325" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4RenewsRepeatedlyOnVeth</code></a></td>
@@ -1979,7 +1979,7 @@ Both roles. Server: DORA, leases, static mappings, PXE support -- every OFFER/AC
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L489" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4ExtendIgnoresServerEchoesOnVeth</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L419" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4RenewIsUnicastToServer</code></a></td>
@@ -2227,7 +2227,7 @@ Both roles. Server: DORA, leases, static mappings, PXE support -- every OFFER/AC
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L499" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4ExtendIgnoresServerEchoesOnVeth</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L372" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4RebindAcceptsAnyServerOnVeth</code></a></td>
@@ -2252,7 +2252,7 @@ Both roles. Server: DORA, leases, static mappings, PXE support -- every OFFER/AC
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L569" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4RenewalMovesToNewAddressOnVeth</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -2267,7 +2267,7 @@ Both roles. Server: DORA, leases, static mappings, PXE support -- every OFFER/AC
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L493" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4ExtendIgnoresServerEchoesOnVeth</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L432" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4RenewIsUnicastToServer</code></a></td>
@@ -2287,7 +2287,7 @@ Both roles. Server: DORA, leases, static mappings, PXE support -- every OFFER/AC
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L503" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4ExtendIgnoresServerEchoesOnVeth</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L382" title="internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go" target="_blank" rel="noopener"><code>TestDHCPv4RebindAcceptsAnyServerOnVeth</code></a></td>
@@ -2358,7 +2358,7 @@ Both roles. Server: DORA, leases, static mappings, PXE support -- every OFFER/AC
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_multiiface_integration_linux_test.go#L63" title="internal/plugins/iface/dhcp/rfc2131_dhcp_multiiface_integration_linux_test.go" target="_blank" rel="noopener"><code>TestRFC2131ClientRunsDHCPOnEachInterfaceIndependently</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -2866,7 +2866,7 @@ Both roles. Server: DORA, leases, static mappings, PXE support -- every OFFER/AC
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 23:03 UTC</span>
+                    <span class="footer-published">Published 29 October 2026 11:10 UTC</span>
                 </div>
             </div>
         </footer>

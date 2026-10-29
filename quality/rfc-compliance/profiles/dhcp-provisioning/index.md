@@ -4,7 +4,7 @@ Technology aggregate. DHCP, address autoconfiguration, and TFTP provisioning. Th
 
 [All profiles](../) · [All RFCs](../../)
 
-- **Mandatory**: 33.6% (159 of 473 (33.6%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
+- **Mandatory**: 34.0% (161 of 473 (34.0%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
 - **Optional**: 0.9% (2 of 220 (0.9%)). MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.
 - **Mandatory ceiling**: 55.6% (263 of 473 (55.6%); excluded: Optional feature not offered (classification can be revisited): 17 of 473 (3.6%); Met by a lower layer: 105 of 473 (22.2%); Not applicable (classification can be revisited): 88 of 473 (18.6%)). Attainable mandatory rows under current classifications, over the unchanged total.
 - **Optional ceiling**: 100.0% (220 of 220 (100.0%)). Attainable optional rows under current classifications, over the unchanged total.
@@ -35,7 +35,7 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 
 | RFC | Title | Mandatory | Optional |
 |---|---|---|---|
-| [RFC 2131](../../rfc2131/) (cycle with rfc1034, rfc1035, rfc1122, rfc1191, rfc1195, rfc1332, rfc1812, rfc2132, rfc4291, rfc4443, rfc4861, rfc5905, rfc8200, rfc8201, rfc9293) | Dynamic Host Configuration Protocol | 18 of 71 (25.4%); ceiling 47 of 71 (66.2%); excluded: Not applicable (classification can be revisited): 24 of 71 (33.8%) | 2 of 38 (5.3%); ceiling 38 of 38 (100.0%) |
+| [RFC 2131](../../rfc2131/) (cycle with rfc1034, rfc1035, rfc1122, rfc1191, rfc1195, rfc1332, rfc1812, rfc2132, rfc4291, rfc4443, rfc4861, rfc5905, rfc8200, rfc8201, rfc9293) | Dynamic Host Configuration Protocol | 20 of 71 (28.2%); ceiling 47 of 71 (66.2%); excluded: Not applicable (classification can be revisited): 24 of 71 (33.8%) | 2 of 38 (5.3%); ceiling 38 of 38 (100.0%) |
 | [RFC 2132](../../rfc2132/) (cycle with rfc1034, rfc1035, rfc1122, rfc1191, rfc1195, rfc1332, rfc1812, rfc2131, rfc4291, rfc4443, rfc4861, rfc5905, rfc8200, rfc8201, rfc9293) | DHCP Options and BOOTP Vendor Extensions | 1 of 34 (2.9%); ceiling 9 of 34 (26.5%); excluded: Not applicable (classification can be revisited): 25 of 34 (73.5%) | 0 of 34 (0.0%); ceiling 34 of 34 (100.0%) |
 | [RFC 4861](../../rfc4861/) (cycle with rfc1034, rfc1035, rfc1122, rfc1191, rfc1195, rfc1332, rfc1812, rfc2131, rfc2132, rfc4291, rfc4443, rfc5905, rfc8200, rfc8201, rfc9293) | Neighbor Discovery for IP version 6 (IPv6) | 30 of 138 (21.7%); ceiling 43 of 138 (31.2%); excluded: Met by a lower layer: 95 of 138 (68.8%) | 0 of 79 (0.0%); ceiling 79 of 79 (100.0%) |
 | [RFC 7440](../../rfc7440/) | TFTP Windowsize Option | 1 of 9 (11.1%); ceiling 1 of 9 (11.1%); excluded: Not applicable (classification can be revisited): 8 of 9 (88.9%) | 0 of 6 (0.0%); ceiling 6 of 6 (100.0%) |

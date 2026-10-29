@@ -305,8 +305,13 @@ document.addEventListener("DOMContentLoaded", function () {
         var mount = document.getElementById("site-header-mount");
         if (!mount) return Promise.resolve();
 
+        // The generator only ever writes a run of "../" for the root and the
+        // header fragment below it. Anything else is not trusted: the root is
+        // spliced into links and into the fetched header's markup.
         var root = mount.getAttribute("data-site-root") || "";
-        var source = mount.getAttribute("data-header-src") || root + "assets/header.html";
+        if (!/^(\.\.\/)*$/.test(root)) root = "";
+        var source = mount.getAttribute("data-header-src") || "";
+        if (!/^(\.\.\/)*assets\/header\.html$/.test(source)) source = root + "assets/header.html";
 
         function renderFallback() {
             var header = document.createElement("header");

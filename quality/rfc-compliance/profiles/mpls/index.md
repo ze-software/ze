@@ -4,7 +4,7 @@ Technology aggregate. MPLS, LDP, RSVP-TE, and fast reroute. The RFCs whose summa
 
 [All profiles](../) · [All RFCs](../../)
 
-- **Mandatory**: 37.6% (120 of 319 (37.6%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
+- **Mandatory**: 39.2% (125 of 319 (39.2%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
 - **Optional**: 10.2% (6 of 59 (10.2%)). MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.
 - **Mandatory ceiling**: 91.5% (292 of 319 (91.5%); excluded: Met by a lower layer: 3 of 319 (0.9%); Not applicable (classification can be revisited): 24 of 319 (7.5%)). Attainable mandatory rows under current classifications, over the unchanged total.
 - **Optional ceiling**: 100.0% (59 of 59 (100.0%)). Attainable optional rows under current classifications, over the unchanged total.
@@ -21,7 +21,7 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 
 | RFC | Title | Mandatory | Optional |
 |---|---|---|---|
-| [RFC 2205](../../rfc2205/) (cycle with rfc2210, rfc2211, rfc2215) | Resource ReSerVation Protocol (RSVP) -- Version 1 Functional Specification | 26 of 75 (34.7%); ceiling 74 of 75 (98.7%); excluded: Met by a lower layer: 1 of 75 (1.3%) | 0 of 5 (0.0%); ceiling 5 of 5 (100.0%) |
+| [RFC 2205](../../rfc2205/) (cycle with rfc2210, rfc2211, rfc2215) | Resource ReSerVation Protocol (RSVP) -- Version 1 Functional Specification | 31 of 75 (41.3%); ceiling 74 of 75 (98.7%); excluded: Met by a lower layer: 1 of 75 (1.3%) | 0 of 5 (0.0%); ceiling 5 of 5 (100.0%) |
 
 ### Level 1
 

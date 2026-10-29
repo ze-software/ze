@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0.0% | 0 of 10 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 10 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 10 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 18.2% | 4 of 22 tagged units, 0 escaped and 8 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 54.5% | 12 of 22 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -137,7 +137,7 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 |---|---|---|---|
 | negative | [`TestRFC792EchoRequestType`](https://github.com/ze-software/ze/blob/main/internal/core/probe/icmp_test.go#L199) | unit/verify | revert, verified |
 | positive | [`TestRFC792EchoRequestType`](https://github.com/ze-software/ze/blob/main/internal/core/probe/icmp_test.go#L198) | unit/verify | revert, verified |
-| positive | [`TestGatewayICMPEchoReply`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L402) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestGatewayICMPEchoReply`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L402) | unit/verify | revert, verified |
 
 ### [`RFC792-Echo-2`](#rfc792-echo-2)
 
@@ -148,7 +148,7 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | positive | [`TestRFC792EchoRequestCode`](https://github.com/ze-software/ze/blob/main/internal/core/probe/icmp_test.go#L226) | unit/verify | revert, verified |
-| positive | [`TestGatewayICMPEchoReply`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L403) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestGatewayICMPEchoReply`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L403) | unit/verify | revert, verified |
 
 ### [`RFC792-Echo-3`](#rfc792-echo-3)
 
@@ -158,9 +158,9 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestGatewayICMPEchoReply`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L405) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestGatewayICMPEchoReply`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L405) | unit/verify | revert, verified |
 | positive | [`TestRFC792ChecksumValid`](https://github.com/ze-software/ze/blob/main/internal/core/probe/icmp_test.go#L233) | unit/verify | revert, verified |
-| positive | [`TestGatewayICMPEchoReply`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L404) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestGatewayICMPEchoReply`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L404) | unit/verify | revert, verified |
 
 ### [`RFC792-Echo-4`](#rfc792-echo-4)
 
@@ -180,8 +180,8 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestGatewayICMPEchoReplyToTheQueriedAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L483) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestGatewayICMPEchoReply`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L406) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestGatewayICMPEchoReplyToTheQueriedAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L483) | unit/verify | revert, verified |
+| positive | [`TestGatewayICMPEchoReply`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L406) | unit/verify | revert, verified |
 
 ### [`RFC792-Echo-6`](#rfc792-echo-6)
 
@@ -191,8 +191,8 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestGatewayICMPEchoReplyToTheQueriedAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L484) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestGatewayICMPEchoReply`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L407) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestGatewayICMPEchoReplyToTheQueriedAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L484) | unit/verify | revert, verified |
+| positive | [`TestGatewayICMPEchoReply`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L407) | unit/verify | revert, verified |
 
 ### [`RFC792-Format-1`](#rfc792-format-1)
 

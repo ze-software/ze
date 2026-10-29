@@ -1,8 +1,8 @@
 # Dependencies
 
-Ze is Go, and Go code leans on packages. 52 direct dependencies, read straight from `go.mod` so the list and versions can't drift -- each one with a plain-English reason it's there, grounded in where it's actually imported, not its own pitch.
+Ze is Go, and Go code leans on packages. 53 direct dependencies, read straight from `go.mod` so the list and versions can't drift -- each one with a plain-English reason it's there, grounded in where it's actually imported, not its own pitch.
 
-## Terminal, Web & SSH Interfaces (9)
+## Terminal, Web & SSH Interfaces (10)
 
 | Module | Version | Why we use it |
 | --- | --- | --- |
@@ -13,6 +13,7 @@ Ze is Go, and Go code leans on packages. 52 direct dependencies, read straight f
 | `charm.land/ssh` | `v0.4.3` | SSH session and public-key types that the wish server and the CLI's key-based auth build on. |
 | `github.com/a-h/templ` | `v0.3.1020` | Compiles the typed server-rendered components used by Ze's web configuration interface and BGP looking glass into Go. |
 | `github.com/charmbracelet/colorprofile` | `v0.4.3` | Forces a deterministic color profile in render tests, so CLI screenshot/layout tests don't depend on the terminal running them. |
+| `github.com/charmbracelet/x/ansi` | `v0.11.8` | Strips terminal escape codes in the CLI editor tests, so a pattern matches the text the operator sees rather than its color codes. |
 | `github.com/muesli/reflow` | `v0.3.0` | ANSI-aware text width calculation, so the CLI's prompt and status bar line up correctly despite embedded color codes. |
 | `github.com/creack/pty` | `v1.1.24` | Opens a pseudo-terminal in a Linux integration test that exercises serial console handling. |
 

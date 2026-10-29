@@ -30,7 +30,7 @@ If you are evaluating Ze for one role, start with Coverage by profile. To check 
 
 The gate holds Ze to every MUST-level requirement of the RFCs it implements. The cards below say how many of those requirements a test proves, how many do not bind Ze, and how many Ze still owes.
 
-RED. 151 open gate issues. Check results below names them, up to the 25 this page inlines. Contributors reproduce it with `./le rfc check`. The gate's own line reads `rfc-requirements: 151 violation(s)`.
+RED. 256 open gate issues. Check results below names them, up to the 25 this page inlines. Contributors reproduce it with `./le rfc check`. The gate's own line reads `rfc-requirements: 256 violation(s)`.
 
 ### Overall
 
@@ -51,7 +51,7 @@ what Ze has
 | Tested both ways | 52.8% | 2,405 of 4,556 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 10.6% | 483 of 4,556 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 4,556 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 65.8% | 6,018 of 9,140 tagged units in enrolled RFCs, 4 escaped and 236 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 66.5% | 6,077 of 9,140 tagged units in enrolled RFCs, 4 escaped and 183 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -73,7 +73,7 @@ what Ze owes
 |---|---:|---|---|
 | Partial proof; remaining gap | 0.3% | 14 of 4,556 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 15.9% | 724 of 4,556 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Gate verdict | RED | 151 open gate issues | whether ./le rfc check passes over this tree |
+| Gate verdict | RED | 256 open gate issues | whether ./le rfc check passes over this tree |
 
 The 9 shares marked as a part above are the whole of the 4,556 gated MUSTs: they add to 100%. Proven by test is the first two of them added together, so it is not a part of its own. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -99,7 +99,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 | Metric | Value |
 |---|---:|
-| Gate issues | 151 |
+| Gate issues | 256 |
 | Gated MUST-level requirements | 4,715 |
 | Enrolled RFCs | 195 |
 | Resolved test tags | 9,461 |
@@ -263,7 +263,7 @@ The gate runs several groups of checks. Each line below says what one group veri
 - **Requirement annotations:** Passed. Every annotation that excuses a requirement from Ze's own tests still names code that exists, quotes the RFC sentence it relies on, or names a verified blocking kernel entry in the Linux limitations register with evidence for that exact requirement at the shipped kernel version.
 - **Published support status:** Passed. The support status each RFC publishes agrees with its requirements and its declared gaps, and a status that promises support is backed by a review of the RFC text.
 - **Reviewer verdicts:** Failed, 73 problems. Each reviewer verdict recorded on a requirement is well formed and still describes the code and tests it judged. What this means: A reviewer verdict is malformed or out of date, and that requirement must be reviewed again before the verdict counts.
-- **Recorded breaks:** Failed, 78 problems. Each recorded break still matches the test, the claim and the code it was recorded against, and no recorded proof is lost. What this means: A test's proof is missing or no longer matches what it rests on, so it is not counted as proven by a recorded break.
+- **Recorded breaks:** Failed, 183 problems. Each recorded break still matches the test, the claim and the code it was recorded against, and no recorded proof is lost. What this means: A test's proof is missing or no longer matches what it rests on, so it is not counted as proven by a recorded break.
 - **Reviews of RFC text:** Passed. Each sign-off of a sentence-by-sentence review of an RFC's text is valid and current.
 
 ### For contributors: the raw findings and the commands that fix them
@@ -296,7 +296,7 @@ The gate runs several groups of checks. Each line below says what one group veri
 | - | `-` | - | rfc/short/rfc4271.md:824: RFC4271-8.2.2-15 has a STALE audit verdict -- what it judged changed: internal/component/bgp/fsm/rfc4271_connect_any_other_event_test.go::TestRFC4271ConnectActiveAnyOtherEventCountsAndDropsToIdle (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc4271 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md) | - |
 | - | `-` | - | rfc/short/rfc4301.md:542: RFC4301-5.1-7 has a STALE audit verdict -- what it judged changed: internal/component/ike/engine/child.go::installChildSA (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc4301 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md) | - |
 
-126 further findings not shown here. The whole list is in data/rfc-compliance.json, and each one is on its own RFC's page under the requirement it names.
+231 further findings not shown here. The whole list is in data/rfc-compliance.json, and each one is on its own RFC's page under the requirement it names.
 
 ## Enrolled RFCs
 
@@ -330,11 +330,11 @@ Mandatory ceiling: 4033 of 5120 (78.8%); excluded: Optional feature not offered 
 | [`RFC 1877`](rfc1877/index.md) PPP Internet Protocol Control Protocol Extensions for Name Server Addresses | Partial | no rows; ceiling no rows | no rows; ceiling no rows | 0 | 0 | 0 | 0 |
 | [`RFC 1994`](rfc1994/index.md) PPP Challenge Handshake Authentication Protocol (CHAP) | Partial | 8 of 16 (50.0%); ceiling 16 of 16 (100.0%) | 2 of 11 (18.2%); ceiling 11 of 11 (100.0%) | 16 | 3 | 0 | 0 |
 | [`RFC 1997`](rfc1997/index.md) BGP Communities Attribute | Supported | 3 of 5 (60.0%); ceiling 5 of 5 (100.0%) | 0 of 4 (0.0%); ceiling 4 of 4 (100.0%) | 5 | 0 | 0 | 0 |
-| [`RFC 2131`](rfc2131/index.md) Dynamic Host Configuration Protocol | Partial | 18 of 71 (25.4%); ceiling 47 of 71 (66.2%); excluded: Not applicable (classification can be revisited): 24 of 71 (33.8%) | 2 of 38 (5.3%); ceiling 38 of 38 (100.0%) | 71 | 14 | 0 | 0 |
+| [`RFC 2131`](rfc2131/index.md) Dynamic Host Configuration Protocol | Partial | 20 of 71 (28.2%); ceiling 47 of 71 (66.2%); excluded: Not applicable (classification can be revisited): 24 of 71 (33.8%) | 2 of 38 (5.3%); ceiling 38 of 38 (100.0%) | 71 | 14 | 0 | 0 |
 | [`RFC 2132`](rfc2132/index.md) DHCP Options and BOOTP Vendor Extensions | Partial | 1 of 34 (2.9%); ceiling 9 of 34 (26.5%); excluded: Not applicable (classification can be revisited): 25 of 34 (73.5%) | 0 of 34 (0.0%); ceiling 34 of 34 (100.0%) | 34 | 1 | 0 | 0 |
 | [`RFC 2181`](rfc2181/index.md) Clarifications to the DNS Specification | Partial | 12 of 23 (52.2%); ceiling 18 of 23 (78.3%); excluded: Optional feature not offered (classification can be revisited): 1 of 23 (4.3%); Not applicable (classification can be revisited): 4 of 23 (17.4%) | 1 of 47 (2.1%); ceiling 47 of 47 (100.0%) | 23 | 0 | 0 | 0 |
-| [`RFC 2205`](rfc2205/index.md) Resource ReSerVation Protocol (RSVP) -- Version 1 Functional Specification | Experimental | 26 of 75 (34.7%); ceiling 74 of 75 (98.7%); excluded: Met by a lower layer: 1 of 75 (1.3%) | 0 of 5 (0.0%); ceiling 5 of 5 (100.0%) | 75 | 43 | 0 | 0 |
-| [`RFC 2328`](rfc2328/index.md) OSPF Version 2 | Partial | 57 of 67 (85.1%); ceiling 67 of 67 (100.0%) | 2 of 15 (13.3%); ceiling 15 of 15 (100.0%) | 67 | 0 | 0 | 0 |
+| [`RFC 2205`](rfc2205/index.md) Resource ReSerVation Protocol (RSVP) -- Version 1 Functional Specification | Experimental | 31 of 75 (41.3%); ceiling 74 of 75 (98.7%); excluded: Met by a lower layer: 1 of 75 (1.3%) | 0 of 5 (0.0%); ceiling 5 of 5 (100.0%) | 75 | 43 | 0 | 0 |
+| [`RFC 2328`](rfc2328/index.md) OSPF Version 2 | Partial | 58 of 67 (86.6%); ceiling 67 of 67 (100.0%) | 2 of 15 (13.3%); ceiling 15 of 15 (100.0%) | 67 | 0 | 0 | 0 |
 | [`RFC 2347`](rfc2347/index.md) TFTP Option Extension | Supported | 2 of 3 (66.7%); ceiling 2 of 3 (66.7%); excluded: Not applicable (classification can be revisited): 1 of 3 (33.3%) | 0 of 2 (0.0%); ceiling 2 of 2 (100.0%) | 3 | 0 | 0 | 0 |
 | [`RFC 2348`](rfc2348/index.md) TFTP Blocksize Option | No public row declared | 3 of 5 (60.0%); ceiling 4 of 5 (80.0%); excluded: Not applicable (classification can be revisited): 1 of 5 (20.0%) | no rows; ceiling no rows | 5 | 0 | 0 | 0 |
 | [`RFC 2349`](rfc2349/index.md) TFTP Timeout Interval and Transfer Size Options | No public row declared | 0 of 4 (0.0%); ceiling 1 of 4 (25.0%); excluded: Not applicable (classification can be revisited): 3 of 4 (75.0%) | 0 of 2 (0.0%); ceiling 2 of 2 (100.0%) | 4 | 0 | 0 | 0 |
@@ -358,7 +358,7 @@ Mandatory ceiling: 4033 of 5120 (78.8%); excluded: Optional feature not offered 
 | [`RFC 3630`](rfc3630/index.md) Traffic Engineering (TE) Extensions to OSPF Version 2 | Experimental | 0 of 5 (0.0%); ceiling 1 of 5 (20.0%); excluded: Not applicable (classification can be revisited): 4 of 5 (80.0%) | 0 of 5 (0.0%); ceiling 5 of 5 (100.0%) | 5 | 0 | 0 | 0 |
 | [`RFC 3748`](rfc3748/index.md) Extensible Authentication Protocol (EAP) | Partial in IPsec | 42 of 59 (71.2%); ceiling 53 of 59 (89.8%); excluded: Not applicable (classification can be revisited): 6 of 59 (10.2%) | 0 of 4 (0.0%); ceiling 4 of 4 (100.0%) | 59 | 0 | 0 | 0 |
 | [`RFC 3765`](rfc3765/index.md) NOPEER Community for Border Gateway Protocol (BGP) Route Scope Control | Supported | no rows; ceiling no rows | 0 of 2 (0.0%); ceiling 2 of 2 (100.0%) | 0 | 0 | 0 | 0 |
-| [`RFC 3768`](rfc3768/index.md) Virtual Router Redundancy Protocol (VRRP) | Experimental | 26 of 41 (63.4%); ceiling 38 of 41 (92.7%); excluded: Not applicable (classification can be revisited): 3 of 41 (7.3%) | 0 of 11 (0.0%); ceiling 11 of 11 (100.0%) | 41 | 0 | 0 | 0 |
+| [`RFC 3768`](rfc3768/index.md) Virtual Router Redundancy Protocol (VRRP) | Experimental | 31 of 41 (75.6%); ceiling 38 of 41 (92.7%); excluded: Not applicable (classification can be revisited): 3 of 41 (7.3%) | 0 of 11 (0.0%); ceiling 11 of 11 (100.0%) | 41 | 0 | 0 | 0 |
 | [`RFC 3786`](rfc3786/index.md) Extending the Number of Intermediate System to Intermediate System (IS-IS) Link State PDU (LSP) Fragments Beyond the 256 Limit | No public row declared | 1 of 9 (11.1%); ceiling 2 of 9 (22.2%); excluded: Not applicable (classification can be revisited): 7 of 9 (77.8%) | 0 of 4 (0.0%); ceiling 4 of 4 (100.0%) | 9 | 0 | 0 | 0 |
 | [`RFC 3787`](rfc3787/index.md) Recommendations for Interoperable IP Networks using Intermediate System to Intermediate System (IS-IS) | Partial | 4 of 5 (80.0%); ceiling 5 of 5 (100.0%) | 0 of 3 (0.0%); ceiling 3 of 3 (100.0%) | 5 | 1 | 0 | 0 |
 | [`RFC 3948`](rfc3948/index.md) UDP Encapsulation of IPsec ESP Packets | Partial | 5 of 11 (45.5%); ceiling 10 of 11 (90.9%); excluded: Not applicable (classification can be revisited): 1 of 11 (9.1%) | 2 of 5 (40.0%); ceiling 5 of 5 (100.0%) | 11 | 0 | 0 | 0 |
@@ -369,7 +369,7 @@ Mandatory ceiling: 4033 of 5120 (78.8%); excluded: Optional feature not offered 
 | [`RFC 4213`](rfc4213/index.md) Basic Transition Mechanisms for IPv6 Hosts and Routers | No public row declared | 1 of 23 (4.3%); ceiling 1 of 23 (4.3%); excluded: Not applicable (classification can be revisited): 22 of 23 (95.7%) | 0 of 24 (0.0%); ceiling 24 of 24 (100.0%) | 23 | 0 | 0 | 0 |
 | [`RFC 4271`](rfc4271/index.md) A Border Gateway Protocol 4 (BGP-4) | Partial | 80 of 133 (60.2%); ceiling 126 of 133 (94.7%); excluded: Not applicable (classification can be revisited): 7 of 133 (5.3%) | 3 of 34 (8.8%); ceiling 34 of 34 (100.0%) | 133 | 12 | 0 | 0 |
 | [`RFC 4301`](rfc4301/index.md) Security Architecture for the Internet Protocol | Partial | 50 of 100 (50.0%); ceiling 92 of 100 (92.0%); excluded: Optional feature not offered (classification can be revisited): 1 of 100 (1.0%); Met by a lower layer: 4 of 100 (4.0%); Not applicable (classification can be revisited): 3 of 100 (3.0%) | 1 of 3 (33.3%); ceiling 3 of 3 (100.0%) | 100 | 34 | 0 | 0 |
-| [`RFC 4302`](rfc4302/index.md) IP Authentication Header | Partial | 8 of 32 (25.0%); ceiling 11 of 32 (34.4%); excluded: Optional feature not offered (classification can be revisited): 1 of 32 (3.1%); Met by a lower layer: 20 of 32 (62.5%) | 0 of 10 (0.0%); ceiling 10 of 10 (100.0%) | 32 | 2 | 0 | 0 |
+| [`RFC 4302`](rfc4302/index.md) IP Authentication Header | Partial | 9 of 32 (28.1%); ceiling 11 of 32 (34.4%); excluded: Optional feature not offered (classification can be revisited): 1 of 32 (3.1%); Met by a lower layer: 20 of 32 (62.5%) | 0 of 10 (0.0%); ceiling 10 of 10 (100.0%) | 32 | 2 | 0 | 0 |
 | [`RFC 4303`](rfc4303/index.md) IP Encapsulating Security Payload (ESP) | Partial | 7 of 23 (30.4%); ceiling 9 of 23 (39.1%); excluded: Not applicable (classification can be revisited): 14 of 23 (60.9%) | 0 of 4 (0.0%); ceiling 4 of 4 (100.0%) | 23 | 1 | 0 | 0 |
 | [`RFC 4360`](rfc4360/index.md) BGP Extended Communities Attribute | Supported | 2 of 5 (40.0%); ceiling 2 of 5 (40.0%); excluded: Not applicable (classification can be revisited): 3 of 5 (60.0%) | 0 of 4 (0.0%); ceiling 4 of 4 (100.0%) | 5 | 0 | 0 | 0 |
 | [`RFC 4364`](rfc4364/index.md) BGP/MPLS IP Virtual Private Networks (VPNs) | Partial | 0 of 8 (0.0%); ceiling 0 of 8 (0.0%); excluded: Not applicable (classification can be revisited): 8 of 8 (100.0%) | 0 of 5 (0.0%); ceiling 5 of 5 (100.0%) | 8 | 0 | 0 | 0 |
@@ -458,7 +458,7 @@ Mandatory ceiling: 4033 of 5120 (78.8%); excluded: Optional feature not offered 
 | [`RFC 7858`](rfc7858/index.md) Specification for DNS over Transport Layer Security (TLS) | Partial | 3 of 19 (15.8%); ceiling 8 of 19 (42.1%); excluded: Not applicable (classification can be revisited): 11 of 19 (57.9%) | 0 of 19 (0.0%); ceiling 19 of 19 (100.0%) | 19 | 1 | 0 | 0 |
 | [`RFC 7871`](rfc7871/index.md) Client Subnet in DNS Queries | Partial | 0 of 36 (0.0%); ceiling 7 of 36 (19.4%); excluded: Not applicable (classification can be revisited): 29 of 36 (80.6%) | 0 of 52 (0.0%); ceiling 52 of 52 (100.0%) | 36 | 5 | 0 | 0 |
 | [`RFC 7911`](rfc7911/index.md) Advertisement of Multiple Paths in BGP | Supported | 9 of 9 (100.0%); ceiling 9 of 9 (100.0%) | 0 of 4 (0.0%); ceiling 4 of 4 (100.0%) | 9 | 0 | 0 | 0 |
-| [`RFC 792`](rfc792/index.md) Internet Control Message Protocol | No public row declared | 3 of 10 (30.0%); ceiling 10 of 10 (100.0%) | 0 of 4 (0.0%); ceiling 4 of 4 (100.0%) | 10 | 0 | 0 | 0 |
+| [`RFC 792`](rfc792/index.md) Internet Control Message Protocol | No public row declared | 5 of 10 (50.0%); ceiling 10 of 10 (100.0%) | 0 of 4 (0.0%); ceiling 4 of 4 (100.0%) | 10 | 0 | 0 | 0 |
 | [`RFC 7947`](rfc7947/index.md) Internet Exchange BGP Route Server | Partial | 1 of 2 (50.0%); ceiling 2 of 2 (100.0%) | 2 of 5 (40.0%); ceiling 5 of 5 (100.0%) | 2 | 0 | 0 | 0 |
 | [`RFC 7950`](rfc7950/index.md) The YANG 1.1 Data Modeling Language | Partial | 37 of 91 (40.7%); ceiling 86 of 91 (94.5%); excluded: Not applicable (classification can be revisited): 5 of 91 (5.5%) | no rows; ceiling no rows | 91 | 46 | 0 | 0 |
 | [`RFC 7999`](rfc7999/index.md) BLACKHOLE Community | Partial | 3 of 4 (75.0%); ceiling 4 of 4 (100.0%) | 3 of 12 (25.0%); ceiling 12 of 12 (100.0%) | 4 | 0 | 0 | 0 |
@@ -502,7 +502,7 @@ Mandatory ceiling: 4033 of 5120 (78.8%); excluded: Optional feature not offered 
 | [`RFC 9494`](rfc9494/index.md) Long-Lived Graceful Restart for BGP | Partial | 8 of 25 (32.0%); ceiling 23 of 25 (92.0%); excluded: Not applicable (classification can be revisited): 2 of 25 (8.0%) | 1 of 11 (9.1%); ceiling 11 of 11 (100.0%) | 25 | 5 | 0 | 0 |
 | [`RFC 9514`](rfc9514/index.md) Border Gateway Protocol - Link State (BGP-LS) Extensions for Segment Routing over IPv6 (SRv6) | Partial | 15 of 20 (75.0%); ceiling 20 of 20 (100.0%) | 0 of 3 (0.0%); ceiling 3 of 3 (100.0%) | 20 | 3 | 0 | 0 |
 | [`RFC 9552`](rfc9552/index.md) Distribution of Link-State and Traffic Engineering Information Using BGP | Partial | 43 of 59 (72.9%); ceiling 54 of 59 (91.5%); excluded: Not applicable (classification can be revisited): 5 of 59 (8.5%) | 1 of 30 (3.3%); ceiling 30 of 30 (100.0%) | 59 | 3 | 0 | 0 |
-| [`RFC 9568`](rfc9568/index.md) Virtual Router Redundancy Protocol (VRRP) Version 3 for IPv4 and IPv6 | Partial | 27 of 66 (40.9%); ceiling 60 of 66 (90.9%); excluded: Not applicable (classification can be revisited): 6 of 66 (9.1%) | 1 of 28 (3.6%); ceiling 28 of 28 (100.0%) | 66 | 4 | 0 | 0 |
+| [`RFC 9568`](rfc9568/index.md) Virtual Router Redundancy Protocol (VRRP) Version 3 for IPv4 and IPv6 | Partial | 28 of 66 (42.4%); ceiling 60 of 66 (90.9%); excluded: Not applicable (classification can be revisited): 6 of 66 (9.1%) | 1 of 28 (3.6%); ceiling 28 of 28 (100.0%) | 66 | 4 | 0 | 0 |
 | [`RFC 9687`](rfc9687/index.md) Border Gateway Protocol 4 (BGP-4) Send Hold Timer | Supported | 3 of 13 (23.1%); ceiling 13 of 13 (100.0%) | 0 of 7 (0.0%); ceiling 7 of 7 (100.0%) | 13 | 0 | 0 | 0 |
 | [`RFC 9728`](rfc9728/index.md) OAuth 2.0 Protected Resource Metadata | Partial | 9 of 26 (34.6%); ceiling 13 of 26 (50.0%); excluded: Optional feature not offered (classification can be revisited): 6 of 26 (23.1%); Not applicable (classification can be revisited): 7 of 26 (26.9%) | 2 of 6 (33.3%); ceiling 6 of 6 (100.0%) | 26 | 0 | 0 | 0 |
 | [`RFC 9774`](rfc9774/index.md) Deprecation of AS_SET and AS_CONFED_SET in BGP | Supported | 2 of 2 (100.0%); ceiling 2 of 2 (100.0%) | no rows; ceiling no rows | 2 | 0 | 0 | 0 |

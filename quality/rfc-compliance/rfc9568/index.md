@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 9.1% | 6 of 66 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 66 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 66 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 36.0% | 68 of 189 tagged units, 0 escaped and 42 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 37.6% | 71 of 189 tagged units, 0 escaped and 39 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -920,11 +920,11 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/nd_nonowner_integration_linux_test.go#L33) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/nd_nonowner_integration_linux_test.go#L33) | unit/verify | revert, verified |
 | negative | [`TestVRRPOwnerAnswersWithVirtualMACOnly`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/owner_answer_integration_linux_test.go#L55) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
 | negative | [`TestOwnerFilterWiredOnPromotionForEveryFamily`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/ownerfilter_test.go#L175) | unit/verify | revert, verified |
 | positive | [`TestInstanceIPv6VIPLivesOnVirtualMACDevice`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L726) | unit/verify | unproven |
-| positive | [`TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/nd_nonowner_integration_linux_test.go#L32) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/nd_nonowner_integration_linux_test.go#L32) | unit/verify | revert, verified |
 | positive | [`TestVRRPOwnerAnswersWithVirtualMACOnly`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/owner_answer_integration_linux_test.go#L54) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
 | positive | [`TestOwnerFilterWiredOnPromotionForEveryFamily`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/ownerfilter_test.go#L174) | unit/verify | revert, verified |
 
@@ -969,7 +969,7 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 |---|---|---|---|
 | negative | [`TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/nd_nonowner_integration_linux_test.go#L37) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
 | negative | [`TestVRRPOwnerAnswersWithVirtualMACOnly`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/owner_answer_integration_linux_test.go#L63) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/nd_nonowner_integration_linux_test.go#L36) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/nd_nonowner_integration_linux_test.go#L36) | unit/verify | revert, verified |
 | positive | [`TestVRRPOwnerAnswersWithVirtualMACOnly`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/owner_answer_integration_linux_test.go#L62) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
 
 ### [`RFC9568-8.2.3-1`](#rfc9568-8.2.3-1)

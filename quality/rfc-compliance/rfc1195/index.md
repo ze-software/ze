@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0.0% | 0 of 41 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 41 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 41 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 70.2% | 59 of 84 tagged units, 0 escaped and 1 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 71.4% | 60 of 84 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -474,7 +474,7 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 | negative | [`TestRFC1195ISHWrongPassword`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_ish_auth_test.go#L64) | unit/verify | revert, verified |
 | positive | [`TestRFC1195ISHTransmitReceive`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/protocol_rfc1195_test.go#L239) | unit/verify | revert, verified |
 | positive | [`TestRFC1195ISHConfiguredPassword`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_ish_auth_test.go#L22) | unit/verify | revert, verified |
-| positive | [`TestRFC1195ISHVethTransport`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/transport/rfc1195_ish_integration_linux_test.go#L19) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestRFC1195ISHVethTransport`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/transport/rfc1195_ish_integration_linux_test.go#L19) | unit/verify | revert, verified |
 
 ### [`RFC1195-4.4-3`](#rfc1195-4.4-3)
 

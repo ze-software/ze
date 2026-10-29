@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 8.0% | 6 of 75 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 75 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 75 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 90.6% | 77 of 85 tagged units, 0 escaped and 1 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 98.8% | 84 of 85 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -73,7 +73,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 89 |
 | Tagged units | 85 |
 | Recorded audit verdicts | 19 |
-| Discrimination records | 78 |
+| Discrimination records | 84 |
 | Summary | `rfc/short/rfc2205.md` |
 | Requirement shard | `rfc/requirements/rfc2205.md` |
 | RFC text | `rfc/full/rfc2205.txt` |
@@ -325,7 +325,7 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 |---|---|---|---|
 | negative | [`TestRFC2205PathNeverLeavesWithoutRouterAlertCarrier`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_carrier_test.go#L14) | unit/verify | revert, verified |
 | negative | [`TestRFC2205ResvConfNeverLeavesWithoutRouterAlertCarrier`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go#L400) | unit/verify | revert, verified |
-| positive | [`TestIntegrationRSVPPathCarriage`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go#L385) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestIntegrationRSVPPathCarriage`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go#L385) | unit/verify | revert, verified |
 
 ### [`RFC2205-3.10-1`](#rfc2205-3.10-1)
 
@@ -865,8 +865,8 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestIntegrationRSVPPathAvoidsDataFEC`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go#L476) | unit/verify | unproven |
-| positive | [`TestIntegrationRSVPPathCarriage`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go#L386) | unit/verify | unproven |
+| positive | [`TestIntegrationRSVPPathAvoidsDataFEC`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go#L476) | unit/verify | mutant, verified |
+| positive | [`TestIntegrationRSVPPathCarriage`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go#L386) | unit/verify | mutant, verified |
 
 ### [`RFC2205-3-38`](#rfc2205-3-38)
 
@@ -884,7 +884,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestIntegrationRSVPPathAvoidsDataFEC`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go#L477) | unit/verify | unproven |
+| positive | [`TestIntegrationRSVPPathAvoidsDataFEC`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go#L477) | unit/verify | mutant, verified |
 
 ### [`RFC2205-3-40`](#rfc2205-3-40)
 
@@ -894,7 +894,7 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestIntegrationRSVPPathCarriage`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go#L387) | unit/verify | unproven |
+| positive | [`TestIntegrationRSVPPathCarriage`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go#L387) | unit/verify | mutant, verified |
 
 ### [`RFC2205-3-41`](#rfc2205-3-41)
 
@@ -904,7 +904,7 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestIntegrationRSVPPathCarriage`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go#L388) | unit/verify | unproven |
+| positive | [`TestIntegrationRSVPPathCarriage`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go#L388) | unit/verify | mutant, verified |
 
 ### [`RFC2205-3-42`](#rfc2205-3-42)
 
@@ -914,7 +914,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestIntegrationRSVPPathCarriage`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go#L389) | unit/verify | unproven |
+| positive | [`TestIntegrationRSVPPathCarriage`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go#L389) | unit/verify | mutant, verified |
 
 ### [`RFC2205-3-43`](#rfc2205-3-43)
 

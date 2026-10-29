@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0.0% | 0 of 41 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 41 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 41 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 43.0% | 61 of 142 tagged units, 0 escaped and 21 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 57.7% | 82 of 142 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -282,9 +282,9 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestBackupDiscardFollowsTheState`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/backupfilter_test.go#L115) | unit/verify | revert, verified |
-| negative | [`TestVRRPBackupDoesNotForwardVirtualMACFrames`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/vmac_state_integration_linux_test.go#L131) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestVRRPBackupDoesNotForwardVirtualMACFrames`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/vmac_state_integration_linux_test.go#L131) | unit/verify | revert, verified |
 | positive | [`TestBackupDiscardFollowsTheState`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/backupfilter_test.go#L114) | unit/verify | revert, verified |
-| positive | [`TestVRRPBackupDoesNotForwardVirtualMACFrames`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/vmac_state_integration_linux_test.go#L130) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestVRRPBackupDoesNotForwardVirtualMACFrames`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/vmac_state_integration_linux_test.go#L130) | unit/verify | revert, verified |
 
 ### [`RFC3768-6.4.2-3`](#rfc3768-6.4.2-3)
 
@@ -374,10 +374,10 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestDataplaneRestoreOnLastGroup`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L140) | unit/verify | unproven |
-| negative | [`TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/vmac_state_integration_linux_test.go#L78) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/vmac_state_integration_linux_test.go#L78) | unit/verify | revert, verified |
 | positive | [`TestDataplaneApplyIPv4SetsRecipe`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L69) | unit/verify | unproven |
 | positive | [`TestPromotionInstallsIPv4AddressOnVirtualMACDevice`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/promote_install_test.go#L30) | unit/verify | revert, verified |
-| positive | [`TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/vmac_state_integration_linux_test.go#L77) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/vmac_state_integration_linux_test.go#L77) | unit/verify | revert, verified |
 
 ### [`RFC3768-6.4.3-2`](#rfc3768-6.4.3-2)
 
@@ -388,9 +388,9 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestBackupDiscardFollowsTheState`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/backupfilter_test.go#L121) | unit/verify | revert, verified |
-| negative | [`TestVRRPBackupDoesNotForwardVirtualMACFrames`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/vmac_state_integration_linux_test.go#L137) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestVRRPBackupDoesNotForwardVirtualMACFrames`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/vmac_state_integration_linux_test.go#L137) | unit/verify | revert, verified |
 | positive | [`TestBackupDiscardFollowsTheState`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/backupfilter_test.go#L120) | unit/verify | revert, verified |
-| positive | [`TestVRRPBackupDoesNotForwardVirtualMACFrames`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/vmac_state_integration_linux_test.go#L136) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestVRRPBackupDoesNotForwardVirtualMACFrames`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/vmac_state_integration_linux_test.go#L136) | unit/verify | revert, verified |
 
 ### [`RFC3768-6.4.3-3`](#rfc3768-6.4.3-3)
 
@@ -531,11 +531,11 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 | negative | [`TestInstanceV2OwnerDiscardsAdvert`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L1190) | unit/verify | revert, verified |
 | negative | [`TestValidationOrder`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L156) | unit/verify | unproven |
 | negative | [`TestRxVRIDCheckedOnTheReceivingInterface`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc3768_rx_interface_test.go#L26) | unit/verify | revert, verified |
-| negative | [`TestRxAdvertScopedToReceivingInterface`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/rfc_rx_iface_verdict_linux_test.go#L133) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestRxAdvertScopedToReceivingInterface`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/rfc_rx_iface_verdict_linux_test.go#L133) | unit/verify | revert, verified |
 | positive | [`TestInstanceV2OwnerDiscardsAdvert`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L1191) | unit/verify | revert, verified |
 | positive | [`TestDecodeGoldenV2`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L45) | unit/verify | unproven |
 | positive | [`TestRxVRIDCheckedOnTheReceivingInterface`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc3768_rx_interface_test.go#L25) | unit/verify | revert, verified |
-| positive | [`TestRxAdvertScopedToReceivingInterface`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/rfc_rx_iface_verdict_linux_test.go#L132) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestRxAdvertScopedToReceivingInterface`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/rfc_rx_iface_verdict_linux_test.go#L132) | unit/verify | revert, verified |
 
 ### [`RFC3768-7.1-5`](#rfc3768-7.1-5)
 
@@ -604,7 +604,7 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | positive | [`TestConstants`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/packet_test.go#L435) | unit/verify | unproven |
-| positive | [`TestTxAdvertV4OnWire`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go#L40) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestTxAdvertV4OnWire`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go#L40) | unit/verify | revert, verified |
 
 ### [`RFC3768-7.2-3`](#rfc3768-7.2-3)
 
@@ -614,7 +614,7 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestTxAdvertV4OnWire`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go#L43) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestTxAdvertV4OnWire`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go#L43) | unit/verify | revert, verified |
 | positive | [`TestSendAdvertUsesParentPrimaryV4Source`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/transport_test.go#L217) | unit/verify | unproven |
 
 ### [`RFC3768-7.2-4`](#rfc3768-7.2-4)
@@ -625,7 +625,7 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestTxAdvertV4OnWire`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go#L46) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestTxAdvertV4OnWire`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go#L46) | unit/verify | revert, verified |
 | positive | [`TestSendAdvertIPv4HeaderTTLProtoDst`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/transport_test.go#L276) | unit/verify | unproven |
 
 ### [`RFC3768-8.1-1`](#rfc3768-8.1-1)
@@ -636,8 +636,8 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestVRRPRedirectSourceFollowsVirtualMAC`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/redirect_integration_linux_test.go#L25) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestVRRPRedirectSourceFollowsVirtualMAC`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/redirect_integration_linux_test.go#L24) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestVRRPRedirectSourceFollowsVirtualMAC`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/redirect_integration_linux_test.go#L25) | unit/verify | revert, verified |
+| positive | [`TestVRRPRedirectSourceFollowsVirtualMAC`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/redirect_integration_linux_test.go#L24) | unit/verify | revert, verified |
 
 ### [`RFC3768-8.2-1`](#rfc3768-8.2-1)
 
@@ -648,13 +648,13 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestDataplaneRestoreOnLastGroup`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L141) | unit/verify | unproven |
-| negative | [`TestVRRPOwnerAnswersWithVirtualMACOnly`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/owner_answer_integration_linux_test.go#L47) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestVRRPOwnerAnswersWithVirtualMACOnly`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/owner_answer_integration_linux_test.go#L47) | unit/verify | revert, verified |
 | negative | [`TestOwnerFilterWiredOnPromotionForEveryFamily`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/ownerfilter_test.go#L171) | unit/verify | revert, verified |
-| negative | [`TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/vmac_state_integration_linux_test.go#L66) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/vmac_state_integration_linux_test.go#L66) | unit/verify | revert, verified |
 | positive | [`TestDataplaneApplyIPv4SetsRecipe`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L70) | unit/verify | unproven |
-| positive | [`TestVRRPOwnerAnswersWithVirtualMACOnly`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/owner_answer_integration_linux_test.go#L46) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestVRRPOwnerAnswersWithVirtualMACOnly`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/owner_answer_integration_linux_test.go#L46) | unit/verify | revert, verified |
 | positive | [`TestOwnerFilterWiredOnPromotionForEveryFamily`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/ownerfilter_test.go#L170) | unit/verify | revert, verified |
-| positive | [`TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/vmac_state_integration_linux_test.go#L65) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/vmac_state_integration_linux_test.go#L65) | unit/verify | revert, verified |
 
 ### [`RFC3768-8.2-4`](#rfc3768-8.2-4)
 
@@ -664,10 +664,10 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestVRRPOwnerAnswersWithVirtualMACOnly`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/owner_answer_integration_linux_test.go#L61) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| negative | [`TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/vmac_state_integration_linux_test.go#L74) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestVRRPOwnerAnswersWithVirtualMACOnly`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/owner_answer_integration_linux_test.go#L60) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/vmac_state_integration_linux_test.go#L73) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestVRRPOwnerAnswersWithVirtualMACOnly`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/owner_answer_integration_linux_test.go#L61) | unit/verify | revert, verified |
+| negative | [`TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/vmac_state_integration_linux_test.go#L74) | unit/verify | revert, verified |
+| positive | [`TestVRRPOwnerAnswersWithVirtualMACOnly`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/owner_answer_integration_linux_test.go#L60) | unit/verify | revert, verified |
+| positive | [`TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/vmac_state_integration_linux_test.go#L73) | unit/verify | revert, verified |
 
 ### [`RFC3768-8.3-1`](#rfc3768-8.3-1)
 

@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0.0% | 0 of 67 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 67 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 67 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 85.8% | 187 of 218 tagged units, 2 escaped and 4 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 87.6% | 191 of 218 tagged units, 2 escaped and 0 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -620,9 +620,9 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestOSPFMulticastMembershipRefusesForeignGroup`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/transport/rfc2328_socket_linux_test.go#L97) | unit/verify | revert, verified |
-| negative | [`TestOSPFTransportAllDRoutersReceive`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/transport/rfc2328_transport_integration_linux_test.go#L103) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestOSPFTransportAllDRoutersReceive`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/transport/rfc2328_transport_integration_linux_test.go#L103) | unit/verify | revert, verified |
 | positive | [`TestOSPFMulticastMembershipInstalled`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/transport/rfc2328_socket_linux_test.go#L76) | unit/verify | revert, verified |
-| positive | [`TestOSPFTransportVethMulticastRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/transport/rfc2328_transport_integration_linux_test.go#L50) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestOSPFTransportVethMulticastRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/transport/rfc2328_transport_integration_linux_test.go#L50) | unit/verify | revert, verified |
 
 ### [`RFC2328-4.4-2`](#rfc2328-4.4-2)
 
@@ -655,8 +655,8 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestOSPFRefusesDeviceWithoutRouterAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/transport/rfc2328_unnumbered_source_linux_test.go#L101) | unit/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestOSPFUnnumberedSourcesFromDonorAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/transport/rfc2328_unnumbered_source_linux_test.go#L26) | unit/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestOSPFRefusesDeviceWithoutRouterAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/transport/rfc2328_unnumbered_source_linux_test.go#L101) | unit/verify | mutant, verified |
+| positive | [`TestOSPFUnnumberedSourcesFromDonorAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/transport/rfc2328_unnumbered_source_linux_test.go#L26) | unit/verify | mutant, verified |
 
 ### [`RFC2328-8.2-1`](#rfc2328-8.2-1)
 

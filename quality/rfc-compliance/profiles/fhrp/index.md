@@ -4,7 +4,7 @@ Technology aggregate. First-hop redundancy. The RFCs whose summary names the fhr
 
 [All profiles](../) · [All RFCs](../../)
 
-- **Mandatory**: 57.8% (96 of 166 (57.8%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
+- **Mandatory**: 61.4% (102 of 166 (61.4%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
 - **Optional**: 1.5% (1 of 65 (1.5%)). MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.
 - **Mandatory ceiling**: 91.6% (152 of 166 (91.6%); excluded: Optional feature not offered (classification can be revisited): 2 of 166 (1.2%); Met by a lower layer: 3 of 166 (1.8%); Not applicable (classification can be revisited): 9 of 166 (5.4%)). Attainable mandatory rows under current classifications, over the unchanged total.
 - **Optional ceiling**: 98.5% (64 of 65 (98.5%); excluded: Optional feature not offered (classification can be revisited): 1 of 65 (1.5%)). Attainable optional rows under current classifications, over the unchanged total.
@@ -21,11 +21,11 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 
 | RFC | Title | Mandatory | Optional |
 |---|---|---|---|
-| [RFC 9568](../../rfc9568/) | Virtual Router Redundancy Protocol (VRRP) Version 3 for IPv4 and IPv6 | 27 of 66 (40.9%); ceiling 60 of 66 (90.9%); excluded: Not applicable (classification can be revisited): 6 of 66 (9.1%) | 1 of 28 (3.6%); ceiling 28 of 28 (100.0%) |
+| [RFC 9568](../../rfc9568/) | Virtual Router Redundancy Protocol (VRRP) Version 3 for IPv4 and IPv6 | 28 of 66 (42.4%); ceiling 60 of 66 (90.9%); excluded: Not applicable (classification can be revisited): 6 of 66 (9.1%) | 1 of 28 (3.6%); ceiling 28 of 28 (100.0%) |
 
 ### Level 7
 
 | RFC | Title | Mandatory | Optional |
 |---|---|---|---|
-| [RFC 3768](../../rfc3768/) | Virtual Router Redundancy Protocol (VRRP) | 26 of 41 (63.4%); ceiling 38 of 41 (92.7%); excluded: Not applicable (classification can be revisited): 3 of 41 (7.3%) | 0 of 11 (0.0%); ceiling 11 of 11 (100.0%) |
+| [RFC 3768](../../rfc3768/) | Virtual Router Redundancy Protocol (VRRP) | 31 of 41 (75.6%); ceiling 38 of 41 (92.7%); excluded: Not applicable (classification can be revisited): 3 of 41 (7.3%) | 0 of 11 (0.0%); ceiling 11 of 11 (100.0%) |
 | [RFC 5798](../../rfc5798/) | Virtual Router Redundancy Protocol (VRRP) Version 3 for IPv4 and IPv6 | 43 of 59 (72.9%); ceiling 54 of 59 (91.5%); excluded: Optional feature not offered (classification can be revisited): 2 of 59 (3.4%); Met by a lower layer: 3 of 59 (5.1%) | 0 of 26 (0.0%); ceiling 25 of 26 (96.2%); excluded: Optional feature not offered (classification can be revisited): 1 of 26 (3.8%) |

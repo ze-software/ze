@@ -21,12 +21,12 @@
   "changes": 45,
   "cli_commands": 490,
   "config_sections": 38,
-  "dependencies": 52,
+  "dependencies": 53,
   "features": {
     "core_experimental": 52
   },
-  "generated_at": "2026-10-28",
-  "github_stars": 58,
+  "generated_at": "2026-10-29",
+  "github_stars": 59,
   "interop": {
     "scenario_dirs_raw": 218,
     "scenarios": 218,
@@ -34,7 +34,7 @@
     "target_display": "11",
     "targets": 11
   },
-  "published_at": "2026-10-28T22:53:04Z",
+  "published_at": "2026-10-29T17:12:26Z",
   "repo": {
     "design_comments": 7434,
     "design_comments_display": "7,400+",
@@ -71,7 +71,7 @@
     "editor_display": "180+",
     "fuzz": 95,
     "fuzz_display": "95",
-    "unit": 39835,
+    "unit": 39847,
     "unit_display": "39,800+"
   }
 }

@@ -10130,7 +10130,7 @@
         "audited": 31,
         "discrimination-records": 60,
         "escapes": 0,
-        "stale-records": 1
+        "stale-records": 0
       },
       "requirements": [
         {
@@ -11466,11 +11466,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "unit-changed",
-                "detail": "the tagged unit's behavior changed since the red was observed",
+                "state": "verified",
                 "producer": "internal/plugins/isis/transport/transport.go::SendISH",
-                "break": "body of SendISH replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "break": "body of SendISH replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             }
@@ -23144,7 +23143,7 @@
         "audited": 21,
         "discrimination-records": 51,
         "escapes": 0,
-        "stale-records": 10
+        "stale-records": 0
       },
       "requirements": [
         {
@@ -23779,11 +23778,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "unit-changed",
-                "detail": "the tagged unit's behavior changed since the red was observed",
+                "state": "verified",
                 "producer": "internal/plugins/iface/dhcp/dhcp_v4_linux.go::v4RequestModifiers",
-                "break": "body of v4RequestModifiers replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "break": "body of v4RequestModifiers replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             },
@@ -23797,11 +23795,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "unit-changed",
-                "detail": "the tagged unit's behavior changed since the red was observed",
+                "state": "verified",
                 "producer": "internal/plugins/iface/dhcp/dhcp_v4_linux.go::v4RequestModifiers",
-                "break": "body of v4RequestModifiers replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "break": "body of v4RequestModifiers replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             }
@@ -23888,11 +23885,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "unit-changed",
-                "detail": "the tagged unit's behavior changed since the red was observed",
+                "state": "verified",
                 "producer": "internal/plugins/iface/dhcp/dhcp_v4_linux.go::v4ExtendRequest",
-                "break": "body of v4ExtendRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "break": "body of v4ExtendRequest replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             },
@@ -23981,11 +23977,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "unit-changed",
-                "detail": "the tagged unit's behavior changed since the red was observed",
+                "state": "verified",
                 "producer": "internal/plugins/iface/dhcp/dhcp_v4_linux.go::teardownV4",
-                "break": "body of teardownV4 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "break": "body of teardownV4 replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             },
@@ -24390,11 +24385,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "unit-changed",
-                "detail": "the tagged unit's behavior changed since the red was observed",
+                "state": "verified",
                 "producer": "internal/plugins/iface/dhcp/dhcp_v4_exchange_linux.go::newV4UnicastClient",
-                "break": "body of newV4UnicastClient replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "break": "body of newV4UnicastClient replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             },
@@ -25340,11 +25334,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "unit-changed",
-                "detail": "the tagged unit's behavior changed since the red was observed",
+                "state": "verified",
                 "producer": "internal/plugins/iface/dhcp/dhcp_v4_linux.go::sendV4Extend",
-                "break": "body of sendV4Extend replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "break": "body of sendV4Extend replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             },
@@ -25405,11 +25398,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "unit-changed",
-                "detail": "the tagged unit's behavior changed since the red was observed",
+                "state": "verified",
                 "producer": "internal/plugins/iface/dhcp/dhcp_v4_linux.go::removeV4Address",
-                "break": "body of removeV4Address replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "break": "body of removeV4Address replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             }
@@ -25436,11 +25428,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "unit-changed",
-                "detail": "the tagged unit's behavior changed since the red was observed",
+                "state": "verified",
                 "producer": "internal/plugins/iface/dhcp/dhcp_v4_linux.go::v4ExtendRequest",
-                "break": "body of v4ExtendRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "break": "body of v4ExtendRequest replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             },
@@ -25484,11 +25475,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "unit-changed",
-                "detail": "the tagged unit's behavior changed since the red was observed",
+                "state": "verified",
                 "producer": "internal/plugins/iface/dhcp/dhcp_v4_linux.go::v4ExtendRequest",
-                "break": "body of v4ExtendRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "break": "body of v4ExtendRequest replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             },
@@ -25778,11 +25768,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "unit-changed",
-                "detail": "the tagged unit's behavior changed since the red was observed",
+                "state": "verified",
                 "producer": "internal/plugins/iface/dhcp/dhcp_v4_linux.go::installV4Lease",
-                "break": "body of installV4Lease replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "break": "body of installV4Lease replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             }
@@ -26286,7 +26275,7 @@
         "updated-by": [],
         "summary": true,
         "walked": true,
-        "mandatory-proven": 18,
+        "mandatory-proven": 20,
         "mandatory-total": 71,
         "optional-proven": 2,
         "optional-total": 38,
@@ -29782,9 +29771,9 @@
         "tags": 89,
         "units": 85,
         "audited": 19,
-        "discrimination-records": 78,
+        "discrimination-records": 84,
         "escapes": 0,
-        "stale-records": 1
+        "stale-records": 0
       },
       "requirements": [
         {
@@ -30189,11 +30178,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "unit-changed",
-                "detail": "the tagged unit's behavior changed since the red was observed",
+                "state": "verified",
                 "producer": "internal/plugins/rsvpte/transport_linux.go::SendPath",
-                "break": "body of SendPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "break": "body of SendPath replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             }
@@ -32093,7 +32081,15 @@
               "line": 476,
               "carrier": "unit/verify",
               "claim": "-- an ordinary PATH reaches the selected RSVP hop even after a data FEC is installed for its IP destination.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "mutant",
+                "state": "verified",
+                "producer": "internal/plugins/rsvpte/transport_linux.go::SendPath",
+                "break": "line 258: \"lookup := route.NextHop\" -\u003e \"lookup := route.Destination\"",
+                "verified": true,
+                "proves": true
+              }
             },
             {
               "polarity": "positive",
@@ -32102,7 +32098,15 @@
               "line": 386,
               "carrier": "unit/verify",
               "claim": "-- native route queries send PATH and PathTear toward the explicit hop rather than the endpoint's ordinary route.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "mutant",
+                "state": "verified",
+                "producer": "internal/plugins/rsvpte/transport_linux.go::SendPath",
+                "break": "line 258: \"lookup := route.NextHop\" -\u003e \"lookup := route.Destination\"",
+                "verified": true,
+                "proves": true
+              }
             }
           ],
           "audit": {
@@ -32154,7 +32158,15 @@
               "line": 477,
               "carrier": "unit/verify",
               "claim": "-- the adjacent production receiver receives a nonlocal IPv4 PATH despite an installed endpoint data FEC.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "mutant",
+                "state": "verified",
+                "producer": "internal/plugins/rsvpte/transport_linux.go::openSockets",
+                "break": "line 83: \"unix.SetsockoptInt(fd, unix.IPPROTO_IP, unix.IP_ROUTER_ALERT, 1)\" -\u003e \"error(nil)\"",
+                "verified": true,
+                "proves": true
+              }
             }
           ]
         },
@@ -32181,7 +32193,15 @@
               "line": 387,
               "carrier": "unit/verify",
               "claim": "-- the transit receiver observes the actual incoming interface, original IP source and IP TTL.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "mutant",
+                "state": "verified",
+                "producer": "internal/plugins/rsvpte/transport_linux.go::receivedIPv4Packet",
+                "break": "line 566: \"data[8]\" -\u003e \"0\"",
+                "verified": true,
+                "proves": true
+              }
             }
           ],
           "audit": {
@@ -32217,7 +32237,15 @@
               "line": 388,
               "carrier": "unit/verify",
               "claim": "-- native carriage selects the explicit hop's link while preserving an IP destination routed through the other link.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "mutant",
+                "state": "verified",
+                "producer": "internal/plugins/rsvpte/transport_linux.go::SendPath",
+                "break": "line 258: \"lookup := route.NextHop\" -\u003e \"lookup := route.Destination\"",
+                "verified": true,
+                "proves": true
+              }
             }
           ],
           "audit": {
@@ -32253,7 +32281,15 @@
               "line": 389,
               "carrier": "unit/verify",
               "claim": "-- the captured PATH carries the requested sender source and Send_TTL in its IPv4 header.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "mutant",
+                "state": "verified",
+                "producer": "internal/plugins/rsvpte/transport_linux.go::SendPath",
+                "break": "line 311: \"msg[4]\" -\u003e \"1\"",
+                "verified": true,
+                "proves": true
+              }
             }
           ]
         },
@@ -32851,7 +32887,7 @@
         "updated-by": [],
         "summary": true,
         "walked": true,
-        "mandatory-proven": 26,
+        "mandatory-proven": 31,
         "mandatory-total": 75,
         "optional-proven": 0,
         "optional-total": 5,
@@ -32904,7 +32940,7 @@
         "audited": 69,
         "discrimination-records": 193,
         "escapes": 2,
-        "stale-records": 4
+        "stale-records": 0
       },
       "requirements": [
         {
@@ -35296,11 +35332,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "unit-changed",
-                "detail": "the tagged unit's behavior changed since the red was observed",
+                "state": "verified",
                 "producer": "internal/plugins/ospf/transport/backend_linux.go::leaveGroup",
-                "break": "body of leaveGroup replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "break": "body of leaveGroup replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             },
@@ -35331,11 +35366,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "unit-changed",
-                "detail": "the tagged unit's behavior changed since the red was observed",
+                "state": "verified",
                 "producer": "internal/plugins/ospf/transport/backend_linux.go::setMulticastOptions",
-                "break": "body of setMulticastOptions replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "break": "body of setMulticastOptions replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             }
@@ -35479,11 +35513,10 @@
               "tags": 1,
               "proof": {
                 "route": "mutant",
-                "state": "unit-changed",
-                "detail": "the tagged unit's behavior changed since the red was observed",
+                "state": "verified",
                 "producer": "internal/plugins/ospf/transport/backend_linux.go::interfaceIPv4",
-                "break": "line 308: \"fmt.Errorf(\\\"ospf/transport: interface %s has no IPv4 address\\\", name)\" -\u003e \"nil\"",
-                "verified": false,
+                "break": "line 319: \"fmt.Errorf(\\\"ospf/transport: interface %s has no IPv4 address\\\", name)\" -\u003e \"nil\"",
+                "verified": true,
                 "proves": true
               }
             },
@@ -35497,11 +35530,10 @@
               "tags": 1,
               "proof": {
                 "route": "mutant",
-                "state": "unit-changed",
-                "detail": "the tagged unit's behavior changed since the red was observed",
+                "state": "verified",
                 "producer": "internal/plugins/ospf/transport/backend_linux.go::multicastDevice",
-                "break": "line 366: \"int32(ifindex)\" -\u003e \"0\"",
-                "verified": false,
+                "break": "line 377: \"int32(ifindex)\" -\u003e \"0\"",
+                "verified": true,
                 "proves": true
               }
             }
@@ -38401,7 +38433,7 @@
         ],
         "summary": true,
         "walked": true,
-        "mandatory-proven": 57,
+        "mandatory-proven": 58,
         "mandatory-total": 67,
         "optional-proven": 2,
         "optional-total": 15,
@@ -77183,7 +77215,7 @@
         "audited": 38,
         "discrimination-records": 82,
         "escapes": 0,
-        "stale-records": 21
+        "stale-records": 0
       },
       "requirements": [
         {
@@ -77758,11 +77790,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "unit-changed",
-                "detail": "the tagged unit's behavior changed since the red was observed",
+                "state": "verified",
                 "producer": "internal/plugins/vrrp/backupfilter.go::backupFilterTables",
-                "break": "body of backupFilterTables replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "break": "body of backupFilterTables replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             },
@@ -77793,11 +77824,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "unit-changed",
-                "detail": "the tagged unit's behavior changed since the red was observed",
+                "state": "verified",
                 "producer": "internal/plugins/vrrp/backupfilter.go::backupFilterTables",
-                "break": "body of backupFilterTables replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "break": "body of backupFilterTables replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             }
@@ -78321,11 +78351,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "unit-changed",
-                "detail": "the tagged unit's behavior changed since the red was observed",
+                "state": "verified",
                 "producer": "internal/plugins/vrrp/register.go::vipCIDRs",
-                "break": "body of vipCIDRs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "break": "body of vipCIDRs replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             },
@@ -78365,11 +78394,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "unit-changed",
-                "detail": "the tagged unit's behavior changed since the red was observed",
+                "state": "verified",
                 "producer": "internal/plugins/vrrp/register.go::vipCIDRs",
-                "break": "body of vipCIDRs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "break": "body of vipCIDRs replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             }
@@ -78428,11 +78456,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "unit-changed",
-                "detail": "the tagged unit's behavior changed since the red was observed",
+                "state": "verified",
                 "producer": "internal/plugins/vrrp/backupfilter.go::clearBackupFilter",
-                "break": "body of clearBackupFilter replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "break": "body of clearBackupFilter replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             },
@@ -78463,11 +78490,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "unit-changed",
-                "detail": "the tagged unit's behavior changed since the red was observed",
+                "state": "verified",
                 "producer": "internal/plugins/vrrp/backupfilter.go::clearBackupFilter",
-                "break": "body of clearBackupFilter replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "break": "body of clearBackupFilter replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             }
@@ -79270,11 +79296,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "unit-changed",
-                "detail": "the tagged unit's behavior changed since the red was observed",
+                "state": "verified",
                 "producer": "internal/plugins/vrrp/transport/backend_linux.go::openRawIP",
-                "break": "body of openRawIP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "break": "body of openRawIP replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             },
@@ -79331,11 +79356,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "unit-changed",
-                "detail": "the tagged unit's behavior changed since the red was observed",
+                "state": "verified",
                 "producer": "internal/plugins/vrrp/transport/backend_linux.go::openV4",
-                "break": "body of openV4 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "break": "body of openV4 replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             }
@@ -79679,11 +79703,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "unit-changed",
-                "detail": "the tagged unit's behavior changed since the red was observed",
+                "state": "verified",
                 "producer": "internal/plugins/vrrp/transport/backend_linux.go::openV4",
-                "break": "body of openV4 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "break": "body of openV4 replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             }
@@ -79729,11 +79752,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "unit-changed",
-                "detail": "the tagged unit's behavior changed since the red was observed",
+                "state": "verified",
                 "producer": "internal/plugins/vrrp/transport/transport.go::resolveParentPrimaryV4",
-                "break": "body of resolveParentPrimaryV4 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "break": "body of resolveParentPrimaryV4 replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             },
@@ -79788,11 +79810,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "unit-changed",
-                "detail": "the tagged unit's behavior changed since the red was observed",
+                "state": "verified",
                 "producer": "internal/plugins/vrrp/transport/transport.go::buildIPv4Header",
-                "break": "body of buildIPv4Header replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "break": "body of buildIPv4Header replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             },
@@ -79842,11 +79863,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "unit-changed",
-                "detail": "the tagged unit's behavior changed since the red was observed",
+                "state": "verified",
                 "producer": "internal/plugins/vrrp/dataplane_linux.go::applyDataplaneSysctls",
-                "break": "body of applyDataplaneSysctls replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "break": "body of applyDataplaneSysctls replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             },
@@ -79860,11 +79880,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "unit-changed",
-                "detail": "the tagged unit's behavior changed since the red was observed",
+                "state": "verified",
                 "producer": "internal/plugins/vrrp/dataplane_linux.go::applyDataplaneSysctls",
-                "break": "body of applyDataplaneSysctls replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "break": "body of applyDataplaneSysctls replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             }
@@ -79915,11 +79934,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "unit-changed",
-                "detail": "the tagged unit's behavior changed since the red was observed",
+                "state": "verified",
                 "producer": "internal/plugins/vrrp/ownerfilter.go::ownerFilterTables",
-                "break": "body of ownerFilterTables replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "break": "body of ownerFilterTables replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             },
@@ -79950,11 +79968,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "unit-changed",
-                "detail": "the tagged unit's behavior changed since the red was observed",
+                "state": "verified",
                 "producer": "internal/plugins/vrrp/dataplane_linux.go::applyDataplaneSysctls",
-                "break": "body of applyDataplaneSysctls replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "break": "body of applyDataplaneSysctls replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             },
@@ -79977,11 +79994,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "unit-changed",
-                "detail": "the tagged unit's behavior changed since the red was observed",
+                "state": "verified",
                 "producer": "internal/plugins/vrrp/ownerfilter.go::ownerARPReplyTerm",
-                "break": "body of ownerARPReplyTerm replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "break": "body of ownerARPReplyTerm replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             },
@@ -80012,11 +80028,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "unit-changed",
-                "detail": "the tagged unit's behavior changed since the red was observed",
+                "state": "verified",
                 "producer": "internal/plugins/vrrp/dataplane_linux.go::applyDataplaneSysctls",
-                "break": "body of applyDataplaneSysctls replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "break": "body of applyDataplaneSysctls replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             }
@@ -80060,11 +80075,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "unit-changed",
-                "detail": "the tagged unit's behavior changed since the red was observed",
+                "state": "verified",
                 "producer": "internal/plugins/vrrp/ownerfilter.go::ownerFilterTables",
-                "break": "body of ownerFilterTables replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "break": "body of ownerFilterTables replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             },
@@ -80078,11 +80092,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "unit-changed",
-                "detail": "the tagged unit's behavior changed since the red was observed",
+                "state": "verified",
                 "producer": "internal/plugins/vrrp/dataplane_linux.go::applyDataplaneSysctls",
-                "break": "body of applyDataplaneSysctls replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "break": "body of applyDataplaneSysctls replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             },
@@ -80096,11 +80109,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "unit-changed",
-                "detail": "the tagged unit's behavior changed since the red was observed",
+                "state": "verified",
                 "producer": "internal/plugins/vrrp/ownerfilter.go::ownerARPReplyTerm",
-                "break": "body of ownerARPReplyTerm replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "break": "body of ownerARPReplyTerm replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             },
@@ -80114,11 +80126,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "unit-changed",
-                "detail": "the tagged unit's behavior changed since the red was observed",
+                "state": "verified",
                 "producer": "internal/plugins/vrrp/dataplane_linux.go::applyDataplaneSysctls",
-                "break": "body of applyDataplaneSysctls replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "break": "body of applyDataplaneSysctls replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             }
@@ -80746,7 +80757,7 @@
         "updated-by": [],
         "summary": true,
         "walked": true,
-        "mandatory-proven": 26,
+        "mandatory-proven": 31,
         "mandatory-total": 41,
         "optional-proven": 0,
         "optional-total": 11,
@@ -108011,7 +108022,7 @@
         "audited": 9,
         "discrimination-records": 24,
         "escapes": 0,
-        "stale-records": 4
+        "stale-records": 0
       },
       "requirements": [
         {
@@ -108589,11 +108600,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "unit-changed",
-                "detail": "the tagged unit's behavior changed since the red was observed",
+                "state": "verified",
                 "producer": "internal/plugins/ospf/ipsec_install.go::removeLocked",
-                "break": "body of removeLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "break": "body of removeLocked replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             },
@@ -108607,11 +108617,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "unit-changed",
-                "detail": "the tagged unit's behavior changed since the red was observed",
+                "state": "verified",
                 "producer": "internal/plugins/ospf/ipsec_install.go::buildIPsecPolicies",
-                "break": "body of buildIPsecPolicies replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "break": "body of buildIPsecPolicies replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             }
@@ -108768,11 +108777,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "unit-changed",
-                "detail": "the tagged unit's behavior changed since the red was observed",
+                "state": "verified",
                 "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
-                "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             },
@@ -108803,11 +108811,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "unit-changed",
-                "detail": "the tagged unit's behavior changed since the red was observed",
+                "state": "verified",
                 "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
-                "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             }
@@ -109533,7 +109540,7 @@
         "updated-by": [],
         "summary": true,
         "walked": true,
-        "mandatory-proven": 8,
+        "mandatory-proven": 9,
         "mandatory-total": 32,
         "optional-proven": 0,
         "optional-total": 10,
@@ -163441,7 +163448,7 @@
         "audited": 47,
         "discrimination-records": 154,
         "escapes": 0,
-        "stale-records": 36
+        "stale-records": 35
       },
       "requirements": [
         {
@@ -167139,11 +167146,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "unit-changed",
-                "detail": "the tagged unit's behavior changed since the red was observed",
+                "state": "verified",
                 "producer": "internal/plugins/vrrp/dataplane_linux.go::applyDataplaneSysctls",
-                "break": "body of applyDataplaneSysctls replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "break": "body of applyDataplaneSysctls replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             },
@@ -237818,7 +237824,7 @@
         "audited": 8,
         "discrimination-records": 12,
         "escapes": 0,
-        "stale-records": 8
+        "stale-records": 0
       },
       "requirements": [
         {
@@ -237876,11 +237882,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "unit-changed",
-                "detail": "the tagged unit's behavior changed since the red was observed",
+                "state": "verified",
                 "producer": "internal/plugins/iface/netlink/manage_linux.go::AddAddress",
-                "break": "body of AddAddress replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "break": "body of AddAddress replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             }
@@ -237938,11 +237943,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "unit-changed",
-                "detail": "the tagged unit's behavior changed since the red was observed",
+                "state": "verified",
                 "producer": "internal/plugins/iface/netlink/manage_linux.go::AddAddress",
-                "break": "body of AddAddress replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "break": "body of AddAddress replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             }
@@ -237978,11 +237982,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "unit-changed",
-                "detail": "the tagged unit's behavior changed since the red was observed",
+                "state": "verified",
                 "producer": "internal/plugins/iface/netlink/manage_linux.go::AddAddress",
-                "break": "body of AddAddress replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "break": "body of AddAddress replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             },
@@ -238013,11 +238016,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "unit-changed",
-                "detail": "the tagged unit's behavior changed since the red was observed",
+                "state": "verified",
                 "producer": "internal/plugins/iface/netlink/manage_linux.go::AddAddress",
-                "break": "body of AddAddress replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "break": "body of AddAddress replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             }
@@ -238087,11 +238089,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "unit-changed",
-                "detail": "the tagged unit's behavior changed since the red was observed",
+                "state": "verified",
                 "producer": "internal/plugins/iface/netlink/manage_linux.go::AddAddress",
-                "break": "body of AddAddress replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "break": "body of AddAddress replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             },
@@ -238105,11 +238106,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "unit-changed",
-                "detail": "the tagged unit's behavior changed since the red was observed",
+                "state": "verified",
                 "producer": "internal/plugins/iface/netlink/manage_linux.go::AddAddress",
-                "break": "body of AddAddress replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "break": "body of AddAddress replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             }
@@ -238146,11 +238146,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "unit-changed",
-                "detail": "the tagged unit's behavior changed since the red was observed",
+                "state": "verified",
                 "producer": "internal/plugins/iface/netlink/manage_linux.go::AddAddress",
-                "break": "body of AddAddress replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "break": "body of AddAddress replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             },
@@ -238164,11 +238163,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "unit-changed",
-                "detail": "the tagged unit's behavior changed since the red was observed",
+                "state": "verified",
                 "producer": "internal/plugins/iface/netlink/manage_linux.go::AddAddress",
-                "break": "body of AddAddress replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "break": "body of AddAddress replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             }
@@ -238440,7 +238438,7 @@
         "updated-by": [],
         "summary": true,
         "walked": true,
-        "mandatory-proven": 3,
+        "mandatory-proven": 5,
         "mandatory-total": 10,
         "optional-proven": 0,
         "optional-total": 4,
@@ -310303,7 +310301,7 @@
         "audited": 55,
         "discrimination-records": 110,
         "escapes": 0,
-        "stale-records": 42
+        "stale-records": 39
       },
       "requirements": [
         {
@@ -313704,11 +313702,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "unit-changed",
-                "detail": "the tagged unit's behavior changed since the red was observed",
+                "state": "verified",
                 "producer": "internal/plugins/vrrp/dataplane_linux.go::applyDataplaneSysctls",
-                "break": "body of applyDataplaneSysctls replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "break": "body of applyDataplaneSysctls replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             },
@@ -313766,11 +313763,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "unit-changed",
-                "detail": "the tagged unit's behavior changed since the red was observed",
+                "state": "verified",
                 "producer": "internal/plugins/vrrp/dataplane_linux.go::applyDataplaneSysctls",
-                "break": "body of applyDataplaneSysctls replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "break": "body of applyDataplaneSysctls replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             },
@@ -314015,11 +314011,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "unit-changed",
-                "detail": "the tagged unit's behavior changed since the red was observed",
+                "state": "verified",
                 "producer": "internal/plugins/vrrp/dataplane_linux.go::applyDataplaneSysctls",
-                "break": "body of applyDataplaneSysctls replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "break": "body of applyDataplaneSysctls replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             },
@@ -315058,7 +315053,7 @@
         "updated-by": [],
         "summary": true,
         "walked": true,
-        "mandatory-proven": 27,
+        "mandatory-proven": 28,
         "mandatory-total": 66,
         "optional-proven": 1,
         "optional-total": 28,
@@ -331787,7 +331782,7 @@
         "updated-by": [],
         "summary": true,
         "walked": true,
-        "mandatory-proven": 18,
+        "mandatory-proven": 20,
         "mandatory-total": 71,
         "optional-proven": 2,
         "optional-total": 38,
@@ -333753,7 +333748,7 @@
         "updated-by": [],
         "summary": true,
         "walked": true,
-        "mandatory-proven": 3,
+        "mandatory-proven": 5,
         "mandatory-total": 10,
         "optional-proven": 0,
         "optional-total": 4,
@@ -333855,7 +333850,7 @@
         "updated-by": [],
         "summary": true,
         "walked": true,
-        "mandatory-proven": 26,
+        "mandatory-proven": 31,
         "mandatory-total": 75,
         "optional-proven": 0,
         "optional-total": 5,
@@ -334426,28 +334421,6 @@
       },
       {
         "stem": "draft-mangin-netcapstring-00",
-        "title": "",
-        "level": 0,
-        "component": [],
-        "aggregate": "",
-        "builds-on": [],
-        "updated-by": [],
-        "summary": false,
-        "walked": false,
-        "mandatory-proven": 0,
-        "mandatory-total": 0,
-        "optional-proven": 0,
-        "optional-total": 0,
-        "mandatory-attainable": 0,
-        "optional-attainable": 0,
-        "mandatory-excluded": null,
-        "optional-excluded": null,
-        "profiles": [],
-        "optional-profiles": [],
-        "path": ""
-      },
-      {
-        "stem": "iso-iec-10589",
         "title": "",
         "level": 0,
         "component": [],
@@ -335906,7 +335879,7 @@
         ],
         "summary": true,
         "walked": true,
-        "mandatory-proven": 57,
+        "mandatory-proven": 58,
         "mandatory-total": 67,
         "optional-proven": 2,
         "optional-total": 15,
@@ -336092,7 +336065,7 @@
         "updated-by": [],
         "summary": true,
         "walked": true,
-        "mandatory-proven": 8,
+        "mandatory-proven": 9,
         "mandatory-total": 32,
         "optional-proven": 0,
         "optional-total": 10,
@@ -338044,7 +338017,7 @@
         "updated-by": [],
         "summary": true,
         "walked": true,
-        "mandatory-proven": 27,
+        "mandatory-proven": 28,
         "mandatory-total": 66,
         "optional-proven": 1,
         "optional-total": 28,
@@ -338098,7 +338071,7 @@
         "updated-by": [],
         "summary": true,
         "walked": true,
-        "mandatory-proven": 26,
+        "mandatory-proven": 31,
         "mandatory-total": 41,
         "optional-proven": 0,
         "optional-total": 11,
@@ -347156,7 +347129,7 @@
         "rfcs": 18,
         "not-walked": 0,
         "mandatory": {
-          "proven": 338,
+          "proven": 340,
           "total": 747,
           "attainable": 529,
           "excluded": {
@@ -347414,7 +347387,7 @@
           "updated-by": [],
           "summary": true,
           "walked": true,
-          "mandatory-proven": 18,
+          "mandatory-proven": 20,
           "mandatory-total": 71,
           "optional-proven": 2,
           "optional-total": 38,
@@ -356597,7 +356570,7 @@
         "rfcs": 13,
         "not-walked": 0,
         "mandatory": {
-          "proven": 159,
+          "proven": 161,
           "total": 473,
           "attainable": 263,
           "excluded": {
@@ -356768,7 +356741,7 @@
           "updated-by": [],
           "summary": true,
           "walked": true,
-          "mandatory-proven": 18,
+          "mandatory-proven": 20,
           "mandatory-total": 71,
           "optional-proven": 2,
           "optional-total": 38,
@@ -357942,7 +357915,7 @@
         "rfcs": 3,
         "not-walked": 0,
         "mandatory": {
-          "proven": 96,
+          "proven": 102,
           "total": 166,
           "attainable": 152,
           "excluded": {
@@ -357978,7 +357951,7 @@
           "updated-by": [],
           "summary": true,
           "walked": true,
-          "mandatory-proven": 27,
+          "mandatory-proven": 28,
           "mandatory-total": 66,
           "optional-proven": 1,
           "optional-total": 28,
@@ -358005,7 +357978,7 @@
           "updated-by": [],
           "summary": true,
           "walked": true,
-          "mandatory-proven": 26,
+          "mandatory-proven": 31,
           "mandatory-total": 41,
           "optional-proven": 0,
           "optional-total": 11,
@@ -358187,7 +358160,7 @@
         "rfcs": 21,
         "not-walked": 0,
         "mandatory": {
-          "proven": 240,
+          "proven": 241,
           "total": 703,
           "attainable": 593,
           "excluded": {
@@ -358463,7 +358436,7 @@
           "updated-by": [],
           "summary": true,
           "walked": true,
-          "mandatory-proven": 8,
+          "mandatory-proven": 9,
           "mandatory-total": 32,
           "optional-proven": 0,
           "optional-total": 10,
@@ -359353,7 +359326,7 @@
         "rfcs": 10,
         "not-walked": 0,
         "mandatory": {
-          "proven": 120,
+          "proven": 125,
           "total": 319,
           "attainable": 292,
           "excluded": {
@@ -359386,7 +359359,7 @@
           "updated-by": [],
           "summary": true,
           "walked": true,
-          "mandatory-proven": 26,
+          "mandatory-proven": 31,
           "mandatory-total": 75,
           "optional-proven": 0,
           "optional-total": 5,
@@ -359788,7 +359761,7 @@
         "rfcs": 23,
         "not-walked": 3,
         "mandatory": {
-          "proven": 151,
+          "proven": 152,
           "total": 409,
           "attainable": 330,
           "excluded": {
@@ -359831,7 +359804,7 @@
           ],
           "summary": true,
           "walked": true,
-          "mandatory-proven": 57,
+          "mandatory-proven": 58,
           "mandatory-total": 67,
           "optional-proven": 2,
           "optional-total": 15,
@@ -360862,7 +360835,7 @@
         "rfcs": 6,
         "not-walked": 0,
         "mandatory": {
-          "proven": 16,
+          "proven": 18,
           "total": 51,
           "attainable": 36,
           "excluded": {
@@ -360893,7 +360866,7 @@
           "updated-by": [],
           "summary": true,
           "walked": true,
-          "mandatory-proven": 3,
+          "mandatory-proven": 5,
           "mandatory-total": 10,
           "optional-proven": 0,
           "optional-total": 4,

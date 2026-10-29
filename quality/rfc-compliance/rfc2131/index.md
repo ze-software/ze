@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 7.0% | 5 of 71 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 71 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 71 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 52.6% | 41 of 78 tagged units, 0 escaped and 10 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 65.4% | 51 of 78 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -481,8 +481,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestDHCPv4ExtendIgnoresServerEchoesOnVeth`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L512) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestDHCPv4RenewCarriesClientID`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L459) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestDHCPv4ExtendIgnoresServerEchoesOnVeth`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L512) | unit/verify | revert, verified |
+| positive | [`TestDHCPv4RenewCarriesClientID`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L459) | unit/verify | revert, verified |
 
 ### [`RFC2131-3.1-1`](#rfc2131-3.1-1)
 
@@ -524,7 +524,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestDHCPv4ExtendIgnoresServerEchoesOnVeth`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L507) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestDHCPv4ExtendIgnoresServerEchoesOnVeth`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L507) | unit/verify | revert, verified |
 | positive | [`TestDHCPv4RebindAcceptsAnyServerOnVeth`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L386) | unit/verify | revert, verified |
 
 ### [`RFC2131-3.2-1`](#rfc2131-3.2-1)
@@ -559,7 +559,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestDHCPv4ExpiresOnTimeOnVeth`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L543) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestDHCPv4ExpiresOnTimeOnVeth`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L543) | unit/verify | revert, verified |
 | positive | [`TestDHCPv4RenewsRepeatedlyOnVeth`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L325) | unit/verify | revert, verified |
 
 ### [`RFC2131-3-1`](#rfc2131-3-1)
@@ -661,7 +661,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestDHCPv4ExtendIgnoresServerEchoesOnVeth`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L489) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestDHCPv4ExtendIgnoresServerEchoesOnVeth`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L489) | unit/verify | revert, verified |
 | positive | [`TestDHCPv4RenewIsUnicastToServer`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L419) | unit/verify | revert, verified |
 
 ### [`RFC2131-3.4-1`](#rfc2131-3.4-1)
@@ -853,7 +853,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestDHCPv4ExtendIgnoresServerEchoesOnVeth`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L499) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestDHCPv4ExtendIgnoresServerEchoesOnVeth`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L499) | unit/verify | revert, verified |
 | positive | [`TestDHCPv4RebindAcceptsAnyServerOnVeth`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L372) | unit/verify | revert, verified |
 
 ### [`RFC2131-4.4.5-5`](#rfc2131-4.4.5-5)
@@ -865,7 +865,7 @@ Audit verdict: not audited: no reader has judged these tests
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestDHCPv4RenewsRepeatedlyOnVeth`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L324) | unit/verify | revert, verified |
-| positive | [`TestDHCPv4RenewalMovesToNewAddressOnVeth`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L569) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestDHCPv4RenewalMovesToNewAddressOnVeth`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L569) | unit/verify | revert, verified |
 
 ### [`RFC2131-4.4.5-6`](#rfc2131-4.4.5-6)
 
@@ -875,7 +875,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestDHCPv4ExtendIgnoresServerEchoesOnVeth`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L493) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestDHCPv4ExtendIgnoresServerEchoesOnVeth`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L493) | unit/verify | revert, verified |
 | positive | [`TestDHCPv4RenewIsUnicastToServer`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L432) | unit/verify | revert, verified |
 
 ### [`RFC2131-4.4.5-7`](#rfc2131-4.4.5-7)
@@ -886,7 +886,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestDHCPv4ExtendIgnoresServerEchoesOnVeth`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L503) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestDHCPv4ExtendIgnoresServerEchoesOnVeth`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L503) | unit/verify | revert, verified |
 | positive | [`TestDHCPv4RebindAcceptsAnyServerOnVeth`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L382) | unit/verify | revert, verified |
 
 ### [`RFC2131-3.2-3`](#rfc2131-3.2-3)
@@ -950,7 +950,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRFC2131ClientRunsDHCPOnEachInterfaceIndependently`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_multiiface_integration_linux_test.go#L63) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestRFC2131ClientRunsDHCPOnEachInterfaceIndependently`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_multiiface_integration_linux_test.go#L63) | unit/verify | revert, verified |
 
 ### [`RFC2131-4.1-16`](#rfc2131-4.1-16)
 

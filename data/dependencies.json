@@ -32,6 +32,10 @@
                     "why": "Forces a deterministic color profile in render tests, so CLI screenshot/layout tests don't depend on the terminal running them."
                 },
                 {
+                    "module": "github.com/charmbracelet/x/ansi",
+                    "why": "Strips terminal escape codes in the CLI editor tests, so a pattern matches the text the operator sees rather than its color codes."
+                },
+                {
                     "module": "github.com/muesli/reflow",
                     "why": "ANSI-aware text width calculation, so the CLI's prompt and status bar line up correctly despite embedded color codes."
                 },

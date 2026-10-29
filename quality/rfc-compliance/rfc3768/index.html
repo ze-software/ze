@@ -123,7 +123,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 41 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 41 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 41 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>43.0%</strong><b>61 of 142 tagged units, 0 escaped and 21 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>57.7%</strong><b>82 of 142 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -1095,7 +1095,7 @@ RFC 3768 authentication types are deliberately not implemented: RFC 9568 Section
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/vmac_state_integration_linux_test.go#L131" title="internal/plugins/vrrp/vmac_state_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPBackupDoesNotForwardVirtualMACFrames</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/backupfilter_test.go#L114" title="internal/plugins/vrrp/backupfilter_test.go" target="_blank" rel="noopener"><code>TestBackupDiscardFollowsTheState</code></a></td>
@@ -1105,7 +1105,7 @@ RFC 3768 authentication types are deliberately not implemented: RFC 9568 Section
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/vmac_state_integration_linux_test.go#L130" title="internal/plugins/vrrp/vmac_state_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPBackupDoesNotForwardVirtualMACFrames</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1310,7 +1310,7 @@ RFC 3768 authentication types are deliberately not implemented: RFC 9568 Section
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/vmac_state_integration_linux_test.go#L78" title="internal/plugins/vrrp/vmac_state_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L69" title="internal/plugins/vrrp/dataplane_linux_test.go" target="_blank" rel="noopener"><code>TestDataplaneApplyIPv4SetsRecipe</code></a></td>
@@ -1325,7 +1325,7 @@ RFC 3768 authentication types are deliberately not implemented: RFC 9568 Section
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/vmac_state_integration_linux_test.go#L77" title="internal/plugins/vrrp/vmac_state_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1345,7 +1345,7 @@ RFC 3768 authentication types are deliberately not implemented: RFC 9568 Section
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/vmac_state_integration_linux_test.go#L137" title="internal/plugins/vrrp/vmac_state_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPBackupDoesNotForwardVirtualMACFrames</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/backupfilter_test.go#L120" title="internal/plugins/vrrp/backupfilter_test.go" target="_blank" rel="noopener"><code>TestBackupDiscardFollowsTheState</code></a></td>
@@ -1355,7 +1355,7 @@ RFC 3768 authentication types are deliberately not implemented: RFC 9568 Section
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/vmac_state_integration_linux_test.go#L136" title="internal/plugins/vrrp/vmac_state_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPBackupDoesNotForwardVirtualMACFrames</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1675,7 +1675,7 @@ RFC 3768 authentication types are deliberately not implemented: RFC 9568 Section
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/rfc_rx_iface_verdict_linux_test.go#L133" title="internal/plugins/vrrp/transport/rfc_rx_iface_verdict_linux_test.go" target="_blank" rel="noopener"><code>TestRxAdvertScopedToReceivingInterface</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L1191" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceV2OwnerDiscardsAdvert</code></a></td>
@@ -1695,7 +1695,7 @@ RFC 3768 authentication types are deliberately not implemented: RFC 9568 Section
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/rfc_rx_iface_verdict_linux_test.go#L132" title="internal/plugins/vrrp/transport/rfc_rx_iface_verdict_linux_test.go" target="_blank" rel="noopener"><code>TestRxAdvertScopedToReceivingInterface</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1830,7 +1830,7 @@ RFC 3768 authentication types are deliberately not implemented: RFC 9568 Section
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go#L40" title="internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go" target="_blank" rel="noopener"><code>TestTxAdvertV4OnWire</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1845,7 +1845,7 @@ RFC 3768 authentication types are deliberately not implemented: RFC 9568 Section
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go#L43" title="internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go" target="_blank" rel="noopener"><code>TestTxAdvertV4OnWire</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/transport_test.go#L217" title="internal/plugins/vrrp/transport/transport_test.go" target="_blank" rel="noopener"><code>TestSendAdvertUsesParentPrimaryV4Source</code></a></td>
@@ -1865,7 +1865,7 @@ RFC 3768 authentication types are deliberately not implemented: RFC 9568 Section
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go#L46" title="internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go" target="_blank" rel="noopener"><code>TestTxAdvertV4OnWire</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/transport_test.go#L276" title="internal/plugins/vrrp/transport/transport_test.go" target="_blank" rel="noopener"><code>TestSendAdvertIPv4HeaderTTLProtoDst</code></a></td>
@@ -1885,12 +1885,12 @@ RFC 3768 authentication types are deliberately not implemented: RFC 9568 Section
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/redirect_integration_linux_test.go#L25" title="internal/plugins/vrrp/redirect_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPRedirectSourceFollowsVirtualMAC</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/redirect_integration_linux_test.go#L24" title="internal/plugins/vrrp/redirect_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPRedirectSourceFollowsVirtualMAC</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1910,7 +1910,7 @@ RFC 3768 authentication types are deliberately not implemented: RFC 9568 Section
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/owner_answer_integration_linux_test.go#L47" title="internal/plugins/vrrp/owner_answer_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPOwnerAnswersWithVirtualMACOnly</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/ownerfilter_test.go#L171" title="internal/plugins/vrrp/ownerfilter_test.go" target="_blank" rel="noopener"><code>TestOwnerFilterWiredOnPromotionForEveryFamily</code></a></td>
@@ -1920,7 +1920,7 @@ RFC 3768 authentication types are deliberately not implemented: RFC 9568 Section
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/vmac_state_integration_linux_test.go#L66" title="internal/plugins/vrrp/vmac_state_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L70" title="internal/plugins/vrrp/dataplane_linux_test.go" target="_blank" rel="noopener"><code>TestDataplaneApplyIPv4SetsRecipe</code></a></td>
@@ -1930,7 +1930,7 @@ RFC 3768 authentication types are deliberately not implemented: RFC 9568 Section
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/owner_answer_integration_linux_test.go#L46" title="internal/plugins/vrrp/owner_answer_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPOwnerAnswersWithVirtualMACOnly</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/ownerfilter_test.go#L170" title="internal/plugins/vrrp/ownerfilter_test.go" target="_blank" rel="noopener"><code>TestOwnerFilterWiredOnPromotionForEveryFamily</code></a></td>
@@ -1940,7 +1940,7 @@ RFC 3768 authentication types are deliberately not implemented: RFC 9568 Section
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/vmac_state_integration_linux_test.go#L65" title="internal/plugins/vrrp/vmac_state_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1955,22 +1955,22 @@ RFC 3768 authentication types are deliberately not implemented: RFC 9568 Section
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/owner_answer_integration_linux_test.go#L61" title="internal/plugins/vrrp/owner_answer_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPOwnerAnswersWithVirtualMACOnly</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/vmac_state_integration_linux_test.go#L74" title="internal/plugins/vrrp/vmac_state_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/owner_answer_integration_linux_test.go#L60" title="internal/plugins/vrrp/owner_answer_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPOwnerAnswersWithVirtualMACOnly</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/vmac_state_integration_linux_test.go#L73" title="internal/plugins/vrrp/vmac_state_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -2764,7 +2764,7 @@ RFC 3768 authentication types are deliberately not implemented: RFC 9568 Section
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 23:03 UTC</span>
+                    <span class="footer-published">Published 29 October 2026 11:10 UTC</span>
                 </div>
             </div>
         </footer>
