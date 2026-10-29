@@ -230,7 +230,7 @@ func (l *L2TP) containerSpec(name, work string) interoplab.DetachedContainer {
 		Name:             name,
 		Image:            l.Image,
 		Platform:         l.Platform,
-		Capabilities:     []string{"NET_ADMIN"},
+		Capabilities:     []string{capabilityNetAdmin},
 		Devices:          []string{"/dev/ppp"},
 		Mounts:           []interoplab.Mount{{Source: l.Tree, Target: srcMount}, {Source: work, Target: "/run/l2tp"}},
 		WorkingDirectory: srcMount,

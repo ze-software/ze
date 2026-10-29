@@ -31,6 +31,7 @@ const (
 	kernelCheckTimeout     = 3 * time.Minute
 	renderSpeedup          = 5
 	renderTypingSpeedMS    = 25
+	rendererCheckMode      = "check"
 	rendererValidateMode   = "validate"
 	rendererRenderMode     = "render"
 	rendererImageBuildMode = "image-build"
@@ -40,6 +41,10 @@ const (
 	transcriptLabel        = "transcript"
 	terminalLabel          = "terminal"
 	textExtension          = ".txt"
+	castLabel              = "cast"
+	posterLabel            = "poster"
+	castExtension          = ".cast"
+	posterExtension        = ".webp"
 	transcriptFilename     = transcriptLabel + textExtension
 	dockerCapAddToken      = "--cap-add"
 	dockerEnvironmentToken = "--env"

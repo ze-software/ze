@@ -183,7 +183,7 @@ func (v *vppIface) containerSpec(name, work string) interoplab.DetachedContainer
 		Name:             name,
 		Image:            v.Image,
 		Platform:         v.Platform,
-		Capabilities:     []string{"NET_ADMIN"},
+		Capabilities:     []string{capabilityNetAdmin},
 		Devices:          []string{"/dev/net/tun", "/dev/vhost-net"},
 		Mounts:           []interoplab.Mount{{Source: v.Tree, Target: srcMount}, {Source: work, Target: vppMount}},
 		WorkingDirectory: srcMount,

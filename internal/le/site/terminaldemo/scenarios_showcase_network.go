@@ -31,7 +31,7 @@ func showcaseNetworkCommands() [][]string {
 		{showcaseFRRLink, showcaseFRRNamespace, showcaseZeAddress, showcaseFRRAddress},
 		{"vpn0", showcaseVPNNamespace, "172.30.0.1/30", "172.30.0.2/30"},
 		{"vpn-lan", showcaseHostLeft, "10.78.1.1/24", "10.78.1.2/24"},
-		{"zeptrk0", showcaseVRRPNamespace, "203.0.113.251/24", "203.0.113.252/24"},
+		{showcaseVRRPLink, showcaseVRRPNamespace, "203.0.113.251/24", "203.0.113.252/24"},
 		{interfaceTraffic0, trafficPeerNS, "10.77.0.1/24", "10.77.0.2/24"},
 	} {
 		commands = append(commands,
@@ -43,15 +43,15 @@ func showcaseNetworkCommands() [][]string {
 	}
 	return append(commands,
 		[]string{"-n", showcaseFRRNamespace, ipAddr, ipAdd, showcaseFRRLoopback, ipDev, "lo"},
-		[]string{"-n", showcaseVPNNamespace, ipLink, ipAdd, "lan0", ipType, ipVeth, ipPeer, ipName, interfaceEth0, ipNetns, showcaseHostRight},
-		[]string{"-n", showcaseVPNNamespace, ipAddr, ipAdd, "10.78.2.1/24", ipDev, "lan0"},
-		[]string{"-n", showcaseVPNNamespace, ipLink, ipSet, "lan0", "up"},
+		[]string{"-n", showcaseVPNNamespace, ipLink, ipAdd, showcaseVPNLANLink, ipType, ipVeth, ipPeer, ipName, interfaceEth0, ipNetns, showcaseHostRight},
+		[]string{"-n", showcaseVPNNamespace, ipAddr, ipAdd, "10.78.2.1/24", ipDev, showcaseVPNLANLink},
+		[]string{"-n", showcaseVPNNamespace, ipLink, ipSet, showcaseVPNLANLink, "up"},
 		[]string{"-n", showcaseHostRight, ipAddr, ipAdd, "10.78.2.2/24", ipDev, interfaceEth0},
 		[]string{"-n", showcaseHostRight, ipLink, ipSet, interfaceEth0, "up"},
 		[]string{"-n", showcaseHostLeft, ipRoute, ipAdd, "default", "via", "10.78.1.1"},
 		[]string{"-n", showcaseHostRight, ipRoute, ipAdd, "default", "via", "10.78.2.1"},
-		[]string{ipLink, ipAdd, "zetrk1", ipType, "dummy"},
-		[]string{ipLink, ipSet, "zetrk1", "up"},
+		[]string{ipLink, ipAdd, showcaseTrackedLink, ipType, "dummy"},
+		[]string{ipLink, ipSet, showcaseTrackedLink, "up"},
 	)
 }
 
@@ -67,7 +67,7 @@ func prepareShowcaseVPN(state string) error {
 	if err := os.MkdirAll(config, 0o750); err != nil {
 		return err
 	}
-	input, err := os.Open(filepath.Join(state, "init.input"))
+	input, err := os.Open(filepath.Join(state, "init.input")) //nolint:gosec // the path comes from the closed demo scenario table
 	if err != nil {
 		return err
 	}
@@ -98,7 +98,7 @@ func prepareShowcaseVPN(state string) error {
 
 func showcaseVPNFixture() labFixture {
 	return labFixture{
-		name: "vpn",
+		name: showcaseVPN,
 		start: func(state string, _ []string) ([]int, error) {
 			pid, err := startCommand("ip", append([]string{ipNetns, commandExec, showcaseVPNNamespace, "ze"}, daemonArgs()...), showcaseVPNEnv(state), filepath.Join(state, "far-end.log"))
 			if err != nil {
@@ -108,13 +108,13 @@ func showcaseVPNFixture() labFixture {
 		},
 		ready: []labReadiness{
 			{kind: readinessAnswer, target: "0.0.0.0:500", argv: []string{"ip", ipNetns, commandExec, showcaseVPNNamespace, "ss", "-H", "-lun"}},
-			{kind: readinessAnswer, target: "vpn-xfrm", argv: []string{"ip", "-n", showcaseVPNNamespace, "-o", ipLink, commandShow, "vpn-xfrm"}},
-			{kind: readinessAnswer, target: "1 received", argv: []string{"ip", ipNetns, commandExec, showcaseHostLeft, "ping", "-c", "1", "-W", "1", "10.78.1.1"}},
-			{kind: readinessAnswer, target: "1 received", argv: []string{"ip", ipNetns, commandExec, showcaseHostRight, "ping", "-c", "1", "-W", "1", "10.78.2.1"}},
+			{kind: readinessAnswer, target: showcaseXFRMLink, argv: []string{"ip", "-n", showcaseVPNNamespace, "-o", ipLink, commandShow, showcaseXFRMLink}},
+			{kind: readinessAnswer, target: "1 received", argv: []string{"ip", ipNetns, commandExec, showcaseHostLeft, programPing, "-c", "1", "-W", "1", "10.78.1.1"}},
+			{kind: readinessAnswer, target: "1 received", argv: []string{"ip", ipNetns, commandExec, showcaseHostRight, programPing, "-c", "1", "-W", "1", "10.78.2.1"}},
 		},
 		controls: map[string]func(string, []string) (string, error){
-			"ping": func(_ string, _ []string) (string, error) {
-				answer, err := runCommand("ip", []string{ipNetns, commandExec, showcaseHostLeft, "ping", "-c", "4", "-W", "2", "10.78.2.2"}, commandOptions{})
+			controlPing: func(_ string, _ []string) (string, error) {
+				answer, err := runCommand("ip", []string{ipNetns, commandExec, showcaseHostLeft, programPing, "-c", "4", "-W", "2", "10.78.2.2"}, commandOptions{})
 				return string(answer), err
 			},
 		},
@@ -123,7 +123,7 @@ func showcaseVPNFixture() labFixture {
 
 func showcaseKeepalivedFixture() labFixture {
 	return labFixture{
-		name:        "keepalived",
+		name:        showcaseKeepalived,
 		restartable: true,
 		start: func(state string, environ []string) ([]int, error) {
 			pid, err := startCommand("ip", []string{ipNetns, commandExec, showcaseVRRPNamespace, "keepalived", "--dont-fork", "--log-console", "--use-file", filepath.Join(demoDir(showcaseLabID), "keepalived.conf"), "--pid", filepath.Join(state, "keepalived-daemon.run"), "--vrrp_pid", filepath.Join(state, "keepalived-vrrp.run")}, environ, filepath.Join(state, "keepalived.log"))
@@ -138,19 +138,19 @@ func showcaseKeepalivedFixture() labFixture {
 
 func showcaseTrackedFixture() labFixture {
 	return labFixture{
-		name: "tracked-uplink",
+		name: showcaseTrackedUplink,
 		start: func(_ string, _ []string) ([]int, error) {
 			// This fixture owns a link, not a process; the network lifecycle creates it.
 			return []int{}, nil
 		},
-		ready:    []labReadiness{{kind: readinessAnswer, target: "UP", argv: []string{"ip", "-o", ipLink, commandShow, "zetrk1"}}},
-		controls: showcaseLinkControls("zetrk1"),
+		ready:    []labReadiness{{kind: readinessAnswer, target: "UP", argv: []string{"ip", "-o", ipLink, commandShow, showcaseTrackedLink}}},
+		controls: showcaseLinkControls(showcaseTrackedLink),
 	}
 }
 
 func showcaseTrafficFixture() labFixture {
 	return labFixture{
-		name: "traffic",
+		name: showcaseTraffic,
 		start: func(state string, environ []string) ([]int, error) {
 			pid, err := startCommand(demoHarness, []string{"mock", "httpd", flagBind, "10.77.0.1:8080", "--directory", demoDir(showcaseLabID)}, environ, filepath.Join(state, "http.log"))
 			if err != nil {
@@ -158,10 +158,10 @@ func showcaseTrafficFixture() labFixture {
 			}
 			return []int{pid}, nil
 		},
-		ready: []labReadiness{{kind: readinessAnswer, target: "Showcase traffic payload", argv: []string{"ip", ipNetns, commandExec, trafficPeerNS, "curl", "-fsS", "--max-time", "2", "http://10.77.0.1:8080/payload.txt"}}},
+		ready: []labReadiness{{kind: readinessAnswer, target: "Showcase traffic payload", argv: []string{"ip", ipNetns, commandExec, trafficPeerNS, programCurl, "-fsS", curlMaxTime, "2", "http://10.77.0.1:8080/payload.txt"}}},
 		controls: map[string]func(string, []string) (string, error){
 			"burst": startShowcaseTraffic,
-			"stop": func(state string, _ []string) (string, error) {
+			controlStop: func(state string, _ []string) (string, error) {
 				return "Traffic burst stopped", stopShowcaseFixture(state, "traffic-burst")
 			},
 		},
@@ -177,11 +177,11 @@ func startShowcaseTraffic(state string, environ []string) (string, error) {
 		name: "traffic-burst",
 		start: func(state string, environ []string) ([]int, error) {
 			// Include the immediate first send so neither count expires before the budget.
-			ping, err := startCommand("ip", []string{ipNetns, commandExec, trafficPeerNS, "ping", "-n", "-i", "0.1", "-c", strconv.Itoa(lifetimeSeconds*10 + 1), "-w", strconv.Itoa(lifetimeSeconds), "10.77.0.1"}, environ, filepath.Join(state, "traffic-ping.log"))
+			ping, err := startCommand("ip", []string{ipNetns, commandExec, trafficPeerNS, programPing, "-n", "-i", "0.1", "-c", strconv.Itoa(lifetimeSeconds*10 + 1), "-w", strconv.Itoa(lifetimeSeconds), "10.77.0.1"}, environ, filepath.Join(state, "traffic-ping.log"))
 			if err != nil {
 				return nil, err
 			}
-			http, err := startCommand("ip", []string{ipNetns, commandExec, trafficPeerNS, "curl", "-fsS", "--no-buffer", "--max-time", "2", "--rate", "20/s", "--output", "/dev/null", "--write-out", "HTTP %{http_code}\n", fmt.Sprintf("http://10.77.0.1:8080/payload.txt?sample=[1-%d]", lifetimeSeconds*20+1)}, environ, filepath.Join(state, "traffic-http.log"))
+			http, err := startCommand("ip", []string{ipNetns, commandExec, trafficPeerNS, programCurl, "-fsS", "--no-buffer", curlMaxTime, "2", "--rate", "20/s", "--output", "/dev/null", "--write-out", "HTTP %{http_code}\n", fmt.Sprintf("http://10.77.0.1:8080/payload.txt?sample=[1-%d]", lifetimeSeconds*20+1)}, environ, filepath.Join(state, "traffic-http.log"))
 			if err != nil {
 				_ = terminateShowcasePID(ping) //nolint:errcheck // preserve the failed HTTP launch
 				return nil, err

@@ -2,16 +2,12 @@ package siteterminaldemo
 
 import (
 	"bytes"
-	"context"
 	"errors"
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
-	"syscall"
-	"time"
 )
 
 const demoPassword = "secret123"
@@ -462,7 +458,7 @@ func createTracerouteNetwork() error {
 		{"-n", nsEdge, ipAddress, ipAdd, "203.0.113.1/30", ipDev, linkEdgeCore}, {"-n", nsEdge, ipLink, ipSet, linkEdgeCore, "up"},
 		{"-n", nsCore, ipAddress, ipAdd, "203.0.113.2/30", ipDev, linkCoreEdge}, {"-n", nsCore, ipLink, ipSet, linkCoreEdge, "up"},
 		{"-n", nsCore, ipAddress, ipAdd, dnsHostPrefix, ipDev, "lo"}, {"-n", nsCore, ipLink, ipSet, "lo", "up"},
-		{ipNetns, commandExec, nsEdge, "sysctl", "-q", "-w", "net.ipv4.ip_forward=1"}, {ipNetns, commandExec, nsCore, "sysctl", "-q", "-w", "net.ipv4.ip_forward=1"},
+		{ipNetns, commandExec, nsEdge, programSysctl, "-q", "-w", sysctlIPv4Forward}, {ipNetns, commandExec, nsCore, programSysctl, "-q", "-w", sysctlIPv4Forward},
 		{ipRoute, ipAdd, dnsHostPrefix, ipVia, "198.51.100.2"}, {"-n", nsEdge, ipRoute, ipAdd, dnsHostPrefix, ipVia, "203.0.113.2"}, {"-n", nsCore, ipRoute, ipAdd, "198.51.100.0/30", ipVia, "203.0.113.1"},
 	}
 	for _, args := range commands {
@@ -504,48 +500,6 @@ func reportDemoLogs(id string, output io.Writer) {
 		}
 		_, _ = fmt.Fprintf(output, "--- %s\n%s\n", path, strings.Join(lines, "\n"))
 	}
-}
-
-func terminatePID(path string, signal syscall.Signal) error {
-	data, err := os.ReadFile(path) //nolint:gosec // the path comes from the closed demo scenario table
-	if err != nil {
-		return err
-	}
-	var pid int
-	if _, err := fmt.Sscan(string(data), &pid); err != nil {
-		return err
-	}
-	if err := syscall.Kill(pid, signal); err != nil && !errors.Is(err, syscall.ESRCH) {
-		return err
-	}
-	return os.Remove(path)
-}
-
-func runBounded(name string, args, environ []string) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	process := execCommandContext(ctx, name, args, environ)
-	output, err := process.CombinedOutput()
-	if ctx.Err() != nil {
-		return string(output), nil
-	}
-	return string(output), err
-}
-
-var execCommandContext = func(ctx context.Context, name string, args, environ []string) *osExecCmd {
-	return &osExecCmd{cmd: commandContext(ctx, name, args, environ)}
-}
-
-type osExecCmd struct {
-	cmd interface{ CombinedOutput() ([]byte, error) }
-}
-
-func (c *osExecCmd) CombinedOutput() ([]byte, error) { return c.cmd.CombinedOutput() }
-
-func commandContext(ctx context.Context, name string, args, environ []string) *exec.Cmd {
-	process := exec.CommandContext(ctx, name, args...) //nolint:gosec // the name and arguments come from the closed scenario table
-	process.Env = environ
-	return process
 }
 
 // The vocabulary the demo scenarios write to their tools: the scenario actions
@@ -594,9 +548,11 @@ const (
 	demoCommitConfirmed = "commit-confirmed"
 	flagBind            = "--bind"
 	flagASN             = "--asn"
+	flagTimeout         = "--timeout"
 	keywordFormat       = "format"
 	tapeSleepDirective  = "@sleep"
 	tapeSleepCommand    = "Sleep"
+	tapeSourceCommand   = "Source"
 	tapeHideCommand     = "Hide"
 	tapeShowCommand     = "Show"
 	showPeerListRaw     = "show bgp peer list | raw"

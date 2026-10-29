@@ -225,7 +225,7 @@ var vmSuites = []vmSuite{
 		Why: "the teardown test reads the whole XFRM state and policy table, which is one table" +
 			" for the VM; several tests here also share one local address and one IKE port",
 	},
-	{Name: "installer", Args: []string{"install", allTests}, Concurrency: scaledConcurrency, Namespace: guestRoot},
+	{Name: installerName, Args: []string{"install", allTests}, Concurrency: scaledConcurrency, Namespace: guestRoot},
 	{Name: "appliance", Args: []string{"appliance", allTests}, Concurrency: scaledConcurrency, Namespace: guestRoot},
 	{Name: "ldp", Args: []string{"ldp", allTests}, Concurrency: scaledConcurrency, Namespace: guestRoot},
 	{Name: "rsvpte", Args: []string{"rsvpte", allTests}, Concurrency: scaledConcurrency, Namespace: guestRoot},

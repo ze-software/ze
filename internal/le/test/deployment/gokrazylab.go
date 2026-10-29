@@ -235,7 +235,7 @@ func (g *gokrazyLab) clearBridgeFromFirewall() {
 	if !onPath("ufw") {
 		return
 	}
-	hostText("ufw", "--force", "delete", "allow", "in", "on", g.Bridge) //nolint:errcheck // cleanup
+	hostText("ufw", "--force", "delete", "allow", "in", "on", g.Bridge)                                 //nolint:errcheck // cleanup
 	hostText("ufw", "--force", "route", "delete", "allow", "in", "on", g.Bridge, "out", "on", g.Bridge) //nolint:errcheck // cleanup
 }
 

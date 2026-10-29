@@ -19,14 +19,27 @@ import (
 	interopipsec "github.com/ze-software/ze/internal/le/interoplab/ipsec"
 )
 
+// The WireGuard proof lab: its two nodes, their tunnel addresses, and the image
+// each node runs. capabilityNetAdmin is the Docker capability a lab container
+// needs to configure its own links.
+const (
+	capabilityNetAdmin   = "NET_ADMIN"
+	wireguardImage       = "wireguard"
+	wireguardLink        = "wg-proof"
+	wireguardLeft        = "left"
+	wireguardRight       = "right"
+	wireguardLeftTunnel  = "10.88.0.1"
+	wireguardRightTunnel = "10.88.0.2"
+)
+
 func runWireGuardProof(ctx context.Context, root string) interoplab.SuiteReport {
 	suffix := strconv.Itoa(os.Getpid())
 	peers := make([]interoplab.PeerConfig, 0, 2)
-	for index, name := range []string{"left", "right"} {
+	for index, name := range []string{wireguardLeft, wireguardRight} {
 		peers = append(peers, interoplab.PeerConfig{
 			Name: name, Container: "ze-vpn-wireguard-" + name + "-" + suffix,
-			Image: "wireguard", Host: uint8(index + 2),
-			Capabilities: []string{"NET_ADMIN"},
+			Image: wireguardImage, Host: uint8(index + 2),
+			Capabilities: []string{capabilityNetAdmin},
 			// This is the Docker daemon's root, not the client's filesystem.
 			// In the QEMU path it proves absence in the guest, not in a container.
 			Mounts: []interoplab.Mount{{Source: "/", Target: "/ze-host", ReadOnly: true}},
@@ -37,8 +50,8 @@ func runWireGuardProof(ctx context.Context, root string) interoplab.SuiteReport 
 		Preflight: interoplab.StageBinaries(root, false, interopipsec.LabBinaries()...),
 		StagedZe:  interoplab.StagedZePath(root, interopipsec.LabBinaries()),
 		Images: []interoplab.ImageBuild{{
-			Name: "wireguard", Tag: "ze-vpn-wireguard",
-			Dockerfile: filepath.Join(root, "internal/le/test/deployment/testdata/Dockerfile.wireguard"),
+			Name: wireguardImage, Tag: "ze-vpn-wireguard",
+			Dockerfile: filepath.Join(root, "internal", "le", "test", "deployment", "testdata", "Dockerfile.wireguard"),
 			Context:    root, Required: true,
 		}},
 		Scenarios: []interoplab.ScenarioPlan{{
@@ -58,7 +71,7 @@ func checkWireGuardProof(ctx context.Context, check *interoplab.CheckContext) er
 	defer cancel()
 	// /proc is a mountpoint even when /sbin does not exist on the appliance.
 	// A dangling modprobe symlink is also forbidden, not mistaken for absence.
-	if _, err := check.Lab.Exec(ctx, "left", []string{"chroot", "/ze-host", "/bin/sh", "-ec",
+	if _, err := check.Lab.Exec(ctx, wireguardLeft, []string{"chroot", "/ze-host", "/bin/sh", "-ec",
 		"test -d /proc; test ! -e /sbin/modprobe; test ! -L /sbin/modprobe; " +
 			"test \"$(cat /proc/sys/kernel/modules_disabled)\" = 1; test -z \"$(cat /proc/modules)\""}, nil); err != nil {
 		return fmt.Errorf("guest must have no modprobe or loaded modules, and module loading must be disabled: %w", err)
@@ -69,7 +82,7 @@ func checkWireGuardProof(ctx context.Context, check *interoplab.CheckContext) er
 	leftAddress := check.Network.IPv4.Addr().Next().Next()
 	rightAddress := leftAddress.Next()
 	var keys [2]string
-	for index, peer := range []string{"left", "right"} {
+	for index, peer := range []string{wireguardLeft, wireguardRight} {
 		key, err := check.Lab.Query(ctx, peer, []string{"sh", "-ec",
 			"umask 077; wg genkey > /tmp/wg-key; wg pubkey < /tmp/wg-key"}, nil)
 		if err != nil {
@@ -85,31 +98,31 @@ func checkWireGuardProof(ctx context.Context, check *interoplab.CheckContext) er
 		}
 	}
 	for _, endpoint := range []struct{ name, local, remote, key, underlay string }{
-		{"left", "10.88.0.1", "10.88.0.2", keys[1], rightAddress.String()},
-		{"right", "10.88.0.2", "10.88.0.1", keys[0], leftAddress.String()},
+		{wireguardLeft, wireguardLeftTunnel, wireguardRightTunnel, keys[1], rightAddress.String()},
+		{wireguardRight, wireguardRightTunnel, wireguardLeftTunnel, keys[0], leftAddress.String()},
 	} {
 		for _, argv := range [][]string{
-			{"ip", "link", "add", "wg-proof", "type", "wireguard"},
-			{"wg", "set", "wg-proof", "private-key", "/tmp/wg-key", "listen-port", "51820",
+			{"ip", "link", ipAdd, wireguardLink, "type", "wireguard"},
+			{"wg", "set", wireguardLink, "private-key", "/tmp/wg-key", "listen-port", "51820",
 				"peer", endpoint.key, "allowed-ips", endpoint.remote + "/32", "endpoint", endpoint.underlay + ":51820"},
-			{"ip", "address", "add", endpoint.local + "/32", "dev", "wg-proof"},
-			{"ip", "link", "set", "wg-proof", "up"},
-			{"ip", "route", "add", endpoint.remote + "/32", "dev", "wg-proof"},
+			{"ip", "address", ipAdd, endpoint.local + "/32", "dev", wireguardLink},
+			{"ip", "link", "set", wireguardLink, "up"},
+			{"ip", "route", ipAdd, endpoint.remote + "/32", "dev", wireguardLink},
 		} {
 			if _, err := check.Lab.Exec(ctx, endpoint.name, argv, nil); err != nil {
 				return fmt.Errorf("configure %s WireGuard endpoint: %w", endpoint.name, err)
 			}
 		}
 	}
-	if _, err := check.Lab.Exec(ctx, "left", []string{"ping", "-n", "-I", "wg-proof", "-c", "3", "-W", "5", "10.88.0.2"}, nil); err != nil {
+	if _, err := check.Lab.Exec(ctx, wireguardLeft, []string{"ping", "-n", "-I", wireguardLink, "-c", "3", "-W", "5", wireguardRightTunnel}, nil); err != nil {
 		return fmt.Errorf("WireGuard tunnel ping: %w", err)
 	}
-	for index, peer := range []string{"left", "right"} {
-		handshake, err := check.Lab.Query(ctx, peer, []string{"wg", "show", "wg-proof", "latest-handshakes"}, nil)
+	for index, peer := range []string{wireguardLeft, wireguardRight} {
+		handshake, err := check.Lab.Query(ctx, peer, []string{"wg", "show", wireguardLink, "latest-handshakes"}, nil)
 		if err != nil {
 			return err
 		}
-		transfer, err := check.Lab.Query(ctx, peer, []string{"wg", "show", "wg-proof", "transfer"}, nil)
+		transfer, err := check.Lab.Query(ctx, peer, []string{"wg", "show", wireguardLink, "transfer"}, nil)
 		if err != nil {
 			return err
 		}

@@ -35,14 +35,15 @@ func (e *Engine) RetireDeleted() error {
 			return fmt.Errorf("cannot retire media from an empty source manifest")
 		}
 		indexed := make(map[string]Demo, len(manifest.Demos))
-		for _, demo := range manifest.Demos {
+		for i := range manifest.Demos {
+			demo := &manifest.Demos[i]
 			if !demoIDPattern(demo.ID) {
 				return fmt.Errorf("source manifest has unsafe id %q", demo.ID)
 			}
 			if _, exists := indexed[demo.ID]; exists {
 				return fmt.Errorf("source manifest repeats id %q", demo.ID)
 			}
-			indexed[demo.ID] = demo
+			indexed[demo.ID] = *demo
 		}
 		before := len(generated.Demos)
 		if err := e.retireDeletedAssets(&generated, indexed); err != nil {
@@ -148,14 +149,14 @@ func retainedAssetPath(root *os.Root, base, declared string) (string, error) {
 
 func retiredExtension(kind string) (string, error) {
 	switch kind {
-	case "cast":
-		return ".cast", nil
+	case castLabel:
+		return castExtension, nil
 	case transcriptLabel:
 		return textExtension, nil
 	case "video":
 		return ".webm", nil
-	case "poster":
-		return ".webp", nil
+	case posterLabel:
+		return posterExtension, nil
 	default:
 		return "", fmt.Errorf("retired demo has unknown asset kind %q", kind)
 	}

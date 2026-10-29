@@ -63,7 +63,7 @@ func showcaseTopicOrder() ([]string, error) {
 		if !found {
 			continue
 		}
-		if word != "Source" {
+		if word != tapeSourceCommand {
 			continue
 		}
 		for id, sc := range scenarios {
@@ -104,10 +104,10 @@ func validateShowcaseMigration() error {
 
 func validateShowcaseDashboard() error {
 	environ := scenarioEnv(showcaseLabID, demoPassword)
-	if err := awaitShowcasePeers(environ, "transit", "frr"); err != nil {
+	if err := awaitShowcasePeers(environ, showcaseTransit, showcaseFRR); err != nil {
 		return err
 	}
-	answer, err := runPTYFixture(environ, "--timeout", "30", "--delay", "0.1",
+	answer, err := runPTYFixture(environ, flagTimeout, "30", "--delay", "0.1",
 		"--command", "exit", "--command", `@wait operational\]`,
 		"--command", "monitor bgp", "--command", "@wait established",
 		"--command", "@type s", "--command", `@wait ASN \^`,

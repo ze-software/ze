@@ -30,7 +30,7 @@ func networkHasFRRRouterLSA(databases []networkOSPFDatabase) bool {
 				continue
 			}
 			for _, lsa := range area.LSAs {
-				if lsa.Type == "router" && lsa.AdvertisingRouter == "172.29.0.2" {
+				if lsa.Type == "router" && lsa.AdvertisingRouter == showcaseFRRRouterID {
 					return true
 				}
 			}
@@ -40,7 +40,7 @@ func networkHasFRRRouterLSA(databases []networkOSPFDatabase) bool {
 }
 
 func observeTopicOSPF(stage string) error {
-	if stage == "absent" {
+	if stage == stageAbsent {
 		if err := requireNetworkTopicAbsent("ospf"); err != nil {
 			return err
 		}
@@ -56,7 +56,7 @@ func observeTopicOSPF(stage string) error {
 		}
 		return fmt.Errorf("OSPF neighbors exist before live commit: %s", answer)
 	}
-	if stage != "healthy" && stage != "mismatch" {
+	if stage != stageHealthy && stage != stageMismatch {
 		return fmt.Errorf("unknown OSPF stage %q", stage)
 	}
 	neighbors, err := networkJSON[[]struct {
@@ -70,7 +70,7 @@ func observeTopicOSPF(stage string) error {
 	}
 	full := false
 	for _, neighbor := range neighbors {
-		if neighbor.Interface == "frr0" && neighbor.RouterID == "172.29.0.2" && neighbor.Address == "172.29.0.2" && neighbor.State == "full" {
+		if neighbor.Interface == showcaseFRRLink && neighbor.RouterID == showcaseFRRRouterID && neighbor.Address == showcaseFRRPeerAddress && neighbor.State == "full" {
 			full = true
 		}
 	}
@@ -88,7 +88,7 @@ func observeTopicOSPF(stage string) error {
 	for _, entry := range routes {
 		if entry.Prefix == "10.255.1.2/32" {
 			for _, hop := range entry.NextHops {
-				if hop.NextHop == "172.29.0.2" && hop.Interface == "frr0" {
+				if hop.NextHop == showcaseFRRPeerAddress && hop.Interface == showcaseFRRLink {
 					route = true
 				}
 			}
@@ -103,16 +103,16 @@ func observeTopicOSPF(stage string) error {
 		return err
 	}
 	wantHello := uint32(10)
-	if stage == "mismatch" {
+	if stage == stageMismatch {
 		wantHello = 20
 	}
 	timers := false
 	for _, iface := range interfaces {
-		if iface.Name == "frr0" && iface.Hello == wantHello && iface.Dead == 40 {
+		if iface.Name == showcaseFRRLink && iface.Hello == wantHello && iface.Dead == 40 {
 			timers = true
 		}
 	}
-	if stage == "mismatch" {
+	if stage == stageMismatch {
 		drops, err := networkMetric(ospfHelloDrops)
 		if err != nil {
 			return err
@@ -142,13 +142,13 @@ func checkTopicOSPF() error {
 	if err != nil {
 		return err
 	}
-	if err := observeTopicOSPF("absent"); err != nil {
+	if err := observeTopicOSPF(stageAbsent); err != nil {
 		return err
 	}
 	if err := loadShowcaseSections("topics/ospf/1-area.conf", "topics/ospf/2-interface.conf"); err != nil {
 		return err
 	}
-	if err := awaitTopicOSPF("healthy"); err != nil {
+	if err := awaitTopicOSPF(stageHealthy); err != nil {
 		return err
 	}
 	baseline, err := networkMetric(ospfHelloDrops)
@@ -161,7 +161,7 @@ func checkTopicOSPF() error {
 	if err := loadShowcaseSections("topics/ospf/3-mismatch.conf"); err != nil {
 		return err
 	}
-	if err := awaitTopicOSPF("mismatch"); err != nil {
+	if err := awaitTopicOSPF(stageMismatch); err != nil {
 		return err
 	}
 	if err := awaitNetworkObservation("new OSPF Hello mismatch diagnostic", 20*time.Second, func() error {
@@ -182,7 +182,7 @@ func checkTopicOSPF() error {
 	if err := loadShowcaseSections("topics/ospf/4-recovery.conf"); err != nil {
 		return err
 	}
-	if err := awaitTopicOSPF("healthy"); err != nil {
+	if err := awaitTopicOSPF(stageHealthy); err != nil {
 		return err
 	}
 	return requireShowcasePID(pid)

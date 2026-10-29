@@ -149,7 +149,7 @@ func (e *Engine) checkAll(release string) (Report, error) {
 	err = e.withLock(func() error {
 		return e.verifyAssets(manifest, indexed, selected, release, false)
 	})
-	return Report{Mode: "check", Demos: selected}, err
+	return Report{Mode: rendererCheckMode, Demos: selected}, err
 }
 
 // validationCheckAll runs every scenario validator in manifest order. It stops
@@ -530,7 +530,7 @@ func (e *Engine) renderDemo(manifest Manifest, demo Demo, release string) (Artif
 	if err != nil {
 		return ArtifactEntry{}, err
 	}
-	castPath := expected["cast"]
+	castPath := expected[castLabel]
 	for _, name := range names {
 		if name == transcriptLabel {
 			continue
@@ -635,7 +635,7 @@ func (e *Engine) removeSupersededAssets(demo Demo) ([]string, error) {
 	for _, path := range keepPaths {
 		keep[filepath.Ext(path)] = struct{}{}
 	}
-	all := []string{".cast", textExtension, ".webp", ".webm", ".mp4", ".png"}
+	all := []string{castExtension, textExtension, posterExtension, ".webm", ".mp4", ".png"}
 	removed := make([]string, 0)
 	for _, extension := range all {
 		if _, exists := keep[extension]; exists {

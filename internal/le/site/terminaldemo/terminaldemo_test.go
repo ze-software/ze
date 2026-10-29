@@ -156,7 +156,7 @@ func (f *demoFixture) writeTree(t *testing.T) {
 	for _, name := range []string{"common.tape", "Dockerfile"} {
 		mustWrite(t, filepath.Join(demoRoot, name), name+"\n")
 	}
-	peerPin, err := os.ReadFile(filepath.Join("../../../..", rendererKeepalivedPin))
+	peerPin, err := os.ReadFile(filepath.Join("..", "..", "..", "..", rendererKeepalivedPin))
 	if err != nil {
 		t.Fatal(err)
 	}

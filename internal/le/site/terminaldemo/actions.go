@@ -65,8 +65,8 @@ const (
 
 // checkTargets answers each check target's renderer run. None of them writes.
 var checkTargets = map[string]func() (any, int){
-	checkArtifacts:  func() (any, int) { return runRenderer("check", false) },
-	checkRelease:    func() (any, int) { return runRenderer("check", true) },
+	checkArtifacts:  func() (any, int) { return runRenderer(rendererCheckMode, false) },
+	checkRelease:    func() (any, int) { return runRenderer(rendererCheckMode, true) },
 	checkValidation: func() (any, int) { return runRenderer(rendererValidateMode, false) },
 }
 
@@ -393,7 +393,7 @@ func executeRenderer(engine *Engine, mode, release string) (Report, int, error) 
 	var report Report
 	var err error
 	switch mode {
-	case "check":
+	case rendererCheckMode:
 		report, err = engine.checkAll(release)
 	case rendererValidateMode:
 		report, err = engine.validationCheckAll()

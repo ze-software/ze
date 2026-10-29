@@ -105,7 +105,7 @@ func awaitNetworkTrafficSettled() error {
 
 func awaitTopicTrafficUsage(stage string) error {
 	switch stage {
-	case "absent":
+	case stageAbsent:
 		if err := requireNetworkTopicAbsent("traffic"); err != nil {
 			return err
 		}
@@ -141,7 +141,7 @@ func checkTopicTrafficUsage() error {
 	if err != nil {
 		return err
 	}
-	if err := awaitTopicTrafficUsage("absent"); err != nil {
+	if err := awaitTopicTrafficUsage(stageAbsent); err != nil {
 		return err
 	}
 	if err := loadShowcaseSections("topics/traffic/1-accounting.conf", "topics/traffic/2-interface.conf"); err != nil {
@@ -151,8 +151,8 @@ func checkTopicTrafficUsage() error {
 		return err
 	}
 	for _, args := range [][]string{
-		{"netns", "exec", "traffic-peer", "ping", "-c", "3", "-W", "2", "10.77.0.1"},
-		{"netns", "exec", "traffic-peer", "curl", "--fail", "--silent", "--show-error", "--max-time", "5", "--output", "/dev/null", "http://10.77.0.1:8080/payload.txt"},
+		{ipNetns, commandExec, "traffic-peer", programPing, "-c", "3", "-W", "2", "10.77.0.1"},
+		{ipNetns, commandExec, "traffic-peer", programCurl, "--fail", "--silent", "--show-error", curlMaxTime, "5", "--output", "/dev/null", "http://10.77.0.1:8080/payload.txt"},
 	} {
 		if _, err := runCommand("ip", args, commandOptions{}); err != nil {
 			return err
@@ -168,7 +168,7 @@ func checkTopicTrafficUsage() error {
 	if err := requireShowcasePID(pid); err != nil {
 		return err
 	}
-	if err := controlNetworkFixture("traffic", "burst"); err != nil {
+	if err := controlNetworkFixture(showcaseTraffic, "burst"); err != nil {
 		return err
 	}
 	if err := awaitNetworkTrafficIncrease(baseline); err != nil {
@@ -198,7 +198,7 @@ func checkTopicTrafficUsage() error {
 	if err := requireShowcasePID(pid); err != nil {
 		return err
 	}
-	if err := controlNetworkFixture("traffic", "stop"); err != nil {
+	if err := controlNetworkFixture(showcaseTraffic, controlStop); err != nil {
 		return err
 	}
 	if err := awaitTopicTrafficUsage("settled"); err != nil {

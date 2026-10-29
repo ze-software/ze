@@ -15,7 +15,7 @@ import (
 
 const rendererKeepalivedPin = "test/interop/Dockerfile.keepalived"
 
-var rendererRelease = regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+$`)
+var rendererRelease = regexp.MustCompile(`^\d+\.\d+\.\d+$`)
 
 // rendererPeerArguments reads the declarations the labs actually build, rather
 // than maintaining another release list in the renderer. The source-pin parser
@@ -29,7 +29,7 @@ func rendererPeerArguments(root string) ([]string, error) {
 	if !rendererRelease.MatchString(frr) {
 		return nil, fmt.Errorf("interoplab.FRRImage has no stable release tag: %q", interoplab.FRRImage)
 	}
-	body, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(rendererKeepalivedPin)))
+	body, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(rendererKeepalivedPin))) //nolint:gosec // a build tool reads the checkout it was pointed at
 	if err != nil {
 		return nil, fmt.Errorf("read renderer peer pin: %w", err)
 	}

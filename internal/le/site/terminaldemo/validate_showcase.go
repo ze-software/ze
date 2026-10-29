@@ -37,12 +37,12 @@ func validateShowcaseLab() (err error) {
 	}
 	// These are real lifecycle operations, not declarations inspected as proof.
 	for _, control := range [][]string{
-		{"rtr-cache", "stop"}, {"rtr-cache", "start"},
-		{"customer", "reannounce"}, {"customer", "reannounce"},
-		{"frr", "down"}, {"frr", "up"},
-		{"keepalived", "stop"}, {"keepalived", "start"},
-		{"tracked-uplink", "down"}, {"tracked-uplink", "up"},
-		{"traffic", "burst"}, {"traffic", "stop"},
+		{showcaseRTRCache, controlStop}, {showcaseRTRCache, controlStart},
+		{showcaseCustomerPeer, controlReannounce}, {showcaseCustomerPeer, controlReannounce},
+		{showcaseFRR, controlDown}, {showcaseFRR, "up"},
+		{showcaseKeepalived, controlStop}, {showcaseKeepalived, controlStart},
+		{showcaseTrackedUplink, controlDown}, {showcaseTrackedUplink, "up"},
+		{showcaseTraffic, "burst"}, {showcaseTraffic, controlStop},
 	} {
 		if err := runShowcaseLab("control", control, io.Discard); err != nil {
 			return err
@@ -51,7 +51,7 @@ func validateShowcaseLab() (err error) {
 			return err
 		}
 	}
-	if err := awaitShowcasePeers(scenarioEnv(showcaseLabID, demoPassword), "transit", "frr", "customer"); err != nil {
+	if err := awaitShowcasePeers(scenarioEnv(showcaseLabID, demoPassword), showcaseTransit, showcaseFRR, showcaseCustomerPeer); err != nil {
 		return err
 	}
 	for _, fixture := range showcaseLabFixtures() {
@@ -100,7 +100,7 @@ func requireShowcasePeers(document string, names []string) error {
 		found := false
 		for _, peer := range answer.Peers {
 			if peer.Name == name {
-				if peer.State != "established" {
+				if peer.State != peerEstablished {
 					return fmt.Errorf("showcase peer %s is %s, not established", name, peer.State)
 				}
 				found = true
@@ -128,7 +128,7 @@ func requireShowcaseBase() error {
 	if err := requireShowcaseBaseTree(tree); err != nil {
 		return err
 	}
-	if err := runShowcaseLab("control", []string{"vpn", "ping"}, io.Discard); err == nil {
+	if err := runShowcaseLab("control", []string{showcaseVPN, controlPing}, io.Discard); err == nil {
 		return fmt.Errorf("protected hosts can communicate before the shown VPN is configured")
 	}
 	return nil
@@ -154,10 +154,10 @@ func requireShowcaseBaseTree(tree *config.Tree) error {
 		}
 		if attach := peer.GetContainer("attach"); attach != nil {
 			for process, binding := range attach.GetList("process") {
-				if process != "bgp-adj-rib-in" && (process != "bgp-rib" || name != "transit") {
+				if process != "bgp-adj-rib-in" && (process != pluginBGPRIB || name != showcaseTransit) {
 					return fmt.Errorf("showcase base peer %s pre-binds %s", name, process)
 				}
-				if process == "bgp-rib" {
+				if process == pluginBGPRIB {
 					receive, send := binding.GetSlice("receive"), binding.GetSlice("send")
 					if len(receive) != 3 || !slices.Contains(receive, "update") || !slices.Contains(receive, "state") || !slices.Contains(receive, "refresh") || len(send) != 1 || send[0] != "update" {
 						return fmt.Errorf("showcase base peer %s has non-baseline bgp-rib subscriptions: receive %v, send %v", name, receive, send)
@@ -168,11 +168,11 @@ func requireShowcaseBaseTree(tree *config.Tree) error {
 	}
 	if plugins := tree.GetContainer("plugin"); plugins != nil {
 		for name, plugin := range plugins.GetList("internal") {
-			if name != "bgp-adj-rib-in" && name != "bgp-rib" {
+			if name != "bgp-adj-rib-in" && name != pluginBGPRIB {
 				return fmt.Errorf("showcase base preconfigures plugin %s", name)
 			}
-			if name == "bgp-rib" {
-				if use, _ := plugin.Get("use"); use != "bgp-rib" {
+			if name == pluginBGPRIB {
+				if use, _ := plugin.Get("use"); use != pluginBGPRIB {
 					return fmt.Errorf("showcase base plugin bgp-rib uses %q, not bgp-rib", use)
 				}
 			}

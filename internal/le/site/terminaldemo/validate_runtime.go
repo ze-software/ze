@@ -96,7 +96,7 @@ func validateCLIDashboard() error {
 	// highlight used to stay at a row NUMBER across a re-sort, so `down` reached
 	// .2 or .3 depending on whether a poll landed in between and re-resolved the
 	// index (comparePeers and followSelection, internal/component/cli).
-	output, err := runPTYFixture(env, "--timeout", "20", "--command", "exit", "--command", `@wait operational\]`, "--command", "monitor bgp", "--command", `@wait 127\.0\.0\.4`, "--command", "@type s", "--command", `@wait ASN \^`, "--command", "@key down", "--command", "@key enter", "--command", `@wait Peer Detail: 127\.0\.0\.3`, "--command", "@escape", "--command", "@type q", "--command", `@wait operational\]`, "--command", "exit", "--", "sshpass", "-e", "ssh", "ze-demo")
+	output, err := runPTYFixture(env, flagTimeout, "20", "--command", "exit", "--command", `@wait operational\]`, "--command", "monitor bgp", "--command", `@wait 127\.0\.0\.4`, "--command", "@type s", "--command", `@wait ASN \^`, "--command", "@key down", "--command", "@key enter", "--command", `@wait Peer Detail: 127\.0\.0\.3`, "--command", "@escape", "--command", "@type q", "--command", `@wait operational\]`, "--command", "exit", "--", "sshpass", "-e", "ssh", "ze-demo")
 	if err != nil {
 		return err
 	}

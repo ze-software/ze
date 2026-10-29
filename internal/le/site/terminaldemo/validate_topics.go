@@ -54,7 +54,7 @@ func loadShowcaseSections(paths ...string) error {
 	if len(paths) == 0 {
 		return errors.New("showcase load needs at least one configuration section")
 	}
-	args := []string{"--timeout", "60", "--delay", "0.1"}
+	args := []string{flagTimeout, "60", "--delay", "0.1"}
 	for _, path := range paths {
 		args = append(args,
 			"--command", "load file absolute merge "+filepath.Join(demoTree(), path),

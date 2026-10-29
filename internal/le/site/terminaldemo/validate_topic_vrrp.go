@@ -55,7 +55,7 @@ func parseNetworkVIPOwners(answer []byte) ([]networkVIPOwner, error) {
 	var owners []networkVIPOwner
 	for _, iface := range devices {
 		for _, address := range iface.Addresses {
-			if address.Local == "203.0.113.1" {
+			if address.Local == showcaseVRRPAddress {
 				owners = append(owners, networkVIPOwner{device: iface.Name, mac: iface.Address})
 			}
 		}
@@ -83,7 +83,7 @@ func requireNetworkVIPOwnership(ze, peer []networkVIPOwner, masterIsZe bool, exp
 }
 
 func observeTopicVRRPTracking(stage string) error {
-	if stage == "absent" {
+	if stage == stageAbsent {
 		if err := requireNetworkTopicAbsent("vrrp"); err != nil {
 			return err
 		}
@@ -99,7 +99,7 @@ func observeTopicVRRPTracking(stage string) error {
 	wantState := "master"
 	wantPriority := uint8(200)
 	switch stage {
-	case "healthy":
+	case stageHealthy:
 	case "tracked-backup", "peer-restored":
 		wantState, wantPriority = "backup", 50
 	case "low-priority-master":
@@ -112,14 +112,14 @@ func observeTopicVRRPTracking(stage string) error {
 		return err
 	}
 	for _, instance := range answer {
-		if instance.Interface != "zeptrk0" || instance.Group != "uplink" || instance.VRID != 12 {
+		if instance.Interface != showcaseVRRPLink || instance.Group != "uplink" || instance.VRID != 12 {
 			continue
 		}
-		tracked := len(instance.TrackedDown) == 1 && instance.TrackedDown[0] == "zetrk1"
+		tracked := len(instance.TrackedDown) == 1 && instance.TrackedDown[0] == showcaseTrackedLink
 		if instance.State != wantState || instance.Priority != 200 || instance.EffectivePriority != wantPriority || tracked != (wantPriority == 50) || (wantPriority == 200 && len(instance.TrackedDown) != 0) {
 			return fmt.Errorf("VRRP %s: %+v", stage, instance)
 		}
-		if len(instance.VirtualAddresses) != 1 || instance.VirtualAddresses[0] != "203.0.113.1" || instance.Device == "" {
+		if len(instance.VirtualAddresses) != 1 || instance.VirtualAddresses[0] != showcaseVRRPAddress || instance.Device == "" {
 			return fmt.Errorf("VRRP group has unexpected virtual identity: %+v", instance)
 		}
 		zeOwners, err := networkVIPOwners("")
@@ -140,11 +140,11 @@ func awaitTopicVRRPTracking(stage string) error {
 }
 
 func requireNetworkVIPReachable(masterIsZe bool) error {
-	args := []string{"-I", "zeptrk0", "-c", "3", "-W", "2", "203.0.113.1"}
-	command := "ping"
+	args := []string{"-I", showcaseVRRPLink, "-c", "3", "-W", "2", showcaseVRRPAddress}
+	command := programPing
 	if masterIsZe {
 		command = "ip"
-		args = []string{"netns", "exec", "showcase-vrrp", "ping", "-I", "eth0", "-c", "3", "-W", "2", "203.0.113.1"}
+		args = []string{ipNetns, commandExec, "showcase-vrrp", programPing, "-I", "eth0", "-c", "3", "-W", "2", showcaseVRRPAddress}
 	}
 	_, err := runCommand(command, args, commandOptions{})
 	return err
@@ -155,13 +155,13 @@ func checkTopicVRRPTracking() error {
 	if err != nil {
 		return err
 	}
-	if err := observeTopicVRRPTracking("absent"); err != nil {
+	if err := observeTopicVRRPTracking(stageAbsent); err != nil {
 		return err
 	}
 	if err := loadShowcaseSections("topics/vrrp/1-group.conf", "topics/vrrp/2-tracking.conf"); err != nil {
 		return err
 	}
-	if err := awaitTopicVRRPTracking("healthy"); err != nil {
+	if err := awaitTopicVRRPTracking(stageHealthy); err != nil {
 		return err
 	}
 	if err := requireNetworkVIPReachable(true); err != nil {
@@ -173,10 +173,10 @@ func checkTopicVRRPTracking() error {
 		stage      string
 		masterIsZe bool
 	}{
-		{"tracked-uplink", "down", "tracked-backup", false},
-		{"keepalived", "stop", "low-priority-master", true},
-		{"keepalived", "start", "peer-restored", false},
-		{"tracked-uplink", "up", "healthy", true},
+		{showcaseTrackedUplink, controlDown, "tracked-backup", false},
+		{showcaseKeepalived, controlStop, "low-priority-master", true},
+		{showcaseKeepalived, controlStart, "peer-restored", false},
+		{showcaseTrackedUplink, "up", stageHealthy, true},
 	} {
 		if err := controlNetworkFixture(transition.fixture, transition.verb); err != nil {
 			return err
@@ -207,7 +207,7 @@ func checkTopicVRRPTracking() error {
 		return err
 	}
 	for _, instance := range statistics {
-		if instance.Interface == "zeptrk0" && instance.Group == "uplink" && instance.Sent > 0 && instance.Received > 0 && instance.GARPs > 0 {
+		if instance.Interface == showcaseVRRPLink && instance.Group == "uplink" && instance.Sent > 0 && instance.Received > 0 && instance.GARPs > 0 {
 			return requireShowcasePID(pid)
 		}
 	}

@@ -42,9 +42,66 @@ const (
 	showcaseZeAddress    = "172.29.0.1/24"
 	showcaseFRRAddress   = "172.29.0.2/24"
 	showcaseFRRRouterID  = "172.29.0.2"
-	showcaseFRRLoopback  = "10.255.1.2/32"
-	showcaseAnnounce     = "announce"
-	showcasePIDs         = "pids"
+	// showcaseFRRPeerAddress is FRR's address on frr0 without its prefix
+	// length: the key Ze's BGP, BFD and OSPF answers name the neighbor by.
+	showcaseFRRPeerAddress = "172.29.0.2"
+	showcaseFRRLoopback    = "10.255.1.2/32"
+	showcaseAnnounce       = "announce"
+	showcasePIDs           = "pids"
+	// showcaseVPNZeEndpoint and showcaseVPNPeerEndpoint are the two ends of
+	// vpn0, without their prefix length: Ze's, and the hidden Ze's.
+	showcaseVPNZeEndpoint   = "172.30.0.1"
+	showcaseVPNPeerEndpoint = "172.30.0.2"
+	// showcaseVRRPAddress is the virtual address the VRRP group shares.
+	showcaseVRRPAddress = "203.0.113.1"
+)
+
+// The names of the showcase fixtures and peers: a control verb names the
+// fixture, and the BGP answers name the peer by the same word.
+const (
+	showcaseFRR           = "frr"
+	showcaseCustomerPeer  = "customer"
+	showcaseKeepalived    = "keepalived"
+	showcaseTransit       = "transit"
+	showcaseRTRCache      = "rtr-cache"
+	showcaseTrackedUplink = "tracked-uplink"
+	showcaseTraffic       = "traffic"
+	showcaseVPN           = "vpn"
+	// ipsecResponderPeer is the IKE peer name the VPN fixture configures.
+	ipsecResponderPeer = "responder"
+	// The links the showcase creates: the VPN XFRM interface and LAN, the
+	// VRRP link, and the dummy uplink VRRP tracks.
+	showcaseXFRMLink    = "vpn-xfrm"
+	showcaseVPNLANLink  = "lan0"
+	showcaseVRRPLink    = "zeptrk0"
+	showcaseTrackedLink = "zetrk1"
+	// The control verbs a fixture answers.
+	controlStart      = "start"
+	controlStop       = "stop"
+	controlReannounce = "reannounce"
+	controlPing       = "ping"
+	// controlDown is the control verb that takes a fixture's link down.
+	controlDown = "down"
+	// peerEstablished is the BGP state a peer answer carries once its
+	// session is up.
+	peerEstablished = "established"
+	// pluginBGPRIB is the name of the BGP RIB plugin in Ze's plugin answers.
+	pluginBGPRIB = "bgp-rib"
+	curlMaxTime  = "--max-time"
+	// The programs the lab runs, and the forwarding switch it sets with sysctl.
+	programPing       = "ping"
+	programCurl       = "curl"
+	programSysctl     = "sysctl"
+	sysctlIPv4Forward = "net.ipv4.ip_forward=1"
+)
+
+// The stages a topic walks through. A topic's await and observe helpers
+// take the stage the lab is expected to show.
+const (
+	stageHealthy  = "healthy"
+	stageAbsent   = "absent"
+	stageDown     = "down"
+	stageMismatch = "mismatch"
 )
 
 // readinessKind says how the lab observes that a fixture is ready. The lab
@@ -94,7 +151,7 @@ func showcaseLabFixtures() []labFixture {
 	}
 	return []labFixture{
 		{
-			name: "frr",
+			name: showcaseFRR,
 			start: func(state string, environ []string) ([]int, error) {
 				return startFRR(showcaseFRRNamespace, []string{"bgpd", "bfdd", "ospfd"}, state, environ)
 			},
@@ -113,8 +170,8 @@ func showcaseLabFixtures() []labFixture {
 			},
 		},
 		{
-			name:        "rtr-cache",
-			start:       showcaseMock("rtr-cache", "rpki", flagBind, "127.0.0.3", flagPort, "3323", "--valid-asn", "65001", "--invalid-asn", "65099", "--refresh", "2", "--retry", "1"),
+			name:        showcaseRTRCache,
+			start:       showcaseMock(showcaseRTRCache, "rpki", flagBind, "127.0.0.3", flagPort, "3323", "--valid-asn", "65001", "--invalid-asn", "65099", "--refresh", "2", "--retry", "1"),
 			ready:       []labReadiness{{kind: readinessListen, target: "127.0.0.3:3323"}},
 			restartable: true,
 		},
@@ -124,8 +181,8 @@ func showcaseLabFixtures() []labFixture {
 			ready: []labReadiness{{kind: readinessListen, target: "127.0.0.1:4343"}},
 		},
 		{
-			name:  "transit",
-			start: harness("transit", ipPeer, flagMode, peerModeSink, flagBind, loopbackPeerAddress, flagPort, "1179", flagASN, "65001", filepath.Join(demoDir(showcaseLabID), "transit.msg")),
+			name:  showcaseTransit,
+			start: harness(showcaseTransit, ipPeer, flagMode, peerModeSink, flagBind, loopbackPeerAddress, flagPort, "1179", flagASN, "65001", filepath.Join(demoDir(showcaseLabID), "transit.msg")),
 			// A TCP readiness probe would itself count as a fixture connection.
 			ready: []labReadiness{{kind: readinessAnswer, target: "listening on " + loopbackPeerAddress + ":1179", argv: []string{"cat", filepath.Join(demoState(showcaseLabID), "transit.log")}}},
 		},
@@ -141,7 +198,7 @@ func showcaseLabFixtures() []labFixture {
 // refuses routes that arrive after its commit, so the customer connects on cue.
 func showcaseCustomer() labFixture {
 	return labFixture{
-		name:        "customer",
+		name:        showcaseCustomerPeer,
 		restartable: true,
 		start: func(state string, environ []string) ([]int, error) {
 			routes, err := prepareIRRCustomerAnnouncements(state, environ)
@@ -156,8 +213,8 @@ func showcaseCustomer() labFixture {
 		},
 		ready: []labReadiness{{kind: readinessListen, target: "127.0.0.4:1179"}},
 		controls: map[string]func(string, []string) (string, error){
-			"reannounce": func(state string, environ []string) (string, error) {
-				if err := stopShowcaseFixture(state, "customer"); err != nil {
+			controlReannounce: func(state string, environ []string) (string, error) {
+				if err := stopShowcaseFixture(state, showcaseCustomerPeer); err != nil {
 					return "", err
 				}
 				// Do not let a prior connection's routes satisfy this announcement cycle.
@@ -199,7 +256,7 @@ func runShowcaseLab(action string, args []string, output io.Writer) error {
 		}
 		return writeLine(output, "Showcase lab ready")
 	case showcaseAnnounce:
-		return controlShowcaseLab([]string{"customer", "reannounce"}, output)
+		return controlShowcaseLab([]string{showcaseCustomerPeer, controlReannounce}, output)
 	case "control":
 		return controlShowcaseLab(args, output)
 	case commandCLI:
@@ -246,7 +303,7 @@ func startShowcaseLab(id, state, pidPath string) error {
 	if err := startFixtures(state, pidPath, environ, []labFixture{ze}); err != nil {
 		return err
 	}
-	return awaitShowcasePeers(environ, "transit", "frr")
+	return awaitShowcasePeers(environ, showcaseTransit, showcaseFRR)
 }
 
 // startFixtures starts each fixture in order, records its pids before it is
@@ -334,8 +391,8 @@ func createShowcaseNetwork() error {
 		}
 	}
 	for _, namespace := range []string{"", showcaseVPNNamespace} {
-		args := []string{"-w", "net.ipv4.ip_forward=1", "net.ipv4.conf.all.rp_filter=0", "net.ipv4.conf.default.rp_filter=0"}
-		name := "sysctl"
+		args := []string{"-w", sysctlIPv4Forward, "net.ipv4.conf.all.rp_filter=0", "net.ipv4.conf.default.rp_filter=0"}
+		name := programSysctl
 		if namespace != "" {
 			args = append([]string{ipNetns, commandExec, namespace, name}, args...)
 			name = "ip"
@@ -351,7 +408,7 @@ func createShowcaseNetwork() error {
 // removeShowcaseNetwork deletes only lab-owned links and namespaces. They may
 // be absent on first prepare or after a stop.
 func removeShowcaseNetwork() {
-	for _, link := range []string{showcaseFRRLink, "vpn0", "vpn-lan", "vpn-xfrm", "zeptrk0", "zetrk1", interfaceTraffic0} {
+	for _, link := range []string{showcaseFRRLink, "vpn0", "vpn-lan", showcaseXFRMLink, showcaseVRRPLink, showcaseTrackedLink, interfaceTraffic0} {
 		_, _ = runCommand("ip", []string{ipLink, ipDel, link}, commandOptions{})
 	}
 	for _, namespace := range []string{showcaseFRRNamespace, showcaseVPNNamespace, showcaseHostLeft, showcaseHostRight, showcaseVRRPNamespace, trafficPeerNS} {

@@ -40,14 +40,17 @@ var (
 	durationPattern     = regexp.MustCompile(`^(\d+(?:\.\d+)?)(ms|s|m)$`)
 )
 
+// ptyKeyDown names the down-arrow key, which a tape's Down command sends.
+const ptyKeyDown = "down"
+
 var ptyKeys = map[string][]byte{
-	"enter": {'\r'},
-	"up":    {0x1b, '[', 'A'},
-	"down":  {0x1b, '[', 'B'},
-	"left":  {0x1b, '[', 'D'},
-	"right": {0x1b, '[', 'C'},
-	"tab":   {'\t'},
-	"space": {' '},
+	"enter":    {'\r'},
+	"up":       {0x1b, '[', 'A'},
+	ptyKeyDown: {0x1b, '[', 'B'},
+	"left":     {0x1b, '[', 'D'},
+	"right":    {0x1b, '[', 'C'},
+	"tab":      {'\t'},
+	"space":    {' '},
 }
 
 type tapeSettings struct {
@@ -177,7 +180,7 @@ func parsePTYOptions(args []string) (ptyOptions, error) {
 				return ptyOptions{}, err
 			}
 			options.commands = append(options.commands, command)
-		case "--timeout", "--delay":
+		case flagTimeout, "--delay":
 			raw, err := value(argument)
 			if err != nil {
 				return ptyOptions{}, err
@@ -186,7 +189,7 @@ func parsePTYOptions(args []string) (ptyOptions, error) {
 			if err != nil || math.IsNaN(seconds) || math.IsInf(seconds, 0) || seconds < 0 {
 				return ptyOptions{}, fmt.Errorf("%s needs finite seconds >= 0, got %q", argument, raw)
 			}
-			if argument == "--timeout" {
+			if argument == flagTimeout {
 				options.timeout = time.Duration(seconds * float64(time.Second))
 			} else {
 				options.delay = time.Duration(seconds * float64(time.Second))
@@ -294,7 +297,7 @@ func parseTape(path, root string) (terminalTape, error) {
 	for _, line := range lines {
 		word, argument, _ := strings.Cut(line.text, " ")
 		name, modifier, _ := strings.Cut(word, "+")
-		requiresArgument := name == "Output" || name == "Screenshot" || name == "Set" || name == tapeCardCommand || name == tapeSleepCommand || name == "Source" || name == tapeTypeCommand || name == tapeWaitCommand
+		requiresArgument := name == "Output" || name == "Screenshot" || name == "Set" || name == tapeCardCommand || name == tapeSleepCommand || name == tapeSourceCommand || name == tapeTypeCommand || name == tapeWaitCommand
 		known := name == "Down" || name == "Enter" || name == "Escape" || name == tapeHideCommand || name == "Left" || requiresArgument || name == tapeShowCommand
 		if !known {
 			return terminalTape{}, fmt.Errorf("%s: unknown directive %q", line.where, word)
@@ -366,7 +369,7 @@ func tapeLines(path, root string, seen map[string]bool) ([]tapeLine, error) {
 		}
 		where := fmt.Sprintf("%s:%d", filepath.Base(path), index+1)
 		word, argument, _ := strings.Cut(text, " ")
-		if word != "Source" {
+		if word != tapeSourceCommand {
 			lines = append(lines, tapeLine{where: where, text: text})
 			continue
 		}
@@ -539,7 +542,7 @@ func recordTape(path string, stdout io.Writer) error {
 	if err != nil {
 		return err
 	}
-	output := strings.TrimSuffix(tape.output, filepath.Ext(tape.output)) + ".cast"
+	output := strings.TrimSuffix(tape.output, filepath.Ext(tape.output)) + castExtension
 	if err := os.MkdirAll(filepath.Dir(output), 0o750); err != nil {
 		return err
 	}
@@ -919,7 +922,7 @@ func driveTape(tape terminalTape, output string, columns, rows int) (*castWriter
 		case "Left":
 			err = session.send(ptyKeys["left"])
 		case "Down":
-			err = session.send(ptyKeys["down"])
+			err = session.send(ptyKeys[ptyKeyDown])
 		}
 		if err != nil {
 			return nil, fmt.Errorf("%s: %w", action.where, err)

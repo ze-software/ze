@@ -195,7 +195,7 @@ func requireIRRCustomerCleared() error {
 	if !found {
 		return fmt.Errorf("customer peer missing while waiting for session departure: %s", document)
 	}
-	if peer.State == "established" {
+	if peer.State == peerEstablished {
 		return fmt.Errorf("previous customer session remains established")
 	}
 	document, err = showcaseCLI("show bgp adj-rib-in | json | no-more")
@@ -251,7 +251,7 @@ func requireIRRCustomerStarted() error {
 	if err != nil {
 		return err
 	}
-	return requireShowcasePeers(peers, []string{"customer"})
+	return requireShowcasePeers(peers, []string{showcaseCustomerPeer})
 }
 
 // prepareIRRCustomerAnnouncements keeps one authored fixture, but moves the
@@ -271,7 +271,7 @@ func prepareIRRCustomerAnnouncements(state string, environ []string) (string, er
 	if bgp == nil {
 		return "", fmt.Errorf("customer announcement requires committed BGP configuration")
 	}
-	customer := bgp.GetList("peer")["customer"]
+	customer := bgp.GetList("peer")[showcaseCustomerPeer]
 	if customer == nil {
 		return "", fmt.Errorf("customer announcement requires a committed customer peer")
 	}
@@ -286,7 +286,7 @@ func prepareIRRCustomerAnnouncements(state string, environ []string) (string, er
 		return sourcePath, nil
 	}
 	asSet, _ := irr.Get("as-set")
-	source, err := os.ReadFile(sourcePath)
+	source, err := os.ReadFile(sourcePath) //nolint:gosec // the path comes from the closed demo scenario table
 	if err != nil {
 		return "", err
 	}

@@ -171,7 +171,7 @@ func (e *Engine) validateDemo(demo *Demo) error {
 	if err != nil {
 		return fmt.Errorf("manifest.json: %s.kind is unsupported", demo.ID)
 	}
-	_, hasCast := extensions["cast"]
+	_, hasCast := extensions[castLabel]
 	if hasCast {
 		if demo.Duration != "" {
 			return fmt.Errorf("manifest.json: %s.duration is read from the cast, so the manifest must not state it", demo.ID)
@@ -246,9 +246,9 @@ func regularFile(path string) bool {
 func assetExtensions(kind string) (map[string]string, error) {
 	switch kind {
 	case terminalLabel:
-		return map[string]string{"cast": ".cast", transcriptLabel: textExtension}, nil
+		return map[string]string{castLabel: castExtension, transcriptLabel: textExtension}, nil
 	case "browser":
-		return map[string]string{"poster": ".webp", transcriptLabel: textExtension}, nil
+		return map[string]string{posterLabel: posterExtension, transcriptLabel: textExtension}, nil
 	default:
 		return nil, fmt.Errorf("unsupported kind %q", kind)
 	}
@@ -271,9 +271,9 @@ func (e *Engine) assetPaths(demo Demo) (map[string]string, error) {
 func assetNames(kind string) ([]string, error) {
 	switch kind {
 	case terminalLabel:
-		return []string{"cast", transcriptLabel}, nil
+		return []string{castLabel, transcriptLabel}, nil
 	case "browser":
-		return []string{"poster", transcriptLabel}, nil
+		return []string{posterLabel, transcriptLabel}, nil
 	default:
 		return nil, fmt.Errorf("unsupported kind %q", kind)
 	}

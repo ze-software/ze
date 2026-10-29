@@ -110,10 +110,14 @@ const (
 	InstallKindVentoy
 )
 
+// installerName names the HTTP installer test: the install kind it boots and
+// its entry in the all-tests suite.
+const installerName = "installer"
+
 func (kind InstallKind) String() string {
 	switch kind {
 	case InstallKindHTTP:
-		return "installer"
+		return installerName
 	case InstallKindISO:
 		return "installer-iso"
 	case InstallKindScenarios:

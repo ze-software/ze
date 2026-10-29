@@ -17,7 +17,7 @@ func checkTopicCommitConfirmed() error {
 	}
 	environ := scenarioEnv(showcaseLabID, demoPassword)
 	output, err := runPTYFixture(environ,
-		"--delay", "0.2", "--timeout", "30",
+		"--delay", "0.2", flagTimeout, "30",
 		"--command", "show system host",
 		"--command", "load file absolute merge /src/demos/terminal/topics/commit-confirmed/1-trial-host.conf",
 		"--command", "@wait merged from",
@@ -46,7 +46,7 @@ func checkTopicCommitConfirmed() error {
 		return err
 	}
 	output, err = runPTYFixture(environ,
-		"--delay", "0.2", "--timeout", "30",
+		"--delay", "0.2", flagTimeout, "30",
 		"--command", "load file absolute merge /src/demos/terminal/topics/commit-confirmed/2-confirmed-host.conf",
 		"--command", "@wait merged from",
 		"--command", "show | compare",

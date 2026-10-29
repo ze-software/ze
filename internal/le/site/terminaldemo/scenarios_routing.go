@@ -53,19 +53,19 @@ func checkTopicRPKI() error {
 	if err := loadShowcaseSections("topics/rpki/1-cache.conf", "topics/rpki/2-policy.conf", "topics/rpki/3-attach.conf"); err != nil {
 		return err
 	}
-	if err := awaitTopicRPKI("healthy"); err != nil {
+	if err := awaitTopicRPKI(stageHealthy); err != nil {
 		return err
 	}
 	if err := awaitTopicRPKI("outage-boundary"); err != nil {
 		return err
 	}
-	if err := runShowcaseLab("control", []string{"rtr-cache", "stop"}, io.Discard); err != nil {
+	if err := runShowcaseLab("control", []string{showcaseRTRCache, controlStop}, io.Discard); err != nil {
 		return err
 	}
-	if err := awaitTopicRPKI("down"); err != nil {
+	if err := awaitTopicRPKI(stageDown); err != nil {
 		return err
 	}
-	if err := runShowcaseLab("control", []string{"rtr-cache", "start"}, io.Discard); err != nil {
+	if err := runShowcaseLab("control", []string{showcaseRTRCache, controlStart}, io.Discard); err != nil {
 		return err
 	}
 	if err := awaitTopicRPKI("recovered"); err != nil {
@@ -85,9 +85,9 @@ func awaitTopicRPKI(stage string) error {
 	switch stage {
 	case "outage-boundary":
 		return beginRPKIOutage()
-	case "healthy":
+	case stageHealthy:
 		return awaitPolicyTopic(requireRPKIHealthy)
-	case "down":
+	case stageDown:
 		return awaitPolicyTopic(func() error {
 			if err := requireRPKICycleLog(false); err != nil {
 				return err
@@ -195,10 +195,10 @@ func policyTransitConnections() (uint32, error) {
 	if !found {
 		return 0, fmt.Errorf("transit peer missing: %s", document)
 	}
-	if peer.Name != "transit" {
+	if peer.Name != showcaseTransit {
 		return 0, fmt.Errorf("wrong peer at the transit address: %s", document)
 	}
-	if peer.State != "established" {
+	if peer.State != peerEstablished {
 		return 0, fmt.Errorf("transit is not established: %s", document)
 	}
 	if peer.Connections == 0 {
@@ -231,16 +231,16 @@ func checkTopicIRR() error {
 	if err := loadShowcaseSections("topics/irr/1-server.conf", "topics/irr/2-as-set.conf", "topics/irr/3-import.conf"); err != nil {
 		return err
 	}
-	if err := runShowcaseLab("control", []string{"customer", "reannounce"}, io.Discard); err != nil {
+	if err := runShowcaseLab("control", []string{showcaseCustomerPeer, controlReannounce}, io.Discard); err != nil {
 		return err
 	}
-	if err := awaitTopicIRR("healthy"); err != nil {
+	if err := awaitTopicIRR(stageHealthy); err != nil {
 		return err
 	}
 	if err := loadShowcaseSections("topics/irr/4-wrong-as-set.conf"); err != nil {
 		return err
 	}
-	if err := runShowcaseLab("control", []string{"customer", "reannounce"}, io.Discard); err != nil {
+	if err := runShowcaseLab("control", []string{showcaseCustomerPeer, controlReannounce}, io.Discard); err != nil {
 		return err
 	}
 	if err := awaitTopicIRR("wrong"); err != nil {
@@ -252,17 +252,17 @@ func checkTopicIRR() error {
 	if _, err := showcaseCLI("update bgp irr as-set AS-TEST"); err != nil {
 		return err
 	}
-	if err := runShowcaseLab("control", []string{"customer", "reannounce"}, io.Discard); err != nil {
+	if err := runShowcaseLab("control", []string{showcaseCustomerPeer, controlReannounce}, io.Discard); err != nil {
 		return err
 	}
-	return awaitTopicIRR("healthy")
+	return awaitTopicIRR(stageHealthy)
 }
 
 func awaitTopicIRR(stage string) error {
 	var asSet string
 	var accepted bool
 	switch stage {
-	case "healthy":
+	case stageHealthy:
 		asSet, accepted = "AS-TEST", true
 	case "wrong":
 		asSet = "AS-V4ONLY"
@@ -280,7 +280,7 @@ func requireIRRState(asSet string, accepted bool) error {
 	if err != nil {
 		return err
 	}
-	if err := requireShowcasePeers(peers, []string{"customer"}); err != nil {
+	if err := requireShowcasePeers(peers, []string{showcaseCustomerPeer}); err != nil {
 		return err
 	}
 	status, err := showcaseCLI("show bgp irr | yaml | no-more")

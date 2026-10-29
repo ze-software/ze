@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"syscall"
@@ -54,7 +55,7 @@ func controlShowcaseLab(args []string, output io.Writer) error {
 
 func showcaseLinkControls(link string) map[string]func(string, []string) (string, error) {
 	controls := make(map[string]func(string, []string) (string, error), 2)
-	for _, status := range []string{"down", "up"} {
+	for _, status := range []string{controlDown, "up"} {
 		controls[status] = func(_ string, _ []string) (string, error) {
 			_, err := runCommand("ip", []string{ipLink, ipSet, link, status}, commandOptions{})
 			return link + " " + status, err
@@ -68,7 +69,7 @@ func showcaseLinkControls(link string) map[string]func(string, []string) (string
 // It MUST finish before that fixture can be started again.
 func stopShowcaseFixture(state, name string) error {
 	path := filepath.Join(state, name+".pid")
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) //nolint:gosec // the path comes from the closed demo scenario table
 	if errors.Is(err, os.ErrNotExist) {
 		// An absent ownership file is the stopped state; never discover PIDs by name.
 		return nil
@@ -87,22 +88,15 @@ func stopShowcaseFixture(state, name string) error {
 		}
 	}
 	allPath := filepath.Join(state, showcasePIDs)
-	all, err := os.ReadFile(allPath)
+	all, err := os.ReadFile(allPath) //nolint:gosec // the path comes from the closed demo scenario table
 	if err != nil {
 		if !errors.Is(err, os.ErrNotExist) {
 			return err
 		}
 	}
 	remaining := make([]int, 0)
-	for _, field := range strings.Fields(string(all)) {
-		remove := false
-		for _, stopped := range owned {
-			if stopped == field {
-				remove = true
-				break
-			}
-		}
-		if remove {
+	for field := range strings.FieldsSeq(string(all)) {
+		if slices.Contains(owned, field) {
 			continue
 		}
 		pid, err := strconv.Atoi(field)
@@ -148,7 +142,7 @@ func terminateShowcasePID(pid int) error {
 // showcaseProcessAlive reads Linux process state because a dead fixture can
 // remain a zombie until the container's init reaps it; kill(0) alone lies then.
 func showcaseProcessAlive(pid int) (bool, error) {
-	data, err := os.ReadFile(filepath.Join("/proc", strconv.Itoa(pid), "stat"))
+	data, err := os.ReadFile("/proc/" + strconv.Itoa(pid) + "/stat")
 	if errors.Is(err, os.ErrNotExist) {
 		return false, nil
 	}

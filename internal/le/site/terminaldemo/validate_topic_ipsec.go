@@ -26,7 +26,7 @@ func validateTopicIPsec() error {
 		"topics/ipsec/3-peer.conf", "topics/ipsec/4-xfrm.conf"); err != nil {
 		return err
 	}
-	if err := awaitTopicIPsec("healthy"); err != nil {
+	if err := awaitTopicIPsec(stageHealthy); err != nil {
 		return err
 	}
 	if err := proveTopicIPsecTraffic(); err != nil {
@@ -54,7 +54,7 @@ func validateTopicIPsec() error {
 	if err := contains(answer, "clear-peer"); err != nil {
 		return err
 	}
-	if err := awaitTopicIPsec("healthy"); err != nil {
+	if err := awaitTopicIPsec(stageHealthy); err != nil {
 		return err
 	}
 	if err := proveTopicIPsecTraffic(); err != nil {
@@ -114,8 +114,8 @@ func readTopicIPsecPeer() (topicIPsecPeer, error) {
 		return topicIPsecPeer{}, fmt.Errorf("decode IPsec peer: %w; %s", err, answer)
 	}
 	for _, peer := range state.Peers {
-		if peer.Name == "responder" {
-			if peer.State != "established" {
+		if peer.Name == ipsecResponderPeer {
+			if peer.State != peerEstablished {
 				return topicIPsecPeer{}, fmt.Errorf("IPsec peer is %s, not established", peer.State)
 			}
 			return peer, nil
@@ -127,7 +127,7 @@ func readTopicIPsecPeer() (topicIPsecPeer, error) {
 // awaitTopicIPsec observes only. Both the recording and validator wait for the
 // same real control-plane and kernel state before they present it.
 func awaitTopicIPsec(stage string) error {
-	if stage != "healthy" {
+	if stage != stageHealthy {
 		if stage != "refused" {
 			return fmt.Errorf("unknown IPsec readiness stage %q", stage)
 		}
@@ -149,7 +149,7 @@ func requireTopicIPsecState(stage string) error {
 	if err != nil {
 		return err
 	}
-	if stage == "healthy" {
+	if stage == stageHealthy {
 		if peer.Child == nil {
 			return fmt.Errorf("IKE is established but has no Child SA")
 		}
@@ -189,7 +189,7 @@ func requireTopicIPsecState(stage string) error {
 		for _, entry := range log.Entries {
 			if strings.Contains(entry.Message, "keeping the IKE SA") &&
 				entry.Attributes.Notify == "NO_PROPOSAL_CHOSEN" &&
-				entry.Attributes.Peer == "responder" {
+				entry.Attributes.Peer == ipsecResponderPeer {
 				found = true
 				break
 			}
@@ -241,10 +241,10 @@ func requireTopicIPsecKernel(child *topicIPsecChild) error {
 		if sa.Proto != "esp" {
 			return fmt.Errorf("VPN kernel SA has protocol %s, want esp", sa.Proto)
 		}
-		if sa.SPI == child.Inbound && sa.Source == "172.30.0.2" && sa.Target == "172.30.0.1" {
+		if sa.SPI == child.Inbound && sa.Source == showcaseVPNPeerEndpoint && sa.Target == showcaseVPNZeEndpoint {
 			inbound = true
 		}
-		if sa.SPI == child.Outbound && sa.Source == "172.30.0.1" && sa.Target == "172.30.0.2" {
+		if sa.SPI == child.Outbound && sa.Source == showcaseVPNZeEndpoint && sa.Target == showcaseVPNPeerEndpoint {
 			outbound = true
 		}
 	}
@@ -291,11 +291,11 @@ func requireTopicIPsecPolicies(child *topicIPsecChild) error {
 			return fmt.Errorf("refused ESP left kernel %s policy installed", got.Direction)
 		}
 		want := policy{IfID: 42, Direction: got.Direction, Action: "protect",
-			Mode: "tunnel", Owner: "responder", OwnerKnown: true}
+			Mode: "tunnel", Owner: ipsecResponderPeer, OwnerKnown: true}
 		switch got.Direction {
 		case "in", "fwd":
 			want.Source, want.Target = "10.78.2.0/24", "10.78.1.0/24"
-			want.TunnelSrc, want.TunnelDst = "172.30.0.2", "172.30.0.1"
+			want.TunnelSrc, want.TunnelDst = showcaseVPNPeerEndpoint, showcaseVPNZeEndpoint
 			if got.Direction == "in" {
 				inbound = true
 			} else {
@@ -303,7 +303,7 @@ func requireTopicIPsecPolicies(child *topicIPsecChild) error {
 			}
 		case "out":
 			want.Source, want.Target = "10.78.1.0/24", "10.78.2.0/24"
-			want.TunnelSrc, want.TunnelDst = "172.30.0.1", "172.30.0.2"
+			want.TunnelSrc, want.TunnelDst = showcaseVPNZeEndpoint, showcaseVPNPeerEndpoint
 			outbound = true
 		default:
 			return fmt.Errorf("IPsec kernel policy has unknown direction %q", got.Direction)
@@ -340,7 +340,7 @@ func proveTopicIPsecTraffic() error {
 		return fmt.Errorf("cannot read packets-in before protected traffic")
 	}
 	var ping bytes.Buffer
-	if err := runShowcaseLab("control", []string{"vpn", "ping"}, &ping); err != nil {
+	if err := runShowcaseLab("control", []string{showcaseVPN, controlPing}, &ping); err != nil {
 		return err
 	}
 	if err := contains(ping.String(), "4 received"); err != nil {
@@ -368,7 +368,7 @@ func proveTopicIPsecTraffic() error {
 
 func requireTopicIPsecPingFailure() error {
 	answer, err := runCommand("ip", []string{ipNetns, commandExec, showcaseHostLeft,
-		"ping", "-c", "1", "-W", "2", "10.78.2.2"}, commandOptions{stdout: nil, stderr: io.Discard})
+		programPing, "-c", "1", "-W", "2", "10.78.2.2"}, commandOptions{stdout: nil, stderr: io.Discard})
 	if err == nil {
 		return fmt.Errorf("protected host ping succeeded without an IPsec Child SA")
 	}

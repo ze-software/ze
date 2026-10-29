@@ -40,7 +40,7 @@ func networkFRRPeer() (networkBGPPeer, error) {
 	if err != nil {
 		return networkBGPPeer{}, err
 	}
-	peer, ok := answer.Peers["172.29.0.2"]
+	peer, ok := answer.Peers[showcaseFRRPeerAddress]
 	if !ok {
 		return peer, fmt.Errorf("FRR BGP peer is absent")
 	}
@@ -55,7 +55,7 @@ type networkFRRSessionCounters struct {
 // FRR retains these counters when Ze replaces its Peer object. Ze's own
 // connections-established can return to one after that otherwise hidden reset.
 func readNetworkFRRSessionCounters() (networkFRRSessionCounters, error) {
-	answer, err := runCommand("ip", []string{"netns", "exec", "showcase-frr", "vtysh", "-c", "show bgp neighbor 172.29.0.1 json"}, commandOptions{})
+	answer, err := runCommand("ip", []string{ipNetns, commandExec, "showcase-frr", "vtysh", "-c", "show bgp neighbor 172.29.0.1 json"}, commandOptions{})
 	if err != nil {
 		return networkFRRSessionCounters{}, err
 	}
@@ -106,7 +106,7 @@ func requireNetworkBGPDeparture(history networkBGPHistory) error {
 }
 
 func observeTopicBFD(stage string) error {
-	if stage == "absent" {
+	if stage == stageAbsent {
 		if err := requireNetworkTopicAbsent("bfd"); err != nil {
 			return err
 		}
@@ -128,7 +128,7 @@ func observeTopicBFD(stage string) error {
 	}
 	if stage == "retired" {
 		for _, session := range sessions {
-			if session.Peer == "172.29.0.2" {
+			if session.Peer == showcaseFRRPeerAddress {
 				return fmt.Errorf("released FRR BFD session still retained in %s", session.State)
 			}
 		}
@@ -139,17 +139,17 @@ func observeTopicBFD(stage string) error {
 		return err
 	}
 	for _, session := range sessions {
-		if session.Peer != "172.29.0.2" {
+		if session.Peer != showcaseFRRPeerAddress {
 			continue
 		}
 		switch stage {
-		case "healthy":
-			if session.State == "up" && session.Profile == "fast" && session.TXPackets > 0 && session.RXPackets > 0 && peer.State == "established" {
+		case stageHealthy:
+			if session.State == "up" && session.Profile == "fast" && session.TXPackets > 0 && session.RXPackets > 0 && peer.State == peerEstablished {
 				return nil
 			}
 		case "failed":
 			for _, transition := range session.Transitions {
-				if transition.From == "up" && transition.To == "down" && transition.Diag == "control-detection-time-expired" && peer.State != "established" && peer.LastNotification != nil && peer.LastNotification.Code == 6 && peer.LastNotification.Subcode == 10 {
+				if transition.From == "up" && transition.To == "down" && transition.Diag == "control-detection-time-expired" && peer.State != peerEstablished && peer.LastNotification != nil && peer.LastNotification.Code == 6 && peer.LastNotification.Subcode == 10 {
 					return nil
 				}
 			}
@@ -174,14 +174,14 @@ func checkTopicBFD() error {
 	if err != nil {
 		return err
 	}
-	if err := observeTopicBFD("absent"); err != nil {
+	if err := observeTopicBFD(stageAbsent); err != nil {
 		return err
 	}
 	before, err := networkFRRPeer()
 	if err != nil {
 		return err
 	}
-	if before.State != "established" || before.NegotiatedHoldTime <= 8 {
+	if before.State != peerEstablished || before.NegotiatedHoldTime <= 8 {
 		return fmt.Errorf("BFD needs an established peer with hold time longer than failure deadline: %+v", before)
 	}
 	frrBefore, err := readNetworkFRRSessionCounters()
@@ -191,7 +191,7 @@ func checkTopicBFD() error {
 	if err := loadShowcaseSections("topics/bfd/1-profile.conf", "topics/bfd/2-peer.conf"); err != nil {
 		return err
 	}
-	if err := awaitTopicBFD("healthy"); err != nil {
+	if err := awaitTopicBFD(stageHealthy); err != nil {
 		return err
 	}
 	after, err := networkFRRPeer()
@@ -209,7 +209,7 @@ func checkTopicBFD() error {
 		return err
 	}
 	cut := time.Now()
-	if err := controlNetworkFixture("frr", "down"); err != nil {
+	if err := controlNetworkFixture(showcaseFRR, controlDown); err != nil {
 		return err
 	}
 	if err := awaitTopicBFD("failed"); err != nil {
@@ -231,10 +231,10 @@ func checkTopicBFD() error {
 	if err := awaitTopicBFD("retired"); err != nil {
 		return err
 	}
-	if err := controlNetworkFixture("frr", "up"); err != nil {
+	if err := controlNetworkFixture(showcaseFRR, "up"); err != nil {
 		return err
 	}
-	if err := awaitTopicBFD("healthy"); err != nil {
+	if err := awaitTopicBFD(stageHealthy); err != nil {
 		return err
 	}
 	return requireShowcasePID(pid)
