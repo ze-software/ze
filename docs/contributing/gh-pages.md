@@ -476,7 +476,28 @@ package when it carries none.
 
 A build reads the plugin registrations, writes
 `../gh-pages/data/plugin-registry.json`, and renders the catalog plus one local
-detail page per plugin. It reads the daemon's own configuration schema, writes
+detail page per plugin.
+
+The registrations published are always the Linux build's, because Ze ships only
+on Linux and some plugins register from a file built only there (memlock,
+iface-dhcp and iface-ra, for example). On Linux the build reads its own
+registry. On any other host, such as a Mac, its own registry is smaller with no
+error, so the build never reads it: it cross-compiles a linux `le` into the
+checkout's `tmp/` with the lab recipe (`interoplab.StageBinaries`, `linuxle.Base`
+and every feature gate, for the Docker daemon's architecture), runs
+`le repo inventory | json` in a one-shot container over the checkout mounted
+read-only, and publishes the plugins it printed. This happens before the daemon
+compile. When Docker does not answer, or the container fails, the build stops
+with the reason and the fix (start Docker, check `docker info`, then
+`./le site build` again); it never falls back to the host's registry.
+<!-- source: internal/le/site/pluginregistry.go -- pluginRegistryFor, readLinuxPluginRegistry, linuxRegistryRefusal -->
+
+The command catalog and the configuration tree below need no container: a
+command whose handler is Linux-only registers a non-Linux stub under the same
+name, so a darwin daemon answers both byte for byte as a linux one does
+(compared on 2026-10-29).
+
+The build reads the daemon's own configuration schema, writes
 `../gh-pages/data/yang-config-tree.json`, and renders the configuration
 reference from that tree and the same registrations. Do not add a parallel
 hand-written plugin list.

@@ -30,11 +30,16 @@ import (
 	"github.com/ze-software/ze/internal/le/dockerhost"
 )
 
+// StaticBinaryImage is the image a one-shot container runs a staged static Go
+// binary in. The binary references no libc, so any Linux userland answers the
+// same; the site build runs a linux le in it to read the Linux plugin registry.
+const StaticBinaryImage = "alpine:3.24.3"
+
 const (
 	// kernelProbeImage only carries the staged static ze; any Linux userland
 	// that runs a static binary answers the same, because the probes ask the
 	// kernel, not the image.
-	kernelProbeImage   = "alpine:3.24.3"
+	kernelProbeImage   = StaticBinaryImage
 	kernelProbeTimeout = 2 * time.Minute
 	// kernelProbeMount is where the staged ze appears inside the probe container.
 	kernelProbeMount = "/ze"

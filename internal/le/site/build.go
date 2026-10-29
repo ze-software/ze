@@ -21,7 +21,6 @@ import (
 	"github.com/ze-software/ze/internal/le/derived"
 	docyangcontract "github.com/ze-software/ze/internal/le/doc/yangcontract"
 	"github.com/ze-software/ze/internal/le/feature"
-	repoinventory "github.com/ze-software/ze/internal/le/repo/inventory"
 	siteterminaldemo "github.com/ze-software/ze/internal/le/site/terminaldemo"
 	testhealth "github.com/ze-software/ze/internal/le/test/health"
 )
@@ -436,14 +435,17 @@ func refreshNativeSurfaces(paths Paths) (err error) {
 	}
 	defer func() { err = errors.Join(err, os.RemoveAll(daemonDir)) }()
 
+	// The plugin registry is read first: off Linux it needs Docker, and a
+	// build that cannot reach Docker stops before the daemon compile rather
+	// than after it.
+	if err := publishPluginRegistry(paths); err != nil {
+		return err
+	}
 	daemon, err := liveDaemon(paths.Repository, daemonDir)
 	if err != nil {
 		return err
 	}
 	if err := publishCommandCatalog(paths, daemon); err != nil {
-		return err
-	}
-	if err := publishPluginRegistry(paths); err != nil {
 		return err
 	}
 	if err := publishRFCLedger(paths); err != nil {
@@ -503,14 +505,16 @@ func publishCommandCatalog(paths Paths, daemon string) error {
 	return nil
 }
 
-// livePluginRegistry answers the plugin registrations this checkout carries. It
-// is a variable so a test can state a registry rather than depend on the
-// feature gates its own test binary was built with: an untagged `go test`
-// registers twelve plugins where the shipped daemon registers eighty-eight.
-var livePluginRegistry = repoinventory.Plugins
+// livePluginRegistry answers the plugin registrations the shipped Linux build
+// of this checkout carries (hostPluginRegistry, pluginregistry.go). It is a
+// variable so a test can state a registry rather than depend on the feature
+// gates its own test binary was built with: an untagged `go test` registers
+// twelve plugins where the shipped daemon registers eighty-eight.
+var livePluginRegistry = hostPluginRegistry
 
-// publishPluginRegistry republishes the plugin registry read from this
-// process's own plugin registrations.
+// publishPluginRegistry republishes the plugin registry of the shipped Linux
+// build: this process's own registrations on Linux, a linux le's in a
+// container anywhere else.
 //
 // It is written here rather than by the catalog producer for the reason
 // publishCommandCatalog is: three surfaces read it, the catalog, the
