@@ -62,6 +62,7 @@ func TestValidationHeldPathWithdrawsOnlyAdvertised(t *testing.T) {
 	f.metric(7)
 	prefix := []byte{24, 10, 20, 0}
 	route := storedIPv4Route(f.source.Settings().Address.String())
+	route.SourcePolicyEpoch = f.source.sourcePolicyEpoch.Load()
 	route.NLRIHex = "180A1400"
 	api := &reactorAPIAdapter{r: f.r}
 	relay := func() {

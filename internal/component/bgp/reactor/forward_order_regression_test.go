@@ -56,6 +56,7 @@ func TestForwardValidationOverflowRecoveryReachesSocket(t *testing.T) {
 	f.destination.settings.NextHopMode = NextHopSelf
 	f.destination.refreshForwardFacts()
 	route := storedIPv4Route(f.source.Settings().Address.String())
+	route.SourcePolicyEpoch = f.source.sourcePolicyEpoch.Load()
 	// The validation withdrawal reaches only a destination that was advertised
 	// the path, so the destination first holds the source's announcement.
 	f.advertiseFirst(t, makeUpdateBody(nil, mustHex(t, route.AttrHex), []byte{24, 10, 0, 0}))

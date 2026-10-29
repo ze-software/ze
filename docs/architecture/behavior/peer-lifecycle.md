@@ -26,7 +26,7 @@ owned by its source only while both counters match the values it recorded.
 
 <!-- source: internal/component/bgp/reactor/peer.go — Peer, NewPeer, Start, Stop -->
 <!-- source: internal/component/bgp/reactor/peer_derived_bindings.go — unbindProcesses -->
-<!-- source: internal/component/bgp/reactor/relay_recovery.go — adjOutOwnerCurrent -->
+<!-- source: internal/component/bgp/reactor/relay_recovery.go — adjOutOwnerSessionCurrent -->
 <!-- source: internal/component/bgp/reactor/peer_run.go — run, safeRunOnce, runOnce -->
 <!-- source: internal/component/bgp/reactor/peer_connection.go — Accept/Pending/Inbound connection helpers -->
 

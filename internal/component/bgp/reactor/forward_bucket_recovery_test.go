@@ -155,10 +155,10 @@ func TestRecoveryPackReowesEveryKeyWhenSourceEnds(t *testing.T) {
 	for _, prefix := range prefixes {
 		key, record := recoveryOweForTest(t, destination, session, prefix)
 		admission.keys = append(admission.keys, recoveryAdmitKey{key: key, record: record, epoch: record.epoch,
-			candidate: adjOutPath{source: source}})
+			candidate: adjOutPath{source: source, policyEpoch: source.sourcePolicyEpoch.Load()}})
 		admission.items = append(admission.items, fwdItem{peer: destination, session: session, authority: adjOutRecovery,
 			rawBodies:    [][]byte{recoveryPackBodyOf(attrs, prefix)},
-			receivedPeer: source, receivedGeneration: generation})
+			receivedPeer: source, receivedGeneration: generation, sourcePolicyEpoch: source.sourcePolicyEpoch.Load()})
 		admission.mark(len(admission.keys) - 1)
 	}
 	// The source's session is replaced while the withdrawal is written.

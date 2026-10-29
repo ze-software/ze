@@ -318,7 +318,7 @@ form, carrying `recovery-source` and `recovery-generation` meta and naming each 
 keyword, at most `withdrawalBatchSize` (1000) routes a command.
 <!-- source: internal/core/bgp/ribevents/recovery.go -- RecoveryRequest, RecoveryOutcome, CheckRecoveryAnswer, FormatRecoveryKey, AppendRecoveryArgs, ParseRecoveryArgs -->
 <!-- source: internal/component/bgp/plugins/rib/rib_recovery.go -- recoverySurvivorsLocked, recoverySentAddPathLocked -->
-<!-- source: internal/component/bgp/reactor/relay_recovery.go -- queueRecoveryOutcome, departedOwner, adjOutOwnerCurrent -->
+<!-- source: internal/component/bgp/reactor/relay_recovery.go -- queueRecoveryOutcome, departedOwner, adjOutOwnerSessionCurrent -->
 <!-- source: internal/component/bgp/plugins/rr/rr.go -- handleStateDown, enqueueDeparture, sendPeerDown, recoverRouteSel, nlriDelCmd, withdrawalBatchSize -->
 <!-- source: internal/component/bgp/plugins/rs/server_handlers.go -- handleStateDown, enqueueDeparture -->
 <!-- source: internal/core/syncutil/coalescer.go -- Coalescer -->

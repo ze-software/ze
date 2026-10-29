@@ -136,6 +136,26 @@ generation. Policy invalidation must close receive admission and settle affected
 writers under the same write locks; changing an atomic epoch alone is not a
 downstream completion receipt.
 
+One predicate, `sourcePolicyCurrent`, answers the question everywhere: a local
+origin (no source) is current, and received work is current only when its
+nonzero original epoch equals its owner Peer's live epoch. There is no fallback
+from zero to the live epoch. Where each writer applies it:
+
+| Writer | Stale announcement | Still admitted |
+|--------|--------------------|----------------|
+| Forwarded (direct, cached, pool, stored replay) | Dropped before identifier binding, owing or election | Every withdrawal, stale or not |
+| Exact owner (`adjOutExpected`) | Dropped, judged on the entry's ORIGINAL owner after the revision check | The exact-owner removal; a local owner |
+| Initial replay | `checkInitialWrite` and the writer refuse it with an error, never a policy no-op | A local replay |
+| Recovery | Skipped at candidate selection like an export refusal: the next eligible survivor is written, else the owed withdrawal. A PATHS-LIMIT election runs without it and still stages its departure and demotion withdrawals. A stale survivor is never held as retained. A section that turns stale after staging is held back alone (`recoveryKeyPolicyStale`): it is never written or reported written, its key's other sections are written, and the key is re-owed with its epoch moved and the worker woken, never left owed with no round to decide it | Withdrawal decisions and sections; GR expiry |
+
+A policy change keeps the source's session, so it never becomes a
+session-generation exclusion or a receive-cut end. Departure ownership
+(`departedOwner`), the ADD-PATH departure withdrawal guard in `allow`, and
+PATHS-LIMIT retention read the session tests alone
+(`adjOutOwnerSessionCurrent`): a stale path of a live session is neither
+departed nor withdrawn for an old DOWN, and stays rankable rather than pinned,
+so the election can demote it.
+
 Sent events carry the actual advertised owner's epoch, including exact-owner
 replays, rather than loading the source's epoch when the callback runs. JSON
 writes `source-policy-epoch` beside `message` and `peer`; parsed text writes
@@ -143,7 +163,10 @@ writes `source-policy-epoch` beside `message` and `peer`; parsed text writes
 transport provenance, not a user route `meta/*` key.
 <!-- source: internal/component/bgp/reactor/peer.go -- sourcePolicyEpoch, advanceSourcePolicyEpoch -->
 <!-- source: internal/component/bgp/reactor/reactor_notify.go -- notifyMessageReceiver -->
-<!-- source: internal/component/bgp/reactor/session_ownership.go -- allow, recordSection -->
+<!-- source: internal/component/bgp/reactor/session_ownership.go -- allow, recordSection, checkInitialWrite -->
+<!-- source: internal/component/bgp/reactor/forward_pool.go -- sourcePolicyCurrent -->
+<!-- source: internal/component/bgp/reactor/relay_recovery.go -- queueRecoveryOutcome, recoverySurvivorPolicyStale, heldSurvivor, admit, writes, settle, adjOutHolds, departedOwner, adjOutOwnerSessionCurrent -->
+<!-- source: internal/component/bgp/reactor/session_paths_limit_elect.go -- queuePathsLimitElection -->
 <!-- source: internal/component/bgp/reactor/session_write.go -- writeUpdateBody -->
 <!-- source: internal/component/bgp/format/text_update.go -- appendSourcePolicyEpochJSON, appendSourcePolicyEpochText -->
 

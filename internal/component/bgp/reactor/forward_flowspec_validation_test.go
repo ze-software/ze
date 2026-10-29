@@ -97,7 +97,7 @@ func TestFlowSpecForwardingRequiresAuthorizationAcrossRails(t *testing.T) {
 			ribevents.RegisterFlowSpecLookup(func(got ribevents.ValidationRoute, msgID uint64) bool {
 				return got == key && eligible && (msgID == 0 || msgID == generation)
 			}, func(got ribevents.ValidationRoute) bool { return got == key && present }, nil, nil)
-			route := rpc.StoredRoute{SourcePeer: src.Settings().Address.String(), Family: fam.String(),
+			route := rpc.StoredRoute{SourcePeer: src.Settings().Address.String(), SourcePolicyEpoch: src.sourcePolicyEpoch.Load(), Family: fam.String(),
 				NLRIHex: hex.EncodeToString(raw), AttrHex: hex.EncodeToString(attrs), MsgID: id, NLRIFraming: rpc.NLRIFramingPrefixOnly}
 			relay := func() [][]byte {
 				t.Helper()
@@ -358,7 +358,7 @@ func TestFlowSpecLiveForwardDefersToRIBVerdict(t *testing.T) {
 			if live := validationBodies(t, api, capture); len(live) != 0 {
 				t.Fatalf("live forward of an authorized generation sent %x", live)
 			}
-			route := rpc.StoredRoute{SourcePeer: src.Settings().Address.String(), Family: fam.String(),
+			route := rpc.StoredRoute{SourcePeer: src.Settings().Address.String(), SourcePolicyEpoch: src.sourcePolicyEpoch.Load(), Family: fam.String(),
 				NLRIHex: hex.EncodeToString(raw), AttrHex: hex.EncodeToString(attrs), MsgID: id, NLRIFraming: rpc.NLRIFramingPrefixOnly}
 			if err := api.RelayStoredRoute(dst.Settings().Address, []rpc.StoredRoute{route}, plugin.OperatorSender()); err != nil {
 				t.Fatal(err)

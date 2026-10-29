@@ -317,9 +317,10 @@ func TestPolicyFinalRecoveryWithdrawsAfterDeniedSurvivor(t *testing.T) {
 		destination.refreshForwardFacts()
 		r.orderedEgressSteps = []orderedEgressStep{{name: policyChainStepName, policyChain: true}}
 		stored := storedIPv4Route(source.Settings().Address.String())
+		stored.SourcePolicyEpoch = source.sourcePolicyEpoch.Load()
 		original := mustHex(t, stored.AttrHex)
 		owner := ribevents.PublishRecovery(func(request ribevents.RecoveryRequest) ([]ribevents.RecoveryOutcome, error) {
-			return recoverySurvivorAnswer(request, syncOrderPrefixWire, ribevents.RecoveryRoute{Source: source.Settings().Address,
+			return recoverySurvivorAnswer(request, syncOrderPrefixWire, ribevents.RecoveryRoute{Source: source.Settings().Address, SourcePolicyEpoch: source.sourcePolicyEpoch.Load(),
 				NLRI: syncOrderPrefixWire, Attributes: original, NextHop: []byte{1, 1, 1, 1}, MessageID: 81}), nil
 		})
 		t.Cleanup(owner.Close)

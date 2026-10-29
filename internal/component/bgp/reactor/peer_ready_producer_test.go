@@ -252,7 +252,8 @@ func TestPeerReadyRIBReplayCompletion(t *testing.T) {
 				require.NoError(t, proc.Bridge().DeliverStructured([]any{&rpc.StructuredEvent{
 					PeerAddress: source.Settings().Address.String(), PeerAS: rpc.RemoteASOf(source.PeerAS()), EventType: rpc.EventKindUpdate,
 					Direction: rpc.DirectionReceived, MessageID: f.id,
-					RawMessage: &bgptypes.RawMessage{WireUpdate: update.WireUpdate, AttrsWire: attrs, MessageID: f.id},
+					RawMessage: &bgptypes.RawMessage{WireUpdate: update.WireUpdate, AttrsWire: attrs, MessageID: f.id,
+						SourcePolicyEpoch: update.SourcePolicyEpoch},
 				}}))
 				// RFC 4271 Section 9.2.
 				require.NoError(t, api.ForwardUpdatesDirect([]uint64{f.id}, []netip.AddrPort{f.destination.Settings().PeerKey()}, owner, plugin.OperatorSender()))
@@ -371,7 +372,8 @@ func TestPeerReadyRIBReconnectBeforeRelease(t *testing.T) {
 	require.NoError(t, proc.Bridge().DeliverStructured([]any{&rpc.StructuredEvent{
 		PeerAddress: f.source.Settings().Address.String(), PeerAS: rpc.RemoteASOf(f.source.PeerAS()), EventType: rpc.EventKindUpdate,
 		Direction: rpc.DirectionReceived, MessageID: f.id,
-		RawMessage: &bgptypes.RawMessage{WireUpdate: update.WireUpdate, AttrsWire: attrs, MessageID: f.id},
+		RawMessage: &bgptypes.RawMessage{WireUpdate: update.WireUpdate, AttrsWire: attrs, MessageID: f.id,
+			SourcePolicyEpoch: update.SourcePolicyEpoch},
 	}}))
 	// RFC 4271 Section 9.2: create history through the actual final writer.
 	require.NoError(t, api.ForwardUpdatesDirect([]uint64{update.WireUpdate.MessageID()},
@@ -471,7 +473,8 @@ func TestPeerReadyRIBNativeReconnect(t *testing.T) {
 					require.NoError(t, proc.Bridge().DeliverStructured([]any{&rpc.StructuredEvent{
 						PeerAddress: f.source.Settings().Address.String(), PeerAS: rpc.RemoteASOf(f.source.PeerAS()), EventType: rpc.EventKindUpdate,
 						Direction: rpc.DirectionReceived, MessageID: f.id,
-						RawMessage: &bgptypes.RawMessage{WireUpdate: update.WireUpdate, AttrsWire: attrs, MessageID: f.id},
+						RawMessage: &bgptypes.RawMessage{WireUpdate: update.WireUpdate, AttrsWire: attrs, MessageID: f.id,
+							SourcePolicyEpoch: update.SourcePolicyEpoch},
 					}}))
 					require.NoError(t, api.ForwardUpdatesDirect([]uint64{f.id},
 						[]netip.AddrPort{f.destination.Settings().PeerKey()}, owner, plugin.OperatorSender()))
@@ -591,7 +594,8 @@ func TestPeerReadyRRReplayErrorCompletion(t *testing.T) {
 			require.NoError(t, adj.Bridge().DeliverStructured([]any{&rpc.StructuredEvent{
 				PeerAddress: f.source.Settings().Address.String(), PeerAS: rpc.RemoteASOf(f.source.PeerAS()), EventType: rpc.EventKindUpdate,
 				Direction: rpc.DirectionReceived, MessageID: f.id,
-				RawMessage: &bgptypes.RawMessage{WireUpdate: update.WireUpdate, AttrsWire: attrs, MessageID: f.id},
+				RawMessage: &bgptypes.RawMessage{WireUpdate: update.WireUpdate, AttrsWire: attrs, MessageID: f.id,
+					SourcePolicyEpoch: update.SourcePolicyEpoch},
 			}}))
 			token := f.destination.session.initialReplay
 			if stale {

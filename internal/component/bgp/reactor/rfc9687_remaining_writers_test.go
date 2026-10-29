@@ -104,7 +104,7 @@ func rfc9687ForwardItem(t *testing.T, session *Session) fwdItem {
 	}
 	return fwdItem{
 		peer: peer, session: session, authority: adjOutForwarded,
-		receivedPeer: source, receivedGeneration: source.forwardGeneration.Load(),
+		receivedPeer: source, receivedGeneration: source.forwardGeneration.Load(), sourcePolicyEpoch: source.sourcePolicyEpoch.Load(),
 		sourcePeerStr: source.addrString,
 	}
 }

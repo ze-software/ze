@@ -143,7 +143,7 @@ func TestUnsendableSurvivorExclusionLiftedByLaterSession(t *testing.T) {
 	key := departureGenerationKey(t, rail.destination)
 	entry, held := adjOutTestEntry(rail.destination)
 	require.True(t, held)
-	unheld := ribevents.RecoveryRoute{Source: source, PathID: entry.owner.received + 1,
+	unheld := ribevents.RecoveryRoute{Source: source, SourcePolicyEpoch: rail.source.sourcePolicyEpoch.Load(), PathID: entry.owner.received + 1,
 		AddPath: entry.owner.addPath, MessageID: 3}
 	decided := recoveryAdmitKey{key: key, record: record}
 	admission := (&reactorAPIAdapter{r: rail.r}).newRecoveryAdmission(t.Context(), rail.destination, nil, nil)
@@ -201,7 +201,7 @@ func TestUnsendableSurvivorBoundIsTheRoundSnapshot(t *testing.T) {
 	rail.source.setState(PeerStateEstablished) // Started during the RIB lookup.
 	require.Greater(t, rail.source.forwardGeneration.Load(), issued)
 
-	outcome := ribevents.RecoveryOutcome{Survivors: []ribevents.RecoveryRoute{{Source: source,
+	outcome := ribevents.RecoveryOutcome{Survivors: []ribevents.RecoveryRoute{{Source: source, SourcePolicyEpoch: rail.source.sourcePolicyEpoch.Load(),
 		PathID: entry.owner.received + 1, AddPath: entry.owner.addPath, MessageID: 3}}}
 	require.NoError(t, adapter.queueRecoveryOutcome(&outcome, 0, family.IPv4Unicast, admission, plugin.OperatorSender()))
 	decided := &admission.keys[0]

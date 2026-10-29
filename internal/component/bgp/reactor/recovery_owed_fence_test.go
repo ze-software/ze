@@ -102,10 +102,10 @@ func departureResult(t *testing.T, done chan error) error {
 }
 
 // owedSurvivor answers one lookup with a single surviving candidate.
-func owedSurvivor(source netip.Addr, p []byte) owedAnswer {
+func owedSurvivor(source netip.Addr, epoch uint64, p []byte) owedAnswer {
 	attributes := []byte{0x40, 0x01, 0x01, 0x00, 0x40, 0x02, 0x00, 0x40, 0x03, 0x04, 192, 0, 2, 1}
 	return func(request ribevents.RecoveryRequest) []ribevents.RecoveryOutcome {
-		return recoverySurvivorAnswer(request, p, ribevents.RecoveryRoute{Source: source,
+		return recoverySurvivorAnswer(request, p, ribevents.RecoveryRoute{Source: source, SourcePolicyEpoch: epoch,
 			NLRI: p, Attributes: attributes, NextHop: []byte{192, 0, 2, 1}, MessageID: 7})
 	}
 }
@@ -272,7 +272,7 @@ func TestOwedKeyFenceInterleavings(t *testing.T) {
 		rail.request(t)
 		rail.forward(t, true, p) // A withdrawal of the candidate the round elects.
 		mover := rail.record(t)
-		rail.release <- owedSurvivor(rail.source.Settings().Address, p)
+		rail.release <- owedSurvivor(rail.source.Settings().Address, rail.source.sourcePolicyEpoch.Load(), p)
 		request := rail.request(t)
 		require.Len(t, recoveryWrittenUpdates(t, rail.conn.written()), 1,
 			"a candidate that withdrew after the snapshot is not written")
@@ -294,9 +294,9 @@ func TestOwedKeyFenceInterleavings(t *testing.T) {
 		generation := source.forwardGeneration.Load()
 		admission := (&reactorAPIAdapter{r: r}).newRecoveryAdmission(t.Context(), destination, session,
 			[]recoveryAdmitKey{{key: key, record: record, epoch: epoch,
-				candidate: adjOutPath{source: source}}})
+				candidate: adjOutPath{source: source, policyEpoch: source.sourcePolicyEpoch.Load()}}})
 		admission.items = []fwdItem{{peer: destination, rawBodies: [][]byte{syncOrderAnnounceBody},
-			receivedPeer: source, receivedGeneration: generation}}
+			receivedPeer: source, receivedGeneration: generation, sourcePolicyEpoch: source.sourcePolicyEpoch.Load()}}
 		admission.mark(0)
 		source.advanceForwardGeneration() // The source's session is replaced.
 		r.fwdPool.safeBatchHandle(fwdKey{peerAddr: destination.Settings().PeerKey()},
@@ -327,9 +327,9 @@ func TestOwedKeyFenceInterleavings(t *testing.T) {
 		generation := source.forwardGeneration.Load()
 		admission := (&reactorAPIAdapter{r: r}).newRecoveryAdmission(t.Context(), destination, session,
 			[]recoveryAdmitKey{{key: key, record: record, epoch: epoch,
-				candidate: adjOutPath{source: source}}})
+				candidate: adjOutPath{source: source, policyEpoch: source.sourcePolicyEpoch.Load()}}})
 		admission.items = []fwdItem{{peer: destination, session: session, authority: adjOutRecovery,
-			rawBodies: [][]byte{syncOrderAnnounceBody}, receivedPeer: source, receivedGeneration: generation}}
+			rawBodies: [][]byte{syncOrderAnnounceBody}, receivedPeer: source, receivedGeneration: generation, sourcePolicyEpoch: source.sourcePolicyEpoch.Load()}}
 		admission.mark(0)
 		source.acceptedReceive(2) // A later UPDATE on the same live session.
 		r.fwdPool.safeBatchHandle(fwdKey{peerAddr: destination.Settings().PeerKey()},
@@ -355,7 +355,7 @@ func TestOwedKeyFenceInterleavings(t *testing.T) {
 		rail.forward(t, true, p)
 		rail.request(t)
 		rail.source.acceptedReceive(2).complete(2) // After the round's cut.
-		rail.release <- owedSurvivor(rail.source.Settings().Address, p)
+		rail.release <- owedSurvivor(rail.source.Settings().Address, rail.source.sourcePolicyEpoch.Load(), p)
 		lowEventually(t, func() bool { return len(rail.owed()) == 0 }, "the round decides the key")
 		require.Len(t, recoveryWrittenUpdates(t, rail.conn.written()), 2, "the survivor is written")
 		select {
@@ -380,7 +380,7 @@ func TestOwedKeyFenceInterleavings(t *testing.T) {
 		require.Len(t, recoveryWrittenUpdates(t, rail.conn.written()), 1,
 			"the re-announcement cannot bypass the outstanding election")
 		mover := rail.record(t)
-		rail.release <- owedSurvivor(rail.source.Settings().Address, p) // The older revision.
+		rail.release <- owedSurvivor(rail.source.Settings().Address, rail.source.sourcePolicyEpoch.Load(), p) // The older revision.
 		request := rail.request(t)
 		require.Len(t, recoveryWrittenUpdates(t, rail.conn.written()), 2,
 			"the drained round may decide before the newer revision is elected")
@@ -394,7 +394,7 @@ func TestOwedKeyFenceInterleavings(t *testing.T) {
 		newerAttrs := append([]byte{0x40, 0x01, 0x01, 0x00, 0x40, 0x02, 0x00, 0x40, 0x03, 0x04, 192, 0, 2, 1}, med...)
 		source := rail.source.Settings().Address
 		rail.release <- func(request ribevents.RecoveryRequest) []ribevents.RecoveryOutcome {
-			return recoverySurvivorAnswer(request, p, ribevents.RecoveryRoute{Source: source,
+			return recoverySurvivorAnswer(request, p, ribevents.RecoveryRoute{Source: source, SourcePolicyEpoch: rail.source.sourcePolicyEpoch.Load(),
 				NLRI: p, Attributes: newerAttrs, NextHop: []byte{192, 0, 2, 1}, MessageID: 8})
 		}
 		lowEventually(t, func() bool { return len(rail.owed()) == 0 }, "the next round decides")
@@ -422,7 +422,7 @@ func TestOwedKeyFenceInterleavings(t *testing.T) {
 		rail.forward(t, true, p)
 		before := rail.record(t)
 		rail.request(t)
-		rail.release <- owedSurvivor(gone, p)
+		rail.release <- owedSurvivor(gone, 0, p)
 		request := rail.request(t)
 		require.Equal(t, []netip.Addr{gone}, request.Keys[0].Excluded,
 			"a survivor that no longer resolves is excluded from the next round")

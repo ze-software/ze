@@ -85,11 +85,13 @@ type adjOutPath struct {
 	// on its new session; it tells which session of the source wrote it.
 	generation uint64
 	// revocation is the owner's Peer.forwardRevocation when the path was
-	// written. Equality ignores it like the generation; adjOutOwnerCurrent reads
-	// both.
+	// written. Equality ignores it like the generation;
+	// adjOutOwnerSessionCurrent reads both.
 	revocation uint64
 	// policyEpoch is the original admission, never the epoch at replay/write.
-	// Ordinary withdrawal identity deliberately ignores it.
+	// Ordinary withdrawal identity deliberately ignores it; announcement
+	// fences read it through sourcePolicyCurrent (allow's announcement and
+	// expected-owner checks, adjOutHolds, heldSurvivor).
 	policyEpoch uint64
 	// message is the owner's RECEIVED message ID, the revision of the source's
 	// route the destination holds. revision is the SENT receipt's ID and

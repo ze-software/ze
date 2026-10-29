@@ -131,7 +131,7 @@ func TestReannouncedThenRestartedSourceStaysElectable(t *testing.T) {
 	require.Equal(t, uint64(1), entry.owner.message, "the owed key keeps session 1's path until decided")
 	admission := (&reactorAPIAdapter{r: rail.r}).newRecoveryAdmission(t.Context(), rail.destination, nil, nil)
 
-	retained := ribevents.RecoveryRoute{Source: source, PathID: entry.owner.received,
+	retained := ribevents.RecoveryRoute{Source: source, SourcePolicyEpoch: rail.source.sourcePolicyEpoch.Load(), PathID: entry.owner.received,
 		AddPath: entry.owner.addPath, MessageID: 2}
 	decided := recoveryAdmitKey{key: key, record: record}
 	admission.unsendableSurvivor(&decided, &retained)

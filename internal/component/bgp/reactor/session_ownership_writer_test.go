@@ -52,7 +52,7 @@ func ownershipWriterForward(t *testing.T, target, source *Peer, body []byte, enc
 	t.Helper()
 	s := target.currentSession()
 	item := fwdItem{peer: target, session: s, receivedPeer: source,
-		receivedGeneration: source.forwardGeneration.Load(), authority: adjOutForwarded}
+		receivedGeneration: source.forwardGeneration.Load(), sourcePolicyEpoch: source.sourcePolicyEpoch.Load(), authority: adjOutForwarded}
 	item.rawBodies = [][]byte{body}
 	original := wireu.NewWireUpdate(body, source.recvCtxID)
 	// RFC 7911 Section 2: retain source paths before the final writer.
@@ -293,7 +293,7 @@ func TestFinalWriterMixedWithdrawalIntent(t *testing.T) {
 	}
 	converted = converted[:n]
 	item := fwdItem{peer: peer, session: s, rawBodies: [][]byte{converted}, receivedPeer: source,
-		receivedGeneration: source.forwardGeneration.Load(), authority: adjOutForwarded}
+		receivedGeneration: source.forwardGeneration.Load(), sourcePolicyEpoch: source.sourcePolicyEpoch.Load(), authority: adjOutForwarded}
 	originalWire := wireu.NewWireUpdate(original, s.sendCtxID)
 	convertedWire := wireu.NewWireUpdate(converted, s.sendCtxID)
 	if err := prepareFwdProvenance(&item, originalWire, convertedWire, true); err != nil {
@@ -461,7 +461,7 @@ func TestFinalWriterSentReceipt(t *testing.T) {
 	sourceBody := fwdPackUpdateBody(&message.Update{PathAttributes: srcAttrs, NLRI: srcP})
 	finalBody := fwdPackUpdateBody(&message.Update{PathAttributes: dstAttrs, NLRI: p})
 	item := fwdItem{peer: peer, session: s, rawBodies: [][]byte{finalBody}, receivedPeer: source,
-		receivedGeneration: source.forwardGeneration.Load(), authority: adjOutForwarded}
+		receivedGeneration: source.forwardGeneration.Load(), sourcePolicyEpoch: source.sourcePolicyEpoch.Load(), authority: adjOutForwarded}
 	sourceWire := wireu.NewWireUpdate(sourceBody, ctxID)
 	if err := prepareFwdProvenance(&item, sourceWire, sourceWire, false); err != nil {
 		t.Fatal(err)

@@ -45,7 +45,7 @@ func (f *aigpReplayFixture) forwardViaRIB(t *testing.T, id uint64) {
 	var routes []rpc.StoredRoute
 	collect := func(data []byte, family string, withdraw bool) {
 		_, err := nlrisplit.SplitFlowSpec(data, false, func(rule []byte) bool {
-			route := rpc.StoredRoute{SourcePeer: source, Family: family, MsgID: id, Withdraw: withdraw,
+			route := rpc.StoredRoute{SourcePeer: source, SourcePolicyEpoch: f.source.sourcePolicyEpoch.Load(), Family: family, MsgID: id, Withdraw: withdraw,
 				NLRIHex: hex.EncodeToString([]byte(ribevents.FlowSpecKey(rule))), NLRIFraming: rpc.NLRIFramingPrefixOnly}
 			if !withdraw {
 				route.AttrHex = hex.EncodeToString(attrs)

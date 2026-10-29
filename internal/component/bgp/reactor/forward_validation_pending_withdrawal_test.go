@@ -45,6 +45,7 @@ func newPendingWithdrawalRails(t *testing.T) *pendingWithdrawalRails {
 	f := newAIGPReplayFixture(t, nil)
 	f.metric(7)
 	route := storedIPv4Route(f.source.Settings().Address.String())
+	route.SourcePolicyEpoch = f.source.sourcePolicyEpoch.Load()
 	route.NLRIHex = "180A1400"
 	return &pendingWithdrawalRails{f: f, api: &reactorAPIAdapter{r: f.r}, route: route,
 		prefix: []byte{24, 10, 20, 0}, eligible: eligible}

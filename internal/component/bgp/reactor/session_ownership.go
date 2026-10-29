@@ -23,6 +23,11 @@ var errAdjOutProvenance = errors.New("outbound path has no valid source ownershi
 var errAdjOutSession = errors.New("outbound work belongs to a retired session")
 var errRawOwnership = errors.New("raw diagnostic bytes sent; session retired because outbound ownership cannot be determined")
 
+// errAdjOutPolicy refuses received replay or recovery work whose original
+// import-policy admission is absent or superseded. It is an error, never a
+// silent no-op, so the caller keeps the work owed instead of counting it sent.
+var errAdjOutPolicy = errors.New("outbound path was admitted under an import policy that is no longer current")
+
 // adjOutWrite borrows one UPDATE's provenance. The pooled maps are bounded by
 // native paths in one extended message and cleared before release. They are not
 // a second recipient inventory. Callers MUST release after record or refusal.
@@ -222,6 +227,23 @@ func (w *adjOutWrite) allow(fam family.Family, raw []byte, withdraw, multiprotoc
 		if owner.source != nil {
 			owner.revocation = owner.source.forwardRevocation.Load()
 		}
+		// RFC 8212 Section 3 (sourcePolicyCurrent): a received announcement
+		// admitted under a superseded or unrecorded import policy is refused
+		// before it binds an identifier, is owed or elected, or is staged as
+		// a recovery survivor. Withdrawals are never fenced here: a current
+		// explicit withdrawal and an exact-owner removal keep their
+		// authority. An expected write is fenced below on its ORIGINAL
+		// owner, after its revision check. A forwarded announcement is
+		// dropped as the import policy would drop it; a replay or recovery
+		// survivor fails, so the work stays owed rather than reported sent.
+		if !withdraw && item.authority != adjOutExpected && item.authority != adjOutUnspecified {
+			if !sourcePolicyCurrent(owner.source, owner.policyEpoch) {
+				if item.authority == adjOutForwarded {
+					return false, nil
+				}
+				return false, errAdjOutPolicy
+			}
+		}
 		if key.addPath {
 			if owner.source != nil {
 				if !withdraw || item.authority == adjOutForwarded {
@@ -282,6 +304,13 @@ func (w *adjOutWrite) allow(fam family.Family, raw []byte, withdraw, multiprotoc
 				return false, nil
 			}
 			owner = entry.owner
+			// RFC 8212 Section 3 (sourcePolicyCurrent): the exact receipt
+			// reannounces only while its original owner's import admission
+			// is current. Its removal is never fenced, and a local owner
+			// has no import policy.
+			if !withdraw && !sourcePolicyCurrent(owner.source, owner.policyEpoch) {
+				return false, nil
+			}
 		case adjOutInitial:
 			if owner.source != item.receivedPeer {
 				return false, errAdjOutProvenance
@@ -320,13 +349,15 @@ func (w *adjOutWrite) allow(fam family.Family, raw []byte, withdraw, multiprotoc
 			if entry == nil {
 				return false, nil
 			}
-			if key.addPath && adjOutOwnerCurrent(entry.owner) {
+			if key.addPath && adjOutOwnerSessionCurrent(entry.owner) {
 				// A departure withdraws an ADD-PATH identifier only while
 				// the departed source's ended session or revoked binding
-				// owns it: the reconnected session's newer path, or an
-				// originated one, is never withdrawn for an old DOWN. A
-				// PATHS-LIMIT demotion withdraws a current path the RIB
-				// ranked outside the peer's limit.
+				// owns it: the reconnected session's newer path, a live
+				// session's path whose import admission is superseded, or
+				// an originated one, is never withdrawn for an old DOWN.
+				// A PATHS-LIMIT demotion withdraws a current path the RIB
+				// ranked outside the peer's limit, a policy-stale one
+				// included.
 				// draft-abraitis-idr-addpath-paths-limit Section 1
 				if !item.pathsLimitDemotion {
 					return false, nil
@@ -690,6 +721,13 @@ func (w *adjOutWrite) section(dst, data []byte, fam family.Family, withdraw, mul
 		// RFC 7911 Section 5; final destination framing, original provenance.
 		allowed, admissionErr := w.allow(fam, raw, withdraw, multiprotocol, occurrence, sig, readable)
 		occurrence++
+		// One refused NLRI fails the whole section. For errAdjOutPolicy that
+		// relies on an invariant: every NLRI of an initial, replay or
+		// recovery section shares one source and one original import epoch,
+		// because the epoch is the item's (fwdItem.sourcePolicyEpoch) and a
+		// packed section joins only items with equal epochs
+		// (recoveryPackJoins, the forward bucket's run test). A stale NLRI
+		// therefore means the whole section is stale.
 		if admissionErr != nil {
 			cause = admissionErr
 			return true
@@ -1036,6 +1074,12 @@ func (s *Session) checkInitialWrite(item *fwdItem) error {
 	}
 	if item.receivedPeer != nil && !initialSourceCurrent(item.receivedPeer, item.receivedGeneration, item.initialSourceState) {
 		return errAdjOutProvenance
+	}
+	// RFC 8212 Section 3 (sourcePolicyCurrent): a received replay with an
+	// absent or superseded original import admission is refused here, as an
+	// error. A local replay (no received peer) carries no import policy.
+	if !sourcePolicyCurrent(item.receivedPeer, item.sourcePolicyEpoch) {
+		return errAdjOutPolicy
 	}
 	return nil
 }

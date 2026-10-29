@@ -65,6 +65,10 @@ RS carries the scalar through its queued work item. The shared
 `textparse.SourcePolicyEpoch` parser rejects malformed values. An absent token
 records zero (unrecorded provenance), not the source's current epoch. NLRI
 parsing skips the reserved token and its value; it is not a route attribute.
+Only a header that carries a message ID carries the pair. The raw text line
+(`peer <ip> <direction> update raw <hex>`) and the empty UPDATE line
+(`peer <ip> update`) keep their grammar, which has no message ID: a reader
+records zero there, which grants no announcement authority.
 <!-- source: internal/component/bgp/textparse/scanner.go -- SourcePolicyEpoch -->
 <!-- source: internal/component/bgp/plugins/rr/rr.go -- dispatchText -->
 

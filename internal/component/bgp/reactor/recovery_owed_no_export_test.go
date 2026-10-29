@@ -51,7 +51,7 @@ func TestOwedKeyNoExportSurvivorWithdrawsAtExternalDestination(t *testing.T) {
 	}
 	source := rail.source.Settings().Address
 	rail.release <- func(request ribevents.RecoveryRequest) []ribevents.RecoveryOutcome {
-		return recoverySurvivorAnswer(request, p, ribevents.RecoveryRoute{Source: source,
+		return recoverySurvivorAnswer(request, p, ribevents.RecoveryRoute{Source: source, SourcePolicyEpoch: rail.source.sourcePolicyEpoch.Load(),
 			NLRI: p, Attributes: attributes, NextHop: []byte{192, 0, 2, 1}, MessageID: 9})
 	}
 

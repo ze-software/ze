@@ -299,7 +299,7 @@ func TestRelayFlowSpecRedirectNextHop(t *testing.T) {
 	ribevents.RegisterFlowSpecLookup(func(got ribevents.ValidationRoute, _ uint64) bool { return got == key },
 		func(got ribevents.ValidationRoute) bool { return got == key }, nil, nil)
 	t.Cleanup(func() { ribevents.RegisterFlowSpecLookup(nil, nil, nil, nil) })
-	route := rpc.StoredRoute{SourcePeer: src.Settings().Address.String(), Family: flowRedirectIPv4.String(),
+	route := rpc.StoredRoute{SourcePeer: src.Settings().Address.String(), SourcePolicyEpoch: src.sourcePolicyEpoch.Load(), Family: flowRedirectIPv4.String(),
 		NLRIHex: hex.EncodeToString(raw), AttrHex: hex.EncodeToString(attrs), MsgID: id, NLRIFraming: rpc.NLRIFramingPrefixOnly}
 	if err := api.RelayStoredRoute(dst.Settings().Address, []rpc.StoredRoute{route}, plugin.OperatorSender()); err != nil {
 		t.Fatal(err)

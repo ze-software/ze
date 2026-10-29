@@ -99,7 +99,7 @@ func TestRFC7311OtherAIGPTLVsPassedAlongUnchanged(t *testing.T) {
 			fwdBatchHandler(fwdKey{}, []fwdItem{{
 				peer: peer, session: peer.currentSession(), authority: adjOutForwarded,
 				rawBodies: [][]byte{rebuilt}, sourceMessageID: 1,
-				receivedPeer: source, receivedGeneration: source.forwardGeneration.Load(),
+				receivedPeer: source, receivedGeneration: source.forwardGeneration.Load(), sourcePolicyEpoch: source.sourcePolicyEpoch.Load(),
 				sourcePeerStr: source.addrString,
 			}})
 			sent := aigpWireValue(t, conn.written()[message.HeaderLen:])

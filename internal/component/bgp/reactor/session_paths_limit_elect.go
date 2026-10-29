@@ -195,15 +195,18 @@ func (s *Session) pathsLimitHeld(fam family.Family, route []byte, record *adjOut
 // pathsLimitHeldState classifies one held path. An originated path is neither
 // rankable nor departed: the RIB does not report it, so it keeps its slot
 // (D-7). A path an ended session owns is departed only when the record
-// excludes its source; otherwise graceful restart retains it. MUST be called
-// with the table mutex held.
+// excludes its source; otherwise graceful restart retains it. Retention is a
+// session fact (adjOutOwnerSessionCurrent): a live session's path whose import
+// admission is superseded stays rankable, so the election can demote it, and
+// never pins its slot as a retained path would. MUST be called with the table
+// mutex held.
 // RFC 4724 Section 4.2: "The router MUST NOT differentiate between stale and
 // other routing information during forwarding."
 func pathsLimitHeldState(owner adjOutPath, record *adjOutOwed) (rankable, departed bool) {
 	if owner.source == nil {
 		return false, false
 	}
-	if adjOutOwnerCurrent(owner) {
+	if adjOutOwnerSessionCurrent(owner) {
 		return true, false
 	}
 	_, excluded := record.exclusionOf(owner.source.Settings().Address)
@@ -335,8 +338,9 @@ func (p *pathsLimitElectionPlan) withdrawals(staged int) []uint32 {
 // hold, through its source's ordinary rail, so it leaves under the identifier
 // the forward rail minted for that source path (D-6), then the withdrawals,
 // which it moves ahead of the announcements so the peer never holds more than
-// its limit (D-5). A survivor the destination may not receive, or whose source
-// has no session to send it from, is skipped. Nothing staged is a decision too:
+// its limit (D-5). A survivor the destination may not receive, whose source
+// has no session to send it from, or whose original import admission is
+// superseded (sourcePolicyCurrent), is skipped. Nothing staged is a decision too:
 // the destination already holds the best paths.
 //
 // draft-abraitis-idr-addpath-paths-limit Section 1: "This indication allows
@@ -349,12 +353,21 @@ func (a *reactorAPIAdapter) queuePathsLimitElection(outcome *ribevents.RecoveryO
 	if err != nil {
 		return err
 	}
+	// RFC 8212 Section 3 (sourcePolicyCurrent): a survivor admitted under a
+	// superseded import policy is not eligible, so the election runs without
+	// it, as without an export-refused one: its slot goes to the next path,
+	// and a held path it was keeps no slot. The departed and outranked
+	// withdrawals are still staged.
+	survivors := outcome.Survivors
+	if slices.ContainsFunc(survivors, a.policyStaleSurvivor) {
+		survivors = slices.DeleteFunc(slices.Clone(survivors), a.policyStaleSurvivor)
+	}
 	// draft-abraitis-idr-addpath-paths-limit Section 3
-	plan := planPathsLimitElection(held, outcome.Survivors, admission.pathsLimit)
+	plan := planPathsLimitElection(held, survivors, admission.pathsLimit)
 	first := len(admission.items)
 	staged := 0
 	for _, i := range plan.announce {
-		survivor := &outcome.Survivors[i]
+		survivor := &survivors[i]
 		stored := rpc.StoredRoute{SourcePeer: survivor.Source.String(), Family: fam.String(),
 			NLRIHex: hex.EncodeToString(survivor.NLRI), AttrHex: hex.EncodeToString(survivor.Attributes),
 			NextHopHex: hex.EncodeToString(survivor.NextHop), MsgID: survivor.MessageID,
@@ -392,6 +405,12 @@ func (a *reactorAPIAdapter) queuePathsLimitElection(outcome *ribevents.RecoveryO
 		"held", len(held), "survivors", len(outcome.Survivors), "announced", staged,
 		"withdrawn", len(admission.items)-announced)
 	return nil
+}
+
+// policyStaleSurvivor is recoverySurvivorPolicyStale over a survivor value,
+// for the slices predicates of queuePathsLimitElection.
+func (a *reactorAPIAdapter) policyStaleSurvivor(survivor ribevents.RecoveryRoute) bool {
+	return a.recoverySurvivorPolicyStale(&survivor)
 }
 
 // pathsLimitSurvivorSkipped reports a survivor the forward rail cannot stage:

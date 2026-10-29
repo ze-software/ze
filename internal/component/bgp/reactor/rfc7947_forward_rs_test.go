@@ -804,6 +804,7 @@ func TestReactorForwardRSDirectWrite(t *testing.T) {
 		authority:          adjOutForwarded,
 		receivedPeer:       src,
 		receivedGeneration: src.forwardGeneration.Load(),
+		sourcePolicyEpoch:  src.sourcePolicyEpoch.Load(),
 		rawBodies:          [][]byte{body},
 	}
 

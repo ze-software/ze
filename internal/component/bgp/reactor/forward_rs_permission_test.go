@@ -173,6 +173,7 @@ func TestReactorForwardRSHonorsRelaySendPermission(t *testing.T) {
 	}
 	h.update.receivedPeer = source
 	h.update.receivedGeneration = source.forwardGeneration.Load()
+	h.update.SourcePolicyEpoch = source.sourcePolicyEpoch.Load()
 
 	bindings := [3][]ProcessBinding{
 		{rsRelaySendBinding()},
@@ -225,6 +226,7 @@ func TestReactorForwardRSRetryRechecksRelaySend(t *testing.T) {
 	}
 	h.update.receivedPeer = source
 	h.update.receivedGeneration = source.forwardGeneration.Load()
+	h.update.SourcePolicyEpoch = source.sourcePolicyEpoch.Load()
 
 	var output [2]bytes.Buffer
 	var sessions [2]*Session

@@ -418,6 +418,7 @@ func (f *ownershipRailFixture) publish(t *testing.T, source *Peer, ctxID bgpctx.
 	update.SourcePeerStr = source.Settings().Address.String()
 	update.receivedPeer = source
 	update.receivedGeneration = source.forwardGeneration.Load()
+	update.SourcePolicyEpoch = source.sourcePolicyEpoch.Load()
 	return update
 }
 

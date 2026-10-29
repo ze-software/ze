@@ -71,6 +71,10 @@ type recoveryAdmission struct {
 	// ADD-PATH destination, zero when the peer set none: a nonzero bound
 	// makes each key a limited election (queuePathsLimitElection).
 	pathsLimit uint16
+	// policyHeld marks, per item, a section admit held back because its
+	// original import admission is superseded (sourcePolicyCurrent). Nil
+	// until admit holds one; read by writes for a recoveryKeyPolicyStale key.
+	policyHeld []bool
 }
 
 // newRecoveryAdmission builds the admission of one lookup of destination
@@ -110,6 +114,13 @@ const (
 	// and received message ID equal). The record is removed as for
 	// recoveryKeyWrite.
 	recoveryKeyHeld
+	// recoveryKeyPolicyStale: a staged announcement's original import
+	// admission was superseded after the producer staged it
+	// (sourcePolicyCurrent). Its stale sections are held back and never
+	// written; the key's other sections (a PATHS-LIMIT election's
+	// withdrawals) are written. settle re-owes the key, so the next round
+	// elects without the stale survivor (queueRecoveryOutcome).
+	recoveryKeyPolicyStale
 )
 
 // recoveryAdmitKey is one owed key of an admission, with the record and the
@@ -146,8 +157,11 @@ func (admission *recoveryAdmission) settleGone() {
 // are written. Per key the owed record must still be the one the round read,
 // belong to this session, and carry the round's epoch; the chosen candidate
 // must not have withdrawn the key since the snapshot, and its source must
-// still be the live session the round captured. A candidate the destination
-// already holds is decided with nothing to write. An announcement of the key
+// still be the live session the round captured. A section whose original
+// import admission is superseded (sourcePolicyCurrent) is held back and its
+// key re-owed (recoveryKeyPolicyStale), while the key's other sections are
+// still written. A candidate the destination already holds is decided with
+// nothing to write. An announcement of the key
 // since the snapshot does not stop the decision: settle re-owes it. It reports false
 // when the admission belongs to another session, whose table reset dropped
 // every key, or when the session is tearing down.
@@ -189,6 +203,17 @@ func (admission *recoveryAdmission) admit(session *Session) bool {
 			key.outcome = recoveryKeyLeftOwed
 			continue
 		}
+		if !sourcePolicyCurrent(key.candidate.source, key.candidate.policyEpoch) {
+			// RFC 8212 Section 3 (sourcePolicyCurrent): the producer skips a
+			// stale survivor (queueRecoveryOutcome), so this policy change
+			// landed after staging. The candidate is neither written nor
+			// held: the section fence below holds its sections back, and
+			// settle re-owes the key for a round that elects without it. A
+			// policy change keeps the source's session, so it is never an
+			// exclusion of that source (reowe).
+			key.outcome = recoveryKeyPolicyStale
+			continue
+		}
 		if adjOutHolds(table.routes[key.key], key.candidate) {
 			// RFC 4271 Section 9.2: "All newly installed routes and all
 			// newly unfeasible routes for which there is no replacement route
@@ -205,15 +230,27 @@ func (admission *recoveryAdmission) admit(session *Session) bool {
 	// since the cut (receiveCutState).
 	for j := range admission.items {
 		section := &admission.items[j]
-		if admission.keys[admission.itemKeys[j]].outcome != recoveryKeyWrite {
+		key := &admission.keys[admission.itemKeys[j]]
+		if key.outcome != recoveryKeyWrite && key.outcome != recoveryKeyPolicyStale {
 			continue
 		}
 		switch admission.sourceState(section) {
 		case receiveCutCurrent:
 		case receiveCutEnded:
 			admission.reowe(j)
+			continue
 		case receiveCutUnspecified:
 			panic("BUG: recovery source fence returned no cut state")
+		}
+		// RFC 8212 Section 3 (sourcePolicyCurrent): per section, because a
+		// PATHS-LIMIT election's key carries no single candidate. Only the
+		// stale section is held back: the key's withdrawals are still
+		// written, as RFC 4271 Section 9.2 owes them, and the key is
+		// re-owed (settle). A withdrawal section has no source and is
+		// always current.
+		if !sourcePolicyCurrent(section.receivedPeer, section.sourcePolicyEpoch) {
+			admission.holdSection(j)
+			key.outcome = recoveryKeyPolicyStale
 		}
 	}
 	return true
@@ -221,9 +258,15 @@ func (admission *recoveryAdmission) admit(session *Session) bool {
 
 // adjOutHolds reports whether entry is candidate's route: the same owner
 // identity and the same received revision. A withdrawal decision (no
-// candidate) holds nothing.
+// candidate) holds nothing, and neither does a candidate whose original
+// import admission is superseded: settling it as held would report stale work
+// decided.
+// RFC 8212 Section 3 (sourcePolicyCurrent).
 func adjOutHolds(entry *adjRIBOutRoute, candidate adjOutPath) bool {
 	if candidate.source == nil {
+		return false
+	}
+	if !sourcePolicyCurrent(candidate.source, candidate.policyEpoch) {
 		return false
 	}
 	if entry == nil {
@@ -252,9 +295,27 @@ func (admission *recoveryAdmission) sourceState(section *fwdItem) receiveCutStat
 	return receipt.cut.state(section.receivedPeer)
 }
 
-// writes reports whether item j's key is admitted for writing.
+// holdSection marks item j held back for a superseded import admission.
+func (admission *recoveryAdmission) holdSection(j int) {
+	if admission.policyHeld == nil {
+		admission.policyHeld = make([]bool, len(admission.items))
+	}
+	admission.policyHeld[j] = true
+}
+
+// writes reports whether item j is admitted for writing: its key is, or its
+// key is re-owed for policy and admit did not hold this section back. A
+// policy-stale key whose sections admit never marked writes none of them,
+// so a stale announcement is never written or counted written.
 func (admission *recoveryAdmission) writes(j int) bool {
-	return admission.keys[admission.itemKeys[j]].outcome == recoveryKeyWrite
+	outcome := admission.keys[admission.itemKeys[j]].outcome
+	if outcome == recoveryKeyWrite {
+		return true
+	}
+	if outcome != recoveryKeyPolicyStale {
+		return false
+	}
+	return j < len(admission.policyHeld) && !admission.policyHeld[j]
 }
 
 // reowe re-owes item j's key with the item's source excluded. A key whose
@@ -304,6 +365,16 @@ func (admission *recoveryAdmission) settle() {
 			table.removeOwed(key.key, record)
 		case recoveryKeyReowed:
 			record.exclude(key.gone)
+			reowed = true
+		case recoveryKeyPolicyStale:
+			// RFC 4271 Section 9.2: a departed or withdrawn route is
+			// still owed its replacement or withdrawal. The epoch moves so
+			// no older round decides it, and the next round elects without
+			// the stale survivor. No source is excluded: its session stands.
+			if record.epoch != key.epoch {
+				continue
+			}
+			record.epoch++
 			reowed = true
 		case recoveryKeyGone, recoveryKeyLeftOwed:
 		case recoveryKeyUnspecified:
@@ -530,14 +601,20 @@ func departedOwner(entry *adjRIBOutRoute, departure adjOutExclusion) bool {
 	if entry.owner.generation > departure.departed {
 		return false
 	}
-	return !adjOutOwnerCurrent(entry.owner)
+	// A departure is a session fact: a path whose import admission is
+	// superseded on a live session is not departed, and excluding its source
+	// would hide that source's re-admitted routes from the election.
+	return !adjOutOwnerSessionCurrent(entry.owner)
 }
 
-// adjOutOwnerCurrent reports whether owner still owns its path: its source's
-// session is the one that wrote it (forwardSourceCurrent) and no targeted
-// down revoked the source's binding since (Peer.forwardRevocation). An
-// originated path has no source and is always current.
-func adjOutOwnerCurrent(owner adjOutPath) bool {
+// adjOutOwnerSessionCurrent reports whether owner's source session is the one
+// that wrote it (forwardSourceCurrent) and no targeted down revoked the
+// source's binding since (Peer.forwardRevocation). It ignores import policy
+// (sourcePolicyCurrent), which a policy change moves while keeping the
+// session: every caller classifies a session fact, a departure or
+// graceful-restart retention. An originated path has no source and is always
+// current.
+func adjOutOwnerSessionCurrent(owner adjOutPath) bool {
 	if !forwardSourceCurrent(owner.source, owner.generation) {
 		return false
 	}
@@ -668,9 +745,9 @@ func (a *reactorAPIAdapter) releaseRecoveryItemsFrom(admission *recoveryAdmissio
 
 // queueRecoveryOutcome stages key k's decision. WITHDRAW withdraws the
 // record's advertisement, or at an ADD-PATH destination each identifier the
-// RIB names; SURVIVORS writes the first candidate, in election order, that
-// the destination's export policy permits, and the withdrawal when it permits
-// none. A survivor whose session ended or restarted since the round's receipt
+// RIB names; SURVIVORS writes the first candidate, in election order, whose
+// original import admission is current (sourcePolicyCurrent) and that the
+// destination's export policy permits, and the withdrawal when none is. A survivor whose session ended or restarted since the round's receipt
 // is written nowhere: the key is re-owed with that source excluded, so the
 // next round elects over the survivors without it, and the admission's other
 // keys are still decided.
@@ -700,6 +777,13 @@ func (a *reactorAPIAdapter) queueRecoveryOutcome(outcome *ribevents.RecoveryOutc
 	// Bounded by the RIB's candidates for one key.
 	for i := range outcome.Survivors {
 		survivor := &outcome.Survivors[i]
+		if a.recoverySurvivorPolicyStale(survivor) {
+			// RFC 8212 Section 3 (sourcePolicyCurrent): a survivor admitted
+			// under a superseded import policy is not eligible, as an export
+			// refusal is not sendable: the next candidate in election order
+			// is tried, and with none the departed route is withdrawn below.
+			continue
+		}
 		stored := rpc.StoredRoute{SourcePeer: survivor.Source.String(), Family: fam.String(),
 			NLRIHex: hex.EncodeToString(survivor.NLRI), AttrHex: hex.EncodeToString(survivor.Attributes),
 			NextHopHex: hex.EncodeToString(survivor.NextHop), MsgID: survivor.MessageID,
@@ -737,8 +821,11 @@ func (a *reactorAPIAdapter) queueRecoveryOutcome(outcome *ribevents.RecoveryOutc
 			continue
 		}
 		n := len(admission.items)
+		// The candidate keeps the survivor's ORIGINAL import admission, which
+		// admit and adjOutHolds compare (sourcePolicyCurrent).
 		key.candidate = adjOutPath{source: admission.items[n-1].receivedPeer,
-			received: survivor.PathID, addPath: survivor.AddPath, message: survivor.MessageID}
+			received: survivor.PathID, addPath: survivor.AddPath, message: survivor.MessageID,
+			policyEpoch: admission.items[n-1].sourcePolicyEpoch}
 		return nil
 	}
 	// RFC 4271 Section 9.1.3: "If a route in Loc-RIB is excluded from a
@@ -803,7 +890,27 @@ func (admission *recoveryAdmission) heldSurvivor(key adjOutKey, survivor *ribeve
 	if owner.addPath != survivor.AddPath {
 		return adjOutPath{}, false
 	}
+	// RFC 8212 Section 3 (sourcePolicyCurrent): a path admitted under a
+	// superseded import policy is not retained; holding it would leave the
+	// key owed forever, since admit refuses to decide a stale candidate.
+	if !sourcePolicyCurrent(owner.source, owner.policyEpoch) {
+		return adjOutPath{}, false
+	}
 	return owner, true
+}
+
+// recoverySurvivorPolicyStale reports whether survivor was admitted under an
+// import policy its source has since superseded (sourcePolicyCurrent). A
+// source the reactor does not know is not judged here: queueRecovery answers
+// it as having no session (errRelayNoSource).
+// RFC 8212 Section 3: "Routes contained in an Adj-RIB-In associated with an
+// EBGP peer SHALL NOT be considered eligible in the Decision Process if no
+// explicit Import Policy has been applied."
+func (a *reactorAPIAdapter) recoverySurvivorPolicyStale(survivor *ribevents.RecoveryRoute) bool {
+	a.r.mu.RLock()
+	source, found := a.r.findPeerByAddr(survivor.Source)
+	a.r.mu.RUnlock()
+	return found && !sourcePolicyCurrent(source, survivor.SourcePolicyEpoch)
 }
 
 // recoveryStagedAnnouncement reports whether a candidate's staged sections

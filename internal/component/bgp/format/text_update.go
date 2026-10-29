@@ -258,6 +258,11 @@ func appendEmptyUpdate(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMessag
 		buf = append(buf, '\n')
 		return buf
 	}
+	// The text form states no route and has no message ID, so it carries no
+	// source-policy-epoch: the reserved pair's position is after the message
+	// ID. A reader records zero, which grants no announcement authority, and a
+	// line with no route needs none. The JSON form above carries the original
+	// epoch as provenance of the message.
 	buf = append(buf, "peer "...)
 	buf = peer.Address.AppendTo(buf)
 	buf = append(buf, " update\n"...)
@@ -353,10 +358,10 @@ func appendRawFromResult(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMess
 	buf = peer.Address.AppendTo(buf)
 	buf = append(buf, ' ')
 	buf = direction.AppendTo(buf)
-	buf = append(buf, " update "...)
-	buf = strconv.AppendUint(buf, msg.MessageID, 10)
-	buf = appendSourcePolicyEpochText(buf, msg.SourcePolicyEpoch)
-	buf = append(buf, " raw "...)
+	// The raw text line keeps its grammar, which has no message ID and so no
+	// slot for the reserved source-policy-epoch pair: a reader records zero,
+	// unrecorded provenance, which grants no announcement authority.
+	buf = append(buf, " update raw "...)
 	buf = hex.AppendEncode(buf, msg.RawBytes)
 	buf = append(buf, '\n')
 	return buf
@@ -721,10 +726,9 @@ func appendFullFromResult(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMes
 		buf = peer.Address.AppendTo(buf)
 		buf = append(buf, ' ')
 		buf = direction.AppendTo(buf)
-		buf = append(buf, " update "...)
-		buf = strconv.AppendUint(buf, msg.MessageID, 10)
-		buf = appendSourcePolicyEpochText(buf, msg.SourcePolicyEpoch)
-		buf = append(buf, " raw "...)
+		// The parsed line above carries the message ID and the epoch; the raw
+		// line keeps its own grammar (appendRawFromResult).
+		buf = append(buf, " update raw "...)
 		buf = hex.AppendEncode(buf, msg.RawBytes)
 		buf = append(buf, '\n')
 		return buf

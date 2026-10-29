@@ -190,13 +190,14 @@ func TestRecoveryFinalWorkerRequestsCausalReresolution(t *testing.T) {
 			}
 			setup := len(conn.written())
 			stored := storedIPv4Route(source.Settings().Address.String())
+			stored.SourcePolicyEpoch = source.sourcePolicyEpoch.Load()
 			attrs, err := hex.DecodeString(stored.AttrHex)
 			require.NoError(t, err)
 			recoveryOwnerStart(t, r, destination)
 			var calls atomic.Int32
 			owner := ribevents.PublishRecovery(func(request ribevents.RecoveryRequest) ([]ribevents.RecoveryOutcome, error) {
 				calls.Add(1)
-				return recoverySurvivorAnswer(request, syncOrderPrefixWire, ribevents.RecoveryRoute{Source: source.Settings().Address,
+				return recoverySurvivorAnswer(request, syncOrderPrefixWire, ribevents.RecoveryRoute{Source: source.Settings().Address, SourcePolicyEpoch: source.sourcePolicyEpoch.Load(),
 					NLRI: syncOrderPrefixWire, Attributes: attrs, NextHop: []byte{1, 1, 1, 1}, MessageID: 81}), nil
 			})
 			t.Cleanup(owner.Close)
@@ -238,6 +239,7 @@ func TestRecoveryLookupRejectsReconnectedSource(t *testing.T) {
 	failed := recoveryAdvertiseFailed(t, r, destination, syncOrderAnnounceBody)
 	setup := len(conn.written())
 	stored := storedIPv4Route(source.Settings().Address.String())
+	stored.SourcePolicyEpoch = source.sourcePolicyEpoch.Load()
 	attrs, err := hex.DecodeString(stored.AttrHex)
 	require.NoError(t, err)
 	recoveryOwnerStart(t, r, destination)
@@ -248,7 +250,7 @@ func TestRecoveryLookupRejectsReconnectedSource(t *testing.T) {
 		}
 		source.setState(PeerStateStopped)
 		source.setState(PeerStateEstablished)
-		return recoverySurvivorAnswer(request, syncOrderPrefixWire, ribevents.RecoveryRoute{Source: source.Settings().Address,
+		return recoverySurvivorAnswer(request, syncOrderPrefixWire, ribevents.RecoveryRoute{Source: source.Settings().Address, SourcePolicyEpoch: source.sourcePolicyEpoch.Load(),
 			NLRI: syncOrderPrefixWire, Attributes: attrs, NextHop: []byte{1, 1, 1, 1}, MessageID: 81}), nil
 	})
 	t.Cleanup(owner.Close)
@@ -313,10 +315,11 @@ func TestRecoveryMixedPolicySectionsCompleteOnce(t *testing.T) {
 			})
 			r.orderedEgressSteps = append(r.orderedEgressSteps, orderedEgressStep{name: policyChainStepName, policyChain: true})
 			stored := storedIPv4Route(source.Settings().Address.String())
+			stored.SourcePolicyEpoch = source.sourcePolicyEpoch.Load()
 			original, err := hex.DecodeString(stored.AttrHex)
 			require.NoError(t, err)
 			owner := ribevents.PublishRecovery(func(request ribevents.RecoveryRequest) ([]ribevents.RecoveryOutcome, error) {
-				return recoverySurvivorAnswer(request, syncOrderPrefixWire, ribevents.RecoveryRoute{Source: source.Settings().Address,
+				return recoverySurvivorAnswer(request, syncOrderPrefixWire, ribevents.RecoveryRoute{Source: source.Settings().Address, SourcePolicyEpoch: source.sourcePolicyEpoch.Load(),
 					NLRI: syncOrderPrefixWire, Attributes: original, NextHop: []byte{1, 1, 1, 1}, MessageID: 81}), nil
 			})
 			t.Cleanup(owner.Close)
@@ -550,12 +553,13 @@ func TestRecoverySourceLossBeforeEnqueueReowes(t *testing.T) {
 	require.Len(t, recoveryWrittenUpdates(t, setup), 1)
 	recoveryOwnerStart(t, r, destination)
 	stored := storedIPv4Route(source.Settings().Address.String())
+	stored.SourcePolicyEpoch = source.sourcePolicyEpoch.Load()
 	attrs, err := hex.DecodeString(stored.AttrHex)
 	require.NoError(t, err)
 	var lookups recoveryLookups
 	owner := ribevents.PublishRecovery(func(request ribevents.RecoveryRequest) ([]ribevents.RecoveryOutcome, error) {
 		if lookups.add(request) == 1 {
-			return recoverySurvivorAnswer(request, syncOrderPrefixWire, ribevents.RecoveryRoute{Source: source.Settings().Address,
+			return recoverySurvivorAnswer(request, syncOrderPrefixWire, ribevents.RecoveryRoute{Source: source.Settings().Address, SourcePolicyEpoch: source.sourcePolicyEpoch.Load(),
 				NLRI: syncOrderPrefixWire, Attributes: attrs, NextHop: []byte{1, 1, 1, 1}, MessageID: 81}), nil
 		}
 		return recoveryWithdrawAnswer(request), nil
@@ -738,6 +742,7 @@ func TestRecoveryWriterFailureOverridesPartialRetry(t *testing.T) {
 			}
 			session.bufWriter = bufio.NewWriterSize(conn, size)
 			stored := storedIPv4Route(source.Settings().Address.String())
+			stored.SourcePolicyEpoch = source.sourcePolicyEpoch.Load()
 			attrs, err := hex.DecodeString(stored.AttrHex)
 			require.NoError(t, err)
 			var lookups recoveryLookups
@@ -750,7 +755,7 @@ func TestRecoveryWriterFailureOverridesPartialRetry(t *testing.T) {
 				}
 				outcomes := recoveryWithdrawAnswer(request)
 				outcomes[1] = recoverySurvivorAnswer(request, nil, ribevents.RecoveryRoute{
-					Source: source.Settings().Address, NLRI: request.Keys[1].NLRI,
+					Source: source.Settings().Address, SourcePolicyEpoch: source.sourcePolicyEpoch.Load(), NLRI: request.Keys[1].NLRI,
 					Attributes: attrs, NextHop: []byte{1, 1, 1, 1}, MessageID: 81})[1]
 				return outcomes, nil
 			})

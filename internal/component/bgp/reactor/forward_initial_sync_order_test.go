@@ -217,6 +217,7 @@ func syncOrderPublish(t *testing.T, r *Reactor, ctxID bgpctx.ContextID, updateID
 		ReceivedAt:         time.Now(),
 		receivedPeer:       source,
 		receivedGeneration: source.forwardGeneration.Load(),
+		SourcePolicyEpoch:  source.sourcePolicyEpoch.Load(),
 	}
 	r.recentUpdates.Add(update)
 	r.recentUpdates.Activate(updateID, 1)

@@ -127,6 +127,7 @@ func fwdChurnRelay(t *testing.T, r *Reactor, src *Peer, ctxID bgpctx.ContextID, 
 		ReceivedAt:         time.Now(),
 		receivedPeer:       src,
 		receivedGeneration: src.forwardGeneration.Load(),
+		SourcePolicyEpoch:  src.sourcePolicyEpoch.Load(),
 	}
 	r.recentUpdates.Add(update)
 	r.recentUpdates.Activate(updateID, 1)

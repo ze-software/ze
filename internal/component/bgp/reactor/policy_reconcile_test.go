@@ -543,6 +543,7 @@ func testPolicyFinalReplayWithdrawnAddPath(t *testing.T, gapEviction bool) {
 		operatorBinding(t, "policy-retained-page", "state", "update"),
 	}
 	route := storedIPv4Route(source.Settings().Address.String())
+	route.SourcePolicyEpoch = source.sourcePolicyEpoch.Load()
 	route.PathID = 7
 	route.NLRIHex = "18c00002"
 	route.NLRIFraming = rpc.NLRIFramingPrefixOnly

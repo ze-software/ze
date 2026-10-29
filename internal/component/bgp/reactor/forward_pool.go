@@ -146,6 +146,22 @@ func initialSourceCurrent(peer *Peer, generation uint64, state PeerState) bool {
 		peer.forwardGeneration.Load() == generation
 }
 
+// sourcePolicyCurrent is the import-policy fence for received work, separate
+// from the session fences above: a policy change keeps the session, its
+// generation and its retained-down state, so neither of those may stand in for
+// it. epoch is the work's ORIGINAL admission (Peer.sourcePolicyEpoch captured
+// at receive), never the epoch at dispatch or replay. A nil peer is a local
+// origin, which no import policy admits, and is current. Zero is unrecorded
+// and never current for received work: there is no fallback to the live epoch.
+// Lock-free; writers call it under the destination's writeMu, where
+// advanceSourcePolicyEpoch's coordinator settles them.
+// RFC 8212 Section 3: "Routes contained in an Adj-RIB-In associated with an
+// EBGP peer SHALL NOT be considered eligible in the Decision Process if no
+// explicit Import Policy has been applied."
+func sourcePolicyCurrent(peer *Peer, epoch uint64) bool {
+	return peer == nil || (epoch != 0 && peer.sourcePolicyEpoch.Load() == epoch)
+}
+
 // fwdWriteDeadlineDefault is the default TCP write deadline for forward pool
 // batch writes (30 seconds). Overridable via env var ze.fwd.write.deadline.
 const fwdWriteDeadlineDefault = 30 * time.Second

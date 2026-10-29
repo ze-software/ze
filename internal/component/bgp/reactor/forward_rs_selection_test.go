@@ -55,6 +55,7 @@ func BenchmarkReactorForwardRSMixedRetry(b *testing.B) {
 			h.update.WireUpdate = wire
 			h.update.receivedPeer = source
 			h.update.receivedGeneration = source.forwardGeneration.Load()
+			h.update.SourcePolicyEpoch = source.sourcePolicyEpoch.Load()
 			for _, peer := range h.dests {
 				peer.settings.RSClient = true
 				peer.settings.PeerAS = 65002
@@ -120,6 +121,7 @@ func TestReactorForwardRSRetrySelection(t *testing.T) {
 	}
 	h.update.receivedPeer = source
 	h.update.receivedGeneration = source.forwardGeneration.Load()
+	h.update.SourcePolicyEpoch = source.sourcePolicyEpoch.Load()
 	source.settings.PeerAS = source.settings.LocalAS
 	source.settings.RouteReflectorClient = true
 	source.remoteRouterID.Store(0x0a000001)

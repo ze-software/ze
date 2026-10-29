@@ -133,8 +133,9 @@ than round it through a floating-point value.
 
 The parsed text encoding carries the same value as the reserved header pair
 `source-policy-epoch <uint64>` immediately after the UPDATE message ID and before
-attributes. The in-process `StructuredEvent` and raw message carry
-`SourcePolicyEpoch` directly.
+attributes. The raw and empty text UPDATE lines have no message ID and carry no
+epoch, so a text reader records zero there (`text-parser.md`). The in-process
+`StructuredEvent` and raw message carry `SourcePolicyEpoch` directly.
 <!-- source: internal/component/bgp/format/text_update.go -- appendSourcePolicyEpochJSON, appendSourcePolicyEpochText -->
 <!-- source: internal/component/bgp/server/events.go -- getStructuredEvent -->
 <!-- source: internal/component/bgp/event.go -- Event, ParseEvent -->

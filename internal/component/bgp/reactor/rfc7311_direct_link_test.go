@@ -89,7 +89,7 @@ func aigpForwardToWire(t *testing.T, original, transformed []byte, synthesized b
 	item := fwdItem{
 		peer: peer, session: peer.currentSession(), authority: adjOutForwarded,
 		rawBodies: [][]byte{transformed}, sourceMessageID: 1,
-		receivedPeer: source, receivedGeneration: source.forwardGeneration.Load(),
+		receivedPeer: source, receivedGeneration: source.forwardGeneration.Load(), sourcePolicyEpoch: source.sourcePolicyEpoch.Load(),
 		sourcePeerStr: source.addrString,
 	}
 	var pool fwdPool

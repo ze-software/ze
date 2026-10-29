@@ -46,7 +46,7 @@ func adjOutTestSend(t *testing.T, target, source *Peer, item *fwdItem, body []by
 // in the message numbered message.
 func adjOutTestForward(t *testing.T, target, source *Peer, raw []byte, message uint64) {
 	t.Helper()
-	item := fwdItem{receivedPeer: source, receivedGeneration: source.forwardGeneration.Load(),
+	item := fwdItem{receivedPeer: source, receivedGeneration: source.forwardGeneration.Load(), sourcePolicyEpoch: source.sourcePolicyEpoch.Load(),
 		authority: adjOutForwarded, sourceMessageID: message}
 	adjOutTestSend(t, target, source, &item, ownershipRailBody(family.IPv4Unicast, false, raw, 0))
 }
@@ -261,7 +261,7 @@ func TestAdjOutAnnouncementOwedWhenEntryExists(t *testing.T) {
 		rail.request(t)
 		// The RIB elects the revision the destination holds: nothing is
 		// written, the record goes, and the entry stays contested.
-		rail.release <- owedSurvivorMessage(rail.source.Settings().Address, p, 11)
+		rail.release <- owedSurvivorMessage(rail.source.Settings().Address, rail.source.sourcePolicyEpoch.Load(), p, 11)
 		lowEventually(t, func() bool { return len(rail.owed()) == 0 }, "the round decided P")
 		entry, _ := adjOutTestEntry(rail.destination)
 		require.Same(t, rail.source, entry.owner.source)
@@ -305,7 +305,7 @@ func TestAdjOutAnnouncementOwedWhenEntryExists(t *testing.T) {
 		session.initialReplay = 5
 		session.writeMu.Unlock()
 		rail.destination.initialSyncEOROwed.Store(true)
-		item := fwdItem{receivedPeer: rail.source, receivedGeneration: rail.source.forwardGeneration.Load(),
+		item := fwdItem{receivedPeer: rail.source, receivedGeneration: rail.source.forwardGeneration.Load(), sourcePolicyEpoch: rail.source.sourcePolicyEpoch.Load(),
 			authority: adjOutInitial, sourceMessageID: 81, initialReplay: 5, initialUpdate: true,
 			expectedMessage: 91, initialSourceState: PeerStateEstablished}
 		withdrawal := ownershipRailBody(family.IPv4Unicast, true, p, 0)
@@ -316,7 +316,7 @@ func TestAdjOutAnnouncementOwedWhenEntryExists(t *testing.T) {
 
 		adjOutTestForward(t, rail.destination, rail.source, p, 11)
 		before := len(recoveryWrittenUpdates(t, rail.conn.written()))
-		item = fwdItem{receivedPeer: rail.source, receivedGeneration: rail.source.forwardGeneration.Load(),
+		item = fwdItem{receivedPeer: rail.source, receivedGeneration: rail.source.forwardGeneration.Load(), sourcePolicyEpoch: rail.source.sourcePolicyEpoch.Load(),
 			authority: adjOutInitial, sourceMessageID: 81, initialReplay: 5, initialUpdate: true,
 			expectedMessage: 91, initialSourceState: PeerStateEstablished}
 		adjOutTestSend(t, rail.destination, rail.source, &item, withdrawal)
@@ -339,7 +339,7 @@ func TestAdjOutAnnouncementOwedWhenEntryExists(t *testing.T) {
 		rail.destination.session.setSendCtxID(ctxID)
 		rail.source.recvCtxID, other.recvCtxID = ctxID, ctxID
 		send := func(source *Peer, path byte, message uint64) {
-			item := fwdItem{receivedPeer: source, receivedGeneration: source.forwardGeneration.Load(),
+			item := fwdItem{receivedPeer: source, receivedGeneration: source.forwardGeneration.Load(), sourcePolicyEpoch: source.sourcePolicyEpoch.Load(),
 				authority: adjOutForwarded, sourceMessageID: message}
 			raw := []byte{0, 0, 0, path, 24, 192, 0, 2}
 			adjOutTestSend(t, rail.destination, source, &item, ownershipRailBody(family.IPv4Unicast, false, raw, 0))
@@ -374,7 +374,7 @@ func TestAdjOutAnnouncementOwedWhenEntryExists(t *testing.T) {
 		// same way: oweDeparture owes only a key a write installed.
 		prefix := []byte{24, 100, 64, 255}
 		raw := append([]byte{0, 0, 0, 0}, prefix...)
-		first := fwdItem{receivedPeer: rail.source, receivedGeneration: rail.source.forwardGeneration.Load(),
+		first := fwdItem{receivedPeer: rail.source, receivedGeneration: rail.source.forwardGeneration.Load(), sourcePolicyEpoch: rail.source.sourcePolicyEpoch.Load(),
 			authority: adjOutForwarded, sourceMessageID: 10}
 		adjOutTestSend(t, rail.destination, rail.source, &first, ownershipRailBody(family.IPv4Unicast, false, raw, 0))
 		table := &rail.destination.adjOut
@@ -394,7 +394,7 @@ func TestAdjOutAnnouncementOwedWhenEntryExists(t *testing.T) {
 
 		// The path changes (another ORIGIN): its announcement meets the
 		// record at its own key.
-		item := fwdItem{receivedPeer: rail.source, receivedGeneration: rail.source.forwardGeneration.Load(),
+		item := fwdItem{receivedPeer: rail.source, receivedGeneration: rail.source.forwardGeneration.Load(), sourcePolicyEpoch: rail.source.sourcePolicyEpoch.Load(),
 			authority: adjOutForwarded, sourceMessageID: 11}
 		adjOutTestSend(t, rail.destination, rail.source, &item, ownershipRailBody(family.IPv4Unicast, false, raw, 1))
 		require.Len(t, recoveryWrittenUpdates(t, rail.conn.written()), 2,
@@ -451,6 +451,7 @@ func TestAdjOutAnnouncementOwedWhenEntryExists(t *testing.T) {
 		batch.InitialSourcePeer = f.source.Settings().Address.String()
 		batch.InitialSourceID = uint32(f.source.SourceID())
 		batch.InitialSourceOwner = f.source.sourceOwner
+		batch.SourcePolicyEpoch = f.source.sourcePolicyEpoch.Load()
 
 		missing := batch
 		require.ErrorIs(t, api.AnnounceNLRIBatch(t.Context(), sel, missing, plugin.OperatorSender()), errAdjOutProvenance,
@@ -503,7 +504,7 @@ func TestAdjOutContestedBitAndTombstone(t *testing.T) {
 		adjOutTestForward(t, rail.destination, rail.source, p, 11)
 		rail.forward(t, true, p) // The owner withdraws P: owed.
 		rail.request(t)
-		rail.release <- owedSurvivorMessage(other.Settings().Address, p, 21)
+		rail.release <- owedSurvivorMessage(other.Settings().Address, other.sourcePolicyEpoch.Load(), p, 21)
 		lowEventually(t, func() bool { return len(rail.owed()) == 0 }, "the round decided P")
 		entry, held := adjOutTestEntry(rail.destination)
 		require.True(t, held)

@@ -97,7 +97,7 @@ func TestRSWithdrawalOwnershipStoredReplay(t *testing.T) {
 	}
 	// AdjRIBInManager.buildReplayRoutes carries the retained next hop separately,
 	// even when the immutable attributes also include legacy NEXT_HOP.
-	stored := rpc.StoredRoute{SourcePeer: f.source.Settings().Address.String(), Family: family.IPv4Unicast.String(),
+	stored := rpc.StoredRoute{SourcePeer: f.source.Settings().Address.String(), SourcePolicyEpoch: f.source.sourcePolicyEpoch.Load(), Family: family.IPv4Unicast.String(),
 		AttrHex: hex.EncodeToString(parsed.PathAttributes), NLRIHex: hex.EncodeToString(syncOrderPrefixWire),
 		NextHopHex: hex.EncodeToString(nextHop), MsgID: nextMsgID(), NLRIFraming: rpc.NLRIFramingPrefixOnly}
 	api := &reactorAPIAdapter{r: f.r}
@@ -381,6 +381,7 @@ func TestRSWithdrawalOwnershipInitialExpiryOrdering(t *testing.T) {
 	history.InitialSourcePeer = f.source.Settings().Address.String()
 	history.InitialSourceID = uint32(f.source.SourceID())
 	history.InitialSourceOwner = f.source.sourceOwner
+	history.SourcePolicyEpoch = f.source.sourcePolicyEpoch.Load()
 	if err := api.AnnounceNLRIBatch(t.Context(), sel, history, plugin.OperatorSender()); err != nil {
 		t.Fatal(err)
 	}
@@ -431,7 +432,7 @@ func TestRecoveryRefusesFilteredCandidateWithdrawalAfterLookup(t *testing.T) {
 		// A still owns the destination. No withdrawal may reach the wire.
 		f.send(t, "direct", f.source, f.ctxID, syncOrderWithdrawBody)
 		close(withdrawn)
-		return recoverySurvivorAnswer(request, syncOrderPrefixWire, ribevents.RecoveryRoute{Source: f.source.Settings().Address,
+		return recoverySurvivorAnswer(request, syncOrderPrefixWire, ribevents.RecoveryRoute{Source: f.source.Settings().Address, SourcePolicyEpoch: f.source.sourcePolicyEpoch.Load(),
 			NLRI: syncOrderPrefixWire, Attributes: candidate.PathAttributes, NextHop: []byte{10, 0, 0, 1}, MessageID: 81}), nil
 	})
 	t.Cleanup(lookup.Close)
