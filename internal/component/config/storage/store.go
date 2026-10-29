@@ -36,24 +36,37 @@ type keyAccess interface {
 
 // keyEncoding is a key space the store reaches directly: the live tree, or the
 // memory encoding of the editor test harness. Each MUST be safe for a read
-// concurrent with one guard's writes, because unguarded reads do not wait for
-// the guard (store). A blob is reached through its BlobStore outside a guard
-// and its WriteLock inside one.
+// concurrent with a guard's writes, because unguarded reads do not wait for
+// the guard, and for a configuration guard's writes concurrent with a runtime
+// guard's writes, because the two never wait for each other (store). A blob is
+// reached through its BlobStore outside a guard and its WriteLock inside one.
 type keyEncoding interface {
 	keyAccess
 	has(string) bool
 	list(string) ([]string, error)
 }
 
-// store owns one encoding. Safe for concurrent use, under two locks taken in
-// the order writer, then mu:
+// store owns one encoding. Safe for concurrent use, under three locks taken
+// in the order writer, then runtime, then mu:
 //
-//   - writer is held by a guard from acquire to Release, so writers run one at
-//     a time. A guard can hold it across many syncs: the boot record does on a
-//     slow disk. ReadVersion takes it shared, because its two reads (entry,
+//   - writer is the configuration lock. A guard holds it from acquire to
+//     Release unless it was acquired for a runtime-state key, so configuration
+//     writers run one at a time. A guard can hold it across many syncs: the
+//     boot record does on a slow disk. ReadVersion takes it shared, because its two reads (entry,
 //     then object) must not straddle a removal; Stat, because its bytes and
 //     its meta must come from the same side of a guard; and writeConfigFile,
 //     which keeps Close away while it syncs a loose config.
+//   - runtime is the runtime-state lock, over every key runtimeKey names. A
+//     guard acquired for a runtime-state key holds only it, and refuses any
+//     other key. A configuration guard takes it the first time it reaches a
+//     runtime-state key, a listing that could hold one included, and keeps it
+//     to Release, so a backup still sees the whole store at one moment. So a
+//     plugin's runtime-state write never waits for the syncs of a
+//     configuration write it has nothing to do with: OSPF's planned graceful
+//     restart fact passed its five second deadline behind the boot record when
+//     one lock covered both. A
+//     blob store takes both locks for every guard, because its one WriteLock
+//     serializes it anyway.
 //   - mu is held briefly. Its read lock covers one unguarded read, so Close
 //     cannot release the encoding under it; Release takes it to publish metas.
 //
@@ -61,9 +74,10 @@ type keyEncoding interface {
 // writer to finish, because the tree replaces a key's bytes with one rename
 // and the memory and blob encodings lock themselves. A read that waited for
 // writer waited for every sync a guard made, of keys it never asked for.
-// closed is written under both locks and read under either.
+// closed is written under all three locks and read under any one.
 type store struct {
 	writer   sync.RWMutex
+	runtime  sync.Mutex
 	mu       sync.RWMutex
 	tree     *treeEncoding
 	keys     keyEncoding
@@ -192,7 +206,7 @@ func (s *store) WriteFile(name string, data []byte, _ fs.FileMode) error {
 	return s.WriteKey(resolveKey(name), data)
 }
 func (s *store) WriteKey(key string, data []byte) (err error) {
-	g, err := s.acquire()
+	g, err := s.acquire(runtimeKey(key))
 	if err != nil {
 		return err
 	}
@@ -206,7 +220,7 @@ func (s *store) Remove(name string) error {
 	return s.RemoveKey(resolveKey(name))
 }
 func (s *store) RemoveKey(key string) (err error) {
-	g, err := s.acquire()
+	g, err := s.acquire(runtimeKey(key))
 	if err != nil {
 		return err
 	}
@@ -354,7 +368,7 @@ func (s *store) ReadVersion(name, stamp string) ([]byte, error) {
 	return readVersionEntry(s.access().ReadFile, key)
 }
 func (s *store) WriteVersion(name string, data []byte, stamp time.Time) (err error) {
-	g, err := s.acquire()
+	g, err := s.acquire(false)
 	if err != nil {
 		return err
 	}
@@ -368,7 +382,7 @@ func (s *store) Rename(oldName, newName string) (err error) {
 	if err := s.CheckName(oldName); err != nil {
 		return err
 	}
-	g, err := s.acquire()
+	g, err := s.acquire(false)
 	if err != nil {
 		return err
 	}
@@ -382,7 +396,11 @@ func (s *store) Rename(oldName, newName string) (err error) {
 	if err != nil {
 		return err
 	}
+	// A runtime guard's Release writes metas under mu alone, beside this
+	// configuration guard, so the read takes mu too.
+	s.mu.RLock()
 	meta := s.metas[oldKey]
+	s.mu.RUnlock()
 	if err := g.write(newKey, data, time.Now()); err != nil {
 		return err
 	}
@@ -398,23 +416,60 @@ func (s *store) AcquireLock(name string) (WriteGuard, error) {
 			return nil, err
 		}
 	}
-	return s.acquire()
+	return s.acquire(runtimeKey(name))
 }
-func (s *store) acquire() (*guard, error) {
-	s.writer.Lock()
+
+// runtimeKey reports whether key is runtime state: a metadata key outside the
+// configuration pointers. Every other key (config files, history, objects,
+// pointers) is configuration, under writer.
+func runtimeKey(key string) bool {
+	if !strings.HasPrefix(key, "meta/") {
+		return false
+	}
+	return !strings.HasPrefix(key, "meta/config/")
+}
+
+// runtimeOverlap reports whether a listing of prefix can hold a runtime-state key.
+func runtimeOverlap(prefix string) bool {
+	if strings.HasPrefix("meta/", prefix) { //nolint:gocritic // argOrder: deliberate, asks whether prefix is itself a prefix of "meta/".
+		return true
+	}
+	return runtimeKey(prefix)
+}
+
+// runtimeOnly reports whether every key a listing of prefix can hold is
+// runtime state, so a runtime guard may answer it.
+func runtimeOnly(prefix string) bool {
+	if !runtimeKey(prefix) {
+		return false
+	}
+	return !strings.HasPrefix("meta/config/", prefix) //nolint:gocritic // argOrder: deliberate, asks whether prefix is itself a prefix of "meta/config/".
+}
+
+// acquire takes the locks a new guard holds: runtime alone for a runtime-state
+// guard, writer for any other, and both on a blob (store).
+func (s *store) acquire(runtime bool) (*guard, error) {
+	g := &guard{parent: s, access: s.access(), pending: make(map[string]FileMeta), removed: make(map[string]bool)}
+	if s.blob != nil || !runtime {
+		s.writer.Lock()
+		g.holdsConfig = true
+	}
+	if s.blob != nil || runtime {
+		s.runtime.Lock()
+		g.holdsRuntime = true
+	}
 	if s.closed {
-		s.writer.Unlock()
+		g.unlock()
 		return nil, fs.ErrClosed
 	}
 	if s.readonly {
-		s.writer.Unlock()
+		g.unlock()
 		return nil, ErrReadOnly
 	}
-	g := &guard{parent: s, access: s.access(), pending: make(map[string]FileMeta), removed: make(map[string]bool)}
 	if s.blob != nil {
 		lock, err := s.blob.Lock()
 		if err != nil {
-			s.writer.Unlock()
+			g.unlock()
 			return nil, err
 		}
 		g.blobLock = lock
@@ -425,6 +480,8 @@ func (s *store) acquire() (*guard, error) {
 func (s *store) Close() error {
 	s.writer.Lock()
 	defer s.writer.Unlock()
+	s.runtime.Lock()
+	defer s.runtime.Unlock()
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.closed {
@@ -445,13 +502,68 @@ func (s *store) Close() error {
 }
 
 type guard struct {
-	parent   *store
-	access   keyAccess
-	blobLock *zefs.WriteLock
-	modifier string
-	pending  map[string]FileMeta
-	removed  map[string]bool
-	released bool
+	parent       *store
+	access       keyAccess
+	blobLock     *zefs.WriteLock
+	modifier     string
+	pending      map[string]FileMeta
+	removed      map[string]bool
+	released     bool
+	holdsConfig  bool
+	holdsRuntime bool
+}
+
+// errOutsideRuntimeGuard refuses a configuration key to a guard acquired for
+// runtime state. It is a caller defect: such a guard holds no configuration
+// lock, so it cannot write or list that space consistently.
+func errOutsideRuntimeGuard(key string) error {
+	return fmt.Errorf("store guard acquired for runtime state cannot reach %q: acquire the guard with a configuration name to reach configuration keys", key)
+}
+
+// reach makes the guard hold the lock that covers key, taking runtime the
+// first time a configuration guard reaches runtime state (store).
+func (g *guard) reach(key string) error {
+	if !runtimeKey(key) {
+		if g.holdsConfig {
+			return nil
+		}
+		return errOutsideRuntimeGuard(key)
+	}
+	g.holdRuntime()
+	return nil
+}
+
+// reachPrefix is reach for a listing, which can hold any key under prefix.
+func (g *guard) reachPrefix(prefix string) error {
+	if !g.holdsConfig {
+		if runtimeOnly(prefix) {
+			return nil
+		}
+		return errOutsideRuntimeGuard(prefix)
+	}
+	if runtimeOverlap(prefix) {
+		g.holdRuntime()
+	}
+	return nil
+}
+
+// holdRuntime takes the runtime lock after writer, which keeps the lock order.
+func (g *guard) holdRuntime() {
+	if g.holdsRuntime {
+		return
+	}
+	g.parent.runtime.Lock()
+	g.holdsRuntime = true
+}
+
+// unlock releases what the guard holds, runtime before writer.
+func (g *guard) unlock() {
+	if g.holdsRuntime {
+		g.parent.runtime.Unlock()
+	}
+	if g.holdsConfig {
+		g.parent.writer.Unlock()
+	}
 }
 
 func (g *guard) ReadFile(name string) ([]byte, error) {
@@ -465,6 +577,9 @@ func (g *guard) ReadFile(name string) ([]byte, error) {
 	if err := validKey(key); err != nil {
 		return nil, err
 	}
+	if err := g.reach(key); err != nil {
+		return nil, err
+	}
 	return g.access.ReadFile(key)
 }
 
@@ -474,6 +589,9 @@ func (g *guard) List(prefix string) ([]string, error) {
 	}
 	key := resolveDirKey(prefix)
 	if err := validKey(key); err != nil {
+		return nil, err
+	}
+	if err := g.reachPrefix(key + "/"); err != nil {
 		return nil, err
 	}
 	var keys []string
@@ -500,6 +618,9 @@ func (g *guard) ReadKey(key string) ([]byte, error) {
 	if err := validKey(key); err != nil {
 		return nil, err
 	}
+	if err := g.reach(key); err != nil {
+		return nil, err
+	}
 	return g.access.ReadFile(key)
 }
 
@@ -512,6 +633,9 @@ func (g *guard) ListKeys(prefix string) ([]string, error) {
 		return nil, fs.ErrClosed
 	}
 	if err := validPrefix(prefix); err != nil {
+		return nil, err
+	}
+	if err := g.reachPrefix(prefix); err != nil {
 		return nil, err
 	}
 	if g.blobLock != nil {
@@ -545,6 +669,9 @@ func (g *guard) write(key string, data []byte, stamp time.Time) error {
 	if err := validKey(key); err != nil {
 		return err
 	}
+	if err := g.reach(key); err != nil {
+		return err
+	}
 	if err := g.access.WriteFile(key, data, 0o600); err != nil {
 		return err
 	}
@@ -565,6 +692,9 @@ func (g *guard) remove(key string) error {
 	if err := validKey(key); err != nil {
 		return err
 	}
+	if err := g.reach(key); err != nil {
+		return err
+	}
 	if err := g.access.Remove(key); err != nil {
 		return err
 	}
@@ -580,6 +710,11 @@ func (g *guard) Has(name string) bool {
 		return false
 	}
 	key := resolveKey(name)
+	if err := g.reach(key); err != nil {
+		// Has cannot return the refusal, and false would read as an absent
+		// key: a runtime guard asked for a configuration key is a caller defect.
+		panic("BUG: " + err.Error())
+	}
 	if g.blobLock != nil {
 		return g.blobLock.Has(key)
 	}
@@ -612,7 +747,7 @@ func (g *guard) Release() error {
 	}
 	observer := g.parent.observer
 	g.parent.mu.Unlock()
-	g.parent.writer.Unlock()
+	g.unlock()
 	if err != nil {
 		return err
 	}

@@ -1,0 +1,78 @@
+# Test: on a disk-store DUT whose boot record holds the store's configuration
+#       lock for longer than OSPF's five second state deadline, an operator's
+#       `request ospf graceful-restart` still prepares the planned restart.
+# VALIDATES: through the real entry point, the CLI dialing the daemon's SSH
+#            server: grPrepare -> prepareRestart -> persistFact
+#            (internal/plugins/ospf/gr_restarter.go) writes the restart fact
+#            with StatePut under a 5 s deadline, and the daemon's opStatePut
+#            (internal/component/plugin/server/dispatch_state.go) takes the
+#            store's runtime-state lock only, so the write does not wait
+#            behind the boot record's configuration syncs.
+# PREVENTS: on a disk another writer saturates, the boot record holds the
+#           configuration lock for up to a minute after ze serves; the planned
+#           restart failing there with "ospf: persist graceful restart: ...
+#           context deadline exceeded" while the fact still lands later, so
+#           the durable store says a restart is in flight that was refused.
+#
+# The command is sent after "Ze running.", which the hub prints after it has
+# started the boot record, and the record takes its hold at once; the SSH
+# dial and login alone take longer than that. The hold (14 s) outlasts the
+# OSPF deadline (5 s), so a fact write that waits for the record fails.
+#
+# DISCRIMINATION: with the store's single write lock (the store-fix files at
+# HEAD before the configuration/runtime split) the answer carries
+# "context deadline exceeded" and "prepared" is false.
+#
+# No cmd= line carries `:timeout=`: a foreground command's timeout replaces
+# option=timeout as the budget of the whole test (resolveOrchestratedTimeout,
+# internal/test/runner/runner_exec_util.go).
+
+option=storage:value=disk
+option=timeout:value=60s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+option=env:var=ze.test.boot.record.hold:value=14s
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT2
+EOF_INIT
+tmpfs=running.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+ospf {
+	router-id 10.0.0.1
+	graceful-restart {
+		restarter {
+			support planned
+		}
+	}
+	areas {
+		area 0.0.0.0 { }
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
+cmd=background:seq=2:exec=ze start running.conf:name=daemon:ready=Ze running.
+cmd=foreground:seq=3:exec=ze cli -c "request ospf graceful-restart | json":exit=0
+expect=stdout:contains="prepared": true
+reject=stdout:contains=deadline exceeded
+cmd=stop:seq=4:name=daemon:signal=term

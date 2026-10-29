@@ -1530,10 +1530,11 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	writeReadyFile()
 
 	// Record the boot configuration (see DeferBootRecord above), now that ze
-	// serves. The record holds the store's write lock across every one of its
-	// syncs, so every other store write waits for all of them, and so does a
-	// read of a blob store; a tree or memory read does not. Started before the
-	// plugin wait, when every store read still waited for that lock, it made
+	// serves. The record holds the store's configuration lock across its
+	// syncs, so every other configuration write waits for them, and so does a
+	// read of a blob store; a tree or memory read and a runtime-state write do
+	// not. Started before the plugin wait, when every store read still waited
+	// for that lock, it made
 	// bgp's Stage 2 read of its Graceful Restart marker wait on a slow disk
 	// until the startup barrier, which allows only a few seconds with no plugin
 	// progress, failed the start. A config write of the bound name

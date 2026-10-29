@@ -991,6 +991,19 @@ block the loop that delivers it until the deadline expired.
 The coordinator awaits each owner's receipt before it sends that source's next
 operation, so the queue holds at most one request for each source being changed
 at once. A queue-full receipt is a failed operation, handled like any other.
+
+An owner's best-path changes reach other plugins as events, and a subscriber
+that runs as a process receives them queued, after the owner's receipt. Its
+answer (a write to a destination) is downstream work the owner cannot fence.
+After the owners' apply or abort the coordinator calls the server's
+`DrainEventSubscribers(ctx, namespace, event-type)` for each event the owners
+publish: it runs strict `DrainEventsApplied` on every process the event's
+subscription matches, the same processes delivery feeds for an event that
+carries no peer address, so each such event queued before the call has been
+applied when it returns. An unregistered event is an error, never an empty
+drain. Engine-side subscribers run inside the emit and need no drain.
+<!-- source: internal/component/plugin/server/source_policy.go -- DrainEventSubscribers -->
+<!-- source: internal/component/bgp/reactor/source_policy_reload.go -- sourceInvalidation.settleDownstream -->
 <!-- source: pkg/plugin/sdk/sdk_source_policy.go -- sourcePolicyWorker, sourcePolicyQueueDepth, admit, run, serve, call, refuseQueued -->
 <!-- source: pkg/plugin/sdk/sdk_dispatch.go -- workerAnswerContext, answerDrain -->
 <!-- source: pkg/plugin/sdk/sdk_dispatch.go -- eventLoop, bridgeEventLoop -->
@@ -1206,18 +1219,22 @@ become `rpc.StateError`. Existing in-daemon best-effort `statestore.Put/Get/Remo
 callers keep their no-store behaviour, but the strict RPC path never treats
 `false, nil` as persistence.
 
-`StateIncrement` holds the store write guard across read, increment and write,
+`StateIncrement` holds a runtime-state guard across read, increment and write,
 and waits for guard release before acknowledging the new value. An absent
 counter starts at one. Corrupt data and uint32 exhaustion fail without reset or
 wrap. OSPF uses this operation for its boot word, so separate instances cannot
 allocate the same sequence space.
 
-A mutation waits for the store's write guard, which another writer can hold
-across many syncs: the boot record holds it once the hub serves, on a slow
-disk for seconds. `StateGet` and `StateList` wait for neither that guard nor
-another plugin's mutation, so a plugin reading its state at startup is
-answered at once (`shared` in `statestore.go`, and "An unguarded read does not
-wait for a guard" in [Storage backends](../storage-backends.md)).
+A mutation waits only for another runtime-state writer, or for a guard that
+has reached runtime state, such as a backup or a history repair walking the
+whole store. It does not wait for a configuration write,
+whose syncs can take seconds on a slow disk: the boot record makes those once
+the hub serves, while plugins keep writing their state (OSPF persists a
+planned graceful restart's fact under a five second deadline). `StateGet` and
+`StateList` wait for no writer at all, so a plugin reading its state at
+startup is answered at once (`shared` in `statestore.go`, and "An unguarded
+read does not wait for a guard" and "Writers are split into two key spaces" in
+[Storage backends](../storage-backends.md)).
 
 The SDK honours caller cancellation before dispatch and when reading the result.
 A disk mutation already in progress is completed by the daemon. Cancellation or

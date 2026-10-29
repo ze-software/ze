@@ -77,7 +77,7 @@ func copyKeys(source WriteGuard, seed Storage, keys []string) (err error) {
 	if !ok {
 		return fmt.Errorf("backup: unsupported artifact storage %T", seed)
 	}
-	target, err := owned.acquire()
+	target, err := owned.acquire(false)
 	if err != nil {
 		return err
 	}

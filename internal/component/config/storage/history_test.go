@@ -101,7 +101,7 @@ func TestWriteVersionObjectFirst(t *testing.T) {
 	dir := t.TempDir()
 	s, ok := newTreeStorage(t, dir).(*store)
 	require.True(t, ok, "tree storage is not *store")
-	g, err := s.acquire()
+	g, err := s.acquire(false)
 	require.NoError(t, err)
 	var writes []string
 	g.access = recordingAccess{keyAccess: g.access, writes: &writes}

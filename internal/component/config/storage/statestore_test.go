@@ -15,6 +15,7 @@ import (
 	"errors"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/statestore"
@@ -185,5 +186,58 @@ func TestStrictStateUnavailableAndAbsent(t *testing.T) {
 	withStore(t)
 	if _, found, err := statestore.Read("meta/test/x"); err != nil || found {
 		t.Fatalf("absent read: found=%v error=%v", found, err)
+	}
+}
+
+// TestIncrementDoesNotWaitForAConfigurationGuard proves a runtime-state counter
+// advances while a configuration writer holds its guard.
+//
+// Method: once the hub serves, the boot record holds a configuration guard
+// across all of its syncs, which on a slow disk take many seconds, while a
+// plugin's runtime-state write in that window carries its own deadline (OSPF
+// increments its boot count at a sequence wrap, and persists a planned
+// graceful restart's fact, each under five seconds). Before the store split its writer lock, the
+// increment waited for that guard. The test holds a configuration
+// guard that writes a pointer, as the record does, and runs the increment from
+// another goroutine: it must persist before the guard is released.
+func TestIncrementDoesNotWaitForAConfigurationGuard(t *testing.T) {
+	store := withStore(t)
+	guard, err := store.AcquireLock("")
+	if err != nil {
+		t.Fatalf("acquire configuration guard: %v", err)
+	}
+	if err := guard.WriteKey("meta/config/router.conf/candidate", []byte("pending")); err != nil {
+		t.Fatalf("configuration write: %v", err)
+	}
+
+	type counted struct {
+		value uint32
+		err   error
+	}
+	answered := make(chan counted, 1)
+	go func() { // test-only worker: one increment, joined through answered.
+		value, err := statestore.Increment("meta/ospf/auth/boot-count")
+		answered <- counted{value: value, err: err}
+	}()
+
+	var got counted
+	select {
+	case got = <-answered:
+	case <-time.After(5 * time.Second):
+		t.Error("a runtime-state increment waited for a configuration guard")
+		if err := guard.Release(); err != nil {
+			t.Errorf("release: %v", err)
+		}
+		<-answered
+		return
+	}
+	if err := guard.Release(); err != nil {
+		t.Fatalf("release configuration guard: %v", err)
+	}
+	if got.err != nil {
+		t.Fatalf("increment beside a configuration guard: %v", got.err)
+	}
+	if got.value != 1 {
+		t.Fatalf("increment answered %d, want 1", got.value)
 	}
 }

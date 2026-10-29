@@ -53,6 +53,11 @@ type VersionInfo struct {
 
 // WriteGuard serializes a group of operations. Callers MUST Release it and MUST
 // use the guard, not Storage, until Release. Guarded bytes MUST NOT outlive it.
+// A guard acquired with a runtime-state key (meta/, outside meta/config/)
+// excludes only the guards that reach runtime state, and MUST reach nothing
+// else: the daemon's store refuses it a configuration key. Any other guard
+// excludes every configuration writer, and every runtime-state writer from the
+// first runtime-state key or listing it reaches (storage-backends.md).
 type WriteGuard interface {
 	ReadFile(string) ([]byte, error)
 	WriteFile(string, []byte, fs.FileMode) error

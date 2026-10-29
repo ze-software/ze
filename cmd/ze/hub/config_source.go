@@ -58,7 +58,7 @@ func initializeConfigSource(store storage.Storage, path string, content []byte) 
 }
 
 // bootRecordHold is nil in every shipped build. A test DUT build (zetest) sets
-// it to hold the store's write lock for the duration ze.test.boot.record.hold
+// it to hold the store's configuration lock for the duration ze.test.boot.record.hold
 // names before the record writes, the way a record whose syncs wait behind
 // another writer on a slow disk holds it (register_boot_record_hold_zetest.go).
 var bootRecordHold func(storage.Storage)

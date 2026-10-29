@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 
 	"golang.org/x/sys/unix"
 
@@ -29,6 +30,17 @@ type treeEncoding struct {
 	lock string
 	// sync is instance-local so crash barriers can be exercised without global hooks.
 	sync func(*os.File) error
+	// layout orders directory creation against pruning. A configuration
+	// guard and a runtime-state guard write at once (store), and their keys
+	// share the meta directory: without it, one could prune an ancestor the
+	// other has just opened to create under, or both could create it and one
+	// fail with EEXIST. Held only while a directory is created or removed,
+	// never across a sync (parent, Remove). It is enough because every key
+	// under meta/, runtime state and configuration alike, is at least three
+	// components deep (meta/<owner>/<name>): meta is then the only directory
+	// both spaces reach, and every deeper one belongs to one space, whose own
+	// lock orders its creation and pruning.
+	layout sync.Mutex
 }
 
 func secureNode(file *os.File, directory bool) error {
@@ -109,37 +121,85 @@ func (t *treeEncoding) barrier(file *os.File) error {
 	return nil
 }
 
+// parent opens the directory that holds key and returns it with key's last
+// component. With create it makes every missing directory on the way.
+//
+// It takes layout only when a directory is missing, and syncs the directories
+// it created under after releasing it. A write whose directories exist, the
+// usual case, never waits for another guard's directory syncs: a runtime-state
+// write does not wait for the boot record's mkdir and fsync of file/<stamp>/.
+// Without layout, an existing chain stays safe: only a guard of the same key
+// space prunes a directory of that space, and the guard holding this write
+// excludes it. The one directory both spaces share is meta, which this walk
+// passed through to an existing child, so it is not empty (treeEncoding.layout).
 func (t *treeEncoding) parent(key string, create bool) (*os.File, string, error) {
 	if err := validKey(key); err != nil {
 		return nil, "", err
 	}
 	parts := strings.Split(key, "/")
-	current, err := openNode(t.root, ".", true)
-	if err != nil {
+	directory, err := t.walk(parts[:len(parts)-1], nil)
+	if err == nil {
+		return directory, parts[len(parts)-1], nil
+	}
+	if !create || !errors.Is(err, fs.ErrNotExist) {
 		return nil, "", err
 	}
-	for _, part := range parts[:len(parts)-1] {
+	var created []*os.File
+	t.layout.Lock()
+	directory, err = t.walk(parts[:len(parts)-1], &created)
+	t.layout.Unlock()
+	for _, folder := range created {
+		if err == nil {
+			err = t.barrier(folder)
+		}
+		err = errors.Join(err, folder.Close())
+	}
+	if err != nil {
+		if directory != nil {
+			err = errors.Join(err, directory.Close())
+		}
+		return nil, "", err
+	}
+	return directory, parts[len(parts)-1], nil
+}
+
+// walk opens the directory chain dirs from the root. With created nil it
+// fails on a missing directory; otherwise it makes the directory and keeps
+// each directory it created under open in created, for the caller to sync
+// once layout is released. The caller MUST hold layout when created is not nil.
+func (t *treeEncoding) walk(dirs []string, created *[]*os.File) (*os.File, error) {
+	current, err := openNode(t.root, ".", true)
+	if err != nil {
+		return nil, err
+	}
+	for _, part := range dirs {
 		next, err := openNode(current, part, true)
+		made := false
 		if errors.Is(err, fs.ErrNotExist) {
-			if create {
+			if created != nil {
 				if err = unix.Mkdirat(int(current.Fd()), part, 0o700); err == nil {
-					err = t.barrier(current)
-				}
-				if err == nil {
+					made = true
 					next, err = openNode(current, part, true)
 				}
 			}
 		}
-		closeErr := current.Close()
-		if err != nil {
-			return nil, "", errors.Join(err, closeErr)
+		if made {
+			*created = append(*created, current)
 		}
-		if closeErr != nil {
-			return nil, "", errors.Join(closeErr, next.Close())
+		if err != nil {
+			if made {
+				return nil, err
+			}
+			return nil, errors.Join(err, current.Close())
+		}
+		if !made {
+			if closeErr := current.Close(); closeErr != nil {
+				return nil, errors.Join(closeErr, next.Close())
+			}
 		}
 		current = next
 	}
-	return current, parts[len(parts)-1], nil
+	return current, nil
 }
 
 func (t *treeEncoding) has(key string) bool {
@@ -492,13 +552,22 @@ func (t *treeEncoding) Remove(key string) error {
 		return err
 	}
 	// Each iteration removes one key component; prune only empty ancestors.
+	// layout covers only the removal, so a write of the other key space waits
+	// for no prune's sync (parent).
 	for dir := filepath.Dir(key); dir != "."; dir = filepath.Dir(dir) {
 		parent, leaf, err := t.parent(dir, false)
 		if err != nil {
 			return err
 		}
+		t.layout.Lock()
 		err = unix.Unlinkat(int(parent.Fd()), leaf, unix.AT_REMOVEDIR)
+		t.layout.Unlock()
 		if errors.Is(err, unix.ENOTEMPTY) {
+			return parent.Close()
+		}
+		// The other key space pruned meta, the one directory both reach,
+		// between this prune's steps: the ancestors are gone, as wanted.
+		if errors.Is(err, unix.ENOENT) {
 			return parent.Close()
 		}
 		if err == nil {

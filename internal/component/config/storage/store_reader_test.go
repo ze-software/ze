@@ -2,11 +2,16 @@
 package storage
 
 import (
+	"fmt"
+	"os"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/internal/core/statestore"
 )
 
 // readsUnderHeldGuard is what one reader goroutine saw while a guard was held.
@@ -126,4 +131,194 @@ func TestListKeysToleratesPrunedDirectories(t *testing.T) {
 	close(stop)
 	require.NoError(t, <-churned)
 	require.NoError(t, listErr, "a listing failed while a writer pruned directories")
+}
+
+// TestConfigurationGuardThatReachesRuntimeStateHoldsIt proves a guard that
+// walks the whole store still excludes runtime-state writers once it lists.
+//
+// Method: a backup lists every key under one guard and copies them, so the
+// copy must not change under it. The guard lists the store, then a runtime
+// write starts from another goroutine. It must not land while the guard is
+// held, and it must land once the guard is released.
+func TestConfigurationGuardThatReachesRuntimeStateHoldsIt(t *testing.T) {
+	for _, backend := range []struct {
+		name string
+		open func(*testing.T, string) Storage
+	}{{name: "tree", open: newTreeStorage}, {name: "memory", open: newMemoryStorage}} {
+		t.Run(backend.name, func(t *testing.T) {
+			s := backend.open(t, t.TempDir())
+			guard, err := s.AcquireLock("")
+			require.NoError(t, err)
+			_, err = guard.ListKeys("")
+			require.NoError(t, err)
+
+			written := make(chan error, 1)
+			go func() { // test-only worker: one write, joined through written.
+				written <- s.WriteKey("meta/ospf/auth/boot-count", []byte{0, 0, 0, 1})
+			}()
+			select {
+			case err := <-written:
+				t.Errorf("a runtime write landed under a guard that listed the store: %v", err)
+			case <-time.After(300 * time.Millisecond):
+			}
+			require.NoError(t, guard.Release())
+			require.NoError(t, <-written)
+		})
+	}
+}
+
+// TestRuntimeGuardRefusesConfigurationKeys proves a guard acquired for a
+// runtime-state key cannot reach the configuration space, which it holds no
+// lock over.
+func TestRuntimeGuardRefusesConfigurationKeys(t *testing.T) {
+	s := newTreeStorage(t, t.TempDir())
+	guard, err := s.AcquireLock("meta/ospf/auth/boot-count")
+	require.NoError(t, err)
+	require.NoError(t, guard.WriteKey("meta/ospf/auth/boot-count", []byte{0, 0, 0, 1}))
+	_, err = guard.ListKeys("meta/ospf/")
+	require.NoError(t, err)
+	const refusal = "acquired for runtime state"
+	assert.ErrorContains(t, guard.WriteKey("meta/config/router.conf/active", []byte("x")), refusal)
+	_, err = guard.ListKeys("")
+	assert.ErrorContains(t, err, refusal)
+	_, err = guard.ListKeys("meta/c")
+	assert.ErrorContains(t, err, refusal)
+	_, err = guard.ReadFile("router.conf")
+	assert.ErrorContains(t, err, refusal)
+	_, err = guard.List("router.conf")
+	assert.ErrorContains(t, err, refusal)
+	assert.Contains(t, panicText(func() { guard.Has("router.conf") }), refusal,
+		"Has on a configuration name under a runtime guard must not answer false as if the key were absent")
+	require.NoError(t, guard.Release())
+}
+
+// panicText runs fn and returns what it panicked with, or "" when it returned.
+func panicText(fn func()) (text string) {
+	defer func() {
+		if r := recover(); r != nil {
+			text = fmt.Sprint(r)
+		}
+	}()
+	fn()
+	return ""
+}
+
+// TestRuntimeWriteDoesNotWaitForADirectorySync proves a runtime-state write
+// whose directories exist does not wait for a configuration guard's directory
+// sync.
+//
+// Method: the boot record creates file/<stamp>/ on every version it writes,
+// and a slow disk makes the sync of the directory it created under take
+// seconds, while a plugin's runtime-state write carries a deadline of its own
+// (OSPF increments meta/ospf/auth/boot-count under five seconds). The test blocks the first directory sync after a configuration
+// guard starts creating a directory, then increments an existing runtime-state
+// counter through statestore from another goroutine: it must answer while the
+// sync is still blocked.
+func TestRuntimeWriteDoesNotWaitForADirectorySync(t *testing.T) {
+	s := newTreeStorage(t, t.TempDir())
+	owned, ok := s.(*store)
+	require.True(t, ok, "tree storage is not *store")
+	statestore.SetStore(s)
+	t.Cleanup(func() { statestore.SetStore(nil) })
+	_, err := statestore.Increment("meta/ospf/auth/boot-count")
+	require.NoError(t, err)
+
+	blocked, release := make(chan struct{}), make(chan struct{})
+	// An atomic flag rather than sync.Once: Once.Do makes every later caller
+	// wait for the first, which is the very wait under test.
+	var armed atomic.Bool
+	armed.Store(true)
+	owned.tree.sync = func(file *os.File) error {
+		if armed.CompareAndSwap(true, false) {
+			close(blocked)
+			<-release
+		}
+		return file.Sync()
+	}
+	written := make(chan error, 1)
+	go func() { // test-only worker: one configuration write, joined through written.
+		written <- s.WriteKey("meta/config/router.conf/candidate", []byte("pending"))
+	}()
+	<-blocked
+
+	counted := make(chan error, 1)
+	go func() { // test-only worker: one increment, joined through counted.
+		_, err := statestore.Increment("meta/ospf/auth/boot-count")
+		counted <- err
+	}()
+	select {
+	case err := <-counted:
+		require.NoError(t, err)
+	case <-time.After(3 * time.Second):
+		t.Error("a runtime-state write waited for a configuration guard's directory sync")
+		close(release)
+		<-counted
+		require.NoError(t, <-written)
+		return
+	}
+	close(release)
+	require.NoError(t, <-written)
+	value, err := statestore.Increment("meta/ospf/auth/boot-count")
+	require.NoError(t, err)
+	assert.Equal(t, uint32(3), value)
+}
+
+// TestRenameBesideRuntimeWrites proves Rename reads the published metadata
+// safely while runtime-state guards publish theirs. Run it under -race: the
+// two never wait for each other's write lock, so only mu orders the map.
+func TestRenameBesideRuntimeWrites(t *testing.T) {
+	s := newTreeStorage(t, t.TempDir())
+	require.NoError(t, s.WriteFile("a.conf", []byte("x"), 0o600))
+	stop := make(chan struct{})
+	written := make(chan error, 1)
+	go func() { // test-only worker: runtime writes until stop, joined through written.
+		for i := 0; ; i++ {
+			select {
+			case <-stop:
+				written <- nil
+				return
+			default:
+			}
+			if err := s.WriteKey("meta/ospf/auth/boot-count", []byte{0, 0, 0, byte(i)}); err != nil {
+				written <- err
+				return
+			}
+		}
+	}()
+	for range 30 {
+		require.NoError(t, s.Rename("a.conf", "b.conf"))
+		require.NoError(t, s.Rename("b.conf", "a.conf"))
+	}
+	close(stop)
+	require.NoError(t, <-written)
+}
+
+// TestDirectoryCreationBesidePruning proves the two key spaces create and prune
+// their directories under meta at once without an error.
+//
+// Method: a configuration writer and a runtime-state writer each write a key
+// in a directory of their own under meta, then remove it, which prunes the
+// directory and tries meta itself. Neither waits for the other's lock, so
+// only layout orders creating meta against pruning it: without it, a write
+// can find meta gone after opening it, or fail with EEXIST creating it.
+func TestDirectoryCreationBesidePruning(t *testing.T) {
+	s := newTreeStorage(t, t.TempDir())
+	cycle := func(key string, done chan<- error) {
+		for range 50 {
+			if err := s.WriteKey(key, []byte("x")); err != nil {
+				done <- err
+				return
+			}
+			if err := s.RemoveKey(key); err != nil {
+				done <- err
+				return
+			}
+		}
+		done <- nil
+	}
+	configuration, runtime := make(chan error, 1), make(chan error, 1)
+	go cycle("meta/config/router.conf/candidate", configuration) // test-only worker, joined below.
+	go cycle("meta/ospf/auth/boot-count", runtime)               // test-only worker, joined below.
+	require.NoError(t, <-configuration)
+	require.NoError(t, <-runtime)
 }

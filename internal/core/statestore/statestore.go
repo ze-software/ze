@@ -24,9 +24,11 @@ var ErrCorrupt = errors.New("runtime state is corrupt")
 // unregister before Close. It serializes nothing else. Mutations are
 // serialized by the store itself: Write and Delete go through its guarded
 // WriteKey and RemoveKey, and Increment does its read-modify-write inside one
-// AcquireLock guard, which the WriteGuard contract makes exclusive. A mutation
-// can wait there behind another writer's slow syncs (the boot record holds the
-// store's write lock across all of its syncs), while a read runs beside it:
+// AcquireLock guard, which the WriteGuard contract makes exclusive. On the
+// daemon's store a runtime-state guard excludes only other runtime-state
+// writers and a guard that reached runtime state, so a mutation no longer
+// waits behind a configuration write's slow syncs (the boot record's); a read
+// waits for no writer at all:
 // the store replaces a key's bytes atomically, so a read never needs a writer
 // to finish, and one that waited could pass its caller's deadline behind a
 // write of an unrelated key. Safe for concurrent use.
