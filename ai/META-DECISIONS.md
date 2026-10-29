@@ -60,6 +60,10 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   applicable) is written only for a role or feature he named, a lower-layer
   requirement still owes a test of what Ze installs, and no annotation class
   is put to him row by row.
+- A requirement the operating system meets on Ze's behalf still owes a test
+  that checks the OS behaviour on the state Ze installs. Until that test
+  exists, the requirement is recorded as a gap in testing, never as a gap in
+  correctness.
 - An agreed design answers the questions that follow from it.
 
 ## ExaBGP compatibility
