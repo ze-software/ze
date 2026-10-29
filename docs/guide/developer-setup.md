@@ -566,6 +566,24 @@ Linux VM.
 <!-- source: internal/component/l2tp/pppoeclient/unit_reservation_integration_linux_test.go -- TestPADTRetainsUnitUntilOwnerCleanup -->
 <!-- source: internal/test/userns/userns_linux.go -- childFailure -->
 
+**Kernel features.** A test that needs a kernel feature runs on Ze's kernel,
+which carries it. The nftables flowtable test needs `NF_FLOW_TABLE`,
+`NF_FLOW_TABLE_INET` and `NFT_FLOW_OFFLOAD`, and the tc ingress policer tests
+need `NET_ACT_POLICE` and `NET_ACT_GACT`. Ze's kernel builds all five in
+(`gokrazy/kernel/kernel.config` and `runtime.config`). A distribution kernel
+may build them as modules or not at all, and the kernel then answers the test
+with a bare `no such file or directory`. The test still fails, never skips, and
+its failure adds a line for each option the running kernel lacks or has not
+loaded: the kernel release, the option, and the fix. The fix is to boot Ze's
+kernel (on a Linux host, `./le setup docker kernel install`, then reboot) or,
+for a module that is built but not loaded, `sudo modprobe <module>`. The
+options are read from `/proc/config.gz`, else `/boot/config-<release>`, and the
+loaded modules from `/proc/modules`. Setup does not load these modules.
+
+<!-- source: internal/test/kernelfeature/kernelfeature.go -- Features, Explain, Read -->
+<!-- source: internal/plugins/firewall/nft/integration_linux_test.go -- TestApplyAcceptsAFlowOffloadToATableFlowtable -->
+<!-- source: internal/plugins/traffic/netlink/integration_linux_test.go -- TestNetlinkIntegration_IngressPolicerReachesTheKernel -->
+
 **Loopback addresses.** The functional fixtures give each end of a BGP session
 its own address: RFC 4271 Section 5.1.3 forbids a peer its own address as
 NEXT_HOP, so a session whose two ends share one address has every originated

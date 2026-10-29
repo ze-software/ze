@@ -13,6 +13,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/ze-software/ze/internal/component/traffic"
+	"github.com/ze-software/ze/internal/test/kernelfeature"
 	"github.com/ze-software/ze/internal/test/userns"
 )
 
@@ -335,7 +336,7 @@ func TestNetlinkIntegration_IngressPolicerReachesTheKernel(t *testing.T) {
 			},
 		}
 		if err := b.Apply(context.Background(), desired); err != nil {
-			t.Fatalf("Apply: %v", err)
+			t.Fatalf("Apply: %v%s", err, kernelfeature.Explain("CONFIG_NET_ACT_POLICE"))
 		}
 
 		classes, err := netlink.ClassList(link, tcHandle(0))
@@ -408,7 +409,7 @@ func TestNetlinkIntegration_IngressPolicerLeavesOtherHookOwnersAlone(t *testing.
 			},
 		}
 		if err := netlink.FilterAdd(neighbor); err != nil {
-			t.Fatalf("install the stand-in mirror filter: %v", err)
+			t.Fatalf("install the stand-in mirror filter: %v%s", err, kernelfeature.Explain("CONFIG_NET_ACT_GACT"))
 		}
 
 		registerSnapshotStore(t)
@@ -425,7 +426,7 @@ func TestNetlinkIntegration_IngressPolicerLeavesOtherHookOwnersAlone(t *testing.
 			},
 		}
 		if err := b.Apply(context.Background(), desired); err != nil {
-			t.Fatalf("Apply: %v", err)
+			t.Fatalf("Apply: %v%s", err, kernelfeature.Explain("CONFIG_NET_ACT_POLICE"))
 		}
 		if !ingressFilterPresent(t, ifaceName, 1) {
 			t.Fatal("installing the policer removed the other subsystem's filter")

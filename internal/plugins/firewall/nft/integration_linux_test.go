@@ -12,6 +12,7 @@ import (
 	"github.com/vishvananda/netns"
 
 	"github.com/ze-software/ze/internal/component/firewall"
+	"github.com/ze-software/ze/internal/test/kernelfeature"
 	"github.com/ze-software/ze/internal/test/userns"
 )
 
@@ -571,7 +572,8 @@ func TestApplyAcceptsAFlowOffloadToATableFlowtable(t *testing.T) {
 		}}
 
 		if err := b.Apply(desired); err != nil {
-			t.Fatalf("apply of a flow offload to a table flowtable: %v", err)
+			t.Fatalf("apply of a flow offload to a table flowtable: %v%s", err,
+				kernelfeature.Explain("CONFIG_NF_FLOW_TABLE", "CONFIG_NF_FLOW_TABLE_INET", "CONFIG_NFT_FLOW_OFFLOAD"))
 		}
 		if got := nftIntegrationRuleCount(t, "ze_fw_flow_offload", "forward"); got != 1 {
 			t.Fatalf("chain forward holds %d rules, want 1", got)
