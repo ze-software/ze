@@ -168,8 +168,11 @@ tests) is not a rule: it goes in the spec or commit it applies to.
 - A check that ran is not re-run to reconfirm what its output said.
 - When the user asks for a commit, prepare the script and run it. Do not review
   again or rerun gates for the commit.
-- Commit each feature when it is implemented and each bug when it is fixed,
-  without waiting to be asked or for the session to end.
+- Commit work as soon as a piece of it is complete: when it improves the
+  software, compiles and works, it is committed, without waiting for the whole
+  spec, the session's end or a request. A spec's implementation lands as
+  several such commits, not one at closure. Do not split it into trivially
+  small commits either: each commit is a piece that stands on its own.
 
 ## Every session
 
