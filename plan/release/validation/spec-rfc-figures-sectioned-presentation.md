@@ -168,7 +168,9 @@ testing gap. Neither waits on the other.
 
 | ID | Assumption | Basis | If wrong | Validation |
 |----|------------|-------|----------|------------|
-| A-1 | The excluded rows' existing reasons can be backfilled with a section-scoped RFC quote | `{feature-declined}` already carries a quote; `{lower-layer}` reasons name the kernel path | The evidence check cannot refuse until ~1,100 rows are backfilled, so the new headline waits | Count rows per kind lacking a quote at DESIGN; owner decides rollout (research gate) |
+| A-1 | The excluded rows' existing reasons can be backfilled with a section-scoped RFC quote | `{feature-declined}` already carries a quote; `{lower-layer}` reasons name the kernel path | A row whose evidence cannot be found goes back to Ze's section | → Decision (Thomas, 2026-10-29, research gate): roll out ALL AT ONCE. No RFC switches to the sections until every excluded row in the corpus (about 833 not-applicable, 215 lower-layer, 63 feature-declined) carries the evidence and the check refuses a row without it. The backfill is the first implementation phase |
+
+Next step: DESIGN (`/ze-spec` Step 3), resumed after midnight 2026-10-30 by Thomas's choice. Open for DESIGN: the fate of `ProvenShareOf` and the corpus "Requirement buckets" tape (A-3, recommendation: replaced by the sections), whether declined-table rows join the list sums (A-2), the SHOULD intent marker syntax, the OS-verified colour token.
 | A-2 | Declined-table rows belong in the filtered-list sums | `summarize` includes them today | Top bars disagree with the Total row of the enrolled table | Decide at DESIGN; the Total row and the sum read the same row set |
 | A-3 | `ProvenShareOf` and the corpus tape can follow the sections or be retired | Both partition the same gated rows | Two answers over the same rows stay published | DESIGN decision |
 
