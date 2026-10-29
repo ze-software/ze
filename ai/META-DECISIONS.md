@@ -250,9 +250,12 @@ tests) is not a rule: it goes in the spec or commit it applies to.
 - The README links to lightweight playback with a screenshot rather than
   producing an encoded-video or large animated-SVG carrier.
 - Every website value that changes over time (counts, percentages, release
-  versions, download artifacts and their sizes) lives in one JSON file, and
-  pages render it with JavaScript. Updating that file updates every page that
-  shows the value; no page carries its own copy as plain text.
+  versions, download artifacts and their sizes) lives in exactly one JSON file,
+  and pages render it with JavaScript. Site-wide values live in
+  `data/site-facts.json`; RFC completion data lives in one file per RFC and one
+  per profile under `data/rfc/`. Updating that file updates every page that
+  shows the value; a page keeps only the last build's value as fallback text
+  inside the marked element, never a copy of its own.
 
 ## How agents work
 
