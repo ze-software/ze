@@ -249,6 +249,10 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   website or stored in the repository, and CI/CD does not generate videos.
 - The README links to lightweight playback with a screenshot rather than
   producing an encoded-video or large animated-SVG carrier.
+- Every website value that changes over time (counts, percentages, release
+  versions, download artifacts and their sizes) lives in one JSON file, and
+  pages render it with JavaScript. Updating that file updates every page that
+  shows the value; no page carries its own copy as plain text.
 
 ## How agents work
 
