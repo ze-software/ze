@@ -168,6 +168,8 @@ tests) is not a rule: it goes in the spec or commit it applies to.
 - A check that ran is not re-run to reconfirm what its output said.
 - When the user asks for a commit, prepare the script and run it. Do not review
   again or rerun gates for the commit.
+- Commit each feature when it is implemented and each bug when it is fixed,
+  without waiting to be asked or for the session to end.
 
 ## Every session
 
