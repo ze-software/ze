@@ -64,6 +64,10 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   that checks the OS behaviour on the state Ze installs. Until that test
   exists, the requirement is recorded as a gap in testing, never as a gap in
   correctness.
+- A requirement the operating system blocks, because Linux cannot provide the
+  primitive it needs and a verified limit entry shows it, is reported in a
+  section of its own, apart from the figure for Ze's own code, and stays
+  unmet there.
 - An agreed design answers the questions that follow from it.
 
 ## ExaBGP compatibility
