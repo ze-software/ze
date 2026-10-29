@@ -2506,10 +2506,14 @@ transaction. SIGHUP queued and replayed after completion.
 Plugin SDK provides a `Journal` for rollback: `Record(apply, undo)` during apply
 and `Rollback()` to replay undos in reverse. BGP and interface operation owners
 retain journals through operation commit and outer publication. On outer
-rejection, owners removed with acknowledgement are first recovered from the old
-configuration so their infrastructure exists for retained dependents. Original
-operation tokens are then undone in reverse applied order under a fresh budget,
-before dependent coarse section-owned services are reconstructed.
+rejection, one schedule under one rollback deadline restarts the owners removed
+with acknowledgement and undoes the retained owners' original operation tokens
+in reverse applied order. Each removed owner starts after the undo of the
+retained owners it depends on and before the undo of those that depend on it;
+a cycle through a removed owner, or an order the fixed undo sequence cannot
+satisfy, is refused before anything runs. A sent inverse consumes its journal
+and is never sent again; one never sent stays owed.
+Dependent coarse section-owned services are reconstructed after every inverse.
 Reconstruction retains the full diff but excludes retained owners' declared
 operation roots; acknowledged removed owners still use normal reconstruction.
 A session-bound source lifecycle MUST hold admission, epochs and pins through
@@ -2522,7 +2526,7 @@ receipt and no successor receives an old completion. Completed duplicate calls
 return the recorded outcome, and concurrent receipt waits are bounded. The
 existing accepted event is a notification, not that receipt.
 <!-- source: internal/component/plugin/server/reload_tx.go -- DeferReloadAcceptance, completeBatches -->
-<!-- source: internal/component/plugin/server/reload_compensation.go -- rollbackOperations -->
+<!-- source: internal/component/plugin/server/reload_recovery_schedule.go -- restoreOriginalJournals, planRecoverySchedule -->
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnConfigComplete -->
 
 Full protocol: `config/transaction-protocol.md`. Per-plugin wiring: `spec-config-tx-consumers`.

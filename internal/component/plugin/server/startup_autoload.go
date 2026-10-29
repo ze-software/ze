@@ -221,6 +221,20 @@ func (s *Server) fibPluginChosen(needed []string) bool {
 // back if the subsequent transaction fails. Startup failures are returned so
 // reload fails closed instead of accepting config without its owner plugin.
 func (s *Server) autoLoadForNewConfigPaths(ctx context.Context, newTree map[string]any, addedRoots []string) ([]string, error) {
+	plugins, err := s.selectAutoLoad(newTree, addedRoots)
+	if err != nil {
+		return nil, err
+	}
+	recovery, _ := ctx.Value(removalRecoveryContextKey{}).(bool)
+	return s.startAutoLoaded(ctx, plugins, newTree, recovery)
+}
+
+// selectAutoLoad answers the complete set autoLoadForNewConfigPaths starts for
+// the added roots: the owners of every new path, the data-plane writer, the
+// providers of held needs, and everything those depend on, minus what already
+// runs. It starts nothing, so reload compensation can order the whole set
+// before executing any of it.
+func (s *Server) selectAutoLoad(newTree map[string]any, addedRoots []string) ([]plugin.PluginConfig, error) {
 	// Build the set of all new paths by navigating into the nested tree.
 	// diff keys are slash-separated (e.g., "fib/kernel"), so we split and descend.
 	newPaths := make([]string, 0, len(addedRoots))
@@ -284,6 +298,14 @@ func (s *Server) autoLoadForNewConfigPaths(ctx context.Context, newTree map[stri
 		})
 	}
 
+	return plugins, nil
+}
+
+// startAutoLoaded starts plugins that selectAutoLoad chose, and expands
+// nothing. recovery marks a restoration startup: it receives tree rather than
+// the reactor's tree, runs under ctx, and is exempt from the fatal-startup
+// policy (runPluginRecoveryPhase).
+func (s *Server) startAutoLoaded(ctx context.Context, plugins []plugin.PluginConfig, newTree map[string]any, recovery bool) ([]string, error) {
 	if len(plugins) == 0 {
 		return nil, nil
 	}
@@ -293,8 +315,8 @@ func (s *Server) autoLoadForNewConfigPaths(ctx context.Context, newTree map[stri
 	}
 
 	var startErr error
-	if recovery, _ := ctx.Value(removalRecoveryContextKey{}).(bool); recovery {
-		startErr = s.runPluginRecoveryPhase(plugins, newTree)
+	if recovery {
+		startErr = s.runPluginRecoveryPhase(ctx, plugins, newTree)
 	} else {
 		startErr = s.runPluginPhase(plugins)
 	}

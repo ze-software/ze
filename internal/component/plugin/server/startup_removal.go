@@ -19,8 +19,10 @@ const pluginRemovalGrace = 500 * time.Millisecond
 type removalRecoveryContextKey struct{}
 
 // Failed replacement startup belongs to the recovery attempt. Only these
-// named startup generations bypass the ordinary fatal-startup policy.
-func (s *Server) runPluginRecoveryPhase(plugins []plugin.PluginConfig, tree map[string]any) error {
+// named startup generations bypass the ordinary fatal-startup policy. ctx
+// bounds the startup handshakes themselves: reload compensation passes its
+// shared rollback context, so a recovery startup cannot outlive that deadline.
+func (s *Server) runPluginRecoveryPhase(ctx context.Context, plugins []plugin.PluginConfig, tree map[string]any) error {
 	if len(plugins) == 0 {
 		return nil
 	}
@@ -39,7 +41,7 @@ func (s *Server) runPluginRecoveryPhase(plugins []plugin.PluginConfig, tree map[
 		}
 		s.removalMu.Unlock()
 	}()
-	return s.runPluginPhase(plugins)
+	return s.runPluginPhaseWithin(ctx, plugins)
 }
 
 func (s *Server) pluginRecoveryConfig(name string) (map[string]any, bool) {
@@ -307,7 +309,7 @@ func (s *Server) restoreRemovedPlugin(ctx context.Context, proc *process.Process
 			_, err := s.autoLoadForNewConfigPaths(recoveryCtx, tree, roots)
 			return err
 		}
-		return s.runPluginRecoveryPhase([]plugin.PluginConfig{proc.Config()}, tree)
+		return s.runPluginRecoveryPhase(ctx, []plugin.PluginConfig{proc.Config()}, tree)
 	}
 	// Only an ordinary callback refusal leaves a usable SDK loop. Redeliver
 	// committed configuration so a producer that paused its worker resumes.

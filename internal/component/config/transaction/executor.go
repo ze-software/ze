@@ -239,27 +239,80 @@ func (e *OperationExecutor) Commit(ctx context.Context, ops []ConfigOperation) e
 }
 
 // Rollback undoes the supplied applied operations in reverse order. Callers MUST
-// preserve the original order, transaction identity and owner lifetimes.
+// preserve the original order, transaction identity and owner lifetimes. Each
+// call reserves its own rollback budget; a schedule that interleaves other work
+// between single inverses uses a RollbackDriver instead.
 func (e *OperationExecutor) Rollback(ctx context.Context, ops []ConfigOperation, cause error) error {
-	okCh := make(chan ConfigOperationRollbackAck, len(ops))
-	failedCh := make(chan ConfigOperationRollbackAck, len(ops))
-	filter := &ackFilter{}
-	unsubs := []func(){
+	driver := e.NewRollbackDriver(len(ops))
+	defer driver.Close()
+	return e.rollbackApplied(ctx, ops, driver.okCh, driver.failedCh, driver.filter, cause)
+}
+
+// RollbackDriver dispatches original-operation inverses of one transaction one
+// at a time, through the same acknowledgement path Rollback uses. Every Undo
+// runs under the caller's context, so a schedule that starts plugins between
+// inverses keeps one deadline instead of renewing a budget per inverse. It is
+// not safe for concurrent use. NewRollbackDriver subscribes; the caller MUST
+// call Close after the last Undo.
+type RollbackDriver struct {
+	executor *OperationExecutor
+	okCh     chan ConfigOperationRollbackAck
+	failedCh chan ConfigOperationRollbackAck
+	filter   *ackFilter
+	unsubs   []func()
+}
+
+// NewRollbackDriver subscribes to this transaction's rollback acknowledgements.
+// capacity bounds the acknowledgements buffered between waits. The caller MUST
+// call Close.
+func (e *OperationExecutor) NewRollbackDriver(capacity int) *RollbackDriver {
+	capacity = max(capacity, 1)
+	driver := &RollbackDriver{
+		executor: e,
+		okCh:     make(chan ConfigOperationRollbackAck, capacity),
+		failedCh: make(chan ConfigOperationRollbackAck, capacity),
+		filter:   &ackFilter{},
+	}
+	driver.unsubs = []func(){
 		e.gateway.SubscribeConfigEvent(EventOperationRollbackOK, func(payload []byte) {
 			var ack ConfigOperationRollbackAck
-			if json.Unmarshal(payload, &ack) == nil && ack.TransactionID == e.txID && filter.match(ack.OperationID) {
-				trySendOpRollbackAck(okCh, ack)
+			if json.Unmarshal(payload, &ack) == nil && ack.TransactionID == e.txID && driver.filter.match(ack.OperationID) {
+				trySendOpRollbackAck(driver.okCh, ack)
 			}
 		}),
 		e.gateway.SubscribeConfigEvent(EventOperationRollbackFailed, func(payload []byte) {
 			var ack ConfigOperationRollbackAck
-			if json.Unmarshal(payload, &ack) == nil && ack.TransactionID == e.txID && filter.match(ack.OperationID) {
-				trySendOpRollbackAck(failedCh, ack)
+			if json.Unmarshal(payload, &ack) == nil && ack.TransactionID == e.txID && driver.filter.match(ack.OperationID) {
+				trySendOpRollbackAck(driver.failedCh, ack)
 			}
 		}),
 	}
-	defer unsubscribeAll(unsubs)
-	return e.rollbackApplied(ctx, ops, okCh, failedCh, filter, cause)
+	return driver
+}
+
+// Close ends the acknowledgement subscriptions. It MUST be called after the
+// last Undo.
+func (d *RollbackDriver) Close() { unsubscribeAll(d.unsubs) }
+
+// Undo dispatches the inverse of one applied operation and waits for its
+// acknowledgement. ctx MUST carry the deadline the whole schedule shares: the
+// owner receives that deadline, and Undo refuses a context without one rather
+// than inventing a budget here.
+//
+// sent reports whether the inverse reached the owner. When it did, the owner's
+// journal for it is consumed whatever err says: the owner acknowledged a
+// failure, or its acknowledgement did not arrive in time. When it did not
+// (the operation has no inverse, the context has no deadline, or the event
+// could not be built or emitted), err says why and the inverse is still owed.
+func (d *RollbackDriver) Undo(ctx context.Context, op *ConfigOperation) (sent bool, err error) {
+	if IsSectionApply(op) {
+		return false, fmt.Errorf("operation %s is a coarse section apply and has no original inverse", op.ID)
+	}
+	deadline, bounded := ctx.Deadline()
+	if !bounded {
+		return false, fmt.Errorf("rollback of operation %s has no deadline: the caller must bound the whole schedule", op.ID)
+	}
+	return d.executor.rollbackOne(ctx, op, deadline, d.okCh, d.failedCh, d.filter)
 }
 
 // applySection applies one coarse node through the section apply event, the
@@ -307,29 +360,38 @@ func (e *OperationExecutor) rollbackApplied(ctx context.Context, executed []Conf
 		if IsSectionApply(op) {
 			continue
 		}
-		if filter != nil {
-			filter.set(op.ID)
-		}
-		payload, err := json.Marshal(ConfigOperationRollbackEvent{TransactionID: e.txID, Operations: []ConfigOperation{*op}, DeadlineMS: deadline.UnixMilli()})
-		if err != nil {
-			cause = errors.Join(cause, fmt.Errorf("marshal operation rollback %s: %w", op.ID, err))
-			continue
-		}
-		if _, err := e.gateway.EmitConfigEvent(EventOperationRollbackFor(op.Owner), payload); err != nil {
-			cause = errors.Join(cause, fmt.Errorf("emit operation rollback %s: %w", op.ID, err))
-			continue
-		}
-		if err := waitRollbackAck(ctx, op.ID, okCh, failedCh); err != nil {
-			cause = errors.Join(cause, fmt.Errorf("rollback %s failed: %w", op.ID, err))
-		}
-		if filter != nil {
-			filter.clear()
+		// A whole rollback attempts every inverse whether or not an earlier one
+		// was sent, so whether this one reached its owner changes nothing here.
+		if _, err := e.rollbackOne(ctx, op, deadline, okCh, failedCh, filter); err != nil {
+			cause = errors.Join(cause, err)
 		}
 	}
 	if e.afterRollback != nil {
 		return e.afterRollback(ctx, cause)
 	}
 	return cause
+}
+
+// rollbackOne sends the inverse of one applied operation with the shared
+// deadline and waits for its acknowledgement under ctx. sent reports whether
+// the event reached the owner: a marshal or emit failure leaves the inverse
+// unsent, and so still owed.
+func (e *OperationExecutor) rollbackOne(ctx context.Context, op *ConfigOperation, deadline time.Time, okCh, failedCh <-chan ConfigOperationRollbackAck, filter *ackFilter) (sent bool, err error) {
+	if filter != nil {
+		filter.set(op.ID)
+		defer filter.clear()
+	}
+	payload, err := json.Marshal(ConfigOperationRollbackEvent{TransactionID: e.txID, Operations: []ConfigOperation{*op}, DeadlineMS: deadline.UnixMilli()})
+	if err != nil {
+		return false, fmt.Errorf("marshal operation rollback %s: %w", op.ID, err)
+	}
+	if _, err := e.gateway.EmitConfigEvent(EventOperationRollbackFor(op.Owner), payload); err != nil {
+		return false, fmt.Errorf("emit operation rollback %s: %w", op.ID, err)
+	}
+	if err := waitRollbackAck(ctx, op.ID, okCh, failedCh); err != nil {
+		return true, fmt.Errorf("rollback %s failed: %w", op.ID, err)
+	}
+	return true, nil
 }
 
 type ackFilter struct {

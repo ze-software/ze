@@ -470,12 +470,15 @@ not supply that lifecycle.
 
 BGP and interface journals remain reversible through the outer hub reload:
 operation commit does not discard them. Whole-reload rejection invokes the
-original inverses before restoring dependent sections; acceptance uses
+original inverses before restoring dependent sections, restarting owners the
+reload removed between those inverses by their declared dependencies and the
+coarse-node placement above, all under one rollback deadline; acceptance uses
 acknowledged `config-complete` callbacks after durable publication. A cleanup
 failure there reports that the candidate is active, never that it rolled back.
 <!-- source: internal/component/config/transaction/orchestrator.go -- runOperationPath -->
 <!-- source: internal/component/config/transaction/executor.go -- rollbackApplied -->
-<!-- source: internal/component/plugin/server/reload_compensation.go -- rollbackOperations -->
+<!-- source: internal/component/plugin/server/reload_recovery_schedule.go -- planRecoverySchedule, runRecoverySchedule -->
+<!-- source: internal/component/config/transaction/solver.go -- InverseSectionPosition -->
 
 **A remove-peer's inverse restores the peer the reactor was running.** The
 settings come from that peer, not from the config subtree the operation carries.

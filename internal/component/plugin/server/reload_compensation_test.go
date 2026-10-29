@@ -478,6 +478,11 @@ func TestReloadOriginalJournalWithCoarseRestoration(t *testing.T) {
 	const ownerName, serviceName = "completion-retained", "completion-dependent"
 	retainedCompletionDecomposerOnce.Do(func() {
 		require.NoError(t, transaction.RegisterOperationDecomposer(ownerName, func(_ context.Context, req transaction.DecomposeRequest) ([]transaction.ConfigOperation, error) {
+			// The registry is process-global and the planner asks every root, so
+			// answer only for a reload whose candidate holds this root.
+			if req.CandidateRoot == "" || req.CandidateRoot == "{}" {
+				return nil, nil
+			}
 			return []transaction.ConfigOperation{{
 				ID: ownerName + "-change", Root: ownerName, Owner: ownerName, Type: testOpSetProperty,
 				Verb: transaction.VerbModify, Target: transaction.ResourceRef{Kind: testResourceSysctl, Name: ownerName},
@@ -641,10 +646,15 @@ func TestReloadRecoversRemovedInfrastructureBeforeOriginalUndo(t *testing.T) {
 			var runtime atomic.Int64
 			var infrastructureStarts, dependentDecompositions, dependentUndos atomic.Int64
 			for _, name := range []string{infrastructure, dependent} {
+				// The dependent's original undo needs the infrastructure running.
+				var startAfter []string
+				if name == dependent {
+					startAfter = []string{infrastructure}
+				}
 				require.NoError(t, registry.Register(registry.Registration{
 					Name: name, Description: "removed prerequisite and retained dependent",
-					ConfigRoots: []string{name},
-					CLIHandler:  func([]string) int { return 0 },
+					ConfigRoots: []string{name}, StartAfter: startAfter,
+					CLIHandler: func([]string) int { return 0 },
 					RunEngine: func(conn net.Conn) int {
 						if wire {
 							conn = struct{ net.Conn }{conn}

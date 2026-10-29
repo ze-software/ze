@@ -113,6 +113,45 @@ func sectionNodePosition(ops []ConfigOperation) int {
 	return len(ops)
 }
 
+// InverseSectionPosition answers where coarse restoration enters a chain of
+// original-operation inverses. inverses holds the ORIGINAL operations in the
+// order their inverses are dispatched. It is sectionNodePosition read for undo:
+// the first binder an inverse brings back after the last inverse that can
+// restore addressing, and the end of the chain when no such binder follows.
+//
+// An undo carries no resource declaration of its own, so the original's is
+// read conservatively. Any inverse of an addressing-layer operation counts as
+// restoring addressing, whatever its verb: placing a coarse participant after
+// an address removal costs at most a session restart, while placing it before
+// an address it binds is the failure the requirement exists to prevent
+// (docs/architecture/config/apply-ordering.md, "The fail-safe default").
+func InverseSectionPosition(inverses []ConfigOperation) int {
+	addressingDone := 0
+	for i := range inverses {
+		if providesAddressing(&inverses[i]) {
+			addressingDone = i + 1
+		}
+	}
+	for i := addressingDone; i < len(inverses); i++ {
+		if undoRestartsABinder(&inverses[i]) {
+			return i
+		}
+	}
+	return len(inverses)
+}
+
+// undoRestartsABinder reports whether undoing op brings a binder back: the
+// inverse of a binder's destroy or modify. Undoing a create stops the binder.
+func undoRestartsABinder(op *ConfigOperation) bool {
+	//exhaustive:ignore // Only undoing a destroy or a modify brings a binder back.
+	switch op.Verb {
+	case VerbDestroy, VerbModify:
+		return !providesAddressing(op)
+	default:
+		return false
+	}
+}
+
 // addsAddressing reports whether op is one of the requirement's phase 4
 // additions: an address this commit adds or moves, or the interface that
 // carries one.

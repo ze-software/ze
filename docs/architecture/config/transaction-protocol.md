@@ -319,14 +319,37 @@ replays original operation tokens before reconstructing section-owned services,
 so their infrastructure is restored before they restart. Reconstruction keeps
 the full inverse diff, but skips decomposition of roots declared by retained
 operation owners: those roots have already been undone from their original
-journals. Acknowledged removed owners have no live original journal. The existing
-removal-recovery path first restarts owners required by the old configuration,
-so their infrastructure exists before retained dependents replay original undo.
-Remaining coarse section restoration still follows that undo. Removed owners
-remain eligible for normal reconstruction. This is not a general exemption from
+journals. Acknowledged removed owners have no live original journal, so they
+are restarted from the old configuration. One server-owned schedule
+interleaves those restarts with the retained owners' original inverses
+(`reload_recovery_schedule.go`). The complete set of removed owners to restart
+is selected before anything runs, with no dependency expansion later. The
+retained inverses keep their exact reverse batch and operation order, each
+identified by transaction, captured owner lifetime and operation position. A
+removed owner starts after the last inverse of every retained owner it depends
+on (Dependencies, OptionalDependencies or StartAfter, read through the startup
+graph), and before the first inverse of every retained owner that depends on
+it. Between those bounds it takes the coarse-node placement the solver uses:
+after the last inverse that can restore addressing, before the first binder an
+inverse brings back. A dependency cycle that passes through a removed owner,
+or a removed owner that must start both after and before the fixed undo order
+allows, is refused before any restart or inverse runs; the refusal names the
+plugins and tells the operator to restart the daemon. A cycle of retained
+owners alone is not refused: they are not started, and the undo order already
+fixes theirs. Restarts and inverses share one rollback deadline, and
+the startup handshakes themselves end with it. The schedule holds the scope's
+completion gate through its recovery startups and inverses, so a newer scope's
+acceptance, or a retry of this compensation, can wait up to the 90-second
+completion budget behind them. Remaining coarse section
+restoration still follows every original inverse. Removed owners remain
+eligible for normal reconstruction. This is not a general exemption from
 operation declaration validation, nor a fresh inverse BGP/interface transaction.
 Operation undo runs in reverse actual apply order and attempts earlier inverses
-even after one fails. A session-bound source lifecycle MUST retain admission,
+even after one fails. A sent inverse consumes its journal whatever its answer:
+a retry reports the recorded failure and never sends it again, while an
+inverse that was never sent (the deadline ended first, or its event could not
+be built or emitted) stays owed and stops the schedule, so the retry keeps
+reverse apply order. A session-bound source lifecycle MUST retain admission,
 epochs and pins through both infrastructure undo and section restoration, and
 MUST restore source eligibility only after old-filter restoration is
 acknowledged; generic operation undo does not provide that source barrier.
@@ -361,7 +384,9 @@ Its plugin shutdown separately retires that lifetime and joins cleanup before
 restart. `MarkReloadProcessed` remains an observation fence and emits no event.
 <!-- source: internal/component/plugin/server/reload_tx.go -- DeferReloadAcceptance, recordReloadTransaction -->
 <!-- source: internal/component/l2tp/plugins/authradius/register.go -- runPlugin -->
-<!-- source: internal/component/plugin/server/reload_compensation.go -- restoreReload, rollbackOperations -->
+<!-- source: internal/component/plugin/server/reload_compensation.go -- restoreReload -->
+<!-- source: internal/component/plugin/server/reload_recovery_schedule.go -- restoreOriginalJournals, planRecoverySchedule, runRecoverySchedule -->
+<!-- source: internal/component/config/transaction/executor.go -- RollbackDriver -->
 <!-- source: internal/component/plugin/ipc/rpc.go -- SendConfigComplete -->
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnConfigComplete -->
 

@@ -42,7 +42,9 @@ const (
 
 // stageTransition handles coordinator stage completion and waiting.
 // Returns true if transition succeeded, false if failed (caller should return true to stop processing).
-func (s *Server) stageTransition(proc *process.Process, pluginName string, completeStage, waitStage plugin.PluginStage) bool {
+// ctx bounds the wait: the server lifetime for ordinary startup, and the shared
+// rollback deadline for a recovery startup inside reload compensation.
+func (s *Server) stageTransition(ctx context.Context, proc *process.Process, pluginName string, completeStage, waitStage plugin.PluginStage) bool {
 	s.coordinatorMu.Lock()
 	coord := s.coordinator
 	s.coordinatorMu.Unlock()
@@ -75,8 +77,9 @@ func (s *Server) stageTransition(proc *process.Process, pluginName string, compl
 	//
 	// Still bounded: progress events are finite (a plugin completes each stage
 	// once; repeats are ignored), so a wedged tier trips the barrier within
-	// `timeout` of the last progress, and s.ctx ends the wait on shutdown.
-	err := coord.WaitForStageProgress(s.ctx, waitStage, timeout)
+	// `timeout` of the last progress, and ctx ends the wait on shutdown or at
+	// the recovery deadline.
+	err := coord.WaitForStageProgress(ctx, waitStage, timeout)
 
 	if err != nil {
 		logger().Error("stage stalled", "plugin", pluginName, "waiting_for", waitStage, "error", err)
@@ -398,8 +401,20 @@ func (s *Server) startupComplete() bool {
 // Async handlers (handleSingleProcessCommandsRPC) start only after ALL tiers
 // complete, because they read from the same connections used during startup.
 func (s *Server) runPluginPhase(plugins []plugin.PluginConfig) error {
+	return s.runPluginPhaseWithin(s.ctx, plugins)
+}
+
+// runPluginPhaseWithin runs one startup phase whose handshakes end when ctx
+// does. A recovery phase inside reload compensation passes the shared rollback
+// context, so startup itself obeys that deadline rather than only checking it
+// before blocking. An expired ctx fails the handshake through the ordinary
+// failed-startup rollback.
+func (s *Server) runPluginPhaseWithin(ctx context.Context, plugins []plugin.PluginConfig) error {
 	if len(plugins) == 0 {
 		return nil
+	}
+	if err := ctx.Err(); err != nil {
+		return fmt.Errorf("plugin startup not begun: %w", err)
 	}
 
 	// Step (a): Spawn processes via PluginManager (ProcessSpawner).
@@ -466,7 +481,7 @@ func (s *Server) runPluginPhase(plugins []plugin.PluginConfig) error {
 			procWg.Add(1)
 			go func(p *process.Process) {
 				defer procWg.Done()
-				s.handleProcessStartupRPC(p)
+				s.handleProcessStartupWithin(ctx, p)
 			}(proc)
 		}
 		procWg.Wait()
@@ -567,6 +582,12 @@ func (s *Server) rollbackNonRunningStartupProcesses(pm *process.ProcessManager, 
 // sink's Transition), not the returned error -- which is why the driver's error
 // is only logged here and the outer runPluginPhase inspects the process stage.
 func (s *Server) handleProcessStartupRPC(proc *process.Process) {
+	s.handleProcessStartupWithin(s.ctx, proc)
+}
+
+// handleProcessStartupWithin is handleProcessStartupRPC bounded by ctx, which
+// reaches every handshake read, send and barrier wait.
+func (s *Server) handleProcessStartupWithin(ctx context.Context, proc *process.Process) {
 	proc.SetStage(plugin.StageRegistration)
 
 	// Signal coordinator on early exit if startup didn't complete.
@@ -601,7 +622,7 @@ func (s *Server) handleProcessStartupRPC(proc *process.Process) {
 		return
 	}
 
-	if err := runStartupHandshake(s.ctx, &engineStartupSink{s: s, proc: proc}); err != nil {
+	if err := runStartupHandshake(ctx, &engineStartupSink{s: s, proc: proc, startup: ctx}); err != nil {
 		logger().Debug("rpc startup: handshake ended before running", "plugin", proc.Name(), "error", err)
 		proc.SetStartupError(err)
 		// The final barrier precedes the ready acknowledgement. A failed write
@@ -621,6 +642,18 @@ func (s *Server) handleProcessStartupRPC(proc *process.Process) {
 type engineStartupSink struct {
 	s    *Server
 	proc *process.Process
+	// startup bounds the barrier waits, as the handshake's own context bounds
+	// its reads. Nil means the server lifetime (see lifetime).
+	startup context.Context
+}
+
+// lifetime answers the context the tier barrier waits under.
+func (e *engineStartupSink) lifetime() context.Context {
+	// refuse-by-default: guards stageTransition -- a sink built without a startup context belongs to the server lifetime
+	if e.startup == nil {
+		return e.s.ctx
+	}
+	return e.startup
 }
 
 func (e *engineStartupSink) conn() *plugipc.PluginConn { return e.proc.Conn() }
@@ -866,7 +899,7 @@ func (e *engineStartupSink) postReady(conn *plugipc.PluginConn, input *rpc.Ready
 // the new process stage. A nil coordinator (ad-hoc session) makes stageTransition
 // an immediate success.
 func (e *engineStartupSink) transition(from, to plugin.PluginStage) bool {
-	if !e.s.stageTransition(e.proc, e.proc.Name(), from, to) {
+	if !e.s.stageTransition(e.lifetime(), e.proc, e.proc.Name(), from, to) {
 		return false
 	}
 	e.proc.SetStage(to)

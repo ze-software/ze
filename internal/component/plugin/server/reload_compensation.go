@@ -11,7 +11,6 @@ import (
 	"slices"
 
 	"github.com/ze-software/ze/internal/component/config"
-	"github.com/ze-software/ze/internal/component/config/transaction"
 	plugin "github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -29,14 +28,17 @@ type reloadCompensation struct {
 	// reload whose tree declares one takes it over, and restoring before does
 	// not mark it again, nor rebuild one it renamed (RestoreCreatedPeers,
 	// plugin.ReactorConfigurator).
-	created            map[netip.Addr]string
-	after              map[string]any
-	affected           map[string]affectedPlugin
-	attempted          bool
-	err                error
-	restored           *reloadAcceptance
-	operationsRestored bool
-	reactorRestored    bool
+	created         map[netip.Addr]string
+	after           map[string]any
+	affected        map[string]affectedPlugin
+	attempted       bool
+	err             error
+	restored        *reloadAcceptance
+	reactorRestored bool
+	// inverses records every retained original inverse dispatched, keyed by
+	// transaction, captured lifetime and position. It outlives a failed
+	// attempt, so a retry never sends a consumed journal again.
+	inverses map[inverseKey]inverseOutcome
 }
 
 // claimReloadOwnership runs under transaction exclusion. A no-diff reload also
@@ -68,6 +70,7 @@ func recordReloadCompensation(ctx context.Context, before, after map[string]any,
 			beforeTransactions: maps.Clone(pending.server.txLock.configTransactions),
 			created:            created,
 			affected:           make(map[string]affectedPlugin),
+			inverses:           make(map[inverseKey]inverseOutcome),
 		}
 	}
 	undo := pending.compensation
@@ -76,7 +79,6 @@ func recordReloadCompensation(ctx context.Context, before, after map[string]any,
 	undo.err = nil
 	undo.restored = nil
 	undo.reactorRestored = false
-	undo.operationsRestored = false
 	for _, participant := range affected {
 		undo.affected[participant.proc.Name()] = participant
 	}
@@ -163,7 +165,7 @@ func (s *Server) restoreReload(pending *reloadAcceptance, undo *reloadCompensati
 			return err
 		}
 		s.txLock.configTransactions = maps.Clone(undo.beforeTransactions)
-		return errors.Join(pending.rollbackOperations(pending.lifetime), pending.completeBatchesBounded(false))
+		return errors.Join(s.restoreOriginalJournals(pending, undo, undo.before, nil), pending.completeBatchesBounded(false))
 	}
 	if undo.restored == nil {
 		restoreCtx, _ := s.DeferReloadAcceptance(pending.lifetime)
@@ -178,21 +180,15 @@ func (s *Server) restoreReload(pending *reloadAcceptance, undo *reloadCompensati
 				restoring.transactions[name] = txID
 			}
 		}
-		if len(diff.Added) != 0 {
-			recoveryCtx := context.WithValue(restoreCtx, removalRecoveryContextKey{}, true)
-			if _, err := s.autoLoadForNewConfigPaths(recoveryCtx, undo.before, slices.Sorted(maps.Keys(diff.Added))); err != nil {
-				return errors.Join(err, restoring.finishWithLock(false, false))
-			}
-		}
-		if !undo.operationsRestored {
-			// Removed owners have no live journal: recover their prerequisites
-			// above before retained dependents undo. Ordinary coarse services
-			// still restore below, after original infrastructure inverses.
-			// Source eligibility MUST remain held until old filters acknowledge.
-			if err := pending.rollbackOperations(pending.lifetime); err != nil {
-				return errors.Join(err, restoring.finishWithLock(false, false))
-			}
-			undo.operationsRestored = true
+		// One schedule restarts the owners the reload removed and replays the
+		// retained owners' original journals under one rollback deadline: a
+		// removed owner starts after the retained undo it depends on and before
+		// the retained undo that depends on it (reload_recovery_schedule.go).
+		// Ordinary coarse services still restore below, after every original
+		// inverse. Source eligibility MUST remain held until old filters
+		// acknowledge.
+		if err := s.restoreOriginalJournals(pending, undo, undo.before, slices.Sorted(maps.Keys(diff.Added))); err != nil {
+			return errors.Join(err, restoring.finishWithLock(false, false))
 		}
 		var affected []affectedPlugin
 		pm := s.procManager.Load()
@@ -268,61 +264,12 @@ func (a *reloadAcceptance) operationOwners() map[string]bool {
 		for i := range batch.operations {
 			op := &batch.operations[i]
 			participant := batch.participants[op.Owner]
-			if a.removedParticipant(participant) {
-				continue
-			}
-			if participant.proc != nil && participant.proc.Registration().ConfigCompletion && !transaction.IsSectionApply(op) {
+			if a.ownsInverse(participant, op) {
 				owners[op.Owner] = true
 			}
 		}
 	}
 	return owners
-}
-
-func (a *reloadAcceptance) rollbackOperations(ctx context.Context) error {
-	ctx, cancel := context.WithTimeout(ctx, reloadCompletionBudget)
-	defer cancel()
-	if err := a.acquireCompletion(ctx); err != nil {
-		return err
-	}
-	defer func() { <-a.completionGate }()
-	var result error
-	batches := a.operationBatches()
-	for i := len(batches) - 1; i >= 0; i-- {
-		batch := batches[i]
-		if batch.undoDone {
-			result = errors.Join(result, batch.undoErr)
-			continue
-		}
-		var ops []transaction.ConfigOperation
-		for i := range batch.operations {
-			op := &batch.operations[i]
-			participant := batch.participants[op.Owner]
-			if a.removedParticipant(participant) {
-				continue
-			}
-			if participant.proc != nil && participant.proc.Registration().ConfigCompletion && !transaction.IsSectionApply(op) {
-				ops = append(ops, *op)
-			}
-		}
-		if len(ops) == 0 {
-			continue
-		}
-		gateway := newConfigEventGateway(a.server)
-		bridge := newConfigTxBridge(a.server, gateway, slices.Sorted(maps.Keys(batch.participants)), nil)
-		bridge.participants = batch.participants
-		if err := bridge.Subscribe(ctx); err != nil {
-			result = errors.Join(result, err)
-			continue
-		}
-		executor := transaction.NewOperationExecutor(gateway, batch.txID)
-		executor.SetRollbackBudget(reloadCompletionBudget)
-		batch.undoErr = executor.Rollback(ctx, ops, nil)
-		batch.undoDone = true
-		result = errors.Join(result, batch.undoErr)
-		bridge.Close()
-	}
-	return result
 }
 
 func (a *reloadAcceptance) completeBatchesBounded(accepted bool) error {
