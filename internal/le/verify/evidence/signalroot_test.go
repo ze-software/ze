@@ -59,6 +59,11 @@ func TestReleaseCandidateKernelStepCancelsOnSignal(t *testing.T) {
 	signal.Notify(held, syscall.SIGINT)
 	defer signal.Stop(held)
 
+	// The step meets an ended context and dials no daemon. Naming one keeps
+	// the verdict off the host: on macOS an unset DOCKER_HOST makes
+	// dockerhost.Environment refuse, before the context is read, whenever the
+	// `ze` Colima profile is stopped.
+	t.Setenv("DOCKER_HOST", "unix:///nonexistent/ze-test-docker-stub.sock")
 	tree := t.TempDir()
 	runner := &Runner{
 		Tree:     tree,

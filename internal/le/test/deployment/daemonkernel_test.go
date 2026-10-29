@@ -23,6 +23,13 @@ esac
 exit 0
 `
 
+// stubDaemon is the DOCKER_HOST a test names when it puts a docker stub on
+// PATH. The stub answers every command itself and dials nothing, so no daemon
+// is reached. Naming one keeps the verdict off the host: on macOS an unset
+// DOCKER_HOST makes dockerhost.Environment look for the `ze` Colima profile's
+// socket and refuse, before the stub runs, whenever that profile is stopped.
+const stubDaemon = "unix:///nonexistent/ze-test-docker-stub.sock"
+
 // daemonProof is one deployment proof that builds its own daemon: its name,
 // the architecture it builds for, and the call that runs it.
 type daemonProof struct {
@@ -75,6 +82,7 @@ func TestDaemonProofsRefuseMissingKernelFeature(t *testing.T) {
 			record := filepath.Join(bin, "record")
 			t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
 			t.Setenv("DOCKER_RECORD", record)
+			t.Setenv("DOCKER_HOST", stubDaemon)
 			t.Setenv("NO_BUILD", "1")
 
 			tree := t.TempDir()
@@ -164,6 +172,7 @@ func TestDaemonProofsCheckTheKernelBeforeThePull(t *testing.T) {
 			record := filepath.Join(bin, "record")
 			t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
 			t.Setenv("DOCKER_RECORD", record)
+			t.Setenv("DOCKER_HOST", stubDaemon)
 			t.Setenv("NO_BUILD", "1")
 
 			tree := t.TempDir()

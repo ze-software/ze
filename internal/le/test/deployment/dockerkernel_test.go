@@ -59,6 +59,7 @@ func TestDockerDeploymentRefusesMissingKernelFeature(t *testing.T) {
 			record := filepath.Join(dir, "record")
 			t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
 			t.Setenv("DOCKER_RECORD", record)
+			t.Setenv("DOCKER_HOST", stubDaemon)
 			// NO_BUILD keeps the run from cross-compiling ze: the stub never
 			// reads the binary, and the check is what this test is about. The
 			// check refuses a staged path that holds no file, so the run works

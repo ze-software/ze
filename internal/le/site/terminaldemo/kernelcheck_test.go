@@ -38,6 +38,10 @@ func TestRenderRefusesMissingKernelFeature(t *testing.T) {
 	record := filepath.Join(bin, "record")
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
 	t.Setenv("DOCKER_RECORD", record)
+	// The docker stub dials no daemon. Naming one keeps the verdict off the
+	// host: on macOS an unset DOCKER_HOST makes dockerhost.Environment refuse,
+	// before the stub runs, whenever the `ze` Colima profile is stopped.
+	t.Setenv("DOCKER_HOST", "unix:///nonexistent/ze-test-docker-stub.sock")
 
 	fixture := newDemoFixture(t)
 	var output bytes.Buffer

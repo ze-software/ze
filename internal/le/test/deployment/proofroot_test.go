@@ -42,6 +42,7 @@ func stageProofDocker(t *testing.T, script, goarch, tree string) string {
 	record := filepath.Join(bin, "record")
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
 	t.Setenv("DOCKER_RECORD", record)
+	t.Setenv("DOCKER_HOST", stubDaemon)
 	t.Setenv("NO_BUILD", "1")
 
 	daemon := filepath.Join(tree, daemonRel(goarch))

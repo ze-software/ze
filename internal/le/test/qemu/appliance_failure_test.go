@@ -75,6 +75,11 @@ func TestApplianceStepFailureNamesExitStatus(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
+			// The fake host binary dials no daemon. Naming one keeps the
+			// verdict off the host: on macOS an unset DOCKER_HOST makes
+			// dockerhost.Environment refuse, before the fake runs, whenever
+			// the `ze` Colima profile is stopped.
+			t.Setenv("DOCKER_HOST", "unix:///nonexistent/ze-test-docker-stub.sock")
 			host := writeFakeHost(t, tc.init, tc.image)
 			err := tc.build(host, t.TempDir())
 			if err == nil {
