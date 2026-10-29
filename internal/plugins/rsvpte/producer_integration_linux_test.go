@@ -15,6 +15,9 @@
 // The test binary itself is its read-only external event observer; both binaries
 // MUST be accessible inside the test namespace. userns.Enter supplies the
 // namespace capabilities; the explicit daemon prerequisite keeps integration.
+// Each daemon's directory (config, live store, log, observer events) is a tmpfs
+// in that private mount namespace, so a reload's fsync measures memory rather
+// than the host disk's journal latency.
 // No test callback acknowledges a FIB write.
 //
 // Run the compiled test on a Linux host or in the runtime-kernel guest with:
@@ -399,6 +402,29 @@ func TestRSVPNativeProducer(t *testing.T) {
 	lab.deliver(t, m.id, 0, "ordinary-after-shutdown", "bypass-b", nil, 0)
 }
 
+// rsvpProducerMemoryDir answers a test directory backed by a tmpfs of its own.
+// A SIGHUP reload stages its candidate through the live store's fsync, and on a
+// busy journaled root disk one fsync waits for the whole journal commit: that
+// wait is the host's, not RSVP's, and it outlasted rsvpProducerWait. The mount
+// lives in the private mount namespace userns.Enter created, so it reaches no
+// other process; `ip netns exec` copies that namespace, so each daemon and its
+// observer write to the same tmpfs the test reads. The unmount cleanup is
+// registered after t.TempDir's own, so it runs first, after every daemon has
+// stopped, and the removal then meets an empty directory, not a mount point.
+func rsvpProducerMemoryDir(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	if err := unix.Mount("tmpfs", dir, "tmpfs", unix.MS_NOSUID|unix.MS_NODEV, "mode=0700"); err != nil {
+		t.Fatalf("mount a tmpfs for the daemon directory %s: %v", dir, err)
+	}
+	t.Cleanup(func() {
+		if err := unix.Unmount(dir, unix.MNT_DETACH); err != nil {
+			t.Errorf("unmount the daemon directory tmpfs %s: %v", dir, err)
+		}
+	})
+	return dir
+}
+
 func newRSVPProducerLab(t *testing.T) *rsvpProducerLab {
 	t.Helper()
 	if *rsvpProducerDaemon == "" {
@@ -418,7 +444,7 @@ func newRSVPProducerLab(t *testing.T) *rsvpProducerLab {
 	}
 	lab := &rsvpProducerLab{stop: make(chan struct{})}
 	for index, name := range []string{"h", "m", "e"} {
-		node := &rsvpProducerNode{name: name, id: netip.AddrFrom4([4]byte{198, 18, byte(index + 1), 1}), dir: t.TempDir()}
+		node := &rsvpProducerNode{name: name, id: netip.AddrFrom4([4]byte{198, 18, byte(index + 1), 1}), dir: rsvpProducerMemoryDir(t)}
 		node.name = fmt.Sprintf("rsvp-%d-%s", os.Getpid(), name)
 		createCtx, cancel := context.WithTimeout(t.Context(), 3*time.Second)
 		output, err := exec.CommandContext(createCtx, "ip", "netns", "add", node.name).CombinedOutput()
