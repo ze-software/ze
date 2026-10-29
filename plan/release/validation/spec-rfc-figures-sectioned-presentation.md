@@ -227,6 +227,8 @@ Publication (Thomas, 2026-10-29, design gate): the RFC completion data is publis
 
 Scope split (Thomas, 2026-10-29, agreed with session json-website and `spec-site-values-from-one-file`): site-wide values (header, home, health, compare, CLI reference, release and downloads) live in `data/site-facts.json` and belong to that spec; RFC completion data, the RFC pages and the RFC index aggregates belong to this one. `internal/le/site/facts.go` and `home.go` are shared: whichever lands first, the other rebases. Rule: `ai/META-DECISIONS.md`, "Website design".
 
+Marker (agreed with `spec-site-values-from-one-file`): every RFC value on a page sits inside an element carrying `data-ze-rfc="<stem>:<field>"`, read from `data/rfc/<stem>.json`; site-wide values use `data-ze-stat="<key>"`. That spec's plain-text guard accepts a value only inside one of the two markers. If the guard lands first, the RFC pages still carrying server-written figures sit in its committed ratchet list, which may only shrink; phase 5 empties it (AC-19).
+
 The existing whole-ledger `data/rfc-requirements.json` and the per-page server rendering of figures are replaced, not kept beside it (`ai/rules/no-layering.md`). The renderer is tested in a real browser through Playwright, already used for the website demos.
 
 A profile's mandatory register is complete when Ze gap and OS gap are both zero. `{rollup}` rows stay outside every count, so the check line sums non-rollup MUST rows.
@@ -258,6 +260,7 @@ A profile's mandatory register is complete when Ze gap and OS gap are both zero.
 | AC-16 | `./le site build` | Writes one `data/rfc/<stem>.json` per summary, one per profile, and the index; each per-RFC file's counts equal `./le rfc tree` for that stem; the Markdown mirrors link to the files and carry no figures |
 | AC-17 | Republishing one RFC's JSON with changed counts | The pages show the new counts with no page file changed |
 | AC-18 | A per-RFC file listed in the index is missing | The page names the missing RFC; it is never silently dropped from a sum |
+| AC-19 | The plain-text guard of `spec-site-values-from-one-file` over the built RFC pages | Every RFC figure sits inside a `data-ze-rfc="<stem>:<field>"` element; no RFC page remains in the guard's ratchet list |
 | AC-12 | Segment order and colour | MUST bar: Ze proven, OS verified, OS gap, Ze gap. Overview: Ze MUST proven, OS verified, SHOULD proven, not owed, not ever, not yet, not decided, OS gap, Ze gap. Each segment also carries name and count in text |
 | AC-13 | Any published page | No ceiling text, no old mandatory/optional single bars, no corpus tape bucket partition, no `ProvenShareOf` share; home page, facts, compliance cards and test health read the sections |
 | AC-14 | Glossary and reader text | Linux-limit text states OS blocked never counts against Ze; no "ceiling" entry; every term in the two bars defined once |
