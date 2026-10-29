@@ -1,5 +1,5 @@
-# Test: `show dns-resolver` reports the running resolver's policy and counters,
-#       and `clear dns-resolver cache all` empties the cache, so the next
+# Test: `show dns resolver` reports the running resolver's policy and counters,
+#       and `clear dns resolver cache all` empties the cache, so the next
 #       query goes upstream again.
 # Spec: spec-lan-dns-resolver (closed 2026-10-28) -- AC-31
 # VALIDATES: through the real entry point, the CLI dialing the daemon's SSH
@@ -86,7 +86,7 @@ expect=stdout:contains=203.0.113.20
 cmd=foreground:seq=5:exec=le dns query --server 127.0.0.1:$PORT --name cached.example.test --type A --rd
 expect=stdout:contains=203.0.113.20
 
-cmd=foreground:seq=6:exec=ze cli -c "show dns-resolver | json":exit=0
+cmd=foreground:seq=6:exec=ze cli -c "show dns resolver | json":exit=0
 expect=stdout:contains="running": true
 expect=stdout:contains="enabled": true
 expect=stdout:contains="mode": "forward"
@@ -102,14 +102,14 @@ expect=stdout:contains="tcp": "up"
 
 # The bare form names no target: it exits 1 listing the one target, all, and
 # clears nothing, so seq=8 still finds the one entry.
-cmd=foreground:seq=7:exec=ze clear dns-resolver cache:exit=1
-expect=stderr:contains=clear dns-resolver cache subcommands:
+cmd=foreground:seq=7:exec=ze clear dns resolver cache:exit=1
+expect=stderr:contains=clear dns resolver cache subcommands:
 expect=stderr:pattern=\n  all +\S
 
-cmd=foreground:seq=8:exec=ze cli -c "clear dns-resolver cache all | json":exit=0
+cmd=foreground:seq=8:exec=ze cli -c "clear dns resolver cache all | json":exit=0
 expect=stdout:contains="cleared-answer": 1
 
-cmd=foreground:seq=9:exec=ze cli -c "show dns-resolver | json":exit=0
+cmd=foreground:seq=9:exec=ze cli -c "show dns resolver | json":exit=0
 expect=stdout:contains="cache-answer-entries": 0
 
 # After the clear the question goes upstream again: the mock's second line.

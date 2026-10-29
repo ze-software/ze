@@ -10,7 +10,7 @@ import (
 )
 
 // TestShowAndClear proves AC-31 at the handlers: show reports the policy,
-// the cache entries and the counters, and clear dns-resolver cache all
+// the cache entries and the counters, and clear dns resolver cache all
 // empties both caches so the next query goes upstream.
 func TestShowAndClear(t *testing.T) {
 	up := aUpstream(t, 0)

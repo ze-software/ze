@@ -93,7 +93,7 @@ Carried from the previous draft and to be re-verified at the producers when this
 | `dns-resolver dnssec validation` | enum `on`, `off` | `on` (O-1) | - | validate or pass through |
 | `dns-resolver dnssec trust-anchor` | leaf-list of DS presentation strings | built-in root DS for key tags 20326 and 38696 | 1..16 | replace the built-in anchors |
 
-Fixed: BAD-cache TTL 60 s (Unbound `val-bogus-ttl` default 60). `show dns-resolver`
+Fixed: BAD-cache TTL 60 s (Unbound `val-bogus-ttl` default 60). `show dns resolver`
 gains the BAD cache entry count, anchor key tags and validation outcome counts.
 `le mock dns` gains `--signed` (generate a key, sign the zone, print the DS),
 `--tamper-rrsig` and `--strip-rrsig`.

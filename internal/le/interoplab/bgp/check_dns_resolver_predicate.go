@@ -122,7 +122,7 @@ func unboundQueryCount(log, source, name, qtype string) int {
 }
 
 // upstreamTruncatedOf finds the "upstream-queries" object anywhere in ze's
-// decoded `show dns-resolver` answer and returns its "truncated" count. An
+// decoded `show dns resolver` answer and returns its "truncated" count. An
 // answer with no such object, or a count that is not a number, is refused:
 // zero is a real count, and a missing field is not one.
 func upstreamTruncatedOf(decoded any, raw string) (uint64, error) {
@@ -148,7 +148,7 @@ func upstreamTruncatedOf(decoded any, raw string) (uint64, error) {
 			pending = append(pending, value)
 		}
 	}
-	return 0, errors.New("show dns-resolver holds no upstream-queries object: " + raw)
+	return 0, errors.New("show dns resolver holds no upstream-queries object: " + raw)
 }
 
 // dhcpcdLease is what `dhcpcd --dumplease` printed for the bound lease.

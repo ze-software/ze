@@ -1,5 +1,5 @@
 // Design: docs/architecture/dns/lan-resolver.md -- the resolver's counters and Prometheus metrics
-// Related: show.go -- show dns-resolver reads the same counters
+// Related: show.go -- show dns resolver reads the same counters
 
 package dnsresolver
 
@@ -67,7 +67,7 @@ func (r refuseReason) label() string {
 	panic("BUG: dnsresolver: unknown refusal")
 }
 
-// resolverStats are the counters show dns-resolver reports. A Prometheus
+// resolverStats are the counters show dns resolver reports. A Prometheus
 // counter cannot be read back, so each event steps both. Safe for
 // concurrent use.
 type resolverStats struct {

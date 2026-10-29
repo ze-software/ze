@@ -121,7 +121,7 @@ type resolverServer struct {
 // without the cap a source outside the ACL could still hold descriptors.
 //
 // OnListenerChange records each bind and unbind edge, a crashed listener's
-// included, in res.listeners, which show dns-resolver and
+// included, in res.listeners, which show dns resolver and
 // ze_dns_resolver_listener_up read.
 func newResolverServer(log *slog.Logger, res *resolver) *resolverServer {
 	return &resolverServer{mgr: dnsserver.New(log, recursiveHandler(log, res), dnsserver.Options{

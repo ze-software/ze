@@ -76,7 +76,7 @@ Carried from the previous draft and to be re-verified when this spec is designed
 | `dns-resolver mode` | enum gains `recursive` | stays `forward`, so existing configs keep their meaning | - | resolution mode |
 | `dns-resolver recursive root-hint <name>` | list, leaves `ipv4`, `ipv6` | absent: built-in IANA root hints | 1..13 entries | override the root for a lab |
 
-`show dns-resolver` shows the root-hint source in recursive mode.
+`show dns resolver` shows the root-hint source in recursive mode.
 
 ## Risks & Assumptions
 

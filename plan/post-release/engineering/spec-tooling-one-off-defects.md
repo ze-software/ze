@@ -200,6 +200,7 @@ before execution. The responsible component remains unestablished.
 
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
+| `gate-verdict-depends-on-the-machine` | 2026-10-29 | dnsresolver system name-server test needs the Linux resolv.conf writer |
 | `gate-verdict-depends-on-the-machine` | 2026-10-29 | coupling check judges with the host plugin list |
 | `gate-verdict-depends-on-the-machine` | 2026-10-27 | verify changed at 043c682d24 load reds |
 | `lint-contract-not-applied` | 2026-10-27 | changed-scope lint at 043c682d24 |

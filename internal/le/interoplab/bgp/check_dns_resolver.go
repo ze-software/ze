@@ -170,18 +170,18 @@ func checkDNSForwardUnbound(ctx context.Context, check *interoplab.CheckContext)
 }
 
 // zeUpstreamTruncated reads ze's count of upstream replies that carried TC
-// from `show dns-resolver`.
+// from `show dns resolver`.
 func zeUpstreamTruncated(ctx context.Context, lab interoplab.CheckerLab) (uint64, error) {
 	// The CLI authenticates as the `interop` user, so the query carries its
 	// password the way every other ze cli query does.
-	command := zeCommand("show dns-resolver")
+	command := zeCommand("show dns resolver")
 	output, err := lab.Query(ctx, "ze", command, queryEnvironment("ze", command))
 	if err != nil {
 		return 0, err
 	}
 	var decoded any
 	if err := json.Unmarshal([]byte(output), &decoded); err != nil {
-		return 0, errors.New("show dns-resolver is not JSON: " + err.Error())
+		return 0, errors.New("show dns resolver is not JSON: " + err.Error())
 	}
 	return upstreamTruncatedOf(decoded, output)
 }

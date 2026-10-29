@@ -149,11 +149,11 @@ new values.
 ## Show and clear
 
 ```
-ze show dns-resolver                   # Config in force, cache sizes and hit rate, counters
-ze clear dns-resolver cache all        # Empty the answer and the negative cache
+ze show dns resolver                   # Config in force, cache sizes and hit rate, counters
+ze clear dns resolver cache all        # Empty the answer and the negative cache
 ```
 
-`show dns-resolver` reports `enabled`, `mode`, `listeners` (each with its
+`show dns resolver` reports `enabled`, `mode`, `listeners` (each with its
 `state`: `udp` and `tcp`, each `up`, `down`, or `unknown` until the listener
 has been bound once), the `allow-from`
 prefix count, `upstreams`, `timeout-seconds`, the limits, `outstanding`, the
@@ -162,8 +162,8 @@ cache bounds and entry counts, `cache-hits`, `cache-misses`,
 `rate-limited`, `dropped`, and `upstream-queries` by result. With the plugin
 not running it reports `running false`.
 
-`clear dns-resolver cache all` reports how many entries it removed from each
-cache and keeps the counters. `clear dns-resolver cache` alone does nothing:
+`clear dns resolver cache all` reports how many entries it removed from each
+cache and keeps the counters. `clear dns resolver cache` alone does nothing:
 it exits 1 and lists `all`, the word you must type.
 
 <!-- source: internal/plugins/dnsresolver/show.go -- resolver.show, handleClearDNSResolverCache -->

@@ -1461,7 +1461,7 @@ clear dns cache record example.com type AAAA        # Delete a single entry by n
 
 <!-- source: internal/component/resolve/cmd/dns.go -- handleClearDNSCache, handleClearDNSCacheStats, handleClearDNSCacheRecord -->
 
-### show dns-resolver / clear dns-resolver cache all
+### show dns resolver / clear dns resolver cache all
 
 The LAN DNS resolver (`service dns-resolver`, [guide](dns-resolver.md)), which
 answers the hosts behind Ze. It is separate from the `show dns` and
@@ -1469,13 +1469,13 @@ answers the hosts behind Ze. It is separate from the `show dns` and
 lookups.
 
 ```
-ze show dns-resolver                   # Config in force, listener state, cache entries, hit rate, refusals, drops, upstream results
-ze clear dns-resolver cache all        # Empty the answer and the negative cache; the counters are kept
+ze show dns resolver                   # Config in force, listener state, cache entries, hit rate, refusals, drops, upstream results
+ze clear dns resolver cache all        # Empty the answer and the negative cache; the counters are kept
 ```
 
-`clear dns-resolver cache` alone has no handler and empties nothing: it exits 1
-and lists `all`, the word emptying needs. `show dns-resolver` answers `running false` while the
-plugin is not running, and `clear dns-resolver cache all` answers an error that
+`clear dns resolver cache` alone has no handler and empties nothing: it exits 1
+and lists `all`, the word emptying needs. `show dns resolver` answers `running false` while the
+plugin is not running, and `clear dns resolver cache all` answers an error that
 names the config to commit.
 
 <!-- source: internal/plugins/dnsresolver/show.go -- handleShowDNSResolver, handleClearDNSResolverCache -->

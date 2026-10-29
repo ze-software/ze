@@ -5,9 +5,14 @@ module ze-dns-resolver-cmd {
     import ze-extensions { prefix ze; }
 
     description
-        "show dns-resolver and clear dns-resolver cache all. Owned by the
+        "show dns resolver and clear dns resolver cache all. Owned by the
          dnsresolver plugin because both handlers read or reset the resolver's
          live state. See ai/rules/plugin-self-containment.md.";
+
+    revision 2026-10-29 {
+        description "Nest under the dns namespace: show dns resolver and clear dns
+         resolver cache all (were show dns resolver and clear dns resolver cache all).";
+    }
 
     revision 2026-10-27 {
         description "Initial revision";
@@ -16,37 +21,45 @@ module ze-dns-resolver-cmd {
     container show {
         config false;
 
-        container dns-resolver {
+        container dns {
             config false;
-            ze:command "ze-dnsresolver:show-dns-resolver";
-            description "Enabled, mode, listeners, allow-from count, upstreams, limits, the
+
+            container resolver {
+                config false;
+                ze:command "ze-dnsresolver:show-dns-resolver";
+                description "Enabled, mode, listeners, allow-from count, upstreams, limits, the
 answer and negative cache entry counts, cache hits, misses and hit rate, the queries
 refused (by reason), rate-limited and dropped, and the upstream exchanges by result.";
-            ze:help "LAN DNS resolver status, cache and counters.";
+                ze:help "LAN DNS resolver status, cache and counters.";
+            }
         }
     }
 
     container clear {
         config false;
 
-        container dns-resolver {
+        container dns {
             config false;
-            description "Operations that reset the LAN DNS resolver's live state. The one
-operation is cache all, which empties the answer and the negative cache.";
-            ze:help "LAN DNS resolver clearing operations.";
 
-            container cache {
+            container resolver {
                 config false;
-                description "Clear dns-resolver cache alone is refused: say all to empty the
-answer and the negative cache. Emptying is never the default.";
-                ze:help "LAN DNS resolver cache clearing operations: all.";
+                description "Operations that reset the LAN DNS resolver's live state. The one
+operation is cache all, which empties the answer and the negative cache.";
+                ze:help "LAN DNS resolver clearing operations.";
 
-                container all {
+                container cache {
                     config false;
-                    ze:command "ze-dnsresolver:clear-dns-resolver-cache";
-                    description "Empties the answer and the negative cache, so the next query for any
+                    description "Clear dns resolver cache alone is refused: say all to empty the
+answer and the negative cache. Emptying is never the default.";
+                    ze:help "LAN DNS resolver cache clearing operations: all.";
+
+                    container all {
+                        config false;
+                        ze:command "ze-dnsresolver:clear-dns-resolver-cache";
+                        description "Empties the answer and the negative cache, so the next query for any
 name goes upstream. The counters are kept.";
-                    ze:help "Empty every LAN DNS resolver cache.";
+                        ze:help "Empty every LAN DNS resolver cache.";
+                    }
                 }
             }
         }

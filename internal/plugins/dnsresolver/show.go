@@ -1,4 +1,4 @@
-// Design: docs/architecture/dns/lan-resolver.md -- show dns-resolver and clear dns-resolver cache all
+// Design: docs/architecture/dns/lan-resolver.md -- show dns resolver and clear dns resolver cache all
 // Related: metrics.go -- the counters show reports
 
 package dnsresolver
@@ -16,7 +16,7 @@ import (
 var errResolverNotRunning = errors.New("dns-resolver is not running, so it holds no cache to clear. " +
 	"Configure service dns-resolver with enabled true, a listener, allow-from and a forward server, then commit")
 
-// handleShowDNSResolver answers `show dns-resolver` from the running
+// handleShowDNSResolver answers `show dns resolver` from the running
 // resolver's published policy and counters, the state the query path
 // reads.
 //
@@ -29,7 +29,7 @@ func handleShowDNSResolver(_ *pluginserver.CommandContext, _ command.ValidatedAr
 	return &plugin.Response{Status: plugin.StatusDone, Data: r.show()}, nil
 }
 
-// handleClearDNSResolverCache answers `clear dns-resolver cache all`.
+// handleClearDNSResolverCache answers `clear dns resolver cache all`.
 func handleClearDNSResolverCache(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	r := activeResolver.Load()
 	if r == nil {
@@ -44,7 +44,7 @@ func handleClearDNSResolverCache(_ *pluginserver.CommandContext, _ command.Valid
 	}}, nil
 }
 
-// show is the show dns-resolver answer. JSON keys are kebab-case.
+// show is the show dns resolver answer. JSON keys are kebab-case.
 func (r *resolver) show() plugin.Map {
 	data := plugin.Map{"running": true}
 	pol := r.policy.Load()

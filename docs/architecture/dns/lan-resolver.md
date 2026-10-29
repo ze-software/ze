@@ -325,16 +325,16 @@ running config again or restarts the plugin.
 
 ## Show and clear
 
-`show dns-resolver` reads the published policy, the applied config and the
+`show dns resolver` reads the published policy, the applied config and the
 counters, which are the state the query path reads. Each listener also
 carries its `state`, one entry per transport (`udp`, `tcp`): `up` or `down` from
 the harness's `OnListenerChange` edges, a crash included, keyed by address and
 port, and `unknown` before the first edge. A listener a reload removes is
 forgotten once the reload settles: its state and its
 `ze_dns_resolver_listener_up` series are deleted (`listenerStates.prune`), so
-no series reports a socket that no longer exists. `clear dns-resolver cache
+no series reports a socket that no longer exists. `clear dns resolver cache
 all` empties both caches and keeps the counters. The bare
-`clear dns-resolver cache` has no handler, so a word typed by mistake never
+`clear dns resolver cache` has no handler, so a word typed by mistake never
 empties the cache. Both RPCs are owned by the plugin (`ze-dnsresolver:*`).
 
 <!-- source: internal/plugins/dnsresolver/show.go -- handleShowDNSResolver, handleClearDNSResolverCache, resolver.show -->

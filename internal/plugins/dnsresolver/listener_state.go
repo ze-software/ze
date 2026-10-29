@@ -1,4 +1,4 @@
-// Design: docs/architecture/dns/lan-resolver.md -- listener state in show dns-resolver and ze_dns_resolver_listener_up
+// Design: docs/architecture/dns/lan-resolver.md -- listener state in show dns resolver and ze_dns_resolver_listener_up
 // Related: server.go -- newResolverServer wires the harness's OnListenerChange here
 // Related: show.go -- show reports the state per listener
 
