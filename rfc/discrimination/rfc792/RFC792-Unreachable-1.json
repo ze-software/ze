@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC792-Unreachable-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPDFDiscard",
+    "unit-sha": "5c0598e257d7c417",
+    "claim-sha": "f7f0c1b32b7ad821",
+    "route": "mutant",
+    "producer": "internal/plugins/iface/netlink/manage_linux.go::SetMTU",
+    "producer-sha": "1a867d6085866d39",
+    "break": "line 589: \"netlink.LinkSetMTU(link, mtu)\" -\u003e \"netlink.LinkSetMTU(link, mtu+400)\""
+  },
+  {
+    "rid": "RFC792-Unreachable-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPDFDiscard",
+    "unit-sha": "5c0598e257d7c417",
+    "claim-sha": "e1067a4c1a03eacd",
+    "route": "mutant",
+    "producer": "internal/plugins/iface/netlink/manage_linux.go::SetMTU",
+    "producer-sha": "1a867d6085866d39",
+    "break": "line 589: \"netlink.LinkSetMTU(link, mtu)\" -\u003e \"netlink.LinkSetMTU(link, mtu-1)\""
+  }
+]

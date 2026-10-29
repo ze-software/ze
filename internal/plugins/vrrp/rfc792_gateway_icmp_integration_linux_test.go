@@ -125,7 +125,7 @@ func (w gatewayWire) routedExit(t *testing.T) int {
 		t.Fatal(err)
 	}
 	out, far := gatewayLink(t, "gw1"), gatewayLink(t, "far0")
-	if err := netlink.LinkSetMTU(out, 576); err != nil {
+	if err := w.backend.SetMTU("gw1", 576); err != nil {
 		t.Fatal(err)
 	}
 	gatewaySysctl(t, "ipv4/conf/far0/forwarding", "0")
