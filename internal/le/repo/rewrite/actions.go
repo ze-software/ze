@@ -17,7 +17,7 @@ const area = "repo rewrite"
 var actions = leaction.New(area,
 	leaction.Action{
 		Verb:       "rules-reformat",
-		Does:       "rewrite",
+		Does:       doesRewrite,
 		Summary:    "reformat ai/rules/*.md into the canonical shape",
 		Why:        "bring ai/rules/*.md into the canonical metadata and Directives format",
 		Writes:     true,
@@ -26,7 +26,7 @@ var actions = leaction.New(area,
 	},
 	leaction.Action{
 		Verb:    "reorder-attr-expectations",
-		Does:    "rewrite",
+		Does:    doesRewrite,
 		Summary: "permute UPDATE attributes without changing bytes",
 		Why:     "permute committed BGP UPDATE attributes without changing their bytes",
 		Writes:  true,
@@ -39,7 +39,7 @@ var actions = leaction.New(area,
 	},
 	leaction.Action{
 		Verb:    "replace",
-		Does:    "rewrite",
+		Does:    doesRewrite,
 		Summary: "preview or apply one literal or regex replacement",
 		Why:     "preview or apply one deterministic literal or regular-expression replacement",
 		Writes:  true,
@@ -267,3 +267,6 @@ func splitComma(value string) []string {
 	}
 	return out
 }
+
+// doesRewrite is the vocabulary verb every action of this area performs.
+const doesRewrite = "rewrite"

@@ -109,7 +109,7 @@ func bumpAgentCalls(dir, agentID string) (int64, error) {
 // asks for its path. Those pass after the budget, because the handoff is
 // what the refusal asks the agent to write.
 func isHandoffCall(ctx context) bool {
-	if ctx.tool == "Bash" {
+	if ctx.tool == toolBash {
 		return handoffCommand.MatchString(stringInput(ctx.input, "command"))
 	}
 	return strings.Contains(ctx.path, "session-state-")

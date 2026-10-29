@@ -101,10 +101,12 @@
 1 internal/exabgp/bridge/bridge_event.go
 1 internal/le/interoplab/bgp/check_rfc_predicate.go
 1 internal/le/interoplab/bgp/helper_aigp_source_cost.go
+1 internal/le/interoplab/radiussubscriber/check_policer.go
 1 internal/plugins/as112/config.go
 1 internal/plugins/copp/config.go
 1 internal/plugins/cos/config.go
 1 internal/plugins/dhcpserver/config.go
+1 internal/plugins/dnsresolver/config.go
 1 internal/plugins/fib/vpp/fibvpp.go
 1 internal/plugins/firewall/nft/lower_linux.go
 1 internal/plugins/flowexport/config.go
@@ -114,6 +116,7 @@
 1 internal/plugins/trafficusage/config.go
 1 internal/test/cli/cmd_bgp.go
 1 internal/test/fixture/tunnel_fixture_l2tp_ppp.go
+2 internal/test/mock/dns/dns.go
 1 internal/test/mock/peeringdb/peeringdb.go
 3 internal/test/mock/rtr/rtr.go
 3 internal/test/peer/expect.go

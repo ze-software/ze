@@ -83,7 +83,7 @@ module ze-plugin-callback {
 
     rpc source-policy {
         ze:method "ze-plugin-callback:source-policy";
-        ze:help "Settle a captured source-policy lifecycle operation";
+        ze:help "Settle a captured source-policy lifecycle operation.";
         description "Prepare follows strict event application drain. The owner fences asynchronous work and downstream settlement before returning. It retains pins until abort or finalize; this is not shutdown drain.";
         input {
             uses source-policy-receipt;
@@ -115,7 +115,7 @@ module ze-plugin-callback {
 
     rpc config-complete {
         ze:method "ze-plugin-callback:config-complete";
-        ze:help "Complete retained config undo after whole-reload acceptance or abort";
+        ze:help "Complete retained config undo after whole-reload acceptance or abort.";
         description "An acknowledged completion for the captured plugin lifetime. Accepted follows irreversible publication; rejection follows original operation undo and old configuration restoration. A receipt means cleanup finished, not queued.";
         input {
             leaf transaction-id {

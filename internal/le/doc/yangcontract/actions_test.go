@@ -18,11 +18,11 @@ import (
 // VALIDATES: each native action has one explicit unique verb and implementation.
 func TestActionTableDeclaresEveryNativeVerb(t *testing.T) {
 	want := map[string]bool{
-		"command-contract":      true,
-		"doc-drift":             true,
-		"usage-contract":        true,
-		"help-shape":            true,
-		"update": true,
+		"command-contract": true,
+		"doc-drift":        true,
+		"usage-contract":   true,
+		"help-shape":       true,
+		"update":           true,
 	}
 	if len(actions) != len(want) {
 		t.Fatalf("the table holds %d actions", len(actions))

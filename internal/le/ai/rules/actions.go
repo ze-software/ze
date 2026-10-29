@@ -104,24 +104,27 @@ var actions = leaction.New(area,
 // predicts; the table stays here beside the corpus every action reads.
 const reportArea = area + " report"
 
+// doesReport is the vocabulary verb every action of the report area performs.
+const doesReport = "report"
+
 var reportActions = leaction.New(reportArea,
-	leaction.Action{Verb: "gate-map", Does: "report", Summary: "report which rule point each hook check enforces", Why: "which rule point each hook check enforces. Gated and ungated are " +
+	leaction.Action{Verb: "gate-map", Does: doesReport, Summary: "report which rule point each hook check enforces", Why: "which rule point each hook check enforces. Gated and ungated are " +
 		"MEASUREMENTS and exit 0: an ungated point is a rule no machine enforces yet. " +
 		"Dangling FAILS, and so do a check that named a point at HEAD and declares none " +
 		"now while that point is still on disk, and a rationale or excepted-by naming nothing",
 		Answer: coverageAnswer},
-	leaction.Action{Verb: "payload", Does: "report", Summary: "measure what a session loads against the token budget", Why: "what a session loads before it reads anything else, measured against the " +
+	leaction.Action{Verb: "payload", Does: doesReport, Summary: "measure what a session loads against the token budget", Why: "what a session loads before it reads anything else, measured against the " +
 		"token budget. A MEASUREMENT, except that a payload file which is not there " +
 		"fails: an absent file is not a smaller one",
 		Answer: payloadAnswer},
-	leaction.Action{Verb: "router", Does: "report", Summary: "report blocking rules no past task would surface", Why: "which blocking rule no past task description would surface. A MEASUREMENT " +
+	leaction.Action{Verb: "router", Does: doesReport, Summary: "report blocking rules no past task would surface", Why: "which blocking rule no past task description would surface. A MEASUREMENT " +
 		"and exit 0: each name it prints is a candidate for the always-on core. " +
 		"An unreadable precedence ladder FAILS, because the core this subtracts is " +
 		"derived from it",
 		Answer: routerAnswer},
 	leaction.Action{
 		Verb:    "coverage",
-		Does:    "report",
+		Does:    doesReport,
 		Summary: "report blocking rules matched but never read",
 		Why:     "which blocking rule matched this session's edited file types but was never read",
 		Writes:  true,

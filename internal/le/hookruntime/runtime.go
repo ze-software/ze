@@ -28,6 +28,9 @@ import (
 // it differently from an Edit, which changes one region.
 const toolWrite = "Write"
 
+// toolBash is the harness tool name of a shell call.
+const toolBash = "Bash"
+
 // specUnassigned is what a session marker holds when the session claims no spec.
 const specUnassigned = "unassigned"
 
@@ -82,7 +85,7 @@ type hookAction struct {
 // from this registry.
 var nativeHookActions = map[string]hookAction{
 	"pretool-bash": {
-		tools: []string{"Bash"},
+		tools: []string{toolBash},
 		checks: []hookCheck{
 			bashWorktreeCopy, bashDestructiveGit, bashBranchMove, bashRootBuild, bashLossyPipe,
 			bashRawHeavy, bashPollLoop, bashSystemTmp, bashScratch,
@@ -101,7 +104,7 @@ var nativeHookActions = map[string]hookAction{
 		},
 	},
 	"posttool-bash": {
-		tools:  []string{"Bash"},
+		tools:  []string{toolBash},
 		checks: []hookCheck{postBashGofmt},
 	},
 	"posttool-writeedit": {

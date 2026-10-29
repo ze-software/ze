@@ -280,11 +280,20 @@ var (
 	// file the command names, and a blocking run drops code-0 hints. Each is a
 	// post-tool report that blocks less; none refuses an edit this population
 	// describes (postwrite_test.go, postbash_test.go, runtime_test.go).
+	// Re-sealed 2026-10-29 over three committed changes and one lint repair:
+	// 8a109bc036 lets the weakening check pass a file outside the checkout
+	// (TestWeakeningPassesAFileOutsideTheCheckout), 9b751cd2fc moves the plan
+	// file refusal from .claude/plan/ to plan/drafts/ze-plan-<name>, and
+	// 85e880d9aa makes the startup hook name TRIGGERS.md. The lint repair
+	// ranges over strings.FieldsSeq in postbash.go and names the Bash tool
+	// through the toolBash constant in runtime.go; neither changes a verdict.
+	// Each committed change states its own refusal change and carries its own
+	// test.
 	hookSourcesDigest = [sha256.Size]byte{
-		0x19, 0x85, 0x26, 0xa5, 0x57, 0x1e, 0x7d, 0x2f,
-		0xda, 0xc8, 0x93, 0xdd, 0xc4, 0xf5, 0x7d, 0x00,
-		0x28, 0xc9, 0xe2, 0x9e, 0x94, 0xbf, 0x14, 0xb8,
-		0xfc, 0x02, 0xaf, 0x14, 0xa2, 0x12, 0x63, 0xe7,
+		0x9e, 0x29, 0x25, 0xa9, 0x51, 0xd0, 0xb0, 0x71,
+		0x03, 0x36, 0x74, 0x7d, 0x5e, 0xad, 0x55, 0x6e,
+		0x3d, 0x2d, 0x16, 0x33, 0x98, 0xbb, 0x21, 0xce,
+		0x49, 0xee, 0x18, 0x40, 0x99, 0x5e, 0x3b, 0xe5,
 	}
 )
 

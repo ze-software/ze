@@ -63,7 +63,7 @@ func postBashGofmt(ctx context) *verdict {
 	output, err := command.Output()
 	named := make([]string, 0, 4)
 	unnamed := 0
-	for _, path := range strings.Fields(string(output)) {
+	for path := range strings.FieldsSeq(string(output)) {
 		if commandNames(stringInput(ctx.input, "command"), path) {
 			named = append(named, path)
 			continue

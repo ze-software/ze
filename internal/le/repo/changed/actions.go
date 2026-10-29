@@ -18,7 +18,7 @@ import (
 var actions = leaction.New(area,
 	leaction.Action{
 		Verb:    "groups",
-		Does:    "list",
+		Does:    doesList,
 		Summary: "list the test groups a change touches",
 		Why: "the test groups holding a changed .go file, one name per line." +
 			" Empty means nothing changed, and a checkout that cannot be read is an error",
@@ -26,14 +26,14 @@ var actions = leaction.New(area,
 	},
 	leaction.Action{
 		Verb:    "group-packages",
-		Does:    "list",
+		Does:    doesList,
 		Summary: "list the changed groups as Go package patterns",
 		Why:     "the same selection as Go package patterns, which is what a test run takes as arguments",
 		Answer:  groupPackagesHere,
 	},
 	leaction.Action{
 		Verb:    "packages",
-		Does:    "list",
+		Does:    doesList,
 		Summary: "list the packages a scoped verify must cover",
 		Why: "the packages a scoped verify stage must cover, from the one change-set selector." +
 			" Widens to ./... on every route it cannot answer",
@@ -132,3 +132,6 @@ func scopeHere(arguments leaction.Arguments) (any, int) {
 	}
 	return (Scope{Root: root}).Resolve(legacy)
 }
+
+// doesList is the vocabulary verb every action of this area performs.
+const doesList = "list"
