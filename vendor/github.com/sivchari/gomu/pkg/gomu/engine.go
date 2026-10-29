@@ -4,9 +4,12 @@ package gomu
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
+	"text/tabwriter"
 	"time"
 
 	"github.com/sivchari/gomu/internal/analysis"
@@ -38,16 +41,76 @@ type RunOptions struct {
 	Output      string
 	Incremental bool
 	BaseBranch  string
+	BaseSHA     string // Commit to diff against for incremental analysis; takes precedence over BaseBranch
 	Threshold   float64
 	FailOnGate  bool
 	Verbose     bool
 	CIMode      bool
+	DryRun      bool     // Discover mutants per file without executing any mutation
+	TestArgs    []string // Flags forwarded to go test (and, where applicable, go build)
+
+	// IncludeGenerated makes files carrying the standard Go generated-code
+	// marker eligible as mutation targets. They are excluded by default.
+	IncludeGenerated bool
+}
+
+// rejectedTestFlags maps a go test flag name (without leading dashes) that
+// TestArgs must not contain to the reason it conflicts with gomu's mutation
+// overlay execution.
+var rejectedTestFlags = map[string]string{
+	"overlay": "gomu manages the overlay for mutation testing",
+	"c":       "it would compile a test binary instead of running tests",
+	"o":       "it would compile a test binary instead of running tests",
+	"args":    "it would break gomu's positional package argument",
+}
+
+// ValidateTestArgs rejects TestArgs entries that conflict with gomu's
+// mutation overlay execution (-overlay, -c, -o, -args, in -flag/--flag/-flag=value
+// form). It is called by Engine.Run before any mutation runs, so both CLI and
+// library callers get the same actionable error.
+func ValidateTestArgs(testArgs []string) error {
+	for _, arg := range testArgs {
+		name := strings.TrimLeft(arg, "-")
+		if name == arg {
+			continue // not a flag
+		}
+
+		if idx := strings.Index(name, "="); idx >= 0 {
+			name = name[:idx]
+		}
+
+		if reason, rejected := rejectedTestFlags[name]; rejected {
+			return fmt.Errorf("test arg %q is not allowed: %s", arg, reason)
+		}
+	}
+
+	return nil
+}
+
+// MutatorInfo describes a single supported mutator for catalog/listing purposes.
+type MutatorInfo struct {
+	Name        string
+	Description string
+}
+
+// SupportedMutators returns the catalog of mutators gomu can apply. It does not
+// run any mutation and constructs no analyzer, so it is cheap to call for
+// listing purposes.
+func SupportedMutators() []MutatorInfo {
+	mutators := mutation.SupportedMutators()
+	infos := make([]MutatorInfo, len(mutators))
+
+	for i, m := range mutators {
+		infos[i] = MutatorInfo{Name: m.Name(), Description: m.Description()}
+	}
+
+	return infos
 }
 
 // NewEngine creates a new mutation testing engine.
 func NewEngine(opts *RunOptions) (*Engine, error) {
 	// Create analyzer without ignore parser - it will be set later in Run
-	analyzer, err := analysis.New()
+	analyzer, err := analysis.New(analysis.WithIncludeGenerated(opts != nil && opts.IncludeGenerated))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create analyzer: %w", err)
 	}
@@ -60,6 +123,10 @@ func NewEngine(opts *RunOptions) (*Engine, error) {
 	executor, err := execution.New()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create executor: %w", err)
+	}
+
+	if opts != nil {
+		executor.SetTestArgs(opts.TestArgs)
 	}
 
 	historyFile := ".gomu_history.json"
@@ -197,6 +264,9 @@ func (e *Engine) performIncrementalAnalysis(absPath string, opts *RunOptions, ig
 		e.incrementalAnalyzer.SetIgnoreParser(ignoreParser)
 	}
 
+	e.incrementalAnalyzer.SetIncludeGenerated(opts.IncludeGenerated)
+	e.incrementalAnalyzer.SetBaseSHA(opts.BaseSHA)
+
 	// Perform incremental analysis
 	analysisResults, err := e.incrementalAnalyzer.AnalyzeFiles()
 	if err != nil {
@@ -223,6 +293,11 @@ func (e *Engine) performIncrementalAnalysis(absPath string, opts *RunOptions, ig
 // Run executes mutation testing on the specified path.
 func (e *Engine) Run(ctx context.Context, path string, opts *RunOptions) error {
 	opts = e.setDefaultOptions(opts)
+
+	if err := ValidateTestArgs(opts.TestArgs); err != nil {
+		return err
+	}
+
 	start := time.Now()
 
 	e.logStartupInfo(path, opts)
@@ -251,7 +326,7 @@ func (e *Engine) Run(ctx context.Context, path string, opts *RunOptions) error {
 		}
 
 		// Create new analyzer with ignore parser
-		analyzer, err := analysis.New(analysis.WithIgnoreParser(parser))
+		analyzer, err := analysis.New(analysis.WithIgnoreParser(parser), analysis.WithIncludeGenerated(opts.IncludeGenerated))
 		if err != nil {
 			return fmt.Errorf("failed to create analyzer with ignore parser: %w", err)
 		}
@@ -263,6 +338,12 @@ func (e *Engine) Run(ctx context.Context, path string, opts *RunOptions) error {
 	analysisResults, files, err := e.performIncrementalAnalysis(absPath, opts, ignoreParser)
 	if err != nil {
 		return err
+	}
+
+	// Dry run stops after discovery: report the mutants that would be generated
+	// per file without applying any mutation, running tests, or reporting.
+	if opts.DryRun {
+		return e.dryRun(os.Stdout, files, opts)
 	}
 
 	if len(files) == 0 {
@@ -378,13 +459,86 @@ func (e *Engine) processFiles(files []string, opts *RunOptions) ([]mutation.Resu
 			fileHash = ""
 		}
 
-		testHash := calculateTestHash(file, hasher)
+		testHash := hasher.HashRelatedTests(file)
 		e.history.UpdateFileWithHashes(file, mutants, results, fileHash, testHash)
 
 		processedFiles++
 	}
 
 	return allResults, totalMutants, processedFiles
+}
+
+// dryRun reports the mutants that would be generated for each file without
+// applying any mutation, running any tests, or producing reports.
+func (e *Engine) dryRun(w io.Writer, files []string, opts *RunOptions) error {
+	if len(files) == 0 {
+		if opts.Incremental {
+			base := opts.BaseBranch
+			if opts.BaseSHA != "" {
+				base = opts.BaseSHA
+			}
+
+			fmt.Fprintf(w, "Dry run: no files to analyze (no changes since %s; use --incremental=false to preview all files)\n", base)
+		} else {
+			fmt.Fprintln(w, "Dry run: no files to analyze")
+		}
+
+		return nil
+	}
+
+	fmt.Fprintf(w, "Dry run: analyzing %d file(s) (no mutations will be executed)\n", len(files))
+
+	// Discovered files are absolute (derived from the resolved target path);
+	// display them relative to the working directory.
+	wd, wdErr := os.Getwd()
+	if wdErr != nil {
+		wd = ""
+	}
+
+	totalMutants := 0
+	filesWithMutants := 0
+
+	for _, file := range files {
+		mutants, err := e.mutator.GenerateMutants(file)
+		displayPath := analysis.GetRelativePath(wd, file)
+
+		if err != nil {
+			fmt.Fprintf(w, "\n%s (error: %v)\n", displayPath, err)
+
+			continue
+		}
+
+		if len(mutants) == 0 {
+			continue
+		}
+
+		filesWithMutants++
+		totalMutants += len(mutants)
+
+		if err := writeDryRunFile(w, displayPath, mutants); err != nil {
+			return err
+		}
+	}
+
+	fmt.Fprintf(w, "\nTotal: %d mutant(s) across %d file(s)\n", totalMutants, filesWithMutants)
+
+	return nil
+}
+
+// writeDryRunFile renders a file's discovered mutants as an aligned table.
+func writeDryRunFile(w io.Writer, file string, mutants []mutation.Mutant) error {
+	fmt.Fprintf(w, "\n%s (%d mutants)\n", file, len(mutants))
+
+	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+	for _, m := range mutants {
+		fmt.Fprintf(tw, "  L%d:%d\t%s\t%s\n", m.Line, m.Column, m.Type, m.Description)
+	}
+
+	if err := tw.Flush(); err != nil {
+		return fmt.Errorf("failed to write mutant table: %w", err)
+	}
+
+	return nil
 }
 
 // cleanupAndSave handles cleanup and saving operations.
@@ -499,16 +653,19 @@ func (e *Engine) convertToCISummary(summary *report.Summary) *report.Summary {
 		}
 
 		for _, result := range results {
-			if result.Status == mutation.StatusKilled {
+			switch result.Status {
+			case mutation.StatusKilled:
 				fileReport.KilledMutants++
 				killedMutants++
+			case mutation.StatusNotViable:
+				fileReport.NotViable++
 			}
 
 			totalMutants++
 		}
 
 		if fileReport.TotalMutants > 0 {
-			fileReport.MutationScore = float64(fileReport.KilledMutants) / float64(fileReport.TotalMutants) * 100
+			fileReport.MutationScore = report.MutationScore(fileReport.KilledMutants, fileReport.TotalMutants, fileReport.NotViable)
 			// Only add files with mutations to the report
 			files[filePath] = fileReport
 		}
@@ -521,34 +678,6 @@ func (e *Engine) convertToCISummary(summary *report.Summary) *report.Summary {
 		Duration:      summary.Duration,
 		Statistics:    summary.Statistics,
 	}
-}
-
-// calculateTestHash calculates the combined hash of test files related to the given file.
-func calculateTestHash(filePath string, hasher *analysis.FileHasher) string {
-	// Find related test files
-	testFiles := analysis.FindRelatedTestFiles(filePath)
-
-	if len(testFiles) == 0 {
-		return ""
-	}
-
-	// Calculate combined hash
-	var combinedContent []byte
-
-	for _, testFile := range testFiles {
-		content, err := hasher.HashFile(testFile)
-		if err != nil {
-			continue
-		}
-
-		combinedContent = append(combinedContent, []byte(content)...)
-	}
-
-	if len(combinedContent) == 0 {
-		return ""
-	}
-
-	return hasher.HashContent(combinedContent)
 }
 
 // historyStoreWrapper wraps history.Store to implement analysis.HistoryStore interface.

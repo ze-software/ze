@@ -17,6 +17,11 @@ func (m *ConditionalMutator) Name() string {
 	return conditionalMutatorName
 }
 
+// Description returns a human-readable summary of the mutator.
+func (m *ConditionalMutator) Description() string {
+	return "Replace comparison operators (==, !=, <, <=, >, >=)"
+}
+
 // CanMutate returns true if the node can be mutated by this mutator.
 func (m *ConditionalMutator) CanMutate(node ast.Node) bool {
 	if expr, ok := node.(*ast.BinaryExpr); ok {

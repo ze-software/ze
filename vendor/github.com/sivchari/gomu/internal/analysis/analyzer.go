@@ -19,9 +19,10 @@ import (
 
 // Analyzer handles code analysis and file discovery.
 type Analyzer struct {
-	fileSet      *token.FileSet
-	typeInfo     *types.Info
-	ignoreParser *ignore.Parser
+	fileSet          *token.FileSet
+	typeInfo         *types.Info
+	ignoreParser     *ignore.Parser
+	includeGenerated bool
 }
 
 // Option is a functional option for configuring an Analyzer.
@@ -31,6 +32,15 @@ type Option func(*Analyzer)
 func WithIgnoreParser(parser *ignore.Parser) Option {
 	return func(a *Analyzer) {
 		a.ignoreParser = parser
+	}
+}
+
+// WithIncludeGenerated controls whether files carrying the standard Go
+// generated-code marker are eligible as mutation targets. It is false by
+// default.
+func WithIncludeGenerated(include bool) Option {
+	return func(a *Analyzer) {
+		a.includeGenerated = include
 	}
 }
 
@@ -111,6 +121,10 @@ func (a *Analyzer) FindTargetFiles(rootPath string) ([]string, error) {
 
 		// Check if file should be ignored by .gomuignore (for file-specific patterns)
 		if a.shouldIgnoreFile(rootPath, path) {
+			return nil
+		}
+
+		if !a.includeGenerated && IsGeneratedFile(path) {
 			return nil
 		}
 

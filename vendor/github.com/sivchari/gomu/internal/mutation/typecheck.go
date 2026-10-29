@@ -21,6 +21,12 @@ func NewTypeChecker(typeInfo *types.Info) *TypeChecker {
 // When adding a new mutation type, you MUST add a case here explicitly.
 // This ensures that type-based validation is considered for every mutation type.
 func (tc *TypeChecker) IsValidMutation(node ast.Node, mutant Mutant) bool {
+	// errorNilifyType is checked first because it has a defined behavior even when
+	// typeInfo is nil (falls back to name-based matching), unlike the other cases below.
+	if mutant.Type == errorNilifyType {
+		return tc.isValidErrorNilifyMutation(node, mutant)
+	}
+
 	if tc.typeInfo == nil {
 		// No type info available, assume valid
 		return true
@@ -48,7 +54,7 @@ func (tc *TypeChecker) IsValidMutation(node ast.Node, mutant Mutant) bool {
 		returnBoolLiteralType,
 		returnZeroValueType,
 		branchConditionType,
-		errorNilifyType:
+		switchCaseBodyRemovalType:
 		return true
 
 	default:
@@ -56,6 +62,45 @@ func (tc *TypeChecker) IsValidMutation(node ast.Node, mutant Mutant) bool {
 		// If you see this, add the new mutation type to one of the cases above.
 		return true
 	}
+}
+
+// isValidErrorNilifyMutation checks whether the return result named mutant.Original is
+// an error-valued identifier.
+//
+// With type info, it checks the identifier's static type against the universe error
+// interface. Without type info, it falls back to matching the identifier name "err",
+// preserving the tool's previous name-based behavior.
+func (tc *TypeChecker) isValidErrorNilifyMutation(node ast.Node, mutant Mutant) bool {
+	stmt, ok := node.(*ast.ReturnStmt)
+	if !ok {
+		return false
+	}
+
+	var ident *ast.Ident
+
+	for _, expr := range stmt.Results {
+		id, ok := expr.(*ast.Ident)
+		if ok && id.Name == mutant.Original {
+			ident = id
+
+			break
+		}
+	}
+
+	if ident == nil {
+		return false
+	}
+
+	if tc.typeInfo == nil {
+		return mutant.Original == errIdentName
+	}
+
+	t := tc.getExprType(ident)
+	if t == nil {
+		return mutant.Original == errIdentName
+	}
+
+	return types.Identical(t, types.Universe.Lookup("error").Type())
 }
 
 // isValidArithmeticBinaryMutation checks if an arithmetic binary mutation is valid.
@@ -246,7 +291,12 @@ func (tc *TypeChecker) isArithmeticOpValidForType(t types.Type, op string) bool 
 			return op == "+"
 		}
 
-		// Numeric types: all arithmetic operators are valid
+		// Float and complex types: % is not defined
+		if info&(types.IsFloat|types.IsComplex) != 0 {
+			return op != "%"
+		}
+
+		// Integer types: all arithmetic operators are valid
 		if info&types.IsNumeric != 0 {
 			return true
 		}

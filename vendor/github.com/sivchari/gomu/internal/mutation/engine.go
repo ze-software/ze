@@ -70,6 +70,7 @@ const (
 // Mutator interface for different types of mutations.
 type Mutator interface {
 	Name() string
+	Description() string
 	CanMutate(node ast.Node) bool
 	Mutate(node ast.Node, fset *token.FileSet) []Mutant
 	Apply(node ast.Node, mutant Mutant) bool
@@ -106,17 +107,21 @@ func (e *Engine) GenerateMutants(filePath string) ([]Mutant, error) {
 		return nil, fmt.Errorf("failed to parse file: %w", err)
 	}
 
-	// Create type checker if type info is available
-	var typeChecker *TypeChecker
-	if fileInfo.TypeInfo != nil {
-		typeChecker = NewTypeChecker(fileInfo.TypeInfo)
-	}
+	// NewTypeChecker tolerates a nil TypeInfo: some mutation types (e.g. errorNilifyType)
+	// still validate via a name-based fallback even without type information.
+	typeChecker := NewTypeChecker(fileInfo.TypeInfo)
 
 	var allMutants []Mutant
 
 	// Walk the AST and apply mutators
 	ast.Inspect(fileInfo.FileAST, func(node ast.Node) bool {
 		if node == nil {
+			return false
+		}
+
+		// Import paths are string literals but must never be mutated; skip
+		// the whole import spec subtree.
+		if _, ok := node.(*ast.ImportSpec); ok {
 			return false
 		}
 
@@ -127,10 +132,11 @@ func (e *Engine) GenerateMutants(filePath string) ([]Mutant, error) {
 				// Filter mutants based on type information
 				for i := range mutants {
 					mutants[i].FilePath = filePath
-					mutants[i].ID = fmt.Sprintf("%s_%d", filePath, len(allMutants)+i)
 
-					// Only add mutant if it passes type check
-					if typeChecker == nil || typeChecker.IsValidMutation(node, mutants[i]) {
+					// The ID is assigned after filtering so rejected mutants
+					// never leave gaps or duplicates.
+					if typeChecker.IsValidMutation(node, mutants[i]) {
+						mutants[i].ID = fmt.Sprintf("%s_%d", filePath, len(allMutants))
 						allMutants = append(allMutants, mutants[i])
 					}
 				}
@@ -151,4 +157,11 @@ func (e *Engine) GetFileSet() *token.FileSet {
 // GetMutators returns all mutators in the engine.
 func (e *Engine) GetMutators() []Mutator {
 	return e.mutators
+}
+
+// SupportedMutators returns every registered mutator without requiring a full
+// engine (no analyzer is constructed), making it suitable for listing the
+// available mutators.
+func SupportedMutators() []Mutator {
+	return getAllMutators()
 }

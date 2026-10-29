@@ -31,7 +31,7 @@ func Templ(src []byte, fileName string, config Config) (output []byte, changed b
 		return nil, false, err
 	}
 
-	if err = applyPrettier(t, config); err != nil {
+	if err = ApplyPrettier(t, config); err != nil {
 		return nil, false, err
 	}
 
@@ -44,7 +44,7 @@ func Templ(src []byte, fileName string, config Config) (output []byte, changed b
 	return out, changed, nil
 }
 
-func applyPrettier(t *parser.TemplateFile, config Config) (err error) {
+func ApplyPrettier(t *parser.TemplateFile, config Config) (err error) {
 	// Check to see if prettier can be run.
 	if config.PrettierCommand == "" {
 		config.PrettierCommand = prettier.DefaultCommand()
@@ -57,35 +57,39 @@ func applyPrettier(t *parser.TemplateFile, config Config) (err error) {
 		return nil
 	}
 
-	nodeFormatter := visitor.New()
+	batch := newPrettierBatch(config.PrettierCommand)
+	collector := visitor.New()
 	// Calculate the depth of each ScriptElement and RawElement in the tree so that the formatting is properly indented.
 	nodeToDepth := make(map[parser.Node]int)
-	nodeFormatter.HTMLTemplate = func(n *parser.HTMLTemplate) error {
+	collector.HTMLTemplate = func(n *parser.HTMLTemplate) error {
 		// Visit the children first to calculate their depth.
 		for _, child := range n.Children {
 			calculateNodeDepth(child, nodeToDepth, 1)
 		}
-		// Now that we have the depth of each node, we can format them.
+		if err := batch.AddAttributes(n.Children); err != nil {
+			return err
+		}
+		// Now that we have the depth of each node, we can collect them.
 		for _, child := range n.Children {
-			if err := child.Visit(nodeFormatter); err != nil {
+			if err := child.Visit(collector); err != nil {
 				return err
 			}
 		}
 		return nil
 	}
-	nodeFormatter.ScriptElement = func(se *parser.ScriptElement) error {
-		depth := nodeToDepth[se]
-		return ScriptElement(se, depth, config.PrettierCommand)
+	collector.ScriptElement = func(se *parser.ScriptElement) error {
+		batch.AddScriptElement(se, nodeToDepth[se])
+		return nil
 	}
-	nodeFormatter.RawElement = func(re *parser.RawElement) error {
-		depth := nodeToDepth[re]
-		if re.Name != "style" {
-			return nil
-		}
-		return StyleElement(re, depth, config.PrettierCommand)
+	collector.RawElement = func(re *parser.RawElement) error {
+		batch.AddStyleElement(re, nodeToDepth[re])
+		return nil
+	}
+	if err = collector.VisitTemplateFile(t); err != nil {
+		return err
 	}
 
-	return nodeFormatter.VisitTemplateFile(t)
+	return batch.Run()
 }
 
 func calculateNodeDepth(e parser.Node, nodeToDepth map[parser.Node]int, depth int) {

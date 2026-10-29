@@ -23,6 +23,10 @@ func stringToToken(s string) token.Token {
 	case "--":
 		return token.DEC
 
+	// Simple assignment
+	case "=":
+		return token.ASSIGN
+
 	// Arithmetic assignment
 	case "+=":
 		return token.ADD_ASSIGN
@@ -32,6 +36,8 @@ func stringToToken(s string) token.Token {
 		return token.MUL_ASSIGN
 	case "/=":
 		return token.QUO_ASSIGN
+	case "%=":
+		return token.REM_ASSIGN
 
 	// Conditional
 	case "==":
@@ -74,6 +80,8 @@ func stringToToken(s string) token.Token {
 		return token.OR_ASSIGN
 	case "^=":
 		return token.XOR_ASSIGN
+	case "&^=":
+		return token.AND_NOT_ASSIGN
 	case "<<=":
 		return token.SHL_ASSIGN
 	case ">>=":
