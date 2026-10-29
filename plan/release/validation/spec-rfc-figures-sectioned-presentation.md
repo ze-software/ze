@@ -180,7 +180,8 @@ testing gap. Neither waits on the other.
 |----|------|--------------|------------|
 | R-1 | The backfill is ~1,100 rows of reading RFC text; it stalls and the sections never publish | Ratchet count stops falling | Ratchet (existing drain pattern, `docs/contributing/rfc-conformance-gates.md` "The ratchets"): refuses a NEW row without evidence from phase 1, flips to full refusal at zero; backfill committed per RFC |
 | R-2 | An agent marks a SHOULD row `not ever`, which only Thomas may set | A `not ever` marker added in a diff | The review gate (`/ze-review`) flags every added `not ever`; a `not ever` on a MUST row is refused outright |
-| R-3 | Browser sums and server Total disagree | Unit test comparing the data attributes with the server Total | One Go function computes the Total; the script sums the same attributes; a test re-sums them |
+| R-3 | The browser renderer sums wrongly and no Go test sees it | A Playwright test's rendered Total differs from the model's counts for the same RFCs | Playwright tests load fixture JSON and real published JSON, and compare rendered segment counts and the Total row with the model's section counts |
+| R-6 | A per-RFC file and the index drift (stem renamed, file missing) | Renderer shows a missing RFC | The build writes all files in one pass from the model; a Go test checks every index entry has its file and every file is indexed; the renderer names a missing file instead of dropping it |
 | R-4 | Turning `BarsTests` off for `{lower-layer}` lets a test with no record look like proof | An OS-verified count with no discrimination record | OS verified requires the same `DiscriminationVerdict.Proven` predicate as Ze proven |
 | R-5 | Removing the ceiling and old bars changes tests that assert them | Ceiling tests red | Those tests are replaced, each judged by `ze-test-judge` (`ai/META-DECISIONS.md`, "Test changes") |
 
@@ -214,6 +215,18 @@ Section counts (phase 4), per RFC and per rollup, walked members only, summed be
 | MUST | Ze proven, Ze gap, OS verified, OS gap; the bar's total is their sum. Not owed (not applicable, declined, OS blocked) are counted but not in the bar |
 | Overview | MUST: Ze proven, OS verified, not owed, OS gap, Ze gap. SHOULD / MAY: proven, not owed (annotated), not ever, not yet, not decided |
 
+Publication (Thomas, 2026-10-29, design gate): the RFC completion data is published as ONE JSON FILE PER RFC on the website, and the RFC pages read it in the browser. A data change republishes that RFC's file; no page changes. A JavaScript browser is required to see the figures, which Thomas accepts.
+
+| Artifact | Holds |
+|----------|-------|
+| `data/rfc/<stem>.json` | Every requirement row (RID, level, section, status, evidence) and the RFC's section counts, from the model |
+| `data/rfc/profiles/<name>.json` | Profile kind, title, release flag, required and optional members |
+| `data/rfc/index.json` | Every stem with its file, title, walked flag and enrolment |
+| RFC list, profile pages, profile index, detail pages | Static shells: one browser renderer loads the files, sums counts once (walked only, counts before dividing), draws both bars, the Total row and the check line |
+| Markdown mirrors of those pages | Link to the JSON files and say the figures are there; they carry no figures |
+
+The existing whole-ledger `data/rfc-requirements.json` and the per-page server rendering of figures are replaced, not kept beside it (`ai/rules/no-layering.md`). The renderer is tested in a real browser through Playwright, already used for the website demos.
+
 A profile's mandatory register is complete when Ze gap and OS gap are both zero. `{rollup}` rows stay outside every count, so the check line sums non-rollup MUST rows.
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
@@ -222,7 +235,8 @@ A profile's mandatory register is complete when Ze gap and OS gap are both zero.
 |-------------|---|--------------|------|
 | `./le rfc tree profile <name>` | → | section counts in `internal/le/rfc` | `TestTreeReportsSectionCounts` (`internal/le/rfc/tree_test.go`) |
 | `./le rfc check` over a summary | → | evidence checks per exclusion kind, intent marker parse | `TestNotApplicableNeedsSectionRoleQuote`, `TestIntentMarkerRefusedOnMust` (`internal/le/rfc/check_core_test.go`) |
-| `./le site build` | → | filtered list, profile pages, detail pages, corpus index | `TestFilteredListTotalMatchesTopBars`, `TestProfilePageDrawsTwoBars`, `TestDetailTotalMatchesListRow` (`internal/le/site/`) |
+| `./le site build` | → | per-RFC, profile and index JSON | `TestPerRFCDataMatchesTree`, `TestDataIndexAndFilesAgree` (`internal/le/site/rfcdata_test.go`) |
+| Page loaded in a browser | → | `rfc-figures.js` renderer over the JSON | Playwright: filtered list Total and check line, profile page bars, detail total, missing file named |
 
 ## Acceptance Criteria
 
@@ -237,8 +251,11 @@ A profile's mandatory register is complete when Ze gap and OS gap are both zero.
 | AC-7 | `./le rfc tree profile fttx-edge` | Prints the MUST bar counts (Ze proven, OS verified, OS gap, Ze gap, their sum), the not-owed counts per kind, and the SHOULD states; no ceiling |
 | AC-8 | Rollup over members with one unwalked RFC | Unwalked member contributes nothing and is counted apart; zero rows render `no rows` |
 | AC-9 | Profile mandatory register | Complete only when Ze gap and OS gap are zero |
-| AC-10 | Filtered RFC list, with and without scripts | Two bars on top and on each row; a Total row whose five MUST section columns sum to the MUST total, with a check line; the browser re-sum after filtering equals the server Total for the same rows |
-| AC-11 | Profile page, profile index, RFC detail page, and their Markdown mirrors | Two bars from the same counts; detail page ends in a total equal to its list row |
+| AC-10 | Filtered RFC list in a browser, with and without a profile filter | Two bars on top and on each row; a Total row whose five MUST section columns sum to the MUST total, with a check line; every number equals the model's section counts for the same RFCs |
+| AC-11 | Profile page, profile index, RFC detail page in a browser | Two bars from the same per-RFC files; detail page ends in a total equal to its list row |
+| AC-16 | `./le site build` | Writes one `data/rfc/<stem>.json` per summary, one per profile, and the index; each per-RFC file's counts equal `./le rfc tree` for that stem; the Markdown mirrors link to the files and carry no figures |
+| AC-17 | Republishing one RFC's JSON with changed counts | The pages show the new counts with no page file changed |
+| AC-18 | A per-RFC file listed in the index is missing | The page names the missing RFC; it is never silently dropped from a sum |
 | AC-12 | Segment order and colour | MUST bar: Ze proven, OS verified, OS gap, Ze gap. Overview: Ze MUST proven, OS verified, SHOULD proven, not owed, not ever, not yet, not decided, OS gap, Ze gap. Each segment also carries name and count in text |
 | AC-13 | Any published page | No ceiling text, no old mandatory/optional single bars, no corpus tape bucket partition, no `ProvenShareOf` share; home page, facts, compliance cards and test health read the sections |
 | AC-14 | Glossary and reader text | Linux-limit text states OS blocked never counts against Ze; no "ceiling" entry; every term in the two bars defined once |
@@ -256,9 +273,8 @@ A profile's mandatory register is complete when Ze gap and OS gap are both zero.
 | `TestIntentMarkerStates`, `TestIntentMarkerRefusedOnMust` | `internal/le/rfc/summary_test.go`, `check_core_test.go` | AC-5, AC-6 | |
 | `TestTreeReportsSectionCounts` | `internal/le/rfc/tree_test.go` | AC-7 | |
 | `TestSectionRollupSumsWalkedMembersOnly`, `TestRegisterCompleteNeedsNoZeOrOSGap` | `internal/le/rfc/profilecoverage_test.go` | AC-8, AC-9 | |
-| `TestFilteredListTotalMatchesTopBars`, `TestFilteredListCheckLineAddsUp` | `internal/le/site/rfcfilter_test.go` | AC-10 | |
-| `TestProfilePageDrawsTwoBars`, `TestDetailTotalMatchesListRow`, mirror counterparts | `internal/le/site/rfcprofiles_test.go`, `rfcdetail_test.go` | AC-11 | |
-| `TestBarSegmentOrder` | `internal/le/site/rfcbars_test.go` | AC-12 | |
+| `TestPerRFCDataMatchesTree`, `TestDataIndexAndFilesAgree`, `TestMirrorsLinkDataAndCarryNoFigures` | `internal/le/site/rfcdata_test.go` | AC-16 | |
+| Playwright: list Total and check line, profile bars, detail total, segment order, republished file, missing file | renderer test beside the demo harness | AC-10, AC-11, AC-12, AC-17, AC-18 | |
 | `TestNoCeilingOrSecondPartitionPublished` | `internal/le/site/rfccompliance_test.go` | AC-13 | |
 | `TestGlossaryDefinesBarTerms` | `internal/le/site/rfcreader_test.go` | AC-14 | |
 
@@ -273,7 +289,9 @@ Replaced tests (judged by `ze-test-judge`): the ceiling tests named under Curren
 | `internal/le/rfc/check_core.go`, `check.go`, `linux_limit.go` | Section-scoped quote checks, intent refusal on MUST, the evidence ratchet |
 | `internal/le/rfc/profilecoverage.go`, `tree.go`, `priority.go`, `next.go` | Section counts replace `Figure` / ceiling; CLI text |
 | `internal/le/rfc/provenshare.go` | Retired; consumers move to the sections |
-| `internal/le/site/rfcbars.go` (new) | One renderer of both bars, HTML and mirror |
+| `internal/le/site/rfcdata.go` (new) | Writes `data/rfc/<stem>.json`, profile files and the index from the model |
+| `website/assets/js/rfc-figures.js` (new) | The one browser renderer: loads the files, sums, draws both bars, Total row, check line |
+| Playwright test for the renderer (new, beside the existing demo harness) | AC-10, AC-11, AC-17, AC-18 in a real browser |
 | `internal/le/site/rfcfilter.go`, `rfcprofiles.go`, `rfcdetail.go`, `rfccompliance.go`, `rfcledger.go`, `rfcreader.go`, `home.go`, `facts.go` | Two bars, Total row, check line, removal of ceiling, tape and share |
 | `internal/test/health/collect_rfc.go`, `internal/test/fixture/ui_fixture_le_rfc_answers.go` | Read sections |
 | `website/assets/css/00-tokens.css` | OS-verified light-green token, light and dark |
@@ -329,7 +347,7 @@ Each phase commits when it compiles and works (`ai/META-DECISIONS.md`).
 | 2 | OS verified: lower-layer stops barring tests; the verified predicate | With its tests |
 | 3 | SHOULD intent marker: parse, refusal on MUST, counts | With its tests |
 | 4 | Section counts in the model, CLI output, JSON; `ProvenShareOf` retired | With its tests and the conformance doc |
-| 5 | Site: shared bar renderer, all surfaces, Total row and check line, browser script, colour token, glossary; ceiling, tape and share removed | Only after phase 1 reaches zero (Thomas's all-at-once decision), with the gh-pages doc and the published correction |
+| 5 | Site: per-RFC, per-profile and index JSON; page shells; one browser renderer for both bars, Total row and check line; Playwright tests; colour token, glossary; ceiling, tape, share and server-rendered figures removed | Only after phase 1 reaches zero (Thomas's all-at-once decision), with the gh-pages doc and the published correction |
 
 ## Owned journal rows
 
