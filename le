@@ -691,7 +691,14 @@ if [ "${1:-}" = rollback ]; then
 	shift
 	rollback_words "$@"
 	if [ "$rollback_kind" = stray ]; then
-		echo "le: ./le rollback takes no other word, and was given: $*. It always sets the newest build aside, so there is nothing to choose. Run: ./le rollback" >&2
+		# Each word is joined in its own loop turn, never through the
+		# whitespace-splitting argv expansion, so a word holding a space
+		# prints as the operator typed it.
+		given=
+		for word in "$@"; do
+			given="$given $word"
+		done
+		echo "le: ./le rollback takes no other word, and was given:$given. It always sets the newest build aside, so there is nothing to choose. Run: ./le rollback" >&2
 		exit 2
 	fi
 	if [ "$rollback_kind" = act ] && [ -n "${ZE_LE_BUILD_NAME:-}" ]; then
