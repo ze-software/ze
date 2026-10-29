@@ -187,7 +187,7 @@ closure candidate.
 |------|-------|---------------|
 | Detector | `./le spec status closure list` | Every spec still `in-progress`. High confidence requires a non-umbrella spec and either an exact tracked `plan/learned/NNN-<slug>.md` match, or a committed journal row whose Spec cell equals the stem together with a Review Gate section and no unchecked closure marker. `closure check spec <s>` exits 3 only for that set; weaker learned-summary matches are listed under NEEDS VERIFICATION. These are detector heuristics, not proof that the work is complete |
 | Stop-hook block | `hookStop` (the `block-premature-stop` action) | The session's claimed spec. It calls `specstatus.CheckClosure`, and refuses the stop when the report is blocked |
-| Review artifact | `CheckReview` at `./le commit create` | The one spec this commit closes, which `closureStem` answers |
+| Review artifact | `checkVerificationGates` at `./le commit create` | The one spec this commit closes, which `closureStem` answers, and its whole change set: the commits tagged `Spec-work: <stem>`, the earlier blocks of this script, and this commit |
 
 `closureStem` reads a REMOVED spec file as the closure, and that removal is the
 ONLY signal. The same spec name removed from one release bucket and carried in
@@ -227,19 +227,45 @@ another class file, must also stay within the 600-character cap; the pairing
 ignores the Fix marker, so a row whose only change is its marker is held.
 <!-- source: internal/le/spec/journal/validate.go -- ValidateFile -->
 
-What this gives up: commit A of the two-commit closure below lands its code
-before the artifact is read, because nothing in its content distinguishes it
-from an ordinary `in-progress` commit. There is no closed status in the
-vocabulary above, since closure IS the removal. Commit B carries that removal,
-so no spec closes without a clean independent review.
+Commit A of the two-commit closure below, and every commit the spec made
+before it, is byte-for-byte an ordinary `in-progress` commit, so none of them
+is judged when it is prepared. There is no closed status in the vocabulary
+above, since closure IS the removal. Commit B carries that removal, and the
+review it owes covers the spec's whole change set, so no spec closes without a
+clean independent review of the code it landed. The set is the union of three
+populations:
+
+- every commit reachable from HEAD whose message holds the line
+  `Spec-work: <stem>` exactly, which `./le commit create` writes from the
+  session's claim (`docs/contributing/committing.md`); `git log --grep` only
+  narrows the search, so `Spec-work: <stem>-old` and a quoted mention are not
+  matched
+- every path the earlier blocks of the closure's own script commit, snapshot
+  entries and removals both, because commit A has not landed when B is
+  prepared; a script that cannot be read refuses the closure, as it does for
+  the journal check
+- the closure commit's own paths
+
+A commit made before the trailer existed carries none and is not searched for,
+and a spec renamed mid-work loses the commits tagged with its old stem. The
+result lists the tagged commits it judged (`ReviewResult.Commits`), so a short
+list is visible. The script's review re-check names the same files, and the
+push discharge of a `Review-owed:` judges the same population read at the
+closure commit's tree, through the one producer `specWorkPopulation`.
+<!-- source: internal/le/commit/review.go -- specWorkPopulation, scriptPaths, appendedPaths -->
+<!-- source: internal/le/commit/prepare.go -- checkVerificationGates -->
+<!-- source: internal/le/commit/owed_answers.go -- answerReviewed -->
 
 <!-- source: internal/le/spec/review.go -- recordReview, CheckReview -->
 Review has no required model. The artifact records the model when available;
 review independence comes from a fresh reviewer context.
 
 The review gate then requires a CLEAN `./le spec review record` artifact
-that covers every reviewable file in the commit and whose hashes still match, so
-an edit to a reviewable file after the review invalidates it.
+that covers every reviewable file of the spec's change set above and whose
+hashes still match, so an edit to a reviewable file after the review
+invalidates it. A refusal names the uncovered or stale files and the record
+verb as its usage shape, `./le spec review record spec <stem> ...`, which pins
+nothing when pasted.
 `review-override <reason>` is the only way past, and it writes a `Review-owed:`
 trailer that refuses the push until a clean review, a recorded Review Gate or
 the owner's attestation answers it.

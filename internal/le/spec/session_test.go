@@ -278,6 +278,48 @@ func TestAgentClaimsAreTheirOwnAndFallBackToTheParent(t *testing.T) {
 	current(parent, "spec-parent.md")
 }
 
+// TestClaimedSpecFallsBackToTheParent pins the exported claim reader the
+// commit tooling attributes a commit with.
+// VALIDATES: ClaimedSpec resolves the ambient harness session and agent the
+// way `./le spec claim` keys its marker, answers an agent's own claim, falls
+// back to its parent's when it has none, and answers "" with no claim.
+// PREVENTS: a second reader of the marker keyed by another identity, which
+// finds nothing and attributes no commit.
+func TestClaimedSpecFallsBackToTheParent(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "plan", "post-release", "engineering"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	body := []byte("| Field | Value |\n|-------|-------|\n| Status | in-progress |\n| Updated | 2026-10-29 |\n")
+	for _, name := range []string{"spec-parent.md", "spec-own.md"} {
+		if err := os.WriteFile(filepath.Join(root, "plan", "post-release", "engineering", name), body, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	as := func(agent, want string) {
+		t.Helper()
+		t.Setenv("CLAUDE_CODE_SESSION_ID", "claimed-sid")
+		t.Setenv("ZE_AGENT_ID", agent)
+		env.ResetCache()
+		got, err := ClaimedSpec(root)
+		if err != nil || got != want {
+			t.Errorf("ClaimedSpec(agent %q) = %q, %v; want %q", agent, got, err, want)
+		}
+	}
+	t.Cleanup(env.ResetCache)
+	as("", "")
+	if _, err := (specOwner{Root: root, SessionID: "claimed-sid"}).Claim("spec-parent.md"); err != nil {
+		t.Fatal(err)
+	}
+	as("", "spec-parent.md")
+	as("agent-a", "spec-parent.md")
+	if _, err := (specOwner{Root: root, SessionID: "claimed-sid", AgentID: "agent-a"}).Claim("spec-own.md"); err != nil {
+		t.Fatal(err)
+	}
+	as("agent-a", "spec-own.md")
+	as("agent-b", "spec-parent.md")
+}
+
 // TestClaimFindsTheMovedIdentity preserves the stable marker when the source
 // path disappears and the same spec is carried in a current category.
 func TestClaimFindsTheMovedIdentity(t *testing.T) {

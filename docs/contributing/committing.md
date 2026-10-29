@@ -87,11 +87,29 @@ after the approvals (`Prepared.Trailers`):
 | `rfc-change-ok "<reason>"` | `RFC-approval-owed: <package>.<TestName>: <reason>`, one per unit | yes, until a later `RFC-approved:` for the unit or the owner's attestation |
 | Automatic when a selected summary adds or rewords `{linux-limit: LL-ID; reason}` | `Linux-limit-owed: <RID>: <LL-id>`, one per changed annotation | yes, until the owner's attestation of that commit; an RFC approval or review does not answer it |
 
+One more trailer records a fact rather than an admission. A native commit that
+changes files, prepared while the session claims a spec (`./le spec claim`, or
+the parent's claim for an agent that claimed none), ends with
+`Spec-work: <spec stem>`. The action layer reads the claim through
+`spec.ClaimedSpec`, keyed by the harness session and agent as the marker is,
+and an unreadable claim refuses the commit rather than attributing nothing. An
+attestation, a commit with no claim, and a commit outside the Ze checkout carry
+none. The push derivation reads the line and owes nothing for it
+(`OwesNothing` in `declaredTrailers`), so it never holds a push. A spec
+closure reads it: the review artifact must cover every code file of every
+commit carrying the closed spec's `Spec-work:` line, matched as a whole line,
+plus the earlier blocks of the closure's own script (commit A, not yet
+landed), plus the closure commit itself
+(`docs/contributing/spec-workflow.md`, "What each closure gate reads"). A
+commit made before the trailer existed carries none and is not searched for.
+<!-- source: internal/le/commit/actions.go -- answerCreate, declaredTrailers -->
+<!-- source: internal/le/commit/review.go -- specWorkPopulation, scriptPaths -->
+
 An admission no gate used records nothing. A reason spanning lines is refused,
 because a trailer is one line. `Message` refuses a subject or a body line that
 starts with any declared trailer key (`declaredTrailers` in
-`internal/le/commit/actions.go`, which also lists `Owner-attested:` and
-`Ledger-carried:`), naming the line and the one route that writes it: a
+`internal/le/commit/actions.go`, which also lists `Owner-attested:`,
+`Ledger-carried:` and `Spec-work:`), naming the line and the one route that writes it: a
 trailer is a record the derivation reads back, never the author's prose.
 
 Linux-limit approval needs no admission keyword. `create` compares the selected

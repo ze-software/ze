@@ -328,13 +328,13 @@ The walk starts at C and follows `git rev-list --reverse --first-parent C..HEAD`
 
 ### Person acts, read from trailers
 
-A review or a recorded approval is an act no verification performs, so it is carried by the commit that owes it, as a trailer `create` writes when it grants the admission (`docs/contributing/committing.md`). `readPersonActs` (`internal/le/commit/owed_trailers.go`) reads every trailer over `P ^@{u}` (`HEAD ^@{u}` with no P) in one `git log`, and keeps each obligation no answer holds. Answers are read over the same range, so an attestation committed after P does not count for a push of P. A malformed declared trailer is a refusal, never skipped.
+A review or a recorded approval is an act no verification performs, so it is carried by the commit that owes it, as a trailer `create` writes when it grants the admission (`docs/contributing/committing.md`). `readPersonActs` (`internal/le/commit/owed_trailers.go`) reads every trailer over `P ^@{u}` (`HEAD ^@{u}` with no P) in one `git log`, and keeps each obligation no answer holds. Answers are read over the same range, so an attestation committed after P does not count for a push of P. A malformed declared trailer is a refusal, never skipped. `Spec-work: <stem>` is declared too, but it records which spec a commit belongs to and owes nothing (`OwesNothing`), so `readLine` neither shape-checks it nor lists it.
 
 | Answer | `Review-owed: <stem>: <reason>` | `RFC-approval-owed: <package>.<Test>: <reason>` | `Linux-limit-owed: <RID>: <LL-id>` |
 |--------|---------------------------------|-------------------------------------------------|-----------------------------------|
 | not applicable | the commit closes no spec (`closedSpecStem`) | the commit does not change that unit (`changedTaggedUnits`) | - |
 | closed | the removed spec, read at the commit's parent, records its Review Gate, or its Status is design or skeleton (`answerClosed`) | - | - |
-| reviewed | a clean `tmp/review/<stem>-*.md` artifact whose hashes match the commit's own blobs (`answerReviewed`) | - | - |
+| reviewed | a clean `tmp/review/<stem>-*.md` artifact covering the spec's change set, the closure commit's paths plus those of every commit reachable from it that carries `Spec-work: <stem>` (`specWorkPopulation`, the producer the closure gate uses), whose hashes match the blobs at the closure commit (`answerReviewed`) | - | - |
 | approved | - | an `RFC-approved:` trailer for the same unit in range | - |
 | owner | an `Owner-attested:` trailer in range naming the commit's stable patch-id | the same | the same |
 

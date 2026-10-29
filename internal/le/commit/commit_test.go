@@ -108,6 +108,32 @@ func TestMessageAndKeywordGrammarAreClosed(t *testing.T) {
 	}
 }
 
+// TestHandWrittenSpecWorkIsRefused pins the one writer of the attribution.
+//
+// VALIDATES: a subject or body line written as `Spec-work: <stem>` is refused,
+// naming ./le commit create under a claim as the only writer (AC-8).
+// PREVENTS: an author attributing a commit to a spec by hand, which would add
+// files to that spec's closure review that no claim put there.
+func TestHandWrittenSpecWorkIsRefused(t *testing.T) {
+	t.Parallel()
+	for _, refused := range [][2]string{
+		{trailerSpecWork + "x", ""},
+		{"safe subject", trailerSpecWork + "x"},
+	} {
+		_, err := Message(refused[0], []string{refused[1]}, nil)
+		if err == nil {
+			t.Fatalf("Message accepted a hand-written attribution: subject %q, body %q", refused[0], refused[1])
+		}
+		if !strings.Contains(err.Error(), "./le commit create") || !strings.Contains(err.Error(), "claim") {
+			t.Fatalf("the refusal %q does not name ./le commit create under a claim as the writer", err)
+		}
+	}
+	message, err := Message("safe subject", nil, []string{trailerSpecWork + "x"})
+	if err != nil || !strings.HasSuffix(message, "\n\n"+trailerSpecWork+"x\n") {
+		t.Fatalf("Message with the attribution as a trailer = %q, %v", message, err)
+	}
+}
+
 func TestGoSourceRequiresTestUnlessExplicitlyExempt(t *testing.T) {
 	root := t.TempDir()
 	writeCommitFixture(t, root, "internal/a.go", "// Design: docs/a.md -- a\npackage a\n")

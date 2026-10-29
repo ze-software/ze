@@ -46,6 +46,11 @@ type Options struct {
 	// LedgerCarried is one `<sha> <gate key>: <reason>` per person-act row
 	// the ledger-deletion commit carries (D-4).
 	LedgerCarried []string `json:"ledger-carried,omitempty"`
+	// SpecWork is the stem of the spec the preparing session claims, resolved
+	// by the action layer (spec.ClaimedSpec), or "" when it claims none. A
+	// native commit that changes files carries it as its last trailer,
+	// `Spec-work: <stem>`, and a closure gathers the spec's change set by it.
+	SpecWork string `json:"spec-work,omitempty"`
 }
 
 // Prepared is the structured result printed by `le commit create`.
@@ -128,6 +133,12 @@ func Create(root string, options *Options) (Prepared, error) {
 		return result, err
 	}
 	result.NoTest = strings.TrimSpace(options.NoTest)
+	if options.SpecWork != "" {
+		if !plainStem(options.SpecWork) {
+			return result, fmt.Errorf("the claimed spec stem %q is not one plain name, so it cannot be the %s trailer; "+
+				"see the claim with ./le spec current", options.SpecWork, strings.TrimSpace(trailerSpecWork))
+		}
+	}
 
 	// Every gate below reads Ze's own sources: the test ledger, the RFC-tagged
 	// tests, the discovery index, the native verification certificate and the
@@ -255,6 +266,11 @@ func Create(root string, options *Options) (Prepared, error) {
 		}
 		result.Trailers = append(result.Trailers, owed...)
 		trailers := slices.Concat(result.RFCApprovals.Trailers, result.WeakeningApprovals.Trailers, result.Trailers)
+		// The attribution owes nothing, so it stays out of result.Trailers,
+		// which lists person acts, and closes the message.
+		if options.SpecWork != "" {
+			trailers = append(trailers, trailerSpecWork+options.SpecWork)
+		}
 		message, err = Message(options.Subject, options.Body, trailers)
 		if err != nil {
 			return result, err
@@ -429,7 +445,23 @@ func checkVerificationGates(root string, options *Options, result *Prepared, pat
 	if stem == "" {
 		return "", nil
 	}
-	review := checkReviewSelected(root, stem, paths, selection)
+	// The closure review covers the spec's whole change set: every commit
+	// attributed to it, every earlier block of this script (commit A, not yet
+	// landed), and this commit, which carries little more than the removal.
+	population, err := specWorkPopulation(root, stem, "HEAD")
+	if err != nil {
+		return "", err
+	}
+	if options.Append {
+		earlier, err := appendedPaths(root, result.Session, options)
+		if err != nil {
+			return "", err
+		}
+		population.Paths = unique(slices.Concat(population.Paths, earlier))
+	}
+	covered := unique(slices.Concat(paths, population.Paths))
+	review := checkReviewSelected(root, stem, covered, selection)
+	review.Commits = population.Commits
 	result.Review = &review
 	if !review.Clean && strings.TrimSpace(options.ReviewOverride) == "" {
 		return "", errors.New(strings.Join(review.Problems, "\n"))
@@ -444,7 +476,7 @@ func checkVerificationGates(root string, options *Options, result *Prepared, pat
 	}
 	// A hunks path is pinned by its blob and was judged above; the script's
 	// re-check hashes the working tree, which holds hunks the commit leaves.
-	return reviewCheckCommand(stem, withoutSelected(paths, selection)), nil
+	return reviewCheckCommand(stem, withoutSelected(covered, selection)), nil
 }
 
 // admissionTrailer renders the record of one admission: `<key><subject>:

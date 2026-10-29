@@ -85,6 +85,19 @@ func (o specOwner) currentSpec() (string, error) {
 	return line, nil
 }
 
+// ClaimedSpec answers the spec file name the ambient harness session claims
+// under root, or "" when it claims none. It resolves the same identity
+// `./le spec claim` keys its marker by: the harness session and, for an agent,
+// the agent id, falling back to the parent's claim when the agent has none.
+// The commit tooling reads it to attribute a commit; it never writes a claim.
+func ClaimedSpec(root string) (string, error) {
+	owner, err := newSpecOwner(root)
+	if err != nil {
+		return "", err
+	}
+	return owner.currentSpec()
+}
+
 // Claim atomically publishes this session's marker. A ready spec transitions to
 // in-progress under the repository claim lock, after the WIP cap is checked.
 func (o specOwner) Claim(spec string) (ClaimReport, error) {

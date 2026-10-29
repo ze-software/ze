@@ -3,6 +3,7 @@ package commit
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -10,6 +11,8 @@ import (
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 	"github.com/ze-software/ze/internal/le/rfc"
+	"github.com/ze-software/ze/internal/le/spec"
+	specpath "github.com/ze-software/ze/internal/le/spec/path"
 	testweakened "github.com/ze-software/ze/internal/le/test/weakened"
 	"github.com/ze-software/ze/internal/le/verify"
 )
@@ -76,6 +79,10 @@ const (
 	trailerOwnerAttested = "Owner-attested: "
 	// trailerLedgerCarried is `Ledger-carried: <sha> [<stable patch-id>] <gate key>: <reason>`.
 	trailerLedgerCarried = "Ledger-carried: "
+	// trailerSpecWork is `Spec-work: <spec stem>`: the spec the session that
+	// prepared the commit had claimed. It owes nothing; a closure reads it to
+	// gather the spec's change set (specWorkPopulation).
+	trailerSpecWork = "Spec-work: "
 )
 
 // declaredTrailers is every trailer create writes itself, with the one route
@@ -83,17 +90,24 @@ const (
 // (refuseHandWrittenTrailer), because the derivation would read it as the
 // record: a hand-written `Owner-attested:` would answer an obligation the
 // owner never answered.
+//
+// OwesNothing marks a trailer that records a fact rather than a person act:
+// the push derivation neither shape-checks it as `<subject>: <reason>` nor
+// lists it as owed (readLine). A hand-written one is refused all the same,
+// because a closure reads it to decide what its review must cover.
 var declaredTrailers = []struct {
-	Key       string
-	WrittenBy string
+	Key         string
+	WrittenBy   string
+	OwesNothing bool
 }{
-	{trailerReviewOwed, `create ... ` + keywordReviewOverride + ` "<reason>"`},
-	{trailerRFCApprovalOwed, `create ... ` + keywordRFCChangeOK + ` "<reason>"`},
-	{trailerLinuxLimitOwed, "create automatically from added or reworded Linux-limit annotations"},
-	{trailerOwnerAttested, `create ... ` + keywordAttest + ` <commit> "<owner words>"`},
-	{trailerLedgerCarried, `the ledger-deletion commit: create ... remove <path> ` + keywordLedgerCarried + ` "<sha> <gate key>: <reason>"`},
-	{rfc.ApprovalTrailer, "create from ./le rfc approve"},
-	{testweakened.ApprovalTrailer, "create from ./le test weakened approve"},
+	{trailerReviewOwed, `create ... ` + keywordReviewOverride + ` "<reason>"`, false},
+	{trailerRFCApprovalOwed, `create ... ` + keywordRFCChangeOK + ` "<reason>"`, false},
+	{trailerLinuxLimitOwed, "create automatically from added or reworded Linux-limit annotations", false},
+	{trailerOwnerAttested, `create ... ` + keywordAttest + ` <commit> "<owner words>"`, false},
+	{trailerLedgerCarried, `the ledger-deletion commit: create ... remove <path> ` + keywordLedgerCarried + ` "<sha> <gate key>: <reason>"`, false},
+	{rfc.ApprovalTrailer, "create from ./le rfc approve", false},
+	{testweakened.ApprovalTrailer, "create from ./le test weakened approve", false},
+	{trailerSpecWork, "./le commit create under a claim (./le spec claim), from the claimed spec", true},
 }
 
 // retiredVerbs maps each verb the derived debt removed to the command that
@@ -231,6 +245,19 @@ func answerCreate(root string, args leaction.Arguments) (any, int) {
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 2
+	}
+	// The claim is keyed by the harness session and agent, which only the spec
+	// package resolves; Create's own session is the commit namespace and finds
+	// no marker (R-3). An unreadable claim refuses rather than attributing
+	// nothing, which would leave this commit out of its spec's closure review.
+	claimed, err := spec.ClaimedSpec(root)
+	if err != nil {
+		leaction.ReportError(fmt.Errorf("cannot read this session's spec claim, so the commit cannot be attributed "+
+			"to its spec: %w; see the claim with ./le spec current, and release a malformed one with ./le spec release", err))
+		return nil, 3
+	}
+	if claimed != "" {
+		options.SpecWork = specpath.Stem(claimed)
 	}
 	prepared, err := Create(root, &options)
 	if err != nil {

@@ -35,6 +35,9 @@ type ReviewResult struct {
 	Stale      []string `json:"stale,omitempty"`
 	Problems   []string `json:"problems,omitempty"`
 	Clean      bool     `json:"clean"`
+	// Commits are the landed commits attributed to the spec (Spec-work:) whose
+	// paths the closure review was judged over, so a short list is visible.
+	Commits []string `json:"commits,omitempty"`
 }
 
 // relocatedSpecs answers the spec file names this commit MOVES between release
@@ -189,6 +192,56 @@ const privateIndexUpdate = `GIT_INDEX_FILE="$_ze_index" git update-index`
 // in neither rendered form, or a snapshot line that is not an index entry.
 func scriptBase(root, scriptPath, script string) (specjournal.Base, error) {
 	base := specjournal.Base{Files: map[string]string{}, Removed: map[string]bool{}}
+	err := walkScriptBlocks(scriptPath, script,
+		func(entry string) error { return laySnapshotEntry(root, entry, &base) },
+		func(paths []string) {
+			for _, path := range paths {
+				delete(base.Files, path)
+				base.Removed[path] = true
+			}
+		})
+	if err != nil {
+		return specjournal.Base{}, err
+	}
+	return base, nil
+}
+
+// scriptPaths answers every path the blocks of a prepared script commit:
+// each snapshot entry's path and each path a block removes. It reads the
+// script as scriptBase does and refuses one it cannot read the same way,
+// because a closure appended to commit A judges A's paths, which exist
+// nowhere else until the script runs.
+func scriptPaths(scriptPath, script string) ([]string, error) {
+	var paths []string
+	err := walkScriptBlocks(scriptPath, script,
+		func(entry string) error {
+			_, path, err := snapshotEntryFields(entry)
+			paths = append(paths, path)
+			return err
+		},
+		func(removed []string) { paths = append(paths, removed...) })
+	if err != nil {
+		return nil, err
+	}
+	return unique(paths), nil
+}
+
+// appendedPaths answers every path the earlier blocks of the script an
+// appended commit joins carry (scriptPaths).
+func appendedPaths(root, session string, options *Options) ([]string, error) {
+	scriptPath, existing, err := targetScript(root, session, "", options)
+	if err != nil {
+		return nil, err
+	}
+	return scriptPaths(scriptPath, existing)
+}
+
+// walkScriptBlocks hands each snapshot line of a prepared script to entry and
+// each removal line's paths to removal, in script order. A script it cannot
+// read is an error naming the script and the line: a snapshot heredoc with no
+// closing delimiter, a private-index update-index line in neither rendered
+// form, or an entry refused by entry.
+func walkScriptBlocks(scriptPath, script string, entry func(string) error, removal func([]string)) error {
 	opened := 0
 	for index, line := range strings.Split(script, "\n") {
 		number := index + 1
@@ -197,8 +250,8 @@ func scriptBase(root, scriptPath, script string) (specjournal.Base, error) {
 				opened = 0
 				continue
 			}
-			if err := laySnapshotEntry(root, line, &base); err != nil {
-				return specjournal.Base{}, scriptLineError(scriptPath, number, err)
+			if err := entry(line); err != nil {
+				return scriptLineError(scriptPath, number, err)
 			}
 			continue
 		}
@@ -208,22 +261,19 @@ func scriptBase(root, scriptPath, script string) (specjournal.Base, error) {
 		}
 		raw, found := strings.CutPrefix(line, privateRemovalPrefix)
 		if found {
-			for _, path := range parseShellWords(raw) {
-				delete(base.Files, path)
-				base.Removed[path] = true
-			}
+			removal(parseShellWords(raw))
 			continue
 		}
 		if strings.HasPrefix(line, privateIndexUpdate) {
-			return specjournal.Base{}, scriptLineError(scriptPath, number,
+			return scriptLineError(scriptPath, number,
 				errors.New("a private-index update-index line that is neither the snapshot heredoc nor the removal"))
 		}
 	}
 	if opened != 0 {
-		return specjournal.Base{}, scriptLineError(scriptPath, opened,
+		return scriptLineError(scriptPath, opened,
 			errors.New("a snapshot heredoc with no closing "+indexInfoDelimiter+" line"))
 	}
-	return base, nil
+	return nil
 }
 
 // scriptLineError names the script and line scriptBase could not read, and the
@@ -238,13 +288,9 @@ func scriptLineError(scriptPath string, number int, err error) error {
 // the only files that hold journal rows or owned tables. Every line is checked
 // for that shape first, so a malformed line is refused whatever path it names.
 func laySnapshotEntry(root, entry string, base *specjournal.Base) error {
-	fields, path, found := strings.Cut(entry, "\t")
-	if !found {
-		return fmt.Errorf("a snapshot line with no path, %q", entry)
-	}
-	parts := strings.Fields(fields)
-	if len(parts) != 3 {
-		return fmt.Errorf("a snapshot line for %s that is not mode, object and stage, %q", path, entry)
+	object, path, err := snapshotEntryFields(entry)
+	if err != nil {
+		return err
 	}
 	if !strings.HasPrefix(path, "plan/") {
 		return nil
@@ -252,13 +298,82 @@ func laySnapshotEntry(root, entry string, base *specjournal.Base) error {
 	if !strings.HasSuffix(path, ".md") {
 		return nil
 	}
-	content, err := gitOutput(root, "cat-file", "blob", parts[1])
+	content, err := gitOutput(root, "cat-file", "blob", object)
 	if err != nil {
 		return fmt.Errorf("read %s from the object the snapshot names: %w", path, err)
 	}
 	base.Files[path] = content
 	delete(base.Removed, path)
 	return nil
+}
+
+// snapshotEntryFields reads one `git ls-files -s` line of an earlier block,
+// `<mode> <object> <stage>\t<path>`, and refuses any other shape.
+func snapshotEntryFields(entry string) (object, path string, err error) {
+	fields, path, found := strings.Cut(entry, "\t")
+	if !found {
+		return "", "", fmt.Errorf("a snapshot line with no path, %q", entry)
+	}
+	parts := strings.Fields(fields)
+	if len(parts) != 3 {
+		return "", "", fmt.Errorf("a snapshot line for %s that is not mode, object and stage, %q", path, entry)
+	}
+	return parts[1], path, nil
+}
+
+// specPopulation is the change set a spec's closure review covers beyond the
+// closure commit's own paths: the landed commits attributed to the spec, and
+// every path they add, change or remove.
+type specPopulation struct {
+	Commits []string
+	Paths   []string
+}
+
+// specWorkPopulation answers the commits reachable from tip whose message
+// holds the line `Spec-work: <stem>`, and the paths they touched. It is the
+// one producer of that set for the closure gate (from HEAD) and the push
+// discharge (from the closure commit), so the two never judge different
+// files.
+//
+// git's --grep is a substring match, so it only narrows the log: `Spec-work: x`
+// also finds `Spec-work: xy` and a line that quotes the trailer. The match is
+// a whole message line equal to the trailer.
+func specWorkPopulation(root, stem, tip string) (specPopulation, error) {
+	trailer := trailerSpecWork + stem
+	shown, err := gitOutput(root, "-c", "core.quotePath=false", "log", "--no-show-signature", gitNoColor,
+		"--no-renames", "--fixed-strings", "--grep", trailer, "--name-only", "--format=%x1e%H%x00%B%x00", tip, "--")
+	if err != nil {
+		return specPopulation{}, fmt.Errorf("read the commits attributed to spec %s: %w", stem, err)
+	}
+	var population specPopulation
+	for record := range strings.SplitSeq(shown, "\x1e") {
+		fields := strings.SplitN(record, "\x00", 3)
+		if len(fields) != 3 {
+			continue
+		}
+		if !carriesTrailerLine(fields[1], trailer) {
+			continue
+		}
+		population.Commits = append(population.Commits, strings.TrimSpace(fields[0]))
+		for line := range strings.SplitSeq(fields[2], "\n") {
+			if path := strings.TrimSpace(line); path != "" {
+				population.Paths = append(population.Paths, path)
+			}
+		}
+	}
+	population.Paths = unique(population.Paths)
+	return population, nil
+}
+
+// carriesTrailerLine answers whether one message line is exactly trailer,
+// trailing whitespace aside.
+func carriesTrailerLine(message, trailer string) bool {
+	for line := range strings.SplitSeq(message, "\n") {
+		if strings.TrimRight(line, " \t\r") == trailer {
+			return true
+		}
+	}
+	return false
 }
 
 // closedSpecStem answers the one spec a file population closes, from the
@@ -487,17 +602,36 @@ func checkReviewSelected(root, stem string, paths []string, selection hunks.Sele
 		return reviewDigest(carried, err)
 	})
 	result.Problems = append(result.Problems, unreadable...)
-	var repin []string
+	var repin, whole []string
 	for _, path := range append(slices.Clone(result.Stale), result.Unreviewed...) {
 		if selection.Selected(path) {
 			repin = append(repin, path)
+			continue
 		}
+		whole = append(whole, path)
+	}
+	if len(whole) != 0 {
+		result.Problems = append(result.Problems, wholeReviewRefusal(stem))
 	}
 	if len(repin) != 0 {
 		result.Problems = append(result.Problems, hunksReviewRefusal(stem, repin, selection))
 		result.Clean = false
 	}
 	return result
+}
+
+// wholeReviewRefusal names the one fix for a code file the review did not
+// cover or that changed after it: a new independent review over the spec's
+// whole change set, recorded by the reviewer. Like hunksReviewRefusal it
+// prints the record verb as its usage shape, so the line pins nothing when
+// pasted.
+func wholeReviewRefusal(stem string) string {
+	var text textbuf.Buffer
+	text.Str("the closure review covers the spec's whole change set: this commit, the earlier blocks of its " +
+		"script, and every commit carrying ").Str(trailerSpecWork).Str(stem).
+		Str("; re-run the independent review over those files as they stand now, and the reviewer records " +
+			"the verdict with\n  ./le spec review record spec ").Str(shellQuote(stem)).Str(" ...")
+	return text.String()
 }
 
 // hunksReviewRefusal says why a hunks path's stale or missing pin blocks the

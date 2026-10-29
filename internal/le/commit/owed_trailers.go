@@ -129,6 +129,11 @@ func (acts *personActs) readLine(sha, line string) {
 	for _, declaration := range declaredTrailers {
 		key := strings.TrimSpace(declaration.Key)
 		if strings.HasPrefix(line, key) {
+			// A record that owes nothing holds no push and answers nothing,
+			// so its shape is no concern of the derivation.
+			if declaration.OwesNothing {
+				return
+			}
 			if !strings.HasPrefix(line, declaration.Key) {
 				malformed(declaration.Key)
 				return

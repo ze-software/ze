@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling |
 | Priority | P2 |
 | Release reason | - |
 | RFC gaps | - |
 | Depends | - |
-| Phase | - |
+| Phase | 1/1 |
 | Handoff | - |
 | Updated | 2026-10-29 |
 

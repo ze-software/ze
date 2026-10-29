@@ -137,8 +137,23 @@ func answerReviewed(root, artifact string, facts commitFacts) error {
 	if err != nil {
 		return answerClosed(root, facts)
 	}
-	result := ReviewResult{Artifact: artifact}
-	judgeReviewCoverage(&result, string(content), facts.Paths, func(path string) string {
+	// The discharge judges the population the closure gate judged: the
+	// closure commit's paths and those of every commit attributed to its spec
+	// (specWorkPopulation), read at the closure commit's tree (R-8).
+	stem, err := closedSpecStem(facts.Paths, facts.Removed, commitSides(root, facts))
+	if err != nil {
+		return err
+	}
+	paths := facts.Paths
+	if stem != "" {
+		population, err := specWorkPopulation(root, stem, facts.SHA)
+		if err != nil {
+			return err
+		}
+		paths = unique(slices.Concat(facts.Paths, population.Paths))
+	}
+	result := ReviewResult{Spec: stem, Artifact: artifact}
+	judgeReviewCoverage(&result, string(content), paths, func(path string) string {
 		text, present, problem := committedText(root, facts.SHA, path)
 		if problem != "" {
 			return "UNREADABLE"

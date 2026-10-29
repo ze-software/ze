@@ -56,6 +56,27 @@ func TestDerivedDebtEmptyWhenTreesMatch(t *testing.T) {
 	}
 }
 
+// TestSpecWorkTrailerOwesNothingAtPush pins that the attribution is a record
+// with no person act behind it.
+// VALIDATES: AC-6; a verified commit carrying `Spec-work: <stem>` derives no
+// malformed-trailer refusal and no owed item, and its push is admitted.
+// PREVENTS: R-2, the push parser shape-checking every declared key as
+// `<subject>: <reason>` and holding every push made under a claim.
+func TestSpecWorkTrailerOwesNothingAtPush(t *testing.T) {
+	root := newOwedRepository(t)
+	head := commitOwed(t, root, "a change made under a claim", map[string]string{"a.txt": "a\n"}, nil,
+		trailerSpecWork+"x")
+	writeOwedGreen(t, root, head)
+
+	derived := deriveOwed(t, root, "")
+	if len(derived.Items) != 0 || len(derived.Refusals) != 0 {
+		t.Fatalf("the attribution owes something: items %+v, refusals %q", derived.Items, derived.Refusals)
+	}
+	if err := derived.pushRefusal(); err != nil {
+		t.Fatalf("a verified commit carrying only the attribution refused its push: %v", err)
+	}
+}
+
 // TestDerivedDebtListsCommitsAfterGreen proves a commit after the green record
 // is named, by SHA and subject, as not in this push.
 // VALIDATES: AC-4; P is G, and the later commit is listed as left behind.
