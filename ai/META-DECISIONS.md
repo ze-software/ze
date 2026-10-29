@@ -102,9 +102,10 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   Alpine or a stock distribution kernel. A problem that exists only because a
   guest runs another system is out of scope: the fix is moving that guest to
   Ze's system. Colima may manage the VM on macOS, booting Ze's image only.
-- A test that needs a kernel feature runs on Ze's kernel, which carries it. A
-  developer host on a standard distribution kernel is supported through an
-  optional `./le setup` step that loads the needed modules with `modprobe`.
+- A test that needs a kernel feature runs on Ze's kernel, which carries it.
+- Ze running on a standard distribution kernel can load the kernel modules it
+  needs with `modprobe`, as an optional feature of `ze` itself. `le` is
+  development tooling and never carries a product feature.
 - The Linux host is too busy for full test runs: there, run scoped package
   tests only, and never run `./le verify worktree`, a full functional suite or
   a full `./le go lint run`. Full runs happen on another host.
