@@ -48,6 +48,24 @@ Presentation, as agreed against the mockup
 | RFC list (`?profile=<name>&rfc=<stems>#rfc-list`) | One row per RFC: MUST total, then a column pair per section; a Total row at the bottom whose five MUST section columns add up to the MUST total, with a check line |
 | RFC detail page | Each requirement with level, section, status and evidence, ending in a total that matches the RFC's row in the list |
 
+Gauge (owner request, 2026-10-29): the separate mandatory and optional bars
+are replaced by ONE sectioned gauge, because two bars cannot show the split.
+
+| Where | Gauge |
+|-------|-------|
+| Top of the filtered RFC list (`quality/rfc-compliance/?profile=...`), before the tables | One gauge for the whole set of RFCs shown, from the same sums as the Total row |
+| Each RFC row of the RFC table | One gauge per row in the same visual language: same segments, same colours, same order |
+
+Segments, one colour each, ordered left to right from met to missing: Ze
+proven, OS verified, then the rows not owed (declined, not applicable, OS
+blocked), then OS testing gap, then Ze correctness gap. Segment widths are
+row counts over the gauge's total, so the top gauge and the Total row show the
+same numbers. Each segment carries its section name and count in text as
+well, so the split stays readable without colour.
+
+Open (A-1): whether optional (SHOULD / MAY) rows sit in the same gauge, or the
+gauge covers MUST rows and optional figures are shown as numbers beside it.
+
 Counts are summed across RFCs and divided once; percentages are never averaged.
 The ceiling presentation is removed, not kept beside the sections
 (`ai/rules/no-layering.md`). Published figures are corrected on the surfaces
