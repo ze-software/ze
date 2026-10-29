@@ -168,23 +168,81 @@ testing gap. Neither waits on the other.
 
 | ID | Assumption | Basis | If wrong | Validation |
 |----|------------|-------|----------|------------|
-| A-1 | The excluded rows' existing reasons can be backfilled with a section-scoped RFC quote | `{feature-declined}` already carries a quote; `{lower-layer}` reasons name the kernel path | A row whose evidence cannot be found goes back to Ze's section | → Decision (Thomas, 2026-10-29, research gate): roll out ALL AT ONCE. No RFC switches to the sections until every excluded row in the corpus (about 833 not-applicable, 215 lower-layer, 63 feature-declined) carries the evidence and the check refuses a row without it. The backfill is the first implementation phase |
+| A-1 | The excluded rows' existing reasons can be backfilled with evidence | `{feature-declined}` already carries a quote; `{lower-layer}` reasons name the kernel path | A row whose evidence cannot be found goes back to Ze's section | → Decision (Thomas, 2026-10-29, research gate): roll out ALL AT ONCE. No RFC switches to the sections until every excluded row in the corpus (about 833 not-applicable, 215 lower-layer, 63 feature-declined) carries the evidence and the check refuses a row without it. The backfill is the first implementation phase |
+| A-2 | Rows of the not-enrolled table belong in the filtered-list sums | `summarize` includes them today, and a profile link must read that profile's rollup | Top bars disagree with the profile page | → Decision: the top bars, the Total row and the profile rollup read the same row set: every shown walked RFC, both tables. Answered by the existing rule that a profile link reads that profile's percentages |
+| A-3 | `ProvenShareOf` and the corpus tape are replaced by the sections | Both partition the same gated rows a second way; `ai/rules/principles.md` (every fact declared once) and `ai/rules/no-layering.md` | Two answers over the same rows stay published | → Decision: both retired; every consumer (home page, facts, compliance cards, test health) reads the sections |
+| A-4 | Many `{not-applicable}` reasons are misclassified | Sampled RFC 2131 reasons read "ze answers no DHCPINFORM at all" (an absent feature: a gap, or declined only if Thomas named it) and "hands construction to the vendored library" (a lower layer that still owes a test, `ai/rules/rfc-compliance.md`) | Ze's headline falls once they move back; that is the honest figure | Backfill classifies each row from the RFC text; the published correction says what the old figure counted |
+| A-5 | The kernel Ze ships is the only OS an OS-verified record speaks for | One shipped kernel, `internal/appliance/kernel.version`; `{linux-limit}` already checks against it | "Per OS and kernel version" in the Task needs a dimension nothing records | → Decision: OS verified means verified on the shipped kernel; no per-version breakdown |
 
-Next step: DESIGN (`/ze-spec` Step 3), resumed after midnight 2026-10-30 by Thomas's choice. Open for DESIGN: the fate of `ProvenShareOf` and the corpus "Requirement buckets" tape (A-3, recommendation: replaced by the sections), whether declined-table rows join the list sums (A-2), the SHOULD intent marker syntax, the OS-verified colour token.
-| A-2 | Declined-table rows belong in the filtered-list sums | `summarize` includes them today | Top bars disagree with the Total row of the enrolled table | Decide at DESIGN; the Total row and the sum read the same row set |
-| A-3 | `ProvenShareOf` and the corpus tape can follow the sections or be retired | Both partition the same gated rows | Two answers over the same rows stay published | DESIGN decision |
+### Risks
+
+| ID | Risk | Early signal | Mitigation |
+|----|------|--------------|------------|
+| R-1 | The backfill is ~1,100 rows of reading RFC text; it stalls and the sections never publish | Ratchet count stops falling | Ratchet (existing drain pattern, `docs/contributing/rfc-conformance-gates.md` "The ratchets"): refuses a NEW row without evidence from phase 1, flips to full refusal at zero; backfill committed per RFC |
+| R-2 | An agent marks a SHOULD row `not ever`, which only Thomas may set | A `not ever` marker added in a diff | The review gate (`/ze-review`) flags every added `not ever`; a `not ever` on a MUST row is refused outright |
+| R-3 | Browser sums and server Total disagree | Unit test comparing the data attributes with the server Total | One Go function computes the Total; the script sums the same attributes; a test re-sums them |
+| R-4 | Turning `BarsTests` off for `{lower-layer}` lets a test with no record look like proof | An OS-verified count with no discrimination record | OS verified requires the same `DiscriminationVerdict.Proven` predicate as Ze proven |
+| R-5 | Removing the ceiling and old bars changes tests that assert them | Ceiling tests red | Those tests are replaced, each judged by `ze-test-judge` (`ai/META-DECISIONS.md`, "Test changes") |
+
+## Design
+
+Alternatives considered:
+
+| Approach | How | Verdict |
+|----------|-----|---------|
+| A: model owns the sections (chosen) | `internal/le/rfc` replaces `Figure` and the ceiling with per-section counts per RFC and per rollup; CLI, site, JSON and browser read them | Wins: one partition, the site computes nothing (`docs/contributing/gh-pages.md`), OS verified and SHOULD intent need model facts anyway |
+| B: site derives sections | Site maps `Figure.Excluded` kinds to sections | Rejected: a second partition outside the model; cannot express OS verified or SHOULD intent |
+| C: sections beside the ceiling | Keep ceiling, add sections | Rejected: `ai/rules/no-layering.md` |
+
+Evidence per exclusion kind (phase 1). The row text itself is already the verbatim RFC span its section cites (`./le rfc check`, "The row quote"), so the requirement sentence is in hand; what each kind adds is the fact that removes the row from Ze's count:
+
+| Kind | Evidence required | Checked by |
+|------|-------------------|------------|
+| `{not-applicable}` | A role-condition quote from the SAME RFC section the row cites, showing the obligation binds a role Ze does not fill (for example a sentence scoping it to hosts), plus the role Ze fills. "Ze does not implement X" is never not-applicable: it is a `{gap}`, or `{feature-declined}` for a feature Thomas named | New section-scoped quote check |
+| `{lower-layer}` | Named layer component (kernel subsystem or vendored module path) and the Ze producer that installs the state it acts on | `checkLowerLayerProducer` (exists) plus a layer-path check |
+| `{feature-declined}` | The optionality quote, now matched within the row's section | `featureDeclinedQuote` narrowed to the section |
+| `{linux-limit}` | Register entry (exists) | `checkLinuxLimit` (unchanged) |
+
+SHOULD / MAY intent (phase 3): a separate marker slot beside the coverage annotation, like `{superseded}`: `{intent: not-yet}` and `{intent: not-ever; <reason citing the RFC's optionality>}`. Absent means `not decided`. Refused on a gated (MUST-level) row. `proven` is never declared, it is computed.
+
+OS verified (phase 2): `{lower-layer}` stops barring tests; a lower-layer row whose tagged unit carries a verifying discrimination record (`DiscriminationVerdict.Proven`) counts as OS verified, otherwise OS testing gap.
+
+Section counts (phase 4), per RFC and per rollup, walked members only, summed before dividing:
+
+| Bar | Counts |
+|-----|--------|
+| MUST | Ze proven, Ze gap, OS verified, OS gap; the bar's total is their sum. Not owed (not applicable, declined, OS blocked) are counted but not in the bar |
+| Overview | MUST: Ze proven, OS verified, not owed, OS gap, Ze gap. SHOULD / MAY: proven, not owed (annotated), not ever, not yet, not decided |
+
+A profile's mandatory register is complete when Ze gap and OS gap are both zero. `{rollup}` rows stay outside every count, so the check line sums non-rollup MUST rows.
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| filled at DESIGN | → | | |
+| `./le rfc tree profile <name>` | → | section counts in `internal/le/rfc` | `TestTreeReportsSectionCounts` (`internal/le/rfc/tree_test.go`) |
+| `./le rfc check` over a summary | → | evidence checks per exclusion kind, intent marker parse | `TestNotApplicableNeedsSectionRoleQuote`, `TestIntentMarkerRefusedOnMust` (`internal/le/rfc/check_core_test.go`) |
+| `./le site build` | → | filtered list, profile pages, detail pages, corpus index | `TestFilteredListTotalMatchesTopBars`, `TestProfilePageDrawsTwoBars`, `TestDetailTotalMatchesListRow` (`internal/le/site/`) |
 
 ## Acceptance Criteria
 
 | AC ID | Input / Trigger | Expected Behavior |
 |-------|-----------------|-------------------|
-| filled at DESIGN | | |
+| AC-1 | A `{not-applicable}` row whose reason carries no quote from its own cited section | `./le rfc check` refuses it, naming the RID and the missing role-condition quote (full refusal once the ratchet reaches zero; before then only for rows the commit adds or changes) |
+| AC-2 | A `{feature-declined}` row whose quote is in the RFC but outside the row's section | Refused, naming the section searched |
+| AC-3 | A `{lower-layer}` row with a tagged unit and a verifying discrimination record | Counted OS verified, not refused as stale |
+| AC-4 | A `{lower-layer}` row with no verifying record | Counted OS testing gap |
+| AC-5 | `{intent: not-yet}` / `{intent: not-ever; ...}` on a SHOULD row; no marker | Counted not yet / not ever / not decided |
+| AC-6 | `{intent: ...}` on a MUST row | Refused |
+| AC-7 | `./le rfc tree profile fttx-edge` | Prints the MUST bar counts (Ze proven, OS verified, OS gap, Ze gap, their sum), the not-owed counts per kind, and the SHOULD states; no ceiling |
+| AC-8 | Rollup over members with one unwalked RFC | Unwalked member contributes nothing and is counted apart; zero rows render `no rows` |
+| AC-9 | Profile mandatory register | Complete only when Ze gap and OS gap are zero |
+| AC-10 | Filtered RFC list, with and without scripts | Two bars on top and on each row; a Total row whose five MUST section columns sum to the MUST total, with a check line; the browser re-sum after filtering equals the server Total for the same rows |
+| AC-11 | Profile page, profile index, RFC detail page, and their Markdown mirrors | Two bars from the same counts; detail page ends in a total equal to its list row |
+| AC-12 | Segment order and colour | MUST bar: Ze proven, OS verified, OS gap, Ze gap. Overview: Ze MUST proven, OS verified, SHOULD proven, not owed, not ever, not yet, not decided, OS gap, Ze gap. Each segment also carries name and count in text |
+| AC-13 | Any published page | No ceiling text, no old mandatory/optional single bars, no corpus tape bucket partition, no `ProvenShareOf` share; home page, facts, compliance cards and test health read the sections |
+| AC-14 | Glossary and reader text | Linux-limit text states OS blocked never counts against Ze; no "ceiling" entry; every term in the two bars defined once |
+| AC-15 | First publication | The pages that carried the old figure say what it counted (all MUST rows, annotated rows included) beside the new one |
 
 ## 🧪 TDD Test Plan
 
@@ -192,19 +250,86 @@ Next step: DESIGN (`/ze-spec` Step 3), resumed after midnight 2026-10-30 by Thom
 
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| filled at DESIGN | | | |
+| `TestNotApplicableNeedsSectionRoleQuote` | `internal/le/rfc/check_core_test.go` | AC-1 | |
+| `TestFeatureDeclinedQuoteIsSectionScoped` | `internal/le/rfc/check_core_test.go` | AC-2 | |
+| `TestLowerLayerWithRecordIsOSVerified`, `TestLowerLayerWithoutRecordIsOSGap` | `internal/le/rfc/profilecoverage_test.go` | AC-3, AC-4 | |
+| `TestIntentMarkerStates`, `TestIntentMarkerRefusedOnMust` | `internal/le/rfc/summary_test.go`, `check_core_test.go` | AC-5, AC-6 | |
+| `TestTreeReportsSectionCounts` | `internal/le/rfc/tree_test.go` | AC-7 | |
+| `TestSectionRollupSumsWalkedMembersOnly`, `TestRegisterCompleteNeedsNoZeOrOSGap` | `internal/le/rfc/profilecoverage_test.go` | AC-8, AC-9 | |
+| `TestFilteredListTotalMatchesTopBars`, `TestFilteredListCheckLineAddsUp` | `internal/le/site/rfcfilter_test.go` | AC-10 | |
+| `TestProfilePageDrawsTwoBars`, `TestDetailTotalMatchesListRow`, mirror counterparts | `internal/le/site/rfcprofiles_test.go`, `rfcdetail_test.go` | AC-11 | |
+| `TestBarSegmentOrder` | `internal/le/site/rfcbars_test.go` | AC-12 | |
+| `TestNoCeilingOrSecondPartitionPublished` | `internal/le/site/rfccompliance_test.go` | AC-13 | |
+| `TestGlossaryDefinesBarTerms` | `internal/le/site/rfcreader_test.go` | AC-14 | |
+
+Replaced tests (judged by `ze-test-judge`): the ceiling tests named under Current Behavior and `TestTheOverviewSumsTheCeilingTheRollupSums`.
 
 ## Files to Modify
-- filled at DESIGN
+
+| File | Change |
+|------|--------|
+| `internal/le/rfc/rfc.go` | Traits: section membership replaces `CeilingExcluded` / `CeilingLabel`; lower-layer `BarsTests` off; intent marker kind |
+| `internal/le/rfc/summary.go` | Parse not-applicable role quote, lower-layer layer path, intent marker slot |
+| `internal/le/rfc/check_core.go`, `check.go`, `linux_limit.go` | Section-scoped quote checks, intent refusal on MUST, the evidence ratchet |
+| `internal/le/rfc/profilecoverage.go`, `tree.go`, `priority.go`, `next.go` | Section counts replace `Figure` / ceiling; CLI text |
+| `internal/le/rfc/provenshare.go` | Retired; consumers move to the sections |
+| `internal/le/site/rfcbars.go` (new) | One renderer of both bars, HTML and mirror |
+| `internal/le/site/rfcfilter.go`, `rfcprofiles.go`, `rfcdetail.go`, `rfccompliance.go`, `rfcledger.go`, `rfcreader.go`, `home.go`, `facts.go` | Two bars, Total row, check line, removal of ceiling, tape and share |
+| `internal/test/health/collect_rfc.go`, `internal/test/fixture/ui_fixture_le_rfc_answers.go` | Read sections |
+| `website/assets/css/00-tokens.css` | OS-verified light-green token, light and dark |
+| `rfc/short/*.md` | Evidence backfill and reclassification, per RFC |
+| `docs/contributing/rfc-conformance-gates.md`, `docs/contributing/gh-pages.md` | "Coverage figures", guard table, "Quality pages" |
 
 ### Integration Checklist
-- filled at RESEARCH
+
+| Integration Point | Applies? | File / reason |
+|-------------------|----------|---------------|
+| YANG schema (new RPCs/config) | N-A | Developer tooling and website; no Ze config |
+| YANG validation constraints | N-A | No YANG |
+| YANG custom validators | N-A | No YANG |
+| CLI commands/flags | Yes | `./le rfc tree` / `./le rfc next` output changes; no new keyword |
+| CLI grammar (keyword before value) | N-A | No new keyword |
+| Editor autocomplete | N-A | No new keyword |
+| Functional test for new RPC/API | N-A | No RPC; site build tests cover the path |
+| Pipe completeness | Yes | `./le rfc tree` JSON / table pipes carry the section fields |
+| Env var registration | N-A | None |
+| Doctor check for runtime dependencies | N-A | No runtime dependency |
+| Prometheus counters/metrics | N-A | None |
+| BGP family surface | N-A | Not BGP |
 
 ### Documentation Update Checklist (BLOCKING)
-- filled at RESEARCH
+
+| # | Question | Applies? | File to update |
+|---|----------|----------|---------------|
+| 1 | New user-facing feature, or scope/evidence/level changed? | Yes | The published RFC figures change meaning; corrected on the quality pages themselves (AC-15) |
+| 2 | Config syntax changed? | N-A | No config |
+| 3 | CLI command added/changed? | Yes | `le help rfc` text for `tree` / `next` if it names the ceiling |
+| 4 | API/RPC added/changed? | N-A | None |
+| 5 | Plugin added/changed? | N-A | None |
+| 6 | Has a user guide page? | N-A | Contributor tooling |
+| 7 | Wire format changed? | N-A | None |
+| 8 | Plugin SDK/protocol changed? | N-A | None |
+| 9 | RFC behavior implemented, changed, or newly proven? | Yes | `rfc/short/*.md` reclassifications in phase 1; `docs/features/rfc-status.md` regenerated |
+| 10 | Test infrastructure changed? | Yes | `docs/contributing/rfc-conformance-gates.md` (annotation evidence, intent marker, OS verified) |
+| 11 | Affects daemon comparison? | N-A | No |
+| 12 | Internal architecture changed? | Yes | `docs/contributing/gh-pages.md` "Quality pages" |
+| 13 | Route metadata keys added/changed? | N-A | None |
+| 14 | Prometheus counters added/changed? | N-A | None |
+| 15 | Registered plugin, event type, ... changed? | N-A | None |
+| 16 | Changed source files referenced by doc source anchors? | Yes | Derived at implementation by `./le spec citation anchors spec plan/release/validation/spec-rfc-figures-sectioned-presentation.md` |
+| 17 | Existing docs show examples for this area? | Yes | Annotation examples in `docs/contributing/rfc-conformance-gates.md` |
 
 ## Implementation Steps
-- filled at DESIGN
+
+Each phase commits when it compiles and works (`ai/META-DECISIONS.md`).
+
+| Phase | Work | Lands |
+|-------|------|-------|
+| 1 | Evidence checks for the four kinds, as a ratchet refusing new rows without evidence; then the corpus backfill per RFC, reclassifying misclassified rows (A-4) from the RFC text | Per RFC; full refusal when the ratchet reaches zero |
+| 2 | OS verified: lower-layer stops barring tests; the verified predicate | With its tests |
+| 3 | SHOULD intent marker: parse, refusal on MUST, counts | With its tests |
+| 4 | Section counts in the model, CLI output, JSON; `ProvenShareOf` retired | With its tests and the conformance doc |
+| 5 | Site: shared bar renderer, all surfaces, Total row and check line, browser script, colour token, glossary; ceiling, tape and share removed | Only after phase 1 reaches zero (Thomas's all-at-once decision), with the gh-pages doc and the published correction |
 
 ## Owned journal rows
 
