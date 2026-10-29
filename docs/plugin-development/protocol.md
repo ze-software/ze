@@ -537,7 +537,9 @@ declares both ownership and `source-policy` handler support. All four operations
 use one registered callback on both transports, not the shutdown `OnDrain` path.
 
 Requests carry a transaction, operation, captured source identity, target epoch
-and absolute deadline. The source identity comprises peer, peer incarnation,
+and absolute deadline. The engine sends the earlier of its caller's budget and
+the request deadline, so the handler's context never outlives the caller. The
+source identity comprises peer, peer incarnation,
 session generation, original policy epoch, receive frontier and template
 generation. Every field MUST be present and non-null; the last two may be zero.
 Prepare/finalize require explicit target zero. Apply/abort require a fresh target

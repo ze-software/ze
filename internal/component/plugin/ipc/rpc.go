@@ -593,6 +593,11 @@ func (pc *PluginConn) SendSourcePolicy(ctx context.Context, input rpc.SourcePoli
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+	// The owner commits against the deadline it receives, so it must see the
+	// derived context's deadline: the earlier of the caller's budget and the
+	// request's own. WithDeadline above guarantees one is set.
+	deadline, _ := ctx.Deadline()
+	input.DeadlineMS = deadline.UnixMilli()
 	raw, err := pc.CallRPC(ctx, "ze-plugin-callback:source-policy", input)
 	if err != nil {
 		return err

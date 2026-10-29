@@ -943,7 +943,9 @@ call. Before prepare, the coordinator MUST settle its receive-publication
 frontier; the handle then uses strict `DrainEventsApplied`, never soft quiesce.
 
 The request carries `transaction-id`, `operation`, `source`, `next-policy-epoch`
-and absolute `deadline-ms`. The captured source contains `peer`, `peer-owner`,
+and absolute `deadline-ms`: the earlier of the calling transaction's remaining
+budget and the request's own deadline, so an owner never commits after its
+caller has given up. The captured source contains `peer`, `peer-owner`,
 `session-generation`, `policy-epoch`, `receive-frontier` and
 `template-generation`. Every field is required and non-null, including explicit
 zero frontiers/template generations. Peer owner, session generation and original
