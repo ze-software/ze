@@ -70,6 +70,11 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   section of its own as a limit of the kernel. It is not missing coverage in
   Ze's code, so it never counts against Ze's mandatory coverage or holds a
   release.
+- A requirement the Linux kernel produces from the packet alone, where no state
+  Ze installs decides the outcome, takes the `kernel-producer` escape and is
+  published as escaped, never as proven. Its record notes that a patched-kernel
+  proof could prove it later, and that route is planned in a kernel spec of its
+  own.
 - An agreed design answers the questions that follow from it.
 
 ## ExaBGP compatibility
@@ -97,6 +102,9 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   Alpine or a stock distribution kernel. A problem that exists only because a
   guest runs another system is out of scope: the fix is moving that guest to
   Ze's system. Colima may manage the VM on macOS, booting Ze's image only.
+- A test that needs a kernel feature runs on Ze's kernel, which carries it. A
+  developer host on a standard distribution kernel is supported through an
+  optional `./le setup` step that loads the needed modules with `modprobe`.
 - The Linux host is too busy for full test runs: there, run scoped package
   tests only, and never run `./le verify worktree`, a full functional suite or
   a full `./le go lint run`. Full runs happen on another host.
