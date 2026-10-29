@@ -684,8 +684,12 @@ func (p *Process) startExternal() error {
 	// authenticates before this goroutine reaches Wait is held for it, where a
 	// waiter registered after Start would find the connection already closed
 	// for having nobody to take it.
+	//
+	// The fork goes through plugin.StartChild, never p.cmd.Start: the Linux
+	// death signal is bound to the forking thread, and StartChild forks from
+	// the one thread ze never lets the runtime destroy.
 	waiter := p.acceptor.ExpectPlugin(p.config.Name)
-	if err := p.cmd.Start(); err != nil {
+	if err := plugin.StartChild(p.cmd); err != nil {
 		waiter.Cancel()
 		stderrWrite.Close() //nolint:errcheck,gosec // cleanup on error
 		stderrRead.Close()  //nolint:errcheck,gosec // cleanup on error

@@ -481,7 +481,7 @@ func runQuery(configured PluginConfig, budget time.Duration) ([]byte, queryOutco
 	// closes the pipes once the child is gone, which is what bounds Wait.
 	child.WaitDelay = queryDrainDelay
 
-	if err := child.Start(); err != nil {
+	if err := StartChild(child); err != nil {
 		return nil, unstartableOutcome(err, ShellAvailable())
 	}
 

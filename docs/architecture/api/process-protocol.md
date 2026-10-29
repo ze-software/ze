@@ -2358,6 +2358,19 @@ fork also carries `Pdeathsig`, which the kernel delivers to that direct child
 when ze dies. It reaches the plugin for a `run` string the shell
 exec-optimizes, and a `run` string the shell keeps a process for leaves the
 plugin a grandchild, which no death signal reaches.
+
+The kernel sends that death signal when the THREAD that forked the child
+exits, not when ze does. The Go runtime destroys a thread whose goroutine
+returns while it holds `runtime.LockOSThread`, and ze does that on purpose:
+a kernel capability probe moves a locked thread into a throwaway network
+namespace and lets the runtime destroy it, and the start and reload gates run
+such probes. A plugin forked from an ordinary goroutine could therefore be
+killed, with no log line of its own, by the next probe that ran on its thread.
+Every fork that carries these attributes, the live start and the declaration
+query alike, goes through `StartChild`, which forks from one spawner thread
+that stays locked for the life of ze and so is never destroyed.
+<!-- source: internal/component/plugin/sysproc_linux.go -- StartChild, runSpawner -->
+<!-- source: internal/component/kernelcap/namespace_linux.go -- InThrowawayNetworkNamespace -->
 <!-- source: internal/component/plugin/shell.go -- Shell, ShellAvailable -->
 <!-- source: internal/component/plugin/process/process.go -- startFailure -->
 <!-- source: internal/component/plugin/sysproc.go -- KillGroupOnCancel, KillProcessGroup -->
