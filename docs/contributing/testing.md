@@ -107,6 +107,48 @@ For example, the redirect tests pass plugin JSON through the RIB parser before
 querying the session's effective setting.
 <!-- source: internal/component/bgp/plugins/rib/rib_flowspec_redirect_config_test.go -- TestFlowSpecRedirectDynamicGroupLookup, TestFlowSpecRedirectDynamicGroupRejectsInvalidSwitch -->
 
+#### Kernel tests in a user namespace
+
+A unit test that needs kernel privilege (links, routes, XFRM, nftables,
+conntrack, raw or AF_PACKET sockets, a low port, a named network namespace)
+runs unprivileged through `userns.Enter` (`internal/test/userns`). `Enter`
+re-runs the one test as root over a user, network and mount namespace of its
+own, with `lo` up and a private `/run/netns`, so nothing it creates reaches
+the host. Write such a test this way:
+
+- `if !userns.Enter(t) { return }` is the first statement of each top-level
+  test that reaches a privileged operation. Never call it from a helper or a
+  subtest: the child selects the test by its top-level name. A helper that
+  needs privilege is reached through the `Enter` of every top-level test that
+  calls it.
+- The test never calls `t.Parallel`, because the child re-runs that one named
+  test in a fresh process.
+- A refused operation inside the namespace fails the test with the operation
+  and the errno, and never skips: the namespace grants the privilege, so a
+  refusal is a defect or an unmet need. A skip that names an absent kernel
+  feature or module (for example `CONFIG_MPLS_ROUTING`) stays a skip.
+- Every child startup error fails the parent, namespace denial included. The
+  message carries the error and names `./le setup install` and its
+  `userns-unrestricted` check, which lifts the AppArmor restriction
+  ([developer setup](../guide/developer-setup.md)). Only a child that ran and
+  reported its test skipped skips the parent.
+- The file's build tag is `linux`, so every Linux unit run and the hosted CI
+  unit job execute it. Keep `integration && linux` only when the file runs a
+  binary `./le setup` does not install (`nft`), needs a host grant (`/dev/ppp`,
+  through `ppp-access`), takes an explicitly supplied `ze` executable, or needs
+  a privilege only the initial user namespace holds. Say which in the file's
+  header comment.
+
+Run the evidence as your own user through the launcher, for example
+`./le job run label unit-pkg quiet command go test -v -count=1 -run '^TestName$' ./internal/core/routewatch`,
+and read `--- PASS` for each test. Off Linux, `Enter` returns true at once and
+the test runs in place, which serves a portable test such as the traceroute
+command tests. The namespace mechanics are in
+[QEMU integration testing](../architecture/testing/qemu-integration.md),
+"Build Tags".
+<!-- source: internal/test/userns/userns_linux.go -- Enter, childSetup, childFailure -->
+<!-- source: internal/test/userns/userns_other.go -- Enter -->
+
 #### Fixture environment isolation
 
 Native Go test commands remove the launching le's `ze.repo.root` and

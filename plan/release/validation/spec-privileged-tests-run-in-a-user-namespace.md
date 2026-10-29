@@ -11,7 +11,7 @@
 | Phase | - |
 | Handoff | - |
 | Approved | Thomas, 2026-10-28: "convert A and B". The group B mechanism (D-1) is the main thread's decision. The `/dev/ppp` scope addition (P2, P9) is Thomas's, relayed by the main thread on 2026-10-28 |
-| Updated | 2026-10-28 |
+| Updated | 2026-10-29 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -55,8 +55,10 @@ are group C's.
 - [ ] `docs/architecture/testing/qemu-integration.md` - "Build Tags" and the `userns.Enter` paragraph (~line 816)
   → Constraint: `integration && linux` files run only through `./le test qemu` (which supplies `-tags integration`); `linux` files run in the native unit groups too. A file that drops to `linux` therefore runs in ordinary unit runs and in the hosted CI unit job.
   → Decision: the paragraph is rewritten in P10 to describe the mount namespace and the private `/run/netns`.
+  → Decision: P10 (2026-10-29) found the mount-namespace paragraph already written with P1, and brought the rest of the page to D-5: the two Build Tags rows, the kernel-test paragraph, the reference table, and the Common Mistakes rows that told a kernel test to use `integration && linux` and to skip on a missing capability.
 - [ ] `docs/guide/developer-setup.md` ~449-520 - the `userns-unrestricted` and `kvm-access` setup checks
   → Decision: the new `ppp-access` check copies their shape: the same root route (`sudo -n`, terminal asks once, no terminal prints the commands), the `present`/`pending`/`missing`/`n/a` states, and the "group fixed at login" `pending` report.
+  → Decision: P2 as landed (55cb1821dd, `internal/le/setup/ppp.go`) differs from the AC-12, AC-13 and AC-15 wording; see D-10. The page describes the landed behavior.
 - [ ] `docs/architecture/testing/ci-workflows.md` - line 5 (hosted runner grants root) and line 37 (the AppArmor userns tunable the unit job lifts)
   → Constraint: the hosted unit job already lifts `kernel.apparmor_restrict_unprivileged_userns`, so a file dropped to `linux` runs there in its namespace. The nightly `integration` job runs under `sudo`; `Enter` from a root parent still makes its own namespace (uid 0 maps to 0).
 - [ ] `docs/contributing/testing.md` - the native test actions and the RFC approval route
@@ -142,8 +144,8 @@ named-namespace create/lookup identity, and deletion.
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | An unprivileged user and mount namespace may mount a tmpfs on `/run/netns` and bind-mount a netns file onto a file in it | `unshare -rnm` experiment above; tmpfs is mountable in a user namespace | group B falls back to unnamed `netns.New()` per file (D-1) | `TestEnterGivesAPrivateNetnsDirectory`, current namespace smoke | validated |
 | A-2 | A tmpfs mounted in the child never reaches the host | the child's mount namespace is private and owned by the child's user namespace | host `/run/netns` polluted | `TestEnterGivesAPrivateNetnsDirectory` compares the child's device against the parent's, current namespace smoke | validated |
-| A-3 | Supplementary groups survive `Enter` with `setgroups` denied | `/etc/chatscripts` experiment above | D stays in C | P9 run of the D tests | validated by experiment |
-| A-4 | Inside the namespace `/dev/ppp` opens and `PPPIOCNEWUNIT`, `PPPIOCGCHAN`, `PPPIOCUNBRIDGECHAN` behave as for root | `ppp_open` and `ppp_unattached_ioctl` capability checks quoted above | D stays in C, recorded with the errno | P9 `TestPADTRetainsUnitUntilOwnerCleanup` and `TestLACChannelBridge`: old session scratch `userns-P9/pppoeclient.log` and `l2tp.log`, both PASS | Open and unit reservation/reuse validated; bridge test checks a channel-number error but does not assert the exact ioctl errnos |
+| A-3 | Supplementary groups survive `Enter` with `setgroups` denied | `/etc/chatscripts` experiment above | D stays in C | P9 run of the D tests | validated: in P9 (8cf23c5998) both D tests opened `/dev/ppp` in the child through `dip` |
+| A-4 | Inside the namespace `/dev/ppp` opens and `PPPIOCNEWUNIT`, `PPPIOCGCHAN`, `PPPIOCUNBRIDGECHAN` behave as for root | `ppp_open` and `ppp_unattached_ioctl` capability checks quoted above | D stays in C, recorded with the errno | P9 `TestPADTRetainsUnitUntilOwnerCleanup` and `TestLACChannelBridge`: old session scratch `userns-P9/pppoeclient.log` and `l2tp.log`, both PASS | Open and unit reservation/reuse validated. The P9 experiment in `unshare -rn` as uid 1000 with `/dev/ppp` `root:dip 0660`: the open succeeds, `PPPIOCNEWUNIT` returns unit 0 and creates `ppp0` in the child netns, and `PPPIOCGCHAN` and `PPPIOCUNBRIDGECHAN` on an unattached fd answer `ENOTTY` as for root. The bridge test checks a channel-number error but does not assert the exact ioctl errnos |
 | A-5 | Each inventory test needs nothing a user namespace cannot give beyond `Enter` | read of every skip in the inventory | that test moves to the Reclassified table with its reason | its batch's run-once PASS | Broken for the observed cases in Reclassified during implementation; remaining batches still owe their runs |
 | A-6 | A kernel feature built as a module autoloads from inside the namespace on a stock distribution kernel (hosted CI) | rtnetlink and nf_tables request modules on demand | the test meets its existing feature-absence skip, or fails naming the module | hosted CI unit job after P10 | unvalidated |
 
@@ -172,7 +174,7 @@ named-namespace create/lookup identity, and deletion.
 | `go test` of a top-level test | → | `userns.Enter` child with a private `/run/netns`, then `netns.NewNamed` | `TestEnterGivesAPrivateNetnsDirectory` (`internal/test/userns/userns_linux_test.go`) |
 | `go test` of a group B package test | → | `withNetNS` (`netns.NewNamed`) inside `Enter` | `TestNetlinkIntegration_AddRoute` (`internal/plugins/fib/kernel/integration_linux_test.go`) |
 | `go test` of a group A package test | → | `createDummyForTest` inside `Enter` | `TestListenDHCPLoopbackPXEOffer` (`internal/plugins/dhcpserver/socket_integration_linux_test.go`) |
-| `./le setup check` | → | `(*Setup).visitPPP` | `TestPPPAccessTellsApartItsStates` (`internal/le/setup/setup_test.go`) |
+| `./le setup check` | → | `(*Setup).visitPpp` | `TestPppTellsApartUsablePendingAndNotGranted` (`internal/le/setup/ppp_test.go`) |
 | `go test` of a group D test | → | `/dev/ppp` open and `PPPIOCNEWUNIT` inside `Enter` | `TestPADTRetainsUnitUntilOwnerCleanup` (`internal/component/l2tp/pppoeclient/unit_reservation_integration_linux_test.go`) |
 
 ## Acceptance Criteria
@@ -207,11 +209,11 @@ named-namespace create/lookup identity, and deletion.
 | `TestEnterCreatesAMissingNetnsDirectory` | `internal/test/userns/userns_linux_test.go` | AC-4 | P1: written; red under the overlay (no `run/netns` created), green after |
 | `TestEnterMountFailureNamesTheStep` | `internal/test/userns/userns_linux_test.go` | AC-6, through `mountNetnsDir` over a regular file: the error names `mount tmpfs on <target>` and wraps ENOTDIR; `childSetup` fails the test with it | P1: added; red under the overlay (nil error), green after |
 | `TestEnterRunsTheTestAsRootWithLoopbackUp` | `internal/test/userns/userns_linux_test.go` | the existing contract (euid 0, lo up) the BFD and dhcpserver users rely on | P1: added; green before and after |
-| `TestEnterRunsInPlaceOffLinux` | `internal/test/userns/userns_other_test.go` | AC-7 (compiled on darwin; run on Thomas's Mac) | P1: written; `GOOS=darwin go vet` of `internal/test/userns` and `internal/component/traceroute/cmd` exit 0; not run (owed on the Mac) |
+| `TestEnterRunsInPlaceOffLinux` | `internal/test/userns/userns_other_test.go` | AC-7 (compiled on darwin; run on Thomas's Mac) | P1: written. P10: PASS on the Mac, with the traceroute command tests run in place; session 105ec564 scratch `job-p10-ac7-darwin-a1375ad3.log` |
 | `TestEnterRefusalNamesTheFix` | `internal/test/userns/userns_linux_test.go` | AC-5 failure diagnostic preserves the error and names the conditional namespace-policy fix | PASS under `-race`; current session scratch `job-userns-smoke-b033df33.log` |
 | `TestEnterRejectsAnInvalidExecutableName` | `internal/test/userns/userns_linux_test.go` | AC-5: a real re-exec gives Enter a NUL-containing executable name, rejected before clone, and requires FAIL rather than SKIP | Old classifier: FAIL because nested test skipped (`job-userns-startup-red-acee4c41.log`); repaired classifier: PASS under `-race` (`job-userns-startup-green-876efc0c.log`), both in session 644a4e78's scratch |
-| `TestPPPAccessTellsApartItsStates` | `internal/le/setup/setup_test.go` | AC-12, with injected device and group probes like `TestKvmTellsApartTheThreeWaysItIsNotUsable` | |
-| `TestPPPAccessInstallSteps` | `internal/le/setup/setup_test.go` | AC-13, AC-14, AC-15, over a recording shell | |
+| `TestPppTellsApartUsablePendingAndNotGranted`, `TestAStaleLoginNamesTheGroupCommand`, `TestPppIsLinuxOnly` | `internal/le/setup/ppp_test.go` | AC-12, with injected device and group probes | P2 (55cb1821dd). P10: PASS on the Mac, `job-p10-ppp-setup-ffe526b9.log` |
+| `TestGrantingPppRunsEveryStepForABareHost`, `TestTheRuleIsWrittenWithItsContent`, `TestAProbeOnlyRunNeverGrantsPpp`, `TestPppWithNoRouteToRootPrintsEveryCommand` | `internal/le/setup/ppp_test.go` | AC-13, AC-14, AC-15, over a recording shell | P2 (55cb1821dd). P10: PASS on the Mac, same log |
 | every inventory test | the inventory files | AC-8: PASS in its namespace | |
 
 ### Boundary Tests (numeric inputs)
@@ -290,9 +292,9 @@ privilege skip.
 | 44 | `internal/component/ike/engine/child_policy_delete_integration_linux_test.go` | A | P3 ike | 0 | `integration && linux` | `linux` |
 | 45 | `internal/component/ike/engine/rfc3948_encap_port_integration_linux_test.go` | A | P3 ike | 0 | `integration && linux` | `linux` |
 | 46 | `internal/component/ike/transport/udp_df_integration_linux_test.go` | B | P3 ike | 0 | `integration && linux` | `integration && linux`: two capture tests need initial-user-namespace `SO_RCVBUFFORCE`; error-queue test converted |
-| 47 | `internal/component/l2tp/bridge_integration_linux_test.go` | D | P9 ppp | 0 | `integration && linux` | `integration && linux`: needs the host `/dev/ppp` grant from P2 (D-8) |
+| 47 | `internal/component/l2tp/bridge_integration_linux_test.go` | D | P9 ppp | 0 | `integration && linux` | `integration && linux`: needs the host `/dev/ppp` grant from P2 (D-8); converted in P9 (8cf23c5998) |
 | 48 | `internal/component/l2tp/pppoeclient/dialer_integration_linux_test.go` | A | P8 services | 0 | `integration && linux` | `linux` |
-| 49 | `internal/component/l2tp/pppoeclient/unit_reservation_integration_linux_test.go` | D | P9 ppp | 0 | `integration && linux` | `integration && linux`: needs the host `/dev/ppp` grant from P2 (D-8) |
+| 49 | `internal/component/l2tp/pppoeclient/unit_reservation_integration_linux_test.go` | D | P9 ppp | 0 | `integration && linux` | `integration && linux`: needs the host `/dev/ppp` grant from P2 (D-8); converted in P9 (8cf23c5998) |
 | 50 | `internal/component/mtu/cmd/search_integration_linux_test.go` | B | P8 services | 0 | `integration && linux` | `linux` |
 | 51 | `internal/component/traceroute/cmd/resolve_test.go` | A | P8 services | 0 | none | none: kept, through the non-Linux `Enter` (D-4) |
 | 52 | `internal/component/traceroute/cmd/traceroute_test.go` | A | P8 services | 0 | none | none: kept, through the non-Linux `Enter` (D-4) |
@@ -341,7 +343,7 @@ privilege skip.
 | 95 | `internal/plugins/iface/netlink/tunnel_rfc_integration_linux_test.go` | B | P5 iface-plugins | 4 | `integration && linux` | `linux` |
 | 96 | `internal/plugins/iface/netlink/vlanqos_integration_linux_test.go` | B | P5 iface-plugins | 0 | `integration && linux` | `linux` |
 | 97 | `internal/plugins/iface/netlink/vlanqos_replace_integration_linux_test.go` | B | P5 iface-plugins | 0 | `integration && linux` | `linux` |
-| 98 | `internal/plugins/iface/netlink/vlanqoslab_integration_linux_test.go` | B | P5 iface-plugins | 0 | `integration && linux` | `integration && linux`: execs the `nft` binary, which `./le setup` does not install |
+| 98 | `internal/plugins/iface/netlink/vlanqoslab_integration_linux_test.go` | B | P5 iface-plugins | 0 | `integration && linux` | `integration && linux`: execs the `nft` binary, which `./le setup` does not install. `EgressPCPOnWire` and `DSCPFullChain` fail as root too: `nft` answers "Operation not supported" for a netdev table, because Ze's kernel lacks `CONFIG_NF_TABLES_NETDEV`; `spec-kernel-capability-gate` owns that debt |
 | 99 | `internal/plugins/iface/netlink/wireguard_linux_test.go` | B | P5 iface-plugins | 0 | `integration && linux` | `linux` |
 | 100 | `internal/plugins/iface/ra/ra_integration_linux_test.go` | B | P5 iface-plugins | 0 | `integration && linux` | `linux` |
 | 101 | `internal/plugins/iface/ra/rfc4861_ra_integration_linux_test.go` | B | P5 iface-plugins | 2 | `integration && linux` | `linux` |
@@ -389,6 +391,17 @@ Counts: A 68 files (25 tagged), B 62 (6 tagged), D 2, C 4. Rows 26a and
 36a add dependencies found during implementation without renumbering the
 original inventory.
 
+The P10 audit's AC-9 grep (2026-10-29) found three privilege-skipping files
+the derivation missed: its search named neither `CAP_SYS_ADMIN` nor a bare
+`netns.New()`. Each is owed a conversion batch, with a judge pass for the two
+tagged files, before AC-9 holds:
+
+| # | File | Group | Batch | RFC tag lines | Build tag now | Build tag after |
+|---|------|-------|-------|---------------|---------------|-----------------|
+| 135 | `internal/component/bgp/reactor/rfc4659_configured_ipv6_transport_integration_linux_test.go` | A | owed | 1 | `integration && linux` | `linux` (D-5) |
+| 136 | `internal/core/network/rfc5082_ttl_gtsm_egress_integration_linux_test.go` | A | owed | 1 | `integration && linux` | `linux` (D-5) |
+| 137 | `internal/test/runner/netns_linux_test.go` | B | owed | 0 | `linux` | unchanged |
+
 ### Group C, out of scope
 | File | Why it stays privileged |
 |------|-------------------------|
@@ -403,6 +416,8 @@ original inventory.
 | `cmd/ze/hub/mcp_keyperm_test.go`, `internal/component/cli/sshclient/client_test.go`, `internal/component/host/dmi_linux_test.go`, `internal/le/ai/sync/actions_test.go`, `internal/le/doc/consistency/consistency_test.go`, `internal/le/doc/yangcontract/contract_test.go`, `internal/le/doc/yangcontract/drift_test.go`, `internal/le/rfc/rename_test.go`, `pkg/zefs/store_test.go` | skip AS root (a chmod root bypasses), the opposite case |
 | `internal/component/config/archive/archive_test.go` | runs one branch only when not root; no skip |
 | `internal/core/reboot/reboot_linux_test.go` | proves the non-root guard refuses; must stay unprivileged |
+| `internal/component/iface/rate_integration_linux_test.go` | `integration && linux` with no privilege skip; P4 left it untouched |
+| `internal/plugins/iface/netlink/rpf_linux_test.go` (row 93) | its only skip is the root-skip of `TestReplaceIPv6RPFUnprivileged`; no test in it needs `Enter` |
 | `internal/component/ike/engine/child_test.go`, `internal/component/ike/engine/rfc7296_rekey_test.go` | `EPERM` is a table value, not a skip |
 
 ### Reclassified during implementation
@@ -572,6 +587,32 @@ Evidence: current-session scratch `job-userns-gact-floor-red-cb24ef76.log` and
 kernel. A runtime kernel build/boot and the unchanged three failed nft/traffic
 tests remain owed. Do not convert their ENOENT failures into namespace skips.
 
+### Intermittent failures the namespace runs exposed, fixed at their cause
+
+| Commit | Failure | Cause | Fix |
+|--------|---------|-------|-----|
+| 227ecf2200 | `TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly` failed 8 of 25 clean runs, `TestVRRPSolicitedNACarriesRouterFlag` 3 of 20, "no answer carried the virtual MAC" | the harness: a macvlan defers its multicast filter update to the netdev work queue, so an NS sent the instant the VIP leaves DAD can arrive before the solicited-node group is in the filter | `ownerAwaitUsable` issues one no-op `RTM_NEWLINK` once DAD clears; `do_setlink` ends in `netif_rx_mode_sync` under rtnl, so the call returns with the filter installed. No assertion, input or timeout changed; judged; 22 records re-taken, then 54 more in 5b567e3540 |
+| c3112d00f6 | `TestRSVPNativeProducer` intermittently "timed out waiting for SIGHUP reload" | the reload worker sat in fsync on the host's busy ext4 root, measured up to 15 s, against a 20 s budget | each node directory is a tmpfs mounted in the test's private mount namespace, which the daemons inherit through `ip netns exec`. No assertion, budget or entry point changed; judged |
+| c3eb71d64e | the native RSVP observer saw a plugin SIGKILLed mid-reload, about 2 in 60 runs | product defect: `Pdeathsig` fires when the forking THREAD exits, and kernel capability probes destroy a thread they moved into a throwaway netns | `StartChild` forks every plugin from one spawner goroutine locked to its OS thread for the life of ze; `TestStartChildSurvivesForkingThreadExit` red 4/5 before, green 10/10 after |
+
+### Conversions that exposed test-side defects (P7)
+
+- OSPFv3 transport (25fbb6e890): the iface netlink backend caches one netlink
+  socket opened in the first network namespace, so a peer veth end in another
+  namespace was "not found". The test opens the peer end in its own namespace
+  (`openPeerEnd`); the test was red at HEAD under root too.
+- `TestIntegrationAdvertOnPeerVeth` was red at HEAD: advert parameters without
+  a checksum mode reached the `FillChecksum` panic; it now passes
+  `ChecksumRFC9568`.
+- `TestOSPFUnnumberedSourcesFromDonorAddress`: in a fresh namespace the
+  unnumbered end has no default route and inherits `rp_filter=2`, so loose RPF
+  dropped the reply. The judged fixture adds only the link-scope peer `/32`
+  route; donor and borrower addresses and every assertion stay.
+- `TestXFRMReadbackWildcardOwners` (P3) fails as root too: its transport
+  fixture `::/0 -> 2001:db8::/32` overlaps the `::/0 -> ::/0` tunnel at the
+  same `if_id`, which the RFC 3948 Section 5.2 guard refuses.
+  `spec-ike-eap-one-off-defects` owns it.
+
 ## Owned journal rows
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
@@ -589,6 +630,9 @@ tests remain owed. Do not convert their ENOENT failures into namespace skips.
 | D-7: one judge pass per batch | one per unit | the edit is the same mechanical change in every unit, so one brief carries every unit's before and after |
 | D-8: D files keep `integration && linux` | drop to `linux` | the hosted CI runner and a fresh host lack the `/dev/ppp` grant, so a `linux` tag would fail them on host setup rather than on Ze |
 | D-9: every child-process error fails, including namespace denial | skip permission errnos; add a stage-reporting launcher | Thomas selected “Fail all startup errors” on 2026-10-28, relayed by the parent session. This one-off approval changes AC-5 and the startup-skip contract. Go's `syscall.forkExec` returns clone and exec failures through the same errno channel, so an allowlist can hide executable failures. Keep the existing isolated re-exec, conditional setup guidance, and explicit selected-child skips. No launcher or host fallback is added. |
+| D-10: `ppp-access` as landed in P2 (55cb1821dd): the udev rule carries a comment line and `OPTIONS+="static_node=ppp"`; a host with no `/dev/ppp` reports `missing` and install runs `modprobe ppp_generic`; no `modules-load.d` drop-in is written; macOS reports the step `skipped` | AC-12's `present` with `n/a: no /dev/ppp`, AC-13's one-line rule, AC-15's drop-in | `static_node=ppp` makes systemd create the node at boot before the module loads, and the first open of that node loads `ppp_generic`, so the grant persists across reboots and module loads without a drop-in. The check judges the node with `access(2)` and never opens it, because an open loads the module. The AC-12, AC-13 and AC-15 wording predates this and is not yet reconciled: the main thread decides whether the ACs are rewritten to the landed design |
+| D-11: off Linux, the traceroute trace tests (`TestTraceroute_Wiring` and the boundary subtests that probe) still skip, naming the refused raw ICMP socket | make them pass in place | Ze's unprivileged ICMP socket is Linux-only, and macOS has no namespace to grant a raw one. AC-7 asks that the package compiles and that `Enter` runs the test in place, which holds; the skip is a platform limit, not a privilege skip under AC-9. Kept by the P8 batch (68b723ec4f) |
+| D-12: RFC 792 kernel-produced rows of `rfc792_gateway_icmp_integration_linux_test.go` keep every claim and assertion; only a break of Ze's own producer proves them | a fixture-input mutation; the interop foreign-producer escape | `RFC792-Unreachable-1` became discriminable once the carrier set its MTU through Ze's `netlinkBackend.SetMTU` (b8c4909334): hand-written breaks `mtu+400` (positive) and `mtu-1` (negative), judged. A `Format-1` break of `mtu+1` was refused by the judge: it breaks the RFC 1191 next-hop MTU, not the reserved-octet obligation the row names, and Ze writes no octet of that field. Of the nine kernel-produced unit rows the continuation listed, the other seven stay unproven: `Format-1` on each of the three gateway tests, and `TimeExceeded-1` and `ParamProblem-1` in both polarities. They wait for the owner's choice of proof route |
 
 ## Known Limitations
 - Group C stays privileged: a one-uid map cannot chown to another uid, and the freeRtr and FRR interop tests drive external daemons that QEMU and the interop labs run.

@@ -474,8 +474,11 @@ OTHER architecture needs that architecture's set too, through
 **Unprivileged user namespaces.** Ubuntu 23.10+ ships
 `kernel.apparmor_restrict_unprivileged_userns=1`, which blocks the sandbox
 Chrome relies on and makes the `agent-browser` web functional tests fail to
-launch Chrome (`No usable sandbox!`). Setup checks this tunable as
-`userns-unrestricted`. When it is restricted, `./le setup install`
+launch Chrome (`No usable sandbox!`). It also breaks the kernel tests that run
+in a user namespace of their own (`userns.Enter`, see
+[the testing guide](../contributing/testing.md)): the namespace holds no
+capability, so each such test fails and its message names this check. Setup
+checks this tunable as `userns-unrestricted`. When it is restricted, `./le setup install`
 echoes and then runs these commands via `sudo` to lift it globally:
 
 ```bash
@@ -519,8 +522,11 @@ native QEMU actions select the Apple hypervisor (`hvf`) by platform.
 <!-- source: internal/le/test/qemu/actions.go -- Answer -->
 
 **PPP device access.** The L2TP and PPPoE tests open `/dev/ppp` to drive the
-kernel PPP channel. A stock Debian host makes it `root:root` mode 0600, so a
-test run as you cannot open it. Setup checks this as `ppp-access` and grants
+kernel PPP channel. They run as you, in a user namespace of their own
+(`userns.Enter`), where root holds the `CAP_NET_ADMIN` the PPP ioctls need,
+and your supplementary groups still apply to the open. A stock Debian host
+makes the device `root:root` mode 0600, so a test run as you cannot open it,
+and the test fails naming `./le setup install` and `ppp-access`. Setup checks this as `ppp-access` and grants
 the device to the `dip` group. Debian ships `dip` (gid 30) for PPP dial-up,
 pppd's documentation names it, and you are usually in it already, so a second
 group of Ze's own would grant the same device to the same person under another
@@ -557,6 +563,8 @@ reports the step `skipped`: it has no `/dev/ppp`, and the PPP tests run in the
 Linux VM.
 
 <!-- source: internal/le/setup/ppp.go -- visitPpp, pppSteps, pppProbe, pppRuleBody -->
+<!-- source: internal/component/l2tp/pppoeclient/unit_reservation_integration_linux_test.go -- TestPADTRetainsUnitUntilOwnerCleanup -->
+<!-- source: internal/test/userns/userns_linux.go -- childFailure -->
 
 **Loopback addresses.** The functional fixtures give each end of a BGP session
 its own address: RFC 4271 Section 5.1.3 forbids a peer its own address as

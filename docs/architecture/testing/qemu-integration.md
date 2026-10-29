@@ -797,16 +797,19 @@ Two patterns, choose based on what the test needs:
 
 | Build tag | Use when | Example |
 |-----------|----------|---------|
-| `//go:build linux` | Test imports linux-only types but needs no kernel capabilities | `host/cpu_linux_test.go` |
-| `//go:build integration && linux` | Test needs root, devices, namespaces, ioctls | `l2tp/bridge_integration_linux_test.go` |
+| `//go:build linux` | Test imports linux-only types, or needs kernel privilege that a user namespace of its own gives it (`userns.Enter`, below): links, routes, XFRM, nftables, raw sockets, named network namespaces | `host/cpu_linux_test.go`, `core/routewatch/integration_linux_test.go` |
+| `//go:build integration && linux` | Test needs a host grant (`/dev/ppp`), a binary `./le setup` does not install (`nft`), an explicitly supplied `ze` executable, or a privilege only the initial user namespace holds (`SO_RCVBUFFORCE`, an nftables payload write, BPF memlock) | `l2tp/bridge_integration_linux_test.go` |
 | `//go:build docker` | Test starts a real server container through `labtest.Start`, on the host's Docker; never together with `integration`, because the guest has no Docker ("The docker population") | `interoplab/labtest/labtest_docker_test.go` |
 
 Tests tagged `integration && linux` run through the applicable `./le test qemu`
 action, which supplies `-tags integration`. Tests tagged only `linux` also run
 in native unit groups on a Linux host.
 
-Kernel-touching tests use `integration && linux`, including tests carrying
-an `RFC requirement:` tag. The native discrimination recorder tries the
+A kernel-touching test, including one carrying an `RFC requirement:` tag, uses
+`linux` and calls `userns.Enter`, so every Linux unit run executes it. It keeps
+`integration && linux` only for a need from the second row above, and the
+reason belongs in the file's header comment. Both tags still run in the guest, because `integration &&
+linux` compiles every `linux` file. The native discrimination recorder tries the
 host's actual build tags first, then a Linux guest with `integration`.
 A guest observation requires Ze's runtime kernel through the `kernel`
 keyword; a host observation rejects that keyword. See
@@ -848,9 +851,11 @@ change what the child runs (`-test.cpu`, `-test.bench`, `-test.fuzz`,
 (`-test.testlogfile`, `-test.coverprofile` and the profile and trace flags).
 <!-- source: internal/test/userns/userns_linux.go -- childCommand, childArgs, childFlagsWithheld, childResult -->
 
-The
-BFD wire tests (`internal/component/bfd/rfc5881_wire_port_linux_test.go`,
-`internal/component/bfd/engine/rfc5881_ttl_wire_linux_test.go`) use it.
+Most kernel-touching tests use it, among them the BFD wire tests
+(`internal/component/bfd/rfc5881_wire_port_linux_test.go`), the interface,
+IKE dataplane, FIB, firewall, VRRP, OSPF and IS-IS kernel tests, and the PPP
+tests once the host grants `/dev/ppp` (`ppp-access`,
+[developer setup](../../guide/developer-setup.md)).
 `Enter` brings up the literal kernel-created `lo` inside that new namespace.
 This is fixture topology, not an operator-selected logical interface, so the
 direct lookup in `loopbackUp` is an explicit interface-resolution gate exemption.
@@ -1138,7 +1143,7 @@ config, because the discard count is only visible through the CLI.
 | Network namespace helper | `internal/component/iface/integration_helpers_linux_test.go` |
 | Netlink integration test | `internal/plugins/traffic/netlink/integration_linux_test.go` |
 | nftables integration test | `internal/plugins/firewall/nft/integration_linux_test.go` |
-| Route watch integration | `internal/core/routewatch/integration_linux_test.go` |
+| Kernel test in a namespace of its own (`linux` tag, `userns.Enter`) | `internal/core/routewatch/integration_linux_test.go` |
 | PTY/termios integration | `internal/component/config/system/console_integration_linux_test.go` |
 | QEMU runner | `internal/le/test/qemu/run.go` |
 
@@ -1147,9 +1152,9 @@ config, because the discard count is only visible through the CLI.
 | Mistake | Fix |
 |---------|-----|
 | "Needs real hardware, skipping test" | Use the virtual substitute in the table above |
-| `//go:build linux` on a kernel-touching test | Use `//go:build integration && linux`, including RFC-tagged tests |
+| `integration && linux` on a kernel-touching test a user namespace serves | Use `//go:build linux` and call `userns.Enter` first, including in RFC-tagged tests. Keep `integration` only for a need from the second Build Tags row |
 | A new Linux package absent from `integrationPackages` | The test compiles and never runs. Add it to `internal/le/test/qemu/alltests.go` |
-| `t.Fatal` for a missing capability | Use `t.Skip`, so the file stays portable |
+| `t.Skip` for a refused privilege inside `userns.Enter` | Fail the test with the operation and the errno: the namespace grants the privilege, so a refusal is a defect a skip would hide. `t.Skip` stays for an absent kernel feature or module |
 | Hardcoding `/dev/ttyS0` | Use `pty.Open()` for a real PTY pair |
 | Reading a QEMU timeout as "TCG is slow" | On Linux, check `kvm-access` first with `./le setup check`. A user outside the `kvm` group makes QEMU refuse to start, which surfaces as a timeout |
 | Selecting the accelerator on the existence of `/dev/kvm` | Existence is not access. Probe for read and write, and take an explicit `hvf` branch on darwin |
