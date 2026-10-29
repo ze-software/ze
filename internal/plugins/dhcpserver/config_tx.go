@@ -104,13 +104,13 @@ func (s *dhcpServer) configureAtBoot(tx *sdk.ConfigTx[serverConfig], sections []
 func (s *dhcpServer) restore(served []dhcpListener, cause error) error {
 	var lost []error
 	for _, previous := range served {
-		conn, err := dhcpListen(previous.iface)
+		conn, err := dhcpListen(previous.device)
 		if err != nil {
 			lost = append(lost, fmt.Errorf("interface %q: %w", previous.iface, err))
 			continue
 		}
-		s.listeners = append(s.listeners, dhcpListener{iface: previous.iface, conn: conn})
-		go serveMulti(conn, previous.iface, s.handlers, s.log)
+		s.listeners = append(s.listeners, dhcpListener{iface: previous.iface, device: previous.device, conn: conn})
+		go dhcpServe(conn, previous.device, s.handlers, s.log)
 	}
 	if len(lost) == 0 {
 		return cause

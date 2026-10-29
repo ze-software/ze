@@ -2606,7 +2606,8 @@ error.
 
 <!-- source: internal/component/iface/config_apply.go -- bindDevices, validateSelectors, devicesWithMAC -->
 <!-- source: internal/component/iface/resolve.go -- matchByMAC, deviceMatchMAC -->
-<!-- source: internal/component/iface/doctor_linux.go -- checkEthernetInterfaces, selectedNetDevice -->
+<!-- source: internal/component/iface/doctor_linux.go -- checkEthernetInterfaces -->
+<!-- source: internal/component/iface/doctor_selector.go -- SelectedNetDevice, selectedNetDevice -->
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- leaf match (container mac) -->
 
 ### MAC Address Binding

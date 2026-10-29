@@ -117,6 +117,25 @@ or loop settings, or releases existing sessions.
 <!-- source: internal/component/bfd/session_identity.go -- canonicalRequest -->
 <!-- source: internal/component/bfd/bfd.go -- applyPinned, pluginService.EnsureSession, resolveLoopDevices -->
 
+The DHCP server binds the same way VRRP does. Each `listen-interface` is a
+logical name, so `listenInterface` resolves it through `ResolveDevice` before
+`SO_BINDTODEVICE`, and the request loop writes a reply's neighbor entry on the
+device that answered. A failed resolution refuses the bind and never falls back
+to the logical name, and a reload names the `os-name` or `mac match` selector in
+its fix. Its `ze doctor` listen-interface check cannot use `ResolveDevice`:
+the doctor runs in the CLI process, where no backend runs and the selector
+table is empty, so every name would pass through. It calls
+`SelectedNetDevice`, which reads `os-name` and `mac match` from the config tree
+(mac match wins) and is the same helper the ethernet check uses, so both
+report an unmatched selector as a warning and an ambiguous one as an error.
+The selector table lives in the daemon's process, so the plugin refuses to start
+as an external process, as VRRP does.
+
+<!-- source: internal/plugins/dhcpserver/register.go -- listenInterface, bindListeners, runDHCPServerPlugin -->
+<!-- source: internal/plugins/dhcpserver/config_tx.go -- restore -->
+<!-- source: internal/plugins/dhcpserver/doctor.go -- checkDHCPInterfaces -->
+<!-- source: internal/component/iface/doctor_selector.go -- SelectedNetDevice, selectedNetDevice -->
+
 A tracked interface is the second name VRRP resolves, and it takes the OTHER
 route. `track interface <name>` names a device VRRP only READS, so it calls
 `Resolve` and `Subscribe` directly rather than `ResolveDevice`: nothing is built

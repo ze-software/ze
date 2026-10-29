@@ -120,7 +120,7 @@ func checkEthernetInterfaces(ctx diagnostic.DoctorCheckContext) []diagnostic.Dia
 		if diag := macOverrideBoundByName(name, entry); diag != nil {
 			diags = append(diags, *diag)
 		}
-		device, diag := selectedNetDevice(name, entry)
+		device, diag := SelectedNetDevice(tree, name)
 		if diag != nil {
 			diags = append(diags, *diag)
 			continue
@@ -196,44 +196,6 @@ func macOverrideBoundByName(name string, entry *config.Tree) *diagnostic.Diagnos
 	}
 }
 
-// selectedNetDevice returns the kernel device an ethernet entry configures, or
-// a diagnostic when its hardware selector names no device or more than one.
-// mac/match wins over os-name, as the YANG leaf states, and an entry with
-// neither selector IS its own kernel device.
-func selectedNetDevice(name string, entry *config.Tree) (string, *diagnostic.Diagnostic) {
-	if entry == nil {
-		return name, nil
-	}
-	var tb textbuf.Buffer
-	if mac := entry.GetContainer("mac"); mac != nil {
-		if match, ok := mac.Get("match"); ok && match != "" {
-			devices := netDevicesWithAddress(match)
-			switch len(devices) {
-			case 1:
-				return devices[0], nil
-			case 0:
-				return "", &diagnostic.Diagnostic{
-					Code:     diagnostic.CodeDoctorIfaceSelectorUnmatched,
-					Severity: diagnostic.SeverityWarning,
-					Message: tb.Reset().Str("ethernet ").Str(name).Str(": no device carries MAC ").Str(match).
-						Str("; the binding stays deferred until one appears").String(),
-				}
-			default:
-				return "", &diagnostic.Diagnostic{
-					Code:     diagnostic.CodeDoctorIfaceSelectorAmbiguous,
-					Severity: diagnostic.SeverityError,
-					Message: tb.Reset().Str("ethernet ").Str(name).Str(": MAC ").Str(match).Str(" is carried by ").
-						Str(strings.Join(devices, ", ")).Str("; a hardware MAC selects at most one device").String(),
-				}
-			}
-		}
-	}
-	if osName, ok := entry.Get("os-name"); ok && osName != "" {
-		return osName, nil
-	}
-	return name, nil
-}
-
 // netDevicesWithAddress returns the names of the kernel devices that carry mac
 // as their OWN hardware address, read from sysfs and sorted for a reproducible
 // message.
@@ -255,6 +217,10 @@ func selectedNetDevice(name string, entry *config.Tree) (string, *diagnostic.Dia
 // such a box this check reports "no device carries MAC" where the daemon
 // binds. That is why the unmatched verdict is a warning naming the address it
 // compared, rather than an error.
+// macSelectorsReadable is true on Linux, where sysfs carries each device's
+// address, so an empty netDevicesWithAddress answer means no device has it.
+const macSelectorsReadable = true
+
 func netDevicesWithAddress(mac string) []string {
 	target := strings.ToLower(strings.TrimSpace(mac))
 	entries, err := os.ReadDir(doctorSysClassNet)

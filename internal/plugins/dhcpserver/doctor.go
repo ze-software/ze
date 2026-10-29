@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -50,8 +51,9 @@ var dhcpDoctorCheck = diagnostic.DoctorCheck{
 }
 
 // checkDHCPInterfaces reports, for an enabled server, each listen interface
-// whose name cannot be a device name and each one the host does not hold.
-// Both are errors: startListeners cannot bind either.
+// whose name cannot be a device name, each one whose selector names no single
+// device, and each one whose device the host does not hold. An invalid name or
+// a missing device is an error: startListeners cannot bind either.
 //
 // A nil tree is the missing-config phase, which this check does not run in, and
 // a context carrying anything else is a runner defect the runner's own type
@@ -81,14 +83,43 @@ func checkDHCPInterfaces(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnos
 			})
 			continue
 		}
-		if _, err := dhcpInterfaceByName(name); err != nil {
+		// The name is a logical interface an os-name or mac match selector can
+		// bind to another kernel device. The check runs in the CLI process,
+		// where the daemon's resolver table is empty, so the device comes from
+		// the selector in the config tree, with the severity the iface check
+		// gives the same selector: unmatched is a deferred binding, a warning;
+		// ambiguous is refused by the apply, an error.
+		device, selector := iface.SelectedNetDevice(tree, name)
+		if selector != nil {
+			diags = append(diags, diagnostic.Diagnostic{
+				Code:     codeDHCPIface,
+				Severity: selector.Severity,
+				Message: tb.Reset().Str("DHCP server listen interface ").Str(name).
+					Str(" has no single device to bind: ").Str(selector.Message).String(),
+				Path: listenInterfacePath,
+				Help: "make the os-name or mac match selector of interface " + name +
+					" name exactly one present device, or remove " + name + " from service dhcp-server listen-interface",
+			})
+			continue
+		}
+		if _, err := dhcpInterfaceByName(device); err != nil {
 			diags = append(diags, diagnostic.Diagnostic{
 				Code:     codeDHCPIface,
 				Severity: diagnostic.SeverityError,
-				Message:  tb.Reset().Str("DHCP server listen interface not found: ").Str(name).String(),
+				Message:  dhcpNotFound(&tb, name, device),
 				Path:     listenInterfacePath,
 			})
 		}
 	}
 	return diags
+}
+
+// dhcpNotFound words the report for a listen interface whose kernel device the
+// host does not hold, naming the device too when a selector chose another.
+func dhcpNotFound(tb *textbuf.Buffer, name, device string) string {
+	tb.Reset().Str("DHCP server listen interface not found: ").Str(name)
+	if device != name {
+		tb.Str(" (kernel device ").Str(device).Str(")")
+	}
+	return tb.String()
 }

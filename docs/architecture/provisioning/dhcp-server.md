@@ -21,10 +21,27 @@ options. It also carries the PXE options the provisioning path needs.
   tracking, reservation on INIT-REBOOT, and a way to mark an address
   unavailable. Sharing would couple two unrelated domains.
 - **One socket per listen interface, with multi-handler dispatch.** Each
-  interface gets one UDP socket, bound with `SO_BINDTODEVICE` on Linux. The
+  interface gets one UDP socket, bound with `SO_BINDTODEVICE` on Linux. A
+  `listen-interface` names a logical interface, which an `os-name` or
+  `mac-match` selector can bind to a kernel device of another name, so the
+  server resolves it through `iface.ResolveDevice` first and binds the socket,
+  and writes reply neighbor entries, on the kernel device that answers, the
+  way VRRP binds each group's parent. A name whose selector answers no single
+  device is refused, never bound by its logical name, and a refused reload
+  keeps the device each previous listener was bound to. The `ze doctor`
+  listen-interface check runs in the CLI process, where that resolver table
+  is empty, so it reads the selector from the config tree through
+  `iface.SelectedNetDevice`, the helper the interface check uses, and probes
+  the device it names. An unmatched selector is a warning, an ambiguous one an
+  error. The
   serving goroutine tries each subnet handler in order, routing on the relay
   address, the client address, or the requested-IP option. A bare DISCOVER with
   no hint falls through to the first handler that has pool space.
+- **In-process only.** The selector table `iface.ResolveDevice` reads is
+  filled by the interface plugin inside the daemon's process. A forked copy
+  holds an empty table and would bind every logical name as if it were the
+  kernel device's name, so the plugin refuses to start as an external process
+  and names `internal dhcpserver` as the fix, as VRRP does.
 - **A static-only subnet gets an empty pool, not a missing one.** A zero-size
   pool with guards in every method is simpler than a nil pool with a branch at
   every call site.
@@ -56,6 +73,11 @@ options. It also carries the PXE options the provisioning path needs.
 
 <!-- source: internal/plugins/dhcpserver/socket_linux.go -- SO_BINDTODEVICE binding -->
 <!-- source: internal/plugins/dhcpserver/socket_other.go -- the non-Linux fallback -->
+<!-- source: internal/plugins/dhcpserver/register.go -- listenInterface, the iface.ResolveDevice step before the bind -->
+<!-- source: internal/plugins/dhcpserver/register.go -- runDHCPServerPlugin, the external-process refusal -->
+<!-- source: internal/plugins/dhcpserver/doctor.go -- checkDHCPInterfaces, the selector read from the config tree -->
+<!-- source: internal/component/iface/doctor_selector.go -- SelectedNetDevice -->
+<!-- test: internal/plugins/dhcpserver/listen_resolve_test.go -- TestBindListenersRefusesAnUnresolvedSelector, TestRunDHCPServerPluginRefusesExternalProcess -->
 <!-- source: internal/plugins/dhcpserver/register.go -- responseAddr, replyDestination, toClientHardware, broadcastReply -->
 <!-- source: internal/plugins/dhcpserver/neighbor_linux.go -- installNeighbor, readNeighbor, neighborHeld -->
 <!-- test: internal/plugins/dhcpserver/neighbor_permanent_test.go -- TestOfferKeepsPermanentNeighbor -->

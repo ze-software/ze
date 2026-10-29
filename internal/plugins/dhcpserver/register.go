@@ -4,6 +4,7 @@ package dhcpserver
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -12,6 +13,7 @@ import (
 	"slices"
 	"sync/atomic"
 
+	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/metrics"
@@ -77,6 +79,20 @@ func runDHCPServerPlugin(conn net.Conn) int {
 	p := sdk.NewWithConn("dhcpserver", conn)
 	defer closeLogged(p, log, "plugin conn")
 
+	// Each listen-interface is resolved to its kernel device through
+	// iface.ResolveDevice, whose os-name and mac match selector table the
+	// interface plugin fills in the daemon's own process. A forked copy holds an
+	// empty table, so ResolveDevice would pass every logical name through and
+	// the socket would bind whatever device wears that name, with no error. The
+	// model is VRRP's guard (internal/plugins/vrrp/register.go, runVRRPEngine).
+	if !p.IsInternal() {
+		log.Error("dhcpserver: refusing to start as an external plugin process. " +
+			"It resolves each listen-interface to its kernel device through the interface plugin's selector table (iface.ResolveDevice), " +
+			"which exists only inside the daemon's process, so an external copy would bind its sockets to whatever device wears the logical name.\n" +
+			"Fix: remove the external dhcpserver plugin block so the plugin runs as `internal dhcpserver`")
+		return 1
+	}
+
 	srv := &dhcpServer{log: log}
 	tx := sdk.NewConfigTx(serverConfig{}, parseDHCPSections, srv.install)
 	tx.Register(p)
@@ -113,11 +129,50 @@ func closeLogged(c closer, log *slog.Logger, what string) {
 // bind without privileges or a real interface).
 var dhcpListen = listenDHCP
 
+// dhcpServe starts the request loop on a bound listener. It is a variable so a
+// test can see which device each listener is served on; nothing else assigns it.
+var dhcpServe = serveMulti
+
+// dhcpResolveDevice answers the kernel device a configured listen-interface
+// names. It is a variable so a test can stand in a selector that matches no
+// device; nothing else assigns it.
+var dhcpResolveDevice = iface.ResolveDevice
+
+// errListenSelector marks a listen-interface whose os-name or mac match
+// selector answered no single device, so the reload refusal names the selector
+// rather than the listen-interface leaf.
+var errListenSelector = errors.New("the interface's os-name or mac match selector names no single present device")
+
 // dhcpListener is one bound listener and the interface it serves, which a
-// refused reload binds again.
+// refused reload binds again. iface is the name the operator configured;
+// device is the kernel device iface.ResolveDevice answered for it, the one the
+// socket is bound to and a reply's neighbor entry is written on.
 type dhcpListener struct {
-	iface string
-	conn  *net.UDPConn
+	iface  string
+	device string
+	conn   *net.UDPConn
+}
+
+// listenInterface binds the listener for the configured interface name. The
+// name is a logical interface, which an os-name or mac match selector binds to
+// another kernel device, so it is resolved before SO_BINDTODEVICE sees it, the
+// way VRRP resolves each group's parent (internal/plugins/vrrp/groups.go,
+// parentDevice). A resolution that fails is refused and never falls back to the
+// logical name: that name may belong to another device.
+func listenInterface(name string) (dhcpListener, error) {
+	device, err := dhcpResolveDevice(name)
+	if err != nil {
+		return dhcpListener{}, fmt.Errorf("%w: %w", errListenSelector, err)
+	}
+	// An empty device would be an unbound socket listening on every interface.
+	if device == "" {
+		return dhcpListener{}, fmt.Errorf("%w: interface %q resolved to no device name", errListenSelector, name)
+	}
+	conn, err := dhcpListen(device)
+	if err != nil {
+		return dhcpListener{}, err
+	}
+	return dhcpListener{iface: name, device: device, conn: conn}, nil
 }
 
 // bindListeners binds a DHCP listener on every interface of cfg and starts
@@ -138,28 +193,34 @@ func bindListeners(cfg serverConfig, handlers []*dhcpHandler, log *slog.Logger, 
 		return nil, nil
 	}
 	var listeners []dhcpListener
-	for _, iface := range cfg.ListenInterfaces {
-		ln, err := dhcpListen(iface)
+	for _, name := range cfg.ListenInterfaces {
+		ln, err := listenInterface(name)
 		if err != nil && !strict {
-			log.Error("dhcpserver: listen failed", "interface", iface, "error", err)
+			log.Error("dhcpserver: listen failed", "interface", name, "error", err)
 			continue
 		}
 		if err != nil {
 			for _, bound := range listeners {
 				closeLogged(bound.conn, log, "udp listener")
 			}
+			if errors.Is(err, errListenSelector) {
+				return nil, fmt.Errorf("dhcpserver: cannot listen on interface %q: %w. "+
+					"The DHCP server does not take this config.\n"+
+					"Fix: make the os-name or mac match selector of interface %q name exactly one present device, "+
+					"or remove %q from service dhcp-server listen-interface", name, err, name, name)
+			}
 			return nil, fmt.Errorf("dhcpserver: cannot listen on interface %q: %w. "+
 				"The DHCP server does not take this config.\n"+
-				"Fix: name an interface that exists in service dhcp-server listen-interface, or remove %q from it", iface, err, iface)
+				"Fix: name an interface that exists in service dhcp-server listen-interface, or remove %q from it", name, err, name)
 		}
-		listeners = append(listeners, dhcpListener{iface: iface, conn: ln})
+		listeners = append(listeners, ln)
 	}
 	if len(listeners) == 0 {
 		log.Error("dhcpserver: no interfaces bound; server not serving", "interfaces", cfg.ListenInterfaces)
 		return nil, nil
 	}
 	for _, ln := range listeners {
-		go serveMulti(ln.conn, ln.iface, handlers, log)
+		go dhcpServe(ln.conn, ln.device, handlers, log)
 	}
 	log.Info("dhcpserver: started",
 		"shared-networks", len(cfg.SharedNetworks),
@@ -168,16 +229,16 @@ func bindListeners(cfg serverConfig, handlers []*dhcpHandler, log *slog.Logger, 
 	return listeners, nil
 }
 
-// serveMulti answers the requests conn receives on the interface named iface,
+// serveMulti answers the requests conn receives on the kernel device named device,
 // which is the interface a reply to a client with no address is delivered on.
-func serveMulti(conn *net.UDPConn, iface string, handlers []*dhcpHandler, log *slog.Logger) {
+func serveMulti(conn *net.UDPConn, device string, handlers []*dhcpHandler, log *slog.Logger) {
 	serverIPs := make([]netip.Addr, 0, len(handlers))
 	for _, h := range handlers {
 		serverIPs = append(serverIPs, h.serverIP)
 	}
 
 	buf := make([]byte, 1500)
-	for serveRequests(conn, iface, handlers, serverIPs, buf, log) {
+	for serveRequests(conn, device, handlers, serverIPs, buf, log) {
 		// The pass ended on a contained panic; the next one reads on.
 	}
 }
@@ -187,7 +248,7 @@ func serveMulti(conn *net.UDPConn, iface string, handlers []*dhcpHandler, log *s
 // request being handled then gets no reply and its client retransmits. The pool
 // and lease tables hold their mutexes only under defer, so the unwind leaves
 // them free.
-func serveRequests(conn *net.UDPConn, iface string, handlers []*dhcpHandler, serverIPs []netip.Addr, buf []byte, log *slog.Logger) (again bool) {
+func serveRequests(conn *net.UDPConn, device string, handlers []*dhcpHandler, serverIPs []netip.Addr, buf []byte, log *slog.Logger) (again bool) {
 	var source *net.UDPAddr // the sender of the request being handled
 	describe := func() taskguard.Context {
 		return taskguard.Context{Unit: "request from " + source.String()}
@@ -220,7 +281,7 @@ func serveRequests(conn *net.UDPConn, iface string, handlers []*dhcpHandler, ser
 		}
 
 		// RFC 2131 Section 4.1
-		dst := replyDestination(iface, pkt, resp, log)
+		dst := replyDestination(device, pkt, resp, log)
 		if _, writeErr := conn.WriteToUDP(resp, dst); writeErr != nil {
 			log.Debug("dhcpserver: write failed", "dst", dst.String(), "error", writeErr)
 		}
@@ -307,17 +368,17 @@ type neighborEntry struct {
 // it names another host a unicast would reach that host, so the reply is
 // broadcast. A table that cannot be read is broadcast too, because the write
 // could then replace an entry nobody could see.
-func replyDestination(iface string, req, resp []byte, log *slog.Logger) *net.UDPAddr {
+func replyDestination(device string, req, resp []byte, log *slog.Logger) *net.UDPAddr {
 	dst := responseAddr(req, resp)
 	if !toClientHardware(req, resp) {
 		return dst
 	}
 	yiaddr := netip.AddrFrom4([4]byte(resp[16:20]))
 	chaddr := extractMAC(req)
-	entry, err := neighborRead(iface, yiaddr)
+	entry, err := neighborRead(device, yiaddr)
 	if err != nil {
 		log.Info("dhcpserver: reply broadcast, the neighbor table could not be read",
-			"interface", iface, "ip", yiaddr.String(), "mac", chaddr.String(), "error", err)
+			"interface", device, "ip", yiaddr.String(), "mac", chaddr.String(), "error", err)
 		return broadcastReply()
 	}
 	if entry.held {
@@ -325,7 +386,7 @@ func replyDestination(iface string, req, resp []byte, log *slog.Logger) *net.UDP
 			return dst
 		}
 		log.Info("dhcpserver: reply broadcast, a permanent or noarp neighbor entry names another hardware address",
-			"interface", iface, "ip", yiaddr.String(), "mac", chaddr.String(), "held-mac", entry.hardware.String())
+			"interface", device, "ip", yiaddr.String(), "mac", chaddr.String(), "held-mac", entry.hardware.String())
 		return broadcastReply()
 	}
 	// RFC 2131 Section 4.1: "If the BROADCAST bit is cleared to 0, the message
@@ -334,12 +395,12 @@ func replyDestination(iface string, req, resp []byte, log *slog.Logger) *net.UDP
 	// field."
 	// The kernel refuses a chaddr whose length is not the interface's
 	// link-layer address length, and the reply is then broadcast.
-	err = neighborInstall(iface, yiaddr, chaddr)
+	err = neighborInstall(device, yiaddr, chaddr)
 	if err == nil {
 		return dst
 	}
 	log.Info("dhcpserver: reply broadcast, the client's hardware address could not be installed",
-		"interface", iface, "ip", yiaddr.String(), "mac", chaddr.String(), "error", err)
+		"interface", device, "ip", yiaddr.String(), "mac", chaddr.String(), "error", err)
 	return broadcastReply()
 }
 
