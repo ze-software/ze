@@ -18,8 +18,8 @@
     "claim-sha": "f6dd1cb198897b4e",
     "route": "revert",
     "producer": "internal/plugins/vrrp/instance.go::doInstallVIPs",
-    "producer-sha": "6c990de7776ea965",
-    "break": "body of doInstallVIPs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "7dcfb354bd5f883b",
+    "break": "body of doInstallVIPs replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC5798-6.4.3-6",
@@ -29,7 +29,7 @@
     "claim-sha": "ae22e4c7c2971f32",
     "route": "revert",
     "producer": "internal/plugins/vrrp/instance.go::doInstallVIPs",
-    "producer-sha": "6c990de7776ea965",
-    "break": "body of doInstallVIPs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "7dcfb354bd5f883b",
+    "break": "body of doInstallVIPs replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

@@ -1,24 +1,24 @@
 [
   {
     "rid": "RFC5798-6.4.3-3",
-    "polarity": "positive",
-    "unit": "internal/plugins/vrrp/instance_test.go::TestInstanceIPv6VIPLivesOnVirtualMACDevice",
-    "unit-sha": "7af4e8a49cc87ba8",
-    "claim-sha": "a83d39d005451d1d",
-    "route": "revert",
-    "producer": "internal/plugins/vrrp/instance.go::doInstallVIPs",
-    "producer-sha": "6c990de7776ea965",
-    "break": "body of doInstallVIPs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-  },
-  {
-    "rid": "RFC5798-6.4.3-3",
     "polarity": "negative",
     "unit": "internal/plugins/vrrp/instance_test.go::TestInstanceIPv6VIPLivesOnVirtualMACDevice",
     "unit-sha": "7af4e8a49cc87ba8",
     "claim-sha": "0009207d4648ea90",
     "route": "revert",
     "producer": "internal/plugins/vrrp/instance.go::doInstallVIPs",
-    "producer-sha": "6c990de7776ea965",
-    "break": "body of doInstallVIPs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "7dcfb354bd5f883b",
+    "break": "body of doInstallVIPs replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5798-6.4.3-3",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/instance_test.go::TestInstanceIPv6VIPLivesOnVirtualMACDevice",
+    "unit-sha": "7af4e8a49cc87ba8",
+    "claim-sha": "a83d39d005451d1d",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/instance.go::doInstallVIPs",
+    "producer-sha": "7dcfb354bd5f883b",
+    "break": "body of doInstallVIPs replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]
