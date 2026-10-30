@@ -284,15 +284,16 @@ through an NSSA. SPF retains per-area candidates until these checks complete.
 <!-- source: internal/plugins/ospf/spf/external.go -- ComputeExternalWith -->
 <!-- source: internal/plugins/ospf/spf/external.go -- externalCandidateFrom, resolveForwarding -->
 
-**Selected role (2026-09-21): ordinary OSPF, including CE operation.** Ze does
-not select RFC 4577's native VPN-PE role, VRF/domain VPN import/export or
-optional sham links. Section 1 says: "No special procedures are needed in the
-CE router though; CE routers just run whatever OSPF implementations they may
-have." Ordinary routing, authentication and backbone attachment remain
-required. When deploying Ze as a CE with a third-party PE, configure the
-backbone attachment required by RFC 4577 §4.1.4, directly or by virtual link.
-The plain-prefix redistribution metric/tag settings do not perform VPN-domain
-comparison or generate VPN-IPv4 metadata.
+**OSPF as a PE/CE protocol (RFC 4577): CE side only.** Ze runs ordinary OSPF,
+which is all a CE router needs. Section 1 says: "No special procedures are
+needed in the CE router though; CE routers just run whatever OSPF
+implementations they may have." Ze does not implement the PE side: there is no
+VRF or OSPF-domain association, no Domain Identifier, no VPN-IPv4 import or
+export, no DN bit or VPN Route Tag loop prevention, and no sham links. These are
+not built yet; they have not been declined. When deploying Ze as a CE with a
+third-party PE, configure the backbone attachment RFC 4577 §4.1.4 requires,
+directly or by virtual link. The plain-prefix redistribution metric and tag
+settings do not compare VPN domains or generate VPN-IPv4 metadata.
 <!-- source: internal/plugins/ospf/redist_wiring.go -- InjectExternal -->
 <!-- source: internal/plugins/ospf/config.go -- parseRedistribute -->
 <!-- source: internal/plugins/ospf/redistribute/source.go -- emitDelta -->
