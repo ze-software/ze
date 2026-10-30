@@ -83,6 +83,7 @@ func fixturePage(root string) string {
 <main>
     <p><span id="body-commands" data-ze-stat="cli_commands_display">fallback</span> commands,
     <span id="body-proven" data-ze-stat="rfc.proven_display">fallback</span> requirements proven.</p>
+    <div class="th-meter"><span id="body-meter" class="th-meter-fill" data-ze-stat-width="health.rfc_proof.value.percent" style="width:1%"></span></div>
 </main>
 <script src="` + root + `assets/site.js" defer></script>
 </body>
@@ -95,6 +96,7 @@ func fixturePage(root string) string {
 type snapshot struct {
 	commands string
 	proven   string
+	percent  string
 }
 
 func (s snapshot) json(t *testing.T) []byte {
@@ -102,6 +104,9 @@ func (s snapshot) json(t *testing.T) []byte {
 	body, err := json.Marshal(map[string]any{
 		"cli_commands_display": s.commands,
 		"rfc":                  map[string]any{"proven_display": s.proven},
+		"health": map[string]any{"rfc_proof": map[string]any{
+			"value": map[string]any{"percent": s.percent},
+		}},
 	})
 	if err != nil {
 		t.Fatalf("encode the fixture snapshot: %v", err)
@@ -136,11 +141,13 @@ func writeFixtureSite(t *testing.T, dir string) {
 	}
 }
 
-// pageTexts is what a loaded page shows in its three marked elements.
+// pageTexts is what a loaded page shows in its three marked elements, and
+// the width of its one bar drawn from a percentage.
 type pageTexts struct {
 	Header       string `json:"header"`
 	BodyCommands string `json:"bodyCommands"`
 	BodyProven   string `json:"bodyProven"`
+	MeterWidth   string `json:"meterWidth"`
 }
 
 const readTexts = `(function () {
@@ -151,7 +158,11 @@ const readTexts = `(function () {
     return {
         header: text("header.site-header [data-ze-stat]"),
         bodyCommands: text("#body-commands"),
-        bodyProven: text("#body-proven")
+        bodyProven: text("#body-proven"),
+        meterWidth: (function () {
+            var bar = document.querySelector("#body-meter");
+            return bar ? bar.style.width : "<missing>";
+        })()
     };
 })()`
 
@@ -159,7 +170,9 @@ const readTexts = `(function () {
 // with what the page shows when they never do.
 func waitForTexts(ctx context.Context, t *testing.T, page string, want snapshot) {
 	t.Helper()
-	expected := pageTexts{Header: want.commands, BodyCommands: want.commands, BodyProven: want.proven}
+	expected := pageTexts{
+		Header: want.commands, BodyCommands: want.commands, BodyProven: want.proven, MeterWidth: want.percent + "%",
+	}
 
 	deadline := time.Now().Add(10 * time.Second)
 	var got pageTexts
@@ -180,7 +193,8 @@ func waitForTexts(ctx context.Context, t *testing.T, page string, want snapshot)
 // TestTheBrowserFillsEveryMarkedValueFromTheSnapshot proves AC-15: a reader
 // who loads a page sees the snapshot's values in every marked element, the
 // shared header's included, and after data/site-facts.json changes a reload
-// shows the new values, with the snapshot fetched once per load.
+// shows the new values, with the snapshot fetched once per load. A bar drawn
+// from a percentage (data-ze-stat-width) takes its width from the same file.
 //
 // Method: serve a fixture site carrying the real site script from a temp
 // directory, load a root page and a nested page in headless Chrome, read the
@@ -214,8 +228,8 @@ func TestTheBrowserFillsEveryMarkedValueFromTheSnapshot(t *testing.T) {
 	defer cancelTimeout()
 
 	versions := []snapshot{
-		{commands: "490", proven: "2,888"},
-		{commands: "512", proven: "3,001"},
+		{commands: "490", proven: "2,888", percent: "63.4"},
+		{commands: "512", proven: "3,001", percent: "71.2"},
 	}
 	pages := []string{"/", "/reference/cli/"}
 

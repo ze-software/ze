@@ -415,3 +415,169 @@ Found before the spec opened:
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove <the spec's path in its bucket>` only, in the same `./le commit create` script (commit A preserves the spec in history)
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- Commits a12a86c3df, 0a5f2f29c4, 9c266c60c1, 0bd25245a9, 7d3be5ac1c (chromedp vendor alone), 03ef9b1db2, 750348ea2c, 6c3cf2ac39, c9c74a5ff3, 82cfc35015, then this closure's commit A.
+- One marked-value path: `markedFact`, `factLookup`, `substitute`/`substituteHTML`/`replaceTokens` (`internal/le/site/factmark.go`); hand-marked fallback elements (`markedValue`, `readMarkedText`, `factfallback.go`).
+- Producers (nav, home, commands, equivalents, authored, derived, docs, blog, health) read every figure from the snapshot inside its marker; `numberTokenSpecs`, `navCounts` and `liveNavDescription` deleted.
+- Health section of the snapshot derived from the record (`healthFacts`, `healthfacts.go`); every health figure marked (`health.go`).
+- `./le site release update` (`internal/le/site/release/`), committed `website/data/github-releases.json`, snapshot `release` section (`factsFromReleases`, `releasefacts.go`), lab ISO size marker.
+- `site.js` fills body and inserted header from one fetch (`loadSiteFacts`, `fillRepoStats`), proven in headless Chrome (`browsertest/fill_test.go`).
+- Plain-figure guard in `./le site check` (`checkPlainFigures`, `plaintext.go`) with the RFC ratchet `website/data/plain-figure-ratchet.json`.
+- Closure fix: the health meter's bar names its percentage key (`data-ze-stat-width`, `healthMeter`) and `fillRepoStats` sets its width from the snapshot.
+
+### Bugs Found/Fixed
+- The health meter's bar width was a plain copy of the percentage that no snapshot update moved, so after a JSON-only update the bar contradicted the marked figure beside it. Fixed in `healthMeter` (`internal/le/site/health.go`) and `fillRepoStats` (`website/assets/js/site.js`); covered by `TestTheMeterWidthIsTheMarkedPercentage` and the width assertion of `TestTheBrowserFillsEveryMarkedValueFromTheSnapshot`, both red against HEAD (scratch `close-red/unit.txt`, `close-red/browser.txt`: `MeterWidth:1%` where `63.4%` was wanted).
+
+### Documentation Updates
+- `docs/architecture/site-facts.md`: categories, hand-marked element, release data, the RFC ratchet, and (closure) the meter bar row under the health keys table (anchor `healthMeter` via the row text).
+- `website/AI.md`: token syntax, the facts snapshot, the browser fill (closure: `[data-ze-stat-width]`), the guard.
+- `docs/contributing/gh-pages.md`: refreshing release data, the ratchet. `docs/architecture/testing/test-health.md`, `ai/INDEX.md` (`./le site release` row).
+- `./le doc check all` (closure): rc=1, every finding from other sessions' work (DESIGN.md `policy` plugin, dns resolver catalog, three stale anchors to `filter_registry.go` and two flow-export drafts); "checked 3037 anchors across 23 digests, all resolve".
+
+### Deviations from Plan
+- A-5 broke: no Playwright runner existed; the browser test uses chromedp driving headless Chrome in its own package (owner choice, Key Design Decisions).
+- The ratchet exempts a listed page as a whole, at AC-8's page granularity.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-5: a Playwright runner was assumed available | only fixture strings named it | phase 1 stub run | chromedp test in `internal/le/site/browsertest` |
+| approach | the meter bar's width was left as "the one plain copy" of a percentage | `site.js` can set a style from the snapshot as it sets text | closure review | `data-ze-stat-width`, fixed in commit A |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| One file, `data/site-facts.json`, written by the build | Done | `internal/le/site/facts.go` `publishSiteFacts` | |
+| Fallback text is the last build's value inside the marker | Done | `factmark.go` `markedFact`; `factfallback.go` `markedValue` | |
+| Scope: header, home, health, compare, CLI reference, RFC index aggregates outside RFC section, release data | Done | producers listed above | RFC section owned by spec-rfc-figures-sectioned-presentation |
+| Release data committed by a command, never fetched at build | Done | `release/actions.go` `update`; `releasefacts.go` `factsFromReleases` | |
+| Page descriptions carry no figure | Done | `commands.go` `cliReferenceDescription` and peers | `TestPageDescriptionsCarryNoSnapshotValue` |
+| ISO size fallback "under 150 MB" | Done | `website/labs/appliance-install/index.html` | |
+| Health page through the snapshot | Done | `healthfacts.go` `healthFacts`; `health.go` | meter width included at closure |
+| Regression guard in `./le site check` | Done | `plaintext.go` `checkPlainFigures`; `actions.go` `runCheck` | |
+| Guard covers the RFC section through a shrinking ratchet, `data-ze-rfc` accepted | Done | `plaintext.go` `loadPlainFigureRatchet`, `figureMarked` | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestEverySiteWideValueIsPublishedInsideItsMarker`, `TestTheLabISOSizeFallsBackUntilAReleaseCarriesOne` | |
+| AC-2 | Done | `TestTheCommandCountIsTheSnapshotsNotARecount` | |
+| AC-3 | Done | `TestATokenResolvesAnyKeyTheSnapshotNames`, `TestAnUnknownTokenIsRefusedByName` | |
+| AC-4 | Done | `TestAHandWrittenPageResolvesATokenToAMarkedValue`, `TestATokenInAnAttributeOrHeadStaysPlain` | |
+| AC-5 | Done | `TestTokensWaitForTheFirstSnapshot` | |
+| AC-6 | Done | `TestPageDescriptionsCarryNoSnapshotValue` | |
+| AC-7 | Done | `TestSiteCheckRefusesAPublishedValueOutsideItsMarker` | bare percentages are outside AC-7's matcher (Known Limitations) |
+| AC-8 | Done | `TestSiteCheckHonoursAndShrinksTheRFCRatchet` | |
+| AC-9 | Done | `TestSiteCheckAcceptsTheRFCMarker` | |
+| AC-10 | Done | `TestReleaseUpdateCommitsTheReleasesTheForgeStates` | |
+| AC-11 | Done | `TestReleaseUpdateCommitsTheReleasesTheForgeStates`, `TestTheBuildReadsReleaseDataOnlyFromTheCommittedFile` | |
+| AC-12 | Done | `TestReleaseUpdateLeavesTheFileWhenTheForgeIsUnreachable` | |
+| AC-13 | Done | `TestTheBuildReadsReleaseDataOnlyFromTheCommittedFile` | |
+| AC-14 | Done | `TestTheLabISOSizeFallsBackUntilAReleaseCarriesOne` | |
+| AC-15 | Done | `TestTheBrowserFillsEveryMarkedValueFromTheSnapshot` | now also a bar width |
+| AC-16 | Done | `TestASecondBuildChangesNothing` | |
+| AC-17 | Done | `TestLLMSAndMirrorsCarryPlainSnapshotValues` | |
+| AC-18 | Done | `TestEveryHealthFigureIsAMarkedSnapshotValue`, `TestANewHealthMetricReachesTheSnapshotUnnamed`, `TestTheMeterWidthIsTheMarkedPercentage` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| every test in the TDD table | Done | files as the table names (each `func Test...` found by `git grep` at 82cfc35015) | |
+| `TestTheMeterWidthIsTheMarkedPercentage` | Done | `internal/le/site/health_test.go` | added at closure |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| every file in Files to Modify and Files to Create | Done | `git show --stat` over the commits listed above; `ls` below |
+
+### Audit Summary
+- **Total items:** 9 requirements, 18 ACs, 21 tests
+- **Done:** all
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (A-5, chromedp instead of Playwright, owner choice)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Updating `data/site-facts.json` updates every page that shows the value | functional (real browser) | `TestTheBrowserFillsEveryMarkedValueFromTheSnapshot`: swapped snapshot, reload, header, body and bar show the new values, one fetch per load; red against HEAD's `site.js` for the bar |
+| No value is printed outside its marker | unit over built pages, plus the check | `TestEverySiteWideValueIsPublishedInsideItsMarker`, `TestEveryHealthFigureIsAMarkedSnapshotValue`; phase 6 real check over a scratch build: exit 0, no plain figure outside the ratchet |
+| Release data committed by one command, read only from the file | unit with refusing transport | `TestTheBuildReadsReleaseDataOnlyFromTheCommittedFile`, `TestReleaseUpdateCommitsTheReleasesTheForgeStates` |
+| A regression is refused | negative test | `TestSiteCheckRefusesAPublishedValueOutsideItsMarker` exit 1 naming page, figure and key |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| Emptying the plain-figure ratchet (RFC compliance index figures into `data-ze-rfc` markers) | the RFC section belongs to the RFC spec by owner ruling | `plan/release/validation/spec-rfc-figures-sectioned-presentation.md` (AC-19) |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/site-values-from-one-file-682dd437-589f-4317-855c-acaec0f0a700.md` (8 files, verdict clean) |
+| `./le spec review check` | clean |
+| Population | every file of the commits carrying `Spec-work: site-values-from-one-file` plus commit A. The `vendor/` tree of 7d3be5ac1c (chromedp, cdproto, go-json-experiment) was judged as a vendored upstream module that only `internal/le/site/browsertest` imports, which the owner chose; its files were not read line by line |
+| Rounds | 2 |
+| Reviewer lenses used | wiring, removed behaviour, security (forge answer bounds, escaping), guard false negatives, test weakening (`./le test weakened check base a12a86c3df~1`: no finding in `internal/le/site`), style pass over changed Go |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | The meter bar's width was a plain copy of the percentage, so a snapshot update left the bar contradicting the marked note beside it | `internal/le/site/health.go` `healthMeter`; `website/assets/js/site.js` `fillRepoStats` | `data-ze-stat-width` on the fill, width set from the snapshot; tests red then green |
+
+### Notes (not blocking)
+- The guard does not match a bare percentage ("63.4 %") or a figure under 100 with no thousands separator; AC-7 and A-4 bound the matcher to display strings and unit-labelled values of 100 or more. The page-level tests (AC-1, AC-18) cover those figures.
+- The ratchet exempts a listed page wholesale and is bounded to the RFC section and to pages that still show a figure; growth by a hand edit is not refused. The RFC spec empties it.
+- `File.Latest` counts a prerelease as the latest release, where the forge's `/releases/latest` would not.
+- `publishedFigures` discards the found flag of `snapshot.value` for keys it took from `snapshot.keys()`, which always resolve.
+- The 82cfc35015 commit carries no `Weakening-approved:` trailer and owed none: `testweakened.Check` (`internal/le/test/weakened/testweakened.go`) writes one only for a structural finding, and the range shows none in `internal/le/site`.
+
+### Run 1
+- 1 ISSUE (meter width), the NOTEs above.
+
+### Run 2
+- 0 BLOCKER, 0 ISSUE over the fix (`healthMeter`, `fillRepoStats`, the two tests, the two page edits).
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/le/site/factmark.go`, `plaintext.go`, `release/{register,actions,release}.go`, `browsertest/fill_test.go`, `website/data/github-releases.json`, `website/data/plain-figure-ratchet.json` | Yes | `ls` at closure listed each |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-15, AC-18 | fill and meter | `go test -race ./internal/le/site/ -run 'Health\|Meter\|Series\|LongHistory'`: ok 7.965s; `go test ./internal/le/site/browsertest/`: ok 9.778s |
+| AC-1 to AC-17 | as the audit | `go test -race ./internal/le/site/...` after 82cfc35015: site, browsertest, facts, release, wiki ok (implementation handoff); `./le verify changed` over 750348ea2c: every site package ok |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `./le site build`, `./le site check`, `./le site release update`, browser load | no `.ci`: Go tests drive each entry (`renderHealth`, `runCheck`, `update`, chromedp over the real `site.js`) | Yes, read at closure |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `factsRFC` in `facts.go` counts RFCs holding a requirement (`facts.RFC.Summaries = len(summaries)`); the index wording is the RFC spec's (its line on "240 summaries") |
+| A-2 | confirmed | observed 2026-10-30 |
+| A-3 | confirmed | owner choice |
+| A-4 | confirmed | `plaintext_test.go` seeds 99 sections (not refused), 100 stars (refused), 1490 commands (not a 490 match) |
+| A-5 | broken | Mistake Log, Deviations |
+| A-6 | confirmed | `TestTheLabISOSizeFallsBackUntilAReleaseCarriesOne` (one `.iso` and another asset; two `.iso` refused) |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| site-facts.md health keys row, AI.md browser fill | `healthMeter` writes `data-ze-stat-width`; `fillRepoStats` reads it | Yes |
+| Citers of this spec's path | `git grep` found one, `factmark_test.go` comment, repointed to `docs/architecture/site-facts.md` | Yes |

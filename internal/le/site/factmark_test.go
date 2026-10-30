@@ -228,9 +228,9 @@ func TestTokensWaitForTheFirstSnapshot(t *testing.T) {
 // The method renders each producer over its fixture with a stated snapshot,
 // then asks two things of what it wrote: the plain-text guard finds no figure
 // outside a marker, and every key the producer shows is a marked element
-// holding the snapshot's value. It is red until the producers emit their
-// values through markedFact (phase 2 and 3 of
-// plan/release/validation/spec-site-values-from-one-file.md).
+// holding the snapshot's value. It goes red when a producer writes a value
+// anywhere but through markedFact (docs/architecture/site-facts.md, "One
+// published copy of each value").
 func TestEverySiteWideValueIsPublishedInsideItsMarker(t *testing.T) {
 	headerSnapshot, err := json.Marshal(publishedHeaderFacts)
 	if err != nil {

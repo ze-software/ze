@@ -338,8 +338,11 @@ func healthCardHTML(metric healthMetric, lookup *factLookup) string {
 // ratio improves only because its denominator shrank. The bar's label names
 // the metric and states no figure: an attribute cannot hold a marked element,
 // so a figure there would be a copy site.js never refreshes, and the note under
-// the bar states the figures, marked. The bar's width is the one plain copy of
-// the percentage, because a style cannot be filled from the snapshot either.
+// the bar states the figures, marked. The bar's width is the percentage too, so
+// the fill names the percentage's key in data-ze-stat-width and site.js sets
+// the width from the snapshot, exactly as it sets the note's text: the style
+// the build writes is only the last build's fallback, and a bar never shows a
+// proportion the note beside it no longer states.
 func healthMeter(metric healthMetric, lookup *factLookup) string {
 	ratio, _, _, drawn := healthRatio(metric)
 	// refuse-by-default: guards healthCardHTML -- a metric that carries no ratio draws no meter, which is the empty fragment
@@ -353,7 +356,8 @@ func healthMeter(metric healthMetric, lookup *factLookup) string {
 	label := html.EscapeString(metric.text("label"))
 	width := html.EscapeString(lookup.plain(percentKey))
 	return `<div class="th-meter" role="img" aria-label="` + label +
-		`"><span class="th-meter-fill" style="width:` + width + `%"></span></div>` +
+		`"><span class="th-meter-fill" data-ze-stat-width="` + html.EscapeString(percentKey) +
+		`" style="width:` + width + `%"></span></div>` +
 		`<p class="th-meter-note">` + lookup.marked(numeratorKey) + " of " + lookup.marked(denominatorKey) +
 		" (" + lookup.marked(percentKey) + "%)</p>"
 }

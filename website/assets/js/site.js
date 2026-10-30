@@ -293,10 +293,16 @@ document.addEventListener("DOMContentLoaded", function () {
     // fillRepoStats replaces the text of every [data-ze-stat] element under
     // scope with the snapshot's value for its dotted key. It writes
     // textContent only, so a snapshot value can never become markup.
+    //
+    // A [data-ze-stat-width] element is a bar drawn from a percentage: its
+    // width is set from the snapshot's value for its key, so the bar and the
+    // figure beside it move together. A value that is not a number from 0 to
+    // 100 leaves the width the last build wrote.
     function fillRepoStats(scope) {
         if (!scope || !window.fetch) return;
         var nodes = slice(scope.querySelectorAll("[data-ze-stat]"));
-        if (!nodes.length) return;
+        var bars = slice(scope.querySelectorAll("[data-ze-stat-width]"));
+        if (!nodes.length && !bars.length) return;
         loadSiteFacts().then(function (facts) {
             if (!facts) return;
             nodes.forEach(function (node) {
@@ -304,6 +310,13 @@ document.addEventListener("DOMContentLoaded", function () {
                 if (value !== null && value !== undefined) {
                     node.textContent = String(value);
                 }
+            });
+            bars.forEach(function (bar) {
+                var value = lookupFact(facts, bar.getAttribute("data-ze-stat-width"));
+                if (value === null || value === undefined || String(value).trim() === "") return;
+                var percent = Number(value);
+                if (!isFinite(percent) || percent < 0 || percent > 100) return;
+                bar.style.width = percent + "%";
             });
         });
     }

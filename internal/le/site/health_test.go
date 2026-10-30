@@ -500,3 +500,48 @@ func TestEveryHealthFigureIsAMarkedSnapshotValue(t *testing.T) {
 		}
 	}
 }
+
+// VALIDATES: a meter's bar is drawn from the percentage the snapshot holds,
+// and names that percentage's key, so site.js redraws the bar from the same
+// file it fills the figure beside it from.
+//
+// Method: render the published record and read every meter fill. Each one
+// names a key under health.<metric>.<ratio>.percent that the snapshot holds,
+// its style width is that value, and the note beside the bar shows the same
+// key marked. A fill naming no key, or a key the snapshot lacks, is a bar
+// whose width no JSON update can move.
+func TestTheMeterWidthIsTheMarkedPercentage(t *testing.T) {
+	paths := healthPaths(t)
+	if _, err := renderHealth(paths); err != nil {
+		t.Fatal(err)
+	}
+	page := mainContent(t, readArtifact(t, paths.Output, healthDest))
+	snapshot, err := loadSiteFactSnapshot(paths.Output)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	fills := regexp.MustCompile(`<span class="th-meter-fill"([^>]*)>`).FindAllStringSubmatch(page, -1)
+	if len(fills) == 0 {
+		t.Fatal("the published record draws no meter, so this test proves nothing")
+	}
+	named := regexp.MustCompile(`^ data-ze-stat-width="(health\.[^"]+\.percent)" style="width:([^"%]*)%"$`)
+	for _, fill := range fills {
+		parts := named.FindStringSubmatch(fill[1])
+		if parts == nil {
+			t.Errorf("the meter fill %q names no percentage key the browser can redraw it from", fill[0])
+			continue
+		}
+		value, held := snapshot.value(parts[1])
+		if !held {
+			t.Errorf("the meter fill names %s, which the snapshot does not hold", parts[1])
+			continue
+		}
+		if parts[2] != value {
+			t.Errorf("the meter fill for %s is %s%% wide, but the snapshot states %s", parts[1], parts[2], value)
+		}
+		if !strings.Contains(page, markedFact(parts[1], value)+"%)") {
+			t.Errorf("the note beside the %s bar does not show the same key marked", parts[1])
+		}
+	}
+}

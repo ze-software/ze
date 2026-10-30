@@ -232,14 +232,17 @@ a stale recorded run; `./le site build refresh` re-records those first
 - **The browser fill.** `site.js` fetches `data/site-facts.json` once per page
   load (`loadSiteFacts` keeps the one promise) and `fillRepoStats` writes each
   `[data-ze-stat]` element's value for its dotted key as `textContent`, never
-  markup. It fills the page body at load and the shared header after
+  markup, and sets the width of each `[data-ze-stat-width]` bar (the health
+  meter) from its key's percentage, so a bar never disagrees with the figure
+  beside it. It fills the page body at load and the shared header after
   `loadSharedHeader` inserts it, because the header arrives after the body was
   filled. When the snapshot cannot be read, every element keeps the value the
   last build wrote into it. `TestTheBrowserFillsEveryMarkedValueFromTheSnapshot`
   (`internal/le/site/browsertest/fill_test.go`) proves it in a real browser: it
   serves a fixture site carrying the real script, loads a root page and a
   nested one in headless Chrome through chromedp, swaps the snapshot and
-  reloads, and checks the header and body figures and the one fetch per load.
+  reloads, and checks the header and body figures, a bar's width and the one
+  fetch per load.
   It needs Google Chrome or Chromium on the host and fails, never skips, when
   neither is found (macOS `brew install --cask google-chrome`, Debian or Ubuntu
   `apt install chromium`). It sits in its own package so the `internal/le/site`
