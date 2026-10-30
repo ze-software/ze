@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4754-7-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc4754_auth_test.go::TestRFC4754SignatureIsRConcatS",
+    "unit-sha": "11949cef0aace34b",
+    "claim-sha": "9d5f8edd0e5c9d60",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/auth_ecdsa.go::verifyECDSAAuth",
+    "producer-sha": "d1b36cd424f39e1a",
+    "break": "line 100: \"authData[:method.scalarOctets]\" -\u003e \"authData[method.scalarOctets:]\""
+  },
+  {
+    "rid": "RFC4754-7-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc4754_auth_test.go::TestRFC4754SignatureIsRConcatS",
+    "unit-sha": "11949cef0aace34b",
+    "claim-sha": "772d560883cd1363",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/auth_ecdsa.go::verifyECDSAAuth",
+    "producer-sha": "d1b36cd424f39e1a",
+    "break": "line 65: \"len(authData) != 2*method.scalarOctets\" -\u003e \"false \u0026\u0026 len(authData) != 2*method.scalarOctets\""
+  }
+]

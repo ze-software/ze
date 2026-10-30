@@ -91,8 +91,9 @@ install/read-back therefore does not establish an operator-usable VPP tunnel.
    (`decryptSKPayload`, `fsm.go`, `auth.go`), walks the inner chain
    (`wire.ParsePayloadChain`, `fsm.go`, `chain.go`), verifies the remote AUTH
    (`verifyRemoteAuth`, `fsm.go`, `auth.go`, PSK via
-   `subtle.ConstantTimeCompare` `auth.go`, X.509 digital signature, or legacy
-   RSA), and captures `ChildOutboundSPI` and narrowed `NegotiatedTSi`/`NegotiatedTSr`
+   `subtle.ConstantTimeCompare` `auth.go`, X.509 digital signature, RFC 4754
+   ECDSA r || s via `verifyECDSAAuth` `auth_ecdsa.go`, or legacy RSA), and
+   captures `ChildOutboundSPI` and narrowed `NegotiatedTSi`/`NegotiatedTSr`
    from the piggybacked SAr2/TS payloads (`fsm.go`). No EAP payload →
    `sa.State = StateEstablished` (`fsm.go`).
 10. **EAP branch (RFC 7296 §2.16).** If the response carries an EAP payload,

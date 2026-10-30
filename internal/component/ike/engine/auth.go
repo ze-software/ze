@@ -1,6 +1,7 @@
 // Design: docs/architecture/ike/ipsec-7-ikev2-engine.md -- AUTH payload computation
 // Related: remote_id.go -- remote identity policy and certificate binding
 // Detail: cert_payload.go -- CERT payload assembly, the received-chain bound, Hash and URL
+// Detail: auth_ecdsa.go -- RFC 4754 ECDSA AUTH methods 9, 10 and 11
 // RFC: rfc/short/rfc7296.md -- Authentication of the IKE SA (Section 2.15)
 // RFC: rfc/short/rfc7427.md -- Digital Signature AUTH method 14
 package engine
@@ -458,6 +459,13 @@ func verifyRemoteAuth(sa *SA, authPayload *wire.PayloadAUTH) error {
 		return verifyX509Auth(sa, authPayload.AuthData, signedOctets)
 	case wire.AuthMethodRSASig:
 		return verifyLegacyRSAAuth(sa, authPayload.AuthData, signedOctets)
+	// RFC 4754 Section 7: the ECDSA methods carry r || s, not RFC 7427's DER.
+	case wire.AuthMethodECDSA256:
+		return verifyECDSAAuth(sa, ecdsa256, authPayload.AuthData, signedOctets)
+	case wire.AuthMethodECDSA384:
+		return verifyECDSAAuth(sa, ecdsa384, authPayload.AuthData, signedOctets)
+	case wire.AuthMethodECDSA521:
+		return verifyECDSAAuth(sa, ecdsa521, authPayload.AuthData, signedOctets)
 	}
 	return fmt.Errorf("ike auth: unsupported remote auth method %d", authPayload.AuthMethod)
 }

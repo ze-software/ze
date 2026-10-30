@@ -356,6 +356,18 @@ receiver together.
 <!-- source: internal/component/ike/engine/auth.go -- verifyPSKAuth, computePSKAuth -->
 <!-- source: internal/component/ike/engine/eap_auth.go -- computeAuthFromSharedSecret, verifyAuthFromSharedSecret, constantTimeEqualAuth -->
 
+**A signature AUTH is verified by the method number the peer sent.** Method 14
+(RFC 7427 Digital Signature) carries an AlgorithmIdentifier and a DER signature,
+and it is the only signature method Ze signs with. Methods 9, 10 and 11 (RFC 4754
+ECDSA-256, ECDSA-384 and ECDSA-521) carry r followed by s, each zero-padded to
+32, 48 or 66 octets. Ze verifies them and never sends them. `verifyECDSAAuth`
+refuses any other length, a certificate key that is not ECDSA, and a key on a
+curve other than the one the method names. A DER signature sent under method 9
+is refused for its length. Method 1 (RSA) is verified with SHA-256.
+
+<!-- source: internal/component/ike/engine/auth.go -- verifyRemoteAuth, verifyX509Auth, verifyLegacyRSAAuth -->
+<!-- source: internal/component/ike/engine/auth_ecdsa.go -- verifyECDSAAuth, ecdsa256, ecdsa384, ecdsa521 -->
+
 **The engine emits SA lifecycle events.** `vpn-ipsec/sa-up` and
 `vpn-ipsec/sa-down` are registered at init time, so any component can subscribe.
 
