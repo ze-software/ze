@@ -1,6 +1,8 @@
 {
-  "no_code_path": "Ze sends no query on behalf of a client: geodns is authoritative and forwards nothing, and the resolve/dns stub adds no ECS option to its own queries, so no Ze code path carries a client's address into an outgoing query.",
-  "note": "Binds a Recursive Resolver (and, for the dropped Section 7.5 sentence, an Intermediate Nameserver).",
+  "code": {
+    "internal/plugins/dnsresolver/forward.go::upstreamQuery": "26bd82c1636e08e5"
+  },
+  "note": "Re-judged 2026-10-30 (independent judge) after the row's annotation moved from {not-applicable} to {gap}. RFC 7871 Section 7.1.2 reads 'A SOURCE PREFIX-LENGTH value of 0 means that the Recursive Resolver MUST NOT add the client's address information to its queries.' and Section 7.1.3 reads 'A Forwarding Resolver using this option MUST prepare it as described in Section 7.1.1, \"Recursive Resolvers\".' The earlier not-applicable verdict said Ze sends no query on behalf of a client; that is false: the dnsresolver plugin is a caching Forwarding Resolver that sends upstream queries for its clients. The prohibition holds by construction, because internal/plugins/dnsresolver/forward.go::upstreamQuery builds each upstream query from the question alone, with an OPT that carries no option, so no client address reaches an outgoing query whatever SOURCE PREFIX-LENGTH the client sent. No test carries this requirement and Ze implements no ECS on the resolver side, so the row is a gap and the verdict is unimplemented until a test proves the prohibition on the forwarder's outgoing query.",
   "requirement_sha": "b22580f82d0c624b",
-  "verdict": "not-applicable"
+  "verdict": "unimplemented"
 }
