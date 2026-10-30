@@ -180,7 +180,11 @@ func TestRingHandlerConcurrentAttributes(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if attrs["attempt"].(map[string]any)["owner"] != entry.Message {
+		attempt, ok := attrs["attempt"].(map[string]any)
+		if !ok {
+			t.Fatalf("ring record %q has attempt %T, want an object", entry.Message, attrs["attempt"])
+		}
+		if attempt["owner"] != entry.Message {
 			t.Fatalf("ring overwrite changed retained record %q: %v", entry.Message, attrs)
 		}
 	}

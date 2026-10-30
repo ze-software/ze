@@ -33,7 +33,7 @@ type LogEntry struct {
 // belongs to the caller; changing it cannot change this or later snapshots.
 func (e LogEntry) Attributes() (map[string]any, error) {
 	if e.attributes == "" {
-		return nil, nil
+		return map[string]any{}, nil // An entry logged with no fields has none to decode.
 	}
 	var record struct {
 		Attributes map[string]any `json:"attributes"`
@@ -247,6 +247,7 @@ func snapshotLogAttr(attr slog.Attr) slog.Attr {
 	if attr.Equal(slog.Attr{}) {
 		return attr
 	}
+	//exhaustive:ignore // Only groups and arbitrary values can alias caller state; Resolve removed LogValuer and every scalar kind is already a value.
 	switch attr.Value.Kind() {
 	case slog.KindGroup:
 		children := snapshotLogAttrs(attr.Value.Group())
@@ -291,7 +292,10 @@ func (f *opaqueLogFormatter) Write(p []byte) (int, error) {
 
 func snapshotLogAny(value slog.Value) (text string, present bool) {
 	// The borrowed formatter MUST stay exclusive until its output is detached.
-	formatter := opaqueLogFormatters.Get().(*opaqueLogFormatter)
+	formatter, ok := opaqueLogFormatters.Get().(*opaqueLogFormatter)
+	if !ok {
+		panic("BUG: opaqueLogFormatters holds a value its New never makes")
+	}
 	record := slog.NewRecord(time.Time{}, slog.LevelInfo, "", 0)
 	record.AddAttrs(slog.Attr{Key: "value", Value: value})
 	// TextHandler encodes formatting failures in the value. Its only returned

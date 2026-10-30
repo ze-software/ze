@@ -13,7 +13,7 @@ import (
 )
 
 // TestDownloadBodyOutlivesResponseHeaders streams an artifact only after the
-// download helper returns. Cancelling at that return truncates the artifact,
+// download helper returns. Canceling at that return truncates the artifact,
 // even though receiving its headers succeeded.
 func TestDownloadBodyOutlivesResponseHeaders(t *testing.T) {
 	payload := bytes.Repeat([]byte("streamed-kernel-artifact\n"), 400_000)
