@@ -116,7 +116,7 @@ func publicationFailureCeaseUnsent(t *testing.T) {
 // the session ends on a body-read error while the worker holds its UPDATEs,
 // the leave arm runs, and only then does the worker fail on the held batch.
 func publicationFailureAfterTransportLoss(t *testing.T) {
-	c := newSessionEndCase(t, lowLiveSettings("10.0.0.1", 65000, 65002))
+	c := newSessionEndCase(t, acceptingLiveSettings(t, "10.0.0.1", 65000, 65002))
 	c.install(t, sessionEndHooks{deliveryReceiver: func(MessageReceiver) MessageReceiver {
 		return lateFailureReceiver{downOrderReceiver: c.receiver}
 	}})
@@ -136,7 +136,7 @@ func publicationFailureAfterTransportLoss(t *testing.T) {
 // between acceptedReceive and the hand-off, with no lock held, after the
 // worker published the UPDATEs before it.
 func publicationFailureReadPanic(t *testing.T) {
-	c := newSessionEndCase(t, lowLiveSettings("10.0.0.1", 65000, 65002))
+	c := newSessionEndCase(t, acceptingLiveSettings(t, "10.0.0.1", 65000, 65002))
 	var handOffs atomic.Int64
 	c.install(t, sessionEndHooks{beforeHandOff: func() {
 		if handOffs.Add(1) == 3 {
@@ -166,7 +166,9 @@ func publicationFailureReadPanic(t *testing.T) {
 // publicationFailureSession starts one live session and records its downs.
 func publicationFailureSession(t *testing.T) (*lowLivePeer, *downOrderObserver) {
 	t.Helper()
-	v := lowLiveRouter(t, lowLiveSettings("10.0.0.1", 65000, 65002))[0]
+	// The EBGP peer's UPDATE must reach publication, so it states the
+	// accepting policies RFC 8212 Section 3 requires.
+	v := lowLiveRouter(t, acceptingPolicies(t, lowLiveSettings("10.0.0.1", 65000, 65002))...)[0]
 	observer := &downOrderObserver{downAdded: make(chan struct{}, 1)}
 	v.peer.reactor.addPeerObserver(observer)
 	return v, observer

@@ -77,7 +77,9 @@ func TestDeliveryPanicSendsCeaseUnspecific(t *testing.T) {
 	restore := crashlog.SetCrashDirForTest(t.TempDir())
 	t.Cleanup(restore)
 
-	v := lowLiveRouter(t, lowLiveSettings("10.0.0.1", 65000, 65002))[0]
+	// The EBGP peer's UPDATE must reach the delivery worker, so it states the
+	// accepting policies RFC 8212 Section 3 requires.
+	v := lowLiveRouter(t, acceptingPolicies(t, lowLiveSettings("10.0.0.1", 65000, 65002))...)[0]
 	observer := &downOrderObserver{downAdded: make(chan struct{}, 1)}
 	v.peer.reactor.addPeerObserver(observer)
 	v.peer.sessionEndHooks.Store(&sessionEndHooks{deliveryReceiver: func(prior MessageReceiver) MessageReceiver {

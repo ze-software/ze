@@ -119,9 +119,9 @@ func TestRSDepartureAfterReconnectKeepsNewerRoute(t *testing.T) {
 
 func departureAfterReconnect(t *testing.T, hold bool) {
 	settings := []*PeerSettings{
-		lowLiveSettings("192.0.2.1", 65000, 65002),
-		lowLiveSettings("192.0.2.2", 65000, 65003),
-		lowLiveSettings("192.0.2.3", 65000, 65004),
+		acceptingLiveSettings(t, "192.0.2.1", 65000, 65002),
+		acceptingLiveSettings(t, "192.0.2.2", 65000, 65003),
+		acceptingLiveSettings(t, "192.0.2.3", 65000, 65004),
 	}
 	for _, setting := range settings {
 		setting.RSClient = true

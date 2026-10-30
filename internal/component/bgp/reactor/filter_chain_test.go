@@ -22,6 +22,29 @@ func mustPolicy(t testing.TB, refs []routepolicy.Ref, final routepolicy.Final) f
 	return policy
 }
 
+// acceptingPolicies gives each of settings an explicit import and export policy
+// with no filter and an accepting final, and returns settings. A live fixture's
+// peers are EBGP, and RFC 8212 Section 3 rejects at an absent policy: "Routes
+// SHALL NOT be added to an Adj-RIB-Out associated with an EBGP peer if no
+// explicit Export Policy has been applied." So a test about forwarding,
+// election or recovery states the accepting policy it relies on.
+func acceptingPolicies(t testing.TB, settings ...*PeerSettings) []*PeerSettings {
+	t.Helper()
+	for _, s := range settings {
+		s.ImportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
+		s.ExportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
+	}
+	return settings
+}
+
+// acceptingLiveSettings is lowLiveSettings for an EBGP session whose test
+// relies on its UPDATEs being accepted and forwarded: it carries the explicit
+// accepting import and export policies RFC 8212 Section 3 requires.
+func acceptingLiveSettings(t testing.TB, address string, local, remote uint32) *PeerSettings {
+	t.Helper()
+	return acceptingPolicies(t, lowLiveSettings(address, local, remote))[0]
+}
+
 // bindRefs marks every ref of p named like one of owned as bound to its
 // registered stage: the ownership config resolution (bgpconfig
 // canonicalizeFilterRefs) grants through filterapi.BindInProcess, which

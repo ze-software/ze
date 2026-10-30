@@ -63,7 +63,7 @@ func (u *unbindGenerations) OnPeerUnbound(peer *plugin.PeerInfo, _ rpc.SessionSt
 // Established advances it. The down must name the ended session: leaveSession
 // reads the generation in the leave arm, before the next session can start.
 func TestSessionLeaveStampsEndedGeneration(t *testing.T) {
-	c := newSessionEndCase(t, lowLiveSettings("10.0.0.1", 65000, 65002))
+	c := newSessionEndCase(t, acceptingLiveSettings(t, "10.0.0.1", 65000, 65002))
 	observer := &generationObserver{}
 	c.r.addPeerObserver(observer)
 	c.install(t, sessionEndHooks{})

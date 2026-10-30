@@ -357,7 +357,7 @@ func TestSessionDownFollowsBufferedDeliveries(t *testing.T) {
 // sessionDownRemoteClose is the uncontended case: the remote closes with no
 // NOTIFICATION and the read goroutine drains its own leave arm.
 func sessionDownRemoteClose(t *testing.T) {
-	c := newSessionEndCase(t, lowLiveSettings("10.0.0.1", 65000, 65002))
+	c := newSessionEndCase(t, acceptingLiveSettings(t, "10.0.0.1", 65000, 65002))
 	c.install(t, sessionEndHooks{})
 	c.sendHeld(t, 3, false)
 	_ = c.v.remote.Close() // The remote ends the session with no NOTIFICATION.
@@ -370,7 +370,7 @@ func sessionDownRemoteClose(t *testing.T) {
 // goroutine is held until runOnce's Session.Run returned and the delivery
 // worker exited. The down must still wait on the leave signal.
 func sessionDownContendedTeardown(t *testing.T) {
-	c := newSessionEndCase(t, lowLiveSettings("10.0.0.1", 65000, 65002))
+	c := newSessionEndCase(t, acceptingLiveSettings(t, "10.0.0.1", 65000, 65002))
 	armEntered := make(chan struct{})
 	var heldDowns atomic.Int64
 	heldDowns.Store(-1)
@@ -412,7 +412,7 @@ func sessionDownContendedTeardown(t *testing.T) {
 func sessionDownHoldTimer(t *testing.T) {
 	settings := lowLiveSettings("10.0.0.1", 65000, 65002)
 	settings.ReceiveHoldTime = 3 * time.Second // RFC 4271 Section 4.2: the smallest non-zero Hold Time.
-	c := newSessionEndCase(t, settings)
+	c := newSessionEndCase(t, acceptingPolicies(t, settings)[0])
 	c.install(t, sessionEndHooks{})
 	c.sendHeld(t, 2, true)
 
@@ -440,7 +440,7 @@ func sessionDownHoldTimer(t *testing.T) {
 // body-read error with the FSM still Established, so the down fires the leave
 // itself.
 func sessionDownBodyReadError(t *testing.T) {
-	c := newSessionEndCase(t, lowLiveSettings("10.0.0.1", 65000, 65002))
+	c := newSessionEndCase(t, acceptingLiveSettings(t, "10.0.0.1", 65000, 65002))
 	c.install(t, sessionEndHooks{})
 	c.sendHeld(t, 2, false)
 	c.sendTruncatedUpdate(t)
@@ -452,7 +452,7 @@ func sessionDownBodyReadError(t *testing.T) {
 // canceled while the read loop waits at its pause gate, so waitForResume
 // returns and Run returns with the FSM still Established.
 func sessionDownPausedCancel(t *testing.T) {
-	c := newSessionEndCase(t, lowLiveSettings("10.0.0.1", 65000, 65002))
+	c := newSessionEndCase(t, acceptingLiveSettings(t, "10.0.0.1", 65000, 65002))
 	c.install(t, sessionEndHooks{})
 	c.sendHeld(t, 2, true)
 	c.p.Stop() // Cancels the peer context only: no NOTIFICATION, no FSM event.
@@ -465,7 +465,7 @@ func sessionDownPausedCancel(t *testing.T) {
 // worker. The panic reaches safeRunOnce's recover through the down, which
 // still drains and announces, and the receive publication reads failed.
 func sessionDownReadPanic(t *testing.T) {
-	c := newSessionEndCase(t, lowLiveSettings("10.0.0.1", 65000, 65002))
+	c := newSessionEndCase(t, acceptingLiveSettings(t, "10.0.0.1", 65000, 65002))
 	var handOffs atomic.Int64
 	c.install(t, sessionEndHooks{beforeHandOff: func() {
 		if handOffs.Add(1) == 3 {
@@ -489,7 +489,7 @@ func sessionDownReadPanic(t *testing.T) {
 // the FSM to Idle after the down read Established and before it fires its
 // event, so that event finds Idle and exactly one leave arm runs.
 func sessionDownIdleRace(t *testing.T) {
-	c := newSessionEndCase(t, lowLiveSettings("10.0.0.1", 65000, 65002))
+	c := newSessionEndCase(t, acceptingLiveSettings(t, "10.0.0.1", 65000, 65002))
 	teardownErr := make(chan error, 1)
 	c.install(t, sessionEndHooks{beforeLeaveFire: func() {
 		teardownErr <- c.session.Teardown(message.NotifyCeaseAdminShutdown, "")
@@ -517,7 +517,7 @@ func sessionDownBFDSubscriber(t *testing.T) {
 	t.Cleanup(func() { api.SetService(nil) })
 	settings := lowLiveSettings("10.0.0.1", 65000, 65002)
 	settings.BFD = &BFDSettings{Enabled: true}
-	c := newSessionEndCase(t, settings)
+	c := newSessionEndCase(t, acceptingPolicies(t, settings)[0])
 	c.install(t, sessionEndHooks{})
 
 	var handle *fakeBFDHandle
@@ -553,7 +553,7 @@ func sessionDownBFDSubscriber(t *testing.T) {
 // then the peer's own Wait returns, and exactly one down arrived for the
 // session.
 func sessionDownReactorStop(t *testing.T) {
-	c := newSessionEndCase(t, lowLiveSettings("10.0.0.1", 65000, 65002))
+	c := newSessionEndCase(t, acceptingLiveSettings(t, "10.0.0.1", 65000, 65002))
 	c.install(t, sessionEndHooks{})
 	c.sendHeld(t, 2, true)
 	c.releaseReceiver() // The stop, not held UPDATEs, is under test here.
@@ -580,7 +580,7 @@ func sessionDownReactorStop(t *testing.T) {
 // expired, while the read loop is paused, so the worker drains the leave arm.
 // The worker then goes on to its next batch and the down arrives.
 func sessionDownCongestionWorker(t *testing.T) {
-	c := newSessionEndCase(t, lowLiveSettings("10.0.0.1", 65000, 65002))
+	c := newSessionEndCase(t, acceptingLiveSettings(t, "10.0.0.1", 65000, 65002))
 	c.install(t, sessionEndHooks{})
 	c.sendHeld(t, 2, true)
 

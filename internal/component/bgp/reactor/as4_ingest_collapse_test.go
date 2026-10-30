@@ -33,6 +33,7 @@ import (
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/component/plugin"
+	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
@@ -742,6 +743,16 @@ func TestForwardRSCarriesReconstructedPathToClient(t *testing.T) {
 		wantPath: []uint32{collapseSourceAS, collapseRealAS},
 	}}
 	env := collapseForwardIngest(t, collapseMixedWidthAttrs(), dests)
+	// Every client is EBGP, and RFC 8212 Section 3 rejects at an absent export
+	// policy, so each states the accepting one this forward relies on.
+	for _, dest := range dests {
+		peer, found := env.reactor.lookupPeer(dest.addr)
+		require.True(t, found, dest.name)
+		peer.mu.Lock()
+		peer.settings.ExportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
+		peer.mu.Unlock()
+		peer.refreshForwardFacts()
+	}
 
 	update, ok := env.reactor.recentUpdates.Get(env.updateID)
 	require.True(t, ok, "the received UPDATE must be in the forward cache")

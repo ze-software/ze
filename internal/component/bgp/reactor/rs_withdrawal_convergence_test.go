@@ -56,12 +56,12 @@ func TestOwedKeyPurgeBetweenLookupAndAdmission(t *testing.T) {
 
 func purgeBetweenLookupAndAdmission(t *testing.T, withD bool) {
 	settings := []*PeerSettings{
-		lowLiveSettings("192.0.2.1", 65000, 65002),
-		lowLiveSettings("192.0.2.2", 65000, 65003),
-		lowLiveSettings("192.0.2.3", 65000, 65004),
+		acceptingLiveSettings(t, "192.0.2.1", 65000, 65002),
+		acceptingLiveSettings(t, "192.0.2.2", 65000, 65003),
+		acceptingLiveSettings(t, "192.0.2.3", 65000, 65004),
 	}
 	if withD {
-		settings = append(settings, lowLiveSettings("192.0.2.4", 65000, 65005))
+		settings = append(settings, acceptingLiveSettings(t, "192.0.2.4", 65000, 65005))
 	}
 	for _, setting := range settings {
 		setting.RSClient = true
@@ -332,9 +332,9 @@ func lookupChunked(t *testing.T, scenario lookupChunkedCase) {
 	burst := scenario.burst
 	const keys = 2000
 	settings := []*PeerSettings{
-		lowLiveSettings("192.0.2.1", 65000, 65002),
-		lowLiveSettings("192.0.2.2", 65000, 65003),
-		lowLiveSettings("192.0.2.3", 65000, 65004),
+		acceptingLiveSettings(t, "192.0.2.1", 65000, 65002),
+		acceptingLiveSettings(t, "192.0.2.2", 65000, 65003),
+		acceptingLiveSettings(t, "192.0.2.3", 65000, 65004),
 	}
 	for _, setting := range settings {
 		setting.RSClient = true
@@ -541,11 +541,11 @@ func TestOwedKeyLivenessUnderChurn(t *testing.T) {
 func livenessUnderChurn(t *testing.T, samePrefix bool) {
 	const churn = 1000
 	settings := []*PeerSettings{
-		lowLiveSettings("192.0.2.1", 65000, 65002),
-		lowLiveSettings("192.0.2.2", 65000, 65003),
-		lowLiveSettings("192.0.2.3", 65000, 65004),
-		lowLiveSettings("192.0.2.4", 65000, 65005),
-		lowLiveSettings("192.0.2.5", 65000, 65006),
+		acceptingLiveSettings(t, "192.0.2.1", 65000, 65002),
+		acceptingLiveSettings(t, "192.0.2.2", 65000, 65003),
+		acceptingLiveSettings(t, "192.0.2.3", 65000, 65004),
+		acceptingLiveSettings(t, "192.0.2.4", 65000, 65005),
+		acceptingLiveSettings(t, "192.0.2.5", 65000, 65006),
 	}
 	for _, setting := range settings {
 		setting.RSClient = true
@@ -813,9 +813,9 @@ func TestOwedKeyBufferShortageDefersKeys(t *testing.T) {
 func bufferShortageDefersKeys(t *testing.T, spare int) {
 	const keys = 300
 	settings := []*PeerSettings{
-		lowLiveSettings("192.0.2.1", 65000, 65002),
-		lowLiveSettings("192.0.2.2", 65000, 65003),
-		lowLiveSettings("192.0.2.3", 65000, 65004),
+		acceptingLiveSettings(t, "192.0.2.1", 65000, 65002),
+		acceptingLiveSettings(t, "192.0.2.2", 65000, 65003),
+		acceptingLiveSettings(t, "192.0.2.3", 65000, 65004),
 	}
 	for _, setting := range settings {
 		setting.RSClient = true
@@ -967,10 +967,10 @@ func TestOwedKeyStormKeepsSourceAndForwardWorkerMoving(t *testing.T) {
 func stormKeepsMoving(t *testing.T, fastPath bool) {
 	const keys = 200
 	settings := []*PeerSettings{
-		lowLiveSettings("192.0.2.1", 65000, 65002),
-		lowLiveSettings("192.0.2.2", 65000, 65003),
-		lowLiveSettings("192.0.2.3", 65000, 65004),
-		lowLiveSettings("192.0.2.4", 65000, 65005),
+		acceptingLiveSettings(t, "192.0.2.1", 65000, 65002),
+		acceptingLiveSettings(t, "192.0.2.2", 65000, 65003),
+		acceptingLiveSettings(t, "192.0.2.3", 65000, 65004),
+		acceptingLiveSettings(t, "192.0.2.4", 65000, 65005),
 	}
 	for _, setting := range settings {
 		setting.RSClient = true
@@ -1052,9 +1052,9 @@ func stormKeepsMoving(t *testing.T, fastPath bool) {
 func TestOwedKeyBufferStallsCountOnlyConsecutive(t *testing.T) {
 	const keys = 100
 	settings := []*PeerSettings{
-		lowLiveSettings("192.0.2.1", 65000, 65002),
-		lowLiveSettings("192.0.2.2", 65000, 65003),
-		lowLiveSettings("192.0.2.3", 65000, 65004),
+		acceptingLiveSettings(t, "192.0.2.1", 65000, 65002),
+		acceptingLiveSettings(t, "192.0.2.2", 65000, 65003),
+		acceptingLiveSettings(t, "192.0.2.3", 65000, 65004),
 	}
 	for _, setting := range settings {
 		setting.RSClient = true
@@ -1178,9 +1178,9 @@ func (g *lookupGate) after(request *ribevents.RecoveryRequest, outcomes []ribeve
 func TestOwedKeyPartialRoundSkipsBackoff(t *testing.T) {
 	const keys = 2 * recoveryLookupKeysMax
 	settings := []*PeerSettings{
-		lowLiveSettings("192.0.2.1", 65000, 65002),
-		lowLiveSettings("192.0.2.2", 65000, 65003),
-		lowLiveSettings("192.0.2.3", 65000, 65004),
+		acceptingLiveSettings(t, "192.0.2.1", 65000, 65002),
+		acceptingLiveSettings(t, "192.0.2.2", 65000, 65003),
+		acceptingLiveSettings(t, "192.0.2.3", 65000, 65004),
 	}
 	for _, setting := range settings {
 		setting.RSClient = true
@@ -1479,9 +1479,9 @@ func convergenceCaseName(losers []int, kinds []convergenceLoss, concurrent bool)
 func convergeOnSurvivor(t *testing.T, sources int, losers []int, kind func(int) convergenceLoss, concurrent bool) {
 	settings := make([]*PeerSettings, 0, sources+2)
 	for i := range sources {
-		settings = append(settings, lowLiveSettings("192.0.2."+strconv.Itoa(10+i), 65000, uint32(65001+i)))
+		settings = append(settings, acceptingLiveSettings(t, "192.0.2."+strconv.Itoa(10+i), 65000, uint32(65001+i)))
 	}
-	settings = append(settings, lowLiveSettings("192.0.2.3", 65000, 65100), lowLiveSettings("192.0.2.6", 65000, 65101))
+	settings = append(settings, acceptingLiveSettings(t, "192.0.2.3", 65000, 65100), acceptingLiveSettings(t, "192.0.2.6", 65000, 65101))
 	for _, setting := range settings {
 		setting.RSClient = true
 	}
@@ -1633,9 +1633,9 @@ func TestOwedKeyGRPurgeRecoversSurvivor(t *testing.T) {
 
 func grPurgeRecovers(t *testing.T, how grPurge, withB bool) {
 	settings := []*PeerSettings{
-		lowLiveSettings("192.0.2.1", 65000, 65002),
-		lowLiveSettings("192.0.2.2", 65000, 65003),
-		lowLiveSettings("192.0.2.3", 65000, 65004),
+		acceptingLiveSettings(t, "192.0.2.1", 65000, 65002),
+		acceptingLiveSettings(t, "192.0.2.2", 65000, 65003),
+		acceptingLiveSettings(t, "192.0.2.3", 65000, 65004),
 	}
 	for _, setting := range settings {
 		setting.RSClient = true

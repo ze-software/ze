@@ -54,7 +54,9 @@ func TestOwedKeyPublicationFailureTearsDownSource(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			peers := lowLiveRouter(t, lowLiveSettings("10.0.0.1", 65000, 65002))
+			// The EBGP peer's UPDATE must reach publication, so it states the
+			// accepting policies RFC 8212 Section 3 requires.
+			peers := lowLiveRouter(t, acceptingPolicies(t, lowLiveSettings("10.0.0.1", 65000, 65002))...)
 			v := peers[0]
 			p := v.peer
 			r := p.reactor

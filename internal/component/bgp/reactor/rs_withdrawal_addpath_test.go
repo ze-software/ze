@@ -79,7 +79,9 @@ func addPathKeepsOtherPath(t *testing.T, fast bool, withdrawn uint32, kept int) 
 	settings[0].Capabilities = append(settings[0].Capabilities, &capability.AddPath{
 		Families: []capability.AddPathFamily{{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast, Mode: capability.AddPathReceive}},
 	})
-	peers := addPathLiveRouter(t, settings...)
+	// Every peer is EBGP, and RFC 8212 Section 3 rejects at an absent
+	// policy, so each states the accepting policies the scenario relies on.
+	peers := addPathLiveRouter(t, acceptingPolicies(t, settings...)...)
 	a, b, c := peers[0], peers[1], peers[2]
 	prefix := netip.MustParsePrefix("10.9.0.0/24")
 	paths := [][]byte{firstASAttrs(4, 65002), firstASAttrs(4, 65002, 65010)}
