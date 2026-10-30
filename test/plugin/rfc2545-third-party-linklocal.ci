@@ -1,0 +1,103 @@
+# Test: RFC 2545 Section 3 third-party Link-Local, read from the kernel neighbor table
+#
+# Flow:
+# 1. the fixture builds two network namespaces on one veth: the sender, where
+#    Ze runs at 2001:db8:2545::1, and the router, where the test peer listens
+#    at 2001:db8:2545::2. It seeds the sender's neighbor table with permanent
+#    entries for two other routers on 2001:db8:2545::/64: N holds
+#    2001:db8:2545::9 and fe80::9 with one MAC; M holds 2001:db8:2545::8 and no
+#    Link-Local entry. The namespaces go when the fixture returns.
+# 2. Ze originates two routes from config to the peer: one through N, one
+#    through M. Ze reads the neighbor table when the session snapshot is built.
+# 3. the peer asserts each MP_REACH_NLRI Next Hop field byte for byte.
+#
+# RFC 2545 Section 3: "The link-local address shall be included in the Next Hop
+# field if and only if the BGP speaker shares a common subnet with the entity
+# identified by the global IPv6 address carried in the Network Address of Next
+# Hop field and the peer the route is being advertised to."
+#
+# Proves: through a running daemon reading the real kernel neighbor table, the route through another router on the common subnet carries 0x20, that router's global, then its own link-local fe80::9.
+# Proves: the route through M, whose link-local the neighbor table does not name, carries 0x10 and the global alone.
+#
+# VALIDATES: spec-bgp-unowned-rfc-rows AC-5 through the operator entry point
+#            (a configured route's next hop).
+# PREVENTS: a third-party next hop on the common subnet leaving in 16 octets, or
+#           carrying the speaker's own link-local instead of the router's.
+# MUTATION: return the zero address from linkScope.thirdPartyLinkLocal; the N
+#           assertion goes red.
+#
+# Requires Linux and CAP_NET_ADMIN to build the namespaces and seed the table.
+option=needs-linux:caps=net-admin
+option=env:var=ze_test_bgp_port:value=$PORT
+option=timeout:value=90s
+
+tmpfs=receive.peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=asn:value=65001
+option=bind:value=2001:db8:2545::2
+option=linger:value=false
+
+expect=bgp:conn=1:seq=1:contains=800E2C0002012020010DB8254500000000000000000009FE800000000000000000000000000009003020010DB85701
+expect=bgp:conn=1:seq=1:contains=800E1C0002011020010DB8254500000000000000000008003020010DB85702
+reject=bgp:conn=1:pattern=20010DB8254500000000000000000008FE80
+EOF_PEER
+
+tmpfs=ze.conf:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 2001:db8:2545::2
+			}
+			local {
+				ip 2001:db8:2545::1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65001
+				remote 65001
+			}
+			router-id 10.254.25.45
+			family {
+				ipv6/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		timer {
+			connect-retry 2
+		}
+		update {
+			attribute {
+				origin igp;
+				local-preference 100;
+				next-hop 2001:db8:2545::9;
+			}
+			nlri {
+				ipv6/unicast add 2001:db8:5701::/48;
+			}
+		}
+		update {
+			attribute {
+				origin igp;
+				local-preference 100;
+				next-hop 2001:db8:2545::8;
+			}
+			nlri {
+				ipv6/unicast add 2001:db8:5702::/48;
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=le test fixture plugin/rfc2545-third-party-linklocal netns zetp$PORT peer router receive.peer run ze start ze.conf:timeout=85s
+expect=exit:code=0
+expect=stderr:contains=TOPOLOGY-PASSED: sender 2001:db8:2545::1
+expect=stderr:contains=PEER-PASSED: peer router receive.peer
+reject=stdout:pattern=ZE-PEER-REJECTED
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error
