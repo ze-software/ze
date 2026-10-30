@@ -1,13 +1,13 @@
 {
-  "note": "Forbidden: a gateway forwarding a datagram that needs fragmentation while DF is set. Red on it: gatewayForwarded(t, captured, out, bad, false) in TestGatewayICMPDFDiscard fails if the 900-octet DF datagram appears on the 576-MTU link; the 'may return' clause is checked by gatewayICMP(..., 3, 4). Negative: the DF datagram at MTU and the DF-clear oversize datagram are required to forward (the rule's own boundary).",
+  "note": "Re-judged 2026-10-30 (independent auditor) after the user-namespace conversion (d8427e4380): the TestGatewayICMPDFDiscard unit gained only `if !userns.Enter(t) { return }` as its first statement and its build tag moved from integration&&linux to linux. userns.Enter (internal/test/userns/userns_linux.go) re-runs the one named test in a fresh user+net+mount namespace and returns false to the parent only when the child reported PASS or SKIP; a failing child, a non-zero exit, or a child that ran nothing calls t.Fatalf, so every assertion below the guard still fails the test when the behaviour breaks. Body otherwise byte-identical. RFC 792 Destination Unreachable: \"In this case the gateway must discard the datagram and may return a destination unreachable message.\" Fresh judgement: a 900-octet DF datagram must not appear on the 576-MTU exit, now configured through Ze's netlinkBackend.SetMTU in routedExit (b8c4909334, helper only), with Fragmentation Needed returned; a DF datagram exactly at MTU and a DF-clear oversize datagram must forward, bounding the rule. newGatewayWire no longer skips on EPERM, which can only make the unit fail more often. Enforced.",
   "requirement_sha": "811fdb70a802cd4f",
   "tests": {
-    "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPDFDiscard": "6fa365d5d54aea79",
-    "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPDFDiscard#2": "6fa365d5d54aea79"
+    "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPDFDiscard": "e652c87c70fd32cb",
+    "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPDFDiscard#2": "e652c87c70fd32cb"
   },
   "units": {
-    "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPDFDiscard": "555d09675e8ddeff",
-    "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPDFDiscard#2": "555d09675e8ddeff"
+    "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPDFDiscard": "69d2540146dcccbf",
+    "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPDFDiscard#2": "69d2540146dcccbf"
   },
   "verdict": "enforced"
 }

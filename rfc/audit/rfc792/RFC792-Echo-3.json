@@ -1,15 +1,15 @@
 {
-  "note": "Re-judged c18 (2026-10-02): TestRFC792ChecksumValid changed only by losing its RFC1071-1-5 tag (moved off under D-15/R1, 1-5 now proven on ospf VerifyPacketChecksum); its body and RFC792-Echo-3 claim are unchanged, so the finding stands. Re-judged 2026-09-30. Positive: TestRFC792ChecksumValid (Ze's own request checksum folds to 0xffff) and the stack reply's checksum verifies in TestGatewayICMPEchoReply. Negative: a request whose checksum is not the defined one's complement sum is never answered, beside the valid control. The rejecting branch is Linux's on the address Ze installs, counted under the whole-stack rule; the tag claims the observed stack behaviour, not a Ze branch. TestRFC792ChecksumRejectsCorruption lost this tag correctly (it checked only a test helper). Records break AddAddress.",
+  "note": "Re-judged 2026-10-30 (independent auditor) after the user-namespace conversion (d8427e4380): the TestGatewayICMPEchoReply unit gained only `if !userns.Enter(t) { return }` as its first statement and its build tag moved from integration&&linux to linux. userns.Enter (internal/test/userns/userns_linux.go) re-runs the one named test in a fresh user+net+mount namespace and returns false to the parent only when the child reported PASS or SKIP; a failing child, a non-zero exit, or a child that ran nothing calls t.Fatalf, so every assertion below the guard still fails the test when the behaviour breaks. Body otherwise byte-identical. RFC 792 Echo: \"The checksum is the 16-bit ones's complement of the one's complement sum of the ICMP message starting with the ICMP Type.\" Fresh judgement: the reply's checksum must fold to zero, and a request with a deliberately wrong checksum (sequence 2) must never be reflected, beside the valid control; the rejecting branch is Linux's on the address Ze installs (whole-stack rule). Enforced.",
   "requirement_sha": "a0f5ea4063259908",
   "tests": {
     "internal/core/probe/icmp_test.go::TestRFC792ChecksumValid": "e4aad773ce5cac19",
-    "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply": "6fa365d5d54aea79",
-    "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply#2": "6fa365d5d54aea79"
+    "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply": "e652c87c70fd32cb",
+    "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply#2": "e652c87c70fd32cb"
   },
   "units": {
     "internal/core/probe/icmp_test.go::TestRFC792ChecksumValid": "6fab4edc6e7812e1",
-    "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply": "2e14d56234529006",
-    "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply#2": "2e14d56234529006"
+    "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply": "e3ce56f2d7eebb60",
+    "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply#2": "e3ce56f2d7eebb60"
   },
   "verdict": "enforced"
 }

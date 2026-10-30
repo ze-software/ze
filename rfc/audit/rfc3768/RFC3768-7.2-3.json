@@ -1,12 +1,12 @@
 {
-  "note": "Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 3768 Section 7.2 says \"Set the source IP address to interface primary IP address\". TestTxAdvertV4OnWire changed only by the checksum-mode plumbing (a Checksum: packet.ChecksumRFC9568 field added to the GroupSpec, AdvertParams or packet.Local literal, or the mode argument added to packet.FillChecksum); every assertion and every isolating input is byte-for-byte the same; the captured VRRPv2 source must still be the primary 192.0.2.251 over a lower secondary. Verdict unchanged; the guest-only discrimination record reads unit-changed and is owed a re-record under QEMU.",
+  "note": "Re-judged 2026-10-30 (independent auditor) after the user-namespace conversion (25fbb6e890/d8427e4380): the TestTxAdvertV4OnWire unit gained only `if !userns.Enter(t) { return }` as its first statement and its build tag moved from integration&&linux to linux. userns.Enter (internal/test/userns/userns_linux.go) re-runs the one named test in a fresh user+net+mount namespace and returns false to the parent only when the child reported PASS or SKIP; a failing child, a non-zero exit, or a child that ran nothing calls t.Fatalf, so every assertion below the guard still fails the test when the behaviour breaks. Body otherwise byte-identical. RFC 3768 Section 7.2: \"Set the source IP address to interface primary IP address\". Fresh judgement: a secondary address is added to the parent and the captured VRRPv2 source must still equal the primary parentV4, so a lowest/most-recent-address choice fails. Enforced.",
   "requirement_sha": "a6184d2a52d69426",
   "tests": {
-    "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire": "e6113ed83a42c0f9",
+    "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire": "478741612cc6b822",
     "internal/plugins/vrrp/transport/transport_test.go::TestSendAdvertUsesParentPrimaryV4Source": "3b5f911a78dbf13d"
   },
   "units": {
-    "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire": "7a4414ac139af987",
+    "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire": "adb571c923825fb2",
     "internal/plugins/vrrp/transport/transport_test.go::TestSendAdvertUsesParentPrimaryV4Source": "71d8d585b800743e"
   },
   "verdict": "enforced"

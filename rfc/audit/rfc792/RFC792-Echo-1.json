@@ -1,15 +1,15 @@
 {
-  "note": "Re-judged 2026-09-30. Positive: TestRFC792EchoRequestType takes the pair from probe.EchoTypes, which every ping and traceroute caller now uses (ping.go, ping/stream.go, traceroute probe_round.go and stream.go re-read), asserts (8,0) for IPv4, a built request of Type 8 and a Type 0 datagram matched as the reply; vrrp TestGatewayICMPEchoReply asserts the reply the stack forms is Type 0. Negative: ParseEchoReply refuses a Type 8 datagram and an ICMPv6 Type 129 as the IPv4 reply. Records: EchoTypes and ParseEchoReply reverts observed red; the vrrp record breaks Ze's netlink AddAddress, which proves the unit observes the reply of the stack Ze configures (whole-stack rule: Ze forms no reply itself).",
+  "note": "Re-judged 2026-10-30 (independent auditor) after the user-namespace conversion (d8427e4380): the TestGatewayICMPEchoReply unit gained only `if !userns.Enter(t) { return }` as its first statement and its build tag moved from integration&&linux to linux. userns.Enter (internal/test/userns/userns_linux.go) re-runs the one named test in a fresh user+net+mount namespace and returns false to the parent only when the child reported PASS or SKIP; a failing child, a non-zero exit, or a child that ran nothing calls t.Fatalf, so every assertion below the guard still fails the test when the behaviour breaks. Body otherwise byte-identical. RFC 792 Echo: \"0 for echo reply message.\" Fresh judgement: the stack reply to Ze's installed gateway address must carry Type 0 (answer[0] != 0 fails); TestRFC792EchoRequestType (unchanged) pins Type 8/0 for Ze's own probes and its negative refuses a Type 8 as reply. Enforced.",
   "requirement_sha": "6fa3c0bc857d4be0",
   "tests": {
     "internal/core/probe/icmp_test.go::TestRFC792EchoRequestType": "e4aad773ce5cac19",
     "internal/core/probe/icmp_test.go::TestRFC792EchoRequestType#2": "e4aad773ce5cac19",
-    "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply": "6fa365d5d54aea79"
+    "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply": "e652c87c70fd32cb"
   },
   "units": {
     "internal/core/probe/icmp_test.go::TestRFC792EchoRequestType": "c5846996807f5493",
     "internal/core/probe/icmp_test.go::TestRFC792EchoRequestType#2": "c5846996807f5493",
-    "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply": "2e14d56234529006"
+    "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply": "e3ce56f2d7eebb60"
   },
   "verdict": "enforced"
 }

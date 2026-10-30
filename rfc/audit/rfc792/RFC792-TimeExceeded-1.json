@@ -1,13 +1,13 @@
 {
-  "note": "First verdict 2026-09-27 (QF-2). Forbidden: forwarding a datagram whose TTL is zero. TestGatewayICMPTTLDiscard asserts gatewayForwarded(..., zero, false) and (..., one, false), red if either leaves the routed exit; the control asserts TTL two is forwarded unchanged, a distinct assertion. Enforced.",
+  "note": "Re-judged 2026-10-30 (independent auditor) after the user-namespace conversion (d8427e4380): the TestGatewayICMPTTLDiscard unit gained only `if !userns.Enter(t) { return }` as its first statement and its build tag moved from integration&&linux to linux. userns.Enter (internal/test/userns/userns_linux.go) re-runs the one named test in a fresh user+net+mount namespace and returns false to the parent only when the child reported PASS or SKIP; a failing child, a non-zero exit, or a child that ran nothing calls t.Fatalf, so every assertion below the guard still fails the test when the behaviour breaks. Body otherwise byte-identical. RFC 792 Time Exceeded: \"If the gateway processing a datagram finds the time to live field is zero it must discard the datagram.\" Fresh judgement: TTL zero and TTL one must be absent on the routed exit and answered with Time Exceeded, while TTL two must forward on the same route, so a forwarding gateway fails. The discrimination record is a kernel-producer escape (ip_forward decides it from the packet alone): the test enforces the stack behaviour, but the row is published as escaped, not as proven by a break of Ze's code. Enforced.",
   "requirement_sha": "8fb4c5bab4c20a06",
   "tests": {
-    "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPTTLDiscard": "6fa365d5d54aea79",
-    "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPTTLDiscard#2": "6fa365d5d54aea79"
+    "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPTTLDiscard": "e652c87c70fd32cb",
+    "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPTTLDiscard#2": "e652c87c70fd32cb"
   },
   "units": {
-    "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPTTLDiscard": "25918ed447ea1bea",
-    "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPTTLDiscard#2": "25918ed447ea1bea"
+    "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPTTLDiscard": "816a0c4355b28af8",
+    "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPTTLDiscard#2": "816a0c4355b28af8"
   },
   "verdict": "enforced"
 }

@@ -1,15 +1,15 @@
 {
-  "note": "Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 3768 Section 7.1 says \"MUST verify that the VRID is configured on the receiving interface and the local router is not the IP Address owner (Priority equals 255 (decimal)).\" TestDecodeGoldenV2 lost only the assertion on the removed MsgOnlyChecksum flag, which carried no RFC 3768 content, and TestNegativeReferenceBugs gained the FillChecksum mode argument and an rfc5798-compatible lookup in N1 alone; verifyReceived returns before any mode is read for version 2, so the VRRPv2 decode under judgement is unchanged. TestRxAdvertScopedToReceivingInterface changed only by the checksum-mode plumbing (a Checksum: packet.ChecksumRFC9568 field added to the GroupSpec, AdvertParams or packet.Local literal, or the mode argument added to packet.FillChecksum); every assertion and every isolating input is byte-for-byte the same, so the VRID 10 advert sent on the VRID-20 interface is still refused with ErrUnknownVRID and arrives on its own interface. Verdict unchanged; its discrimination records read unit-changed and need re-recording in the guest.",
+  "note": "Re-judged 2026-10-30 (independent auditor) after the user-namespace conversion (25fbb6e890/d8427e4380): the TestRxAdvertScopedToReceivingInterface unit gained only `if !userns.Enter(t) { return }` as its first statement and its build tag moved from integration&&linux to linux. userns.Enter (internal/test/userns/userns_linux.go) re-runs the one named test in a fresh user+net+mount namespace and returns false to the parent only when the child reported PASS or SKIP; a failing child, a non-zero exit, or a child that ran nothing calls t.Fatalf, so every assertion below the guard still fails the test when the behaviour breaks. Body otherwise byte-identical. RFC 3768 Section 7.1: \"MUST verify that the VRID is configured on the receiving interface and the local router is not the IP Address owner (Priority equals 255 (decimal)).\" Fresh judgement: a VRRPv2 VRID-10 advert sent on the VRID-20 interface must never reach the VRID-10 instance, must arrive at B (so absence at A is meaningful) and must decode to ErrUnknownVRID; sent on A it must reach A and decode. The owner half is covered by TestInstanceV2OwnerDiscardsAdvert and the decode units, unchanged. Enforced.",
   "requirement_sha": "33fb058bfc2e3638",
   "tests": {
-    "internal/plugins/vrrp/instance_test.go::TestInstanceV2OwnerDiscardsAdvert": "90d279832a92de75",
-    "internal/plugins/vrrp/instance_test.go::TestInstanceV2OwnerDiscardsAdvert#2": "90d279832a92de75",
+    "internal/plugins/vrrp/instance_test.go::TestInstanceV2OwnerDiscardsAdvert": "52298a1ed170e60a",
+    "internal/plugins/vrrp/instance_test.go::TestInstanceV2OwnerDiscardsAdvert#2": "52298a1ed170e60a",
     "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV2": "5bbc8ddba98cd418",
     "internal/plugins/vrrp/packet/validate_test.go::TestValidationOrder": "5bbc8ddba98cd418",
     "internal/plugins/vrrp/rfc3768_rx_interface_test.go::TestRxVRIDCheckedOnTheReceivingInterface": "62a79cca13e6ae8c",
     "internal/plugins/vrrp/rfc3768_rx_interface_test.go::TestRxVRIDCheckedOnTheReceivingInterface#2": "62a79cca13e6ae8c",
-    "internal/plugins/vrrp/transport/rfc_rx_iface_verdict_linux_test.go::TestRxAdvertScopedToReceivingInterface": "5a5e0ffa70cb777c",
-    "internal/plugins/vrrp/transport/rfc_rx_iface_verdict_linux_test.go::TestRxAdvertScopedToReceivingInterface#2": "5a5e0ffa70cb777c"
+    "internal/plugins/vrrp/transport/rfc_rx_iface_verdict_linux_test.go::TestRxAdvertScopedToReceivingInterface": "7cb3b639245ea4ee",
+    "internal/plugins/vrrp/transport/rfc_rx_iface_verdict_linux_test.go::TestRxAdvertScopedToReceivingInterface#2": "7cb3b639245ea4ee"
   },
   "units": {
     "internal/plugins/vrrp/instance_test.go::TestInstanceV2OwnerDiscardsAdvert": "f8d21be29af8eccc",
@@ -18,8 +18,8 @@
     "internal/plugins/vrrp/packet/validate_test.go::TestValidationOrder": "e9e509cbd07a9bdc",
     "internal/plugins/vrrp/rfc3768_rx_interface_test.go::TestRxVRIDCheckedOnTheReceivingInterface": "73d8dd4733b2b97e",
     "internal/plugins/vrrp/rfc3768_rx_interface_test.go::TestRxVRIDCheckedOnTheReceivingInterface#2": "73d8dd4733b2b97e",
-    "internal/plugins/vrrp/transport/rfc_rx_iface_verdict_linux_test.go::TestRxAdvertScopedToReceivingInterface": "68ae878127028fec",
-    "internal/plugins/vrrp/transport/rfc_rx_iface_verdict_linux_test.go::TestRxAdvertScopedToReceivingInterface#2": "68ae878127028fec"
+    "internal/plugins/vrrp/transport/rfc_rx_iface_verdict_linux_test.go::TestRxAdvertScopedToReceivingInterface": "0176a101742d28a0",
+    "internal/plugins/vrrp/transport/rfc_rx_iface_verdict_linux_test.go::TestRxAdvertScopedToReceivingInterface#2": "0176a101742d28a0"
   },
   "verdict": "enforced"
 }

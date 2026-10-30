@@ -1,13 +1,13 @@
 {
-  "note": "Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 3768 Section 7.2 says \"Set the source MAC address to Virtual Router MAC Address\". TestTxAdvertV4OnWire changed only by the checksum-mode plumbing (a Checksum: packet.ChecksumRFC9568 field added to the GroupSpec, AdvertParams or packet.Local literal, or the mode argument added to packet.FillChecksum); every assertion and every isolating input is byte-for-byte the same; the captured VRRPv2 source MAC is still compared with 00-00-5e-00-01-0a. Verdict unchanged; the guest-only discrimination record reads unit-changed and is owed a re-record under QEMU.",
+  "note": "Re-judged 2026-10-30 (independent auditor) after the user-namespace conversion (25fbb6e890/d8427e4380): the TestTxAdvertV4OnWire unit gained only `if !userns.Enter(t) { return }` as its first statement and its build tag moved from integration&&linux to linux. userns.Enter (internal/test/userns/userns_linux.go) re-runs the one named test in a fresh user+net+mount namespace and returns false to the parent only when the child reported PASS or SKIP; a failing child, a non-zero exit, or a child that ran nothing calls t.Fatalf, so every assertion below the guard still fails the test when the behaviour breaks. Body otherwise byte-identical. RFC 3768 Section 7.2: \"Set the source MAC address to Virtual Router MAC Address\". Fresh judgement: the captured VRRPv2 frame's source MAC is compared with the literal 00-00-5e-00-01-0a; single-polarity per the row. Enforced.",
   "requirement_sha": "dd841b2072dad4b9",
   "tests": {
     "internal/plugins/vrrp/packet/packet_test.go::TestConstants": "15a7697300d1b17c",
-    "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire": "e6113ed83a42c0f9"
+    "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire": "478741612cc6b822"
   },
   "units": {
     "internal/plugins/vrrp/packet/packet_test.go::TestConstants": "815ed7ee56089d0e",
-    "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire": "7a4414ac139af987"
+    "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire": "adb571c923825fb2"
   },
   "verdict": "enforced"
 }
