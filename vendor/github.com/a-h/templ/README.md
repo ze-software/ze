@@ -23,7 +23,7 @@ See user documentation at https://templ.guide
 Set the version of templ to the current version.
 
 ```sh
-version set --template="0.3.%d"
+version set
 ```
 
 ### build
@@ -31,7 +31,7 @@ version set --template="0.3.%d"
 Build a local version.
 
 ```sh
-version set --template="0.3.%d"
+version set
 cd cmd/templ
 go build
 ```
@@ -47,7 +47,7 @@ rm -f ~/bin/templ
 # Clear LSP logs.
 rm -f cmd/templ/lspcmd/*.txt
 # Update version.
-version set --template="0.3.%d"
+version set
 # Install to $GOPATH/bin or $HOME/go/bin
 cd cmd/templ && go install
 ```
@@ -73,7 +73,7 @@ go run ./cmd/templ generate -include-version=false
 Run Go tests.
 
 ```sh
-version set --template="0.3.%d"
+version set
 go run ./cmd/templ generate -include-version=false
 go test ./...
 ```
@@ -83,7 +83,7 @@ go test ./...
 Run Go tests.
 
 ```sh
-version set --template="0.3.%d"
+version set
 go run ./cmd/templ generate -include-version=false
 go test ./... -short
 ```
@@ -124,9 +124,22 @@ gotestsum --watch -- -coverprofile=coverage.out
 
 ### test-fuzz
 
+Run each fuzz test for FUZZTIME (default 120s).
+
 ```sh
 ./parser/v2/fuzz.sh
 ./parser/v2/goexpression/fuzz.sh
+./runtime/fuzzing/fuzz.sh
+./internal/jstokenizer/fuzzing/fuzz.sh
+```
+
+### test-fuzz-corpus
+
+Run the runtime and JavaScript tokenizer fuzz tests against their seed and committed corpora, without fuzzing. These fuzz tests are in separate modules, so that their JavaScript engine and parser dependencies are not dependencies of templ, and `go test ./...` in the root module doesn't run them. The parser fuzz tests are in the root module, so `test` and `test-cover` run their corpora.
+
+```sh
+(cd runtime/fuzzing && go test ./...) &&
+	(cd internal/jstokenizer/fuzzing && go test ./...)
 ```
 
 ### benchmark
@@ -135,6 +148,14 @@ Run benchmarks.
 
 ```sh
 go run ./cmd/templ generate -include-version=false && go test ./... -bench=. -benchmem
+```
+
+### benchmark-fmt
+
+Run the templ fmt benchmarks, which include the time taken by prettier.
+
+```sh
+go test ./internal/format -run '^$' -bench BenchmarkTempl -benchtime 3x
 ```
 
 ### fmt
@@ -154,6 +175,14 @@ Run the lint operations that are run as part of the CI.
 golangci-lint run --verbose
 ```
 
+### vulncheck
+
+Check for known vulnerabilities in dependencies that templ calls.
+
+```sh
+govulncheck ./...
+```
+
 ### ensure-generated
 
 Ensure that templ files have been generated with the local version of templ, and that those files have been added to git.
@@ -169,7 +198,7 @@ git diff --exit-code
 Push a semantic version number to GitHub to trigger the release process.
 
 ```sh
-version push --template="0.3.%d" --prefix="v"
+version push --prefix="v"
 ```
 
 ### docs-run

@@ -28,6 +28,7 @@ import (
 	"github.com/a-h/templ/cmd/templ/generatecmd/run"
 	"github.com/a-h/templ/cmd/templ/generatecmd/watcher"
 	"github.com/a-h/templ/generator"
+	"github.com/a-h/templ/internal/ignorefile"
 	"github.com/a-h/templ/internal/skipdir"
 	templruntime "github.com/a-h/templ/runtime"
 )
@@ -41,8 +42,9 @@ func NewGenerate(log *slog.Logger, args Arguments) (g *Generate, err error) {
 }
 
 type Generate struct {
-	Log  *slog.Logger
-	Args Arguments
+	Log        *slog.Logger
+	Args       Arguments
+	ShouldSkip func(string) bool
 }
 
 type GenerationEvent struct {
@@ -69,6 +71,12 @@ func (cmd Generate) Run(ctx context.Context) (err error) {
 		if err != nil {
 			return fmt.Errorf("failed to get absolute path: %w", err)
 		}
+	}
+
+	// Load ignore patterns.
+	cmd.ShouldSkip, err = ignorefile.ShouldSkipFunc(cmd.Args.Path, ".templignore_generate")
+	if err != nil {
+		return fmt.Errorf("failed to parse .templignore_generate: %w", err)
 	}
 
 	// Configure generator.
@@ -166,9 +174,16 @@ func (cmd Generate) Run(ctx context.Context) (err error) {
 		}
 	}
 
-	// Clean up temporary watch mode text files.
-	if err := cmd.deleteWatchModeTextFiles(); err != nil {
-		cmd.Log.Warn("Failed to delete watch mode text files", slog.Any("error", err))
+	// Clean up temporary watch mode text files. Only do this for watch
+	// sessions: a one-off generate must not delete the text files of a
+	// dev session that is still running, since its server renders from
+	// them (a missing file makes WriteString error out, failing every
+	// render, e.g. running `templ generate` while a `--watch` dev server
+	// is up).
+	if cmd.Args.Watch {
+		if err := cmd.deleteWatchModeTextFiles(); err != nil {
+			cmd.Log.Warn("Failed to delete watch mode text files", slog.Any("error", err))
+		}
 	}
 
 	// Check for errors after everything has completed.
@@ -317,7 +332,7 @@ func (cmd Generate) handleEvents(ctx context.Context, events chan fsnotify.Event
 
 func (cmd *Generate) walkAndWatch(ctx context.Context, events chan fsnotify.Event, errs chan error) {
 	cmd.Log.Debug("Walking directory", slog.String("path", cmd.Args.Path), slog.Bool("devMode", cmd.Args.Watch))
-	if err := watcher.WalkFiles(ctx, cmd.Args.Path, cmd.Args.WatchPattern, cmd.Args.IgnorePattern, events); err != nil {
+	if err := watcher.WalkFiles(ctx, cmd.Args.Path, cmd.Args.WatchPattern, cmd.Args.IgnorePattern, cmd.ShouldSkip, events); err != nil {
 		cmd.Log.Error("WalkFiles failed, exiting", slog.Any("error", err))
 		errs <- FatalError{Err: fmt.Errorf("failed to walk files: %w", err)}
 		return
@@ -327,7 +342,7 @@ func (cmd *Generate) walkAndWatch(ctx context.Context, events chan fsnotify.Even
 		return
 	}
 	cmd.Log.Info("Watching files")
-	rw, err := watcher.Recursive(ctx, cmd.Args.WatchPattern, cmd.Args.IgnorePattern, events, errs)
+	rw, err := watcher.Recursive(ctx, cmd.Args.WatchPattern, cmd.Args.IgnorePattern, cmd.ShouldSkip, events, errs)
 	if err != nil {
 		cmd.Log.Error("Recursive watcher setup failed, exiting", slog.Any("error", err))
 		errs <- FatalError{Err: fmt.Errorf("failed to setup recursive watcher: %w", err)}
@@ -358,6 +373,12 @@ func (cmd *Generate) deleteWatchModeTextFiles() error {
 		}
 		if info.IsDir() && skipdir.ShouldSkip(absPath) {
 			return filepath.SkipDir
+		}
+		if cmd.ShouldSkip != nil && cmd.ShouldSkip(path) {
+			if info.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
 		}
 		if !strings.HasSuffix(absPath, "_templ.go") && !strings.HasSuffix(absPath, ".templ") {
 			return nil

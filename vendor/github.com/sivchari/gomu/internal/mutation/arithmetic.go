@@ -23,6 +23,11 @@ func (m *ArithmeticMutator) Name() string {
 	return arithmeticMutatorName
 }
 
+// Description returns a human-readable summary of the mutator.
+func (m *ArithmeticMutator) Description() string {
+	return "Replace arithmetic operators (+, -, *, /, %)"
+}
+
 // CanMutate returns true if the node can be mutated by this mutator.
 func (m *ArithmeticMutator) CanMutate(node ast.Node) bool {
 	switch n := node.(type) {
@@ -48,7 +53,7 @@ func (m *ArithmeticMutator) isArithmeticOp(op token.Token) bool {
 
 func (m *ArithmeticMutator) isArithmeticAssignOp(op token.Token) bool {
 	switch op {
-	case token.ADD_ASSIGN, token.SUB_ASSIGN, token.MUL_ASSIGN, token.QUO_ASSIGN:
+	case token.ADD_ASSIGN, token.SUB_ASSIGN, token.MUL_ASSIGN, token.QUO_ASSIGN, token.REM_ASSIGN:
 		return true
 	default:
 		return false
@@ -165,9 +170,11 @@ func (m *ArithmeticMutator) getAssignMutations(op token.Token) []token.Token {
 	case token.SUB_ASSIGN:
 		return []token.Token{token.ADD_ASSIGN, token.MUL_ASSIGN, token.QUO_ASSIGN}
 	case token.MUL_ASSIGN:
-		return []token.Token{token.ADD_ASSIGN, token.SUB_ASSIGN, token.QUO_ASSIGN}
+		return []token.Token{token.ADD_ASSIGN, token.SUB_ASSIGN, token.QUO_ASSIGN, token.REM_ASSIGN}
 	case token.QUO_ASSIGN:
-		return []token.Token{token.ADD_ASSIGN, token.SUB_ASSIGN, token.MUL_ASSIGN}
+		return []token.Token{token.ADD_ASSIGN, token.SUB_ASSIGN, token.MUL_ASSIGN, token.REM_ASSIGN}
+	case token.REM_ASSIGN:
+		return []token.Token{token.ADD_ASSIGN, token.SUB_ASSIGN, token.MUL_ASSIGN, token.QUO_ASSIGN}
 	default:
 		return nil
 	}

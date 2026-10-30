@@ -210,6 +210,26 @@ type GetAdScriptAncestryResult struct {
 // See: https://chromedevtools.github.io/devtools-protocol/tot/Page#method-getAdScriptAncestry
 var GetAdScriptAncestry = cdp.Command[GetAdScriptAncestryParams, GetAdScriptAncestryResult]{Method: CommandGetAdScriptAncestry}
 
+// GetSpellCheckCustomDictionaryParams are the parameters of the command
+// Page.getSpellCheckCustomDictionary.
+type GetSpellCheckCustomDictionaryParams struct {
+	FrameID cdp.FrameID `json:"frameId"`
+}
+
+// GetSpellCheckCustomDictionaryResult is the result of the command
+// Page.getSpellCheckCustomDictionary.
+type GetSpellCheckCustomDictionaryResult struct {
+	Words []string `json:"words,omitempty,omitzero"`
+}
+
+// GetSpellCheckCustomDictionary returns the words that the frame's document
+// added to its spell check custom dictionary with
+// document.spellCheckCustomDictionary.addWords(), sorted. Page script cannot
+// read the dictionary back; this lets developers inspect it.
+//
+// See: https://chromedevtools.github.io/devtools-protocol/tot/Page#method-getSpellCheckCustomDictionary
+var GetSpellCheckCustomDictionary = cdp.Command[GetSpellCheckCustomDictionaryParams, GetSpellCheckCustomDictionaryResult]{Method: CommandGetSpellCheckCustomDictionary}
+
 // GetFrameTreeResult is the result of the command Page.getFrameTree.
 type GetFrameTreeResult struct {
 	FrameTree *FrameTree `json:"frameTree,omitempty,omitzero"` // Present frame tree structure.
@@ -742,6 +762,17 @@ type GetAnnotatedPageContentResult struct {
 // See: https://chromedevtools.github.io/devtools-protocol/tot/Page#method-getAnnotatedPageContent
 var GetAnnotatedPageContent = cdp.Command[GetAnnotatedPageContentParams, GetAnnotatedPageContentResult]{Method: CommandGetAnnotatedPageContent}
 
+// SetInputVisualizationParams are the parameters of the command
+// Page.setInputVisualization.
+type SetInputVisualizationParams struct {
+	Clicks *bool `json:"clicks,omitempty,omitzero"` // Whether to enable click visualization.
+}
+
+// SetInputVisualization configures input visualization on the page.
+//
+// See: https://chromedevtools.github.io/devtools-protocol/tot/Page#method-setInputVisualization
+var SetInputVisualization = cdp.Command[SetInputVisualizationParams, cdp.Empty]{Method: CommandSetInputVisualization}
+
 // DomContentEventFired [no description].
 //
 // See: https://chromedevtools.github.io/devtools-protocol/tot/Page#event-domContentEventFired
@@ -896,6 +927,7 @@ const (
 	CommandGetSubApps                          = "Page.getSubApps"
 	CommandGetSiblingSubApps                   = "Page.getSiblingSubApps"
 	CommandGetAdScriptAncestry                 = "Page.getAdScriptAncestry"
+	CommandGetSpellCheckCustomDictionary       = "Page.getSpellCheckCustomDictionary"
 	CommandGetFrameTree                        = "Page.getFrameTree"
 	CommandGetLayoutMetrics                    = "Page.getLayoutMetrics"
 	CommandGetNavigationHistory                = "Page.getNavigationHistory"
@@ -936,4 +968,5 @@ const (
 	CommandSetInterceptFileChooserDialog       = "Page.setInterceptFileChooserDialog"
 	CommandSetPrerenderingAllowed              = "Page.setPrerenderingAllowed"
 	CommandGetAnnotatedPageContent             = "Page.getAnnotatedPageContent"
+	CommandSetInputVisualization               = "Page.setInputVisualization"
 )

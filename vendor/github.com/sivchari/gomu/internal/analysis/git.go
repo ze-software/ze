@@ -11,8 +11,9 @@ import (
 
 // GitIntegration provides Git integration functionality.
 type GitIntegration struct {
-	workDir      string
-	ignoreParser IgnoreParser
+	workDir          string
+	ignoreParser     IgnoreParser
+	includeGenerated bool
 }
 
 // NewGitIntegration creates a new Git integration.
@@ -25,6 +26,13 @@ func NewGitIntegration(workDir string) *GitIntegration {
 // SetIgnoreParser sets the ignore parser for the Git integration.
 func (g *GitIntegration) SetIgnoreParser(parser IgnoreParser) {
 	g.ignoreParser = parser
+}
+
+// SetIncludeGenerated controls whether files carrying the standard Go
+// generated-code marker are eligible as mutation targets. It is false by
+// default.
+func (g *GitIntegration) SetIncludeGenerated(include bool) {
+	g.includeGenerated = include
 }
 
 // IsGitRepository checks if the current directory is a Git repository.
@@ -53,8 +61,25 @@ func (g *GitIntegration) GetChangedFiles(baseBranch string) ([]string, error) {
 
 	mergeBase := strings.TrimSpace(string(mergeBaseOutput))
 
-	// Get changed files since merge base
-	diffCmd := exec.CommandContext(ctx, "git", "diff", "--name-only", mergeBase, "HEAD")
+	return g.changedGoFiles(ctx, mergeBase)
+}
+
+// GetChangedFilesSince returns the Go files changed between baseSHA and HEAD.
+//
+// It compares the two trees directly, so it works on a shallow clone as long
+// as baseSHA itself has been fetched.
+func (g *GitIntegration) GetChangedFilesSince(baseSHA string) ([]string, error) {
+	if !g.IsGitRepository() {
+		return nil, fmt.Errorf("not a git repository")
+	}
+
+	return g.changedGoFiles(context.Background(), baseSHA)
+}
+
+// changedGoFiles returns the eligible Go source files changed between rev and HEAD
+// as absolute paths.
+func (g *GitIntegration) changedGoFiles(ctx context.Context, rev string) ([]string, error) {
+	diffCmd := exec.CommandContext(ctx, "git", "diff", "--name-only", rev, "HEAD")
 	diffCmd.Dir = g.workDir
 
 	output, err := diffCmd.Output()
@@ -84,6 +109,11 @@ func (g *GitIntegration) GetChangedFiles(baseBranch string) ([]string, error) {
 
 			// Convert to absolute path
 			absPath := filepath.Join(g.workDir, file)
+
+			if !g.includeGenerated && IsGeneratedFile(absPath) {
+				continue
+			}
+
 			goFiles = append(goFiles, absPath)
 		}
 	}
@@ -143,6 +173,10 @@ func (g *GitIntegration) GetAllGoFiles() ([]string, error) {
 				if g.ignoreParser.ShouldIgnore(relPath) {
 					return nil
 				}
+			}
+
+			if !g.includeGenerated && IsGeneratedFile(path) {
+				return nil
 			}
 
 			goFiles = append(goFiles, path)

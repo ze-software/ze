@@ -11,6 +11,94 @@ as `jsonv2.Value` and `jsonv2.Unmarshal`. They are aliases of the standard types
 1.27 or `GOEXPERIMENT=jsonv2`. Otherwise they come from the module
 `github.com/go-json-experiment/json`.
 
+## v0.158.6 - 2026-10-27
+
+- Chromium: 158.0.8127.1 (was 158.0.8124.1)
+- V8: 15.8.62 (was 15.8.47)
+- API changes since v0.158.5: 0 incompatible, 1 compatible
+
+By package, as removed, changed and added names:
+
+  preload                     0 removed    0 changed    1 added
+
+## v0.158.5 - 2026-10-25
+
+- Chromium: 158.0.8124.1 (was 158.0.8115.1)
+- V8: 15.8.47 (was 15.8.24)
+- API changes since v0.158.4: 0 incompatible, 1 compatible
+
+By package, as removed, changed and added names:
+
+  network                     0 removed    0 changed    1 added
+
+## v0.158.4 - 2026-10-21
+
+- Chromium: 158.0.8115.1 (was 158.0.8111.1)
+- V8: 15.8.24 (was 15.8.18)
+- API changes since v0.158.3: 0 incompatible, 2 compatible
+
+By package, as removed, changed and added names:
+
+  network                     0 removed    0 changed    2 added
+
+## v0.158.3 - 2026-10-19
+
+- Chromium: 158.0.8111.1 (was 158.0.8110.1)
+- V8: 15.8.18 (was 15.8.17)
+- API changes since v0.158.2: 0 incompatible, 0 compatible
+
+## v0.158.2 - 2026-10-17
+
+- Chromium: 158.0.8110.1 (was 158.0.8108.1)
+- V8: 15.8.17
+- API changes since v0.158.1: 0 incompatible, 0 compatible
+
+## v0.158.1 - 2026-10-16
+
+- Chromium: 158.0.8108.1 (was 158.0.8104.1)
+- V8: 15.8.17 (was 15.7.112)
+- API changes since v0.158.0: 0 incompatible, 1 compatible
+
+By package, as removed, changed and added names:
+
+  network                     0 removed    0 changed    1 added
+
+## v0.158.0 - 2026-10-14
+
+- Chromium: 158.0.8104.1 (was 157.0.8103.0)
+- V8: 15.7.112
+- API changes since v0.157.11: 0 incompatible, 1 compatible
+
+By package, as removed, changed and added names:
+
+  page                        0 removed    0 changed    1 added
+
+## v0.157.11 - 2026-10-13
+
+- Chromium: 157.0.8103.0 (was 157.0.8100.1)
+- V8: 15.7.112 (was 15.7.108)
+- API changes since v0.157.10: 5 incompatible, 4 compatible
+
+By package, as removed, changed and added names:
+
+  cdproto                     1 removed    0 changed    1 added
+  io                          4 removed    0 changed    0 added
+  page                        0 removed    0 changed    3 added
+
+## v0.157.10 - 2026-10-12
+
+- Chromium: 157.0.8100.1 (was 157.0.8086.1)
+- V8: 15.7.108 (was 15.7.37)
+- API changes since v0.157.9: 2 incompatible, 8 compatible
+
+By package, as removed, changed and added names:
+
+  audits                      0 removed    0 changed    1 added
+  cdproto                     0 removed    0 changed    1 added
+  debugger                    0 removed    0 changed    1 added
+  network                     0 removed    0 changed    1 added
+  page                        2 removed    0 changed    4 added
+
 ## v0.157.7 - 2026-10-05
 
 - Chromium: 157.0.8086.1 (was 157.0.8085.3)

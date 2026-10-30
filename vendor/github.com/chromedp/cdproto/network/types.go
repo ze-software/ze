@@ -1302,6 +1302,7 @@ const (
 	DeviceBoundSessionFetchResultPreProvisionedKeyNotFound                         DeviceBoundSessionFetchResult = "PreProvisionedKeyNotFound"
 	DeviceBoundSessionFetchResultAttestationCertificationError                     DeviceBoundSessionFetchResult = "AttestationCertificationError"
 	DeviceBoundSessionFetchResultAttestationSigningError                           DeviceBoundSessionFetchResult = "AttestationSigningError"
+	DeviceBoundSessionFetchResultFederatedRegistrationRedirected                   DeviceBoundSessionFetchResult = "FederatedRegistrationRedirected"
 )
 
 // DeviceBoundSessionFailedRequest details about a failed device bound
@@ -1528,6 +1529,7 @@ const (
 	RefreshEventDetailsRefreshResultRefreshedAsWaiter          RefreshEventDetailsRefreshResult = "RefreshedAsWaiter"
 	RefreshEventDetailsRefreshResultTransientSigningError      RefreshEventDetailsRefreshResult = "TransientSigningError"
 	RefreshEventDetailsRefreshResultInScopeRefreshNotYetNeeded RefreshEventDetailsRefreshResult = "InScopeRefreshNotYetNeeded"
+	RefreshEventDetailsRefreshResultCanceled                   RefreshEventDetailsRefreshResult = "Canceled"
 )
 
 // TerminationEventDetailsDeletionReason the reason for a session being
