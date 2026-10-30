@@ -29,10 +29,10 @@ func (f *FSM) EnterDelayOpenBfdUpPending() error {
 	// HoldTimer to the negotiated value"; otherwise "resets the
 	// HoldTimer value to zero" and "starts the BfdHoldTimer with the
 	// value BfdHoldTime". In both branches no KEEPALIVE is sent.
-	if f.timers.HoldTime() != 0 {
-		f.timers.StartHoldTimer()
-	} else {
+	if f.timers.HoldTime() == 0 {
 		f.timers.StartBfdHoldTimer()
+	} else {
+		f.timers.StartHoldTimer()
 	}
 	f.bfdSub = SubStateConnectDelayOpenBfdUpPending
 	if f.state == StateActive {

@@ -187,10 +187,11 @@ func frameMVPN(routeType MVPNRouteType, body []byte) []byte {
 	return append(packed, body...)
 }
 
-// newMVPN creates a new MVPN NLRI carrying body as its route type specific
-// field. It answers nil for a body the one-octet Length field cannot describe.
-func newMVPN(routeType MVPNRouteType, body []byte) *MVPN {
-	packed := frameMVPN(routeType, body)
+// newIntraASIPMSIAD creates a new Intra-AS I-PMSI A-D MVPN NLRI carrying body
+// as its route type specific field. It answers nil for a body the one-octet
+// Length field cannot describe.
+func newIntraASIPMSIAD(body []byte) *MVPN {
+	packed := frameMVPN(MVPNIntraASIPMSIAD, body)
 	if packed == nil {
 		return nil
 	}

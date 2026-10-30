@@ -469,7 +469,7 @@ func writePeerDown(buf []byte, off int, pd *PeerDown) int {
 
 // writeRouteMonitoring writes a complete Route Monitoring message into buf at off.
 // Returns total bytes written.
-func writeRouteMonitoring(buf []byte, off int, rm *RouteMonitoring) int {
+func writeRouteMonitoring(buf []byte, off int, rm *RouteMonitoring) int { //nolint:unparam // off is the buffer-first WriteTo(buf, off) contract every BMP writer shares
 	start := off
 	off += CommonHeaderSize
 	off += writePeerHeader(buf, off, rm.Peer)

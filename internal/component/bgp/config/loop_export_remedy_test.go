@@ -36,7 +36,7 @@ func TestLoopPolicyExportRemedy(t *testing.T) {
 						t.Fatal("active internal export reference was accepted")
 					}
 					var command string
-					for _, line := range strings.Split(err.Error(), "\n") {
+					for line := range strings.SplitSeq(err.Error(), "\n") {
 						if strings.HasPrefix(strings.TrimSpace(line), "deactivate ") {
 							if command != "" {
 								t.Fatalf("ambiguous remediation commands: %v", err)
