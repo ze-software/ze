@@ -120,7 +120,9 @@ func TestIntentCounts(t *testing.T) {
 		{RFC: "rfc1", RID: "RFC1-1-2", Level: levelMay, Intent: notEver},
 		{RFC: "rfc1", RID: "RFC1-1-3", Level: levelShould},
 		{RFC: "rfc1", RID: "RFC1-1-4", Level: levelShould, Annotation: &Annotation{Kind: AnnotationGap, Reason: "unmet"}},
-		// Proven: computed, never declared, so its stale marker counts nowhere.
+		// Proven: computed, never declared, so its stale marker counts nowhere
+		// here, and evaluateIntent refuses it in the check
+		// (TestIntentMarkerIsStaleOnAProvenOrExcludedRow).
 		{RFC: "rfc1", RID: "RFC1-1-5", Level: levelShould, Intent: notYet},
 		{RFC: "rfc1", RID: "RFC1-1-6", Level: levelShould},
 		// Excluded: not owed by Ze, so no intent applies.
@@ -145,5 +147,144 @@ func TestIntentCounts(t *testing.T) {
 	}
 	if figures.Mandatory.Total != 1 {
 		t.Errorf("mandatory total = %d, want 1", figures.Mandatory.Total)
+	}
+}
+
+// intentQuoteSource is a fixture RFC whose section 2 holds the optional
+// sentence a not-ever marker cites, and whose section 3 holds another.
+const intentQuoteSource = "Test RFC 9999\n\n1.  Introduction\n\n" +
+	"   This document describes widgets.\n\n" +
+	"2.  Widgets\n\n" +
+	"   " + intentOptionality + "\n\n" +
+	"3.  Frames\n\n" +
+	"   " + intentOtherSection + "\n"
+
+// intentOtherSection is an optional sentence of section 3 of intentQuoteSource.
+const intentOtherSection = "A receiver MAY drop a frame it cannot parse."
+
+// intentRow is one SHOULD row of rfc9999 citing section 2 with intent.
+func intentRow(intent *Intent) Requirement {
+	return Requirement{RFC: "rfc9999", RID: "RFC9999-2-1", Level: levelShould, Section: "2",
+		Text: intentOptionality + " (§2)", Source: "rfc/short/rfc9999.md", Line: 7, Intent: intent}
+}
+
+// TestNotEverQuoteIsAWholeSentenceOfItsSection checks the not-ever quote is
+// the RFC's own words. Goal: a {intent: not-ever} row's quote must be a whole
+// sentence of the section the row cites, or its subsections, so a marker
+// cannot cite optionality the RFC never states; the refusal names the row and
+// the fix. Method: one row per quote shape through checkExclusionEvidence,
+// which `./le rfc check` runs: a whole sentence of the cited section, a
+// fragment of it, a sentence of another section, the same quote with no RFC
+// text in the tree, and a not-yet row, which quotes nothing.
+func TestNotEverQuoteIsAWholeSentenceOfItsSection(t *testing.T) {
+	tree := t.TempDir()
+	writeFixtureFiles(t, tree, map[string]string{"rfc/full/rfc9999.txt": intentQuoteSource,
+		evidenceBacklogRel: "# fixture\nlower-layer 0\nnot-applicable 0\n"})
+	bare := t.TempDir()
+	writeFixtureFiles(t, bare, map[string]string{evidenceBacklogRel: "# fixture\nlower-layer 0\nnot-applicable 0\n"})
+	notEver := func(quote string) *Intent {
+		return &Intent{State: IntentNotEver, Quote: quote, Reason: "Ze keeps no discard log"}
+	}
+	cases := []struct {
+		name    string
+		tree    string
+		intent  *Intent
+		refused string
+	}{
+		{"a whole sentence of the cited section", tree, notEver(intentOptionality), ""},
+		{"a fragment of it", tree, notEver("A speaker SHOULD log every widget"), "is not a whole sentence of section 2"},
+		{"a sentence of another section", tree, notEver(intentOtherSection), "is not a whole sentence of section 2"},
+		{"no RFC text in the tree", bare, notEver(intentOptionality), "rfc/full/rfc9999.txt"},
+		{"a not-yet row", tree, &Intent{State: IntentNotYet}, ""},
+	}
+	base := evidenceBaseline{state: priorRead, prints: map[string]string{}}
+	for _, one := range cases {
+		t.Run(one.name, func(t *testing.T) {
+			errs, _ := checkExclusionEvidence(one.tree, []Requirement{intentRow(one.intent)}, base)
+			if one.refused == "" {
+				if len(errs) != 0 {
+					t.Fatalf("the row was refused: %q", errs)
+				}
+				return
+			}
+			if len(errs) != 1 {
+				t.Fatalf("got %d refusals %q, want one", len(errs), errs)
+			}
+			for _, says := range []string{"RFC9999-2-1", "{intent: not-ever}", one.refused, intentFormat} {
+				if !strings.Contains(errs[0], says) {
+					t.Errorf("the refusal %q does not say %q", errs[0], says)
+				}
+			}
+		})
+	}
+}
+
+// TestIntentMarkerIsStaleOnAProvenOrExcludedRow checks a marker cannot go
+// stale in silence. Goal: an {intent} marker on a row whose annotation leaves
+// it out of the attainable rows ({not-applicable}, {lower-layer},
+// {feature-declined}, {linux-limit}), or on a row a proving record covers, is
+// refused with "remove the intent marker", while a marker on an owed,
+// unproven row, {gap} included, raises nothing. Method: one SHOULD row per
+// shape, each marked, through evaluateIntent with a proof set naming one.
+func TestIntentMarkerIsStaleOnAProvenOrExcludedRow(t *testing.T) {
+	notYet := &Intent{State: IntentNotYet}
+	row := func(rid, kind string) Requirement {
+		req := Requirement{RFC: "rfc1", RID: rid, Level: levelShould, Section: "1", Intent: notYet}
+		if kind != "" {
+			req.Annotation = &Annotation{Kind: kind, Reason: "why"}
+		}
+		return req
+	}
+	stale := []Requirement{
+		row("RFC1-1-1", AnnotationNotApplicable),
+		row("RFC1-1-2", AnnotationLowerLayer),
+		row("RFC1-1-3", AnnotationFeatureDeclined),
+		row("RFC1-1-4", AnnotationLinuxLimit),
+		row("RFC1-1-5", ""),
+	}
+	owed := []Requirement{
+		row("RFC1-1-6", ""),
+		row("RFC1-1-7", AnnotationGap),
+	}
+	proven := map[string]bool{"RFC1-1-5": true}
+	findings := evaluateIntent(append(append([]Requirement{}, stale...), owed...), proven)
+	refused := map[string]bool{}
+	for _, finding := range findings {
+		refused[finding.RID] = true
+		if !strings.Contains(finding.Message, "remove the intent marker") {
+			t.Errorf("the finding %q does not say to remove the intent marker", finding.Message)
+		}
+	}
+	for _, req := range stale {
+		if !refused[req.RID] {
+			t.Errorf("%s carries a stale intent marker and was not refused", req.RID)
+		}
+	}
+	for _, req := range owed {
+		if refused[req.RID] {
+			t.Errorf("%s is owed and unproven, and its intent marker was refused", req.RID)
+		}
+	}
+	if len(findings) != len(stale) {
+		t.Errorf("got %d findings, want %d: one per stale row", len(findings), len(stale))
+	}
+}
+
+// TestSelftestCoversIntentProperties checks the intent stage of `./le rfc
+// selftest`. Goal: each of its rows passes against the production parser and
+// stale-marker check, so a regression there fails the selftest. Method: run
+// the stage and require every row it declares to pass.
+func TestSelftestCoversIntentProperties(t *testing.T) {
+	rows, err := runIntentSelftest()
+	if err != nil {
+		t.Fatalf("the intent stage could not run: %v", err)
+	}
+	if len(rows) != 3 {
+		t.Fatalf("the intent stage answered %d rows, want 3", len(rows))
+	}
+	for _, row := range rows {
+		if !row.Passed {
+			t.Errorf("%s failed: %s", row.Case, row.Detail)
+		}
 	}
 }

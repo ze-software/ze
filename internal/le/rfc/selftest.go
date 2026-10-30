@@ -1,6 +1,7 @@
 // Design: docs/architecture/core-design.md -- the RFC engine proved against fixtures
 // Detail: selftest_core.go -- parser, carrier, coverage, status, ratchet, discrimination, and check stages
 // Detail: selftest_state.go -- audit, extraction, render, and write stages
+// Detail: selftest_intent.go -- the intent marker stage
 //
 // selftest.go owns the RFC fixture-suite control flow and the action answer.
 // Each stage uses the production RFC engine and returns one row per property.
@@ -40,6 +41,7 @@ func selftestStages(tree string) []selftestStage {
 		{name: "baseline", run: runBaselineSelftest},
 		{name: "check", run: runCheckSelftest},
 		{name: "quote", run: runQuoteSelftest},
+		{name: "intent", run: runIntentSelftest},
 		{name: "real-tree", run: func() ([]leroot.SelftestResult, error) {
 			return runRealTreeSelftest(tree)
 		}},

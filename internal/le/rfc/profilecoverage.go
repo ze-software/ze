@@ -167,7 +167,8 @@ func StemFiguresOf(in *RenderInput) (map[string]StemFigures, error) {
 	for stem := range in.Metas {
 		stems[stem] = true
 	}
-	evidence := figureEvidence{tags: tagsByRID(in.Tags), carriers: in.Carriers, audits: in.Audits}
+	evidence := figureEvidence{tags: tagsByRID(in.Tags), carriers: in.Carriers, audits: in.Audits,
+		osProofs: osProofsOf(in.Discrimination)}
 	return figuresByStem(in.Requirements, stems, walked, provenRequirements(in.Discrimination), evidence), nil
 }
 
@@ -178,6 +179,10 @@ type figureEvidence struct {
 	tags     map[string][]Tag
 	carriers []Carrier
 	audits   map[string]Audit
+	// osProofs is osProofsOf over the tree's verdicts: the producers each
+	// proving record broke, by requirement id, which osVerified holds a
+	// {lower-layer} row's named producer against.
+	osProofs map[string][]string
 }
 
 // strongestKind answers the strongest evidence kind among the tags covering
@@ -268,7 +273,7 @@ func figuresByStem(requirements []Requirement, stems, walked, proven map[string]
 			figures.Unmet = append(figures.Unmet, requirement.RID)
 		}
 		if requirement.Gated() {
-			figures.countOS(requirement, proven)
+			figures.countOS(requirement, evidence.osProofs)
 			figures.Mandatory.count(requirement, met)
 			if met {
 				figures.countKind(evidence.strongestKind(requirement.RID))
@@ -287,11 +292,11 @@ func figuresByStem(requirements []Requirement, stems, walked, proven map[string]
 
 // countOS adds one gated row a layer under Ze performs to OSVerified or
 // OSGap, and leaves every other row alone.
-func (s *StemFigures) countOS(requirement *Requirement, proven map[string]bool) {
+func (s *StemFigures) countOS(requirement *Requirement, proofs map[string][]string) {
 	if !osMet(requirement) {
 		return
 	}
-	if osVerified(requirement, proven) {
+	if osVerified(requirement, proofs) {
 		s.OSVerified++
 		return
 	}
@@ -335,12 +340,39 @@ func osMet(requirement *Requirement) bool {
 }
 
 // osVerified answers whether a row a layer under Ze performs is OS VERIFIED:
-// a tagged unit covering it carries a record that still verifies and proves.
-// proven is provenRequirements over the tree's verdicts, so the predicate is
+// a tagged unit covering it carries a record that still verifies and proves,
+// and that record broke the producer the row's annotation names.
+//
+// proofs is osProofsOf over the tree's verdicts, so the predicate is
 // DiscriminationVerdict.Proven, the one that proves a Ze row (spec R-4): a
 // tag alone, a stale record or the no-break escape leaves an OS testing gap.
-func osVerified(requirement *Requirement, proven map[string]bool) bool {
-	return osMet(requirement) && proven[requirement.RID]
+// The producer match is what makes the proof about the state Ze installs: the
+// annotation names the function installing it, and a red observed by breaking
+// any other function, in the same file or not, proves a different fact.
+func osVerified(requirement *Requirement, proofs map[string][]string) bool {
+	if !osMet(requirement) {
+		return false
+	}
+	return slices.Contains(proofs[requirement.RID], requirement.Annotation.Producer)
+}
+
+// osProofsOf answers, by requirement id, every producer a proving verdict
+// broke: the record's own and each paired break's, since the red was observed
+// with all of them applied together.
+func osProofsOf(verdicts []DiscriminationVerdict) map[string][]string {
+	out := map[string][]string{}
+	for index := range verdicts {
+		verdict := &verdicts[index]
+		if !verdict.Proven() {
+			continue
+		}
+		rid := verdict.Record.RID
+		out[rid] = append(out[rid], verdict.Record.Producer)
+		for _, paired := range verdict.Record.Paired {
+			out[rid] = append(out[rid], paired.Producer)
+		}
+	}
+	return out
 }
 
 // countKind adds one proven mandatory row under its evidence kind.

@@ -912,6 +912,11 @@ func checkExclusionEvidence(tree string, requirements []Requirement, base eviden
 	counted := map[string][]string{}
 	for i := range requirements {
 		req := &requirements[i]
+		// A not-ever quote is held against the RFC on every row, new or not:
+		// no backlog counts it, so a quote the RFC does not hold is refused.
+		if refusal, refused := reader.intentQuoteGap(req); refused {
+			errs = append(errs, refusal)
+		}
 		missing, lacks := reader.gap(req)
 		if !lacks {
 			continue

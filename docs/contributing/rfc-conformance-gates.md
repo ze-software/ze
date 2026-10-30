@@ -767,6 +767,17 @@ TESTING GAP. The record is made by `./le rfc record` like any other: the break
 is to the state Ze installs, and the test that goes red is the one reading
 what the layer below did with it.
 
+The record must also break the producer the annotation names: its own
+producer, or one of its paired breaks, is the annotation's `path::Symbol`
+exactly. A record that broke any other function, in the same file or not,
+proves a different fact, and the row stays an OS testing gap (`osProofsOf`,
+`TestLowerLayerRecordBreakingAnotherProducerIsOSGap`). A break that removes
+the installed state outright reddens any test that reads kernel output, so a
+red alone does not show that Ze's state decides the outcome. Where Ze's state
+truly decides nothing, the honest record is the `kernel-producer` escape,
+which proves nothing, so the row stays an OS gap.
+<!-- source: internal/le/rfc/profilecoverage.go -- osVerified, osProofsOf -->
+
 `StemFigures` carries the two counts per RFC, `OSVerified` and `OSGap`, over
 the gated rows only. They sum to the `lower-layer` count in
 `Mandatory.Excluded`, and they change no other count: an OS-verified row is
@@ -1444,8 +1455,9 @@ declares two of them with a marker of its own, beside the coverage annotation:
 ```
 
 Proven is never declared. It is computed from the discrimination records, so a
-proven row counts as proven whatever marker it still carries, and
-`{intent: proven}` is refused as an unknown state.
+proven row counts as proven whatever marker it still carries, a marker left on
+it is refused as stale (below), and `{intent: proven}` is refused as an unknown
+state.
 
 `parseIntent` (`internal/le/rfc/intent.go`) refuses, naming the format:
 
@@ -1459,11 +1471,23 @@ proven row counts as proven whatever marker it still carries, and
 | `{intent}` on a gated (MUST, MUST NOT, REQUIRED, SHALL, SHALL NOT) row | Remove it. A mandatory obligation is owed whatever Ze intends; record an unmet one with `{gap}` (`TestIntentMarkerRefusedOnMust`) |
 
 The marker composes with a coverage annotation, `{superseded}` and
-`{updated-by}` on the same line, one of each kind (`stripMarkers`). The parser
-cannot see who wrote a `not-ever`, so review enforces that only Thomas sets
-it: the review gate flags every `not-ever` a diff adds. Whether the quote is the
-RFC's own words is checked by that review too, not by the parser.
-<!-- source: internal/le/rfc/intent.go -- parseIntent, parseNotEver, intentOnGatedRow -->
+`{updated-by}` on the same line, one of each kind (`stripMarkers`). No gate can
+see who wrote a `not-ever`, so the rule that only Thomas sets one is enforced
+in per-commit review, not by a check.
+
+`./le rfc check` holds the quote to the RFC's own words, as it holds a
+`{not-applicable}` role quote: a `not-ever` quote must be a whole sentence of
+the section the row cites or one of its subsections, from the word that opens
+it to the full stop that ends it (`intentQuoteGap`, run by the exclusion
+evidence check on every row, new or not; `TestNotEverQuoteIsAWholeSentenceOfItsSection`).
+
+A marker on a row it cannot describe is stale, and `./le rfc check` refuses it
+with "remove the intent marker": on a row whose annotation leaves it out of the
+rows Ze owes (`{not-applicable}`, `{lower-layer}`, `{feature-declined}`,
+`{linux-limit}`), and on a row a proving record covers, since proven is
+computed (`evaluateIntent`, `TestIntentMarkerIsStaleOnAProvenOrExcludedRow`).
+A marker on a `{gap}` or `{partial}` row stays: that row is still owed.
+<!-- source: internal/le/rfc/intent.go -- parseIntent, parseNotEver, intentOnGatedRow, evaluateIntent, intentQuoteGap -->
 
 `StemFigures` carries three counts per RFC, `NotYet`, `NotEver` and
 `NotDecided`, over the optional rows that are owed, not proven and not

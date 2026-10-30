@@ -504,11 +504,15 @@ func TestStemFiguresListUnmetIDs(t *testing.T) {
 	}
 }
 
+// lowerLayerProducer is the function lowerLayerRow names as installing the
+// state the layer below acts on.
+const lowerLayerProducer = "internal/plugins/ospf/ipsec_install.go::buildIPsecSA"
+
 // lowerLayerRow is one gated rfc1 row a layer under Ze performs.
 func lowerLayerRow(rid string) Requirement {
 	return Requirement{RFC: "rfc1", RID: rid, Level: levelMust, Annotation: &Annotation{
 		Kind: AnnotationLowerLayer, Layer: "Linux XFRM",
-		Producer: "internal/plugins/ospf/ipsec_install.go::buildIPsecSA",
+		Producer: lowerLayerProducer,
 		Reason:   "the kernel performs it",
 	}}
 }
@@ -522,18 +526,18 @@ func lowerLayerRow(rid string) Requirement {
 func TestLowerLayerWithRecordIsOSVerified(t *testing.T) {
 	requirements := []Requirement{lowerLayerRow("RFC1-1-1")}
 	verdicts := []DiscriminationVerdict{
-		{Record: DiscriminationRecord{RID: "RFC1-1-1", Route: RouteRevert}, State: ProofVerified},
+		{Record: DiscriminationRecord{RID: "RFC1-1-1", Route: RouteRevert, Producer: lowerLayerProducer}, State: ProofVerified},
 	}
 	stems := map[string]bool{"rfc1": true}
-	proven := provenRequirements(verdicts)
-	figures := figuresByStem(requirements, stems, stems, proven, figureEvidence{})["rfc1"]
+	proofs := osProofsOf(verdicts)
+	figures := figuresByStem(requirements, stems, stems, provenRequirements(verdicts), figureEvidence{osProofs: proofs})["rfc1"]
 	if figures.OSVerified != 1 || figures.OSGap != 0 {
 		t.Errorf("OSVerified=%d OSGap=%d, want 1 and 0", figures.OSVerified, figures.OSGap)
 	}
 	if figures.Mandatory.Proven != 0 || figures.Mandatory.Total != 1 {
 		t.Errorf("mandatory = %+v, want 0 proven of 1: OS verified is not proven by Ze", figures.Mandatory)
 	}
-	if !osVerified(&requirements[0], proven) {
+	if !osVerified(&requirements[0], proofs) {
 		t.Error("osVerified refused a lower-layer row with a proving record")
 	}
 }
@@ -548,15 +552,15 @@ func TestLowerLayerWithoutRecordIsOSGap(t *testing.T) {
 		{RFC: "rfc1", RID: "RFC1-1-2", Level: levelMust},
 	}
 	verdicts := []DiscriminationVerdict{
-		{Record: DiscriminationRecord{RID: "RFC1-1-2", Route: RouteRevert}, State: ProofVerified},
+		{Record: DiscriminationRecord{RID: "RFC1-1-2", Route: RouteRevert, Producer: lowerLayerProducer}, State: ProofVerified},
 	}
 	stems := map[string]bool{"rfc1": true}
-	proven := provenRequirements(verdicts)
-	figures := figuresByStem(requirements, stems, stems, proven, figureEvidence{})["rfc1"]
+	proofs := osProofsOf(verdicts)
+	figures := figuresByStem(requirements, stems, stems, provenRequirements(verdicts), figureEvidence{osProofs: proofs})["rfc1"]
 	if figures.OSVerified != 0 || figures.OSGap != 1 {
 		t.Errorf("OSVerified=%d OSGap=%d, want 0 and 1", figures.OSVerified, figures.OSGap)
 	}
-	if osVerified(&requirements[1], proven) {
+	if osVerified(&requirements[1], proofs) {
 		t.Error("osVerified answered true for a row no lower layer performs")
 	}
 }
@@ -579,12 +583,45 @@ func TestLowerLayerWithANonVerifyingRecordIsNotOSVerified(t *testing.T) {
 		t.Run(one.name, func(t *testing.T) {
 			requirements := []Requirement{lowerLayerRow("RFC1-1-1")}
 			verdicts := []DiscriminationVerdict{
-				{Record: DiscriminationRecord{RID: "RFC1-1-1", Route: one.route}, State: one.state},
+				{Record: DiscriminationRecord{RID: "RFC1-1-1", Route: one.route, Producer: lowerLayerProducer}, State: one.state},
 			}
 			stems := map[string]bool{"rfc1": true}
-			figures := figuresByStem(requirements, stems, stems, provenRequirements(verdicts), figureEvidence{})["rfc1"]
+			figures := figuresByStem(requirements, stems, stems, provenRequirements(verdicts),
+				figureEvidence{osProofs: osProofsOf(verdicts)})["rfc1"]
 			if figures.OSVerified != 0 || figures.OSGap != 1 {
 				t.Errorf("OSVerified=%d OSGap=%d, want 0 and 1", figures.OSVerified, figures.OSGap)
+			}
+		})
+	}
+}
+
+// TestLowerLayerRecordBreakingAnotherProducerIsOSGap checks OS verified is
+// about the state Ze installs. Goal: a {lower-layer} row counts OS verified
+// only when the proving record broke the producer its annotation names, so a
+// record that broke some other function, even one in the same file, proves
+// nothing about that state and leaves an OS testing gap. A paired break of the
+// named producer counts. Method: one row per record through figuresByStem.
+func TestLowerLayerRecordBreakingAnotherProducerIsOSGap(t *testing.T) {
+	for _, one := range []struct {
+		name     string
+		record   DiscriminationRecord
+		verified int
+	}{
+		{"another file", DiscriminationRecord{Producer: "internal/plugins/ospf/neighbor.go::sendHello"}, 0},
+		{"another function of the same file", DiscriminationRecord{Producer: "internal/plugins/ospf/ipsec_install.go::removeIPsecSA"}, 0},
+		{"the named producer, paired", DiscriminationRecord{Producer: "internal/plugins/ospf/neighbor.go::sendHello",
+			Paired: []PairedBreak{{Producer: lowerLayerProducer, Break: "x"}}}, 1},
+	} {
+		t.Run(one.name, func(t *testing.T) {
+			requirements := []Requirement{lowerLayerRow("RFC1-1-1")}
+			record := one.record
+			record.RID, record.Route = "RFC1-1-1", RouteRevert
+			verdicts := []DiscriminationVerdict{{Record: record, State: ProofVerified}}
+			stems := map[string]bool{"rfc1": true}
+			figures := figuresByStem(requirements, stems, stems, provenRequirements(verdicts),
+				figureEvidence{osProofs: osProofsOf(verdicts)})["rfc1"]
+			if figures.OSVerified != one.verified || figures.OSGap != 1-one.verified {
+				t.Errorf("OSVerified=%d OSGap=%d, want %d and %d", figures.OSVerified, figures.OSGap, one.verified, 1-one.verified)
 			}
 		})
 	}

@@ -482,6 +482,9 @@ func check(tree string, today time.Time, approvals map[string]string) (CheckRepo
 	findings = append(findings, inGroup(CheckRequirementLists, notes(referenceErrors))...)
 	findings = append(findings, inGroup(CheckRequirementLists, notes(checkIDAllocation(collected.Requirements, ids, unreadableLevels, retired, levelsKnown)))...)
 	findings = append(findings, inGroup(CheckTestEvidence, evaluate(collected.Requirements, collected.Tags, collected.Enrolled))...)
+	// An {intent} marker on a row Ze does not owe, or on a proven row, says
+	// nothing true, so it is refused beside the coverage findings.
+	findings = append(findings, inGroup(CheckTestEvidence, evaluateIntent(collected.Requirements, provenRequirements(discrimination)))...)
 	findings = append(findings, inGroup(CheckTestEvidence, evaluateGapTags(collected.Requirements, collected.GapTags))...)
 	successors := successorsFrom(collected.Metas)
 	findings = append(findings, inGroup(CheckRequirementLists, notes(checkSuperseded(tree, collected.Requirements, successors, stems)))...)

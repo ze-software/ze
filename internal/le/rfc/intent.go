@@ -165,3 +165,72 @@ func intentOnGatedRow(req *Requirement, where string) error {
 		Str(" row. A ").Str(req.Level).Str(" obligation is owed whatever Ze intends, so only an optional row (SHOULD, RECOMMENDED, MAY, OPTIONAL and their negations) carries an intent. ").
 		Str("Remove the marker, or record the unmet obligation with {gap: <why>}"))
 }
+
+// evaluateIntent refuses an {intent} marker that says nothing true: one on a
+// row its annotation leaves out of the attainable rows (ceilingExcluded), which
+// Ze does not owe, or on a row a proving record covers, whose state is computed
+// and never declared. proven is provenRequirements over the tree's verdicts.
+func evaluateIntent(requirements []Requirement, proven map[string]bool) []Finding {
+	var findings []Finding
+	for index := range requirements {
+		req := &requirements[index]
+		if req.Intent == nil {
+			continue
+		}
+		var why string
+		switch {
+		case ceilingExcluded(req):
+			why = "is annotated {" + req.Annotation.Kind + "}, which leaves it out of the rows Ze owes, so no intent applies"
+		case proven[req.RID]:
+			why = "is proven by its discrimination record, and proven is computed, never declared"
+		default:
+			continue
+		}
+		var tb textbuf.Buffer
+		findings = append(findings, requirementFinding(*req, "carries a stale {intent} marker",
+			tb.Str(requirementWhere(*req)).Str(": ").Str(req.RID).Str(" carries {").Str(IntentKind).Str(": ").
+				Str(req.Intent.State.String()).Str("} and ").Str(why).
+				Str(": remove the intent marker from that line").String()))
+	}
+	return findings
+}
+
+// intentQuoteGap refuses a not-ever marker whose quote is not the RFC's own
+// words: it must be a whole sentence of the row's resolved section or its
+// subsections (quoteSource.wholeSentence), as a {not-applicable} role quote
+// must (roleQuoteGap), so a marker cannot cite optionality the RFC never
+// states. "" and false for every other row.
+func (reader *evidenceReader) intentQuoteGap(req *Requirement) (string, bool) {
+	if req.Intent == nil {
+		return "", false
+	}
+	if req.Intent.State != IntentNotEver {
+		return "", false
+	}
+	var tb textbuf.Buffer
+	tb.Str(requirementWhere(*req)).Str(": ").Str(req.RID).Str(" is marked {").Str(IntentKind).Str(": ").
+		Str(intentNotEverWord).Str("} and ")
+	place, section := placeQuote(loadQuoteSource(reader.sources, reader.tree, req.RFC), req.Section, req.Intent.Quote)
+	switch place {
+	case quoteNoText:
+		return tb.Str("the RFC's own text is not in this repository, so its quote can be checked against nothing; fetch it to ").
+			Str(fullRel).Byte('/').Str(req.RFC).Str(".txt. ").Str(intentFormat).String(), true
+	case quoteSectionUnresolved:
+		return tb.Str("the section it cites, ").Str(req.Section).
+			Str(", names no heading of the RFC, so no section holds its quote; cite the section the row is in. ").
+			Str(intentFormat).String(), true
+	case quoteInSection:
+		if loadQuoteSource(reader.sources, reader.tree, req.RFC).wholeSentence(section, req.Intent.Quote) {
+			return "", false
+		}
+	case quoteOutsideSection, quoteNotInRFC:
+		// The quote is not in the cited section at all, which no whole
+		// sentence of it can be: the refusal below names the cited section.
+		section = req.Section
+	default:
+		panic("BUG: unexpected quote place")
+	}
+	return tb.Str("its quote ").Str(pyRepr(req.Intent.Quote)).Str(" is not a whole sentence of section ").Str(section).
+		Str(" or its subsections: quote the RFC sentence that makes the row optional verbatim, from the word that opens it to the full stop that ends it. ").
+		Str(intentFormat).String(), true
+}
