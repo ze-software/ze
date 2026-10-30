@@ -792,12 +792,14 @@ func rollupRowVerdict(rid string, state RollupState) rollupVerdict {
 // two things it claims: the RFC's own text, and this tree.
 //
 // The kind says an obligation is conditional on a feature the RFC makes
-// optional and Ze does not offer, so the condition is false and nothing is
-// owed. Both halves of that sentence are checkable, and the check is what keeps
-// the kind apart from {not-applicable}, whose judgement nothing in the tree can
-// contradict. The QUOTE has to be in the RFC, whitespace aside, so the reader
-// can see the document making the feature optional rather than take the
-// author's word for it. The PRODUCER has to be findable, so a rename or a
+// optional, or on the feature's use, and Ze does not offer or use it, so the
+// condition is false and nothing is owed. Both halves of that sentence are
+// checkable, and the check is what keeps the kind apart from
+// {not-applicable}, whose judgement nothing in the tree can contradict. The
+// QUOTE has to be in the RFC, whitespace aside, so the reader can see the
+// document making the feature optional, or the obligation conditional, rather
+// than take the author's word for it; its shape is the evidence ratchet's
+// (featureShapeGap). The PRODUCER has to be findable, so a rename or a
 // deletion under the annotation turns the gate red.
 //
 // An RFC whose text this repository does not hold is REFUSED rather than

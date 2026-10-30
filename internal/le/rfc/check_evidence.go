@@ -146,15 +146,16 @@ func placeQuote(source *quoteSource, cited, quote string) (quotePlace, string) {
 	return quoteOutsideSection, found
 }
 
-// featureQuoteGap judges a {feature-declined} optionality quote: first where
-// it lies (featureQuoteSection), then what it says (optionalityQuoteGap) of
-// the section it is held to.
-func featureQuoteGap(req *Requirement, source *quoteSource) (string, bool) {
+// featureQuoteGap judges a {feature-declined} quote: first where it lies
+// (featureQuoteSection), then what it says of the section it is held to
+// (featureShapeGap), reading a conditional's never-clause producer through
+// code.
+func featureQuoteGap(req *Requirement, source *quoteSource, code *sourceReader) (string, bool) {
 	held, missing, lacks := featureQuoteSection(req, source)
 	if lacks {
 		return missing, true
 	}
-	return optionalityQuoteGap(req, source, held)
+	return featureShapeGap(req, source, code, held)
 }
 
 // featureQuoteSection answers the section a {feature-declined} quote is held
@@ -228,48 +229,191 @@ var optionalityWords = struct {
 	supported []string
 }{plain: []string{"optional", "optionally"}, condition: "if", supported: []string{"support", "supports"}}
 
-// optionalityQuoteGap judges what a {feature-declined} quote says, held to
+// featureDeclinedShapes names the three evidence shapes a {feature-declined}
+// quote takes, so the refusal of a quote that fits none names every one.
+const featureDeclinedShapes = "A {feature-declined} quote takes one of three shapes: " +
+	"the RFC's sentence making the feature optional (an advisory keyword, optional, optionally, or if ... supports); " +
+	"that sentence from another section, named as §<section>; " +
+	"or a conditional, a sentence whose obligation is guarded by a clause on the feature's use " +
+	"(a leading If, When, Where, Once or Unless clause, or a subject held by a relative clause, " +
+	"as in \"a client that previously received ... MUST\"), whose reason carries " + neverClauseForm
+
+// neverClauseForm is the evidence a conditional's reason carries: the
+// condition Ze never meets, and the producer that shows it.
+const neverClauseForm = "`ze never <condition>: <path>.go::<Symbol> <how>`"
+
+// featureShapeGap judges what a {feature-declined} quote says, held to
 // section held. It must be a whole sentence of that section
-// (quoteSource.wholeSentence), so a fragment cannot cut the optionality away
-// from the words that scope it. It must carry an optionality marker
-// (optionalityMarked), and a sentence whose only BCP 14 keywords are mandatory
-// levels is refused by name, because it states an obligation rather than an
-// option. It must not hold the row's own sentence (Requirement.Quote): the
-// obligation the row declines is no evidence that it is optional.
-func optionalityQuoteGap(req *Requirement, source *quoteSource, held string) (string, bool) {
+// (quoteSource.wholeSentence), so a fragment cannot cut the optionality, or the
+// condition, away from the words that scope it. It then takes one of two
+// shapes (featureDeclinedShapes; the third, a named section, is where it lies).
+//
+// The optionality shape carries an advisory BCP 14 level, or no mandatory one
+// and a lower-case marker (optionalityMarked), and is not the row's own
+// sentence (Requirement.Quote): the obligation the row declines is no evidence
+// that it is optional.
+//
+// The conditional shape holds a mandatory level guarded by a clause on the
+// feature's use (conditionalOpening). It may be the row's own sentence,
+// because that is where the condition lives, and its reason owes the evidence
+// that Ze never meets the condition (neverClauseGap). A mandatory sentence
+// with no such clause states an obligation, and is refused by name.
+func featureShapeGap(req *Requirement, source *quoteSource, code *sourceReader, held string) (string, bool) {
 	quote := req.Annotation.Quote
 	var tb textbuf.Buffer
 	if !source.wholeSentence(held, quote) {
-		return tb.Str("its optionality quote ").Str(pyRepr(quote)).
+		return tb.Str("its quote ").Str(pyRepr(quote)).
 			Str(" is not a whole sentence of section ").Str(held).
-			Str(": quote the sentence that makes the feature optional, from its first word to its full stop").String(), true
+			Str(": quote the sentence that makes the feature optional, or the conditional obligation, from its first word to its full stop").String(), true
 	}
 	advisory, mandatory := bcp14LevelsIn(quote)
-	if len(advisory) == 0 && len(mandatory) > 0 {
-		return tb.Str("its optionality quote ").Str(pyRepr(quote)).
-			Str(" states an obligation: its only BCP 14 keywords are mandatory (").
-			Str(strings.Join(mandatory, ", ")).
-			Str("), so it makes nothing optional. Quote the sentence that makes the feature optional").String(), true
+	optional := len(advisory) > 0 || (len(mandatory) == 0 && optionalityMarked(quote))
+	own := req.Quote()
+	ownSentence := own != "" && strings.Contains(quoteNeedle(quote), quoteNeedle(own))
+	if optional && !ownSentence {
+		return "", false
 	}
-	if len(advisory) == 0 && !optionalityMarked(quote) {
-		tb.Str("its optionality quote ").Str(pyRepr(quote)).
-			Str(" carries no optionality marker. Quote a sentence holding one of ")
-		for _, level := range advisoryLevelNames() {
-			tb.Str(level).Str(", ")
-		}
-		for _, word := range optionalityWords.plain {
-			tb.Str(word).Str(", ")
-		}
-		tb.Str("or a condition opened by ").Str(optionalityWords.condition).Str(" on ").
-			Str(strings.Join(optionalityWords.supported, " or "))
-		return tb.String(), true
+	if len(mandatory) > 0 && conditionalOpening(quote) {
+		return neverClauseGap(req, code)
 	}
-	if own := req.Quote(); own != "" && strings.Contains(quoteNeedle(quote), quoteNeedle(own)) {
+	if optional {
 		return tb.Str("its optionality quote ").Str(pyRepr(quote)).
 			Str(" holds the row's own sentence, the obligation the row declines, which is no evidence that it is optional. ").
 			Str("Quote the RFC's sentence that makes the feature optional").String(), true
 	}
-	return "", false
+	if len(mandatory) > 0 {
+		return tb.Str("its quote ").Str(pyRepr(quote)).
+			Str(" states an obligation: its only BCP 14 keywords are mandatory (").
+			Str(strings.Join(mandatory, ", ")).
+			Str(") and no clause on the feature's use guards them, so it makes nothing optional or conditional. ").
+			Str(featureDeclinedShapes).String(), true
+	}
+	tb.Str("its quote ").Str(pyRepr(quote)).
+		Str(" carries no optionality marker and no conditional obligation. Quote a sentence holding one of ")
+	for _, level := range advisoryLevelNames() {
+		tb.Str(level).Str(", ")
+	}
+	for _, word := range optionalityWords.plain {
+		tb.Str(word).Str(", ")
+	}
+	tb.Str("or a condition opened by ").Str(optionalityWords.condition).Str(" on ").
+		Str(strings.Join(optionalityWords.supported, " or ")).Str(". ").Str(featureDeclinedShapes)
+	return tb.String(), true
+}
+
+// conditionalLeads are the lower-case words that open a clause guarding an
+// obligation on a condition ("If the client uses a delegated prefix ...").
+var conditionalLeads = []string{"if", "when", "where", "once", "unless"}
+
+// relativeSubjectRE reads a subject held by a restrictive relative clause, in
+// lower case: an optional article, then up to four words, the last before
+// `that` ("a client that", "the client that holds a lease", "receivers
+// that"). The article is group 1 and the word before `that` group 2.
+var relativeSubjectRE = regexp.MustCompile(`^(?:(a|an|the)\s+)?(?:[\w-]+\s+){0,3}([\w-]+)\s+that\s`)
+
+// reportingVerbs are words that, before `that`, open a content clause rather
+// than a relative one: "this means that", "the document requires that". A
+// clause whose word before `that` is one of them holds no subject.
+var reportingVerbs = []string{
+	"assumes", "ensures", "expects", "follows", "guarantees", "implies", "indicates", "mandates",
+	"means", "notes", "recommends", "requires", "says", "shows", "specifies", "states", "suggests",
+}
+
+// conditionalOpening answers whether quote's obligation is guarded by a clause
+// on a condition: before its first BCP 14 keyword, at the sentence's start or
+// after a comma ("As a counterexample, a client that ..."; "In particular, if
+// ..."), a clause opens with a conditionalLeads word or is a subject held by a
+// relative clause (conditionalClause). The loop is bounded by the commas of
+// the text before the keyword: each pass moves start past one.
+func conditionalOpening(quote string) bool {
+	at, _ := firstKeyword(quote)
+	if at < 0 {
+		return false
+	}
+	prefix := strings.ToLower(quote[:at])
+	for start := 0; ; {
+		if conditionalClause(strings.TrimLeft(prefix[start:], " ")) {
+			return true
+		}
+		comma := strings.IndexByte(prefix[start:], ',')
+		if comma < 0 {
+			return false
+		}
+		start += comma + 1
+	}
+}
+
+// conditionalClause answers whether one lower-case clause opens a condition:
+// a conditionalLeads word, or a relative-clause subject (relativeSubjectRE)
+// whose word before `that` is no reporting verb and, with no article, is
+// plural, so "receivers that" counts and "notify the receiver that" does not.
+func conditionalClause(clause string) bool {
+	first, _, _ := strings.Cut(clause, " ")
+	if slices.Contains(conditionalLeads, strings.TrimRight(first, ",")) {
+		return true
+	}
+	parts := relativeSubjectRE.FindStringSubmatch(clause)
+	if parts == nil {
+		return false
+	}
+	head := parts[2]
+	if slices.Contains(reportingVerbs, head) {
+		return false
+	}
+	if parts[1] == "" {
+		return strings.HasSuffix(head, "s")
+	}
+	return true
+}
+
+// neverClauseRE reads the never clause of a conditional's reason, `ze never
+// <condition>: <producer> <how>`, opening the reason or after a `;`. The
+// condition is group 1, the producer group 2 (producerRE's whole match), and
+// how Ze avoids the condition the last group.
+var neverClauseRE = regexp.MustCompile(`(?:^|;)\s*ze never ([^:;]*[^:;\s])\s*:\s*(` + producerRE.String() + `)\s+([^;\s][^;]*)`)
+
+// neverClauseGap judges a conditional's reason: the text after its quote must
+// carry a never clause (neverClauseRE), and the producer it names must be a
+// function this tree declares outside a test (resolveProducer, the resolution
+// every producer check shares), so the claim that Ze never meets the
+// condition rests on code a reader can open.
+func neverClauseGap(req *Requirement, code *sourceReader) (string, bool) {
+	quote := req.Annotation.Quote
+	why := req.Annotation.Reason
+	if at := strings.Index(why, quote); at >= 0 {
+		why = strings.TrimPrefix(why[at+len(quote):], `"`)
+	}
+	var tb textbuf.Buffer
+	parts := neverClauseRE.FindStringSubmatch(why)
+	if parts == nil {
+		return tb.Str("its quote ").Str(pyRepr(quote)).
+			Str(" is a conditional obligation, and its reason carries no never clause, so nothing shows that Ze never meets the condition. Write ").
+			Str(neverClauseForm).Str(" in the reason, naming the function that shows it").String(), true
+	}
+	condition, producer := parts[1], parts[2]
+	if strings.HasSuffix(producerFile(producer), "_test.go") {
+		return tb.Str("its never clause names the test ").Str(producer).
+			Str(". A test decides nothing about what Ze does; name the code that shows Ze never ").Str(condition).String(), true
+	}
+	state, path, symbol := resolveProducer(code, producer)
+	switch state {
+	case producerFound:
+		return "", false
+	case producerUnnamed:
+		// Unreachable: neverClauseRE embeds producerRE. Refused rather than
+		// passed, because a guard that skips a state it cannot read is no guard.
+		return tb.Str("its never clause names ").Str(pyRepr(producer)).
+			Str(", which is not <path>.go::<Symbol>. Write ").Str(neverClauseForm).String(), true
+	case producerFileAbsent:
+		return tb.Str("its never clause names the producer ").Str(producer).
+			Str(", whose file this checkout does not carry. Name the function that shows Ze never ").Str(condition).String(), true
+	case producerSymbolAbsent:
+		return tb.Str("its never clause names the producer ").Str(producer).Str(", but ").Str(path).
+			Str(" declares no ").Str(symbol).
+			Str(". Name the function that shows Ze never ").Str(condition).Str(" today").String(), true
+	default:
+		panic("BUG: unexpected producer resolution state")
+	}
 }
 
 // bcp14LevelsIn answers the advisory and the mandatory BCP 14 levels quote
@@ -347,6 +491,9 @@ func quoteGap(req *Requirement, source *quoteSource, what string) (string, bool)
 type evidenceReader struct {
 	tree    string
 	sources map[string]*quoteSource
+	// code reads the producer a {feature-declined} never clause names
+	// (neverClauseGap), through the resolver every producer check shares.
+	code *sourceReader
 
 	// listLinked answers what the shipped ze links; goListLinked, except in
 	// a test that judges a fixture checkout holding no Go module.
@@ -367,7 +514,7 @@ type evidenceReader struct {
 }
 
 func newEvidenceReader(tree string) *evidenceReader {
-	return &evidenceReader{tree: tree, sources: map[string]*quoteSource{}, listLinked: goListLinked}
+	return &evidenceReader{tree: tree, sources: map[string]*quoteSource{}, code: newSourceReader(tree), listLinked: goListLinked}
 }
 
 // vendorDir is the directory a vendored module path opens under, in this
@@ -661,8 +808,10 @@ func readKernelRequire(path, rel string, required map[string]bool) string {
 // 2026-10-29): for {not-applicable} a role-condition quote from the cited
 // section and the specific role it binds, which checkNotApplicableRoles holds
 // against the roles the summary's Meta table declares Ze fills, for {feature-declined}
-// its optionality quote, a whole sentence carrying an optionality marker,
-// within the cited section or the section its payload names (featureQuoteGap),
+// its quote, a whole sentence within the cited section or the section its
+// payload names that makes the feature optional or guards the obligation by a
+// clause on the feature's use, the latter with its never clause
+// (featureQuoteGap),
 // for {lower-layer} a layer
 // path a reader can check beside the producer checkLowerLayerProducer already
 // holds.
@@ -684,7 +833,7 @@ func (reader *evidenceReader) gap(req *Requirement) (string, bool) {
 		}
 		return reader.roleQuoteGap(req)
 	case AnnotationFeatureDeclined:
-		return featureQuoteGap(req, loadQuoteSource(reader.sources, reader.tree, req.RFC))
+		return featureQuoteGap(req, loadQuoteSource(reader.sources, reader.tree, req.RFC), reader.code)
 	case AnnotationLowerLayer:
 		return reader.layerPathGap(req.Annotation.LayerPath)
 	default:

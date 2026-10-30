@@ -431,7 +431,7 @@ var featureDeclinedRE = regexp.MustCompile(`^"([^"]+)"\s*;\s*(\S.*)$`)
 
 // featureDeclinedFormat is the one format sentence every {feature-declined}
 // refusal ends with, so an author reading any of them is shown the same shape.
-const featureDeclinedFormat = `Format: {feature-declined: "<the RFC's own sentence making the feature optional>"; <path>.go::<Symbol> does <the narrower thing ze chose>}, or {feature-declined: §<section> "<that sentence>"; ...} when the sentence is in another section than the row's`
+const featureDeclinedFormat = `Format: {feature-declined: "<the RFC's own sentence making the feature optional>"; <path>.go::<Symbol> does <the narrower thing ze chose>}, or {feature-declined: §<section> "<that sentence>"; ...} when the sentence is in another section than the row's, or {feature-declined: "<the RFC's sentence making the obligation conditional on the feature's use>"; ze never <condition>: <path>.go::<Symbol> <how>}`
 
 // featureSectionRE reads the section a {feature-declined} payload may name for
 // its quote, `§<section>` and a blank, ahead of the quote. The section is a
@@ -490,7 +490,7 @@ func parseFeatureDeclined(rest, where string) (*Annotation, error) {
 		return nil, parseErr(tb.Str(where).
 			Str(": {feature-declined} quotes ").Str(pyRepr(quote)).
 			Str(", which is under ").Int(int64(minFeatureQuote)).
-			Str(" characters and identifies no sentence. Quote the words that make the feature optional. ").
+			Str(" characters and identifies no sentence. Quote the sentence that makes the feature optional, or the obligation conditional. ").
 			Str(featureDeclinedFormat))
 	}
 	producer := producerRE.FindString(why)

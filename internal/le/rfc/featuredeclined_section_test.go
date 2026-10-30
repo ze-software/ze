@@ -6,6 +6,8 @@
 // spelling. With or without a section named, the quote is a whole sentence of
 // the section it is held to, it carries an optionality marker, its BCP 14
 // keywords are not only mandatory ones, and it is not the row's own sentence.
+// A mandatory sentence guarded by a condition is the conditional shape, judged
+// in featuredeclined_conditional_test.go.
 // PREVENTS: a row whose RFC states the feature optional in one section and the
 // conditional obligation in another (RFC 9728 §2.2 and §3.3) having no valid
 // evidence form, a named section turning into a way round the section scope
@@ -230,13 +232,15 @@ func TestAFeatureDeclinedQuoteIsAnOptionalitySentence(t *testing.T) {
 			says: []string{"not a whole sentence of section 4", "frames of one widget is OPTIONAL"}},
 		{name: "a fragment, from the section named", cites: "2", named: "4", quote: "frames of one widget is OPTIONAL",
 			says: []string{"not a whole sentence of section 4"}},
-		{name: "a sentence whose only keyword is MUST", cites: "4", quote: fixtureCompressedSentence,
-			says: []string{"only BCP 14 keywords are mandatory", "MUST"}},
+		{name: "a sentence whose only keyword is MUST, guarded by no condition", cites: "4", quote: fixtureRowObligation,
+			says: []string{"only BCP 14 keywords are mandatory", "MUST", featureDeclinedShapes}},
+		{name: "a conditional MUST sentence with no never clause", cites: "4", quote: fixtureCompressedSentence,
+			says: []string{"conditional obligation", "no never clause"}},
 		{name: "a MUST sentence, from the section named", cites: "2", named: "3",
 			quote: "A receiver MUST NOT reorder the frames of one widget.",
 			says:  []string{"only BCP 14 keywords are mandatory", "MUST NOT"}},
 		{name: "a sentence with no optionality marker", cites: "4", quote: fixtureUnmarkedSentence,
-			says: []string{"no optionality marker", "OPTIONAL", "optionally"}},
+			says: []string{"no optionality marker", "OPTIONAL", "optionally", featureDeclinedShapes}},
 		{name: "the row's own sentence", cites: "4", quote: fixtureOptionalSentence, rowText: fixtureOptionalSentence,
 			says: []string{"holds the row's own sentence"}},
 	}
