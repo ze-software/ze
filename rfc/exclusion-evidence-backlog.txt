@@ -11,4 +11,4 @@
 # (a quote, which the parser requires), so each one whose quote is not in its
 # cited section is refused by id rather than counted.
 lower-layer 0
-not-applicable 520
+not-applicable 463
