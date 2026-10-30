@@ -1,21 +1,21 @@
 {
-  "note": "Judges the MUST only: RFC 8210 Section 8.3, 'If there are no more-preferred caches, it MUST issue a Reset Query and get an entire new load from the cache.' TestRTRCacheResetReloadsTheWholeSet and TestCacheResetTriggersResetQuery are byte-identical to the last judgement (one-session group: Reset, Serial, Reset after the Cache Reset; the new VRP Valid and the old NotFound; negative keeps Serial Queries and merges a delta). New unit TestCacheGroupCacheResetFromPreferredReloadsIt adds the two-cache case through startSessions, where the cache sending Cache Reset is the most preferred: positive asserts its query sequence Reset, Serial, Reset in the same round (load in rtr_session.go issues the second syncOnce), that the reload's 192.0.3.0/24 becomes Valid and the reset set's 192.0.2.0/24 becomes NotFound, so the new load replaces rather than merges; negative asserts the preference 20 cache receives no query and its VRP never validates. The pre-fix poll, which treated Cache Reset as a failure and moved to the less-preferred cache, fails both (no third preferred query, a standby query). Revert record on load exists.",
+  "note": "Re-read 2026-10-30 (independent judge) after commit 60e9406387 removed the RFC6810-6.3-1 tags and rewrote the VALIDATES line of TestCacheResetTriggersResetQuery; no assertion line changed. Judges the MUST: RFC 8210 Section 8.3, 'If there are no more-preferred caches, it MUST issue a Reset Query and get an entire new load from the cache.' TestRTRCacheResetReloadsTheWholeSet runs one configured cache over TCP: queries on the wire are Reset, Serial, Reset after the Cache Reset, the reload's 192.0.2.0/24 becomes Valid and the old 10.0.0.0/24 NotFound, so the load replaces rather than merges; its negative answers the Serial Query with data and sees Serial Queries and a merged delta. TestCacheGroupCacheResetFromPreferredReloadsIt drives two parsed caches through startSessions where the Cache Reset comes from the most preferred: the same Reset, Serial, Reset sequence in the same round, the new set replaces the old, and the preference 20 cache gets no query and its VRP never validates. TestCacheResetTriggersResetQuery pins the session state: a Cache Reset ends the sync with errRtrCacheResetReceivedWillDo and clears the serial, a Serial Notify leaves it. Both the Reset Query and the entire-new-load halves are asserted.",
   "requirement_sha": "d6a8cd3857fb271e",
   "tests": {
     "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestCacheGroupCacheResetFromPreferredReloadsIt": "84e094fc76ebba35",
     "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestCacheGroupCacheResetFromPreferredReloadsIt#2": "84e094fc76ebba35",
-    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRCacheResetReloadsTheWholeSet": "f4affe67e61b8df8",
-    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRCacheResetReloadsTheWholeSet#2": "f4affe67e61b8df8",
-    "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestCacheResetTriggersResetQuery": "9de8363060757013",
-    "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestCacheResetTriggersResetQuery#2": "9de8363060757013"
+    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRCacheResetReloadsTheWholeSet": "4e10ae83c412be49",
+    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRCacheResetReloadsTheWholeSet#2": "4e10ae83c412be49",
+    "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestCacheResetTriggersResetQuery": "31df11c2e8885c70",
+    "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestCacheResetTriggersResetQuery#2": "31df11c2e8885c70"
   },
   "units": {
     "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestCacheGroupCacheResetFromPreferredReloadsIt": "2bf64b702e875904",
     "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestCacheGroupCacheResetFromPreferredReloadsIt#2": "2bf64b702e875904",
-    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRCacheResetReloadsTheWholeSet": "36d27e409e1c2fef",
-    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRCacheResetReloadsTheWholeSet#2": "36d27e409e1c2fef",
-    "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestCacheResetTriggersResetQuery": "cb81b414628b3cf1",
-    "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestCacheResetTriggersResetQuery#2": "cb81b414628b3cf1"
+    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRCacheResetReloadsTheWholeSet": "3db4c919c634ac43",
+    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRCacheResetReloadsTheWholeSet#2": "3db4c919c634ac43",
+    "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestCacheResetTriggersResetQuery": "cbf308f994babe8f",
+    "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestCacheResetTriggersResetQuery#2": "cbf308f994babe8f"
   },
   "verdict": "enforced"
 }

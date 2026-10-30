@@ -1,13 +1,9 @@
 {
-  "note": "Forbidden: accepting a Prefix PDU whose Max Length is below its Prefix Length. TestParseIPv4PrefixMaxLenLessThanPrefixLen (prefix 24, max 16, otherwise valid) fails unless parseIPv4Prefix errors with \"invalid\"; the check sits in parsePrefixPDU, which the IPv6 parser shares. Positive: max 24 over prefix 8 yields a VRP with MaxLength 24.",
+  "code": {
+    "internal/component/bgp/plugins/rpki/rtr_session.go::RTRSession.handlePDU": "a35dddd57c7c0ac1",
+    "internal/component/bgp/plugins/rpki/rtr_session.go::RTRSession.syncOnce": "536ea897312fa900"
+  },
+  "note": "Re-judged 2026-10-30 (independent judge) after the row moved to {gap} under the owner ruling that RTR version 0 is owed. RFC 6810 Section 5.1 reads 'Max Length:  An 8-bit unsigned integer denoting the longest prefix allowed by the prefix.  This MUST NOT be less than the Prefix Length element.' and Section 5 defines the Protocol Version as 'An eight-bit unsigned integer, currently 0, denoting the version of this protocol.' The obligation is on a version 0 Prefix PDU, and Ze never processes one: internal/component/bgp/plugins/rpki/rtr_session.go::RTRSession.handlePDU returns errRtrUnsupportedProtocol for every PDU but a Serial Notify or Error Report whose version is below rtrVersionMin = 1, refuses a cache's Error Report code 4 that offers a version below rtrVersionMin, and RTRSession.syncOnce bounds the downgrade loop at rtrVersionMin. parsePrefixPDU does refuse a Max Length below the Prefix Length, but only in version 1 and 2 sessions; that proof is RFC8210-5.1-2's, and the earlier enforced verdict rested on version 1 tests that no longer carry this id. No version 0 path exists, so the requirement is unmet.",
   "requirement_sha": "66e805741a47791a",
-  "tests": {
-    "internal/component/bgp/plugins/rpki/rtr_pdu_test.go::TestParseIPv4Prefix": "c5beca1060fa5391",
-    "internal/component/bgp/plugins/rpki/rtr_pdu_test.go::TestParseIPv4PrefixMaxLenLessThanPrefixLen": "c5beca1060fa5391"
-  },
-  "units": {
-    "internal/component/bgp/plugins/rpki/rtr_pdu_test.go::TestParseIPv4Prefix": "0d0466e247e4adf7",
-    "internal/component/bgp/plugins/rpki/rtr_pdu_test.go::TestParseIPv4PrefixMaxLenLessThanPrefixLen": "f43777808456f294"
-  },
-  "verdict": "enforced"
+  "verdict": "unimplemented"
 }

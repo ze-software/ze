@@ -1,6 +1,9 @@
 {
-  "no_code_path": "Both MAY sentences apply to the SSH transport. Ze's RTR client implements plain TCP and TLS only (rtr_session.go connectAndSync); no SSH transport code exists to offer or omit host or password authentication.",
-  "note": "SSH-transport option",
+  "code": {
+    "internal/component/bgp/plugins/rpki/rtr_session.go::RTRSession.connectAndSync": "f6e49f1b56fcee4b",
+    "internal/component/bgp/plugins/rpki/rtr_tls.go::RTRSession.startTLS": "84293c330dd56d36"
+  },
+  "note": "Re-judged 2026-10-30 (independent judge) after the row's annotation moved from {not-applicable} to {gap}. RFC 8210 Section 9.1 reads 'User authentication MUST be supported; host authentication MAY be supported.  Implementations MAY support password authentication.' The sentence binds both ends of an SSH transport, and the router end is Ze's role. Section 9 makes SSHv2 a transport Ze may offer, and no owner decision declines it, so the absent SSH transport is an implementation gap, not an exclusion: the earlier not-applicable verdict, which read 'no SSH transport code exists' as no code path, recorded an unimplemented feature as an exclusion. internal/component/bgp/plugins/rpki/rtr_session.go::RTRSession.connectAndSync dials TCP and, for a cache configured with it, hands the connection to internal/component/bgp/plugins/rpki/rtr_tls.go::RTRSession.startTLS; no code offers an SSH transport, so neither host nor password authentication exists.",
   "requirement_sha": "a195ddb5e0dccde9",
-  "verdict": "not-applicable"
+  "verdict": "unimplemented"
 }

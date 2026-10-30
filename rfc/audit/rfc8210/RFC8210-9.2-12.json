@@ -1,6 +1,10 @@
 {
-  "no_code_path": "The check and the rejection bind the cache authenticating a connecting router's certificate. Ze's RTR client only dials out (rtr_session.go connectAndSync) and runs no RTR TLS server, so no ze code path accepts or rejects a router's TLS connection.",
-  "note": "cache-side TLS obligation",
+  "code": {
+    "internal/component/bgp/plugins/rpki/rtr_session.go::RTRSession.connectAndSync": "f6e49f1b56fcee4b",
+    "internal/component/bgp/plugins/rpki/rtr_tls.go::RTRSession.startTLS": "84293c330dd56d36",
+    "internal/component/bgp/plugins/rpki/rtr_tls.go::buildRTRTLSConfig": "9513256efe9cfabf"
+  },
+  "note": "Re-judged 2026-10-30 (independent judge) after the row's annotation moved from {not-applicable} to {gap}. RFC 8210 Section 9.2 reads 'Certificates used to authenticate client routers in this protocol MUST include a subjectAltName extension [RFC5280] containing one or more iPAddress identities; when authenticating the router's certificate, the cache MUST check the IP address of the TLS connection against these iPAddress identities and SHOULD reject the connection if none of the iPAddress identities match the connection.' The SHOULD binds the cache, which Ze never is, but the sentence's first keyword is the MUST on the router certificate, so no not-applicable shape the gate accepts fits this SHOULD row, and the audit record cannot reclassify the row on its own: it follows the summary's {gap}. Recorded as unimplemented because no Ze code checks a connecting router's IP address or rejects its connection: Ze runs no RTR TLS server, internal/component/bgp/plugins/rpki/rtr_tls.go::RTRSession.startTLS is the client side of a connection internal/component/bgp/plugins/rpki/rtr_session.go::RTRSession.connectAndSync dialled, and internal/component/bgp/plugins/rpki/rtr_tls.go::buildRTRTLSConfig only refuses Ze's own client certificate when it lacks an iPAddress subjectAltName. The obligation binds a role Ze does not fill; the verdict marks it unmet only because the gate admits no exclusion for this sentence.",
   "requirement_sha": "002f49d51572adc5",
-  "verdict": "not-applicable"
+  "verdict": "unimplemented"
 }

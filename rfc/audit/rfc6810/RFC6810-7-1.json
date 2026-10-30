@@ -1,13 +1,9 @@
 {
-  "note": "Single-polarity positive (row annotation). Same unit as RFC8210-9-1: TestRTRUnprotectedTCPFromConfig drives a config-parsed trusted-network cache (default port 323) over plain TCP to a completed sync with the VRP used.",
+  "code": {
+    "internal/component/bgp/plugins/rpki/rtr_session.go::RTRSession.handlePDU": "a35dddd57c7c0ac1",
+    "internal/component/bgp/plugins/rpki/rtr_session.go::RTRSession.syncOnce": "536ea897312fa900"
+  },
+  "note": "Re-judged 2026-10-30 (independent judge) after the row moved to {gap} under the owner ruling that RTR version 0 is owed. RFC 6810 Section 7 reads 'Caches and routers MUST implement unprotected transport over TCP using a port, rpki-rtr (323); see Section 12.' The transport is the carrier of the version 0 protocol this document defines, and Ze carries no version 0 session over it: Ze dials unprotected TCP on port 323, but internal/component/bgp/plugins/rpki/rtr_session.go::RTRSession.handlePDU returns errRtrUnsupportedProtocol for every PDU but a Serial Notify or Error Report whose version is below rtrVersionMin = 1 and refuses a cache's Error Report code 4 that offers such a version, and RTRSession.syncOnce never downgrades below rtrVersionMin. The unprotected TCP transport is proven for versions 1 and 2 under RFC8210-9-1 by tests that no longer carry this id. With no version 0 session, a version 0 cache gets no usable transport from Ze, so the requirement is unmet.",
   "requirement_sha": "de4bab7f792829e2",
-  "tests": {
-    "internal/component/bgp/plugins/rpki/rpki_config_test.go::TestParseRPKIConfigDefaults": "d7d78d3e4e9294b5",
-    "internal/component/bgp/plugins/rpki/rtr_transport_rfc8210_test.go::TestRTRUnprotectedTCPFromConfig": "f672dfc40b2bbd83"
-  },
-  "units": {
-    "internal/component/bgp/plugins/rpki/rpki_config_test.go::TestParseRPKIConfigDefaults": "364aa036558bee53",
-    "internal/component/bgp/plugins/rpki/rtr_transport_rfc8210_test.go::TestRTRUnprotectedTCPFromConfig": "dfe4758e6f392037"
-  },
-  "verdict": "enforced"
+  "verdict": "unimplemented"
 }

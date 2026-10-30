@@ -1,13 +1,13 @@
 {
-  "note": "Single-polarity positive (row annotation). TestRTRUnprotectedTCPFromConfig parses a trusted-network cache-server with no port to 323, starts the plugin's sessions from that entry (port moved to the listener, 323 being privileged), the cache reads a clear-text v2 Reset Query, the plugin syncs, and the served VRP validates Valid.",
+  "note": "Re-read 2026-10-30 (independent judge) after commit 60e9406387 removed the RFC6810-7-1 tags from these units; no assertion line changed. RFC 8210 Section 9 reads 'Caches and routers MUST implement unprotected transport over TCP using a port, rpki-rtr (323); see Section 14.' Single-polarity positive, as the row's annotation argues: there is no non-conforming input that a router implementing the transport refuses. TestParseRPKIConfigDefaults asserts a trusted-network cache-server with no port parses to 323. TestRTRUnprotectedTCPFromConfig parses the same entry, asserts port 323, moves only the port to an unprivileged listener, starts the plugin's sessions, and asserts the cache reads a clear-text Reset Query (version byte and PDU type at offsets 0 and 1, so a TLS ClientHello would fail), the plugin syncs and the served VRP validates Valid. A config path that dropped plain TCP or another default port goes red.",
   "requirement_sha": "c36afe55d7037dc6",
   "tests": {
-    "internal/component/bgp/plugins/rpki/rpki_config_test.go::TestParseRPKIConfigDefaults": "d7d78d3e4e9294b5",
-    "internal/component/bgp/plugins/rpki/rtr_transport_rfc8210_test.go::TestRTRUnprotectedTCPFromConfig": "f672dfc40b2bbd83"
+    "internal/component/bgp/plugins/rpki/rpki_config_test.go::TestParseRPKIConfigDefaults": "3d57a68e923d57f0",
+    "internal/component/bgp/plugins/rpki/rtr_transport_rfc8210_test.go::TestRTRUnprotectedTCPFromConfig": "e06bab82da0b7c87"
   },
   "units": {
-    "internal/component/bgp/plugins/rpki/rpki_config_test.go::TestParseRPKIConfigDefaults": "364aa036558bee53",
-    "internal/component/bgp/plugins/rpki/rtr_transport_rfc8210_test.go::TestRTRUnprotectedTCPFromConfig": "dfe4758e6f392037"
+    "internal/component/bgp/plugins/rpki/rpki_config_test.go::TestParseRPKIConfigDefaults": "39d23c8e33626ea0",
+    "internal/component/bgp/plugins/rpki/rtr_transport_rfc8210_test.go::TestRTRUnprotectedTCPFromConfig": "8143c4abff24a8df"
   },
   "verdict": "enforced"
 }

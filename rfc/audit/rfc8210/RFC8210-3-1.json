@@ -1,17 +1,17 @@
 {
-  "note": "TLS path: TestRTRTLSRejectsUnauthenticatedCaches / TestRTRTLSAuthenticatedCache. Unprotected-TCP path: TestRTRUnprotectedTCPFromConfig syncs and uses data from a cache declared trusted-network; negative: cache-server {} and trusted-network false are refused by parseRPKIConfig, the only difference from the accepted entry being the declaration, so no session over an undeclared channel can start.",
+  "note": "Re-read 2026-10-30 (independent judge) after commit 60e9406387 removed the RFC6810-7-1 tag from TestRTRUnprotectedTCPFromConfig; no assertion line changed, and the TLS units are unchanged. RFC 8210 Section 3 reads 'A Relying Party, e.g., router or other client, MUST have a trust relationship with, and a trusted transport channel to, any cache(s) it uses.' TLS path: TestRTRTLSAuthenticatedCache completes a mutually authenticated handshake under the named CA over TLS 1.2 and 1.3 and only then publishes the cache's VRP and ASPA; TestRTRTLSRejectsUnauthenticatedCaches shows an issuer outside the named CA, wrong DNS-ID, CN-only, IP-SAN-only and one-way TLS each refused before any record is published. Unprotected path: TestRTRUnprotectedTCPFromConfig syncs and uses data from a cache declared trusted-network, and its negative shows cache-server {} and trusted-network false refused by parseRPKIConfig, the declaration being the only difference from the accepted entry. Both the trust relationship and the trusted channel are asserted on both transports.",
   "requirement_sha": "5050492fc80cec76",
   "tests": {
     "internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go::TestRTRTLSAuthenticatedCache": "cc96e0e57341d7a8",
     "internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go::TestRTRTLSRejectsUnauthenticatedCaches": "cc96e0e57341d7a8",
-    "internal/component/bgp/plugins/rpki/rtr_transport_rfc8210_test.go::TestRTRUnprotectedTCPFromConfig": "f672dfc40b2bbd83",
-    "internal/component/bgp/plugins/rpki/rtr_transport_rfc8210_test.go::TestRTRUnprotectedTCPFromConfig#2": "f672dfc40b2bbd83"
+    "internal/component/bgp/plugins/rpki/rtr_transport_rfc8210_test.go::TestRTRUnprotectedTCPFromConfig": "e06bab82da0b7c87",
+    "internal/component/bgp/plugins/rpki/rtr_transport_rfc8210_test.go::TestRTRUnprotectedTCPFromConfig#2": "e06bab82da0b7c87"
   },
   "units": {
     "internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go::TestRTRTLSAuthenticatedCache": "46740446577221b8",
     "internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go::TestRTRTLSRejectsUnauthenticatedCaches": "5079e5e699076586",
-    "internal/component/bgp/plugins/rpki/rtr_transport_rfc8210_test.go::TestRTRUnprotectedTCPFromConfig": "dfe4758e6f392037",
-    "internal/component/bgp/plugins/rpki/rtr_transport_rfc8210_test.go::TestRTRUnprotectedTCPFromConfig#2": "dfe4758e6f392037"
+    "internal/component/bgp/plugins/rpki/rtr_transport_rfc8210_test.go::TestRTRUnprotectedTCPFromConfig": "8143c4abff24a8df",
+    "internal/component/bgp/plugins/rpki/rtr_transport_rfc8210_test.go::TestRTRUnprotectedTCPFromConfig#2": "8143c4abff24a8df"
   },
   "verdict": "enforced"
 }

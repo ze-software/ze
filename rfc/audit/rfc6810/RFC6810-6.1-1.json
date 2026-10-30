@@ -1,15 +1,9 @@
 {
-  "note": "Single-polarity positive (row annotation). TestRTRPollsAtLeastHourly: after an End of Data with zero interval fields, pollDelay(true) and pollDelay(false) are both at most one hour; the running cacheGroup queries again when the wait ends (Reset then Serial on the wire with a 1s wait), so the loop does re-query. TestRFC6810DefaultPollCadenceIsHourly keeps the fresh-session defaults.",
+  "code": {
+    "internal/component/bgp/plugins/rpki/rtr_session.go::RTRSession.handlePDU": "a35dddd57c7c0ac1",
+    "internal/component/bgp/plugins/rpki/rtr_session.go::RTRSession.syncOnce": "536ea897312fa900"
+  },
+  "note": "Re-judged 2026-10-30 (independent judge) after the row moved to {gap} under the owner ruling that RTR version 0 is owed. RFC 6810 Section 6.1 reads 'To limit the length of time a cache must keep the data necessary to generate incremental updates, a router MUST send either a Serial Query or a Reset Query no less frequently than once an hour.' The Serial and Reset Queries this binds are version 0 PDUs, and Ze sends none: RTRSession starts at rtrVersionMax, RTRSession.syncOnce bounds the downgrade loop at rtrVersionMin = 1, and internal/component/bgp/plugins/rpki/rtr_session.go::RTRSession.handlePDU refuses a cache's Error Report code 4 that offers a version below rtrVersionMin and any data PDU below it, so a version 0 cache never gets a session to poll. The periodic re-query on the Refresh and Retry Intervals (cacheGroup.Run, pollDelay) runs only in version 1 and 2 sessions and is proven under RFC8210-8.1-1; RFC 8210 also replaces the fixed hour with the cache-signalled Refresh Interval. No version 0 path exists, so the requirement is unmet.",
   "requirement_sha": "07837f0e5c3e77ff",
-  "tests": {
-    "internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go::TestRFC6810DefaultPollCadenceIsHourly": "8c11ef49583ba7c6",
-    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRPollsAtLeastHourly": "f4affe67e61b8df8",
-    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRPollsAtLeastHourly#2": "f4affe67e61b8df8"
-  },
-  "units": {
-    "internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go::TestRFC6810DefaultPollCadenceIsHourly": "2fbc18510004eb9d",
-    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRPollsAtLeastHourly": "205120082a6289d1",
-    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRPollsAtLeastHourly#2": "205120082a6289d1"
-  },
-  "verdict": "enforced"
+  "verdict": "unimplemented"
 }

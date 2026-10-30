@@ -1,13 +1,9 @@
 {
-  "note": "Forbidden: stopping, or sending anything but a Reset Query, after No Data Available with no other cache. TestRFC6810NoDataAvailableRepeatsResetQuery runs one live cache that answers two queries with Error Report code 2 and asserts three consecutive received queries are pduResetQuery, each within 4s (t.Fatal on silence, assert.Equal on a Serial Query). Negative: once the cache supplies a load the route validates and the next query is pduSerialQuery, so the reset mode ends at the usable load.",
+  "code": {
+    "internal/component/bgp/plugins/rpki/rtr_session.go::RTRSession.handlePDU": "a35dddd57c7c0ac1",
+    "internal/component/bgp/plugins/rpki/rtr_session.go::RTRSession.syncOnce": "536ea897312fa900"
+  },
+  "note": "Re-judged 2026-10-30 (independent judge) after the row moved to {gap} under the owner ruling that RTR version 0 is owed. RFC 6810 Section 6.4 reads 'When a router receives this kind of error, the router SHOULD attempt to connect to any other caches in its cache list, in preference order.  If no other caches are available, the router MUST issue periodic Reset Queries until it gets a new usable load from the cache.' The No Data Available Error Report and the Reset Queries are version 0 PDUs here. Ze reads an Error Report of any version, but internal/component/bgp/plugins/rpki/rtr_session.go::RTRSession.handlePDU refuses a cache's Error Report code 4 that offers a version below rtrVersionMin = 1, returns errRtrUnsupportedProtocol for any data PDU below it, and RTRSession.syncOnce never downgrades below rtrVersionMin, so Ze never holds a version 0 session in which to issue a version 0 Reset Query. The repeated Reset Queries after No Data Available run only in version 1 and 2 sessions and are proven under RFC8210-8.4-1. No version 0 path exists, so the requirement is unmet.",
   "requirement_sha": "584bb4830ad685a3",
-  "tests": {
-    "internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go::TestRFC6810NoDataAvailableRepeatsResetQuery": "8c11ef49583ba7c6",
-    "internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go::TestRFC6810NoDataAvailableRepeatsResetQuery#2": "8c11ef49583ba7c6"
-  },
-  "units": {
-    "internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go::TestRFC6810NoDataAvailableRepeatsResetQuery": "0c26f510ae3c0886",
-    "internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go::TestRFC6810NoDataAvailableRepeatsResetQuery#2": "0c26f510ae3c0886"
-  },
-  "verdict": "enforced"
+  "verdict": "unimplemented"
 }

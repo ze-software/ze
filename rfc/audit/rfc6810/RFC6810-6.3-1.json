@@ -1,17 +1,9 @@
 {
-  "note": "Same units as RFC8210-8.3-1: TestRTRCacheResetReloadsTheWholeSet, one-session group, Cache Reset makes the next wire query a Reset Query and its load replaces the old set; negative: data in answer to the Serial Query keeps Serial Queries and merges.",
+  "code": {
+    "internal/component/bgp/plugins/rpki/rtr_session.go::RTRSession.handlePDU": "a35dddd57c7c0ac1",
+    "internal/component/bgp/plugins/rpki/rtr_session.go::RTRSession.syncOnce": "536ea897312fa900"
+  },
+  "note": "Re-judged 2026-10-30 (independent judge) after the row moved to {gap} under the owner ruling that RTR version 0 is owed. RFC 6810 Section 6.3 reads 'When a router receives this, the router SHOULD attempt to connect to any more preferred caches in its cache list.  If there are no more preferred caches, it MUST issue a Reset Query and get an entire new load from the cache.' The Cache Reset and Reset Query are version 0 PDUs here, and Ze exchanges none: internal/component/bgp/plugins/rpki/rtr_session.go::RTRSession.handlePDU returns errRtrUnsupportedProtocol for a Cache Reset whose version is below rtrVersionMin = 1 and refuses a cache's Error Report code 4 that offers such a version, and RTRSession.syncOnce never downgrades below rtrVersionMin. The Cache Reset to Reset Query reload in handlePDU runs only in version 1 and 2 sessions and is proven under RFC8210-8.3-1. No version 0 path exists, so the requirement is unmet.",
   "requirement_sha": "ffe9f790aa8a5991",
-  "tests": {
-    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRCacheResetReloadsTheWholeSet": "f4affe67e61b8df8",
-    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRCacheResetReloadsTheWholeSet#2": "f4affe67e61b8df8",
-    "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestCacheResetTriggersResetQuery": "9de8363060757013",
-    "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestCacheResetTriggersResetQuery#2": "9de8363060757013"
-  },
-  "units": {
-    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRCacheResetReloadsTheWholeSet": "36d27e409e1c2fef",
-    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRCacheResetReloadsTheWholeSet#2": "36d27e409e1c2fef",
-    "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestCacheResetTriggersResetQuery": "cb81b414628b3cf1",
-    "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestCacheResetTriggersResetQuery#2": "cb81b414628b3cf1"
-  },
-  "verdict": "enforced"
+  "verdict": "unimplemented"
 }

@@ -1,13 +1,13 @@
 {
-  "note": "Forbidden: accepting a Prefix PDU whose Max Length is less than its Prefix Length. TestParseIPv4PrefixMaxLenLessThanPrefixLen builds a PDU with prefix length 24 and max length 16 and asserts parseIPv4Prefix returns an error containing 'invalid' (the prefix length alone is valid, so the buffer isolates the rule); positive TestParseIPv4Prefix accepts max length 24 over prefix length 8. Both buffers carry rtrVersionMin (1), the RFC 8210 version.",
+  "note": "Re-read 2026-10-30 (independent judge) after commit 60e9406387 removed the RFC6810-5.1-1 tags from these units; no assertion line changed. RFC 8210 Section 5.1 reads 'Max Length:  An 8-bit unsigned integer denoting the longest prefix allowed by the Prefix element.  This MUST NOT be less than the Prefix Length element.' Negative: TestParseIPv4PrefixMaxLenLessThanPrefixLen builds a version 1 (rtrVersionMin) IPv4 Prefix PDU with prefix length 24, a valid value, and max length 16, and asserts parseIPv4Prefix errors with 'invalid', so the buffer isolates the Max Length rule. Positive: TestParseIPv4Prefix accepts a version 1 PDU with max length 24 over prefix length 8 and pins the VRP's ASN, prefix and max length. The check sits in parsePrefixPDU, which the IPv6 parser shares; removing the maxLen < prefixLen test turns the negative red.",
   "requirement_sha": "286219cb3c5511e2",
   "tests": {
-    "internal/component/bgp/plugins/rpki/rtr_pdu_test.go::TestParseIPv4Prefix": "c5beca1060fa5391",
-    "internal/component/bgp/plugins/rpki/rtr_pdu_test.go::TestParseIPv4PrefixMaxLenLessThanPrefixLen": "c5beca1060fa5391"
+    "internal/component/bgp/plugins/rpki/rtr_pdu_test.go::TestParseIPv4Prefix": "c2034632b78db26e",
+    "internal/component/bgp/plugins/rpki/rtr_pdu_test.go::TestParseIPv4PrefixMaxLenLessThanPrefixLen": "c2034632b78db26e"
   },
   "units": {
-    "internal/component/bgp/plugins/rpki/rtr_pdu_test.go::TestParseIPv4Prefix": "0d0466e247e4adf7",
-    "internal/component/bgp/plugins/rpki/rtr_pdu_test.go::TestParseIPv4PrefixMaxLenLessThanPrefixLen": "f43777808456f294"
+    "internal/component/bgp/plugins/rpki/rtr_pdu_test.go::TestParseIPv4Prefix": "d420229a44ef9db1",
+    "internal/component/bgp/plugins/rpki/rtr_pdu_test.go::TestParseIPv4PrefixMaxLenLessThanPrefixLen": "ed4158c352cbcda9"
   },
   "verdict": "enforced"
 }

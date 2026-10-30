@@ -1,19 +1,9 @@
 {
-  "note": "Receipt of unspecified-content fields proven for every router-received PDU that has one: IPv4 Prefix (TestRFC6810ReservedPrefixOctetsIgnored), IPv6 Prefix header zero field, reserved flags and zero octet all ones still authorize 2001:db8::/32, and Cache Reset octets 2-3 0xFFFF still reset (TestRTRReservedOctetsIgnoredOnReceipt). Serial Notify, Cache Response and End of Data carry Session ID there, not a reserved field. Negative: the same 0xFFFF in a Cache Response is read as Session ID.",
+  "code": {
+    "internal/component/bgp/plugins/rpki/rtr_session.go::RTRSession.handlePDU": "a35dddd57c7c0ac1",
+    "internal/component/bgp/plugins/rpki/rtr_session.go::RTRSession.syncOnce": "536ea897312fa900"
+  },
+  "note": "Re-judged 2026-10-30 (independent judge) after the row moved to {gap} under the owner ruling that RTR version 0 is owed. RFC 6810 Section 5.1 reads 'Zero:  Fields shown as zero or reserved MUST be zero.  The value of such a field MUST be ignored on receipt.' for the PDUs of protocol version 0 ('currently 0', Section 5). Ze never receives a version 0 PDU into its parsers: internal/component/bgp/plugins/rpki/rtr_session.go::RTRSession.handlePDU returns errRtrUnsupportedProtocol for every PDU but a Serial Notify or Error Report whose version is below rtrVersionMin = 1, refuses a cache's Error Report code 4 that offers a version below rtrVersionMin, and RTRSession.syncOnce never downgrades below rtrVersionMin. The reserved-field tolerance of parsePrefixPDU and handlePDU is real but is reached only in version 1 and 2 sessions and is proven under RFC8210-5-1 and RFC8210-5.1-1; the tests that once carried this id run version 1 and no longer tag it. No version 0 path exists, so the requirement is unmet.",
   "requirement_sha": "75ef2c8da16bedaf",
-  "tests": {
-    "internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go::TestRFC6810ReservedPrefixOctetsIgnored": "8c11ef49583ba7c6",
-    "internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go::TestRFC6810ReservedPrefixOctetsIgnored#2": "8c11ef49583ba7c6",
-    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRReservedOctetsIgnoredOnReceipt": "f4affe67e61b8df8",
-    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRReservedOctetsIgnoredOnReceipt#2": "f4affe67e61b8df8",
-    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRReservedOctetsIgnoredOnReceipt#3": "f4affe67e61b8df8"
-  },
-  "units": {
-    "internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go::TestRFC6810ReservedPrefixOctetsIgnored": "3cc16e24c1841a65",
-    "internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go::TestRFC6810ReservedPrefixOctetsIgnored#2": "3cc16e24c1841a65",
-    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRReservedOctetsIgnoredOnReceipt": "ddcab4be31777bdf",
-    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRReservedOctetsIgnoredOnReceipt#2": "ddcab4be31777bdf",
-    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRReservedOctetsIgnoredOnReceipt#3": "ddcab4be31777bdf"
-  },
-  "verdict": "enforced"
+  "verdict": "unimplemented"
 }
