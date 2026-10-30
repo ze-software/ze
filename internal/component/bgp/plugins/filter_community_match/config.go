@@ -6,7 +6,7 @@
 //
 // Reads named community-match definitions out of the BGP config subtree:
 //
-//	bgp { policy { community-match NAME { entry COMMUNITY { type T; action A; } } } }
+//	policy { community-match NAME { entry COMMUNITY { type T; action A; } } }
 //
 // Each list becomes a *communityList with ordered entries. Configured values
 // are parsed and normalized to the attribute formatter's text representation
@@ -27,16 +27,12 @@ const (
 	maxCommunityLen = 256
 )
 
-// parseCommunityLists walks bgp { policy { community-match ... } } and returns
+// parseCommunityLists walks policy { community-match ... } and returns
 // a map of name -> *communityList ready for runtime evaluation.
-func parseCommunityLists(bgpCfg map[string]any) (map[string]*communityList, error) {
+func parseCommunityLists(policyCfg map[string]any) (map[string]*communityList, error) {
 	result := make(map[string]*communityList)
 
-	policyBlock, ok := bgpCfg["policy"].(map[string]any)
-	if !ok {
-		return result, nil
-	}
-	cmBlock, ok := policyBlock["community-match"].(map[string]any)
+	cmBlock, ok := policyCfg["community-match"].(map[string]any)
 	if !ok {
 		return result, nil
 	}

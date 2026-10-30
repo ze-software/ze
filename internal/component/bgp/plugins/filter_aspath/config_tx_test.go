@@ -3,21 +3,22 @@ package filter_aspath
 import (
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/policy"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 // definitionsSection builds a bgp delivery defining one as-path-list entry per
 // name.
 func definitionsSection(names ...string) []sdk.ConfigSection {
-	data := `{"bgp":{"policy":{"as-path-list":{`
+	data := `{"policy":{"as-path-list":{`
 	for i, name := range names {
 		if i > 0 {
 			data += ","
 		}
 		data += `"` + name + `":{"entry":{"^65001$":{"action":"accept"}}}`
 	}
-	data += `}}}}`
-	return []sdk.ConfigSection{{Root: configRootBGP, Data: data}}
+	data += `}}}`
+	return []sdk.ConfigSection{{Root: policy.RootName, Data: data}}
 }
 
 // installedDefinitions counts the definitions a filter-update would read.
@@ -63,7 +64,7 @@ func TestConfigTxAppliesReloadedDefinitions(t *testing.T) {
 		t.Fatalf("after rollback: %d definitions, want 1", n)
 	}
 
-	if err := tx.Verify([]sdk.ConfigSection{{Root: configRootBGP, Data: "{not json"}}); err == nil {
+	if err := tx.Verify([]sdk.ConfigSection{{Root: policy.RootName, Data: "{not json"}}); err == nil {
 		t.Fatal("verify of invalid JSON: err nil, want a refusal")
 	}
 	if n := installedDefinitions(t); n != 1 {

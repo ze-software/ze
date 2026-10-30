@@ -118,12 +118,13 @@ A member that connects while Ze is still starting its plugins is held: its sessi
 <!-- source: internal/component/bgp/reactor/reactor_dynamic.go -- createDynamicPeer -->
 
 ```text
-bgp {
-    policy {
-        reject-asn NO-TRANSIT {
-            indirect [ 174 701 3356 ]
-        }
+policy {
+    reject-asn NO-TRANSIT {
+        indirect [ 174 701 3356 ]
     }
+}
+
+bgp {
     group ix {
         connection {
             remote {

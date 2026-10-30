@@ -61,6 +61,25 @@ uses for a mistyped command, `suggest.Command`.
 <!-- source: internal/component/config/retired.go -- UnknownKeywordHint -->
 <!-- source: internal/core/suggest/suggest.go -- Command -->
 
+A block that moved out of a container to become a top-level root gets the
+command that rewrites it instead. `bgp { policy { ... } }` is the one such block
+today: the `policy` component registers the move from `init()` with
+`config.MustRegisterRelocatedContainer("bgp", "policy")`, the schema marks the
+old position, and both parsers answer `policy is no longer inside bgp: it is now
+the top-level policy { ... } block`, then `fix: ze config migrate -o <new-file>
+<file>`. No alias accepts the old position.
+<!-- source: internal/component/config/relocated.go -- MustRegisterRelocatedContainer, markRelocations, relocatedHint -->
+<!-- source: internal/component/policy/register.go -- init, relocatedFromBGP -->
+
+`ze config migrate` parses the file with `config.MigrationSchema()`, which
+grafts each relocated root back under its old parent, and its last
+transformation, `relocated-blocks`, moves the block to the top level and merges
+it with any top-level block already there. A list entry written at both
+positions is refused with both locations named, because no merge can choose
+between them.
+<!-- source: internal/component/config/relocated.go -- MigrationSchema, ApplyRelocations, refuseRelocationConflict -->
+<!-- source: internal/component/config/migration/migrate.go -- relocated-blocks -->
+
 An enumeration refusal includes its original path, the values it accepts, and
 the leaf statement to write. A bracket list where the schema expects a container
 names that path and renders the container's immediate fields instead, including
@@ -1324,7 +1343,7 @@ This keeps the inactive member, other references, and the direction's final.
 
 One filter is injected rather than written: `prependDefaultFilters`
 (`internal/component/bgp/config/peers.go`) puts each `loop-detection` entry
-defined under `policy` at the head of every peer's import chain. An operator
+defined under the top-level `policy` block at the head of every peer's import chain. An operator
 suppresses that injection by naming the entry in the chain, and deactivating a
 named member turns the filter off for that peer:
 
@@ -1373,12 +1392,15 @@ and switching it off records the decision. A peer or a dynamic group that declar
 no role is accepted, and `ze doctor` enumerates them under
 `doctor-bgp-peer-no-role`.
 
-Validation checks local policy filter names, canonicalizes short filter-type
-references through the plugin registry, and leaves explicit `<plugin>:<filter>`
+Validation checks local policy filter names against the filter types of the
+top-level `policy` root (the lists marked `ze:filter`, `policy.BuildRegistry`),
+canonicalizes short filter-type references through the plugin registry, and leaves explicit `<plugin>:<filter>`
 references for runtime dispatch. Runtime calls use the `filter-update` callback
 on the selected plugin.
 
-<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- policy and filter containers -->
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- filter containers -->
+<!-- source: internal/component/policy/yang/ze-policy-conf.yang -- policy container -->
+<!-- source: internal/component/bgp/config/peers.go -- policyRegistryOf, validateChainNames -->
 <!-- source: internal/component/bgp/config/redistribution.go -- redistribution config parsing -->
 <!-- source: internal/component/bgp/config/filter_registry.go -- local policy filter validation -->
 <!-- source: internal/component/plugin/registry/registry.go -- FilterTypes registry -->

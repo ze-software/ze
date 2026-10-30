@@ -69,27 +69,27 @@ type peerIRRConfig struct {
 	UsesIRR bool
 }
 
-func parseIRRConfig(bgpCfg map[string]any) *irrConfig {
+// parseIRRConfig reads the IRR settings from policy { irr { } } and the peers
+// that opted into IRR filtering from the bgp root.
+func parseIRRConfig(policyCfg, bgpCfg map[string]any) *irrConfig {
 	cfg := &irrConfig{
 		Server:          defaultServer,
 		PeeringDBURL:    defaultPeeringDBURL,
 		RefreshInterval: defaultRefreshInterval,
 	}
 
-	if policyBlock, ok := bgpCfg["policy"].(map[string]any); ok {
-		if irrBlock, ok := policyBlock["irr"].(map[string]any); ok {
-			if srv, ok := irrBlock["server"].(string); ok && srv != "" {
-				cfg.Server = srv
-			}
-			if pdbURL, ok := irrBlock["peeringdb-url"].(string); ok && pdbURL != "" {
-				cfg.PeeringDBURL = pdbURL
-			}
-			if sa, ok := irrBlock["source-address"].(string); ok && sa != "" {
-				cfg.SourceAddress = sa
-			}
-			if v, ok := readUint(irrBlock["refresh-interval"]); ok {
-				cfg.RefreshInterval = clampRefreshInterval(v)
-			}
+	if irrBlock, ok := policyCfg["irr"].(map[string]any); ok {
+		if srv, ok := irrBlock["server"].(string); ok && srv != "" {
+			cfg.Server = srv
+		}
+		if pdbURL, ok := irrBlock["peeringdb-url"].(string); ok && pdbURL != "" {
+			cfg.PeeringDBURL = pdbURL
+		}
+		if sa, ok := irrBlock["source-address"].(string); ok && sa != "" {
+			cfg.SourceAddress = sa
+		}
+		if v, ok := readUint(irrBlock["refresh-interval"]); ok {
+			cfg.RefreshInterval = clampRefreshInterval(v)
 		}
 	}
 

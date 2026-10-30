@@ -10,11 +10,11 @@ import (
 )
 
 // TestConfigTxUnchangedSubtreeIsNoop proves AC-5 for bgp-filter-community-match: a reload that
-// edits bgp outside the community-match definitions installs nothing, so every filter call keeps
+// edits the policy root outside the community-match definitions installs nothing, so every filter call keeps
 // reading the very state it read before, and the rollback of that
 // transaction installs nothing either. Method: the stored pointer is compared
 // across a verify, apply and rollback whose candidate differs from the
-// running config only in another peer's description.
+// running config only in a sibling list under the policy root.
 // VALIDATES: spec-plugin-reload-applies-or-refuses AC-5 for bgp-filter-community-match.
 // PREVENTS: a shared-root edit rebuilding the filter's state, which would
 // also fail when the plugin's parsed config stops comparing deeply equal.
@@ -24,7 +24,7 @@ import (
 func TestConfigTxUnchangedSubtreeIsNoop(t *testing.T) {
 	t.Cleanup(func() { listsByName.Store(nil) })
 	tx := newCommunityMatchConfigTx()
-	if err := tx.Configure(withOtherPeer(t, definitionsSection("A"), "first")); err != nil {
+	if err := tx.Configure(withOtherPolicyList(t, definitionsSection("A"), "first")); err != nil {
 		t.Fatalf("configure: %v", err)
 	}
 	installed := listsByName.Load()
@@ -32,7 +32,7 @@ func TestConfigTxUnchangedSubtreeIsNoop(t *testing.T) {
 		t.Fatal("configure installed nothing")
 	}
 
-	if err := tx.Verify(withOtherPeer(t, definitionsSection("A"), "second")); err != nil {
+	if err := tx.Verify(withOtherPolicyList(t, definitionsSection("A"), "second")); err != nil {
 		t.Fatalf("verify: %v", err)
 	}
 	if err := tx.Apply(); err != nil {
@@ -49,27 +49,22 @@ func TestConfigTxUnchangedSubtreeIsNoop(t *testing.T) {
 	}
 }
 
-// withOtherPeer returns sections with peer "other" added to the bgp subtree:
-// a peer no filter names, carrying description, so two calls that differ only
-// in description differ only outside the plugin's subtree.
-func withOtherPeer(t *testing.T, sections []sdk.ConfigSection, description string) []sdk.ConfigSection {
+// withOtherPolicyList returns sections with an entry of another filter type added
+// to the policy root: config no list of this plugin holds, carrying
+// description, so two calls that differ only in description differ only
+// outside the plugin's subtree.
+func withOtherPolicyList(t *testing.T, sections []sdk.ConfigSection, description string) []sdk.ConfigSection {
 	t.Helper()
 	var tree map[string]any
 	if err := json.Unmarshal([]byte(sections[0].Data), &tree); err != nil {
 		t.Fatalf("section data: %v", err)
 	}
-	bgpCfg, ok := tree["bgp"].(map[string]any)
+	policyCfg, ok := tree["policy"].(map[string]any)
 	if !ok {
-		t.Fatal("section data holds no bgp object")
+		t.Fatal("section data holds no policy object")
 	}
-	peers, ok := bgpCfg["peer"].(map[string]any)
-	if !ok {
-		peers = map[string]any{}
-		bgpCfg["peer"] = peers
-	}
-	peers["other"] = map[string]any{
-		"connection":  map[string]any{"remote": map[string]any{"ip": "192.0.2.99"}},
-		"description": description,
+	policyCfg["other-filter-type"] = map[string]any{
+		"other": map[string]any{"description": description},
 	}
 	data, err := json.Marshal(tree)
 	if err != nil {

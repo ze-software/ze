@@ -184,17 +184,18 @@ func (n *LeafNode) Kind() NodeKind { return NodeLeaf }
 // ContainerNode represents a group of child nodes.
 type ContainerNode struct {
 	children     map[string]Node
-	order        []string       // preserve definition order
-	AllowUnknown bool           // accept arbitrary key-value pairs (ze:allow-unknown-fields)
-	Hidden       bool           // ze:hidden — kept out of completion, the web editor and the annotated views; the file form still prints it
-	Ephemeral    bool           // ze:ephemeral — present in schema, not persisted to config file
-	Presence     bool           // YANG presence container: accepts flag (;), value (word;), or block ({})
-	Flatten      bool           // ze:flatten — printed as "<container> <child> ..." rather than a nested block (see serialize_flatten.go)
-	ShortHelp    string         // One-line summary from the ze:help extension, for tooltips
-	Description  string         // Long explanation from the YANG description statement
-	Backend      []string       // ze:backend — supporting backends; nil = unrestricted (see backend_gate.go)
-	Related      []*RelatedTool // ze:related — operator tools attached to this container (see related.go)
-	cases        choiceMembers  // the children a YANG choice holds, for ApplyDefaults (see schema_defaults.go)
+	order        []string          // preserve definition order
+	AllowUnknown bool              // accept arbitrary key-value pairs (ze:allow-unknown-fields)
+	Hidden       bool              // ze:hidden — kept out of completion, the web editor and the annotated views; the file form still prints it
+	Ephemeral    bool              // ze:ephemeral — present in schema, not persisted to config file
+	Presence     bool              // YANG presence container: accepts flag (;), value (word;), or block ({})
+	Flatten      bool              // ze:flatten — printed as "<container> <child> ..." rather than a nested block (see serialize_flatten.go)
+	ShortHelp    string            // One-line summary from the ze:help extension, for tooltips
+	Description  string            // Long explanation from the YANG description statement
+	Backend      []string          // ze:backend — supporting backends; nil = unrestricted (see backend_gate.go)
+	Related      []*RelatedTool    // ze:related — operator tools attached to this container (see related.go)
+	cases        choiceMembers     // the children a YANG choice holds, for ApplyDefaults (see schema_defaults.go)
+	relocated    map[string]string // child name -> this container's name, for children that moved to a top-level root of the same name (see relocated.go)
 }
 
 func (n *ContainerNode) Kind() NodeKind { return NodeContainer }
@@ -228,6 +229,7 @@ type ListNode struct {
 	Ephemeral   bool           // ze:ephemeral -- present in schema, not persisted to config file
 	UserOrdered bool           // YANG `ordered-by user` -- the entry order is part of the value, so the file form keeps it (listBlockKeys)
 	Listener    bool           // ze:listener -- marks list as a network listener for port conflict detection
+	Filter      bool           // ze:filter -- each entry is a named route policy filter instance (internal/component/policy)
 	ShortHelp   string         // One-line summary from the ze:help extension, for tooltips
 	Description string         // Long explanation from the YANG description statement
 	Backend     []string       // ze:backend -- supporting backends; nil = unrestricted (see backend_gate.go)

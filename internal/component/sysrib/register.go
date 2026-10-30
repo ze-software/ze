@@ -8,6 +8,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/component/policy"
 	sysribevents "github.com/ze-software/ze/internal/component/sysrib/events"
 	sysribyang "github.com/ze-software/ze/internal/component/sysrib/yang"
 	"github.com/ze-software/ze/internal/core/events"
@@ -22,6 +23,13 @@ import (
 const configRootRIB = "rib"
 
 func init() {
+	// The filter attachment points this plugin's config holds, with the route
+	// fields their routes carry and a filter there may set (the route field
+	// vocabulary, internal/component/policy/fields.go).
+	policy.MustRegisterAttachment(configRootRIB, "rib import",
+		[]policy.Field{policy.FieldPrefix, policy.FieldFamily, policy.FieldProtocol, policy.FieldNextHop, policy.FieldInterface, policy.FieldMetric, policy.FieldTag, policy.FieldLevel, policy.FieldRouteType},
+		[]policy.Field{policy.FieldDistance, policy.FieldTag})
+
 	_ = events.RegisterNamespace(sysribevents.Namespace,
 		sysribevents.EventBestChange, sysribevents.EventReplayRequest,
 	)
@@ -35,7 +43,10 @@ func init() {
 		// StartAfter, never a load: the system RIB merges BGP's best changes
 		// with every other protocol's, and selects without them in a build or
 		// a config without BGP (./le plugin coupling check).
-		StartAfter:              []string{"bgp-rib"},
+		StartAfter: []string{"bgp-rib"},
+		// policy is a hard dependency of every protocol with a filter attachment:
+		// the filter instances its chains name live under the policy root.
+		Dependencies:            []string{policy.PluginName},
 		InProcessConfigVerifier: verifySysRIBConfig,
 		RunEngine:               runSysRIBPlugin,
 		Commands:                commandDecls(),

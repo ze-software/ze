@@ -5,7 +5,7 @@
 package filter_modify
 
 import (
-	"github.com/ze-software/ze/internal/component/bgp/configjson"
+	"github.com/ze-software/ze/internal/component/policy"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -15,7 +15,7 @@ import (
 // reads the modifiers and the base of one config and never a mix. Before any
 // install none is defined and every filter-update is rejected.
 func newModifyConfigTx() *sdk.ConfigTx[map[string]*modifyDef] {
-	parse := configjson.BGPSectionParser("filter-modify", errFilterModifyInvalidBgpConfigJson, parseModifyDefs)
+	parse := policy.SectionsParser("filter-modify", errFilterModifyInvalidBgpConfigJson, configRootBGP, parseModifyDefs)
 	return sdk.NewConfigTx(map[string]*modifyDef(nil), parse, installModifyDefs)
 }
 

@@ -487,7 +487,7 @@ Tab completion is driven by registered YANG schemas. The editor suggests:
   `peer vrf interface`), the first value of each configured entry, once, so
   one peer on two links is offered once; the key leaf names follow it
 - Well-known values a plugin offers for one of its own leaves, such as the
-  transit-free ASNs on `bgp policy reject-asn ... via`
+  transit-free ASNs on `policy reject-asn ... via`
 <!-- source: internal/component/cli/completer.go -- valueCompletions, validateCompletions, listKeyCompletions -->
 
 **A suggestion is never a constraint.** A leaf that offers well-known values

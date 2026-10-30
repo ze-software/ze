@@ -13,6 +13,7 @@ import (
 	"github.com/ze-software/ze/internal/component/config/redistribute"
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/redistevents"
 	"github.com/ze-software/ze/internal/core/rib/locrib"
 	"github.com/ze-software/ze/internal/core/rib/routeinstall"
@@ -98,6 +99,13 @@ func registerStaticSources() {
 }
 
 func init() {
+	// The filter attachment points this plugin's config holds, with the route
+	// fields their routes carry and a filter there may set (the route field
+	// vocabulary, internal/component/policy/fields.go).
+	policy.MustRegisterAttachment(pluginName, "static import",
+		[]policy.Field{policy.FieldPrefix, policy.FieldFamily, policy.FieldProtocol, policy.FieldNextHop, policy.FieldInterface, policy.FieldMetric, policy.FieldTag},
+		[]policy.Field{policy.FieldDistance, policy.FieldTag})
+
 	registerStaticSources()
 
 	reg := registry.Registration{
@@ -118,7 +126,9 @@ func init() {
 		// without it. It is not a data-plane choice: sysrib seeds every
 		// protocol's declared distance from the schema at start, so a config with
 		// no `rib { }` block gets the declared defaults rather than nothing.
-		Dependencies: []string{"routing-table", "rib"},
+		// policy is a hard dependency of every protocol with a filter attachment:
+		// the filter instances its chains name live under the policy root.
+		Dependencies: []string{"routing-table", "rib", policy.PluginName},
 		// A main-table static route is a Loc-RIB path, so the system RIB
 		// selects it and a FIB plugin writes it. With no writer the route
 		// reaches arbitration and stops there. The engine resolves the writer

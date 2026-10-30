@@ -163,6 +163,7 @@ The iface owned-device and owned-address registries, the RIB event bus, the fire
 | `error-answered-with-another-errors-code` | 2026-10-19 | NTP `syncWorker.doSync` |
 | `first-notification-drops-current-state` | 2026-10-21 | `bgpEnrichBuilder.Start` |
 | `guard-added-to-one-half-of-a-pair` | 2026-08-10 | iface netlink routes |
+| `stale-artifact-reused` | 2026-10-30 | `plugin/all` snapshots miss `dnsresolver` |
 | `guard-added-to-one-half-of-a-pair` | 2026-08-12 | geodns TTL bounds |
 | `guard-added-to-one-half-of-a-pair` | 2026-08-12 | dns negative answers |
 | `guard-added-to-one-half-of-a-pair` | 2026-09-14 | policy-route `from/protocol` |

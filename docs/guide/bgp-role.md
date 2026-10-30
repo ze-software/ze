@@ -191,16 +191,17 @@ our upstream: they legitimately send us the whole table, and the obligation is
 on what we send THEM.
 
 ```
+policy {
+    reject-asn NO-TRANSIT {
+        indirect [ 174 701 1299 3356 ]
+    }
+}
+
 bgp {
     router-id 192.0.2.1
     session {
         asn {
             local 65000
-        }
-    }
-    policy {
-        reject-asn NO-TRANSIT {
-            indirect [ 174 701 1299 3356 ]
         }
     }
     peer upstream {

@@ -1,4 +1,4 @@
-// Design: docs/architecture/web-workbench-pages.md -- BGP Policy/Filters page
+// Design: docs/architecture/web-workbench-pages.md -- Policy filters page
 // Related: workbench_table.go -- Reusable table component
 // Related: page_bgp_peers.go -- Peer page (sibling)
 
@@ -12,6 +12,11 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
+// policyPathPrefix is the workbench URL of the policy root. Filters live at
+// the top-level `policy` root, beside policy routing's `policy route`, so a
+// filter's editor URL is the policy root plus its type and name.
+const policyPathPrefix = "/show/" + segPolicy + "/"
+
 // policyEntry holds one filter/policy definition from the config tree.
 type policyEntry struct {
 	Name      string
@@ -19,18 +24,14 @@ type policyEntry struct {
 	RuleCount int
 }
 
-// collectPolicies walks the bgp/policy container and returns all filter
-// definitions. Filter list names come from the merged YANG schema so
-// plugin-provided filters appear and vanish with their plugin.
+// collectPolicies walks the top-level policy root and returns every filter
+// instance. The filter types come from the merged YANG schema, so a type a
+// plugin provides appears and vanishes with its plugin.
 func collectPolicies(viewTree *config.Tree, schema *config.Schema) []policyEntry {
 	if viewTree == nil || schema == nil {
 		return nil
 	}
-	bgpTree := viewTree.GetContainer("bgp")
-	if bgpTree == nil {
-		return nil
-	}
-	policyTree := bgpTree.GetContainer("policy")
+	policyTree := viewTree.GetContainer(segPolicy)
 	if policyTree == nil {
 		return nil
 	}
@@ -49,8 +50,13 @@ func collectPolicies(viewTree *config.Tree, schema *config.Schema) []policyEntry
 	return entries
 }
 
+// policyFilterListNames names the filter types under the policy root: the
+// lists the schema marks ze:filter. The root also holds lists that are not
+// filter types, such as policy routing's `route`, and the marker is what keeps
+// them off this page (internal/component/policy BuildRegistry reads the same
+// marker).
 func policyFilterListNames(schema *config.Schema) []string {
-	node, err := walkSchema(schema, []string{segBGP, segPolicy})
+	node, err := walkSchema(schema, []string{segPolicy})
 	if err != nil {
 		return nil
 	}
@@ -60,7 +66,11 @@ func policyFilterListNames(schema *config.Schema) []string {
 	}
 	names := make([]string, 0, len(lister.Children()))
 	for _, name := range lister.Children() {
-		if _, ok := lister.Get(name).(*config.ListNode); ok {
+		list, isList := lister.Get(name).(*config.ListNode)
+		if !isList {
+			continue
+		}
+		if list.Filter {
 			names = append(names, name)
 		}
 	}
@@ -82,7 +92,7 @@ func countRules(filterTree *config.Tree) int {
 	return 0
 }
 
-// buildBGPPolicyTableData constructs a WorkbenchTableData for the policy page.
+// buildBGPPolicyTableData constructs a WorkbenchTableData for the filters page.
 func buildBGPPolicyTableData(entries []policyEntry, addActions ...WorkbenchTableAddAction) WorkbenchTableData {
 	columns := []WorkbenchTableColumn{
 		{Key: colName, Label: labelName, Sortable: true},
@@ -94,14 +104,14 @@ func buildBGPPolicyTableData(entries []policyEntry, addActions ...WorkbenchTable
 	for _, pe := range entries {
 		rows = append(rows, WorkbenchTableRow{
 			Key: pe.Name,
-			URL: "/show/bgp/policy/" + pe.Name + "/",
+			URL: policyPathPrefix + pe.Type + "/" + pe.Name + "/",
 			Cells: []string{
 				pe.Name,
 				pe.Type,
 				strconv.Itoa(pe.RuleCount),
 			},
 			Actions: []WorkbenchRowAction{
-				{Label: labelEdit, URL: "/show/bgp/policy/" + pe.Name + "/"},
+				{Label: labelEdit, URL: policyPathPrefix + pe.Type + "/" + pe.Name + "/"},
 			},
 		})
 	}
@@ -122,7 +132,7 @@ func policyFilterAddActions(schema *config.Schema) []WorkbenchTableAddAction {
 	for _, name := range names {
 		actions = append(actions, WorkbenchTableAddAction{
 			Label: "Add " + titleFromSchemaName(name),
-			URL:   "/show/bgp/policy/" + name + "/",
+			URL:   policyPathPrefix + name + "/",
 		})
 	}
 	return actions
@@ -146,7 +156,8 @@ func titleFromSchemaName(name string) string {
 	return out.String()
 }
 
-// handleBGPPolicyPage renders the BGP policy/filters table within the workbench.
+// handleBGPPolicyPage renders the filters table of the policy root within the
+// workbench.
 func handleBGPPolicyPage(renderer *Renderer, viewTree *config.Tree, schema *config.Schema) template.HTML {
 	entries := collectPolicies(viewTree, schema)
 	tableData := buildBGPPolicyTableData(entries, policyFilterAddActions(schema)...)

@@ -71,6 +71,12 @@ environment {
     }
 }
 
+policy {
+    reject-asn NO-TRANSIT {
+        indirect [ 174 701 3356 ];
+    }
+}
+
 bgp {
     router-id 192.0.2.254;
     session {
@@ -87,12 +93,6 @@ bgp {
         action {
             invalid reject;
             not-found accept;
-        }
-    }
-
-    policy {
-        reject-asn NO-TRANSIT {
-            indirect [ 174 701 3356 ];
         }
     }
 

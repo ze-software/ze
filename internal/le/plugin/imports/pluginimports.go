@@ -84,6 +84,7 @@ var pluginDirs = []string{
 	// from a leftover, which is a distinction no walk of the tree can make.
 	"internal/component/ike/plugins",
 	"internal/component/l2tp/plugins",
+	"internal/component/policy",
 	"internal/component/sysctl",
 	"internal/component/sysrib",
 	"internal/component/traffic",

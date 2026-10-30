@@ -71,7 +71,7 @@ standard YANG tools ignore but ze interprets at runtime.
 | `ze:edit-shortcut` | Makes a command available in edit mode without the `run` prefix | (none) |
 | `ze:ensure-exists` | Marks a command container as a resource checkpoint. Each descendant command ensures the resource exists | WireMethod of the rollback handler |
 | `ze:ephemeral` | Node is validated and completed but never written to the config file | (none) |
-| `ze:filter` | Marks a list as a named filter type of the route policy framework | (none) |
+| `ze:filter` | Marks a list under the top-level `policy` root as a named filter type. `policy.BuildRegistry` discovers the filter types from this marker, so a list without it (policy routing's `route`) is never taken for one | (none) |
 | `ze:flatten` | Serializes a container's children with the container name as a leading keyword | (none) |
 | `ze:help` | Declares the one-line SUMMARY of a command node, an rpc, a config node, or an enum value. The `description` statement beside it declares the long explanation | one sentence, one line |
 | `ze:hidden` | Hides a node from the annotated and blame views and from the web editor. The file form (`Serialize`, written by `ze config fmt` and `ze config migrate`) and the set form still print a configured hidden node, so writing a config never deletes it | `true` or `false` |

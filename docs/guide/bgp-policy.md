@@ -6,20 +6,21 @@ Ze applies ordered import and export filter chains to BGP updates. Define named 
 
 Policy has two parts:
 
-1. Named filter instances under `bgp { policy { ... } }`.
+1. Named filter instances under the top-level `policy { ... }` root.
 2. Direction policies under `filter`, each with ordered `filters` and a required `final accept` or `final reject`.
 
 ```text
+policy {
+    loop-detection no-self-as {
+        allow-own-as 0
+    }
+}
+
 bgp {
     router-id 192.0.2.1
     session {
         asn {
             local 65000
-        }
-    }
-    policy {
-        loop-detection no-self-as {
-            allow-own-as 0
         }
     }
 
@@ -35,6 +36,15 @@ bgp {
     }
 }
 ```
+
+The `policy` root is shared by every protocol, and policy routing's
+`policy route` list lives in it too. A filter type is a list the YANG schema
+marks `ze:filter`; `route` carries no marker, so a filter chain cannot name a
+`policy route` entry. A configuration that still writes `bgp { policy { ... } }`
+is refused with the command that converts it: `ze config migrate -o <new-file>
+<file>` moves the block to the top-level root.
+<!-- source: internal/component/policy/registry.go -- BuildRegistry, ValidateName -->
+<!-- source: internal/component/config/relocated.go -- relocatedHint, ApplyRelocations -->
 
 The effective references are cumulative: automatic safety filters run first,
 followed by global, group, and peer references. The most-specific configured
@@ -138,16 +148,16 @@ leaks its transit sends paths that run through its upstream, and this list drops
 those routes while the session stays up.
 
 ```
+policy {
+    reject-asn NO-TRANSIT {
+        indirect [ 174 701 3356 ];
+    }
+}
 bgp {
     router-id 192.0.2.1
     session {
         asn {
             local 65000
-        }
-    }
-    policy {
-        reject-asn NO-TRANSIT {
-            indirect [ 174 701 3356 ];
         }
     }
     peer ix-member {

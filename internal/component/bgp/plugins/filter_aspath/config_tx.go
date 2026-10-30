@@ -4,7 +4,7 @@
 package filter_aspath
 
 import (
-	"github.com/ze-software/ze/internal/component/bgp/configjson"
+	"github.com/ze-software/ze/internal/component/policy"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -13,7 +13,7 @@ import (
 // the old set or the new one and never a mix. Before any install none is
 // defined.
 func newAsPathConfigTx() *sdk.ConfigTx[map[string]*aspathList] {
-	parse := configjson.BGPSectionParser("filter-aspath", errFilterAspathInvalidBgpConfigJson, parseAsPathLists)
+	parse := policy.SectionParser("filter-aspath", errFilterAspathInvalidBgpConfigJson, parseAsPathLists)
 	return sdk.NewConfigTx(map[string]*aspathList(nil), parse, installAsPathLists)
 }
 

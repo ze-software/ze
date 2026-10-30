@@ -16,7 +16,11 @@ import (
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
-const configRoot = "policy"
+// configRoot is the list policy routing owns under the shared policy root. A
+// nested root auto-loads policy routing only when `policy route` is
+// configured, never for a policy block holding only filter lists, and its
+// section still arrives as {"policy": {"route": ...}} (ExtractConfigSubtree).
+const configRoot = "policy/route"
 
 func init() {
 	reg := registry.Registration{

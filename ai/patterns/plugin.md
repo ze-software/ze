@@ -215,16 +215,20 @@ A BGP route filter takes one of two routes, and the choice is decided by WHEN
 the filter's name exists.
 
 **A filter named in CONFIG declares its filter TYPE on the registration.** The
-operator writes `bgp { policy { <type> NAME { ... } } }`, so the instance names
-are unknown at compile time and none of them can be registered at Stage 1.
-`FilterTypes` names the YANG list instead, `BuildFilterRegistry`
-(`internal/component/bgp/config/filter_registry.go`) discovers each instance
-from the `ze:filter` marker on that list, and a chain ref canonicalizes to
-`<plugin>:NAME`. The plugin answers each dispatch in `OnFilterUpdate`. This is
+operator writes `policy { <type> NAME { ... } }` at the top-level policy root,
+so the instance names are unknown at compile time and none of them can be
+registered at Stage 1. `FilterTypes` names the YANG list instead, which the
+filter's module adds with `augment "/policy:policy"`. `policy.BuildRegistry`
+(`internal/component/policy/registry.go`) discovers each instance from the
+`ze:filter` marker on that list, and a chain ref canonicalizes to
+`<plugin>:NAME`. The plugin registers `ConfigRoots [policy.RootName]` and lists
+`policy.PluginName` in `Dependencies`; a filter type that also reads BGP
+settings adds `ConfigReads ["bgp"]` and parses both roots with
+`policy.SectionsParser`. The plugin answers each dispatch in `OnFilterUpdate`. This is
 the route `filter_aspath`, `filter_prefix` and `filter_path_asn` take:
 
 ```go
-FilterTypes: []string{"as-path-list"},   // the YANG list name under bgp/policy
+FilterTypes: []string{"as-path-list"},   // the YANG list name under the policy root
 ```
 
 **A filter type that discharges a config obligation declares which one.** A

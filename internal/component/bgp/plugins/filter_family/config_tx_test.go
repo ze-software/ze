@@ -3,21 +3,22 @@ package filter_family
 import (
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/policy"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
-// familyFilterSection builds a bgp delivery defining one family-filter
+// familyFilterSection builds a policy delivery defining one family-filter
 // instance per name, each removing ipv4/flow.
 func familyFilterSection(names ...string) []sdk.ConfigSection {
-	data := `{"bgp":{"policy":{"family-filter":{`
+	data := `{"policy":{"family-filter":{`
 	for i, name := range names {
 		if i > 0 {
 			data += ","
 		}
 		data += `"` + name + `":{"family":"ipv4/flow","action":"remove"}`
 	}
-	data += `}}}}`
-	return []sdk.ConfigSection{{Root: configRootBGP, Data: data}}
+	data += `}}}`
+	return []sdk.ConfigSection{{Root: policy.RootName, Data: data}}
 }
 
 // installedInstances counts the instances a filter-update would read.
@@ -64,9 +65,10 @@ func TestConfigTxAppliesReloadedFamilyFilters(t *testing.T) {
 		t.Fatalf("after rollback: %d instances, want 1", n)
 	}
 
-	tearDownInExport := []sdk.ConfigSection{{Root: configRootBGP, Data: `{"bgp":{
-		"policy":{"family-filter":{"Kill":{"family":"ipv4/flow","action":"tear-down"}}},
-		"filter":{"export":{"filters":["bgp-filter-family:Kill"],"final":"accept"}}}}`}}
+	tearDownInExport := []sdk.ConfigSection{
+		{Root: policy.RootName, Data: `{"policy":{"family-filter":{"Kill":{"family":"ipv4/flow","action":"tear-down"}}}}`},
+		{Root: configRootBGP, Data: `{"bgp":{"filter":{"export":{"filters":["bgp-filter-family:Kill"],"final":"accept"}}}}`},
+	}
 	if err := tx.Verify(tearDownInExport); err == nil {
 		t.Fatal("verify of a tear-down instance in an export chain: err nil, want a refusal")
 	}
@@ -84,7 +86,7 @@ func TestConfigTxRemovedFamilyFiltersUnconfigure(t *testing.T) {
 	if err := tx.Configure(familyFilterSection("A")); err != nil {
 		t.Fatalf("configure: %v", err)
 	}
-	if err := tx.Verify([]sdk.ConfigSection{{Root: configRootBGP, Data: `{"bgp":{}}`}}); err != nil {
+	if err := tx.Verify([]sdk.ConfigSection{{Root: policy.RootName, Data: `{"policy":{}}`}}); err != nil {
 		t.Fatalf("verify: %v", err)
 	}
 	if err := tx.Apply(); err != nil {

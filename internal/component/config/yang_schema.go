@@ -327,6 +327,7 @@ func schemaFromResolved(loader *yang.Resolved) (*Schema, error) {
 		return nil, fmt.Errorf("schema build errors: %w", buildErr)
 	}
 
+	markRelocations(schema)
 	return schema, nil
 }
 
@@ -615,6 +616,20 @@ func hasHiddenExtension(entry *gyang.Entry) bool {
 	for _, ext := range entry.Exts {
 		if ext.Keyword == "ze:hidden" || strings.HasSuffix(ext.Keyword, ":hidden") {
 			return ext.Argument == configTrue
+		}
+	}
+	return false
+}
+
+// hasFilterExtension reports whether a YANG list carries the ze:filter marker,
+// which makes each of its entries a named route policy filter instance. The
+// policy registry (internal/component/policy) discovers filter types by this
+// flag alone, so a list beside them under the policy root (policy routing's
+// route list) is never taken for one.
+func hasFilterExtension(entry *gyang.Entry) bool {
+	for _, ext := range entry.Exts {
+		if ext.Keyword == "ze:filter" || strings.HasSuffix(ext.Keyword, ":filter") {
+			return true
 		}
 	}
 	return false
@@ -1111,6 +1126,7 @@ func yangToList(entry *gyang.Entry, path string) *ListNode {
 	l.Ephemeral = hasEphemeralExtension(entry)
 	l.UserOrdered = entry.ListAttr != nil && entry.ListAttr.OrderedByUser
 	l.Listener = hasListenerExtension(entry)
+	l.Filter = hasFilterExtension(entry)
 	l.ShortHelp = yang.GetHelpExtension(entry.Exts) // the ze:help summary
 	l.Description = entry.Description               // the long explanation
 	l.Backend = getBackendExtension(entry)

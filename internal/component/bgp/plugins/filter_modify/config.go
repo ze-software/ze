@@ -4,12 +4,13 @@
 //
 // Config parsing for the bgp-filter-modify plugin.
 //
-// Reads named modify definitions out of the BGP config subtree:
+// Reads named modify definitions out of the policy root, and the
+// absent-attribute base out of bgp { defaults { attribute { } } }:
 //
-//	bgp { policy { modify NAME { set { local-preference 200; } } } }
-//	bgp { policy { modify NAME { increment { local-preference 50; } } } }
-//	bgp { policy { modify NAME { set { community-add [ 65000:200 ]; } } } }
-//	bgp { policy { modify NAME { del { med; } } } }
+//	policy { modify NAME { set { local-preference 200; } } }
+//	policy { modify NAME { increment { local-preference 50; } } }
+//	policy { modify NAME { set { community-add [ 65000:200 ]; } } }
+//	policy { modify NAME { del { med; } } }
 //
 // Static set operations produce pre-built delta strings.
 // Increment/decrement operations are computed at runtime from current values.
@@ -143,7 +144,9 @@ func parseAttributeDefaults(bgpCfg map[string]any) (map[string]uint32, error) {
 	return base, nil
 }
 
-func parseModifyDefs(bgpCfg map[string]any) (map[string]*modifyDef, error) {
+// parseModifyDefs reads policy/modify definitions out of policyCfg, each
+// carrying the absent-attribute base read from bgpCfg's defaults.
+func parseModifyDefs(policyCfg, bgpCfg map[string]any) (map[string]*modifyDef, error) {
 	// The base is read first and refused first: a delivery whose defaults do
 	// not parse installs no modifier, so it cannot leave one config's modifiers
 	// computing from another's base.
@@ -153,11 +156,7 @@ func parseModifyDefs(bgpCfg map[string]any) (map[string]*modifyDef, error) {
 	}
 	result := make(map[string]*modifyDef)
 
-	policyBlock, ok := bgpCfg["policy"].(map[string]any)
-	if !ok {
-		return result, nil
-	}
-	modBlock, ok := policyBlock["modify"].(map[string]any)
+	modBlock, ok := policyCfg["modify"].(map[string]any)
 	if !ok {
 		return result, nil
 	}

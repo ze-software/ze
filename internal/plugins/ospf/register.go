@@ -18,6 +18,7 @@ import (
 	ifcomp "github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/metrics"
@@ -96,6 +97,16 @@ func setRouteInstallClient(p *sdk.Plugin) {
 func routeInstallClient() *sdk.Plugin { return routeInstallPtr.Load() }
 
 func registerOSPF() {
+	// The filter attachment points this plugin's config holds, with the route
+	// fields their routes carry and a filter there may set (the route field
+	// vocabulary, internal/component/policy/fields.go).
+	policy.MustRegisterAttachment(Namespace, "ospf import",
+		[]policy.Field{policy.FieldPrefix, policy.FieldFamily, policy.FieldProtocol, policy.FieldNextHop, policy.FieldInterface, policy.FieldMetric, policy.FieldTag, policy.FieldRouteType},
+		[]policy.Field{policy.FieldDistance, policy.FieldTag})
+	policy.MustRegisterAttachment(Namespace, "ospf export",
+		[]policy.Field{policy.FieldPrefix, policy.FieldFamily, policy.FieldProtocol, policy.FieldNextHop, policy.FieldMetric, policy.FieldTag, policy.FieldRouteType, policy.FieldOriginAS},
+		[]policy.Field{policy.FieldTag, policy.FieldMetric, policy.FieldMetricType})
+
 	statestore.RegisterPluginKeys(Namespace, zefs.KeyOSPFAuthBootCount, zefs.KeyOSPFGRFact)
 	_ = events.RegisterNamespace(Namespace, EventNeighborUp, EventNeighborDown, EventSPFRun, EventLSDBChange, EventInterfaceState, EventDRChange, EventNeighborChange)
 
@@ -129,8 +140,10 @@ func registerOSPF() {
 		// absent or disabled (checkBFDOptIns). A read never auto-loads OSPF.
 		// The interface section is read so commit refuses OSPF on an unnumbered
 		// unit that is not point-to-point (checkUnnumberedNetworkTypes).
-		ConfigReads:             []string{bfdapi.ConfigRoot, ifcomp.ConfigRoot},
-		Dependencies:            []string{"interface", "fib-kernel", "sysctl"},
+		ConfigReads: []string{bfdapi.ConfigRoot, ifcomp.ConfigRoot},
+		// policy is a hard dependency of every protocol with a filter attachment:
+		// the filter instances its chains name live under the policy root.
+		Dependencies:            []string{"interface", "fib-kernel", "sysctl", policy.PluginName},
 		RFCs:                    []string{"2328", "5709", "7474", "9129"},
 		RunEngine:               runOSPFEngine,
 		Commands:                commandDecls(),

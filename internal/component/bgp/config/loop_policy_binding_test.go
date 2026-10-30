@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/policy"
+
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/reactor"
 	"github.com/ze-software/ze/internal/component/config"
@@ -30,7 +32,7 @@ func TestLoopPolicyBinding(t *testing.T) {
 					entry := config.NewTree()
 					entry.Set("allow-own-as", "2")
 					entry.Set("cluster-id", "9.9.9.9")
-					bgp.GetOrCreateContainer("policy").AddListEntry("loop-detection", "AUTO", entry)
+					tree.GetOrCreateContainer("policy").AddListEntry("loop-detection", "AUTO", entry)
 					peer := buildMinimalPeer("192.0.2.2", "65001", "auto")
 					if final != "" {
 						policy := peer.GetOrCreateContainer("filter").GetOrCreateContainer("import")
@@ -95,10 +97,7 @@ func TestLoopPolicyBinding(t *testing.T) {
 // TestLoopPolicyExternalCollision keeps an external process reference distinct
 // from a same-named internal instance. Unknown external providers remain guards.
 func TestLoopPolicyExternalCollision(t *testing.T) {
-	reg := &FilterRegistry{entries: map[string]FilterEntry{
-		"AUTO":  {Name: "AUTO", Type: "loop-detection"},
-		"OTHER": {Name: "OTHER", Type: "prefix-list"},
-	}}
+	reg := mustPolicyRegistry(t, policy.Instance{Name: "AUTO", Type: "loop-detection"}, policy.Instance{Name: "OTHER", Type: "prefix-list"})
 	for _, name := range []string{"external:AUTO", "loop:MISSING", "loop-detection:MISSING", "loop:OTHER", "loop-detection:OTHER"} {
 		refs := canonicalizeFilterRefs([]filterapi.FilterRef{{Name: name}}, reg)
 		if refs[0].InProcess() || !refs[0].ActiveExternal() {
@@ -175,7 +174,7 @@ func TestLoopPolicyUnsupportedDirection(t *testing.T) {
 		for _, inactive := range []bool{false, true} {
 			tree := config.NewTree()
 			bgp := buildBGPBlock()
-			bgp.GetOrCreateContainer("policy").AddListEntry("loop-detection", "AUTO", config.NewTree())
+			tree.GetOrCreateContainer("policy").AddListEntry("loop-detection", "AUTO", config.NewTree())
 			peer := buildMinimalPeer("192.0.2.2", "65001", "auto")
 			export := peer.GetOrCreateContainer("filter").GetOrCreateContainer("export")
 			export.Set("final", "reject")

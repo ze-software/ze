@@ -583,9 +583,14 @@ func (t *Tree) ListNames() []string {
 }
 
 // CollectContainerPaths returns all container paths present in the tree,
-// recursively walking nested containers. Paths use the config package's
-// PathSep ("/"), matching ExtractConfigSubtree and the plugin auto-loader.
-// Example: tree with fib { kernel { } } returns ["fib", "fib/kernel"].
+// recursively walking nested containers, plus the path of each list a
+// container holds (the list itself, never its entries), so a plugin can own a
+// list under a shared root and auto-load only when that list is configured
+// (policy routing's `policy/route` beside the filter lists under `policy`).
+// Paths use the config package's PathSep ("/"), matching ExtractConfigSubtree
+// and the plugin auto-loader.
+// Example: tree with fib { kernel { } } and policy { route R { } } returns
+// ["fib", "fib/kernel", "policy", "policy/route"].
 // Plugin ConfigRoots MUST use the same separator for auto-load matching.
 func CollectContainerPaths(t *Tree) []string {
 	var paths []string
@@ -604,6 +609,16 @@ func collectPaths(t *Tree, prefix string, paths *[]string) {
 		if child != nil {
 			collectPaths(child, path, paths)
 		}
+	}
+	for _, name := range t.ListNames() {
+		if len(t.GetList(name)) == 0 {
+			continue
+		}
+		path := name
+		if prefix != "" {
+			path = AppendPath(prefix, name)
+		}
+		*paths = append(*paths, path)
 	}
 }
 

@@ -23,17 +23,6 @@ const parityConfig = `
 bgp {
 	router-id 1.2.3.4;
 
-	policy {
-		prefix-list MEMBERS {
-			entry 10.0.0.0/8 {
-				action accept;
-			}
-		}
-		loop-detection LOOPS {
-			allow-own-as 2;
-			cluster-id 9.9.9.9;
-		}
-	}
 
 	filter {
 		import { filters [ MEMBERS ]; final accept; }
@@ -127,6 +116,17 @@ bgp {
 				asn { remote 65020; }
 			}
 		}
+	}
+}
+policy {
+	prefix-list MEMBERS {
+		entry 10.0.0.0/8 {
+			action accept;
+		}
+	}
+	loop-detection LOOPS {
+		allow-own-as 2;
+		cluster-id 9.9.9.9;
 	}
 }
 `

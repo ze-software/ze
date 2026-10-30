@@ -420,16 +420,16 @@ module ze-extensions {
     }
 
     // Extension: filter
-    // Marks a list node as a named filter type for the policy framework.
-    // Lists with this extension are discovered mechanically by the filter
-    // name registry. Each entry in a ze:filter list is a named filter
-    // instance that can be referenced in peer filter { import/export }
-    // chains. Location-independent: works under bgp/policy, bgp/group,
-    // bgp/peer, or any future location.
+    // Marks a list node as a named filter type for the route policy
+    // framework. The policy registry (internal/component/policy) reads this
+    // marker on the lists under the top-level policy container: a list that
+    // carries it is a filter type and each entry is a named filter instance,
+    // referenced by name in a filter { import/export } chain. A list without
+    // it (policy routing's policy route) is never a filter type.
     extension filter {
-        description "Marks a list as a named filter type for the route
-                     policy framework. Entries are filter instances
-                     referenced by name in import/export chains.";
+        description "Marks a list under the top-level policy container as a
+                     named filter type. Each entry is a filter instance that
+                     an import or export chain references by name.";
     }
 
     // Extension: ephemeral

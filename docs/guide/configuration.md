@@ -1023,17 +1023,18 @@ and a next-hop rewrite toward an address routed to a discard is the vendor
 two-step form of the same idea:
 
 ```
+policy {
+    modify RTBH {
+        match { community 65001:666; }
+        set { next-hop 192.0.2.1; }
+    }
+}
+
 bgp {
     router-id 192.0.2.254
     session {
         asn {
             local 65000
-        }
-    }
-    policy {
-        modify RTBH {
-            match { community 65001:666; }
-            set { next-hop 192.0.2.1; }
         }
     }
     peer transit-a {
@@ -1607,7 +1608,7 @@ produces, peer by peer.
 Route filtering is configured via `filter` blocks at bgp, group, or peer level.
 Each direction is a presence container with an ordered `filters` list and a
 required `final accept` or `final reject`. References name instances from
-`bgp policy` or explicit `<plugin>:<filter>` plugin filters.
+the top-level `policy` block or explicit `<plugin>:<filter>` plugin filters.
 
 ```
 bgp {
@@ -1716,27 +1717,27 @@ gating BGP's own Adj-RIB-In on one dropped every received route, so the
 
 ### Prefix-List Filter
 
-Named prefix-list filters live under `bgp { policy { prefix-list NAME { ... } } }`
+Named prefix-list filters live under `policy { prefix-list NAME { ... } }`
 and are invoked via peer filter chains. Each list is an ordered sequence
 of match entries, first-match-wins, with an implicit deny on no match.
 
 ```
-bgp {
-    policy {
-        prefix-list CUSTOMERS {
-            entry 10.0.0.0/8 {
-                ge 16
-                le 24
-                action accept
-            }
-            entry 192.168.0.0/16 {
-                ge 24
-                le 24
-                action reject
-            }
+policy {
+    prefix-list CUSTOMERS {
+        entry 10.0.0.0/8 {
+            ge 16
+            le 24
+            action accept
+        }
+        entry 192.168.0.0/16 {
+            ge 24
+            le 24
+            action reject
         }
     }
+}
 
+bgp {
     peer customer-a {
         connection {
             remote {
@@ -1776,7 +1777,7 @@ A rejected prefix in a non-rewritable family, such as a FlowSpec destination
 component, rejects the whole UPDATE. The rewritten result still receives the
 policy's final decision; `modify` does not grant acceptance.
 
-Filter instance names are globally unique under `bgp policy`. Use the plain
+Filter instance names are globally unique under the `policy` root. Use the plain
 name as the primary reference form. Prefixed forms are accepted for
 disambiguation or advanced use:
 
@@ -1797,15 +1798,15 @@ Routing Registry) data. It queries a whois server for an AS-SET's prefixes
 and applies them as import filters, replacing the external bgpq4 workflow.
 
 ```
-bgp {
-    policy {
-        irr {
-            server whois.radb.net    // IRR whois server (default)
-            peeringdb-url https://www.peeringdb.com  // PeeringDB API base URL (default)
-            refresh-interval 3600   // seconds between re-queries (60-86400)
-        }
+policy {
+    irr {
+        server whois.radb.net    // IRR whois server (default)
+        peeringdb-url https://www.peeringdb.com  // PeeringDB API base URL (default)
+        refresh-interval 3600   // seconds between re-queries (60-86400)
     }
+}
 
+bgp {
     peer customer-a {
         session {
             asn { local 65000; remote 65001; }
@@ -1862,13 +1863,22 @@ The page [IRR filtering](irr-filtering.md) describes how this works.
 
 ### AS-Path Filter
 
-Named AS-path regex filters live under `bgp { policy { as-path-list NAME { ... } } }`.
+Named AS-path regex filters live under `policy { as-path-list NAME { ... } }`.
 Each list is an ordered sequence of regex entries with accept/reject action.
 The AS-path is converted to a space-separated decimal string and matched
 using Go RE2 (linear time, inherently ReDoS-safe). Use `[0-9]` instead of
 `\d` in regex strings (ze's config parser interprets backslash as escape).
 
 ```
+policy {
+    as-path-list ALLOW-PEER {
+        entry "^65001" { action accept }
+    }
+    as-path-list TRANSIT {
+        entry "^[0-9]+( [0-9]+)+" { action accept }
+    }
+}
+
 bgp {
     router-id 192.0.2.1
     session {
@@ -1876,15 +1886,6 @@ bgp {
             local 65000
         }
     }
-    policy {
-        as-path-list ALLOW-PEER {
-            entry "^65001" { action accept }
-        }
-        as-path-list TRANSIT {
-            entry "^[0-9]+( [0-9]+)+" { action accept }
-        }
-    }
-
     peer customer-a {
         filter { import { filters [ as-path-list:ALLOW-PEER ]; final accept; } }
     }
@@ -1896,13 +1897,23 @@ bgp {
 
 ### Reject-ASN Filter
 
-Named reject-asn lists live under `bgp { policy { reject-asn NAME { ... } } }`.
+Named reject-asn lists live under `policy { reject-asn NAME { ... } }`.
 A list names the ASNs that must not appear in the AS_PATH of a route exchanged
 with a peer, and the keyword each ASN is written under says where in the path it
 is unacceptable. A route matching any of them is rejected and the session stays
 up.
 
 ```
+policy {
+    reject-asn NO-TRANSIT {
+        indirect [ 174 3356 ]
+        origin [ 65535 ]
+    }
+    reject-asn SHAPES {
+        regex [ "^3356 174 " ]
+    }
+}
+
 bgp {
     router-id 192.0.2.1
     session {
@@ -1910,16 +1921,6 @@ bgp {
             local 65000
         }
     }
-    policy {
-        reject-asn NO-TRANSIT {
-            indirect [ 174 3356 ]
-            origin [ 65535 ]
-        }
-        reject-asn SHAPES {
-            regex [ "^3356 174 " ]
-        }
-    }
-
     peer peer-a {
         filter {
             import { filters [ NO-TRANSIT ]; final accept; }
@@ -1983,11 +1984,21 @@ the network name for each ASN it recognizes.
 
 ### Community Match Filter
 
-Named community-match filters live under `bgp { policy { community-match NAME { ... } } }`.
+Named community-match filters live under `policy { community-match NAME { ... } }`.
 Each entry checks for presence of a specific community value in the route's
 standard, large, or extended community attributes.
 
 ```
+policy {
+    community-match BLOCK-NO-EXPORT {
+        entry no-export { type standard; action reject }
+    }
+    community-match ALLOW-CUSTOMER {
+        entry 65001:100 { type standard; action accept }
+        entry 65001:100:200 { type large; action accept }
+    }
+}
+
 bgp {
     router-id 192.0.2.1
     session {
@@ -1995,16 +2006,6 @@ bgp {
             local 65000
         }
     }
-    policy {
-        community-match BLOCK-NO-EXPORT {
-            entry no-export { type standard; action reject }
-        }
-        community-match ALLOW-CUSTOMER {
-            entry 65001:100 { type standard; action accept }
-            entry 65001:100:200 { type large; action accept }
-        }
-    }
-
     peer transit-a {
         filter { import { filters [ community-match:BLOCK-NO-EXPORT ]; final accept; } }
     }
@@ -2016,7 +2017,7 @@ bgp {
 
 ### Route Attribute Modifier
 
-Named modifier definitions live under `bgp { policy { modify NAME { ... } } }`.
+Named modifier definitions live under `policy { modify NAME { ... } }`.
 Operations use `set`, `del`, `increment`, or `decrement` containers.
 Only present leaves are applied; undeclared attributes pass through unchanged.
 A definition applies to every route that reaches it. A definition that states a
@@ -2030,6 +2031,19 @@ payload rewrites receive the policy's final decision. A full rewrite ends filter
 traversal, but it does not bypass `final reject`.
 
 ```
+policy {
+    modify PREFER-LOCAL {
+        set {
+            local-preference 200
+        }
+    }
+    modify PREPEND-3 {
+        set {
+            as-path-prepend 3
+        }
+    }
+}
+
 bgp {
     router-id 192.0.2.1
     session {
@@ -2037,19 +2051,6 @@ bgp {
             local 65000
         }
     }
-    policy {
-        modify PREFER-LOCAL {
-            set {
-                local-preference 200
-            }
-        }
-        modify PREPEND-3 {
-            set {
-                as-path-prepend 3
-            }
-        }
-    }
-
     peer transit-a {
         filter {
             import { filters [ prefix-list:CUSTOMERS modify:PREFER-LOCAL ]; final accept; }
@@ -4387,7 +4388,7 @@ local interface or the connection fails with `cannot assign requested address`.
 | BMP | `bgp bmp sender collector <name>` | `source-address` | TCP |
 | RPKI/RTR | `bgp rpki cache-server <addr>` | `source-address` | Mutual TLS, or explicitly trusted TCP |
 | Flow Export | `flow-export collector <name>` | `source-address` | UDP |
-| IRR (filter) | `bgp policy irr` | `source-address` | TCP |
+| IRR (filter) | `policy irr` | `source-address` | TCP |
 | Managed hub | `plugin hub client <name>` | `source-address` | TLS |
 | LDP | `ldp` | `transport-address` | TCP |
 

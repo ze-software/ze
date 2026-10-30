@@ -1,6 +1,6 @@
 // Design: docs/architecture/core-design.md -- AS-path length policy filter
 // Related: aspath_length.go -- path length evaluation
-// Related: config.go -- bgp/policy/as-path-length config parsing
+// Related: config.go -- policy/as-path-length config parsing
 
 package filter_aspath_length
 
@@ -10,6 +10,7 @@ import (
 	"sync/atomic"
 
 	"github.com/ze-software/ze/internal/component/bgp/filtertext"
+	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -35,7 +36,7 @@ func RunFilterAsPathLength(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	if err := p.Run(ctx, &sdk.Registration{
-		WantsConfig: []string{configRootBGP},
+		WantsConfig: []string{policy.RootName},
 	}); err != nil {
 		logger().Error("filter-aspath-length plugin failed", "error", err)
 		return 1

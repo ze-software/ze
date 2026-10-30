@@ -3,25 +3,35 @@
 
 package filter_irr
 
-import sdk "github.com/ze-software/ze/pkg/plugin/sdk"
+import (
+	"github.com/ze-software/ze/internal/component/policy"
+	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
+)
 
-// newIRRConfigTx is the filter's side of the config transaction: the bgp
-// subtree is its config, handleConfigure installs it, and the SDK keeps the
+// irrDelivery is the two roots the filter reads: the policy root, whose irr
+// container holds the IRR and PeeringDB settings, and the bgp root, whose
+// peers and chains decide which ASNs are resolved.
+type irrDelivery struct {
+	policy map[string]any
+	bgp    map[string]any
+}
+
+// newIRRConfigTx is the filter's side of the config transaction: the two
+// roots are its config, handleConfigure installs them, and the SDK keeps the
 // verified candidate and the replaced config for rollback. Before any install
-// the filter runs no subtree, which handleConfigure(nil) restores.
-func newIRRConfigTx(plug *irrPlugin) *sdk.ConfigTx[map[string]any] {
-	return sdk.NewConfigTx(map[string]any(nil), parseIRRSections, func(bgpCfg map[string]any) error {
-		plug.handleConfigure(bgpCfg)
+// the filter runs no config, which handleConfigure(irrDelivery{}) restores.
+// The registration reads policy as ConfigReads, so a reload delivers both
+// roots whole whenever either changes (policy.SectionsParser).
+func newIRRConfigTx(plug *irrPlugin) *sdk.ConfigTx[irrDelivery] {
+	parse := policy.SectionsParser(pluginName, errFilterIrrInvalidBgpConfigJson, configRootBGP, parseIRRDelivery)
+	return sdk.NewConfigTx(irrDelivery{}, parse, func(cfg irrDelivery) error {
+		plug.handleConfigure(cfg)
 		return nil
 	})
 }
 
-// parseIRRSections reads the bgp subtree of a delivery. A delivery with no bgp
-// section carries nothing for the filter.
-func parseIRRSections(sections []sdk.ConfigSection) (map[string]any, bool, error) {
-	bgpCfg, err := bgpSubtreeFromSections(sections)
-	if err != nil {
-		return nil, false, err
-	}
-	return bgpCfg, bgpCfg != nil, nil
+// parseIRRDelivery keeps the two roots for handleConfigure. It refuses
+// nothing: handleConfigure reads every value with its default.
+func parseIRRDelivery(policyCfg, bgpCfg map[string]any) (irrDelivery, error) {
+	return irrDelivery{policy: policyCfg, bgp: bgpCfg}, nil
 }

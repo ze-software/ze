@@ -69,7 +69,9 @@ default page, rather than one flat switch in the workbench handler.
 <!-- source: internal/component/web/page_bgp_peers.go -- collectPeers, table, detail, actions -->
 <!-- source: internal/component/web/page_bgp_groups.go -- collectGroups -->
 <!-- source: internal/component/web/page_bgp_families.go -- cross-peer family aggregation -->
-<!-- source: internal/component/web/page_bgp_policy.go -- policy collection -->
+<!-- source: internal/component/web/page_bgp_policy.go -- collectPolicies, policyFilterListNames -->
+<!-- source: internal/component/web/workbench_pages.go -- renderPageContent -->
+<!-- source: internal/component/web/workbench_sections.go -- selectChild -->
 <!-- source: internal/component/web/page_bgp_summary.go -- summary table -->
 
 - `collectPeers` walks both `bgp/peer` and `bgp/group/*/peer` and merges them
@@ -78,10 +80,13 @@ default page, rather than one flat switch in the workbench handler.
 - Row actions post `tool_id` and `context_path` to `/tools/related/run`. The
   server resolves the command from the YANG `ze:related` annotation, so the
   browser never builds a command string.
-- The policy page checks a hardcoded list of list names (`filter`,
-  `community`, `prefix-list`, `as-path`, `route-map`). `config.Tree` exposes no
-  list enumeration at a level. A new policy list type added by a plugin augment
-  must be added here or it stays invisible.
+- The filters page (`/show/policy/`) reads the top-level `policy` root, where
+  filters live beside policy routing's `policy route`. It lists only the lists
+  the merged schema marks `ze:filter` (`policyFilterListNames`), so a filter
+  type a plugin augments in appears with its plugin and `route` never does. A
+  row links to `/show/policy/<type>/<name>/`, and every deeper path, policy
+  routing's included, falls through to the generic YANG view. The Policy
+  section of the navigation lights up for every path under `policy`.
 - Operational columns (state, uptime, prefix counts, message counters) render
   a placeholder. `peerFlag` colors from config alone: green for configured,
   grey for disabled. When reactor state is wired in, that function changes to

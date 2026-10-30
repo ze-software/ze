@@ -4,7 +4,7 @@
 package filter_family
 
 import (
-	"github.com/ze-software/ze/internal/component/bgp/configjson"
+	"github.com/ze-software/ze/internal/component/policy"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -14,7 +14,7 @@ import (
 // verify is the parse, so a tear-down instance in an export chain (AC-7) is
 // refused before any participant applies. Before any install none is defined.
 func newFamilyConfigTx() *sdk.ConfigTx[map[string]*familyFilter] {
-	parse := configjson.BGPSectionParser("filter-family", errFilterFamilyInvalidBgpConfigJSON, parseFamilyFilters)
+	parse := policy.SectionsParser("filter-family", errFilterFamilyInvalidBgpConfigJSON, configRootBGP, parseFamilyFilters)
 	return sdk.NewConfigTx(map[string]*familyFilter(nil), parse, installFamilyFilters)
 }
 

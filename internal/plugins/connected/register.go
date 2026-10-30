@@ -8,12 +8,20 @@ import (
 
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	connectedyang "github.com/ze-software/ze/internal/plugins/connected/yang"
 	"github.com/ze-software/ze/pkg/ze"
 )
 
 func init() {
+	// The filter attachment points this plugin's config holds, with the route
+	// fields their routes carry and a filter there may set (the route field
+	// vocabulary, internal/component/policy/fields.go).
+	policy.MustRegisterAttachment(pluginName, "connected import",
+		[]policy.Field{policy.FieldPrefix, policy.FieldFamily, policy.FieldProtocol, policy.FieldInterface},
+		[]policy.Field{policy.FieldDistance, policy.FieldTag})
+
 	// Register the redistribute source at init (not only in runConnectedPlugin)
 	// so `import connected` resolves during `ze config validate`, which imports
 	// plugins but does not start their engines. sync.Once keeps the run-time call
@@ -30,7 +38,10 @@ func init() {
 		// orchestrator's late-join replay request, and a build or config without
 		// BGP simply never asks (./le plugin coupling check).
 		StartAfter: []string{"redistribute-orchestrator"},
-		RunEngine:  runConnectedPlugin,
+		// policy is a hard dependency of every protocol with a filter attachment:
+		// the filter instances its chains name live under the policy root.
+		Dependencies: []string{policy.PluginName},
+		RunEngine:    runConnectedPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},

@@ -4,6 +4,7 @@ module ze-policyroute-conf {
 
     import ze-extensions { prefix ze; }
     import ze-firewall-conf { prefix fw; }
+    import ze-policy-conf { prefix policy; }
 
     description
         "Policy-based routing configuration for Ze.
@@ -15,14 +16,15 @@ module ze-policyroute-conf {
         description "Initial revision.";
     }
 
-    container policy {
+    // The policy container belongs to the policy component
+    // (internal/component/policy/yang/ze-policy-conf.yang), which route policy
+    // filter types share. Policy routing adds its route list to it.
+    augment "/policy:policy" {
         description "Ze merges every policy into one nftables table named ze_pr. The
                      chain of that table attaches to the prerouting hook at priority
                      -150. A rule marks the packet, and an ip rule then selects the
                      kernel routing table for that mark. A packet that matches no rule
                      keeps the routing decision of the main table.";
-        ze:help
-            "Policy routing configuration.";
 
         list route {
             key "name";

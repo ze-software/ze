@@ -272,7 +272,7 @@ func TestReadmitHeldPrefixDropped(t *testing.T) {
 	}
 
 	announce(plug, "192.0.2.0/24")
-	plug.handleConfigure(map[string]any{})
+	plug.configureOf(map[string]any{})
 	if got := plug.readmit.heldCount(); got != 0 {
 		t.Errorf("held after a reconfigure without AS65001 = %d, want 0", got)
 	}
@@ -369,7 +369,7 @@ func TestReadmitRetainDropsRemovedPeer(t *testing.T) {
 	if got := plug.readmit.heldCount(); got != 1 {
 		t.Fatalf("held = %d, want 1", got)
 	}
-	plug.handleConfigure(map[string]any{
+	plug.configureOf(map[string]any{
 		"policy": map[string]any{"irr": map[string]any{"server": irrAddr}},
 		"peer": map[string]any{
 			"peer2": map[string]any{

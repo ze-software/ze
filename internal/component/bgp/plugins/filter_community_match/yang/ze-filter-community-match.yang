@@ -2,7 +2,7 @@ module ze-filter-community-match {
     namespace "urn:ze:filter-community-match";
     prefix cm;
 
-    import ze-bgp-conf { prefix bgp; }
+    import ze-policy-conf { prefix policy; }
     import ze-extensions { prefix ze; }
 
     description "Community match filter type for the BGP policy framework.
@@ -17,7 +17,7 @@ module ze-filter-community-match {
         description "Initial revision";
     }
 
-    augment "/bgp:bgp/bgp:policy" {
+    augment "/policy:policy" {
         list community-match {
             ze:filter;
             key "name";

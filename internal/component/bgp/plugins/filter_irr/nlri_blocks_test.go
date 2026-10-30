@@ -148,7 +148,7 @@ func TestPeersMissingRefreshGrant(t *testing.T) {
 	otherGrant := map[string]any{"process": map[string]any{
 		pluginName: map[string]any{"send": []any{"update"}},
 	}}
-	cfg := parseIRRConfig(map[string]any{
+	cfg := parseIRRConfigOf(map[string]any{
 		"peer": map[string]any{
 			"granted":  map[string]any{"session": session(), "attach": grant},
 			"bare":     map[string]any{"session": session()},
@@ -267,7 +267,7 @@ func TestRefreshGrantPeerBindingDecides(t *testing.T) {
 		return map[string]any{"process": map[string]any{pluginName: fields}}
 	}
 	grant := binding(map[string]any{"send": []any{"refresh"}})
-	cfg := parseIRRConfig(map[string]any{
+	cfg := parseIRRConfigOf(map[string]any{
 		"peer": map[string]any{
 			"wildcard": map[string]any{"session": session(), "attach": binding(map[string]any{"send": []any{"*"}})},
 		},
@@ -308,7 +308,7 @@ func TestPeersMissingRouteRefresh(t *testing.T) {
 	capability := func(mode string) map[string]any {
 		return map[string]any{"route-refresh": mode}
 	}
-	cfg := parseIRRConfig(map[string]any{
+	cfg := parseIRRConfigOf(map[string]any{
 		"peer": map[string]any{
 			"enabled":  map[string]any{"session": session(), "capability": capability("enable")},
 			"required": map[string]any{"session": session(), "capability": capability("require")},

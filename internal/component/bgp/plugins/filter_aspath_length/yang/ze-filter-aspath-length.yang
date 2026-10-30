@@ -2,7 +2,7 @@ module ze-filter-aspath-length {
     namespace "urn:ze:filter-aspath-length";
     prefix fal;
 
-    import ze-bgp-conf { prefix bgp; }
+    import ze-policy-conf { prefix policy; }
     import ze-extensions { prefix ze; }
 
     description "AS-path length filter type for the BGP policy framework.
@@ -17,7 +17,7 @@ module ze-filter-aspath-length {
         description "Initial revision";
     }
 
-    augment "/bgp:bgp/bgp:policy" {
+    augment "/policy:policy" {
         list as-path-length {
             ze:filter;
             key "name";

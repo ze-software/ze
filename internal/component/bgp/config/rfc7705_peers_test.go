@@ -312,7 +312,7 @@ func TestLoopDetectionConfigExtraction(t *testing.T) {
 	ldEntry := config.NewTree()
 	ldEntry.Set("allow-own-as", "2")
 	policy.AddListEntry("loop-detection", "my-loop-filter", ldEntry)
-	bgp.SetContainer("policy", policy)
+	tree.SetContainer("policy", policy)
 
 	// Create a peer with an import filter chain referencing the loop-detection entry.
 	peerTree := buildMinimalPeer("10.0.0.1", "65001", "auto")
@@ -348,7 +348,7 @@ func TestLoopDetectionClusterID(t *testing.T) {
 	ldEntry := config.NewTree()
 	ldEntry.Set("cluster-id", "10.0.0.1")
 	policy.AddListEntry("loop-detection", "ld-with-cluster", ldEntry)
-	bgp.SetContainer("policy", policy)
+	tree.SetContainer("policy", policy)
 
 	// Peer referencing the filter.
 	peerTree := buildMinimalPeer("10.0.0.2", "65001", "auto")
@@ -382,7 +382,7 @@ func TestLoopDetectionDefaultAutoPopulation(t *testing.T) {
 	ldEntry := config.NewTree()
 	ldEntry.Set("allow-own-as", "3")
 	policy.AddListEntry("loop-detection", "my-loop", ldEntry)
-	bgp.SetContainer("policy", policy)
+	tree.SetContainer("policy", policy)
 
 	// Peer without any explicit filter chain.
 	peerTree := buildMinimalPeer("10.0.0.1", "65001", "auto")
@@ -414,7 +414,7 @@ func TestLoopDetectionInactiveDisables(t *testing.T) {
 	ldEntry := config.NewTree()
 	ldEntry.Set("allow-own-as", "2")
 	policy.AddListEntry("loop-detection", "my-loop", ldEntry)
-	bgp.SetContainer("policy", policy)
+	tree.SetContainer("policy", policy)
 
 	// Peer whose loop-detection filter is deactivated out-of-band (the member
 	// value stays clean; deactivation is a sibling marker).
@@ -508,7 +508,7 @@ func TestClusterIDSync(t *testing.T) {
 		ldEntry := config.NewTree()
 		ldEntry.Set("cluster-id", "3.3.3.3")
 		policy.AddListEntry("loop-detection", "ld-custom", ldEntry)
-		bgp.SetContainer("policy", policy)
+		tree.SetContainer("policy", policy)
 
 		// Peer with no session/cluster-id but referencing loop-detection.
 		peerTree := buildMinimalPeer("10.0.0.2", "65000", "auto")

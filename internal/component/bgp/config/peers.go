@@ -18,6 +18,7 @@ import (
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/component/policy"
 
 	"github.com/ze-software/ze/internal/component/bgp/reactor"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
@@ -192,14 +193,8 @@ func peersAndDynamicGroups(tree *config.Tree) ([]*reactor.PeerSettings, []*react
 	}
 
 	// Resolve named ownership while each layer still has its written location.
-	policyTree := bgpContainer.GetContainer("policy")
-	var policySchema *config.ContainerNode
-	if node, err := schema.Lookup("bgp/policy"); err == nil {
-		if cn, ok := node.(*config.ContainerNode); ok {
-			policySchema = cn
-		}
-	}
-	filterReg, err := BuildFilterRegistry(policyTree, policySchema)
+	policyTree := tree.GetContainer(policy.RootName)
+	filterReg, err := policyRegistryOf(tree, schema)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -277,11 +272,11 @@ func peersAndDynamicGroups(tree *config.Tree) ([]*reactor.PeerSettings, []*react
 	var tb textbuf.Buffer
 	for _, ps := range settings {
 		tb.Reset()
-		if err := filterReg.ValidateFilterNames(ps.ImportPolicy.Filters(), tb.Str("peer ").Str(ps.Name).Str(" import filters").String()); err != nil {
+		if err := validateChainNames(filterReg, ps.ImportPolicy.Filters(), tb.Str("peer ").Str(ps.Name).Str(" import filters").String()); err != nil {
 			return nil, nil, err
 		}
 		tb.Reset()
-		if err := filterReg.ValidateFilterNames(ps.ExportPolicy.Filters(), tb.Str("peer ").Str(ps.Name).Str(" export filters").String()); err != nil {
+		if err := validateChainNames(filterReg, ps.ExportPolicy.Filters(), tb.Str("peer ").Str(ps.Name).Str(" export filters").String()); err != nil {
 			return nil, nil, err
 		}
 	}
@@ -300,12 +295,12 @@ func peersAndDynamicGroups(tree *config.Tree) ([]*reactor.PeerSettings, []*react
 
 	// Step 3b3: Prepend default filter names to each peer's import chain.
 	// Default filters (loop-detection) auto-populate unless already referenced.
-	prependDefaultFilters(bgpContainer, settings, filterReg)
+	prependDefaultFilters(policyTree, settings, filterReg)
 
 	// Step 3c: Extract loop-detection policy settings into PeerSettings.
 	// For each peer, check if any import filter references a loop-detection entry
 	// in the policy section. If so, apply allow-own-as and cluster-id to the peer.
-	applyLoopDetectionConfig(bgpContainer, settings)
+	applyLoopDetectionConfig(policyTree, settings)
 
 	// Step 3d: Sync session/cluster-id with loop-detection/cluster-id.
 	// RFC 4456: the same cluster-id must be used for both egress (CLUSTER_LIST prepend)
@@ -359,11 +354,39 @@ func peersAndDynamicGroups(tree *config.Tree) ([]*reactor.PeerSettings, []*react
 	return peers, groups, nil
 }
 
+// policyRegistryOf builds the namespace of filter instances from the
+// top-level policy root, which every protocol with a filter attachment
+// shares. A config with no policy root still gets a registry: it holds no
+// instance, so every plain chain name is refused by name.
+func policyRegistryOf(tree *config.Tree, schema *config.Schema) (*policy.Registry, error) {
+	node, err := schema.Lookup(policy.RootName)
+	if err != nil {
+		return nil, fmt.Errorf("policy registry: %w", err)
+	}
+	policySchema, ok := node.(*config.ContainerNode)
+	if !ok {
+		return nil, fmt.Errorf("policy registry: the %s schema node is not a container", policy.RootName)
+	}
+	return policy.BuildRegistry(tree.GetContainer(policy.RootName), policySchema)
+}
+
+// validateChainNames refuses a chain naming no filter instance under the
+// policy root. A deactivated reference is checked like an active one, because
+// deactivation is a flag on FilterRef and not part of its name.
+func validateChainNames(reg *policy.Registry, refs []filterapi.FilterRef, context string) error {
+	for _, ref := range refs {
+		if err := reg.ValidateName(ref.Name, context); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // validateExportPolicyReferences checks an original active layer before merging
 // or canonicalizing loses the location and spelling the editor must deactivate.
 // Only layers inherited by a static peer or dynamic template reach this check.
-func validateExportPolicyReferences(policy filterapi.Policy, reg *FilterRegistry, path ...string) error {
-	for _, ref := range policy.Filters() {
+func validateExportPolicyReferences(chain filterapi.Policy, reg *policy.Registry, path ...string) error {
+	for _, ref := range chain.Filters() {
 		if ref.Inactive {
 			continue
 		}
@@ -776,7 +799,7 @@ func declaredRole(resolved map[string]any) string {
 // declaring holds the filter types that discharge the obligation, read off the
 // plugin registry by the caller. This function never names a filter type, so
 // the type lives only in the plugin that implements it.
-func validateLeakFilterObligations(pairs []peerRole, reg *FilterRegistry, declaring []string) error {
+func validateLeakFilterObligations(pairs []peerRole, reg *policy.Registry, declaring []string) error {
 	// GUARD: no filter type in this binary can discharge the obligation, so
 	// enforcing it would refuse every config that declares a role. A build with
 	// the implementing plugin's feature tag off must still load every config it
@@ -830,7 +853,7 @@ func leakFilterRefusal(pair peerRole, missingImport, missingExport bool, declari
 // A DEACTIVATED ref counts. `inactive:` records a decision the operator made
 // about this session, which is what the obligation asks for, and it is the
 // reading filterChainContains already takes for a default filter.
-func chainNamesFilterType(chain []filterapi.FilterRef, reg *FilterRegistry, types map[string]bool) bool {
+func chainNamesFilterType(chain []filterapi.FilterRef, reg *policy.Registry, types map[string]bool) bool {
 	for _, ref := range chain {
 		entry, ok := reg.Lookup(filterInstanceName(ref.Name))
 		if !ok {
@@ -958,11 +981,10 @@ func rolelessPeersFromTree(tree *config.Tree) []string {
 
 // applyLoopDetectionConfig extracts loop-detection policy settings and applies them
 // to peers whose import filter chains reference the filter instance by name.
-// Each loop-detection entry in bgp > policy > loop-detection has allow-own-as and cluster-id
+// Each loop-detection entry in policy > loop-detection has allow-own-as and cluster-id
 // leaves. When a peer's import filter chain contains the entry's name, its PeerSettings
 // receives the corresponding values.
-func applyLoopDetectionConfig(bgpContainer *config.Tree, peers []*reactor.PeerSettings) {
-	policyTree := bgpContainer.GetContainer("policy")
+func applyLoopDetectionConfig(policyTree *config.Tree, peers []*reactor.PeerSettings) {
 	if policyTree == nil {
 		return
 	}
@@ -1015,8 +1037,7 @@ func applyLoopDetectionConfig(bgpContainer *config.Tree, peers []*reactor.PeerSe
 // if not already present (explicitly or as inactive:). Default filters come from
 // loop-detection entries in the policy section. Each entry's name is prepended
 // to ImportPolicy so loop detection runs first without changing its final.
-func prependDefaultFilters(bgpContainer *config.Tree, peers []*reactor.PeerSettings, reg *FilterRegistry) {
-	policyTree := bgpContainer.GetContainer("policy")
+func prependDefaultFilters(policyTree *config.Tree, peers []*reactor.PeerSettings, reg *policy.Registry) {
 	if policyTree == nil {
 		return
 	}

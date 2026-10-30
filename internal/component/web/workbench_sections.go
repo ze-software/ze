@@ -161,7 +161,7 @@ func sections() []sectionDef {
 			{Key: segSummary, Label: "Summary", URL: "/show/bgp/summary/"},
 		}},
 		{key: segPolicy, label: "Policy", children: []WorkbenchSubPage{
-			{Key: "filters", Label: "Filters", URL: "/show/bgp/policy/"},
+			{Key: "filters", Label: "Filters", URL: policyPathPrefix},
 		}},
 		{key: segFirewall, label: "Firewall", children: []WorkbenchSubPage{
 			{Key: "tables", Label: "Tables", URL: "/show/firewall/"},
@@ -266,9 +266,9 @@ func selectChild(section *WorkbenchSection, currentPath []string) {
 
 	first := currentPath[0]
 
-	// Map leading path segments to section keys. Multiple leading segments can
-	// map to the same section (e.g., segBGP maps to routing, policy, or both
-	// depending on the second segment).
+	// Map leading path segments to section keys. Several leading segments can
+	// map to one section (the services section takes ssh, web, telemetry and
+	// the other service roots).
 	switch section.Key {
 	case "dashboard":
 		// Dashboard matches the empty path (handled by the fallback default).
@@ -285,12 +285,9 @@ func selectChild(section *WorkbenchSection, currentPath []string) {
 		if first != segBGP {
 			return
 		}
-		// bgp/policy belongs to the Policy section, not Routing.
-		if len(currentPath) > 1 && currentPath[1] == segPolicy {
-			return
-		}
 	case segPolicy:
-		if first != segBGP || len(currentPath) < 2 || currentPath[1] != segPolicy {
+		// The top-level policy root: filters and policy routing.
+		if first != segPolicy {
 			return
 		}
 	case segFirewall:

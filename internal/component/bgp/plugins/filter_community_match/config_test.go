@@ -43,12 +43,10 @@ func TestConfiguredCommunityMatchesAttributeValue(t *testing.T) {
 				entry["type"] = tc.kind
 			}
 			lists, err := parseCommunityLists(map[string]any{
-				"policy": map[string]any{
-					"community-match": map[string]any{
-						"SERVICE": map[string]any{
-							"entry": map[string]any{
-								tc.configured: entry,
-							},
+				"community-match": map[string]any{
+					"SERVICE": map[string]any{
+						"entry": map[string]any{
+							tc.configured: entry,
 						},
 					},
 				},
@@ -106,14 +104,12 @@ func TestParseOneCommunityEntryRejectsInvalidConfig(t *testing.T) {
 // VALIDATES: List-form entries preserve order.
 func TestParseCommunityLists_ListForm_OrderPreserved(t *testing.T) {
 	bgpCfg := map[string]any{
-		"policy": map[string]any{
-			"community-match": map[string]any{
-				"ORDERED": map[string]any{
-					"name": "ORDERED",
-					"entry": []any{
-						map[string]any{"community": "65001:100", "action": "reject"},
-						map[string]any{"community": "65001:200", "action": "accept"},
-					},
+		"community-match": map[string]any{
+			"ORDERED": map[string]any{
+				"name": "ORDERED",
+				"entry": []any{
+					map[string]any{"community": "65001:100", "action": "reject"},
+					map[string]any{"community": "65001:200", "action": "accept"},
 				},
 			},
 		},
@@ -135,14 +131,12 @@ func TestParseCommunityLists_ListForm_OrderPreserved(t *testing.T) {
 // VALIDATES: Multi-entry map form rejected (ordering loss).
 func TestParseCommunityLists_MultiEntryMapFormRejected(t *testing.T) {
 	bgpCfg := map[string]any{
-		"policy": map[string]any{
-			"community-match": map[string]any{
-				"MULTI": map[string]any{
-					"name": "MULTI",
-					"entry": map[string]any{
-						"65001:100": map[string]any{"action": "accept"},
-						"65001:200": map[string]any{"action": "reject"},
-					},
+		"community-match": map[string]any{
+			"MULTI": map[string]any{
+				"name": "MULTI",
+				"entry": map[string]any{
+					"65001:100": map[string]any{"action": "accept"},
+					"65001:200": map[string]any{"action": "reject"},
 				},
 			},
 		},
@@ -158,12 +152,10 @@ func TestParseCommunityLists_MultiEntryMapFormRejected(t *testing.T) {
 func TestParseCommunityLists_NameTooLong(t *testing.T) {
 	longName := strings.Repeat("x", maxNameLen+1)
 	bgpCfg := map[string]any{
-		"policy": map[string]any{
-			"community-match": map[string]any{
-				longName: map[string]any{
-					"entry": map[string]any{
-						"65001:100": map[string]any{"action": "accept"},
-					},
+		"community-match": map[string]any{
+			longName: map[string]any{
+				"entry": map[string]any{
+					"65001:100": map[string]any{"action": "accept"},
 				},
 			},
 		},
@@ -198,16 +190,14 @@ func TestParseCommunityLists_NoPolicyBlock(t *testing.T) {
 func TestParseCommunityListsTwoEntriesInNonLexicalOrder(t *testing.T) {
 	list := func(order []string) map[string]any {
 		return map[string]any{
-			"policy": map[string]any{
-				"community-match": map[string]any{
-					"ORDERED": map[string]any{
-						"name": "ORDERED",
-						"entry": map[string]any{
-							"65001:200": map[string]any{"action": "reject"},
-							"65001:100": map[string]any{"action": "accept"},
-						},
-						configorder.OrderKey("entry"): order,
+			"community-match": map[string]any{
+				"ORDERED": map[string]any{
+					"name": "ORDERED",
+					"entry": map[string]any{
+						"65001:200": map[string]any{"action": "reject"},
+						"65001:100": map[string]any{"action": "accept"},
 					},
+					configorder.OrderKey("entry"): order,
 				},
 			},
 		}

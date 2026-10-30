@@ -147,10 +147,8 @@ func TestParseAsPathLengthDefs(t *testing.T) {
 		{
 			name: "max_only",
 			bgpCfg: map[string]any{
-				"policy": map[string]any{
-					"as-path-length": map[string]any{
-						"REJECT-LONG": map[string]any{"max": float64(30)},
-					},
+				"as-path-length": map[string]any{
+					"REJECT-LONG": map[string]any{"max": float64(30)},
 				},
 			},
 			wantCount: 1,
@@ -158,10 +156,8 @@ func TestParseAsPathLengthDefs(t *testing.T) {
 		{
 			name: "min_only",
 			bgpCfg: map[string]any{
-				"policy": map[string]any{
-					"as-path-length": map[string]any{
-						"REJECT-SHORT": map[string]any{"min": float64(2)},
-					},
+				"as-path-length": map[string]any{
+					"REJECT-SHORT": map[string]any{"min": float64(2)},
 				},
 			},
 			wantCount: 1,
@@ -169,10 +165,8 @@ func TestParseAsPathLengthDefs(t *testing.T) {
 		{
 			name: "both",
 			bgpCfg: map[string]any{
-				"policy": map[string]any{
-					"as-path-length": map[string]any{
-						"RANGE": map[string]any{"min": float64(2), "max": float64(30)},
-					},
+				"as-path-length": map[string]any{
+					"RANGE": map[string]any{"min": float64(2), "max": float64(30)},
 				},
 			},
 			wantCount: 1,
@@ -180,10 +174,8 @@ func TestParseAsPathLengthDefs(t *testing.T) {
 		{
 			name: "neither",
 			bgpCfg: map[string]any{
-				"policy": map[string]any{
-					"as-path-length": map[string]any{
-						"BAD": map[string]any{},
-					},
+				"as-path-length": map[string]any{
+					"BAD": map[string]any{},
 				},
 			},
 			wantErr:   true,
@@ -192,10 +184,8 @@ func TestParseAsPathLengthDefs(t *testing.T) {
 		{
 			name: "min_exceeds_max",
 			bgpCfg: map[string]any{
-				"policy": map[string]any{
-					"as-path-length": map[string]any{
-						"BAD": map[string]any{"min": float64(50), "max": float64(30)},
-					},
+				"as-path-length": map[string]any{
+					"BAD": map[string]any{"min": float64(50), "max": float64(30)},
 				},
 			},
 			wantErr:   true,
@@ -209,10 +199,8 @@ func TestParseAsPathLengthDefs(t *testing.T) {
 		{
 			name: "name_too_long",
 			bgpCfg: map[string]any{
-				"policy": map[string]any{
-					"as-path-length": map[string]any{
-						strings.Repeat("x", maxNameLen+1): map[string]any{"max": float64(30)},
-					},
+				"as-path-length": map[string]any{
+					strings.Repeat("x", maxNameLen+1): map[string]any{"max": float64(30)},
 				},
 			},
 			wantErr:   true,

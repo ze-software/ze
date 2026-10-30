@@ -28,6 +28,7 @@ import (
 	bgpyang "github.com/ze-software/ze/internal/component/bgp/yang"
 	zeplugin "github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/configop"
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/capture"
@@ -57,6 +58,16 @@ var (
 const pluginNameBGP = "bgp"
 
 func init() {
+	// The filter attachment points this plugin's config holds, with the route
+	// fields their routes carry and a filter there may set (the route field
+	// vocabulary, internal/component/policy/fields.go).
+	policy.MustRegisterAttachment(pluginNameBGP, "bgp import",
+		[]policy.Field{policy.FieldPrefix, policy.FieldFamily, policy.FieldProtocol, policy.FieldNextHop, policy.FieldMetric, policy.FieldOriginAS, policy.FieldCommunity, policy.FieldLargeCommunity, policy.FieldExtendedCommunity, policy.FieldASPath, policy.FieldLocalPreference, policy.FieldOrigin, policy.FieldAIGP, policy.FieldMED},
+		[]policy.Field{policy.FieldASPath, policy.FieldLocalPreference, policy.FieldCommunity, policy.FieldLargeCommunity, policy.FieldExtendedCommunity, policy.FieldMED, policy.FieldOrigin, policy.FieldNextHop, policy.FieldAIGP})
+	policy.MustRegisterAttachment(pluginNameBGP, "bgp export",
+		[]policy.Field{policy.FieldPrefix, policy.FieldFamily, policy.FieldProtocol, policy.FieldNextHop, policy.FieldMetric, policy.FieldOriginAS, policy.FieldCommunity, policy.FieldLargeCommunity, policy.FieldExtendedCommunity, policy.FieldASPath, policy.FieldLocalPreference, policy.FieldOrigin, policy.FieldAIGP, policy.FieldMED},
+		[]policy.Field{policy.FieldASPath, policy.FieldLocalPreference, policy.FieldCommunity, policy.FieldLargeCommunity, policy.FieldExtendedCommunity, policy.FieldMED, policy.FieldOrigin, policy.FieldNextHop, policy.FieldAIGP})
+
 	// The reactor raises these codes (reactor/session_health.go); the BGP
 	// subsystem owns its health row (ai/rules/plugins.md).
 	health.Register(pluginNameBGP, report.HealthProbeDegraded(
@@ -85,7 +96,10 @@ func init() {
 		// A peer's `connection bfd { profile ... }` names a profile under the
 		// bfd root, so commit hands BGP the candidate bfd section to check it
 		// against (reactor.VerifyPeerBFDProfiles). A read never auto-loads BGP.
-		ConfigReads:        []string{bfdapi.ConfigRoot},
+		ConfigReads: []string{bfdapi.ConfigRoot},
+		// policy is a hard dependency of every protocol with a filter attachment:
+		// the filter instances its chains name live under the policy root.
+		Dependencies:       []string{policy.PluginName},
 		FatalOnConfigError: true,
 		RunEngine:          runBGPEngine,
 		ConfigureEngineLogger: func(loggerName string) {

@@ -43,20 +43,20 @@ type leakChains struct {
 func leakPeerConfig(role string, chains leakChains) string {
 	var b strings.Builder
 	b.WriteString(`
+policy {
+    reject-asn NO-TRANSIT {
+        indirect [ 3356 ]
+    }
+    prefix-list CUSTOMERS {
+        entry 10.0.0.0/8 {
+        }
+    }
+}
 bgp {
     router-id 1.2.3.4;
     session {
         asn {
             local 65000
-        }
-    }
-    policy {
-        reject-asn NO-TRANSIT {
-            indirect [ 3356 ]
-        }
-        prefix-list CUSTOMERS {
-            entry 10.0.0.0/8 {
-            }
         }
     }
     peer peer-a {
@@ -230,11 +230,6 @@ bgp {
             local 65000
         }
     }
-    policy {
-        reject-asn NO-TRANSIT {
-            indirect [ 3356 ]
-        }
-    }
     group upstreams {
         role {
             import customer
@@ -254,6 +249,11 @@ bgp {
                 }
             }
         }
+    }
+}
+policy {
+    reject-asn NO-TRANSIT {
+        indirect [ 3356 ]
     }
 }
 `

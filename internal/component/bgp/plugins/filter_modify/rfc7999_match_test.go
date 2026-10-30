@@ -18,7 +18,7 @@ import (
 // plugin receives, so each test states its input as the operator writes it.
 func modifyDefsFromConfig(t *testing.T, name string, def map[string]any) *modifyDef {
 	t.Helper()
-	defs, err := parseModifyDefs(map[string]any{
+	defs, err := parseModifyDefsOf(map[string]any{
 		"policy": map[string]any{
 			"modify": map[string]any{name: def},
 		},
@@ -35,7 +35,7 @@ func modifyDefsFromConfig(t *testing.T, name string, def map[string]any) *modify
 
 func TestParseModifyMatch(t *testing.T) {
 	t.Run("an unknown key inside match is refused", func(t *testing.T) {
-		_, err := parseModifyDefs(map[string]any{
+		_, err := parseModifyDefsOf(map[string]any{
 			"policy": map[string]any{"modify": map[string]any{
 				"M": map[string]any{
 					"match": map[string]any{"prefix": "10.0.0.0/8"},
@@ -57,7 +57,7 @@ func TestParseModifyMatch(t *testing.T) {
 		{"extended-community", "0002fde8000000gg"},
 	} {
 		t.Run("invalid "+tc.field+" "+tc.value, func(t *testing.T) {
-			_, err := parseModifyDefs(map[string]any{
+			_, err := parseModifyDefsOf(map[string]any{
 				"policy": map[string]any{"modify": map[string]any{
 					"M": map[string]any{
 						"match": map[string]any{tc.field: tc.value},
@@ -72,7 +72,7 @@ func TestParseModifyMatch(t *testing.T) {
 	}
 
 	t.Run("a match with no operations is still refused", func(t *testing.T) {
-		_, err := parseModifyDefs(map[string]any{
+		_, err := parseModifyDefsOf(map[string]any{
 			"policy": map[string]any{"modify": map[string]any{
 				"M": map[string]any{"match": map[string]any{"community": "blackhole"}},
 			}},

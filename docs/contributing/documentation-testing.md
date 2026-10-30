@@ -200,7 +200,7 @@ Config nodes with a broken summary: 11
     rule:    missing-description
     problem: the declaration carries a summary and no long text beside it
     summary: ...
-  schema ze-bgp-conf:bgp/policy/reject-asn/name
+  schema ze-filter-path-asn:policy/reject-asn/name
     rule:    char-cap
     problem: the summary is 110 characters (a one-line row renders 96)
     summary: ...

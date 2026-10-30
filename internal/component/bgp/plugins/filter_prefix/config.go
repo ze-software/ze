@@ -5,7 +5,7 @@
 //
 // Reads named prefix-list definitions out of the BGP config subtree:
 //
-//   bgp { policy { prefix-list NAME { entry P { ge G; le L; action A; } } } }
+//   policy { prefix-list NAME { entry P { ge G; le L; action A; } } }
 //
 // Each list becomes a *prefixList with ordered entries. ge defaults to the
 // prefix length of the entry; le defaults to 32 (IPv4) or 128 (IPv6); action
@@ -24,16 +24,12 @@ import (
 	"github.com/ze-software/ze/internal/core/configorder"
 )
 
-// parsePrefixLists walks bgp { policy { prefix-list ... } } and returns a
+// parsePrefixLists walks policy { prefix-list ... } and returns a
 // map of name -> *prefixList ready for runtime evaluation.
-func parsePrefixLists(bgpCfg map[string]any) (map[string]*prefixList, error) {
+func parsePrefixLists(policyCfg map[string]any) (map[string]*prefixList, error) {
 	result := make(map[string]*prefixList)
 
-	policyBlock, ok := bgpCfg["policy"].(map[string]any)
-	if !ok {
-		return result, nil
-	}
-	pflBlock, ok := policyBlock["prefix-list"].(map[string]any)
+	pflBlock, ok := policyCfg["prefix-list"].(map[string]any)
 	if !ok {
 		return result, nil
 	}

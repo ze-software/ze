@@ -98,7 +98,7 @@ func TestMultiplePeersSameASN(t *testing.T) {
 			},
 		},
 	}
-	cfg := parseIRRConfig(bgpCfg)
+	cfg := parseIRRConfigOf(bgpCfg)
 
 	asnMap := make(map[uint32]*asnState)
 	for _, peer := range cfg.Peers {
@@ -146,7 +146,7 @@ func TestHandleConfigureDisabledPeerSkipped(t *testing.T) {
 			},
 		},
 	}
-	cfg := parseIRRConfig(bgpCfg)
+	cfg := parseIRRConfigOf(bgpCfg)
 
 	byASN := make(map[uint32]*asnState)
 	for _, peer := range cfg.Peers {
@@ -190,7 +190,7 @@ func TestHandleConfigureDoesNotEnrollPeerWithoutIRR(t *testing.T) {
 	// A peer with a remote ASN and nothing else: no filter chain, no as-set.
 	// Point the server at an address nothing listens on, so if this test ever
 	// regresses into resolving, it fails here rather than reaching the internet.
-	plug.handleConfigure(map[string]any{
+	plug.configureOf(map[string]any{
 		"policy": map[string]any{
 			"irr": map[string]any{"server": "127.0.0.1:1", "peeringdb-url": "http://127.0.0.1:1"},
 		},
@@ -227,7 +227,7 @@ func TestHandleConfigureEnrollsIRRFilteredPeer(t *testing.T) {
 
 	// An explicit as-set keeps this hermetic: store.resolve only calls PeeringDB
 	// when the as-set is empty, so the fake IRR server is the only endpoint used.
-	plug.handleConfigure(map[string]any{
+	plug.configureOf(map[string]any{
 		"policy": map[string]any{"irr": map[string]any{"server": addr}},
 		"peer": map[string]any{
 			"10.0.0.1": map[string]any{
@@ -871,14 +871,14 @@ func TestHandleConfigureKeepsStoreAcrossReload(t *testing.T) {
 	plug := &irrPlugin{byASN: make(map[uint32]*asnState), stopCh: make(chan struct{})}
 	t.Cleanup(func() { close(plug.stopCh) })
 
-	plug.handleConfigure(irrConfigFor(addr, "65001", "AS-ONE"))
+	plug.configureOf(irrConfigFor(addr, "65001", "AS-ONE"))
 	first := plug.prefixStore
 	if first == nil {
 		t.Fatal("configure built no prefix store")
 	}
 	seedEntry(t, plug, "AS-ONE")
 
-	plug.handleConfigure(irrConfigFor(addr, "65001", "AS-ONE"))
+	plug.configureOf(irrConfigFor(addr, "65001", "AS-ONE"))
 	if plug.prefixStore != first {
 		t.Fatal("reconfigure replaced the prefix store: the resolved entries were lost")
 	}
@@ -896,16 +896,16 @@ func TestHandleConfigureForgetsUnconfiguredEntries(t *testing.T) {
 	plug := &irrPlugin{byASN: make(map[uint32]*asnState), stopCh: make(chan struct{})}
 	t.Cleanup(func() { close(plug.stopCh) })
 
-	plug.handleConfigure(irrConfigFor(addr, "65001", "AS-ONE"))
+	plug.configureOf(irrConfigFor(addr, "65001", "AS-ONE"))
 	seedEntry(t, plug, "AS-ONE")
-	plug.handleConfigure(irrConfigFor(addr, "65001", "AS-TWO"))
+	plug.configureOf(irrConfigFor(addr, "65001", "AS-TWO"))
 	if plug.prefixStore.Get("AS65001") != nil {
 		t.Error("as-set changed from AS-ONE to AS-TWO and the AS-ONE entry is still in the store")
 	}
 
-	plug.handleConfigure(irrConfigFor(addr, "65001", "AS-ONE"))
+	plug.configureOf(irrConfigFor(addr, "65001", "AS-ONE"))
 	seedEntry(t, plug, "AS-ONE")
-	plug.handleConfigure(irrConfigFor(addr, "", ""))
+	plug.configureOf(irrConfigFor(addr, "", ""))
 	if plug.prefixStore.Get("AS65001") != nil {
 		t.Error("AS65001 is no longer enrolled and its entry is still in the store")
 	}
@@ -931,9 +931,9 @@ func TestRefreshDropsLookupAReloadSuperseded(t *testing.T) {
 		if query != "!a4AS-OLD" {
 			return
 		}
-		once.Do(func() { plug.handleConfigure(irrConfigFor(addr, "65001", "AS-NEW")) })
+		once.Do(func() { plug.configureOf(irrConfigFor(addr, "65001", "AS-NEW")) })
 	})
-	plug.handleConfigure(irrConfigFor(addr, "65001", "AS-OLD"))
+	plug.configureOf(irrConfigFor(addr, "65001", "AS-OLD"))
 
 	plug.refreshASN(65001)
 
@@ -981,9 +981,9 @@ func TestRefreshAppliesLookupAReloadKeptItsASSet(t *testing.T) {
 		if query != "!a4AS-OLD" {
 			return
 		}
-		once.Do(func() { plug.handleConfigure(irrConfigFor(addr, "65001", "AS-OLD")) })
+		once.Do(func() { plug.configureOf(irrConfigFor(addr, "65001", "AS-OLD")) })
 	})
-	plug.handleConfigure(irrConfigFor(addr, "65001", "AS-OLD"))
+	plug.configureOf(irrConfigFor(addr, "65001", "AS-OLD"))
 	captured := plug.byASN[65001]
 
 	plug.refreshASN(65001)
@@ -1018,7 +1018,7 @@ func TestConfigureBeforeStartedQueriesNothing(t *testing.T) {
 	plug := &irrPlugin{byASN: make(map[uint32]*asnState), stopCh: make(chan struct{})}
 	t.Cleanup(func() { close(plug.stopCh) })
 
-	plug.handleConfigure(irrConfigFor(addr, "65001", "AS-ONE"))
+	plug.configureOf(irrConfigFor(addr, "65001", "AS-ONE"))
 	time.Sleep(200 * time.Millisecond)
 
 	if n := queries.Load(); n != 0 {
@@ -1065,13 +1065,13 @@ func TestRemovingConfiguredASSetRediscoversThroughPeeringDB(t *testing.T) {
 	plug := &irrPlugin{byASN: make(map[uint32]*asnState), stopCh: make(chan struct{})}
 	t.Cleanup(func() { close(plug.stopCh) })
 
-	plug.handleConfigure(irrConfigWithPeeringDB(addr, pdbURL, "65001", "AS-OLD"))
+	plug.configureOf(irrConfigWithPeeringDB(addr, pdbURL, "65001", "AS-OLD"))
 	plug.refreshASN(65001)
 	if got := liveASSet(t, plug); got != "AS-OLD" {
 		t.Fatalf("as-set after the first refresh = %q, want AS-OLD", got)
 	}
 
-	plug.handleConfigure(irrConfigWithPeeringDB(addr, pdbURL, "65001", ""))
+	plug.configureOf(irrConfigWithPeeringDB(addr, pdbURL, "65001", ""))
 
 	plug.mu.RLock()
 	st := plug.byASN[65001]
@@ -1117,9 +1117,9 @@ func TestRemovedASSetIsNotThePeeringDBFallback(t *testing.T) {
 	plug := &irrPlugin{byASN: make(map[uint32]*asnState), stopCh: make(chan struct{})}
 	t.Cleanup(func() { close(plug.stopCh) })
 
-	plug.handleConfigure(irrConfigFor(addr, "65001", "AS-OLD"))
+	plug.configureOf(irrConfigFor(addr, "65001", "AS-OLD"))
 	plug.refreshASN(65001)
-	plug.handleConfigure(irrConfigFor(addr, "65001", ""))
+	plug.configureOf(irrConfigFor(addr, "65001", ""))
 	plug.refreshASN(65001)
 
 	if got := liveASSet(t, plug); got != "AS65001" {
@@ -1140,9 +1140,9 @@ func TestReloadKeepsADiscoveredASSet(t *testing.T) {
 	plug := &irrPlugin{byASN: make(map[uint32]*asnState), stopCh: make(chan struct{})}
 	t.Cleanup(func() { close(plug.stopCh) })
 
-	plug.handleConfigure(irrConfigWithPeeringDB(addr, pdbURL, "65001", ""))
+	plug.configureOf(irrConfigWithPeeringDB(addr, pdbURL, "65001", ""))
 	plug.refreshASN(65001)
-	plug.handleConfigure(irrConfigWithPeeringDB(addr, pdbURL, "65001", ""))
+	plug.configureOf(irrConfigWithPeeringDB(addr, pdbURL, "65001", ""))
 
 	plug.mu.RLock()
 	st := plug.byASN[65001]
@@ -1197,7 +1197,7 @@ func TestInFlightLookupForADeletedSetCommitsNothing(t *testing.T) {
 	})
 	plug := &irrPlugin{byASN: make(map[uint32]*asnState), stopCh: make(chan struct{})}
 	t.Cleanup(func() { close(plug.stopCh) })
-	plug.handleConfigure(irrConfigFor(addr, "65001", "AS-OLD"))
+	plug.configureOf(irrConfigFor(addr, "65001", "AS-OLD"))
 
 	done := make(chan struct{})
 	go func() {
@@ -1205,7 +1205,7 @@ func TestInFlightLookupForADeletedSetCommitsNothing(t *testing.T) {
 		plug.refreshASN(65001)
 	}()
 	<-reached
-	plug.handleConfigure(irrConfigFor(addr, "65001", ""))
+	plug.configureOf(irrConfigFor(addr, "65001", ""))
 	close(gate)
 	<-done
 
@@ -1268,7 +1268,7 @@ func TestDiscoveryFollowsPeeringDB(t *testing.T) {
 	})
 	plug := &irrPlugin{byASN: make(map[uint32]*asnState), stopCh: make(chan struct{})}
 	t.Cleanup(func() { close(plug.stopCh) })
-	plug.handleConfigure(irrConfigWithPeeringDB(addr, pdbURL, "65001", ""))
+	plug.configureOf(irrConfigWithPeeringDB(addr, pdbURL, "65001", ""))
 
 	steps := []struct {
 		down    bool

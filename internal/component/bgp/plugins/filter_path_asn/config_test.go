@@ -7,10 +7,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/policy"
+	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/ze-software/ze/internal/component/bgp/configjson"
 	_ "github.com/ze-software/ze/internal/component/bgp/yang"
 	"github.com/ze-software/ze/internal/component/config"
 	_ "github.com/ze-software/ze/internal/component/hub/yang"
@@ -30,7 +32,7 @@ func subtreeJSON(t *testing.T, listBody string) string {
 	tree, err := config.ParseTreeWithYANG(policyOnly(listBody), nil)
 	require.NoError(t, err, "the schema must accept the body; this test is about the plugin's own refusals")
 
-	subtree := config.ExtractConfigSubtree(tree.ToMap(), "bgp")
+	subtree := config.ExtractConfigSubtree(tree.ToMap(), policy.RootName)
 	require.NotNil(t, subtree)
 	data, err := json.Marshal(subtree)
 	require.NoError(t, err)
@@ -42,10 +44,12 @@ func subtreeJSON(t *testing.T, listBody string) string {
 func parseLists(t *testing.T, listBody string) (map[string]*rejectList, error) {
 	t.Helper()
 
-	bgpCfg, ok := configjson.ParseBGPSubtree(subtreeJSON(t, listBody))
-	require.True(t, ok)
+	var wrapped map[string]map[string]any
+	require.NoError(t, json.Unmarshal([]byte(subtreeJSON(t, listBody)), &wrapped))
+	policyCfg, ok := wrapped[policy.RootName]
+	require.True(t, ok, "the delivered subtree is wrapped in its root name")
 
-	return parseRejectASNLists(bgpCfg)
+	return parseRejectASNLists(policyCfg)
 }
 
 // TestPositionKeyExpansion asserts the position vocabulary itself: which
@@ -400,4 +404,20 @@ func TestSchemaRefusesAnNthIndexOutOfRange(t *testing.T) {
 			require.NotNil(t, lists["NO-TRANSIT"])
 		})
 	}
+}
+
+// treeSections cuts a parsed tree into the delivery the engine hands the
+// plugin: one section per root it reads, the policy root and the bgp root,
+// each the subtree config.ExtractConfigSubtree cuts, marshaled to JSON.
+func treeSections(t *testing.T, tree *config.Tree) []sdk.ConfigSection {
+	t.Helper()
+	var sections []sdk.ConfigSection
+	for _, root := range []string{policy.RootName, configRootBGP} {
+		subtree := config.ExtractConfigSubtree(tree.ToMap(), root)
+		require.NotNil(t, subtree, "the tree holds no %s root", root)
+		data, err := json.Marshal(subtree)
+		require.NoError(t, err)
+		sections = append(sections, sdk.ConfigSection{Root: root, Data: string(data)})
+	}
+	return sections
 }

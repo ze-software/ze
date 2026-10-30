@@ -14,6 +14,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/config"
 	configyang "github.com/ze-software/ze/internal/component/config/yang"
+	"github.com/ze-software/ze/internal/component/policy"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -27,12 +28,28 @@ import (
 //	refused delivery leaving the modifiers of one config computing from
 //	the base of another.
 
-// bgpSections wraps a bgp subtree in the delivery the SDK hands the plugin.
-func bgpSections(t *testing.T, bgpCfg map[string]any) []sdk.ConfigSection {
+// bgpSections splits a test tree written as one bgp subtree into the delivery
+// the SDK hands the plugin: the bgp section first, then a policy section
+// holding the tree's "policy" entry when it has one.
+func bgpSections(t *testing.T, cfg map[string]any) []sdk.ConfigSection {
 	t.Helper()
+	bgpCfg := make(map[string]any, len(cfg))
+	for k, v := range cfg {
+		if k == policy.RootName {
+			continue
+		}
+		bgpCfg[k] = v
+	}
 	data, err := json.Marshal(map[string]any{configRootBGP: bgpCfg})
 	require.NoError(t, err)
-	return []sdk.ConfigSection{{Root: configRootBGP, Data: string(data)}}
+	sections := []sdk.ConfigSection{{Root: configRootBGP, Data: string(data)}}
+	policyCfg, ok := cfg[policy.RootName].(map[string]any)
+	if !ok {
+		return sections
+	}
+	data, err = json.Marshal(map[string]any{policy.RootName: policyCfg})
+	require.NoError(t, err)
+	return append(sections, sdk.ConfigSection{Root: policy.RootName, Data: string(data)})
 }
 
 // attributeDefaultsTree wraps one bgp { defaults { attribute { } } } block in
@@ -263,4 +280,19 @@ func containerHelp(t *testing.T, path string) string {
 		require.NotNil(t, entry, "the YANG tree declares no %q under %s", name, path)
 	}
 	return entry.Description
+}
+
+// parseModifyDefsOf splits a test config written as one map into the two
+// roots parseModifyDefs reads: its "policy" entry is the policy root, and the
+// rest is the bgp root whose defaults give the absent-attribute base.
+func parseModifyDefsOf(cfg map[string]any) (map[string]*modifyDef, error) {
+	policyCfg, _ := cfg[policy.RootName].(map[string]any)
+	bgpCfg := make(map[string]any, len(cfg))
+	for k, v := range cfg {
+		if k == policy.RootName {
+			continue
+		}
+		bgpCfg[k] = v
+	}
+	return parseModifyDefs(policyCfg, bgpCfg)
 }

@@ -3,25 +3,29 @@ package filter_path_asn
 import (
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/policy"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
-// rejectASNSection is a bgp delivery defining one reject-asn list per name,
-// with peer p's import chain naming the first.
+// rejectASNSection is a delivery whose bgp section holds peer p, its import
+// chain naming the first name, and whose policy section defines one
+// reject-asn list per name.
 func rejectASNSection(names ...string) []sdk.ConfigSection {
-	data := `{"bgp":{"policy":{"reject-asn":{`
+	data := `{"policy":{"reject-asn":{`
 	for i, name := range names {
 		if i > 0 {
 			data += ","
 		}
 		data += `"` + name + `":{"anywhere":["6939"]}`
 	}
-	data += `}},"peer":{"p":{"connection":{"remote":{"ip":"192.0.2.1"}},` +
+	data += `}}}`
+	bgpData := `{"bgp":{"peer":{"p":{"connection":{"remote":{"ip":"192.0.2.1"}},` +
 		`"filter":{"import":{"filters":["` + names[0] + `"],"final":"accept"}}}}}}`
-	return []sdk.ConfigSection{{Root: configRootBGP, Data: data}}
+	return []sdk.ConfigSection{{Root: configRootBGP, Data: bgpData}, {Root: policy.RootName, Data: data}}
 }
 
 // installedLists answers the installed list names' count and the import

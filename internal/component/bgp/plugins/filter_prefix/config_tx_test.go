@@ -3,15 +3,16 @@ package filter_prefix
 import (
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/policy"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 // prefixSection builds a bgp delivery defining prefix-list L with one entry
 // for 10.0.0.0/8 and the given action.
 func prefixSection(entryAction string) []sdk.ConfigSection {
-	data := `{"bgp":{"policy":{"prefix-list":{"L":{"entry":{"10.0.0.0/8":{"action":"` +
-		entryAction + `"}}}}}}}`
-	return []sdk.ConfigSection{{Root: configRootBGP, Data: data}}
+	data := `{"policy":{"prefix-list":{"L":{"entry":{"10.0.0.0/8":{"action":"` +
+		entryAction + `"}}}}}}`
+	return []sdk.ConfigSection{{Root: policy.RootName, Data: data}}
 }
 
 // installedActionOfL reads the action the running definitions give list L's
@@ -95,7 +96,7 @@ func TestPrefixConfigTxRemovalAndAbsentRoot(t *testing.T) {
 		t.Fatalf("a transaction without bgp changed L: action %v", got)
 	}
 
-	if err := tx.Verify([]sdk.ConfigSection{{Root: configRootBGP, Data: `{"bgp":{}}`}}); err != nil {
+	if err := tx.Verify([]sdk.ConfigSection{{Root: policy.RootName, Data: `{"bgp":{}}`}}); err != nil {
 		t.Fatalf("verify of a removal: %v", err)
 	}
 	if err := tx.Apply(); err != nil {

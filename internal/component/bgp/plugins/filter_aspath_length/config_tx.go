@@ -4,7 +4,7 @@
 package filter_aspath_length
 
 import (
-	"github.com/ze-software/ze/internal/component/bgp/configjson"
+	"github.com/ze-software/ze/internal/component/policy"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -13,7 +13,7 @@ import (
 // the old set or the new one and never a mix. Before any install none is
 // defined.
 func newAsPathLengthConfigTx() *sdk.ConfigTx[map[string]*asPathLengthDef] {
-	parse := configjson.BGPSectionParser("filter-aspath-length", errAsPathLengthInvalidBgpConfigJSON, parseAsPathLengthDefs)
+	parse := policy.SectionParser("filter-aspath-length", errAsPathLengthInvalidBgpConfigJSON, parseAsPathLengthDefs)
 	return sdk.NewConfigTx(map[string]*asPathLengthDef(nil), parse, installAsPathLengthDefs)
 }
 

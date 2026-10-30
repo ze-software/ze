@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/policy"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -25,18 +27,6 @@ bgp {
     session {
         asn {
             local 65000
-        }
-    }
-    policy {
-        reject-asn NO-TRANSIT {
-            indirect [ 174 3356 ]
-            direct [ 3356 ]
-            origin [ 64512 ]
-            regex [ "^65001 174 " ]
-        }
-        reject-asn UNUSED {
-            anywhere [ 6939 ]
-            nth 2 [ 3491 ]
         }
     }
     peer peer-a {
@@ -77,6 +67,18 @@ bgp {
         }
     }
 }
+policy {
+    reject-asn NO-TRANSIT {
+        indirect [ 174 3356 ]
+        direct [ 3356 ]
+        origin [ 64512 ]
+        regex [ "^65001 174 " ]
+    }
+    reject-asn UNUSED {
+        anywhere [ 6939 ]
+        nth 2 [ 3491 ]
+    }
+}
 `
 
 // deliverShowConfig hands showConfig to the plugin the way the engine hands a
@@ -93,12 +95,7 @@ func deliverShowConfig(t *testing.T) {
 	tree, err := config.ParseTreeWithYANG(showConfig, nil)
 	require.NoError(t, err, "the config must parse against the registered YANG")
 
-	subtree := config.ExtractConfigSubtree(tree.ToMap(), "bgp")
-	require.NotNil(t, subtree)
-	data, err := json.Marshal(subtree)
-	require.NoError(t, err)
-
-	require.NoError(t, configure([]sdk.ConfigSection{{Root: "bgp", Data: string(data)}}))
+	require.NoError(t, configure(treeSections(t, tree)))
 }
 
 // answerOf runs one command and decodes its JSON answer.
@@ -403,11 +400,10 @@ func TestAttachmentCountsPreserveFinalOnlyPolicies(t *testing.T) {
 func TestShowCountsDynamicTemplateAttachments(t *testing.T) {
 	held := installedRejectASN.Load()
 	t.Cleanup(func() { installedRejectASN.Store(held) })
-	err := configure([]sdk.ConfigSection{{Root: configRootBGP, Data: `{"bgp":{
-		"policy":{"reject-asn":{
-			"USED":{"anywhere":["6939"]},
-			"UNUSED":{"anywhere":["174"]}
-		}},
+	err := configure([]sdk.ConfigSection{{Root: policy.RootName, Data: `{"policy":{"reject-asn":{
+		"USED":{"anywhere":["6939"]},
+		"UNUSED":{"anywhere":["174"]}
+	}}}`}, {Root: configRootBGP, Data: `{"bgp":{
 		"peer":{"ix":{
 			"connection":{"remote":{"ip":"198.51.100.1"}},
 			"filter":{"import":{"filters":["USED"],"final":"accept"}}

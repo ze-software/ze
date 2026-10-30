@@ -26,11 +26,6 @@ bgp {
             local 65000
         }
     }
-    policy {
-        reject-asn NO-TRANSIT {
-            indirect [ 3356 ]
-        }
-    }
     peer unbound-a {
         connection { remote { ip 10.0.0.1 } local { ip auto } }
         session { asn { remote 65001 } }
@@ -52,6 +47,11 @@ bgp {
     peer ibgp {
         connection { remote { ip 10.0.0.4 } local { ip auto } }
         session { asn { remote 65000 } }
+    }
+}
+policy {
+    reject-asn NO-TRANSIT {
+        indirect [ 3356 ]
     }
 }
 `

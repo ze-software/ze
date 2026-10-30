@@ -1,12 +1,12 @@
 // Design: docs/architecture/core-design.md -- prefix-list filter plugin
 // Detail: match.go -- prefix matching algorithm and update evaluator
-// Detail: config.go -- bgp/policy/prefix-list config parsing
+// Detail: config.go -- policy/prefix-list config parsing
 // Detail: config_tx.go -- the prefix lists at boot and on reload
 //
 // Package filter_prefix implements the bgp-filter-prefix plugin.
 //
 // The plugin loads named prefix-list definitions from
-// bgp { policy { prefix-list NAME { entry P { ge G; le L; action A; } } } }
+// policy { prefix-list NAME { entry P { ge G; le L; action A; } } }
 // at Stage 2, and installs a reload's lists at config-apply. At runtime, peer filter chains reference a list
 // as bgp-filter-prefix:NAME. The engine dispatches each match via
 // CallFilterUpdate (filter-update RPC); the plugin handles it in OnFilterUpdate
@@ -25,6 +25,7 @@ import (
 	"sync/atomic"
 
 	"github.com/ze-software/ze/internal/component/bgp/filtertext"
+	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
@@ -56,7 +57,7 @@ func RunFilterPrefix(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	if err := p.Run(ctx, &sdk.Registration{
-		WantsConfig: []string{configRootBGP},
+		WantsConfig: []string{policy.RootName},
 	}); err != nil {
 		logger().Error("filter-prefix plugin failed", "error", err)
 		return 1

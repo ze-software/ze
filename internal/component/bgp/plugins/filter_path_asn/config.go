@@ -7,7 +7,7 @@
 //
 // It reads named reject-asn lists out of the BGP config subtree:
 //
-//	bgp { policy { reject-asn NAME { indirect [ N N ]; nth 2 [ N ]; } } }
+//	policy { reject-asn NAME { indirect [ N N ]; nth 2 [ N ]; } }
 //
 // Each list resolves to one map from ASN to the union of the primitive
 // positions the leaf-lists it appears under expand to, one set of (position,
@@ -184,21 +184,17 @@ type nthKey struct {
 	asn uint32
 }
 
-// parseRejectASNLists walks bgp { policy { reject-asn ... } } and returns each
-// list resolved by name, ready for the hot path.
+// parseRejectASNLists walks policy { reject-asn ... } and returns each list
+// resolved by name, ready for the hot path.
 //
-// A tree with no policy block and a policy block with no reject-asn list both
+// A policy root absent from the delivery and one with no reject-asn list both
 // answer an empty map: an operator who configured no list has configured no
 // list, and a chain naming one that does not exist is refused elsewhere by
-// ValidateFilterNames and fails closed here in handleFilterUpdate.
-func parseRejectASNLists(bgpCfg map[string]any) (map[string]*rejectList, error) {
+// policy.Registry.ValidateName and fails closed here in handleFilterUpdate.
+func parseRejectASNLists(policyCfg map[string]any) (map[string]*rejectList, error) {
 	lists := make(map[string]*rejectList)
 
-	policyBlock, ok := bgpCfg["policy"].(map[string]any)
-	if !ok {
-		return lists, nil
-	}
-	rejectBlock, ok := policyBlock["reject-asn"].(map[string]any)
+	rejectBlock, ok := policyCfg["reject-asn"].(map[string]any)
 	if !ok {
 		return lists, nil
 	}

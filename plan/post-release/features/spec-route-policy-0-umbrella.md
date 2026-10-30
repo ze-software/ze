@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | protocol |
 | Priority | P3 |
 | Release reason | New capability: a protocol-neutral route policy and a gate on every source entering the Loc-RIB. No shipped behavior is defective without it; the two defects it owns (journal rows below) are post-release quality, not release blockers. |
 | RFC gaps | - |
 | Depends | `plan/release/fixes/spec-fixit-redistribution-chain-drops-silently.md` (phase 3 needs a working redistribution chain to prove anything); `plan/release/fixes/spec-single-owner-reload-reconcile.md` (its AC-9 tests the redistribute evaluator phase 3 replaces); phase 4 sequences with `plan/post-release/engineering/spec-filter-wire-0-umbrella.md` |
-| Phase | - |
+| Phase | 1/4 |
 | Handoff | - |
 | Updated | 2026-10-29 |
 
@@ -290,6 +290,7 @@ import, and is refused on connected import because connected carries no tag.
 | AC-14 | `redistribute { destination ospf { import bgp { filters [ P ]; final reject; } } }` | only prefixes P accepts move into OSPF; a route that was held and is now rejected after a reload is withdrawn |
 | AC-15 | `redistribute { destination ospf { import ebgp } }` | only eBGP-learned best paths move; iBGP-learned ones do not (fixes the journal row) |
 | AC-16 | A source with no chain and no central chain configured | insert performs zero allocations and the gate is one pointer load (alloc test) |
+| AC-18 | A config with only a `policy {}` section; a config with only `isis {}` (no policy section); a build without the `policy` plugin and an `isis filter import` | the first auto-loads `policy`; the second loads `policy` as a dependency of `isis`; the third is refused at load and by `ze config validate` with the missing-dependency message naming `policy` and the rebuild fix. A registry-derived test asserts every plugin with a filter attachment lists `policy` in `Dependencies` |
 | AC-17 | Phase 4: BGP import and export chains compile from the shared registry | every existing BGP policy `.ci` and interop scenario passes unchanged in expectation |
 
 ## End-to-End User Stories
@@ -497,6 +498,7 @@ import, and is refused on connected import because connected carries no tag.
 | Share `policy` root with policy routing | move PBR to its own root; name the new root `policy-options` | keeps the approved syntax and policy routing unchanged; the marker removes the collision |
 | Keep chain plus `final` | Junos `term from/then` | the model ships, is documented and tested; a generic `match` type gives term-like conditions |
 | BGP import stays ingress | move BGP import to the Loc-RIB gate | BGP import must see communities and AS path and decide Adj-RIB-In admission; the Loc-RIB sees one best per prefix |
+| The policy library is an in-process plugin `policy`: `ConfigRoots ["policy"]` auto-loads it from a `policy {}` section, and every protocol with a filter attachment (bgp, isis, ospf, static, connected, rib, the redistribute orchestrator) and every filter-type plugin lists it in hard `Dependencies`, so loading any protocol loads it (owner, 2026-10-30) | optional dependency; a plain compiled-in component | a hard edge makes a build without it refuse a `filter` attachment with the registry's missing-dependency message instead of ignoring it; it runs in the engine because the Loc-RIB gate is there; a test derives the protocols with attachments from the registry and asserts each edge |
 | IGP import never touches the LSDB | filter LSPs/LSAs on receipt | the LSDB must stay identical across the area; Junos, FRR and BIRD filter after SPF |
 | Interop evidence: BIRD | - | BIRD `nest/rt-table.c` `rte_update2` runs the channel's `in_filter` on every route any protocol (OSPF via `proto/ospf/rt.c` `rte_update`) offers the table; on reject it drops the route, or with `in_keep_filtered` keeps it flagged `REF_FILTERED`. That is the gate-at-RIB-entry plus hidden-path design here |
 | Interop evidence: FRR | - | FRR `zebra/zebra_routemap.c` `zebra_route_map_check` applies the route-map named for the route's protocol (`ip protocol <proto> route-map`), falling back to the `any` route-map only when no per-protocol one exists; called from `zebra_nhg.c` nexthop resolution, so a denied route stays in the RIB inactive. Ze differs deliberately: the source chain and the central chain both run, in that order, because the owner chose both attachments |

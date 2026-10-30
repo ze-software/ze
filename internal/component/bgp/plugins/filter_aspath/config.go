@@ -6,7 +6,7 @@
 //
 // Reads named as-path-list definitions out of the BGP config subtree:
 //
-//	bgp { policy { as-path-list NAME { entry REGEX { action A; } } } }
+//	policy { as-path-list NAME { entry REGEX { action A; } } }
 //
 // Each list becomes an *aspathList with ordered entries whose regexes are
 // compiled at config load time. Invalid or overly long regexes are rejected
@@ -28,16 +28,12 @@ const (
 	maxNameLen = 256
 )
 
-// parseAsPathLists walks bgp { policy { as-path-list ... } } and returns a
+// parseAsPathLists walks policy { as-path-list ... } and returns a
 // map of name -> *aspathList ready for runtime evaluation.
-func parseAsPathLists(bgpCfg map[string]any) (map[string]*aspathList, error) {
+func parseAsPathLists(policyCfg map[string]any) (map[string]*aspathList, error) {
 	result := make(map[string]*aspathList)
 
-	policyBlock, ok := bgpCfg["policy"].(map[string]any)
-	if !ok {
-		return result, nil
-	}
-	aplBlock, ok := policyBlock["as-path-list"].(map[string]any)
+	aplBlock, ok := policyCfg["as-path-list"].(map[string]any)
 	if !ok {
 		return result, nil
 	}

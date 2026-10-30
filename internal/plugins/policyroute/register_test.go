@@ -17,7 +17,9 @@ func TestPolicyRegistration(t *testing.T) {
 	if reg.RunEngine == nil {
 		t.Error("RunEngine is nil")
 	}
-	if len(reg.ConfigRoots) != 1 || reg.ConfigRoots[0] != "policy" {
-		t.Errorf("ConfigRoots = %v, want [policy]", reg.ConfigRoots)
+	// Policy routing owns only the route list under the shared policy root,
+	// so a policy block holding only filter instances does not load it.
+	if len(reg.ConfigRoots) != 1 || reg.ConfigRoots[0] != "policy/route" {
+		t.Errorf("ConfigRoots = %v, want [policy/route]", reg.ConfigRoots)
 	}
 }

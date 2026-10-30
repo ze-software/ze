@@ -10,24 +10,27 @@ mechanisms. The filters come first, and
 
 Route filters let plugins act as route filters on import (ingress) and export
 (egress). Filters are configured per peer, group, or globally using named
-references in a `filter {}` config block. Named filter types are defined under
-`bgp { policy { } }`.
+references in a `filter {}` config block. Named filter instances are defined
+in the top-level `policy { }` block, which every protocol shares with policy
+routing's `policy route`.
 
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- filter container -->
+<!-- source: internal/component/policy/registry.go -- BuildRegistry, ValidateName -->
 
 ### Quick Start
 
 ```
+policy {
+    loop-detection no-self-as {
+        allow-own-as 0;
+    }
+}
+
 bgp {
     router-id 192.0.2.1;
     session {
         asn {
             local 65000;
-        }
-    }
-    policy {
-        loop-detection no-self-as {
-            allow-own-as 0;
         }
     }
     filter {
@@ -56,8 +59,10 @@ bgp {
 
 ### Filter Types
 
-Filter types are YANG lists under `bgp/policy`, each marked with `ze:filter`.
-Plugins add new filter types via YANG `augment`. Each list entry is a named
+Filter types are YANG lists under the top-level `policy` root, each marked with `ze:filter`.
+A list without the marker, such as policy routing's `route`, is not a filter
+type, and a chain that names one of its entries is refused.
+Plugins add new filter types via YANG `augment "/policy:policy"`. Each list entry is a named
 filter instance referenced by name in peer `filter { import/export }` chains.
 
 ### Built-in: loop-detection
@@ -79,7 +84,7 @@ Example: `rpki:validate`, `community:scrub`.
 
 ### How It Works
 
-1. Filter types are defined in `bgp { policy { } }` as named instances.
+1. Filter types are defined in `policy { }` as named instances.
 2. Each `filter` direction block lists filter instances under `filters` and states `final accept;` or `final reject;`.
 3. Default filters (e.g., loop-detection) auto-populate in every peer's import chain.
 4. On each received UPDATE, the engine runs the import filter chain.
@@ -179,21 +184,22 @@ on the modifier itself with a `match` block. A route that meets none of the
 stated values returns accept and passes through unchanged.
 
 ```
+policy {
+    modify blackhole-to-discard {
+        match {
+            community [ blackhole ];
+        }
+        set {
+            next-hop 192.0.2.1;
+        }
+    }
+}
+
 bgp {
     router-id 192.0.2.254
     session {
         asn {
             local 65000
-        }
-    }
-    policy {
-        modify blackhole-to-discard {
-            match {
-                community [ blackhole ];
-            }
-            set {
-                next-hop 192.0.2.1;
-            }
         }
     }
     peer customer {

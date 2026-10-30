@@ -376,20 +376,21 @@ a route is rejected when any keyword matches, and there is no ordering between
 them.
 
 ```
+policy {
+    reject-asn NO-TRANSIT {
+        indirect [ 174 701 3356 ];
+        nth 2 {
+            asn [ 3491 ];
+        }
+        regex    [ "^3356 174 " ];
+    }
+}
+
 bgp {
     router-id 192.0.2.1
     session {
         asn {
             local 65000
-        }
-    }
-    policy {
-        reject-asn NO-TRANSIT {
-            indirect [ 174 701 3356 ];
-            nth 2 {
-                asn [ 3491 ];
-            }
-            regex    [ "^3356 174 " ];
         }
     }
     peer transit-a {
@@ -440,21 +441,22 @@ value passes through unchanged rather than being rejected. An absent `match`
 container applies the operations to every route.
 
 ```
+policy {
+    modify scrub-med {
+        match {
+            community          [ 65001:100 ];
+            large-community    [ 65001:100:200 ];
+            extended-community [ target:65000:100 ];
+        }
+        del { med; }
+    }
+}
+
 bgp {
     router-id 192.0.2.1
     session {
         asn {
             local 65000
-        }
-    }
-    policy {
-        modify scrub-med {
-            match {
-                community          [ 65001:100 ];
-                large-community    [ 65001:100:200 ];
-                extended-community [ target:65000:100 ];
-            }
-            del { med; }
         }
     }
 }

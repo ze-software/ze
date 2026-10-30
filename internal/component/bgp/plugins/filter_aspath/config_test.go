@@ -106,14 +106,12 @@ func TestParseOneASPathEntry(t *testing.T) {
 // recovers the regex from the list key when the inner map omits it.
 func TestParseAsPathLists_MapForm(t *testing.T) {
 	bgpCfg := map[string]any{
-		"policy": map[string]any{
-			"as-path-list": map[string]any{
-				"PEERS-ONLY": map[string]any{
-					"name": "PEERS-ONLY",
-					"entry": map[string]any{
-						`^\d+$`: map[string]any{
-							"action": "accept",
-						},
+		"as-path-list": map[string]any{
+			"PEERS-ONLY": map[string]any{
+				"name": "PEERS-ONLY",
+				"entry": map[string]any{
+					`^\d+$`: map[string]any{
+						"action": "accept",
 					},
 				},
 			},
@@ -144,14 +142,12 @@ func TestParseAsPathLists_MapForm(t *testing.T) {
 // preserves order.
 func TestParseAsPathLists_ListForm_OrderPreserved(t *testing.T) {
 	bgpCfg := map[string]any{
-		"policy": map[string]any{
-			"as-path-list": map[string]any{
-				"ORDERED": map[string]any{
-					"name": "ORDERED",
-					"entry": []any{
-						map[string]any{"regex": `^65001`, "action": "reject"},
-						map[string]any{"regex": `^65001`, "action": "accept"},
-					},
+		"as-path-list": map[string]any{
+			"ORDERED": map[string]any{
+				"name": "ORDERED",
+				"entry": []any{
+					map[string]any{"regex": `^65001`, "action": "reject"},
+					map[string]any{"regex": `^65001`, "action": "accept"},
 				},
 			},
 		},
@@ -174,14 +170,12 @@ func TestParseAsPathLists_ListForm_OrderPreserved(t *testing.T) {
 // first-match-wins requires deterministic order.
 func TestParseAsPathLists_MultiEntryMapFormRejected(t *testing.T) {
 	bgpCfg := map[string]any{
-		"policy": map[string]any{
-			"as-path-list": map[string]any{
-				"MULTI": map[string]any{
-					"name": "MULTI",
-					"entry": map[string]any{
-						`^65001$`: map[string]any{"action": "accept"},
-						`^65002$`: map[string]any{"action": "reject"},
-					},
+		"as-path-list": map[string]any{
+			"MULTI": map[string]any{
+				"name": "MULTI",
+				"entry": map[string]any{
+					`^65001$`: map[string]any{"action": "accept"},
+					`^65002$`: map[string]any{"action": "reject"},
 				},
 			},
 		},
@@ -200,12 +194,10 @@ func TestParseAsPathLists_MultiEntryMapFormRejected(t *testing.T) {
 func TestParseAsPathLists_NameTooLong(t *testing.T) {
 	longName := strings.Repeat("x", maxNameLen+1)
 	bgpCfg := map[string]any{
-		"policy": map[string]any{
-			"as-path-list": map[string]any{
-				longName: map[string]any{
-					"entry": map[string]any{
-						`^65001$`: map[string]any{"action": "accept"},
-					},
+		"as-path-list": map[string]any{
+			longName: map[string]any{
+				"entry": map[string]any{
+					`^65001$`: map[string]any{"action": "accept"},
 				},
 			},
 		},
@@ -243,16 +235,14 @@ func TestParseAsPathLists_NoPolicyBlock(t *testing.T) {
 func TestParseAsPathListsTwoEntriesInNonLexicalOrder(t *testing.T) {
 	list := func(order []string) map[string]any {
 		return map[string]any{
-			"policy": map[string]any{
-				"as-path-list": map[string]any{
-					"ORDERED": map[string]any{
-						"name": "ORDERED",
-						"entry": map[string]any{
-							`^65001`: map[string]any{"action": "reject"},
-							`^`:      map[string]any{"action": "accept"},
-						},
-						configorder.OrderKey("entry"): order,
+			"as-path-list": map[string]any{
+				"ORDERED": map[string]any{
+					"name": "ORDERED",
+					"entry": map[string]any{
+						`^65001`: map[string]any{"action": "reject"},
+						`^`:      map[string]any{"action": "accept"},
 					},
+					configorder.OrderKey("entry"): order,
 				},
 			},
 		}

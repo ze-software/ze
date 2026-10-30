@@ -34,7 +34,7 @@ func TestParseFamilyFilters(t *testing.T) {
 			},
 		},
 	}
-	instances, err := parseFamilyFilters(cfg)
+	instances, err := parseFamilyFiltersOf(cfg)
 	require.NoError(t, err)
 	require.Len(t, instances, 2)
 
@@ -45,14 +45,14 @@ func TestParseFamilyFilters(t *testing.T) {
 
 // TestParseFamilyFiltersInvalid rejects an unknown action and an unknown family.
 func TestParseFamilyFiltersInvalid(t *testing.T) {
-	_, err := parseFamilyFilters(map[string]any{
+	_, err := parseFamilyFiltersOf(map[string]any{
 		"policy": map[string]any{"family-filter": map[string]any{
 			"Bad": map[string]any{"family": "ipv4/flow", "action": "wat"},
 		}},
 	})
 	require.Error(t, err)
 
-	_, err = parseFamilyFilters(map[string]any{
+	_, err = parseFamilyFiltersOf(map[string]any{
 		"policy": map[string]any{"family-filter": map[string]any{
 			"Bad": map[string]any{"family": "not-a-family", "action": "remove"},
 		}},
@@ -76,7 +76,7 @@ func TestTearDownInExportRejected(t *testing.T) {
 		cfg["peer"] = map[string]any{
 			"edge": map[string]any{"filter": map[string]any{"export": map[string]any{"filters": []any{ref}, "final": "accept"}}},
 		}
-		_, err := parseFamilyFilters(cfg)
+		_, err := parseFamilyFiltersOf(cfg)
 		require.Error(t, err, "tear-down ref %q in export must be rejected", ref)
 	}
 
@@ -85,7 +85,7 @@ func TestTearDownInExportRejected(t *testing.T) {
 	cfg["peer"] = map[string]any{
 		"edge": map[string]any{"filter": map[string]any{"export": map[string]any{"filters": []any{"bgp-filter-family:NoFlow"}, "final": "accept"}}},
 	}
-	_, err := parseFamilyFilters(cfg)
+	_, err := parseFamilyFiltersOf(cfg)
 	require.NoError(t, err)
 
 	// tear-down in an IMPORT chain -> OK (import is its only legal direction).
@@ -93,7 +93,7 @@ func TestTearDownInExportRejected(t *testing.T) {
 	cfg["peer"] = map[string]any{
 		"edge": map[string]any{"filter": map[string]any{"import": map[string]any{"filters": []any{"bgp-filter-family:Kill"}, "final": "accept"}}},
 	}
-	_, err = parseFamilyFilters(cfg)
+	_, err = parseFamilyFiltersOf(cfg)
 	require.NoError(t, err)
 }
 
@@ -153,7 +153,7 @@ func TestDynamicGroupExportValidation(t *testing.T) {
 		{name: "remove export", direction: "export", action: actionRemove},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := parseFamilyFilters(map[string]any{
+			_, err := parseFamilyFiltersOf(map[string]any{
 				"policy": map[string]any{"family-filter": map[string]any{
 					"guard": map[string]any{"family": "ipv4/flow", "action": tc.action},
 				}},
@@ -171,4 +171,19 @@ func TestDynamicGroupExportValidation(t *testing.T) {
 			}
 		})
 	}
+}
+
+// parseFamilyFiltersOf splits a test config written as one map into the two
+// roots parseFamilyFilters reads: its "policy" entry is the policy root, and
+// the rest is the bgp root whose peers and groups carry the export chains.
+func parseFamilyFiltersOf(cfg map[string]any) (map[string]*familyFilter, error) {
+	policyCfg, _ := cfg["policy"].(map[string]any)
+	bgpCfg := make(map[string]any, len(cfg))
+	for k, v := range cfg {
+		if k == "policy" {
+			continue
+		}
+		bgpCfg[k] = v
+	}
+	return parseFamilyFilters(policyCfg, bgpCfg)
 }

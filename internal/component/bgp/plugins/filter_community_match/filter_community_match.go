@@ -1,11 +1,11 @@
 // Design: docs/architecture/core-design.md -- community match filter plugin
 // Detail: match.go -- community matching algorithm and field extraction
-// Detail: config.go -- bgp/policy/community-match config parsing
+// Detail: config.go -- policy/community-match config parsing
 //
 // Package filter_community_match implements the bgp-filter-community-match plugin.
 //
 // The plugin loads named community-match definitions from
-// bgp { policy { community-match NAME { entry COMMUNITY { type T; action A; } } } }
+// policy { community-match NAME { entry COMMUNITY { type T; action A; } } }
 // at Stage 2 and on every applied reload (config_tx.go). At runtime, peer
 // filter chains reference a list
 // as bgp-filter-community-match:NAME or community-match:NAME. The engine
@@ -26,6 +26,7 @@ import (
 	"net"
 	"sync/atomic"
 
+	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -54,7 +55,7 @@ func runFilterCommunityMatch(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	if err := p.Run(ctx, &sdk.Registration{
-		WantsConfig: []string{configRootBGP},
+		WantsConfig: []string{policy.RootName},
 	}); err != nil {
 		logger().Error("filter-community-match plugin failed", "error", err)
 		return 1

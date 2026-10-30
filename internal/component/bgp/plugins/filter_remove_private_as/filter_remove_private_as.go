@@ -1,5 +1,5 @@
 // Design: docs/architecture/core-design.md -- remove-private-as policy action filter
-// Detail: config.go -- bgp/policy/remove-private-as config parsing
+// Detail: config.go -- policy/remove-private-as config parsing
 // Detail: private_as.go -- Private Use ASN detection and text rewrite
 // Related: internal/component/bgp/filtertext -- the reader of the filter text format
 
@@ -11,6 +11,7 @@ import (
 	"sync/atomic"
 
 	"github.com/ze-software/ze/internal/component/bgp/filtertext"
+	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -34,7 +35,7 @@ func runFilterRemovePrivateAS(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	if err := p.Run(ctx, &sdk.Registration{
-		WantsConfig: []string{configRootBGP},
+		WantsConfig: []string{policy.RootName},
 		Filters: []sdk.FilterDecl{{
 			Name:       "*",
 			Direction:  sdk.FilterBoth,

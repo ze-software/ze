@@ -17,14 +17,10 @@ type asPathLengthDef struct {
 	min  int // -1 means no min constraint
 }
 
-func parseAsPathLengthDefs(bgpCfg map[string]any) (map[string]*asPathLengthDef, error) {
+func parseAsPathLengthDefs(policyCfg map[string]any) (map[string]*asPathLengthDef, error) {
 	result := make(map[string]*asPathLengthDef)
 
-	policyBlock, ok := bgpCfg["policy"].(map[string]any)
-	if !ok {
-		return result, nil
-	}
-	block, ok := policyBlock["as-path-length"].(map[string]any)
+	block, ok := policyCfg["as-path-length"].(map[string]any)
 	if !ok {
 		return result, nil
 	}

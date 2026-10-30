@@ -2,7 +2,7 @@ module ze-filter-remove-private-as {
     namespace "urn:ze:filter-remove-private-as";
     prefix frpa;
 
-    import ze-bgp-conf { prefix bgp; }
+    import ze-policy-conf { prefix policy; }
     import ze-extensions { prefix ze; }
 
     description "Remove Private Use ASNs from AS_PATH and AS4_PATH in the BGP policy framework.
@@ -12,7 +12,7 @@ module ze-filter-remove-private-as {
         description "Initial revision";
     }
 
-    augment "/bgp:bgp/bgp:policy" {
+    augment "/policy:policy" {
         list remove-private-as {
             ze:filter;
             key "name";

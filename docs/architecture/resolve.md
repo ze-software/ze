@@ -30,7 +30,7 @@ Hub startup creates a single `Resolvers` struct with one shared DNS instance.
 Cymru receives a TXT resolver function wired to the DNS resolver. PeeringDB
 takes the URL `system/peeringdb/url` declares. The IRR client takes an empty
 server and falls back to `whois.radb.net`: no config leaf reaches the hub's IRR
-resolver, and `bgp/policy/irr` configures the filter plugin's own client rather
+resolver, and `policy/irr` configures the filter plugin's own client rather
 than this one.
 
 <!-- source: cmd/ze/hub/main_system.go -- newResolvers -->

@@ -11,6 +11,14 @@ the target routing table.
 
 ## Configuration
 
+Policy routing lives in the `route` list of the top-level `policy` block.
+That block is shared: route filters (`prefix-list`, `modify` and the other
+filter types) are defined beside it, and the two never mix. A filter chain
+cannot name a `policy route` entry, and a `policy route` entry is not a filter.
+See [BGP Policy](bgp-policy.md) for the filters.
+<!-- source: internal/plugins/policyroute/yang/ze-policyroute-conf.yang -- augment /policy:policy -->
+<!-- source: internal/component/policy/registry.go -- BuildRegistry, ValidateName -->
+
 Set references (`@DstBypass`, `@SrcBypass`) must be defined in the
 `firewall` config section. See [Firewall Guide](firewall.md) for set
 syntax.
@@ -254,6 +262,13 @@ managed through the firewall backend, sharing the same Apply
 reconciliation used by the firewall component.
 
 ## Dependencies
+
+The policy-routes plugin loads only when the config holds at least one
+`policy route` entry: its config root is the list path `policy/route`, not the
+whole `policy` block. A `policy {}` block holding only filters therefore loads
+neither policy routing nor the firewall.
+<!-- source: internal/plugins/policyroute/register.go -- configRoot -->
+<!-- source: internal/component/config/tree.go -- collectPaths -->
 
 The policy-routes plugin depends on the firewall plugin. Both must be
 available for policy routing to function. The firewall backend (nft) is

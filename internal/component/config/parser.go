@@ -522,7 +522,11 @@ func (p *Parser) parseContainer(tree *Tree, name string, node *ContainerNode) er
 				comments.end(child, fieldName, "")
 				continue
 			}
-			return p.errorf(tok, "unknown field in %s: %s%s (line %d)", name, fieldName, UnknownKeywordHint(fieldName, node.Children()), tok.line)
+			hint := node.relocatedHint(fieldName)
+			if hint == "" {
+				hint = UnknownKeywordHint(fieldName, node.Children())
+			}
+			return p.errorf(tok, "unknown field in %s: %s%s (line %d)", name, fieldName, hint, tok.line)
 		}
 
 		if markInactive {

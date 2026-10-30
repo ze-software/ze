@@ -67,6 +67,14 @@ func renderPageContent(renderer *Renderer, r *http.Request, path []string, viewT
 		}
 	case segBGP:
 		return renderBGPPageContent(renderer, r, path[1:], display(), schema, dispatch)
+	case segPolicy:
+		// /show/policy/ shows the filters table; deeper paths (a filter type, a
+		// filter instance, policy routing's route list) fall through to the
+		// generic YANG detail view.
+		if len(path) == 1 || (len(path) == 2 && path[1] == "") {
+			return handleBGPPolicyPage(renderer, display(), schema), true
+		}
+		return "", false
 	case segFirewall:
 		return renderFirewallPageContent(renderer, r, path[1:])
 	case segSystem:
@@ -126,12 +134,6 @@ func renderBGPPageContent(renderer *Renderer, r *http.Request, path []string, vi
 		return handleBGPSummaryPage(renderer, r, viewTree, dispatch), true
 	case segFamily:
 		return handleBGPFamiliesPage(renderer, viewTree), true
-	case segPolicy:
-		// /show/bgp/policy/ shows the filters table; deeper paths fall through.
-		if len(path) == 1 || (len(path) == 2 && path[1] == "") {
-			return handleBGPPolicyPage(renderer, viewTree, schema), true
-		}
-		return "", false
 	}
 
 	return "", false

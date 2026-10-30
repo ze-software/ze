@@ -1,5 +1,5 @@
 // Design: docs/architecture/core-design.md -- address-family policy filter
-// Related: config.go -- bgp/policy/family-filter config parsing + tear-down-in-export guard
+// Related: config.go -- policy/family-filter config parsing + tear-down-in-export guard
 // Related: match.go -- family extraction from the raw UPDATE body
 // Related: handler.go -- per-update remove / tear-down decision
 // RFC: rfc/short/rfc4760.md -- multiprotocol families (Section 6)
@@ -8,7 +8,7 @@
 // Package filter_family implements the bgp-filter-family plugin.
 //
 // The plugin loads named family-filter definitions from
-// bgp { policy { family-filter NAME { family ipv4/flow; action remove } } }
+// policy { family-filter NAME { family ipv4/flow; action remove } }
 // at Stage 2 and on every reload (config_tx.go). At runtime, peer filter chains reference an instance as
 // bgp-filter-family:NAME. The engine dispatches each match via CallFilterUpdate
 // (filter-update RPC); the plugin handles it in OnFilterUpdate by extracting the
@@ -30,6 +30,7 @@ import (
 	"net"
 	"sync/atomic"
 
+	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -60,7 +61,7 @@ func runFilterFamily(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	if err := p.Run(ctx, &sdk.Registration{
-		WantsConfig: []string{configRootBGP},
+		WantsConfig: []string{policy.RootName},
 		Filters: []sdk.FilterDecl{{
 			Name:      "*",
 			Direction: sdk.FilterBoth,

@@ -4,7 +4,7 @@
 package filter_prefix
 
 import (
-	"github.com/ze-software/ze/internal/component/bgp/configjson"
+	"github.com/ze-software/ze/internal/component/policy"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -13,7 +13,7 @@ import (
 // the old set or the new one and never a mix. Before any install none is
 // defined.
 func newPrefixConfigTx() *sdk.ConfigTx[map[string]*prefixList] {
-	parse := configjson.BGPSectionParser("filter-prefix", errFilterPrefixInvalidBgpConfigJson, parsePrefixLists)
+	parse := policy.SectionParser("filter-prefix", errFilterPrefixInvalidBgpConfigJson, parsePrefixLists)
 	return sdk.NewConfigTx(map[string]*prefixList(nil), parse, installPrefixLists)
 }
 

@@ -3,6 +3,8 @@ package bgpconfig
 import (
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/policy"
+
 	"github.com/stretchr/testify/assert"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
@@ -13,9 +15,7 @@ import (
 // VALIDATES: remove-private-as filter refs resolve through FilterTypes registration.
 // PREVENTS: configured chains reaching runtime as unresolved short names.
 func TestCanonicalizeRemovePrivateASRef(t *testing.T) {
-	reg := &FilterRegistry{entries: map[string]FilterEntry{
-		"STRIP": {Name: "STRIP", Type: "remove-private-as"},
-	}}
+	reg := mustPolicyRegistry(t, policy.Instance{Name: "STRIP", Type: "remove-private-as"})
 	typesMap := registry.FilterTypesMap()
 
 	assert.Equal(t, "bgp-filter-remove-private-as:STRIP", canonicalizeOne("STRIP", reg, typesMap))

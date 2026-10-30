@@ -60,7 +60,7 @@ func TestParseIRRConfig(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cfg := parseIRRConfig(tt.bgpCfg)
+			cfg := parseIRRConfigOf(tt.bgpCfg)
 			if cfg.Server != tt.wantSrv {
 				t.Errorf("Server = %q, want %q", cfg.Server, tt.wantSrv)
 			}
@@ -97,7 +97,7 @@ func TestParseIRRConfigPeerEntries(t *testing.T) {
 		},
 	}
 
-	cfg := parseIRRConfig(bgpCfg)
+	cfg := parseIRRConfigOf(bgpCfg)
 
 	if len(cfg.Peers) != 2 {
 		t.Fatalf("Peers count = %d, want 2", len(cfg.Peers))
@@ -144,7 +144,7 @@ func TestParseIRRConfigDisabledPeer(t *testing.T) {
 		},
 	}
 
-	cfg := parseIRRConfig(bgpCfg)
+	cfg := parseIRRConfigOf(bgpCfg)
 
 	for _, p := range cfg.Peers {
 		if p.RemoteASN == 65001 && !p.Disabled {
@@ -177,7 +177,7 @@ func TestParseIRRConfigBoundary(t *testing.T) {
 					},
 				},
 			}
-			cfg := parseIRRConfig(bgpCfg)
+			cfg := parseIRRConfigOf(bgpCfg)
 			if cfg.RefreshInterval != tt.want {
 				t.Errorf("RefreshInterval = %d, want %d", cfg.RefreshInterval, tt.want)
 			}
@@ -205,7 +205,7 @@ func TestParsePeerIRRRejectsBadASSet(t *testing.T) {
 		},
 	}
 	got := map[uint32]string{}
-	for _, p := range parseIRRConfig(bgpCfg).Peers {
+	for _, p := range parseIRRConfigOf(bgpCfg).Peers {
 		got[p.RemoteASN] = p.ASSet
 	}
 	if got[65001] != "AS-OK" {
@@ -310,7 +310,7 @@ func TestParseIRRConfigUsesIRR(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cfg := parseIRRConfig(tt.bgpCfg)
+			cfg := parseIRRConfigOf(tt.bgpCfg)
 			if len(cfg.Peers) != 1 {
 				t.Fatalf("Peers = %d, want 1 (parse must still list the peer)", len(cfg.Peers))
 			}
@@ -352,7 +352,7 @@ func TestIRRDynamicTemplateDoesNotInventAPeer(t *testing.T) {
 		}},
 	}
 	tree := map[string]any{"group": map[string]any{"ix": group}}
-	if cfg := parseIRRConfig(tree); len(cfg.Peers) != 0 {
+	if cfg := parseIRRConfigOf(tree); len(cfg.Peers) != 0 {
 		t.Fatalf("peerless template invented IRR peers: %+v", cfg.Peers)
 	}
 
@@ -362,7 +362,7 @@ func TestIRRDynamicTemplateDoesNotInventAPeer(t *testing.T) {
 			"asn": map[string]any{"remote": "65001"},
 		},
 	}}
-	cfg := parseIRRConfig(tree)
+	cfg := parseIRRConfigOf(tree)
 	if len(cfg.Peers) != 1 {
 		t.Fatalf("IRR peers = %+v, want only the named member", cfg.Peers)
 	}

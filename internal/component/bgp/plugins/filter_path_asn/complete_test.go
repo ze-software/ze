@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/policy"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -20,7 +22,7 @@ var positionLeaves = []string{"direct", "transit", "origin", "indirect", "anywhe
 
 // asnLeafPath is the config path of one leaf-list this file completes.
 var asnLeafPath = []string{
-	"bgp", "policy", "reject-asn", "NO-TRANSIT", "transit",
+	"policy", "reject-asn", "NO-TRANSIT", "transit",
 }
 
 // completionsFor drives the real editor entry point. Complete is what the
@@ -48,7 +50,7 @@ func completionsFor(t *testing.T, input string) []cli.Completion {
 func TestCompletionOffersKnownTransitASNs(t *testing.T) {
 	for _, leaf := range positionLeaves {
 		t.Run(leaf, func(t *testing.T) {
-			completions := completionsFor(t, "set bgp policy reject-asn NO-TRANSIT "+leaf+" ")
+			completions := completionsFor(t, "set policy reject-asn NO-TRANSIT "+leaf+" ")
 			offered := make(map[string]string, len(completions))
 			for _, completion := range completions {
 				offered[completion.Text] = completion.ShortHelp
@@ -112,11 +114,11 @@ func TestCompletionIsNeverAConstraint(t *testing.T) {
 		validator, err := config.YANGValidatorWithPlugins(nil)
 		require.NoError(t, err)
 
-		container := tree.GetContainer("bgp")
+		container := tree.GetContainer(policy.RootName)
 		require.NotNil(t, container)
 
 		var messages []string
-		for _, ve := range validator.ValidateTreeAllModules("bgp", container.ToMap()) {
+		for _, ve := range validator.ValidateTreeAllModules(policy.RootName, container.ToMap()) {
 			messages = append(messages, ve.Path+": "+ve.Message)
 		}
 		assert.Empty(t, messages, "an ASN outside the curated table is a valid ASN")
@@ -132,7 +134,7 @@ func TestCompletionIsNeverAConstraint(t *testing.T) {
 // PREVENTS: a leaf added to the YANG and never surfaced, so the only way to
 // learn the vocabulary is to read the module.
 func TestCompletionOffersPositionKeys(t *testing.T) {
-	completions := completionsFor(t, "set bgp policy reject-asn NO-TRANSIT ")
+	completions := completionsFor(t, "set policy reject-asn NO-TRANSIT ")
 
 	described := make(map[string]string, len(completions))
 	for _, completion := range completions {

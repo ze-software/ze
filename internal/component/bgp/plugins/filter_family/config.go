@@ -1,4 +1,4 @@
-// Design: docs/architecture/core-design.md -- bgp/policy/family-filter config parsing
+// Design: docs/architecture/core-design.md -- policy/family-filter config parsing
 // Related: handler.go -- family-filter runtime handler and export-chain guard
 
 package filter_family
@@ -18,21 +18,20 @@ const (
 	actionTearDown = "tear-down"
 )
 
-// familyFilter is a parsed bgp/policy/family-filter instance.
+// familyFilter is a parsed policy/family-filter instance.
 type familyFilter struct {
 	name   string
 	family family.Family
 	action string // actionRemove | actionTearDown
 }
 
-// parseFamilyFilters reads bgp/policy/family-filter instances and enforces the
+// parseFamilyFilters reads policy/family-filter instances and enforces the
 // import-only constraint on tear-down (AC-7): a tear-down instance referenced in
-// any export chain is a configuration error (rejected at config-apply time).
-func parseFamilyFilters(bgpCfg map[string]any) (map[string]*familyFilter, error) {
+// any export chain of bgpCfg is a configuration error (rejected at verify).
+func parseFamilyFilters(policyCfg, bgpCfg map[string]any) (map[string]*familyFilter, error) {
 	instances := make(map[string]*familyFilter)
 
-	policy, _ := bgpCfg["policy"].(map[string]any)
-	ffBlock, _ := policy["family-filter"].(map[string]any)
+	ffBlock, _ := policyCfg["family-filter"].(map[string]any)
 	for name, v := range ffBlock {
 		m, ok := v.(map[string]any)
 		if !ok {

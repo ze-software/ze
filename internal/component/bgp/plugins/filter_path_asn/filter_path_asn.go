@@ -6,7 +6,7 @@
 // Package filter_path_asn implements the bgp-filter-path-asn plugin.
 //
 // The plugin loads named reject-asn definitions from
-// bgp { policy { reject-asn NAME { indirect [ N N ]; regex [ "P" ]; } } }
+// policy { reject-asn NAME { indirect [ N N ]; regex [ "P" ]; } }
 // at Stage 2 and on every reload. At runtime, a peer filter chain names a list by its
 // bare name, or as reject-asn:NAME, or as bgp-filter-path-asn:NAME. The engine
 // dispatches each match through CallFilterUpdate (the filter-update RPC) and
@@ -26,8 +26,8 @@
 // The plugin declares ZERO filters at Stage 1, exactly as filter_aspath does:
 // filter names come from config (Stage 2), never from compile-time
 // registration. The registration declares the filter TYPE instead, and
-// BuildFilterRegistry discovers each instance from the ze:filter marker on the
-// YANG list.
+// policy.BuildRegistry (internal/component/policy) discovers each instance
+// from the ze:filter marker on the YANG list under the top-level policy root.
 package filter_path_asn
 
 import (
@@ -35,8 +35,8 @@ import (
 	"net"
 	"sync/atomic"
 
-	"github.com/ze-software/ze/internal/component/bgp/configjson"
 	"github.com/ze-software/ze/internal/component/bgp/filtertext"
+	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -94,7 +94,7 @@ func runFilterPathASN(conn net.Conn) int {
 	defer cancel()
 	if err := p.Run(ctx, &sdk.Registration{
 		Commands:    commandDecls(),
-		WantsConfig: []string{configRootBGP},
+		WantsConfig: []string{policy.RootName},
 	}); err != nil {
 		logger().Error("filter-path-asn plugin failed", "error", err)
 		return 1
@@ -108,15 +108,16 @@ func runFilterPathASN(conn net.Conn) int {
 // back. A delivery that does not parse is refused, so a config an operator
 // believes is filtering never reaches a session half-applied.
 func newRejectASNConfigTx() *sdk.ConfigTx[*rejectASNConfig] {
-	parse := configjson.BGPSectionParser("filter-path-asn", errInvalidBGPConfigJSON, parseRejectASNConfig)
+	parse := policy.SectionsParser("filter-path-asn", errInvalidBGPConfigJSON, configRootBGP, parseRejectASNConfig)
 	return sdk.NewConfigTx[*rejectASNConfig](nil, parse, installRejectASN)
 }
 
-// parseRejectASNConfig reads the lists and, only when they parse, the counts,
-// so `show bgp reject-asn` can never report a peer count against a set of
-// lists the plugin refused.
-func parseRejectASNConfig(bgpCfg map[string]any) (*rejectASNConfig, error) {
-	lists, err := parseRejectASNLists(bgpCfg)
+// parseRejectASNConfig reads the lists from the policy root and, only when
+// they parse, the attachment counts from the bgp root, so
+// `show bgp reject-asn` can never report a peer count against a set of lists
+// the plugin refused.
+func parseRejectASNConfig(policyCfg, bgpCfg map[string]any) (*rejectASNConfig, error) {
+	lists, err := parseRejectASNLists(policyCfg)
 	if err != nil {
 		return nil, err
 	}

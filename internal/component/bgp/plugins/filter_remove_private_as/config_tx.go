@@ -4,7 +4,7 @@
 package filter_remove_private_as
 
 import (
-	"github.com/ze-software/ze/internal/component/bgp/configjson"
+	"github.com/ze-software/ze/internal/component/policy"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -13,7 +13,7 @@ import (
 // the old set or the new one and never a mix. Before any install none is
 // defined.
 func newRemovePrivateASConfigTx() *sdk.ConfigTx[map[string]*removePrivateASDef] {
-	parse := configjson.BGPSectionParser("filter-remove-private-as", errRemovePrivateASInvalidBgpConfigJSON, parseRemovePrivateASDefs)
+	parse := policy.SectionParser("filter-remove-private-as", errRemovePrivateASInvalidBgpConfigJSON, parseRemovePrivateASDefs)
 	return sdk.NewConfigTx(map[string]*removePrivateASDef(nil), parse, installRemovePrivateASDefs)
 }
 

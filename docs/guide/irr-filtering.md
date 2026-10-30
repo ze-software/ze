@@ -21,19 +21,19 @@ plugin {
     }
 }
 
+policy {
+    irr {
+        server whois.radb.net
+        peeringdb-url https://www.peeringdb.com
+        refresh-interval 3600
+    }
+}
+
 bgp {
     router-id 192.0.2.1
     session {
         asn {
             local 65000
-        }
-    }
-
-    policy {
-        irr {
-            server whois.radb.net
-            peeringdb-url https://www.peeringdb.com
-            refresh-interval 3600
         }
     }
 
@@ -98,8 +98,8 @@ If the stored `ze.conf` already contains the BGP peer but no IRR filter, stop Ze
 $ sudo systemctl stop ze.service
 $ ze config cat ze.conf |
 > ze config set - plugin internal bgp-filter-irr use bgp-filter-irr |
-> ze config set - bgp policy irr server whois.radb.net |
-> ze config set - bgp policy irr refresh-interval 3600 |
+> ze config set - policy irr server whois.radb.net |
+> ze config set - policy irr refresh-interval 3600 |
 > ze config set - bgp peer customer-a session irr as-set AS-CUSTOMER |
 > ze config set - bgp peer customer-a filter import filters bgp-filter-irr:65001 |
 > ze config set - bgp peer customer-a filter import final accept |

@@ -177,7 +177,9 @@ func cmdMigrateDryRun(configPath string) int {
 
 	content := string(data)
 
-	schema, err := config.YANGSchema()
+	// A file written before a block moved to a top-level root still holds it at
+	// the old position, which only the migration schema parses.
+	schema, err := config.MigrationSchema()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return exitError
@@ -309,8 +311,9 @@ func configMigrateWithWarnings(inputPath, outputPath, outputForm string) (string
 
 	content := string(data)
 
-	// Parse any format: auto-detect and use the appropriate parser.
-	schema, err := config.YANGSchema()
+	// Parse any format: auto-detect and use the appropriate parser. The
+	// migration schema also accepts a block at the position it moved from.
+	schema, err := config.MigrationSchema()
 	if err != nil {
 		return "", nil, nil, fmt.Errorf("YANG schema: %w", err)
 	}

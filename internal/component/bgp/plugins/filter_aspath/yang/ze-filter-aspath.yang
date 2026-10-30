@@ -2,7 +2,7 @@ module ze-filter-aspath {
     namespace "urn:ze:filter-aspath";
     prefix fa;
 
-    import ze-bgp-conf { prefix bgp; }
+    import ze-policy-conf { prefix policy; }
     import ze-extensions { prefix ze; }
 
     description "AS-path regex filter type for the BGP policy framework.
@@ -17,7 +17,7 @@ module ze-filter-aspath {
         description "Initial revision";
     }
 
-    augment "/bgp:bgp/bgp:policy" {
+    augment "/policy:policy" {
         list as-path-list {
             ze:filter;
             key "name";

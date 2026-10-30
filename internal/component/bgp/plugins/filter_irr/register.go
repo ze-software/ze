@@ -7,6 +7,7 @@ import (
 	firryang "github.com/ze-software/ze/internal/component/bgp/plugins/filter_irr/yang"
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/metrics"
 )
 
@@ -17,7 +18,8 @@ func init() {
 		Features:     "yang",
 		YANG:         firryang.ZeFilterIrrYANG,
 		ConfigRoots:  []string{configRootBGP},
-		Dependencies: []string{configRootBGP},
+		ConfigReads:  []string{policy.RootName},
+		Dependencies: []string{configRootBGP, policy.PluginName},
 		RunEngine:    runFilterIRR,
 		Commands:     commandDecls(),
 		ConfigureMetrics: func(reg metrics.Registry) {

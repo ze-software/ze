@@ -2,7 +2,10 @@
 package bgpconfig
 
 import (
+	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/component/policy"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -208,15 +211,6 @@ bgp {
     		local 65000
     	}
     }
-    policy {
-        loop-detection my-filter {
-        }
-        prefix-list another-filter {
-            entry 0.0.0.0/0 {
-                action accept;
-            }
-        }
-    }
     filter {
         import { filters [ my-filter ]; final accept; }
         export { filters [ another-filter ]; final accept; }
@@ -234,6 +228,15 @@ bgp {
             asn {
                 remote 65001
             }
+        }
+    }
+}
+policy {
+    loop-detection my-filter {
+    }
+    prefix-list another-filter {
+        entry 0.0.0.0/0 {
+            action accept;
         }
     }
 }
@@ -286,6 +289,49 @@ bgp {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown filter")
 	assert.Contains(t, err.Error(), "nonexistent")
+	assert.Contains(t, err.Error(), "peer p1 import filters")
+}
+
+// TestFilterInactiveUnknownNameRejectsAtParse verifies an inactive chain entry
+// is still checked against the policy namespace.
+//
+// VALIDATES: an inactive filter reference naming no policy entry is a parse error.
+// PREVENTS: a typo hidden behind inactive: surviving until the filter is activated.
+func TestFilterInactiveUnknownNameRejectsAtParse(t *testing.T) {
+	input := `
+bgp {
+    router-id 1.2.3.4;
+    session {
+    	asn {
+    		local 65000
+    	}
+    }
+    peer p1 {
+        connection {
+            remote {
+                ip 10.0.0.1
+            }
+            local {
+                ip auto
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
+        }
+        filter {
+            import { inactive: filters undefined-name; final accept; }
+        }
+    }
+}
+`
+	tree, err := config.ParseTreeWithYANG(input, nil)
+	require.NoError(t, err)
+	_, err = PeersFromConfigTree(tree)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown filter")
+	assert.Contains(t, err.Error(), "undefined-name")
 }
 
 // TestFilterExternalPluginNamePassesParse verifies colon-containing names pass parse.
@@ -335,9 +381,7 @@ bgp {
 // VALIDATES: AC-1, AC-2 -- plain unique name resolves to canonical plugin ref.
 // PREVENTS: Plain name left unresolved, reaching runtime as bare string.
 func TestCanonicalizePlainPrefixRef(t *testing.T) {
-	reg := &FilterRegistry{entries: map[string]FilterEntry{
-		"CUSTOMERS": {Name: "CUSTOMERS", Type: "prefix-list"},
-	}}
+	reg := mustPolicyRegistry(t, policy.Instance{Name: "CUSTOMERS", Type: "prefix-list"})
 	typesMap := registry.FilterTypesMap()
 
 	got := canonicalizeOne("CUSTOMERS", reg, typesMap)
@@ -354,10 +398,36 @@ func TestCanonicalizePlainPrefixRef(t *testing.T) {
 // PREVENTS: FilterRef.Inactive dropped or an inactive filter reactivated by
 // canonicalization.
 func TestCanonicalizeInactivePlainRef(t *testing.T) {
-	reg := &FilterRegistry{entries: map[string]FilterEntry{
-		"CUSTOMERS": {Name: "CUSTOMERS", Type: "prefix-list"},
-	}}
+	reg := mustPolicyRegistry(t, policy.Instance{Name: "CUSTOMERS", Type: "prefix-list"})
 
 	got := canonicalizeFilterRefs([]filterapi.FilterRef{{Name: "CUSTOMERS", Inactive: true}}, reg)
 	assert.Equal(t, []filterapi.FilterRef{{Name: "bgp-filter-prefix:CUSTOMERS", Inactive: true}}, got)
+}
+
+// mustPolicyRegistry builds a filter namespace holding exactly instances.
+func mustPolicyRegistry(t *testing.T, instances ...policy.Instance) *policy.Registry {
+	t.Helper()
+	reg, err := policy.NewRegistry(instances...)
+	if err != nil {
+		t.Fatalf("policy registry: %v", err)
+	}
+	return reg
+}
+
+// refs builds a FilterRef chain from canonical strings, mapping an "inactive:"
+// prefix to the structural deactivation flag. Shared by bgpconfig tests to keep
+// filter chains expressed compactly against the post-refactor []FilterRef API.
+func refs(names ...string) []filterapi.FilterRef {
+	if len(names) == 0 {
+		return nil
+	}
+	out := make([]filterapi.FilterRef, len(names))
+	for i, n := range names {
+		if rest, ok := strings.CutPrefix(n, "inactive:"); ok {
+			out[i] = filterapi.FilterRef{Name: rest, Inactive: true}
+		} else {
+			out[i] = filterapi.FilterRef{Name: n}
+		}
+	}
+	return out
 }

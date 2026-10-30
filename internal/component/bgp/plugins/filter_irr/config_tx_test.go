@@ -20,7 +20,7 @@ func irrSection(asSet string) []sdk.ConfigSection {
 // irrTestTx is the filter's transaction beside the plugin it drives, so a
 // test reads the state an apply or a rollback left.
 type irrTestTx struct {
-	*sdk.ConfigTx[map[string]any]
+	*sdk.ConfigTx[irrDelivery]
 	plug *irrPlugin
 }
 

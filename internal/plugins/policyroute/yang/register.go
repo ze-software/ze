@@ -5,6 +5,7 @@ package yang
 import (
 	// The packages registering the modules these modules import.
 	_ "github.com/ze-software/ze/internal/component/firewall/yang"
+	_ "github.com/ze-software/ze/internal/component/policy/yang"
 
 	configyang "github.com/ze-software/ze/internal/component/config/yang"
 )

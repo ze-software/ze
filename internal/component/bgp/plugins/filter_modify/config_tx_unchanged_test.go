@@ -50,9 +50,10 @@ func TestConfigTxUnchangedSubtreeIsNoop(t *testing.T) {
 	}
 }
 
-// withOtherPeer returns sections with peer "other" added to the bgp subtree:
-// a peer no filter names, carrying description, so two calls that differ only
-// in description differ only outside the plugin's subtree.
+// withOtherPeer returns sections with peer "other" added to the bgp section,
+// which bgpSections puts first, and the policy section kept as it was: a peer
+// no filter names, carrying description, so two calls that differ only in
+// description differ only outside the plugin's subtree.
 func withOtherPeer(t *testing.T, sections []sdk.ConfigSection, description string) []sdk.ConfigSection {
 	t.Helper()
 	var tree map[string]any
@@ -76,5 +77,5 @@ func withOtherPeer(t *testing.T, sections []sdk.ConfigSection, description strin
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
 	}
-	return []sdk.ConfigSection{{Root: sections[0].Root, Data: string(data)}}
+	return append([]sdk.ConfigSection{{Root: sections[0].Root, Data: string(data)}}, sections[1:]...)
 }

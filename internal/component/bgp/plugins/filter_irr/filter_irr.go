@@ -13,7 +13,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/ze-software/ze/internal/component/bgp/configjson"
 	"github.com/ze-software/ze/internal/component/resolve/irr"
 	"github.com/ze-software/ze/internal/component/resolve/irr/store"
 	"github.com/ze-software/ze/internal/component/resolve/peeringdb"
@@ -258,30 +257,12 @@ func (plug *irrPlugin) clearResolverCache(input rpc.ResolverCacheClearInput) (in
 	return ps.ClearResolverCache(input)
 }
 
-// bgpSubtreeFromSections returns the bgp subtree a configure or verify
-// delivery carries, nil when it carries none, and an error when the subtree is
-// not valid JSON.
-func bgpSubtreeFromSections(sections []sdk.ConfigSection) (map[string]any, error) {
-	var bgpCfg map[string]any
-	for _, section := range sections {
-		if section.Root != configRootBGP {
-			continue
-		}
-		parsed, ok := configjson.ParseBGPSubtree(section.Data)
-		if !ok {
-			return nil, errFilterIrrInvalidBgpConfigJson
-		}
-		bgpCfg = parsed
-	}
-	return bgpCfg, nil
-}
-
-// handleConfigure makes bgpCfg the filter's config, at boot and on every
+// handleConfigure makes cfg the filter's config, at boot and on every
 // applied or rolled-back reload. The new per-ASN state is published under
 // plug.mu in one swap, so a concurrent filter UPDATE reads the old state or
 // the new one, never a mix.
-func (plug *irrPlugin) handleConfigure(bgpCfg map[string]any) {
-	cfg := parseIRRConfig(bgpCfg)
+func (plug *irrPlugin) handleConfigure(delivery irrDelivery) {
+	cfg := parseIRRConfig(delivery.policy, delivery.bgp)
 
 	irrClient := irr.NewIRR(cfg.Server)
 	if cfg.SourceAddress != "" {

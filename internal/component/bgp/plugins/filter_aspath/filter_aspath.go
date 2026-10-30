@@ -1,12 +1,12 @@
 // Design: docs/architecture/core-design.md -- AS-path regex filter plugin
 // Detail: match.go -- regex matching algorithm
-// Detail: config.go -- bgp/policy/as-path-list config parsing
+// Detail: config.go -- policy/as-path-list config parsing
 // Related: internal/component/bgp/filtertext -- the reader of the filter text format
 //
 // Package filter_aspath implements the bgp-filter-aspath plugin.
 //
 // The plugin loads named as-path-list definitions from
-// bgp { policy { as-path-list NAME { entry REGEX { action A; } } } }
+// policy { as-path-list NAME { entry REGEX { action A; } } }
 // at Stage 2 and on every applied reload (config_tx.go). At runtime, peer
 // filter chains reference a list
 // as bgp-filter-aspath:NAME. The engine dispatches each match via
@@ -27,6 +27,7 @@ import (
 	"sync/atomic"
 
 	"github.com/ze-software/ze/internal/component/bgp/filtertext"
+	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -57,7 +58,7 @@ func runFilterAsPath(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	if err := p.Run(ctx, &sdk.Registration{
-		WantsConfig: []string{configRootBGP},
+		WantsConfig: []string{policy.RootName},
 	}); err != nil {
 		logger().Error("filter-aspath plugin failed", "error", err)
 		return 1

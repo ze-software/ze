@@ -10,6 +10,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -136,7 +137,7 @@ func memberStatesToFilterRefs(states []config.MemberState) []filterapi.FilterRef
 // Refs that cannot be resolved (plain name not in registry; unknown prefix)
 // are left untouched so existing validation paths can still report a clean
 // error with the user-facing token instead of a synthetic one.
-func canonicalizeFilterRefs(chain []filterapi.FilterRef, reg *FilterRegistry) []filterapi.FilterRef {
+func canonicalizeFilterRefs(chain []filterapi.FilterRef, reg *policy.Registry) []filterapi.FilterRef {
 	if len(chain) == 0 {
 		return chain
 	}
@@ -157,7 +158,7 @@ func canonicalizeFilterRefs(chain []filterapi.FilterRef, reg *FilterRegistry) []
 }
 
 // canonicalizeOne resolves a single chain ref name. See canonicalizeFilterRefs.
-func canonicalizeOne(name string, reg *FilterRegistry, typesMap map[string]string) string {
+func canonicalizeOne(name string, reg *policy.Registry, typesMap map[string]string) string {
 	// Typed form: prefix:name
 	if before, after, found := strings.Cut(name, ":"); found {
 		// If the prefix is a known filter type, rewrite to the plugin form.

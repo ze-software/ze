@@ -142,16 +142,14 @@ func TestParseOneEntry(t *testing.T) {
 // recovers the prefix from the list key when the inner map omits it.
 func TestParsePrefixLists_MapForm(t *testing.T) {
 	bgpCfg := map[string]any{
-		"policy": map[string]any{
-			"prefix-list": map[string]any{
-				"CUSTOMERS": map[string]any{
-					"name": "CUSTOMERS",
-					"entry": map[string]any{
-						"10.0.0.0/8": map[string]any{
-							"ge":     float64(16),
-							"le":     float64(24),
-							"action": "accept",
-						},
+		"prefix-list": map[string]any{
+			"CUSTOMERS": map[string]any{
+				"name": "CUSTOMERS",
+				"entry": map[string]any{
+					"10.0.0.0/8": map[string]any{
+						"ge":     float64(16),
+						"le":     float64(24),
+						"action": "accept",
 					},
 				},
 			},
@@ -187,12 +185,10 @@ func TestParsePrefixLists_MapForm(t *testing.T) {
 // behavior end-to-end where TestParseOneEntry only exercises the leaf helper.
 func TestParseConfig_StringValuedDelivery(t *testing.T) {
 	bgpCfg := map[string]any{
-		"policy": map[string]any{
-			"prefix-list": map[string]any{
-				"L": map[string]any{
-					"entry": map[string]any{
-						"10.0.0.0/8": map[string]any{"ge": "16", "le": "24", "action": "accept"},
-					},
+		"prefix-list": map[string]any{
+			"L": map[string]any{
+				"entry": map[string]any{
+					"10.0.0.0/8": map[string]any{"ge": "16", "le": "24", "action": "accept"},
 				},
 			},
 		},
@@ -221,14 +217,12 @@ func TestParseConfig_StringValuedDelivery(t *testing.T) {
 // preserves order.
 func TestParsePrefixLists_ListForm_OrderPreserved(t *testing.T) {
 	bgpCfg := map[string]any{
-		"policy": map[string]any{
-			"prefix-list": map[string]any{
-				"ORDERED": map[string]any{
-					"name": "ORDERED",
-					"entry": []any{
-						map[string]any{"prefix": "10.0.0.0/8", "action": "reject"},
-						map[string]any{"prefix": "10.0.0.0/8", "ge": float64(16), "le": float64(24), "action": "accept"},
-					},
+		"prefix-list": map[string]any{
+			"ORDERED": map[string]any{
+				"name": "ORDERED",
+				"entry": []any{
+					map[string]any{"prefix": "10.0.0.0/8", "action": "reject"},
+					map[string]any{"prefix": "10.0.0.0/8", "ge": float64(16), "le": float64(24), "action": "accept"},
 				},
 			},
 		},
@@ -256,14 +250,12 @@ func TestParsePrefixLists_ListForm_OrderPreserved(t *testing.T) {
 // keeps the uncommon one loud instead of arbitrary.
 func TestParsePrefixLists_MultiEntryMapFormRejected(t *testing.T) {
 	bgpCfg := map[string]any{
-		"policy": map[string]any{
-			"prefix-list": map[string]any{
-				"MULTI": map[string]any{
-					"name": "MULTI",
-					"entry": map[string]any{
-						"10.0.0.0/8":     map[string]any{"action": "accept"},
-						"192.168.0.0/16": map[string]any{"action": "reject"},
-					},
+		"prefix-list": map[string]any{
+			"MULTI": map[string]any{
+				"name": "MULTI",
+				"entry": map[string]any{
+					"10.0.0.0/8":     map[string]any{"action": "accept"},
+					"192.168.0.0/16": map[string]any{"action": "reject"},
 				},
 			},
 		},
@@ -290,16 +282,14 @@ func TestParsePrefixLists_MultiEntryMapFormRejected(t *testing.T) {
 // never reach the reject entry. Sorting cannot pass this fixture by luck.
 func orderedTwoEntryList(order []string) map[string]any {
 	return map[string]any{
-		"policy": map[string]any{
-			"prefix-list": map[string]any{
-				"ORDERED": map[string]any{
-					"name": "ORDERED",
-					"entry": map[string]any{
-						"10.0.0.0/8": map[string]any{"le": float64(32), "action": "reject"},
-						"0.0.0.0/0":  map[string]any{"le": float64(32), "action": "accept"},
-					},
-					configorder.OrderKey("entry"): order,
+		"prefix-list": map[string]any{
+			"ORDERED": map[string]any{
+				"name": "ORDERED",
+				"entry": map[string]any{
+					"10.0.0.0/8": map[string]any{"le": float64(32), "action": "reject"},
+					"0.0.0.0/0":  map[string]any{"le": float64(32), "action": "accept"},
 				},
+				configorder.OrderKey("entry"): order,
 			},
 		},
 	}

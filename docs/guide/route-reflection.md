@@ -55,12 +55,13 @@ bgp {
 An IXP route server can accept its members from a dynamic peer group instead of a `peer` block for each one. The group opens its own listening socket, so a configuration that names no static peer still accepts members.
 
 ```
-bgp {
-    policy {
-        reject-asn NO-TRANSIT {
-            indirect [ 174 701 3356 ]
-        }
+policy {
+    reject-asn NO-TRANSIT {
+        indirect [ 174 701 3356 ]
     }
+}
+
+bgp {
     group ix {
         connection {
             remote {

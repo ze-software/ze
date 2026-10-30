@@ -19,12 +19,13 @@ package bgpconfig
 
 import (
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // codeFilterReferenceUndefined is raised when a filter chain names a policy
-// that bgp/policy does not define. internal/core/diagnostic/codes.go declares
+// that the policy root does not define. internal/core/diagnostic/codes.go declares
 // it, so `ze show diagnostic doctor-config-reference` answers.
 const codeFilterReferenceUndefined = "doctor-config-reference"
 
@@ -56,12 +57,17 @@ func checkFilterReferences(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagn
 		return nil
 	}
 
-	// The policy lists (prefix-list, as-path, and the rest) are added by
-	// plugins through a YANG augment, so the defined set is every key of every
-	// list rather than a fixed set of list names.
-	defined := make(map[string]bool)
-	if policy := bgpBlock.GetContainer("policy"); policy != nil {
-		collectFilterNames(policy.ToMap(), defined)
+	// The filter types (prefix-list, as-path-list, and the rest) augment the
+	// policy root and carry the ze:filter marker, so the defined set is the
+	// policy registry's instances, the same namespace the peer build reads.
+	// An entry of an unmarked list (policy route) is not a filter.
+	schema, err := config.YANGSchema()
+	if err != nil {
+		return []diagnostic.Diagnostic{filterRegistryDiagnostic(err)}
+	}
+	defined, err := policyRegistryOf(tree, schema)
+	if err != nil {
+		return []diagnostic.Diagnostic{filterRegistryDiagnostic(err)}
 	}
 
 	var diags []diagnostic.Diagnostic
@@ -93,18 +99,14 @@ func checkFilterReferences(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagn
 	return diags
 }
 
-// collectFilterNames reads the policy container's map view and collects every
-// second-level key as a defined filter instance name. The shape is
-// {"prefix-list": {"customers": {...}}, "as-path": {"as1234": {...}}}.
-func collectFilterNames(policy map[string]any, defined map[string]bool) {
-	for _, list := range policy {
-		entries, ok := list.(map[string]any)
-		if !ok {
-			continue
-		}
-		for name := range entries {
-			defined[name] = true
-		}
+// filterRegistryDiagnostic reports a policy root the check could not read, so
+// the doctor never answers "no undefined reference" for a namespace it did not
+// build.
+func filterRegistryDiagnostic(err error) diagnostic.Diagnostic {
+	return diagnostic.Diagnostic{
+		Code:     codeFilterReferenceUndefined,
+		Severity: diagnostic.SeverityError,
+		Message:  "policy: the filter namespace could not be built, so filter references were not checked: " + err.Error(),
 	}
 }
 
@@ -114,23 +116,30 @@ func collectFilterNames(policy map[string]any, defined map[string]bool) {
 // It reads the structural member view, so a deactivated reference is judged
 // too: a deactivated entry pointing at a name nothing defines is still wrong,
 // and the operator meets it the moment they activate the line.
-func undefinedFilterRefs(filter *config.Tree, defined map[string]bool, path string) []diagnostic.Diagnostic {
+func undefinedFilterRefs(filter *config.Tree, defined *policy.Registry, path string) []diagnostic.Diagnostic {
 	var diags []diagnostic.Diagnostic
 	var tb textbuf.Buffer
 	for _, direction := range []string{"import", "export"} {
-		policy := filter.GetContainer(direction)
-		if policy == nil {
+		chain := filter.GetContainer(direction)
+		if chain == nil {
 			continue
 		}
-		for _, member := range policy.GetMultiValuesState("filters") {
-			if defined[filterInstanceName(member.Value)] {
+		for _, member := range chain.GetMultiValuesState("filters") {
+			name := filterInstanceName(member.Value)
+			if _, ok := defined.Lookup(name); ok {
 				continue
+			}
+			location := tb.Reset().Str(path).Byte('/').Str(direction).Str("/filters").String()
+			message := location + ": references undefined filter '" + member.Value + "'"
+			if defined.IsNonFilterEntry(name) {
+				// A policy routing rule is defined, just not a filter: say so in
+				// the words the load refusal uses (policy.Registry.ValidateName).
+				message = defined.ValidateName(name, location).Error()
 			}
 			diags = append(diags, diagnostic.Diagnostic{
 				Code:     codeFilterReferenceUndefined,
 				Severity: diagnostic.SeverityError,
-				Message: tb.Reset().Str(path).Byte('/').Str(direction).
-					Str("/filters: references undefined filter '").Str(member.Value).Byte('\'').String(),
+				Message:  message,
 			})
 		}
 	}

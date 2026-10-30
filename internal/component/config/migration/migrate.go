@@ -130,6 +130,14 @@ var transformations = []Transformation{
 		Detect:      hasTemplateBlock,
 		Apply:       migrateTemplateToGroups,
 	},
+	// Phase 4: blocks that moved to a top-level root (runs after wrap-bgp-block,
+	// which may create the old parent). The owners register each move.
+	{
+		Name:        "relocated-blocks",
+		Description: "Move each block that became a top-level root (bgp policy -> policy) to its root",
+		Detect:      config.HasRelocatedContainers,
+		Apply:       config.ApplyRelocations,
+	},
 }
 
 // Migrate applies all needed transformations.

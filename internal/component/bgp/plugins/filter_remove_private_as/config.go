@@ -13,13 +13,9 @@ type removePrivateASDef struct {
 	mode removeMode
 }
 
-func parseRemovePrivateASDefs(bgpCfg map[string]any) (map[string]*removePrivateASDef, error) {
+func parseRemovePrivateASDefs(policyCfg map[string]any) (map[string]*removePrivateASDef, error) {
 	result := make(map[string]*removePrivateASDef)
-	policyBlock, ok := bgpCfg["policy"].(map[string]any)
-	if !ok {
-		return result, nil
-	}
-	block, ok := policyBlock["remove-private-as"].(map[string]any)
+	block, ok := policyCfg["remove-private-as"].(map[string]any)
 	if !ok {
 		return result, nil
 	}

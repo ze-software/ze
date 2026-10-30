@@ -191,12 +191,16 @@ func TestWorkbenchSections_BGPRouting(t *testing.T) {
 	assertOnlySelected(t, got, "routing")
 }
 
-// TestWorkbenchSections_BGPPolicy verifies that paths under bgp/policy
-// activate Policy, not Routing -- policy work is its own operator section.
+// TestWorkbenchSections_BGPPolicy verifies that paths under the top-level
+// policy root activate Policy, not Routing -- policy work is its own operator
+// section, and filters live at the policy root, not under bgp.
 //
 // PREVENTS: Policy edits highlighting Routing and confusing the operator.
 func TestWorkbenchSections_BGPPolicy(t *testing.T) {
-	got := workbenchSections([]string{"bgp", "policy", "drop-bogons"})
+	got := workbenchSections([]string{"policy", "prefix-list", "drop-bogons"})
+	assertOnlySelected(t, got, "policy")
+
+	got = workbenchSections([]string{"policy", "route", "pbr-1"})
 	assertOnlySelected(t, got, "policy")
 }
 

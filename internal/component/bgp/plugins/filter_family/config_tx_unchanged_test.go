@@ -4,6 +4,7 @@ package filter_family
 
 import (
 	"encoding/json"
+	"slices"
 	"testing"
 
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
@@ -49,31 +50,21 @@ func TestConfigTxUnchangedSubtreeIsNoop(t *testing.T) {
 	}
 }
 
-// withOtherPeer returns sections with peer "other" added to the bgp subtree:
-// a peer no filter names, carrying description, so two calls that differ only
-// in description differ only outside the plugin's subtree.
+// withOtherPeer returns sections with a bgp delivery added beside the policy
+// one, holding peer "other": a peer no filter names, carrying description, so
+// two calls that differ only in description differ only in the bgp root the
+// plugin reads for its export-chain check, never in its own subtree.
 func withOtherPeer(t *testing.T, sections []sdk.ConfigSection, description string) []sdk.ConfigSection {
 	t.Helper()
-	var tree map[string]any
-	if err := json.Unmarshal([]byte(sections[0].Data), &tree); err != nil {
-		t.Fatalf("section data: %v", err)
-	}
-	bgpCfg, ok := tree["bgp"].(map[string]any)
-	if !ok {
-		t.Fatal("section data holds no bgp object")
-	}
-	peers, ok := bgpCfg["peer"].(map[string]any)
-	if !ok {
-		peers = map[string]any{}
-		bgpCfg["peer"] = peers
-	}
-	peers["other"] = map[string]any{
-		"connection":  map[string]any{"remote": map[string]any{"ip": "192.0.2.99"}},
-		"description": description,
-	}
+	tree := map[string]any{configRootBGP: map[string]any{
+		"peer": map[string]any{"other": map[string]any{
+			"connection":  map[string]any{"remote": map[string]any{"ip": "192.0.2.99"}},
+			"description": description,
+		}},
+	}}
 	data, err := json.Marshal(tree)
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
 	}
-	return []sdk.ConfigSection{{Root: sections[0].Root, Data: string(data)}}
+	return append(slices.Clone(sections), sdk.ConfigSection{Root: configRootBGP, Data: string(data)})
 }

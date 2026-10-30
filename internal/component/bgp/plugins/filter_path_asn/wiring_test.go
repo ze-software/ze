@@ -2,9 +2,10 @@
 package filter_path_asn
 
 import (
-	"encoding/json"
 	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/component/policy"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -42,11 +43,6 @@ bgp {
             local 65000
         }
     }
-    policy {
-        reject-asn NO-TRANSIT {
-            indirect [ 3356 ]
-        }
-    }
     peer peer-a {
         connection {
             remote {
@@ -64,6 +60,11 @@ bgp {
         filter {
             ` + chain + ` { filters [ NO-TRANSIT ]; final accept; }
         }
+    }
+}
+policy {
+    reject-asn NO-TRANSIT {
+        indirect [ 3356 ]
     }
 }
 `
@@ -92,12 +93,7 @@ func deliverConfig(t *testing.T, chain string) string {
 	require.Equal(t, []filterapi.FilterRef{{Name: canonicalRef}}, got,
 		"the bare list name must canonicalize to this plugin: that resolution is the whole reachability chain")
 
-	subtree := config.ExtractConfigSubtree(tree.ToMap(), "bgp")
-	require.NotNil(t, subtree)
-	data, err := json.Marshal(subtree)
-	require.NoError(t, err)
-
-	require.NoError(t, configure([]sdk.ConfigSection{{Root: "bgp", Data: string(data)}}))
+	require.NoError(t, configure(treeSections(t, tree)))
 
 	return deliveredName
 }
@@ -211,11 +207,11 @@ func TestPositionBoundsFireWhenTheTreeIsWalked(t *testing.T) {
 			validator, err := config.YANGValidatorWithPlugins(nil)
 			require.NoError(t, err)
 
-			container := tree.GetContainer("bgp")
+			container := tree.GetContainer(policy.RootName)
 			require.NotNil(t, container)
 
 			var messages []string
-			for _, ve := range validator.ValidateTreeAllModules("bgp", container.ToMap()) {
+			for _, ve := range validator.ValidateTreeAllModules(policy.RootName, container.ToMap()) {
 				messages = append(messages, ve.Path+": "+ve.Message)
 			}
 			require.NotEmpty(t, messages, "the bound must fire over the walked tree")
@@ -224,9 +220,10 @@ func TestPositionBoundsFireWhenTheTreeIsWalked(t *testing.T) {
 	}
 }
 
-// policyOnly wraps one policy body in the smallest bgp block that parses.
+// policyOnly wraps one policy body in a policy root, beside the smallest bgp
+// block that parses.
 func policyOnly(list string) string {
-	return "bgp {\n    router-id 1.2.3.4;\n    session { asn { local 65000; } }\n    policy {\n" + list + "\n    }\n}\n"
+	return "bgp {\n    router-id 1.2.3.4;\n    session { asn { local 65000; } }\n}\npolicy {\n" + list + "\n}\n"
 }
 
 // configure runs one Stage 2 delivery through a fresh config transaction, as

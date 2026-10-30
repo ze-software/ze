@@ -69,6 +69,9 @@ var policyRouteDoctorCheck = diagnostic.DoctorCheck{
 	Check:        checkPolicyRouteNetlink,
 }
 
+// policyRoot is the shared top-level root the route list sits under.
+const policyRoot = "policy"
+
 // checkPolicyRouteNetlink warns when the config carries a policy route and a
 // route netlink handle cannot be opened.
 //
@@ -80,7 +83,7 @@ func checkPolicyRouteNetlink(ctx diagnostic.DoctorCheckContext) []diagnostic.Dia
 	if !ok || tree == nil {
 		return nil
 	}
-	policy := tree.GetContainer(configRoot)
+	policy := tree.GetContainer(policyRoot)
 	if policy == nil || len(policy.GetList("route")) == 0 {
 		return nil
 	}

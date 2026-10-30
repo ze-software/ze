@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
@@ -58,12 +59,12 @@ func TestFilterReferences_DanglingGlobalRef(t *testing.T) {
 
 // TestFilterReferences_DefinedPolicyPasses drives a reference that resolves.
 //
-// VALIDATES: a plain name defined under bgp/policy reports nothing.
+// VALIDATES: a plain name defined under the policy root reports nothing.
 // PREVENTS: a false finding against a correct configuration.
 func TestFilterReferences_DefinedPolicyPasses(t *testing.T) {
 	tree := config.NewTree()
 	bgp := tree.GetOrCreateContainer("bgp")
-	bgp.GetOrCreateContainer("policy").AddListEntry("prefix-list", "customers", config.NewTree())
+	tree.GetOrCreateContainer("policy").AddListEntry("prefix-list", "customers", config.NewTree())
 	bgp.GetOrCreateContainer("filter").GetOrCreateContainer("import").SetSlice("filters", []string{"customers"})
 	bgp.GetOrCreateContainer("filter").GetOrCreateContainer("import").Set("final", "accept")
 
@@ -78,7 +79,7 @@ func TestFilterReferences_DefinedPolicyPasses(t *testing.T) {
 func TestFilterReferences_NamespacedRefPasses(t *testing.T) {
 	tree := config.NewTree()
 	bgp := tree.GetOrCreateContainer("bgp")
-	bgp.GetOrCreateContainer("policy").AddListEntry("prefix-list", "customers", config.NewTree())
+	tree.GetOrCreateContainer("policy").AddListEntry("prefix-list", "customers", config.NewTree())
 	bgp.GetOrCreateContainer("filter").GetOrCreateContainer("import").SetSlice("filters", []string{"bgp-filter-prefix:customers"})
 	bgp.GetOrCreateContainer("filter").GetOrCreateContainer("import").Set("final", "accept")
 
@@ -93,7 +94,7 @@ func TestFilterReferences_NamespacedRefPasses(t *testing.T) {
 func TestFilterReferences_PeerLevelRef(t *testing.T) {
 	tree := config.NewTree()
 	bgp := tree.GetOrCreateContainer("bgp")
-	bgp.GetOrCreateContainer("policy").AddListEntry("prefix-list", "allowed", config.NewTree())
+	tree.GetOrCreateContainer("policy").AddListEntry("prefix-list", "allowed", config.NewTree())
 
 	peerTree := config.NewTree()
 	peerTree.GetOrCreateContainer("filter").GetOrCreateContainer("export").SetSlice("filters", []string{"missing"})
@@ -104,4 +105,26 @@ func TestFilterReferences_PeerLevelRef(t *testing.T) {
 	require.Len(t, diags, 1)
 	assert.Contains(t, diags[0].Message, "missing")
 	assert.Contains(t, diags[0].Message, "bgp/peer/192.0.2.1/filter/export/filters")
+}
+
+// TestFilterReferences_PolicyRouteRuleNamedAsSuch: a chain naming a `policy
+// route` entry is reported as a policy routing rule, not a filter, in the
+// words the load refusal uses (AC-3).
+// Method: define policy route R, reference R from the global import chain, and
+// compare the doctor's message with policy.Registry.ValidateName's refusal.
+func TestFilterReferences_PolicyRouteRuleNamedAsSuch(t *testing.T) {
+	if registry.Lookup("policy-routes") == nil {
+		t.Skip("this build carries no policy routing (ze_policyroute)")
+	}
+	tree := config.NewTree()
+	tree.GetOrCreateContainer("policy").AddListEntry("route", "R", config.NewTree())
+	bgp := tree.GetOrCreateContainer("bgp")
+	bgp.GetOrCreateContainer("filter").GetOrCreateContainer("import").SetSlice("filters", []string{"R"})
+
+	diags := filterReferenceDiags(tree)
+	require.Len(t, diags, 1)
+	assert.Equal(t, codeFilterReferenceUndefined, diags[0].Code)
+	assert.Contains(t, diags[0].Message, `"R" is a policy route entry`)
+	assert.Contains(t, diags[0].Message, "not a filter")
+	assert.NotContains(t, diags[0].Message, "undefined filter")
 }

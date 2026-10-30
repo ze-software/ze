@@ -9,6 +9,7 @@ import (
 	configredist "github.com/ze-software/ze/internal/component/config/redistribute"
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -22,6 +23,13 @@ import (
 var _ configredist.RedistConsumer = (*bgpredist.BGPConsumer)(nil)
 
 func init() {
+	// The filter attachment points this plugin's config holds, with the route
+	// fields their routes carry and a filter there may set (the route field
+	// vocabulary, internal/component/policy/fields.go).
+	policy.MustRegisterAttachment(Name, "redistribute import",
+		[]policy.Field{policy.FieldPrefix, policy.FieldFamily, policy.FieldProtocol, policy.FieldNextHop, policy.FieldMetric, policy.FieldTag, policy.FieldOriginAS, policy.FieldCommunity, policy.FieldLargeCommunity, policy.FieldExtendedCommunity},
+		[]policy.Field{policy.FieldTag, policy.FieldMetric})
+
 	reg := registry.Registration{
 		Name:        Name,
 		Description: "Redistribute orchestrator: dispatches protocol route events to registered consumers",
@@ -29,7 +37,8 @@ func init() {
 		// BGP dependency: the orchestrator registers a BGP consumer whose
 		// UpdateRoute dispatches via this plugin's SDK connection to the reactor.
 		// When future protocols add consumers, each will register in its own plugin.
-		Dependencies: []string{"bgp"},
+		// policy: the redistribute import chains name filters under the policy root.
+		Dependencies: []string{"bgp", policy.PluginName},
 		RunEngine:    runPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))

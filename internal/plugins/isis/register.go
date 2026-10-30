@@ -25,6 +25,7 @@ import (
 	configyang "github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/metrics"
@@ -44,6 +45,16 @@ var (
 )
 
 func init() {
+	// The filter attachment points this plugin's config holds, with the route
+	// fields their routes carry and a filter there may set (the route field
+	// vocabulary, internal/component/policy/fields.go).
+	policy.MustRegisterAttachment(componentName, "isis import",
+		[]policy.Field{policy.FieldPrefix, policy.FieldFamily, policy.FieldProtocol, policy.FieldNextHop, policy.FieldInterface, policy.FieldMetric, policy.FieldLevel},
+		[]policy.Field{policy.FieldDistance, policy.FieldTag})
+	policy.MustRegisterAttachment(componentName, "isis export",
+		[]policy.Field{policy.FieldPrefix, policy.FieldFamily, policy.FieldProtocol, policy.FieldNextHop, policy.FieldMetric, policy.FieldLevel, policy.FieldOriginAS},
+		[]policy.Field{policy.FieldMetric, policy.FieldLevel})
+
 	loggerPtr.Store(slogutil.DiscardLogger())
 }
 
@@ -137,12 +148,14 @@ func registerISIS() {
 	registerISISDoctor()
 
 	reg := registry.Registration{
-		Name:         componentName,
-		Description:  "Intermediate System to Intermediate System (ISO/IEC 10589, RFC 1195): native link-state IGP",
-		Features:     "yang",
-		YANG:         isisyang.ZeIsisConfYANG,
-		ConfigRoots:  []string{configRoot},
-		Dependencies: []string{"fib-kernel", "sysctl"},
+		Name:        componentName,
+		Description: "Intermediate System to Intermediate System (ISO/IEC 10589, RFC 1195): native link-state IGP",
+		Features:    "yang",
+		YANG:        isisyang.ZeIsisConfYANG,
+		ConfigRoots: []string{configRoot},
+		// policy is a hard dependency of every protocol with a filter attachment:
+		// the filter instances its chains name live under the policy root.
+		Dependencies: []string{"fib-kernel", "sysctl", policy.PluginName},
 		RFCs:         []string{"1195", "5301", "5303", "5305", "5308", "5310"},
 		RunEngine:    runISISEngine,
 		Commands:     commandDecls(),

@@ -211,7 +211,7 @@ func TestParseModifyDefs(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			defs, err := parseModifyDefs(tt.bgpCfg)
+			defs, err := parseModifyDefsOf(tt.bgpCfg)
 			if tt.wantErr {
 				if err == nil {
 					t.Fatalf("expected error containing %q, got nil", tt.errSubstr)
@@ -439,7 +439,7 @@ func TestParseModifyDefsConflict(t *testing.T) {
 			},
 		},
 	}
-	_, err := parseModifyDefs(bgpCfg)
+	_, err := parseModifyDefsOf(bgpCfg)
 	if err == nil {
 		t.Fatal("expected conflict error, got nil")
 	}
@@ -459,7 +459,7 @@ func TestParseModifyDefsIncrement(t *testing.T) {
 			},
 		},
 	}
-	defs, err := parseModifyDefs(bgpCfg)
+	defs, err := parseModifyDefsOf(bgpCfg)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -488,7 +488,7 @@ func TestParseModifyDefsCommunityAdd(t *testing.T) {
 			},
 		},
 	}
-	defs, err := parseModifyDefs(bgpCfg)
+	defs, err := parseModifyDefsOf(bgpCfg)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -642,13 +642,13 @@ func TestAbsentValueTableCoversEveryArithmeticAttribute(t *testing.T) {
 // RFC requirement: RFC4271-5.1.4-4 positive -- "A BGP speaker MUST implement a
 // mechanism (based on local configuration) that allows the MULTI_EXIT_DISC
 // attribute to be removed from a route" (Section 5.1.4). The configuration is
-// bgp { policy { modify NAME { del { med; } } } }, and a definition that states
+// policy { modify NAME { del { med; } } }, and a definition that states
 // nothing else is a complete definition.
 // RFC requirement: RFC4271-5.1.4-4 negative -- the mechanism is opt-in. A
 // definition without del leaves the metric alone.
 func TestParseModifyDefsMEDRemove(t *testing.T) {
 	parseDef := func(defMap map[string]any) (*modifyDef, error) {
-		defs, err := parseModifyDefs(map[string]any{
+		defs, err := parseModifyDefsOf(map[string]any{
 			"policy": map[string]any{"modify": map[string]any{"DROP-MED": defMap}},
 		})
 		if err != nil {

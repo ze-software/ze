@@ -1,12 +1,12 @@
 // Design: docs/architecture/core-design.md -- route attribute modifier plugin
 // Detail: modify.go -- delta building and attribute encoding
-// Detail: config.go -- bgp/policy/modify config parsing
+// Detail: config.go -- policy/modify config parsing
 // RFC: rfc/short/rfc4271.md -- Sections 5.1.4 and 9.1.2.2 govern the med-remove directive
 //
 // Package filter_modify implements the bgp-filter-modify plugin.
 //
 // The plugin loads named modifier definitions from
-// bgp { policy { modify NAME { set { local-preference 200; } } } }
+// policy { modify NAME { set { local-preference 200; } } }
 // at Stage 2 and on every reload (config_tx.go). At runtime, peer filter chains reference a
 // modifier as bgp-filter-modify:NAME or modify:NAME. The engine dispatches
 // each call via CallFilterUpdate (filter-update RPC); the plugin returns
@@ -28,6 +28,7 @@ import (
 	"net"
 	"sync/atomic"
 
+	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -94,7 +95,7 @@ func runFilterModify(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	if err := p.Run(ctx, &sdk.Registration{
-		WantsConfig: []string{configRootBGP},
+		WantsConfig: []string{policy.RootName},
 	}); err != nil {
 		logger().Error("filter-modify plugin failed", "error", err)
 		return 1

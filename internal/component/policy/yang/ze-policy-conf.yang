@@ -1,0 +1,23 @@
+module ze-policy-conf {
+    namespace "urn:ze:policy:conf";
+    prefix policy;
+
+    import ze-extensions { prefix ze; }
+
+    description
+        "The top-level policy root shared by Ze's route policy and policy
+         routing. Each route policy filter type adds its list here through an
+         augment and marks it ze:filter; policy routing adds its route list.";
+
+    revision 2026-10-30 {
+        description "Initial revision: the policy root moves out of bgp.";
+    }
+
+    container policy {
+        description "Each filter type is a list that its plugin adds through an augment and marks
+                     ze:filter. An entry of such a list is a named filter instance, and an import or
+                     export chain references it by name. One name belongs to one filter type only.
+                     Policy routing adds its route list here too; a route entry is never a filter.";
+        ze:help "Route policy filters and policy routing.";
+    }
+}

@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/policy"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -47,7 +49,7 @@ func from(asn uint32) senderASN { return senderASN{asn: asn, known: true} }
 // only route a list reaches the hot path by.
 func configureFrom(t *testing.T, listBody string) {
 	t.Helper()
-	require.NoError(t, configure([]sdk.ConfigSection{{Root: "bgp", Data: subtreeJSON(t, listBody)}}))
+	require.NoError(t, configure([]sdk.ConfigSection{{Root: policy.RootName, Data: subtreeJSON(t, listBody)}}))
 }
 
 // TestPositionMatrixEveryKeyEveryIndex drives AC-3 through AC-12 as one table:

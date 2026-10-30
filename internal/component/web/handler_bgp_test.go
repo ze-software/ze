@@ -382,15 +382,13 @@ func TestBGPPolicyEmptyState(t *testing.T) {
 	data := buildBGPPolicyTableData(entries, policyFilterAddActions(schema)...)
 	assert.Empty(t, data.Rows)
 	assert.Equal(t, "No filters configured.", data.EmptyMessage)
-	assertPolicyAddAction(t, data.AddActions, "/show/bgp/policy/prefix-list/")
+	assertPolicyAddAction(t, data.AddActions, "/show/policy/prefix-list/")
 }
 
 func TestBGPPolicyWithData(t *testing.T) {
 	tree := config.NewTree()
-	bgp := config.NewTree()
-	tree.SetContainer("bgp", bgp)
 	policy := config.NewTree()
-	bgp.SetContainer("policy", policy)
+	tree.SetContainer("policy", policy)
 
 	// Add a filter list entry
 	filterEntry := config.NewTree()
@@ -410,8 +408,50 @@ func TestBGPPolicyWithData(t *testing.T) {
 	data := buildBGPPolicyTableData(entries, policyFilterAddActions(schema)...)
 	require.Len(t, data.Rows, 1)
 	assert.Equal(t, "reject-all", data.Rows[0].Key)
+	assert.Equal(t, "/show/policy/prefix-list/reject-all/", data.Rows[0].URL,
+		"a row links to the filter instance's editor: policy root, filter type, name")
 	assert.Empty(t, data.AddURL, "generic BGP policy page must not hardcode a single add target")
-	assertPolicyAddAction(t, data.AddActions, "/show/bgp/policy/prefix-list/")
+	assertPolicyAddAction(t, data.AddActions, "/show/policy/prefix-list/")
+}
+
+// TestPolicyFiltersSkipNonFilterLists verifies that the filters page lists
+// only the ze:filter lists of the policy root. The root is shared with
+// policy routing, so a list without the marker must not be offered as a
+// filter type.
+//
+// PREVENTS: an entry of a non-filter list under the policy root appearing as
+// a filter, or an "Add" action offered for it.
+func TestPolicyFiltersSkipNonFilterLists(t *testing.T) {
+	schema, err := config.YANGSchema()
+	require.NoError(t, err)
+
+	policyNode, err := walkSchema(schema, []string{segPolicy})
+	require.NoError(t, err)
+	lister, ok := policyNode.(childLister)
+	require.True(t, ok, "the policy root must be a container")
+
+	var nonFilter string
+	for _, name := range lister.Children() {
+		list, isList := lister.Get(name).(*config.ListNode)
+		if isList && !list.Filter {
+			nonFilter = name
+			break
+		}
+	}
+	if nonFilter == "" {
+		t.Skip("no list without ze:filter under the policy root in this build (policy routing needs ze_policyroute)")
+	}
+
+	tree := config.NewTree()
+	policy := config.NewTree()
+	tree.SetContainer("policy", policy)
+	policy.AddListEntry(nonFilter, "not-a-filter", config.NewTree())
+
+	assert.Empty(t, collectPolicies(tree, schema), "a %s entry is not a filter instance", nonFilter)
+	for _, action := range policyFilterAddActions(schema) {
+		assert.NotEqual(t, "/show/policy/"+nonFilter+"/", action.URL, "%s is not a filter type", nonFilter)
+	}
+	assert.Contains(t, policyFilterListNames(schema), "prefix-list", "the ze:filter lists stay listed")
 }
 
 func assertPolicyAddAction(t *testing.T, actions []WorkbenchTableAddAction, url string) {
@@ -605,7 +645,7 @@ func TestWorkbench_BGPPolicyPageDispatch(t *testing.T) {
 	tree := config.NewTree()
 	handler := HandleWorkbench(renderer, schema, tree, nil, true)
 
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/show/bgp/policy/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/show/policy/", http.NoBody)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
