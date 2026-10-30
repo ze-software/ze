@@ -566,13 +566,30 @@ func (r *Reactor) AddDynamicPeer(addr netip.Addr, tree map[string]any) error {
 // (reactor_api.go) rebuilds one through it from the entry the running
 // configuration recorded, so a restored peer is the peer that was created.
 // The caller MUST NOT hold r.mu: the defaults are read under it.
+//
+// A reactor CreateReactor built holds the TreeReloadFunc, and the peer is then
+// built by the pipeline that builds every peer the file declares: the entry
+// joins a copy of the running configuration under its name and the whole tree
+// is built (createdPeerFromRunning). A created peer therefore inherits the
+// bgp-level import and export policy, the default filters and every other
+// layered setting exactly as a configured peer does. Built from its own entry
+// alone, an EBGP peer had an absent policy, which RFC 8212 Section 3 turns into
+// refusing every route both ways. A reactor with no TreeReloadFunc (a test, a
+// non-file daemon) keeps the entry parser, as loadPeersFromConfig does.
 func (r *Reactor) createdPeerSettings(addr netip.Addr, tree map[string]any) (*PeerSettings, error) {
-	withDefaults, err := createdPeerSchemaDefaults(tree)
-	if err != nil {
-		return nil, fmt.Errorf("dynamic peer %s: %w", addr, err)
+	name := peerConfigNameFor(addr)
+	r.mu.RLock()
+	treeReloadFn := r.treeReloadFunc
+	running := r.configTree
+	r.mu.RUnlock()
+
+	var settings *PeerSettings
+	var err error
+	if treeReloadFn != nil {
+		settings, err = createdPeerFromRunning(treeReloadFn, running, name, tree)
+	} else {
+		settings, err = r.createdPeerFromEntry(addr, tree)
 	}
-	globals := r.globals()
-	settings, err := parsePeerFromTree(addr.String(), withDefaults, globals.LocalAS, globals.RouterID)
 	if err != nil {
 		return nil, fmt.Errorf("dynamic peer %s: %w", addr, err)
 	}
@@ -590,7 +607,7 @@ func (r *Reactor) createdPeerSettings(addr netip.Addr, tree map[string]any) (*Pe
 	// and the one `update bgp config` writes it to the file under, so a reload
 	// operation that names that entry finds this peer (runningPeerSettings,
 	// operation.go) and a file that later declares it compares equal by name.
-	settings.Name = peerConfigNameFor(addr)
+	settings.Name = name
 
 	// The test port override reaches a peer built HERE as well as one built by
 	// the config loader, which applies it in applyPortOverride
@@ -601,6 +618,44 @@ func (r *Reactor) createdPeerSettings(addr netip.Addr, tree map[string]any) (*Pe
 		settings.Port = port
 	}
 	return settings, nil
+}
+
+// createdPeerFromRunning builds the peer entry declares under name, as the
+// reload pipeline builds it from the running configuration with the entry
+// added. running is not written to: the bgp block and the peer list are
+// copies (copyToPeerList). An entry already recorded under name, the one
+// RestoreCreatedPeers rebuilds, is replaced by itself.
+func createdPeerFromRunning(build TreeReloadFunc, running map[string]any, name string, entry map[string]any) (*PeerSettings, error) {
+	root, bgp, peers := copyToPeerList(running)
+	order := peerEntryOrder(bgp, peers)
+	if _, known := peers[name]; !known {
+		order = append(order, name)
+	}
+	peers[name] = entry
+	writePeerList(bgp, peers, order)
+
+	built, _, _, err := build(root)
+	if err != nil {
+		return nil, err
+	}
+	for _, settings := range built {
+		if settings.Name == name {
+			return settings, nil
+		}
+	}
+	return nil, fmt.Errorf("the configuration pipeline built no peer %s from its entry: %w", name, ErrIncompleteConfig)
+}
+
+// createdPeerFromEntry builds a created peer from its own entry, with the YANG
+// defaults and the reactor's global AS and router-id. It is the builder of a
+// reactor that holds no TreeReloadFunc (createdPeerSettings).
+func (r *Reactor) createdPeerFromEntry(addr netip.Addr, tree map[string]any) (*PeerSettings, error) {
+	withDefaults, err := createdPeerSchemaDefaults(tree)
+	if err != nil {
+		return nil, err
+	}
+	globals := r.globals()
+	return parsePeerFromTree(addr.String(), withDefaults, globals.LocalAS, globals.RouterID)
 }
 
 // createdPeerSchemaDefaults answers a copy of a created peer's entry with the
