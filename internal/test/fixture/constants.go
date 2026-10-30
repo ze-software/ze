@@ -61,7 +61,13 @@ var (
 
 // Addresses, prefixes, ports and other network identities.
 const (
-	addrLoopback               = "127.0.0.1"
+	addrLoopback = "127.0.0.1"
+	// prefix72First is the first prefix the 10.72 policy and reload
+	// scenarios announce.
+	prefix72First = "10.72.1.0/24"
+	// prefix82First is the first prefix the RFC 8212 policy scenario
+	// announces.
+	prefix82First              = "10.82.1.0/24"
 	addrLoopbackSecond         = "127.0.0.2"
 	addrLoopbackThird          = "127.0.0.3"
 	addrLoopbackV6             = "::1"

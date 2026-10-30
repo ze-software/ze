@@ -109,7 +109,7 @@ func rfc8212ReloadFaultDriver(ctx context.Context, args []string) error {
 			if err != nil {
 				return nil, err
 			}
-			if err := rfc8212ReloadTrigger(ctx, p, "127.0.0.1", epoch); err != nil {
+			if err := rfc8212ReloadTrigger(ctx, p, addrLoopback, epoch); err != nil {
 				return nil, err
 			}
 			if !waitForFile(ctx, "source.buffered-"+epoch, 80, liveStagesPollDelay) {

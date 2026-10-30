@@ -193,7 +193,7 @@ func (s *rfc8212ReloadWire) path(ctx context.Context, prefix string, alternate b
 			lastErr = err
 			return false
 		}
-		attributeCase := "10.72.1.0/24"
+		attributeCase := prefix72First
 		if alternate {
 			attributeCase = policyFinalAlternatePrefix
 		}
@@ -287,7 +287,7 @@ func rfc8212ReloadCounter(rows map[string]map[string]any, direction, kind string
 }
 
 func rfc8212ReloadInput(ctx context.Context, p *sdk.Plugin) (int64, error) {
-	rows, err := peerRows03(ctx, p, "127.0.0.1")
+	rows, err := peerRows03(ctx, p, addrLoopback)
 	if err != nil {
 		return 0, err
 	}

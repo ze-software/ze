@@ -40,7 +40,7 @@ func rfc8212PolicyStatus(ctx context.Context, args []string) error {
 			return errors.New("dynamic accept did not publish the unresolved peer")
 		}
 		for _, row := range []struct{ peer, final, source, action string }{
-			{"127.0.0.1", "reject", "rfc8212", "reject"},
+			{addrLoopback, "reject", "rfc8212", "reject"},
 			{"127.0.0.2", "accept", "", "accept"},
 			{"127.0.0.3", "reject", "", "reject"},
 			{"127.0.0.4", "", "", "accept"},
@@ -179,7 +179,7 @@ func rfc8212PolicyStatusDirection(ctx context.Context, plugin *sdk.Plugin, peer,
 			return fmt.Errorf("denied announcement survived: %s", result.Text)
 		}
 		if want == "modify" {
-			if strings.Contains(result.Text, "10.82.1.0/24") {
+			if strings.Contains(result.Text, prefix82First) {
 				return fmt.Errorf("denied mixed announcement survived: %s", result.Text)
 			}
 			if !strings.Contains(result.Text, "10.82.200.0/24") {

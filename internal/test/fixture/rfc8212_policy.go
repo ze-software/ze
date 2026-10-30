@@ -34,10 +34,10 @@ func rfc8212PolicyDriver(mode string) Driver {
 			forbidden:   make(map[string]map[string]bool),
 		}
 		if mode == "import" {
-			state.forbidden["127.0.0.2"] = map[string]bool{"10.82.1.0/24": true, "10.82.4.0/24": true, "2001:db8:82::/48": true}
+			state.forbidden["127.0.0.2"] = map[string]bool{prefix82First: true, "10.82.4.0/24": true, "2001:db8:82::/48": true}
 		}
 		if mode == "export" {
-			state.forbidden["127.0.0.2"] = map[string]bool{"10.82.1.0/24": true, "10.82.10.0/24": true, "10.82.11.0/24": true, "10.82.12.0/24": true, "10.82.13.0/24": true, "10.82.14.0/24": true, "10.82.15.0/24": true, "10.82.16.0/24": true}
+			state.forbidden["127.0.0.2"] = map[string]bool{prefix82First: true, "10.82.10.0/24": true, "10.82.11.0/24": true, "10.82.12.0/24": true, "10.82.13.0/24": true, "10.82.14.0/24": true, "10.82.15.0/24": true, "10.82.16.0/24": true}
 		}
 		return observeConfigured(ctx, "rfc8212-policy", &sdk.Registration{}, func(plugin *sdk.Plugin) error {
 			plugin.OnEvent(state.receive)
@@ -159,9 +159,9 @@ func rfc8212PolicyImport(ctx context.Context, plugin *sdk.Plugin, state *rfc8212
 	}
 	// Let the rejected source finish, then establish the accepted control.
 	// The absent source consumes that control before sending its subject.
-	peers := []string{"127.0.0.4", "127.0.0.3", "127.0.0.1"}
+	peers := []string{"127.0.0.4", "127.0.0.3", addrLoopback}
 	if ibgp {
-		peers = []string{"127.0.0.1"}
+		peers = []string{addrLoopback}
 	}
 	for _, peer := range peers {
 		before, err := peerCounter03(ctx, plugin, peer, "updates-received")
@@ -186,7 +186,7 @@ func rfc8212PolicyImport(ctx context.Context, plugin *sdk.Plugin, state *rfc8212
 	}
 	wanted := "10.82.3.0/24"
 	if ibgp {
-		wanted = "10.82.1.0/24"
+		wanted = prefix82First
 	}
 	wantedRoutes := []string{wanted, "192.168.250.0/24"}
 	if !ibgp {
@@ -200,7 +200,7 @@ func rfc8212PolicyImport(ctx context.Context, plugin *sdk.Plugin, state *rfc8212
 			return err
 		}
 	}
-	for _, prefix := range []string{"10.82.1.0/24", "10.82.3.0/24", "10.82.4.0/24", "2001:db8:82::/48"} {
+	for _, prefix := range []string{prefix82First, "10.82.3.0/24", "10.82.4.0/24", "2001:db8:82::/48"} {
 		if err := rfc8212PolicyBest(ctx, plugin, prefix, prefix == wanted); err != nil {
 			return err
 		}
@@ -209,7 +209,7 @@ func rfc8212PolicyImport(ctx context.Context, plugin *sdk.Plugin, state *rfc8212
 	// and its advertisement, rather than merely empty a pre-policy store.
 	accepted := "127.0.0.3"
 	if ibgp {
-		accepted = "127.0.0.1"
+		accepted = addrLoopback
 	}
 	if err := liveStagesRoute(ctx, plugin, accepted+" update text nhop 192.0.2.1 nlri add 192.168.2.0/24"); err != nil {
 		return err
@@ -268,7 +268,7 @@ func rfc8212PolicyDualStack(ctx context.Context, plugin *sdk.Plugin) error {
 			queryErr = fmt.Errorf("dual-stack detail status=%s", status)
 			return false
 		}
-		for _, address := range []string{"127.0.0.1", "127.0.0.2", "127.0.0.3"} {
+		for _, address := range []string{addrLoopback, "127.0.0.2", "127.0.0.3"} {
 			row, found := result.Peers[address]
 			if !found {
 				return false
@@ -345,7 +345,7 @@ func rfc8212PolicyExport(ctx context.Context, plugin *sdk.Plugin, state *rfc8212
 	if err := liveStagesRoute(ctx, plugin, "127.0.0.1 update text nhop 192.0.2.1 nlri add 192.168.1.0/24"); err != nil {
 		return err
 	}
-	if err := state.wait(ctx, "127.0.0.3", "", "10.82.10.0/24", "10.82.1.0/24"); err != nil {
+	if err := state.wait(ctx, "127.0.0.3", "", "10.82.10.0/24", prefix82First); err != nil {
 		return err
 	}
 	for _, peer := range []string{"127.0.0.2", "127.0.0.3"} {
@@ -353,19 +353,19 @@ func rfc8212PolicyExport(ctx context.Context, plugin *sdk.Plugin, state *rfc8212
 			return err
 		}
 	}
-	if err := state.wait(ctx, "127.0.0.3", "", "10.82.10.0/24", "10.82.1.0/24", "10.82.11.0/24"); err != nil {
+	if err := state.wait(ctx, "127.0.0.3", "", "10.82.10.0/24", prefix82First, "10.82.11.0/24"); err != nil {
 		return err
 	}
 	if err := os.WriteFile("rfc8212-bridge-ready", []byte("ready\n"), 0o600); err != nil {
 		return err
 	}
-	if err := state.wait(ctx, "127.0.0.3", "", "10.82.10.0/24", "10.82.1.0/24", "10.82.11.0/24", "10.82.12.0/24"); err != nil {
+	if err := state.wait(ctx, "127.0.0.3", "", "10.82.10.0/24", prefix82First, "10.82.11.0/24", "10.82.12.0/24"); err != nil {
 		return err
 	}
 	if _, err := done03(ctx, plugin, "request fakeredist emit add ipv4/unicast 10.82.13.0/24"); err != nil {
 		return err
 	}
-	if err := state.wait(ctx, "127.0.0.3", "", "10.82.10.0/24", "10.82.1.0/24", "10.82.11.0/24", "10.82.12.0/24", "10.82.13.0/24"); err != nil {
+	if err := state.wait(ctx, "127.0.0.3", "", "10.82.10.0/24", prefix82First, "10.82.11.0/24", "10.82.12.0/24", "10.82.13.0/24"); err != nil {
 		return err
 	}
 	for _, peer := range []string{"127.0.0.2", "127.0.0.3"} {
@@ -373,7 +373,7 @@ func rfc8212PolicyExport(ctx context.Context, plugin *sdk.Plugin, state *rfc8212
 			return err
 		}
 	}
-	if err := state.wait(ctx, "127.0.0.3", "", "10.82.10.0/24", "10.82.1.0/24", "10.82.11.0/24", "10.82.12.0/24", "10.82.13.0/24", "10.82.14.0/24"); err != nil {
+	if err := state.wait(ctx, "127.0.0.3", "", "10.82.10.0/24", prefix82First, "10.82.11.0/24", "10.82.12.0/24", "10.82.13.0/24", "10.82.14.0/24"); err != nil {
 		return err
 	}
 	for _, peer := range []string{"127.0.0.2", "127.0.0.3"} {
@@ -381,7 +381,7 @@ func rfc8212PolicyExport(ctx context.Context, plugin *sdk.Plugin, state *rfc8212
 			return err
 		}
 	}
-	if err := state.wait(ctx, "127.0.0.3", "", "10.82.10.0/24", "10.82.1.0/24", "10.82.11.0/24", "10.82.12.0/24", "10.82.13.0/24", "10.82.14.0/24", "10.82.15.0/24"); err != nil {
+	if err := state.wait(ctx, "127.0.0.3", "", "10.82.10.0/24", prefix82First, "10.82.11.0/24", "10.82.12.0/24", "10.82.13.0/24", "10.82.14.0/24", "10.82.15.0/24"); err != nil {
 		return err
 	}
 	// A KEEPALIVE prefix cannot hide an UPDATE from export admission.
@@ -396,7 +396,7 @@ func rfc8212PolicyExport(ctx context.Context, plugin *sdk.Plugin, state *rfc8212
 	if err := liveStagesRoute(ctx, plugin, "127.0.0.3 update text nlri del 192.168.251.0/24"); err != nil {
 		return err
 	}
-	if err := state.wait(ctx, "127.0.0.3", "192.168.251.0/24", "10.82.10.0/24", "10.82.1.0/24", "10.82.11.0/24", "10.82.12.0/24", "10.82.13.0/24", "10.82.14.0/24", "10.82.15.0/24"); err != nil {
+	if err := state.wait(ctx, "127.0.0.3", "192.168.251.0/24", "10.82.10.0/24", prefix82First, "10.82.11.0/24", "10.82.12.0/24", "10.82.13.0/24", "10.82.14.0/24", "10.82.15.0/24"); err != nil {
 		return err
 	}
 	// This never-advertised session cannot carry a managed withdrawal fence.

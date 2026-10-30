@@ -20,10 +20,10 @@ func rfc8212ReloadRollback(ctx context.Context, p *sdk.Plugin, wire *rfc8212Relo
 	if err := rfc8212ReloadSeed(ctx, p, wire, true); err != nil {
 		return err
 	}
-	if err := rfc8212ReloadAppliedOnce(ctx, "10.72.1.0/24"); err != nil {
+	if err := rfc8212ReloadAppliedOnce(ctx, prefix72First); err != nil {
 		return err
 	}
-	prefixes := []string{"10.72.1.0/24", "10.72.2.0/24", "10.72.3.0/24"}
+	prefixes := []string{prefix72First, "10.72.2.0/24", "10.72.3.0/24"}
 	for index, mode := range []string{"apply", "commit", "outer"} {
 		before, err := peerRows03(ctx, p, "*")
 		if err != nil {
@@ -109,7 +109,7 @@ func rfc8212ReloadRollback(ctx context.Context, p *sdk.Plugin, wire *rfc8212Relo
 		if err := rfc8212ReloadSessions(ctx, p, before, 0); err != nil {
 			return err
 		}
-		if err := rfc8212ReloadBest(ctx, p, "10.72.3.0/24", "127.0.0.1"); err != nil {
+		if err := rfc8212ReloadBest(ctx, p, "10.72.3.0/24", addrLoopback); err != nil {
 			return err
 		}
 		if err := wire.path(ctx, "10.72.3.0/24", false); err != nil {
@@ -144,12 +144,12 @@ func rfc8212ReloadOwner(ctx context.Context, p *sdk.Plugin, wire *rfc8212ReloadW
 	if err := rfc8212ReloadSeed(ctx, p, wire, true); err != nil {
 		return err
 	}
-	if err := rfc8212ReloadAppliedOnce(ctx, "10.72.1.0/24"); err != nil {
+	if err := rfc8212ReloadAppliedOnce(ctx, prefix72First); err != nil {
 		return err
 	}
 	// A received frame, not the last send action, must end each native
 	// connection script. Both peers then linger until this daemon closes them.
-	for _, peer := range []string{"127.0.0.1", "127.0.0.3"} {
+	for _, peer := range []string{addrLoopback, "127.0.0.3"} {
 		if err := rfc8212ReloadTrigger(ctx, p, peer, "9"); err != nil {
 			return err
 		}
@@ -212,7 +212,7 @@ func rfc8212ReloadOwner(ctx context.Context, p *sdk.Plugin, wire *rfc8212ReloadW
 	if err := rfc8212ReloadDurable(active); err != nil {
 		return err
 	}
-	if err := wire.wait(ctx, "10.72.1.0/24", "10.72.2.0/24", "10.72.3.0/24"); err != nil {
+	if err := wire.wait(ctx, prefix72First, "10.72.2.0/24", "10.72.3.0/24"); err != nil {
 		return err
 	}
 	if err := rfc8212ReloadSessions(ctx, p, before, 0); err != nil {
@@ -223,13 +223,13 @@ func rfc8212ReloadOwner(ctx context.Context, p *sdk.Plugin, wire *rfc8212ReloadW
 	}
 	// The refused change left admission open: the source's next UPDATE
 	// (10.72.5.0/24, its answer to this export) is counted once and forwarded.
-	if err := rfc8212ReloadTrigger(ctx, p, "127.0.0.1", "5"); err != nil {
+	if err := rfc8212ReloadTrigger(ctx, p, addrLoopback, "5"); err != nil {
 		return err
 	}
 	if err := rfc8212ReloadInputDelta(ctx, p, before, 1); err != nil {
 		return fmt.Errorf("UPDATE after refused change: %w", err)
 	}
-	return wire.wait(ctx, "10.72.1.0/24", "10.72.2.0/24", "10.72.3.0/24", "10.72.5.0/24")
+	return wire.wait(ctx, prefix72First, "10.72.2.0/24", "10.72.3.0/24", "10.72.5.0/24")
 }
 
 func rfc8212ReloadActive() ([]byte, error) {

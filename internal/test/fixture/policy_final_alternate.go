@@ -25,7 +25,7 @@ func policyFinalAlternate(ctx context.Context, plugin *sdk.Plugin, state *policy
 	if err := liveStagesRoute(ctx, plugin, "127.0.0.3 update text nhop 192.0.2.1 nlri add 192.168.3.0/24"); err != nil {
 		return err
 	}
-	if err := state.wait(ctx, "permitted alternate installed", "10.72.1.0/24", "10.72.2.0/24", policyFinalAlternatePrefix); err != nil {
+	if err := state.wait(ctx, "permitted alternate installed", prefix72First, "10.72.2.0/24", policyFinalAlternatePrefix); err != nil {
 		return err
 	}
 	state.mu.Lock()
@@ -34,7 +34,7 @@ func policyFinalAlternate(ctx context.Context, plugin *sdk.Plugin, state *policy
 	if err := liveStagesRoute(ctx, plugin, "127.0.0.1 update text nhop 192.0.2.1 nlri add 192.168.3.0/24"); err != nil {
 		return err
 	}
-	if err := state.wait(ctx, "preferred denied fence preserved alternate", "10.72.1.0/24", "10.72.2.0/24", policyFinalAlternatePrefix, "10.72.253.0/24"); err != nil {
+	if err := state.wait(ctx, "preferred denied fence preserved alternate", prefix72First, "10.72.2.0/24", policyFinalAlternatePrefix, "10.72.253.0/24"); err != nil {
 		peers, queryErr := peerRows03(ctx, plugin, "*")
 		if queryErr != nil {
 			return fmt.Errorf("%w; peer counters at failed fence=%v (query error=%w)", err, peers, queryErr)
@@ -60,7 +60,7 @@ func policyFinalAlternate(ctx context.Context, plugin *sdk.Plugin, state *policy
 	if err := policyFinalReload(ctx, plugin, accept, "applied"); err != nil {
 		return err
 	}
-	if err := state.wait(ctx, "restored permitted alternate behind rejected preferred", "10.72.1.0/24", "10.72.2.0/24", policyFinalAlternatePrefix, "10.72.253.0/24"); err != nil {
+	if err := state.wait(ctx, "restored permitted alternate behind rejected preferred", prefix72First, "10.72.2.0/24", policyFinalAlternatePrefix, "10.72.253.0/24"); err != nil {
 		return err
 	}
 	after, err := peerRows03(ctx, plugin, "*")
@@ -169,7 +169,7 @@ func (state *policyFinalWireState) receive(event string) error {
 		for _, operation := range operations {
 			for _, prefix := range operation.NLRI {
 				switch prefix {
-				case "10.72.1.0/24", "10.72.2.0/24", policyFinalAlternatePrefix, "10.72.253.0/24":
+				case prefix72First, "10.72.2.0/24", policyFinalAlternatePrefix, "10.72.253.0/24":
 				default:
 					state.failure = fmt.Errorf("unexpected echoed prefix %s", prefix)
 					return nil

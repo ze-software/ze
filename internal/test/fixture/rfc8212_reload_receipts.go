@@ -37,7 +37,7 @@ func (state *rfc8212ReloadFault) record(event string) error {
 		return err
 	}
 	bgp := &envelope.BGP
-	if bgp.Peer.Remote.Address != "127.0.0.1" {
+	if bgp.Peer.Remote.Address != addrLoopback {
 		return nil
 	}
 	if bgp.Message.Type != "update" {

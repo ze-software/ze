@@ -61,7 +61,7 @@ func policyFinalReloadScenario(ctx context.Context, plugin *sdk.Plugin, state *p
 	if err := liveStagesRoute(ctx, plugin, "127.0.0.1 update text nhop 192.0.2.1 nlri add 192.168.1.0/24"); err != nil {
 		return err
 	}
-	if err := state.wait(ctx, "original subject", "10.72.1.0/24"); err != nil {
+	if err := state.wait(ctx, "original subject", prefix72First); err != nil {
 		return err
 	}
 	invalid := config.NewTree()
@@ -76,7 +76,7 @@ func policyFinalReloadScenario(ctx context.Context, plugin *sdk.Plugin, state *p
 	if err := liveStagesRoute(ctx, plugin, "127.0.0.1 update text nhop 192.0.2.1 nlri add 192.168.2.0/24"); err != nil {
 		return err
 	}
-	if err := state.wait(ctx, "invalid reload preserved acceptance", "10.72.1.0/24", "10.72.2.0/24"); err != nil {
+	if err := state.wait(ctx, "invalid reload preserved acceptance", prefix72First, "10.72.2.0/24"); err != nil {
 		return err
 	}
 	before, err := peerCounter03(ctx, plugin, "127.0.0.1", "updates-received")
@@ -95,7 +95,7 @@ func policyFinalReloadScenario(ctx context.Context, plugin *sdk.Plugin, state *p
 	if err := policyFinalReload(ctx, plugin, string(base), "applied"); err != nil {
 		return err
 	}
-	if err := state.wait(ctx, "final accept restored both retained routes", "10.72.1.0/24", "10.72.2.0/24"); err != nil {
+	if err := state.wait(ctx, "final accept restored both retained routes", prefix72First, "10.72.2.0/24"); err != nil {
 		return err
 	}
 	after, err := peerCounter03(ctx, plugin, "127.0.0.1", "updates-received")
@@ -111,5 +111,5 @@ func policyFinalReloadScenario(ctx context.Context, plugin *sdk.Plugin, state *p
 	if err := policyFinalSessions(ctx, plugin, 3); err != nil {
 		return err
 	}
-	return state.wait(ctx, "final received state", "10.72.1.0/24", "10.72.2.0/24", "10.72.3.0/24", "10.72.253.0/24")
+	return state.wait(ctx, "final received state", prefix72First, "10.72.2.0/24", "10.72.3.0/24", "10.72.253.0/24")
 }

@@ -97,20 +97,20 @@ func rfc8212ReloadSeed(ctx context.Context, p *sdk.Plugin, wire *rfc8212ReloadWi
 	if err != nil {
 		return err
 	}
-	if err := rfc8212ReloadTrigger(ctx, p, "127.0.0.1", "1"); err != nil {
+	if err := rfc8212ReloadTrigger(ctx, p, addrLoopback, "1"); err != nil {
 		return err
 	}
 	if err := rfc8212ReloadWaitInput(ctx, p, before, 2); err != nil {
 		return fmt.Errorf("source initial UPDATEs: %w", err)
 	}
 	if accepted {
-		if err := wire.wait(ctx, "10.72.1.0/24", "10.72.2.0/24", "10.72.3.0/24"); err != nil {
+		if err := wire.wait(ctx, prefix72First, "10.72.2.0/24", "10.72.3.0/24"); err != nil {
 			return err
 		}
 		if err := wire.path(ctx, "10.72.3.0/24", false); err != nil {
 			return err
 		}
-		return rfc8212ReloadBest(ctx, p, "10.72.3.0/24", "127.0.0.1")
+		return rfc8212ReloadBest(ctx, p, "10.72.3.0/24", addrLoopback)
 	}
 	// A later UPDATE on the SAME source socket is counted before the RIB and
 	// wire checks. The positive alternate baseline prevents a dead sink passing.
@@ -120,7 +120,7 @@ func rfc8212ReloadSeed(ctx context.Context, p *sdk.Plugin, wire *rfc8212ReloadWi
 	if err := wire.wait(ctx, "10.72.2.0/24", "10.72.3.0/24"); err != nil {
 		return err
 	}
-	return rfc8212ReloadBest(ctx, p, "10.72.1.0/24", "")
+	return rfc8212ReloadBest(ctx, p, prefix72First, "")
 }
 
 func rfc8212ReloadRecover(ctx context.Context, p *sdk.Plugin, wire *rfc8212ReloadWire, tree *config.Tree, schema *config.Schema) error {
@@ -138,13 +138,13 @@ func rfc8212ReloadRecover(ctx context.Context, p *sdk.Plugin, wire *rfc8212Reloa
 		return err
 	}
 	// The source script reannounces ONLY after a Route Refresh on conn=1.
-	if err := wire.wait(ctx, "10.72.1.0/24", "10.72.2.0/24", "10.72.3.0/24"); err != nil {
+	if err := wire.wait(ctx, prefix72First, "10.72.2.0/24", "10.72.3.0/24"); err != nil {
 		return err
 	}
-	if err := wire.path(ctx, "10.72.1.0/24", false); err != nil {
+	if err := wire.path(ctx, prefix72First, false); err != nil {
 		return err
 	}
-	if err := rfc8212ReloadBest(ctx, p, "10.72.1.0/24", "127.0.0.1"); err != nil {
+	if err := rfc8212ReloadBest(ctx, p, prefix72First, addrLoopback); err != nil {
 		return err
 	}
 	if err := rfc8212ReloadSessions(ctx, p, before, 1); err != nil {
@@ -197,7 +197,7 @@ func rfc8212ReloadNoRefresh(ctx context.Context, p *sdk.Plugin, wire *rfc8212Rel
 	if err := rfc8212ReloadRunning(ctx, p, "reject"); err != nil {
 		return err
 	}
-	if err := rfc8212ReloadTrigger(ctx, p, "127.0.0.1", "2"); err != nil {
+	if err := rfc8212ReloadTrigger(ctx, p, addrLoopback, "2"); err != nil {
 		return err
 	}
 	if !waitForFile(ctx, "source.after", 80, liveStagesPollDelay) {
@@ -283,7 +283,7 @@ func rfc8212ReloadInvalidateBy(ctx context.Context, p *sdk.Plugin, wire *rfc8212
 	if err := wire.wait(ctx, "10.72.2.0/24", "10.72.3.0/24"); err != nil {
 		return err
 	}
-	if err := rfc8212ReloadBest(ctx, p, "10.72.1.0/24", ""); err != nil {
+	if err := rfc8212ReloadBest(ctx, p, prefix72First, ""); err != nil {
 		return err
 	}
 	if err := rfc8212ReloadBest(ctx, p, "10.72.3.0/24", "127.0.0.3"); err != nil {
@@ -300,7 +300,7 @@ func rfc8212ReloadInvalidateBy(ctx context.Context, p *sdk.Plugin, wire *rfc8212
 	}
 	// The script rejects withdrawal of the pre-existing export marker and
 	// answers this new export with mixed input: old withdrawal + denied add.
-	if err := rfc8212ReloadTrigger(ctx, p, "127.0.0.1", "2"); err != nil {
+	if err := rfc8212ReloadTrigger(ctx, p, addrLoopback, "2"); err != nil {
 		return err
 	}
 	if !waitForFile(ctx, "source.after", 80, liveStagesPollDelay) {
@@ -322,11 +322,11 @@ func rfc8212ReloadInvalidateBy(ctx context.Context, p *sdk.Plugin, wire *rfc8212
 }
 
 func rfc8212ReloadRunning(ctx context.Context, p *sdk.Plugin, final string) error {
-	rows, err := peerRows03(ctx, p, "127.0.0.1")
+	rows, err := peerRows03(ctx, p, addrLoopback)
 	if err != nil {
 		return err
 	}
-	policy, ok := rows["127.0.0.1"]["import-policy"].(map[string]any)
+	policy, ok := rows[addrLoopback]["import-policy"].(map[string]any)
 	if !ok {
 		return fmt.Errorf("source detail omitted effective import policy: %v", rows)
 	}
