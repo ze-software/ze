@@ -1,6 +1,9 @@
 {
-  "no_code_path": "No supported BGP path originates an MPLS-in-GRE Encapsulation sub-TLV: internal/component/bgp/plugins/nlri/srpolicy/config.go::buildTunnelEncap emits SR Policy type15, so the optional GRE-key advertisement decision constrained by Section 3.2.5 does not arise.",
-  "note": "RFC 9012 Section 3.2.5 states: \"Unless a key value is being advertised, the MPLS-in-GRE Encapsulation sub-TLV MUST NOT be present.\" This is the MPLS-in-GRE originator condition, distinct from GRE in Section 3.2.4. The supported parseConfigRoute/buildTunnelEncap boundary emits SR Policy tunnel type15 and its own sub-TLVs, not tunnel type11 or its Encapsulation sub-TLV. Generic serialization and received-attribute propagation are not that originator role; no receive or tunnel-consumption credit is claimed.",
+  "code": {
+    "internal/component/bgp/plugins/nlri/srpolicy/config.go::buildTunnelEncap": "3f0ae825d62e96fc",
+    "internal/component/bgp/textparse/rawattr.go::decodeTypedRawAttribute": "ad338f3afad2915a"
+  },
+  "note": "Re-judged by an independent judge after the row's annotation moved from {not-applicable} to {gap}. RFC 9012 Section 3.2.5 reads 'Unless a key value is being advertised, the MPLS-in-GRE Encapsulation sub-TLV MUST NOT be present.' The party that decides whether the sub-TLV is present is the BGP speaker originating the Tunnel Encapsulation attribute, Ze's declared role, and Ze already originates the attribute for SR Policy. MPLS-in-GRE (tunnel type 11) is an absent feature, not a role Ze does not fill, and no owner decision declines it, so the earlier not-applicable verdict no longer stands and the row is a conformance gap. Ze builds no MPLS-in-GRE Encapsulation sub-TLV: internal/component/bgp/plugins/nlri/srpolicy/config.go::buildTunnelEncap writes tunnel type 15 with the RFC 9830 sub-TLVs only. An operator can originate a type 11 Tunnel TLV as a generic attribute 0x17: internal/component/bgp/textparse/rawattr.go::decodeTypedRawAttribute returns the opaque form for a code no keyword names, so an MPLS-in-GRE Encapsulation sub-TLV with no key goes out unrefused.",
   "requirement_sha": "4c6d9fb207aeda13",
-  "verdict": "not-applicable"
+  "verdict": "unimplemented"
 }
