@@ -61,6 +61,13 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   applicable) is written only for a role or feature he named, a lower-layer
   requirement still owes a test of what Ze installs, and no annotation class
   is put to him row by row.
+- A feature an earlier judge or agent declined, with no decision of Thomas's
+  behind it, is a gap, not a declined feature.
+- A declined feature leaves the count only on the RFC's own words. Either a
+  sentence makes the feature optional, or a sentence makes the obligation
+  conditional on using the feature (as in "If the client uses a delegated
+  prefix ... MUST"). The second case also needs evidence that Ze never meets
+  the condition.
 - A requirement the operating system meets on Ze's behalf still owes a test
   that checks the OS behaviour on the state Ze installs. Until that test
   exists, the requirement is recorded as a gap in testing, never as a gap in
