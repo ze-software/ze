@@ -685,6 +685,13 @@ Struck (Q1 (c) only, not run): `vrrp.TestVRRPOwnerAnswersWithVirtualMACOnly` (20
 - The owner filter belongs to the instance's life, not to Active: published wherever the owned set can change (build, reconfigure), withdrawn wherever the instance ends (teardown, build unwind), through one function.
 - A route moves everything that follows it: the steering route of round 5 moved gateway routes, source address selection and resolution for traffic that had nothing to do with Solicitations (review r5). Taking over only the Solicitation, through the kernel's application-probe interface, changes the one message the RFC sentence names.
 
+## Owned journal rows
+<!-- Every open journal row this spec will fix, one line each; `./le commit create`
+     refuses an open row no spec lists (plan/journal/README.md, "Owned rows"). -->
+| Class file | Date | Surface (short) |
+|------------|------|-----------------|
+| `plan/journal/announced-before-it-is-installed.md` | 2026-10-30 | owner boot announcement sent before the asynchronous VIP install (RFC9568-8.1.2-2, -8.2.2-4) |
+
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
