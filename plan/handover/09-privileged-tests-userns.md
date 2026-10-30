@@ -24,7 +24,12 @@ the reboot:
 | RFC 792 kernel rows | (a): seven rows are kernel-producer escapes (54fb01a2e6, 7f1a79f1cc); route (b) is `plan/post-release/kernel/spec-rfc-kernel-patch-discrimination-route.md` |
 | VRRP ND window | Closed in the product (0dc36bd960). The boot-announce defect it exposed is a journal row owned by `spec-vrrp-owner-arp-rfc-defects` (03833b3160) |
 
-Left for closure: the reboot and the AC-8 rerun; AC-10 and AC-11 whole-tree
+2026-10-30: the host boots 7.2.9-ze with all five options =y, and the three
+AC-8 tests pass on it. The install left `/lib/modules/7.2.9-ze` owned by
+thomas (`cp -a` keeps the build cache's owner); Thomas chowned it to root, and
+the installer fix is with the session that found it.
+
+Left for closure: AC-10 and AC-11 whole-tree
 checks (Thomas runs them); a judge for the RFC-tag comments in
 `internal/plugins/vrrp/instance_test.go` that still name the old location of
 `doInstallVIPs`; then `/ze-review` and `/ze-close`.
