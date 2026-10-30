@@ -1,0 +1,106 @@
+# Test: an OSPF key-chain reference naming no key-chains entry is refused
+#
+# VALIDATES: the area and interface authentication key-chain leaves are YANG
+#            leafrefs to "../../../../key-chains/name" (ze-ospf-conf.yang), so
+#            `ze config validate` refuses a name no chain declares, naming the
+#            value and the chains that exist (Validator.ValidateReferences),
+#            and accepts declared names.
+# PREVENTS: a dangling key-chain reaching the OSPF auth store, which treats it
+#           as unset and runs the interface unauthenticated.
+
+stdin=area:terminator=EOF_AREA
+ospf {
+	router-id 10.0.0.1
+	key-chains kc1 {
+		key 1 {
+			algorithm hmac-sha-256
+			secret myverysecretkey
+		}
+	}
+	key-chains kc2 {
+		key 1 {
+			algorithm hmac-sha-256
+			secret anotherverysecret
+		}
+	}
+	areas {
+		area 0.0.0.0 {
+			authentication {
+				key-chain no-such-chain
+			}
+		}
+	}
+	interfaces {
+		interface eth0 {
+			area 0.0.0.0
+		}
+	}
+}
+EOF_AREA
+
+stdin=interface:terminator=EOF_INTERFACE
+ospf {
+	router-id 10.0.0.1
+	key-chains kc1 {
+		key 1 {
+			algorithm hmac-sha-256
+			secret myverysecretkey
+		}
+	}
+	areas {
+		area 0.0.0.0 {
+		}
+	}
+	interfaces {
+		interface eth0 {
+			area 0.0.0.0
+			authentication {
+				mode md5
+				key-chain aera-key
+			}
+		}
+	}
+}
+EOF_INTERFACE
+
+stdin=present:terminator=EOF_PRESENT
+ospf {
+	router-id 10.0.0.1
+	key-chains kc1 {
+		key 1 {
+			algorithm hmac-sha-256
+			secret myverysecretkey
+		}
+	}
+	areas {
+		area 0.0.0.0 {
+			authentication {
+				key-chain kc1
+			}
+		}
+	}
+	interfaces {
+		interface eth0 {
+			area 0.0.0.0
+			authentication {
+				mode hmac-sha-256
+				key-chain kc1
+			}
+		}
+	}
+}
+EOF_PRESENT
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=area
+expect=exit:code=1
+expect=stdout:contains=no name "no-such-chain" exists at "../../../../key-chains/name"
+expect=stdout:contains=name one of "kc1 kc2"
+expect=stdout:contains=ospf/areas/area[0.0.0.0]/authentication/key-chain
+cmd=foreground:seq=2:exec=ze config validate -:stdin=interface
+expect=exit:code=1
+expect=stdout:contains=no name "aera-key" exists at "../../../../key-chains/name"
+expect=stdout:contains=name one of "kc1"
+expect=stdout:contains=ospf/interfaces/interface[eth0]/authentication/key-chain
+cmd=foreground:seq=3:exec=ze config validate -:stdin=present
+expect=exit:code=0
+expect=stdout:contains=configuration valid

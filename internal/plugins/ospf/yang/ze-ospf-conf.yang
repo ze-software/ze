@@ -986,10 +986,14 @@ default and the no-summary option mutually exclusive.";
 chain of its area. An interface that names its own key chain overrides this default.";
                     ze:help "Area-level authentication defaults.";
                     leaf key-chain {
-                        type string { length "1..63"; }
-                        description "The value MUST name an entry of the key-chains list. Ze
-refuses the configuration when the name matches no entry, because an interface that
-inherits a chain which does not resolve would accept every packet unsigned.";
+                        type leafref {
+                            path "../../../../key-chains/name";
+                            require-instance true;
+                        }
+                        description "The value MUST name an entry of the key-chains list. Commit
+refuses the configuration when the name matches no entry, and names the chains that exist,
+because an interface that inherits a chain which does not resolve would accept every packet
+unsigned.";
                         ze:help "Default key chain inherited by interfaces.";
                     }
                 }
@@ -1261,10 +1265,14 @@ keys in the resolved chain.";
                         ze:help "Authentication mode of this interface.";
                     }
                     leaf key-chain {
-                        type string { length "1..63"; }
-                        description "The value MUST name an entry of the key-chains list, and Ze
-refuses the configuration when it names no entry. Ze takes the area chain instead when the
-mode leaf is inherit, even when this leaf names a chain.";
+                        type leafref {
+                            path "../../../../key-chains/name";
+                            require-instance true;
+                        }
+                        description "The value MUST name an entry of the key-chains list, and commit
+refuses the configuration when it names no entry, naming the chains that exist. The check
+holds whatever the mode: Ze takes the area chain instead when the mode leaf is inherit, but
+a name written here still has to resolve.";
                         ze:help "Key chain reference.";
                     }
                 }

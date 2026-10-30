@@ -1,0 +1,43 @@
+# Test: OSPF key-chain reference completion offers the configured chains
+# VALIDATES: Tab on an OSPF interface's authentication key-chain leaf, a YANG
+#            leafref to "../../../../key-chains/name", offers the chains the
+#            key-chains list declares.
+# PREVENTS: a key-chain leaf completing only a type hint, so the operator
+#           types a chain name from memory and learns of a typo at commit.
+
+tmpfs=test.conf:terminator=EOF_CONF
+ospf {
+	router-id 10.0.0.1
+	key-chains kc1 {
+		key 1 {
+			algorithm hmac-sha-256
+			secret myverysecretkey
+		}
+	}
+	key-chains kc2 {
+		key 1 {
+			algorithm hmac-sha-256
+			secret anotherverysecret
+		}
+	}
+	areas {
+		area 0.0.0.0 {
+		}
+	}
+	interfaces {
+		interface eth0 {
+			area 0.0.0.0
+		}
+	}
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+input=type:text=edit ospf interfaces interface eth0
+input=enter
+expect=context:path=ospf/interfaces/interface/eth0
+input=type:text=set authentication key-chain
+input=space
+expect=completion:contains=kc1,kc2
