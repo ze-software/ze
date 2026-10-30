@@ -190,15 +190,21 @@ func runExtractionSelftest() ([]leroot.SelftestResult, error) {
 }
 
 func extractionSelftestArtifact(inventory *Inventory) map[string]any {
+	return signOffArtifact(inventory, map[string]string{
+		"2:1": selftestRIDSend,
+		"2:2": selftestRIDDrop,
+	})
+}
+
+// signOffArtifact answers the extraction artifact that signs inventory off:
+// every section walked, each site in mapped (keyed by site id) mapped to its
+// requirement, and every other site excluded as not a requirement.
+func signOffArtifact(inventory *Inventory, mapped map[string]string) map[string]any {
 	sections := make([]map[string]any, 0, len(inventory.Sections))
 	for _, section := range inventory.Sections {
 		sections = append(sections, map[string]any{
 			"id": section.ID, keySites: section.Sites, keyDisposition: dispositionWalked,
 		})
-	}
-	mappedIDs := map[string]string{
-		"2:1": selftestRIDSend,
-		"2:2": selftestRIDDrop,
 	}
 	sites := make([]map[string]any, 0, len(inventory.Sites))
 	for _, site := range inventory.Sites {
@@ -208,7 +214,7 @@ func extractionSelftestArtifact(inventory *Inventory) map[string]any {
 			"excluded-kind": "not-a-requirement",
 			keyReason:       "the fixture did not declare this site",
 		}
-		if mappedTo := mappedIDs[site.ID]; mappedTo != "" {
+		if mappedTo := mapped[site.ID]; mappedTo != "" {
 			entry = map[string]any{
 				"id": site.ID, keyQuote: site.Quote,
 				keyDisposition: DispositionMapped, "mapped-to": mappedTo,

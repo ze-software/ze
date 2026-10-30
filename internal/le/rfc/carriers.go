@@ -76,6 +76,14 @@ var (
 	carrierTierOrder = []string{tierVerify, tierNightly, tierUnrun}
 )
 
+// evidenceStrengthOrder is the order of STRENGTH, strongest first, that the
+// per-RFC figures classify a proven row by: a foreign peer accepting the
+// behavior outranks the daemon exposing it, which outranks the editor, which
+// outranks the algorithm alone. It is not the reading order above, which puts
+// the editor after functional for a different reason. kindUnknown is absent on
+// purpose: nothing runs it, so it is the answer only when no kind here is held.
+var evidenceStrengthOrder = []string{kindInterop, kindFunctional, kindEditor, kindUnit}
+
 // CarrierRank answers one sortable rank for a `kind/tier` pair, and false for a
 // pair this vocabulary does not declare.
 //

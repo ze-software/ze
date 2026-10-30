@@ -118,11 +118,39 @@ func stubTestHealth(t *testing.T, record string) {
 }
 
 // stubRFCLedger states the ledger a build reads instead of parsing rfc/short.
+//
+// A synthetic checkout carries no records or sign-offs, so the figures beside
+// a stated ledger are stated too: every RFC walked, its gated rows owed and
+// none proven. This checkout's own ledger keeps its real figures.
 func stubRFCLedger(t *testing.T, collected rfc.Collected) {
 	t.Helper()
 	previous := liveRFCLedger
-	t.Cleanup(func() { liveRFCLedger = previous })
+	previousFigures := liveStemFigures
+	t.Cleanup(func() {
+		liveRFCLedger = previous
+		liveStemFigures = previousFigures
+	})
 	liveRFCLedger = func(string) (rfc.Collected, error) { return collected, nil }
+	root := repositoryRoot(t)
+	liveStemFigures = func(tree string, stated rfc.Collected) (map[string]rfc.StemFigures, error) {
+		if tree == root {
+			return previousFigures(tree, stated)
+		}
+		figures := map[string]rfc.StemFigures{}
+		for stem := range stated.Metas {
+			figures[stem] = rfc.StemFigures{Stem: stem, Walked: true}
+		}
+		for _, requirement := range stated.Requirements {
+			figure, held := figures[requirement.RFC]
+			if !held || !requirement.Gated() || requirement.Rollup() {
+				continue
+			}
+			figure.Mandatory.Total++
+			figure.Mandatory.Attainable++
+			figures[requirement.RFC] = figure
+		}
+		return figures, nil
+	}
 }
 
 // stubGitHubStars states what the forge answers, or the failure it answers with.

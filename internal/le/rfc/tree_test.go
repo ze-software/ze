@@ -83,7 +83,7 @@ func priorityFixture(t *testing.T, proven map[string]bool, unwalked ...string) *
 	for stem := range stems {
 		walked[stem] = !slices.Contains(unwalked, stem)
 	}
-	figures := figuresByStem(requirements, stems, walked, proven)
+	figures := figuresByStem(requirements, stems, walked, proven, figureEvidence{})
 	return newPriorityCorpus(g, profiles, metas, requirements, figures, proven)
 }
 

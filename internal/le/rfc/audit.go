@@ -59,6 +59,19 @@ var auditVerdicts = map[string]string{
 	VerdictNotApplicable: "the requirement has no reachable code path in Ze",
 }
 
+// auditVerdictsUnmet is the verdicts that say the requirement is NOT met, the
+// ONE declaration of that subset: the public ledger must disclose each one, and
+// the per-RFC figures list each one as unmet.
+var auditVerdictsUnmet = map[string]bool{
+	VerdictWrong:         true,
+	VerdictUnimplemented: true,
+	VerdictPartial:       true,
+}
+
+// auditVerdictUnmet answers whether a recorded verdict says the requirement is
+// not met.
+func auditVerdictUnmet(verdict string) bool { return auditVerdictsUnmet[verdict] }
+
 // AuditVerdicts answers the closed vocabulary, sorted. The fixture pins it
 // by VALUE rather than by count, which is what kills a one-word mutation in a
 // set no output ever prints.

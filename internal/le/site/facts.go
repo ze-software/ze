@@ -189,7 +189,7 @@ type factsRepo struct {
 // they were extracted from, the MUST-level ones, and the MUST-level ones an
 // enrolled RFC makes `./le rfc check` gate.
 //
-// Proven, GatedImplemented, Implemented, Inspected and ProvenPercent are the
+// Proven, GatedImplemented, Implemented, NotWalked, Inspected and ProvenPercent are the
 // published proof share, and every one of them is a field of the ProvenShare
 // `internal/le/rfc.ProvenShareOf` returns. Nothing here computes a numerator or
 // a denominator of its own: the home page, /quality/health/ and
@@ -212,6 +212,8 @@ type factsRFC struct {
 	InspectedDisplay        string `json:"inspected_display"`
 	Must                    int    `json:"must"`
 	MustDisplay             string `json:"must_display"`
+	NotWalked               int    `json:"not_walked"`
+	NotWalkedDisplay        string `json:"not_walked_display"`
 	Proven                  int    `json:"proven"`
 	ProvenDisplay           string `json:"proven_display"`
 	ProvenPercent           string `json:"proven_percent"`
@@ -249,6 +251,20 @@ var liveSiteFacts = deriveSiteFacts
 // and a test held against the real one would move with every requirement
 // somebody extracts.
 var liveRFCLedger = rfc.Collect
+
+// liveStemFigures answers the verified-record figures of the RFCs in one
+// checkout, the figures the published proof share is summed from.
+//
+// It is a variable for the reason liveRFCLedger is: a synthetic checkout
+// carries no discrimination records or extraction sign-offs to derive them
+// from, so a test states the figures beside the ledger it states.
+var liveStemFigures = func(tree string, collected rfc.Collected) (map[string]rfc.StemFigures, error) {
+	input, err := rfc.NewRenderInput(tree, collected, nil, nil)
+	if err != nil {
+		return nil, err
+	}
+	return rfc.StemFiguresOf(&input)
+}
 
 // liveGitHubStars answers the star count the project's forge holds.
 //
@@ -495,10 +511,9 @@ func jsonInt(value any) (int, bool) {
 // fact, and two counters over one population are a future disagreement with
 // nothing to arbitrate it (ai/rules/principles.md).
 //
-// The carriers argument is nil because no field of a ProvenShare reads one:
-// rfc.CoverageRows takes them to decide NightlyOnly, which the share does not
-// count. All three surfaces pass nil for that reason, so none of them can
-// answer a different number from the other two.
+// The share is summed from rfc.StemFiguresOf, the verified-record figures, on
+// all three surfaces, so none of them can answer a different number from the
+// other two.
 func factsFromRFCLedger(repository string, facts *siteFacts) error {
 	collected, err := liveRFCLedger(repository)
 	if err != nil {
@@ -507,7 +522,11 @@ func factsFromRFCLedger(repository string, facts *siteFacts) error {
 	if len(collected.Requirements) == 0 {
 		return fmt.Errorf("the RFC ledger states no requirement, so the published RFC counts would be zero")
 	}
-	share, err := rfc.ProvenShareOf(collected.Metas, collected.Requirements, collected.Tags, nil)
+	figures, err := liveStemFigures(repository, collected)
+	if err != nil {
+		return err
+	}
+	share, err := rfc.ProvenShareOf(collected.Metas, figures)
 	if err != nil {
 		return err
 	}
@@ -524,6 +543,7 @@ func factsFromRFCLedger(repository string, facts *siteFacts) error {
 	facts.RFC.GatedMust = share.GatedInspected
 	facts.RFC.Inspected = share.Inspected
 	facts.RFC.Implemented = share.RFCs
+	facts.RFC.NotWalked = share.NotWalked
 	facts.RFC.GatedImplemented = share.Gated
 	facts.RFC.Proven = share.Proven
 	facts.RFC.ProvenPercent = share.Percent()
@@ -534,6 +554,7 @@ func factsFromRFCLedger(repository string, facts *siteFacts) error {
 	facts.RFC.ImplementedDisplay = groupThousands(facts.RFC.Implemented)
 	facts.RFC.InspectedDisplay = groupThousands(facts.RFC.Inspected)
 	facts.RFC.MustDisplay = groupThousands(facts.RFC.Must)
+	facts.RFC.NotWalkedDisplay = groupThousands(facts.RFC.NotWalked)
 	facts.RFC.ProvenDisplay = groupThousands(facts.RFC.Proven)
 	facts.RFC.RequirementsDisplay = groupThousands(facts.RFC.Requirements)
 	facts.RFC.SummariesDisplay = groupThousands(facts.RFC.Summaries)

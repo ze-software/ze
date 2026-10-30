@@ -19,8 +19,19 @@
 // three callers is not a test: the `.ci` driver
 // (internal/test/fixture/misc_fixture_runner_rfcledger.go) builds the tree at
 // run time.
+//
+// FixtureProof is the second half: what a walked, proven stem holds on disk,
+// so a test in another package can build one without spelling a sha.
 
 package rfc
+
+import (
+	"errors"
+	"os"
+	"path/filepath"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
+)
 
 // FixtureStem is the RFC the synthetic corpus declares. It is outside every
 // real registry on purpose, so a fixture tree can never be confused with the
@@ -88,4 +99,115 @@ func FixtureFiles() map[string]string {
 		evidenceBacklogRel:                 fixtureEvidenceBacklog,
 		".github/workflows/nightly.yml":    "on:\n  schedule:\n    - cron: '0 3 * * *'\n",
 	}
+}
+
+// FixtureProof gives stem, in the synthetic checkout at root, what a walked and
+// proven stem holds: an extraction sign-off and one discrimination record per
+// element of records, each written where the tree keeps it.
+//
+// mapped names, by inventory site id ("2:1" is the first normative site of
+// section 2 of the stem's RFC text), the requirement each site maps to; every
+// other site is excluded as not a requirement. Each record is sealed against
+// root as it stands, by the production minter, so the caller writes the
+// summary, the RFC text, the tagged units and the producers first.
+//
+// A sign-off the evaluator refuses, or a record that does not verify against
+// root, is an error naming why. A fixture that quietly counts nothing would let
+// the test that reads it pass for the wrong reason.
+//
+// Any stem but FixtureStem is refused before anything is written. The records
+// are sealed by the production minter without a red ever being observed, which
+// is honest only for the synthetic RFC no real registry holds: aimed at a real
+// stem, this would forge the proof `./le rfc record` exists to earn.
+func FixtureProof(root, stem string, mapped map[string]string, records ...DiscriminationRecord) error {
+	if stem != FixtureStem {
+		var tb textbuf.Buffer
+		return errors.New(tb.Str("FixtureProof refuses stem ").Str(stem).
+			Str(": it seals discrimination records without observing a red, so it may write them only for the synthetic ").
+			Str(FixtureStem).Str(". Build the fixture summary as ").Str(FixtureStem).
+			Str(", or record a real stem's proof with `./le rfc record`").String())
+	}
+	rel := summaryRelOf(stem)
+	body, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(rel))) // #nosec G304 -- path is inside the caller's fixture checkout
+	if err != nil {
+		return err
+	}
+	requirements, err := ParseSummaryText(string(body), stem, rel)
+	if err != nil {
+		return err
+	}
+	if err := fixtureSignOff(root, stem, mapped, requirements); err != nil {
+		return err
+	}
+	return fixtureRecords(root, stem, records)
+}
+
+// fixtureSignOff writes stem's sign-off and refuses one the evaluator does not
+// accept, with the evaluator's own violations.
+func fixtureSignOff(root, stem string, mapped map[string]string, requirements []Requirement) error {
+	deriver := NewDeriver(root)
+	inventory, err := deriver.Inventory(stem, gatedCounts(requirements)[stem])
+	if err != nil {
+		return err
+	}
+	if inventory == nil {
+		var tb textbuf.Buffer
+		return errors.New(tb.Str(stem).
+			Str(" has no RFC text in the fixture, so there is nothing to sign off").String())
+	}
+	artifact, err := marshalSelftestJSON(signOffArtifact(inventory, mapped))
+	if err != nil {
+		return err
+	}
+	if err := writeSelftestFiles(root, map[string]string{extractionRel + "/" + stem + jsonSuffix: artifact}); err != nil {
+		return err
+	}
+	signed, violations, err := evaluateExtractions(deriver, requirements)
+	if err != nil {
+		return err
+	}
+	if _, held := signed[stem]; held {
+		return nil
+	}
+	var tb textbuf.Buffer
+	tb.Str("the fixture sign-off for ").Str(stem).Str(" was refused")
+	for _, violation := range violations {
+		tb.Str("; ").Str(violation)
+	}
+	return errors.New(tb.String())
+}
+
+// fixtureRecords seals records against root, writes them, and refuses any the
+// tree does not then verify.
+func fixtureRecords(root, stem string, unsealed []DiscriminationRecord) error {
+	covers, err := tagCoversIn(root)
+	if err != nil {
+		return err
+	}
+	records, err := sealRecords(root, covers, unsealed)
+	if err != nil {
+		return err
+	}
+	files, err := discriminationFiles(stem, records)
+	if err != nil {
+		return err
+	}
+	if err := writeSelftestFiles(root, files); err != nil {
+		return err
+	}
+	verdicts, err := verifyDiscrimination(root, records, covers)
+	if err != nil {
+		return err
+	}
+	for position := range verdicts {
+		verdict := &verdicts[position]
+		if verdict.Verified() {
+			continue
+		}
+		var tb textbuf.Buffer
+		return errors.New(tb.Str("the fixture record for ").Str(verdict.Record.RID).Byte(' ').
+			Str(verdict.Record.Polarity).Str(" does not verify: ").Str(verdict.State).
+			Byte(' ').Str(verdict.Detail).String())
+	}
+	return nil
 }

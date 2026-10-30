@@ -38,7 +38,8 @@ func TestRollupMovesNeitherShareNorGatedCount(t *testing.T) {
 		}
 		bare = append(bare, requirement)
 	}
-	baseShare, err := ProvenShareOf(collected.Metas, bare, collected.Tags, nil)
+	walked, proven := realCorpusProofSets(t)
+	baseShare, err := shareOver(t, collected.Metas, bare, walked, proven)
 	if err != nil {
 		t.Fatalf("the share over the corpus without rollups: %v", err)
 	}
@@ -68,7 +69,7 @@ func TestRollupMovesNeitherShareNorGatedCount(t *testing.T) {
 		"the corpus plus one synthetic": append(slices.Clone(bare), synthetic),
 	} {
 		t.Run(name, func(t *testing.T) {
-			share, err := ProvenShareOf(collected.Metas, requirements, collected.Tags, nil)
+			share, err := shareOver(t, collected.Metas, requirements, walked, proven)
 			if err != nil {
 				t.Fatalf("the share: %v", err)
 			}

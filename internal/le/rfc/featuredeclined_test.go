@@ -164,8 +164,8 @@ func TestAFeatureDeclinedAnnotationCannotDisplaceAGap(t *testing.T) {
 // The obligation's condition is false, so nothing is owed and nothing is
 // proven: it belongs in the denominator both times and in the numerator neither
 // time. Annotating a row may not move the published percentage by a point,
-// which is what would happen if the kind reached CoverageRow.Both or the
-// single-polarity arm of ProvenShareOf.
+// which is what would happen if the kind's declared traits let a verified
+// record prove it. The annotated corpus carries a record on that row to show it does not.
 func TestAFeatureDeclinedRequirementIsAnnotatedAndNotProven(t *testing.T) {
 	metas := map[string]Meta{"rfc1": {Enrolment: enrolmentEnrolled, Implementation: implementationZe, Aggregate: "bgp-core", Row: true, Status: "Supported"}}
 	tags := []Tag{
@@ -200,11 +200,11 @@ func TestAFeatureDeclinedRequirementIsAnnotatedAndNotProven(t *testing.T) {
 		t.Errorf("Gated = %d, want 2: the annotation does not leave the population", row.Gated)
 	}
 
-	before, err := ProvenShareOf(metas, bare, tags, nil)
+	before, err := shareOver(t, metas, bare, map[string]bool{"rfc1": true}, map[string]bool{"RFC1-1-1": true})
 	if err != nil {
 		t.Fatalf("ProvenShareOf over the bare corpus: %v", err)
 	}
-	after, err := ProvenShareOf(metas, annotated, tags, nil)
+	after, err := shareOver(t, metas, annotated, map[string]bool{"rfc1": true}, map[string]bool{"RFC1-1-1": true, "RFC1-1-2": true})
 	if err != nil {
 		t.Fatalf("ProvenShareOf over the annotated corpus: %v", err)
 	}

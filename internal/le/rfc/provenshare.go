@@ -2,8 +2,9 @@
 // answer to "how much of what Ze implements is proven by test". Three surfaces
 // state that number, the site home page, /quality/health/ and
 // /quality/rfc-compliance/, and they state the same one because each reads this.
-// Related: coverage.go holds the per-RFC partition this sums; meta.go holds the
-// public row whose status decides which RFCs are counted at all.
+// Related: profilecoverage.go holds the per-RFC verified-record figures this
+// sums; meta.go holds the enrolment, implementation kind and public row that
+// decide which RFCs are counted at all.
 package rfc
 
 import (
@@ -22,18 +23,30 @@ import (
 // achievement, because "3,264 gated MUSTs" counts obligations JUDGED and is
 // read as obligations MET.
 type ProvenShare struct {
-	// Proven counts gated requirements carrying a passing tagged test: both
-	// polarities, or one polarity whose annotation records why the other side
-	// has no input to drive it.
+	// Proven counts gated requirements a recorded break proves: a
+	// discrimination record that still verifies against the tree, on a
+	// summary whose requirement list carries a valid extraction sign-off. It
+	// is the sum of StemFigures.Mandatory.Proven over the walked RFCs Ze
+	// implements; a tag alone, an annotation alone or a stale record proves
+	// nothing.
 	Proven int
-	// Gated counts every gated requirement of the RFCs Ze implements. A
-	// not-applicable requirement STAYS in this denominator, and so does a
-	// lower-layer one: that requirement is MET, by a layer under Ze, and it is
-	// not proven BY ZE, so it belongs in neither the numerator nor a smaller
-	// denominator. Annotating one may not move this share by a point. A
-	// {rollup} row is the one exception, and it is out of both: it carries no
-	// obligation of its own, so CoverageRows never counts it.
+	// Gated counts every gated requirement of the walked RFCs Ze implements.
+	// An unwalked RFC's rows are out of it: its list is unbounded, so a
+	// denominator holding it would measure the list, not the software
+	// (ai/rules/rfc-compliance.md). A not-applicable requirement STAYS in this denominator, and so
+	// does a lower-layer one: that requirement is MET, by a layer under Ze,
+	// and it is not proven BY ZE, so it belongs in neither the numerator nor a
+	// smaller denominator. Annotating one may not move this share by a point.
+	// A {rollup} row is the one exception, and it is out of both: it carries
+	// no obligation of its own.
 	Gated int
+	// NotWalked is how many of the RFCs Ze implements carry no valid
+	// extraction sign-off. They add nothing to Gated or Proven, exactly as a
+	// profile rollup sums its walked members and states how many are not
+	// walked (docs/contributing/rfc-conformance-gates.md, "Coverage
+	// figures"). Every surface that prints the share prints this count beside
+	// it, because the share bounds only the walked part.
+	NotWalked int
 	// RFCs is how many enrolled RFCs Ze implements, and Inspected is how many
 	// it has enrolled at all. GatedInspected is the obligation count across
 	// that wider set.
@@ -51,53 +64,61 @@ func (p ProvenShare) Percent() string {
 	return tb.Float(100*float64(p.Proven)/float64(p.Gated), 1).String()
 }
 
-// ProvenShareOf sums the proof standing over the RFCs Ze implements.
+// ProvenShareOf sums the proof standing over the RFCs Ze implements, from the
+// per-RFC figures StemFiguresOf answers.
 //
-// Two decisions are load-bearing, and both were the owner's on 2026-09-02.
+// What leaves the denominator is a whole RFC Implements says Ze does not
+// implement. A not-applicable REQUIREMENT stays in (owner, 2026-09-02): the
+// owner ruling of 2026-08-31 presumes `binds-another-role` wrong and calls a
+// requirement met through a lower layer MET and owing a test, so the excluded
+// set is the one least entitled to count in Ze's favor.
 //
-// What leaves the denominator is a whole RFC Ze does not implement, declared as
-// such by its own public row. A not-applicable REQUIREMENT stays in. Excluding
-// those was published until this date and it let the annotations raise the
-// score: the owner ruling of 2026-08-31 presumes `binds-another-role` wrong and
-// calls a requirement met through a lower layer MET and owing a test, so the
-// excluded set is the one least entitled to count in Ze's favor. Whole-RFC
-// scope is a decision a reader can check on the status page; a per-requirement
-// exclusion is 915 judgements a reader cannot.
+// The numerator is the verified-record figure and nothing else (owner,
+// 2026-10-30): a requirement counts as proven only when a recorded break
+// proved its test goes red. A single-polarity row counts only when its one
+// side carries such a record. An unwalked RFC adds to neither side and is
+// counted in NotWalked instead (rollupOf), so the share is a figure over
+// walked lists only and says how many RFCs it leaves out.
 //
-// The numerator counts a single-polarity requirement beside a both-polarity
-// one. Both carry a passing tagged test bound to the requirement id. Only the
-// second is one-sided, and its annotation states why no input exists to drive
-// the other side.
-//
-// An RFC must be enrolled to count either way. Requirement.Gated reads the
-// LEVEL, so an un-enrolled summary carrying MUST rows still yields a coverage
-// row, and counting it would put obligations no gate checks into a published
-// denominator.
-func ProvenShareOf(metas map[string]Meta, requirements []Requirement, tags []Tag,
-	carriers []Carrier,
-) (ProvenShare, error) {
-	singles := singlePolarityCounts(requirements)
-
+// An RFC must be enrolled to count either way, so obligations no gate checks
+// never reach a published denominator.
+func ProvenShareOf(metas map[string]Meta, figures map[string]StemFigures) (ProvenShare, error) {
 	var out ProvenShare
-	for _, row := range CoverageRows(requirements, tags, carriers) {
-		meta, held := metas[row.RFC]
-		if !held || !meta.Enrolled() {
+	var implemented []string
+	for stem := range metas {
+		meta := metas[stem]
+		if !meta.Enrolled() {
 			continue
+		}
+		one, held := figures[stem]
+		if !held {
+			var tb textbuf.Buffer
+			return ProvenShare{}, errors.New(tb.Str("rfc/short/").Str(stem).
+				Str(".md is enrolled but has no figure, so the published proof share would omit it: " +
+					"answer the figures with rfc.StemFiguresOf over the same corpus as the Meta tables").String())
 		}
 		out.Inspected++
-		out.GatedInspected += row.Gated
-		if !Implements(&meta) {
-			continue
+		out.GatedInspected += one.Mandatory.Total
+		if Implements(&meta) {
+			implemented = append(implemented, stem)
 		}
-		out.RFCs++
-		out.Gated += row.Gated
-		out.Proven += row.Both + singles[row.RFC]
 	}
+	// The documented rollup rule (docs/contributing/rfc-conformance-gates.md,
+	// "Coverage figures"): only walked members contribute rows, and the rest
+	// are counted. rollupOf is that rule, read here rather than restated.
+	rollup := rollupOf(figures, implemented)
+	out.RFCs = rollup.RFCs
+	out.NotWalked = rollup.NotWalked
+	out.Gated = rollup.Mandatory.Total
+	out.Proven = rollup.Mandatory.Proven
 	if out.Gated == 0 {
 		return ProvenShare{}, errors.New(
-			"no enrolled RFC declares a public row claiming support, so the published proof " +
-				"share would divide by zero: check that rfc/short/*.md still carry their " +
-				"`| Support status |` cells, and re-run `./le rfc update`")
+			"no walked, enrolled RFC with a public row and an Implementation of `ze` or `mixed` declares a " +
+				"gated requirement, so the published proof share would divide by zero: check that " +
+				"rfc/short/*.md still carry `| Enrolment | enrolled |`, `| Implementation | ze |` and " +
+				"`| Support | <aggregate> |` rows and their MUST-level requirements, that " +
+				"at least one carries a valid sign-off in rfc/extraction/<stem>.json (`./le rfc extraction create stem <stem>`), " +
+				"then re-run `./le rfc check`")
 	}
 	return out, nil
 }
@@ -105,43 +126,21 @@ func ProvenShareOf(metas map[string]Meta, requirements []Requirement, tags []Tag
 // Implements is the ONE definition of "an RFC Ze implements", and every
 // published population taken over that set reads it.
 //
-// Three things have to hold. The summary is ENROLLED, so a gate runs over its
-// obligations. It renders a public row, so it makes a claim at all. And that
-// row does not say Unsupported or Future, which are the two ways a row says Ze
-// does not implement the document.
+// Two things have to hold (owner, 2026-10-30). The summary is ENROLLED, which
+// already requires an Implementation kind whose obligations count against Ze's
+// own Go, `ze` or `mixed` (implementationCounts), so a gate runs over its
+// obligations. And it renders a public row. An enrolled RFC whose feature is
+// still to come counts at its real figure: the proof it lacks is what the
+// share is for, and availability is a feature-level fact (features/<id>.md
+// Scope), never a reason to leave this population.
 //
-// Holding Ze to the obligations of a document it does not implement measures a
-// decision rather than a defect, so those RFCs leave every share taken over
-// this set. The proof share here, the satisfaction buckets the RFC compliance
-// page partitions, and the home page card each call this rather than restating
+// The proof share here, the satisfaction buckets the RFC compliance page
+// partitions, and the home page card each call this rather than restating
 // it: a second spelling of the predicate is a future disagreement with nothing
 // to arbitrate it (ai/rules/principles.md).
 func Implements(meta *Meta) bool {
 	if !meta.Enrolled() {
 		return false
 	}
-	if !meta.HasRow() {
-		return false
-	}
-	return statusIsSupportClaim(meta.Status)
-}
-
-// singlePolarityCounts counts, for each RFC, the gated requirements whose
-// annotation records a passing test on one side and no input for the other.
-func singlePolarityCounts(requirements []Requirement) map[string]int {
-	out := map[string]int{}
-	for _, requirement := range requirements {
-		if !requirement.Gated() || requirement.Annotation == nil {
-			continue
-		}
-		traits, known := AnnotationTraitsOf(requirement.Annotation.Kind)
-		if !known {
-			continue
-		}
-		if !traits.SinglePolarity {
-			continue
-		}
-		out[requirement.RFC]++
-	}
-	return out
+	return meta.HasRow()
 }

@@ -253,7 +253,7 @@ func checkAuditDisclosure(requirements []Requirement, rows map[string]LedgerRow,
 			continue
 		}
 		value := verdictValue(verdict)
-		if value != VerdictWrong && value != VerdictUnimplemented && value != VerdictPartial {
+		if !auditVerdictUnmet(value) {
 			continue
 		}
 		seen[req.RID] = true

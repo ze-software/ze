@@ -1053,8 +1053,16 @@ count may accompany the list and never stands in for it.
 For a partial requirement, the proof block states that the records cover only
 scoped tag claims and give zero whole-requirement credit. The gate population
 is the gated MUSTs of enrolled RFCs; published satisfaction shares use the
-implemented RFCs within that population. Rollup rows belong to neither count.
+implemented RFCs within that population. The proof share counts only the
+walked ones among them, from verified discrimination records, and the page
+states how many implemented RFCs it leaves out as not walked. The homepage RFC
+card says the same: proven MUSTs of the walked RFCs, then the implemented RFC
+count with its not-walked part. The gated-binding partition still spans every
+implemented RFC, walked or not, so its total exceeds the share's denominator by
+the rows of the unwalked RFCs. Rollup rows belong to neither count.
 These figures come from the native RFC collector, not hand-maintained totals.
+<!-- source: internal/le/rfc/provenshare.go -- ProvenShareOf -->
+<!-- source: internal/le/site/homebody.go -- homeTemplate -->
 
 The input is `../gh-pages/data/rfc-requirements.json`, derived once per build by
 `publishRFCLedger` before any producer runs, in the way the plugin registry and

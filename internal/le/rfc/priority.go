@@ -80,16 +80,11 @@ func loadPriorityCorpus(tree string) (*priorityCorpus, error) {
 // caller that holds one (the site's ledger) reads the same figures without a
 // second pass over the tree.
 func priorityCorpusOf(in *RenderInput) (*priorityCorpus, error) {
-	signed, _, err := evaluateExtractions(in.Deriver, in.Requirements)
+	figures, err := StemFiguresOf(in)
 	if err != nil {
 		return nil, err
 	}
-	walked := make(map[string]bool, len(signed))
-	for stem := range signed {
-		walked[stem] = true
-	}
 	proven := provenRequirements(in.Discrimination)
-	figures := figuresByStem(in.Requirements, in.Stems, walked, proven)
 	return newPriorityCorpus(in.Graph, in.Profiles, in.Metas, in.Requirements, figures, proven), nil
 }
 

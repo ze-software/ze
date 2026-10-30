@@ -175,7 +175,8 @@ func TestPartialNeverMovesWholeProofNumerator(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	share, err := ProvenShareOf(collected.Metas, collected.Requirements, collected.Tags, nil)
+	walkedStems, provenRIDs := corpusProof(t, root, collected)
+	share, err := shareOver(t, collected.Metas, collected.Requirements, walkedStems, provenRIDs)
 	if err != nil {
 		t.Fatal(err)
 	}

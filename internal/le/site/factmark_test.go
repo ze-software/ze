@@ -262,7 +262,7 @@ func TestEverySiteWideValueIsPublishedInsideItsMarker(t *testing.T) {
 	assertMarkedValues(t, "index.html", readArtifact(t, home.Output, pageIndexFile),
 		[]byte(publishedFactsSnapshot), append([]string{"tests.unit_display", "tests.e2e_display", "tests.fuzz_display",
 			"interop.target_display", "rfc.proven_display", "rfc.gated_implemented_display", "rfc.proven_percent",
-			"rfc.implemented_display"}, homeCategoryKeys()...))
+			"rfc.implemented_display", "rfc.not_walked_display"}, homeCategoryKeys()...))
 
 	health := healthPaths(t)
 	if _, err := renderHealth(health); err != nil {

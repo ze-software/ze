@@ -2785,9 +2785,19 @@ func TestPartialProofPublicationsAgree(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	share, err := rfc.ProvenShareOf(collected.Metas, collected.Requirements, collected.Tags, render.Carriers)
-	if err != nil || share.Proven != 0 || share.Gated != 1 {
-		t.Fatalf("published partial gained whole credit: %+v, %v", share, err)
+	figures, err := rfc.StemFiguresOf(&render)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The fixture carries no extraction sign-off, so its RFC is not walked:
+	// its own figure still counts the row (walked: false), and the published
+	// share, which sums walked RFCs alone, refuses rather than publish a
+	// number over an unbounded list.
+	if one := figures["rfc9999"]; one.Walked || one.Mandatory.Proven != 0 || one.Mandatory.Total != 1 {
+		t.Fatalf("published partial gained whole credit: %+v", one)
+	}
+	if share, err := rfc.ProvenShareOf(collected.Metas, figures); err == nil {
+		t.Fatalf("a share over no walked RFC was published: %+v", share)
 	}
 	// Deliberately corrupt a render-only input: no successful gate is assumed.
 	render.Audits["rfc9999"] = rfc.Audit{Verdicts: map[string]any{rid: map[string]any{"verdict": rfc.VerdictEnforced}}}
@@ -2899,9 +2909,23 @@ func TestMissingSend(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	share, err := rfc.ProvenShareOf(collected.Metas, collected.Requirements, collected.Tags, nil)
-	if err != nil || share.Proven != 0 || share.Gated != 1 {
-		t.Fatalf("demonstration moved whole proof: %+v, %v", share, err)
+	render, err := rfc.NewRenderInput(root, collected, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	figures, err := rfc.StemFiguresOf(&render)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The fixture carries no extraction sign-off, so its RFC is not walked:
+	// its own figure still counts the row (walked: false), and the published
+	// share, which sums walked RFCs alone, refuses rather than publish a
+	// number over an unbounded list.
+	if one := figures["rfc9999"]; one.Walked || one.Mandatory.Proven != 0 || one.Mandatory.Total != 1 {
+		t.Fatalf("demonstration moved whole proof: %+v", one)
+	}
+	if share, err := rfc.ProvenShareOf(collected.Metas, figures); err == nil {
+		t.Fatalf("a share over no walked RFC was published: %+v", share)
 	}
 }
 

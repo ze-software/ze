@@ -227,8 +227,8 @@ const homeTemplate = `        <div class="site-home">
                             <span class="label">RFC MUSTs tested</span></strong
                         >
                         <ul>
-                            <li>{{ze:rfc.proven_display}} of {{ze:rfc.gated_implemented_display}} tracked MUSTs</li>
-                            <li>Across {{ze:rfc.implemented_display}} RFCs</li>
+                            <li>{{ze:rfc.proven_display}} of {{ze:rfc.gated_implemented_display}} MUSTs in walked RFCs</li>
+                            <li>Across {{ze:rfc.implemented_display}} RFCs, {{ze:rfc.not_walked_display}} not walked yet</li>
                             <li>Tests tied to requirements</li>
                         </ul>
                         <span class="proof-check concept-evidence">RFC requirement ledger.</span>

@@ -7,11 +7,7 @@ package rfc
 // PREVENTS: a profile the corpus cannot close, and an action registered with
 // no working body.
 
-import (
-	"testing"
-
-	lepath "github.com/ze-software/ze/internal/le/le/path"
-)
+import "testing"
 
 // TestRFCTreeOverRealCorpus loads the checkout once, walks every profile and
 // aggregate, then runs `rfc tree profile route-server` and `rfc next` through
@@ -19,11 +15,7 @@ import (
 // again, which is minutes under -race, so the refusal of an unknown profile
 // is held by the fixture test instead.
 func TestRFCTreeOverRealCorpus(t *testing.T) {
-	root, err := lepath.Root()
-	if err != nil {
-		t.Fatalf("resolve checkout: %v", err)
-	}
-	corpus, err := loadPriorityCorpus(root)
+	corpus, err := realPriorityCorpus()
 	if err != nil {
 		t.Fatalf("load the corpus: %v", err)
 	}

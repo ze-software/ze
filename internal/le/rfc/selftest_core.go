@@ -598,6 +598,13 @@ func selftestDiscriminationRecords(tree string) ([]DiscriminationRecord, error) 
 		Reason: escapeDeclaration, Producer: selftestCITablePath,
 	}}
 
+	return sealRecords(tree, covers, unsealed)
+}
+
+// sealRecords answers each of unsealed with its fingerprints minted against
+// tree, in order. The selftest and FixtureProof both seal through it, so a
+// fixture record is sealed exactly as the selftest's own records are.
+func sealRecords(tree string, covers map[Cover][]Tag, unsealed []DiscriminationRecord) ([]DiscriminationRecord, error) {
 	records := make([]DiscriminationRecord, 0, len(unsealed))
 	// Indexed rather than ranged by value: a record is 176 bytes.
 	for position := range unsealed {
@@ -616,6 +623,12 @@ func selftestDiscriminationRecords(tree string) ([]DiscriminationRecord, error) 
 // It renders through the writer's own renderer, so a fixture that no longer
 // matches the schema cannot exist: the two are one declaration.
 func selftestDiscriminationFiles(records []DiscriminationRecord) (map[string]string, error) {
+	return discriminationFiles(selftestStem, records)
+}
+
+// discriminationFiles renders records as stem's artifact files, one per
+// requirement, keyed by the path each lands at under the checkout root.
+func discriminationFiles(stem string, records []DiscriminationRecord) (map[string]string, error) {
 	byRID := map[string][]DiscriminationRecord{}
 	for index := range records {
 		byRID[records[index].RID] = append(byRID[records[index].RID], records[index])
@@ -626,7 +639,7 @@ func selftestDiscriminationFiles(records []DiscriminationRecord) (map[string]str
 		if err != nil {
 			return nil, err
 		}
-		out[discriminationRecordRel(selftestStem, rid)] = body
+		out[discriminationRecordRel(stem, rid)] = body
 	}
 	return out, nil
 }

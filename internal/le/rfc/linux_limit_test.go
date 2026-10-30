@@ -344,11 +344,11 @@ func TestALinuxLimitRequirementIsAnnotatedAndNotProven(t *testing.T) {
 	metas := map[string]Meta{req.RFC: {Enrolment: enrolmentEnrolled, Implementation: implementationZe, Aggregate: "bgp-core", Row: true, Status: "Partial"}}
 	before := *req
 	before.Annotation = &Annotation{Kind: AnnotationGap, Reason: "work remains"}
-	gap, err := ProvenShareOf(metas, []Requirement{before}, nil, nil)
+	gap, err := shareOver(t, metas, []Requirement{before}, map[string]bool{req.RFC: true}, map[string]bool{req.RID: true})
 	if err != nil {
 		t.Fatal(err)
 	}
-	limit, err := ProvenShareOf(metas, []Requirement{*req}, nil, nil)
+	limit, err := shareOver(t, metas, []Requirement{*req}, map[string]bool{req.RFC: true}, map[string]bool{req.RID: true})
 	if err != nil {
 		t.Fatal(err)
 	}

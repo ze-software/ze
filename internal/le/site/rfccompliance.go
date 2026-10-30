@@ -151,6 +151,7 @@ type rfcShare struct {
 	Proven         int    `json:"proven"`
 	Gated          int    `json:"gated"`
 	RFCs           int    `json:"rfcs"`
+	NotWalked      int    `json:"not-walked"`
 	Inspected      int    `json:"inspected"`
 	GatedInspected int    `json:"gated-inspected"`
 	Percent        string `json:"percent"`
@@ -519,11 +520,14 @@ func collectRFCCompliance(tree string) (rfcCompliance, error) {
 		return rfcCompliance{}, fmt.Errorf("the RFC gate cannot run: %s", report.CannotRun)
 	}
 
-	// The carriers argument is nil because no field of a ProvenShare reads
-	// one: rfc.CoverageRows takes them to decide NightlyOnly, which the share
-	// does not count. The home page and /quality/health/ pass nil for the same
-	// reason, so the three surfaces cannot answer different numbers.
-	share, err := rfc.ProvenShareOf(collected.Metas, collected.Requirements, collected.Tags, nil)
+	// The share is summed from the verified-record figures of the input this
+	// page already rendered. The home page and /quality/health/ read the same
+	// two functions, so the three surfaces cannot answer different numbers.
+	figures, err := rfc.StemFiguresOf(&input)
+	if err != nil {
+		return rfcCompliance{}, err
+	}
+	share, err := rfc.ProvenShareOf(collected.Metas, figures)
 	if err != nil {
 		return rfcCompliance{}, err
 	}
@@ -536,10 +540,9 @@ func collectRFCCompliance(tree string) (rfcCompliance, error) {
 	//
 	// implemented is the set the published SHARES are taken over: the gated
 	// MUSTs of the RFCs Ze implements, which is the population
-	// rfc.ProvenShareOf uses. Holding Ze to the obligations of a document its
-	// own public row says it does not implement measures a decision rather than
-	// a defect. rfc.Implements is the one definition of that set, read here
-	// rather than restated (ai/rules/principles.md).
+	// rfc.ProvenShareOf uses: enrolled, with a public row, and an
+	// Implementation of `ze` or `mixed`. rfc.Implements is the one definition
+	// of that set, read here rather than restated (ai/rules/principles.md).
 	//
 	// A {rollup} row is in NEITHER. It carries no obligation of its own, so
 	// rfc.CoverageRows leaves it out of every count, and a population here
@@ -573,7 +576,7 @@ func collectRFCCompliance(tree string) (rfcCompliance, error) {
 			Findings:   report.Findings,
 		},
 		Share: rfcShare{Proven: share.Proven, Gated: share.Gated, RFCs: share.RFCs,
-			Inspected: share.Inspected, GatedInspected: share.GatedInspected,
+			NotWalked: share.NotWalked, Inspected: share.Inspected, GatedInspected: share.GatedInspected,
 			Percent: share.Percent()},
 		Verify: rfcGateStages(),
 	}
@@ -1285,11 +1288,16 @@ func rfcBindingOf(snapshot *rfcCompliance) rfcBinding {
 	for _, bucket := range snapshot.Satisfaction {
 		counted[bucket.Key] = bucket.Count
 	}
-	split := rfcBinding{Gated: snapshot.Share.Gated, Unmapped: snapshot.Unmapped}
+	// The partition is over every gated MUST of the RFCs Ze implements, walked
+	// or not, so its total is its own parts summed. The proof share's
+	// denominator holds the walked RFCs alone (rfc.ProvenShareOf), and the two
+	// differ by exactly the rows of the RFCs no walk has bounded.
+	split := rfcBinding{Unmapped: snapshot.Unmapped}
 	for _, bucket := range rfcSatisfaction {
 		if bucket.Derived {
 			continue
 		}
+		split.Gated += counted[bucket.Key]
 		if bucket.Binds {
 			split.Obligations += counted[bucket.Key]
 			continue
@@ -1423,7 +1431,8 @@ func rfcProvenShareCard(share rfcShare) rfcCard {
 	// movement beside the other green cards.
 	return rfcCard{Label: rfcProvenShareLabel, Value: share.Percent + "%",
 		Count: groupThousands(share.Proven) + " of " + groupThousands(share.Gated) +
-			" gated MUSTs across the " + groupThousands(share.RFCs) + " RFCs Ze implements",
+			" gated MUSTs of the walked RFCs Ze implements; " + groupThousands(share.NotWalked) +
+			" of its " + groupThousands(share.RFCs) + " RFCs are not walked and are left out",
 		Note: "the share this site publishes everywhere: Tested both ways and One polarity " +
 			"plus reason added together, two of the five shares that partition the same " +
 			"denominator. That denominator keeps the {not-applicable} obligations, so " +

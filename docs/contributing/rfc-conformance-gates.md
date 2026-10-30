@@ -480,7 +480,7 @@ the same row partition as `ProvenShareOf` (the 2026-09-02 ruling), proven only
 by a verified record: `{rollup}` rows are out of both sides, and every other
 annotated row stays in the denominator. `{single-polarity}` is the one
 annotation a row can be proven under, and only by a verifying record on its
-one side; `ProvenShareOf` credits such a row from its annotation alone. A `{not-applicable}`,
+one side. A `{not-applicable}`,
 `{lower-layer}`, `{feature-declined}` or `{linux-limit}` row is never proven by Ze,
 whatever records its tags carry, so annotating a row cannot raise its figure. A `{gap}`
 or `{partial}` row stays in and is never proven either, because the summary
@@ -517,7 +517,40 @@ The same walked-only rule applies to ceilings and per-kind exclusion counts.
 Rollups sum counts before dividing, never average RFC percentages. An unwalked
 RFC publishes neither proof nor ceiling measurements; its raw JSON counts are
 retained under the existing `walked: false` convention.
-<!-- source: internal/le/rfc/profilecoverage.go -- figuresByStem, rowCounts, rollupOf, Rollup.mandatoryComplete -->
+
+Beside the two figures, each RFC carries two derived facts (`StemFigures`).
+`MandatoryByKind` counts its proven mandatory rows by the strongest evidence
+kind among the tags covering each row: interop, then functional, then editor,
+then unit (`evidenceStrengthOrder`, `carriers.go`). Every proven mandatory row
+lands in one kind, so the counts sum to the mandatory proven count, and a row
+whose tags no carrier claims lands under `unknown` rather than leaving the sum
+short. A gap demonstration tag is no evidence of proof and is skipped. `Unmet`
+lists the ids of the owed rows, at every level, that the summary or the audit
+says are unmet: an annotation whose declared traits say unmet (`{gap}`,
+`{partial}`, `{linux-limit}`), or a recorded audit verdict of `wrong`,
+`unimplemented` or `partial` (`auditVerdictUnmet`, the same set the ledger must
+disclose). The list is the summary's own disclosure, so an unwalked RFC lists
+it too. `StemFiguresOf` derives all of it from one rendered corpus, and every
+surface that counts proof reads it.
+
+The published proof share (`ProvenShareOf`, `internal/le/rfc/provenshare.go`)
+sums these figures over the RFCs Ze implements (`Implements`): enrolled, which
+already requires an Implementation of `ze` or `mixed`, and rendering a public
+row. An enrolled RFC whose feature is still to come counts at its real figure
+(owner, 2026-10-30). The numerator is the verified-record figure alone. The
+share is a rollup over that set and follows the rollup rule above, through
+`rollupOf` itself: only walked RFCs add to the numerator and the denominator,
+and the share states how many RFCs it leaves out (`NotWalked`). An unwalked
+list is unbounded, so a denominator holding its rows would measure the list,
+not the software. Every surface that prints the share prints that count beside
+it: the `/quality/health/` proof-density detail, the home page card
+(`rfc.not_walked_display` in the site facts) and the headline card of the RFC
+compliance page. The satisfaction buckets on that page still partition every
+gated MUST of the RFCs Ze implements, walked or not, so their total is their
+own sum, and it exceeds the share's denominator by the rows of the unwalked
+RFCs.
+<!-- source: internal/le/rfc/profilecoverage.go -- figuresByStem, rowCounts, rollupOf, Rollup.mandatoryComplete, StemFiguresOf, figureEvidence -->
+<!-- source: internal/le/rfc/provenshare.go -- ProvenShareOf, Implements -->
 
 ### One declaration for annotation meaning
 

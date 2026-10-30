@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling |
 | Priority | P2 |
 | Release reason | Truthful release support claims: the RFC ledger's hand-written Support status mixes availability with proof, so it under- and over-claims. |
 | RFC gaps | - |
 | Depends | - |
-| Phase | - |
+| Phase | 1/6 |
 | Handoff | - |
 | Updated | 2026-10-30 |
 
@@ -128,8 +128,8 @@ decision.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Out-of-scope stems (Enrolment `out-of-scope`, Status Future) need no new annotations: they leave every count by enrolment, so deleting Status loses no counted disclosure | `meta.Enrolled()`; rfc2868, rfc6514, rfc1570 read `Enrolment out-of-scope` | eight Future summaries would publish unannotated MUSTs as owed | grep Enrolment of every Future/Unsupported stem | unvalidated |
-| A-2 | No gh-pages page reads `public-status`, `status-counts`, `supported-with-remaining` or `top-rfcs[].status` | research agent grep of `../gh-pages` and `website/` | a live page breaks on the JSON change | re-grep at implementation | unvalidated |
+| A-1 | Out-of-scope stems (Enrolment `out-of-scope`, Status Future) need no new annotations: they leave every count by enrolment, so deleting Status loses no counted disclosure | `meta.Enrolled()`; rfc2868, rfc6514, rfc1570 read `Enrolment out-of-scope` | eight Future summaries would publish unannotated MUSTs as owed | grep Enrolment of every Future/Unsupported stem | confirmed 2026-10-30: 13 are out-of-scope, 5 blocked, 7 enrolled (the owner-approved population change), rfc9582 enrolled third-party |
+| A-2 | No gh-pages page reads `public-status`, `status-counts`, `supported-with-remaining` or `top-rfcs[].status` | research agent grep of `../gh-pages` and `website/` | a live page breaks on the JSON change | re-grep at implementation | confirmed 2026-10-30: no file outside `../gh-pages/data/` names them |
 | A-4 | Unannotated, untagged MUST rows already read as unproven in the verified-record figure, so only missing rows and tagged-but-partly-unmet rows publish false proof | `profilecoverage.go::figuresByStem` counts only verified records | the figure could over-claim on another shape | AC-6 and a fixture with an untagged row | unvalidated |
 | A-3 | About 50 Partial/Experimental stems with zero unmet rows say "partial" for feature or evidence reasons, not for a missed obligation | audit class E | a stem silently reads 100% for an obligation nobody extracted | extraction sign-off state of each such stem | unvalidated |
 

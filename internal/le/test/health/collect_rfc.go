@@ -205,13 +205,12 @@ func rfcMetrics(t *tree, collected rfc.Collected, floors qualityFloors) (Metric,
 
 	// The published share is derived LAST, after the two guards above have
 	// judged the corpus it is taken over. Taken first, it refused an empty
-	// enrolled population on its own terms -- "no enrolled RFC declares a
-	// public row claiming support" -- and that answer names a missing `|
-	// Support status |` cell for a corpus whose real fault is that it carries
-	// no enrolled RFC at all. A guard sitting behind another guard's message
+	// enrolled population on its own terms, with an answer about public rows
+	// and implementation kinds for a corpus whose real fault is that it
+	// carries no enrolled RFC at all. A guard sitting behind another guard's message
 	// cannot be reached, and cannot be driven by a case either
 	// (ai/rules/evidence.md).
-	share, err := provenShare(collected)
+	share, err := provenShare(t.root, collected)
 	if err != nil {
 		return Metric{}, Metric{}, err
 	}
@@ -226,12 +225,21 @@ func rfcMetrics(t *tree, collected rfc.Collected, floors qualityFloors) (Metric,
 
 // provenShare answers the published proof share over one collected corpus.
 //
-// The carriers argument is nil because no field of a ProvenShare reads one:
-// rfc.CoverageRows takes them to decide NightlyOnly, which the share does not
-// count. The site's home page and its RFC compliance report pass nil for the
-// same reason, so the three surfaces cannot answer different numbers.
-func provenShare(collected rfc.Collected) (rfc.ProvenShare, error) {
-	return rfc.ProvenShareOf(collected.Metas, collected.Requirements, collected.Tags, nil)
+// The share is summed from rfc.StemFiguresOf, the verified-record figures
+// `./le rfc tree` prints, so a row counts as proven only where a recorded
+// break still verifies against this tree. The site's home page and its RFC
+// compliance report read the same two functions, so the three surfaces cannot
+// answer different numbers.
+func provenShare(root string, collected rfc.Collected) (rfc.ProvenShare, error) {
+	input, err := rfc.NewRenderInput(root, collected, nil, nil)
+	if err != nil {
+		return rfc.ProvenShare{}, err
+	}
+	figures, err := rfc.StemFiguresOf(&input)
+	if err != nil {
+		return rfc.ProvenShare{}, err
+	}
+	return rfc.ProvenShareOf(collected.Metas, figures)
 }
 
 // modelRows answers one coverage row per RFC from the requirement model.
@@ -418,10 +426,11 @@ func densityMetric(rows, unproven []coverageRow, kinds annotationCounts, density
 	var tb textbuf.Buffer
 	detail := tb.Str(share.Percent()).
 		Str("% of the ").Int(int64(share.Gated)).
-		Str(" gated MUSTs the ").Int(int64(share.RFCs)).
-		Str(" RFCs ze implements carry are proven by a tagged test: both polarities, or one " +
-			"polarity whose annotation records that no input drives the other side. The gate " +
-			"holds a wider set -- ").Int(int64(share.GatedInspected)).
+		Str(" gated MUSTs of the walked RFCs ze implements are proven by a recorded break: a " +
+			"discrimination record that still verifies against this tree. ").
+		Int(int64(share.NotWalked)).Str(" of the ").Int(int64(share.RFCs)).
+		Str(" RFCs ze implements are not walked yet: their requirement lists are unbounded, so " +
+			"they are left out of both counts rather than measured. The gate holds a wider set -- ").Int(int64(share.GatedInspected)).
 		Str(" gated MUSTs across ").Int(int64(share.Inspected)).
 		Str(" enrolled RFCs -- and of the ").Int(int64(gated - both)).
 		Str(" of those not proven in both polarities: ").
@@ -489,8 +498,9 @@ func densityMetric(rows, unproven []coverageRow, kinds annotationCounts, density
 		Value:    value,
 		Detail:   detail,
 		Action: "Write a test for a {gap} requirement, or for one carrying no test and no " +
-			"annotation. A single-polarity requirement is already counted as proven, and " +
-			"not-applicable needs no test.",
+			"annotation, then record its break with `./le rfc record`: a requirement counts as " +
+			"proven only when a discrimination record still verifies on a walked summary. " +
+			"Not-applicable needs no test.",
 		Data: data,
 	}
 }

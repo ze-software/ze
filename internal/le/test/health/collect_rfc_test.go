@@ -126,7 +126,8 @@ func TestPartialHealthExplainsScopedEvidence(t *testing.T) {
 				".github/workflows/fixture.yml": "name: fixture\non: push\njobs: {}\n",
 				summaryPath:                     summary,
 				rfc.FixtureAggregateRel:         rfc.FixtureAggregateProfile,
-				"test/plugin/widget.ci":         "# RFC requirement: RFC9999-2-1 positive -- receipt accepts zero\n# RFC requirement: RFC9999-2-1 negative -- receipt ignores nonzero\n",
+				"rfc/full/rfc9999.txt":          "Test RFC 9999\n\n2.  Widgets\n\nA widget MUST be zero when sent and ignored on receipt.\n",
+				"test/plugin/widget.ci":         "# RFC requirement: RFC9999-2-1 positive -- receipt accepts zero\n# RFC requirement: RFC9999-2-1 negative -- receipt ignores nonzero\nexpect=stdout:contains=OK\n",
 				"internal/sample/widget.go":     "package sample\n\nfunc SendWidget(n int) int { return n }\n",
 			} {
 				path := filepath.Join(root, filepath.FromSlash(rel))
@@ -136,6 +137,17 @@ func TestPartialHealthExplainsScopedEvidence(t *testing.T) {
 				if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
 					t.Fatal(err)
 				}
+			}
+			// The stem is walked and the pair is recorded, so the whole row is
+			// proven and the partial one is not: the scope alone moves the figure.
+			var records []rfc.DiscriminationRecord
+			for _, polarity := range []string{rfc.PolarityPositive, rfc.PolarityNegative} {
+				records = append(records, rfc.DiscriminationRecord{RID: "RFC9999-2-1", Polarity: polarity,
+					Unit: "test/plugin/widget.ci", Route: rfc.RouteRevert, Producer: "internal/sample/widget.go::SendWidget",
+					Break: "return n -> return 0", Citation: "expect=stdout:contains=OK"})
+			}
+			if err := rfc.FixtureProof(root, "rfc9999", map[string]string{"2:1": "RFC9999-2-1"}, records...); err != nil {
+				t.Fatal(err)
 			}
 			tree := newTree(root)
 			tree.tracked = map[string]bool{summaryPath: true}

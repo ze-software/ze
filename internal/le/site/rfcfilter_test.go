@@ -116,6 +116,10 @@ func TestTheOverviewSumsTheCeilingTheRollupSums(t *testing.T) {
 
 // Publication reads authored annotations through Collect and NewRenderInput;
 // none except single-polarity can turn the same tagged row into public credit.
+// The stem is walked and both gated rows carry verified records, so the only
+// thing that differs between subtests is the annotation on RFC9999-2-1: the
+// pair on RFC9999-2-2 is whole credit, and RFC9999-2-1 earns it only when
+// its annotation is single-polarity.
 func TestNoAnnotationExceptSinglePolarityMovesThePublishedShare(t *testing.T) {
 	forms := map[string]string{
 		rfc.AnnotationGap:             "{gap: native sending absent}",
@@ -147,9 +151,27 @@ func TestNoAnnotationExceptSinglePolarityMovesThePublishedShare(t *testing.T) {
 			summary += "- [ ] [RFC9999-2-2] [MUST] A receiver MUST accept a valid widget. (§2)\n" +
 				"- [ ] [RFC9999-2-3] [MAY] A widget MUST be zero when sent and ignored on receipt. (§2) " + marker + "\n"
 			writePartialPublicationFile(t, root, "rfc/short/rfc9999.md", strings.ReplaceAll(summary, marker, form))
+			writePartialPublicationFile(t, root, "rfc/full/rfc9999.txt", "Test RFC 9999\n\n2.  Widgets\n\n"+
+				"A widget MUST be zero when sent and ignored on receipt.\nA receiver MUST accept a valid widget.\n")
 			writePartialPublicationFile(t, root, "test/plugin/pair.ci",
 				"# RFC requirement: RFC9999-2-2 positive -- accepts valid widget\n"+
 					"# RFC requirement: RFC9999-2-2 negative -- refuses invalid widget\nexpect=stdout:contains=OK\n")
+			// Every gated row carries a verified record in both polarities, the
+			// annotated one included, so a kind that granted credit for a record
+			// would show here: only single-polarity may.
+			var records []rfc.DiscriminationRecord
+			for _, unit := range []struct{ rid, ci string }{
+				{"RFC9999-2-1", "test/plugin/widget.ci"}, {"RFC9999-2-2", "test/plugin/pair.ci"},
+			} {
+				for _, polarity := range []string{rfc.PolarityPositive, rfc.PolarityNegative} {
+					records = append(records, rfc.DiscriminationRecord{RID: unit.rid, Polarity: polarity,
+						Unit: unit.ci, Route: rfc.RouteRevert, Producer: "internal/sample/widget.go::SendWidget",
+						Break: "return count -> return 0", Citation: "expect=stdout:contains=OK"})
+				}
+			}
+			if err := rfc.FixtureProof(root, "rfc9999", map[string]string{"2:1": "RFC9999-2-1", "2:2": "RFC9999-2-2"}, records...); err != nil {
+				t.Fatal(err)
+			}
 			paths := Paths{Repository: root, Output: t.TempDir()}
 			if err := publishRFCLedger(paths); err != nil {
 				t.Fatal(err)
@@ -173,13 +195,25 @@ func TestNoAnnotationExceptSinglePolarityMovesThePublishedShare(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			share, err := rfc.ProvenShareOf(collected.Metas, collected.Requirements, collected.Tags, nil)
+			render, err := rfc.NewRenderInput(root, collected, nil, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			figures, err := rfc.StemFiguresOf(&render)
 			if err != nil {
 				t.Fatal(err)
 			}
 			want := 1
 			if traits.SinglePolarity {
 				want = 2
+			}
+			figure := figures["rfc9999"]
+			if !figure.Walked || figure.Mandatory.Proven != want || figure.Mandatory.Total != 2 {
+				t.Fatalf("annotation changed the stem figure: %+v", figure)
+			}
+			share, err := rfc.ProvenShareOf(collected.Metas, figures)
+			if err != nil {
+				t.Fatal(err)
 			}
 			if share.Proven != want || share.Gated != 2 {
 				t.Fatalf("annotation changed public share: %+v", share)
@@ -188,8 +222,8 @@ func TestNoAnnotationExceptSinglePolarityMovesThePublishedShare(t *testing.T) {
 				t.Fatalf("published graph lost the measured RFC: %+v", ledger.Graph)
 			}
 			for _, row := range ledger.Graph.Nodes {
-				if row.MandatoryProven != 0 || row.MandatoryTotal != 2 || row.OptionalProven != 0 || row.OptionalTotal != 1 {
-					t.Fatalf("unrecorded tags changed figure: %+v", row)
+				if row.MandatoryProven != want || row.MandatoryTotal != 2 || row.OptionalProven != 0 || row.OptionalTotal != 1 {
+					t.Fatalf("annotation changed the published figure: %+v", row)
 				}
 			}
 		})

@@ -14,6 +14,8 @@
 package rfc
 
 import (
+	"slices"
+
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -95,6 +97,19 @@ type StemFigures struct {
 	Walked    bool
 	Mandatory Figure
 	Optional  Figure
+	// MandatoryByKind counts the proven mandatory rows by the strongest
+	// evidence kind among the tags covering each one (evidenceStrengthOrder,
+	// carriers.go). Every proven mandatory row lands in exactly one kind, so
+	// the counts sum to Mandatory.Proven; a proven row whose tags reach no
+	// carrier lands under kindUnknown, the label evidenceLabel gives such a
+	// path, rather than leaving the sum short in silence.
+	MandatoryByKind map[string]int
+	// Unmet is the sorted ids of the owed rows the summary or the audit says
+	// are unmet, at every level: an annotation whose declared traits say Unmet
+	// (`{gap}`, `{partial}`, `{linux-limit}`), or a recorded audit verdict
+	// auditVerdictUnmet names. It is listed whether or not the summary is
+	// walked, because it is the summary's own disclosure, not a measurement.
+	Unmet []string
 }
 
 // notWalked is the cell an unwalked RFC renders in place of a figure.
@@ -114,19 +129,96 @@ func (s StemFigures) cell(figure Figure) string {
 	return figure.String()
 }
 
+// StemFiguresOf answers both figures, the evidence kinds and the unmet ids of
+// every summary in one rendered corpus. It is the ONE derivation of per-RFC
+// proof: `./le rfc tree`, the published proof share and the pages each read
+// it, so no surface counts "proven" its own way.
+//
+// The population is every summary file and every declared Meta, so a Meta
+// whose stem lists no file still answers rather than going missing.
+func StemFiguresOf(in *RenderInput) (map[string]StemFigures, error) {
+	signed, _, err := evaluateExtractions(in.Deriver, in.Requirements)
+	if err != nil {
+		return nil, err
+	}
+	walked := make(map[string]bool, len(signed))
+	for stem := range signed {
+		walked[stem] = true
+	}
+	stems := make(map[string]bool, len(in.Stems)+len(in.Metas))
+	for stem := range in.Stems {
+		stems[stem] = true
+	}
+	for stem := range in.Metas {
+		stems[stem] = true
+	}
+	evidence := figureEvidence{tags: tagsByRID(in.Tags), carriers: in.Carriers, audits: in.Audits}
+	return figuresByStem(in.Requirements, stems, walked, provenRequirements(in.Discrimination), evidence), nil
+}
+
+// figureEvidence is what the figures read beside the proof set: the tags that
+// say which kind of test covers a row, the carriers that classify those tags,
+// and the audit verdicts that can name a row unmet.
+type figureEvidence struct {
+	tags     map[string][]Tag
+	carriers []Carrier
+	audits   map[string]Audit
+}
+
+// strongestKind answers the strongest evidence kind among the tags covering
+// one requirement, and kindUnknown when none reaches a carrier.
+//
+// A gap tag is skipped: it demonstrates the obligation is unmet, so it is no
+// evidence of proof.
+func (e figureEvidence) strongestKind(rid string) string {
+	best, bestAt := kindUnknown, len(evidenceStrengthOrder)
+	for _, tag := range e.tags[rid] {
+		if tag.Gap {
+			continue
+		}
+		carrier, held := CarrierFor(tag.File, e.carriers)
+		if !held {
+			continue
+		}
+		at := indexOf(evidenceStrengthOrder, carrier.Kind)
+		if at < 0 {
+			continue
+		}
+		if at < bestAt {
+			best, bestAt = carrier.Kind, at
+		}
+	}
+	return best
+}
+
+// unmet answers whether the summary or the audit says this row is not met:
+// its annotation's declared traits say Unmet, or its recorded audit verdict is
+// one auditVerdictUnmet names.
+func (e figureEvidence) unmet(requirement *Requirement) bool {
+	if requirement.Annotation != nil {
+		traits, known := AnnotationTraitsOf(requirement.Annotation.Kind)
+		if known && traits.Unmet {
+			return true
+		}
+	}
+	verdict, held := e.audits[requirement.RFC].Verdict(requirement.RID)
+	return held && auditVerdictUnmet(verdictValue(verdict))
+}
+
 // figuresByStem answers both figures for every stem.
 //
 // stems is every summary; a stem with no requirement row still answers, with
 // zero totals. walked is the stems carrying a valid extraction sign-off.
-// proven is provenRequirements over the tree's verdicts.
+// proven is provenRequirements over the tree's verdicts. evidence classifies
+// each proven mandatory row by kind and names the unmet rows.
 //
 // Which rows count, by annotation, is the same row partition as ProvenShareOf
 // (provenshare.go, owner ruling 2026-09-02), proven only by a verified record:
 //   - `{rollup}` is out of both sides: it carries no obligation of its own.
 //   - `{single-polarity}` is the one annotation that can be proven: its
 //     annotation records why the other side has no input, and the row is
-//     proven only when a verified record proves its one side. ProvenShareOf
-//     credits such a row from its annotation alone; these figures do not.
+//     proven only when a verified record proves its one side, here and in
+//     ProvenShareOf, which sums these figures.
 //   - `{not-applicable}`, `{lower-layer}`, `{feature-declined}` and
 //     `{linux-limit}` stay in the denominator and are never proven by Ze,
 //     whatever records their tags carry: annotating a row may not raise its figure.
@@ -136,11 +228,14 @@ func (s StemFigures) cell(figure Figure) string {
 //     partial row that is met, is not the requirement met. This is what
 //     holds a requirement only unreached code meets at 0% (owner, 2026-10-25:
 //     the IKE virtual-IP pool, `RFC3948-5.1-1`).
-func figuresByStem(requirements []Requirement, stems, walked, proven map[string]bool) map[string]StemFigures {
+func figuresByStem(requirements []Requirement, stems, walked, proven map[string]bool,
+	evidence figureEvidence,
+) map[string]StemFigures {
 	out := make(map[string]StemFigures, len(stems))
 	for stem := range stems {
 		out[stem] = StemFigures{Stem: stem, Walked: walked[stem]}
 	}
+	listed := map[string]bool{}
 	for index := range requirements {
 		requirement := &requirements[index]
 		figures, held := out[requirement.RFC]
@@ -151,14 +246,32 @@ func figuresByStem(requirements []Requirement, stems, walked, proven map[string]
 		if !owed {
 			continue
 		}
+		if evidence.unmet(requirement) && !listed[requirement.RID] {
+			listed[requirement.RID] = true
+			figures.Unmet = append(figures.Unmet, requirement.RID)
+		}
 		if requirement.Gated() {
 			figures.Mandatory.count(requirement, met)
+			if met {
+				figures.countKind(evidence.strongestKind(requirement.RID))
+			}
 		} else {
 			figures.Optional.count(requirement, met)
 		}
 		out[requirement.RFC] = figures
 	}
+	for stem := range out {
+		slices.Sort(out[stem].Unmet)
+	}
 	return out
+}
+
+// countKind adds one proven mandatory row under its evidence kind.
+func (s *StemFigures) countKind(kind string) {
+	if s.MandatoryByKind == nil {
+		s.MandatoryByKind = make(map[string]int)
+	}
+	s.MandatoryByKind[kind]++
 }
 
 // count adds one owed row. Only declared ceiling exclusions remove attainable

@@ -15,6 +15,7 @@ package rfc
 import (
 	"encoding/json"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -66,7 +67,7 @@ func TestCoverageMandatoryOptional(t *testing.T) {
 	requirements, verdicts := coverageFixture()
 	stems := map[string]bool{"rfc1": true, "rfc2": true, "rfc3": true}
 	walked := map[string]bool{"rfc1": true, "rfc3": true}
-	figures := figuresByStem(requirements, stems, walked, provenRequirements(verdicts))
+	figures := figuresByStem(requirements, stems, walked, provenRequirements(verdicts), figureEvidence{})
 
 	one := figures["rfc1"]
 	if !reflect.DeepEqual(one.Mandatory, Figure{Proven: 2, Total: 9, Attainable: 7,
@@ -171,10 +172,10 @@ func TestALinuxLimitLowersTheCeilingAndNotTheFigure(t *testing.T) {
 	}
 	stems := map[string]bool{"rfc1": true}
 	proven := map[string]bool{"RFC1-1-1": true, "RFC1-1-2": true, "RFC1-2-1": true, "RFC1-2-2": true}
-	before := figuresByStem(requirements, stems, stems, proven)["rfc1"]
+	before := figuresByStem(requirements, stems, stems, proven, figureEvidence{})["rfc1"]
 	requirements[1].Annotation = &Annotation{Kind: AnnotationLinuxLimit, LimitID: "LL-FIXTURE"}
 	requirements[3].Annotation = &Annotation{Kind: AnnotationLinuxLimit, LimitID: "LL-FIXTURE"}
-	figures := figuresByStem(requirements, stems, stems, proven)
+	figures := figuresByStem(requirements, stems, stems, proven, figureEvidence{})
 	after := figures["rfc1"]
 	for _, pair := range [][2]Figure{{before.Mandatory, after.Mandatory}, {before.Optional, after.Optional}} {
 		if pair[0].Proven != 1 || pair[0].Total != 2 || pair[1].Proven != 1 || pair[1].Total != 2 {
@@ -234,7 +235,7 @@ func TestCeilingPartitionsEveryAnnotation(t *testing.T) {
 				req.Annotation = &Annotation{Kind: kind}
 			}
 			stems := map[string]bool{"rfc1": true}
-			figure := figuresByStem([]Requirement{req}, stems, stems, map[string]bool{req.RID: true})["rfc1"].Mandatory
+			figure := figuresByStem([]Requirement{req}, stems, stems, map[string]bool{req.RID: true}, figureEvidence{})["rfc1"].Mandatory
 			total, attainable, proven := 1, 1, 0
 			if kind == AnnotationRollup {
 				total, attainable = 0, 0
@@ -278,7 +279,7 @@ func TestTheRollupCeilingSumsWalkedMembersOnly(t *testing.T) {
 	}
 	stems := map[string]bool{"rfc1": true, "rfc2": true, "rfc3": true, "rfc4": true}
 	walked := map[string]bool{"rfc1": true, "rfc2": true, "rfc4": true}
-	figures := figuresByStem(requirements, stems, walked, nil)
+	figures := figuresByStem(requirements, stems, walked, nil, figureEvidence{})
 	want := Rollup{RFCs: 4, NotWalked: 1,
 		Mandatory: Figure{Total: 6, Attainable: 2, Excluded: map[string]int{
 			AnnotationLinuxLimit: 1, AnnotationLowerLayer: 1, AnnotationFeatureDeclined: 1, AnnotationNotApplicable: 1}},
@@ -392,5 +393,113 @@ func TestCeilingTextSeparatesExclusions(t *testing.T) {
 	}
 	if !strings.Contains(text, "ceiling mandatory not walked, optional not walked") {
 		t.Errorf("unwalked ceiling state missing: %s", text)
+	}
+}
+
+// TestStemFiguresCountProvenByEvidenceKind checks that each proven mandatory
+// row lands under the STRONGEST kind of the tags covering it (interop >
+// functional > editor > unit), that an unproven row lands nowhere, and that
+// the kinds sum to the proven count.
+//
+// The method gives one row a unit tag and an interop tag, listed unit first,
+// so a version that took the first tag, or ranked by the reading order
+// carrierKindOrder declares, answers unit. A proven row whose only tag no
+// carrier claims must still be counted, under kindUnknown, or the sum falls
+// short in silence.
+func TestStemFiguresCountProvenByEvidenceKind(t *testing.T) {
+	carriers := []Carrier{
+		{Name: "unit", Kind: kindUnit, Tier: tierVerify, Prefix: "internal/component/", Suffix: "_test.go"},
+		{Name: "functional", Kind: kindFunctional, Tier: tierVerify, Prefix: "test/plugin/", Suffix: ciSuffix},
+		{Name: "editor", Kind: kindEditor, Tier: tierVerify, Prefix: "test/editor/", Suffix: etSuffix},
+		{Name: "interop", Kind: kindInterop, Tier: tierNightly, Prefix: "test/interop/", Suffix: ciSuffix},
+	}
+	requirements := []Requirement{
+		{RFC: "rfc1", RID: "RFC1-1-1", Level: levelMust},   // unit and interop: interop
+		{RFC: "rfc1", RID: "RFC1-1-2", Level: levelMust},   // editor and functional: functional
+		{RFC: "rfc1", RID: "RFC1-1-3", Level: levelMust},   // editor alone
+		{RFC: "rfc1", RID: "RFC1-1-4", Level: levelMust},   // unit alone
+		{RFC: "rfc1", RID: "RFC1-1-5", Level: levelMust},   // no carrier claims its tag
+		{RFC: "rfc1", RID: "RFC1-1-6", Level: levelMust},   // interop tag, no record: not proven
+		{RFC: "rfc1", RID: "RFC1-1-7", Level: levelShould}, // optional: never in the mandatory kinds
+	}
+	tags := []Tag{
+		{RID: "RFC1-1-1", File: "internal/component/a/a_test.go"},
+		{RID: "RFC1-1-1", File: "test/interop/a.ci"},
+		{RID: "RFC1-1-2", File: "test/editor/b.et"},
+		{RID: "RFC1-1-2", File: "test/plugin/b.ci"},
+		{RID: "RFC1-1-3", File: "test/editor/c.et"},
+		{RID: "RFC1-1-4", File: "internal/component/d/d_test.go"},
+		{RID: "RFC1-1-4", File: "test/interop/d.ci", Gap: true},
+		{RID: "RFC1-1-5", File: "elsewhere/e.txt"},
+		{RID: "RFC1-1-6", File: "test/interop/f.ci"},
+		{RID: "RFC1-1-7", File: "test/interop/g.ci"},
+	}
+	proven := map[string]bool{"RFC1-1-1": true, "RFC1-1-2": true, "RFC1-1-3": true, "RFC1-1-4": true,
+		"RFC1-1-5": true, "RFC1-1-7": true}
+	stems := map[string]bool{"rfc1": true}
+	evidence := figureEvidence{tags: tagsByRID(tags), carriers: carriers}
+
+	figures := figuresByStem(requirements, stems, stems, proven, evidence)["rfc1"]
+
+	want := map[string]int{kindInterop: 1, kindFunctional: 1, kindEditor: 1, kindUnit: 1, kindUnknown: 1}
+	if len(figures.MandatoryByKind) != len(want) {
+		t.Errorf("MandatoryByKind = %v, want %v", figures.MandatoryByKind, want)
+	}
+	sum := 0
+	for kind, count := range figures.MandatoryByKind {
+		sum += count
+		if want[kind] != count {
+			t.Errorf("MandatoryByKind[%s] = %d, want %d", kind, count, want[kind])
+		}
+	}
+	if sum != figures.Mandatory.Proven || figures.Mandatory.Proven != 5 {
+		t.Errorf("kinds sum to %d over %d proven mandatory rows, want 5 and 5", sum, figures.Mandatory.Proven)
+	}
+}
+
+// TestStemFiguresListUnmetIDs checks that the unmet ids are every owed row
+// whose annotation's declared traits say Unmet, plus every row whose recorded
+// audit verdict says the requirement is not met, sorted, once each, and
+// nothing else.
+//
+// The method holds one row of each unmet annotation, one of each unmet audit
+// verdict, and a control for each that must stay off the list: an annotation
+// that is not unmet, an audit verdict that is not unmet, a bare row, and a
+// rollup, which owes nothing. An unwalked stem still lists its unmet rows: they
+// are the summary's own disclosure.
+func TestStemFiguresListUnmetIDs(t *testing.T) {
+	requirements := []Requirement{
+		{RFC: "rfc1", RID: "RFC1-1-9", Level: levelMust, Annotation: &Annotation{Kind: AnnotationGap}},
+		{RFC: "rfc1", RID: "RFC1-1-2", Level: levelMust, Annotation: &Annotation{Kind: AnnotationPartial}},
+		{RFC: "rfc1", RID: "RFC1-1-3", Level: levelShould, Annotation: &Annotation{Kind: AnnotationLinuxLimit}},
+		{RFC: "rfc1", RID: "RFC1-1-4", Level: levelMust},
+		{RFC: "rfc1", RID: "RFC1-1-5", Level: levelMust},
+		{RFC: "rfc1", RID: "RFC1-1-6", Level: levelMust},
+		{RFC: "rfc1", RID: "RFC1-1-7", Level: levelMust, Annotation: &Annotation{Kind: AnnotationNotApplicable}},
+		{RFC: "rfc1", RID: "RFC1-1-8", Level: levelMust},
+		{RFC: "rfc1", RID: "RFC1-1-1", Level: levelMust},
+		{RFC: "rfc1", RID: "RFC1-1-10", Level: levelMust,
+			Annotation: &Annotation{Kind: AnnotationRollup, Targets: []string{"RFC1-1-9"}}},
+		{RFC: "rfc2", RID: "RFC2-1-1", Level: levelMust, Annotation: &Annotation{Kind: AnnotationGap}},
+	}
+	audits := map[string]Audit{"rfc1": {Verdicts: map[string]any{
+		"RFC1-1-4":  map[string]any{"verdict": VerdictWrong},
+		"RFC1-1-5":  map[string]any{"verdict": VerdictUnimplemented},
+		"RFC1-1-6":  map[string]any{"verdict": VerdictPartial},
+		"RFC1-1-8":  map[string]any{"verdict": VerdictEnforced},
+		"RFC1-1-1":  map[string]any{"verdict": VerdictWeak},
+		"RFC1-1-10": map[string]any{"verdict": VerdictWrong},
+	}}}
+	stems := map[string]bool{"rfc1": true, "rfc2": true}
+	walked := map[string]bool{"rfc1": true}
+
+	figures := figuresByStem(requirements, stems, walked, nil, figureEvidence{audits: audits})
+
+	want := []string{"RFC1-1-2", "RFC1-1-3", "RFC1-1-4", "RFC1-1-5", "RFC1-1-6", "RFC1-1-9"}
+	if !slices.Equal(figures["rfc1"].Unmet, want) {
+		t.Errorf("rfc1 Unmet = %v, want %v", figures["rfc1"].Unmet, want)
+	}
+	if got := figures["rfc2"].Unmet; !slices.Equal(got, []string{"RFC2-1-1"}) {
+		t.Errorf("unwalked rfc2 Unmet = %v, want [RFC2-1-1]: a disclosure is listed walked or not", got)
 	}
 }
