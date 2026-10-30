@@ -1,15 +1,15 @@
 {
-  "note": "Judged 2026-09-29 (routing child, continuation judge). Positive TestIntegrationRSVPPathCarriage proves SendPath writes Router Alert. Negatives: TestRFC2205PathNeverLeavesWithoutRouterAlertCarrier for Path/PathTear and TestRFC2205ResvConfNeverLeavesWithoutRouterAlertCarrier for both the originated and the relayed ResvConf going through SendPath, closing the vacuous ResvConf arm.",
+  "note": "Re-judged 2026-10-30 by an independent auditor after the userns conversion. The unit's only change since the last verdict is userns.Enter(t) as its first statement (the child re-runs the whole body in its own user, network and mount namespace; a child failure or skip propagates to the parent, and a child that ran nothing fails it) plus removal of EPERM/EACCES skips, so a refused privilege now fails instead of skipping. Assertions are byte-identical. Section 3.11.5: 'RSVP must be able to cause Path, PathTear, and ResvConf message to be sent with the Router Alert IP option.' TestIntegrationRSVPPathCarriage sends PATH, PathTear and a ResvConf through production SendPath and rsvpWireAssertIP fails unless the captured IPv4 options are exactly 94040000; the Send control on link 1 must carry no options, so the alert is bound to SendPath. Negatives unchanged: TestRFC2205PathNeverLeavesWithoutRouterAlertCarrier and TestRFC2205ResvConfNeverLeavesWithoutRouterAlertCarrier.",
   "requirement_sha": "8c881c623b5c8b2f",
   "tests": {
     "internal/plugins/rsvpte/rfc2205_carrier_test.go::TestRFC2205PathNeverLeavesWithoutRouterAlertCarrier": "2bbb0ce4611ada21",
     "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205ResvConfNeverLeavesWithoutRouterAlertCarrier": "7bc063943de30e7b",
-    "internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage": "900cfdf5bd3d05c0"
+    "internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage": "4c9401a7281e8e34"
   },
   "units": {
     "internal/plugins/rsvpte/rfc2205_carrier_test.go::TestRFC2205PathNeverLeavesWithoutRouterAlertCarrier": "98b1652f6e16c28a",
     "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205ResvConfNeverLeavesWithoutRouterAlertCarrier": "592efa2f38d0e4d7",
-    "internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage": "a8f5620947d5259e"
+    "internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage": "2584e0a7e1ad930a"
   },
   "verdict": "enforced"
 }

@@ -1,15 +1,15 @@
 {
-  "note": "Re-judged 2026-09-30. The earlier gap (nothing showed IS-IS itself marks an off-subnet adjacency next hop on-link) is closed at the boundary Ze owns. Positive TestRFC1195OffSubnetNeighborIsOnLinkNextHop: adjacency on isis-on-a 192.0.2.1/24, neighbor 198.51.100.2 (setup asserts off-subnet) resolves to 198.51.100.2 via isis-on-a with OnLink. Negative TestRFC1195OffSubnetNeighborNotResolvedBySubnet: isis-on-b holds the covering 198.51.100.1/24 but no adjacency, and the next hop is never placed on isis-on-b by subnet match; a subnet or recursive resolver goes red. Producer spf_wiring.go ResolveNextHop returns the Up adjacency's circuit with OnLink=true; +/- recorded on it. The FIB side (kernel installs the OnLink gateway, flips when the mark is cleared) is carried by fib/kernel onlink_integration_linux_test.go, Linux CAP_NET_ADMIN only and without a discrimination record.",
+  "note": "Re-judged 2026-10-30 by an independent auditor after the userns conversion. The unit's only change since the last verdict is userns.Enter(t) as its first statement (the child re-runs the whole body in its own user, network and mount namespace; a child failure or skip propagates to the parent, and a child that ran nothing fails it) plus removal of EPERM/EACCES skips, so a refused privilege now fails instead of skipping. Assertions are byte-identical. Section 4.4: 'IP-capable IS-IS routers therefore must be able to forward IP packets over existing adjacencies to routers with which they share physical connectivity, even when the IP address of the adjacent interface of the neighboring router is on a different logical IP subnet.' Re-read all four units. Root TestRFC1195OffSubnetNeighborIsOnLinkNextHop (positive) and TestRFC1195OffSubnetNeighborNotResolvedBySubnet (negative) pin ResolveNextHop's Up-adjacency circuit with OnLink. TestFIBOnLinkAdjacencyAndUnsupportedPrefix drives Loc-RIB, sysrib's JSON event and the real FIB writer into a netns and reads the kernel's own RouteGet decision: an off-subnet 192.0.2.2 gateway on the 172.31.254.0/24 link is installed with RTNH_F_ONLINK (single and multipath), and clearing only OnLink flips the decision to the covering route's gateway with no ONLINK flag, so a writer that drops the mark goes red.",
   "requirement_sha": "6f71c136a942c21a",
   "tests": {
-    "internal/plugins/fib/kernel/rfc1195_onlink_integration_linux_test.go::TestFIBOnLinkAdjacencyAndUnsupportedPrefix": "13d74927688b8b9a",
-    "internal/plugins/fib/kernel/rfc1195_onlink_integration_linux_test.go::TestFIBOnLinkAdjacencyAndUnsupportedPrefix#2": "13d74927688b8b9a",
+    "internal/plugins/fib/kernel/rfc1195_onlink_integration_linux_test.go::TestFIBOnLinkAdjacencyAndUnsupportedPrefix": "3ed6175aa3fab1de",
+    "internal/plugins/fib/kernel/rfc1195_onlink_integration_linux_test.go::TestFIBOnLinkAdjacencyAndUnsupportedPrefix#2": "3ed6175aa3fab1de",
     "internal/plugins/isis/rfc1195_neighbor_addresses_test.go::TestRFC1195OffSubnetNeighborIsOnLinkNextHop": "9c0ed40540bf5ffb",
     "internal/plugins/isis/rfc1195_neighbor_addresses_test.go::TestRFC1195OffSubnetNeighborNotResolvedBySubnet": "9c0ed40540bf5ffb"
   },
   "units": {
-    "internal/plugins/fib/kernel/rfc1195_onlink_integration_linux_test.go::TestFIBOnLinkAdjacencyAndUnsupportedPrefix": "9235970317bf3e0f",
-    "internal/plugins/fib/kernel/rfc1195_onlink_integration_linux_test.go::TestFIBOnLinkAdjacencyAndUnsupportedPrefix#2": "9235970317bf3e0f",
+    "internal/plugins/fib/kernel/rfc1195_onlink_integration_linux_test.go::TestFIBOnLinkAdjacencyAndUnsupportedPrefix": "e8b22880426bb634",
+    "internal/plugins/fib/kernel/rfc1195_onlink_integration_linux_test.go::TestFIBOnLinkAdjacencyAndUnsupportedPrefix#2": "e8b22880426bb634",
     "internal/plugins/isis/rfc1195_neighbor_addresses_test.go::TestRFC1195OffSubnetNeighborIsOnLinkNextHop": "21bb266abde0e874",
     "internal/plugins/isis/rfc1195_neighbor_addresses_test.go::TestRFC1195OffSubnetNeighborNotResolvedBySubnet": "6df478449b8362d7"
   },

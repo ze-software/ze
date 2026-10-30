@@ -1,11 +1,11 @@
 {
-  "note": "Single-polarity capability. Forbidden: the RSVP process not seeing arrival interface, IP source or IP TTL of a diverted message. TestIntegrationRSVPPathCarriage fails unless packet.Src, Dst, TTL and IfIndex match the sent route, TTL and receiving link, for a destination not local to the receiver.",
+  "note": "Re-judged 2026-10-30 by an independent auditor after the userns conversion. The unit's only change since the last verdict is userns.Enter(t) as its first statement (the child re-runs the whole body in its own user, network and mount namespace; a child failure or skip propagates to the parent, and a child that ran nothing fails it) plus removal of EPERM/EACCES skips, so a refused privilege now fails instead of skipping. Assertions are byte-identical. Section 3.11.5: 'On a router or multi-homed host, the identity of the interface (real or virtual) on which a diverted message is received, as well as the IP source address and IP TTL with which it arrived, must also be available to the RSVP process.' Interface and source are enforced: TestIntegrationRSVPPathCarriage fails unless packet.IfIndex is peer0 and packet.Src the sender for a destination routed via link 1. The TTL clause cannot fail on a plausible non-compliance: the frame's IP TTL is set from Send_TTL (transport_linux.go header[8] = msg[4]) and is diverted before any decrement, so the asserted packet.TTL == payload[4] holds equally if receivedIPv4Packet reported the RSVP common header's Send_TTL (data[ihl+4]) instead of the IP TTL (data[8]). That is exactly the confusion that matters for non-RSVP hop detection, which compares the two. The recorded mutant (data[8] -> 0) does not discriminate this. The producer is correct (TTL: data[8]); the proof is not isolated. To make it enforced: deliver a diverted message whose IP TTL differs from its Send_TTL (raw-inject one, or put a non-RSVP forwarding hop in the lab) and assert packet.TTL equals the IP TTL.",
   "requirement_sha": "d8ae5db17fd64df1",
   "tests": {
-    "internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage": "900cfdf5bd3d05c0"
+    "internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage": "4c9401a7281e8e34"
   },
   "units": {
-    "internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage": "a8f5620947d5259e"
+    "internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage": "2584e0a7e1ad930a"
   },
-  "verdict": "enforced"
+  "verdict": "weak"
 }

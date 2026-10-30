@@ -1,11 +1,11 @@
 {
-  "note": "Single-polarity capability. Forbidden: a PATH following the ordinary route instead of the forced link. TestIntegrationRSVPPathCarriage fails unless the frame's L2 destination is link 0's peer while the endpoint's ordinary route uses link 1, as the Send control on link 1 shows.",
+  "note": "Re-judged 2026-10-30 by an independent auditor after the userns conversion. The unit's only change since the last verdict is userns.Enter(t) as its first statement (the child re-runs the whole body in its own user, network and mount namespace; a child failure or skip propagates to the parent, and a child that ran nothing fails it) plus removal of EPERM/EACCES skips, so a refused privilege now fails instead of skipping. Assertions are byte-identical. Section 3.11.5: 'RSVP must be able to force a (multicast) datagram to be sent on a specific outgoing real or virtual link, bypassing the normal routing mechanism.' Single-polarity capability. The lab routes the endpoint via link 1 in both namespaces; TestIntegrationRSVPPathCarriage fails unless PATH, PathTear and ResvConf to that endpoint leave on link 0 with link 0's peer MAC as L2 destination and arrive on peer0, while the Send control to link 1's peer is captured on link 1.",
   "requirement_sha": "c1f96d0a085f7ad7",
   "tests": {
-    "internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage": "900cfdf5bd3d05c0"
+    "internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage": "4c9401a7281e8e34"
   },
   "units": {
-    "internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage": "a8f5620947d5259e"
+    "internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage": "2584e0a7e1ad930a"
   },
   "verdict": "enforced"
 }

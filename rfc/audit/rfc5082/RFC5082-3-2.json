@@ -1,25 +1,25 @@
 {
-  "note": "Re-read 2026-10-17 against the Section 6.1 sentence \"This specification mandates setting and verifying TTL=255 of those as well as the main protocol packets.\" after the IPv4 receive proofs moved to match-scoped nft counters. Setting is unchanged: TestGTSMTransmittedICMPErrorCarriesTTL255 fails on packet[8]!=255 and the ICMPv6 twin on packet[7]!=255, over the route applyHopLimitRoutes installs, and the withdraw negatives bind the 255 to that route. Verifying, IPv4: TestGTSMDropsADangerousQuotedICMPError waits on the quoted-destination term's counter (bounded by captureWait), then fails when IcmpMsg InType3 rises, when any term other than exactly that one matched, or when TCPMinTTLDrop moved; Observed in an arm64 guest on kernel 7.2.9: Drop turned to Accept in peerTerms leaves the term matching and the message delivered, and the test goes red at the InType3 assertion. TestGTSMDeliversAQuotedICMPErrorAtTTL255 is a real negative: the same message at TTL 255 must raise InType3 by one and match no term, and with Accept plus the TTL match removed from peerTerms it was observed red at assertNoTermMatched, naming the quoted-destination term. rulePackets now fails a rule with no counter, so a vanished counter cannot read as no match. Verifying, IPv6: TestGTSMMinHopCountDropsALowHopLimitICMPv6Error fails when TCPMinTTLDrop does not rise, unchanged.",
+  "note": "Re-judged 2026-10-30 by an independent auditor after the userns conversion. The unit's only change since the last verdict is userns.Enter(t) as its first statement (the child re-runs the whole body in its own user, network and mount namespace; a child failure or skip propagates to the parent, and a child that ran nothing fails it) plus removal of EPERM/EACCES skips, so a refused privilege now fails instead of skipping. Assertions are byte-identical. Section 6.1: 'This specification mandates setting and verifying TTL=255 of those as well as the main protocol packets.' Setting: TestGTSMTransmittedICMPErrorCarriesTTL255 (packet[8]==255) and its ICMPv6 twin (packet[7]==255) over the route installGTSMRoute installs and reads back; the withdraw negatives require the system default and not 255, binding the 255 to Ze's route. Verifying IPv4: TestGTSMDropsADangerousQuotedICMPError waits on the quoted-destination term counter, then fails if IcmpMsg InType3 rose, if any other term matched, or if TCPMinTTLDrop moved, from the peer and from a third host; TestGTSMDeliversAQuotedICMPErrorAtTTL255 is the negative, same message at TTL 255 must raise InType3 by one and match no term. Verifying IPv6: TestGTSMMinHopCountDropsALowHopLimitICMPv6Error requires TCPMinTTLDrop +1 and no socket error; TestGTSMWithoutMinHopCountDeliversTheSameICMPv6Error requires no drop and ECONNREFUSED delivered.",
   "requirement_sha": "5ee896f8d5f5b1e8",
   "tests": {
-    "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMDeliversAQuotedICMPErrorAtTTL255": "1bce90f551e0cd7e",
-    "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMDropsADangerousQuotedICMPError": "1bce90f551e0cd7e",
-    "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMMinHopCountDropsALowHopLimitICMPv6Error": "1bce90f551e0cd7e",
-    "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMTransmittedICMPErrorCarriesTTL255": "1bce90f551e0cd7e",
-    "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMTransmittedICMPErrorWithoutTheRouteMetricIsNot255": "1bce90f551e0cd7e",
-    "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMTransmittedICMPv6ErrorCarriesHopLimit255": "1bce90f551e0cd7e",
-    "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMTransmittedICMPv6ErrorWithoutTheRouteMetricIsNot255": "1bce90f551e0cd7e",
-    "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMWithoutMinHopCountDeliversTheSameICMPv6Error": "1bce90f551e0cd7e"
+    "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMDeliversAQuotedICMPErrorAtTTL255": "e2a497a6d2058b3c",
+    "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMDropsADangerousQuotedICMPError": "e2a497a6d2058b3c",
+    "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMMinHopCountDropsALowHopLimitICMPv6Error": "e2a497a6d2058b3c",
+    "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMTransmittedICMPErrorCarriesTTL255": "e2a497a6d2058b3c",
+    "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMTransmittedICMPErrorWithoutTheRouteMetricIsNot255": "e2a497a6d2058b3c",
+    "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMTransmittedICMPv6ErrorCarriesHopLimit255": "e2a497a6d2058b3c",
+    "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMTransmittedICMPv6ErrorWithoutTheRouteMetricIsNot255": "e2a497a6d2058b3c",
+    "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMWithoutMinHopCountDeliversTheSameICMPv6Error": "e2a497a6d2058b3c"
   },
   "units": {
-    "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMDeliversAQuotedICMPErrorAtTTL255": "26432d40c0ecd14d",
-    "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMDropsADangerousQuotedICMPError": "a66a19639a35d077",
-    "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMMinHopCountDropsALowHopLimitICMPv6Error": "a7470776a8007649",
-    "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMTransmittedICMPErrorCarriesTTL255": "c31a5ce8ed6fa515",
-    "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMTransmittedICMPErrorWithoutTheRouteMetricIsNot255": "02ce064d3278375f",
-    "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMTransmittedICMPv6ErrorCarriesHopLimit255": "58d5cefa017d287d",
-    "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMTransmittedICMPv6ErrorWithoutTheRouteMetricIsNot255": "ce50ced078a44022",
-    "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMWithoutMinHopCountDeliversTheSameICMPv6Error": "60fcdb43bf9dc001"
+    "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMDeliversAQuotedICMPErrorAtTTL255": "ad3a8f8e8b98bf68",
+    "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMDropsADangerousQuotedICMPError": "15af0dda0a61cce1",
+    "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMMinHopCountDropsALowHopLimitICMPv6Error": "38ed3681210c949b",
+    "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMTransmittedICMPErrorCarriesTTL255": "afd00ba83a057cd7",
+    "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMTransmittedICMPErrorWithoutTheRouteMetricIsNot255": "e5cfb233de439d70",
+    "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMTransmittedICMPv6ErrorCarriesHopLimit255": "0572198216987308",
+    "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMTransmittedICMPv6ErrorWithoutTheRouteMetricIsNot255": "e2c7a8bf2f07d72c",
+    "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMWithoutMinHopCountDeliversTheSameICMPv6Error": "f223d71dee28ba85"
   },
   "verdict": "enforced"
 }
