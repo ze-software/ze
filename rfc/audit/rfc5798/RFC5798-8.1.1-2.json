@@ -1,13 +1,13 @@
 {
-  "note": "Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 5798 Section 8.1.1 says \"If a VRRP router is acting as Master for virtual router(s) containing addresses it does not own, then it must determine which virtual router the packet was sent to when selecting the redirect source address.\" TestVRRPRedirectSourceFollowsVirtualMAC changed only by the checksum-mode plumbing (a Checksum: packet.ChecksumRFC9568 field added to the GroupSpec, AdvertParams or packet.Local literal, or the mode argument added to packet.FillChecksum); every assertion and every isolating input is byte-for-byte the same; the redirect-source capture and its physical-MAC control are unchanged. Verdict unchanged; the guest record is owed a re-record.",
+  "note": "Re-judged 2026-10-30 (independent auditor, after the user-namespace conversion): every tagged unit now opens with `if !userns.Enter(t) { return }`, which re-executes the test in its own user, network and mount namespace and carries the child's fail or skip to the parent (Enter, internal/test/userns/userns_linux.go), and the file builds under plain linux instead of integration && linux. RFC 5798 Section 8.1.1 says \"If a VRRP router is acting as Master for virtual router(s) containing addresses it does not own, then it must determine which virtual router the packet was sent to when selecting the redirect source address.\" TestVRRPRedirectSourceFollowsVirtualMAC, otherwise unchanged, pins the reverse route through the parent with source 192.0.2.254, then requires each of two virtual MACs to draw a redirect sourced from its own virtual address and the physical MAC to draw one from 192.0.2.254. Verdict enforced.",
   "requirement_sha": "dbd957c29cc99d26",
   "tests": {
-    "internal/plugins/vrrp/redirect_integration_linux_test.go::TestVRRPRedirectSourceFollowsVirtualMAC": "884442d33f8f172b",
-    "internal/plugins/vrrp/redirect_integration_linux_test.go::TestVRRPRedirectSourceFollowsVirtualMAC#2": "884442d33f8f172b"
+    "internal/plugins/vrrp/redirect_integration_linux_test.go::TestVRRPRedirectSourceFollowsVirtualMAC": "d5319c166676a563",
+    "internal/plugins/vrrp/redirect_integration_linux_test.go::TestVRRPRedirectSourceFollowsVirtualMAC#2": "d5319c166676a563"
   },
   "units": {
-    "internal/plugins/vrrp/redirect_integration_linux_test.go::TestVRRPRedirectSourceFollowsVirtualMAC": "126a0ea3bd1a7d9c",
-    "internal/plugins/vrrp/redirect_integration_linux_test.go::TestVRRPRedirectSourceFollowsVirtualMAC#2": "126a0ea3bd1a7d9c"
+    "internal/plugins/vrrp/redirect_integration_linux_test.go::TestVRRPRedirectSourceFollowsVirtualMAC": "1b6870c2f9381229",
+    "internal/plugins/vrrp/redirect_integration_linux_test.go::TestVRRPRedirectSourceFollowsVirtualMAC#2": "1b6870c2f9381229"
   },
   "verdict": "enforced"
 }

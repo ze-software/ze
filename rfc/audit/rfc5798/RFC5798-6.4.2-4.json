@@ -1,17 +1,17 @@
 {
-  "note": "vrrp judge 2026-09-29 (independent, continuation 3): Wiring now proven on the host: TestBackupDiscardFollowsTheState drives the FSM and asserts the worker sets the discard on the virtual router MAC device at start (idle worker: on then off), entering Backup adds no call, promotion withdraws it once after the only install, and a higher-priority advert demotes and sets it again before the only removal (records observed red on doRemoveVIPs; the run revert was also observed red but the ledger keeps one record per unit/polarity). Wire effect: TestVRRPBackupDoesNotForwardVirtualMACFrames (QEMU guest) forwards a transit datagram sent to the Virtual Router MAC without the nft drop and stops it with it (records on backupFilterTables). The host unit's negative tag is a state contrast; the violating negative (no discard, frame forwarded) is the QEMU control.",
+  "note": "Re-judged 2026-10-30 (independent auditor, after the user-namespace conversion): every tagged unit now opens with `if !userns.Enter(t) { return }`, which re-executes the test in its own user, network and mount namespace and carries the child's fail or skip to the parent (Enter, internal/test/userns/userns_linux.go), and the file builds under plain linux instead of integration && linux. RFC 5798 Section 6.4.2 says \"MUST discard packets with a destination link-layer MAC address equal to the virtual router MAC address.\" TestVRRPBackupDoesNotForwardVirtualMACFrames is otherwise unchanged: with the recipe in force and no filter a datagram sent to the virtual MAC is forwarded (control), with setBackupFilter the same datagram is not forwarded, each asserted from a capture on the next hop. TestBackupDiscardFollowsTheState (unchanged) still proves the worker sets and withdraws the discard with the state. Verdict enforced.",
   "requirement_sha": "7d4d454746ca74f6",
   "tests": {
     "internal/plugins/vrrp/backupfilter_test.go::TestBackupDiscardFollowsTheState": "bd8138799944b14d",
     "internal/plugins/vrrp/backupfilter_test.go::TestBackupDiscardFollowsTheState#2": "bd8138799944b14d",
-    "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPBackupDoesNotForwardVirtualMACFrames": "44393888cc66696b",
-    "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPBackupDoesNotForwardVirtualMACFrames#2": "44393888cc66696b"
+    "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPBackupDoesNotForwardVirtualMACFrames": "19ef3dad02ddfed4",
+    "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPBackupDoesNotForwardVirtualMACFrames#2": "19ef3dad02ddfed4"
   },
   "units": {
     "internal/plugins/vrrp/backupfilter_test.go::TestBackupDiscardFollowsTheState": "79074dcf716f8085",
     "internal/plugins/vrrp/backupfilter_test.go::TestBackupDiscardFollowsTheState#2": "79074dcf716f8085",
-    "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPBackupDoesNotForwardVirtualMACFrames": "ae65b076e9153ae9",
-    "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPBackupDoesNotForwardVirtualMACFrames#2": "ae65b076e9153ae9"
+    "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPBackupDoesNotForwardVirtualMACFrames": "8555c040d1d1f2cf",
+    "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPBackupDoesNotForwardVirtualMACFrames#2": "8555c040d1d1f2cf"
   },
   "verdict": "enforced"
 }

@@ -1,15 +1,15 @@
 {
-  "note": "Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 5798 Section 7.2 says \"If the protected address is an IPv4 address, then: + Set the source MAC address to virtual router MAC Address + Set the source IPv4 address to interface primary IPv4 address - else // ipv6 + Set the source MAC address to virtual ...\" TestTxAdvertV4OnWire changed only by the checksum-mode plumbing (a Checksum: packet.ChecksumRFC9568 field added to the GroupSpec, AdvertParams or packet.Local literal, or the mode argument added to packet.FillChecksum); every assertion and every isolating input is byte-for-byte the same; the captured source MAC is still compared with 00-00-5e-00-01-0a. Single-polarity per the row annotation. Verdict unchanged; the guest record is owed a re-record.",
+  "note": "Re-judged 2026-10-30 (independent auditor, after the user-namespace conversion): every tagged unit now opens with `if !userns.Enter(t) { return }`, which re-executes the test in its own user, network and mount namespace and carries the child's fail or skip to the parent (Enter, internal/test/userns/userns_linux.go), and the file builds under plain linux instead of integration && linux. RFC 5798 Section 7.2 says \"Set the source MAC address to virtual router MAC Address\" TestTxAdvertV4OnWire (v2 and v3) and TestTxAdvertV6OnWire capture the transmitted frame on the peer veth and compare its source MAC with the literals 00-00-5e-00-01-0a and 00-00-5e-00-02-0a, never the package constants. Single-polarity. Verdict enforced.",
   "requirement_sha": "447e1b9f4570d8b2",
   "tests": {
     "internal/plugins/vrrp/packet/packet_test.go::TestConstants": "15a7697300d1b17c",
-    "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire": "e6113ed83a42c0f9",
-    "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV6OnWire": "e6113ed83a42c0f9"
+    "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire": "478741612cc6b822",
+    "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV6OnWire": "478741612cc6b822"
   },
   "units": {
     "internal/plugins/vrrp/packet/packet_test.go::TestConstants": "815ed7ee56089d0e",
-    "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire": "7a4414ac139af987",
-    "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV6OnWire": "743f9108e7f1c010"
+    "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire": "adb571c923825fb2",
+    "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV6OnWire": "2b7bf510b5e909e2"
   },
   "verdict": "enforced"
 }

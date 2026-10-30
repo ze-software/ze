@@ -1,21 +1,21 @@
 {
-  "note": "Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 9568 Section 7.1 says \"It MUST verify that the VRID is configured on the receiving interface.\" TestDecodeGoldenV3IPv4 now decodes the RFC 9568 message-only golden G2 under the default-mode lookup instead of the pseudo-header golden G2c, and lost only the removed MsgOnlyChecksum assertion; the subtests of TestNegativeReferenceBugs other than N1 gained only the FillChecksum mode argument. The positive is still a fully conforming advert, the checksum check precedes the checks this row names so a wrong form would fail with ErrChecksum and not pass silently, and each negative still asserts its exact sentinel. TestRxAdvertScopedToReceivingInterface changed only by the checksum-mode plumbing (a Checksum: packet.ChecksumRFC9568 field added to the GroupSpec, AdvertParams or packet.Local literal, or the mode argument added to packet.FillChecksum); every assertion and every isolating input is byte-for-byte the same. TestRxV3VRIDCheckedOnTheReceivingInterface, unchanged, still discards VRID 10 received on the VRID-20 interface with exactly [vrid]. Verdict unchanged.",
+  "note": "Re-judged 2026-10-30 (independent auditor, after the user-namespace conversion): every tagged unit now opens with `if !userns.Enter(t) { return }`, which re-executes the test in its own user, network and mount namespace and carries the child's fail or skip to the parent (Enter, internal/test/userns/userns_linux.go), and the file builds under plain linux instead of integration && linux. RFC 9568 Section 7.1 says \"It MUST verify that the VRID is configured on the receiving interface\" TestRxAdvertScopedToReceivingInterface sends, for v2 and v3, a VRID 10 advert on the interface that holds only VRID 20 and fails if it reaches the VRID 10 instance, requires it to arrive at the VRID 20 instance (so absence is not vacuous) and decode there as ErrUnknownVRID, then requires the same advert on the VRID 10 interface to reach its instance and decode. Its other change is rp_filter 0 on the second macvlan so the IPv4 multicast is received at all. The unchanged packet/validate_test.go and rfc9568_rx_interface_v3_test.go tags stand. Verdict enforced.",
   "requirement_sha": "307bb7d3b23264a0",
   "tests": {
     "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV3IPv4": "5bbc8ddba98cd418",
     "internal/plugins/vrrp/packet/validate_test.go::TestValidationOrder": "5bbc8ddba98cd418",
     "internal/plugins/vrrp/rfc9568_rx_interface_v3_test.go::TestRxV3VRIDCheckedOnTheReceivingInterface": "fb0368c267914fe0",
     "internal/plugins/vrrp/rfc9568_rx_interface_v3_test.go::TestRxV3VRIDCheckedOnTheReceivingInterface#2": "fb0368c267914fe0",
-    "internal/plugins/vrrp/transport/rfc_rx_iface_verdict_linux_test.go::TestRxAdvertScopedToReceivingInterface": "5a5e0ffa70cb777c",
-    "internal/plugins/vrrp/transport/rfc_rx_iface_verdict_linux_test.go::TestRxAdvertScopedToReceivingInterface#2": "5a5e0ffa70cb777c"
+    "internal/plugins/vrrp/transport/rfc_rx_iface_verdict_linux_test.go::TestRxAdvertScopedToReceivingInterface": "7cb3b639245ea4ee",
+    "internal/plugins/vrrp/transport/rfc_rx_iface_verdict_linux_test.go::TestRxAdvertScopedToReceivingInterface#2": "7cb3b639245ea4ee"
   },
   "units": {
     "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV3IPv4": "5458632e7659d030",
     "internal/plugins/vrrp/packet/validate_test.go::TestValidationOrder": "e9e509cbd07a9bdc",
     "internal/plugins/vrrp/rfc9568_rx_interface_v3_test.go::TestRxV3VRIDCheckedOnTheReceivingInterface": "d49039a1711debf0",
     "internal/plugins/vrrp/rfc9568_rx_interface_v3_test.go::TestRxV3VRIDCheckedOnTheReceivingInterface#2": "d49039a1711debf0",
-    "internal/plugins/vrrp/transport/rfc_rx_iface_verdict_linux_test.go::TestRxAdvertScopedToReceivingInterface": "68ae878127028fec",
-    "internal/plugins/vrrp/transport/rfc_rx_iface_verdict_linux_test.go::TestRxAdvertScopedToReceivingInterface#2": "68ae878127028fec"
+    "internal/plugins/vrrp/transport/rfc_rx_iface_verdict_linux_test.go::TestRxAdvertScopedToReceivingInterface": "0176a101742d28a0",
+    "internal/plugins/vrrp/transport/rfc_rx_iface_verdict_linux_test.go::TestRxAdvertScopedToReceivingInterface#2": "0176a101742d28a0"
   },
   "verdict": "enforced"
 }

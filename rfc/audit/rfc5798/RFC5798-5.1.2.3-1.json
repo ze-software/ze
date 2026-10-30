@@ -1,11 +1,11 @@
 {
-  "note": "single-polarity by annotation: integration test reads IPV6_MULTICAST_HOPS 255 back from the tx socket; runs only under the privileged QEMU suite",
+  "note": "Re-judged 2026-10-30 (independent auditor, after the user-namespace conversion): every tagged unit now opens with `if !userns.Enter(t) { return }`, which re-executes the test in its own user, network and mount namespace and carries the child's fail or skip to the parent (Enter, internal/test/userns/userns_linux.go), and the file builds under plain linux instead of integration && linux. RFC 5798 Section 5.1.2.3 says \"The Hop Limit MUST be set to 255.\" setupLab now fails, never skips, when the namespace, veth or raw socket is refused, and sets rp_filter 0 inside its own namespace for the IPv4 macvlan receiver; neither touches an assertion. TestIntegrationOpenInstanceSocketOptions/v6 reads IPV6_MULTICAST_HOPS back with getsockopt from both the advertisement tx socket and the NA socket and requires exactly 255 (the kernel default is 1, so an openV6 that stopped setting it fails). Single-polarity per the row annotation. Finding on the annotation, not the test: the row's disclosure still says the test is gated integration && linux and skips without CAP_NET_RAW/CAP_NET_ADMIN, which is no longer true. Verdict enforced.",
   "requirement_sha": "e30a16b3b8010e7c",
   "tests": {
-    "internal/plugins/vrrp/transport/transport_integration_linux_test.go::TestIntegrationOpenInstanceSocketOptions": "788ffe9ff6301ccb"
+    "internal/plugins/vrrp/transport/transport_integration_linux_test.go::TestIntegrationOpenInstanceSocketOptions": "e20d101d213da26e"
   },
   "units": {
-    "internal/plugins/vrrp/transport/transport_integration_linux_test.go::TestIntegrationOpenInstanceSocketOptions": "c4a068e79f43afef"
+    "internal/plugins/vrrp/transport/transport_integration_linux_test.go::TestIntegrationOpenInstanceSocketOptions": "80ed176beaf608bf"
   },
   "verdict": "enforced"
 }
