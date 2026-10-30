@@ -105,7 +105,7 @@ trafficfeature, trafficstat, vpp, web
 **System plugins** (`internal/plugins/`) handle domain policy outside the BGP engine: DHCP, NTP, sysctl, static routes, firewall lowering, TFTP/image servers, and CLI verb providers (`*-cmd`). Communication: JSON events down, text commands up.
 
 <!-- BEGIN GENERATED: arch-system-plugins (internal/le/repo/archmap.Update; ./le repo arch-map update) -->
-64 directories under `internal/plugins/`:
+65 directories under `internal/plugins/`:
 
 aaa-cmd, anomaly, as112, completion, config-archive-cmd, config-cli,
 config-schema, config-storage, config-yang, connect, connected, copp, cos,
@@ -113,21 +113,21 @@ crashes, ddos, debug, dhcpserver, diag, dnsresolver, env, exabgp, explain,
 fib, firewall, flowexport, flowexport-cmd, flowspec-firewall, geodns,
 gnmi-cmd, host, host-cmd, iface, imageserver, init, isis, kernel, ldp, local,
 log, memlock, meta, mpls-cmd, mrt, ntp, ospf, passwd, pki-cmd, policyroute,
-provision, resolve-cmd, routingtable, rsvpte, signal, skills, static,
-storage-cmd, support, systemd, tftpserver, traffic, traffic-cmd, trafficusage,
-update-cmd, vrrp
+provision, redistribute, resolve-cmd, routingtable, rsvpte, signal, skills,
+static, storage-cmd, support, systemd, tftpserver, traffic, traffic-cmd,
+trafficusage, update-cmd, vrrp
 <!-- END GENERATED: arch-system-plugins -->
 
 **BGP plugins** (`internal/component/bgp/plugins/`) extend the BGP engine: RIB, route server, graceful restart, NLRI codecs, filters, RPKI, BMP.
 
 <!-- BEGIN GENERATED: arch-bgp-plugins (internal/le/repo/archmap.Update; ./le repo arch-map update) -->
-32 directories under `internal/component/bgp/plugins/`:
+31 directories under `internal/component/bgp/plugins/`:
 
 adj_rib_in, aigp, bmp, capa, cmd, epe, filter_aspath, filter_aspath_length,
 filter_community, filter_community_match, filter_family, filter_irr,
 filter_modify, filter_path_asn, filter_prefix, filter_remove_private_as, gr,
-healthcheck, hostname, llnh, ls_export, nlri, redistribute_egress, rib, role,
-route_refresh, rpki, rpki_decorator, rr, rs, softver, watchdog
+healthcheck, hostname, llnh, ls_export, nlri, rib, role, route_refresh, rpki,
+rpki_decorator, rr, rs, softver, watchdog
 <!-- END GENERATED: arch-bgp-plugins -->
 
 **CLI** -- SSH-accessible network OS CLI: YANG-modeled config editor with modes, completion, diff, commit, history, dashboard, monitoring.
