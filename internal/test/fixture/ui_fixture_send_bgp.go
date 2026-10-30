@@ -383,9 +383,17 @@ const cliWirePeerAS = 65000
 // The peer's port is not written here. ze_test_bgp_port overrides the remote
 // port of every peer (applyPortOverride, internal/component/bgp/config/peers.go),
 // which is how every .ci-launched peer in this tree reaches a dynamic port.
+//
+// The peer is EBGP (65533 against 65000), and RFC 8212 Section 3 refuses
+// every route in a direction with no policy, so the bgp-level filter accepts
+// both directions: the routes the CLI sends must reach the wire.
 func cliWireConfig(passwordHash string) string {
 	return `bgp {
     router-id 10.0.0.2
+    filter {
+        import { final accept; }
+        export { final accept; }
+    }
     peer peer1 {
         connection {
             remote { ip 127.0.0.1; }
