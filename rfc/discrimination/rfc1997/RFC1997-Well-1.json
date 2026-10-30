@@ -1,6 +1,17 @@
 [
   {
     "rid": "RFC1997-Well-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go::TestForwardNoExportSkipsExternalPeerOnly",
+    "unit-sha": "c070a28bda9ca7f2",
+    "claim-sha": "f99efd1ba885cabb",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/forward_wellknown.go::wellKnownAllowsEgress",
+    "producer-sha": "0a47e1faae01a6e3",
+    "break": "body of wellKnownAllowsEgress replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1997-Well-1",
     "polarity": "negative",
     "unit": "internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go::TestForwardNoExportStillWithdrawsFromExternalPeer",
     "unit-sha": "f566a688facc6565",
@@ -9,6 +20,39 @@
     "producer": "internal/component/bgp/reactor/forward_build.go::buildWithdrawalPayload",
     "producer-sha": "222f77983244b5f3",
     "break": "body of buildWithdrawalPayload replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1997-Well-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go::TestForwardWithoutNoExportReachesExternalPeer",
+    "unit-sha": "42941aac81fad62f",
+    "claim-sha": "4e46dd6e90771d7b",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/forward_wellknown.go::wellKnownAllowsEgress",
+    "producer-sha": "0a47e1faae01a6e3",
+    "break": "body of wellKnownAllowsEgress replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1997-Well-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/wireu/rfc1997_wellknown_test.go::TestWellKnownNoExportAllowsInternalPeer",
+    "unit-sha": "214ac005a06381ee",
+    "claim-sha": "6869847dfd136738",
+    "route": "revert",
+    "producer": "internal/component/bgp/wireu/wellknown.go::AllowsEgressTo",
+    "producer-sha": "1180e31db97ccb63",
+    "break": "body of AllowsEgressTo replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1997-Well-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/wireu/rfc1997_wellknown_test.go::TestWellKnownNoExportRefusesExternalPeer",
+    "unit-sha": "6d373a06e922a8d2",
+    "claim-sha": "808b46ea2b254a21",
+    "route": "revert",
+    "producer": "internal/component/bgp/wireu/wellknown.go::AllowsEgressTo",
+    "producer-sha": "1180e31db97ccb63",
+    "break": "body of AllowsEgressTo replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC1997-Well-1",

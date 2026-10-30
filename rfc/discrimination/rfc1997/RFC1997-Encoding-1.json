@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC1997-Encoding-1",
+    "polarity": "positive",
+    "unit": "internal/core/bgp/attribute/community_test.go::TestCommunitiesParse",
+    "unit-sha": "8d6318cb052b48e3",
+    "claim-sha": "3ac0755bfdd0fc87",
+    "route": "revert",
+    "producer": "internal/core/bgp/attribute/community.go::ParseCommunities",
+    "producer-sha": "921be0ffbcb07eb0",
+    "break": "body of ParseCommunities replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1997-Encoding-1",
+    "polarity": "negative",
+    "unit": "internal/core/bgp/attribute/community_test.go::TestCommunitiesParseRejectsNonMultipleOf4",
+    "unit-sha": "9f71f5b7edfd80d6",
+    "claim-sha": "42b5eafe49dd5bfd",
+    "route": "revert",
+    "producer": "internal/core/bgp/attribute/community.go::ParseCommunities",
+    "producer-sha": "921be0ffbcb07eb0",
+    "break": "body of ParseCommunities replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

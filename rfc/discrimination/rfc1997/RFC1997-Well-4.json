@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC1997-Well-4",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go::TestForwardOtherReservedCommunitiesReachExternalPeer",
+    "unit-sha": "da7695be089bad0c",
+    "claim-sha": "63abaae74ff4ee16",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/forward_wellknown.go::wellKnownAllowsEgress",
+    "producer-sha": "0a47e1faae01a6e3",
+    "break": "body of wellKnownAllowsEgress replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1997-Well-4",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go::TestForwardWellKnownNeedsNoOperatorPolicy",
+    "unit-sha": "d2bb19c6bde9699c",
+    "claim-sha": "9c780da702b49644",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/forward_wellknown.go::wellKnownAllowsEgress",
+    "producer-sha": "0a47e1faae01a6e3",
+    "break": "body of wellKnownAllowsEgress replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1997-Well-4",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/wireu/rfc1997_wellknown_test.go::TestWellKnownAllThreeOperationsImplemented",
+    "unit-sha": "db03a33a6626f23b",
+    "claim-sha": "2d9dcb5d32646748",
+    "route": "revert",
+    "producer": "internal/component/bgp/wireu/wellknown.go::ScanWellKnown",
+    "producer-sha": "8b0b508b93d83476",
+    "break": "body of ScanWellKnown replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1997-Well-4",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/wireu/rfc1997_wellknown_test.go::TestWellKnownIgnoresOtherReservedCommunities",
+    "unit-sha": "b53892864b5ab4a5",
+    "claim-sha": "e63ea37820816d54",
+    "route": "revert",
+    "producer": "internal/component/bgp/wireu/wellknown.go::ScanWellKnown",
+    "producer-sha": "8b0b508b93d83476",
+    "break": "body of ScanWellKnown replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]
