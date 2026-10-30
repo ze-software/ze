@@ -1,6 +1,8 @@
 {
-  "no_code_path": "Ze configures no Type-7 address range: the only ranges list in ze-ospf-conf.yang is the RFC 2328 Appendix C.2 inter-area summary range, and internal/plugins/ospf/nssa.go::translateNSSA builds one Type-5 per translatable P-bit Type-7 copying its non-zero forwarding address (Section 3.2 step (2)), so no aggregate Type-5 is ever originated and no path reaches the range forwarding address.",
-  "note": "feature-declined judged against RFC 3101 text: Section 3.2 step (3) sets the 0.0.0.0 forwarding address only on a Type-5 LSA generated from a Type-7 address range, and Section 2.2 makes ranges optional ('NSSA border routers may be configured with Type-7 address ranges', 'may aggregate Type-7 routes by advertising a single Type-5 LSA for each Type-7 address range'). The obligation is conditional, the quote is the RFC's own, and the absent feature is disclosed in Support remaining.",
+  "code": {
+    "internal/plugins/ospf/nssa.go::translateNSSA": "9c64342fd0251831"
+  },
+  "note": "Re-judged 2026-10-30 (independent judge) after the row's annotation moved from {feature-declined} to {gap}. RFC 3101 Section 3.2 step (3) reads 'Else the Type-7 LSA must be aggregated by the most specific Type-7 address range that subsumes it', and the range's Type-5 then takes 'The forwarding address is set to 0.0.0.0.' Section 2.2 makes ranges optional ('NSSA border routers may be configured with Type-7 address ranges'), but no owner decision declines them, so the absent feature is a conformance gap, not an exclusion, and the earlier not-applicable verdict no longer stands. Ze configures no Type-7 address range: the only ranges list in internal/plugins/ospf/yang/ze-ospf-conf.yang is the RFC 2328 Appendix C.2 inter-area summary range. internal/plugins/ospf/nssa.go::translateNSSA skips every Type-7 with the P-bit clear or a zero forwarding address and builds one nssaTranslation per remaining network, copying the Type-7's mask, metric, tag and non-zero forwarding address (Section 3.2 step (2)); it performs no range lookup, so no aggregate Type-5 LSA is originated and no code sets the 0.0.0.0 forwarding address step (3) requires.",
   "requirement_sha": "a101e4ea59f628b5",
-  "verdict": "not-applicable"
+  "verdict": "unimplemented"
 }
