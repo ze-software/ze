@@ -379,8 +379,12 @@ func parseNotApplicable(body, where string) (*Annotation, error) {
 	}
 	boundSegment, rest, _ := strings.Cut(parts[2], ";")
 	bound, binds := strings.CutPrefix(strings.TrimSpace(boundSegment), notApplicableBoundPrefix)
+	if !binds {
+		// No `binds` prefix names no role, the same as `binds` with none after it.
+		bound = ""
+	}
 	bound = strings.TrimSpace(bound)
-	if !binds || bound == "" {
+	if bound == "" {
 		return nil, parseErr(tb.Str(where).
 			Str(": {not-applicable} names no role the quoted sentence binds; write `binds <role>` after the quote, naming the role the sentence names. ").
 			Str(notApplicableFormat))
@@ -406,15 +410,16 @@ func parseNotApplicable(body, where string) (*Annotation, error) {
 			Str(": {not-applicable} writes `ze is` with no role after it. ").Str(notApplicableFormat))
 	}
 	// A role that holds the other names it too: "BGP speaker" is a speaker,
-	// so a sentence binding a speaker binds ze when ze is a BGP speaker.
-	if strings.Contains(roleKey(role), roleKey(bound)) {
+	// so a sentence binding a speaker binds ze when ze is a BGP speaker. The
+	// roles are compared as whole words: "observer" does not hold "server".
+	if containsWords(roleKey(role), roleKey(bound)) {
 		return nil, parseErr(tb.Str(where).
 			Str(": {not-applicable} binds ").Str(pyRepr(bound)).
 			Str(", which is the role ze fills or a part of it (ze is ").Str(pyRepr(role)).
 			Str("), so the quoted sentence binds ze; the row is owed, not excluded. Annotate it {gap: ...} or test it. ").
 			Str(notApplicableFormat))
 	}
-	if strings.Contains(roleKey(bound), roleKey(role)) {
+	if containsWords(roleKey(bound), roleKey(role)) {
 		return nil, parseErr(tb.Str(where).
 			Str(": {not-applicable} binds ").Str(pyRepr(bound)).
 			Str(", which holds the role ze fills (ze is ").Str(pyRepr(role)).

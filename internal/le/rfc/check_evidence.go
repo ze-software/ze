@@ -6,8 +6,6 @@
 package rfc
 
 import (
-	"bytes"
-	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -167,10 +165,11 @@ type evidenceReader struct {
 	goSource  string // $(go env GOROOT)/src
 	goRefusal string
 
-	kernelRead     bool
-	kernelOptions  map[string]bool // option name to enabled (=y or =m)
-	kernelRequired map[string]bool // options a .require manifest lists
-	kernelRefusal  string
+	kernelRead      bool
+	kernelOptions   map[string]bool // option name to built in (=y)
+	kernelRequired  map[string]bool // options a .require manifest lists
+	kernelManifests []string        // the manifests read, in build order
+	kernelRefusal   string
 
 	vendorRead    bool
 	vendorModules map[string]bool // module paths vendor/modules.txt names
@@ -181,11 +180,14 @@ func newEvidenceReader(tree string) *evidenceReader {
 	return &evidenceReader{tree: tree, sources: map[string]*quoteSource{}}
 }
 
-// kernelConfigRels are the config fragments Ze's runtime kernel is built
+// kernelConfigRels are the profile fragments Ze's runtime kernel is built
 // from, in the order the builder layers them: runtime.config sets options
 // over kernel.config, whose entries it names as already carried (its own
-// comments on XFRM_USER and NF_TABLES_INET). Each has a `.require` manifest
-// beside it (kernelRequireRel).
+// comments on XFRM_USER and NF_TABLES_INET). The `# ze-include:` fragments
+// either names come after both, as resolveKernelProfile
+// (internal/appliance/kernelreg.go) appends every include after every
+// profile fragment. Each fragment has a `.require` manifest beside it
+// (kernelRequireRel), an include's too.
 var kernelConfigRels = []string{"gokrazy/kernel/kernel.config", "gokrazy/kernel/runtime.config"}
 
 // kernelRequireRel is the manifest beside one fragment, named the way
@@ -299,9 +301,10 @@ func (reader *evidenceReader) vendoredModules() (map[string]bool, string) {
 }
 
 // kernelOptionGap answers what is wrong with a `linux:` layer path: it must
-// name a CONFIG_ option that Ze's kernel config enables, built in or as a
-// module, and that a require manifest lists, so the build has verified the
-// final .config carries it.
+// name a CONFIG_ option that Ze's kernel config builds in (=y) and that a
+// require manifest lists, so the build has verified the final .config
+// carries it. enforceRequiredSymbols accepts only =y for a listed option, so
+// a listed option at =m fails the build and no shipped kernel carries it.
 func (reader *evidenceReader) kernelOptionGap(layerPath, option string) (string, bool) {
 	var tb textbuf.Buffer
 	if !kernelOptionRE.MatchString(option) {
@@ -316,11 +319,11 @@ func (reader *evidenceReader) kernelOptionGap(layerPath, option string) (string,
 	if !options[option] {
 		return tb.Str("its layer path ").Str(layerPath).Str(" is not enabled in Ze's kernel (").
 			Str(strings.Join(kernelConfigRels, ", ")).
-			Str(" set it to neither y nor m), so no kernel Ze ships performs it; name the option that builds the layer, or enable it in the config").String(), true
+			Str(" and their includes do not set it to y, the only value the build verifies a required option at), so no kernel Ze ships performs it; name the option that builds the layer, or build it in with =y").String(), true
 	}
 	if !reader.kernelRequired[option] {
-		return tb.Str("its layer path ").Str(layerPath).Str(" is asked for in Ze's kernel config but listed in neither ").
-			Str(kernelRequireRel(kernelConfigRels[0])).Str(" nor ").Str(kernelRequireRel(kernelConfigRels[1])).
+		return tb.Str("its layer path ").Str(layerPath).Str(" is asked for in Ze's kernel config but listed in none of ").
+			Str(strings.Join(reader.kernelManifests, ", ")).
 			Str(", and a fragment line is a request kconfig may answer otherwise; list ").Str(option).
 			Str(" in the manifest beside the fragment that sets it, so the build verifies the final .config carries it").String(), true
 	}
@@ -330,8 +333,17 @@ func (reader *evidenceReader) kernelOptionGap(layerPath, option string) (string,
 // goPackageGap answers what is wrong with a `go:` layer path: it must be a
 // lower-case import path naming a package directory under the toolchain's
 // standard library source that holds a non-test Go file. cmd/ and vendor/
-// hold the toolchain's own programs and modules, not the standard library.
+// hold the toolchain's own programs and modules, not the standard library,
+// and the go tool ignores a directory named testdata or opening with `_` or
+// `.`, so no package lives under one.
 func (reader *evidenceReader) goPackageGap(layerPath, pkg string) (string, bool) {
+	var tb textbuf.Buffer
+	for segment := range strings.SplitSeq(pkg, "/") {
+		if goToolIgnores(segment) {
+			return tb.Str("its layer path ").Str(layerPath).Str(" holds the segment ").Str(segment).
+				Str(", which the go tool ignores (testdata, or a name opening with `_` or `.`), so it names no package; name the standard library package itself as go:<import path>").String(), true
+		}
+	}
 	source, refusal := reader.goStandardSource()
 	if refusal != "" {
 		return refusal, true
@@ -342,15 +354,24 @@ func (reader *evidenceReader) goPackageGap(layerPath, pkg string) (string, bool)
 	if standard {
 		return "", false
 	}
-	var tb textbuf.Buffer
 	return tb.Str("its layer path ").Str(layerPath).Str(" is not a package of the Go standard library (no lower-case import path whose directory ").
 		Str(filepath.Join(source, pkg)).
 		Str(" holds a non-test .go file); name the package as go:<import path>, and a module from outside the standard library as vendor/<module path>").String(), true
 }
 
+// goTestdataDir is the directory name the go tool never reads a package from.
+const goTestdataDir = "testdata"
+
+// goToolIgnores answers whether the go tool skips a directory of this name
+// when it looks for packages (`go help packages`).
+func goToolIgnores(segment string) bool {
+	return segment == goTestdataDir || strings.HasPrefix(segment, "_") || strings.HasPrefix(segment, ".")
+}
+
 // holdsGoSource answers whether dir holds a .go file that is not a test.
 func holdsGoSource(dir string) bool {
 	entries, err := os.ReadDir(dir)
+	// refuse-by-default: guards goPackageGap -- a directory that cannot be read holds no package, and goPackageGap refuses the path naming that directory
 	if err != nil {
 		return false
 	}
@@ -390,35 +411,43 @@ func (reader *evidenceReader) goStandardSource() (string, string) {
 }
 
 // enabledKernelOptions answers every option Ze's kernel config sets, mapped
-// to whether it is enabled, reading each fragment and its one level of
-// includes once, and records the options the fragments' require manifests
-// list. A later fragment overrides an earlier one, as the builder layers
-// them. A fragment or manifest that cannot be read is a refusal: the option
-// cannot be told absent from unreadable.
+// to whether it is built in, and records the options the require manifests
+// list. It reads the profile fragments, then each include they name once in
+// first-named order, as resolveKernelProfile layers them, so a later fragment
+// overrides an earlier one and an include overrides both. A fragment or
+// manifest that cannot be read is a refusal: the option cannot be told
+// absent from unreadable.
 func (reader *evidenceReader) enabledKernelOptions() (map[string]bool, string) {
 	if reader.kernelRead {
 		return reader.kernelOptions, reader.kernelRefusal
 	}
 	reader.kernelRead = true
 	options := map[string]bool{}
-	required := map[string]bool{}
-	for _, rel := range kernelConfigRels {
-		includes, refusal := readKernelFragment(reader.tree, rel, options)
+	fragments := slices.Clone(kernelConfigRels)
+	for i := 0; i < len(fragments); i++ {
+		includes, refusal := readKernelFragment(reader.tree, fragments[i], options)
 		if refusal != "" {
 			reader.kernelRefusal = refusal
 			return nil, refusal
 		}
+		// One level only, as the builder refuses a nested include.
+		if i >= len(kernelConfigRels) {
+			continue
+		}
 		for _, name := range includes {
-			included := kernelbuilder.DefaultCommonDir + "/" + name + ".config"
-			if _, refusal := readKernelFragment(reader.tree, included, options); refusal != "" {
-				reader.kernelRefusal = refusal
-				return nil, refusal
+			if included := kernelbuilder.DefaultCommonDir + "/" + name + ".config"; !slices.Contains(fragments, included) {
+				fragments = append(fragments, included)
 			}
 		}
-		if refusal := readKernelRequire(reader.tree, kernelRequireRel(rel), required); refusal != "" {
+	}
+	required := map[string]bool{}
+	for _, fragment := range fragments {
+		manifest := kernelRequireRel(fragment)
+		if refusal := readKernelRequire(reader.tree, manifest, required); refusal != "" {
 			reader.kernelRefusal = refusal
 			return nil, refusal
 		}
+		reader.kernelManifests = append(reader.kernelManifests, manifest)
 	}
 	reader.kernelOptions = options
 	reader.kernelRequired = required
@@ -456,7 +485,7 @@ func readKernelFragment(tree, rel string, options map[string]bool) ([]string, st
 		if !assigned || !strings.HasPrefix(name, "CONFIG_") {
 			continue
 		}
-		options[name] = value == "y" || value == "m"
+		options[name] = value == "y"
 	}
 	return includes, ""
 }
@@ -538,262 +567,24 @@ func evidenceFormat(kind string) string {
 	}
 }
 
-// priorState is what git answers about HEAD^, the revision the ratchet
-// compares against. Zero is no answer at all, which no caller may pass.
-type priorState int
-
-const (
-	priorUnspecified priorState = iota
-	// priorAbsent is a checkout with no HEAD^ to read: no git, no commit, or
-	// a root commit. Nothing is known to be new, so every row is counted.
-	priorAbsent
-	// priorRead is a HEAD^ whose summaries and committed counts were read.
-	priorRead
-	// priorUnreadable is a HEAD^ git holds and could not answer for. It is a
-	// refusal, never the absent case: a broken reader that passes is how a
-	// ratchet stops judging.
-	priorUnreadable
-)
-
-// evidenceBaseline is HEAD^ as the exclusion evidence ratchet reads it, with
-// the committed counts it compares the working tree's against.
-type evidenceBaseline struct {
-	state priorState
-	// reason says why the state is absent or unreadable.
-	reason string
-	// prints is each requirement id's evidenceFingerprint at HEAD^, and
-	// unreadable the stems whose summary HEAD^ could not parse. pushedPrints
-	// holds the fingerprints backlogRevision records for those stems' rows.
-	prints       map[string]string
-	unreadable   map[string]bool
-	pushedPrints map[string]string
-	// backlog is the committed count of each kind at HEAD^, or at the newest
-	// commit before it that holds the file, and backlogAt names that commit.
-	// Nil when no commit before HEAD ever held it (the commit introducing it).
-	backlog   map[string]int
-	backlogAt string
-	// pushed is the same at backlogRevision, the pushed branch, so a count one
-	// commit raised cannot be carried by the next. Nil when the branch is not
-	// fetched or never held the file.
-	pushed   map[string]int
-	pushedAt string
-	// malformed is the refusal for a committed backlog file that does not
-	// parse, empty when every committed file read parsed.
-	malformed string
-}
-
-// priorRevisionState answers whether HEAD^ exists, telling a checkout that
-// has none from one git cannot read. A tree under no `.git`, a HEAD that
-// names no commit yet (`git rev-parse --verify` exits 1 there) and a HEAD
-// `git rev-list --parents` lists with no parent are absent. A shallow clone, a
-// listed parent whose object cannot be read, and any other git failure are
-// unreadable: git also exits 1 for a parent a partial clone or corruption
-// lost, so the exit status alone never decides absence.
-func priorRevisionState(tree string) (priorState, string) {
-	if !insideGitCheckout(tree) {
-		return priorAbsent, tree + " is not a git checkout"
-	}
-	shallow, failure := gitAnswer(tree, "rev-parse", "--is-shallow-repository")
-	if failure != "" {
-		return priorUnreadable, failure
-	}
-	if shallow == "true" {
-		return priorUnreadable, "the checkout is a shallow clone, so the commits before HEAD may be cut off; run `git fetch --unshallow`"
-	}
-	if _, code, failure := gitExit(tree, "rev-parse", "--verify", "--quiet", headRevision); code == 1 {
-		return priorAbsent, "HEAD names no commit yet"
-	} else if failure != "" {
-		return priorUnreadable, failure
-	}
-	listed, failure := gitAnswer(tree, "rev-list", "--parents", "-n1", headRevision)
-	if failure != "" {
-		return priorUnreadable, failure
-	}
-	commits := strings.Fields(listed)
-	if len(commits) == 0 {
-		return priorUnreadable, "`git rev-list --parents -n1 HEAD` answered nothing"
-	}
-	if len(commits) == 1 {
-		return priorAbsent, "HEAD has no parent commit (a root commit)"
-	}
-	var tb textbuf.Buffer
-	if _, failure := gitAnswer(tree, "cat-file", "-e", tb.Str(commits[1]).Str("^{commit}").String()); failure != "" {
-		return priorUnreadable, "HEAD lists the parent " + commits[1] + ", whose commit git cannot read (" + failure + ")"
-	}
-	return priorRead, ""
-}
-
-// gitAnswer runs git in tree and answers its trimmed output, or a failure
-// naming the command and what git said.
-func gitAnswer(tree string, args ...string) (string, string) {
-	out, _, failure := gitExit(tree, args...)
-	return out, failure
-}
-
-// gitExit is gitAnswer with git's exit status, -1 when git did not run.
-func gitExit(tree string, args ...string) (string, int, string) {
-	cmd := exec.Command("git", args...) //nolint:gosec,noctx // this developer tool queries the checkout it was given
-	cmd.Dir = tree
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	out, err := cmd.Output()
-	if err == nil {
-		return strings.TrimSpace(string(out)), 0, ""
-	}
-	code := -1
-	if exit, ok := errors.AsType[*exec.ExitError](err); ok {
-		code = exit.ExitCode()
-	}
-	return "", code, "`git " + strings.Join(args, " ") + "` failed: " + strings.TrimSpace(err.Error()+" "+stderr.String())
-}
-
-// insideGitCheckout answers whether tree or a directory above it holds a
-// `.git` entry: a directory in a clone, a file in a worktree. A path that
-// cannot be made absolute answers true, so git is asked and answers
-// unreadable rather than the checkout passing as absent.
-func insideGitCheckout(tree string) bool {
-	dir, err := filepath.Abs(tree)
-	if err != nil {
-		return true
-	}
-	for {
-		if _, err := os.Lstat(filepath.Join(dir, ".git")); err == nil {
-			return true
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			return false
-		}
-		dir = parent
-	}
-}
-
-// priorEvidence reads what the ratchet compares against: the HEAD^
-// fingerprints baselineLevels already parsed, the pushed fingerprints of the
-// stems HEAD^ could not parse, and the committed counts at HEAD^ and at the
-// pushed branch, each from the newest commit that holds the file.
-func priorEvidence(tree string, prints map[string]string, unreadable map[string]bool, levelsKnown bool) evidenceBaseline {
-	state, reason := priorRevisionState(tree)
-	if state != priorRead {
-		return evidenceBaseline{state: state, reason: reason}
-	}
-	if !levelsKnown {
-		return evidenceBaseline{state: priorUnreadable, reason: "git could not read the summaries under " + summaryRel + " at HEAD^"}
-	}
-	base := evidenceBaseline{state: priorRead, prints: prints, unreadable: unreadable}
-	var failure string
-	base.backlog, base.backlogAt, failure, base.malformed = committedBacklogAt(tree, priorRevision)
-	if failure != "" {
-		return evidenceBaseline{state: priorUnreadable, reason: failure}
-	}
-	// refuse-by-default: guards checkExclusionEvidence -- a clone with no pushed branch has no pushed count, as the tag backlog reads it (revisionExists)
-	if !revisionExists(tree, backlogRevision) {
-		return base
-	}
-	pushed, pushedAt, failure, malformed := committedBacklogAt(tree, backlogRevision)
-	if failure != "" {
-		return evidenceBaseline{state: priorUnreadable, reason: failure}
-	}
-	base.pushed, base.pushedAt = pushed, pushedAt
-	if base.malformed == "" {
-		base.malformed = malformed
-	}
-	base.pushedPrints, failure = pushedFingerprints(tree, unreadable)
-	if failure != "" {
-		return evidenceBaseline{state: priorUnreadable, reason: failure}
-	}
-	return base
-}
-
-// committedBacklogAt answers the committed counts at revision, or at the
-// newest commit before it whose tree holds the file, and names where it read
-// them. Nil counts, with no failure, when no commit reachable from revision
-// ever held the file. A git failure is the third answer; a file that does not
-// parse is the fourth, a refusal telling the author to commit a valid one.
-func committedBacklogAt(tree, revision string) (map[string]int, string, string, string) {
-	blobs, ok := gitCatBlobs(tree, revision, []string{evidenceBacklogRel})
-	if !ok {
-		return nil, "", "`git cat-file` could not read " + revision + ":" + evidenceBacklogRel, ""
-	}
-	text, held := blobs[evidenceBacklogRel]
-	at := revision
-	if !held {
-		// A deletion is not a commit that holds the file, so --diff-filter=d
-		// skips it and the newest commit that still held it answers.
-		holder, failure := gitAnswer(tree, "log", "-1", "--format=%H", "--diff-filter=d", revision, "--", evidenceBacklogRel)
-		if failure != "" {
-			return nil, "", failure, ""
-		}
-		if holder == "" {
-			return nil, "", "", ""
-		}
-		blobs, ok = gitCatBlobs(tree, holder, []string{evidenceBacklogRel})
-		text, held = blobs[evidenceBacklogRel]
-		if !ok || !held {
-			return nil, "", "`git cat-file` could not read " + holder + ":" + evidenceBacklogRel + ", which `git log` names as holding it", ""
-		}
-		at = holder + " (the newest commit at or before " + revision + " holding the file)"
-	}
-	counts, refusal := parseEvidenceBacklog(text, at+":"+evidenceBacklogRel)
-	if refusal != "" {
-		return nil, at, "", "the committed " + evidenceBacklogRel + " at " + at + " is malformed, so no count can be compared with it: " +
-			refusal + ". Commit a valid file; the commits after it compare against that one"
-	}
-	return counts, at, "", ""
-}
-
-// pushedFingerprints answers the evidenceFingerprint backlogRevision records
-// for each row of the stems HEAD^ could not parse, so a row there that the
-// commit left alone is still told from one it changed. A stem the pushed
-// branch does not hold or cannot parse records nothing, and its rows are
-// judged new. A git failure is the second answer.
-func pushedFingerprints(tree string, unreadable map[string]bool) (map[string]string, string) {
-	if len(unreadable) == 0 {
-		return nil, ""
-	}
-	paths := make([]string, 0, len(unreadable))
-	for stem := range unreadable {
-		paths = append(paths, summaryRel+"/"+stem+".md")
-	}
-	slices.Sort(paths)
-	blobs, ok := gitCatBlobs(tree, backlogRevision, paths)
-	if !ok {
-		return nil, "`git cat-file` could not read the summaries under " + summaryRel + " at " + backlogRevision
-	}
-	prints := map[string]string{}
-	for _, rel := range paths {
-		text, held := blobs[rel]
-		if !held {
-			continue
-		}
-		requirements, err := ParseSummaryText(text, strings.TrimSuffix(filepath.Base(rel), ".md"), rel)
-		if err != nil {
-			continue
-		}
-		for i := range requirements {
-			prints[requirements[i].RID] = evidenceFingerprint(&requirements[i])
-		}
-	}
-	return prints, ""
-}
-
-// lostRowsNamedMax bounds how many rows a count refusal names in full.
-const lostRowsNamedMax = 10
+// countedRowsNamedMax bounds how many rows a count refusal names in full.
+const countedRowsNamedMax = 10
 
 // checkExclusionEvidence is the exclusion evidence ratchet. It answers the
 // refusals, and a notice for the report when HEAD^ is absent.
 //
-// A row the commit added or changed against HEAD^ that lacks its evidence is
-// refused by its id and is not counted: it is this commit's to fix, and
-// counting it too would bill the backlog for it. Every other row lacking
-// evidence is counted per kind, and that count must equal the committed count
-// in evidenceBacklogRel: below it, the committed count is lowered in the same
-// commit; above it, a row lost its evidence or the line was set below the
-// rows it counts. The committed count itself may rise neither above HEAD^'s
-// nor above the pushed branch's. A kind whose committed count is zero is
-// refused row by row, which is full refusal. A HEAD^ git cannot read is
-// refused; only an absent HEAD^ judges every row as untouched, and the notice
-// says so.
+// A row added or changed since HEAD^ or the pushed branch (evidenceRowIsNew)
+// that lacks its evidence is refused by its id and is not counted: it is the
+// commit's to fix, and counting it too would bill the backlog for it. So is
+// an untouched row whose evidence form no longer passes its check. Every other
+// row lacking evidence is counted per kind, and that count must equal the
+// committed count in evidenceBacklogRel: below it, the committed count is
+// lowered in the same commit; above it, the line was set below the rows it
+// counts. The committed count itself may rise neither above HEAD^'s nor above
+// the pushed branch's. A kind whose committed count is zero is refused row by
+// row, which is full refusal. A malformed committed copy is refused beside
+// the rows. A HEAD^ git cannot read is refused; only an absent HEAD^ judges
+// every row as untouched, and the notice says so.
 func checkExclusionEvidence(tree string, requirements []Requirement, base evidenceBaseline) ([]string, string) {
 	backlog, refusal := readEvidenceBacklog(tree)
 	if refusal != "" {
@@ -806,22 +597,21 @@ func checkExclusionEvidence(tree string, requirements []Requirement, base eviden
 		notice = "exclusion evidence: no HEAD^ (" + base.reason + "), so no row is known to be new: every row lacking evidence is counted against " +
 			evidenceBacklogRel + " and no committed count is compared with HEAD^"
 	case priorUnreadable:
-		return []string{evidenceBacklogRel + ": cannot read HEAD^ (" + base.reason +
-			"), so no row can be told new from untouched and the committed counts cannot be compared with HEAD^. " +
-			"Repair the checkout until `git cat-file -p HEAD^:" + evidenceBacklogRel + "` answers, then rerun `./le rfc check`"}, ""
+		// The reason ends with its own fix: a shallow clone, a lost object
+		// and a failing command each repair differently.
+		return []string{evidenceBacklogRel + ": cannot read HEAD^, so no row can be told new from untouched and the committed counts cannot be compared with HEAD^: " +
+			base.reason}, ""
 	case priorUnspecified:
 		panic("BUG: checkExclusionEvidence was given no HEAD^ state")
 	default:
 		panic("BUG: unknown HEAD^ state")
 	}
+	var errs []string
 	if base.malformed != "" {
-		return []string{base.malformed}, notice
+		errs = append(errs, base.malformed)
 	}
 	reader := newEvidenceReader(tree)
-	lacking := map[string]int{}
 	counted := map[string][]string{}
-	lost := map[string][]string{}
-	var errs []string
 	for i := range requirements {
 		req := &requirements[i]
 		missing, lacks := reader.gap(req)
@@ -829,25 +619,29 @@ func checkExclusionEvidence(tree string, requirements []Requirement, base eviden
 			continue
 		}
 		kind := req.Annotation.Kind
+		var tb textbuf.Buffer
+		tb.Str(requirementWhere(*req)).Str(": ").Str(req.RID).Str(" is annotated {").Str(kind).Str("} and ")
 		touched := evidenceRowIsNew(req, base)
+		// An untouched row that carries an evidence form and fails its check
+		// is never backlog: counting it would let a commit break one row's
+		// evidence while it backfills another and keep the count level.
+		if !touched && carriesEvidenceForm(req.Annotation) {
+			errs = append(errs, tb.Str("carries evidence that no longer passes its check: ").Str(missing).
+				Str(". The RFC text or the component it names changed under it: restore what it names, or rewrite the annotation on that line. ").
+				Str(evidenceFormat(kind)).String())
+			continue
+		}
 		if !touched {
-			lacking[kind]++
-			row := requirementWhere(*req) + " " + req.RID
-			counted[kind] = append(counted[kind], row)
-			if req.Annotation.Quote != "" || req.Annotation.LayerPath != "" {
-				lost[kind] = append(lost[kind], row)
-			}
+			counted[kind] = append(counted[kind], requirementWhere(*req)+" "+req.RID)
 		}
 		if !touched && backlog[kind] > 0 {
 			continue
 		}
-		var tb textbuf.Buffer
-		errs = append(errs, tb.Str(requirementWhere(*req)).Str(": ").Str(req.RID).
-			Str(" is annotated {").Str(kind).Str("} and lacks the evidence that kind owes: ").
+		errs = append(errs, tb.Str("lacks the evidence that kind owes: ").
 			Str(missing).Str(". Rewrite the annotation on that line to carry it. ").Str(evidenceFormat(kind)).String())
 	}
 	for _, kind := range evidenceKinds {
-		if message, refused := evidenceCountRefusal(kind, backlog[kind], counted[kind], lost[kind]); refused {
+		if message, refused := evidenceCountRefusal(kind, backlog[kind], counted[kind]); refused {
 			errs = append(errs, message)
 		}
 		if message, refused := evidencePriorRefusal(kind, backlog[kind], base.backlog, base.backlogAt); refused {
@@ -860,31 +654,46 @@ func checkExclusionEvidence(tree string, requirements []Requirement, base eviden
 	return errs, notice
 }
 
-// evidenceRowIsNew answers whether the commit added or changed this row's
-// evidence against HEAD^. A row of a summary HEAD^ could not parse is judged
-// against the fingerprint the pushed branch records for it, and is new when
-// it records none: a summary nobody could read never shelters a row. No row
-// is new when HEAD^ is absent.
+// evidenceRowIsNew answers whether this row's evidence was added or changed
+// since HEAD^ or since the pushed branch. A row is untouched only when both
+// record it unchanged, so a row one red commit added while it backfilled
+// another, keeping the count level, is still new in the next commit. A clone
+// with no pushed branch judges against HEAD^ alone. A row of a summary HEAD^
+// could not parse is judged against the pushed branch only, and is new
+// without one: a summary nobody could read never shelters a row. No row is
+// new when HEAD^ is absent.
 func evidenceRowIsNew(req *Requirement, base evidenceBaseline) bool {
 	if base.state != priorRead {
 		return false
 	}
-	prints := base.prints
+	fingerprint := evidenceFingerprint(req)
 	if base.unreadable[req.RFC] {
-		prints = base.pushedPrints
+		return !base.pushedRead || !heldUnchanged(base.pushedPrints, req.RID, fingerprint)
 	}
-	held, existed := prints[req.RID]
-	// refuse-by-default: guards checkExclusionEvidence -- an id the baseline never held is a row this commit added
-	if !existed {
+	if !heldUnchanged(base.prints, req.RID, fingerprint) {
 		return true
 	}
-	return held != evidenceFingerprint(req)
+	return base.pushedRead && !heldUnchanged(base.pushedPrints, req.RID, fingerprint)
+}
+
+// carriesEvidenceForm answers whether an annotation is written in its kind's
+// evidence form (a quote, or a layer path), as against a row written before
+// the kind carried evidence.
+func carriesEvidenceForm(annotation *Annotation) bool {
+	return annotation.Quote != "" || annotation.LayerPath != ""
+}
+
+// heldUnchanged answers whether prints records rid with this fingerprint. An
+// id it never held is a row added since, so it answers false.
+func heldUnchanged(prints map[string]string, rid, fingerprint string) bool {
+	held, existed := prints[rid]
+	return existed && held == fingerprint
 }
 
 // evidenceCountRefusal compares one kind's count of untouched rows lacking
-// evidence, the rows counted, with its committed count. lost names the
-// counted rows that carry an evidence form which no longer holds.
-func evidenceCountRefusal(kind string, committed int, counted, lost []string) (string, bool) {
+// evidence, the rows counted, with its committed count. No counted row
+// carries an evidence form: checkExclusionEvidence refuses such a row by id.
+func evidenceCountRefusal(kind string, committed int, counted []string) (string, bool) {
 	count := len(counted)
 	if count == committed {
 		return "", false
@@ -900,26 +709,21 @@ func evidenceCountRefusal(kind string, committed int, counted, lost []string) (s
 		return tb.Str("The count may only fall, so the file records the fall: set the line to `").
 			Str(kind).Byte(' ').Int(int64(count)).Str("` in this commit").String(), true
 	}
+	// Never advise raising the line: a higher line is refused as a rise.
 	tb.Str(evidenceBacklogRel).Str(": ").Int(int64(count)).Str(" {").Str(kind).
-		Str("} rows the commit left alone lack their evidence, and the committed count is ").Int(int64(committed)).Str(". ")
-	if len(lost) == 0 {
-		// Never advise raising the line: a higher line is refused as a rise.
-		tb.Str("None of them carries an evidence form, so the line stands below the rows it counts, and the line never rises: give ").
-			Int(int64(count - committed)).Str(" of these rows the evidence their kind owes: ")
-		writeRowsNamed(&tb, counted)
-		return tb.Str(". ").Str(evidenceFormat(kind)).String(), true
-	}
-	tb.Str("The evidence these rows carry no longer holds, because the RFC text or the component they name changed under them: ")
-	writeRowsNamed(&tb, lost)
-	return tb.Str("; restore what each names, or correct its annotation, then rerun `./le rfc check`").String(), true
+		Str("} rows the commit left alone lack their evidence, and the committed count is ").Int(int64(committed)).
+		Str(". None of them carries an evidence form, so the line stands below the rows it counts, and the line never rises: give ").
+		Int(int64(count - committed)).Str(" of these rows the evidence their kind owes: ")
+	writeRowsNamed(&tb, counted)
+	return tb.Str(". ").Str(evidenceFormat(kind)).String(), true
 }
 
-// writeRowsNamed writes rows comma-separated, at most lostRowsNamedMax of
+// writeRowsNamed writes rows comma-separated, at most countedRowsNamedMax of
 // them, then how many more there are.
 func writeRowsNamed(tb *textbuf.Buffer, rows []string) {
 	for i, row := range rows {
-		if i == lostRowsNamedMax {
-			tb.Str(", and ").Int(int64(len(rows) - lostRowsNamedMax)).Str(" more")
+		if i == countedRowsNamedMax {
+			tb.Str(", and ").Int(int64(len(rows) - countedRowsNamedMax)).Str(" more")
 			return
 		}
 		if i > 0 {

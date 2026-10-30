@@ -270,7 +270,7 @@ quote"); what each kind adds is the fact that removes the row from Ze's count.
 
 | Kind | Evidence | Written as |
 |------|----------|-----------|
-| `{not-applicable}` | A role-condition quote from the cited section or its subsections, the role that sentence binds, and the role Ze fills, which differs from it | `{not-applicable: "<the RFC's sentence scoping the obligation to a role>"; binds <the role the sentence names>; ze is <the role ze fills>; <why that role is not bound>}`. Quote first, as in `{feature-declined}`. `parseNotApplicable` refuses a quoted payload with a quote under 24 characters, no `binds <role>` segment, a bound role the quote does not contain as whole words (`binds s` is not found in "a speaker"), a bound role and a Ze role of which either holds the other (`binds speaker; ze is BGP speaker`; compared without case or a leading article), no `ze is <role>` segment, or no reason. A reason that opens with no quote is a row written before the kind carried evidence: it parses, and the ratchet owes it |
+| `{not-applicable}` | A role-condition quote from the cited section or its subsections, the role that sentence binds, and the role Ze fills, which differs from it | `{not-applicable: "<the RFC's sentence scoping the obligation to a role>"; binds <the role the sentence names>; ze is <the role ze fills>; <why that role is not bound>}`. Quote first, as in `{feature-declined}`. `parseNotApplicable` refuses a quoted payload with a quote under 24 characters, no `binds <role>` segment, a bound role the quote does not contain as whole words (`binds s` is not found in "a speaker"), a bound role and a Ze role of which either holds the other (`binds speaker; ze is BGP speaker`; compared as whole words, without case or a leading article, so `binds a server; ze is an observer` passes), no `ze is <role>` segment, or no reason. A reason that opens with no quote is a row written before the kind carried evidence: it parses, and the ratchet owes it |
 | `{feature-declined}` | Its optionality quote, in the cited section or its subsections | unchanged, see "The feature-declined annotation" |
 | `{lower-layer}` | A layer component a reader can check, beside the producer | `linux:CONFIG_<option>`, `go:<package>` or `vendor/<module>` inside the head, see "The lower-layer annotation" |
 | `{linux-limit}` | Its register entry | unchanged, `checkLinuxLimit` |
@@ -286,50 +286,61 @@ The rows that predate the rule are a backlog, so the check is a ratchet over
 `rfc/exclusion-evidence-backlog.txt`, which holds one `<kind> <count>` line for
 each of the three kinds:
 
-- A row the commit added, or whose cited section, kind or reason it changed
-  against `HEAD^` (`evidenceFingerprint`, through `baselineLevels`), is refused
-  by its id when it lacks the evidence, and is not counted: it is the commit's
-  to fix, not the backlog's. The refusal names the summary line, the id, the
-  evidence missing, and ends with the kind's format.
-- A row of a summary `HEAD^` could not parse is judged against the fingerprint
-  the pushed `origin/main` records for it (`pushedFingerprints`), and is new,
-  so refused by id, when that branch records none either: a summary nobody
-  could read never shelters a changed row (`evidenceRowIsNew`).
+- A row added, or whose cited section, kind or reason changed, since `HEAD^`
+  or since the pushed `origin/main` (`evidenceFingerprint`, through
+  `baselineLevels` and `pushedFingerprints`) is refused by its id when it lacks
+  the evidence, and is not counted: it is the commit's to fix, not the
+  backlog's. A row is counted only when both revisions record it unchanged, so
+  one commit that backfills a row and adds a lacking one, keeping the line
+  level, cannot let the next commit carry the added row as backlog
+  (`evidenceRowIsNew`). A clone with no `origin/main` judges against `HEAD^`
+  alone. The refusal names the summary line, the id, the evidence missing, and
+  ends with the kind's format.
+- A row of a summary `HEAD^` could not parse is judged against `origin/main`
+  alone, and is new, so refused by id, when that branch records none either:
+  a summary nobody could read never shelters a changed row.
+- A row that carries its kind's evidence form (a quote, or a layer path) and
+  whose evidence no longer passes its check is refused by its id, naming the
+  failing check, and is never counted, even when the commit left it alone: its
+  RFC text or the component it names changed under it. So a commit cannot
+  break one row's evidence while it backfills another and keep the line level.
 - Every other row lacking evidence is counted per kind, and the count must
   equal the committed line. A count below it is refused until the commit
-  lowers the line to the new count. A count above it means the rows the commit
-  left alone outnumber the line: a row lost its evidence because its RFC text
-  or the component it names changed, or an earlier commit set the line below
-  the rows it counts. Where counted rows carry an evidence form, the refusal
-  names them; where none does, it names the counted rows (up to
-  `lostRowsNamedMax`) and
-  says how many to backfill. It never advises raising the line, which the
-  next rule refuses.
+  lowers the line to the new count. A count above it means an earlier commit
+  set the line below the rows it counts: the refusal names the counted rows
+  (up to `countedRowsNamedMax`) and says how many to backfill. It never advises
+  raising the line, which the next rule refuses.
 - The committed line is also read at `HEAD^` and at the pushed `origin/main`
   (`priorEvidence`, `committedBacklogAt`), and a line above either is refused,
   naming the kind, both counts and the commit read. So the committed number
   never rises against `HEAD^` nor against the pushed branch, and a rise one
   commit made is still refused in the next. Each is read from the newest
-  commit at or before that revision whose tree holds the file, so deleting the
-  file in one commit and restoring it higher in the next is refused too. Only
-  a history that never held the file compares nothing. A clone with no
+  commit at or before that revision whose copy of the file parses, so deleting
+  the file in one commit and restoring it higher in the next is refused too,
+  and so is breaking it in one commit and raising it in the next. Only a
+  history that never held a copy that parses compares nothing. A clone with no
   `origin/main` compares with `HEAD^` alone, as the tag backlog does.
 - A kind whose line reads 0 is refused row by row: full refusal, with no
   removal commit needed.
 - A missing file, a missing kind, a kind on two lines, an unknown kind or a
   malformed count is refused; a ratchet with no committed count judges nothing.
   A committed copy at `HEAD^` or `origin/main` that is malformed is refused
-  too, telling the author to commit a valid file: the commits after it compare
-  against that one.
+  too, telling the author to commit a valid file, and the rows are still
+  judged beside that refusal.
 - A `HEAD^` git cannot read is refused (`priorRevisionState`): a broken reader
   never passes as an empty history. Absence is decided from
   `git rev-list --parents -n1 HEAD`, never from an exit status git also gives
   for a lost object: a HEAD with no parent listed, a HEAD that names no commit
-  yet, or no git at all is absent. A shallow clone, or a listed parent whose
-  commit git cannot read, is unreadable. Only an absent `HEAD^` judges every
-  row as untouched, and `./le rfc check` prints a line saying so.
+  yet, or no `.git` above the tree is absent. A shallow clone, a listed parent
+  whose commit git cannot read, or a git command that fails is unreadable, and
+  the refusal ends with the fix for that reason: `git fetch --unshallow`,
+  `git fetch` or `git fsck` for a lost object, or repairing the checkout until
+  the named command answers. Only an absent `HEAD^` judges every row as
+  untouched, and `./le rfc check` prints a line saying so.
 
-<!-- source: internal/le/rfc/check_evidence.go -- checkExclusionEvidence, evidenceReader, priorEvidence, priorRevisionState, parseEvidenceBacklog -->
+<!-- source: internal/le/rfc/check_evidence.go -- checkExclusionEvidence, evidenceRowIsNew, evidenceReader -->
+<!-- source: internal/le/rfc/check_evidence_prior.go -- priorEvidence, priorRevisionState, committedBacklogAt, pushedFingerprints -->
+<!-- source: internal/le/rfc/check_evidence.go -- parseEvidenceBacklog -->
 <!-- source: internal/le/rfc/summary.go -- parseNotApplicable, parseLowerLayer -->
 <!-- source: internal/le/rfc/check_core.go -- featureDeclinedQuote -->
 
@@ -628,7 +639,7 @@ The reason states three facts, and the gate checks each:
 |------|-----------|------------|
 | The LAYER that performs the behavior | the head, before the `;` | `parseLowerLayer` refuses an empty head, and a reason with no `;` at all |
 | The PRODUCER in Ze that installs into that layer | `<path>.go::<Symbol>` anywhere in the reason | `parseLowerLayer` refuses a reason naming none; `checkLowerLayerProducer` then refuses one the tree cannot show |
-| The layer COMPONENT a reader checks | a token inside the head: `linux:CONFIG_<option>` (`linux:CONFIG_XFRM_USER`), `go:<standard library package>` (`go:crypto/x509`) or `vendor/<module path>` | `parseLowerLayer` reads it into `LayerPath`; the exclusion evidence ratchet (see "The ratchets") refuses a row without one; a `vendor/` path that is not exactly a module `vendor/modules.txt` lists as `# <module> <version>` (a package inside a module, the vendor directory or a file in it is refused) or whose directory this checkout does not carry; a `linux:` token that is no `CONFIG_` option, names one Ze's kernel config does not set to `y` or `m` (`gokrazy/kernel/kernel.config`, then `gokrazy/kernel/runtime.config`, with their `# ze-include:` fragments; a later `# CONFIG_<name> is not set` disables it), or names one neither `gokrazy/kernel/kernel.require` nor `gokrazy/kernel/runtime.require` lists, since a fragment line is a request kconfig may answer otherwise and only a listed option is verified against the final `.config`; a `go:` path that is not a lower-case import path, is under `cmd/` or `vendor/`, or whose directory under `$(go env GOROOT)/src` holds no non-test `.go` file; and any path with a `.` or `..` segment (`(*evidenceReader).layerPathGap`). A config file, require manifest or module list that cannot be read, or a toolchain that cannot name its GOROOT, refuses every path of that form |
+| The layer COMPONENT a reader checks | a token inside the head: `linux:CONFIG_<option>` (`linux:CONFIG_XFRM_USER`), `go:<standard library package>` (`go:crypto/x509`) or `vendor/<module path>` | `parseLowerLayer` reads it into `LayerPath`; the exclusion evidence ratchet (see "The ratchets") refuses a row without one; a `vendor/` path that is not exactly a module `vendor/modules.txt` lists as `# <module> <version>` (a package inside a module, the vendor directory or a file in it is refused) or whose directory this checkout does not carry; a `linux:` token that is no `CONFIG_` option, names one Ze's kernel config does not build in with `y` (`gokrazy/kernel/kernel.config`, then `gokrazy/kernel/runtime.config`, then the `# ze-include:` fragments either names under `tools/kernel-builder/common/`, after both, as `resolveKernelProfile` layers them; a later `# CONFIG_<name> is not set` disables it; `m` does not count, because the build accepts a required option only at `=y`), or names one no require manifest of those fragments lists (`gokrazy/kernel/kernel.require`, `gokrazy/kernel/runtime.require`, `tools/kernel-builder/common/<include>.require`), since a fragment line is a request kconfig may answer otherwise and only a listed option is verified against the final `.config`; a `go:` path with a segment the go tool ignores (`testdata`, or one opening with `_` or `.`), that is not a lower-case import path, is under `cmd/` or `vendor/`, or whose directory under `$(go env GOROOT)/src` holds no non-test `.go` file; and any path with a `.` or `..` segment (`(*evidenceReader).layerPathGap`). A config file, require manifest or module list that cannot be read, or a toolchain that cannot name its GOROOT, refuses every path of that form |
 
 That producer demand is the whole difference from `{not-applicable}`. That kind
 asserts a judgement nothing in the tree can contradict, which is how it grew to
