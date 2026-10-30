@@ -114,6 +114,7 @@ The subscriber auth registry, the metrics registry, session teardown events.
 | AC-18 | MS-CHAPv2 via RADIUS | The authenticator receives the 20-octet Authenticator-Response decoded from the RADIUS `S=` string (RFC 2759 Section 5); a test runs the RADIUS path end to end |
 | AC-19 | `LoadBackend` fallback | Two racing nil checks build one backend; the comment matches the code; a `-race` test starts both subsystems at once |
 | AC-20 | RADIUS tests x2 | `TestClientRetransmit` asserts the Identifier and Request Authenticator are unchanged across attempts (RFC 2865 Section 2.5); the EAP test's comment states only what it checks |
+| AC-21 | `generateIPv6CPInterfaceID` u bit | RFC 5072 Section 4.1: "In this case, the "u" bit of the interface identifier MUST be set to zero (0)." Every identifier `requestIPv6CPInterfaceID` sends has bit 0x02 of octet 0 clear; a unit over many draws goes red when the clearing is removed, and the RFC5072-4.1-10 and 4.1-11 gaps in `rfc/short/rfc5072.md` become tagged |
 
 ## 🧪 TDD Test Plan
 
@@ -154,6 +155,7 @@ The subscriber auth registry, the metrics registry, session teardown events.
 |------------|------|-----------------|
 | `blanket-mechanism-hid-missing-cases` | 2026-08-31 | pppoe client LCP |
 | `crypto-rand-read-error-branch-is-dead-code` | 2026-09-09 | `generateIPv6CPInterfaceID` |
+| `rfc-extension-not-implemented` | 2026-10-30 | `generateIPv6CPInterfaceID` u bit never cleared |
 | `design-claim-never-measured` | 2026-09-03 | `subscriber.RegisterAuthHandler` |
 | `dial-ignores-which-listener-reaches-the-remote` | 2026-10-17 | `Subsystem.PlaceOutgoingCall` |
 | `field-carries-two-meanings` | 2026-09-30 | Framed-IP-Address 0xFFFFFFFF |
