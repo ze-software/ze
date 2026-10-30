@@ -882,7 +882,7 @@ func TestRunReloadOriginalUndoAndFinalizationFailure(t *testing.T) {
 			base := newTestStore(t, dir)
 			stamp, err := storage.WriteCandidateVersion(base, path, []byte("candidate"), mustParseReloadStamp(t, "20260817-100000.000"))
 			require.NoError(t, err)
-			store := storage.Storage(base)
+			store := base
 			if publicationFails {
 				store = failAcquireStorage{Storage: base}
 			}
