@@ -316,7 +316,7 @@ func parseLowerLayer(rest, where string) (*Annotation, error) {
 	// `{kind} reason` publishes both facts with no knowledge of this kind, and
 	// the site cannot lose the layer on its way to a page. LayerPath is read
 	// from the layer and may be empty: a row written before the kind carried
-	// it still parses, and the evidence ratchet (exclusionEvidenceGap) owes it.
+	// it still parses, and the evidence ratchet ((*evidenceReader).gap) owes it.
 	var layerPath string
 	if found := layerPathRE.FindStringSubmatch(layer); found != nil {
 		layerPath = found[1]
@@ -326,37 +326,44 @@ func parseLowerLayer(rest, where string) (*Annotation, error) {
 }
 
 // layerPathRE reads the path a {lower-layer} layer names for its component:
-// `linux:<kernel source path>`, `go:<standard library package>` or
+// `linux:CONFIG_<option>`, `go:<standard library package>` or
 // `vendor/<vendored module path>`, as a token of its own inside the layer.
 var layerPathRE = regexp.MustCompile(`(?:^|[\s(,])((?:linux|go):[\w./+-]+|vendor/[\w./+-]+)`)
 
 // notApplicableFormat is the one format sentence every {not-applicable}
 // evidence refusal ends with, so an author reading any of them is shown the
 // same shape. The quote comes first, as in {feature-declined}.
-const notApplicableFormat = `Format: {not-applicable: "<the RFC's own sentence, from the row's cited section, scoping the obligation to a role>"; ze is <the role ze fills>; <why that role is not bound>}`
+const notApplicableFormat = `Format: {not-applicable: "<the RFC's own sentence, from the row's cited section, scoping the obligation to a role>"; binds <the role that sentence names>; ze is <the role ze fills>; <why that role is not bound>}`
 
-// notApplicableRolePrefix opens the role segment of a {not-applicable}
-// evidence payload.
-const notApplicableRolePrefix = "ze is "
+// notApplicableBoundPrefix opens the bound-role segment of a {not-applicable}
+// evidence payload, and notApplicableRolePrefix the segment naming ze's role.
+const (
+	notApplicableBoundPrefix = "binds "
+	notApplicableRolePrefix  = "ze is "
+)
 
-// parseNotApplicable reads `{not-applicable: "<quote>"; ze is <role>; why}`.
+// parseNotApplicable reads
+// `{not-applicable: "<quote>"; binds <bound role>; ze is <role>; why}`.
 //
 // The QUOTE is the RFC's own sentence, in the section the row cites, that
-// scopes the obligation to a role; the ROLE is the one Ze fills. Together they
+// scopes the obligation to a role; the BOUND ROLE is that role, named in the
+// quote; the ROLE is the one Ze fills, which must be another. Together they
 // are the fact that the obligation does not bind Ze, where a bare reason is a
-// judgement nobody can check (owner ruling, 2026-10-29).
+// judgement nobody can check (owner ruling, 2026-10-29). The section the
+// quote sits in is the evidence reader's to judge, because only it reads the
+// RFC text.
 //
 // A reason that does not open with a double quote is a row written before the
 // kind carried evidence. It still parses, with Quote and Role empty, because
 // refusing it here would fail every summary that holds one; the evidence
 // ratchet (checkExclusionEvidence) owes it instead. A reason that opens with a
 // quote has chosen the evidence form and is held to it.
-func parseNotApplicable(rest, where string) (*Annotation, error) {
-	if !strings.HasPrefix(rest, `"`) {
-		return &Annotation{Kind: AnnotationNotApplicable, Reason: rest}, nil
+func parseNotApplicable(body, where string) (*Annotation, error) {
+	if !strings.HasPrefix(body, `"`) {
+		return &Annotation{Kind: AnnotationNotApplicable, Reason: body}, nil
 	}
 	var tb textbuf.Buffer
-	parts := featureDeclinedRE.FindStringSubmatch(rest)
+	parts := featureDeclinedRE.FindStringSubmatch(body)
 	if parts == nil {
 		return nil, parseErr(tb.Str(where).
 			Str(": {not-applicable} opens with a quote but does not close it before a `;`. ").
@@ -370,7 +377,21 @@ func parseNotApplicable(rest, where string) (*Annotation, error) {
 			Str(" characters and identifies no sentence. Quote the words that scope the obligation to a role. ").
 			Str(notApplicableFormat))
 	}
-	roleSegment, why, _ := strings.Cut(parts[2], ";")
+	boundSegment, rest, _ := strings.Cut(parts[2], ";")
+	bound, binds := strings.CutPrefix(strings.TrimSpace(boundSegment), notApplicableBoundPrefix)
+	bound = strings.TrimSpace(bound)
+	if !binds || bound == "" {
+		return nil, parseErr(tb.Str(where).
+			Str(": {not-applicable} names no role the quoted sentence binds; write `binds <role>` after the quote, naming the role the sentence names. ").
+			Str(notApplicableFormat))
+	}
+	if !strings.Contains(roleKey(quote), roleKey(bound)) {
+		return nil, parseErr(tb.Str(where).
+			Str(": {not-applicable} binds ").Str(pyRepr(bound)).
+			Str(", which is not in the quoted sentence; name the role the sentence itself names, or quote the sentence that names this one. ").
+			Str(notApplicableFormat))
+	}
+	roleSegment, why, _ := strings.Cut(rest, ";")
 	roleSegment = strings.TrimSpace(roleSegment)
 	why = strings.TrimSpace(why)
 	role, named := strings.CutPrefix(roleSegment, notApplicableRolePrefix)
@@ -384,15 +405,34 @@ func parseNotApplicable(rest, where string) (*Annotation, error) {
 		return nil, parseErr(tb.Str(where).
 			Str(": {not-applicable} writes `ze is` with no role after it. ").Str(notApplicableFormat))
 	}
+	if roleKey(role) == roleKey(bound) {
+		return nil, parseErr(tb.Str(where).
+			Str(": {not-applicable} binds ").Str(pyRepr(bound)).
+			Str(", which is the role ze fills, so the quoted sentence binds ze; the row is owed, not excluded. Annotate it {gap: ...} or test it. ").
+			Str(notApplicableFormat))
+	}
 	if why == "" {
 		return nil, parseErr(tb.Str(where).
 			Str(": {not-applicable} gives no reason after the role. Say why the quoted condition does not bind ").
 			Str(role).Str(". ").Str(notApplicableFormat))
 	}
 	// Reason keeps the WHOLE body, as {feature-declined}'s does, so every
-	// renderer that prints `{kind} reason` publishes the quote and the role.
-	return &Annotation{Kind: AnnotationNotApplicable, Quote: quote, Role: role,
-		Reason: strings.TrimSpace(rest)}, nil
+	// renderer that prints `{kind} reason` publishes the quote and the roles.
+	return &Annotation{Kind: AnnotationNotApplicable, Quote: quote, BoundRole: bound, Role: role,
+		Reason: strings.TrimSpace(body)}, nil
+}
+
+// roleKey is a role as two {not-applicable} segments compare it: lower case,
+// single-spaced, with no leading article, so "a speaker" and "The Speaker"
+// name one role.
+func roleKey(role string) string {
+	key := strings.ToLower(strings.Join(strings.Fields(role), " "))
+	for _, article := range []string{"a ", "an ", "the "} {
+		if trimmed, cut := strings.CutPrefix(key, article); cut {
+			return trimmed
+		}
+	}
+	return key
 }
 
 // featureDeclinedRE splits `"<quote>"; <why>`: a double-quoted span, then the

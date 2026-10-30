@@ -93,7 +93,11 @@ type CheckReport struct {
 	// LinuxLimitCandidates are register-backed proposals, never approvals or
 	// automatic annotations. They do not change the exit code.
 	LinuxLimitCandidates []LinuxLimitCandidate `json:"linux-limit-candidates,omitempty"`
-	Tags                 int                   `json:"tags,omitempty"`
+	// EvidenceBaseline says the exclusion evidence ratchet found no HEAD^ to
+	// compare with, so it judged every row as untouched. Empty when HEAD^ was
+	// read. It does not change the exit code.
+	EvidenceBaseline string `json:"evidence-baseline,omitempty"`
+	Tags             int    `json:"tags,omitempty"`
 	// The two gap figures render even at zero, for the reason the
 	// discrimination figures below do: they are published debt. A demonstrated
 	// gap is a `{gap}` row a test asserts through rfcgap.Demonstrate, which goes
@@ -204,6 +208,7 @@ func (r *CheckReport) Text() string {
 			tb.Str(req.RID).Str(": ").Str(req.Text).Str("\n  scoped evidence: ").Str(req.Annotation.Reason).Str("; whole requirement remains unproven.\n")
 		}
 		r.writeLinuxLimitCandidates(&tb)
+		r.writeEvidenceBaseline(&tb)
 		return tb.String()
 	}
 	percentage := 0.0
@@ -280,7 +285,14 @@ func (r *CheckReport) Text() string {
 			Str(" of those would be refused outright, having no polarity. They read as evidence to a person and are counted by no gate.\n")
 	}
 	r.writeLinuxLimitCandidates(&tb)
+	r.writeEvidenceBaseline(&tb)
 	return tb.String()
+}
+
+func (r *CheckReport) writeEvidenceBaseline(tb *textbuf.Buffer) {
+	if r.EvidenceBaseline != "" {
+		tb.Str(r.EvidenceBaseline).Str(".\n")
+	}
 }
 
 func (r *CheckReport) writeLinuxLimitCandidates(tb *textbuf.Buffer) {
@@ -503,8 +515,9 @@ func check(tree string, today time.Time, approvals map[string]string) (CheckRepo
 	findings = append(findings, inGroup(CheckAnnotations, notes(checkLowerLayerProducer(discriminationSources, collected.Requirements)))...)
 	findings = append(findings, inGroup(CheckAnnotations, notes(checkPartialScopes(discriminationSources, collected.Requirements)))...)
 	findings = append(findings, inGroup(CheckAnnotations, notes(checkFeatureDeclined(tree, discriminationSources, collected.Requirements)))...)
-	findings = append(findings, inGroup(CheckAnnotations, notes(checkExclusionEvidence(tree, collected.Requirements,
-		evidencePrints, unreadableLevels, levelsKnown)))...)
+	evidenceRefusals, evidenceNotice := checkExclusionEvidence(tree, collected.Requirements,
+		priorEvidence(tree, evidencePrints, unreadableLevels, levelsKnown))
+	findings = append(findings, inGroup(CheckAnnotations, notes(evidenceRefusals))...)
 	linuxLimitFindings, linuxLimitCandidates := checkLinuxLimit(tree, collected.Requirements)
 	findings = append(findings, inGroup(CheckAnnotations, linuxLimitFindings)...)
 	findings = append(findings, inGroup(CheckRequirementLists, notes(checkRowQuotes(tree, collected.Requirements)))...)
@@ -582,7 +595,8 @@ func check(tree string, today time.Time, approvals map[string]string) (CheckRepo
 	findings = append(findings, inGroup(CheckTextReviews, notes(checkExtractionRatchet(tree, extractions)))...)
 	findings = append(findings, inGroup(CheckTextReviews, notes(checkDrainFloor(tree, collected.Enrolled, signed, today)))...)
 
-	report := CheckReport{Findings: findings, Violations: findingMessages(findings), LinuxLimitCandidates: linuxLimitCandidates}
+	report := CheckReport{Findings: findings, Violations: findingMessages(findings), LinuxLimitCandidates: linuxLimitCandidates,
+		EvidenceBaseline: evidenceNotice}
 	for i := range collected.Requirements {
 		req := &collected.Requirements[i]
 		if req.Gated() && collected.Enrolled[req.RFC] {

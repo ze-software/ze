@@ -544,18 +544,22 @@ type Annotation struct {
 	// two kinds carry one. On {feature-declined} it makes the feature optional;
 	// on {not-applicable} it scopes the obligation to a role. Both are held
 	// against the section the row cites in rfc/full/<stem>.txt
-	// (exclusionEvidenceGap): the kind rests on the DOCUMENT saying so, which
+	// ((*evidenceReader).gap): the kind rests on the DOCUMENT saying so, which
 	// is a fact rather than a judgement. Empty on a {not-applicable} row
 	// written before that kind carried evidence.
 	Quote string `json:"quote,omitempty"`
+	// BoundRole is the role the Quote binds, which the quoted sentence names
+	// and which differs from Role (parseNotApplicable). It is
+	// {not-applicable}'s alone.
+	BoundRole string `json:"bound-role,omitempty"`
 	// Role is the role Ze fills, which the Quote shows the obligation does not
 	// bind. It is {not-applicable}'s alone.
 	Role string `json:"role,omitempty"`
-	// LayerPath is where a reader opens the component Layer names: a kernel
-	// source path (linux:net/ipv6/ndisc.c), a Go standard library package
-	// (go:crypto/x509) or a vendored module directory (vendor/<module>). It is
-	// {lower-layer}'s alone, and empty on a row written before that kind
-	// carried it (exclusionEvidenceGap).
+	// LayerPath is where a reader checks the component Layer names: a kernel
+	// CONFIG_ option Ze's kernel config enables (linux:CONFIG_IPV6), a Go
+	// standard library package (go:crypto/x509) or a vendored module directory
+	// (vendor/<module>). It is {lower-layer}'s alone, and empty on a row
+	// written before that kind carried it ((*evidenceReader).layerPathGap).
 	LayerPath string `json:"layer-path,omitempty"`
 	// Tested and Gap locate distinct clauses inside the complete parent quote.
 	// Partial tags prove only Tested; every other obligation remains unproven.

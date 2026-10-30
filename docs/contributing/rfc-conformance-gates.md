@@ -167,7 +167,7 @@ means the evidence held rather than that nobody looked.
 | Adding an RFC adds checking | `checkNewSummaries` | a summary NEW since `HEAD^` declares gated MUSTs and does not declare itself enrolled, fails to parse, or captures zero requirements while `rfc/full/<stem>.txt` has MUST-level keywords. A document's own RFC 2119 key-words paragraph does not count, and neither does its reference-list entry for RFC 2119 or RFC 8174: both say where the words come from, and neither binds anybody |
 | Non-unit evidence is monotonic, per tier | `checkEvidenceRatchet` | a requirement loses an evidence KIND it had at HEAD: its `.ci` becomes a unit test, or a verify-tier binding is swapped for a nightly-tier interop one. Keyed by `kind/tier`, so a substitution leaving the tag COUNT unchanged still fires. A unit test proves the algorithm; only a running functional or interop test proves the daemon or a peer. No annotation satisfies it |
 | Extraction is monotonic | `checkExtractionRatchet` | a stem that carried a sign-off at `HEAD^` carries none now, or a signed stem's exclusion count RISES over its `HEAD^` count without a `resign-reason` and a bumped `signed-off` date. The baseline is `HEAD^` (`baselineExtractions`), so the ratchet sees what the commit under test did in the detached verify worktree. The first stops the bound being un-bound by deleting a file; the second stops the exclusion list becoming a hatch where every unmapped site is excluded with a shrug |
-| An exclusion carries its evidence | `checkExclusionEvidence` | a `{not-applicable}`, `{feature-declined}` or `{lower-layer}` row the commit added or changed against `HEAD^` lacks the evidence its kind owes, or the count of rows lacking it differs from `rfc/exclusion-evidence-backlog.txt`. Below "The exclusion evidence ratchet" |
+| An exclusion carries its evidence | `checkExclusionEvidence` | a `{not-applicable}`, `{feature-declined}` or `{lower-layer}` row the commit added or changed against `HEAD^` lacks the evidence its kind owes, the count of untouched rows lacking it differs from `rfc/exclusion-evidence-backlog.txt`, a line of that file rose against `HEAD^`, or `HEAD^` cannot be read. Below "The exclusion evidence ratchet" |
 | A claim keeps its proof, and a new claim owes one | `checkDiscriminationRatchet` | a tagged unit the tip commit added against `HEAD^` carries no discrimination record, a record committed at HEAD is deleted while its tag stands, or a recorded proof no longer verifies against the tree. This is the only ratchet that reads the PROSE half of a tag: `claim-sha` fires when the sentence is reworded, because a proof of the old claim is not a proof of the new one |
 
 `checkIDAllocation` (`internal/le/rfc/check_ratchets.go`) compares against
@@ -266,20 +266,20 @@ A row leaves Ze's own count only with checked evidence (owner ruling,
 at the section the row cites, and the role condition or the layer behind it.
 The row's own text is already the RFC's requirement sentence ("The row
 quote"); what each kind adds is the fact that removes the row from Ze's count.
-`exclusionEvidenceGap` (`internal/le/rfc/check_evidence.go`) judges it:
+`(*evidenceReader).gap` (`internal/le/rfc/check_evidence.go`) judges it:
 
 | Kind | Evidence | Written as |
 |------|----------|-----------|
-| `{not-applicable}` | A role-condition quote from the cited section or its subsections, showing the obligation binds a role Ze does not fill, and the role Ze fills | `{not-applicable: "<the RFC's sentence scoping the obligation to a role>"; ze is <the role ze fills>; <why that role is not bound>}`. Quote first, as in `{feature-declined}`. `parseNotApplicable` refuses a quoted payload with a quote under 24 characters, no `ze is <role>` segment, or no reason. A reason that opens with no quote is a row written before the kind carried evidence: it parses, and the ratchet owes it |
+| `{not-applicable}` | A role-condition quote from the cited section or its subsections, the role that sentence binds, and the role Ze fills, which differs from it | `{not-applicable: "<the RFC's sentence scoping the obligation to a role>"; binds <the role the sentence names>; ze is <the role ze fills>; <why that role is not bound>}`. Quote first, as in `{feature-declined}`. `parseNotApplicable` refuses a quoted payload with a quote under 24 characters, no `binds <role>` segment, a bound role the quote does not contain, a bound role equal to Ze's (compared without case or a leading article), no `ze is <role>` segment, or no reason. A reason that opens with no quote is a row written before the kind carried evidence: it parses, and the ratchet owes it |
 | `{feature-declined}` | Its optionality quote, in the cited section or its subsections | unchanged, see "The feature-declined annotation" |
-| `{lower-layer}` | A layer component path, beside the producer | `linux:`, `go:` or `vendor/` inside the head, see "The lower-layer annotation" |
+| `{lower-layer}` | A layer component a reader can check, beside the producer | `linux:CONFIG_<option>`, `go:<package>` or `vendor/<module>` inside the head, see "The lower-layer annotation" |
 | `{linux-limit}` | Its register entry | unchanged, `checkLinuxLimit` |
 
 "Ze does not implement X" is never `{not-applicable}`: it is a `{gap}`, or
 `{feature-declined}` for a feature Thomas named.
 
 ```
-- [ ] [RFC9999-2-1] [MUST] A speaker MUST send the widget before it sends any frame that depends on it (§2) {not-applicable: "A speaker MUST send the widget before it sends any frame that depends on it."; ze is a receiver; ze sends no widget, so the speaker's order binds nothing it does}
+- [ ] [RFC9999-2-1] [MUST] A speaker MUST send the widget before it sends any frame that depends on it (§2) {not-applicable: "A speaker MUST send the widget before it sends any frame that depends on it."; binds a speaker; ze is a receiver; ze sends no widget, so the speaker's order binds nothing it does}
 ```
 
 The rows that predate the rule are a backlog, so the check is a ratchet over
@@ -288,20 +288,28 @@ each of the three kinds:
 
 - A row the commit added, or whose cited section, kind or reason it changed
   against `HEAD^` (`evidenceFingerprint`, through `baselineLevels`), is refused
-  by its id when it lacks the evidence. The refusal names the evidence missing
-  and ends with the kind's format.
+  by its id when it lacks the evidence, and is not counted: it is the commit's
+  to fix, not the backlog's. The refusal names the summary line, the id, the
+  evidence missing, and ends with the kind's format.
 - Every other row lacking evidence is counted per kind, and the count must
   equal the committed line. A count below it is refused until the commit
-  lowers the line to the new count, so the committed number only falls. A
-  count above it means a row the commit left alone lost its evidence, because
-  its RFC text or the vendored path it names changed, and is refused.
+  lowers the line to the new count. A count above it means a row the commit
+  left alone lost its evidence, because its RFC text or the component it names
+  changed: the refusal names each such row that carries an evidence form.
+- The committed line is read at `HEAD^` too (`priorEvidence`), and a line
+  above its `HEAD^` value is refused, naming the kind and both counts, so the
+  committed number only falls. A `HEAD^` that holds no backlog file (the
+  commit that introduced it) compares nothing.
 - A kind whose line reads 0 is refused row by row: full refusal, with no
   removal commit needed.
 - A missing file, a missing kind, an unknown kind or a malformed count is
-  refused; a ratchet with no committed count judges nothing. When `HEAD^`
-  cannot be read, no row is known to be new and only the counts are judged.
+  refused; a ratchet with no committed count judges nothing.
+- A `HEAD^` git cannot read is refused (`priorRevisionState`): a broken reader
+  never passes as an empty history. Only a checkout with no `HEAD^` (no git, no
+  commit, or a root commit) judges every row as untouched, and `./le rfc check`
+  prints a line saying so.
 
-<!-- source: internal/le/rfc/check_evidence.go -- checkExclusionEvidence, exclusionEvidenceGap, layerPathGap, readEvidenceBacklog -->
+<!-- source: internal/le/rfc/check_evidence.go -- checkExclusionEvidence, evidenceReader, priorEvidence, priorRevisionState, parseEvidenceBacklog -->
 <!-- source: internal/le/rfc/summary.go -- parseNotApplicable, parseLowerLayer -->
 <!-- source: internal/le/rfc/check_core.go -- featureDeclinedQuote -->
 
@@ -591,7 +599,7 @@ for: Linux XFRM builds every AH packet, and no field of the SA Ze installs
 decides that the RESERVED field is zero.
 
 ```
-- [ ] [RFC4302-2.3-1] [MUST] The RESERVED field MUST be set to zero by the sender (§2.3) {lower-layer: Linux XFRM, linux:net/xfrm; internal/plugins/ospf/ipsec_install.go::buildIPsecSA installs the AH SA and the kernel's AH output builds every header, so no value Ze writes decides this field}
+- [ ] [RFC4302-2.3-1] [MUST] The RESERVED field MUST be set to zero by the sender (§2.3) {lower-layer: Linux XFRM AH, linux:CONFIG_INET_AH; internal/plugins/ospf/ipsec_install.go::buildIPsecSA installs the AH SA and the kernel's AH output builds every header, so no value Ze writes decides this field}
 ```
 
 The reason states three facts, and the gate checks each:
@@ -600,7 +608,7 @@ The reason states three facts, and the gate checks each:
 |------|-----------|------------|
 | The LAYER that performs the behavior | the head, before the `;` | `parseLowerLayer` refuses an empty head, and a reason with no `;` at all |
 | The PRODUCER in Ze that installs into that layer | `<path>.go::<Symbol>` anywhere in the reason | `parseLowerLayer` refuses a reason naming none; `checkLowerLayerProducer` then refuses one the tree cannot show |
-| The layer COMPONENT a reader opens | a token inside the head: `linux:<kernel source path>` (`linux:net/xfrm`), `go:<standard library package>` (`go:crypto/x509`) or `vendor/<module path>` | `parseLowerLayer` reads it into `LayerPath`; the exclusion evidence ratchet (see "The ratchets") refuses a row without one, a `vendor/` path this checkout does not carry, a `linux:` path under no top-level directory of a Linux source tree, a `go:` path outside the standard library, and any path with `..` (`layerPathGap`). The kernel and the Go standard library are not in this repository, so their paths are held to the shape of their source trees, read against the kernel `internal/appliance/kernel.version` names |
+| The layer COMPONENT a reader checks | a token inside the head: `linux:CONFIG_<option>` (`linux:CONFIG_XFRM_USER`), `go:<standard library package>` (`go:crypto/x509`) or `vendor/<module path>` | `parseLowerLayer` reads it into `LayerPath`; the exclusion evidence ratchet (see "The ratchets") refuses a row without one, a `vendor/` path this checkout does not carry, a `linux:` token that is no `CONFIG_` option or names one Ze's kernel config does not set to `y` or `m` (`gokrazy/kernel/kernel.config`, then `gokrazy/kernel/runtime.config`, with their `# ze-include:` fragments), a `go:` package with no directory under `$(go env GOROOT)/src`, and any path with `..` (`(*evidenceReader).layerPathGap`). A config file that cannot be read, or a toolchain that cannot name its GOROOT, refuses every path of that form |
 
 That producer demand is the whole difference from `{not-applicable}`. That kind
 asserts a judgement nothing in the tree can contradict, which is how it grew to

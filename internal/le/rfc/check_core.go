@@ -849,7 +849,7 @@ func checkFeatureDeclined(tree string, reader *sourceReader, requirements []Requ
 // The match is scoped to the section the row cites (placeQuote). A quote the
 // RFC does not carry at all, or an RFC whose text is absent, is refused here
 // for every row. A quote the RFC carries in another section is the evidence
-// ratchet's to judge (exclusionEvidenceGap, checkExclusionEvidence), so the
+// ratchet's to judge ((*evidenceReader).gap, checkExclusionEvidence), so the
 // rows written before the narrowing drain rather than red the tree at once.
 func featureDeclinedQuote(where string, req Requirement, sources map[string]*quoteSource,
 	tree string,
