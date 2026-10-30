@@ -32,14 +32,15 @@ type Flavor struct {
 
 // Shipped answers every flavor declared under root, in file name order. No
 // flavor file, or one whose tags cannot be read (Tags), is an error naming
-// the file: the set of flavors cannot be told from it.
+// the file, or the Glob when no file matches, and carrying exactly one fix:
+// the set of flavors cannot be told from it.
 func Shipped(root string) ([]Flavor, error) {
 	files, err := filepath.Glob(filepath.Join(root, filepath.FromSlash(Glob)))
 	if err != nil {
-		return nil, errors.New("cannot list " + Glob + ": " + err.Error())
+		return nil, errors.New("cannot list " + Glob + " (" + err.Error() + "); restore cmd/ze from git")
 	}
 	if len(files) == 0 {
-		return nil, errors.New("no " + Glob + " file declares a shipped flavor")
+		return nil, errors.New("no " + Glob + " file declares a shipped flavor; restore the " + Glob + " files from git")
 	}
 	slices.Sort(files)
 	flavors := make([]Flavor, 0, len(files))
@@ -47,7 +48,7 @@ func Shipped(root string) ([]Flavor, error) {
 		rel := "cmd/ze/" + filepath.Base(file)
 		body, err := os.ReadFile(file) //nolint:gosec // a flavor file of this checkout, found by glob
 		if err != nil {
-			return nil, errors.New("cannot read " + rel + ": " + err.Error())
+			return nil, errors.New("cannot read " + rel + " (" + err.Error() + "); restore " + rel + " from git")
 		}
 		tags, err := Tags(string(body))
 		if err != nil {
@@ -71,7 +72,7 @@ func Tags(body string) ([]string, error) {
 		}
 		expr, err := constraint.Parse(line)
 		if err != nil {
-			return nil, errors.New("its //go:build line does not parse (" + err.Error() + "); correct it")
+			return nil, errors.New("its //go:build line does not parse (" + err.Error() + "); correct that line")
 		}
 		var tags []string
 		if !positiveTags(expr, &tags) {

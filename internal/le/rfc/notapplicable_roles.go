@@ -12,19 +12,28 @@ import (
 )
 
 // genericRoleWords are the words that name a party to any protocol rather
-// than a role one RFC defines. A bound role made of these words alone is
-// refused: "an implementation" or "a router" binds Ze nearly everywhere, so a
-// row that excludes Ze through one claims nothing a reader can check. The RFC
-// that scopes an obligation names the specific role (a route reflector, a
-// DHCP relay agent), and the row must name it too. Compared after roleKey, so
-// a plural and an article are the same word.
+// than a role one RFC defines. A bound role made of these words alone, once
+// nonRoleAdjectives are set aside, is refused: "an implementation" or "a
+// compliant router" binds Ze nearly everywhere, so a row that excludes Ze
+// through one claims nothing a reader can check. The RFC that scopes an
+// obligation names the specific role (a route reflector, a DHCP relay agent),
+// and the row must name it too. Compared after roleKey, so a plural and an
+// article are the same word.
 const genericRoleWords = "implementation implementations node host system entity device party peer speaker router endpoint sender receiver"
+
+// nonRoleAdjectives are the adjectives that say how well, or in which
+// direction, a party behaves, never which role it fills. genericRole sets them
+// aside before it judges a role, so "a compliant implementation" and "a
+// receiving speaker" are as generic as "an implementation". The list is
+// closed: an adjective it does not hold is read as part of the role.
+const nonRoleAdjectives = "compliant conforming conformant robust receiving sending transmitting originating new existing standard"
 
 // roleDeterminers are the determiners and quantifiers that pick out some
 // members of a role without naming another: roleKey drops them from the front
-// of a role, so "each remote speaker" is the role "speaker", and they may stand
-// between the subject of a quoted obligation and its keyword ("Speakers all
-// MUST"). "local" and "remote" say which end of a session, never which role.
+// of a role, so "each remote speaker" is the role "speaker", and they may
+// stand before the subject of a quoted obligation or between it and its
+// keyword ("Speakers all MUST"). "local" and "remote" say which end of a
+// session, never which role.
 const roleDeterminers = "a an the this that these those each every any all other some local remote"
 
 // rolePronouns are the words that stand for a party named elsewhere. A quoted
@@ -32,13 +41,30 @@ const roleDeterminers = "a an the this that these those each every any all other
 // names the party is the one to quote.
 const rolePronouns = "it they this that these those he she we you one which who them"
 
-// bcp14Keywords are the BCP 14 keywords as an RFC writes them, upper case. A
-// quote holding one is an obligation, and the party it binds is its subject:
-// the words directly before the first keyword.
-var bcp14Keywords = []string{
-	"MUST NOT", "MUST", "REQUIRED", "SHALL NOT", "SHALL", "SHOULD NOT", "SHOULD",
-	"NOT RECOMMENDED", "RECOMMENDED", "MAY", "OPTIONAL",
-}
+// subjectBreakers are the words that make the subject of a quoted obligation
+// more than one role: a conjunction joins two parties ("Clients and servers
+// MUST"), a relative pronoun opens a clause that narrows or widens the party
+// ("A router that receives ... MUST"), a preposition qualifies it by another
+// party ("A speaker of a confederation MUST"), and "not" negates it. A
+// subject holding one, or a comma, is refused rather than parsed: no reader
+// can tell from the words alone which party the keyword binds.
+const subjectBreakers = "and or nor that which who of from to by with not"
+
+// scopingMarkers are the words, each matched as whole words without case, that
+// make a sentence with no BCP 14 keyword scope its section to a role: "This
+// section applies only to relay agents." A sentence with no keyword and none
+// of them scopes nothing, so it is not role-condition evidence.
+var scopingMarkers = []string{"apply", "applies", "applicable", "only", "solely", "limited to", "restricted to"}
+
+// bcp14Keywords are the BCP 14 keywords as an RFC writes them, upper case:
+// every level rfc.go declares, gated and advisory, read from those two sets
+// so the vocabulary is declared once. A quote holding one is an obligation,
+// and the party it binds is its subject: the words before the first keyword.
+var bcp14Keywords = append(gatedLevelNames(), advisoryLevelNames()...)
+
+// notApplicableShapes names the two quotes a {not-applicable} row may carry,
+// for every refusal of a quote of neither shape.
+const notApplicableShapes = "A {not-applicable} quote is one of two shapes: the row's own obligation sentence, whose subject is the bound role, or a sentence of the cited section with no BCP 14 keyword that scopes it to the role with apply, applies, applicable, only, solely, limited to or restricted to. "
 
 // firstKeyword answers the byte offset and spelling of the first BCP 14
 // keyword in quote as a whole word, -1 when it holds none. Where two keywords
@@ -59,73 +85,117 @@ func firstKeyword(quote string) (int, string) {
 
 // boundRoleRefusal judges the role a quoted {not-applicable} row binds against
 // its quote, answering the refusal sentence, which the caller ends with the
-// format. When the quote holds a BCP 14 keyword, the bound role must be its
-// subject: the words directly before the first keyword, with only determiners
-// and quantifiers (roleDeterminers) between, and a subject that is a pronoun
-// is refused because it names no role. A quote with no keyword is a scoping
-// sentence ("This section applies only to relay agents."), and the bound role
-// need only be in it as whole words. Either way a role of generic words alone
+// format. A quote holding a BCP 14 keyword is shape (a), the row's own
+// obligation sentence, and its subject must be the bound role
+// (subjectRefusal); the check that it is the row's own sentence needs the row
+// and runs in (*evidenceReader).gap. A quote with no keyword is shape (b), a
+// scoping sentence (scopingRefusal). Either way a role of generic words alone
 // is refused by the caller, and a role ze fills by checkNotApplicableRoles.
 func boundRoleRefusal(quote, bound string) (string, bool) {
-	var tb textbuf.Buffer
 	at, keyword := firstKeyword(quote)
 	if at < 0 {
-		if containsWords(roleKey(quote), roleKey(bound)) {
-			return "", false
+		return scopingRefusal(quote, bound)
+	}
+	return subjectRefusal(quote[:at], keyword, bound)
+}
+
+// scopingRefusal judges a quote with no BCP 14 keyword: it must carry a
+// scoping marker (scopingMarkers), and the bound role must be in it as whole
+// words after roleKey.
+func scopingRefusal(quote, bound string) (string, bool) {
+	var tb textbuf.Buffer
+	lower := strings.ToLower(quote)
+	if !slices.ContainsFunc(scopingMarkers, func(marker string) bool { return containsWords(lower, marker) }) {
+		return tb.Str(": {not-applicable} quotes ").Str(pyRepr(quote)).
+			Str(", which holds no BCP 14 keyword and scopes nothing to a role. ").Str(notApplicableShapes).
+			Str("Otherwise annotate the row {gap: ...}. ").String(), true
+	}
+	if containsWords(roleKey(quote), roleKey(bound)) {
+		return "", false
+	}
+	return tb.Str(": {not-applicable} binds ").Str(pyRepr(bound)).
+		Str(", which is not in the quoted sentence; name the role the sentence itself names, or quote the sentence that names this one. ").String(), true
+}
+
+// subjectRefusal judges the subject of a quoted obligation, the words before
+// its first keyword, against the bound role. Determiners and quantifiers
+// (roleDeterminers) may stand before the role and between it and the keyword;
+// nothing else may. A subject holding a comma or a subjectBreakers word is
+// refused, since it names more than one party or qualifies the party by a
+// clause, and so is a subject that is a pronoun, which names no role.
+func subjectRefusal(subject, keyword, bound string) (string, bool) {
+	var tb textbuf.Buffer
+	words := roleTokens(subject)
+	breakers := strings.Fields(subjectBreakers)
+	breaker := ""
+	if strings.ContainsRune(subject, ',') {
+		breaker = ","
+	}
+	for _, word := range words {
+		if breaker == "" && slices.Contains(breakers, word) {
+			breaker = word
 		}
-		return tb.Str(": {not-applicable} binds ").Str(pyRepr(bound)).
-			Str(", which is not in the quoted sentence; name the role the sentence itself names, or quote the sentence that names this one. ").String(), true
 	}
-	subject := roleWords(quote[:at])
-	if len(subject) > 0 && slices.Contains(strings.Fields(rolePronouns), subject[len(subject)-1]) {
-		return tb.Str(": {not-applicable} quotes an obligation whose subject is the pronoun ").Str(pyRepr(subject[len(subject)-1])).
+	if breaker != "" {
+		return tb.Str(": {not-applicable} quotes an obligation whose subject ").Str(pyRepr(strings.TrimSpace(subject))).
+			Str(" holds ").Str(pyRepr(breaker)).Str(" before ").Str(keyword).
+			Str(", so it names more than one party or qualifies the party by a clause, and no reader can tell which one the keyword binds. Quote a sentence of the cited section with no keyword that scopes it to the role (\"This section applies only to relay agents.\"), or annotate the row {gap: ...}. ").String(), true
+	}
+	determiners := strings.Fields(roleDeterminers)
+	for len(words) > 1 && slices.Contains(determiners, words[len(words)-1]) {
+		words = words[:len(words)-1]
+	}
+	for len(words) > 1 && slices.Contains(determiners, words[0]) {
+		words = words[1:]
+	}
+	if len(words) == 1 && slices.Contains(strings.Fields(rolePronouns), words[0]) {
+		return tb.Str(": {not-applicable} quotes an obligation whose subject is the pronoun ").Str(pyRepr(words[0])).
 			Str(" before ").Str(keyword).Str(", which names no role. ").Str(subjectAdvice).String(), true
 	}
-	for len(subject) > 0 && slices.Contains(strings.Fields(roleDeterminers), subject[len(subject)-1]) {
-		subject = subject[:len(subject)-1]
+	for i, word := range words {
+		words[i] = singularLetters(word)
 	}
-	if len(subject) > 0 && slices.Contains(strings.Fields(rolePronouns), subject[len(subject)-1]) {
-		return tb.Str(": {not-applicable} quotes an obligation whose subject is the pronoun ").Str(pyRepr(subject[len(subject)-1])).
-			Str(" before ").Str(keyword).Str(", which names no role. ").Str(subjectAdvice).String(), true
-	}
-	role := strings.Fields(roleKey(bound))
-	if len(subject) >= len(role) && slices.Equal(subject[len(subject)-len(role):], role) {
+	if strings.Join(words, " ") == roleKey(bound) {
 		return "", false
 	}
 	tb.Str(": {not-applicable} binds ").Str(pyRepr(bound)).Str(", which is not the subject of the quoted obligation: ")
-	if len(subject) == 0 {
+	if len(words) == 0 {
 		tb.Str("no word stands before its first keyword ").Str(keyword)
 	} else {
-		tb.Str("the words before its first keyword ").Str(keyword).Str(" are ").Str(pyRepr(strings.Join(subject, " ")))
+		tb.Str("the words before its first keyword ").Str(keyword).Str(" are ").Str(pyRepr(strings.Join(words, " ")))
 	}
-	return tb.Str(", and an obligation binds the party it names as its subject. ").Str(subjectAdvice).String(), true
+	return tb.Str(", and an obligation binds the party it names as its subject, with only determiners or quantifiers beside it. ").Str(subjectAdvice).String(), true
 }
 
 // subjectAdvice is what a refusal of a quoted obligation's subject tells the
-// author to quote instead.
-const subjectAdvice = "Quote the sentence of the cited section that names the bound role as the subject of its keyword, or one that scopes the section to that role (\"This section applies only to relay agents.\" binds relay agents). "
+// author to quote instead, or to record.
+const subjectAdvice = "Quote the sentence of the cited section that names the bound role as the subject of its keyword, or one with no keyword that scopes the section to that role (\"This section applies only to relay agents.\" binds relay agents), or annotate the row {gap: ...}. "
 
-// roleWords is text as a subject is compared: lower case, each word with the
-// punctuation around it cut and singular (singularLetters), empty words
-// dropped. "routers," and "Routers" are the one word "router".
-func roleWords(text string) []string {
+// roleTokens is text as its words are compared: lower case, each word with
+// the punctuation around it cut, empty words dropped, nothing singular yet,
+// so a determiner, a pronoun and a breaker are still the words their lists
+// spell ("this" stays "this"). "routers," and "Routers" are the one word
+// "routers".
+func roleTokens(text string) []string {
 	var words []string
 	for word := range strings.FieldsSeq(strings.ToLower(text)) {
 		word = strings.TrimFunc(word, func(r rune) bool { return !isWordRune(r) })
 		if word == "" {
 			continue
 		}
-		words = append(words, singularLetters(word))
+		words = append(words, word)
 	}
 	return words
 }
 
-// genericRole answers whether every word of role is one of genericRoleWords,
-// so the role names no party a reader could tell from ze.
+// genericRole answers whether every word of role, once nonRoleAdjectives are
+// set aside, is one of genericRoleWords, so the role names no party a reader
+// could tell from ze. A role of adjectives alone ("a compliant") names no
+// party either, and is generic too.
 func genericRole(role string) bool {
-	words := strings.Fields(roleKey(role))
+	words := roleCore(role)
 	if len(words) == 0 {
-		return false
+		return strings.TrimSpace(role) != ""
 	}
 	generic := strings.Fields(roleKey(genericRoleWords))
 	for _, word := range words {
@@ -136,36 +206,42 @@ func genericRole(role string) bool {
 	return true
 }
 
+// roleCore is the words of roleKey(role) with nonRoleAdjectives set aside.
+func roleCore(role string) []string {
+	adjectives := strings.Fields(nonRoleAdjectives)
+	var core []string
+	for word := range strings.FieldsSeq(roleKey(role)) {
+		if !slices.Contains(adjectives, word) {
+			core = append(core, word)
+		}
+	}
+	return core
+}
+
 // roleKey is a role, or the text a role is looked for in, as two roles
-// compare: lower case, single-spaced, with no leading determiner or
-// quantifier (roleDeterminers) and each word singular, so "a speaker", "The
-// Speaker", "every speaker" and "speakers" name one role. A word ending in
-// "ies" ends in "y" ("proxies", "entities"); otherwise a word loses a trailing
-// "es" after s, x, z, ch or sh ("classes", "boxes"), or a trailing "s" that
-// does not follow another ("routers", but not "class"). Both sides of every
-// comparison pass through it, so a word it cuts wrongly ("status") is cut the
-// same way on both.
+// compare: roleTokens, with no leading determiner or quantifier
+// (roleDeterminers) and each word singular, single-spaced, so "a speaker",
+// "The Speaker", "every speaker" and "speakers" name one role, and "a route
+// reflector (RR)" is "route reflector rr". A word ending in "ies" ends in "y"
+// ("proxies", "entities"); otherwise a word loses a trailing "es" after s, x,
+// z, ch or sh ("classes", "boxes"), or a trailing "s" that does not follow
+// another ("routers", but not "class"). Both sides of every comparison pass
+// through it, so a word it cuts wrongly ("status") is cut the same way on
+// both, and subjectRefusal cuts a subject's words the same way.
 func roleKey(role string) string {
-	words := strings.Fields(strings.ToLower(role))
+	words := roleTokens(role)
 	determiners := strings.Fields(roleDeterminers)
 	for len(words) > 1 && slices.Contains(determiners, words[0]) {
 		words = words[1:]
 	}
 	for i, word := range words {
-		words[i] = singularWord(word)
+		words[i] = singularLetters(word)
 	}
 	return strings.Join(words, " ")
 }
 
-// singularWord cuts one trailing plural from a lower-case word, as roleKey
-// describes. Punctuation after the word ("frames." closing a quoted
-// sentence) is kept and does not hide the plural.
-func singularWord(word string) string {
-	trimmed := strings.TrimRightFunc(word, func(r rune) bool { return !isWordRune(r) })
-	return singularLetters(trimmed) + word[len(trimmed):]
-}
-
-// singularLetters is singularWord over a word with no trailing punctuation.
+// singularLetters cuts one trailing plural from a lower-case word with no
+// punctuation, as roleKey describes.
 func singularLetters(word string) string {
 	if stem, plural := strings.CutSuffix(word, "ies"); plural && len(stem) > 1 {
 		return stem + "y"
@@ -187,10 +263,11 @@ func singularLetters(word string) string {
 // head noun qualified only by that role's words: "BGP implementation" against
 // "BGP speaker". The head ("implementation") names any party and the
 // qualifier ("BGP") names nothing ze does not also do, so the bound role may
-// be ze itself. Empty when the role has no qualifier, a head of its own, or a
-// qualifier word no declared role holds.
+// be ze itself. nonRoleAdjectives are set aside first, so "a compliant BGP
+// implementation" is "BGP implementation". Empty when the role has no
+// qualifier, a head of its own, or a qualifier word no declared role holds.
 func qualifiedGenericRole(bound string, roles []string) string {
-	words := strings.Fields(roleKey(bound))
+	words := roleCore(bound)
 	if len(words) < 2 || !genericRole(words[len(words)-1]) {
 		return ""
 	}

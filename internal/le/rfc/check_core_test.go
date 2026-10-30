@@ -81,7 +81,9 @@ func evidenceRow(t *testing.T, rid, section, annotation string) Requirement {
 	if err != nil {
 		t.Fatalf("the fixture annotation {%s} did not parse: %v", annotation, err)
 	}
-	return Requirement{RFC: selftestStem, RID: rid, Level: levelMust, Section: section,
+	// The row states the quoted sentence, as a summary row states its RFC's
+	// obligation: a quoted obligation must be the row's own (rowOwnSentence).
+	return Requirement{RFC: selftestStem, RID: rid, Level: levelMust, Text: parsed.Quote, Section: section,
 		Source: selftestSummaryRel, Line: 7, Annotation: parsed}
 }
 

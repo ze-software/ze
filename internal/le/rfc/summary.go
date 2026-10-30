@@ -388,16 +388,21 @@ func parseNotApplicable(body, where string) (*Annotation, error) {
 			Str(": {not-applicable} names no role the quoted sentence binds; write `binds <role>` after the quote, naming the role the sentence names. ").
 			Str(notApplicableFormat))
 	}
-	// The bound role is the subject the quoted obligation binds, or the role
-	// a scoping sentence with no keyword names (boundRoleRefusal).
-	if refusal, refused := boundRoleRefusal(quote, bound); refused {
-		return nil, parseErr(tb.Str(where).Str(refusal).Str(notApplicableFormat))
-	}
+	// A generic role is refused first: whatever the quote, it names no party
+	// a reader could tell from ze.
 	if genericRole(bound) {
 		return nil, parseErr(tb.Str(where).
 			Str(": {not-applicable} binds ").Str(pyRepr(bound)).
 			Str(", a word for any party to a protocol, so nothing shows the sentence leaves ze out. Name the specific role the RFC defines (a route reflector, a DHCP relay agent), or quote the sentence that names one. ").
 			Str(notApplicableFormat))
+	}
+	// The bound role is the subject the quoted obligation binds, or the role
+	// a scoping sentence with no keyword names (boundRoleRefusal). Whether the
+	// obligation is the row's own sentence, and whether the quote is a whole
+	// sentence of the cited section, needs the row and the RFC text, and is
+	// judged by (*evidenceReader).gap.
+	if refusal, refused := boundRoleRefusal(quote, bound); refused {
+		return nil, parseErr(tb.Str(where).Str(refusal).Str(notApplicableFormat))
 	}
 	if why == "" {
 		return nil, parseErr(tb.Str(where).

@@ -515,7 +515,7 @@ func (reader *evidenceReader) gap(req *Requirement) (string, bool) {
 			// bound role. The check still refuses it: the role is half the fact.
 			return "it names no role the quote binds", true
 		}
-		return quoteGap(req, loadQuoteSource(reader.sources, reader.tree, req.RFC), "role-condition quote")
+		return reader.roleQuoteGap(req)
 	case AnnotationFeatureDeclined:
 		return quoteGap(req, loadQuoteSource(reader.sources, reader.tree, req.RFC), "optionality quote")
 	case AnnotationLowerLayer:
@@ -523,6 +523,46 @@ func (reader *evidenceReader) gap(req *Requirement) (string, bool) {
 	default:
 		return "", false
 	}
+}
+
+// roleQuoteGap judges a {not-applicable} row's quote against its RFC and its
+// row: it must be in the cited section or its subsections (quoteGap), a whole
+// sentence there (wholeSentence), and, when it holds a BCP 14 keyword, the
+// row's own obligation sentence (rowOwnSentence), so a row cannot borrow
+// another obligation's subject to exclude Ze from its own. A quote with no
+// keyword is a scoping sentence, judged for its marker and role by the parser
+// (scopingRefusal).
+func (reader *evidenceReader) roleQuoteGap(req *Requirement) (string, bool) {
+	source := loadQuoteSource(reader.sources, reader.tree, req.RFC)
+	if missing, lacks := quoteGap(req, source, "role-condition quote"); lacks {
+		return missing, true
+	}
+	var tb textbuf.Buffer
+	section, _ := source.resolve(req.Section)
+	if !source.wholeSentence(section, req.Annotation.Quote) {
+		return tb.Str("its role-condition quote is not a whole sentence of section ").Str(section).
+			Str(": quote it from the word that opens the sentence to the full stop that ends it, so no condition of the sentence is cut away").String(), true
+	}
+	if at, _ := firstKeyword(req.Annotation.Quote); at >= 0 && !rowOwnSentence(req.Text, req.Annotation.Quote) {
+		return tb.Str("its role-condition quote holds a BCP 14 keyword and is not the row's own obligation sentence, so the role it binds may not be the row's. ").
+			Str(strings.TrimSpace(notApplicableShapes)).String(), true
+	}
+	return "", false
+}
+
+// rowOwnSentence answers whether quote is the obligation the row states: the
+// row text holds the quote, or the quote holds the row text, compared in
+// quoteNeedle's form as a row quote is matched. An empty row text holds
+// nothing.
+func rowOwnSentence(text, quote string) bool {
+	row, held := quoteNeedle(strings.TrimSpace(text)), quoteNeedle(strings.TrimSpace(quote))
+	if row == "" {
+		return false
+	}
+	if strings.Contains(held, row) {
+		return true
+	}
+	return strings.Contains(row, held)
 }
 
 // evidenceFormat answers the format sentence a refusal for this kind ends with.

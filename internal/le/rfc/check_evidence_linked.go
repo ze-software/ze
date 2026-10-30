@@ -87,7 +87,9 @@ func goListLinked(tree string) (linkedPackages, string) {
 func shippedFlavors(tree string) ([][]string, string) {
 	shipped, err := buildflavor.Shipped(tree)
 	if err != nil {
-		return nil, err.Error() + ", so what ze links cannot be listed; correct the file or restore cmd/ze from git"
+		// The error names the file, or the glob when none matches, and its one
+		// fix; this adds only what the refusal costs.
+		return nil, "the shipped flavors cannot be read, so what ze links cannot be listed: " + err.Error()
 	}
 	flavors := make([][]string, 0, len(shipped))
 	for _, flavor := range shipped {

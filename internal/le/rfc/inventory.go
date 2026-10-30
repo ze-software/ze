@@ -18,6 +18,7 @@ import (
 	"encoding/hex"
 	"os"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -558,6 +559,13 @@ func endsWrappedWord(text string, at int) bool {
 // and withErrata.
 type quoteSource struct {
 	sections []sectionBody
+	// sentences holds, for each entry of sections, its whole sentences in
+	// quoteNeedle's form: cut by sentences(), the inventory's own splitter,
+	// over the body with its page furniture gone, so a sentence never runs
+	// across a paragraph or out of a heading. Nil for a source built by
+	// corrected, and wholeSentence then answers false: a corrected source is
+	// never asked for a role-condition quote, and if it were, it would refuse.
+	sentences [][]string
 	// readErratum answers the stored text of one of this RFC's errata by
 	// number, false when the store holds none (errata.go). Nil when no store
 	// was given, and a row citing an erratum is then refused.
@@ -579,10 +587,34 @@ func (q *quoteSource) wholeText() bool {
 // it.
 func newQuoteSource(source string) *quoteSource {
 	bodies := sectionBodies(source)
+	whole := make([][]string, len(bodies))
 	for i := range bodies {
+		for _, sentence := range sentences(stripPageFurniture(bodies[i].body)) {
+			whole[i] = append(whole[i], quoteNeedle(sentence))
+		}
 		bodies[i].body = quoteHaystack(bodies[i].body)
 	}
-	return &quoteSource{sections: bodies}
+	return &quoteSource{sections: bodies, sentences: whole}
+}
+
+// wholeSentence answers whether quote is one whole sentence of the section id
+// or of one of its subsections, compared in quoteNeedle's form: it starts
+// where a sentence starts (the paragraph's start, or after `.`, `!` or `?` and
+// a blank) and ends at that sentence's terminator. A fragment of a sentence
+// passes inSection and fails here, so a quote cannot cut "MUST" away from the
+// condition that scopes it.
+func (q *quoteSource) wholeSentence(id, quote string) bool {
+	quote = quoteNeedle(strings.TrimSpace(quote))
+	prefix := id + "."
+	for i, section := range q.sections {
+		if section.id != id && !strings.HasPrefix(section.id, prefix) {
+			continue
+		}
+		if i < len(q.sentences) && slices.Contains(q.sentences[i], quote) {
+			return true
+		}
+	}
+	return false
 }
 
 // resolve answers the heading a cited section anchors to: the cited id when

@@ -392,7 +392,7 @@ func TestPriorRevisionState(t *testing.T) {
 func TestCheckRefusesABacklogRiseAgainstPrior(t *testing.T) {
 	const sentence = "A speaker MUST send the widget."
 	legacy := "- [ ] [RFC9999-2-3] [SHOULD] " + sentence + " (§2) {not-applicable: ze sends no widget}"
-	backfilled := "- [ ] [RFC9999-2-3] [SHOULD] " + sentence + ` (§2) {not-applicable: "` + checkReflectorSentence +
+	backfilled := "- [ ] [RFC9999-2-3] [SHOULD] " + checkReflectorSentence + ` (§2) {not-applicable: "` + checkReflectorSentence +
 		`"; binds a route reflector; ze reflects no widget}`
 	base := fixtureCorpus()
 	base[selftestSourceRel] = checkReflectorSource
@@ -695,7 +695,7 @@ func TestCheckRefusesANewAndAnEditedRowLackingEvidence(t *testing.T) {
 func TestCheckRefusesARowAddedSinceThePushedBranch(t *testing.T) {
 	const sentence = "A speaker MUST send the widget."
 	legacy := "- [ ] [RFC9999-2-3] [SHOULD] " + sentence + " (§2) {not-applicable: ze sends no widget}"
-	backfilled := "- [ ] [RFC9999-2-3] [SHOULD] " + sentence + ` (§2) {not-applicable: "` + checkReflectorSentence +
+	backfilled := "- [ ] [RFC9999-2-3] [SHOULD] " + checkReflectorSentence + ` (§2) {not-applicable: "` + checkReflectorSentence +
 		`"; binds a route reflector; ze reflects no widget}`
 	added := "- [ ] [RFC9999-2-4] [SHOULD] " + sentence + " (§2) {not-applicable: ze sends none}"
 	base := fixtureCorpus()
@@ -907,8 +907,11 @@ func TestGenericRoleRefusalAdvisesARoleThatPasses(t *testing.T) {
 
 // VALIDATES: a flavor file whose //go:build line is a disjunction, or that has
 // none, refuses what ze links, naming the file and saying the set cannot be
-// listed, so a flavor the parser cannot read never shrinks the linked set.
-// METHOD: goListLinked over a tree holding one such cmd/ze flavor file each.
+// listed, so a flavor the parser cannot read never shrinks the linked set;
+// each refusal carries exactly one fix, naming the file, or the glob when no
+// flavor file exists.
+// METHOD: goListLinked over a tree holding one such cmd/ze flavor file each,
+// and over a tree holding none.
 func TestGoListLinkedRefusesAnUnreadableFlavor(t *testing.T) {
 	cases := []struct{ body, says string }{
 		{"//go:build ze_core || ze_distro\n\npackage main\n", "is not a conjunction of tags and negations"},
@@ -923,5 +926,13 @@ func TestGoListLinkedRefusesAnUnreadableFlavor(t *testing.T) {
 				t.Errorf("the refusal %q does not say %q", refusal, want)
 			}
 		}
+		// One fix, after the one `;` that opens it.
+		if strings.Count(refusal, ";") != 1 {
+			t.Errorf("the refusal %q does not carry exactly one fix", refusal)
+		}
+	}
+	_, refusal := goListLinked(t.TempDir())
+	if !strings.Contains(refusal, "restore the cmd/ze/build_tag_*_test.go files from git") || strings.Count(refusal, ";") != 1 {
+		t.Errorf("a tree with no flavor file answered %q, want one fix naming the glob", refusal)
 	}
 }

@@ -341,11 +341,11 @@ const (
 )
 
 var levelForce = map[string]int{
-	levelMust: forceMust, "SHALL": forceMust, "REQUIRED": forceMust,
-	levelMustNot: forceMustNot, "SHALL NOT": forceMustNot,
-	levelShould: forceShould, "RECOMMENDED": forceShould,
-	"SHOULD NOT": forceShouldNot, "NOT RECOMMENDED": forceShouldNot,
-	"MAY": forceMay, "OPTIONAL": forceMay,
+	levelMust: forceMust, levelShall: forceMust, levelRequired: forceMust,
+	levelMustNot: forceMustNot, levelShallNot: forceMustNot,
+	levelShould: forceShould, levelRecommended: forceShould,
+	levelShouldNot: forceShouldNot, levelNotRecommended: forceShouldNot,
+	levelMay: forceMay, levelOptional: forceMay,
 }
 
 var (
