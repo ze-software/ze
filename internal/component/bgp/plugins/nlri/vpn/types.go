@@ -125,8 +125,8 @@ func newVPNFromEntries(fam Family, rd RouteDistinguisher, entries []uint32, pref
 //
 // For VPNv4 (RFC 4364): AFI=1, SAFI=128.
 // For VPNv6 (RFC 4659): AFI=2, SAFI=128.
-func parseVPNAnnounce(afi AFI, safi SAFI, data []byte, addpath bool) (*VPN, []byte, error) {
-	return parseVPN(afi, safi, data, addpath, false)
+func parseVPNAnnounce(afi AFI, data []byte, addpath bool) (*VPN, []byte, error) {
+	return parseVPN(afi, SAFIVPN, data, addpath, false)
 }
 
 // parseVPN reads the action-specific NLRI layout without changing its native bytes.

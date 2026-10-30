@@ -336,11 +336,11 @@ func TestDHCPv6AddressGoneWithAnUnreadableLinkStateNotDeclined(t *testing.T) {
 		t.Errorf("%d Warn for the unreadable link state, want 2: one for each distinct state", got)
 	}
 	for _, state := range []string{`""`, `"dormant"`} {
-		if got := r.logs.countWith(slog.LevelWarn, "neither up nor down", "state", state); got != 1 {
+		if got := r.logs.countWith("neither up nor down", "state", state); got != 1 {
 			t.Errorf("%d Warn naming state %s, want 1", got, state)
 		}
 	}
-	if got := r.logs.countWith(slog.LevelWarn, "neither up nor down", "iface", r.backend.logical); got != 2 {
+	if got := r.logs.countWith("neither up nor down", "iface", r.backend.logical); got != 2 {
 		t.Errorf("%d Warn naming %s, want 2", got, r.backend.logical)
 	}
 }

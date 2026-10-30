@@ -36,7 +36,7 @@ func TestRFC3948OrderedTransportLocalHalfNarrowedRefused(t *testing.T) {
 		}
 		t.Run(name, func(t *testing.T) {
 			reg := newInnerSelectorRegistry()
-			a, b := orderedTransportPeers(t, reg, 2000, 1000)
+			a, b := orderedTransportPeers(t, reg, 2000)
 			first, second := a, b
 			if transportFirst {
 				first, second = b, a
@@ -47,7 +47,7 @@ func TestRFC3948OrderedTransportLocalHalfNarrowedRefused(t *testing.T) {
 			dp := &mockDP{}
 			err := localHalfChild(t, second, dp)
 			mustInnerRefused(t, err, "peer "+second.PeerName)
-			mustNamePeersAndFix(t, err, "a")
+			mustNamePeersAndFix(t, err)
 			if len(dp.sas) != 0 || len(dp.policies) != 0 {
 				t.Fatalf("peer %s's dataplane got %d states and %d policies, want none",
 					second.PeerName, len(dp.sas), len(dp.policies))

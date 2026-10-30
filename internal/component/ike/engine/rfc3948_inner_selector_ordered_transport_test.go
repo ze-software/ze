@@ -21,13 +21,13 @@ import (
 
 // orderedTransportPeers returns full-tunnel peer a (remote 198.18.0.7, configured
 // traffic selector 0.0.0.0/0 to 0.0.0.0/0) at priorityA and transport-mode peer b
-// (remote 198.18.0.9, no traffic selector) at priorityB, sharing reg.
-func orderedTransportPeers(t *testing.T, reg *innerSelectorRegistry, priorityA, priorityB uint32) (a, b *SA) {
+// (remote 198.18.0.9, no traffic selector) at policy-priority 1000, sharing reg.
+func orderedTransportPeers(t *testing.T, reg *innerSelectorRegistry, priorityA uint32) (a, b *SA) {
 	t.Helper()
 	a = innerPeerSA(t, reg, "a", "198.18.0.7", selectorPolicy(t, "0.0.0.0/0", "0.0.0.0/0", 0, 0))
 	a.PeerCfg.PolicyPriority = priorityA
 	b = transportPeerSA(t, reg, "b")
-	b.PeerCfg.PolicyPriority = priorityB
+	b.PeerCfg.PolicyPriority = 1000
 	return a, b
 }
 
@@ -49,7 +49,7 @@ func TestRFC3948OrderedTransportBesideFullTunnelServed(t *testing.T) {
 		}
 		t.Run(name, func(t *testing.T) {
 			reg := newInnerSelectorRegistry()
-			a, b := orderedTransportPeers(t, reg, 2000, 1000)
+			a, b := orderedTransportPeers(t, reg, 2000)
 			dpA, dpB := &mockDP{}, &mockDP{}
 			if transportFirst {
 				mustInnerChild(t, b, dpB, transportTSi, transportTSr)
@@ -79,7 +79,7 @@ func TestRFC3948OrderedTransportEqualPriorityRefused(t *testing.T) {
 		}
 		t.Run(name, func(t *testing.T) {
 			reg := newInnerSelectorRegistry()
-			a, b := orderedTransportPeers(t, reg, 1000, 1000)
+			a, b := orderedTransportPeers(t, reg, 1000)
 			first, second := a, b
 			firstTS := [2][]string{fullTunnelTS, fullTunnelTS}
 			secondTS := [2][]string{transportTSi, transportTSr}
@@ -91,7 +91,7 @@ func TestRFC3948OrderedTransportEqualPriorityRefused(t *testing.T) {
 			dp := &mockDP{}
 			_, err := innerAuthChild(t, second, dp, secondTS[0], secondTS[1])
 			mustInnerRefused(t, err, "peer "+second.PeerName)
-			mustNamePeersAndFix(t, err, "a")
+			mustNamePeersAndFix(t, err)
 			want := "the priorities order them only when the tunnel is exactly a traffic selector peer " +
 				"a's operator configured, both halves, and the transport-mode connection is exactly " +
 				"local 192.0.2.1/32 remote 198.18.0.9/32 for any protocol and any port"
@@ -119,7 +119,7 @@ func TestRFC3948OrderedTransportEqualPriorityRefused(t *testing.T) {
 // answer, and the replacement must run in transport mode.
 func TestOrderedTransportChildRekeyAfterIKERekey(t *testing.T) {
 	reg := newInnerSelectorRegistry()
-	a, b := orderedTransportPeers(t, reg, 2000, 1000)
+	a, b := orderedTransportPeers(t, reg, 2000)
 	mustInnerChild(t, a, &mockDP{}, fullTunnelTS, fullTunnelTS)
 	dpB := &mockDP{}
 	old := mustInnerChild(t, b, dpB, transportTSi, transportTSr)
@@ -161,18 +161,18 @@ func TestRFC3948OrderedTransportNarrowedToPortRefused(t *testing.T) {
 		}
 		t.Run(name, func(t *testing.T) {
 			reg := newInnerSelectorRegistry()
-			a, b := orderedTransportPeers(t, reg, 2000, 1000)
+			a, b := orderedTransportPeers(t, reg, 2000)
 			first, second := a, b
 			if transportFirst {
 				first, second = b, a
 			}
-			if _, err := orderedTransportChild(t, first, &mockDP{}); err != nil {
+			if err := orderedTransportChild(t, first, &mockDP{}); err != nil {
 				t.Fatalf("peer %s alone: %v", first.PeerName, err)
 			}
 			dp := &mockDP{}
-			_, err := orderedTransportChild(t, second, dp)
+			err := orderedTransportChild(t, second, dp)
 			mustInnerRefused(t, err, "peer "+second.PeerName)
-			mustNamePeersAndFix(t, err, "a")
+			mustNamePeersAndFix(t, err)
 			if len(dp.sas) != 0 || len(dp.policies) != 0 {
 				t.Fatalf("peer %s's dataplane got %d states and %d policies, want none",
 					second.PeerName, len(dp.sas), len(dp.policies))
@@ -187,10 +187,11 @@ func TestRFC3948OrderedTransportNarrowedToPortRefused(t *testing.T) {
 // orderedTransportChild runs innerAuthChild's two steps for one peer of
 // orderedTransportPeers: peer a proposes its full tunnel, peer b its own address for
 // TCP port 80 only.
-func orderedTransportChild(t *testing.T, sa *SA, dp *mockDP) (*ChildSA, error) {
+func orderedTransportChild(t *testing.T, sa *SA, dp *mockDP) error {
 	t.Helper()
 	if sa.PeerName == "a" {
-		return innerAuthChild(t, sa, dp, fullTunnelTS, fullTunnelTS)
+		_, err := innerAuthChild(t, sa, dp, fullTunnelTS, fullTunnelTS)
+		return err
 	}
 	tsi := &wire.PayloadTS{TSPayloadType: wire.PayloadTypeTSi, TrafficSelectors: []wire.TrafficSelector{
 		wireSel(t, "198.18.0.9/32", 80, 80, 6),
@@ -199,12 +200,13 @@ func orderedTransportChild(t *testing.T, sa *SA, dp *mockDP) (*ChildSA, error) {
 		wireSel(t, "192.0.2.1/32", 0, 65535, 6),
 	}}
 	if err := narrowChildSelectors(sa, tsi, tsr, nil); err != nil {
-		return nil, err
+		return err
 	}
 	ifID, err := resolveIfID(&sa.PeerCfg)
 	if err != nil {
 		t.Fatalf("resolveIfID: %v", err)
 	}
-	return createFirstChildSA(sa, sa.ESPGroup, sa.PeerCfg.LocalAddress, sa.PeerCfg.RemoteAddress, ifID, dp,
+	_, err = createFirstChildSA(sa, sa.ESPGroup, sa.PeerCfg.LocalAddress, sa.PeerCfg.RemoteAddress, ifID, dp,
 		slogutil.DiscardLogger())
+	return err
 }

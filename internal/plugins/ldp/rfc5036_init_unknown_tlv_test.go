@@ -34,8 +34,7 @@ func TestLDPInitUnknownTLVUClearNotifies(t *testing.T) {
 	binary.BigEndian.PutUint16(pdu[unknownOff:unknownOff+2], tlvTypeUnassigned)
 
 	_, err := DecodeInit(7, pdu[ldpHeaderLen+ldpMsgHdrLen:])
-	var unknown *unknownTLVError
-	if !errors.As(err, &unknown) {
+	if _, ok := errors.AsType[*unknownTLVError](err); !ok {
 		t.Fatalf("DecodeInit error = %v, want unknownTLVError", err)
 	}
 

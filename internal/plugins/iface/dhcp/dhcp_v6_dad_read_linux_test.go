@@ -6,7 +6,6 @@ package ifacedhcp
 
 import (
 	"errors"
-	"log/slog"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -92,7 +91,7 @@ func TestDHCPv6AddressesTheBackendDoesNotReportNotDeclined(t *testing.T) {
 	if got := r.countOps("remove-addr"); got != 0 {
 		t.Errorf("address removed %d times, want 0", got)
 	}
-	if got := r.logs.countWith(slog.LevelWarn, "does not report", "iface", r.backend.logical); got != 1 {
+	if got := r.logs.countWith("does not report", "iface", r.backend.logical); got != 1 {
 		t.Errorf("%d Warn naming %s for the unreported addresses, want 1", got, r.backend.logical)
 	}
 }
@@ -120,7 +119,7 @@ func TestDHCPv6AddressesWithoutDADOutcomeNotReadAsUnique(t *testing.T) {
 	if got := r.countOps("remove-addr"); got != 0 {
 		t.Errorf("address removed %d times, want 0", got)
 	}
-	if got := r.logs.countWith(slog.LevelWarn, "duplicate address detection outcome", "iface", r.backend.logical); got != 1 {
+	if got := r.logs.countWith("duplicate address detection outcome", "iface", r.backend.logical); got != 1 {
 		t.Errorf("%d Warn naming %s for the unreported DAD outcome, want 1", got, r.backend.logical)
 	}
 }

@@ -1280,7 +1280,7 @@ func checkISISDynamicHostname(ctx context.Context, check *interoplab.CheckContex
 	if _, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
 		Timeout:     90 * time.Second,
 		Interval:    2 * time.Second,
-		Description: "FRR IS-IS adjacency Up",
+		Description: descFRRISISAdjacencyUp,
 	}, neighbors, isisAdjacencyUp); err != nil {
 		return fail(1, err)
 	}

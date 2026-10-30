@@ -299,14 +299,14 @@ func (h *logCapture) count(level slog.Level, text string) int {
 	return n
 }
 
-// countWith is the number of records at level whose message contains text
-// and whose attribute key renders as value.
-func (h *logCapture) countWith(level slog.Level, text, key, value string) int {
+// countWith is the number of WARN records whose message contains text and
+// whose attribute key renders as value.
+func (h *logCapture) countWith(text, key, value string) int {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	n := 0
 	for _, r := range h.records {
-		if r.level == level && strings.Contains(r.msg, text) && r.attrs[key] == value {
+		if r.level == slog.LevelWarn && strings.Contains(r.msg, text) && r.attrs[key] == value {
 			n++
 		}
 	}

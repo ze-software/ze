@@ -42,17 +42,15 @@ var (
 // operator-fixed: both halves, as the connection's own host prefixes (this node
 // 192.0.2.1, the transport peer 198.18.0.9), since an entry with no local prefix does
 // not commit.
-func mustNamePeersAndFix(t *testing.T, err error, tunnelPeer string) {
+//
+// The tunnel peer is always a and the transport-mode peer always b.
+func mustNamePeersAndFix(t *testing.T, err error) {
 	t.Helper()
-	transportPeer := "b"
-	if tunnelPeer == "b" {
-		transportPeer = "a"
-	}
 	for _, want := range []string{
 		"peer a ", "peer b ", "transport-mode connection",
-		"set vpn ipsec site-to-site peer " + tunnelPeer + " traffic-selector <n> remote prefix <prefix>",
-		"set vpn ipsec site-to-site peer " + transportPeer + " traffic-selector <n> local prefix 192.0.2.1/32",
-		"set vpn ipsec site-to-site peer " + transportPeer + " traffic-selector <n> remote prefix 198.18.0.9/32",
+		"set vpn ipsec site-to-site peer a traffic-selector <n> remote prefix <prefix>",
+		"set vpn ipsec site-to-site peer b traffic-selector <n> local prefix 192.0.2.1/32",
+		"set vpn ipsec site-to-site peer b traffic-selector <n> remote prefix 198.18.0.9/32",
 	} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("refusal %q does not name %q", err, want)
@@ -88,7 +86,7 @@ func TestRFC3948TunnelAroundTransportPeerRefused(t *testing.T) {
 			mustInnerChild(t, first, dpFirst, firstTSi, firstTSr)
 			_, err := innerAuthChild(t, second, dpSecond, secondTSi, secondTSr)
 			mustInnerRefused(t, err, "peer "+second.PeerName)
-			mustNamePeersAndFix(t, err, "a")
+			mustNamePeersAndFix(t, err)
 			if len(dpSecond.sas) != 0 || len(dpSecond.policies) != 0 {
 				t.Fatalf("peer %s's dataplane got %d states and %d policies, want none",
 					second.PeerName, len(dpSecond.sas), len(dpSecond.policies))

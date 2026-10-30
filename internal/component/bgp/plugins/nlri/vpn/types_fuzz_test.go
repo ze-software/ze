@@ -38,7 +38,7 @@ func FuzzParseVPN(f *testing.F) {
 
 	f.Fuzz(func(t *testing.T, data []byte) {
 		skipOversizedFuzzVPN(t, data)
-		vpn, _, err := parseVPNAnnounce(AFIIPv4, SAFIVPN, data, false)
+		vpn, _, err := parseVPNAnnounce(AFIIPv4, data, false)
 		if err != nil {
 			return
 		}
@@ -73,7 +73,7 @@ func FuzzParseVPNAddPath(f *testing.F) {
 
 	f.Fuzz(func(t *testing.T, data []byte) {
 		skipOversizedFuzzVPN(t, data)
-		vpn, _, err := parseVPNAnnounce(AFIIPv4, SAFIVPN, data, true)
+		vpn, _, err := parseVPNAnnounce(AFIIPv4, data, true)
 		if err != nil {
 			return
 		}
