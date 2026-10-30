@@ -193,7 +193,7 @@ func TestInteropScenarioOfConstantDeclarations(t *testing.T) {
 				source: "package bgp\n\nfunc checkFixture() {\n" + tt.declaration + "}\n",
 			})
 			record := DiscriminationRecord{Unit: source + "::checkFixture"}
-			scenario, err := interopScenarioOf(tree, reader, newScopeIndex(), record, suite)
+			scenario, err := interopScenarioOf(tree, reader, newScopeIndex(), &record, suite)
 			if err != nil {
 				t.Fatal(err)
 			}

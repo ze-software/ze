@@ -78,6 +78,12 @@ var actions = leaction.New(area,
 			// Linux guest alone, and refused for every other unit
 			// (requireGuestKernel).
 			{Keyword: keyKernel, Kind: leaction.KindPath, Help: "the kernel image the unit runs under", Value: keyPath, Requirement: leaction.Optional},
+			// These three only on a kernel-producer escape (validateKernelEscape).
+			// Repeat: a claim can rest on more than one kernel function, and a
+			// unit can reach more than one Ze producer.
+			{Keyword: keyKernelFunction, Kind: leaction.KindString, Help: "one Linux function a kernel-producer escape names", Value: keyKernelFunction, Requirement: leaction.Optional, Repeat: true},
+			{Keyword: keyZeStateExcluded, Kind: leaction.KindString, Help: "one Ze producer and why its state decides nothing", Value: "producer reason", Requirement: leaction.Optional, Repeat: true},
+			{Keyword: keyLaterRoute, Kind: leaction.KindString, Help: "the unbuilt route that could prove a kernel-producer escape", Value: keyLaterRoute, Requirement: leaction.Optional},
 		},
 		AnswerArgs: discriminateRecordAnswer},
 	leaction.Action{

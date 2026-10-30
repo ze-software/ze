@@ -176,7 +176,7 @@ func splitDiscrimination(stem, rel string, raw []byte) (map[string][]byte, error
 	}
 	byRID := map[string][]DiscriminationRecord{}
 	for index := range file.Records {
-		if err := validateDiscrimination(file.Records[index], rel, index+1); err != nil {
+		if err := validateDiscrimination(&file.Records[index], rel, index+1); err != nil {
 			return nil, err
 		}
 		byRID[file.Records[index].RID] = append(byRID[file.Records[index].RID], file.Records[index])

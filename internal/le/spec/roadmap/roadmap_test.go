@@ -484,7 +484,7 @@ func TestCurrentRoadmapUsesTheDeclaration(t *testing.T) {
 	if snapshot.Counts.Total != 11 || snapshot.Counts.Required != 7 || snapshot.Counts.NiceToHave != 4 {
 		t.Fatalf("current population counts = %+v", snapshot.Counts)
 	}
-	wantCounts := map[string]int{"fixes": 5, "validation": 1, "delivery": 1, "features": 1, "engineering": 1, "proposals": 2}
+	wantCounts := map[string]int{"fixes": 5, "validation": 1, "delivery": 1, "features": 1, "engineering": 1, "kernel": 0, "proposals": 2}
 	if !reflect.DeepEqual(snapshot.Counts.Buckets, wantCounts) {
 		t.Fatalf("current categories lost: %+v", snapshot.Counts.Buckets)
 	}

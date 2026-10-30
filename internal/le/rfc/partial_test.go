@@ -224,7 +224,7 @@ func TestPartialDisclosureCountsRows(t *testing.T) {
 // Scope changes do not alter extraction inventory or native claim identities.
 func TestPartialKeepsExtractionAndClaimIdentity(t *testing.T) {
 	files := partialFiles()
-	record := sealFixture(t, files, DiscriminationRecord{RID: selftestRIDSend, Polarity: PolarityPositive, Unit: selftestCIPath, Producer: stampProducerKey, Route: RouteRevert, Break: selftestBreak, Citation: "expect=stdout:contains=OK"})
+	record := sealFixture(t, files, &DiscriminationRecord{RID: selftestRIDSend, Polarity: PolarityPositive, Unit: selftestCIPath, Producer: stampProducerKey, Route: RouteRevert, Break: selftestBreak, Citation: "expect=stdout:contains=OK"})
 	root := checkFixtureTree(t, files)
 	before, err := NewDeriver(root).Inventory(selftestStem, 1)
 	if err != nil {

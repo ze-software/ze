@@ -38,7 +38,7 @@ func renameFixture(t *testing.T) string {
 
 	files := selftestDiscriminationSources()
 	files[selftestTestPath] = renameTestSource
-	record := sealFixture(t, files, DiscriminationRecord{
+	record := sealFixture(t, files, &DiscriminationRecord{
 		RID: selftestRIDSend, Polarity: PolarityPositive, Unit: selftestDiscriminationUnit,
 		Route: RouteMutant, Producer: selftestProducerUnit, Break: selftestBreak,
 	})

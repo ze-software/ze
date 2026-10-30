@@ -43,7 +43,7 @@ func pairedFixture() map[string]string {
 // unrecordable or recorded with the second break unchecked by `./le rfc check`.
 func TestDiscriminationPairedBreakIsFingerprintedAndReverified(t *testing.T) {
 	files := pairedFixture()
-	record := sealFixture(t, files, DiscriminationRecord{
+	record := sealFixture(t, files, &DiscriminationRecord{
 		RID: selftestRIDSend, Polarity: PolarityPositive,
 		Unit: selftestDiscriminationUnit, Route: RouteMutant,
 		Producer: selftestProducerUnit, Break: selftestBreak,
@@ -92,14 +92,14 @@ func TestDiscriminationPairedBreakIsFingerprintedAndReverified(t *testing.T) {
 // PREVENTS: a hand-written pair carrying an unchecked second producer.
 func TestDiscriminationPairedBreakShapeIsRefused(t *testing.T) {
 	files := pairedFixture()
-	record := sealFixture(t, files, DiscriminationRecord{
+	record := sealFixture(t, files, &DiscriminationRecord{
 		RID: selftestRIDSend, Polarity: PolarityPositive,
 		Unit: selftestDiscriminationUnit, Route: RouteMutant,
 		Producer: selftestProducerUnit, Break: selftestBreak,
 		Paired: []PairedBreak{{Producer: pairedProducerUnit, Break: pairedBreak}},
 		Solo:   pairedSoloRuns(),
 	})
-	if err := validateDiscrimination(record, "fixture", 1); err != nil {
+	if err := validateDiscrimination(&record, "fixture", 1); err != nil {
 		t.Fatalf("the sealed pair must validate: %v", err)
 	}
 	cases := map[string]func(*DiscriminationRecord){
@@ -116,7 +116,7 @@ func TestDiscriminationPairedBreakShapeIsRefused(t *testing.T) {
 			broken := record
 			broken.Paired = append([]PairedBreak(nil), record.Paired...)
 			mutate(&broken)
-			if err := validateDiscrimination(broken, "fixture", 1); err == nil {
+			if err := validateDiscrimination(&broken, "fixture", 1); err == nil {
 				t.Fatalf("a pair with %s validated", name)
 			}
 		})
@@ -271,14 +271,14 @@ func pairedSoloRuns() []SoloGreen {
 // which is one break wearing the name of two.
 func TestDiscriminationPairedBreakCarriesEverySoloGreen(t *testing.T) {
 	files := pairedFixture()
-	record := sealFixture(t, files, DiscriminationRecord{
+	record := sealFixture(t, files, &DiscriminationRecord{
 		RID: selftestRIDSend, Polarity: PolarityPositive,
 		Unit: selftestDiscriminationUnit, Route: RouteMutant,
 		Producer: selftestProducerUnit, Break: selftestBreak,
 		Paired: []PairedBreak{{Producer: pairedProducerUnit, Break: pairedBreak}},
 		Solo:   pairedSoloRuns(),
 	})
-	if err := validateDiscrimination(record, "fixture", 1); err != nil {
+	if err := validateDiscrimination(&record, "fixture", 1); err != nil {
 		t.Fatalf("a pair carrying both solo greens must validate: %v", err)
 	}
 	cases := map[string]func(*DiscriminationRecord){
@@ -295,7 +295,7 @@ func TestDiscriminationPairedBreakCarriesEverySoloGreen(t *testing.T) {
 	}
 	owing := record
 	owing.Solo = nil
-	if err := validateDiscrimination(owing, "fixture", 1); err != nil {
+	if err := validateDiscrimination(&owing, "fixture", 1); err != nil {
 		t.Fatalf("a pair with no solo runs must still load: %v", err)
 	}
 	if verdicts := verifyFixture(t, files, nil, owing); verdicts[0].State != ProofSoloOwed {
@@ -310,7 +310,7 @@ func TestDiscriminationPairedBreakCarriesEverySoloGreen(t *testing.T) {
 			broken.Paired = append([]PairedBreak(nil), record.Paired...)
 			broken.Solo = append([]SoloGreen(nil), record.Solo...)
 			mutate(&broken)
-			if err := validateDiscrimination(broken, "fixture", 1); err == nil {
+			if err := validateDiscrimination(&broken, "fixture", 1); err == nil {
 				t.Fatalf("a record with %s validated", name)
 			}
 		})
@@ -474,7 +474,7 @@ func pairedSoloChild(t *testing.T, mode, scenario string) {
 // lacked the solo runs.
 func TestRetakeReplacesARecordTheGateRefuses(t *testing.T) {
 	files := pairedFixture()
-	fresh := sealFixture(t, files, DiscriminationRecord{
+	fresh := sealFixture(t, files, &DiscriminationRecord{
 		RID: selftestRIDSend, Polarity: PolarityPositive,
 		Unit: selftestDiscriminationUnit, Route: RouteMutant,
 		Producer: selftestProducerUnit, Break: selftestBreak,
@@ -490,7 +490,7 @@ func TestRetakeReplacesARecordTheGateRefuses(t *testing.T) {
 	maps.Copy(tree, files)
 	putDiscrimination(t, tree, stale)
 	root := discriminationTree(t, tree)
-	if err := mergeDiscrimination(root, stemOfFixture(t, fresh), fresh); err != nil {
+	if err := mergeDiscrimination(root, stemOfFixture(t, &fresh), &fresh); err != nil {
 		t.Fatalf("the re-take could not replace the refused record: %v", err)
 	}
 	loaded, err := loadDiscrimination(root)
@@ -503,7 +503,7 @@ func TestRetakeReplacesARecordTheGateRefuses(t *testing.T) {
 }
 
 // stemOfFixture answers the stem a fixture record's file lives under.
-func stemOfFixture(t *testing.T, record DiscriminationRecord) string {
+func stemOfFixture(t *testing.T, record *DiscriminationRecord) string {
 	t.Helper()
 	prefix, _, found := strings.Cut(record.RID, "-")
 	if !found {
@@ -525,7 +525,7 @@ func TestCheckRefusesAPairWithoutSoloRuns(t *testing.T) {
 	committed := fixtureCorpus()
 	committed[fixtureGadgetCIPath] = fixtureGadgetCI
 	committed[pairedProducerPath] = pairedProducerSource
-	record := sealFixture(t, committed, DiscriminationRecord{
+	record := sealFixture(t, committed, &DiscriminationRecord{
 		RID: selftestRIDSend, Polarity: PolarityPositive,
 		Unit: fixtureGadgetCIPath, Route: RouteRevert, Citation: selftestCIDirective,
 		Producer: selftestProducerUnit, Break: selftestBreak,

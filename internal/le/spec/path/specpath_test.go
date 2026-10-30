@@ -31,7 +31,7 @@ func tree(t *testing.T, files ...string) string {
 
 func TestDirsAndGlobsAreInBucketOrder(t *testing.T) {
 	dirs := Dirs()
-	want := []string{"plan/release/fixes", "plan/release/validation", "plan/release/delivery", "plan/post-release/features", "plan/post-release/engineering", "plan/proposals"}
+	want := []string{"plan/release/fixes", "plan/release/validation", "plan/release/delivery", "plan/post-release/features", "plan/post-release/engineering", "plan/post-release/kernel", "plan/proposals"}
 	if !slices.Equal(dirs, want) {
 		t.Fatalf("Dirs() = %v, want %v", dirs, want)
 	}

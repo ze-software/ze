@@ -19,6 +19,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	specpath "github.com/ze-software/ze/internal/le/spec/path"
 )
 
 func init() {
@@ -230,7 +231,9 @@ func checkRecordContract(records []map[string]json.RawMessage, page []byte) erro
 		if wantSection == "" || !strings.Contains(section, wantSection) {
 			return uiLeSpecStatusAnswersFailf("the page files %q under %q, want category %q", name, section, category)
 		}
-		if !slices.Contains([]string{leSpecBucketEngineering, leSpecBucketFixes, "validation", "delivery", "features", "proposals"}, bucket) {
+		// The buckets come from specpath's one declaration, so a bucket added
+		// there is known here without an edit (ai/rules/principles.md).
+		if !slices.ContainsFunc(specpath.Categories(), func(c specpath.Category) bool { return c.Name == bucket }) {
 			return uiLeSpecStatusAnswersFailf("record %q carries bucket %q, which names no release bucket", name, bucket)
 		}
 		for key, value := range map[string]string{

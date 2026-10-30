@@ -16,6 +16,7 @@ does not become optional because its spec is only a skeleton.
 | `release/delivery/` | Release artifacts, signing, installation, appliance boot and essential onboarding |
 | `post-release/features/` | Additional capabilities, absent RFC features and broader language or platform support |
 | `post-release/engineering/` | Refactors, tooling and optimizations that do not block release correctness or proof |
+| `post-release/kernel/` | Work on the Linux kernel Ze runs, and the proof routes that build and boot a patched kernel |
 | `proposals/` | Unapproved ideas, visible in the inventory but not a release commitment |
 
 The current category declaration is `internal/le/spec/path/specpath.go`.

@@ -1221,12 +1221,12 @@ func TestCheckReportCarriesDiscriminationCounters(t *testing.T) {
 	}
 	// One proof and one escape over the one requirement this fixture declares, so
 	// the two figures cannot be read off a single row.
-	proof := sealFixture(t, files, DiscriminationRecord{
+	proof := sealFixture(t, files, &DiscriminationRecord{
 		RID: selftestRIDSend, Polarity: PolarityPositive,
 		Unit: selftestCIPath, Route: RouteMutant, Citation: selftestCIDirective,
 		Producer: selftestProducerUnit, Break: selftestBreak,
 	})
-	escape := sealFixture(t, files, DiscriminationRecord{
+	escape := sealFixture(t, files, &DiscriminationRecord{
 		RID: selftestRIDSend, Polarity: PolarityNegative,
 		Unit: selftestCIPath, Route: RouteNoBreak,
 		Reason: escapeDeclaration, Producer: selftestCITablePath,
@@ -1271,7 +1271,7 @@ func TestCheckRefusesADiscriminationRecordForAnUndeclaredRequirement(t *testing.
 	// fingerprint from, so the minter refuses it before the ratchet can. What is
 	// under test here is the ratchet's own refusal, reached with fingerprints
 	// that are otherwise sound.
-	undeclared := sealFixture(t, files, DiscriminationRecord{
+	undeclared := sealFixture(t, files, &DiscriminationRecord{
 		RID: selftestRIDSend, Polarity: PolarityPositive,
 		Unit: selftestCIPath, Route: RouteMutant, Citation: selftestCIDirective,
 		Producer: selftestProducerUnit, Break: selftestBreak,
@@ -1310,7 +1310,7 @@ func TestCheckDiscriminationRatchetReportsBrokenProof(t *testing.T) {
 			selftestCIDirective + "\n",
 		selftestProducerPath: selftestProducerSource,
 	}
-	proof := sealFixture(t, files, DiscriminationRecord{
+	proof := sealFixture(t, files, &DiscriminationRecord{
 		RID: selftestRIDSend, Polarity: PolarityPositive,
 		Unit: selftestCIPath, Route: RouteMutant, Citation: selftestCIDirective,
 		Producer: selftestProducerUnit, Break: selftestBreak,
@@ -1569,7 +1569,7 @@ func fixtureCorpusNudge() map[string]string {
 func TestCheckDiscriminationFiresOnChangedUnit(t *testing.T) {
 	files := fixtureCorpus()
 	files[fixtureGadgetCIPath] = fixtureGadgetCI
-	proof := sealFixture(t, files, DiscriminationRecord{
+	proof := sealFixture(t, files, &DiscriminationRecord{
 		RID: selftestRIDSend, Polarity: PolarityPositive,
 		Unit: fixtureGadgetCIPath, Route: RouteRevert, Citation: selftestCIDirective,
 		Producer: selftestProducerUnit, Break: selftestBreak,
@@ -1605,7 +1605,7 @@ func TestCheckDiscriminationFiresOnChangedUnit(t *testing.T) {
 func TestCheckDiscriminationIgnoresCommentOnlyEdit(t *testing.T) {
 	files := fixtureCorpus()
 	files[fixtureGadgetCIPath] = fixtureGadgetCI
-	proof := sealFixture(t, files, DiscriminationRecord{
+	proof := sealFixture(t, files, &DiscriminationRecord{
 		RID: selftestRIDSend, Polarity: PolarityPositive,
 		Unit: fixtureGadgetCIPath, Route: RouteRevert, Citation: selftestCIDirective,
 		Producer: selftestProducerUnit, Break: selftestBreak,
@@ -1638,7 +1638,7 @@ func TestCheckDiscriminationIgnoresCommentOnlyEdit(t *testing.T) {
 func TestCheckDiscriminationStalesOnRewordedClaim(t *testing.T) {
 	files := fixtureCorpus()
 	files[fixtureGadgetCIPath] = fixtureGadgetCI
-	proof := sealFixture(t, files, DiscriminationRecord{
+	proof := sealFixture(t, files, &DiscriminationRecord{
 		RID: selftestRIDSend, Polarity: PolarityPositive,
 		Unit: fixtureGadgetCIPath, Route: RouteRevert, Citation: selftestCIDirective,
 		Producer: selftestProducerUnit, Break: selftestBreak,
@@ -1679,7 +1679,7 @@ func TestCheckDiscriminationStalesOnRewordedClaim(t *testing.T) {
 func TestCheckDiscriminationProvenSetIsMonotonic(t *testing.T) {
 	committed := fixtureCorpus()
 	committed[fixtureGadgetCIPath] = fixtureGadgetCI
-	proof := sealFixture(t, committed, DiscriminationRecord{
+	proof := sealFixture(t, committed, &DiscriminationRecord{
 		RID: selftestRIDSend, Polarity: PolarityPositive,
 		Unit: fixtureGadgetCIPath, Route: RouteRevert, Citation: selftestCIDirective,
 		Producer: selftestProducerUnit, Break: selftestBreak,
@@ -1719,7 +1719,7 @@ func TestCheckDiscriminationProvenSetIsMonotonic(t *testing.T) {
 func TestCheckDiscriminationOrphanRecordIsRemovable(t *testing.T) {
 	files := fixtureCorpus()
 	files[fixtureGadgetCIPath] = fixtureGadgetCI
-	proof := sealFixture(t, files, DiscriminationRecord{
+	proof := sealFixture(t, files, &DiscriminationRecord{
 		RID: selftestRIDSend, Polarity: PolarityPositive,
 		Unit: fixtureGadgetCIPath, Route: RouteRevert, Citation: selftestCIDirective,
 		Producer: selftestProducerUnit, Break: selftestBreak,
@@ -1794,7 +1794,7 @@ func TestCheckReportsUnscannedProductionTags(t *testing.T) {
 func TestCheckDiscriminationDriftIsJudgedAgainstHead(t *testing.T) {
 	committed := fixtureCorpus()
 	committed[fixtureGadgetCIPath] = fixtureGadgetCI
-	proof := sealFixture(t, committed, DiscriminationRecord{
+	proof := sealFixture(t, committed, &DiscriminationRecord{
 		RID: selftestRIDSend, Polarity: PolarityPositive,
 		Unit: fixtureGadgetCIPath, Route: RouteRevert, Citation: selftestCIDirective,
 		Producer: selftestProducerUnit, Break: selftestBreak,
@@ -1913,7 +1913,7 @@ func TestCheckDiscriminationDriftIsJudgedAtUnitGranularity(t *testing.T) {
 	sealed := fixtureCorpus()
 	sealed[fixtureGadgetCIPath] = fixtureGadgetCI
 	sealed[selftestProducerPath] = fixtureProducerPair
-	proof := sealFixture(t, sealed, DiscriminationRecord{
+	proof := sealFixture(t, sealed, &DiscriminationRecord{
 		RID: selftestRIDSend, Polarity: PolarityPositive,
 		Unit: fixtureGadgetCIPath, Route: RouteRevert, Citation: selftestCIDirective,
 		Producer: selftestProducerUnit, Break: selftestBreak,

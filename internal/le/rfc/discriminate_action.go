@@ -48,6 +48,14 @@ const (
 	keyCitation = "citation"
 	// keyKernel names the runtime kernel a guest observation boots.
 	keyKernel = "kernel"
+	// keyKernelFunction names one Linux function a kernel-producer escape
+	// rests on, repeated for each, and keyLaterRoute the route that could
+	// still prove it.
+	keyKernelFunction = "kernel-function"
+	keyLaterRoute     = "later-route"
+	// keyZeStateExcluded names one Ze producer a kernel-producer unit reaches
+	// and why its state does not decide the outcome, as "<producer> <reason>".
+	keyZeStateExcluded = "ze-state-excluded"
 	// keyPath is the value word for a filesystem path, shared by every action
 	// that takes one.
 	keyPath = "path"
@@ -137,6 +145,11 @@ type recordRequest struct {
 	// kernel is the runtime kernel a unit that compiles only in the Linux
 	// guest boots, empty for every other unit.
 	kernel string
+	// kernelFunctions, zeStateExcluded and laterRoute are the fields only a
+	// kernel-producer escape carries (validateKernelEscape).
+	kernelFunctions []string
+	zeStateExcluded []ZeStateExclusion
+	laterRoute      string
 }
 
 // discriminateRecordAnswer records one proof or one escape in this checkout.
@@ -156,13 +169,27 @@ func discriminateRecordAnswer(args leaction.Arguments) (any, int) {
 		route: args.One(keyRoute), producer: args.One(keyProducer),
 		citation: args.One(keyCitation), reason: args.One(keyReason),
 		report: args.One(keyReport), mutants: args.Values(keyMutant),
-		kernel: args.One(keyKernel),
+		kernel:          args.One(keyKernel),
+		kernelFunctions: args.Values(keyKernelFunction), laterRoute: args.One(keyLaterRoute),
+		zeStateExcluded: zeStateExclusionsOf(args.Values(keyZeStateExcluded)),
 	})
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 2
 	}
 	return &report, 0
+}
+
+// zeStateExclusionsOf reads each "<producer> <reason>" argument. A producer
+// key holds no space, so the first space ends it; an argument with none is an
+// exclusion with no reason, which validateZeStateExcluded refuses by name.
+func zeStateExclusionsOf(values []string) []ZeStateExclusion {
+	out := make([]ZeStateExclusion, 0, len(values))
+	for _, value := range values {
+		producer, reason, _ := strings.Cut(strings.TrimSpace(value), " ")
+		out = append(out, ZeStateExclusion{Producer: producer, Reason: strings.TrimSpace(reason)})
+	}
+	return out
 }
 
 // recordDiscrimination is the whole record mode: check, observe, seal, write.
@@ -200,14 +227,16 @@ func recordDiscrimination(tree string, request recordRequest) (discriminationRec
 	record := DiscriminationRecord{
 		RID: request.rid, Polarity: request.polarity, Unit: unitKey, Route: request.route,
 		Producer: request.producer, Citation: request.citation, Reason: request.reason,
-		Source: discriminationRecordRel(stem, request.rid),
+		KernelFunctions: request.kernelFunctions, LaterRoute: request.laterRoute,
+		ZeStateExcluded: request.zeStateExcluded,
+		Source:          discriminationRecordRel(stem, request.rid),
 	}
 	observed, err := observeFor(tree, reader, index, carrier, tag, &record, request,
 		setup.FunctionalHostPreflight)
 	if err != nil {
 		return discriminationRecordReport{}, err
 	}
-	return sealAndStore(tree, stem, reader, index, table, covers, record, observed)
+	return sealAndStore(tree, stem, reader, index, table, covers, &record, observed)
 }
 
 // sealAndStore mints the fingerprints, re-checks the record the way the gate
@@ -218,16 +247,16 @@ func recordDiscrimination(tree string, request recordRequest) (discriminationRec
 // tree. The author who ran the observation is the one who should see that
 // refusal, not the next session's gate.
 func sealAndStore(tree, stem string, reader *sourceReader, index *scopeIndex, table []Carrier,
-	covers map[Cover][]Tag, record DiscriminationRecord,
+	covers map[Cover][]Tag, record *DiscriminationRecord,
 	observed ObservedRed) (discriminationRecordReport, error) {
 	sealed, err := sealDiscrimination(tree, covers, record)
 	if err != nil {
 		return discriminationRecordReport{}, err
 	}
-	if err := validateDiscrimination(sealed, sealed.Source, 1); err != nil {
+	if err := validateDiscrimination(&sealed, sealed.Source, 1); err != nil {
 		return discriminationRecordReport{}, err
 	}
-	verdict, err := verifyOneDiscrimination(reader, index, table, covers, sealed)
+	verdict, err := verifyOneDiscrimination(reader, index, table, covers, &sealed)
 	if err != nil {
 		return discriminationRecordReport{}, err
 	}
@@ -237,7 +266,7 @@ func sealAndStore(tree, stem string, reader *sourceReader, index *scopeIndex, ta
 			Str(verdict.State).Str("): ").Str(verdict.Detail).
 			Str(". Nothing was written: a record `./le rfc check` would refuse must not reach the tree"))
 	}
-	if err := mergeDiscrimination(tree, stem, sealed); err != nil {
+	if err := mergeDiscrimination(tree, stem, &sealed); err != nil {
 		return discriminationRecordReport{}, err
 	}
 	return discriminationRecordReport{Artifact: sealed.Source, Record: sealed, Observed: observed}, nil
@@ -356,7 +385,7 @@ func observeFor(tree string, reader *sourceReader, index *scopeIndex, carrier Ca
 	if err != nil {
 		return ObservedRed{}, err
 	}
-	runner, err := newObservationRunner(tree, reader, index, carrier, tag, *record, request.kernel)
+	runner, err := newObservationRunner(tree, reader, index, carrier, tag, record, request.kernel)
 	if err != nil {
 		return ObservedRed{}, err
 	}
@@ -718,7 +747,7 @@ func disableBody(text string) (string, bool) {
 // any row with the same cover, and the rows are sorted by unit key. A session
 // proving another requirement of the same RFC writes another file, so neither
 // session's uncommitted record ever sits in a file the other must commit.
-func mergeDiscrimination(tree, stem string, record DiscriminationRecord) error {
+func mergeDiscrimination(tree, stem string, record *DiscriminationRecord) error {
 	file := evidenceFile{Stem: stem, RID: record.RID, Rel: discriminationRecordRel(stem, record.RID)}
 	kept := []DiscriminationRecord{}
 	if _, err := os.Stat(treePath(tree, file.Rel)); err == nil {
@@ -742,7 +771,7 @@ func mergeDiscrimination(tree, stem string, record DiscriminationRecord) error {
 			return err
 		}
 	}
-	kept = append(kept, record)
+	kept = append(kept, *record)
 	sort.SliceStable(kept, func(left, right int) bool {
 		return kept[left].Unit < kept[right].Unit
 	})

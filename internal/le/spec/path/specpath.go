@@ -26,7 +26,10 @@ const (
 	Delivery    = "delivery"
 	Features    = "features"
 	Engineering = "engineering"
-	Proposals   = "proposals"
+	// Kernel holds work on the Linux kernel Ze runs and on the proof routes
+	// that patch it, apart from Ze's own Go tooling.
+	Kernel    = "kernel"
+	Proposals = "proposals"
 )
 
 // Root is the directory every category lives under.
@@ -55,6 +58,7 @@ var buckets = [...]Category{
 	{Delivery, Root + "/release/delivery", "Release delivery", true},
 	{Features, Root + "/post-release/features", "Post-release features", false},
 	{Engineering, Root + "/post-release/engineering", "Post-release engineering", false},
+	{Kernel, Root + "/post-release/kernel", "Post-release kernel", false},
 	{Proposals, Root + "/proposals", "Unapproved proposals", false},
 }
 

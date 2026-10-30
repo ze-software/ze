@@ -512,9 +512,12 @@ const (
 	selftestDiscriminationRel  = "rfc/discrimination/rfc9999/RFC9999-2-1.json"
 	selftestDiscriminationUnit = selftestTestPath +
 		"::TestWidget"
-	selftestCIPath       = "test/plugin/widget.ci"
-	selftestProducerPath = "internal/sample/widget.go"
-	selftestProducerUnit = selftestProducerPath + "::SendWidget"
+	selftestCIPath = "test/plugin/widget.ci"
+	// selftestKernelFunction is the Linux function a kernel-producer escape
+	// in the selftest names.
+	selftestKernelFunction = "net/ipv4/ip_forward.c::ip_forward"
+	selftestProducerPath   = "internal/sample/widget.go"
+	selftestProducerUnit   = selftestProducerPath + "::SendWidget"
 	// selftestTablePath is the declaration-only file the escape names. An
 	// escape claims a fact about the code its claim rests on, and this is the
 	// fact: a file with no function body has nothing to break.
@@ -594,7 +597,7 @@ func selftestDiscriminationRecords(tree string) ([]DiscriminationRecord, error) 
 	records := make([]DiscriminationRecord, 0, len(unsealed))
 	// Indexed rather than ranged by value: a record is 176 bytes.
 	for position := range unsealed {
-		sealed, err := sealDiscrimination(tree, covers, unsealed[position])
+		sealed, err := sealDiscrimination(tree, covers, &unsealed[position])
 		if err != nil {
 			return nil, err
 		}
@@ -806,7 +809,7 @@ func runDiscriminationSelftest() ([]leroot.SelftestResult, error) {
 			"a record whose tag is gone was refused rather than reported for removal"),
 		selftestResult("discrimination/comment-edit-keeps-proof", stale[staleCommented].verdict.State == ProofVerified,
 			"a comment above the producer voided a proof; the key hashes BEHAVIOR, not text"),
-		selftestResult("discrimination/half-written-refusal", discriminationHalfWrittenRefused(records[0], records[1]),
+		selftestResult("discrimination/half-written-refusal", discriminationHalfWrittenRefused(&records[0], &records[1]),
 			"a record missing half of what its route needs, or an escape wearing a proof's fields, was accepted"),
 	}, nil
 }
@@ -820,53 +823,72 @@ func runDiscriminationSelftest() ([]leroot.SelftestResult, error) {
 // and is counted as debt by the gate, which is the confusion the routes exist to
 // keep apart, and an escape with no reason, or a reason outside the closed
 // vocabulary, is the blanket opt-out the escape exists to refuse (R-9).
-func discriminationHalfWrittenRefused(proof, escape DiscriminationRecord) bool {
-	noProducer := proof
+func discriminationHalfWrittenRefused(proof, escape *DiscriminationRecord) bool {
+	noProducer := *proof
 	noProducer.Producer = ""
-	fileProducer := proof
+	fileProducer := *proof
 	fileProducer.Producer = selftestProducerPath
-	noBreakText := proof
+	noBreakText := *proof
 	noBreakText.Break = "   "
-	badUnitSHA := proof
+	badUnitSHA := *proof
 	badUnitSHA.UnitSHA = "not-a-fingerprint"
-	badProducerSHA := proof
+	badProducerSHA := *proof
 	badProducerSHA.ProducerSHA = ""
-	linedUnit := proof
+	linedUnit := *proof
 	linedUnit.Unit = selftestTestPath + ":42"
-	escapeNoReason := escape
+	escapeNoReason := *escape
 	escapeNoReason.Reason = ""
-	escapeUnknownReason := escape
+	escapeUnknownReason := *escape
 	escapeUnknownReason.Reason = "there is nothing to break here"
-	escapeForeignWithProducer := escape
+	escapeForeignWithProducer := *escape
 	escapeForeignWithProducer.Reason = escapeForeign
 	// foreign-producer names no code here, so the citation is the only field that
 	// says WHICH claim it discharges. Without it the reason is true of every
 	// interop tag at once (R-9).
-	escapeForeignNoCitation := escape
+	escapeForeignNoCitation := *escape
 	escapeForeignNoCitation.Reason = escapeForeign
 	escapeForeignNoCitation.Producer = ""
-	escapeNoProducer := escape
+	escapeNoProducer := *escape
 	escapeNoProducer.Producer = ""
-	escapeWithCitation := escape
+	escapeWithCitation := *escape
 	escapeWithCitation.Citation = selftestCIDirective
-	escapeWithBreak := escape
+	escapeWithBreak := *escape
 	escapeWithBreak.Break = selftestBreak
-	proofWithReason := proof
+	proofWithReason := *proof
 	proofWithReason.Reason = escapeDeclaration
+	// kernel-producer names a Linux function instead of a producer, cites the
+	// claim span that states the kernel's behavior, and names the patched-kernel
+	// route that could still prove it. Each row drops or adds one of those.
+	kernel := *escape
+	kernel.Reason, kernel.Producer = escapeKernel, ""
+	kernel.KernelFunctions = []string{selftestKernelFunction}
+	kernel.Citation = "answered with Time Exceeded"
+	kernel.LaterRoute = laterPatchedKernel
+	kernelWithProducer := kernel
+	kernelWithProducer.Producer = selftestCITablePath
+	kernelNoFunction := kernel
+	kernelNoFunction.KernelFunctions = nil
+	kernelNoLaterRoute := kernel
+	kernelNoLaterRoute.LaterRoute = ""
+	proofWithKernelFunction := *proof
+	proofWithKernelFunction.KernelFunctions = []string{selftestKernelFunction}
 
-	// The intact pair is checked in the same walk, so "refuses everything"
+	// The intact records are checked in the same walk, so "refuses everything"
 	// cannot pass this row.
 	if validateDiscrimination(proof, selftestDiscriminationRel, 1) != nil ||
-		validateDiscrimination(escape, selftestDiscriminationRel, 2) != nil {
+		validateDiscrimination(escape, selftestDiscriminationRel, 2) != nil ||
+		validateDiscrimination(&kernel, selftestDiscriminationRel, 3) != nil {
 		return false
 	}
 	halfWritten := []DiscriminationRecord{noProducer, fileProducer, noBreakText,
 		badUnitSHA, badProducerSHA, linedUnit, escapeNoReason, escapeUnknownReason,
 		escapeForeignWithProducer, escapeForeignNoCitation, escapeNoProducer, escapeWithCitation, escapeWithBreak,
-		proofWithReason}
-	// Indexed rather than ranged by value: a record is 176 bytes.
+		proofWithReason, kernelWithProducer, kernelNoFunction, kernelNoLaterRoute,
+		proofWithKernelFunction}
+	// Indexed rather than ranged by value: a record is too large to copy per
+	// iteration.
 	for position := range halfWritten {
-		if validateDiscrimination(halfWritten[position], selftestDiscriminationRel, 1) == nil {
+		if validateDiscrimination(&halfWritten[position], selftestDiscriminationRel, 1) == nil {
 			return false
 		}
 	}

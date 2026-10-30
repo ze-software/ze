@@ -48,13 +48,21 @@ func modulePath(tree string) (string, error) {
 	if err != nil {
 		return "", baselineParseError(tb.Str(rel).Str(": cannot read the module declaration: ").Err(err).String())
 	}
-	for line := range strings.SplitSeq(string(raw), "\n") {
-		fields := strings.Fields(line)
-		if len(fields) == 2 && fields[0] == "module" {
-			return fields[1], nil
-		}
+	if module, held := moduleLine(string(raw)); held {
+		return module, nil
 	}
 	return "", baselineParseError(tb.Reset().Str(rel).Str(": no `module <path>` line found, so a `go vet` package header cannot be resolved to a directory").String())
+}
+
+// moduleLine answers the path a go.mod text's `module <path>` line declares.
+func moduleLine(content string) (string, bool) {
+	for line := range strings.SplitSeq(content, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) == 2 && fields[0] == "module" {
+			return fields[1], true
+		}
+	}
+	return "", false
 }
 
 func goTagPackages(tree string, tags []Tag, carriers []Carrier) []string {

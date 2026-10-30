@@ -1381,8 +1381,11 @@ machine. "This break makes this unit red" is decidable and replayable.
 | `break` | what was done to the producer, derived from what was applied. No gate parses it; a reviewer reads it |
 | `paired` | the further breaks applied together with `producer`'s in the one broken run, each a `producer`, `producer-sha` and `break` of its own. Absent on a single-break record. A paired producer that is gone or changed stales the record exactly as `producer` does |
 | `solo` | present exactly when `paired` is: one entry per break, `producer` first then each paired break, holding `producer`, `break`, `seconds` and `green`, the line of a run with that break ALONE that showed the unit passing. Missing, short, out of order or naming another break is refused |
-| `citation` | the assertion a proof or a `foreign-producer` escape rests on: a numbered `fail(N, ...)` site for an interop checker, a directive line for a `.ci`. Required for a functional or interop proof and for the `foreign-producer` escape, refused for a unit record and for the two escapes that name a producer |
+| `citation` | the assertion a proof or a `foreign-producer` escape rests on: a numbered `fail(N, ...)` site for an interop checker, a directive line for a `.ci`. Required for a functional or interop proof and for the `foreign-producer` escape, refused for a unit record and for the two escapes that name a producer. On a `kernel-producer` escape it is a span of the tag's own claim instead, and required |
 | `reason` | why no break exists, for the escape only, out of the closed vocabulary below |
+| `kernel-functions` | the Linux functions a `kernel-producer` escape rests on, each as `<linux source path>::<function>`, at least one and none twice (`kernel-function`, repeatable, on `./le rfc record`). Required there, refused on every other record |
+| `ze-state-excluded` | on a `kernel-producer` escape, one entry per Ze producer the unit reaches through an import: `producer` (a key in a package the unit's file imports) and `reason`, at least eight words naming the producer's symbol (or file), never the same text as another entry's. Given on `./le rfc record` as `ze-state-excluded "<producer> <reason>"`, repeatable. Refused on every other record |
+| `later-route` | the route, not built yet, that could still prove a `kernel-producer` escape: `patched-kernel`, the only value. Required there, refused on every other record |
 
 The full artifact contract is `rfc/discrimination/README.md`.
 
@@ -1787,6 +1790,32 @@ opt-out wearing a closed vocabulary, and both halves are checked.
 | `foreign-producer` | the behavior is produced by an implementation this repository does not build, so no edit here can falsify the claim | the carrier kind is `interop`, and the record names no producer | the `citation` names a `fail(N, ...)` number the tagged checker WRITES OUT, read by the same `interopCitationState` an interop proof passes |
 | `declaration-only` | the code the claim rests on holds no function body: a table, an embed, a registration list | the named producer file declares no function | the tag's own claim names an identifier that file declares, matched whole-word and case-insensitively |
 | `generated-producer` | the producer is generated, so a break is undone by the next generator run | the named producer's file carries the `// Code generated ... DO NOT EDIT.` line | the same: the tag's claim names something that file declares |
+| `kernel-producer` | the Linux kernel produces the behavior from the packet alone, and no state Ze installs decides it, so no break of Ze's code can falsify the claim | the carrier kind is `unit` and go/build compiles its file for Linux and for no other system; the record names no producer; the RFC summary's `Implementation` is `mixed` or `third-party` and its `Implementation reason` names each of the record's `kernel-functions` verbatim, as a whole token; every Ze package the unit's file imports, `internal/test/` apart, is named by a `ze-state-excluded` entry whose producer the tree holds | the `citation` is a span of at least three words of the tag's own claim, whitespace collapsed as `claim-sha` collapses it |
+
+`kernel-producer` is the one reason whose break exists, just not in this
+repository: a kernel carrying one patch that breaks a `kernel-functions` entry would turn
+the unit red. That is why every such record also names `later-route:
+patched-kernel`, and why it publishes as escaped, never as proven. The route
+that would replace it is designed in
+`plan/post-release/kernel/spec-rfc-kernel-patch-discrimination-route.md`, and
+its population is every record carrying this reason. The checks are
+`escapeCheck.kernel` (`internal/le/rfc/discriminate_escape_kernel.go`) and
+`validateKernelEscape` (`internal/le/rfc/discriminate_validate.go`). Where a state Ze installs
+is the criterion the claim names, the operand the kernel's decision reads,
+the row takes a proof route that breaks Ze's producer instead, as
+`RFC792-Unreachable-1` does with `SetMTU`: the MTU is what the
+fragmentation-needed decision compares the datagram against. A state that only
+enables forwarding is not that criterion. A route that merely makes the
+datagram reachable is a precondition held constant across both halves of the
+claim, so breaking it turns the test red without falsifying the decision the
+claim names, and such a row stays a `kernel-producer` escape with that route
+named in a `ze-state-excluded` entry. The gate asks this of every Ze package the unit imports: each needs a
+`ze-state-excluded` entry saying why its state does not decide the outcome,
+so a unit that reaches Ze code cannot take the escape in silence. The gate
+checks the entry's shape and that its producer exists; whether the reason is
+true is a reviewer's question. Every imported Ze package is asked, not only
+those gomu mutates, because that answer needs a walk of each package the gate
+does not make, and one entry too many costs less than one too few.
 
 Both producer-naming reasons owe a third fact, about the FILE the record picked:
 the producer must be code the tagged unit REACHES. A Go unit reaches its own

@@ -112,6 +112,20 @@ type DiscriminationRecord struct {
 	// Reason is why no break exists, for the escape only. A closed vocabulary,
 	// and each reason's precondition is checked against the tree.
 	Reason string `json:"reason,omitempty"`
+	// KernelFunctions name the Linux functions that produce the behavior a
+	// kernel-producer escape discharges, each as <linux source path>::<function>.
+	// A list, because one claim can rest on two kernel functions: a header the
+	// option parser and the checksum check both judge. Empty on every other
+	// record.
+	KernelFunctions []string `json:"kernel-functions,omitempty"`
+	// ZeStateExcluded names, for a kernel-producer escape, each Ze producer the
+	// unit reaches through an import and why the state it installs does not
+	// decide the outcome the claim names. Empty on every other record.
+	ZeStateExcluded []ZeStateExclusion `json:"ze-state-excluded,omitempty"`
+	// LaterRoute names the route, not built yet, that could still observe the
+	// red this escape leaves unobserved, out of laterRoutes. A kernel-producer
+	// escape carries patched-kernel, and every other record carries none.
+	LaterRoute string `json:"later-route,omitempty"`
 	// Source is the artifact file this record was read from. Derived from the
 	// path at load time, never authored, so it is not part of the schema.
 	Source string `json:"-"`
@@ -141,7 +155,7 @@ type SoloGreen struct {
 // RouteNoBreak is the ESCAPE and is counted apart from the two proof routes
 // wherever a count is published: a claim that no break exists is debt rather
 // than evidence.
-func (r DiscriminationRecord) Proves() bool { return r.Route != RouteNoBreak }
+func (r *DiscriminationRecord) Proves() bool { return r.Route != RouteNoBreak }
 
 // Cover is what one record proves: one requirement, in one direction, in one
 // TAGGED UNIT.
@@ -162,7 +176,7 @@ type Cover struct {
 }
 
 // Cover answers the coverage this record carries.
-func (r DiscriminationRecord) Cover() Cover {
+func (r *DiscriminationRecord) Cover() Cover {
 	return Cover{RID: r.RID, Polarity: r.Polarity, Unit: r.Unit}
 }
 
@@ -335,7 +349,7 @@ func readDiscriminationRecords(raw string, file evidenceFile) ([]DiscriminationR
 func validateDiscriminationFile(records []DiscriminationRecord, file evidenceFile) error {
 	var tb textbuf.Buffer
 	for index := range records {
-		if err := validateDiscrimination(records[index], file.Rel, index+1); err != nil {
+		if err := validateDiscrimination(&records[index], file.Rel, index+1); err != nil {
 			return err
 		}
 		if records[index].RID != file.RID {
@@ -375,7 +389,10 @@ func behaviorSHA(path, text string) string {
 // no tag has nothing to seal, and an empty claim hash would seal every one of
 // them identically.
 func sealDiscrimination(tree string, covers map[Cover][]Tag,
-	record DiscriminationRecord) (DiscriminationRecord, error) {
+	unsealed *DiscriminationRecord) (DiscriminationRecord, error) {
+	// A deliberate copy: sealing answers a new record and never writes through to
+	// the caller's.
+	record := *unsealed
 	reader := newSourceReader(tree)
 	index := newScopeIndex()
 
@@ -384,11 +401,11 @@ func sealDiscrimination(tree string, covers map[Cover][]Tag,
 		return record, err
 	}
 	if !held {
-		return record, unresolvedKeyErr(record, record.Unit, "tagged unit")
+		return record, unresolvedKeyErr(unsealed, record.Unit, "tagged unit")
 	}
 	tagged := covers[record.Cover()]
 	if len(tagged) == 0 {
-		return record, unresolvedKeyErr(record, record.Unit, "tag")
+		return record, unresolvedKeyErr(unsealed, record.Unit, "tag")
 	}
 	record.UnitSHA = behaviorSHA(keyFile(record.Unit), unit)
 	record.ClaimSHA = claimSHA(tagged)
@@ -401,7 +418,7 @@ func sealDiscrimination(tree string, covers map[Cover][]Tag,
 		return record, err
 	}
 	if !producerHeld {
-		return record, unresolvedKeyErr(record, record.Producer, "producer")
+		return record, unresolvedKeyErr(unsealed, record.Producer, "producer")
 	}
 	record.ProducerSHA = behaviorSHA(keyFile(record.Producer), producer)
 	// A fresh slice, so sealing never writes through to the caller's record.
@@ -412,7 +429,7 @@ func sealDiscrimination(tree string, covers map[Cover][]Tag,
 			return record, err
 		}
 		if !held {
-			return record, unresolvedKeyErr(record, one.Producer, "paired producer")
+			return record, unresolvedKeyErr(unsealed, one.Producer, "paired producer")
 		}
 		one.ProducerSHA = behaviorSHA(keyFile(one.Producer), text)
 		paired[position] = one
@@ -424,7 +441,7 @@ func sealDiscrimination(tree string, covers map[Cover][]Tag,
 }
 
 // unresolvedKeyErr says which key a record names that the tree does not hold.
-func unresolvedKeyErr(record DiscriminationRecord, key, role string) error {
+func unresolvedKeyErr(record *DiscriminationRecord, key, role string) error {
 	var tb textbuf.Buffer
 	return parseErr(tb.Str("the record for ").Str(record.RID).Byte(' ').Str(record.Polarity).
 		Str(" names the ").Str(role).Byte(' ').Quoted(key).
@@ -484,7 +501,7 @@ func verifyDiscrimination(tree string, records []DiscriminationRecord,
 	// Indexed rather than ranged by value: a record is 176 bytes, and the
 	// linter counts the copy at every iteration.
 	for position := range records {
-		verdict, err := verifyOneDiscrimination(reader, index, table, covers, records[position])
+		verdict, err := verifyOneDiscrimination(reader, index, table, covers, &records[position])
 		if err != nil {
 			return nil, err
 		}
@@ -498,7 +515,7 @@ func verifyDiscrimination(tree string, records []DiscriminationRecord,
 //
 // Without them a pair proves only that its breaks together redden the unit,
 // which one of them may do alone, or with a partner that never runs.
-func validateSoloRuns(record DiscriminationRecord, where string) error {
+func validateSoloRuns(record *DiscriminationRecord, where string) error {
 	var tb textbuf.Buffer
 	if len(record.Paired) == 0 {
 		if len(record.Solo) > 0 {
@@ -561,33 +578,33 @@ const ProofSoloOwed = "solo-owed"
 // then do the fingerprints of a record that still has something to prove get
 // compared.
 func verifyOneDiscrimination(reader *sourceReader, index *scopeIndex, table []Carrier,
-	covers map[Cover][]Tag, record DiscriminationRecord) (DiscriminationVerdict, error) {
+	covers map[Cover][]Tag, record *DiscriminationRecord) (DiscriminationVerdict, error) {
 	unit, held, err := resolveKeyText(reader.read, index, record.Unit, record.Source)
 	if err != nil {
 		return DiscriminationVerdict{}, err
 	}
 	if !held {
-		return DiscriminationVerdict{Record: record, State: ProofUnitGone,
+		return DiscriminationVerdict{Record: *record, State: ProofUnitGone,
 			Detail: "the tagged unit is no longer in the tree"}, nil
 	}
 	tagged := covers[record.Cover()]
 	if len(tagged) == 0 {
-		return DiscriminationVerdict{Record: record, State: ProofTagGone,
+		return DiscriminationVerdict{Record: *record, State: ProofTagGone,
 			Detail: "the unit is still in the tree and no longer carries this tag"}, nil
 	}
 	if behaviorSHA(keyFile(record.Unit), unit) != record.UnitSHA {
-		return DiscriminationVerdict{Record: record, State: ProofUnitChanged,
+		return DiscriminationVerdict{Record: *record, State: ProofUnitChanged,
 			Detail: "the tagged unit's behavior changed since the red was observed"}, nil
 	}
 	if claimSHA(tagged) != record.ClaimSHA {
-		return DiscriminationVerdict{Record: record, State: ProofClaimChanged,
+		return DiscriminationVerdict{Record: *record, State: ProofClaimChanged,
 			Detail: "the tag's claim was reworded, and a red observed against the old " +
 				"sentence proves nothing about the new one"}, nil
 	}
 	carrier, carried := CarrierFor(keyFile(record.Unit), table)
 	if !record.Proves() {
 		escape := escapeCheck{reader: reader, index: index, carrier: carrier, carried: carried,
-			unit: unit, tagged: tagged, record: record}
+			unit: unit, tagged: tagged, record: *record}
 		return escape.verdict(), nil
 	}
 
@@ -596,11 +613,11 @@ func verifyOneDiscrimination(reader *sourceReader, index *scopeIndex, table []Ca
 		return DiscriminationVerdict{}, err
 	}
 	if !producerHeld {
-		return DiscriminationVerdict{Record: record, State: ProofProducerGone,
+		return DiscriminationVerdict{Record: *record, State: ProofProducerGone,
 			Detail: "the producer the break was applied to is no longer in the tree"}, nil
 	}
 	if behaviorSHA(keyFile(record.Producer), producer) != record.ProducerSHA {
-		return DiscriminationVerdict{Record: record, State: ProofProducerChanged,
+		return DiscriminationVerdict{Record: *record, State: ProofProducerChanged,
 			Detail: "the producer's behavior changed since the break was applied to it"}, nil
 	}
 	for _, paired := range record.Paired {
@@ -612,12 +629,12 @@ func verifyOneDiscrimination(reader *sourceReader, index *scopeIndex, table []Ca
 		// A paired producer gone from the tree refuses the record: the miss is the verdict.
 		// refuse-by-default: guards ProofProducerGone -- the miss is the refusing verdict
 		if !held {
-			return DiscriminationVerdict{Record: record, State: ProofProducerGone,
+			return DiscriminationVerdict{Record: *record, State: ProofProducerGone,
 				Moved: paired.Producer, Detail: tb.Str("the paired producer ").Str(paired.Producer).
 					Str(" is no longer in the tree").String()}, nil
 		}
 		if behaviorSHA(keyFile(paired.Producer), text) != paired.ProducerSHA {
-			return DiscriminationVerdict{Record: record, State: ProofProducerChanged,
+			return DiscriminationVerdict{Record: *record, State: ProofProducerChanged,
 				Moved: paired.Producer, Detail: tb.Str("the paired producer ").Str(paired.Producer).
 					Str("'s behavior changed since the break was applied to it").String()}, nil
 		}
@@ -625,15 +642,15 @@ func verifyOneDiscrimination(reader *sourceReader, index *scopeIndex, table []Ca
 	// A pair taken before the recorder ran each break alone loads, so every
 	// derived file stays buildable, and is refused here as owing that proof.
 	if len(record.Paired) > 0 && len(record.Solo) == 0 {
-		return DiscriminationVerdict{Record: record, State: ProofSoloOwed,
+		return DiscriminationVerdict{Record: *record, State: ProofSoloOwed,
 			Detail: "the record pairs breaks and carries no solo runs, so no break is shown to " +
 				"be needed for the red. Re-take it with `./le rfc record`, which " +
 				"runs each break alone"}, nil
 	}
 	if state, detail := citationState(carrier, carried, record, unit); state != ProofVerified {
-		return DiscriminationVerdict{Record: record, State: state, Detail: detail}, nil
+		return DiscriminationVerdict{Record: *record, State: state, Detail: detail}, nil
 	}
-	return DiscriminationVerdict{Record: record, State: ProofVerified}, nil
+	return DiscriminationVerdict{Record: *record, State: ProofVerified}, nil
 }
 
 // citationState judges the assertion a functional or interop proof rests on.
@@ -648,7 +665,7 @@ func verifyOneDiscrimination(reader *sourceReader, index *scopeIndex, table []Ca
 // and render `assertion %d`, so the citation is that number and the count of
 // numbered sites in the tagged unit is its bound. A `.ci` has no numbering, so
 // the citation is the directive line itself and the file is searched for it.
-func citationState(carrier Carrier, carried bool, record DiscriminationRecord, unit string) (string, string) {
+func citationState(carrier Carrier, carried bool, record *DiscriminationRecord, unit string) (string, string) {
 	if !carried || carrier.Kind == kindUnit {
 		if record.Citation == "" {
 			return ProofVerified, ""

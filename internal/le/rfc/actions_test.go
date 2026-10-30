@@ -72,7 +72,7 @@ func TestRFCActionsCarryDiscriminateVerb(t *testing.T) {
 // as proof for a requirement nobody proved.
 func TestDiscriminationStatusSeparatesProvenFromUnproven(t *testing.T) {
 	files, proof := discriminationFixture(t)
-	escape := sealFixture(t, files, DiscriminationRecord{
+	escape := sealFixture(t, files, &DiscriminationRecord{
 		RID: selftestRIDDrop, Polarity: PolarityNegative,
 		Unit: selftestCIPath, Route: RouteNoBreak,
 		Reason: escapeDeclaration, Producer: selftestCITablePath,

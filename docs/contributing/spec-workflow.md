@@ -82,6 +82,7 @@ derive from it. Lifecycle status is independent of placement.
 | `plan/release/delivery/` | Artifacts, installation, appliance boot and essential onboarding | Yes |
 | `plan/post-release/features/` | Additional capabilities and absent features | No |
 | `plan/post-release/engineering/` | Release-independent refactors, tooling and optimizations | No |
+| `plan/post-release/kernel/` | Work on the Linux kernel Ze runs, and the proof routes that build and boot a patched kernel | No |
 | `plan/proposals/` | Unapproved work | No |
 
 Current inventory refuses specs at the root or in the retired `immediate`,

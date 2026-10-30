@@ -55,7 +55,7 @@ func TestInteropCheckerResolvesThroughItsSuite(t *testing.T) {
 				tt.source: "package " + tt.suite + "\n\nfunc checkFixture() {\n\tconst name = \"fixture-scenario\"\n}\n",
 			})
 			record := DiscriminationRecord{Unit: tt.source + "::checkFixture"}
-			scenario, err := interopScenarioOf(tree, reader, newScopeIndex(), record, suite)
+			scenario, err := interopScenarioOf(tree, reader, newScopeIndex(), &record, suite)
 			if err != nil {
 				t.Fatal(err)
 			}

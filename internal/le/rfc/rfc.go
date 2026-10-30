@@ -182,13 +182,39 @@ const (
 	// producer's file carries the `Code generated ... DO NOT EDIT.` marker Go
 	// defines.
 	escapeGenerated = "generated-producer"
+	// escapeKernel: the Linux kernel produces the behavior from the packet
+	// alone, and no state Ze installs decides it, so no break of Ze's own code
+	// falsifies the claim. A break of the KERNEL could, and that is the
+	// patched-kernel route the record names as its LaterRoute. CHECKED: the
+	// tagged unit is a Go unit whose file builds only for Linux, the record
+	// names no producer in this tree, the RFC summary declares a lower layer
+	// and its reason names the record's kernel function, and the record cites
+	// a span of the tag's own claim.
+	escapeKernel = "kernel-producer"
 )
 
 var escapeReasons = map[string]bool{
 	escapeForeign:     true,
 	escapeDeclaration: true,
 	escapeGenerated:   true,
+	escapeKernel:      true,
 }
+
+// laterPatchedKernel is the proof route a kernel-producer escape could still
+// take: a clean run on the runtime kernel and a broken run on a kernel carrying
+// one patch that breaks the producing function. The route is not built yet;
+// plan/post-release/kernel/spec-rfc-kernel-patch-discrimination-route.md
+// designs it, and every kernel-producer escape is its population.
+const laterPatchedKernel = "patched-kernel"
+
+// laterRoutes is the closed set a record's LaterRoute names: a route, not
+// built yet, that could prove what the escape leaves unproven.
+var laterRoutes = map[string]bool{
+	laterPatchedKernel: true,
+}
+
+// laterRouteNames answers them sorted, for a refusal message.
+func laterRouteNames() []string { return sortedKeys(laterRoutes) }
 
 // escapeReasonNames answers them sorted, for a refusal message.
 func escapeReasonNames() []string { return sortedKeys(escapeReasons) }

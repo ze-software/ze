@@ -72,8 +72,11 @@ away.
 | `break` | derived | what was done to the producer: the mutant's substitution, or the disabled body. No gate parses it; a reviewer reads it |
 | `paired` | derived | the further breaks applied in the SAME broken run, each with its own `producer`, `producer-sha` and `break`, for a property two checks guard on one path so that neither break alone reddens the unit. Absent on a single-break record. Each paired producer is resolved, fingerprinted and judged for drift exactly as `producer` is |
 | `solo` | derived | present exactly when `paired` is: each break of the set applied ALONE, one entry per break, `producer` first, with `producer`, `break`, `seconds` and `green` (the line that showed the unit passing). The recorder writes the pair only when every solo run stayed green, so each break is shown to be needed. One exception to "present exactly when": a paired record written before solo runs existed carries no `solo` list; it still loads, so the derived files stay readable, but it verifies as `solo-owed` and `./le rfc check` reports it as a violation until `./le rfc record` re-takes it. A `solo` list that is short, out of order or misattributed is refused outright |
-| `citation` | authored | the assertion a proof, or a `foreign-producer` escape, rests on: a `fail(N, ...)` number an interop checker writes out, a directive line for a `.ci`. Required for a functional or interop proof and for `foreign-producer`, refused for a unit record and for the two escapes that name a producer. An assertion numbered by expression cannot be cited |
+| `citation` | authored | the assertion a proof, or a `foreign-producer` escape, rests on: a `fail(N, ...)` number an interop checker writes out, a directive line for a `.ci`. Required for a functional or interop proof and for `foreign-producer`, refused for a unit record and for the two escapes that name a producer. An assertion numbered by expression cannot be cited. On a `kernel-producer` escape it is instead a span of at least three words copied from the tag's own claim, the words that state the kernel's behavior, and it is required there |
 | `reason` | authored | why no break exists, for the escape only. One of the closed vocabulary below |
+| `kernel-functions` | authored | the Linux functions that produce the behavior, each as `<linux source path>::<function>` (`net/ipv4/ip_forward.c::ip_forward`), at least one. Required on a `kernel-producer` escape and refused on every other record. The RFC summary's `Implementation reason` names each in the same spelling, as a whole token |
+| `ze-state-excluded` | authored | on a `kernel-producer` escape, one `producer` and `reason` per Ze package the unit's file imports (`internal/test/` apart): the reason names the producer and says why the state it installs does not decide the outcome. Refused on every other record |
+| `later-route` | authored | the route, not built yet, that could still observe the red the escape leaves unobserved. `patched-kernel` is the only value: a broken run on a kernel carrying one patch that breaks `kernel-function`, designed in `plan/post-release/kernel/spec-rfc-kernel-patch-discrimination-route.md`. Required on a `kernel-producer` escape and refused on every other record |
 
 All three fingerprints are minted by `sealDiscrimination`
 (`internal/le/rfc/discriminate.go`), the one place a fingerprint is computed. A
@@ -167,6 +170,7 @@ and both halves are checked.
 | `foreign-producer` | the behavior is produced by an implementation this repository does not build, so no edit here can falsify the claim | the carrier kind is `interop`, and the record names no producer | the `citation` names a `fail(N, ...)` number the tagged checker writes out |
 | `declaration-only` | the code the claim rests on holds no function body: a table, an embed, a registration list | the named producer file declares no function | the tag's own claim names an identifier that file declares |
 | `generated-producer` | the producer is generated, so a break is undone by the next generator run | the named producer's file carries the `// Code generated ... DO NOT EDIT.` line | the same: the tag's claim names something that file declares |
+| `kernel-producer` | the Linux kernel produces the behavior from the packet alone, and no state Ze installs decides it, so no break of Ze's code can falsify the claim | the carrier kind is `unit` and its file builds for Linux and for no other system; the record names no producer; the RFC summary's `Implementation` is `mixed` or `third-party` and its reason names each of the record's `kernel-functions`; every Ze package the unit imports carries a `ze-state-excluded` entry | the `citation` is a span of at least three words of the tag's own claim. The record also names `later-route: patched-kernel`, because a patched kernel could prove it, so every such row stays owed work |
 
 Coverage cannot supply the second tie. A declaration-only file carries no
 statement, so a coverage profile holds no block for it and can never show the
@@ -218,7 +222,8 @@ correctly deleted a tag would make deleting one more expensive than leaving it.
 
 ## Derived versus authored
 
-Only `rid`, `polarity`, `unit`, `route`, `producer`, `citation` and `reason` are
+Only `rid`, `polarity`, `unit`, `route`, `producer`, `citation`, `reason`,
+`kernel-functions`, `ze-state-excluded` and `later-route` are
 authored. All three fingerprints are DERIVED, and so is `break` and every
 published count. Editing a
 fingerprint to make a red go green fails the shape check, and matching one by

@@ -67,6 +67,9 @@ func (e *escapeCheck) verdict() DiscriminationVerdict {
 	if e.record.Reason == escapeForeign {
 		return e.foreign()
 	}
+	if e.record.Reason == escapeKernel {
+		return e.kernel()
+	}
 	producerFile := keyFile(e.record.Producer)
 	content := e.reader.read(producerFile)
 	if content == nil || *content == "" {
@@ -244,8 +247,12 @@ func (e *escapeCheck) unitImports(unitFile, producerFile string) bool {
 		return false
 	}
 	dir := path.Dir(producerFile)
-	for _, imported := range goImportPaths(*content, unitFile) {
-		if imported == dir || strings.HasSuffix(imported, "/"+dir) {
+	imported, err := goImportPaths(*content, unitFile)
+	if err != nil {
+		return false
+	}
+	for _, importPath := range imported {
+		if importPath == dir || strings.HasSuffix(importPath, "/"+dir) {
 			return true
 		}
 	}
@@ -256,12 +263,12 @@ func (e *escapeCheck) unitImports(unitFile, producerFile string) bool {
 //
 // go/parser in ImportsOnly mode rather than a regex: an import block is exactly
 // what that mode reads, and check_baseline.go already parses Go this way. A
-// file that does not parse answers nothing, which REFUSES the escape rather
-// than granting it.
-func goImportPaths(content, where string) []string {
+// file that does not parse answers the error, so a caller cannot read "no
+// imports" where the truth is "could not read them".
+func goImportPaths(content, where string) ([]string, error) {
 	file, err := parser.ParseFile(token.NewFileSet(), where, content, parser.ImportsOnly)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	out := make([]string, 0, len(file.Imports))
 	for _, spec := range file.Imports {
@@ -271,7 +278,7 @@ func goImportPaths(content, where string) []string {
 		}
 		out = append(out, value)
 	}
-	return out
+	return out, nil
 }
 
 // reasonFact checks what one producer-naming reason says about the tree.

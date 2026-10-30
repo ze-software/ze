@@ -73,7 +73,7 @@ type observationRunner struct {
 const leTestCommand = "test"
 
 func newObservationRunner(tree string, reader *sourceReader, index *scopeIndex, carrier Carrier,
-	tag Tag, record DiscriminationRecord, kernel string) (*observationRunner, error) {
+	tag Tag, record *DiscriminationRecord, kernel string) (*observationRunner, error) {
 	toolchain, err := gotoolchain.New(tree)
 	if err != nil {
 		return nil, err
@@ -85,7 +85,7 @@ func newObservationRunner(tree string, reader *sourceReader, index *scopeIndex, 
 			Str("functional or interop carrier: ").Err(err))
 	}
 	runner := &observationRunner{tree: tree, toolchain: toolchain, carrier: carrier,
-		tag: tag, record: record, self: self, kernel: kernel}
+		tag: tag, record: *record, self: self, kernel: kernel}
 	_, runner.unitName, err = fingerprintKey(record.Unit, record.Source)
 	if err != nil {
 		return nil, err
@@ -134,7 +134,7 @@ func newObservationRunner(tree string, reader *sourceReader, index *scopeIndex, 
 // checker, so what reaches the runner's environment is a directory this tree
 // holds rather than authored text.
 func interopScenarioOf(tree string, reader *sourceReader, index *scopeIndex,
-	record DiscriminationRecord, suite interoplab.Catalog) (string, error) {
+	record *DiscriminationRecord, suite interoplab.Catalog) (string, error) {
 	var tb textbuf.Buffer
 	rel, symbol, err := fingerprintKey(record.Unit, record.Source)
 	if err != nil {

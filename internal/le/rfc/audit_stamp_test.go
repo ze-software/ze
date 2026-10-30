@@ -569,7 +569,7 @@ func partialRecords(t *testing.T, files map[string]string) []DiscriminationRecor
 	t.Helper()
 	var records []DiscriminationRecord
 	for _, polarity := range []string{PolarityPositive, PolarityNegative} {
-		records = append(records, sealFixture(t, files, DiscriminationRecord{RID: selftestRIDSend, Polarity: polarity, Unit: selftestCIPath, Route: RouteRevert, Producer: stampProducerKey, Break: selftestBreak, Citation: "expect=stdout:contains=OK"}))
+		records = append(records, sealFixture(t, files, &DiscriminationRecord{RID: selftestRIDSend, Polarity: polarity, Unit: selftestCIPath, Route: RouteRevert, Producer: stampProducerKey, Break: selftestBreak, Citation: "expect=stdout:contains=OK"}))
 	}
 	return records
 }

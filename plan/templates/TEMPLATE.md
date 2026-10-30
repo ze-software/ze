@@ -24,8 +24,8 @@
 <!-- Scope drives which optional blocks below apply. Say which one this is, so
      an absent section reads as "inapplicable" rather than "skipped".
      The file's DIRECTORY carries its work category (plan/README.md): release
-     fixes, validation or delivery; post-release features or engineering; or
-     proposals. Split mixed fixes and feature expansion into separate specs. -->
+     fixes, validation or delivery; post-release features, engineering or
+     kernel; or proposals. Split mixed fixes and feature expansion into separate specs. -->
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
