@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4760-3-1",
+    "polarity": "positive",
+    "unit": "internal/core/bgp/attribute/rfc4760_reserved_test.go::TestRFC4760ReservedIsWrittenNotInherited",
+    "unit-sha": "939b638d2a5a0459",
+    "claim-sha": "299bed5e12eec947",
+    "route": "mutant",
+    "producer": "internal/core/bgp/attribute/mpnlri.go::MPReachNLRI.WriteTo",
+    "producer-sha": "49fd994ebbc34253",
+    "break": "line 253: \"buf[pos] = 0\" -\u003e \"_ = buf[pos]\""
+  },
+  {
+    "rid": "RFC4760-3-1",
+    "polarity": "positive",
+    "unit": "internal/core/bgp/attribute/rfc4760_reserved_test.go::TestRFC4760ReservedSurvivesBufferReuse",
+    "unit-sha": "c2bf4ec4ac458a1b",
+    "claim-sha": "49ec9c2f64f5bec3",
+    "route": "mutant",
+    "producer": "internal/core/bgp/attribute/mpnlri.go::MPReachNLRI.WriteTo",
+    "producer-sha": "49fd994ebbc34253",
+    "break": "line 253: \"buf[pos] = 0\" -\u003e \"_ = buf[pos]\""
+  }
+]
