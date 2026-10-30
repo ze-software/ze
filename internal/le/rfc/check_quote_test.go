@@ -7,6 +7,9 @@ import (
 
 // quoteFixtureSource is an RFC text with a sentence crossing a page break in
 // section 2, a subsection 2.1, and a section 3 that carries its own sentence.
+// Sections 2 and 2.1 each hold an obligation whose subject is a qualified role
+// (a route reflector, a relay agent), and section 3 a scoping sentence with
+// no BCP 14 keyword, so a quoted {not-applicable} row has a role it can bind.
 const quoteFixtureSource = "Test RFC 9999\n\n1.  Introduction\n\n" +
 	"   This document describes widgets and the frames that carry them.\n\n" +
 	"2.  Widgets\n\n" +
@@ -15,10 +18,23 @@ const quoteFixtureSource = "Test RFC 9999\n\n1.  Introduction\n\n" +
 	"\f\n" +
 	"RFC 9999                       Widgets                     September 2026\n\n\n" +
 	"   any frame that depends on it.\n\n" +
+	"   " + fixtureReflectorSentence + "\n\n" +
 	"2.1.  Widget Length\n\n" +
 	"   The Length field (in octets) MUST be set to 32 for a widget.\n\n" +
+	"   " + fixtureRelaySentence + "\n\n" +
 	"3.  Frames\n\n" +
-	"   A receiver MUST NOT reorder the frames of one widget.\n"
+	"   A receiver MUST NOT reorder the frames of one widget.\n\n" +
+	"   " + fixtureScopingSentence + "\n"
+
+// fixtureReflectorSentence is the obligation in section 2 of
+// quoteFixtureSource whose subject is a qualified role, fixtureRelaySentence
+// the one in section 2.1, and fixtureScopingSentence the sentence of section 3
+// that scopes the section to a role with no BCP 14 keyword.
+const (
+	fixtureReflectorSentence = "A route reflector MUST NOT reflect the widget to its own clients."
+	fixtureRelaySentence     = "A relay agent MUST NOT change the Length field."
+	fixtureScopingSentence   = "This section applies only to relay agents."
+)
 
 // quoteRow builds the requirement a summary line would parse to, citing section.
 func quoteRow(t *testing.T, text, section string) *Requirement {

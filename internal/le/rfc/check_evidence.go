@@ -34,6 +34,16 @@ const evidenceBacklogRel = "rfc/exclusion-evidence-backlog.txt"
 // evidence.
 var evidenceKinds = []string{AnnotationLowerLayer, AnnotationNotApplicable}
 
+// retiredEvidenceKinds are kinds a committed copy of the backlog file once
+// counted and the ratchet no longer does. {feature-declined} left the file
+// when it became judged row by row and never counted, and every copy committed
+// before then still holds its line. A historical copy (committedBacklogAt)
+// skips such a line rather than failing to parse: refusing it would leave
+// every earlier commit without a copy that parses, and the rise check against
+// HEAD^ would compare nothing while it seemed to pass. The working-tree copy
+// is still refused for one, because the commit in hand must not write it.
+var retiredEvidenceKinds = []string{AnnotationFeatureDeclined}
+
 // evidenceFingerprint is what a row's exclusion evidence depends on in its own
 // summary line: the section it cites, its kind and its whole reason. A row
 // whose fingerprint differs from HEAD^ is a row the commit changed. Empty for
@@ -49,29 +59,35 @@ func evidenceFingerprint(req *Requirement) string {
 	return tb.Str(req.Section).Byte(0).Str(req.Annotation.Kind).Byte(0).Str(req.Annotation.Reason).String()
 }
 
-// containsWords answers whether phrase occurs in text at word boundaries:
-// every match is tried, and one counts only when neither neighbor is a
-// letter or a digit, so "s" is not found in "a speaker" and "speaker" is
-// found in "a bgp speaker must".
+// containsWords answers whether phrase occurs in text at word boundaries
+// (wordIndex), so "s" is not found in "a speaker" and "speaker" is found in
+// "a bgp speaker must".
 func containsWords(text, phrase string) bool {
+	return wordIndex(text, phrase) >= 0
+}
+
+// wordIndex answers the byte offset of the first occurrence of phrase in text
+// at word boundaries, -1 when there is none or phrase is empty: every match is
+// tried, and one counts only when neither neighbor is a letter or a digit.
+func wordIndex(text, phrase string) int {
 	if phrase == "" {
-		return false
+		return -1
 	}
 	for start := 0; start <= len(text)-len(phrase); {
 		found := strings.Index(text[start:], phrase)
 		if found < 0 {
-			return false
+			return -1
 		}
 		found += start
 		end := found + len(phrase)
 		before, _ := utf8.DecodeLastRuneInString(text[:found])
 		after, _ := utf8.DecodeRuneInString(text[end:])
 		if !isWordRune(before) && !isWordRune(after) {
-			return true
+			return found
 		}
 		start = found + 1
 	}
-	return false
+	return -1
 }
 
 // isWordRune answers whether r continues a word. utf8.RuneError, which the
@@ -159,7 +175,7 @@ func quoteGap(req *Requirement, source *quoteSource, what string) (string, bool)
 
 // evidenceReader judges the evidence of one corpus's exclusion rows. It reads
 // each RFC text, this checkout's vendor/modules.txt, the package set the
-// shipped ze links (one `go list -deps` per shipped flavour, linkedPackages)
+// shipped ze links (one `go list -deps` per shipped flavor, linkedPackages)
 // and Ze's runtime kernel config with its require manifests at most once, so
 // a corpus of a thousand rows pays for each source once. Not safe for
 // concurrent use.
@@ -236,7 +252,7 @@ func (reader *evidenceReader) layerPathGap(layerPath string) (string, bool) {
 
 // vendorModuleGap answers what is wrong with a `vendor/` layer path: it must
 // name a module exactly as vendor/modules.txt lists it, the module's
-// directory must be in this checkout, and some shipped flavour of ze must
+// directory must be in this checkout, and some shipped flavor of ze must
 // link a package of it. A package inside a module, the vendor directory
 // itself or a file under it is no module, and a module only the tooling uses
 // (most of vendor/ serves golangci-lint) performs nothing for Ze.
@@ -261,7 +277,7 @@ func (reader *evidenceReader) vendorModuleGap(layerPath, module string) (string,
 	}
 	if !linked.modules[module] {
 		return tb.Str("its layer path ").Str(layerPath).Str(" names a module ").Str(vendorModulesRel).
-			Str(" lists that no shipped flavour of ze links (no package of it is in `go list -deps` over ").Str(shippedMain).
+			Str(" lists that no shipped flavor of ze links (no package of it is in `go list -deps` over ").Str(shippedMain).
 			Str("), so it performs nothing for Ze; name the vendored module whose code the shipped ze runs").String(), true
 	}
 	return "", false
@@ -342,7 +358,7 @@ func (reader *evidenceReader) kernelFragments() []string {
 }
 
 // goPackageGap answers what is wrong with a `go:` layer path: it must name a
-// standard library package some shipped flavour of ze links. cmd/ and vendor/
+// standard library package some shipped flavor of ze links. cmd/ and vendor/
 // hold the toolchain's own programs and modules, not the standard library,
 // and the go tool ignores a directory named testdata or opening with `_` or
 // `.`, so no package lives under one. A package the binary does not link
@@ -365,7 +381,7 @@ func (reader *evidenceReader) goPackageGap(layerPath, pkg string) (string, bool)
 	}
 	return tb.Str("its layer path ").Str(layerPath).
 		Str(" is not a package of the Go standard library that the shipped ze links (`go list -deps` over ").Str(shippedMain).
-		Str(" in every shipped flavour lists no such standard package); name a package the binary links as go:<import path>, and a module from outside the standard library as vendor/<module path>").String(), true
+		Str(" in every shipped flavor lists no such standard package); name a package the binary links as go:<import path>, and a module from outside the standard library as vendor/<module path>").String(), true
 }
 
 // goTestdataDir is the directory name the go tool never reads a package from.
@@ -553,7 +569,7 @@ func checkExclusionEvidence(tree string, requirements []Requirement, base eviden
 	var notice string
 	switch base.state {
 	case priorRead:
-		notice = base.pushedNotice
+		notice = joinNotices(base.historyNotice, base.pushedNotice)
 	case priorAbsent:
 		notice = "exclusion evidence: no HEAD^ (" + base.reason + "), so no row is known to be new: every row lacking evidence is counted against " +
 			evidenceBacklogRel + " and no committed count is compared with HEAD^"
@@ -615,6 +631,70 @@ func checkExclusionEvidence(tree string, requirements []Requirement, base eviden
 		}
 	}
 	return errs, notice
+}
+
+// joinNotices joins the non-empty notices into the one report line the check
+// prints, each ending where the report adds its full stop.
+func joinNotices(notices ...string) string {
+	var held []string
+	for _, notice := range notices {
+		if notice != "" {
+			held = append(held, notice)
+		}
+	}
+	return strings.Join(held, ".\n")
+}
+
+// checkZeRolesInText refuses a role a summary's `Ze roles` row declares when
+// its RFC text never names it as whole words after roleKey, read through the
+// loaded quote source (loadQuoteSource). A declared role the RFC never uses
+// ("observer" for an RFC about speakers) is held by no bound role, so every
+// row would pass against it. Only a summary holding a quoted {not-applicable}
+// row is judged, since no other row is held against the declaration; and a
+// summary whose RFC text is absent is refused, because the roles cannot be
+// found in a text nobody has.
+func checkZeRolesInText(tree string, metas map[string]Meta, requirements []Requirement) []string {
+	sources := map[string]*quoteSource{}
+	judged := map[string]bool{}
+	var errs []string
+	for i := range requirements {
+		req := &requirements[i]
+		if req.Annotation == nil || req.Annotation.Kind != AnnotationNotApplicable || req.Annotation.BoundRole == "" {
+			continue
+		}
+		if judged[req.RFC] {
+			continue
+		}
+		judged[req.RFC] = true
+		source := loadQuoteSource(sources, tree, req.RFC)
+		var tb textbuf.Buffer
+		if source == nil {
+			errs = append(errs, tb.Str(req.Source).Str(": the Meta `").Str(metaZeRoles).Str("` row cannot be checked, because rfc/full/").
+				Str(req.RFC).Str(".txt is absent; fetch it with `curl -o rfc/full/").Str(req.RFC).
+				Str(".txt https://www.rfc-editor.org/rfc/").Str(req.RFC).Str(".txt`").String())
+			continue
+		}
+		for _, role := range metas[req.RFC].ZeRoles {
+			if source.holdsWords(roleKey(role)) {
+				continue
+			}
+			var line textbuf.Buffer
+			errs = append(errs, line.Str(req.Source).Str(": the Meta `").Str(metaZeRoles).Str("` row declares ").Str(pyRepr(role)).
+				Str(", which rfc/full/").Str(req.RFC).Str(".txt never names; name each role ze fills in the RFC's own words, so a bound role can be told from it").String())
+		}
+	}
+	return errs
+}
+
+// holdsWords answers whether any section of the RFC holds key as whole words
+// once the section passes through roleKey, as a declared role is compared.
+func (q *quoteSource) holdsWords(key string) bool {
+	for i := range q.sections {
+		if containsWords(roleKey(q.sections[i].body), key) {
+			return true
+		}
+	}
+	return false
 }
 
 // evidenceRowIsNew answers whether this row's evidence was added or changed
@@ -728,6 +808,23 @@ func readEvidenceBacklog(tree string) (map[string]int, string) {
 			strings.Join(evidenceKinds, ", ")
 	}
 	return parseEvidenceBacklog(string(raw), evidenceBacklogRel)
+}
+
+// parseHistoricalBacklog is parseEvidenceBacklog over a committed copy of the
+// file, with each line of a retired kind (retiredEvidenceKinds) skipped.
+func parseHistoricalBacklog(text, source string) (map[string]int, string) {
+	var kept strings.Builder
+	for line := range strings.SplitSeq(text, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) > 0 && slices.Contains(retiredEvidenceKinds, fields[0]) {
+			// Keep the line count, so a refusal names the line it read.
+			kept.WriteString("\n")
+			continue
+		}
+		kept.WriteString(line)
+		kept.WriteString("\n")
+	}
+	return parseEvidenceBacklog(kept.String(), source)
 }
 
 // parseEvidenceBacklog reads one `<kind> <count>` line per kind from text,

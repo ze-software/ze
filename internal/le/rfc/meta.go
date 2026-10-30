@@ -18,6 +18,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"unicode"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -445,9 +446,16 @@ func ParseMeta(text, stem, where string) (Meta, error) {
 	return out, nil
 }
 
+// zeRolePlaceholders are the values that hold a role's place without naming
+// one. A `Ze roles` row of them would let every bound role pass, since no
+// role holds "none".
+const zeRolePlaceholders = "none nothing n/a na tbd todo unknown"
+
 // zeRolesFrom reads the `Ze roles` row: nil when the table has none, and a
-// refusal for a row that is empty or holds an empty entry, since a role
-// nobody can read excludes nothing.
+// refusal for a row that is empty, holds an empty entry, an entry with no
+// letter ("-", "?") or a placeholder (zeRolePlaceholders), since a role
+// nobody can read excludes nothing. That each role is one the RFC names is
+// checkZeRolesInText's to judge, because only it reads the RFC text.
 func zeRolesFrom(values map[string]string, where string) ([]string, error) {
 	cell, held := values[metaZeRoles]
 	if !held {
@@ -456,10 +464,15 @@ func zeRolesFrom(values map[string]string, where string) ([]string, error) {
 	var roles []string
 	for role := range strings.SplitSeq(cell, ",") {
 		role = strings.TrimSpace(role)
+		var tb textbuf.Buffer
 		if role == "" {
-			var tb textbuf.Buffer
 			return nil, parseErr(tb.Str(where).Str(": the Meta `").Str(metaZeRoles).Str("` row ").
 				Str(pyRepr(cell)).Str(" holds an empty role; write each role ze fills, comma-separated, as `| ").
+				Str(metaZeRoles).Str(" | BGP speaker, route reflector |`"))
+		}
+		if !strings.ContainsFunc(role, unicode.IsLetter) || slices.Contains(strings.Fields(zeRolePlaceholders), roleKey(role)) {
+			return nil, parseErr(tb.Str(where).Str(": the Meta `").Str(metaZeRoles).Str("` row holds ").
+				Str(pyRepr(role)).Str(", which names no role; write each role ze fills for this RFC in the RFC's own words, comma-separated, as `| ").
 				Str(metaZeRoles).Str(" | BGP speaker, route reflector |`"))
 		}
 		roles = append(roles, role)

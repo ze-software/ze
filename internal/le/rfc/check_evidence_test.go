@@ -135,7 +135,7 @@ func TestExclusionEvidenceRefusalsNameTheFix(t *testing.T) {
 	writeFixtureFiles(t, tree, map[string]string{"rfc/full/rfc9999.txt": quoteFixtureSource,
 		evidenceBacklogRel: backlogFile("0")})
 	broken := evidenceRow(t, "RFC9999-2-1", "2",
-		`not-applicable: "A receiver MUST NOT reorder the frames of one widget."; binds frames; it reorders nothing`)
+		`not-applicable: "`+fixtureScopingSentence+`"; binds relay agents; it relays nothing`)
 	errs, _ := checkExclusionEvidence(tree, []Requirement{broken},
 		evidenceBaseline{state: priorRead, prints: map[string]string{broken.RID: evidenceFingerprint(&broken)}, backlog: backlogCounts(0)})
 	if len(errs) != 1 {
@@ -224,7 +224,7 @@ func TestLowerLayerNamesItsLayerPath(t *testing.T) {
 		{"go:net/http", ""},
 		{"go:crypto/sha3", "is not a package of the Go standard library that the shipped ze links"},
 		{"vendor/github.com/insomniacslk/dhcp", ""},
-		{"vendor/github.com/tool/only", "that no shipped flavour of ze links"},
+		{"vendor/github.com/tool/only", "that no shipped flavor of ze links"},
 		{"vendor/github.com/insomniacslk/dhcp/dhcpv6", "names no module vendor/modules.txt lists"},
 		{"", "names no component a reader can check"},
 		{"vendor/github.com/gone/module", "cannot be opened in this checkout"},
@@ -290,8 +290,9 @@ func TestLowerLayerNamesItsLayerPath(t *testing.T) {
 }
 
 // VALIDATES: goListLinked lists what the shipped ze links over this checkout:
-// a standard package cmd/ze imports is in the set and one no flavour imports
-// is not, and a tree with no shipped flavour file refuses.
+// a standard package cmd/ze imports is in the set and one no flavor imports
+// is not, a vendored module ze links is in the set and one only the lint tool
+// uses is not, and a tree with no shipped flavor file refuses.
 // METHOD: the real repository root, one listing; a bare directory.
 func TestGoListLinkedListsTheShippedBinary(t *testing.T) {
 	root, err := filepath.Abs("../../..")
@@ -305,8 +306,14 @@ func TestGoListLinkedListsTheShippedBinary(t *testing.T) {
 	if !linked.standard["net/netip"] || linked.standard["net/rpc/jsonrpc"] {
 		t.Errorf("net/netip linked %v, net/rpc/jsonrpc linked %v; want true, false", linked.standard["net/netip"], linked.standard["net/rpc/jsonrpc"])
 	}
-	if _, refusal := goListLinked(t.TempDir()); !strings.Contains(refusal, "declares a shipped flavour") {
-		t.Errorf("a tree with no flavour file answered %q, want a refusal", refusal)
+	// golang.org/x/sys is vendored and the shipped ze links it (netlink, unix);
+	// golangci-lint is vendored only for the lint tool, and no flavor links it.
+	if !linked.modules["golang.org/x/sys"] || linked.modules["github.com/golangci/golangci-lint/v2"] {
+		t.Errorf("golang.org/x/sys linked %v, golangci-lint linked %v; want true, false",
+			linked.modules["golang.org/x/sys"], linked.modules["github.com/golangci/golangci-lint/v2"])
+	}
+	if _, refusal := goListLinked(t.TempDir()); !strings.Contains(refusal, "declares a shipped flavor") {
+		t.Errorf("a tree with no flavor file answered %q, want a refusal", refusal)
 	}
 }
 
@@ -385,9 +392,10 @@ func TestPriorRevisionState(t *testing.T) {
 func TestCheckRefusesABacklogRiseAgainstPrior(t *testing.T) {
 	const sentence = "A speaker MUST send the widget."
 	legacy := "- [ ] [RFC9999-2-3] [SHOULD] " + sentence + " (§2) {not-applicable: ze sends no widget}"
-	backfilled := "- [ ] [RFC9999-2-3] [SHOULD] " + sentence + ` (§2) {not-applicable: "` + sentence +
-		`"; binds the widget; ze sends no widget}`
+	backfilled := "- [ ] [RFC9999-2-3] [SHOULD] " + sentence + ` (§2) {not-applicable: "` + checkReflectorSentence +
+		`"; binds a route reflector; ze reflects no widget}`
 	base := fixtureCorpus()
+	base[selftestSourceRel] = checkReflectorSource
 	base[selftestSummaryRel] = quoteFixtureSummary(legacy)
 	base[evidenceBacklogRel] = backlogFile("1")
 
@@ -539,26 +547,41 @@ func TestEvidenceRowOfAnUnreadableSummary(t *testing.T) {
 // role equal to, holding or held by a declared role is refused after case, a
 // leading article and a plural are set aside; a summary with such a row and
 // no `Ze roles` row is refused, naming the row to add; a legacy row needs none.
+// A bound role that is a generic head noun qualified only by a declared role's
+// words is refused, determiners and quantifiers are dropped from its front, a
+// plural in -ies is the singular in -y, and a Ze roles entry that names no
+// role (a placeholder, a dash) is refused.
 // METHOD: ParseSummaryText over the fixture summary with its Ze roles row
 // replaced per case, one row quoting one sentence.
 func TestNotApplicableRolesAreWholeWordsAndDistinct(t *testing.T) {
 	const sentence = "A BGP speaker MUST send the widget before any frame."
-	cases := []struct{ roles, bound, refused string }{
-		{"speaker, receiver", "the widget", ""},
-		{"route reflector", "a BGP speaker", ""},
-		{"BGP speaker", "BGP speakers", "one role holds the other"},
-		{"speaker", "a BGP speaker", "one role holds the other"},
-		{"route reflector, BGP speakers", "The BGP Speaker", "one role holds the other"},
-		{"widget sender", "widgets", "one role holds the other"},
-		{"route reflector", "s", "is not in the quoted sentence"},
-		{"route reflector", "speak", "is not in the quoted sentence"},
-		{"route reflector", "speakers", "a word for any party to a protocol"},
-		{"route reflector", "the speaker", "a word for any party to a protocol"},
-		{"", "a BGP speaker", "Add the row `| Ze roles | <role>, <role> |`"},
-		{"speaker, ", "a BGP speaker", "holds an empty role"},
+	const qualified = "Every remote BGP implementation MUST send the widget before any frame."
+	const proxies = "Proxies MUST forward the widget before any frame is sent."
+	cases := []struct{ sentence, roles, bound, refused string }{
+		{sentence, "speaker, receiver", "the widget", "is not the subject of the quoted obligation"},
+		{sentence, "route reflector", "a BGP speaker", ""},
+		{sentence, "BGP speaker", "BGP speakers", "one role holds the other"},
+		{sentence, "speaker", "a BGP speaker", "one role holds the other"},
+		{sentence, "route reflector, BGP speakers", "The BGP Speaker", "one role holds the other"},
+		{sentence, "widget sender", "widgets", "is not the subject of the quoted obligation"},
+		{sentence, "route reflector", "s", "is not the subject of the quoted obligation"},
+		{sentence, "route reflector", "speak", "is not the subject of the quoted obligation"},
+		{sentence, "route reflector", "speakers", "a word for any party to a protocol"},
+		{sentence, "route reflector", "the speaker", "a word for any party to a protocol"},
+		{sentence, "", "a BGP speaker", "Add the row `| Ze roles | <role>, <role> |`"},
+		{sentence, "speaker, ", "a BGP speaker", "holds an empty role"},
+		{sentence, "none", "a BGP speaker", "'none', which names no role"},
+		{sentence, "route reflector, -", "a BGP speaker", "'-', which names no role"},
+		{sentence, "N/A", "a BGP speaker", "'N/A', which names no role"},
+		{qualified, "BGP speaker", "BGP implementations", "qualified only by words of the role 'BGP speaker'"},
+		{qualified, "BGP speaker", "each remote BGP implementation", "qualified only by words of the role 'BGP speaker'"},
+		{qualified, "route reflector", "a BGP implementation", ""},
+		{qualified, "remote BGP implementation", "BGP implementation", "one role holds the other"},
+		{proxies, "proxy", "proxies", "one role holds the other"},
+		{proxies, "route reflector", "proxies", ""},
 	}
 	for _, one := range cases {
-		row := "- [ ] [RFC9999-2-3] [SHOULD] " + sentence + ` (§2) {not-applicable: "` + sentence + `"; binds ` + one.bound + `; it sends no widget}`
+		row := "- [ ] [RFC9999-2-3] [SHOULD] " + one.sentence + ` (§2) {not-applicable: "` + one.sentence + `"; binds ` + one.bound + `; it sends no widget}`
 		_, err := ParseSummaryText(fixtureWithZeRoles(t, one.roles, row), selftestStem, selftestSummaryRel)
 		if one.refused == "" {
 			if err != nil {
@@ -640,6 +663,7 @@ func TestCheckRefusesANewAndAnEditedRowLackingEvidence(t *testing.T) {
 	const sentence = "A speaker MUST send the widget."
 	legacy := "- [ ] [RFC9999-2-3] [SHOULD] " + sentence + " (§2) {not-applicable: ze sends no widget}"
 	base := fixtureCorpus()
+	base[selftestSourceRel] = checkReflectorSource
 	base[selftestSummaryRel] = quoteFixtureSummary(legacy)
 	base[evidenceBacklogRel] = backlogFile("1")
 	cases := []struct{ name, summary, refused string }{
@@ -671,10 +695,11 @@ func TestCheckRefusesANewAndAnEditedRowLackingEvidence(t *testing.T) {
 func TestCheckRefusesARowAddedSinceThePushedBranch(t *testing.T) {
 	const sentence = "A speaker MUST send the widget."
 	legacy := "- [ ] [RFC9999-2-3] [SHOULD] " + sentence + " (§2) {not-applicable: ze sends no widget}"
-	backfilled := "- [ ] [RFC9999-2-3] [SHOULD] " + sentence + ` (§2) {not-applicable: "` + sentence +
-		`"; binds the widget; ze sends no widget}`
+	backfilled := "- [ ] [RFC9999-2-3] [SHOULD] " + sentence + ` (§2) {not-applicable: "` + checkReflectorSentence +
+		`"; binds a route reflector; ze reflects no widget}`
 	added := "- [ ] [RFC9999-2-4] [SHOULD] " + sentence + " (§2) {not-applicable: ze sends none}"
 	base := fixtureCorpus()
+	base[selftestSourceRel] = checkReflectorSource
 	base[selftestSummaryRel] = quoteFixtureSummary(legacy)
 	base[evidenceBacklogRel] = backlogFile("1")
 	tip := commitFixtureTip(t, base, map[string]string{selftestSummaryRel: quoteFixtureSummary(backfilled, added)}, nil)
@@ -756,5 +781,147 @@ func TestPushedFingerprintsJudgeASummaryHEADParentCannotParse(t *testing.T) {
 	base = judge(t)
 	if !evidenceRowIsNew(keptRow, base) || !evidenceRowIsNew(rewordedRow, base) {
 		t.Errorf("with no pushed branch, a row of a summary HEAD^ cannot parse was judged untouched")
+	}
+}
+
+// checkReflectorSentence is an obligation whose subject is a qualified role,
+// and checkReflectorSource the check fixture RFC text carrying it at the end of
+// section 2, so a check-level row can carry a quoted {not-applicable} that
+// passes. It names a receiver too, because the fixture summary declares ze
+// is a speaker and a receiver, and each declared role must be in the RFC.
+const (
+	checkReflectorSentence = "A route reflector MUST reflect the widget to every receiver."
+	checkReflectorSource   = checkFixtureSource + "\n    " + checkReflectorSentence + "\n"
+)
+
+// VALIDATES: each role a summary's `Ze roles` row declares is one its RFC
+// names: a role the text never holds as whole words is refused naming it, a
+// plural in the text counts as the role, a summary with no quoted
+// {not-applicable} row is not judged, and an absent RFC text refuses with the
+// command that fetches it.
+// METHOD: checkZeRolesInText over the quote fixture text, one quoted row of
+// rfc9999, the declared roles varied.
+func TestZeRolesAreNamedByTheRFC(t *testing.T) {
+	tree := t.TempDir()
+	writeFixtureFiles(t, tree, map[string]string{"rfc/full/rfc9999.txt": quoteFixtureSource})
+	quoted := evidenceRow(t, "RFC9999-2-1", "2",
+		`not-applicable: "`+fixtureReflectorSentence+`"; binds a route reflector; it reflects no widget`)
+	legacy := evidenceRow(t, "RFC9999-2-2", "2", "not-applicable: ze sends no widget")
+	cases := []struct {
+		name    string
+		roles   []string
+		rows    []Requirement
+		refused string
+	}{
+		{"roles the RFC names", []string{"speaker", "receivers"}, []Requirement{quoted}, ""},
+		{"a role the RFC never names", []string{"speaker", "observer"}, []Requirement{quoted}, "declares 'observer', which rfc/full/rfc9999.txt never names"},
+		{"a role made of letters of a word", []string{"speak"}, []Requirement{quoted}, "declares 'speak'"},
+		{"no quoted row", []string{"observer"}, []Requirement{legacy}, ""},
+	}
+	for _, one := range cases {
+		t.Run(one.name, func(t *testing.T) {
+			errs := checkZeRolesInText(tree, map[string]Meta{selftestStem: {ZeRoles: one.roles}}, one.rows)
+			if one.refused == "" {
+				if len(errs) != 0 {
+					t.Errorf("refused %q", errs)
+				}
+				return
+			}
+			if len(errs) != 1 || !strings.Contains(errs[0], one.refused) || !strings.Contains(errs[0], selftestSummaryRel) {
+				t.Errorf("answered %q, want one refusal naming %s and saying %q", errs, selftestSummaryRel, one.refused)
+			}
+		})
+	}
+	errs := checkZeRolesInText(t.TempDir(), map[string]Meta{selftestStem: {ZeRoles: []string{"speaker"}}}, []Requirement{quoted})
+	if len(errs) != 1 || !strings.Contains(errs[0], "rfc/full/rfc9999.txt is absent") || !strings.Contains(errs[0], "curl -o rfc/full/rfc9999.txt") {
+		t.Errorf("an absent RFC text answered %q, want a refusal naming the fetch", errs)
+	}
+}
+
+// VALIDATES: a committed copy of the backlog file that still counts a retired
+// kind ({feature-declined}) parses as history, so the rise check against HEAD^
+// compares its counts rather than nothing, while the working-tree copy is
+// refused for that line; a history and a pushed branch that never held a copy
+// that parses each print a notice, so a half that compares nothing says so.
+// METHOD: fixture repositories judged through priorEvidence and
+// checkExclusionEvidence: one whose HEAD^ copy holds a feature-declined line,
+// and one that never held the file with origin/main set at HEAD.
+func TestHistoricalBacklogSkipsRetiredKinds(t *testing.T) {
+	root := t.TempDir()
+	gitFixture(t, root, []string{"init", "-q"})
+	writeFixtureFiles(t, root, map[string]string{evidenceBacklogRel: backlogFile("1") + "feature-declined 22\n"})
+	commitFixture(t, root, "old shape")
+	commitFixtureEmptyTip(t, root)
+	base := priorEvidence(root, map[string]string{}, map[string]bool{}, true)
+	if base.state != priorRead || base.backlog[AnnotationNotApplicable] != 1 || base.historyNotice != "" {
+		t.Fatalf("a HEAD^ copy holding a retired kind answered state %v, counts %v, notice %q; want 1 read with no notice",
+			base.state, base.backlog, base.historyNotice)
+	}
+	writeFixtureFiles(t, root, map[string]string{evidenceBacklogRel: backlogFile("2")})
+	errs, _ := checkExclusionEvidence(root, nil, base)
+	if joined := strings.Join(errs, "\n"); !strings.Contains(joined, "the {not-applicable} count rose from 1 at HEAD^ to 2") {
+		t.Errorf("a rise above a HEAD^ copy holding a retired kind was not refused: %q", errs)
+	}
+	writeFixtureFiles(t, root, map[string]string{evidenceBacklogRel: backlogFile("1") + "feature-declined 0\n"})
+	if errs, _ := checkExclusionEvidence(root, nil, base); len(errs) != 1 || !strings.Contains(errs[0], "'feature-declined' is not a kind this ratchet counts") {
+		t.Errorf("a working-tree copy holding a retired kind answered %q, want it refused", errs)
+	}
+
+	never := t.TempDir()
+	gitFixture(t, never, []string{"init", "-q"})
+	writeFixtureFiles(t, never, map[string]string{"a.txt": "a\n"})
+	commitFixture(t, never, "first")
+	commitFixtureEmptyTip(t, never)
+	gitFixture(t, never, []string{"update-ref", pushedBranchRef, "HEAD"})
+	base = priorEvidence(never, map[string]string{}, map[string]bool{}, true)
+	if base.state != priorRead || !base.pushedRead {
+		t.Fatalf("a history without the file answered %v, pushed read %v; want both read", base.state, base.pushedRead)
+	}
+	writeFixtureFiles(t, never, map[string]string{evidenceBacklogRel: backlogFile("0")})
+	_, notice := checkExclusionEvidence(never, nil, base)
+	for _, want := range []string{"no commit at or before HEAD^ holds a copy", "no commit at or before origin/main holds a copy"} {
+		if !strings.Contains(notice, want) {
+			t.Errorf("the notice %q does not say %q", notice, want)
+		}
+	}
+}
+
+// VALIDATES: the refusal of a generic bound role advises roles that are not
+// themselves refused: the example names neither a generic role nor one a BGP
+// summary declares ze fills.
+// METHOD: the refusal text is read and each advised role is parsed as the
+// bound role of an obligation naming it, against Ze roles `BGP speaker`.
+func TestGenericRoleRefusalAdvisesARoleThatPasses(t *testing.T) {
+	_, err := parseAnnotation(`not-applicable: "A speaker MUST send the widget before any frame."; binds a speaker; it sends none`, "fixture")
+	if err == nil || !strings.Contains(err.Error(), "(a route reflector, a DHCP relay agent)") {
+		t.Fatalf("the generic refusal %v does not advise the roles this test checks", err)
+	}
+	for _, role := range []string{"a route reflector", "a DHCP relay agent"} {
+		sentence := strings.ToUpper(role[:1]) + role[1:] + " MUST send the widget before any frame."
+		row := "- [ ] [RFC9999-2-3] [SHOULD] " + sentence + ` (§2) {not-applicable: "` + sentence + `"; binds ` + role + `; it sends none}`
+		if _, err := ParseSummaryText(fixtureWithZeRoles(t, "BGP speaker", row), selftestStem, selftestSummaryRel); err != nil {
+			t.Errorf("the advised role %q is refused for a BGP summary: %v", role, err)
+		}
+	}
+}
+
+// VALIDATES: a flavor file whose //go:build line is a disjunction, or that has
+// none, refuses what ze links, naming the file and saying the set cannot be
+// listed, so a flavor the parser cannot read never shrinks the linked set.
+// METHOD: goListLinked over a tree holding one such cmd/ze flavor file each.
+func TestGoListLinkedRefusesAnUnreadableFlavor(t *testing.T) {
+	cases := []struct{ body, says string }{
+		{"//go:build ze_core || ze_distro\n\npackage main\n", "is not a conjunction of tags and negations"},
+		{"package main\n", "carries no //go:build line"},
+	}
+	for _, one := range cases {
+		tree := t.TempDir()
+		writeFixtureFiles(t, tree, map[string]string{"cmd/ze/build_tag_core_test.go": one.body})
+		_, refusal := goListLinked(tree)
+		for _, want := range []string{"cmd/ze/build_tag_core_test.go", one.says, "so what ze links cannot be listed"} {
+			if !strings.Contains(refusal, want) {
+				t.Errorf("the refusal %q does not say %q", refusal, want)
+			}
+		}
 	}
 }

@@ -340,15 +340,6 @@ const notApplicableFormat = `Format: {not-applicable: "<the RFC's own sentence, 
 // evidence payload.
 const notApplicableBoundPrefix = "binds "
 
-// genericRoleWords are the words that name a party to any protocol rather
-// than a role one RFC defines. A bound role made of these words alone is
-// refused: "an implementation" or "a router" binds Ze nearly everywhere, so a
-// row that excludes Ze through one claims nothing a reader can check. The RFC
-// that scopes an obligation names the specific role (a route reflector, a
-// receiving BGP speaker), and the row must name it too. Compared after
-// roleKey, so a plural and an article are the same word.
-const genericRoleWords = "implementation implementations node host system entity device party peer speaker router endpoint sender receiver"
-
 // parseNotApplicable reads `{not-applicable: "<quote>"; binds <bound role>; why}`.
 //
 // The QUOTE is the RFC's own sentence, in the section the row cites, that
@@ -397,16 +388,15 @@ func parseNotApplicable(body, where string) (*Annotation, error) {
 			Str(": {not-applicable} names no role the quoted sentence binds; write `binds <role>` after the quote, naming the role the sentence names. ").
 			Str(notApplicableFormat))
 	}
-	if !containsWords(roleKey(quote), roleKey(bound)) {
-		return nil, parseErr(tb.Str(where).
-			Str(": {not-applicable} binds ").Str(pyRepr(bound)).
-			Str(", which is not in the quoted sentence; name the role the sentence itself names, or quote the sentence that names this one. ").
-			Str(notApplicableFormat))
+	// The bound role is the subject the quoted obligation binds, or the role
+	// a scoping sentence with no keyword names (boundRoleRefusal).
+	if refusal, refused := boundRoleRefusal(quote, bound); refused {
+		return nil, parseErr(tb.Str(where).Str(refusal).Str(notApplicableFormat))
 	}
 	if genericRole(bound) {
 		return nil, parseErr(tb.Str(where).
 			Str(": {not-applicable} binds ").Str(pyRepr(bound)).
-			Str(", a word for any party to a protocol, so nothing shows the sentence leaves ze out. Name the specific role the RFC defines (a route reflector, a receiving BGP speaker), or quote the sentence that names one. ").
+			Str(", a word for any party to a protocol, so nothing shows the sentence leaves ze out. Name the specific role the RFC defines (a route reflector, a DHCP relay agent), or quote the sentence that names one. ").
 			Str(notApplicableFormat))
 	}
 	if why == "" {
@@ -418,63 +408,6 @@ func parseNotApplicable(body, where string) (*Annotation, error) {
 	// renderer that prints `{kind} reason` publishes the quote and the role.
 	return &Annotation{Kind: AnnotationNotApplicable, Quote: quote, BoundRole: bound,
 		Reason: strings.TrimSpace(body)}, nil
-}
-
-// genericRole answers whether every word of role is one of genericRoleWords,
-// so the role names no party a reader could tell from ze.
-func genericRole(role string) bool {
-	words := strings.Fields(roleKey(role))
-	if len(words) == 0 {
-		return false
-	}
-	generic := strings.Fields(roleKey(genericRoleWords))
-	for _, word := range words {
-		if !slices.Contains(generic, word) {
-			return false
-		}
-	}
-	return true
-}
-
-// roleKey is a role, or the text a role is looked for in, as two roles
-// compare: lower case, single-spaced, with no leading article and each word
-// singular, so "a speaker", "The Speaker" and "speakers" name one role. A
-// word loses a trailing "es" after s, x, z, ch or sh ("classes", "boxes"),
-// otherwise a trailing "s" that does not follow another ("routers", but not
-// "class"). Both sides of every comparison pass through it, so a word it
-// cuts wrongly ("status") is cut the same way on both.
-func roleKey(role string) string {
-	words := strings.Fields(strings.ToLower(role))
-	if len(words) > 1 && slices.Contains([]string{"a", "an", "the"}, words[0]) {
-		words = words[1:]
-	}
-	for i, word := range words {
-		words[i] = singularWord(word)
-	}
-	return strings.Join(words, " ")
-}
-
-// singularWord cuts one trailing plural from a lower-case word, as roleKey
-// describes. Punctuation after the word ("frames." closing a quoted
-// sentence) is kept and does not hide the plural.
-func singularWord(word string) string {
-	trimmed := strings.TrimRightFunc(word, func(r rune) bool { return !isWordRune(r) })
-	return singularLetters(trimmed) + word[len(trimmed):]
-}
-
-// singularLetters is singularWord over a word with no trailing punctuation.
-func singularLetters(word string) string {
-	if stem, plural := strings.CutSuffix(word, "es"); plural && len(stem) > 1 {
-		for _, sibilant := range []string{"s", "x", "z", "ch", "sh"} {
-			if strings.HasSuffix(stem, sibilant) {
-				return stem
-			}
-		}
-	}
-	if stem, plural := strings.CutSuffix(word, "s"); plural && len(stem) > 1 && !strings.HasSuffix(stem, "s") {
-		return stem
-	}
-	return word
 }
 
 // featureDeclinedRE splits `"<quote>"; <why>`: a double-quoted span, then the
@@ -946,63 +879,6 @@ func ParseSummaryText(text, stem, source string) ([]Requirement, error) {
 		return nil, err
 	}
 	return out, nil
-}
-
-// checkNotApplicableRoles holds the role each quoted {not-applicable} row
-// binds against the roles the summary's Meta table declares Ze fills, so a
-// row cannot exclude Ze from an obligation on a role Ze has. A summary with
-// such a row and no `Ze roles` row is refused, naming the row to add: the
-// roles are declared once per summary, never per row, so two rows cannot
-// give Ze two different roles. A bound role is refused when it equals a
-// declared role, holds one, or is held by one, as whole words after roleKey:
-// "BGP speakers" binds ze when ze is a "BGP speaker", and so does "speaker".
-func checkNotApplicableRoles(text, stem, source string, requirements []Requirement) error {
-	where := source
-	if where == "" {
-		where = stem
-	}
-	var roles []string
-	read := false
-	for i := range requirements {
-		req := &requirements[i]
-		if req.Annotation == nil || req.Annotation.Kind != AnnotationNotApplicable || req.Annotation.BoundRole == "" {
-			continue
-		}
-		if !read {
-			read = true
-			rows, err := metaRows(text, where)
-			if err != nil {
-				return err
-			}
-			values := map[string]string{}
-			for _, row := range rows {
-				values[row.Label] = row.Value
-			}
-			if roles, err = zeRolesFrom(values, where); err != nil {
-				return err
-			}
-		}
-		var tb textbuf.Buffer
-		tb.Str(where).Byte(':').Int(int64(req.Line)).Str(": ").Str(req.RID).Str(" {not-applicable} binds ").
-			Str(pyRepr(req.Annotation.BoundRole))
-		if len(roles) == 0 {
-			return parseErr(tb.Str(", and ").Str(stem).Str(" declares no role ze fills, so nothing shows the role is not ze's. Add the row `| ").
-				Str(metaZeRoles).Str(" | <role>, <role> |` to the `## Meta` table of ").Str(where).
-				Str(", naming every role ze fills for this RFC. ").Str(notApplicableFormat))
-		}
-		bound := roleKey(req.Annotation.BoundRole)
-		for _, role := range roles {
-			key := roleKey(role)
-			if !containsWords(key, bound) && !containsWords(bound, key) {
-				continue
-			}
-			return parseErr(tb.Str(", and ").Str(stem).Str(" declares ze is ").Str(pyRepr(role)).
-				Str(" in its Meta `").Str(metaZeRoles).
-				Str("` row: one role holds the other, so the quoted sentence may bind ze and the row is owed, not excluded. Annotate it {gap: ...} or test it, or name a role the RFC defines that ze does not fill. ").
-				Str(notApplicableFormat))
-		}
-	}
-	return nil
 }
 
 // parseSummaryFile parses one rfc/short/<stem>.md.

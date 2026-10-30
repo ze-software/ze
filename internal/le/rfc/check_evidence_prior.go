@@ -59,8 +59,12 @@ type evidenceBaseline struct {
 	pushed   map[string]int
 	pushedAt string
 	// pushedNotice says the pushed branch is absent, so rows and counts are
-	// judged against HEAD^ alone. Empty when it was read.
+	// judged against HEAD^ alone, or that it holds no copy of the file that
+	// parses, so no count is compared with it. Empty when both were read.
 	pushedNotice string
+	// historyNotice says no commit at or before HEAD^ holds a copy of the
+	// file that parses, so no count is compared with HEAD^. Empty otherwise.
+	historyNotice string
 }
 
 // repairGitSuffix closes a refusal naming a git command that failed.
@@ -174,6 +178,10 @@ func priorEvidence(tree string, prints map[string]string, unreadable map[string]
 		return evidenceBaseline{state: priorUnreadable, reason: failure}
 	}
 	base.backlog, base.backlogAt = prior.counts, prior.at
+	if prior.counts == nil {
+		base.historyNotice = "exclusion evidence: no commit at or before HEAD^ holds a copy of " + evidenceBacklogRel +
+			" that parses, so no committed count is compared with HEAD^'s"
+	}
 	present, failure := pushedBranchPresent(tree)
 	if failure != "" {
 		return evidenceBaseline{state: priorUnreadable, reason: failure}
@@ -188,6 +196,10 @@ func priorEvidence(tree string, prints map[string]string, unreadable map[string]
 		return evidenceBaseline{state: priorUnreadable, reason: failure}
 	}
 	base.pushed, base.pushedAt = pushed.counts, pushed.at
+	if pushed.counts == nil {
+		base.pushedNotice = "exclusion evidence: no commit at or before " + backlogRevision + " holds a copy of " + evidenceBacklogRel +
+			" that parses, so no committed count is compared with the pushed branch's"
+	}
 	base.pushedPrints, failure = pushedFingerprints(tree)
 	if failure != "" {
 		return evidenceBaseline{state: priorUnreadable, reason: failure}
@@ -241,7 +253,7 @@ func committedBacklogAt(tree, revision string) (committedBacklog, string) {
 		return committedBacklog{}, "`git cat-file` could not read " + revision + ":" + evidenceBacklogRel + repairGitSuffix
 	}
 	if text, held := blobs[evidenceBacklogRel]; held {
-		if counts, refusal := parseEvidenceBacklog(text, revision+":"+evidenceBacklogRel); refusal == "" {
+		if counts, refusal := parseHistoricalBacklog(text, revision+":"+evidenceBacklogRel); refusal == "" {
 			return committedBacklog{counts: counts, at: revision}, ""
 		}
 	}
@@ -262,7 +274,7 @@ func committedBacklogAt(tree, revision string) (committedBacklog, string) {
 				", which `git log` names as holding it" + repairGitSuffix
 		}
 		at := holder + " (the newest commit at or before " + revision + " whose copy parses)"
-		counts, refusal := parseEvidenceBacklog(text, holder+":"+evidenceBacklogRel)
+		counts, refusal := parseHistoricalBacklog(text, holder+":"+evidenceBacklogRel)
 		if refusal != "" {
 			continue
 		}

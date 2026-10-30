@@ -101,15 +101,15 @@ func TestNotApplicableNeedsSectionRoleQuote(t *testing.T) {
 		evidenceBacklogRel: "lower-layer 0\nnot-applicable 1\n"})
 	const inTwo = "A speaker MUST send the widget before it sends any frame that depends on it."
 	const inThree = "A receiver MUST NOT reorder the frames of one widget."
-	const inTwoOne = "The Length field (in octets) MUST be set to 32 for a widget."
+	const inTwoOne = fixtureRelaySentence
 	cases := []struct {
 		name, annotation, missing string
 	}{
 		{"a bare reason", "not-applicable: ze sends no widget", "carries no role-condition quote from section 2"},
-		{"a quote from another section", `not-applicable: "` + inThree + `"; binds frames; it reorders nothing`,
+		{"a quote from another section", `not-applicable: "` + fixtureScopingSentence + `"; binds relay agents; it relays nothing`,
 			"its role-condition quote is in section 3, and the row cites section 2"},
-		{"a quote from the cited section", `not-applicable: "` + inTwo + `"; binds the widget; it sends no widget`, ""},
-		{"a quote from a subsection", `not-applicable: "` + inTwoOne + `"; binds a widget; it sends no widget`, ""},
+		{"a quote from the cited section", `not-applicable: "` + fixtureReflectorSentence + `"; binds a route reflector; it reflects no widget`, ""},
+		{"a quote from a subsection", `not-applicable: "` + inTwoOne + `"; binds a relay agent; it relays no widget`, ""},
 	}
 	for _, one := range cases {
 		t.Run(one.name, func(t *testing.T) {
@@ -133,20 +133,33 @@ func TestNotApplicableNeedsSectionRoleQuote(t *testing.T) {
 			}
 		})
 	}
-	req := evidenceRow(t, "RFC9999-2-1", "2", `not-applicable: "`+inTwo+`"; binds the widget; it sends no widget`)
-	if req.Annotation.Quote != inTwo || req.Annotation.BoundRole != "the widget" {
+	req := evidenceRow(t, "RFC9999-2-1", "2", `not-applicable: "`+fixtureReflectorSentence+`"; binds a route reflector; it reflects no widget`)
+	if req.Annotation.Quote != fixtureReflectorSentence || req.Annotation.BoundRole != "a route reflector" {
 		t.Errorf("the evidence form parsed to quote %q, bound role %q", req.Annotation.Quote, req.Annotation.BoundRole)
 	}
 	refusals := []struct{ payload, says string }{
 		{`"` + inTwo + `"; it sends no widget`, "names no role the quoted sentence binds"},
-		{`"` + inTwo + `"; binds a gateway; it sends no widget`, "is not in the quoted sentence"},
+		{`"` + fixtureScopingSentence + `"; binds a gateway; it sends no widget`, "is not in the quoted sentence"},
+		{`"` + inTwo + `"; binds the widget; it sends no widget`, "is not the subject of the quoted obligation"},
+		{`"` + inTwo + `"; binds a gateway; it sends no widget`, "is not the subject of the quoted obligation"},
+		{`"` + inThree + `"; binds frames; it reorders nothing`, "is not the subject of the quoted obligation"},
+		{`"It MUST NOT reflect the widget to its own clients."; binds a route reflector; it reflects nothing`, "subject is the pronoun 'it'"},
+		{`"They all MUST reflect the widget to every client."; binds a route reflector; it reflects nothing`, "subject is the pronoun 'they'"},
+		{`"Route reflectors each MUST reflect the widget to every client."; binds a route reflector; it reflects no widget`, ""},
 		{`"` + inTwo + `"; binds a speaker; it sends no widget`, "a word for any party to a protocol"},
 		{`"` + inTwo + `"; binds The Speakers; it sends no widget`, "a word for any party to a protocol"},
-		{`"` + inTwo + `"; binds the widget`, "gives no reason"},
+		{`"` + fixtureReflectorSentence + `"; binds a route reflector`, "gives no reason"},
 		{`"short"; binds a widget; why`, "under 24 characters"},
 	}
 	for _, one := range refusals {
 		_, err := parseAnnotation("not-applicable: "+one.payload, "fixture")
+		if one.says == "" {
+			// A quantifier between the subject and its keyword is allowed.
+			if err != nil {
+				t.Errorf("{not-applicable: %s} was refused: %v", one.payload, err)
+			}
+			continue
+		}
 		if err == nil {
 			t.Errorf("{not-applicable: %s} parsed; a quoted payload owes a quote, a specific bound role the quote names and a reason", one.payload)
 			continue

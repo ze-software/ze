@@ -93,9 +93,12 @@ type CheckReport struct {
 	// LinuxLimitCandidates are register-backed proposals, never approvals or
 	// automatic annotations. They do not change the exit code.
 	LinuxLimitCandidates []LinuxLimitCandidate `json:"linux-limit-candidates,omitempty"`
-	// EvidenceBaseline says the exclusion evidence ratchet found no HEAD^ to
-	// compare with, so it judged every row as untouched. Empty when HEAD^ was
-	// read. It does not change the exit code.
+	// EvidenceBaseline says what the exclusion evidence ratchet could not
+	// compare with, one notice per line: no HEAD^, so it judged every row as
+	// untouched; no pushed branch; or a history (HEAD^'s or the pushed
+	// branch's) holding no copy of the backlog file that parses, so no count
+	// was compared with it. Empty when every half compared. It does not change
+	// the exit code.
 	EvidenceBaseline string `json:"evidence-baseline,omitempty"`
 	Tags             int    `json:"tags,omitempty"`
 	// The two gap figures render even at zero, for the reason the
@@ -518,6 +521,7 @@ func check(tree string, today time.Time, approvals map[string]string) (CheckRepo
 	evidenceRefusals, evidenceNotice := checkExclusionEvidence(tree, collected.Requirements,
 		priorEvidence(tree, evidencePrints, unreadableLevels, levelsKnown))
 	findings = append(findings, inGroup(CheckAnnotations, notes(evidenceRefusals))...)
+	findings = append(findings, inGroup(CheckAnnotations, notes(checkZeRolesInText(tree, collected.Metas, collected.Requirements)))...)
 	linuxLimitFindings, linuxLimitCandidates := checkLinuxLimit(tree, collected.Requirements)
 	findings = append(findings, inGroup(CheckAnnotations, linuxLimitFindings)...)
 	findings = append(findings, inGroup(CheckRequirementLists, notes(checkRowQuotes(tree, collected.Requirements)))...)
