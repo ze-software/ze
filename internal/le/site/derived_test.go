@@ -2,6 +2,7 @@
 package site
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -25,10 +26,13 @@ func llmsPaths(t *testing.T) Paths {
 		copyFixture(t, filepath.Join(root, "website", filepath.FromSlash(name)),
 			filepath.Join(paths.Output, filepath.FromSlash(name)))
 	}
-	writeArtifactFile(t, paths.Output, factsFile, `{"cli_commands":402,"config_sections":36,
+	writeArtifactFile(t, paths.Output, factsFile, `{"cli_commands":402,"cli_groups":45,"config_sections":36,
 		"dependencies":42,"changes":37,"features":{"core_experimental":52},
+		"equivalents":{"mapping_entries":3,"reviewed":2,"vendor_cli":2,"vendor_only":1},
 		"tests":{"unit_display":"23,700+","fuzz_display":"78","e2e_display":"1,700+"},
-		"interop":{"scenarios":130,"target_display":"9"},"generated_at":"2026-08-27"}`)
+		"interop":{"scenarios":130,"scenarios_display":"130","target_display":"9"},
+		"plugin_registrations":1,"generated_at":"2026-08-27"}`)
+	addPageLocalCounts(t, paths.Output)
 	writeArtifactFile(t, paths.Output, pluginFile, `[{"name":"bfd",
 		"description":"Bidirectional Forwarding Detection (RFC 5880, 5881, 5883)",
 		"config_roots":["bfd"],"dependencies":[],"optional_dependencies":[],
@@ -36,6 +40,41 @@ func llmsPaths(t *testing.T) Paths {
 	writeArtifactFile(t, paths.Output, configTreeFile, `{"bgp":{"kind":"container",
 		"description":"BGP speaker configuration.","children":[{"name":"group"},{"name":"neighbor"}]}}`)
 	return paths
+}
+
+// addPageLocalCounts adds to the snapshot in output the per-group and
+// per-vendor counts the build derives from the fixture catalog and vendor map
+// (factsFromCommandSurfaces), so the command pages find a value for every group
+// and vendor they show, while the headline values the fixture states stay its
+// own.
+func addPageLocalCounts(t *testing.T, output string) {
+	t.Helper()
+	derived := siteFacts{Sources: map[string]string{}}
+	if err := factsFromCommandSurfaces(output, &derived); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(output, filepath.FromSlash(factsFile))
+	content, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var snapshot map[string]any
+	if err := json.Unmarshal(content, &snapshot); err != nil {
+		t.Fatal(err)
+	}
+	snapshot["cli_group_commands"] = derived.CLIGroupCommands
+	equivalents, isObject := snapshot["equivalents"].(map[string]any)
+	if !isObject {
+		t.Fatalf("the fixture snapshot holds no equivalents section: %s", content)
+	}
+	equivalents["groups"] = derived.Equivalents.Groups
+	equivalents["vendors"] = derived.Equivalents.Vendors
+	equivalents["vendor_lines"] = derived.Equivalents.VendorLines
+	merged, err := json.Marshal(snapshot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeArtifactFile(t, output, factsFile, string(merged))
 }
 
 // writeArtifactFile puts one data file into an artifact.
@@ -117,25 +156,27 @@ func TestEachLLMSSectionCarriesItsOwnInput(t *testing.T) {
 
 // VALIDATES: the page map states this build's own numbers, not the menu's prose.
 //
-// Four navigation descriptions name a count. website/data/nav.json writes each
-// one by hand, so "402 commands" is authored once and read for a year. The
-// build already derived the number, so the file states the derived one.
+// Five navigation descriptions name a count. website/data/nav.json names each
+// one as a {{ze:<dotted.key>}} token, so no number is authored once and read
+// for a year: the page map states the value this build published, plain.
 func TestThePageMapTakesItsCountsFromTheFactsSnapshot(t *testing.T) {
 	paths := llmsPaths(t)
 	writeArtifactFile(t, paths.Output, factsFile, `{"cli_commands":7,"config_sections":36,
 		"dependencies":3,"changes":9,"features":{"core_experimental":5},
 		"tests":{"unit_display":"1","fuzz_display":"2","e2e_display":"3"},
-		"interop":{"scenarios":4,"target_display":"5"},"generated_at":"2026-08-27"}`)
+		"interop":{"scenarios":4,"scenarios_display":"4","target_display":"5"},
+		"plugin_registrations":1,"generated_at":"2026-08-27"}`)
 
 	if _, err := renderLLMS(paths); err != nil {
 		t.Fatal(err)
 	}
 	content := readArtifact(t, paths.Output, llmsFile)
 	for _, fresh := range []string{
-		"5 features, color-coded by category",
-		"7 commands, generated from the live binary",
+		"5 features, grouped by category",
+		"7 commands, generated from Ze's live binary",
 		"3 direct packages, generated from go.mod",
-		"9 weekly updates, newest first",
+		"36 sections, indexed from live YANG",
+		"9 weekly updates, what shipped week by week",
 	} {
 		if !strings.Contains(content, fresh) {
 			t.Errorf("the page map does not carry %q", fresh)
@@ -214,4 +255,36 @@ func commandLineOf(t *testing.T, content, path string) string {
 	}
 	t.Fatalf("llms.txt carries no line for %q", path)
 	return ""
+}
+
+// VALIDATES: AC-17. llms.txt states the snapshot's plain values, the display
+// form included where the pages show one.
+//
+// The method states a snapshot whose display forms differ from the raw counts
+// beside them (120+ scenarios over 130 directories, 11 plugin registrations
+// over a one-entry registry), and asks the file for the snapshot's plain
+// figures, for neither recount, and for no marked span.
+func TestLLMSAndMirrorsCarryPlainSnapshotValues(t *testing.T) {
+	paths := llmsPaths(t)
+	writeArtifactFile(t, paths.Output, factsFile, `{"cli_commands":402,"config_sections":36,
+		"dependencies":42,"changes":37,"features":{"core_experimental":52},
+		"tests":{"unit_display":"23,700+","fuzz_display":"78","e2e_display":"1,700+"},
+		"interop":{"scenarios":130,"scenarios_display":"120+","target_display":"9"},
+		"plugin_registrations":11,"generated_at":"2026-08-27"}`)
+
+	if _, err := renderLLMS(paths); err != nil {
+		t.Fatal(err)
+	}
+	content := readArtifact(t, paths.Output, llmsFile)
+	for _, want := range []string{"120+ interop scenarios across 9 target", "11 plugin registrations",
+		"23,700+ unit tests", "402 CLI commands"} {
+		if !strings.Contains(content, want) {
+			t.Errorf("llms.txt does not state %q", want)
+		}
+	}
+	for _, recount := range []string{"130 interop scenarios", " 1 plugin registrations", "data-ze-stat"} {
+		if strings.Contains(content, recount) {
+			t.Errorf("llms.txt states %q rather than the snapshot's plain value", recount)
+		}
+	}
 }

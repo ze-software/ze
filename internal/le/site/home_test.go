@@ -3,6 +3,7 @@ package site
 
 import (
 	"encoding/json"
+	"maps"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -74,6 +75,8 @@ func homeFixtureWeeks() []string {
 // proven of 2,966 gated MUSTs over the 140 RFCs Ze implements, inside the 2,972
 // that build gated across its 171 enrolled RFCs.
 const publishedFactsSnapshot = `{
+  "features": {"categories": {"automate": 7, "observe": 9, "operate": 6, "platform": 6,
+               "routing": 9, "secure": 6, "services": 9}},
   "interop": {"target_display": "9"},
   "rfc": {"enrolled_display": "171", "gated_must_display": "2,972",
           "gated_implemented_display": "2,966", "implemented_display": "140",
@@ -300,8 +303,13 @@ func TestTheHomepageProofStripCarriesItsStatSpans(t *testing.T) {
 			t.Errorf("the proof strip does not carry %s", span)
 		}
 	}
-	if count := strings.Count(page, `data-ze-stat=`); count != len(spans) {
-		t.Errorf("the homepage carries %d stat spans, want %d", count, len(spans))
+	// The category buttons carry one marked count each, outside the strip.
+	categories := strings.Count(page, `data-ze-stat="features.categories.`)
+	if categories != len(legendCategories) {
+		t.Errorf("the category buttons carry %d stat spans, want %d", categories, len(legendCategories))
+	}
+	if count := strings.Count(page, `data-ze-stat=`) - categories; count != len(spans) {
+		t.Errorf("the homepage carries %d proof-strip stat spans, want %d", count, len(spans))
 	}
 }
 
@@ -370,9 +378,31 @@ func TestTheFeatureCategoryLinksFollowThePagesOwnOrder(t *testing.T) {
 	if err := readSourceJSON(paths.Source, featuresDataFile, &features); err != nil {
 		t.Fatal(err)
 	}
-	links := featureCategoryLinks(features)
-	want := []string{"Operate (6)", "Routing (9)", "Services (9)", "Automate (7)",
-		"Observe (9)", "Secure (6)", "Setup (6)"}
+	// The counts are derived from the cards once, by the snapshot's producer,
+	// and the buttons show the snapshot's values: both halves are checked.
+	derived := featureCategoryCounts(features)
+	stated := map[string]int{"automate": 7, "observe": 9, "operate": 6, "platform": 6,
+		"routing": 9, "secure": 6, "services": 9}
+	if !maps.Equal(derived, stated) {
+		t.Errorf("the snapshot counts the fixture's categories as %v, want %v", derived, stated)
+	}
+	snapshot, err := loadSiteFactSnapshot(paths.Output)
+	if err != nil {
+		t.Fatal(err)
+	}
+	links, err := featureCategoryLinks(snapshot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{
+		"Operate (" + markedFact("features.categories.operate", "6") + ")",
+		"Routing (" + markedFact("features.categories.routing", "9") + ")",
+		"Services (" + markedFact("features.categories.services", "9") + ")",
+		"Automate (" + markedFact("features.categories.automate", "7") + ")",
+		"Observe (" + markedFact("features.categories.observe", "9") + ")",
+		"Secure (" + markedFact("features.categories.secure", "6") + ")",
+		"Setup (" + markedFact("features.categories.platform", "6") + ")",
+	}
 	previous := 0
 	for _, label := range want {
 		at := strings.Index(links, ">"+label+"</a>")

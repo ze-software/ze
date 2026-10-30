@@ -2,8 +2,8 @@ package site
 
 import (
 	"encoding/json"
-	"path/filepath"
 	"reflect"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -107,6 +107,49 @@ func TestAnUnknownTokenIsRefusedByName(t *testing.T) {
 	}
 }
 
+// VALIDATES: the blank-value guard the retired homeProofStats carried. A key
+// whose value is the empty string is refused by name on every reading path (a
+// producer's lookup, a Markdown token, an HTML body token, an HTML attribute
+// token), rather than published as an empty figure.
+func TestABlankValueIsRefusedByName(t *testing.T) {
+	snapshot, err := parseSiteFactSnapshot([]byte(`{"tests":{"unit":12,"unit_display":""}}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	checkRefusal := func(path string, err error) {
+		t.Helper()
+		if err == nil {
+			t.Errorf("%s published the blank tests.unit_display", path)
+			return
+		}
+		for _, want := range []string{"tests.unit_display", "empty value", "./le site build"} {
+			if !strings.Contains(err.Error(), want) {
+				t.Errorf("the %s refusal does not say %q: %v", path, want, err)
+			}
+		}
+	}
+
+	lookup := &factLookup{snapshot: snapshot}
+	if marked := lookup.marked("tests.unit_display"); marked != "" {
+		t.Errorf("the lookup answered %q for a blank value", marked)
+	}
+	checkRefusal("lookup", lookup.failure())
+
+	_, err = snapshot.substitute("Ze carries {{ze:tests.unit_display}} unit tests.", true)
+	checkRefusal("Markdown token", err)
+	_, err = snapshot.substituteHTML("<html><body><p>{{ze:tests.unit_display}} tests</p></body></html>")
+	checkRefusal("HTML body token", err)
+	_, err = snapshot.substituteHTML(`<html><body><p title="{{ze:tests.unit_display}}">x</p></body></html>`)
+	checkRefusal("HTML attribute token", err)
+
+	// The same snapshot still answers its non-blank key, so the refusal is of
+	// the blank value and not of the section.
+	lookup = &factLookup{snapshot: snapshot}
+	if got := lookup.plain("tests.unit"); got != "12" || lookup.failure() != nil {
+		t.Errorf("the lookup answered %q, %v for tests.unit, want 12", got, lookup.failure())
+	}
+}
+
 // VALIDATES: AC-4, risk R-1. In hand-written HTML a token in a text node of the
 // body becomes a marked span, and the same token in an attribute, in the head
 // or in a raw-text element becomes the plain value, so no span lands inside
@@ -191,10 +234,9 @@ func TestEverySiteWideValueIsPublishedInsideItsMarker(t *testing.T) {
 	}
 	header := renderSiteHeader(t)
 	assertMarkedValues(t, "assets/header.html", header, headerSnapshot,
-		[]string{"cli_commands", "config_sections", "dependencies", "github_stars"})
+		[]string{"changes", "cli_commands", "config_sections", "dependencies", "features.core_experimental", "github_stars"})
 
 	commands := commandSurfacePaths(t)
-	copyFixture(t, filepath.Join("testdata", "published-site-facts.json"), filepath.Join(commands.Output, factsFile))
 	if _, err := renderCLIReference(commands); err != nil {
 		t.Fatal(err)
 	}
@@ -203,17 +245,82 @@ func TestEverySiteWideValueIsPublishedInsideItsMarker(t *testing.T) {
 	}
 	commandSnapshot := []byte(readArtifact(t, commands.Output, factsFile))
 	assertMarkedValues(t, "reference/cli/", readArtifact(t, commands.Output, "reference/cli/"+pageIndexFile),
-		commandSnapshot, []string{"cli_commands"})
+		commandSnapshot, []string{"cli_commands", "cli_groups"})
 	assertMarkedValues(t, "reference/command-equivalents/",
 		readArtifact(t, commands.Output, "reference/command-equivalents/"+pageIndexFile),
-		commandSnapshot, []string{"cli_commands"})
+		commandSnapshot, []string{"cli_commands", "equivalents.mapping_entries", "equivalents.reviewed",
+			"equivalents.vendor_cli", "equivalents.vendor_only"})
 
 	home := homeFixture(t)
 	if _, err := renderHome(home); err != nil {
 		t.Fatal(err)
 	}
 	assertMarkedValues(t, "index.html", readArtifact(t, home.Output, pageIndexFile),
-		[]byte(publishedFactsSnapshot), []string{"tests.unit_display", "tests.e2e_display", "tests.fuzz_display"})
+		[]byte(publishedFactsSnapshot), append([]string{"tests.unit_display", "tests.e2e_display", "tests.fuzz_display",
+			"interop.target_display", "rfc.proven_display", "rfc.gated_implemented_display", "rfc.proven_percent",
+			"rfc.implemented_display"}, homeCategoryKeys()...))
+}
+
+// homeCategoryKeys names the snapshot key of every category button the
+// homepage shows, one for each category the features page has.
+func homeCategoryKeys() []string {
+	keys := make([]string, 0, len(legendCategories))
+	for _, category := range legendCategories {
+		keys = append(keys, "features.categories."+category)
+	}
+	return keys
+}
+
+// previewDescription matches one description a link preview reads: the meta
+// description and the Open Graph and Twitter ones.
+var previewDescription = regexp.MustCompile(`<meta\s+(?:name|property)="((?:og:|twitter:)?description)"\s+content="([^"]*)"`)
+
+// VALIDATES: AC-6. A page description carries no snapshot value.
+//
+// A link preview reads the page's head without its script, so a value there
+// is a copy site.js never refreshes. The method renders every page this phase
+// moved to the snapshot, reads each description from its head, and refuses any
+// one that holds a snapshot value as a whole figure. It also refuses a page
+// with no description, so a page that lost its head cannot pass.
+func TestPageDescriptionsCarryNoSnapshotValue(t *testing.T) {
+	commands := commandSurfacePaths(t)
+	if _, err := renderCLIReference(commands); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := renderCommandEquivalents(commands); err != nil {
+		t.Fatal(err)
+	}
+	home := homeFixture(t)
+	if _, err := renderHome(home); err != nil {
+		t.Fatal(err)
+	}
+	for _, page := range []struct{ output, file string }{
+		{commands.Output, "reference/cli/" + pageIndexFile},
+		{commands.Output, "reference/command-equivalents/" + pageIndexFile},
+		{home.Output, pageIndexFile},
+	} {
+		snapshot, err := loadSiteFactSnapshot(page.output)
+		if err != nil {
+			t.Fatal(err)
+		}
+		content := readArtifact(t, page.output, page.file)
+		descriptions := previewDescription.FindAllStringSubmatch(content, -1)
+		if len(descriptions) == 0 {
+			t.Fatalf("%s carries no description to judge", page.file)
+		}
+		for _, description := range descriptions {
+			for _, key := range snapshot.keys() {
+				value, _ := snapshot.value(key)
+				if !strings.ContainsAny(value, "0123456789") {
+					continue
+				}
+				figure := regexp.MustCompile(`(^|[^0-9,.])` + regexp.QuoteMeta(value) + `($|[^0-9,.+])`)
+				if figure.MatchString(description[2]) {
+					t.Errorf("%s: its %s %q carries %s (%s)", page.file, description[1], description[2], value, key)
+				}
+			}
+		}
+	}
 }
 
 // assertMarkedValues fails the test when a page shows a snapshot value outside

@@ -86,25 +86,71 @@ type siteFacts struct {
 	// Sources says where each published number came from, one entry for each
 	// fact. Nothing reads it: it is here so a person meeting a number on a page
 	// can find the producer behind it (ai/rules/evidence.md).
-	Sources        map[string]string `json:"_sources"`
-	BlogArticles   int               `json:"blog_articles"`
-	Changes        int               `json:"changes"`
-	CLICommands    int               `json:"cli_commands"`
-	ConfigSections int               `json:"config_sections"`
-	Dependencies   int               `json:"dependencies"`
-	Features       factsFeatures     `json:"features"`
-	GeneratedAt    string            `json:"generated_at"`
-	GitHubStars    int               `json:"github_stars"`
-	Interop        factsInterop      `json:"interop"`
-	PublishedAt    string            `json:"published_at"`
-	Repo           factsRepo         `json:"repo"`
-	RFC            factsRFC          `json:"rfc"`
-	Tests          factsTests        `json:"tests"`
+	Sources      map[string]string `json:"_sources"`
+	BlogArticles int               `json:"blog_articles"`
+	Changes      int               `json:"changes"`
+	CLICommands  int               `json:"cli_commands"`
+	// CLIGroupCommands counts the commands of each group the CLI reference
+	// shows, keyed by the group's slug (cliGroupKey), so a group the catalog
+	// gains reaches the snapshot with no edit here.
+	CLIGroupCommands map[string]int   `json:"cli_group_commands"`
+	CLIGroups        int              `json:"cli_groups"`
+	ConfigSections   int              `json:"config_sections"`
+	Dependencies     int              `json:"dependencies"`
+	Equivalents      factsEquivalents `json:"equivalents"`
+	Features         factsFeatures    `json:"features"`
+	GeneratedAt      string           `json:"generated_at"`
+	GitHubStars      int              `json:"github_stars"`
+	Interop          factsInterop     `json:"interop"`
+	// Plugins counts the runtime plugin registrations data/plugin-registry.json
+	// holds, which llms.txt states.
+	Plugins     int        `json:"plugin_registrations"`
+	PublishedAt string     `json:"published_at"`
+	Repo        factsRepo  `json:"repo"`
+	RFC         factsRFC   `json:"rfc"`
+	Tests       factsTests `json:"tests"`
 }
 
-// factsFeatures counts the shipped and experimental feature cards.
+// factsEquivalents counts the vendor command map the command-equivalents page
+// headlines. The live command count is not here: it is cli_commands, because
+// the page has one row for each live command.
+//
+// Groups and Vendors are maps keyed by the names the vendor map and the catalog
+// hold (equivalentGroupKey, vendorCoverageKey), so a vendor or a verb the data
+// gains reaches the snapshot, and the page, with no edit here.
+type factsEquivalents struct {
+	Groups         map[string]factsEquivalentGroup `json:"groups"`
+	MappingEntries int                             `json:"mapping_entries"`
+	Reviewed       int                             `json:"reviewed"`
+	VendorCLI      int                             `json:"vendor_cli"`
+	VendorLines    int                             `json:"vendor_lines"`
+	VendorOnly     int                             `json:"vendor_only"`
+	Vendors        map[string]factsVendorCoverage  `json:"vendors"`
+}
+
+// factsEquivalentGroup counts one verb's table in the full command catalog of
+// the command-equivalents page (countEquivalentGroup).
+type factsEquivalentGroup struct {
+	Equivalent int `json:"equivalent"`
+	Reviewed   int `json:"reviewed"`
+	Total      int `json:"total"`
+}
+
+// factsVendorCoverage counts one vendor's coverage card on the
+// command-equivalents page (countVendorCoverage).
+type factsVendorCoverage struct {
+	Commands int `json:"commands"`
+	Lines    int `json:"lines"`
+}
+
+// factsFeatures counts the shipped and experimental feature cards, in all and
+// for each category.
+//
+// Categories is a map rather than a field for each category, so a category the
+// feature data gains reaches the snapshot, and its token, with no edit here.
 type factsFeatures struct {
-	CoreExperimental int `json:"core_experimental"`
+	Categories       map[string]int `json:"categories"`
+	CoreExperimental int            `json:"core_experimental"`
 }
 
 // factsInterop counts the peers ze is tested against and the scenarios it is
@@ -495,6 +541,7 @@ func factsFromSiteData(paths Paths, facts *siteFacts) error {
 		return err
 	}
 	facts.Features.CoreExperimental = len(features.Cards)
+	facts.Features.Categories = featureCategoryCounts(features)
 	facts.Sources["features"] = "website/" + featuresFile
 
 	articles, err := countMarkdownSources(paths.Source, blogSourceDirectory)
@@ -521,12 +568,16 @@ func factsFromSiteData(paths Paths, facts *siteFacts) error {
 	facts.Dependencies = len(versions)
 	facts.Sources["dependencies"] = goModuleFile + ", the direct requirements only"
 
-	commands, err := loadCommandCatalog(paths.Output)
-	if err != nil {
+	if err := factsFromCommandSurfaces(paths.Output, facts); err != nil {
 		return err
 	}
-	facts.CLICommands = len(commands)
-	facts.Sources["cli_commands"] = catalogFile + ", published by this build from the live binary"
+
+	var plugins []registryPlugin
+	if err := readArtifactJSON(paths.Output, pluginFile, &plugins); err != nil {
+		return err
+	}
+	facts.Plugins = len(plugins)
+	facts.Sources["plugin_registrations"] = pluginFile + ", published by this build from the runtime registry"
 
 	_, tree, err := readConfigTree(paths.Output)
 	if err != nil {
@@ -535,6 +586,113 @@ func factsFromSiteData(paths Paths, facts *siteFacts) error {
 	facts.ConfigSections = len(tree)
 	facts.Sources["config_sections"] = configTreeFile + ", published by this build from the live schema"
 	return nil
+}
+
+// factsFromCommandSurfaces counts the command catalog and the vendor command
+// map this build published: the commands, the groups the CLI reference shows
+// them in and each group's commands, the vendor map's headline populations,
+// each vendor's coverage card, and each verb table of the equivalents catalog.
+//
+// The groups and the map's populations are counted by the functions the two
+// pages render with (groupCommands, equivalentMapping.rows,
+// countEquivalentRows, countVendorCoverage, groupEquivalentRows,
+// countEquivalentGroup), so a page and its snapshot value cannot count two
+// different populations under one name.
+//
+// The vendor map is a tracked source the build staged into the output
+// (stageSources) before refreshNativeSurfaces runs, so this reads the same
+// copy the command-equivalents page reads.
+func factsFromCommandSurfaces(output string, facts *siteFacts) error {
+	commands, err := loadCommandCatalog(output)
+	if err != nil {
+		return err
+	}
+	facts.CLICommands = len(commands)
+	facts.Sources["cli_commands"] = catalogFile + ", published by this build from the live binary"
+	groups := groupCommands(commands)
+	facts.CLIGroups = len(groups)
+	facts.Sources["cli_groups"] = catalogFile + ", grouped the way /reference/cli/ shows it"
+	facts.CLIGroupCommands = make(map[string]int, len(groups))
+	for index := range groups {
+		segment, err := factKeySegment(commandSlug(groups[index].Label), "command group "+groups[index].Label)
+		if err != nil {
+			return err
+		}
+		if _, taken := facts.CLIGroupCommands[segment]; taken {
+			return fmt.Errorf("two command groups publish under the snapshot key %s: rename one", cliGroupKey(groups[index].Label))
+		}
+		facts.CLIGroupCommands[segment] = len(groups[index].Commands)
+	}
+	facts.Sources["cli_group_commands"] = catalogFile + ", one count for each group /reference/cli/ lists"
+
+	mapping, err := loadEquivalentMapping(output)
+	if err != nil {
+		return err
+	}
+	rows, vendorOnly := mapping.rows(commands)
+	vendors := mapping.vendorIDs()
+	reviewed, vendorCLI := countEquivalentRows(rows, vendors)
+	facts.Equivalents = factsEquivalents{
+		Groups:         map[string]factsEquivalentGroup{},
+		MappingEntries: len(mapping.Entries),
+		Reviewed:       reviewed,
+		VendorCLI:      vendorCLI,
+		VendorOnly:     len(vendorOnly),
+		Vendors:        make(map[string]factsVendorCoverage, len(vendors)),
+	}
+	for _, vendor := range vendors {
+		segment, err := factKeySegment(vendor, "vendor "+vendor+" of "+equivalentsFile)
+		if err != nil {
+			return err
+		}
+		mapped, lines := countVendorCoverage(rows, vendor)
+		facts.Equivalents.Vendors[segment] = factsVendorCoverage{Commands: mapped, Lines: lines}
+		facts.Equivalents.VendorLines += lines
+	}
+	for _, group := range groupEquivalentRows(rows) {
+		segment, err := factKeySegment(commandSlug(group.Label), "command group "+group.Label)
+		if err != nil {
+			return err
+		}
+		if _, taken := facts.Equivalents.Groups[segment]; taken {
+			return fmt.Errorf("two command groups publish under the snapshot key %s: rename one",
+				equivalentGroupKey(group.Label, "total"))
+		}
+		equivalent, groupReviewed := countEquivalentGroup(group, vendors)
+		facts.Equivalents.Groups[segment] = factsEquivalentGroup{
+			Equivalent: equivalent, Reviewed: groupReviewed, Total: len(group.Rows),
+		}
+	}
+	facts.Sources["equivalents"] = equivalentsFile + " over " + catalogFile
+	return nil
+}
+
+// factKeySegment answers one name from the site's data as one segment of a
+// dotted snapshot key. A name that is empty or holds a dot cannot be one,
+// because a dotted key would then name a different value, so it is refused by
+// what it names rather than published under a key no page can read.
+func factKeySegment(name, what string) (string, error) {
+	if name == "" {
+		return "", fmt.Errorf("%s has no name a snapshot key can carry", what)
+	}
+	if strings.Contains(name, ".") {
+		return "", fmt.Errorf("%s holds a dot, so no snapshot key can name it: rename it without one", what)
+	}
+	return name, nil
+}
+
+// featureCategoryCounts counts the cards of each category the features page
+// shows, a category no card carries included, so its button states a zero
+// rather than naming a key the snapshot lacks.
+func featureCategoryCounts(features featureData) map[string]int {
+	counts := make(map[string]int, len(legendCategories))
+	for _, category := range legendCategories {
+		counts[category] = 0
+	}
+	for index := range features.Cards {
+		counts[features.Cards[index].Category]++
+	}
+	return counts
 }
 
 // countMarkdownSources counts the Markdown files one source directory holds.

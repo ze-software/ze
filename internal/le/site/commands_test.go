@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -32,7 +33,37 @@ func commandSurfacePaths(t *testing.T) Paths {
 		filepath.Join(output, filepath.FromSlash(catalogFile)))
 	copyFixture(t, filepath.Join("testdata", "published-command-equivalents.json"),
 		filepath.Join(output, filepath.FromSlash(equivalentsFile)))
+	writeCommandSurfaceFacts(t, output)
 	return Paths{Repository: root, Source: filepath.Join(root, "website"), Output: output}
+}
+
+// writeCommandSurfaceFacts publishes the facts snapshot the command pages read,
+// counted from the catalog and the vendor map in the output by the build's own
+// derivation (factsFromCommandSurfaces), so the fixture snapshot and the
+// fixture catalog agree the way a real build's do.
+func writeCommandSurfaceFacts(t *testing.T, output string) {
+	t.Helper()
+	facts := siteFacts{Sources: map[string]string{}}
+	if err := factsFromCommandSurfaces(output, &facts); err != nil {
+		t.Fatal(err)
+	}
+	content, err := renderSiteFacts(&facts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := writeNamedArtifact(output, factsFile, content); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// commandSurfaceLookup reads the snapshot writeCommandSurfaceFacts published.
+func commandSurfaceLookup(t *testing.T, output string) *factLookup {
+	t.Helper()
+	snapshot, err := loadSiteFactSnapshot(output)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return &factLookup{snapshot: snapshot}
 }
 
 // copyFixture puts one file where a renderer expects to read it.
@@ -143,7 +174,7 @@ func TestTheCommandDirectoryKeepsEveryGroupReachable(t *testing.T) {
 		t.Fatal(err)
 	}
 	groups := groupCommands(commands)
-	page := cliReferenceBody(commands, groups)
+	page := cliReferenceBody(commands, groups, commandSurfaceLookup(t, paths.Output))
 	for _, group := range groups {
 		id := "cli-group-" + commandSlug(group.Label)
 		for _, markup := range []string{
@@ -443,8 +474,9 @@ func TestCommandSurfacesPreserveLiteralHelp(t *testing.T) {
 			var llms textbuf.Buffer
 			writeLLMSCommands(&llms, &llmsInputs{Commands: commands})
 			surfaces := map[string]string{
-				"reference": cliReferenceMirror(commands, groupCommands(commands)),
-				"llms":      llms.String(),
+				"reference": cliReferenceMirror(commands, groupCommands(commands),
+					&factLookup{snapshot: factSnapshotOf(t, &siteFacts{CLICommands: 1, CLIGroups: 1})}),
+				"llms": llms.String(),
 				"detail": equivalentDetailMirror(
 					&equivalentMapping{}, &equivalentRow{Command: &commands[0]}, nil,
 				),
@@ -475,5 +507,152 @@ func TestCommandSurfacesPreserveLiteralHelp(t *testing.T) {
 				})
 			}
 		})
+	}
+}
+
+// VALIDATES: AC-2. The CLI reference and the command-equivalents page publish
+// the facts snapshot's command count, never a count of the catalog in hand.
+//
+// The method states a snapshot that disagrees with the fixture catalog (9999
+// commands in 77 groups), renders both pages, and asks each page for the
+// snapshot's figures inside their markers, each mirror for them as plain text,
+// and every one of the four for no copy of the catalog's own count.
+func TestTheCommandCountIsTheSnapshotsNotARecount(t *testing.T) {
+	paths := commandSurfacePaths(t)
+	commands, err := loadCommandCatalog(paths.Output)
+	if err != nil {
+		t.Fatal(err)
+	}
+	recount := strconv.Itoa(len(commands))
+	facts := siteFacts{Sources: map[string]string{}}
+	if err := factsFromCommandSurfaces(paths.Output, &facts); err != nil {
+		t.Fatal(err)
+	}
+	facts.CLICommands, facts.CLIGroups = 9999, 77
+	content, err := renderSiteFacts(&facts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := writeNamedArtifact(paths.Output, factsFile, content); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := renderCLIReference(paths); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := renderCommandEquivalents(paths); err != nil {
+		t.Fatal(err)
+	}
+
+	cli := "reference/cli/"
+	equivalents := "reference/command-equivalents/"
+	for _, want := range []struct{ file, text string }{
+		{cli + pageIndexFile, markedFact("cli_commands", "9999") + " commands across " + markedFact("cli_groups", "77")},
+		{cli + pageMirrorFile, "9999 commands across 77 groups"},
+		{equivalents + pageIndexFile, "<strong>" + markedFact("cli_commands", "9999") + "</strong><span>live Ze commands"},
+		{equivalents + pageMirrorFile, "9999 live Ze commands."},
+	} {
+		page := readArtifact(t, paths.Output, want.file)
+		if !strings.Contains(page, want.text) {
+			t.Errorf("%s does not state the snapshot's count as %q", want.file, want.text)
+		}
+		for _, recounted := range []string{recount + " commands", ">" + recount + "<", recount + " live Ze commands"} {
+			// A whole figure only: 9999 holds the digits of a catalog of 9.
+			if regexp.MustCompile(`(^|[^0-9,])` + regexp.QuoteMeta(recounted)).MatchString(page) {
+				t.Errorf("%s states the catalog's own count %q rather than the snapshot's", want.file, recounted)
+			}
+		}
+		if strings.HasSuffix(want.file, pageMirrorFile) && strings.Contains(page, "data-ze-stat") {
+			t.Errorf("%s carries a marked span, and a Markdown mirror takes the plain value", want.file)
+		}
+	}
+}
+
+// VALIDATES: the owner rule that no page carries its own copy of a changing
+// value, for the per-vendor and per-group counts. Every vendor coverage card,
+// the coverage total, every verb summary of the command-equivalents catalog
+// and every CLI reference group count is the snapshot's value inside its
+// marker, and the CLI mirror takes the plain one.
+//
+// Method: derive the snapshot from the fixture, overwrite every one of these
+// counts with a figure no recount can produce (9000 and up), render both
+// pages, and look for each overwritten figure in its marker.
+func TestThePerVendorAndPerGroupCountsAreTheSnapshots(t *testing.T) {
+	paths := commandSurfacePaths(t)
+	commands, err := loadCommandCatalog(paths.Output)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mapping, err := loadEquivalentMapping(paths.Output)
+	if err != nil {
+		t.Fatal(err)
+	}
+	facts := siteFacts{Sources: map[string]string{}}
+	if err := factsFromCommandSurfaces(paths.Output, &facts); err != nil {
+		t.Fatal(err)
+	}
+	if len(facts.Equivalents.Vendors) == 0 || len(facts.Equivalents.Groups) == 0 || len(facts.CLIGroupCommands) == 0 {
+		t.Fatalf("the fixture derives no per-vendor or per-group count: %+v", facts.Equivalents)
+	}
+	figure := 9000
+	next := func() int { figure++; return figure }
+	for vendor := range facts.Equivalents.Vendors {
+		facts.Equivalents.Vendors[vendor] = factsVendorCoverage{Commands: next(), Lines: next()}
+	}
+	facts.Equivalents.VendorLines = next()
+	for group := range facts.Equivalents.Groups {
+		facts.Equivalents.Groups[group] = factsEquivalentGroup{Equivalent: next(), Reviewed: next(), Total: next()}
+	}
+	for group := range facts.CLIGroupCommands {
+		facts.CLIGroupCommands[group] = next()
+	}
+	content, err := renderSiteFacts(&facts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := writeNamedArtifact(paths.Output, factsFile, content); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := renderCLIReference(paths); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := renderCommandEquivalents(paths); err != nil {
+		t.Fatal(err)
+	}
+
+	equivalents := readArtifact(t, paths.Output, "reference/command-equivalents/"+pageIndexFile)
+	marked := func(key string, value int) string { return markedFact(key, strconv.Itoa(value)) }
+	var wants []string
+	for _, vendor := range mapping.vendorIDs() {
+		coverage := facts.Equivalents.Vendors[vendor]
+		wants = append(wants,
+			"<strong>"+marked(vendorCoverageKey(vendor, "commands"), coverage.Commands)+"</strong>",
+			marked(vendorCoverageKey(vendor, "lines"), coverage.Lines)+" command lines")
+	}
+	wants = append(wants, "<strong>"+marked("equivalents.vendor_lines", facts.Equivalents.VendorLines)+"</strong>")
+	rows, _ := mapping.rows(commands)
+	for _, group := range groupEquivalentRows(rows) {
+		counts := facts.Equivalents.Groups[commandSlug(group.Label)]
+		wants = append(wants,
+			marked(equivalentGroupKey(group.Label, "equivalent"), counts.Equivalent)+" equivalent, "+
+				marked(equivalentGroupKey(group.Label, "reviewed"), counts.Reviewed)+" reviewed, "+
+				marked(equivalentGroupKey(group.Label, "total"), counts.Total)+" total")
+	}
+	for _, want := range wants {
+		if !strings.Contains(equivalents, want) {
+			t.Errorf("the command-equivalents page does not state the snapshot's %q", want)
+		}
+	}
+
+	cli := readArtifact(t, paths.Output, "reference/cli/"+pageIndexFile)
+	mirror := readArtifact(t, paths.Output, "reference/cli/"+pageMirrorFile)
+	for _, group := range groupCommands(commands) {
+		count := facts.CLIGroupCommands[commandSlug(group.Label)]
+		want := marked(cliGroupKey(group.Label), count)
+		if strings.Count(cli, want) != 2 {
+			t.Errorf("the CLI reference states %s %d times, want the navigation and the group summary", want, strings.Count(cli, want))
+		}
+		if plain := "## " + group.Label + " (" + strconv.Itoa(count) + ")"; !strings.Contains(mirror, plain) {
+			t.Errorf("the CLI mirror does not state the snapshot's %q", plain)
+		}
 	}
 }

@@ -276,7 +276,9 @@ Use the native builder to preserve `.git` and generated media.
 `data/site-facts.json` as plain text, outside its `data-ze-stat` element, and
 lists each one under `plain-figures` with the page, the figure and the key. Fix
 it in the page's source: write the value as `{{ze:<dotted.key>}}` in a
-hand-written page, or through `markedFact` in a producer. The matching rule is
+hand-written page or a `data/nav.json` description, or through `factLookup.marked`
+(`markedFact`) in a producer, reading the value from the snapshot rather than
+counting it again. The matching rule is
 in `docs/architecture/site-facts.md`, "One published copy of each value".
 <!-- source: internal/le/site/plaintext.go -- checkPlainFigures -->
 

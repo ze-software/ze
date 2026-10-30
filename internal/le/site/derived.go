@@ -4,6 +4,7 @@
 package site
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
@@ -38,9 +39,14 @@ func renderLLMS(paths Paths) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	snapshot, err := loadSiteFactSnapshot(paths.Output)
+	if err != nil {
+		return nil, err
+	}
+	lookup := &factLookup{snapshot: snapshot}
 	var out textbuf.Buffer
 	writeLLMSIntro(&out)
-	writeLLMSProductSnapshot(&out, inputs)
+	writeLLMSProductSnapshot(&out, lookup)
 	writeLLMSQualityModel(&out, inputs)
 	writeLLMSComparison(&out)
 	writeLLMSFeatures(&out, inputs)
@@ -52,7 +58,12 @@ func renderLLMS(paths Paths) ([]string, error) {
 	if err := writeLLMSDocumentation(&out, paths); err != nil {
 		return nil, err
 	}
-	writeLLMSPageMap(&out, inputs)
+	if err := writeLLMSPageMap(&out, inputs, snapshot); err != nil {
+		return nil, err
+	}
+	if err := lookup.failure(); err != nil {
+		return nil, err
+	}
 
 	content := strings.TrimRight(out.String(), "\n") + "\n"
 	path := filepath.Join(paths.Output, llmsFile)
@@ -79,8 +90,11 @@ func writeLLMSIntro(out *textbuf.Buffer) {
 }
 
 // writeLLMSProductSnapshot states what Ze is, in numbers this build derived.
-func writeLLMSProductSnapshot(out *textbuf.Buffer, inputs *llmsInputs) {
-	facts := inputs.Facts
+//
+// Every number is the facts snapshot's plain value, and where the pages show a
+// display form (a floor with a plus) this file states that same form, so a
+// reader comparing the two meets one figure.
+func writeLLMSProductSnapshot(out *textbuf.Buffer, lookup *factLookup) {
 	out.Str("## Product snapshot\n\n")
 	out.Str("- Purpose: configuration and protocol engine for Linux routing, plus a network ").
 		Str("operating system built on that core.\n")
@@ -96,20 +110,21 @@ func writeLLMSProductSnapshot(out *textbuf.Buffer, inputs *llmsInputs) {
 	out.Str("- Release state: pre-release, main-branch builds, no tagged stable release yet.\n")
 	out.Str("- License and repos: AGPLv3. Canonical repository: ").Str(repositoryURL).Str(". Discord: ").
 		Str(discordInvite).Str(".\n")
-	out.Str("- Current generated counts: ").Int(int64(facts.Features.CoreExperimental)).
+	out.Str("- Current generated counts: ").Str(lookup.plain("features.core_experimental")).
 		Str(" shipped or experimental feature cards, ").
-		Int(int64(facts.CLICommands)).Str(" CLI commands, ").Int(int64(facts.ConfigSections)).
-		Str(" config sections, ").Int(int64(len(inputs.Plugins))).Str(" plugin registrations, ").
-		Int(int64(facts.Dependencies)).Str(" direct Go dependencies, ").Int(int64(facts.Changes)).
+		Str(lookup.plain("cli_commands")).Str(" CLI commands, ").Str(lookup.plain("config_sections")).
+		Str(" config sections, ").Str(lookup.plain("plugin_registrations")).Str(" plugin registrations, ").
+		Str(lookup.plain("dependencies")).Str(" direct Go dependencies, ").Str(lookup.plain("changes")).
 		Str(" weekly change entries.\n")
-	out.Str("- Test evidence counts: ").Str(facts.Tests.UnitDisplay).Str(" unit tests, ").Str(facts.Tests.FuzzDisplay).
-		Str(" fuzz targets, ").Str(facts.Tests.E2EDisplay).Str(" end-to-end transcript steps, ").
-		Int(int64(facts.Interop.Scenarios)).Str(" interop scenarios across ").Str(facts.Interop.TargetDisplay).
+	out.Str("- Test evidence counts: ").Str(lookup.plain("tests.unit_display")).Str(" unit tests, ").
+		Str(lookup.plain("tests.fuzz_display")).Str(" fuzz targets, ").Str(lookup.plain("tests.e2e_display")).
+		Str(" end-to-end transcript steps, ").Str(lookup.plain("interop.scenarios_display")).
+		Str(" interop scenarios across ").Str(lookup.plain("interop.target_display")).
 		Str(" target implementations.\n")
 	out.Str("- Classified planning inventory (not release-readiness proof): [roadmap](").
 		Str(siteBase).Str("project/roadmap/index.md), [snapshot JSON](").
 		Str(siteBase).Str(roadmapDataFile).Str(").\n")
-	out.Str("- Generated date: ").Str(facts.GeneratedAt).Str(".\n\n")
+	out.Str("- Generated date: ").Str(lookup.plain("generated_at")).Str(".\n\n")
 }
 
 // writeLLMSQualityModel states how Ze proves what it claims, and with which
@@ -518,7 +533,7 @@ func writeLLMSDependencies(out *textbuf.Buffer, inputs *llmsInputs) {
 }
 
 // writeLLMSPageMap lists the curated navigation, dropdown by dropdown.
-func writeLLMSPageMap(out *textbuf.Buffer, inputs *llmsInputs) {
+func writeLLMSPageMap(out *textbuf.Buffer, inputs *llmsInputs, snapshot siteFactSnapshot) error {
 	out.Str("## Page map\n\n")
 	out.Str("Every link points to the page Markdown mirror first. The web URL is the ").
 		Str("human-rendered version of the same page.\n\n")
@@ -531,7 +546,11 @@ func writeLLMSPageMap(out *textbuf.Buffer, inputs *llmsInputs) {
 					out.Str("### ").Str(entry.LabelOnly).Byte('\n')
 					continue
 				}
-				out.Str(navEntryLine(entry, inputs))
+				line, err := navEntryLine(entry, snapshot)
+				if err != nil {
+					return err
+				}
+				out.Str(line)
 			}
 		}
 		out.Byte('\n')
@@ -543,37 +562,20 @@ func writeLLMSPageMap(out *textbuf.Buffer, inputs *llmsInputs) {
 	}
 	out.Str("- [Discord](").Str(discordInvite).Str("): community and support\n")
 	out.Str("- [GitHub](").Str(repositoryURL).Str("): canonical repository, issues, wiki\n")
+	return nil
 }
 
-// navEntryLine writes one navigation entry, with the count-carrying description
-// taken from the facts snapshot rather than from the menu's own prose.
+// navEntryLine writes one navigation entry, its description's tokens resolved
+// to the facts snapshot's plain values.
 //
-// A menu description ages: "402 commands" is written once and read for a year.
-// The four entries below name a number this build already derived, so the file
-// states the current one.
-func navEntryLine(entry navEntry, inputs *llmsInputs) string {
-	description := cleanInline(entry.Desc)
-	if fresh := liveNavDescription(entry.Href, inputs); fresh != "" {
-		description = fresh
+// A menu description ages: "402 commands" is written once and read for a year,
+// so nav.json names each number as a {{ze:<dotted.key>}} token, and the menu
+// and this file state the value this build published.
+func navEntryLine(entry navEntry, snapshot siteFactSnapshot) (string, error) {
+	description, err := snapshot.substitute(entry.Desc, false)
+	if err != nil {
+		return "", fmt.Errorf("data/%s: the %q entry: %w", navDataFile, entry.Title, err)
 	}
-	return "- [" + entry.Title + "](" + mirrorURL(entry.Href) + "): " + description +
-		" (web: " + pageURL(entry.Href) + ")\n"
-}
-
-// liveNavDescription answers the description a navigation entry takes from this
-// build's own numbers, or the empty string when the entry has none.
-func liveNavDescription(href string, inputs *llmsInputs) string {
-	facts := inputs.Facts
-	switch href {
-	case sectionFeatures:
-		return strconv.Itoa(facts.Features.CoreExperimental) + " features, color-coded by category"
-	case "reference/cli/":
-		return strconv.Itoa(facts.CLICommands) + " commands, generated from the live binary"
-	case "reference/dependencies/":
-		return strconv.Itoa(facts.Dependencies) + " direct packages, generated from go.mod"
-	case "project/changes/":
-		return strconv.Itoa(facts.Changes) + " weekly updates, newest first"
-	default:
-		return ""
-	}
+	return "- [" + entry.Title + "](" + mirrorURL(entry.Href) + "): " + cleanInline(description) +
+		" (web: " + pageURL(entry.Href) + ")\n", nil
 }

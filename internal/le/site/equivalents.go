@@ -12,7 +12,6 @@ import (
 	"path/filepath"
 	"slices"
 	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -137,11 +136,15 @@ func renderCommandEquivalents(paths Paths) ([]string, error) {
 	if err := mapping.validate(commands); err != nil {
 		return nil, err
 	}
+	snapshot, err := loadSiteFactSnapshot(paths.Output)
+	if err != nil {
+		return nil, err
+	}
 	vendors := mapping.vendorIDs()
 	rows, vendorOnly := mapping.rows(commands)
 
 	routes := make([]string, 0, len(rows)+1)
-	route, err := renderEquivalentIndex(paths, mapping, links, rows, vendorOnly, vendors)
+	route, err := renderEquivalentIndex(paths, mapping, links, rows, vendorOnly, vendors, snapshot)
 	if err != nil {
 		return nil, err
 	}
@@ -383,10 +386,79 @@ func removeRetiredDetailPages(output string, rows []equivalentRow) error {
 	return nil
 }
 
+// countEquivalentRows counts the rows a reviewer has mapped to an intent, and
+// the rows that carry at least one vendor command. It is the one counter of the
+// two populations: the facts snapshot publishes them, and the page shows the
+// published values.
+func countEquivalentRows(rows []equivalentRow, vendors []string) (reviewed, vendorCLI int) {
+	for index := range rows {
+		if len(rows[index].Entries) != 0 {
+			reviewed++
+		}
+		if rows[index].hasVendorCommands(vendors) {
+			vendorCLI++
+		}
+	}
+	return reviewed, vendorCLI
+}
+
+// countVendorCoverage counts, for one vendor, the rows that list at least one of
+// its commands and the command lines those rows list. It is the one counter of
+// a coverage card: the facts snapshot publishes both, and the card shows the
+// published values.
+func countVendorCoverage(rows []equivalentRow, vendor string) (commands, lines int) {
+	for index := range rows {
+		count := len(rows[index].vendorCommands(vendor))
+		lines += count
+		if count != 0 {
+			commands++
+		}
+	}
+	return commands, lines
+}
+
+// countEquivalentGroup counts the rows of one verb's table that carry a vendor
+// command, and the rows a reviewer has mapped. It is the one counter of a
+// group's summary: the facts snapshot publishes both, and the summary shows the
+// published values.
+func countEquivalentGroup(group equivalentGroup, vendors []string) (equivalent, reviewed int) {
+	for _, row := range group.Rows {
+		if row.hasVendorCommands(vendors) {
+			equivalent++
+		}
+		if len(row.Entries) != 0 {
+			reviewed++
+		}
+	}
+	return equivalent, reviewed
+}
+
+// vendorCoverageKey answers the snapshot key of one figure of a vendor's
+// coverage card: field is "commands" or "lines" (factsVendorCoverage).
+func vendorCoverageKey(vendor, field string) string {
+	return "equivalents.vendors." + vendor + "." + field
+}
+
+// equivalentGroupKey answers the snapshot key of one figure of a verb's table:
+// field is "equivalent", "reviewed" or "total" (factsEquivalentGroup).
+func equivalentGroupKey(label, field string) string {
+	return "equivalents.groups." + commandSlug(label) + "." + field
+}
+
+// pluralFact answers one marked snapshot value followed by its unit, singular
+// when the value is 1, the way plural spells a count.
+func pluralFact(lookup *factLookup, key, unit string) string {
+	value := lookup.plain(key)
+	if value == "1" {
+		return lookup.marked(key) + " " + unit
+	}
+	return lookup.marked(key) + " " + unit + "s"
+}
+
 // renderEquivalentIndex publishes the searchable map of every live command.
 func renderEquivalentIndex(
 	paths Paths, mapping *equivalentMapping, links pageLinks,
-	rows []equivalentRow, vendorOnly []*equivalentEntry, vendors []string,
+	rows []equivalentRow, vendorOnly []*equivalentEntry, vendors []string, snapshot siteFactSnapshot,
 ) (string, error) {
 	shell := pageShell{
 		Title: "Command Equivalents - Ze",
@@ -396,8 +468,12 @@ func renderEquivalentIndex(
 		Path:    equivalentsIndexDest,
 		Sidebar: pageSidebar(equivalentsIndexRoot, equivalentsIndexDest, links),
 	}
-	page := shell.render(equivalentIndexBody(mapping, rows, vendorOnly, vendors))
-	mirror := equivalentIndexMirror(mapping, rows, vendorOnly, vendors)
+	lookup := &factLookup{snapshot: snapshot}
+	page := shell.render(equivalentIndexBody(mapping, rows, vendorOnly, vendors, lookup))
+	mirror := equivalentIndexMirror(mapping, rows, vendorOnly, vendors, lookup)
+	if err := lookup.failure(); err != nil {
+		return "", err
+	}
 	if err := writePublishedPage(paths.Output, equivalentsIndexDest, page, mirror); err != nil {
 		return "", err
 	}
@@ -414,19 +490,14 @@ func (mapping *equivalentMapping) vendorLabels(vendors []string) []string {
 }
 
 // equivalentIndexBody renders the index between <main> and </main>.
+//
+// The headline counts are the facts snapshot's, each inside its marker: the
+// snapshot counts them once (factsFromCommandSurfaces), so this page and every
+// other page that names one show the same published value.
 func equivalentIndexBody(
 	mapping *equivalentMapping, rows []equivalentRow,
-	vendorOnly []*equivalentEntry, vendors []string,
+	vendorOnly []*equivalentEntry, vendors []string, lookup *factLookup,
 ) string {
-	reviewed, equivalent := 0, 0
-	for index := range rows {
-		if len(rows[index].Entries) != 0 {
-			reviewed++
-		}
-		if rows[index].hasVendorCommands(vendors) {
-			equivalent++
-		}
-	}
 	var body textbuf.Buffer
 	body.Byte('\n').Str(`<section aria-labelledby="command-equivalents-title" `).
 		Str(`class="md-content command-equivalents reveal cat-operate">`).Byte('\n')
@@ -436,22 +507,22 @@ func equivalentIndexBody(
 			"been listed yet.",
 		"Reference", ` id="command-equivalents-title"`, heroClasses))
 	body.Byte('\n').Str(`<div class="cmd-eq-stats">`).Byte('\n')
-	writeStat(&body, len(rows), "live Ze commands")
-	writeStat(&body, equivalent, "commands with vendor CLI")
-	writeStat(&body, reviewed, "reviewed command rows")
-	writeStat(&body, len(mapping.Entries), "curated mapping intents")
-	writeStat(&body, len(vendorOnly), "vendor-only gap notes")
+	writeStat(&body, lookup.marked("cli_commands"), "live Ze commands")
+	writeStat(&body, lookup.marked("equivalents.vendor_cli"), "commands with vendor CLI")
+	writeStat(&body, lookup.marked("equivalents.reviewed"), "reviewed command rows")
+	writeStat(&body, lookup.marked("equivalents.mapping_entries"), "curated mapping intents")
+	writeStat(&body, lookup.marked("equivalents.vendor_only"), "vendor-only gap notes")
 	body.Str("</div>\n")
-	body.Str(equivalentCoverage(mapping, rows, vendors, reviewed, equivalent))
+	body.Str(equivalentCoverage(mapping, vendors, lookup))
 	body.Str(equivalentVendorSelector(mapping, vendors))
 	body.Str(equivalentSearchShelf(mapping, vendors))
-	body.Str(equivalentSpotlight(mapping, rows, vendors))
+	body.Str(equivalentSpotlight(mapping, rows, vendors, lookup))
 	body.Str(`<section class="cmd-eq-full-catalog" aria-labelledby="cmd-eq-full-catalog-title">`).Byte('\n')
 	body.Str(`<h2 id="cmd-eq-full-catalog-title">Full live command catalog</h2>`).Byte('\n')
 	body.Str("<noscript><p>JavaScript is disabled. Browser find works across the ").
 		Str("side-by-side command table.</p></noscript>\n")
 	for _, group := range groupEquivalentRows(rows) {
-		body.Str(equivalentIndexGroup(mapping, group, vendors))
+		body.Str(equivalentIndexGroup(mapping, group, vendors, lookup))
 	}
 	body.Str(equivalentVendorOnly(mapping, vendorOnly, vendors))
 	body.Str("</section>\n")
@@ -460,9 +531,10 @@ func equivalentIndexBody(
 	return body.String()
 }
 
-// writeStat writes one headline number of the index.
-func writeStat(out *textbuf.Buffer, count int, label string) {
-	out.Str("<div><strong>").Int(int64(count)).Str("</strong><span>").Str(html.EscapeString(label)).
+// writeStat writes one headline number of the index, given as its marked
+// element.
+func writeStat(out *textbuf.Buffer, marked, label string) {
+	out.Str("<div><strong>").Str(marked).Str("</strong><span>").Str(html.EscapeString(label)).
 		Str("</span></div>\n")
 }
 
@@ -491,37 +563,28 @@ func groupEquivalentRows(rows []equivalentRow) []equivalentGroup {
 	return groups
 }
 
-// equivalentCoverage renders the per-vendor coverage panel.
-func equivalentCoverage(
-	mapping *equivalentMapping, rows []equivalentRow, vendors []string, reviewed, equivalent int,
-) string {
+// equivalentCoverage renders the per-vendor coverage panel. Every figure is the
+// facts snapshot's, inside its marker (countVendorCoverage counts them).
+func equivalentCoverage(mapping *equivalentMapping, vendors []string, lookup *factLookup) string {
 	var panel textbuf.Buffer
 	panel.Str(`<section class="cmd-eq-overview" aria-labelledby="cmd-eq-overview-title">`).Byte('\n')
 	panel.Str(`<div class="cmd-eq-overview-copy">`).Byte('\n')
 	panel.Str(`<h2 id="cmd-eq-overview-title">Where equivalents exist</h2>`).Byte('\n')
-	panel.Str("<p>").Int(int64(equivalent)).Str(" Ze commands have at least one vendor CLI ").
-		Str("equivalent today. ").Int(int64(reviewed)).Str(" commands have been reviewed for migration ").
+	panel.Str("<p>").Str(lookup.marked("equivalents.vendor_cli")).Str(" Ze commands have at least one vendor CLI ").
+		Str("equivalent today. ").Str(lookup.marked("equivalents.reviewed")).Str(" commands have been reviewed for migration ").
 		Str("intent, including gaps where a direct vendor command is not listed.</p>\n")
 	panel.Str("<p>The rows with actual vendor CLI are pulled forward below so the useful ").
 		Str("equivalents are visible before the complete generated catalog.</p>\n")
 	panel.Str("</div>\n")
 	panel.Str(`<div class="cmd-eq-coverage-grid" aria-label="Vendor equivalent coverage">`).Byte('\n')
-	total := 0
 	for _, vendor := range vendors {
-		mapped, lines := 0, 0
-		for index := range rows {
-			count := len(rows[index].vendorCommands(vendor))
-			lines += count
-			if count != 0 {
-				mapped++
-			}
-		}
-		total += lines
 		panel.Str("<article><span>").Str(html.EscapeString(mapping.vendorLabel(vendor))).Str("</span><strong>").
-			Int(int64(mapped)).Str("</strong><small>Ze ").Str(plural(mapped, "command")).Str(", ").
-			Str(plural(lines, "command line")).Str("</small></article>\n")
+			Str(lookup.marked(vendorCoverageKey(vendor, "commands"))).Str("</strong><small>Ze ").
+			Str(pluralFact(lookup, vendorCoverageKey(vendor, "commands"), "command")).Str(", ").
+			Str(pluralFact(lookup, vendorCoverageKey(vendor, "lines"), "command line")).Str("</small></article>\n")
 	}
-	panel.Str(`<article class="cmd-eq-coverage-total"><span>Total</span><strong>`).Int(int64(total)).
+	panel.Str(`<article class="cmd-eq-coverage-total"><span>Total</span><strong>`).
+		Str(lookup.marked("equivalents.vendor_lines")).
 		Str("</strong><small>vendor command lines</small></article>\n")
 	panel.Str("</div>\n</section>\n")
 	return panel.String()
@@ -567,7 +630,9 @@ func equivalentSearchShelf(mapping *equivalentMapping, vendors []string) string 
 //
 // Its rows carry no id, because the full catalog below states the canonical one
 // for each command and two elements cannot share an id.
-func equivalentSpotlight(mapping *equivalentMapping, rows []equivalentRow, vendors []string) string {
+func equivalentSpotlight(
+	mapping *equivalentMapping, rows []equivalentRow, vendors []string, lookup *factLookup,
+) string {
 	mapped := make([]*equivalentRow, 0, len(rows))
 	for index := range rows {
 		if rows[index].hasVendorCommands(vendors) {
@@ -579,8 +644,8 @@ func equivalentSpotlight(mapping *equivalentMapping, rows []equivalentRow, vendo
 	}
 	var panel textbuf.Buffer
 	panel.Str(`<details class="cmd-eq-panel cmd-eq-mapped-first" open>`).Byte('\n')
-	panel.Str(`<summary>Commands with vendor CLI <span class="cmd-eq-count">`).Int(int64(len(mapped))).
-		Str("</span></summary>\n")
+	panel.Str(`<summary>Commands with vendor CLI <span class="cmd-eq-count">`).
+		Str(lookup.marked("equivalents.vendor_cli")).Str("</span></summary>\n")
 	panel.Str(`<p class="cmd-eq-panel-note">This table contains only rows where at least one `).
 		Str("vendor column has a curated command. Use the full catalog below to inspect reviewed gaps ").
 		Str("and every live Ze command.</p>\n")
@@ -589,30 +654,28 @@ func equivalentSpotlight(mapping *equivalentMapping, rows []equivalentRow, vendo
 	return panel.String()
 }
 
-// equivalentIndexGroup renders one verb's table inside the full catalog.
-func equivalentIndexGroup(mapping *equivalentMapping, group equivalentGroup, vendors []string) string {
-	equivalent, reviewed := 0, 0
-	for _, row := range group.Rows {
-		if row.hasVendorCommands(vendors) {
-			equivalent++
-		}
-		if len(row.Entries) != 0 {
-			reviewed++
-		}
-	}
+// equivalentIndexGroup renders one verb's table inside the full catalog. Its
+// summary counts are the facts snapshot's, inside their markers
+// (countEquivalentGroup counts them); which of them the summary names follows
+// the published values.
+func equivalentIndexGroup(
+	mapping *equivalentMapping, group equivalentGroup, vendors []string, lookup *factLookup,
+) string {
+	equivalent := lookup.plain(equivalentGroupKey(group.Label, "equivalent"))
+	reviewed := lookup.plain(equivalentGroupKey(group.Label, "reviewed"))
 	var counts []string
-	if equivalent != 0 {
-		counts = append(counts, strconv.Itoa(equivalent)+" equivalent")
+	if equivalent != "0" {
+		counts = append(counts, lookup.marked(equivalentGroupKey(group.Label, "equivalent"))+" equivalent")
 	}
-	if reviewed != 0 && reviewed != equivalent {
-		counts = append(counts, strconv.Itoa(reviewed)+" reviewed")
+	if reviewed != "0" && reviewed != equivalent {
+		counts = append(counts, lookup.marked(equivalentGroupKey(group.Label, "reviewed"))+" reviewed")
 	}
-	counts = append(counts, strconv.Itoa(len(group.Rows))+" total")
+	counts = append(counts, lookup.marked(equivalentGroupKey(group.Label, "total"))+" total")
 
 	var out textbuf.Buffer
 	out.Str(`<details class="cmd-eq-group" id="cmd-eq-group-`).Str(commandSlug(group.Label)).Str(`" open>`).Byte('\n')
 	out.Str("<summary>").Str(html.EscapeString(group.Label)).Str(` <span class="cmd-eq-count">`).
-		Str(html.EscapeString(strings.Join(counts, ", "))).Str("</span></summary>\n")
+		Str(strings.Join(counts, ", ")).Str("</span></summary>\n")
 	out.Str(equivalentTable(mapping, group.Rows, vendors, true))
 	out.Str("</details>\n")
 	return out.String()
@@ -745,26 +808,22 @@ func equivalentSources(mapping *equivalentMapping) string {
 	return out.String()
 }
 
-// equivalentIndexMirror renders the index page's index.md sibling.
+// equivalentIndexMirror renders the index page's index.md sibling, with the
+// snapshot's plain values where the page shows its marked ones.
 func equivalentIndexMirror(
 	mapping *equivalentMapping, rows []equivalentRow,
-	vendorOnly []*equivalentEntry, vendors []string,
+	vendorOnly []*equivalentEntry, vendors []string, lookup *factLookup,
 ) string {
-	reviewed, equivalent := 0, 0
 	mapped := make([]*equivalentRow, 0, len(rows))
 	for index := range rows {
-		if len(rows[index].Entries) != 0 {
-			reviewed++
-		}
 		if rows[index].hasVendorCommands(vendors) {
-			equivalent++
 			mapped = append(mapped, &rows[index])
 		}
 	}
 	var out textbuf.Buffer
 	out.Str("# Command Equivalents\n\n")
-	out.Int(int64(len(rows))).Str(" live Ze commands. ").Int(int64(equivalent)).Str(" have vendor CLI today. ").
-		Int(int64(reviewed)).Str(" have been reviewed for migration ").
+	out.Str(lookup.plain("cli_commands")).Str(" live Ze commands. ").Str(lookup.plain("equivalents.vendor_cli")).
+		Str(" have vendor CLI today. ").Str(lookup.plain("equivalents.reviewed")).Str(" have been reviewed for migration ").
 		Str("intent. Vendor commands are curated migration hints, not exhaustive vendor CLI catalogs.\n\n")
 	out.Str("## Commands with vendor CLI\n\nThese rows have at least one listed vendor command.\n\n")
 	writeEquivalentMirrorTable(&out, mapping, mapped, vendors)

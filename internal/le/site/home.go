@@ -136,8 +136,8 @@ func renderHome(paths Paths) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	var facts siteFacts
-	if err := readArtifactJSON(paths.Output, factsFile, &facts); err != nil {
+	snapshot, err := loadSiteFactSnapshot(paths.Output)
+	if err != nil {
 		return nil, err
 	}
 	articles, err := loadBlogArticles(paths.Source)
@@ -156,12 +156,8 @@ func renderHome(paths Paths) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	stats, err := homeProofStats(&facts)
-	if err != nil {
-		return nil, err
-	}
 
-	body, err := homeBody(&audience, &whatsNew, features, articles, weeks, hero, stats)
+	body, err := homeBody(&audience, &whatsNew, features, articles, weeks, hero, snapshot)
 	if err != nil {
 		return nil, err
 	}
@@ -265,8 +261,19 @@ func homeHeroSlots(catalog *demoCatalog) ([]string, error) {
 // homeBody fills the template's slots from manifest media, authored data and
 // generated proof spans. The same body supplies the HTML and Markdown mirror.
 func homeBody(audience *audienceData, whatsNew *whatsNewData, features featureData,
-	articles []blogArticle, weeks []changeWeek, hero []string, stats map[string]string,
+	articles []blogArticle, weeks []changeWeek, hero []string, snapshot siteFactSnapshot,
 ) (string, error) {
+	if snapshot.facts == nil {
+		return "", fmt.Errorf("%s is not published yet, so the homepage proof strip has no figures: run ./le site build",
+			snapshot.path)
+	}
+	// The template's own tokens are resolved before the slots are filled, so a
+	// card body or a week's intro that spells a token reaches the reader as
+	// those characters, the way a slot name in one does.
+	template, err := snapshot.substituteHTML(homeTemplate)
+	if err != nil {
+		return "", err
+	}
 	runCards, err := audienceCards(audience.Run)
 	if err != nil {
 		return "", err
@@ -279,24 +286,25 @@ func homeBody(audience *audienceData, whatsNew *whatsNewData, features featureDa
 	if err != nil {
 		return "", err
 	}
+	categoryLinks, err := featureCategoryLinks(snapshot)
+	if err != nil {
+		return "", err
+	}
 	slots := append([]string(nil), hero...)
 	slots = append(slots,
 		"{whats_new}", news,
 		"{run_cards}", runCards,
 		"{who_cards}", whoCards,
-		"{category_links}", featureCategoryLinks(features),
+		"{category_links}", categoryLinks,
 		"{feature_overview}", homeFeatureOverview(features),
 		"{blog_teaser_cards}", blogTeaserCards(weeks),
 	)
-	for name, span := range stats {
-		slots = append(slots, name, span)
-	}
 	if err := everySlotFilled(slots); err != nil {
 		return "", err
 	}
 	// One pass, so a slot's own content can never be substituted again: a card
 	// body spelling {run_cards} reaches the reader as those characters.
-	return strings.NewReplacer(slots...).Replace(homeTemplate), nil
+	return strings.NewReplacer(slots...).Replace(template), nil
 }
 
 // homeSlotPattern matches one slot of the homepage template. The digit is
@@ -328,40 +336,6 @@ func everySlotFilled(slots []string) error {
 		}
 	}
 	return nil
-}
-
-// homeProofStats answers the spans the proof strip carries.
-//
-// Each one states the fact's own key in data-ze-stat, so the page says which
-// number in the snapshot it is showing and a reader can check the two against
-// each other. A span with no value is refused: a blank where a number belongs
-// reads as a measurement of nothing.
-//
-// The five RFC spans state one share and both populations it is drawn from.
-// The card published two absolute counts until 2026-09-02, and an absolute
-// count with no denominator counts obligations JUDGED and is read as
-// obligations MET (owner directive, 2026-09-01). Every one of the five is a
-// field of the ProvenShare rfc.ProvenShareOf returned, so the card cannot drift
-// from /quality/health/ or /quality/rfc-compliance/.
-func homeProofStats(facts *siteFacts) (map[string]string, error) {
-	values := map[string]struct{ key, value string }{
-		"{unit_tests}":            {"tests.unit_display", facts.Tests.UnitDisplay},
-		"{e2e_tests}":             {"tests.e2e_display", facts.Tests.E2EDisplay},
-		"{fuzz_targets}":          {"tests.fuzz_display", facts.Tests.FuzzDisplay},
-		"{interop_targets}":       {"interop.target_display", facts.Interop.TargetDisplay},
-		"{rfc_proven}":            {"rfc.proven_display", facts.RFC.ProvenDisplay},
-		"{rfc_gated_implemented}": {"rfc.gated_implemented_display", facts.RFC.GatedImplementedDisplay},
-		"{rfc_proven_percent}":    {"rfc.proven_percent", facts.RFC.ProvenPercent},
-		"{rfc_implemented}":       {"rfc.implemented_display", facts.RFC.ImplementedDisplay},
-	}
-	spans := make(map[string]string, len(values))
-	for slot, stat := range values {
-		if stat.value == "" {
-			return nil, fmt.Errorf("the facts snapshot states no %s, so the homepage proof strip would show a blank", stat.key)
-		}
-		spans[slot] = `<span data-ze-stat="` + html.EscapeString(stat.key) + `">` + html.EscapeString(stat.value) + `</span>`
-	}
-	return spans, nil
 }
 
 // audienceCards renders one grid of the homepage, in the data file's own order.
@@ -437,19 +411,21 @@ func audienceCardHTML(card *audienceCard) (string, error) {
 //
 // The order is the page's own (legendCategories), never the data's: a list
 // derived from the cards reorders its buttons whenever a card moves, and drops
-// a category no card carries.
-func featureCategoryLinks(features featureData) string {
-	counts := map[string]int{}
-	for index := range features.Cards {
-		counts[features.Cards[index].Category]++
-	}
+// a category no card carries. Each count is the facts snapshot's
+// features.categories.<category>, marked, counted once by
+// featureCategoryCounts.
+func featureCategoryLinks(snapshot siteFactSnapshot) (string, error) {
+	lookup := &factLookup{snapshot: snapshot}
 	links := make([]string, 0, len(legendCategories))
 	for _, category := range legendCategories {
 		links = append(links, "                    <a class=\"cat-"+category+"\" href=\""+
 			sectionFeatures+"#"+category+"\">"+html.EscapeString(categoryLabel(category))+" ("+
-			strconv.Itoa(counts[category])+")</a>")
+			lookup.marked("features.categories."+category)+")</a>")
 	}
-	return strings.Join(links, "\n")
+	if err := lookup.failure(); err != nil {
+		return "", err
+	}
+	return strings.Join(links, "\n"), nil
 }
 
 // homeFeatureOverview exposes every card's destination, grouped in the same

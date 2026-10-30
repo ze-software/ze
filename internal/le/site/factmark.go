@@ -124,6 +124,73 @@ func markedFact(key, value string) string {
 	return `<span data-ze-stat="` + html.EscapeString(key) + `">` + html.EscapeString(value) + `</span>`
 }
 
+// factLookup reads snapshot values for a producer that writes them itself,
+// rather than through a token in a source.
+//
+// A producer names many values while it builds one page, so the lookup keeps
+// the first refusal and the producer asks failure() once, before it publishes.
+// A value it could not answer is the empty string, and failure() then says why,
+// so no page built from a refused lookup is ever written.
+//
+// Not safe for concurrent use: one producer owns one lookup.
+type factLookup struct {
+	snapshot siteFactSnapshot
+	refusal  error
+}
+
+// marked answers one key as the element a page shows it in (markedFact).
+func (lookup *factLookup) marked(key string) string {
+	value := lookup.plain(key)
+	if lookup.refusal != nil {
+		return ""
+	}
+	return markedFact(key, value)
+}
+
+// plain answers one key as the plain value, for a Markdown mirror, llms.txt,
+// or an attribute a span cannot go in.
+func (lookup *factLookup) plain(key string) string {
+	if lookup.refusal != nil {
+		return ""
+	}
+	if lookup.snapshot.facts == nil {
+		lookup.refusal = fmt.Errorf("%s is not published yet, so no page can show %s: run ./le site build",
+			lookup.snapshot.path, key)
+		return ""
+	}
+	value, err := lookup.snapshot.answer(key)
+	if err != nil {
+		lookup.refusal = err
+		return ""
+	}
+	return value
+}
+
+// answer resolves one key to the value a page shows, or refuses it by name.
+//
+// A key the snapshot does not name is refused (unknownToken), and so is a key
+// whose value is the empty string: a page would show an empty span where a
+// figure belongs, and a reader cannot tell a figure nobody derived from one
+// left blank on purpose. Every reader of a value, a token or a producer's
+// lookup, resolves it here, so neither refusal can be skipped.
+func (snapshot siteFactSnapshot) answer(key string) (string, error) {
+	value, found := snapshot.value(key)
+	if !found {
+		return "", snapshot.unknownToken(key)
+	}
+	if value == "" {
+		return "", fmt.Errorf("%s states %s as an empty value, so no page can show it: "+
+			"fix the derivation that writes %s, then run ./le site build", snapshot.path, key, key)
+	}
+	return value, nil
+}
+
+// failure answers the first key this lookup could not answer, or nil when it
+// answered every one. A producer MUST ask it before it publishes the page.
+func (lookup *factLookup) failure() error {
+	return lookup.refusal
+}
+
 // substitute resolves every {{ze:<dotted.key>}} token of one Markdown source.
 //
 // marked asks for the markedFact span around each value, for the HTML page; the
@@ -139,13 +206,13 @@ func (snapshot siteFactSnapshot) substitute(source string, marked bool) (string,
 	if !strings.Contains(source, "{{ze:") {
 		return source, nil
 	}
-	var unknown string
+	var refusal error
 	replaced := valueTokenPattern.ReplaceAllStringFunc(source, func(token string) string {
 		key := valueTokenPattern.FindStringSubmatch(token)[1]
-		value, found := snapshot.value(key)
-		if !found {
-			if unknown == "" {
-				unknown = key
+		value, err := snapshot.answer(key)
+		if err != nil {
+			if refusal == nil {
+				refusal = err
 			}
 			return token
 		}
@@ -154,8 +221,8 @@ func (snapshot siteFactSnapshot) substitute(source string, marked bool) (string,
 		}
 		return value
 	})
-	if unknown != "" {
-		return "", snapshot.unknownToken(unknown)
+	if refusal != nil {
+		return "", refusal
 	}
 	return replaced, nil
 }
@@ -236,20 +303,20 @@ func (snapshot siteFactSnapshot) substituteHTMLToken(raw string, marked bool) (s
 	if !strings.Contains(raw, "{{ze:") {
 		return raw, nil
 	}
-	var unknown string
+	var refusal error
 	replaced := valueTokenPattern.ReplaceAllStringFunc(raw, func(token string) string {
 		key := valueTokenPattern.FindStringSubmatch(token)[1]
-		value, found := snapshot.value(key)
-		if !found {
-			if unknown == "" {
-				unknown = key
+		value, err := snapshot.answer(key)
+		if err != nil {
+			if refusal == nil {
+				refusal = err
 			}
 			return token
 		}
 		return html.EscapeString(value)
 	})
-	if unknown != "" {
-		return "", snapshot.unknownToken(unknown)
+	if refusal != nil {
+		return "", refusal
 	}
 	return replaced, nil
 }

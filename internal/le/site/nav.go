@@ -10,7 +10,6 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
-	"strconv"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -137,19 +136,19 @@ type navEntry struct {
 // renderSharedHeader publishes assets/header.html, the one navigation fragment
 // every page of the site loads into its header mount.
 //
-// It reads the menu from the committed website/data/nav.json and the four live
-// counts and the star number from the facts snapshot refreshNativeSurfaces
-// wrote before any producer ran.
+// It reads the menu from the committed website/data/nav.json and every value it
+// shows (the counts its descriptions name as tokens, and the star number) from
+// the facts snapshot refreshNativeSurfaces wrote before any producer ran.
 func renderSharedHeader(paths Paths) ([]string, error) {
 	var data siteNav
 	if err := readSourceJSON(paths.Source, navDataFile, &data); err != nil {
 		return nil, err
 	}
-	var facts siteFacts
-	if err := readArtifactJSON(paths.Output, factsFile, &facts); err != nil {
+	snapshot, err := loadSiteFactSnapshot(paths.Output)
+	if err != nil {
 		return nil, err
 	}
-	header, err := sharedHeaderHTML(data, &facts)
+	header, err := sharedHeaderHTML(data, snapshot)
 	if err != nil {
 		return nil, err
 	}
@@ -158,9 +157,9 @@ func renderSharedHeader(paths Paths) ([]string, error) {
 
 // sharedHeaderHTML renders the whole fragment: the brand, the menu button and
 // the navigation links, with the site root left as the token.
-func sharedHeaderHTML(data siteNav, facts *siteFacts) (string, error) {
+func sharedHeaderHTML(data siteNav, snapshot siteFactSnapshot) (string, error) {
 	root := sharedHeaderRootPlaceholder
-	links, err := navLinksHTML(root, data, facts)
+	links, err := navLinksHTML(root, data, snapshot)
 	if err != nil {
 		return "", err
 	}
@@ -185,15 +184,23 @@ func sharedHeaderHTML(data siteNav, facts *siteFacts) (string, error) {
 
 // navLinksHTML renders the links block: the bare links, the dropdowns, the
 // badges and the theme toggle, in the order nav.json states them.
-func navLinksHTML(root string, data siteNav, facts *siteFacts) (string, error) {
-	counts := navCounts(facts)
+//
+// Every value the menu shows is the facts snapshot's, inside its marker: the
+// header is fetched after the page loads, and site.js fills its marked values
+// once it is inserted.
+func navLinksHTML(root string, data siteNav, snapshot siteFactSnapshot) (string, error) {
+	lookup := &factLookup{snapshot: snapshot}
+	stars := lookup.marked("github_stars")
+	if err := lookup.failure(); err != nil {
+		return "", err
+	}
 	var links textbuf.Buffer
 	links.Reset().Str("                <div id=\"site-nav-links\" class=\"nav-links\">\n")
 	for _, link := range data.TopLinks {
 		links.Str(navBarLink(root, link))
 	}
 	for _, dropdown := range data.Dropdowns {
-		panel, err := navDropdownHTML(root, dropdown, counts)
+		panel, err := navDropdownHTML(root, dropdown, snapshot)
 		if err != nil {
 			return "", err
 		}
@@ -204,28 +211,12 @@ func navLinksHTML(root string, data siteNav, facts *siteFacts) (string, error) {
 	}
 	links.Str(navSearchBadge(root))
 	links.Str(navBadge(discordInvite, "Ze Discord", "0 0 640 512", discordIconPath, "Discord"))
-	links.Str(navBadge(repositoryURL, "Ze on GitHub, "+strconv.Itoa(facts.GitHubStars)+" stars",
-		"0 0 496 512", githubIconPath, strconv.Itoa(facts.GitHubStars)))
+	// The label names the badge and not the count: an attribute cannot hold a
+	// marked value, so a count there would be a copy site.js never refreshes.
+	links.Str(navBadge(repositoryURL, "Ze on GitHub", "0 0 496 512", githubIconPath, stars))
 	links.Str(navThemeToggle)
 	links.Str("                </div>")
 	return links.String(), nil
-}
-
-// navCounts answers the live numbers a menu description states, keyed by the
-// placeholder nav.json spells each one with.
-//
-// The six are the whole set a description may name. A description naming
-// anything else is refused rather than published with the placeholder showing,
-// which is what navEntryDescription is for.
-func navCounts(facts *siteFacts) *strings.Replacer {
-	return strings.NewReplacer(
-		"%(features)s", strconv.Itoa(facts.Features.CoreExperimental),
-		"%(cli_commands)s", strconv.Itoa(facts.CLICommands),
-		"%(config_sections)s", strconv.Itoa(facts.ConfigSections),
-		"%(dependencies)s", strconv.Itoa(facts.Dependencies),
-		"%(changes)s", strconv.Itoa(facts.Changes),
-		"%(articles)s", strconv.Itoa(facts.BlogArticles),
-	)
 }
 
 // navBarLink renders one bare link of the menu bar.
@@ -241,7 +232,7 @@ func navBarLink(root string, link navLink) string {
 // dynamic dropdown whose entries were generated rather than declared, and a
 // dropdown whose generator went away renders as an empty panel a reader can
 // open and find nothing in.
-func navDropdownHTML(root string, dropdown navDropdown, counts *strings.Replacer) (string, error) {
+func navDropdownHTML(root string, dropdown navDropdown, snapshot siteFactSnapshot) (string, error) {
 	if dropdown.Label == "" {
 		return "", fmt.Errorf("data/%s: a dropdown states no label", navDataFile)
 	}
@@ -258,7 +249,7 @@ func navDropdownHTML(root string, dropdown navDropdown, counts *strings.Replacer
 	for _, column := range dropdown.Columns {
 		panel.Str("                    <div class=\"nav-dropdown-col\">\n")
 		for _, entry := range column {
-			rendered, err := navEntryHTML(root, dropdown.Label, entry, counts)
+			rendered, err := navEntryHTML(root, dropdown.Label, entry, snapshot)
 			if err != nil {
 				return "", err
 			}
@@ -276,7 +267,7 @@ func navDropdownHTML(root string, dropdown navDropdown, counts *strings.Replacer
 }
 
 // navEntryHTML renders one line of a dropdown column.
-func navEntryHTML(root, dropdown string, entry navEntry, counts *strings.Replacer) (string, error) {
+func navEntryHTML(root, dropdown string, entry navEntry, snapshot siteFactSnapshot) (string, error) {
 	if entry.LabelOnly != "" {
 		return `                        <span class="nav-dropdown-label">` +
 			html.EscapeString(entry.LabelOnly) + "</span>\n", nil
@@ -285,7 +276,7 @@ func navEntryHTML(root, dropdown string, entry navEntry, counts *strings.Replace
 		return "", fmt.Errorf("data/%s: an entry of the %s dropdown states no href or no title",
 			navDataFile, dropdown)
 	}
-	description, err := navEntryDescription(dropdown, entry, counts)
+	description, err := navEntryDescription(dropdown, entry, snapshot)
 	if err != nil {
 		return "", err
 	}
@@ -298,20 +289,24 @@ func navEntryHTML(root, dropdown string, entry navEntry, counts *strings.Replace
 		`                            <span class="nav-dropdown-icon" aria-hidden="true">` +
 		html.EscapeString(entry.Icon) + "</span>\n" +
 		"                            <span><strong>" + html.EscapeString(entry.Title) +
-		"</strong><small>" + html.EscapeString(description) + "</small></span>\n" +
+		"</strong><small>" + description + "</small></span>\n" +
 		"                        </a>\n", nil
 }
 
-// navEntryDescription answers one entry's description with the live counts put
-// in, and refuses a placeholder this build cannot answer.
+// navEntryDescription answers one entry's description as markup: the text
+// escaped, and each {{ze:<dotted.key>}} token resolved to its marked value.
 //
-// The refusal matters because the failure is silent otherwise: the reader gets
-// "%(peers)s peers" in the menu of every page, and no check reads a menu.
-func navEntryDescription(dropdown string, entry navEntry, counts *strings.Replacer) (string, error) {
-	description := counts.Replace(entry.Desc)
-	if strings.Contains(description, "%(") {
-		return "", fmt.Errorf("data/%s: the %s entry %q states a count this build cannot answer: %s",
-			navDataFile, dropdown, entry.Title, entry.Desc)
+// A token the snapshot does not name is refused, naming the entry, because the
+// failure is silent otherwise: the reader gets the literal braces in the menu
+// of every page, and no check reads a menu.
+func navEntryDescription(dropdown string, entry navEntry, snapshot siteFactSnapshot) (string, error) {
+	if snapshot.facts == nil {
+		return "", fmt.Errorf("%s is not published yet, so the %s entry %q cannot state its values: run ./le site build",
+			snapshot.path, dropdown, entry.Title)
+	}
+	description, err := snapshot.substitute(html.EscapeString(entry.Desc), true)
+	if err != nil {
+		return "", fmt.Errorf("data/%s: the %s entry %q: %w", navDataFile, dropdown, entry.Title, err)
 	}
 	return description, nil
 }
@@ -346,8 +341,9 @@ func navSearchBadge(root string) string {
 }
 
 // navBadge renders one badge linking off this site: the Discord invite and the
-// code host, each with the count or the word it shows.
-func navBadge(href, ariaLabel, viewBox, iconPath, count string) string {
+// code host, each with the count or the word it shows. countHTML is markup,
+// because the star count arrives as its marked element.
+func navBadge(href, ariaLabel, viewBox, iconPath, countHTML string) string {
 	return "                    <a\n" +
 		"                        class=\"nav-badge\"\n" +
 		`                        href="` + html.EscapeString(href) + `" target="_blank" rel="noopener"` + "\n" +
@@ -355,7 +351,7 @@ func navBadge(href, ariaLabel, viewBox, iconPath, count string) string {
 		"                    >\n" +
 		`                        <span class="nav-badge-icon"><svg viewBox="` + viewBox +
 		`" fill="currentColor" aria-hidden="true"><path d="` + iconPath + `"/></svg></span>` + "\n" +
-		`                        <span class="nav-badge-count">` + html.EscapeString(count) + "</span>\n" +
+		`                        <span class="nav-badge-count">` + countHTML + "</span>\n" +
 		"                    </a>\n"
 }
 

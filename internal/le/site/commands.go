@@ -35,17 +35,25 @@ func renderCLIReference(paths Paths) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	snapshot, err := loadSiteFactSnapshot(paths.Output)
+	if err != nil {
+		return nil, err
+	}
 	groups := groupCommands(commands)
 
 	shell := pageShell{
 		Title:       "CLI Reference - Ze",
-		Description: cliReferenceDescription(len(commands), len(groups)),
+		Description: cliReferenceDescription,
 		Root:        cliReferenceRoot,
 		Path:        cliReferenceDest,
 		Sidebar:     pageSidebar(cliReferenceRoot, cliReferenceDest, links),
 	}
-	page := shell.render(cliReferenceBody(commands, groups))
-	mirror := cliReferenceMirror(commands, groups)
+	lookup := &factLookup{snapshot: snapshot}
+	page := shell.render(cliReferenceBody(commands, groups, lookup))
+	mirror := cliReferenceMirror(commands, groups, lookup)
+	if err := lookup.failure(); err != nil {
+		return nil, err
+	}
 	if err := writePublishedPage(paths.Output, cliReferenceDest, page, mirror); err != nil {
 		return nil, err
 	}
@@ -53,25 +61,26 @@ func renderCLIReference(paths Paths) ([]string, error) {
 }
 
 // cliReferenceDescription is the meta description and the social description.
-// It states the two numbers a reader wants before they open a 300KB page.
-func cliReferenceDescription(commands, groups int) string {
-	return "Every ze command, generated live from the binary's own command registry -- " +
-		strconv.Itoa(commands) + " commands across " + strconv.Itoa(groups) + " groups."
-}
+//
+// It states no count. A link preview is read without the page's script, so a
+// number here would be the one copy of it that site.js can never refresh, and
+// the counts are in the page itself, marked, where it can.
+const cliReferenceDescription = "Every ze command, generated live from the binary's own " +
+	"command registry, grouped by verb, with the pipe operators each one accepts."
 
 // cliReferenceBody renders the page between <main> and </main>.
-func cliReferenceBody(commands []catalogCommand, groups []commandGroup) string {
+func cliReferenceBody(commands []catalogCommand, groups []commandGroup, lookup *factLookup) string {
 	var body textbuf.Buffer
 	body.Reset().Str("\n            <section aria-labelledby=\"cli-title\" class=\"md-content reveal cat-operate\">\n")
-	body.Str(pageHero("CLI Reference", cliReferenceLead(len(commands), len(groups)), "Reference", ` id="cli-title"`, heroClasses))
+	body.Str(pageHero("CLI Reference", cliReferenceLead(lookup), "Reference", ` id="cli-title"`, heroClasses))
 	body.Byte('\n')
 	body.Str(`<div class="cli-reference-layout">`).Byte('\n')
-	writeCommandNavigation(&body, groups)
+	writeCommandNavigation(&body, groups, lookup)
 	body.Str(`<div class="cli-reference-content">`).Byte('\n')
 	writeCommandControls(&body, groups)
 	body.Str(renderOperatorGuide(commands))
 	for index := range groups {
-		writeCommandGroup(&body, &groups[index])
+		writeCommandGroup(&body, &groups[index], lookup)
 	}
 	body.Str(`<div id="cli-empty" class="catalog-empty" hidden><h2>No matching commands</h2>`).
 		Str(`<p>Try another term or command group.</p><button type="button" data-reset-cli>Reset filters</button></div>`).Byte('\n')
@@ -81,17 +90,24 @@ func cliReferenceBody(commands []catalogCommand, groups []commandGroup) string {
 }
 
 // writeCommandNavigation keeps every group reachable independently of search
-// and JavaScript, using the same stable ids as the command disclosures.
-func writeCommandNavigation(out *textbuf.Buffer, groups []commandGroup) {
+// and JavaScript, using the same stable ids as the command disclosures. Each
+// group's count is the facts snapshot's, inside its marker.
+func writeCommandNavigation(out *textbuf.Buffer, groups []commandGroup, lookup *factLookup) {
 	out.Str(`<aside class="cli-group-nav"><details open><summary>Command groups</summary>`).
 		Str(`<nav aria-label="Command groups">`).Byte('\n')
 	for index := range groups {
 		group := &groups[index]
 		out.Str(`<a href="#cli-group-`).Str(commandSlug(group.Label)).Str(`">`).
 			Str(html.EscapeString(group.Label)).Str(` <span>`).
-			Int(int64(len(group.Commands))).Str("</span></a>\n")
+			Str(lookup.marked(cliGroupKey(group.Label))).Str("</span></a>\n")
 	}
 	out.Str("</nav></details></aside>\n")
+}
+
+// cliGroupKey answers the snapshot key of one command group's count, keyed by
+// the slug its disclosure id carries.
+func cliGroupKey(label string) string {
+	return "cli_group_commands." + commandSlug(label)
 }
 
 // writeCommandControls declares the existing search and progressive catalog
@@ -122,8 +138,12 @@ func writeCommandControls(out *textbuf.Buffer, groups []commandGroup) {
 
 // cliReferenceLead is the hero paragraph. It is markup rather than plain text,
 // because it names the catalog file as a link and the command a reader can run.
-func cliReferenceLead(commands, groups int) string {
-	return strconv.Itoa(commands) + " commands across " + strconv.Itoa(groups) +
+//
+// The two counts are the facts snapshot's, marked, rather than a count of the
+// catalog in hand: the snapshot counts the same catalog once, and every other
+// page that names the command count shows that value.
+func cliReferenceLead(lookup *factLookup) string {
+	return lookup.marked("cli_commands") + " commands across " + lookup.marked("cli_groups") +
 		" groups, generated straight from <code>ze help command --json</code> -- the same live " +
 		"command registry the binary itself uses, including the pipe operators available to each " +
 		`command. Full machine-readable list: <a href="` + cliReferenceRoot + catalogFile + `">` +
@@ -225,11 +245,12 @@ func appendOnce(values []string, value string) []string {
 	return append(values, value)
 }
 
-// writeCommandGroup writes one open <details> holding one table of commands.
-func writeCommandGroup(out *textbuf.Buffer, group *commandGroup) {
+// writeCommandGroup writes one open <details> holding one table of commands. Its
+// count is the facts snapshot's, inside its marker.
+func writeCommandGroup(out *textbuf.Buffer, group *commandGroup, lookup *factLookup) {
 	out.Str(`<details class="cli-group" id="cli-group-`).Str(commandSlug(group.Label)).Str(`" open>`).Byte('\n')
 	out.Str("<summary>").Str(html.EscapeString(group.Label)).
-		Str(` <span class="cli-group-count">`).Int(int64(len(group.Commands))).Str("</span></summary>\n")
+		Str(` <span class="cli-group-count">`).Str(lookup.marked(cliGroupKey(group.Label))).Str("</span></summary>\n")
 	out.Str("<table><thead><tr><th>Command</th><th>Mode</th><th>Description</th>").
 		Str("<th>Pipes</th></tr></thead><tbody>\n")
 	for _, command := range group.Commands {
@@ -425,10 +446,10 @@ func commandPipeSummary(command *catalogCommand) string {
 //
 // It is written from the same groups the HTML uses, so the two cannot disagree
 // about how the commands are organized.
-func cliReferenceMirror(commands []catalogCommand, groups []commandGroup) string {
+func cliReferenceMirror(commands []catalogCommand, groups []commandGroup, lookup *factLookup) string {
 	var out textbuf.Buffer
 	out.Reset().Str("# CLI Reference\n\n")
-	out.Int(int64(len(commands))).Str(" commands across ").Int(int64(len(groups))).
+	out.Str(lookup.plain("cli_commands")).Str(" commands across ").Str(lookup.plain("cli_groups")).
 		Str(" groups, generated straight from `ze help command --json` -- the same live command registry ").
 		Str("the binary itself uses, so this list cannot drift from what the binary actually supports. ").
 		Str("Full machine-readable list (path, mode, description, pipe operators, command pipes, and ").
@@ -436,7 +457,7 @@ func cliReferenceMirror(commands []catalogCommand, groups []commandGroup) string
 	out.Str(operatorGuideMirror(commands))
 	for index := range groups {
 		group := &groups[index]
-		out.Str("## ").Str(group.Label).Str(" (").Int(int64(len(group.Commands))).Str(")\n\n")
+		out.Str("## ").Str(group.Label).Str(" (").Str(lookup.plain(cliGroupKey(group.Label))).Str(")\n\n")
 		out.Str("| Command | Mode | Description | Pipes |\n| --- | --- | --- | --- |\n")
 		for _, command := range group.Commands {
 			out.Str("| `").Str(markdownCell(command.Path)).Str("` | ").

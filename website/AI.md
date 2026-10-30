@@ -96,8 +96,11 @@ the same producer publishes each deck exactly as its author wrote it, and
 writes no mirror, because a deck is its own document.
 
 The `header` producer renders `assets/header.html` from `data/nav.json` and the
-counts in `data/site-facts.json`. Menu changes update one fragment instead of
-every page. The fragment spells the site root as the `__ZE_SITE_ROOT__` placeholder,
+values in `data/site-facts.json`. A menu description names a count as a
+`{{ze:<dotted.key>}}` token (`{{ze:cli_commands}} commands, ...`), which the
+header resolves to its marked span and `llms.txt` to the plain value; the star
+badge shows `github_stars` marked, and its aria-label names the badge without
+the count. Menu changes update one fragment instead of every page. The fragment spells the site root as the `__ZE_SITE_ROOT__` placeholder,
 which `assets/site.js` substitutes for the mounting page's own root.
 
 The repository command is `./le site build`. `./le site build partial` keeps an
@@ -192,7 +195,11 @@ a stale recorded run; `./le site build refresh` re-records those first
   skips code, pre, script and style.
 - **The facts snapshot.** `data/site-facts.json` is written by the build, not by
   hand, and it is written BEFORE any page producer runs: the prose tokens, the
-  homepage proof strip and `llms.txt` all read it back, and `site.js` fills
+  shared header, the homepage proof strip and category buttons, the CLI
+  reference (its group counts included), the command-equivalents index (its
+  per-vendor coverage cards and per-verb counts included) and `llms.txt` all
+  read it back, and none of them counts a population the snapshot counts (a producer that writes a
+  value itself reads it through `factLookup`, `internal/le/site/factmark.go`), and `site.js` fills
   every `data-ze-stat` element from it at page load. Each number is derived
   from one input and `_sources` names that input. Two of them are not derived
   from this tree: the star count reaches api.github.com and keeps the previously

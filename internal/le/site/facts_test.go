@@ -60,6 +60,10 @@ func factsFixture(t *testing.T) Paths {
 		{"path":"show other","short-help":"Show other rows","mode":"read-only"}]`)
 	writeArtifactFile(t, output, configTreeFile, `{"bgp":{"kind":"container","description":"BGP."},
 		"static":{"kind":"container","description":"Static routes."}}`)
+	writeArtifactFile(t, output, equivalentsFile, `{"vendors":{"juniper":{"label":"Junos"}},
+		"entries":[{"intent":"Show rows","ze":["show test"],"vendors":{"juniper":[{"command":"show rows"}]}},
+		{"intent":"Vendor only","ze":[],"vendors":{"juniper":[{"command":"show other"}]}}]}`)
+	writeArtifactFile(t, output, pluginFile, `[{"name":"bfd"},{"name":"bgp-rib"},{"name":"ntp"}]`)
 
 	stubFactsInputs(t)
 	if err := os.MkdirAll(filepath.Join(source, "assets"), 0o755); err != nil {
@@ -723,6 +727,15 @@ func publishedFactsOfThisCheckout(t *testing.T) siteFacts {
 		output := t.TempDir()
 		writeArtifactFile(t, output, catalogFile, `[{"path":"show test","short-help":"Show rows","mode":"read-only"}]`)
 		writeArtifactFile(t, output, configTreeFile, `{"bgp":{"kind":"container","description":"BGP."}}`)
+		writeArtifactFile(t, output, pluginFile, `[{"name":"bgp-rib"}]`)
+		// The vendor command map is a tracked source, so the build has staged
+		// this checkout's own copy into the output (stageSources) before the
+		// facts snapshot counts it. The catalog, the configuration tree and the
+		// plugin registry above are what refreshNativeSurfaces publishes from a
+		// live daemon, which this test does not compile.
+		if err := stageSources(filepath.Join(root, "website"), output, []string{equivalentsFile}); err != nil {
+			t.Fatalf("stage the vendor command map: %v", err)
+		}
 		stubGitHubStars(t, 50, nil)
 		stubRFCLedger(t, collectedRFCsOfThisCheckout(t))
 		checkoutFactsSnapshot.facts, checkoutFactsSnapshot.err = deriveSiteFacts(Paths{
@@ -758,5 +771,45 @@ func TestFactsFeatureCountFromDeclarations(t *testing.T) {
 	}
 	if facts.Features.CoreExperimental != 4 {
 		t.Errorf("a level change moved the count to %d", facts.Features.CoreExperimental)
+	}
+}
+
+// VALIDATES: AC-1 and AC-2's source. The snapshot counts the command catalog,
+// its groups, the vendor map's populations and the plugin registrations once,
+// with the functions the pages group and count with.
+//
+// The fixture holds two commands under one verb, a vendor map of one mapped
+// intent and one vendor-only intent, and three plugin registrations, so each
+// published value is stated independently of the code that counts it. The
+// per-group and per-vendor sections are keyed by the names the data holds: the
+// verb "show" and the vendor "juniper".
+func TestTheSnapshotCountsWhatThePagesShow(t *testing.T) {
+	paths := factsFixture(t)
+	if err := publishSiteFacts(paths); err != nil {
+		t.Fatalf("publish the facts snapshot: %v", err)
+	}
+	snapshot, err := loadSiteFactSnapshot(paths.Output)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for key, want := range map[string]string{
+		"cli_commands":                         "2",
+		"cli_groups":                           "1",
+		"cli_group_commands.show":              "2",
+		"equivalents.groups.show.equivalent":   "1",
+		"equivalents.groups.show.reviewed":     "1",
+		"equivalents.groups.show.total":        "2",
+		"equivalents.vendors.juniper.commands": "1",
+		"equivalents.vendors.juniper.lines":    "1",
+		"equivalents.vendor_lines":             "1",
+		"equivalents.mapping_entries":          "2",
+		"equivalents.reviewed":                 "1",
+		"equivalents.vendor_cli":               "1",
+		"equivalents.vendor_only":              "1",
+		"plugin_registrations":                 "3",
+	} {
+		if got, _ := snapshot.value(key); got != want {
+			t.Errorf("the snapshot states %s as %q, want %q", key, got, want)
+		}
 	}
 }

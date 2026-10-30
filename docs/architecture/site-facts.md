@@ -125,6 +125,38 @@ A value printed as plain text is a second copy the file cannot update.
 | The guard | `./le site check` reports `plain-figures`: each display string (a thousands separator or a "+") and each whole number of 100 or more beside its unit word that a page shows outside a marker (`checkPlainFigures`) |
 <!-- source: internal/le/site/plaintext.go -- checkPlainFigures, publishedFigures, plainFigures -->
 
+A producer that writes a value itself, rather than through a token, reads it
+with `factLookup`: `marked` for the page, `plain` for its mirror and `llms.txt`.
+Every reader of a value, a token or a lookup, resolves it through
+`siteFactSnapshot.answer`, which refuses by name a key the snapshot does not
+name and a key whose value is the empty string, so no page shows an empty
+figure. The values a page counts are counted once, in `deriveSiteFacts`, by the same
+function the page groups with, so the snapshot and the page cannot name two
+populations under one key:
+
+| Key | Counted by | Shown on |
+|-----|-----------|----------|
+| `cli_commands`, `cli_groups` | `factsFromCommandSurfaces`: the catalog, and `groupCommands` over it | the shared header, `/reference/cli/`, `/reference/command-equivalents/`, `llms.txt` |
+| `cli_group_commands.<group>` | `factsFromCommandSurfaces`: one count for each group `groupCommands` makes, keyed by the group's slug (`cliGroupKey`) | `/reference/cli/`: the group navigation, each group's summary, and the mirror's group headings |
+| `equivalents.mapping_entries`, `.reviewed`, `.vendor_cli`, `.vendor_only` | `factsFromCommandSurfaces`: `equivalentMapping.rows` and `countEquivalentRows` | `/reference/command-equivalents/` |
+| `equivalents.vendors.<vendor>.commands`, `.lines`, and `equivalents.vendor_lines` | `countVendorCoverage` for each vendor the map declares, keyed by its id (`vendorCoverageKey`); the total is their lines summed | the coverage cards of `/reference/command-equivalents/` |
+| `equivalents.groups.<group>.equivalent`, `.reviewed`, `.total` | `countEquivalentGroup` for each verb table `groupEquivalentRows` makes, keyed by the verb's slug (`equivalentGroupKey`) | each verb summary of the full catalog on `/reference/command-equivalents/` |
+| `features.categories.<category>` | `featureCategoryCounts`, a map with one key for each category the features page has | the homepage category buttons |
+| `plugin_registrations` | `factsFromSiteData`: the entries of `data/plugin-registry.json` | `llms.txt` |
+A map-typed section takes its keys from the data, never from a name list: a
+vendor or a group the data gains reaches the snapshot and its page with no
+edit. A name that holds a dot cannot be a key segment, and `factKeySegment`
+refuses it by name, as it refuses two groups whose slugs collide.
+
+<!-- source: internal/le/site/facts.go -- factsFromCommandSurfaces, featureCategoryCounts, factsFromSiteData, factKeySegment -->
+<!-- source: internal/le/site/factmark.go -- factLookup, answer -->
+<!-- source: internal/le/site/equivalents.go -- countVendorCoverage, countEquivalentGroup, vendorCoverageKey, equivalentGroupKey -->
+<!-- source: internal/le/site/commands.go -- cliGroupKey -->
+
+A page description (the meta, Open Graph and Twitter ones) carries no value at
+all: a link preview reads it without the page's script, so a figure there is a
+copy nothing refreshes.
+
 The guard reads what a reader sees, the head and the text attributes included,
 and judges the published string, as the gate above does. A value under 100 with
 no separator is matched only through its marker, because bare small numbers are

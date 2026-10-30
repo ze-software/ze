@@ -17,15 +17,14 @@ package site
 //	{web_demo_poster} {web_demo_transcript}
 //	                              verified browser screenshot and transcript
 //	{whats_new}                    the newest article, the newest week, the note
-//	{unit_tests} {e2e_tests}       the proof strip's nine data-ze-stat spans
-//	{fuzz_targets} {interop_targets}
-//	{rfc_proven} {rfc_proven_percent}
-//	{rfc_gated_implemented}
-//	{rfc_implemented} {rfc_inspected}
 //	{run_cards} {who_cards}        website/data/audience.json, in its own order
 //	{category_links}               the feature count under each category
 //	{feature_overview}             every feature destination, by category
 //	{blog_teaser_cards}            the three newest weekly updates
+//
+// The proof strip's figures are not slots: each is a {{ze:<dotted.key>}} token
+// naming its key in data/site-facts.json, which home.go resolves to the marked
+// value before it fills the slots.
 //
 // It is markup rather than a Go builder because it is prose an editor changes,
 // and because shell.go already holds themeBootstrap and structuredData the same
@@ -224,19 +223,19 @@ const homeTemplate = `        <div class="site-home">
                 <div class="proof-strip" aria-label="Project evidence">
                     <a class="proof" href="quality/rfc-compliance/">
                         <strong
-                            >{rfc_proven_percent}%
+                            >{{ze:rfc.proven_percent}}%
                             <span class="label">RFC MUSTs tested</span></strong
                         >
                         <ul>
-                            <li>{rfc_proven} of {rfc_gated_implemented} tracked MUSTs</li>
-                            <li>Across {rfc_implemented} RFCs</li>
+                            <li>{{ze:rfc.proven_display}} of {{ze:rfc.gated_implemented_display}} tracked MUSTs</li>
+                            <li>Across {{ze:rfc.implemented_display}} RFCs</li>
                             <li>Tests tied to requirements</li>
                         </ul>
                         <span class="proof-check concept-evidence">RFC requirement ledger.</span>
                     </a>
                     <a class="proof" href="quality/unit-fuzz-mutation/">
                         <strong
-                            >{unit_tests} <span class="label">Go tests</span></strong
+                            >{{ze:tests.unit_display}} <span class="label">Go tests</span></strong
                         >
                         <ul>
                             <li>Check encoded bytes and parsed values.</li>
@@ -247,7 +246,7 @@ const homeTemplate = `        <div class="site-home">
                     </a>
                     <a class="proof" href="quality/functional-ci/">
                         <strong
-                            >{e2e_tests}
+                            >{{ze:tests.e2e_display}}
                             <span class="label">end-to-end tests</span></strong
                         >
                         <ul>
@@ -258,7 +257,7 @@ const homeTemplate = `        <div class="site-home">
                         <span class="proof-check concept-evidence">Scenarios and expected results.</span>
                     </a>
                     <a class="proof" href="quality/unit-fuzz-mutation/#fuzz-targets-are-still-tests">
-                        <strong>{fuzz_targets} <span class="label">fuzz targets</span></strong>
+                        <strong>{{ze:tests.fuzz_display}} <span class="label">fuzz targets</span></strong>
                         <ul>
                             <li>Generate inputs for parsers and decoders.</li>
                             <li>Probe packets and config text for crashes.</li>
@@ -268,7 +267,7 @@ const homeTemplate = `        <div class="site-home">
                     </a>
                     <a class="proof" href="quality/qemu-interop-release/#docker-interop">
                         <strong
-                            >{interop_targets} <span class="label">interop test images</span></strong
+                            >{{ze:interop.target_display}} <span class="label">interop test images</span></strong
                         >
                         <ul>
                             <li>Peer CLIs check sessions and route exchange.</li>

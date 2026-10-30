@@ -14,11 +14,27 @@ import (
 // gh-pages 2fa8fa2ad. They are stated here so a golden comparison measures the
 // renderer rather than this checkout's own counts.
 var publishedHeaderFacts = siteFacts{
+	Changes:        37,
 	CLICommands:    402,
 	ConfigSections: 36,
 	Dependencies:   42,
 	GitHubStars:    50,
 	Features:       factsFeatures{CoreExperimental: 52},
+}
+
+// factSnapshotOf answers the snapshot a build publishes for the stated facts,
+// rendered and read back the way a producer reads data/site-facts.json.
+func factSnapshotOf(t *testing.T, facts *siteFacts) siteFactSnapshot {
+	t.Helper()
+	content, err := renderSiteFacts(facts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	snapshot, err := parseSiteFactSnapshot([]byte(content))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return snapshot
 }
 
 // siteNavigation reads website/data/nav.json from the real checkout, which is
@@ -36,7 +52,7 @@ func siteNavigation(t *testing.T) siteNav {
 // numbers the published fragment carries.
 func renderSiteHeader(t *testing.T) string {
 	t.Helper()
-	header, err := sharedHeaderHTML(siteNavigation(t), &publishedHeaderFacts)
+	header, err := sharedHeaderHTML(siteNavigation(t), factSnapshotOf(t, &publishedHeaderFacts))
 	if err != nil {
 		t.Fatalf("render the shared header: %v", err)
 	}
@@ -104,26 +120,28 @@ func TestTheSharedHeaderSpellsTheSiteRootAsAPlaceholder(t *testing.T) {
 // VALIDATES: AC-11's numbers reaching the one surface that shows them on every
 // page. The menu states the live counts and the star number.
 //
-// nav.json states each count as a placeholder, so a renderer that never
-// substituted them would publish "%(features)s features" in the menu of all 712
-// pages.
+// nav.json states each count as a {{ze:<dotted.key>}} token, so a renderer
+// that never resolved them would publish the braces in the menu of every page.
+// Each value is asserted inside its marker, because the header is inserted
+// after the page loads and site.js refreshes only marked values.
 func TestTheSharedHeaderStatesTheCountsTheSnapshotPublishes(t *testing.T) {
 	header := renderSiteHeader(t)
 
 	for _, phrase := range []string{
-		"<small>52 features, grouped by category</small>",
-		"<small>42 direct packages, generated from go.mod</small>",
-		"<small>402 commands, generated from Ze&#39;s live binary</small>",
-		"<small>36 sections, indexed from live YANG</small>",
-		`aria-label="Ze on GitHub, 50 stars"`,
-		`<span class="nav-badge-count">50</span>`,
+		"<small>" + markedFact("features.core_experimental", "52") + " features, grouped by category</small>",
+		"<small>" + markedFact("dependencies", "42") + " direct packages, generated from go.mod</small>",
+		"<small>" + markedFact("cli_commands", "402") + " commands, generated from Ze&#39;s live binary</small>",
+		"<small>" + markedFact("config_sections", "36") + " sections, indexed from live YANG</small>",
+		"<small>" + markedFact("changes", "37") + " weekly updates, what shipped week by week</small>",
+		`aria-label="Ze on GitHub"`,
+		`<span class="nav-badge-count">` + markedFact("github_stars", "50") + `</span>`,
 	} {
 		if !strings.Contains(header, phrase) {
 			t.Errorf("the header states no %s", phrase)
 		}
 	}
-	if strings.Contains(header, "%(") {
-		t.Errorf("the header publishes a placeholder rather than a count")
+	if strings.Contains(header, "{{ze:") {
+		t.Errorf("the header publishes a token rather than a count")
 	}
 }
 
@@ -136,7 +154,7 @@ func TestTheSharedHeaderStatesTheCountsTheSnapshotPublishes(t *testing.T) {
 func TestTheSharedHeaderRefusesADropdownWithNoEntry(t *testing.T) {
 	data := siteNav{Dropdowns: []navDropdown{{Label: "Blog"}}}
 
-	_, err := sharedHeaderHTML(data, &publishedHeaderFacts)
+	_, err := sharedHeaderHTML(data, factSnapshotOf(t, &publishedHeaderFacts))
 	if err == nil {
 		t.Fatalf("an empty dropdown was published rather than refused")
 	}
@@ -150,14 +168,14 @@ func TestTheSharedHeaderRefusesADropdownWithNoEntry(t *testing.T) {
 func TestTheSharedHeaderRefusesACountItCannotAnswer(t *testing.T) {
 	data := siteNav{Dropdowns: []navDropdown{{
 		Label:   "Reference",
-		Columns: [][]navEntry{{{Href: "reference/peers/", Title: "Peers", Desc: "%(peers)s peers"}}},
+		Columns: [][]navEntry{{{Href: "reference/peers/", Title: "Peers", Desc: "{{ze:peers}} peers"}}},
 	}}}
 
-	_, err := sharedHeaderHTML(data, &publishedHeaderFacts)
+	_, err := sharedHeaderHTML(data, factSnapshotOf(t, &publishedHeaderFacts))
 	if err == nil {
 		t.Fatalf("an unanswerable count was published rather than refused")
 	}
-	for _, phrase := range []string{"Peers", "%(peers)s"} {
+	for _, phrase := range []string{"Peers", "{{ze:peers}}"} {
 		if !strings.Contains(err.Error(), phrase) {
 			t.Errorf("the refusal is %q, and it must name %s", err, phrase)
 		}
@@ -211,7 +229,8 @@ func TestTheHeaderProducerWritesTheNamedArtifact(t *testing.T) {
 	if !strings.Contains(fragment, `<header class="site-header">`) {
 		t.Errorf("the published fragment is not a header: %.80q", fragment)
 	}
-	if !strings.Contains(fragment, `<span class="nav-badge-count">`+strconv.Itoa(publishedHeaderFacts.GitHubStars)+"</span>") {
+	if !strings.Contains(fragment, `<span class="nav-badge-count">`+
+		markedFact("github_stars", strconv.Itoa(publishedHeaderFacts.GitHubStars))+"</span>") {
 		t.Errorf("the published fragment states a star count the snapshot does not")
 	}
 	for _, name := range checkNamedArtifacts(output) {
