@@ -24,6 +24,7 @@ import (
 	"github.com/ze-software/ze/internal/core/health"
 	ifaceevents "github.com/ze-software/ze/internal/core/iface/events"
 	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/network"
 	"github.com/ze-software/ze/internal/core/observation"
 	"github.com/ze-software/ze/internal/core/rtproto"
 	"github.com/ze-software/ze/internal/core/slogutil"
@@ -142,12 +143,17 @@ func GetEventBus() ze.EventBus {
 func init() {
 	health.Register("iface", checkHealth)
 
+	// RFC 2545 Section 3: BGP reads another router's Link-Local from this table
+	// through internal/core/network, never by importing this component.
+	network.RegisterNeighborReader(readIPv6Neighbors)
+
 	_ = events.RegisterNamespace(ifaceevents.Namespace,
 		ifaceevents.EventCreated, ifaceevents.EventUp, ifaceevents.EventDown,
 		ifaceevents.EventAddrAdded, ifaceevents.EventAddrRemoved,
 		ifaceevents.EventDHCPAcquired, ifaceevents.EventDHCPRenewed,
 		ifaceevents.EventDHCPExpired, ifaceevents.EventRollback,
 		ifaceevents.EventRouterDiscovered, ifaceevents.EventRouterLost,
+		ifaceevents.EventNeighborChanged,
 	)
 
 	d := slogutil.DiscardLogger()

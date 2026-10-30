@@ -300,8 +300,17 @@ speaker Link-Local when one connected prefix contains that global and the
 recipient. This happens after policy on both rails, including raw export
 fallback under `next-hop auto` or `unchanged`. It uses the existing immutable
 ownership snapshot and accumulator storage, without rerunning policy.
-Third-party Link-Local discovery remains absent; the speaker's own address
-cannot substitute for another router's Link-Local.
+An effective 16-octet global that names another router on that same connected
+prefix receives that router's own Link-Local, as the kernel neighbor table
+names it: the global's entry gives a link-layer address on a device, and the
+one resolved `fe80::/10` entry with the same pair is that router's Link-Local
+(`network.NewNeighborLinkLocals`). The interface component registers the table
+reader in `internal/core/network`, so BGP imports no interface code. The
+table is read when a session's snapshot is built, and again on an interface
+address event or an `(interface, neighbor-changed)` event, never per UPDATE.
+With no usable entry, two candidates, or no readable table, the field stays
+16 octets and a rate-limited warning names the next hop and the reason. The
+speaker's own Link-Local never substitutes for another router's.
 VPN-IPv6 takes a narrower condition. RFC 4659 Section 3.2.1.1 includes the
 link-local "if and only if the advertising BGP speaker shares a common subnet
 with the peer the route is being advertised to", naming the peer alone, so Ze
@@ -336,7 +345,10 @@ A configured IPv6 labeled-unicast route (SAFI 4) carries the same decided
 link-local in `LabeledUnicastParams.LinkLocalNextHop`, and
 `buildMPReachLabeledUnicast` writes the 32-octet RFC 2545 Section 3 field.
 <!-- source: internal/component/bgp/message/update_build_vpn.go -- buildMPReachVPN, vpnNextHopOctets -->
-<!-- source: internal/component/bgp/reactor/forward_next_hop.go -- applyEgressNextHopScope, egressSpeakerLinkLocal -->
+<!-- source: internal/component/bgp/reactor/forward_next_hop.go -- applyEgressNextHopScope, egressLinkLocal -->
+<!-- source: internal/component/bgp/reactor/link_scope.go -- linkScope.linkLocalNextHop, linkScope.thirdPartyLinkLocal -->
+<!-- source: internal/core/network/neighbors.go -- NewNeighborLinkLocals, ReadNeighbors -->
+<!-- test: internal/component/bgp/reactor/rfc2545_third_party_link_local_test.go TestRFC2545ThirdPartyLinkLocalAnnounce -->
 <!-- source: internal/component/bgp/reactor/peer_forward_facts.go -- applyFactsNextHop, precomputeVPNNextHop -->
 <!-- source: internal/component/bgp/reactor/filter_delta_handlers.go -- mpReachNextHopHandler, familyAdmitsNextHopOctets -->
 <!-- source: internal/component/bgp/message/update_build_labeled.go -- buildMPReachLabeledUnicast -->

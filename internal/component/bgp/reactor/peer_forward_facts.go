@@ -354,19 +354,19 @@ func rsRelayProcessName(bindings []ProcessBinding) string {
 // clearEncodingContexts stores nil on teardown (peer.go), and a plain store racing
 // it would resurrect the snapshot for a session that has gone.
 func (p *Peer) refreshForwardFactsIfLive() {
-	p.refreshForwardFactsIfLiveFrom(network.ConnectedPrefixes())
+	p.refreshForwardFactsIfLiveFrom(network.ConnectedPrefixes(), readNeighborView())
 }
 
-// refreshForwardFactsIfLiveFrom is refreshForwardFactsIfLive against an interface
-// table the caller has already read, for a fan-out over many peers
-// (refreshPeerLinkScopes, reactor_iface.go).
-func (p *Peer) refreshForwardFactsIfLiveFrom(connected []netip.Prefix) {
+// refreshForwardFactsIfLiveFrom is refreshForwardFactsIfLive against interface
+// and neighbor tables the caller has already read, for a fan-out over many
+// peers (refreshPeerLinkScopes, reactor_iface.go).
+func (p *Peer) refreshForwardFactsIfLiveFrom(connected []netip.Prefix, neighbors neighborView) {
 	for {
 		previous := p.fwdFacts.Load()
 		if previous == nil {
 			return
 		}
-		p.refreshLinkScopeFrom(connected)
+		p.refreshLinkScopeWith(connected, neighbors)
 		next := p.buildForwardFacts()
 		if p.fwdFacts.CompareAndSwap(previous, next) {
 			p.reportRSRelayGrants(previous, next)

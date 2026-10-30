@@ -5,12 +5,14 @@
 package reactor
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net"
 	"net/netip"
 	"slices"
 	"strconv"
+	"sync"
 
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/events"
@@ -42,18 +44,62 @@ type bgpListenerReadyPayload struct {
 // subscription that lived in reactor_bus.go. Must be called after
 // SetEventBus and before StartWithContext.
 //
-// The interface monitor publishes nine event types in the (interface, *)
-// namespace; the reactor only acts on addr-added and addr-removed today.
-// Other events (created, up, down, dhcp-*, rollback) have no BGP-side
-// reaction yet but the subscription points are documented for future
-// handlers.
+// The reactor acts on addr-added, addr-removed and neighbor-changed in the
+// (interface, *) namespace. Other events (created, up, down, dhcp-*,
+// rollback, router-*) have no BGP-side reaction.
 func (r *Reactor) subscribeInterfaceEvents() {
 	if r.eventBus == nil {
 		return
 	}
 	unsubAdded := r.eventBus.Subscribe(ifaceevents.Namespace, ifaceevents.EventAddrAdded, events.AsString(r.onInterfaceAddrAdded))
 	unsubRemoved := r.eventBus.Subscribe(ifaceevents.Namespace, ifaceevents.EventAddrRemoved, events.AsString(r.onInterfaceAddrRemoved))
-	r.eventBusUnsubs = append(r.eventBusUnsubs, unsubAdded, unsubRemoved)
+	// The neighbor handler only signals: the bus calls it on the netlink
+	// monitor's read loop, which must not wait for a table dump
+	// (docs/architecture/iface/management.md), so one worker does the read.
+	pending := make(chan struct{}, 1)
+	unsubNeighbor := r.eventBus.Subscribe(ifaceevents.Namespace, ifaceevents.EventNeighborChanged,
+		events.AsString(func(string) { signalNeighborChange(pending) }))
+	r.eventBusUnsubs = append(r.eventBusUnsubs, unsubAdded, unsubRemoved, unsubNeighbor)
+	ctx := r.ctx
+	r.wg.Go(func() { r.neighborChangeWorker(ctx, pending) })
+}
+
+// refreshPeerLinkScopesMu serializes refreshPeerLinkScopes across its two
+// callers. It is package-level because the Reactor struct belongs to
+// reactor.go; serializing refreshes of distinct reactors costs nothing a
+// test can see.
+var refreshPeerLinkScopesMu sync.Mutex
+
+// signalNeighborChange records that the neighbor table moved. The channel holds
+// ONE pending signal: a second event while one is pending is already covered,
+// because the worker re-reads the whole table rather than the entry an event
+// names. It never blocks the emitter.
+func signalNeighborChange(pending chan<- struct{}) {
+	select {
+	case pending <- struct{}{}:
+	default:
+	}
+}
+
+// neighborChangeWorker is the long-lived worker behind (interface,
+// neighbor-changed). The Link-Local of a third-party next hop is derived from
+// two entries (its global and the Link-Local with the same link-layer
+// address), so each signal re-reads the table whole, once for every peer
+// (refreshPeerLinkScopes). The refresh skip compares whole tables, so a change
+// anywhere in the neighbor table rebuilds every live peer's snapshot once. It stops when ctx, the reactor's run context, is cancelled.
+//
+// RFC 2545 Section 3 binds the form of each advertisement made after the
+// event, as for an address event; it states no obligation to re-advertise a
+// route already sent, so none is triggered here.
+func (r *Reactor) neighborChangeWorker(ctx context.Context, pending <-chan struct{}) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-pending:
+			r.refreshPeerLinkScopes()
+		}
+	}
 }
 
 // onInterfaceAddrAdded is the EventBus handler for (interface, addr-added).
@@ -78,9 +124,9 @@ func (r *Reactor) onInterfaceAddrRemoved(payload string) {
 	r.handleAddrRemovedPayload(p)
 }
 
-// refreshPeerLinkScopes re-reads the host interface table once and re-settles
-// RFC 2545 Section 3's inclusion condition for every peer that has a live
-// forwarding snapshot.
+// refreshPeerLinkScopes re-reads the host interface and neighbor tables once and
+// re-settles RFC 2545 Section 3's inclusion condition, and the third-party
+// Link-Local it names, for every peer that has a live forwarding snapshot.
 //
 // Section 3 decides the next-hop wire form against the subnets this host is
 // attached to, and the snapshot that answers it is built at session
@@ -95,12 +141,16 @@ func (r *Reactor) onInterfaceAddrRemoved(payload string) {
 // Hop field", which is the act of advertising; it states no obligation to
 // re-advertise a route already sent, so no re-advertisement is triggered here.
 //
-// It runs synchronously on the EventBus delivery goroutine and MUST NOT hold
+// It runs on the EventBus delivery goroutine for an address event and on
+// neighborChangeWorker for a neighbor event; refreshPeerLinkScopesMu serializes
+// the two so an older read never stores after a newer one. It MUST NOT hold
 // reactor.mu while refreshing, so the peer list is copied under the read lock and
 // the lock is released before any peer is touched. The kernel is read once for
 // the whole fan-out rather than once per peer, and a peer whose scope already
 // holds that exact table is left alone (see the loop).
 func (r *Reactor) refreshPeerLinkScopes() {
+	refreshPeerLinkScopesMu.Lock()
+	defer refreshPeerLinkScopesMu.Unlock()
 	r.mu.RLock()
 	peers := make([]*Peer, 0, len(r.peers))
 	for _, peer := range r.peers {
@@ -120,6 +170,9 @@ func (r *Reactor) refreshPeerLinkScopes() {
 	for i, address := range addresses {
 		connected[i] = address.Masked()
 	}
+	// RFC 2545 Section 3: another router's Link-Local comes from the neighbor
+	// table, read once for the fan-out like the interface table.
+	neighbors := readNeighborView()
 	for _, peer := range peers {
 		peer.mu.RLock()
 		session := peer.session
@@ -141,8 +194,8 @@ func (r *Reactor) refreshPeerLinkScopes() {
 		// Events 2..N therefore read a table identical to the one this peer's scope
 		// was built from, and rebuilding on an identical table allocates a linkScope
 		// and a forwarding-facts snapshot per peer per event to reach the same
-		// answer. Section 3's condition is decided by the table alone, so an equal
-		// table decides it equally.
+		// answer. Section 3's condition is decided by the two tables alone, so
+		// equal tables decide it equally.
 		//
 		// A peer that has never read a table has a nil scope, so the comparison is
 		// false and it always rebuilds. A reordered table is not equal and rebuilds
@@ -152,10 +205,10 @@ func (r *Reactor) refreshPeerLinkScopes() {
 		// (peer_forward_facts.go). That function is also the settings-apply path
 		// (peer_settings_apply.go), which changes inputs the interface table says
 		// nothing about, and must rebuild every time.
-		if scope := peer.llScope.Load(); scope != nil && slices.Equal(scope.connected, connected) {
+		if scope := peer.llScope.Load(); scope != nil && slices.Equal(scope.connected, connected) && scope.neighbors.equal(neighbors) {
 			continue
 		}
-		peer.refreshForwardFactsIfLiveFrom(connected)
+		peer.refreshForwardFactsIfLiveFrom(connected, neighbors)
 	}
 }
 

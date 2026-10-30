@@ -658,9 +658,10 @@ func applyEgressNextHopScope(dest *Peer, facts *peerForwardFacts, mods *filterap
 		if !profile.IPv6Roles {
 			return
 		}
-		// RFC 2545 Section 3: append only this entity's own Link-Local on
-		// the common subnet. Third-party discovery remains an absent feature.
-		ll := egressSpeakerLinkLocal(dest, facts, netip.AddrFrom16([16]byte(field)).Unmap(), condition)
+		// RFC 2545 Section 3: append the next-hop entity's own Link-Local on
+		// the common subnet: the speaker's configured one after its own
+		// global, another router's from the neighbor table after its global.
+		ll := egressLinkLocal(dest, facts, netip.AddrFrom16([16]byte(field)).Unmap(), condition)
 		if !ll.IsValid() {
 			return
 		}
@@ -684,7 +685,7 @@ func applyEgressNextHopScope(dest *Peer, facts *peerForwardFacts, mods *filterap
 		if [8]byte(field[:8]) != ([8]byte{}) {
 			return
 		}
-		ll := egressSpeakerLinkLocal(dest, facts, netip.AddrFrom16([16]byte(field[8:])).Unmap(), condition)
+		ll := egressLinkLocal(dest, facts, netip.AddrFrom16([16]byte(field[8:])).Unmap(), condition)
 		if !ll.IsValid() {
 			return
 		}
@@ -736,14 +737,16 @@ func applyEgressNextHopScope(dest *Peer, facts *peerForwardFacts, mods *filterap
 // RD(8) + Global(16), RD(8) + Link-Local(16).
 const vpnNextHopPairOctets = 48
 
-// egressSpeakerLinkLocal returns the configured speaker Link-Local to follow
-// global toward dest, or the zero Addr when the family's common-subnet
-// condition does not hold for this destination (linkScope.linkLocalNextHop
-// decides; linkLocalConditionFor names the condition).
+// egressLinkLocal returns the Link-Local to follow global toward dest: the
+// configured speaker Link-Local when global is the speaker's, the neighbor
+// table's Link-Local of the router holding global otherwise, or the zero Addr
+// when the family's common-subnet condition does not hold for this destination
+// (linkScope.linkLocalNextHop decides; linkLocalConditionFor names the
+// condition).
 //
 // Only an IPv6 global unicast address is raised: an unspecified, loopback or
 // multicast first address is judged by the egress gates, never paired here.
-func egressSpeakerLinkLocal(dest *Peer, facts *peerForwardFacts, global netip.Addr, condition linkLocalCondition) netip.Addr {
+func egressLinkLocal(dest *Peer, facts *peerForwardFacts, global netip.Addr, condition linkLocalCondition) netip.Addr {
 	if !global.Is6() {
 		return netip.Addr{}
 	}
@@ -751,12 +754,6 @@ func egressSpeakerLinkLocal(dest *Peer, facts *peerForwardFacts, global netip.Ad
 		return netip.Addr{}
 	}
 	configured := dest.settings.LinkLocal.Unmap()
-	if !configured.Is6() {
-		return netip.Addr{}
-	}
-	if !configured.IsLinkLocalUnicast() {
-		return netip.Addr{}
-	}
 	scope := dest.llScope.Load()
 	if scope == nil {
 		return netip.Addr{}

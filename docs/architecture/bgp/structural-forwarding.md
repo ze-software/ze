@@ -567,8 +567,10 @@ prefixes. The per-UPDATE check scans that bounded slice without allocating or
 reading the kernel. RFC 2545 Section 2 defines directly connected routes by a
 common subnet prefix; this check adds no ND, probing or liveness requirement.
 Real-topology fixtures independently establish who owns the advertised pair.
-The separate absent Link-Local source for third-party origination remains
-a gap; received-pair preservation does not implement it.
+A 16-octet global naming another router on that prefix receives that
+router's own Link-Local from the neighbor table the snapshot read
+(`linkScope.thirdPartyLinkLocal`), never the speaker's; with no usable entry
+the field stays 16 octets and a rate-limited warning names the next hop.
 <!-- source: internal/component/bgp/reactor/forward_next_hop.go -- applyEgressNextHopScope -->
 <!-- source: internal/component/bgp/reactor/link_scope.go -- linkLocalConditionFor, linkScope.holdsCommonSubnet -->
 <!-- test: internal/component/bgp/reactor/rfc2545_forward_subnet_test.go TestRFC2545ReceivedPairSubnetConditions -->
@@ -577,6 +579,7 @@ a gap; received-pair preservation does not implement it.
 <!-- test: internal/component/bgp/reactor/rfc2545_forward_subnet_test.go TestRFC2545EffectivePairPolicyAndMixedSibling -->
 <!-- test: internal/component/bgp/reactor/rfc2545_joint_subnet_test.go TestRFC2545JointSubnetWriter -->
 <!-- test: internal/component/bgp/reactor/rfc2545_forward_owned_policy_test.go TestRFC2545ForwardPolicyOwnGlobalJointSubnet -->
+<!-- test: internal/component/bgp/reactor/rfc2545_third_party_link_local_test.go TestRFC2545ThirdPartyLinkLocalForward -->
 
 These checks judge the effective pair after policy. A valid replacement of
 obsolete malformed input is announced; a malformed replacement of valid input

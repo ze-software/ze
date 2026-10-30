@@ -1116,9 +1116,15 @@ A `ze doctor` check (`doctor-iface-macvlan`) probes kernel macvlan capability
 | `interface/dhcp-acquired` | DHCPv4 ACK | name, unit, address, prefix-length, router, dns, lease-time |
 | `interface/dhcp-renewed` | Renewal success | name, unit, address, prefix-length, router, dns, lease-time |
 | `interface/dhcp-expired` | Lease timeout | name, unit, address, prefix-length, router, dns, lease-time |
+| `interface/neighbor-changed` | An IPv6 neighbor entry (global or link-local) appears, goes away, changes its link-layer address, or crosses between resolved (reachable, stale, delay, probe, permanent) and unresolved. A flip inside one class emits nothing | name, address, link-address, resolved |
+
+BGP re-reads the neighbor table on `neighbor-changed`, so a next hop naming
+another router on a shared subnet carries that router's link-local (RFC 2545
+Section 3) in the advertisements made after the change.
 
 <!-- source: internal/core/iface/events/events.go -- interface event names -->
-<!-- source: internal/plugins/iface/netlink/monitor_linux.go -- event payloads -->
+<!-- source: internal/plugins/iface/netlink/monitor_linux.go -- event payloads, noteNeighborChange -->
+<!-- source: internal/component/iface/iface.go -- NeighborEventPayload -->
 
 Each RTM_NEWLINK also emits the current `up` or `down` state, including the first
 update that emits `created`. An interface can exist before the monitor starts,

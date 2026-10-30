@@ -59,6 +59,9 @@ func linkLocalConditionFor(fam family.Family) linkLocalCondition {
 type linkScope struct {
 	// connected holds the subnets this host is directly attached to.
 	connected []netip.Prefix
+	// neighbors is the neighbor table read with connected. It names the
+	// Link-Local of another router whose global is the next hop.
+	neighbors neighborView
 	// peer is the recipient address captured with this interface snapshot.
 	peer netip.Addr
 	// peerOnLink reports whether the speaker shares a common subnet with the
@@ -66,22 +69,23 @@ type linkScope struct {
 	peerOnLink bool
 }
 
-// newLinkScope reads the host interface table and settles the peer half of the
-// Section 3 condition for peerAddr.
+// newLinkScope reads the host interface and neighbor tables and settles the
+// peer half of the Section 3 condition for peerAddr.
 //
 // It reads the kernel, so it runs at session establishment and at a config
 // reload, never per UPDATE.
 func newLinkScope(peerAddr netip.Addr) *linkScope {
-	return newLinkScopeFrom(network.ConnectedPrefixes(), peerAddr)
+	return newLinkScopeWith(network.ConnectedPrefixes(), readNeighborView(), peerAddr)
 }
 
-// newLinkScopeFrom settles the peer half against an interface table the caller
-// has already read, so a fan-out over many peers pays one kernel read for all of
-// them (refreshPeerLinkScopes, reactor_iface.go). The slice is treated as
-// immutable by every reader, so sharing it is safe.
-func newLinkScopeFrom(connected []netip.Prefix, peerAddr netip.Addr) *linkScope {
+// newLinkScopeWith settles the peer half against interface and neighbor tables
+// the caller has already read, so a fan-out over many peers pays one kernel
+// read of each for all of them (refreshPeerLinkScopes, reactor_iface.go). Both
+// are treated as immutable by every reader, so sharing them is safe.
+func newLinkScopeWith(connected []netip.Prefix, neighbors neighborView, peerAddr netip.Addr) *linkScope {
 	return &linkScope{
 		connected:  connected,
+		neighbors:  neighbors,
 		peer:       peerAddr.Unmap(),
 		peerOnLink: network.SharesSubnet(connected, peerAddr),
 	}
@@ -136,8 +140,8 @@ func (ls *linkScope) holdsCommonSubnet(global netip.Addr, condition linkLocalCon
 //
 // A zero Addr means no Link-Local was selected, not proof of Section 3's
 // "In all other cases" condition. It also covers an unavailable configured
-// address or a third-party Link-Local Ze does not learn. Those gaps cannot
-// turn a common subnet into a non-common one.
+// address, or a third-party router whose Link-Local the neighbor table does not
+// name. Those gaps cannot turn a common subnet into a non-common one.
 //
 // A nil scope has read no interface table and appends nothing; it does not
 // establish the RFC's topology condition.
@@ -149,11 +153,32 @@ func (ls *linkScope) holdsCommonSubnet(global netip.Addr, condition linkLocalCon
 //
 // router names whose address globalNextHop is (nextHopOwners.classify). The
 // configured address is the SPEAKER's own Link-Local, so it is appended only
-// where that is the right second address; see the comment at the check below.
+// after the speaker's own global; another router's comes from the neighbor
+// table (see the switch below).
 //
 // condition is the family's common-subnet condition (linkLocalConditionFor).
 func (ls *linkScope) linkLocalNextHop(configured, globalNextHop netip.Addr, router nextHopRouter, condition linkLocalCondition) netip.Addr {
 	if ls == nil || !ls.peerOnLink {
+		return netip.Addr{}
+	}
+	// Section 3 names the first address "the global IPv6 address of the next hop".
+	// An IPv4 address, or a link-local one, in that slot breaks the sentence
+	// whatever the second slot holds, so nothing is appended to it: a 32-octet
+	// field would make the length octet look right over a first address the
+	// section forbids. This guard is independent of the ones on the config leaves
+	// that feed the address (parsePeerFromTree in config.go,
+	// buildDynamicGroupSettings in ../config/peers.go), because a config leaf is
+	// not the only way a value reaches this field.
+	global := globalNextHop.Unmap()
+	if !global.Is6() {
+		return netip.Addr{}
+	}
+	if attribute.ValidateGlobalNextHop(global) != nil {
+		return netip.Addr{}
+	}
+	// RFC 2545 Section 3 asks for ONE subnet holding the global and the peer;
+	// RFC 4659 Section 3.2.1.1 asks for a subnet shared with the peer.
+	if !ls.holdsCommonSubnet(global, condition) {
 		return netip.Addr{}
 	}
 	// RFC 2545 Section 3: "A BGP speaker shall advertise to its peer in the
@@ -166,45 +191,68 @@ func (ls *linkScope) linkLocalNextHop(configured, globalNextHop netip.Addr, rout
 	//
 	// The second address is the next hop's own. When the global is the
 	// speaker's address, the speaker's Link-Local is that next hop's. For any
-	// other router the speaker does not learn that router's Link-Local, so its
-	// own would send the peer's traffic to the wrong router: the global goes
-	// alone (a recorded gap on RFC 2545 Section 3, rfc2545.md).
+	// other router it is that router's Link-Local, which only the kernel
+	// neighbor table names; the speaker's own would send the peer's traffic to
+	// the wrong router, so it is never substituted.
 	//
 	// The draft's second condition, a global that is the internal peer's own
 	// address, needs no case here. RFC 4271 Section 5.1.3: "A route originated
 	// by a BGP speaker SHALL NOT be advertised to a peer using an address of
 	// that peer as NEXT_HOP." Ze withholds such a route on every rail
-	// (originatedNextHopIsPeerOwn, egressNextHopIsPeerOwn), so it classifies as
-	// a third party and nothing it would carry reaches the wire.
+	// (originatedNextHopIsPeerOwn, egressNextHopIsPeerOwn), so whatever it
+	// classifies as, nothing it would carry reaches the wire.
 	switch router {
 	case nextHopRouterSpeaker:
-		// The speaker's own Link-Local is the right second address.
-	case nextHopRouterUnspecified, nextHopRouterThirdParty:
+		if !configured.Is6() {
+			return netip.Addr{}
+		}
+		if !configured.IsLinkLocalUnicast() {
+			return netip.Addr{}
+		}
+		return configured
+	case nextHopRouterThirdParty:
+		// RFC 4659 Section 3.2.1.1 keeps its own VPN-IPv6 contract, which
+		// names the advertising speaker's Link-Local; only RFC 2545's
+		// sentence names the next-hop entity's.
+		if condition != linkLocalConditionNextHopAndPeer {
+			return netip.Addr{}
+		}
+		// RFC 2545 Section 3: "The link-local address shall be included in
+		// the Next Hop field if and only if the BGP speaker shares a common
+		// subnet with the entity identified by the global IPv6 address
+		// carried in the Network Address of Next Hop field and the peer the
+		// route is being advertised to."
+		return ls.thirdPartyLinkLocal(global)
+	case nextHopRouterUnspecified:
 		return netip.Addr{}
 	default:
 		panic("BUG: invalid next-hop router")
 	}
-	if !configured.Is6() || !configured.IsLinkLocalUnicast() {
+}
+
+// thirdPartyLinkLocal returns the Link-Local of the router holding global, as
+// the neighbor table read with this scope names it, or the zero Addr with a
+// rate-limited warning that names the next hop and why none is known. The
+// caller has already established the common subnet, so a miss here is a field
+// sent with the global address alone where Section 3 asks for both.
+func (ls *linkScope) thirdPartyLinkLocal(global netip.Addr) netip.Addr {
+	linkLocal, outcome, err := ls.neighbors.linkLocalOf(global)
+	if err != nil {
+		warnNeighborTableUnread(ls.peer, global, err)
 		return netip.Addr{}
 	}
-	// Section 3 names the first address "the global IPv6 address of the next hop".
-	// An IPv4 address, or a link-local one, in that slot breaks the sentence
-	// whatever the second slot holds, so nothing is appended to it: a 32-octet
-	// field would make the length octet look right over a first address the
-	// section forbids. This guard is independent of the ones on the config leaves
-	// that feed the address (parsePeerFromTree in config.go,
-	// buildDynamicGroupSettings in ../config/peers.go), because a config leaf is
-	// not the only way a value reaches this field.
-	global := globalNextHop.Unmap()
-	if !global.Is6() || attribute.ValidateGlobalNextHop(global) != nil {
+	switch outcome {
+	case network.LinkLocalFound:
+		return linkLocal
+	case network.LinkLocalNoGlobalEntry, network.LinkLocalGlobalUnbound,
+		network.LinkLocalNoCandidate, network.LinkLocalAmbiguous:
+		warnThirdPartyLinkLocalUnknown(ls.peer, global, outcome)
 		return netip.Addr{}
+	case network.LinkLocalOutcomeUnspecified:
+		panic("BUG: neighbor table lookup answered no outcome")
+	default:
+		panic("BUG: invalid neighbor table outcome")
 	}
-	// RFC 2545 Section 3 asks for ONE subnet holding the global and the peer;
-	// RFC 4659 Section 3.2.1.1 asks for a subnet shared with the peer.
-	if !ls.holdsCommonSubnet(global, condition) {
-		return netip.Addr{}
-	}
-	return configured
 }
 
 // applyLinkLocalNextHop upgrades a single-address IPv6 next-hop wire form to the
@@ -266,18 +314,19 @@ func applyLinkLocalNextHop(s *PeerSettings, f *peerForwardFacts, scope *linkScop
 // an interface comes up answers Section 3 against the table as it stands then,
 // rather than against the one that existed when the config was loaded.
 func (p *Peer) refreshLinkScope() {
-	p.refreshLinkScopeFrom(network.ConnectedPrefixes())
+	p.refreshLinkScopeWith(network.ConnectedPrefixes(), readNeighborView())
 }
 
-// refreshLinkScopeFrom re-settles this peer's snapshot against an interface table
-// the caller has already read.
+// refreshLinkScopeWith re-settles this peer's snapshot against interface and
+// neighbor tables the caller has already read.
 //
 // The reactor refreshes every established peer when one address is added to or
-// removed from ANY interface (refreshPeerLinkScopes, reactor_iface.go), on the
-// event-bus goroutine that delivers the event. Sharing one read across that
-// fan-out costs one syscall instead of one per peer.
-func (p *Peer) refreshLinkScopeFrom(connected []netip.Prefix) {
-	p.llScope.Store(newLinkScopeFrom(connected, p.settings.Address))
+// removed from ANY interface, or a neighbor entry changes
+// (refreshPeerLinkScopes, reactor_iface.go), on the event-bus goroutine that
+// delivers the event. Sharing one read of each table across that fan-out costs
+// one syscall each instead of one per peer.
+func (p *Peer) refreshLinkScopeWith(connected []netip.Prefix, neighbors neighborView) {
+	p.llScope.Store(newLinkScopeWith(connected, neighbors, p.settings.Address))
 }
 
 // linkLocalNextHopFor returns the link-local address to append after
@@ -303,9 +352,10 @@ const (
 	nextHopRouterUnspecified nextHopRouter = iota
 	// nextHopRouterSpeaker: the global is one of this speaker's own addresses.
 	nextHopRouterSpeaker
-	// nextHopRouterThirdParty: any other router, whose Link-Local Ze never learns.
-	// The peer's own address lands here too: RFC 4271 Section 5.1.3 keeps a
-	// route with that NEXT_HOP off the wire (linkScope.linkLocalNextHop).
+	// nextHopRouterThirdParty: any other router, whose Link-Local only the
+	// kernel neighbor table names (linkScope.thirdPartyLinkLocal). The peer's
+	// own address lands here too: RFC 4271 Section 5.1.3 keeps a route with
+	// that NEXT_HOP off the wire (linkScope.linkLocalNextHop).
 	nextHopRouterThirdParty
 )
 
