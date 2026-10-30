@@ -338,12 +338,19 @@ document.addEventListener("DOMContentLoaded", function () {
         if (!mount) return Promise.resolve();
 
         // The generator only ever writes a run of "../" for the root and the
-        // header fragment below it. Anything else is not trusted: the root is
-        // spliced into links and into the fetched header's markup.
-        var root = mount.getAttribute("data-site-root") || "";
-        if (!/^(\.\.\/)*$/.test(root)) root = "";
-        var source = mount.getAttribute("data-header-src") || "";
-        if (!/^(\.\.\/)*assets\/header\.html$/.test(source)) source = root + "assets/header.html";
+        // header fragment below it. Only the length of that run is read from
+        // the page: the strings spliced into links and into the fetched
+        // header's markup are rebuilt here, so no attribute text reaches them.
+        // A root other than such a run counts as depth zero, and an invalid
+        // header source follows the root.
+        function parentSteps(depth) {
+            return new Array(depth + 1).join("../");
+        }
+        var rootAttr = mount.getAttribute("data-site-root") || "";
+        var root = parentSteps(/^(\.\.\/)*$/.test(rootAttr) ? rootAttr.length / 3 : 0);
+        var sourceAttr = mount.getAttribute("data-header-src") || "";
+        var sourceRun = /^((?:\.\.\/)*)assets\/header\.html$/.exec(sourceAttr);
+        var source = (sourceRun ? parentSteps(sourceRun[1].length / 3) : root) + "assets/header.html";
 
         function renderFallback() {
             var header = document.createElement("header");
