@@ -42,6 +42,7 @@
 1 internal/component/bgp/plugins/cmd/update/update_text_vpls.go
 4 internal/component/bgp/plugins/filter_community/config.go
 2 internal/component/bgp/plugins/filter_modify/modify.go
+1 internal/component/bgp/plugins/filter_modify/rib_evaluator.go
 1 internal/component/bgp/plugins/filter_path_asn/match.go
 1 internal/component/bgp/plugins/filter_remove_private_as/private_as.go
 1 internal/component/bgp/plugins/gr/gr_llgr.go
@@ -84,6 +85,7 @@
 1 internal/component/l2tp/plugins/authradius/extract.go
 3 internal/component/l2tp/subsystem_reload.go
 1 internal/component/mtu/cmd/state.go
+1 internal/component/policy/match.go
 1 internal/component/resolve/irr/client.go
 4 internal/component/resolve/irr/rir.go
 1 internal/component/resolve/irr/store/store.go
