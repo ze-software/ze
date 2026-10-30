@@ -144,6 +144,8 @@ tests) is not a rule: it goes in the spec or commit it applies to.
 - A change Ze needs in a third-party Go module is kept here as a diff against
   the upstream release, applied at build time. A fork exists only to open an
   upstream pull request and is never a dependency.
+- A new third-party Go module lands in a commit of its own (`go.mod`, `go.sum`
+  and its `vendor/` tree, nothing else), before the commit that first uses it.
 - An RFC sentence quoted in a comment stays byte-exact, its full stop inside the
   quote included, and is never edited to satisfy a linter.
 
