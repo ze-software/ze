@@ -818,7 +818,10 @@ keyword; a host observation rejects that keyword. See
 For tests needing only their own network, a fixed port or an address on `lo`,
 `userns.Enter` (`internal/test/userns`) re-executes the test in a new user,
 network and mount namespace, where the test is root over namespaces of its
-own, and fails on every startup error, including namespace denial. Go reports
+own, and fails on every startup error, including namespace denial. An
+unprivileged parent maps only its own uid and gid into the child; a root parent
+(`sudo ./le test integration`) maps every id to itself (`idMappings`), so a test
+binary under a `0750` home another user owns stays reachable to the child's root. Go reports
 clone and exec errors through the same channel, so `Enter` cannot safely
 classify an errno as a namespace refusal. The diagnostic retains the error
 and names `./le setup install` and its `userns-unrestricted` check as the fix
@@ -827,7 +830,7 @@ statement of a top-level test, and such a test never calls `t.Parallel`,
 because the child re-runs that one named test in a fresh process. A well-known
 port bound there never collides with a ze running on the host or with a
 parallel run of the same package.
-<!-- source: internal/test/userns/userns_linux.go -- Enter, childFailure -->
+<!-- source: internal/test/userns/userns_linux.go -- Enter, childFailure, idMappings -->
 
 The child runs with `-test.run '^<Name>$' -test.v -test.count=1`, and the
 parent reads the child's own top-level result line, `--- PASS: <Name> (` or

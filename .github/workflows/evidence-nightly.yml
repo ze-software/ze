@@ -93,18 +93,15 @@ jobs:
 
       # The six actions below run as root, and a test that enters a namespace
       # of its own (internal/test/userns) re-executes its binary from
-      # $HOME/.zt inside a new user namespace that maps root alone. Ubuntu
-      # 24.04 creates $HOME 0750 and owned by runner, an owner that namespace
-      # does not map, so its root holds no DAC override there and the exec
-      # failed with EACCES: 127 tests "fork/exec .../iface.test: permission
-      # denied" (evidence-nightly run 41038783931). A denied namespace would
-      # read "operation not permitted" instead, and the AppArmor restriction
-      # on unprivileged user namespaces does not bind root; it is lifted as
-      # well, as verify.yml does, so a test that drops privilege meets the same
-      # host the merge gate gives it.
-      - name: Let a test's own namespace reach the test binary
+      # $HOME/.zt, which Ubuntu 24.04 creates 0750 and owned by runner. A root
+      # parent maps every id into that namespace (idMappings), so its root
+      # keeps DAC override there; with root alone mapped, 127 tests failed
+      # "fork/exec .../iface.test: permission denied" (evidence-nightly run
+      # 41038783931). The AppArmor restriction on unprivileged user
+      # namespaces does not bind root; it is lifted, as verify.yml does, so a
+      # test that drops privilege meets the same host the merge gate gives it.
+      - name: Lift the AppArmor user namespace restriction
         run: |
-          chmod o+x "$HOME"
           if [ -e /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
             sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
           fi

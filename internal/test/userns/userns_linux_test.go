@@ -361,3 +361,22 @@ func TestEnterRefusalNamesTheFix(t *testing.T) {
 		}
 	}
 }
+
+// TestIDMappingsRootMapsEveryID pins the child's id map for both parents. An
+// unprivileged parent maps its own id alone, the one map the kernel lets it
+// write. A root parent maps every id to itself, so a file another id owns stays
+// mapped in the child and its root keeps DAC override: with root alone mapped,
+// the re-exec under a 0750 home the invoking user owns failed with EACCES
+// (evidence-nightly run 41038783931).
+func TestIDMappingsRootMapsEveryID(t *testing.T) {
+	root := idMappings(0)
+	want := []syscall.SysProcIDMap{{ContainerID: 0, HostID: 0, Size: 1<<32 - 1}}
+	if !slices.Equal(root, want) {
+		t.Errorf("idMappings(0) = %v, want the full identity range %v", root, want)
+	}
+	user := idMappings(1001)
+	want = []syscall.SysProcIDMap{{ContainerID: 0, HostID: 1001, Size: 1}}
+	if !slices.Equal(user, want) {
+		t.Errorf("idMappings(1001) = %v, want the parent's own id alone %v", user, want)
+	}
+}

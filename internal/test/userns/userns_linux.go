@@ -95,10 +95,29 @@ func childCommand(t *testing.T, name string) *exec.Cmd {
 		hostNetnsDeviceEnv+"="+string(strconv.AppendUint(nil, hostDevice, 10)))
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Cloneflags:  syscall.CLONE_NEWUSER | syscall.CLONE_NEWNET | syscall.CLONE_NEWNS,
-		UidMappings: []syscall.SysProcIDMap{{ContainerID: 0, HostID: os.Getuid(), Size: 1}},
-		GidMappings: []syscall.SysProcIDMap{{ContainerID: 0, HostID: os.Getgid(), Size: 1}},
+		UidMappings: idMappings(os.Getuid()),
+		GidMappings: idMappings(os.Getgid()),
 	}
 	return cmd
+}
+
+// idRangeFull is the size of the identity map the initial user namespace
+// holds: every id from 0, as /proc/self/uid_map reads `0 0 4294967295`.
+const idRangeFull = 1<<32 - 1
+
+// idMappings answers the child's id map for the parent's id. An unprivileged
+// parent may map only its own id, so the child's root is that id alone. A
+// parent that is root (`sudo ./le test integration`) maps every id to itself:
+// with root alone mapped, a file owned by any other id is unmapped in the
+// child, its root holds no DAC override there, and exec of a test binary under
+// a 0750 home that the invoking user owns fails with EACCES (evidence-nightly
+// run 41038783931: "fork/exec /home/runner/.zt/.../iface.test: permission
+// denied"). The child's capabilities still reach only its own namespaces.
+func idMappings(id int) []syscall.SysProcIDMap {
+	if id == 0 {
+		return []syscall.SysProcIDMap{{ContainerID: 0, HostID: 0, Size: idRangeFull}}
+	}
+	return []syscall.SysProcIDMap{{ContainerID: 0, HostID: id, Size: 1}}
 }
 
 // childFlagsWithheld names the flags the parent was given that the child does
