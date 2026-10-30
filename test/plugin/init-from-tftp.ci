@@ -1,0 +1,8 @@
+# Test: init-from-tftp
+# VALIDATES: `ze init --from tftp://127.0.0.1:<port>/install/database.zefs --sha256 <hex>` fetches the blob from Ze's own TFTP server on a loopback port with Ze's TFTP client, checks the digest and the blob, imports it, removes the fetched copy and its retired name, and `ze start` runs on the imported tree.
+# PREVENTS: a tftp scheme that is registered but unreachable from ze init, or a TFTP client and server that disagree on the wire.
+option=storage:value=disk
+option=timeout:value=90s
+cmd=foreground:seq=1:exec=le test fixture storage/init-from-tftp:timeout=90s:exit=0
+expect=exit:code=0
+expect=stdout:contains=OK: init-from-tftp

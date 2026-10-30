@@ -2,14 +2,14 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | verification |
 | Scope | protocol |
 | Priority | P3 |
 | Release reason | A new capability (a TFTP client behind `ze init --from tftp://`), so post-release under the owner's release timing. Thomas chose it on 2026-10-30 so that the client-side MUSTs of the TFTP family stop being capped `{not-applicable}` rows |
 | RFC gaps | RFC2347-x-4, RFC2348-x-2, RFC7440-3-2, RFC7440-3-4, RFC7440-4-2, RFC7440-4-3 |
 | Depends | - |
-| Phase | - |
-| Handoff | - |
+| Phase | 7/7 |
+| Handoff | verify |
 | Updated | 2026-10-30 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
@@ -272,6 +272,7 @@ The client tests drive a scripted UDP peer on loopback that plays the server rol
 - `docs/guide/command-reference.md`, `docs/guide/ze-install.md` - `--from tftp://`
 - `features/installation.md` - the TFTP client
 - `ai/INDEX.md` - a keyword row for the TFTP client
+- `docs/architecture/testing/ci-format.md` - declared by the new fixture's `// Design:` header; unaffected, because the scenario uses the existing `.ci` format and fixture registration unchanged
 
 ## Files to Create
 - `internal/core/tftp/` - codec: opcodes, error codes, the blksize and windowsize ranges, option names, RRQ, ACK, ERROR, DATA and OACK encode and parse, the OACK validator. Each function quotes its RFC sentence
@@ -371,6 +372,13 @@ The client tests drive a scripted UDP peer on loopback that plays the server rol
 
 ## Design Insights
 
+- Deviation from Implementation Step 2: only the facts both sides use moved to `internal/core/tftp` (opcodes, error codes, block sizes, option names, `BuildError`). The server's request parser and its DATA and OACK encoders have one user, the server, so they stay in `handler.go`. The client's RRQ and ACK encoders and the OACK check live in `internal/core/tftp/request.go` and `oack.go`
+- The move staled 35 server discrimination records (producer or unit fingerprints). All were re-taken. One, RFC1350-2-2 negative on `TestTFTPConcurrentLimit`, no longer went red under a whole-body revert of `sendAndWaitACK`, because the panic guard answers both clients with an ERROR. It was re-taken with a hand-written break that makes the server advance without the ACK, the violation the claim names
+- The `.ci` needs Ze's server in process, so `tftpserver.ServeConn` serves on a socket the caller bound, with no config. The `ze_pxe` fixture `storage/init-from-tftp` is its one caller
+- Implementation landed in fec7380fb1 (code, tests, records, audits, docs). The `.ci` lands in the handoff commit beside this spec: le runs the fixture from HEAD, so the scenario could only run once the fixture was committed. Draft run green, `./le test stress-repro run suite "plugin --draft" test 8 any-failure iterations 80` did not reproduce a failure, promoted run green
+- The independent audit found five client tests whose ACK waits were longer than the client's timeout, so a retransmitted ACK masked a missing one. `shortenTFTP` now uses a one-second timeout and `expectACK` waits half of it; the auditor's three mutants (window ignored, unacknowledged window kept, gap ACK dropped) go red. `tftpDally` was added so tests keep the dally short
+- On the Mac the interop test cannot reach a container's fresh TFTP port through Colima's port forwarder. It runs inside the Colima VM instead: the test binary is cross-built for linux/arm64 (`go test -c -tags docker`) and run in a `docker:cli` container on the host network with the Docker socket mounted, where `labtest` starts dnsmasq on the same network namespace
+
 ## Owned journal rows
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
@@ -388,7 +396,12 @@ The client tests drive a scripted UDP peer on loopback that plays the server rol
 - The server still does not implement the RFC 2349 timeout option or RFC 7440 windowsize as DSND. RFC2349-x-1, x-2 and RFC7440-4-1, 4-4, 4-5 stay capped. Their current `{not-applicable}` reasons say "ze does not implement", which the gates page calls a `{gap}`. That is a server-side spec of its own (not written here; named in the report to the owner)
 - No TFTP upload (WRQ)
 
-## Owner choices (await Thomas)
+## Owner choices
+
+Thomas approved this design on 2026-10-30 with both recommendations: the client
+requests windowsize W = 4, and a tftp URL accepts an optional port
+(`tftp://host:port/file`, default 69).
+
 | Choice | Recommendation | What each answer changes |
 |--------|----------------|-------------------------|
 | windowsize W that the client requests | 4. RFC 7440 §5 "Operators SHOULD test various values and SHOULD be conservative". With no operator knob, a small fixed value | 1 would leave RFC7440-3-4, 4-2 and 4-6 unprovable. A larger W is faster on a clean LAN and worse under loss |
