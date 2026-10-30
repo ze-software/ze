@@ -54,7 +54,7 @@
       "id": "5.2",
       "sites": 1,
       "disposition": "walked",
-      "reason": "Consistent brief aggregation. Its MUST (5.2:1) and its SHOULD to attach ATOMIC_AGGREGATE bind an aggregating implementation; Ze implements no aggregation, so 5.2:1 is excluded as feature-out-of-scope."
+      "reason": "Consistent brief aggregation. Its MUST (5.2:1) and its SHOULD to attach ATOMIC_AGGREGATE bind an aggregating implementation; Ze implements no aggregation, so 5.2:1 maps to RFC9774-5.2-1, which carries {gap}."
     },
     {
       "id": "6",
@@ -180,9 +180,9 @@
     {
       "id": "5.2:1",
       "quote": "To ensure a consistent BGP origin AS is announced for aggregate BGP routes for implementations of \"brief\" BGP aggregation, the implementation MUST be configured to truncate the AS_PATH after the right-most instance of the desired origin AS for the aggregate.",
-      "disposition": "excluded",
-      "excluded-kind": "feature-out-of-scope",
-      "reason": "Binds implementations of brief BGP aggregation only. RFC 4271 Section 9.1 makes route aggregation optional: \"Route aggregation and information reduction can optionally be performed within this phase.\" Owner decision 2026-10-18 scoped this work to RFC 9774 and not to an aggregation feature (spec-bgp-rfc9774-as-set-deprecation, Key Design Decisions). Ze has no aggregation code: the AS_PATH parsers (ParseASPathText, internal/core/bgp/attribute/text.go) build only AS_SEQUENCE."
+      "disposition": "mapped",
+      "mapped-to": "RFC9774-5.2-1",
+      "reason": "Carried verbatim by RFC9774-5.2-1 with {gap}. The owner decision of 2026-10-18 scoped the RFC 9774 spec's work (spec-bgp-rfc9774-as-set-deprecation, Key Design Decisions); it did not decline aggregation as a feature, so the absent aggregation of an implemented RFC is owed work and counts as a gap, after the first release. Ze has no aggregation code: the AS_PATH parsers (ParseASPathText, internal/core/bgp/attribute/text.go) build only AS_SEQUENCE."
     },
     {
       "id": "6.1:1",

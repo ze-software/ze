@@ -1,6 +1,9 @@
 {
-  "note": "rejudge 2026-10-02 (c33 judge): + TestRFC8050AddPathRIBEntryFollowsFigure1 compares WriteRIBEntries add-path output with the literal Figure 1 octets (Peer Index 00 03, Originated Time 5f 5e 10 00, Path Identifier 01 02 03 04, Attribute Length 00 04, attributes) and reads the same octets through DecodeRIBRecord under all four AFI/SAFI-specific add-path subtypes 8-11; - TestRIBRecordRoundTrip (base subtype 2 reads no Path Identifier). Literal octets, not a symmetric round trip, so a misplaced or mis-sized field on either side goes red. Judge break: decodeRIBEntries reading only the low 16 bits of the Path Identifier turns the new unit red in all four subtypes while HEAD TestRIBRecordAddPathRoundTrip stays green. Does not depend on add-path NLRI parsing (the RIB prefix sits in the record header, no Path ID).",
-  "requirement_sha": "0e4e298f95ef5404",
+  "code": {
+    "internal/plugins/mrt/dump.go::writeTableDumpV2": "e3e18fdb3216d3a8"
+  },
+  "note": "Rejudged 2026-10-30 (independent auditor) after the row gained a {partial} scope. RFC 8050 Section 4.1: \"This adds a field to the RIB Entries record to store the Path Identifier when used with the RIB_IPV4_UNICAST_ADDPATH, RIB_IPV4_MULTICAST_ADDPATH, RIB_IPV6_UNICAST_ADDPATH, and RIB_IPV6_MULTICAST_ADDPATH subtypes.\" Tested: the existing RIB Entries field is redefined for use within the new AFI/SAFI-specific RIB subtypes defined by this document as follows. TestRFC8050AddPathRIBEntryFollowsFigure1 compares WriteRIBEntries output with the literal Figure 1 octets and decodes them under subtypes 8-11; TestRIBRecordAddPathRoundTrip round-trips PathID 1 and 2 under subtype 8; TestRIBRecordRoundTrip (negative) reads no Path Identifier under base subtype 2. Gap: This adds a field to the RIB Entries record to store the Path Identifier. Producer internal/plugins/mrt/dump.go::writeTableDumpV2 builds each mrtfmt.RIBEntry from PeerIndex, OrigTime and Attributes only, because registry.RIBDumpVisitor.OnRoute carries no path id, so under the add-path toggle every entry's field is written as 0 and the route's Path Identifier is not stored. Revert records cover all three tagged units.",
+  "requirement_sha": "a5bf76b27995779e",
   "tests": {
     "internal/mrt/mrt_test.go::TestRIBRecordAddPathRoundTrip": "fb2e8a7edf55af3c",
     "internal/mrt/mrt_test.go::TestRIBRecordRoundTrip": "fb2e8a7edf55af3c",
@@ -11,5 +14,5 @@
     "internal/mrt/mrt_test.go::TestRIBRecordRoundTrip": "a8270cec375affeb",
     "internal/mrt/rfc8050_layout_test.go::TestRFC8050AddPathRIBEntryFollowsFigure1": "20999c37aa3c7a0d"
   },
-  "verdict": "enforced"
+  "verdict": "partial"
 }

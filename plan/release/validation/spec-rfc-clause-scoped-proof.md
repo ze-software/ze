@@ -360,6 +360,7 @@ This changes evidence representation, not native SRv6 BGP EPE origination. That 
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
 | `reference-checked-claim-unchecked.md` | 2026-10-26 | `ProvenShareOf` credits a `{single-polarity}` row from its annotation alone |
+| `field-carries-two-meanings.md` | 2026-10-30 | `{partial}` spans are clause-scoped; RFC2131-4.1-15 splits by role (server meets, client fails both clauses) |
 
 ## Review Gate
 

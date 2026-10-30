@@ -1,13 +1,10 @@
 {
   "code": {
-    "internal/plugins/dhcpserver/handler.go::parseMsgType": "e275b54c4da8fb47",
-    "internal/plugins/dhcpserver/handler.go::parseOptionAddr": "98baba92579642f5",
-    "internal/plugins/dhcpserver/options.go::findFieldOption": "65883bc8f41fc9b6",
     "internal/plugins/dhcpserver/options.go::findOption": "e988f399afcb0eb7",
-    "internal/plugins/dhcpserver/options.go::overloadValue": "04fdec65fc57cbd4"
+    "internal/plugins/iface/dhcp/dhcp_v4_exchange_linux.go::acquire": "ebc70a457f75ca54"
   },
-  "note": "Re-judged 2026-10-18 (independent auditor, after ef8666639d). RFC 2131 Section 4.1: \"The options in the 'options' field MUST be interpreted first, so that any 'option overload' options may be interpreted.  The 'file' field MUST be interpreted next (if the 'option overload' option indicates that the 'file' field contains DHCP options), followed by the 'sname' field.\" findOption walks pkt[240:] first and overloadValue reads option 52 from the options field only; parseMsgType and parseOptionAddr, and h.handle through them, go through findOption. ef8666639d tags the options-first assertion of TestOverloadInterpretationOrder (options, file and sname each carry option 50 under 52=3; the options copy must win) as positive, so the order clause now has a tagged, discriminating assertion beside TestOverloadFieldsCarryOptions (52 interpreted: 53 and 50 in file/sname under 1/2/3 draw a DHCPACK). Negative unchanged: a 52 planted inside file opens no sname. Overlay mutants on options.go, run under ./le job run: walking file before options reds the newly tagged line 131; ignoring 52 reds TestOverloadFieldsCarryOptions (file, sname, both); honouring a 52 found inside file reds the negative at line 150. Recorded breaks are whole-body panics proving reach; these mutants supply the deciding-logic proof. Claims are no wider than the assertions. Re-judged 2026-10-19 after db457cb3c2, which split findOption's sname guard (52 = 2 or 3) into two ifs with identical bodies; the tests are unchanged and the behavior is the same. Both split branches are discriminated: an overlay mutant returning nil under 52 = 2 and one returning nil under 52 = 3 each red TestOverloadFieldsCarryOptions (go test -run TestOverload ./internal/plugins/dhcpserver/ under ./le job run), and the whole-body revert records were re-observed the same day.",
-  "requirement_sha": "c95c5b8e31806109",
+  "note": "Rejudged 2026-10-30 (independent auditor) after the row gained a {partial} scope. RFC 2131 Section 4.1: \"The options in the 'options' field MUST be interpreted first, so that any 'option overload' options may be interpreted.\" Tested: The options in the 'options' field MUST be interpreted first. Server: findOption walks the options field before file and sname; TestOverloadInterpretationOrder (positive, options copy wins under 52=3), TestOverloadFieldsCarryOptions (positive, 52 honoured) and the negative (a 52 inside file opens no sname) discriminate it, with revert records on every cover and the earlier overlay mutants. Client: FromBytes reads only the options field for options, so the order clause holds there too. Gap: so that any 'option overload' options may be interpreted. Producer internal/plugins/iface/dhcp/dhcp_v4_exchange_linux.go::acquire passes each reply to vendored nclient4, whose dhcpv4 FromBytes reads sname and file as strings and never consults option 52 (no build-time patch), so the client loses options a server places in an overloaded field.",
+  "requirement_sha": "602f3b60ce563a15",
   "tests": {
     "internal/plugins/dhcpserver/rfc2131_overload_test.go::TestOverloadFieldsCarryOptions": "bbf84c53fd06742c",
     "internal/plugins/dhcpserver/rfc2131_overload_test.go::TestOverloadInterpretationOrder": "bbf84c53fd06742c",
@@ -18,5 +15,5 @@
     "internal/plugins/dhcpserver/rfc2131_overload_test.go::TestOverloadInterpretationOrder": "01839caf9b5f6437",
     "internal/plugins/dhcpserver/rfc2131_overload_test.go::TestOverloadInterpretationOrder#2": "01839caf9b5f6437"
   },
-  "verdict": "enforced"
+  "verdict": "partial"
 }
