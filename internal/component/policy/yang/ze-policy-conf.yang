@@ -154,10 +154,13 @@ module ze-policy-conf {
                 ze:help "Match routes whose metric is in this range";
                 leaf minimum {
                     type uint32;
+                    description "The lowest metric that matches, inclusive. Left out, the range starts at 0.";
                     ze:help "Lowest metric that matches";
                 }
                 leaf maximum {
                     type uint32;
+                    description "The highest metric that matches, inclusive. Left out, the range ends at
+                                 4294967295.";
                     ze:help "Highest metric that matches";
                 }
             }
