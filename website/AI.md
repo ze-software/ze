@@ -72,6 +72,9 @@ website/
     repo-facts.json                       -- the six committed counts about this repository
                                               (`./le site facts update` writes it; the build
                                               reads it rather than walking the tree)
+    github-releases.json                  -- the published releases the forge states
+                                              (`./le site release update` writes it; the build
+                                              reads it and never reaches the network for it)
 ```
 
 The native implementation lives in `internal/le/site`. `./le site build`
@@ -184,7 +187,12 @@ a stale recorded run; `./le site build refresh` re-records those first
   plain value instead. Markdown mirrors receive plain text. A key the snapshot
   does not name stops the build, naming the token, a close key and the `jq`
   command that lists every key. A first build into an empty tree has no
-  snapshot yet and leaves every token alone.
+  snapshot yet and leaves every token alone. A hand-written page may also mark
+  a value itself, `<span data-ze-stat="<key>">fallback</span>`: the build
+  writes the snapshot's value into it when the key holds one and keeps the
+  fallback while the key's section is `null`, as `site.js` does
+  (`markedValue`, `internal/le/site/factfallback.go`). The appliance lab's
+  ISO size is one: "under 150 MB" until a release carries an ISO.
 - **The plain-text guard.** `./le site check` refuses a page that shows a
   snapshot value outside a marker, `data-ze-stat="<key>"` or
   `data-ze-rfc="<stem>:<field>"`, and names the page, the figure and the key
@@ -205,7 +213,11 @@ a stale recorded run; `./le site build refresh` re-records those first
   from one input and `_sources` names that input. Two of them are not derived
   from this tree: the star count reaches api.github.com and keeps the previously
   published number when it cannot, saying so in `_sources`, and the command and
-  configuration counts come from the binary this build compiled. When every
+  configuration counts come from the binary this build compiled. The release
+  section (`release.*`) is a network fact too, but committed: the build reads
+  it only from `data/github-releases.json`, and it is `null` while that file
+  states no release (`factsFromReleases`, `internal/le/site/releasefacts.go`).
+  When every
   number equals the previous artifact's, the build keeps that file whole, its
   `generated_at` and `published_at` included, so a build over an unchanged tree
   rewrites no byte of it (`previousFactsAt` in `internal/le/site/facts.go`).

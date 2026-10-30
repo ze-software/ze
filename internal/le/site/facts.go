@@ -110,11 +110,15 @@ type siteFacts struct {
 	Interop      factsInterop   `json:"interop"`
 	// Plugins counts the runtime plugin registrations data/plugin-registry.json
 	// holds, which llms.txt states.
-	Plugins     int        `json:"plugin_registrations"`
-	PublishedAt string     `json:"published_at"`
-	Repo        factsRepo  `json:"repo"`
-	RFC         factsRFC   `json:"rfc"`
-	Tests       factsTests `json:"tests"`
+	Plugins     int    `json:"plugin_registrations"`
+	PublishedAt string `json:"published_at"`
+	// Release is the newest published release the committed
+	// website/data/github-releases.json states, null while it states none
+	// (factsFromReleases). The build never reaches the forge for it.
+	Release *factsRelease `json:"release"`
+	Repo    factsRepo     `json:"repo"`
+	RFC     factsRFC      `json:"rfc"`
+	Tests   factsTests    `json:"tests"`
 }
 
 // factsEquivalents counts the vendor command map the command-equivalents page
@@ -342,6 +346,9 @@ func deriveSiteFacts(paths Paths) (siteFacts, error) {
 		return siteFacts{}, err
 	}
 	if err := factsFromSiteData(paths, &facts); err != nil {
+		return siteFacts{}, err
+	}
+	if err := factsFromReleases(paths.Source, &facts); err != nil {
 		return siteFacts{}, err
 	}
 

@@ -282,6 +282,23 @@ counting it again. The matching rule is
 in `docs/architecture/site-facts.md`, "One published copy of each value".
 <!-- source: internal/le/site/plaintext.go -- checkPlainFigures -->
 
+The release data the site shows (the newest release, and the appliance lab's
+ISO size) is read from the committed `website/data/github-releases.json`, and
+the build never reaches the network for it. After publishing a release, refresh
+the file and commit it with the work that follows:
+
+```
+./le site release update
+```
+
+The command reads the forge's releases list and rewrites the file. When the
+forge cannot be reached it exits non-zero, names the endpoint and the cause,
+and leaves the committed file as it was, so retry it later. While the file
+states no release, the lab page keeps its fallback text "under 150 MB".
+The file's checks and the snapshot keys are in
+`docs/architecture/site-facts.md`, "Release data".
+<!-- source: internal/le/site/release/actions.go -- update -->
+
 Local regeneration does not authorize a push or deployment. Never push without
 owner instruction.
 

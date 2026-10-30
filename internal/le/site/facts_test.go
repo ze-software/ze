@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io/fs"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/le/rfc"
+	siterelease "github.com/ze-software/ze/internal/le/site/release"
 	testhealth "github.com/ze-software/ze/internal/le/test/health"
 )
 
@@ -64,6 +66,9 @@ func factsFixture(t *testing.T) Paths {
 		"entries":[{"intent":"Show rows","ze":["show test"],"vendors":{"juniper":[{"command":"show rows"}]}},
 		{"intent":"Vendor only","ze":[],"vendors":{"juniper":[{"command":"show other"}]}}]}`)
 	writeArtifactFile(t, output, pluginFile, `[{"name":"bfd"},{"name":"bgp-rib"},{"name":"ntp"}]`)
+	// A release carrying an ISO, so every key of the release section holds a
+	// value (TestATokenResolvesAnyKeyTheSnapshotNames).
+	writeFixtureFile(t, filepath.Join(source, "data", siterelease.DataFile), fixtureReleasesFile)
 
 	stubFactsInputs(t)
 	if err := os.MkdirAll(filepath.Join(source, "assets"), 0o755); err != nil {
@@ -904,5 +909,179 @@ func TestANewHealthMetricReachesTheSnapshotUnnamed(t *testing.T) {
 	err = factsFromTestHealth(dottedPaths, &siteFacts{Sources: map[string]string{}})
 	if err == nil || !strings.Contains(err.Error(), "dotted.metric") {
 		t.Errorf("a metric keyed dotted.metric was not refused by name: %v", err)
+	}
+}
+
+// fixtureReleasesFile is a committed release file stating one prerelease with
+// an ISO and a checksum file, in the form `./le site release update` writes.
+const fixtureReleasesFile = `{"endpoint":"https://api.github.com/repos/ze-software/ze/releases","releases":[
+  {"assets":[
+    {"browser_download_url":"https://github.com/ze-software/ze/releases/download/v26.11.0/SHA256SUMS","digest":null,"name":"SHA256SUMS","size":0},
+    {"browser_download_url":"https://github.com/ze-software/ze/releases/download/v26.11.0/ze-20261102-100000.iso",
+     "digest":"sha256:9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08","name":"ze-20261102-100000.iso","size":128933888}],
+   "html_url":"https://github.com/ze-software/ze/releases/tag/v26.11.0","name":"Ze 26.11","prerelease":true,
+   "published_at":"2026-11-02T10:00:00Z","tag_name":"v26.11.0"}]}`
+
+// noReleasesFile is the committed release file while the forge states none.
+const noReleasesFile = `{"endpoint":"https://api.github.com/repos/ze-software/ze/releases","releases":[]}`
+
+// refusingTransport fails every request a build makes, and the test with it.
+type refusingTransport struct{ t *testing.T }
+
+func (transport refusingTransport) RoundTrip(request *http.Request) (*http.Response, error) {
+	transport.t.Errorf("the build reached the network: %s %s", request.Method, request.URL)
+	return nil, errors.New("this test refuses every request")
+}
+
+// VALIDATES: AC-13, and the snapshot half of AC-10 and AC-11. A build reads
+// release data from the committed file only.
+//
+// Every HTTP request of the process goes through a transport that fails the
+// test (the star count is stubbed, so the build has no reason to make one),
+// and the snapshot follows what the committed file states: the release, then
+// none, then a file nobody committed, which is refused with the command that
+// writes it.
+func TestTheBuildReadsReleaseDataOnlyFromTheCommittedFile(t *testing.T) {
+	original := http.DefaultTransport
+	http.DefaultTransport = refusingTransport{t: t}
+	t.Cleanup(func() { http.DefaultTransport = original })
+
+	paths := factsFixture(t)
+	if err := publishSiteFacts(paths); err != nil {
+		t.Fatal(err)
+	}
+	snapshot, err := loadSiteFactSnapshot(paths.Output)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for key, want := range map[string]string{
+		"release.version":          "v26.11.0",
+		"release.published":        "2026-11-02",
+		"release.url":              "https://github.com/ze-software/ze/releases/tag/v26.11.0",
+		"release.iso.name":         "ze-20261102-100000.iso",
+		"release.iso.bytes":        "128933888",
+		"release.iso.size_display": "128.9 MB",
+		"release.iso.sha256":       "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+		"release.iso.download_url": "https://github.com/ze-software/ze/releases/download/v26.11.0/ze-20261102-100000.iso",
+		"_sources.release":         "website/data/github-releases.json: release v26.11.0, published 2026-11-02T10:00:00Z (read from https://api.github.com/repos/ze-software/ze/releases)",
+	} {
+		if got, found := snapshot.value(key); !found || got != want {
+			t.Errorf("%s reads %q (%v), want %q", key, got, found, want)
+		}
+	}
+
+	writeFixtureFile(t, filepath.Join(paths.Source, "data", siterelease.DataFile), noReleasesFile)
+	if err := publishSiteFacts(paths); err != nil {
+		t.Fatal(err)
+	}
+	published := readArtifact(t, paths.Output, factsFile)
+	if !strings.Contains(published, `"release": null`) {
+		t.Errorf("with no release the snapshot does not state a null release:\n%s", published)
+	}
+	if !strings.Contains(published, `"release": "none yet: website/data/github-releases.json states no release`) {
+		t.Errorf("with no release _sources does not say none yet:\n%s", published)
+	}
+
+	if err := os.Remove(filepath.Join(paths.Source, "data", siterelease.DataFile)); err != nil {
+		t.Fatal(err)
+	}
+	err = publishSiteFacts(paths)
+	if err == nil || !strings.Contains(err.Error(), "./le site release update") {
+		t.Errorf("a checkout with no release file published (%v), want a refusal naming ./le site release update", err)
+	}
+}
+
+// labISOMarker is the lab page's ISO size, marked with its fallback text.
+const labISOMarker = `<span data-ze-stat="release.iso.size_display">under 150 MB</span>`
+
+// VALIDATES: AC-14, A-6. The appliance lab's ISO size reads its fallback until
+// the newest release carries an .iso asset, then the snapshot's size.
+//
+// The test reads the real lab page source and passes it through the pass every
+// hand-written page takes (substituteHTML) against snapshots derived from three
+// committed release files: none, a release with no ISO, and a release with an
+// ISO beside another asset. It also proves the pass refuses a misspelled key
+// while the section is null, a marker holding markup, and a release with two
+// ISOs, and that the dated measurement sentence stays as written.
+func TestTheLabISOSizeFallsBackUntilAReleaseCarriesOne(t *testing.T) {
+	content, err := os.ReadFile(filepath.Join("..", "..", "..", "website", "labs", "appliance-install", "index.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	lab := string(content)
+	for _, phrase := range []string{"The current amd64 installation ISO is " + labISOMarker + ".", "128,933,888 bytes"} {
+		if !strings.Contains(lab, phrase) {
+			t.Fatalf("the lab page source does not carry %q", phrase)
+		}
+	}
+
+	snapshotOf := func(t *testing.T, releases string) (siteFactSnapshot, error) {
+		t.Helper()
+		source := t.TempDir()
+		writeFixtureFile(t, filepath.Join(source, "data", siterelease.DataFile), releases)
+		facts := siteFacts{Sources: map[string]string{}}
+		if err := factsFromReleases(source, &facts); err != nil {
+			return siteFactSnapshot{}, err
+		}
+		rendered, err := renderSiteFacts(&facts)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return parseSiteFactSnapshot([]byte(rendered))
+	}
+	withoutISO := strings.Replace(noReleasesFile, `"releases":[]`, `"releases":[{"assets":[
+		{"browser_download_url":"https://github.com/ze-software/ze/releases/download/v1/notes.txt","digest":null,"name":"notes.txt","size":3}],
+		"html_url":"https://github.com/ze-software/ze/releases/tag/v1","name":null,"prerelease":false,
+		"published_at":"2026-11-01T09:00:00Z","tag_name":"v1"}]`, 1)
+	twoISOs := strings.Replace(fixtureReleasesFile, `"name":"SHA256SUMS"`, `"name":"ze-arm64.iso"`, 1)
+
+	for _, state := range []struct {
+		what     string
+		releases string
+		shows    string
+	}{
+		{"no release", noReleasesFile, labISOMarker},
+		{"a release with no ISO", withoutISO, labISOMarker},
+		{"a release with an ISO", fixtureReleasesFile, markedFact("release.iso.size_display", "128.9 MB")},
+	} {
+		t.Run(state.what, func(t *testing.T) {
+			snapshot, err := snapshotOf(t, state.releases)
+			if err != nil {
+				t.Fatal(err)
+			}
+			page, err := snapshot.substituteHTML(lab)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !strings.Contains(page, "The current amd64 installation ISO is "+state.shows+".") {
+				t.Errorf("the lab page does not show %s", state.shows)
+			}
+			if !strings.Contains(page, "128,933,888 bytes") {
+				t.Error("the dated measurement sentence changed")
+			}
+		})
+	}
+
+	empty, err := snapshotOf(t, noReleasesFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	full, err := snapshotOf(t, fixtureReleasesFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	misspelled := `<p><span data-ze-stat="release.iso.size_dispaly">under 150 MB</span></p>`
+	for name, snapshot := range map[string]siteFactSnapshot{"no release": empty, "a release": full} {
+		if _, err := snapshot.substituteHTML(misspelled); err == nil || !strings.Contains(err.Error(), "release.iso.size_dispaly") {
+			t.Errorf("with %s a misspelled marker key was not refused by name (%v)", name, err)
+		}
+	}
+	markup := `<p><span data-ze-stat="release.iso.size_display">under <b>150</b> MB</span></p>`
+	if _, err := full.substituteHTML(markup); err == nil || !strings.Contains(err.Error(), "holds markup") {
+		t.Errorf("a marker holding markup was not refused (%v)", err)
+	}
+
+	if _, err := snapshotOf(t, twoISOs); err == nil || !strings.Contains(err.Error(), "two .iso assets") {
+		t.Errorf("a release with two ISOs was not refused (%v)", err)
 	}
 }

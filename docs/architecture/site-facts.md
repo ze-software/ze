@@ -43,7 +43,7 @@ and the pair is the point: a generated file nobody gates goes stale in silence.
 
 ## Not every fact can be committed
 
-A published fact belongs to one of five categories, and the file records the
+A published fact belongs to one of six categories, and the file records the
 category of each one so a reader can tell what kind of claim a number is.
 
 | Category | What it is a claim about | Example | Committed? |
@@ -51,6 +51,7 @@ category of each one so a reader can tell what kind of claim a number is.
 | Committed data | a commit | `repo.go_packages` | Yes |
 | Built binary | a binary somebody built | `cli_commands`, from `ze help command --json` | No. Recorded under the `live` key, with no value and with the command that answers it |
 | Network | a remote service | `github_stars`, from api.github.com | No. The build carries the previously published value when the reach fails |
+| Network, committed by a command | a remote service whose answer changes only when the project acts | the release data (`release.*`), from the releases list on api.github.com | Yes, by `./le site release update` into `website/data/github-releases.json`. The build reads that file and never reaches the network for it ("Release data" below) |
 | Site-owned | the website's own tree | the blog article count | Not about this repository at all |
 | Already gated | a committed artifact another gate owns | the RFC requirement counts | No copy. A second record of one fact is the drift this pattern removes |
 
@@ -122,8 +123,10 @@ A value printed as plain text is a second copy the file cannot update.
 |------|-----------|
 | The one helper | `markedFact` writes the marked element; a hand-written source names a value with a `{{ze:<dotted.key>}}` token, resolved by `substitute` (Markdown) and `substituteHTML` (HTML) |
 | The key set | the snapshot's own dotted JSON keys, walked from the published file (`siteFactSnapshot.keys`), so a map-typed section's keys count too and no name table exists |
+| A hand-marked element | a hand-written HTML source may carry `data-ze-stat="<key>"` around fallback text. The build writes the snapshot's value into it when the key holds one, and leaves the fallback while the key's section is `null` (`markedValue`), which is what `site.js` does in the browser. A key neither the snapshot nor the `siteFacts` model names is refused by name, and so is markup inside the element |
 | The guard | `./le site check` reports `plain-figures`: each display string (a thousands separator or a "+") and each whole number of 100 or more beside its unit word that a page shows outside a marker (`checkPlainFigures`) |
 <!-- source: internal/le/site/plaintext.go -- checkPlainFigures, publishedFigures, plainFigures -->
+<!-- source: internal/le/site/factfallback.go -- markedValue, modelNamesFactKey, skipMarkedText -->
 
 A producer that writes a value itself, rather than through a token, reads it
 with `factLookup`: `marked` for the page, `plain` for its mirror and `llms.txt`.
@@ -176,6 +179,41 @@ The guard reads what a reader sees, the head and the text attributes included,
 and judges the published string, as the gate above does. A value under 100 with
 no separator is matched only through its marker, because bare small numbers are
 everywhere in prose.
+
+## Release data
+
+The newest published release is a network fact, but it changes only when the
+project publishes one, so it is committed rather than fetched by every build.
+`./le site release update` reads the releases list
+(`https://api.github.com/repos/ze-software/ze/releases`, every page, within one
+5-second bound and 8 MiB a page) and writes `website/data/github-releases.json`:
+the endpoint it read, then each published release newest first with its tag,
+title, publication time, prerelease flag and page URL, and each asset's name,
+size, sha256 digest and download URL. It reads the list rather than
+`/releases/latest`, because the list answers `[]` while no release exists and
+`/latest` answers 404, so "none yet" is a state the file can commit. Drafts are
+left out: no reader can download one.
+
+The command refuses, and leaves the committed file as it was, when the forge
+cannot be reached or answers something the file must not hold: a URL that is
+not https on `github.com` (or, for a download, `objects.githubusercontent.com`),
+a negative size, a digest that is not sha256, or more than a thousand
+releases. The refusal names the endpoint, the cause and the retry command. The
+site build reads the file through `siterelease.Read`, which applies the same
+checks, and refuses a checkout with no file, naming the command that writes it.
+<!-- source: internal/le/site/release/release.go -- Endpoint, fetch, Read, Release.check, Asset.check -->
+<!-- source: internal/le/site/release/actions.go -- update -->
+
+| Key | Derived by | Shown on |
+|-----|-----------|----------|
+| `release.version`, `.published`, `.url` | `factsFromReleases`: the newest release of the file, prereleases included | nothing yet |
+| `release.iso.size_display`, `.bytes`, `.name`, `.sha256`, `.download_url` | `releaseISO`: the one asset whose name ends `.iso`, the size in decimal megabytes with one decimal (`megabytes`) | `/labs/appliance-install/`: the ISO size, whose fallback text "under 150 MB" stays until a release carries an ISO |
+
+While the file states no release, the snapshot holds `"release": null` and
+`_sources.release` says "none yet". A release with no `.iso` asset holds
+`"iso": null`, and a release with two is refused, because the lab page states
+one image.
+<!-- source: internal/le/site/releasefacts.go -- factsFromReleases, releaseISO, megabytes -->
 
 ## Release inventory
 

@@ -235,13 +235,20 @@ func (snapshot siteFactSnapshot) substitute(source string, marked bool) (string,
 // inside a raw-text element (script, style, textarea). A span there would be
 // markup inside markup (risk R-1 of the spec that introduced tokens in HTML).
 //
+// An element the author marked by hand, data-ze-stat="<key>" around fallback
+// text, gets the snapshot's value as its text when the snapshot holds one, and
+// keeps its fallback while the key's section is null (markedValue): the lab
+// page's ISO size reads "under 150 MB" until a release carries an ISO. Either
+// way the element's text is what the snapshot states or the author's
+// fallback, never a value of an earlier build left behind.
+//
 // The page is rebuilt from each token's raw bytes, so everything that is not a
 // token reaches the artifact byte for byte as its author wrote it.
 func (snapshot siteFactSnapshot) substituteHTML(source string) (string, error) {
 	if snapshot.facts == nil {
 		return source, nil
 	}
-	if !strings.Contains(source, "{{ze:") {
+	if !strings.Contains(source, "{{ze:") && !strings.Contains(source, markerAttribute) {
 		return source, nil
 	}
 	var page strings.Builder
@@ -260,8 +267,25 @@ func (snapshot siteFactSnapshot) substituteHTML(source string) (string, error) {
 		marked := false
 		switch kind {
 		case xhtml.StartTagToken:
-			name, _ := tokenizer.TagName()
+			name, hasAttributes := tokenizer.TagName()
 			inHead, rawText = htmlTokenContext(string(name), true, inHead, rawText)
+			key, isMarker := markerKey(tokenizer, hasAttributes)
+			if !isMarker {
+				break
+			}
+			value, held, err := snapshot.markedValue(key)
+			if err != nil {
+				return "", err
+			}
+			if !held {
+				break
+			}
+			closing, err := skipMarkedText(tokenizer, string(name), key)
+			if err != nil {
+				return "", err
+			}
+			page.WriteString(raw + html.EscapeString(value) + closing)
+			continue
 		case xhtml.EndTagToken:
 			name, _ := tokenizer.TagName()
 			inHead, rawText = htmlTokenContext(string(name), false, inHead, rawText)
