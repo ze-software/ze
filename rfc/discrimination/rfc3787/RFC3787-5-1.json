@@ -2,6 +2,18 @@
   {
     "rid": "RFC3787-5-1",
     "polarity": "positive",
+    "unit": "internal/le/interoplab/bgp/check_isis_narrow.go::checkISISNarrowMetric",
+    "unit-sha": "42594431171eb3bf",
+    "claim-sha": "6ea24ad397919b83",
+    "route": "revert",
+    "producer": "internal/plugins/isis/lsdb/encode.go::narrowISReachEntryBytes",
+    "producer-sha": "675913e29c75410e",
+    "break": "body of narrowISReachEntryBytes replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
+    "citation": "4"
+  },
+  {
+    "rid": "RFC3787-5-1",
+    "polarity": "positive",
     "unit": "internal/plugins/isis/lsdb/rfc3787_metric_style_test.go::TestRFC3787NarrowMetricStylePseudonodeListsMembersInTLV2",
     "unit-sha": "379d494388e570c1",
     "claim-sha": "4727025d5d66e1ae",
