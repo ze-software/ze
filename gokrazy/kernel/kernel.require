@@ -3,6 +3,13 @@ CONFIG_EXT4_FS
 CONFIG_BLK_DEV_INITRD
 CONFIG_DEVTMPFS_MOUNT
 
+# The IPv6 stack, whose Neighbor Discovery (net/ipv6/ndisc.c) performs the RFC
+# 4861 obligations ze leaves to the kernel on the addresses it installs. The
+# rfc/short {lower-layer} rows name it as `linux:CONFIG_IPV6`, and that token is
+# accepted only for a symbol the build verifies here (internal/le/rfc evidence
+# ratchet), so a kernel built without it fails here, not in an ND exchange.
+CONFIG_IPV6
+
 # The netfilter surface ze's own firewall programs. A fragment line asking for
 # =y is a request; kconfig answers it, and it answered =m for the four tristate
 # expressions below until NF_CONNTRACK and NF_NAT were themselves built in.
