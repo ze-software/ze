@@ -563,10 +563,12 @@ func runLEChecksAnswers(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if refused.code != 1 {
-		return leChecksFailf("`le cli grammar internal` exited %d, want a refusal", refused.code)
+	// `cli grammar` is an area whose one action is check, so a stray word is
+	// an unknown action: a usage refusal, exit 2, that names the actions.
+	if refused.code != 2 {
+		return leChecksFailf("`le cli grammar internal` exited %d, want the usage refusal 2", refused.code)
 	}
-	if !strings.Contains(refused.stderr, "takes no arguments") {
+	if !strings.Contains(refused.stderr, "no such action in cli grammar: internal") {
 		return leChecksFailf("the refusal does not say why: %q", refused.stderr)
 	}
 
