@@ -599,7 +599,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5216-2.1.1-7">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{lower-layer}:</strong> Go crypto/tls; internal/core/eap/eap_tls.go::newTLSMethod sets no CipherSuites, so the default ECDHE suites of crypto/tls decide that a server_key_exchange is written and no value Ze writes chooses it</p></td>
+</div><p class="rfc-mark"><strong>{lower-layer}:</strong> Go crypto/tls, go:crypto/tls; internal/core/eap/eap_tls.go::newTLSMethod sets no CipherSuites, so in a TLS 1.2 handshake the default ECDHE suites of crypto/tls decide that a server_key_exchange is written and no value Ze writes chooses it; a TLS 1.3 handshake carries no such message and RFC 9190 governs it</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-2.1.1-8">RFC5216-2.1.1-8</code></td><td colspan="3"><span class="rfc-subject">If the peer supports EAP-TLS and is configured to use it, it MUST respond to the EAP-Request with an EAP-Response packet of EAP- Type=EAP-TLS. (§2.1.1)</span></td></tr>
 <tr><td></td>
@@ -783,7 +783,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5216-5.2-5">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{lower-layer}:</strong> Go crypto/x509; internal/component/pki/ca.go::LoadOrGenerateRoot issues every subject as a pkix.Name and x509.ParseCertificate accepts no other encoding, so no value Ze writes can make a non-empty subject anything but a distinguished name</p></td>
+</div><p class="rfc-mark"><strong>{lower-layer}:</strong> Go crypto/x509, go:crypto/x509; internal/component/pki/ca.go::LoadOrGenerateRoot issues every subject as a pkix.Name and x509.ParseCertificate accepts no other encoding, so no value Ze writes can make a non-empty subject anything but a distinguished name</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-5.3-2">RFC5216-5.3-2</code></td><td colspan="3"><span class="rfc-subject">Once a TLS session is established, EAP-TLS peer and server implementations MUST validate that the identities represented in the certificate are appropriate and authorized for use with EAP-TLS. (§5.3)</span></td></tr>
 <tr><td></td>
@@ -858,7 +858,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td><a href="#rfc5216-2.1.1-7"><code>RFC5216-2.1.1-7</code></a> The certificate message contains a public key certificate chain for either a key exchange public key (such as an RSA or Diffie-Hellman key exchange public key) or a signature public key (such as an RSA or Digital Signature Standard (DSS) signature public key). In the latter case, a TLS server_key_exchange handshake message MUST also be included to allow the key exchange to take place. (§2.1.1)</td>
 <td>no test</td>
-<td>no test carries this requirement id; annotated {lower-layer}: Go crypto/tls; internal/core/eap/eap_tls.go::newTLSMethod sets no CipherSuites, so the default ECDHE suites of crypto/tls decide that a server_key_exchange is written and no value Ze writes chooses it</td>
+<td>no test carries this requirement id; annotated {lower-layer}: Go crypto/tls, go:crypto/tls; internal/core/eap/eap_tls.go::newTLSMethod sets no CipherSuites, so in a TLS 1.2 handshake the default ECDHE suites of crypto/tls decide that a server_key_exchange is written and no value Ze writes chooses it; a TLS 1.3 handshake carries no such message and RFC 9190 governs it</td>
 </tr>
 <tr><td><a href="#rfc5216-2.4-7"><code>RFC5216-2.4-7</code></a> EAP-TLS implementations MUST support TLS v1.0. (§2.4)</td>
 <td>{gap}, no test</td>
@@ -882,7 +882,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td><a href="#rfc5216-5.2-5"><code>RFC5216-5.2-5</code></a> Where it is non-empty, the subject name field MUST contain an X.500 distinguished name (DN). (§5.2)</td>
 <td>no test</td>
-<td>no test carries this requirement id; annotated {lower-layer}: Go crypto/x509; internal/component/pki/ca.go::LoadOrGenerateRoot issues every subject as a pkix.Name and x509.ParseCertificate accepts no other encoding, so no value Ze writes can make a non-empty subject anything but a distinguished name</td>
+<td>no test carries this requirement id; annotated {lower-layer}: Go crypto/x509, go:crypto/x509; internal/component/pki/ca.go::LoadOrGenerateRoot issues every subject as a pkix.Name and x509.ParseCertificate accepts no other encoding, so no value Ze writes can make a non-empty subject anything but a distinguished name</td>
 </tr>
 <tr><td><a href="#rfc5216-5.3-2"><code>RFC5216-5.3-2</code></a> Once a TLS session is established, EAP-TLS peer and server implementations MUST validate that the identities represented in the certificate are appropriate and authorized for use with EAP-TLS. (§5.3)</td>
 <td>{gap}, no test</td>
@@ -2129,7 +2129,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 19:30 UTC</span>
+                    <span class="footer-published">Published 30 October 2026 17:53 UTC</span>
                 </div>
             </div>
         </footer>

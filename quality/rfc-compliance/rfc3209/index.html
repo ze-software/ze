@@ -431,7 +431,7 @@ Strict-hop validation and native loose-hop next-hop expansion are implemented in
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3209-2.6-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{lower-layer}:</strong> Linux MPLS forwarding (net/mpls); internal/plugins/rsvpte/fib.go::programSwap installs the label operation and no MTU, so the no-forward decision reads nothing Ze writes</p></td>
+</div><p class="rfc-mark"><strong>{lower-layer}:</strong> Linux MPLS forwarding with Ze&#39;s MPLS IP MTU kernel patch (net/mpls/af_mpls.c, gokrazy/kernel/patches/0002-mpls-ip-mtu.patch), linux:CONFIG_MPLS_IP_MTU; internal/plugins/rsvpte/fib.go::programSwap installs the swap with the LSP path MTU, which internal/plugins/fib/kernel/mplsentry_linux.go::transitRouteMTU writes as the route&#39;s RTAX_MTU, and the patched mpls_forward fragments a DF-clear IPv4 datagram larger than that budget and labels each fragment, and refuses to forward a DF-set one, answering ICMP Fragmentation Needed; the MTU is the state Ze installs this behaviour reads. Owed tag on that installed value: internal/plugins/fib/kernel/mplstransitmtu_linux_test.go (TestTransitRouteMTUFollowsTheProbe), which reads the transit route&#39;s MTU back</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3209-2.6-5">RFC3209-2.6-5</code></td><td colspan="3"><span class="rfc-subject">When the size of an IPv6 datagram (without labels) exceeds the value of M, (a) the datagram MUST NOT be forwarded (S2.6)</span></td></tr>
 <tr><td></td>
@@ -440,7 +440,7 @@ Strict-hop validation and native loose-hop next-hop expansion are implemented in
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3209-2.6-5">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{lower-layer}:</strong> Linux MPLS forwarding (net/mpls); internal/plugins/rsvpte/fib.go::programSwap installs the label operation and no MTU, so the IPv6 no-forward decision reads nothing Ze writes</p></td>
+</div><p class="rfc-mark"><strong>{lower-layer}:</strong> Linux MPLS forwarding with Ze&#39;s MPLS IP MTU kernel patch (net/mpls/af_mpls.c, gokrazy/kernel/patches/0002-mpls-ip-mtu.patch), linux:CONFIG_MPLS_IP_MTU; internal/plugins/rsvpte/fib.go::programSwap installs the swap with the LSP path MTU, which internal/plugins/fib/kernel/mplsentry_linux.go::transitRouteMTU writes as the route&#39;s RTAX_MTU, and the patched mpls_forward refuses to forward an IPv6 datagram larger than that budget, answering ICMPv6 Packet Too Big; the MTU is the state Ze installs this behaviour reads. Owed tag on that installed value: internal/plugins/fib/kernel/mplstransitmtu_linux_test.go (TestTransitRouteMTUFollowsTheProbe), which reads the transit route&#39;s MTU back</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3209-3-1">RFC3209-3-1</code></td><td colspan="3"><span class="rfc-subject">In Resv messages they MUST appear after the associated FILTER_SPEC and prior to any subsequent FILTER_SPEC. (S3)</span></td></tr>
 <tr><td></td>
@@ -918,11 +918,11 @@ Strict-hop validation and native loose-hop next-hop expansion are implemented in
 </tr>
 <tr><td><a href="#rfc3209-2.6-4"><code>RFC3209-2.6-4</code></a> When the size of an IPv4 datagram (without labels) exceeds the value of M, If the DF bit is not set in the IPv4 header, then (a) the datagram MUST be broken into fragments, each of whose size is no greater than M, and (b) each fragment MUST be labeled and then forwarded. If the DF bit is set in the IPv4 header, then (a) the datagram MUST NOT be forwarded (§2.6)</td>
 <td>no test</td>
-<td>no test carries this requirement id; annotated {lower-layer}: Linux MPLS forwarding (net/mpls); internal/plugins/rsvpte/fib.go::programSwap installs the label operation and no MTU, so the no-forward decision reads nothing Ze writes</td>
+<td>no test carries this requirement id; annotated {lower-layer}: Linux MPLS forwarding with Ze&#39;s MPLS IP MTU kernel patch (net/mpls/af_mpls.c, gokrazy/kernel/patches/0002-mpls-ip-mtu.patch), linux:CONFIG_MPLS_IP_MTU; internal/plugins/rsvpte/fib.go::programSwap installs the swap with the LSP path MTU, which internal/plugins/fib/kernel/mplsentry_linux.go::transitRouteMTU writes as the route&#39;s RTAX_MTU, and the patched mpls_forward fragments a DF-clear IPv4 datagram larger than that budget and labels each fragment, and refuses to forward a DF-set one, answering ICMP Fragmentation Needed; the MTU is the state Ze installs this behaviour reads. Owed tag on that installed value: internal/plugins/fib/kernel/mplstransitmtu_linux_test.go (TestTransitRouteMTUFollowsTheProbe), which reads the transit route&#39;s MTU back</td>
 </tr>
 <tr><td><a href="#rfc3209-2.6-5"><code>RFC3209-2.6-5</code></a> When the size of an IPv6 datagram (without labels) exceeds the value of M, (a) the datagram MUST NOT be forwarded (S2.6)</td>
 <td>no test</td>
-<td>no test carries this requirement id; annotated {lower-layer}: Linux MPLS forwarding (net/mpls); internal/plugins/rsvpte/fib.go::programSwap installs the label operation and no MTU, so the IPv6 no-forward decision reads nothing Ze writes</td>
+<td>no test carries this requirement id; annotated {lower-layer}: Linux MPLS forwarding with Ze&#39;s MPLS IP MTU kernel patch (net/mpls/af_mpls.c, gokrazy/kernel/patches/0002-mpls-ip-mtu.patch), linux:CONFIG_MPLS_IP_MTU; internal/plugins/rsvpte/fib.go::programSwap installs the swap with the LSP path MTU, which internal/plugins/fib/kernel/mplsentry_linux.go::transitRouteMTU writes as the route&#39;s RTAX_MTU, and the patched mpls_forward refuses to forward an IPv6 datagram larger than that budget, answering ICMPv6 Packet Too Big; the MTU is the state Ze installs this behaviour reads. Owed tag on that installed value: internal/plugins/fib/kernel/mplstransitmtu_linux_test.go (TestTransitRouteMTUFollowsTheProbe), which reads the transit route&#39;s MTU back</td>
 </tr>
 <tr><td><a href="#rfc3209-4.1.1.1-1"><code>RFC3209-4.1.1.1-1</code></a> If a label range has been specified in the label request, the label MUST be drawn from that range (S4.1.1.1)</td>
 <td>{gap}, no test</td>
@@ -2397,7 +2397,7 @@ Strict-hop validation and native loose-hop next-hop expansion are implemented in
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 19:30 UTC</span>
+                    <span class="footer-published">Published 30 October 2026 17:53 UTC</span>
                 </div>
             </div>
         </footer>

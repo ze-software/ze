@@ -1,6 +1,6 @@
 # Plugin catalog
 
-95 runtime plugins generated from `data/plugin-registry.json`. 74 runtime plugins declare configuration roots and 78 ship YANG modules.
+96 runtime plugins generated from `data/plugin-registry.json`. 75 runtime plugins declare configuration roots and 79 ship YANG modules.
 
 The HTML page includes browser-side search across name, purpose, config roots, dependencies, YANG files, and source directories. Clicking a plugin opens its generated local detail page.
 
@@ -29,7 +29,7 @@ Generated group for registry entries mapped to the BGP area. Config roots: `bgp`
 
 | Plugin | Used for | Config | Depends on | Source path |
 |--------|----------|--------|------------|-------------|
-| [`bgp`](bgp/index.md) | BGP routing daemon | `bgp` | None | `internal/component/bgp/plugin` |
+| [`bgp`](bgp/index.md) | BGP routing daemon | `bgp` | `policy` | `internal/component/bgp/plugin` |
 | [`bgp-adj-rib-in`](bgp-adj-rib-in/index.md) | Adj-RIB-In storage (raw hex replay) | None | None | `internal/component/bgp/plugins/adj_rib_in` |
 | [`bgp-aigp`](bgp-aigp/index.md) | Accumulated IGP Metric (RFC 7311) | None | None | `internal/component/bgp/plugins/aigp` |
 | [`bgp-bmp`](bgp-bmp/index.md) | BMP receiver and sender (RFC 7854, 8671) | `bgp`, `environment/bmp` | None | `internal/component/bgp/plugins/bmp` |
@@ -53,21 +53,21 @@ Generated group for registry entries mapped to the BGP area. Config roots: `bgp`
 - [`bgp-gr`](bgp-gr/index.md): Start after `bgp-rr` (order only).
 ## BGP Filter
 
-Generated group for registry entries mapped to the BGP Filter area. Config roots: `bgp`. Source area: `internal/component/bgp`.
+Generated group for registry entries mapped to the BGP Filter area. Config roots: `bgp`, `policy`. Source area: `internal/component/bgp`.
 
 | Plugin | Used for | Config | Depends on | Source path |
 |--------|----------|--------|------------|-------------|
-| [`bgp-filter-aspath`](bgp-filter-aspath/index.md) | Named AS-path regex filter (ordered entries, first match wins, accept/reject) | `bgp` | `bgp` | `internal/component/bgp/plugins/filter_aspath` |
-| [`bgp-filter-aspath-length`](bgp-filter-aspath-length/index.md) | Named AS-path length filter (accept/reject based on hop count) | `bgp` | `bgp` | `internal/component/bgp/plugins/filter_aspath_length` |
+| [`bgp-filter-aspath`](bgp-filter-aspath/index.md) | Named AS-path regex filter (ordered entries, first match wins, accept/reject) | `policy` | `bgp`, `policy` | `internal/component/bgp/plugins/filter_aspath` |
+| [`bgp-filter-aspath-length`](bgp-filter-aspath-length/index.md) | Named AS-path length filter (accept/reject based on hop count) | `policy` | `bgp`, `policy` | `internal/component/bgp/plugins/filter_aspath_length` |
 | [`bgp-filter-community`](bgp-filter-community/index.md) | Community tag/strip filter (standard, large, extended) | `bgp` | `bgp` | `internal/component/bgp/plugins/filter_community` |
-| [`bgp-filter-community-match`](bgp-filter-community-match/index.md) | Named community match filter (ordered entries, first match wins, accept/reject) | `bgp` | `bgp` | `internal/component/bgp/plugins/filter_community_match` |
-| [`bgp-filter-family`](bgp-filter-family/index.md) | Named address-family policy filter: remove a family's NLRI or tear down the session | `bgp` | `bgp` | `internal/component/bgp/plugins/filter_family` |
-| [`bgp-filter-irr`](bgp-filter-irr/index.md) | IRR-based prefix-list filter for eBGP peers | `bgp` | `bgp` | `internal/component/bgp/plugins/filter_irr` |
-| [`bgp-filter-modify`](bgp-filter-modify/index.md) | Named route attribute modifier (set local-preference, med, origin, next-hop) | `bgp` | `bgp` | `internal/component/bgp/plugins/filter_modify` |
-| [`bgp-filter-path-asn`](bgp-filter-path-asn/index.md) | Named reject-asn list: rejects a route whose AS_PATH carries a listed ASN at a listed position | `bgp` | `bgp` | `internal/component/bgp/plugins/filter_path_asn` |
-| [`bgp-filter-prefix`](bgp-filter-prefix/index.md) | Named prefix-list filter (CIDR + ge/le + accept/reject) | `bgp` | `bgp` | `internal/component/bgp/plugins/filter_prefix` |
-| [`bgp-filter-remove-private-as`](bgp-filter-remove-private-as/index.md) | Named AS-path action filter that removes RFC 6996 Private Use ASNs | `bgp` | `bgp` | `internal/component/bgp/plugins/filter_remove_private_as` |
-| [`loop`](loop/index.md) | Route loop detection (RFC 4271 S9, RFC 4456 S8) | None | None | `internal/component/bgp/reactor/filter` |
+| [`bgp-filter-community-match`](bgp-filter-community-match/index.md) | Named community match filter (ordered entries, first match wins, accept/reject) | `policy` | `bgp`, `policy` | `internal/component/bgp/plugins/filter_community_match` |
+| [`bgp-filter-family`](bgp-filter-family/index.md) | Named address-family policy filter: remove a family's NLRI or tear down the session | `policy` | `bgp`, `policy` | `internal/component/bgp/plugins/filter_family` |
+| [`bgp-filter-irr`](bgp-filter-irr/index.md) | IRR-based prefix-list filter for eBGP peers | `bgp` | `bgp`, `policy` | `internal/component/bgp/plugins/filter_irr` |
+| [`bgp-filter-modify`](bgp-filter-modify/index.md) | Named route attribute modifier (set local-preference, med, origin, next-hop) | `policy` | `bgp`, `policy` | `internal/component/bgp/plugins/filter_modify` |
+| [`bgp-filter-path-asn`](bgp-filter-path-asn/index.md) | Named reject-asn list: rejects a route whose AS_PATH carries a listed ASN at a listed position | `policy` | `bgp`, `policy` | `internal/component/bgp/plugins/filter_path_asn` |
+| [`bgp-filter-prefix`](bgp-filter-prefix/index.md) | Named prefix-list filter (CIDR + ge/le + accept/reject) | `policy` | `bgp`, `policy` | `internal/component/bgp/plugins/filter_prefix` |
+| [`bgp-filter-remove-private-as`](bgp-filter-remove-private-as/index.md) | Named AS-path action filter that removes RFC 6996 Private Use ASNs | `policy` | `bgp`, `policy` | `internal/component/bgp/plugins/filter_remove_private_as` |
+| [`loop`](loop/index.md) | Route loop detection (RFC 4271 S9, RFC 4456 S8) | None | `policy` | `internal/component/bgp/reactor/filter` |
 
 ## BGP NLRI
 
@@ -86,14 +86,6 @@ Generated group for registry entries mapped to the BGP NLRI area. Source area: `
 | [`bgp-nlri-vpls`](bgp-nlri-vpls/index.md) | VPLS family plugin (RFC 4761) | None | None | `internal/component/bgp/plugins/nlri/vpls` |
 | [`bgp-nlri-vpn`](bgp-nlri-vpn/index.md) | VPN family plugin | None | None | `internal/component/bgp/plugins/nlri/vpn` |
 
-## BGP Redistribute
-
-Generated group for registry entries mapped to the BGP Redistribute area. Config roots: `redistribute`. Source area: `internal/component/bgp`.
-
-| Plugin | Used for | Config | Depends on | Source path |
-|--------|----------|--------|------------|-------------|
-| [`redistribute-orchestrator`](redistribute-orchestrator/index.md) | Redistribute orchestrator: dispatches protocol route events to registered consumers | `redistribute` | `bgp` | `internal/component/bgp/plugins/redistribute_egress` |
-
 ## Class of Service
 
 Generated group for registry entries mapped to the Class of Service area. Config roots: `class-of-service`. Source area: `internal/plugins/cos`.
@@ -109,7 +101,7 @@ Generated group for registry entries mapped to the Connected area. Config roots:
 
 | Plugin | Used for | Config | Depends on | Source path |
 |--------|----------|--------|------------|-------------|
-| [`connected`](connected/index.md) | Connected routes: redistribute directly connected interface prefixes | `connected` | None | `internal/plugins/connected` |
+| [`connected`](connected/index.md) | Connected routes: redistribute directly connected interface prefixes | `connected` | `policy` | `internal/plugins/connected` |
 
 - [`connected`](connected/index.md): Start after `redistribute-orchestrator` (order only).
 ## Control Plane Protection
@@ -198,7 +190,7 @@ Generated group for registry entries mapped to the IS-IS area. Config roots: `is
 
 | Plugin | Used for | Config | Depends on | Source path |
 |--------|----------|--------|------------|-------------|
-| [`isis`](isis/index.md) | Intermediate System to Intermediate System (ISO/IEC 10589, RFC 1195): native link-state IGP | `isis` | `fib-kernel`, `sysctl` | `internal/plugins/isis` |
+| [`isis`](isis/index.md) | Intermediate System to Intermediate System (ISO/IEC 10589, RFC 1195): native link-state IGP | `isis` | `fib-kernel`, `sysctl`, `policy` | `internal/plugins/isis` |
 
 ## Interface
 
@@ -262,15 +254,16 @@ Generated group for registry entries mapped to the OSPF area. Config roots: `osp
 
 | Plugin | Used for | Config | Depends on | Source path |
 |--------|----------|--------|------------|-------------|
-| [`ospf`](ospf/index.md) | Open Shortest Path First v2 (RFC 2328): native link-state IPv4 IGP | `ospf` | `interface`, `fib-kernel`, `sysctl` | `internal/plugins/ospf` |
+| [`ospf`](ospf/index.md) | Open Shortest Path First v2 (RFC 2328): native link-state IPv4 IGP | `ospf` | `interface`, `fib-kernel`, `sysctl`, `policy` | `internal/plugins/ospf` |
 
 ## Policy
 
-Generated group for registry entries mapped to the Policy area. Config roots: `policy`. Source area: `internal/plugins/policyroute`.
+Generated group for registry entries mapped to the Policy area. Config roots: `policy`. Source area: `internal/component/policy`, `internal/plugins/policyroute`.
 
 | Plugin | Used for | Config | Depends on | Source path |
 |--------|----------|--------|------------|-------------|
-| [`policy-routes`](policy-routes/index.md) | Policy-based routing: nftables packet marking and ip rule table selection | `policy` | `firewall` | `internal/plugins/policyroute` |
+| [`policy`](policy/index.md) | Route policy library: the policy root, named filter instances and the route field vocabulary | `policy` | None | `internal/component/policy` |
+| [`policy-routes`](policy-routes/index.md) | Policy-based routing: nftables packet marking and ip rule table selection | `policy/route` | `firewall` | `internal/plugins/policyroute` |
 
 ## RIB
 
@@ -278,7 +271,7 @@ Generated group for registry entries mapped to the RIB area. Config roots: `rib`
 
 | Plugin | Used for | Config | Depends on | Source path |
 |--------|----------|--------|------------|-------------|
-| [`rib`](rib/index.md) | System RIB: selects best route across protocols by admin distance | `rib` | None | `internal/component/sysrib` |
+| [`rib`](rib/index.md) | System RIB: selects best route across protocols by admin distance | `rib` | `policy` | `internal/component/sysrib` |
 
 - [`rib`](rib/index.md): Start after `bgp-rib` (order only).
 ## RSVP TE
@@ -289,6 +282,15 @@ Generated group for registry entries mapped to the RSVP TE area. Config roots: `
 |--------|----------|--------|------------|-------------|
 | [`rsvp-te`](rsvp-te/index.md) | RSVP-TE: Resource Reservation Protocol - Traffic Engineering (RFC 3209) | `rsvp-te` | `interface`, `fib-kernel`, `sysctl` | `internal/plugins/rsvpte` |
 
+## Redistribute
+
+Generated group for registry entries mapped to the Redistribute area. Config roots: `redistribute`. Source area: `internal/plugins/redistribute`.
+
+| Plugin | Used for | Config | Depends on | Source path |
+|--------|----------|--------|------------|-------------|
+| [`redistribute-orchestrator`](redistribute-orchestrator/index.md) | Redistribute orchestrator: dispatches protocol route events to registered consumers | `redistribute` | `policy` | `internal/plugins/redistribute` |
+
+- [`redistribute-orchestrator`](redistribute-orchestrator/index.md): Start after `bgp` (order only).
 ## Routing Table
 
 Generated group for registry entries mapped to the Routing Table area. Config roots: `routing-table`. Source area: `internal/plugins/routingtable`.
@@ -320,7 +322,7 @@ Generated group for registry entries mapped to the Static area. Config roots: `s
 
 | Plugin | Used for | Config | Depends on | Source path |
 |--------|----------|--------|------------|-------------|
-| [`static`](static/index.md) | Static routes: config-driven kernel/VPP route programming with ECMP | `static` | `routing-table`, `rib` | `internal/plugins/static` |
+| [`static`](static/index.md) | Static routes: config-driven kernel/VPP route programming with ECMP | `static` | `routing-table`, `rib`, `policy` | `internal/plugins/static` |
 
 - [`static`](static/index.md): Start after `bfd`, `redistribute-orchestrator` (order only).
 ## Sysctl

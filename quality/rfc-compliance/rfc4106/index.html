@@ -324,7 +324,7 @@ The 8- and 12-octet ICV variants (Transform IDs 18 and 19) and 192-bit keys are 
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4106-2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{lower-layer}:</strong> Linux XFRM rfc4106(gcm(aes)) and its IV generator; internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams installs only the key and salt, and the datapath chooses every IV, so no value ze writes decides the nonce</p></td>
+</div><p class="rfc-mark"><strong>{lower-layer}:</strong> Linux XFRM rfc4106(gcm(aes)) and its seqiv IV generator, linux:CONFIG_CRYPTO_GCM; internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams installs only the key and salt, and the datapath chooses every IV, so no value ze writes decides the nonce directly; the generator derives each IV from the SA&#39;s sequence number, and the value Ze installs that keeps it from cycling is OSeqMayWrap=false, written on every state by the `state.OSeqMayWrap = false` guard in xfrmStateFromParams. Owed tag on that value: internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go (TestRFC4106GCMKeyCannotOutliveTheSequenceSpace) and rfc4301_sad_items_linux_test.go (TestRFC4301SADItemSequenceCounterOverflowIsNeverRollover)</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4106-2-2">RFC4106-2-2</code></td><td colspan="3"><span class="rfc-subject">For safety&#39;s sake, implementations MUST use an automated key management system, such as the Internet Key Exchange (IKE) [RFC2409], to ensure that this requirement is met. (§2)</span></td></tr>
 <tr><td></td>
@@ -342,7 +342,7 @@ The 8- and 12-octet ICV variants (Transform IDs 18 and 19) and 192-bit keys are 
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4106-3.1-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{lower-layer}:</strong> Linux XFRM rfc4106(gcm(aes)); internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams names the algorithm and the kernel writes the IV field of every packet</p></td>
+</div><p class="rfc-mark"><strong>{lower-layer}:</strong> Linux XFRM rfc4106(gcm(aes)), linux:CONFIG_CRYPTO_GCM; internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams names the algorithm and the kernel writes the IV field of every packet</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4106-3.1-2">RFC4106-3.1-2</code></td><td colspan="3"><span class="rfc-subject">For a given key, the IV MUST NOT repeat. (§3.1)</span></td></tr>
 <tr><td></td>
@@ -351,7 +351,7 @@ The 8- and 12-octet ICV variants (Transform IDs 18 and 19) and 192-bit keys are 
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4106-3.1-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{lower-layer}:</strong> Linux XFRM rfc4106(gcm(aes)) and its IV generator; internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams installs no IV, so the kernel alone decides IV uniqueness</p></td>
+</div><p class="rfc-mark"><strong>{lower-layer}:</strong> Linux XFRM rfc4106(gcm(aes)) and its seqiv IV generator, linux:CONFIG_CRYPTO_GCM; internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams installs no IV, so the kernel generates each one; the generator derives each IV from the SA&#39;s sequence number, and the value Ze installs that keeps it from repeating is OSeqMayWrap=false, written on every state by the `state.OSeqMayWrap = false` guard in xfrmStateFromParams. Owed tag on that value: internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go (TestRFC4106GCMKeyCannotOutliveTheSequenceSpace) and rfc4301_sad_items_linux_test.go (TestRFC4301SADItemSequenceCounterOverflowIsNeverRollover)</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4106-6-1">RFC4106-6-1</code></td><td colspan="3"><span class="rfc-subject">Implementations MUST support a full-length 16-octet ICV, and MAY support 8 or 12 octet ICVs, and MUST NOT support other ICV lengths. (§6)</span></td></tr>
 <tr><td></td>
@@ -445,15 +445,15 @@ The 8- and 12-octet ICV variants (Transform IDs 18 and 19) and 192-bit keys are 
 <tbody>
 <tr><td><a href="#rfc4106-2-1"><code>RFC4106-2-1</code></a> The same nonce and key combination MUST NOT be used more than once. (§2)</td>
 <td>no test</td>
-<td>no test carries this requirement id; annotated {lower-layer}: Linux XFRM rfc4106(gcm(aes)) and its IV generator; internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams installs only the key and salt, and the datapath chooses every IV, so no value ze writes decides the nonce</td>
+<td>no test carries this requirement id; annotated {lower-layer}: Linux XFRM rfc4106(gcm(aes)) and its seqiv IV generator, linux:CONFIG_CRYPTO_GCM; internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams installs only the key and salt, and the datapath chooses every IV, so no value ze writes decides the nonce directly; the generator derives each IV from the SA&#39;s sequence number, and the value Ze installs that keeps it from cycling is OSeqMayWrap=false, written on every state by the `state.OSeqMayWrap = false` guard in xfrmStateFromParams. Owed tag on that value: internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go (TestRFC4106GCMKeyCannotOutliveTheSequenceSpace) and rfc4301_sad_items_linux_test.go (TestRFC4301SADItemSequenceCounterOverflowIsNeverRollover)</td>
 </tr>
 <tr><td><a href="#rfc4106-3.1-1"><code>RFC4106-3.1-1</code></a> The AES-GCM-ESP IV field MUST be eight octets. (§3.1)</td>
 <td>no test</td>
-<td>no test carries this requirement id; annotated {lower-layer}: Linux XFRM rfc4106(gcm(aes)); internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams names the algorithm and the kernel writes the IV field of every packet</td>
+<td>no test carries this requirement id; annotated {lower-layer}: Linux XFRM rfc4106(gcm(aes)), linux:CONFIG_CRYPTO_GCM; internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams names the algorithm and the kernel writes the IV field of every packet</td>
 </tr>
 <tr><td><a href="#rfc4106-3.1-2"><code>RFC4106-3.1-2</code></a> For a given key, the IV MUST NOT repeat. (§3.1)</td>
 <td>no test</td>
-<td>no test carries this requirement id; annotated {lower-layer}: Linux XFRM rfc4106(gcm(aes)) and its IV generator; internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams installs no IV, so the kernel alone decides IV uniqueness</td>
+<td>no test carries this requirement id; annotated {lower-layer}: Linux XFRM rfc4106(gcm(aes)) and its seqiv IV generator, linux:CONFIG_CRYPTO_GCM; internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams installs no IV, so the kernel generates each one; the generator derives each IV from the SA&#39;s sequence number, and the value Ze installs that keeps it from repeating is OSeqMayWrap=false, written on every state by the `state.OSeqMayWrap = false` guard in xfrmStateFromParams. Owed tag on that value: internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go (TestRFC4106GCMKeyCannotOutliveTheSequenceSpace) and rfc4301_sad_items_linux_test.go (TestRFC4301SADItemSequenceCounterOverflowIsNeverRollover)</td>
 </tr>
 </tbody>
 </table>
@@ -801,7 +801,7 @@ The 8- and 12-octet ICV variants (Transform IDs 18 and 19) and 192-bit keys are 
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 19:30 UTC</span>
+                    <span class="footer-published">Published 30 October 2026 17:53 UTC</span>
                 </div>
             </div>
         </footer>

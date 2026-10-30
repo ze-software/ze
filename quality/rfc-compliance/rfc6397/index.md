@@ -1,6 +1,6 @@
 # RFC 6397 - Multi-Threaded Routing Toolkit (MRT) Border Gateway Protocol (BGP) Routing Information Export Format with Geo-Location Extensions
 
-No row in the public ledger. Every requirement this repository extracted from RFC 6397, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+Unsupported. Every requirement this repository extracted from RFC 6397, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
 
 ## Overview
 
@@ -14,7 +14,6 @@ what Ze has
 | One polarity plus reason | 0.0% | 0 of 4 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 4 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 4 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| No test at all | 0.0% | 0 of 4 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 | Proven by a recorded break | 0.0% | 0 of 0 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
@@ -24,11 +23,19 @@ measures that are neither good news nor bad
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | Gated MUSTs | 4 | of 5 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 4 | of 4 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 100.0% | 4 of 4 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Out of scope | 0 | of 4 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 0.0% | 0 of 4 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
 | Met below Ze | 0.0% | 0 of 4 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 4 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 | Linux cannot do this | 0.0% | 0 of 4 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit |
+
+### Negative
+
+what Ze owes
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| No test at all | 100.0% | 4 of 4 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
 The 9 shares marked as a part above are the whole of the 4 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -42,7 +49,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
-| No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
@@ -54,12 +61,12 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 | Field | Value |
 |---|---|
-| Public status | No row in the public ledger |
+| Public status | Unsupported |
 | Enrolment | Enrolled |
 | Requirements | 5 |
 | Gated MUST-level | 4 |
-| Not applicable, so out of scope | 4 |
-| Declared gaps | 0 |
+| Not applicable, so out of scope | 0 |
+| Declared gaps | 4 |
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
@@ -73,11 +80,19 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 ## Enrolment
 
-Enrolled: MRT BGP Routing Information Export Format with Geo-Location Extensions: four MUST-level requirements, all {not-applicable} to Ze. Ze implements standard MRT (RFC 6396) only -- its writer emits TABLE_DUMP_V2 with a PEER_INDEX_TABLE and RIB entries (internal/plugins/mrt/dump.go:187 writePeerIndexTable, dump.go:200 TypeTableDumpV2/TDV2PeerIndexTable) -- and has no RFC 6397 geo-location extension (no GEO_PEER_TABLE, Collector/Peer Latitude/Longitude, WGS84, or location-object code path anywhere in internal/plugins/mrt/). RFC6397-4.1-1 (Collector coords not mixed WGS84/NAN) and RFC6397-4.1-2 (Peer coords not mixed) have no coordinate fields to constrain; RFC6397-4.1-3 (GEO_PEER_TABLE order matches PEER_INDEX_TABLE) has no GEO_PEER_TABLE; RFC6397-6-1 (privacy filtering of location info) has no location records to filter. The 4.1-4 MAY (NAN coordinates for privacy) is not gated.
+Enrolled: MRT BGP Routing Information Export Format with Geo-Location Extensions: four MUST-level requirements, all gaps: Ze does not implement this extension. Ze implements standard MRT (RFC 6396) only -- its writer emits TABLE_DUMP_V2 with a PEER_INDEX_TABLE and RIB entries (internal/plugins/mrt/dump.go:187 writePeerIndexTable, dump.go:200 TypeTableDumpV2/TDV2PeerIndexTable) -- and has no RFC 6397 geo-location extension (no GEO_PEER_TABLE, Collector/Peer Latitude/Longitude, WGS84, or location-object code path anywhere in internal/plugins/mrt/). RFC6397-4.1-1 (Collector coords not mixed WGS84/NAN) and RFC6397-4.1-2 (Peer coords not mixed) have no coordinate fields to constrain; RFC6397-4.1-3 (GEO_PEER_TABLE order matches PEER_INDEX_TABLE) has no GEO_PEER_TABLE; RFC6397-6-1 (privacy filtering of location info) has no location records to filter. The 4.1-4 MAY (NAN coordinates for privacy) is not gated.
 
 ## What the public ledger says
 
-No row in the public ledger, so its summary declares `| Support | - |` and docs/features/rfc-status.md carries no row for RFC 6397.
+**Status:** Unsupported
+
+**What the ledger says is covered:**
+
+None: ze writes no GEO_PEER_TABLE.
+
+**What the ledger says remains:**
+
+Four MUST gaps, the whole geo-location extension ([`RFC6397-4.1-1`](#rfc6397-4.1-1), 4.1-2, 4.1-3, 6-1).
 
 ## Coverage
 
@@ -96,26 +111,26 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 
 ## Attainable ceiling
 
-Mandatory ceiling: 0 of 4 (0.0%); excluded: Not applicable (classification can be revisited): 4 of 4 (100.0%). Optional ceiling: 1 of 1 (100.0%). Lowest mandatory ceiling: rfc6397 0 of 4 (0.0%). Lowest optional ceiling: rfc6397 1 of 1 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+Mandatory ceiling: 4 of 4 (100.0%). Optional ceiling: 1 of 1 (100.0%). Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: rfc6397 4 of 4 (100.0%). Lowest optional ceiling: rfc6397 1 of 1 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
 
 ## Requirements
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC6397-4.1-1` | The Collector Latitude and Collector Longitude MUST NOT be a mix of WGS84 [WGS-84] datum coordinates and NAN values. (§4.1) | MUST NOT | 4.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** Ze does not implement the RFC 6397 MRT geo-location extension. Its MRT writer emits only standard RFC 6396 records -- TABLE_DUMP_V2 with a PEER_INDEX_TABLE and RIB entries (internal/plugins/mrt/dump.go:187 writePeerIndexTable, dump.go:200 TypeTableDumpV2/TDV2PeerIndexTable) -- and has no GEO_PEER_TABLE / Collector-Latitude / Collector-Longitude / WGS84 code path (grep for geo-location/latitude/longitude/WGS84 across internal/plugins/mrt/ finds nothing), so Ze never emits Collector coordinates that could be mixed with NAN. |
-| `RFC6397-4.1-2` | The Peer Latitude and Peer Longitude MUST NOT be a mix of WGS84 [WGS-84] datum coordinates and NAN values for a single peer. (§4.1) | MUST NOT | 4.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** Ze emits no GEO_PEER_TABLE and no Peer-Latitude / Peer-Longitude fields (it writes only the standard RFC 6396 PEER_INDEX_TABLE, internal/plugins/mrt/dump.go:187), so there are no per-peer coordinates that could be mixed with NAN. |
-| `RFC6397-4.1-3` | The order of the Peer Entries in the GEO_PEER_TABLE MUST match the order and number as existing in the PEER_INDEX_TABLE. (§4.1) | MUST | 4.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** Ze emits no GEO_PEER_TABLE record at all (only the standard RFC 6396 PEER_INDEX_TABLE and RIB entries, internal/plugins/mrt/dump.go:187,200), so there is no GEO_PEER_TABLE ordering to keep consistent with the PEER_INDEX_TABLE. |
-| `RFC6397-6-1` | Location information derived from a location object with more restrictive privacy rules MUST NOT be included in an MRT geo-location record unless there are non-technical measures in place that enforce and communicate the constraints on the use of the location information in the MRT geo-location format (e.g., contractual agreements between peers). (§6) | MUST NOT | 6 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** Ze generates no MRT geo-location records (it has no RFC 6397 GEO_PEER_TABLE / location-object code path in internal/plugins/mrt/), so there is no location information for it to include or filter on privacy grounds. |
+| `RFC6397-4.1-1` | The Collector Latitude and Collector Longitude MUST NOT be a mix of WGS84 [WGS-84] datum coordinates and NAN values. (§4.1) | MUST NOT | 4.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze does not implement the RFC 6397 geo-location extension: its MRT writer emits TABLE_DUMP_V2 with a PEER_INDEX_TABLE and RIB entries (internal/plugins/mrt/dump.go::writePeerIndexTable) and no GEO_PEER_TABLE, so it writes no Collector Latitude or Longitude; owed with the extension |
+| `RFC6397-4.1-2` | The Peer Latitude and Peer Longitude MUST NOT be a mix of WGS84 [WGS-84] datum coordinates and NAN values for a single peer. (§4.1) | MUST NOT | 4.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze does not implement the RFC 6397 geo-location extension: it writes no GEO_PEER_TABLE (internal/plugins/mrt/dump.go::writePeerIndexTable writes only the RFC 6396 PEER_INDEX_TABLE), so it writes no Peer Latitude or Longitude; owed with the extension |
+| `RFC6397-4.1-3` | The order of the Peer Entries in the GEO_PEER_TABLE MUST match the order and number as existing in the PEER_INDEX_TABLE. (§4.1) | MUST | 4.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze does not implement the RFC 6397 geo-location extension: it writes no GEO_PEER_TABLE beside the PEER_INDEX_TABLE of internal/plugins/mrt/dump.go::writePeerIndexTable, so no Peer Entry order is kept; owed with the extension |
+| `RFC6397-6-1` | Location information derived from a location object with more restrictive privacy rules MUST NOT be included in an MRT geo-location record unless there are non-technical measures in place that enforce and communicate the constraints on the use of the location information in the MRT geo-location format (e.g., contractual agreements between peers). (§6) | MUST NOT | 6 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze does not implement the RFC 6397 geo-location extension: internal/plugins/mrt writes no geo-location record and reads no location object, so no privacy rule is applied to one; owed with the extension |
 | `RFC6397-4.1-4` | The latitude and longitude MAY be a Not A Number (NAN) [IEEE754] for situations where the geo-location of the collector is considered private. (§4.1) | MAY | 4.1 | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC6397-4.1-1`](#rfc6397-4.1-1) The Collector Latitude and Collector Longitude MUST NOT be a mix of WGS84 [WGS-84] datum coordinates and NAN values. (§4.1) | no test | no test carries this requirement id; annotated {not-applicable}: Ze does not implement the RFC 6397 MRT geo-location extension. Its MRT writer emits only standard RFC 6396 records -- TABLE_DUMP_V2 with a PEER_INDEX_TABLE and RIB entries (internal/plugins/mrt/dump.go:187 writePeerIndexTable, dump.go:200 TypeTableDumpV2/TDV2PeerIndexTable) -- and has no GEO_PEER_TABLE / Collector-Latitude / Collector-Longitude / WGS84 code path (grep for geo-location/latitude/longitude/WGS84 across internal/plugins/mrt/ finds nothing), so Ze never emits Collector coordinates that could be mixed with NAN. |
-| [`RFC6397-4.1-2`](#rfc6397-4.1-2) The Peer Latitude and Peer Longitude MUST NOT be a mix of WGS84 [WGS-84] datum coordinates and NAN values for a single peer. (§4.1) | no test | no test carries this requirement id; annotated {not-applicable}: Ze emits no GEO_PEER_TABLE and no Peer-Latitude / Peer-Longitude fields (it writes only the standard RFC 6396 PEER_INDEX_TABLE, internal/plugins/mrt/dump.go:187), so there are no per-peer coordinates that could be mixed with NAN. |
-| [`RFC6397-4.1-3`](#rfc6397-4.1-3) The order of the Peer Entries in the GEO_PEER_TABLE MUST match the order and number as existing in the PEER_INDEX_TABLE. (§4.1) | no test | no test carries this requirement id; annotated {not-applicable}: Ze emits no GEO_PEER_TABLE record at all (only the standard RFC 6396 PEER_INDEX_TABLE and RIB entries, internal/plugins/mrt/dump.go:187,200), so there is no GEO_PEER_TABLE ordering to keep consistent with the PEER_INDEX_TABLE. |
-| [`RFC6397-6-1`](#rfc6397-6-1) Location information derived from a location object with more restrictive privacy rules MUST NOT be included in an MRT geo-location record unless there are non-technical measures in place that enforce and communicate the constraints on the use of the location information in the MRT geo-location format (e.g., contractual agreements between peers). (§6) | no test | no test carries this requirement id; annotated {not-applicable}: Ze generates no MRT geo-location records (it has no RFC 6397 GEO_PEER_TABLE / location-object code path in internal/plugins/mrt/), so there is no location information for it to include or filter on privacy grounds. |
+| [`RFC6397-4.1-1`](#rfc6397-4.1-1) The Collector Latitude and Collector Longitude MUST NOT be a mix of WGS84 [WGS-84] datum coordinates and NAN values. (§4.1) | {gap}, no test | ze does not implement the RFC 6397 geo-location extension: its MRT writer emits TABLE_DUMP_V2 with a PEER_INDEX_TABLE and RIB entries (internal/plugins/mrt/dump.go::writePeerIndexTable) and no GEO_PEER_TABLE, so it writes no Collector Latitude or Longitude; owed with the extension |
+| [`RFC6397-4.1-2`](#rfc6397-4.1-2) The Peer Latitude and Peer Longitude MUST NOT be a mix of WGS84 [WGS-84] datum coordinates and NAN values for a single peer. (§4.1) | {gap}, no test | ze does not implement the RFC 6397 geo-location extension: it writes no GEO_PEER_TABLE (internal/plugins/mrt/dump.go::writePeerIndexTable writes only the RFC 6396 PEER_INDEX_TABLE), so it writes no Peer Latitude or Longitude; owed with the extension |
+| [`RFC6397-4.1-3`](#rfc6397-4.1-3) The order of the Peer Entries in the GEO_PEER_TABLE MUST match the order and number as existing in the PEER_INDEX_TABLE. (§4.1) | {gap}, no test | ze does not implement the RFC 6397 geo-location extension: it writes no GEO_PEER_TABLE beside the PEER_INDEX_TABLE of internal/plugins/mrt/dump.go::writePeerIndexTable, so no Peer Entry order is kept; owed with the extension |
+| [`RFC6397-6-1`](#rfc6397-6-1) Location information derived from a location object with more restrictive privacy rules MUST NOT be included in an MRT geo-location record unless there are non-technical measures in place that enforce and communicate the constraints on the use of the location information in the MRT geo-location format (e.g., contractual agreements between peers). (§6) | {gap}, no test | ze does not implement the RFC 6397 geo-location extension: internal/plugins/mrt writes no geo-location record and reads no location object, so no privacy rule is applied to one; owed with the extension |
 
 ## Proof state
 

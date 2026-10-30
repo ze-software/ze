@@ -4,14 +4,14 @@ Technology aggregate. PPP, PPPoE, and L2TP subscriber access. The RFCs whose sum
 
 [All profiles](../) · [All RFCs](../../)
 
-- **Mandatory**: 60.5% (179 of 296 (60.5%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
+- **Mandatory**: 61.8% (183 of 296 (61.8%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
 - **Optional**: 4.1% (4 of 97 (4.1%)). MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.
-- **Mandatory ceiling**: 96.6% (286 of 296 (96.6%); excluded: Met by a lower layer: 2 of 296 (0.7%); Not applicable (classification can be revisited): 8 of 296 (2.7%)). Attainable mandatory rows under current classifications, over the unchanged total.
+- **Mandatory ceiling**: 98.6% (292 of 296 (98.6%); excluded: Met by a lower layer: 4 of 296 (1.4%)). Attainable mandatory rows under current classifications, over the unchanged total.
 - **Optional ceiling**: 100.0% (97 of 97 (100.0%)). Attainable optional rows under current classifications, over the unchanged total.
 - **Not walked**: 0 (of 11 RFCs). RFCs with no valid extraction sign-off: their rows count in neither figure.
 - **Mandatory register**: not complete (every row proven, none unwalked). A profile is complete only when it requires at least one RFC and none of them is unwalked.
 
-Mandatory ceiling: 286 of 296 (96.6%); excluded: Met by a lower layer: 2 of 296 (0.7%); Not applicable (classification can be revisited): 8 of 296 (2.7%). Optional ceiling: 97 of 97 (100.0%). Lowest mandatory ceiling: rfc1332 7 of 8 (87.5%). Lowest optional ceiling: rfc1332 6 of 6 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+Mandatory ceiling: 292 of 296 (98.6%); excluded: Met by a lower layer: 4 of 296 (1.4%). Optional ceiling: 97 of 97 (100.0%). Lowest mandatory ceiling: rfc2516 36 of 37 (97.3%). Lowest optional ceiling: rfc1332 6 of 6 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
 
 ## Tree
 
@@ -21,7 +21,7 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 
 | RFC | Title | Mandatory | Optional |
 |---|---|---|---|
-| [RFC 1661](../../rfc1661/) | The Point-to-Point Protocol (PPP) | 39 of 76 (51.3%); ceiling 70 of 76 (92.1%); excluded: Not applicable (classification can be revisited): 6 of 76 (7.9%) | 0 of 25 (0.0%); ceiling 25 of 25 (100.0%) |
+| [RFC 1661](../../rfc1661/) | The Point-to-Point Protocol (PPP) | 39 of 76 (51.3%); ceiling 74 of 76 (97.4%); excluded: Met by a lower layer: 2 of 76 (2.6%) | 0 of 25 (0.0%); ceiling 25 of 25 (100.0%) |
 
 ### Level 1
 
@@ -35,8 +35,8 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 
 | RFC | Title | Mandatory | Optional |
 |---|---|---|---|
-| [RFC 1332](../../rfc1332/) (cycle with rfc1034, rfc1035, rfc1122, rfc1191, rfc1195, rfc1812, rfc2131, rfc2132, rfc4291, rfc4443, rfc4861, rfc5905, rfc8200, rfc8201, rfc9293) | The PPP Internet Protocol Control Protocol (IPCP) | 6 of 8 (75.0%); ceiling 7 of 8 (87.5%); excluded: Not applicable (classification can be revisited): 1 of 8 (12.5%) | 0 of 6 (0.0%); ceiling 6 of 6 (100.0%) |
-| [RFC 1334](../../rfc1334/) | PPP Authentication Protocols | 11 of 13 (84.6%); ceiling 13 of 13 (100.0%) | 0 of 3 (0.0%); ceiling 3 of 3 (100.0%) |
+| [RFC 1332](../../rfc1332/) (cycle with rfc1034, rfc1035, rfc1122, rfc1191, rfc1195, rfc1812, rfc2131, rfc2132, rfc4291, rfc4443, rfc4861, rfc5905, rfc8200, rfc8201, rfc9293) | The PPP Internet Protocol Control Protocol (IPCP) | 8 of 8 (100.0%); ceiling 8 of 8 (100.0%) | 0 of 6 (0.0%); ceiling 6 of 6 (100.0%) |
+| [RFC 1334](../../rfc1334/) | PPP Authentication Protocols | 13 of 13 (100.0%); ceiling 13 of 13 (100.0%) | 0 of 3 (0.0%); ceiling 3 of 3 (100.0%) |
 | [RFC 4638](../../rfc4638/) | Accommodating a Maximum Transit Unit/Maximum Receive Unit (MTU/MRU) Greater Than 1492 in the Point-to-Point Protocol over Ethernet (PPPoE) | 0 of 6 (0.0%); ceiling 6 of 6 (100.0%) | 0 of 3 (0.0%); ceiling 3 of 3 (100.0%) |
 
 ### Level 3
@@ -49,7 +49,7 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 
 | RFC | Title | Mandatory | Optional |
 |---|---|---|---|
-| [RFC 5072](../../rfc5072/) | IP Version 6 over PPP | 9 of 16 (56.2%); ceiling 15 of 16 (93.8%); excluded: Not applicable (classification can be revisited): 1 of 16 (6.2%) | 0 of 12 (0.0%); ceiling 12 of 12 (100.0%) |
+| [RFC 5072](../../rfc5072/) | IP Version 6 over PPP | 9 of 16 (56.2%); ceiling 16 of 16 (100.0%) | 0 of 12 (0.0%); ceiling 12 of 12 (100.0%) |
 
 ### Level 5
 

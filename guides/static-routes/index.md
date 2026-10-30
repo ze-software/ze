@@ -188,11 +188,13 @@ a SIGHUP reload and `ze config validate` each refuse a `bfd-profile` while
 the `bfd` section is absent or sets `enabled false`, so BFD cannot be
 removed from under a monitored route: remove the `bfd-profile` lines first.
 They also refuse a `bfd-profile` that names no profile under
-`bfd { profile ... }`, and one whose profile sets `passive`, because RFC
-5881 §3 requires both ends of a single-hop session to be Active. The error
+`bfd { profile ... }`, naming the profiles that exist (the editor completes
+those names), and one whose profile sets `passive`, because RFC 5881 §3
+requires both ends of a single-hop session to be Active. The passive error
 names the route and the next-hop.
 <!-- source: internal/plugins/static/register.go — checkBFDProfiles -->
 <!-- source: internal/component/bfd/api/profile_check.go — CheckProfile -->
+<!-- source: internal/component/bfd/api/profile_reference.go — profileReference -->
 
 ### Blackhole and reject
 
@@ -263,6 +265,15 @@ configured for the whole source under `ospf { redistribute { static { ... } } }`
 a route with no tag takes that configured value.
 
 <!-- source: internal/plugins/static/inject.go -- emitRouteChangeID -->
+
+The tag also rides on the path the route installs in the Loc-RIB, so a
+`static filter import` or `rib filter import` chain can match it: a `match`
+instance with `action reject; tag [ 4242 ];` hides every static route tagged
+4242 and leaves the others selected. A route with no `tag` leaf carries no
+tag, so it never meets a `tag` condition; `tag 0` is a real tag.
+[Route Policy at the Loc-RIB](https://github.com/ze-software/ze/blob/main/docs/guide/route-policy.md) covers the chains.
+<!-- source: internal/plugins/static/locrib.go -- staticPath -->
+<!-- source: internal/plugins/static/config.go -- parseRoute -->
 <!-- source: internal/plugins/ospf/redist_wiring.go -- externalRouteTag -->
 
 ## CLI

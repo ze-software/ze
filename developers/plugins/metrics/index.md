@@ -378,7 +378,7 @@ that arrived after a producer emitted. That party is either a BGP peer whose
 session just established, or a destination protocol's consumer that just
 registered. One counter serves both, labeled by the producing source rather than
 by which of the two triggered it.
-<!-- source: internal/component/bgp/plugins/redistribute_egress/redistribute.go -- setMetricsRegistry -->
+<!-- source: internal/plugins/redistribute/redistribute.go -- setMetricsRegistry -->
 
 The four `isis (spf)` series track the shortest-path computation and its Loc-RIB
 install: `ze_isis_spf_runs_total{level}` counts Dijkstra runs per level,

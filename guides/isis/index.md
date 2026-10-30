@@ -35,7 +35,9 @@ forms its adjacency through the Hello exchange.
 
 Ze accepts narrow IPv4 reachability in TLV 128 and TLV 130 and preserves its
 internal or external metric type through SPF and inter-level leaking. Local
-connected and redistributed IPv4 prefixes use wide TLV 135. An adjacent
+connected and redistributed IPv4 prefixes use wide TLV 135 under the default
+`metric-style wide`, and narrow TLV 128 under `narrow` or `transition` (see
+"Narrow and wide metrics" below). An adjacent
 router's next-hop address can be on another logical subnet; forwarding retains
 the outgoing interface and marks the gateway on-link. Equal-cost originators
 contribute their capable next hops to the same route. If none of those selected
@@ -59,6 +61,59 @@ any advertised TE information unchanged.
 <!-- source: internal/plugins/isis/spf_wiring.go -- ResolveNextHop, ResolveNextHopV6 -->
 <!-- source: internal/plugins/isis/lsdb/origination.go -- maxFragments, fragmentTLVs -->
 <!-- source: internal/plugins/isis/redistribute/source.go -- addEntry -->
+
+## Narrow and wide metrics
+
+`metric-style` picks the TLVs every LSP this router originates, its pseudo-node
+LSPs included, uses for its links and IPv4 prefixes:
+
+| Style | Links | IPv4 prefixes | Metric range |
+|-------|-------|---------------|--------------|
+| `wide` (default) | TLV 22 | TLV 135 | circuit 1 to 16777215 |
+| `narrow` | TLV 2 | TLV 128 | circuit 1 to 63 |
+| `transition` | TLV 2 and TLV 22 | TLV 128 and TLV 135 | circuit 1 to 63 |
+
+A router that only understands narrow metrics cannot read TLV 22 or TLV 135, so
+it never computes a path through a wide-only Ze. RFC 3787 section 5 states that
+"If not all devices in the IS-IS domain support wide metrics, narrow metrics
+MUST continue to be used." Set `narrow` while any router in the domain is
+narrow-only:
+
+```
+isis {
+  net 49.0001.0000.0000.0001.00
+  metric-style narrow
+  interfaces {
+    interface eth0 {
+      metric 20
+    }
+  }
+}
+```
+
+To migrate, RFC 3787 section 5.1 moves every router to `transition` one by one,
+then to `wide` once every router advertises wide metrics. Ze's SPF already reads
+both families from every LSP and keeps the lower cost of a link described twice.
+
+Under `narrow` and `transition` a circuit `metric`, or a `level-1` / `level-2`
+`metric`, above 63 is refused at commit, because the 6-bit narrow metric cannot
+carry it:
+
+```
+isis: interface "eth0" metric 100 does not fit metric-style narrow, whose narrow
+metric is 1 to 63 (RFC 3787 section 5): set "isis interfaces interface eth0 metric 63"
+or lower, or set "isis metric-style wide" once every router in the domain supports wide metrics
+```
+
+A prefix metric Ze did not take from a circuit, such as the fixed redistribution
+metric of 100 or an inter-level leak's sum, is advertised as 63 in TLV 128. IPv6
+prefixes stay in TLV 236 in every style. A commit that changes only
+`metric-style` re-originates every own LSP at once.
+
+<!-- source: internal/plugins/isis/lsdb/origination.go -- fragmentTLVs -->
+<!-- source: internal/plugins/isis/lsdb/pseudonode.go -- pseudonodeFragments -->
+<!-- source: internal/plugins/isis/config.go -- validateMetricStyle, narrowMetricFits -->
+<!-- source: internal/plugins/isis/server.go -- applyMetricStyle -->
 
 ## The dynamic hostname
 
@@ -253,7 +308,9 @@ accepted before it becomes the signing key, the old key accepted for a while aft
 lets you roll a key without dropping adjacencies.
 
 **A name that does not resolve is refused.** An `auth-key-chain` leaf naming no
-`key-chains` entry is rejected at commit, and the error names the chain. A
+`key-chains` entry is rejected by commit, a SIGHUP reload and `ze config
+validate`, and the error names the chain and the chains that exist: the leaf is a
+leafref to `isis key-chains`, so the editor also completes the chain names. A
 misspelled name would otherwise leave the circuit or the level running unsigned,
 which reads exactly like asking for no authentication. Naming no chain at all
 stays legitimate: that is how you run a circuit unauthenticated.
@@ -311,7 +368,9 @@ when leaking a prefix to a lower level (RFC 2966), never to mark external origin
 loop prevention rejects redistributing IS-IS into IS-IS.
 
 The block above is the whole configuration. It needs no `plugin` block and no
-`attach process` block. `import bgp` derives each peer's delivery to the
+`attach process` block, and a router running IS-IS without BGP needs no `bgp`
+block: only a rule that names BGP does, and such a rule with no `bgp` block is
+refused at load and at commit. `import bgp` derives each peer's delivery to the
 Loc-RIB, and `destination bgp` derives the send permission the orchestrator
 needs on each peer.
 
@@ -320,7 +379,7 @@ current set. The static prefix therefore reaches the LSP whichever of the two
 plugins started first. See
 [Route Filters and Redistribution](../redistribution/index.md), "Route Redistribution".
 <!-- source: internal/component/bgp/config/redistribute_binding.go -- wireRedistributeDelivery -->
-<!-- source: internal/component/bgp/plugins/redistribute_egress/replay.go -- onConsumerRegistered -->
+<!-- source: internal/plugins/redistribute/replay.go -- onConsumerRegistered -->
 
 **Connected and passive interfaces.** IS-IS also advertises its own enabled and
 **passive** interface prefixes as internal reachability in its LSPs. A passive
@@ -335,7 +394,11 @@ redistribution drives.
 
 Redistribution feeds the redistribute orchestrator only; the kernel FIB install of
 IS-IS SPF routes is the separate Loc-RIB path, ranked at the declared IS-IS
-distance (default 115). IPv6
+distance (default 115). Each installed path carries the level it was computed
+at, so an `isis filter import` chain can match `level [ 1 ]` or `level [ 2 ]`,
+and a `modify` there can set the distance. IS-IS paths carry no tag, because Ze
+does not implement RFC 5130, so a filter that reads a tag is refused on IS-IS
+([Route Policy at the Loc-RIB](https://github.com/ze-software/ze/blob/main/docs/guide/route-policy.md)). IPv6
 redistribution (TLV 236) works the same way (see below).
 
 ## Dual-stack IPv6

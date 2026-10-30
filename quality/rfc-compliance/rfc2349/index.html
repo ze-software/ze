@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 2349 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 2349: TFTP Timeout Interval and Transfer Size Options. 4 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 2349: TFTP Timeout Interval and Transfer Size Options. 4 gated MUST-level requirements, 3 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 2349 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 2349: TFTP Timeout Interval and Transfer Size Options. 4 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 2349: TFTP Timeout Interval and Transfer Size Options. 4 gated MUST-level requirements, 3 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 2349 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 2349: TFTP Timeout Interval and Transfer Size Options. 4 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 2349: TFTP Timeout Interval and Transfer Size Options. 4 gated MUST-level requirements, 3 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -45,7 +45,7 @@
         <main id="top" class="has-page-sidebar" tabindex="-1">
             <section aria-labeledby="rfc-detail-title" class="md-content reveal cat-observe">
 <div class="journey-hero reveal">
-    <span class="journey-eyebrow">No row in the public ledger</span>
+    <span class="journey-eyebrow">Partial</span>
     <h1 id="rfc-detail-title">RFC 2349 - TFTP Timeout Interval and Transfer Size Options</h1>
     <p>Every requirement this repository extracted from RFC 2349, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.</p>
 </div>
@@ -122,18 +122,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 2 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>66.7%</strong><b>4 of 6 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>4</strong><b>of 6 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>3</strong><b>of 4 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>75.0%</strong><b>3 of 4 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 4 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit</p></article>
+</div>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>75.0%</strong><b>3 of 4 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 </div>
 <p>The 9 shares marked as a part above are the whole of the 4 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -167,7 +171,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
 </tr>
 <tr><td>No test at all</td>
-<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
 </tr>
 <tr><td>Not applicable</td>
@@ -205,7 +209,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Field</th><th>Value</th></tr></thead>
 <tbody>
 <tr><td>Public status</td>
-<td>No row in the public ledger</td>
+<td>Partial</td>
 </tr>
 <tr><td>Enrolment</td>
 <td>Enrolled</td>
@@ -217,10 +221,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>4</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
-<td>3</td>
+<td>0</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>0</td>
+<td>3</td>
 </tr>
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
@@ -232,16 +236,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>2</td>
+<td>6</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>2</td>
+<td>6</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>1</td>
+<td>2</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>0</td>
+<td>4</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc2349.md</code></td>
@@ -257,10 +261,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Enrolled: TFTP Timeout Interval and Transfer Size Options: four MUST-level requirements. RFC2349-x-3 (tsize in RRQ: client value &#34;0&#34;, server returns actual file size in the OACK) is met and tested with both polarities via loopback OACK round-trips in rfc2349_tsize_test.go (producer handleRRQ os.Stat + oackOpts tsize, internal/plugins/tftpserver/handler.go:319-329): a 7-byte file returns tsize &#34;7&#34;, a 20-byte file returns &#34;20&#34;, and the server never echoes the client placeholder &#34;0&#34;. The other three are {not-applicable}: RFC2349-x-1 (timeout acknowledged value matches request) and RFC2349-x-2 (timeout range 1-255) govern the timeout option, which Ze does not implement (parseRRQ recognizes only blksize/tsize/windowsize and ignores timeout per RFC 2347); RFC2349-x-4 (tsize in WRQ echoes the client size) governs write requests, which Ze (a read-only TFTP server) rejects with Illegal-Operation. No SHOULD/MAY requirements are gated.</p>
+<p>Enrolled: TFTP Timeout Interval and Transfer Size Options: four MUST-level requirements. RFC2349-x-3 (tsize in RRQ: client value &#34;0&#34;, server returns actual file size in the OACK) is met and tested with both polarities via loopback OACK round-trips in rfc2349_tsize_test.go (producer handleRRQ os.Stat + oackOpts tsize, internal/plugins/tftpserver/handler.go:319-329): a 7-byte file returns tsize &#34;7&#34;, a 20-byte file returns &#34;20&#34;, and the server never echoes the client placeholder &#34;0&#34;. The other three are gaps, with no owner decision declining either feature: RFC2349-x-1 (timeout acknowledged value matches request) and RFC2349-x-2 (timeout range 1-255) govern the timeout option, which Ze does not implement (parseRRQ recognizes only blksize/tsize/windowsize and ignores timeout per RFC 2347); RFC2349-x-4 (tsize in WRQ echoes the client size) governs write requests, which Ze (a read-only TFTP server) rejects with Illegal-Operation. No SHOULD/MAY requirements are gated. The client side of RFC2349-x-3 (the read request carries tsize &#34;0&#34; and the OACK size is taken) is tested by Ze&#39;s TFTP client, TestRFC2349ClientTsize (internal/core/tftp/request.go BuildRRQ, internal/core/tftp/oack.go grantTsize), and the MAY x-5 (a file too large for the client draws ERROR 3) by TestRFC2349ClientAbortsTooLargeFile.</p>
 </section>
 <section><h2>What the public ledger says</h2>
-<p>No row in the public ledger, so its summary declares `| Support | - |` and docs/features/rfc-status.md carries no row for RFC 2349.</p>
+<p><strong>Status:</strong> Partial</p>
+<p><strong>What the ledger says is covered:</strong></p>
+The tsize option on a read request returns the file size in the OACK (<a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler.go" target="_blank" rel="noopener"><code>internal/plugins/tftpserver/handler.go</code></a>).
+<p><strong>What the ledger says remains:</strong></p>
+Three MUST gaps in the requirement checklist: ze implements no timeout option, so it neither acknowledges a timeout (RFC2349-x-1) nor range-checks one (RFC2349-x-2), and it serves no write request, so no WRQ tsize is echoed (RFC2349-x-4).
 </section>
 <section><h2>Coverage</h2>
 <div class="rfc-table-wrap">
@@ -303,7 +311,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p class="rfc-id-list"><strong>Annotated (including scoped evidence) (3):</strong> <a href="#rfc2349-x-1"><code>RFC2349-x-1</code></a>, <a href="#rfc2349-x-2"><code>RFC2349-x-2</code></a>, <a href="#rfc2349-x-4"><code>RFC2349-x-4</code></a></p>
 </section>
 <section><h2>Attainable ceiling</h2>
-<p>Mandatory ceiling: 1 of 4 (25.0%); excluded: Not applicable (classification can be revisited): 3 of 4 (75.0%). Optional ceiling: 2 of 2 (100.0%). Lowest mandatory ceiling: rfc2349 1 of 4 (25.0%). Lowest optional ceiling: rfc2349 2 of 2 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.</p>
+<p>Mandatory ceiling: 4 of 4 (100.0%). Optional ceiling: 2 of 2 (100.0%). Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: rfc2349 4 of 4 (100.0%). Lowest optional ceiling: rfc2349 2 of 2 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.</p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -317,7 +325,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2349-x-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> Ze does not implement the RFC 2349 timeout option. Its RRQ parser recognizes only blksize, tsize, and windowsize (internal/plugins/tftpserver/handler.go:121-131 parseRRQ); a requested timeout option falls through and is ignored per RFC 2347 (an unacknowledged option is treated as never requested, gated as RFC2347-x-3). Ze never places timeout in an OACK, so it has no code path that could acknowledge a mismatched timeout value.</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze implements no timeout option and no owner decision declines it: internal/plugins/tftpserver/handler.go::parseRRQ recognizes only blksize, tsize and windowsize, so buildOACK never acknowledges a timeout and no test asserts the OACK carries none</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2349-x-2">RFC2349-x-2</code></td><td colspan="3"><span class="rfc-subject">The number of seconds to wait before retransmitting, specified in ASCII. Valid values range between &#34;1&#34; and &#34;255&#34; seconds, inclusive. (§Timeout Interval Option Specification)</span></td></tr>
 <tr><td></td>
@@ -326,14 +334,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2349-x-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> Ze does not implement the timeout option (parseRRQ recognizes only blksize/tsize/windowsize, internal/plugins/tftpserver/handler.go:121-131), so it has no timeout value to range-check against 1-255 seconds.</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze implements no timeout option and no owner decision declines it: internal/plugins/tftpserver/handler.go::parseRRQ ignores a timeout value, so nothing range-checks it against 1 to 255</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2349-x-3">RFC2349-x-3</code></td><td colspan="3"><span class="rfc-subject">In Read Request packets, a size of &#34;0&#34; is specified in the request and the size of the file, in octets, is returned in the OACK. (§Transfer Size Option Specification)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>Transfer</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2349-x-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/fetch/rfc2349_client_test.go#L17" title="internal/core/fetch/rfc2349_client_test.go" target="_blank" rel="noopener"><code>TestRFC2349ClientTsize</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2349_tsize_test.go#L32" title="internal/plugins/tftpserver/rfc2349_tsize_test.go" target="_blank" rel="noopener"><code>TestRFC2349TsizeRRQReturnsActualSize</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/fetch/rfc2349_client_test.go#L20" title="internal/core/fetch/rfc2349_client_test.go" target="_blank" rel="noopener"><code>TestRFC2349ClientTsize</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2349_tsize_test.go#L37" title="internal/plugins/tftpserver/rfc2349_tsize_test.go" target="_blank" rel="noopener"><code>TestRFC2349TsizeRRQReturnsActualSize</code></a></span></div>
 </div></td>
 </tr>
@@ -344,15 +354,15 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2349-x-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> Ze is a read-only TFTP server: it rejects every write request (WRQ) with an Illegal-Operation error (internal/plugins/tftpserver/handler.go:226-227 &#34;write not supported&#34;; TestTFTPWriteRejected). With no WRQ transfer ever accepted, Ze has no code path that would echo a client-specified file size in a WRQ OACK.</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze serves no write request and no owner decision declines writes: internal/plugins/tftpserver/handler.go answers every WRQ with an Illegal Operation error (write not supported, TestTFTPWriteRejected), so no WRQ tsize is echoed in an OACK</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2349-x-5">RFC2349-x-5</code></td><td colspan="3"><span class="rfc-subject">If the file is too large for the client to handle, it may abort the transfer with an Error packet (error code 3). (§Transfer Size Option Specification)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>Transfer</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2349-x-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/fetch/rfc2349_client_test.go#L61" title="internal/core/fetch/rfc2349_client_test.go" target="_blank" rel="noopener"><code>TestRFC2349ClientAbortsTooLargeFile</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/fetch/rfc2349_client_test.go#L63" title="internal/core/fetch/rfc2349_client_test.go" target="_blank" rel="noopener"><code>TestRFC2349ClientAbortsTooLargeFile</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2349-x-6">RFC2349-x-6</code></td><td colspan="3"><span class="rfc-subject">If the file is too large for the server to handle, it may abort the transfer with an Error packet (error code 3). (§Transfer Size Option Specification)</span></td></tr>
@@ -374,16 +384,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
 <tr><td><a href="#rfc2349-x-1"><code>RFC2349-x-1</code></a> If the server is willing to accept the timeout option, it sends an Option Acknowledgment (OACK) to the client. The specified timeout value must match the value specified by the client. (§Timeout Interval Option Specification)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: Ze does not implement the RFC 2349 timeout option. Its RRQ parser recognizes only blksize, tsize, and windowsize (internal/plugins/tftpserver/handler.go:121-131 parseRRQ); a requested timeout option falls through and is ignored per RFC 2347 (an unacknowledged option is treated as never requested, gated as RFC2347-x-3). Ze never places timeout in an OACK, so it has no code path that could acknowledge a mismatched timeout value.</td>
+<td>{gap}, no test</td>
+<td>ze implements no timeout option and no owner decision declines it: internal/plugins/tftpserver/handler.go::parseRRQ recognizes only blksize, tsize and windowsize, so buildOACK never acknowledges a timeout and no test asserts the OACK carries none</td>
 </tr>
 <tr><td><a href="#rfc2349-x-2"><code>RFC2349-x-2</code></a> The number of seconds to wait before retransmitting, specified in ASCII. Valid values range between &#34;1&#34; and &#34;255&#34; seconds, inclusive. (§Timeout Interval Option Specification)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: Ze does not implement the timeout option (parseRRQ recognizes only blksize/tsize/windowsize, internal/plugins/tftpserver/handler.go:121-131), so it has no timeout value to range-check against 1-255 seconds.</td>
+<td>{gap}, no test</td>
+<td>ze implements no timeout option and no owner decision declines it: internal/plugins/tftpserver/handler.go::parseRRQ ignores a timeout value, so nothing range-checks it against 1 to 255</td>
 </tr>
 <tr><td><a href="#rfc2349-x-4"><code>RFC2349-x-4</code></a> In Write Request packets, the size of the file, in octets, is specified in the request and echoed back in the OACK. (§Transfer Size Option Specification)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: Ze is a read-only TFTP server: it rejects every write request (WRQ) with an Illegal-Operation error (internal/plugins/tftpserver/handler.go:226-227 &#34;write not supported&#34;; TestTFTPWriteRejected). With no WRQ transfer ever accepted, Ze has no code path that would echo a client-specified file size in a WRQ OACK.</td>
+<td>{gap}, no test</td>
+<td>ze serves no write request and no owner decision declines writes: internal/plugins/tftpserver/handler.go answers every WRQ with an Illegal Operation error (write not supported, TestTFTPWriteRejected), so no WRQ tsize is echoed in an OACK</td>
 </tr>
 </tbody>
 </table>
@@ -401,15 +411,25 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>No test carries RFC2349-x-2, so no unit is bound to it.</p>
 <h3><a href="#rfc2349-x-3"><code>RFC2349-x-3</code></a></h3>
 <p>In Read Request packets, a size of &#34;0&#34; is specified in the request and the size of the file, in octets, is returned in the OACK. (§Transfer Size Option Specification)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden (server half): an OACK whose tsize is not the file size in octets, e.g. echoing the client&#39;s &#34;0&#34; or a constant. TestRFC2349TsizeRRQReturnsActualSize asserts opts[&#34;tsize&#34;] == &#34;7&#34; for a 7-octet file and == &#34;20&#34; (and != &#34;0&#34;) for a 20-octet file, red on echo, constant, or wrong size. The first clause (the client specifies &#34;0&#34; in the request) binds a TFTP client, which Ze does not ship (read-only server). Both polarities.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Both clauses now in Ze&#39;s roles. Client: TestRFC2349ClientTsize compares the whole RRQ byte for byte against &#39;\x00\x01f.bin\x00octet\x00blksize\x001468\x00tsize\x000\x00windowsize\x004\x00&#39;, red on any tsize value other than &#34;0&#34; or a missing tsize; its negative refuses a non-octet size &#39;12k&#39; with ERROR 8. Server: TestRFC2349TsizeRRQReturnsActualSize (unchanged) pins tsize 7 and 20 for 7- and 20-octet files, red on echo of &#34;0&#34; or a constant.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/fetch/rfc2349_client_test.go#L20" title="internal/core/fetch/rfc2349_client_test.go" target="_blank" rel="noopener"><code>TestRFC2349ClientTsize</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2349_tsize_test.go#L37" title="internal/plugins/tftpserver/rfc2349_tsize_test.go" target="_blank" rel="noopener"><code>TestRFC2349TsizeRRQReturnsActualSize</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/fetch/rfc2349_client_test.go#L17" title="internal/core/fetch/rfc2349_client_test.go" target="_blank" rel="noopener"><code>TestRFC2349ClientTsize</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2349_tsize_test.go#L32" title="internal/plugins/tftpserver/rfc2349_tsize_test.go" target="_blank" rel="noopener"><code>TestRFC2349TsizeRRQReturnsActualSize</code></a></td>
@@ -423,6 +443,26 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>In Write Request packets, the size of the file, in octets, is specified in the request and echoed back in the OACK. (§Transfer Size Option Specification)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2349-x-4, so no unit is bound to it.</p>
+<h3><a href="#rfc2349-x-5"><code>RFC2349-x-5</code></a></h3>
+<p>If the file is too large for the client to handle, it may abort the transfer with an Error packet (error code 3). (§Transfer Size Option Specification)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. TestRFC2349ClientAbortsTooLargeFile: an OACK tsize of fileSizeMax+1 must draw ERROR with code exactly 3 before any ACK, then silence, and a failed fetch (red on ACK 0 or another code); exactly fileSizeMax draws ACK 0 and completes, so the bound is not off by one.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/fetch/rfc2349_client_test.go#L63" title="internal/core/fetch/rfc2349_client_test.go" target="_blank" rel="noopener"><code>TestRFC2349ClientAbortsTooLargeFile</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/fetch/rfc2349_client_test.go#L61" title="internal/core/fetch/rfc2349_client_test.go" target="_blank" rel="noopener"><code>TestRFC2349ClientAbortsTooLargeFile</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 </section>
 <section><h2>Extraction sign-off</h2>
 <div class="rfc-table-wrap">
@@ -524,7 +564,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 19:30 UTC</span>
+                    <span class="footer-published">Published 30 October 2026 23:25 UTC</span>
                 </div>
             </div>
         </footer>

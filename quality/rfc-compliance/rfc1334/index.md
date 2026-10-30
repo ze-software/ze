@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0.0% | 0 of 13 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 13 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 13 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 81.2% | 26 of 32 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 100.0% | 32 of 32 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -66,7 +66,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 32 |
 | Tagged units | 32 |
 | Recorded audit verdicts | 10 |
-| Discrimination records | 26 |
+| Discrimination records | 32 |
 | Summary | `rfc/short/rfc1334.md` |
 | Requirement shard | `rfc/requirements/rfc1334.md` |
 | RFC text | `rfc/full/rfc1334.txt` |
@@ -169,8 +169,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestPAPRejectWritesNak`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_pap_test.go#L411) | unit/verify | unproven |
-| positive | [`TestPAPRequestEmitsEvent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_pap_test.go#L293) | unit/verify | unproven |
+| negative | [`TestPAPRejectWritesNak`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_pap_test.go#L411) | unit/verify | revert, verified |
+| positive | [`TestPAPRequestEmitsEvent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_pap_test.go#L293) | unit/verify | revert, verified |
 
 ### [`RFC1334-2.3-2`](#rfc1334-2.3-2)
 
@@ -180,8 +180,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestPAPRequestEmitsEvent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_pap_test.go#L297) | unit/verify | unproven |
-| positive | [`TestPAPRejectWritesNak`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_pap_test.go#L407) | unit/verify | unproven |
+| negative | [`TestPAPRequestEmitsEvent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_pap_test.go#L297) | unit/verify | revert, verified |
+| positive | [`TestPAPRejectWritesNak`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_pap_test.go#L407) | unit/verify | revert, verified |
 
 ### [`RFC1334-2.2.1-1`](#rfc1334-2.2.1-1)
 
@@ -270,8 +270,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 |---|---|---|---|
 | negative | [`TestPAPReanswersAfterAuthentication`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_phase_rfc1334_test.go#L147) | unit/verify | revert, verified |
 | positive | [`TestPAPReanswersAfterAuthentication`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_phase_rfc1334_test.go#L146) | unit/verify | revert, verified |
-| positive | [`TestPAPRejectWritesNak`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_pap_test.go#L414) | unit/verify | unproven |
-| positive | [`TestPAPRequestEmitsEvent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_pap_test.go#L300) | unit/verify | unproven |
+| positive | [`TestPAPRejectWritesNak`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_pap_test.go#L414) | unit/verify | revert, verified |
+| positive | [`TestPAPRequestEmitsEvent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_pap_test.go#L300) | unit/verify | revert, verified |
 
 ### [`RFC1334-2.3-4`](#rfc1334-2.3-4)
 

@@ -82,20 +82,23 @@ mechanisms. The filters come first, and
 <h2 id="route-filters">Route Filters</h2>
 <p>Route filters let plugins act as route filters on import (ingress) and export
 (egress). Filters are configured per peer, group, or globally using named
-references in a <code>filter {}</code> config block. Named filter types are defined under
-<code>bgp { policy { } }</code>.</p>
+references in a <code>filter {}</code> config block. Named filter instances are defined
+in the top-level <code>policy { }</code> block, which every protocol shares with policy
+routing's <code>policy route</code>.</p>
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- filter container -->
+<!-- source: internal/component/policy/registry.go -- BuildRegistry, ValidateName -->
 <h3 id="quick-start">Quick Start</h3>
-<pre><code>bgp {
+<pre><code>policy {
+    loop-detection no-self-as {
+        allow-own-as 0;
+    }
+}
+
+bgp {
     router-id 192.0.2.1;
     session {
         asn {
             local 65000;
-        }
-    }
-    policy {
-        loop-detection no-self-as {
-            allow-own-as 0;
         }
     }
     filter {
@@ -121,8 +124,10 @@ references in a <code>filter {}</code> config block. Named filter types are defi
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- filter-policy -->
 <!-- source: internal/component/bgp/reactor/filter/yang/ze-loop-detection.yang -- loop-detection type -->
 <h3 id="filter-types">Filter Types</h3>
-<p>Filter types are YANG lists under <code>bgp/policy</code>, each marked with <code>ze:filter</code>.
-Plugins add new filter types via YANG <code>augment</code>. Each list entry is a named
+<p>Filter types are YANG lists under the top-level <code>policy</code> root, each marked with <code>ze:filter</code>.
+A list without the marker, such as policy routing's <code>route</code>, is not a filter
+type, and a chain that names one of its entries is refused.
+Plugins add new filter types via YANG <code>augment "/policy:policy"</code>. Each list entry is a named
 filter instance referenced by name in peer <code>filter { import/export }</code> chains.</p>
 <h3 id="built-in-loop-detection">Built-in: loop-detection</h3>
 <p>Facade over the in-process <code>LoopIngress</code> wire-bytes filter. Configures AS loop
@@ -157,14 +162,14 @@ detection (RFC 4271 Section 9) and cluster-list loop detection (RFC 4456 Section
 Example: <code>rpki:validate</code>, <code>community:scrub</code>.</p>
 <h3 id="how-it-works">How It Works</h3>
 <ol>
-<li>Filter types are defined in <code>bgp { policy { } }</code> as named instances.</li>
+<li>Filter types are defined in <code>policy { }</code> as named instances.</li>
 <li>Each <code>filter</code> direction block lists filter instances under <code>filters</code> and states <code>final accept;</code> or <code>final reject;</code>.</li>
 <li>Default filters (e.g., loop-detection) auto-populate in every peer's import chain.</li>
 <li>On each received UPDATE, the engine runs the import filter chain.</li>
 <li>On each forwarded UPDATE, the engine runs the export chain per destination peer.</li>
 <li>Each filter responds accept, reject, or modify (delta-only).</li>
 </ol>
-<!-- source: internal/component/bgp/config/redistribution.go -- extractFilterPolicy, concatPolicies -->
+<!-- source: internal/component/policy/chain.go -- ExtractChain, ConcatChains -->
 <!-- source: internal/component/bgp/config/peers.go -- prependDefaultFilters -->
 <h3 id="deactivating-filters">Deactivating Filters</h3>
 <p>Default filters can be deactivated per-peer using the inline <code>inactive:</code> prefix:</p>
@@ -194,8 +199,8 @@ skipped at runtime.</p>
 activate bgp peer special filter import filters no-self-as
 </code></pre>
 <!-- source: internal/component/config/parser_list.go -- stripInactiveMemberPrefix (inline inactive: normalization) -->
-<!-- source: internal/component/bgp/config/redistribution.go -- memberStatesToFilterRefs retains Inactive -->
-<!-- source: internal/component/bgp/reactor/filter_chain.go -- PolicyFilterChain skips FilterRef.Inactive -->
+<!-- source: internal/component/policy/chain.go -- RefsFromMembers retains Inactive -->
+<!-- source: internal/component/bgp/reactor/filter_chain.go -- PolicyFilterChain skips policy.Ref.Inactive -->
 <h3 id="chain-order">Chain Order</h3>
 <p>Chains are cumulative across config levels:</p>
 <table>
@@ -230,7 +235,7 @@ An absent direction inherits its parent's policy without creating a new policy.
 With no configured policy at any level, operator policy stays absent: EBGP
 rejects at exhaustion under RFC 8212 Section 3, while IBGP accepts. Automatic
 and inactive references do not supply an operator policy.</p>
-<!-- source: internal/component/bgp/config/redistribution.go -- extractFilterPolicy, concatPolicies -->
+<!-- source: internal/component/policy/chain.go -- ExtractChain, ConcatChains -->
 <!-- source: internal/component/bgp/filterapi/policy.go -- Policy.Configured, Policy.AcceptsAtEnd -->
 <p>Use the <code>insert</code> command in the CLI editor to control position:</p>
 <pre><code>insert filter import filters reject-bogons before no-self-as
@@ -270,21 +275,22 @@ before a modifier can only express "modify these and discard everything else".
 When the routes the modifier does not touch must keep flowing, put the condition
 on the modifier itself with a <code>match</code> block. A route that meets none of the
 stated values returns accept and passes through unchanged.</p>
-<pre><code>bgp {
+<pre><code>policy {
+    modify blackhole-to-discard {
+        match {
+            community [ blackhole ];
+        }
+        set {
+            next-hop 192.0.2.1;
+        }
+    }
+}
+
+bgp {
     router-id 192.0.2.254
     session {
         asn {
             local 65000
-        }
-    }
-    policy {
-        modify blackhole-to-discard {
-            match {
-                community [ blackhole ];
-            }
-            set {
-                next-hop 192.0.2.1;
-            }
         }
     }
     peer customer {
@@ -385,14 +391,19 @@ destination that never held the route sees nothing.</p>
 When a source withdraws a route a destination holds, the withdrawal reaches
 that destination even if its rule would reject the withdrawal itself, for
 instance because the rules changed since the route was announced.</p>
-<!-- source: internal/component/bgp/plugins/redistribute_egress/held.go -- removeReplacedRoute -->
+<!-- source: internal/plugins/redistribute/held.go -- removeReplacedRoute -->
 <!-- source: internal/plugins/static/inject.go -- applyRouteLocked -->
 <p>That block is the whole configuration. It needs no <code>plugin</code> block and no
 <code>attach process</code> block. The orchestrator that dispatches the routes auto-loads
-because the <code>redistribute</code> root is present. The two peer bindings the rules
+because the <code>redistribute</code> root is present, and it installs the rules from that
+root itself. It needs no <code>bgp</code> block either: a router that runs IS-IS or OSPF
+without BGP redistributes static, connected and IGP routes between them. When a
+rule names BGP, BGP must be configured (below). The two peer bindings the rules
 depend on are derived from the rules (below).</p>
 <!-- source: internal/component/config/redistribute/yang/ze-redistribute-conf.yang -- redistribute container -->
 <!-- source: internal/component/config/loader_redistribute.go -- ExtractRedistributeRules -->
+<!-- source: internal/plugins/redistribute/register.go -- StartAfter bgp, no hard dependency -->
+<!-- source: internal/plugins/redistribute/config.go -- ruleState -->
 <h3 id="sources-and-destinations">Sources and Destinations</h3>
 <p>A source is a name a component registers at startup, so which names this build
 accepts depends on which components it carries. No command prints the set. A
@@ -445,10 +456,14 @@ token first.</p>
 </tbody>
 </table>
 <p>A destination is the name of a protocol whose consumer registered: <code>bgp</code>, <code>ospf</code>
-and <code>isis</code> today.</p>
+and <code>isis</code> today. OSPF and IS-IS register their consumers from their own
+plugins. BGP declares a consumer factory, which the orchestrator builds over its
+own connection to the engine, so a build without BGP has no <code>bgp</code> destination.</p>
 <p><strong>A protocol is never redistributed into itself.</strong> <code>destination isis { import isis }</code> parses and moves nothing, at every guard: the config evaluator, the
 dispatch fan-out and the replay all ask one predicate.</p>
 <!-- source: internal/component/config/redistribute/registry.go -- RegisterSource, LookupSource -->
+<!-- source: internal/component/config/redistribute/consumer_factory.go -- ConsumerFactory -->
+<!-- source: internal/component/bgp/redistribute/register.go -- the BGP consumer factory -->
 <!-- source: internal/core/redistevents/registry.go -- WouldLoop, the one loop definition -->
 <h3 id="what-the-rules-wire-for-you">What the Rules Wire For You</h3>
 <p>A <code>redistribute</code> rule needs no <code>attach process</code> block. Ze derives the two it
@@ -495,8 +510,8 @@ injected through that consumer alone.</p>
 route withdrawn before the consumer registered is therefore absent.</p>
 <p>The same mechanism covers a BGP peer that establishes after an injection, where
 the replay reaches that one peer.</p>
-<!-- source: internal/component/bgp/plugins/redistribute_egress/replay.go -- onPeerUp, onConsumerRegistered -->
-<!-- source: internal/component/bgp/plugins/redistribute_egress/redistribute.go -- watchConsumers -->
+<!-- source: internal/plugins/redistribute/replay.go -- onPeerUp, onConsumerRegistered -->
+<!-- source: internal/plugins/redistribute/redistribute.go -- watchConsumers -->
 <h3 id="when-redistribution-cannot-work">When Redistribution Cannot Work</h3>
 <p>The daemon REFUSES to start on a <code>redistribute</code> block it cannot turn into rules,
 and the error names what you typed:</p>
@@ -520,6 +535,10 @@ and the error names what you typed:</p>
 <td><code>destination ospf { }</code> with no import</td>
 <td>the load fails: the destination imports nothing</td>
 </tr>
+<tr>
+<td><code>import bgp</code> or <code>destination bgp</code>, and no <code>bgp { }</code> block</td>
+<td>the load, <code>ze config validate</code> and a commit fail: <code>redistribute: "import bgp" needs a bgp { } block, and this config has none</code>, with the fix on its own line</td>
+</tr>
 </tbody>
 </table>
 <p>A refusal is deliberate. Ze used to warn once and carry on with redistribution
@@ -531,6 +550,7 @@ reports it, under <code>doctor-redistribute-unknown-destination</code>, together
 unknown source under <code>doctor-redistribute-unknown-source</code>.</p>
 <pre><code>ze doctor
 </code></pre>
+<!-- source: internal/component/config/loader_redistribute.go -- RefuseRedistributeRules -->
 <!-- source: internal/component/config/doctor_redistribute.go -- checkRedistributeRules -->
 <!-- source: internal/core/diagnostic/codes.go -- doctor-redistribute-unknown-source, doctor-redistribute-unknown-destination -->
 <h3 id="counters">Counters</h3>
@@ -568,7 +588,7 @@ unknown source under <code>doctor-redistribute-unknown-source</code>.</p>
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/bgp/plugins/redistribute_egress/redistribute.go -- setMetricsRegistry -->
+<!-- source: internal/plugins/redistribute/redistribute.go -- setMetricsRegistry -->
 </div>
 </div>
             </section>
@@ -614,7 +634,7 @@ unknown source under <code>doctor-redistribute-unknown-source</code>.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 20:33 UTC</span>
+                    <span class="footer-published">Published 30 October 2026 23:25 UTC</span>
                 </div>
             </div>
         </footer>

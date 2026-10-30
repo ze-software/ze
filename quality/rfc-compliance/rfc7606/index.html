@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 7606 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 7606: Revised Error Handling for BGP UPDATE Messages. 53 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 7606: Revised Error Handling for BGP UPDATE Messages. 53 gated MUST-level requirements, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 7606 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 7606: Revised Error Handling for BGP UPDATE Messages. 53 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 7606: Revised Error Handling for BGP UPDATE Messages. 53 gated MUST-level requirements, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 7606 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 7606: Revised Error Handling for BGP UPDATE Messages. 53 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 7606: Revised Error Handling for BGP UPDATE Messages. 53 gated MUST-level requirements, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -122,19 +122,23 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>9.4%</strong><b>5 of 53 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 53 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 53 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 53 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>33.2%</strong><b>77 of 232 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
-<article class="rfc-card rfc-ok"><span>Audit verdicts</span><strong>53</strong><b>of 53 gated MUSTs judged</b><p>0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>31.0%</strong><b>72 of 232 tagged units, 0 escaped and 5 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>53</strong><b>of 57 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>1</strong><b>of 53 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>1.9%</strong><b>1 of 53 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 53 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 53 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 53 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 53 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0.0%</strong><b>0 of 53 gated MUSTs</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit</p></article>
+</div>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>1.9%</strong><b>1 of 53 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>53</strong><b>of 53 gated MUSTs judged</b><p>1 weak, wrong or unimplemented, 3 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 9 shares marked as a part above are the whole of the 53 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -168,7 +172,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
 </tr>
 <tr><td>No test at all</td>
-<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
 </tr>
 <tr><td>Not applicable</td>
@@ -192,7 +196,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -218,10 +222,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>53</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
-<td>1</td>
+<td>0</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>0</td>
+<td>1</td>
 </tr>
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
@@ -266,7 +270,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 Structural UPDATE validation, treat-as-withdraw (routes are synthesized into withdrawals and removed from the Adj-RIB-In), attribute-discard decisions, session-reset with NOTIFICATION UPDATE Message Error, per-attribute validation for 15 attribute codes, §3.c attribute-flags validation for every attribute whose own specification fixes an Optional or Transitive value (<a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/flags_spec.go" target="_blank" rel="noopener"><code>internal/core/bgp/attribute/flags_spec.go</code></a>, which also carries the two attributes whose RFC mandates other handling: the MP pair and AIGP), inner MP_REACH/MP_UNREACH NLRI overrun and RFC 4760 flag-consistency validation (§5.3, session reset via §3.j) for IPv4/IPv6 unicast and multicast (ADD-PATH aware, RFC 7911 path-ids skipped when negotiated), tests bound per requirement in <a href="https://github.com/ze-software/ze/blob/main/rfc/requirements/rfc7606.md" target="_blank" rel="noopener"><code>rfc/requirements/rfc7606.md</code></a>.
 </details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
-<p>No MUST-level gap is annotated.</p>
+<p class="rfc-prose"><strong>One MUST gap is annotated:</strong> <a href="#rfc7606-8-1"><code>RFC7606-8-1</code></a> binds a document specifying a new attribute, which the gate cannot bind to a role, and no test ties ze&#39;s attribute handling to it.</p>
 <p class="rfc-prose"><strong>Closed 2026-10-19:</strong> §5.1 first bullet. Every UPDATE Ze composes leads with its MP attribute, MP_UNREACH_NLRI before MP_REACH_NLRI (<code>attribute.OrderAttributes</code>), and every UPDATE Ze relays does too: a received UPDATE whose sender put the MP attribute after another attribute is relayed with the MP attribute moved to the front and every other byte unchanged, on the zero-copy branch, the re-encode branch, the per-destination rebuild and the stored-route replay, while a compliant UPDATE keeps the zero-copy forward because the order verdict shares the per-message cached shape verdict (<a href="https://github.com/ze-software/ze/blob/main/docs/architecture/wire/mp-nlri-ordering.md" target="_blank" rel="noopener"><code>docs/architecture/wire/mp-nlri-ordering.md</code></a>, <code>TestRFC7606Section51MPAttributeEncodedFirst</code>, <a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_forward_mp_first_test.go" target="_blank" rel="noopener"><code>internal/component/bgp/reactor/rfc7606_forward_mp_first_test.go</code></a>). An originated UPDATE whose body a raw export filter replaced is sent the same way: the override&#39;s MP attribute is moved first, and an override that mixes NLRI-bearing fields is split on shape even when it fits (<code>writeOrdinaryUpdateBody</code>, <a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_egress_override_shape_test.go" target="_blank" rel="noopener"><code>internal/component/bgp/reactor/rfc7606_egress_override_shape_test.go</code></a>).</p>
 <p class="rfc-prose"><strong>Closed 2026-08-01:</strong> §5.4. A route whose NLRI type Ze does not implement is now discarded at ingress, in <code>enforceRFC7606</code> (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_validation.go" target="_blank" rel="noopener"><code>internal/component/bgp/reactor/session_validation.go</code></a>), so it reaches neither the RIB nor the forward path. The RIB alone would not have sufficed, because <code>reactorForwardRS</code> relays the received wire without consulting it. The ruling is per family, because §5.4 discards &#34;unless the relevant specification for that address family specifies otherwise&#34; and RFC 9552 §5.2 uses that clause to REQUIRE preserve-and-propagate for BGP-LS. Each NLRI plugin registers its own recognizer (<code>internal/core/bgp/nlri/nlritype</code>), so the three families §5.4 binds each carry their own ruling: EVPN discards route types outside 1..5 (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7606.go" target="_blank" rel="noopener"><code>internal/component/bgp/plugins/nlri/evpn/rfc7606.go</code></a>), MCAST-VPN outside 1..7 (<code>.../nlri/mvpn/rfc7606.go</code>, RFC 6514 §4), and BGP-MUP anything but Architecture Type 1 with Route Type 1..4 (<code>.../nlri/mup/rfc7606.go</code>, draft-ietf-bess-mup-safi §3.1). BGP-LS registers no recognizer and propagates unchanged, and a family nobody has ruled on keeps its previous behavior. Judging a route type needs the section carved into single NLRIs, so MCAST-VPN and BGP-MUP gained <code>nlrisplit</code> splitters, which also made <code>nlrisplit.Supported</code> true for them: ze now installs both as opaque Adj-RIB-In entries the way it already installed EVPN (<code>insertPoolNLRIs</code>, <a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib.go" target="_blank" rel="noopener"><code>internal/component/bgp/plugins/rib/rib.go</code></a>). This reverses the divergence disclosed here until 2026-08-01.</p>
 <p class="rfc-prose"><strong>Closed 2026-07-20:</strong> §7.13, §7.15 and §7.16 gained attribute validators for codes 24, 25 and 128, §7.15&#39;s unrecognized-type tolerance is now met by design rather than by omission (the validator reads length only), and §6&#39;s debugging facility now logs the NLRI involved and the entire malformed UPDATE.</p>
@@ -314,7 +318,7 @@ Structural UPDATE validation, treat-as-withdraw (routes are synthesized into wit
 <p class="rfc-id-list"><strong>Annotated (including scoped evidence) (6):</strong> <a href="#rfc7606-3.h-1"><code>RFC7606-3.h-1</code></a>, <a href="#rfc7606-3.h-2"><code>RFC7606-3.h-2</code></a>, <a href="#rfc7606-5.1-3"><code>RFC7606-5.1-3</code></a>, <a href="#rfc7606-7.14-2"><code>RFC7606-7.14-2</code></a>, <a href="#rfc7606-7.15-2"><code>RFC7606-7.15-2</code></a>, <a href="#rfc7606-8-1"><code>RFC7606-8-1</code></a></p>
 </section>
 <section><h2>Attainable ceiling</h2>
-<p>Mandatory ceiling: 52 of 53 (98.1%); excluded: Not applicable (classification can be revisited): 1 of 53 (1.9%). Optional ceiling: 4 of 4 (100.0%). Lowest mandatory ceiling: rfc7606 52 of 53 (98.1%). Lowest optional ceiling: rfc7606 4 of 4 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.</p>
+<p>Mandatory ceiling: 53 of 53 (100.0%). Optional ceiling: 4 of 4 (100.0%). Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: rfc7606 53 of 53 (100.0%). Lowest optional ceiling: rfc7606 4 of 4 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.</p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -827,7 +831,7 @@ Structural UPDATE validation, treat-as-withdraw (routes are synthesized into wit
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7606-8-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> an obligation on the authors of FUTURE attribute specifications, not on an implementation; Ze has no code path that could satisfy or violate it</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> an obligation on a document that specifies a new BGP attribute, whose subject carries a relative clause no role binding can name; ze writes no such document, and no test asserts that each attribute ze decodes is handled as its own document&#39;s error rules say</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7606-6-1">RFC7606-6-1</code></td><td colspan="3"><span class="rfc-subject">Because of these potential issues, a BGP speaker must provide debugging facilities to permit issues caused by a malformed attribute to be diagnosed. At a minimum, such facilities must include logging an error listing the NLRI involved and containing the entire malformed UPDATE message when such an attribute is detected. (§6)</span></td></tr>
 <tr><td></td>
@@ -977,8 +981,8 @@ Structural UPDATE validation, treat-as-withdraw (routes are synthesized into wit
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
 <tr><td><a href="#rfc7606-8-1"><code>RFC7606-8-1</code></a> A document that specifies a new BGP attribute MUST provide specifics regarding what constitutes an error for that attribute and how that error is to be handled. (§8)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: an obligation on the authors of FUTURE attribute specifications, not on an implementation; Ze has no code path that could satisfy or violate it</td>
+<td>{gap}, no test</td>
+<td>an obligation on a document that specifies a new BGP attribute, whose subject carries a relative clause no role binding can name; ze writes no such document, and no test asserts that each attribute ze decodes is handled as its own document&#39;s error rules say</td>
 </tr>
 </tbody>
 </table>
@@ -1478,7 +1482,7 @@ Structural UPDATE validation, treat-as-withdraw (routes are synthesized into wit
 </div>
 <h3><a href="#rfc7606-5.1-2"><code>RFC7606-5.1-2</code></a></h3>
 <p>o An UPDATE message MUST NOT contain more than one of the following: non-empty Withdrawn Routes field, non-empty Network Layer Reachability Information field, MP_REACH_NLRI attribute, and MP_UNREACH_NLRI attribute. (§5.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-19 (independent auditor, after 85deabdd81, 55cd171a3e, 610939d774). Section 5.1: &#34;An UPDATE message MUST NOT contain more than one of the following: non-empty Withdrawn Routes field, non-empty Network Layer Reachability Information field, MP_REACH_NLRI attribute, and MP_UNREACH_NLRI attribute.&#34; The residual recorded last time is closed: for an overridden body writeOrdinaryUpdateBody computes update.MixesNLRIFields() on the final body and sends a mixed one through Splitter.SplitCompliant (which splits on shape even when the UPDATE fits) instead of Splitter.Split; any trailing MP is moved first before the split. TestEgressOverrideSplitsMixedShape sends a fitting override carrying IPv4 NLRI plus a trailing MP_REACH (asserting it fits, so only shape can split it) and asserts exactly two UPDATEs, each with NLRIBearingFieldCount == 1, the IPv4 one carrying exactly 10.0.0.0/24, the other leading with MP_REACH, and both seen; the claim states exactly that. Mutant record session_write.go:604 &#39;mixed&#39; -&gt; &#39;false&#39; (Split emits the fitting body whole). Cost: the shape walk runs only when overridden; Ze&#39;s own composed bodies keep the zero-walk path. 55cd171a3e and 610939d774 touch no 5.1-2 unit or producer. All tagged units pass at HEAD; ./le rfc check reports no unverified 5.1-2 record. Residual, not reachable in product: Session.SendAnnounce writes a filter override raw without SplitCompliant, but Peer.SendAnnounce, its only caller, has no non-test caller.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: test/plugin/rfc7606-relay-one-field.ci moved. Re-judged 2026-10-19 (independent auditor, after 85deabdd81, 55cd171a3e, 610939d774). Section 5.1: &#34;An UPDATE message MUST NOT contain more than one of the following: non-empty Withdrawn Routes field, non-empty Network Layer Reachability Information field, MP_REACH_NLRI attribute, and MP_UNREACH_NLRI attribute.&#34; The residual recorded last time is closed: for an overridden body writeOrdinaryUpdateBody computes update.MixesNLRIFields() on the final body and sends a mixed one through Splitter.SplitCompliant (which splits on shape even when the UPDATE fits) instead of Splitter.Split; any trailing MP is moved first before the split. TestEgressOverrideSplitsMixedShape sends a fitting override carrying IPv4 NLRI plus a trailing MP_REACH (asserting it fits, so only shape can split it) and asserts exactly two UPDATEs, each with NLRIBearingFieldCount == 1, the IPv4 one carrying exactly 10.0.0.0/24, the other leading with MP_REACH, and both seen; the claim states exactly that. Mutant record session_write.go:604 &#39;mixed&#39; -&gt; &#39;false&#39; (Split emits the fitting body whole). Cost: the shape walk runs only when overridden; Ze&#39;s own composed bodies keep the zero-walk path. 55cd171a3e and 610939d774 touch no 5.1-2 unit or producer. All tagged units pass at HEAD; ./le rfc check reports no unverified 5.1-2 record. Residual, not reachable in product: Session.SendAnnounce writes a filter override raw without SplitCompliant, but Peer.SendAnnounce, its only caller, has no non-test caller.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1536,14 +1540,14 @@ Structural UPDATE validation, treat-as-withdraw (routes are synthesized into wit
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/rfc7606-relay-one-field.ci#L4" title="test/plugin/rfc7606-relay-one-field.ci" target="_blank" rel="noopener"><code>rfc7606-relay-one-field.ci</code></a></td>
 <td>functional/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc7606-5.1-3"><code>RFC7606-5.1-3</code></a></h3>
 <p>Since older BGP speakers may not implement these restrictions, an implementation MUST still be prepared to receive these fields in any position or combination. (§5.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-23 (independent auditor, after 5d4afb0c4e), over the cited producer applyRFC7606. The only change to it: the typedNLRIUnparseable branch now resets through rfc7606ResetNotification with MPAttributeErrorNotification(unparseable) instead of rfc7606SessionReset (3/9 with the attribute instead of 3/1). That branch runs only when a typed family&#39;s splitter cannot walk an MP NLRI section; it adds no position or combination restriction on Withdrawn Routes, NLRI, MP_REACH_NLRI or MP_UNREACH_NLRI, and the clean path and the per-attribute MP_REACH/MP_UNREACH processing are unchanged. No tagged unit changed. Verdict stands. The earlier independent judgement, carried here unchanged: Independent source rejudgment. RFC 7606 Section 5.1 (rfc/full/rfc7606.txt:423-425): &#34;Since older BGP speakers may not implement these restrictions, an implementation MUST still be prepared to receive these fields in any position or combination.&#34; Read the preceding sender restrictions and following legacy-field location paragraph; the positive-only annotation is justified because rejection solely for these shapes would violate the receiver obligation, not be a conforming negative. Read every tagged unit: all four tests in message/rfc7606_section51_receive_test.go and TestRFC7606MPReachIPv4NextHopValid in message/rfc7606_test.go assert exact ActionNone for late MP_UNREACH, distinct MP_REACH plus MP_UNREACH, either MP attribute with legacy NLRI, and late MP_REACH. Read both complete carriers test/plugin/rfc7606-receive-combinations.ci and test/plugin/rfc7606-relay-one-field.ci, plus fixture routeServerReplay13: seeded withdrawals are acknowledged before mixed input, receiver expectations require each component group (and exact legacy withdrawal bytes in relay-one-field), and error-code-specific NOTIFICATION rejection excludes shutdown Cease. Read interop checker internal/le/interoplab/bgp/check_rfc.go::checkRFC7606MixedUpdate: FRR must establish, receive the replay barrier, receive and install 203.0.113.0/24 via the injector, and remain established; its unseeded withdrawn-prefix absence is not independently credited as proof of removal. Producers read: message/rfc7606.go ValidateUpdateRFC7606AddPath walks attributes without a first-position restriction, counts the two MP codes separately, and rejects duplicate instances rather than their combination; reactor/session_validation_receive.go classifyRFC7606 independently locates/validates legacy withdrawn and reachable fields and calls validateRFC7606Attrs; reactor/session_validation.go applyRFC7606 preserves clean input, applies only actual validation outcomes, and does not apply the sender shape restriction. Its typed-NLRI path processes MP_REACH and MP_UNREACH independently. The existing applyRFC7606 code guard is retained. No checks or native discrimination run by this auditor.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: test/plugin/rfc7606-receive-combinations.ci, test/plugin/rfc7606-relay-one-field.ci moved. Re-judged 2026-10-23 (independent auditor, after 5d4afb0c4e), over the cited producer applyRFC7606. The only change to it: the typedNLRIUnparseable branch now resets through rfc7606ResetNotification with MPAttributeErrorNotification(unparseable) instead of rfc7606SessionReset (3/9 with the attribute instead of 3/1). That branch runs only when a typed family&#39;s splitter cannot walk an MP NLRI section; it adds no position or combination restriction on Withdrawn Routes, NLRI, MP_REACH_NLRI or MP_UNREACH_NLRI, and the clean path and the per-attribute MP_REACH/MP_UNREACH processing are unchanged. No tagged unit changed. Verdict stands. The earlier independent judgement, carried here unchanged: Independent source rejudgment. RFC 7606 Section 5.1 (rfc/full/rfc7606.txt:423-425): &#34;Since older BGP speakers may not implement these restrictions, an implementation MUST still be prepared to receive these fields in any position or combination.&#34; Read the preceding sender restrictions and following legacy-field location paragraph; the positive-only annotation is justified because rejection solely for these shapes would violate the receiver obligation, not be a conforming negative. Read every tagged unit: all four tests in message/rfc7606_section51_receive_test.go and TestRFC7606MPReachIPv4NextHopValid in message/rfc7606_test.go assert exact ActionNone for late MP_UNREACH, distinct MP_REACH plus MP_UNREACH, either MP attribute with legacy NLRI, and late MP_REACH. Read both complete carriers test/plugin/rfc7606-receive-combinations.ci and test/plugin/rfc7606-relay-one-field.ci, plus fixture routeServerReplay13: seeded withdrawals are acknowledged before mixed input, receiver expectations require each component group (and exact legacy withdrawal bytes in relay-one-field), and error-code-specific NOTIFICATION rejection excludes shutdown Cease. Read interop checker internal/le/interoplab/bgp/check_rfc.go::checkRFC7606MixedUpdate: FRR must establish, receive the replay barrier, receive and install 203.0.113.0/24 via the injector, and remain established; its unseeded withdrawn-prefix absence is not independently credited as proof of removal. Producers read: message/rfc7606.go ValidateUpdateRFC7606AddPath walks attributes without a first-position restriction, counts the two MP codes separately, and rejects duplicate instances rather than their combination; reactor/session_validation_receive.go classifyRFC7606 independently locates/validates legacy withdrawn and reachable fields and calls validateRFC7606Attrs; reactor/session_validation.go applyRFC7606 preserves clean input, applies only actual validation outcomes, and does not apply the sender shape restriction. Its typed-NLRI path processes MP_REACH and MP_UNREACH independently. The existing applyRFC7606 code guard is retained. No checks or native discrimination run by this auditor.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1581,12 +1585,12 @@ Structural UPDATE validation, treat-as-withdraw (routes are synthesized into wit
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/rfc7606-receive-combinations.ci#L3" title="test/plugin/rfc7606-receive-combinations.ci" target="_blank" rel="noopener"><code>rfc7606-receive-combinations.ci</code></a></td>
 <td>functional/verify</td>
-<td>mutant, verified</td>
+<td>mutant, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/rfc7606-relay-one-field.ci#L8" title="test/plugin/rfc7606-relay-one-field.ci" target="_blank" rel="noopener"><code>rfc7606-relay-one-field.ci</code></a></td>
 <td>functional/verify</td>
-<td>mutant, verified</td>
+<td>mutant, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 </tbody>
 </table>
@@ -1663,7 +1667,7 @@ Structural UPDATE validation, treat-as-withdraw (routes are synthesized into wit
 </div>
 <h3><a href="#rfc7606-5.4-1"><code>RFC7606-5.4-1</code></a></h3>
 <p>A BGP speaker advertising support for such a typed address family MUST handle routes with unrecognized NLRI types within that address family by discarding them, unless the relevant specification for that address family specifies otherwise. (§5.4)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-24 (independent auditor, authored none of 9c3697d0d1 or 439a413ffd). RFC 7606 Section 5.4: &#34;A BGP speaker advertising support for such a typed address family MUST handle routes with unrecognized NLRI types within that address family by discarding them, unless the relevant specification for that address family specifies otherwise.&#34; The only change to TestRFC7606Section54FiltersWhenTheAttributeWalkIsAbandoned (9c3697d0d1) is its doc comment naming ValidateUpdateRFC7606Peer instead of the deleted ValidateUpdateRFC7606AddPath wrapper, which only forwarded to it with acceptASSet false. Body unchanged: MP_REACH EVPN with a type-2 and a type-99 route, then an AS_PATH header declaring 64 octets with none following, asserts exact TreatAsWithdraw from Session.enforceRFC7606, exactly one synthesized withdrawal, the type-99 bytes absent and the type-2 bytes present. Every other cover and its earlier reading stand. Units ran green at HEAD.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: test/plugin/rfc7606-54-bgpls-override-propagates.ci, test/plugin/rfc7606-54-discard-unrecognized-mup-nlri.ci, test/plugin/rfc7606-54-discard-unrecognized-nlri.ci moved. Re-judged 2026-10-24 (independent auditor, authored none of 9c3697d0d1 or 439a413ffd). RFC 7606 Section 5.4: &#34;A BGP speaker advertising support for such a typed address family MUST handle routes with unrecognized NLRI types within that address family by discarding them, unless the relevant specification for that address family specifies otherwise.&#34; The only change to TestRFC7606Section54FiltersWhenTheAttributeWalkIsAbandoned (9c3697d0d1) is its doc comment naming ValidateUpdateRFC7606Peer instead of the deleted ValidateUpdateRFC7606AddPath wrapper, which only forwarded to it with acceptASSet false. Body unchanged: MP_REACH EVPN with a type-2 and a type-99 route, then an AS_PATH header declaring 64 octets with none following, asserts exact TreatAsWithdraw from Session.enforceRFC7606, exactly one synthesized withdrawal, the type-99 bytes absent and the type-2 bytes present. Every other cover and its earlier reading stand. Units ran green at HEAD.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1736,12 +1740,12 @@ Structural UPDATE validation, treat-as-withdraw (routes are synthesized into wit
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/rfc7606-54-discard-unrecognized-mup-nlri.ci#L4" title="test/plugin/rfc7606-54-discard-unrecognized-mup-nlri.ci" target="_blank" rel="noopener"><code>rfc7606-54-discard-unrecognized-mup-nlri.ci</code></a></td>
 <td>functional/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/rfc7606-54-discard-unrecognized-nlri.ci#L4" title="test/plugin/rfc7606-54-discard-unrecognized-nlri.ci" target="_blank" rel="noopener"><code>rfc7606-54-discard-unrecognized-nlri.ci</code></a></td>
 <td>functional/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 </tbody>
 </table>
@@ -2408,7 +2412,7 @@ Structural UPDATE validation, treat-as-withdraw (routes are synthesized into wit
 </div>
 <h3><a href="#rfc7606-8-1"><code>RFC7606-8-1</code></a></h3>
 <p>A document that specifies a new BGP attribute MUST provide specifics regarding what constitutes an error for that attribute and how that error is to be handled. (§8)</p>
-<p><strong>Audit verdict:</strong> not-applicable (the requirement has no reachable code path in Ze), fresh. {not-applicable} annotation holds up: RFC §8 (&#39;A document that specifies a new BGP attribute MUST provide specifics regarding what constitutes an error...&#39;) binds AUTHORS of future BGP attribute specifications, not a running implementation. There is genuinely no Ze code path that could satisfy or violate it, so it is not implementable (per the method, an implementable N/A would be &#39;wrong&#39; -- this one is not). Recorded &#39;enforced&#39; only in the sense that the N/A classification is honest and correct; there is no test to demand and no finding. 2026-07-29 (plan/spec-rfcgate-3-audit-teeth.md, owner ruling OR-1): the value was `enforced` with an empty `tests` map, which the schema now refuses -- `enforced` means the tests would fail if the code stopped complying, and this note itself says there is no test to demand. That was the honest reading of a vocabulary with no honest state for it, so Thomas added one rather than have the record re-judged: `not-applicable`, which requires an empty `tests` map, a mandatory `no_code_path` reason, and an independently committed {not-applicable} annotation on the checklist line. No judgement changed here; the same finding is now recorded in a word that means it. UNRESOLVED and deliberately left so: ai/rules/rfc-compliance.md voids {not-applicable} as AUTHORITY, so the annotation this verdict agrees with is itself a classification the owner has voided. This ruling makes the VERDICT honest about what the code does; it does not re-affirm the annotation, and re-deriving that is fleet-drain work under the rfcgate umbrella&#39;s D4. RFC7606-8-1 needs looking at again when the drain reaches it. 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. The quoted sentence states the same obligation the paraphrase did, and no clause is new. Verdict unchanged.</p>
+<p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), fresh. Re-judged 2026-10-30 (independent judge, part-B backfill review) after the row&#39;s annotation moved from {not-applicable} to {gap}. RFC 7606 Section 8: &#39;A document that specifies a new BGP attribute MUST provide specifics regarding what constitutes an error for that attribute and how that error is to be handled.&#39; The sentence binds the document, and its subject carries a relative clause that the not-applicable role binding cannot name, so the exclusion has no evidence the ratchet accepts and the summary records it as a gap. The earlier not-applicable verdict agreed with an annotation the owner has voided as authority (OR-1 note in the prior record, which flagged this row for re-derivation) and it is refused over a {gap} row. The behaviour Ze could be held to under the row is that each attribute it decodes is handled by the error rules its own document specifies; internal/component/bgp/message/rfc7606.go::validateAttribute is the per-attribute error dispatcher that would carry it, and no tagged unit asserts that every attribute it decodes follows its own document&#39;s error rules. With no test enforcing the row the verdict is unimplemented over that producer.</p>
 <p>No test carries RFC7606-8-1, so no unit is bound to it.</p>
 <h3><a href="#rfc7606-6-1"><code>RFC7606-6-1</code></a></h3>
 <p>Because of these potential issues, a BGP speaker must provide debugging facilities to permit issues caused by a malformed attribute to be diagnosed. At a minimum, such facilities must include logging an error listing the NLRI involved and containing the entire malformed UPDATE message when such an attribute is detected. (§6)</p>
@@ -2989,7 +2993,7 @@ Structural UPDATE validation, treat-as-withdraw (routes are synthesized into wit
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 19:30 UTC</span>
+                    <span class="footer-published">Published 30 October 2026 23:25 UTC</span>
                 </div>
             </div>
         </footer>

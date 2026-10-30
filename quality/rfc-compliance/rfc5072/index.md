@@ -23,8 +23,8 @@ measures that are neither good news nor bad
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | Gated MUSTs | 16 | of 28 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 1 | of 16 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 6.2% | 1 of 16 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Out of scope | 0 | of 16 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 0.0% | 0 of 16 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
 | Met below Ze | 0.0% | 0 of 16 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 16 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 | Linux cannot do this | 0.0% | 0 of 16 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit |
@@ -35,7 +35,7 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 18.8% | 3 of 16 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| No test at all | 25.0% | 4 of 16 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
 The 9 shares marked as a part above are the whole of the 16 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -65,8 +65,8 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Enrolment | Enrolled |
 | Requirements | 28 |
 | Gated MUST-level | 16 |
-| Not applicable, so out of scope | 1 |
-| Declared gaps | 3 |
+| Not applicable, so out of scope | 0 |
+| Declared gaps | 4 |
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
@@ -80,7 +80,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 ## Enrolment
 
-Enrolled: IPv6 over PPP / IPV6CP (RFC 5072): 7 MET (no IPV6CP before network phase, unique interface ID, different-non-zero->Ack, Nak->resend CR, valid Reject->teardown, exactly-one IID option enforced on receive, both-zero->Reject) + 5 single-polarity positive (no IPv6 before Opened, no double-Nak on a missing IID option, collision Nak suggests a fresh different identifier, the suggestion differs from ze's last-sent identifier, the suggestion's u/l bit is zero) + 3 gap (tentative identifier's u/l bit not zeroed, no 1280 MTU floor, oscillation break) + 1 not-applicable (EUI-derived source)
+Enrolled: IPv6 over PPP / IPV6CP (RFC 5072): 7 MET (no IPV6CP before network phase, unique interface ID, different-non-zero->Ack, Nak->resend CR, valid Reject->teardown, exactly-one IID option enforced on receive, both-zero->Reject) + 5 single-polarity positive (no IPv6 before Opened, no double-Nak on a missing IID option, collision Nak suggests a fresh different identifier, the suggestion differs from ze's last-sent identifier, the suggestion's u/l bit is zero) + 4 gap (tentative identifier's u/l bit not zeroed under 4.1-10 and 4.1-11, no 1280 MTU floor, oscillation break)
 
 ## What the public ledger says
 
@@ -92,7 +92,7 @@ Interface-Identifier NCP: independent FSM, generation, Configure-Req/Ack/Nak/Rej
 
 **What the ledger says remains**
 
-Gaps in [`rfc/short/rfc5072.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc5072.md): ze's own TENTATIVE interface identifier (requestIPv6CPInterfaceID/generateIPv6CPInterfaceID) does not zero the u/l bit (4.1-11; the Nak-suggested identifier's u/l bit is fixed, 4.1-9); no 1280 MTU floor for IPv6 sessions (2-2, minIPMTU=68); no last-Nak-suggestion oscillation break (4.1-8). IPv6 address/prefix assignment is outside IPv6CP (DHCPv6-PD/SLAAC).
+Gaps in [`rfc/short/rfc5072.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc5072.md): ze's own TENTATIVE interface identifier (requestIPv6CPInterfaceID/generateIPv6CPInterfaceID) does not zero the u/l bit (4.1-10, 4.1-11; the Nak-suggested identifier's u/l bit is fixed, 4.1-9); no 1280 MTU floor for IPv6 sessions (2-2, minIPMTU=68); no last-Nak-suggestion oscillation break (4.1-8). IPv6 address/prefix assignment is outside IPv6CP (DHCPv6-PD/SLAAC).
 
 ## Coverage
 
@@ -113,7 +113,7 @@ Gaps in [`rfc/short/rfc5072.md`](https://github.com/ze-software/ze/blob/main/rfc
 
 ## Attainable ceiling
 
-Mandatory ceiling: 15 of 16 (93.8%); excluded: Not applicable (classification can be revisited): 1 of 16 (6.2%). Optional ceiling: 12 of 12 (100.0%). Lowest mandatory ceiling: rfc5072 15 of 16 (93.8%). Lowest optional ceiling: rfc5072 12 of 12 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+Mandatory ceiling: 16 of 16 (100.0%). Optional ceiling: 12 of 12 (100.0%). Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: rfc5072 16 of 16 (100.0%). Lowest optional ceiling: rfc5072 12 of 12 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
 
 ## Requirements
 
@@ -131,8 +131,8 @@ Mandatory ceiling: 15 of 16 (93.8%); excluded: Not applicable (classification ca
 | `RFC5072-4.1-7` | In this case, a new Configure-Request MUST be sent with the identifier value suggested in the last Configure-Nak from the peer. (§4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestIPv6CPResendsCRWithNakSuggestedID`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L857). **negative:** `unit/verify` [`TestIPv6CPNakInvalidSuggestionNotAdopted`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L893) |
 | `RFC5072-4.1-8` | But if the received interface identifier is equal to the one sent in the last Configure-Nak, a new interface identifier MUST be chosen. (§4.1) | MUST | 4.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** absorbIPv6CPNak adopts the peer's suggestion unconditionally; ze keeps no record of the IID it suggested in its own last Nak and never regenerates on oscillation (internal/component/l2tp/ppp/ncp.go:479-487) |
 | `RFC5072-4.1-9` | The "u" (universal/local) bit of the suggested identifier MUST be set to zero (0) regardless of its source unless the globally unique EUI-48/EUI-64 derived identifier is provided for the exclusive use by the remote peer. (§4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestIPv6CPSuggestionHasUniversalBitClear`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc5072_ipv6cp_test.go#L187). **negative:** no negative test. **{single-polarity}:** suggestIPv6CPInterfaceID (ipv6cp.go) clears octet 0's bit 0x02 (canonical bit 6) on every draw; ze never derives a suggestion from a globally unique EUI-48/EUI-64 identifier loaned to the peer, so the exception this MUST carves out is never taken and there is no code path to negatively exercise. Distinct from RFC5072-4.1-11, which is the u bit of ze's own TENTATIVE identifier (requestIPv6CPInterfaceID's call to generateIPv6CPInterfaceID) rather than the SUGGESTED one this row and suggestIPv6CPInterfaceID govern -- that row's gap stands, unchanged by this phase |
-| `RFC5072-4.1-10` | If an IEEE global identifier is not available, a different source of uniqueness should be used. Suggested sources of uniqueness include link-layer addresses, machine serial numbers, et cetera. In this case, the "u" bit of the interface identifier MUST be set to zero (0). (§4.1) | MUST | 4.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze's sole interface-identifier source is crypto/rand; it never derives an identifier from a link-layer address or serial number, so this source-specific clause binds a code path ze does not have (internal/component/l2tp/ppp/ipv6cp.go:133) |
-| `RFC5072-4.1-11` | In this case, the "u" bit of the interface identifier MUST be set to zero (0). (§4.1) | MUST | 4.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze's identifier is randomly generated and the generator does not force the u bit to zero, the exact case this MUST governs (internal/component/l2tp/ppp/ipv6cp.go:133-144) |
+| `RFC5072-4.1-10` | If an IEEE global identifier is not available, a different source of uniqueness should be used. Suggested sources of uniqueness include link-layer addresses, machine serial numbers, et cetera. In this case, the "u" bit of the interface identifier MUST be set to zero (0). (§4.1) | MUST | 4.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze uses no case-2 source of uniqueness (no link-layer address, no machine serial number) for its own Interface-Identifier; it draws a random identifier from crypto/rand, which is the case-3 random identifier RFC5072-4.1-11 governs. internal/component/l2tp/ppp/ipv6cp.go::generateIPv6CPInterfaceID (ipv6cp.go:141-152) never clears that identifier's u bit, and requestIPv6CPInterfaceID (ncp.go:200-207) uses it raw, so clearing the bit in generateIPv6CPInterfaceID meets this row and RFC5072-4.1-11 together |
+| `RFC5072-4.1-11` | In this case, the "u" bit of the interface identifier MUST be set to zero (0). (§4.1) | MUST | 4.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze's identifier is randomly generated and the generator does not force the u bit to zero, the exact case this MUST governs (internal/component/l2tp/ppp/ipv6cp.go:141-152, generateIPv6CPInterfaceID; used raw by requestIPv6CPInterfaceID, ncp.go:200-207) |
 | `RFC5072-4.1-12` | A new Configure-Request MUST NOT contain the interface-identifier option if a valid Interface-Identifier Configure-Reject is received. (§4.1) | MUST NOT | 4.1 | **positive:** `unit/verify` [`TestIPv6CPInterfaceIDRejectIsFatal`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L938). **negative:** `unit/verify` [`TestIPv6CPUnknownOptionRejectNotFatal`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L962) |
 | `RFC5072-3-2` | Only Codes 1 through 7 (Configure-Request, Configure-Ack, Configure-Nak, Configure-Reject, Terminate-Request, Terminate- Ack and Code-Reject) are used. Other Codes should be treated as unrecognized and should result in Code-Rejects. (§3) | SHOULD | 3 | **positive:** no positive test. **negative:** no negative test |
 | `RFC5072-3-3` | IPV6CP packets that are received before this phase is reached should be silently discarded. (§3) | SHOULD | 3 | **positive:** no positive test. **negative:** no negative test |
@@ -154,8 +154,8 @@ Mandatory ceiling: 15 of 16 (93.8%); excluded: Not applicable (classification ca
 |---|---|---|
 | [`RFC5072-2-2`](#rfc5072-2-2) PPP links supporting IPv6 MUST allow the information field to be at least as large as the minimum link MTU size required for IPv6 (§2) | {gap}, no test | the MTU floor applied to an IPv6-enabled session is minIPMTU=68, not 1280, so a session whose negotiated MRU is below 1284 gets a sub-1280 MTU; no 1280 clamp exists (internal/component/l2tp/ppp/session_run.go:42, :472) |
 | [`RFC5072-4.1-8`](#rfc5072-4.1-8) But if the received interface identifier is equal to the one sent in the last Configure-Nak, a new interface identifier MUST be chosen. (§4.1) | {gap}, no test | absorbIPv6CPNak adopts the peer's suggestion unconditionally; ze keeps no record of the IID it suggested in its own last Nak and never regenerates on oscillation (internal/component/l2tp/ppp/ncp.go:479-487) |
-| [`RFC5072-4.1-10`](#rfc5072-4.1-10) If an IEEE global identifier is not available, a different source of uniqueness should be used. Suggested sources of uniqueness include link-layer addresses, machine serial numbers, et cetera. In this case, the "u" bit of the interface identifier MUST be set to zero (0). (§4.1) | no test | no test carries this requirement id; annotated {not-applicable}: ze's sole interface-identifier source is crypto/rand; it never derives an identifier from a link-layer address or serial number, so this source-specific clause binds a code path ze does not have (internal/component/l2tp/ppp/ipv6cp.go:133) |
-| [`RFC5072-4.1-11`](#rfc5072-4.1-11) In this case, the "u" bit of the interface identifier MUST be set to zero (0). (§4.1) | {gap}, no test | ze's identifier is randomly generated and the generator does not force the u bit to zero, the exact case this MUST governs (internal/component/l2tp/ppp/ipv6cp.go:133-144) |
+| [`RFC5072-4.1-10`](#rfc5072-4.1-10) If an IEEE global identifier is not available, a different source of uniqueness should be used. Suggested sources of uniqueness include link-layer addresses, machine serial numbers, et cetera. In this case, the "u" bit of the interface identifier MUST be set to zero (0). (§4.1) | {gap}, no test | ze uses no case-2 source of uniqueness (no link-layer address, no machine serial number) for its own Interface-Identifier; it draws a random identifier from crypto/rand, which is the case-3 random identifier RFC5072-4.1-11 governs. internal/component/l2tp/ppp/ipv6cp.go::generateIPv6CPInterfaceID (ipv6cp.go:141-152) never clears that identifier's u bit, and requestIPv6CPInterfaceID (ncp.go:200-207) uses it raw, so clearing the bit in generateIPv6CPInterfaceID meets this row and RFC5072-4.1-11 together |
+| [`RFC5072-4.1-11`](#rfc5072-4.1-11) In this case, the "u" bit of the interface identifier MUST be set to zero (0). (§4.1) | {gap}, no test | ze's identifier is randomly generated and the generator does not force the u bit to zero, the exact case this MUST governs (internal/component/l2tp/ppp/ipv6cp.go:141-152, generateIPv6CPInterfaceID; used raw by requestIPv6CPInterfaceID, ncp.go:200-207) |
 
 ## Proof state
 

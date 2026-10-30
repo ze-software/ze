@@ -17,7 +17,7 @@ System RIB: selects best route across protocols by admin distance
 
 ## Dependencies
 
-- Required: None
+- Required: [`policy`](../policy/index.md)
 - Optional: None
 
 ## Used by

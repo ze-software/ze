@@ -6,12 +6,12 @@ Technology aggregate. BGP Link-State distribution. The RFCs whose summary names 
 
 - **Mandatory**: 65.6% (82 of 125 (65.6%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
 - **Optional**: 5.5% (4 of 73 (5.5%)). MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.
-- **Mandatory ceiling**: 87.2% (109 of 125 (87.2%); excluded: Not applicable (classification can be revisited): 16 of 125 (12.8%)). Attainable mandatory rows under current classifications, over the unchanged total.
+- **Mandatory ceiling**: 99.2% (124 of 125 (99.2%); excluded: Not applicable (classification can be revisited): 1 of 125 (0.8%)). Attainable mandatory rows under current classifications, over the unchanged total.
 - **Optional ceiling**: 100.0% (73 of 73 (100.0%)). Attainable optional rows under current classifications, over the unchanged total.
 - **Not walked**: 0 (of 6 RFCs). RFCs with no valid extraction sign-off: their rows count in neither figure.
 - **Mandatory register**: not complete (every row proven, none unwalked). A profile is complete only when it requires at least one RFC and none of them is unwalked.
 
-Mandatory ceiling: 109 of 125 (87.2%); excluded: Not applicable (classification can be revisited): 16 of 125 (12.8%). Optional ceiling: 73 of 73 (100.0%). Lowest mandatory ceiling: rfc7752 15 of 26 (57.7%). Lowest optional ceiling: rfc7752 26 of 26 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+Mandatory ceiling: 124 of 125 (99.2%); excluded: Not applicable (classification can be revisited): 1 of 125 (0.8%). Optional ceiling: 73 of 73 (100.0%). Lowest mandatory ceiling: rfc9552 58 of 59 (98.3%). Lowest optional ceiling: rfc7752 26 of 26 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
 
 ## Tree
 
@@ -21,13 +21,13 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 
 | RFC | Title | Mandatory | Optional |
 |---|---|---|---|
-| [RFC 9552](../../rfc9552/) | Distribution of Link-State and Traffic Engineering Information Using BGP | 43 of 59 (72.9%); ceiling 54 of 59 (91.5%); excluded: Not applicable (classification can be revisited): 5 of 59 (8.5%) | 1 of 30 (3.3%); ceiling 30 of 30 (100.0%) |
+| [RFC 9552](../../rfc9552/) | Distribution of Link-State and Traffic Engineering Information Using BGP | 43 of 59 (72.9%); ceiling 58 of 59 (98.3%); excluded: Not applicable (classification can be revisited): 1 of 59 (1.7%) | 1 of 30 (3.3%); ceiling 30 of 30 (100.0%) |
 
 ### Level 13
 
 | RFC | Title | Mandatory | Optional |
 |---|---|---|---|
-| [RFC 7752](../../rfc7752/) | North-Bound Distribution of Link-State and Traffic Engineering (TE) Information Using BGP | 8 of 26 (30.8%); ceiling 15 of 26 (57.7%); excluded: Not applicable (classification can be revisited): 11 of 26 (42.3%) | 0 of 26 (0.0%); ceiling 26 of 26 (100.0%) |
+| [RFC 7752](../../rfc7752/) | North-Bound Distribution of Link-State and Traffic Engineering (TE) Information Using BGP | 8 of 26 (30.8%); ceiling 26 of 26 (100.0%) | 0 of 26 (0.0%); ceiling 26 of 26 (100.0%) |
 | [RFC 8571](../../rfc8571/) | BGP - Link State (BGP-LS) Advertisement of IGP Traffic Engineering Performance Metric Extensions | no rows; ceiling no rows | no rows; ceiling no rows |
 
 ### Level 14

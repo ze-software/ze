@@ -13,11 +13,11 @@ Named route attribute modifier (set local-preference, med, origin, next-hop)
 
 ## Configuration
 
-`bgp`
+`policy`
 
 ## Dependencies
 
-- Required: [`bgp`](../bgp/index.md)
+- Required: [`bgp`](../bgp/index.md), [`policy`](../policy/index.md)
 - Optional: None
 
 ## Used by

@@ -6,14 +6,14 @@ Technology aggregate. BGP session operations: graceful restart, shutdown, route 
 
 Use case: [Chaos-Tested BGP Peering](../../../../use-cases/chaos-tested-peering/)
 
-- **Mandatory**: 50.0% (38 of 76 (50.0%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
-- **Optional**: 3.3% (4 of 122 (3.3%)). MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.
-- **Mandatory ceiling**: 96.1% (73 of 76 (96.1%); excluded: Not applicable (classification can be revisited): 3 of 76 (3.9%)). Attainable mandatory rows under current classifications, over the unchanged total.
+- **Mandatory**: 50.6% (39 of 77 (50.6%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
+- **Optional**: 4.1% (5 of 122 (4.1%)). MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.
+- **Mandatory ceiling**: 100.0% (77 of 77 (100.0%)). Attainable mandatory rows under current classifications, over the unchanged total.
 - **Optional ceiling**: 100.0% (122 of 122 (100.0%)). Attainable optional rows under current classifications, over the unchanged total.
 - **Not walked**: 3 (of 13 RFCs). RFCs with no valid extraction sign-off: their rows count in neither figure.
 - **Mandatory register**: not complete (every row proven, none unwalked). A profile is complete only when it requires at least one RFC and none of them is unwalked.
 
-Mandatory ceiling: 73 of 76 (96.1%); excluded: Not applicable (classification can be revisited): 3 of 76 (3.9%). Optional ceiling: 122 of 122 (100.0%). Lowest mandatory ceiling: rfc9494 23 of 25 (92.0%). Lowest optional ceiling: rfc4456 5 of 5 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+Mandatory ceiling: 77 of 77 (100.0%). Optional ceiling: 122 of 122 (100.0%). Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: rfc4456 4 of 4 (100.0%). Lowest optional ceiling: rfc4456 5 of 5 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
 
 ## Tree
 
@@ -37,8 +37,8 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 
 | RFC | Title | Mandatory | Optional |
 |---|---|---|---|
-| [RFC 4724](../../rfc4724/) | Graceful Restart Mechanism for BGP | 14 of 26 (53.8%); ceiling 25 of 26 (96.2%); excluded: Not applicable (classification can be revisited): 1 of 26 (3.8%) | 1 of 5 (20.0%); ceiling 5 of 5 (100.0%) |
-| [RFC 7947](../../rfc7947/) | Internet Exchange BGP Route Server | 1 of 2 (50.0%); ceiling 2 of 2 (100.0%) | 2 of 5 (40.0%); ceiling 5 of 5 (100.0%) |
+| [RFC 4724](../../rfc4724/) | Graceful Restart Mechanism for BGP | 14 of 26 (53.8%); ceiling 26 of 26 (100.0%) | 1 of 5 (20.0%); ceiling 5 of 5 (100.0%) |
+| [RFC 7947](../../rfc7947/) | Internet Exchange BGP Route Server | 2 of 3 (66.7%); ceiling 3 of 3 (100.0%) | 3 of 5 (60.0%); ceiling 5 of 5 (100.0%) |
 
 ### Level 7
 
@@ -60,4 +60,4 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 
 | RFC | Title | Mandatory | Optional |
 |---|---|---|---|
-| [RFC 9494](../../rfc9494/) | Long-Lived Graceful Restart for BGP | 8 of 25 (32.0%); ceiling 23 of 25 (92.0%); excluded: Not applicable (classification can be revisited): 2 of 25 (8.0%) | 1 of 11 (9.1%); ceiling 11 of 11 (100.0%) |
+| [RFC 9494](../../rfc9494/) | Long-Lived Graceful Restart for BGP | 8 of 25 (32.0%); ceiling 25 of 25 (100.0%) | 1 of 11 (9.1%); ceiling 11 of 11 (100.0%) |

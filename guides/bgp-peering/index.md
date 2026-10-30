@@ -108,7 +108,7 @@ The group explicitly permits import and export for both transit peers. A global
 `bgp filter` policy also counts as explicit policy for peers that inherit it.
 Filters accumulate from BGP to group to peer. The most-specific configured
 direction supplies the final decision, and an absent child inherits it.
-<!-- source: internal/component/bgp/config/redistribution.go -- concatPolicies -->
+<!-- source: internal/component/policy/chain.go -- ConcatChains -->
 
 ## Dynamic peer groups
 
@@ -118,12 +118,13 @@ A member that connects while Ze is still starting its plugins is held: its sessi
 <!-- source: internal/component/bgp/reactor/reactor_dynamic.go -- createDynamicPeer -->
 
 ```text
-bgp {
-    policy {
-        reject-asn NO-TRANSIT {
-            indirect [ 174 701 3356 ]
-        }
+policy {
+    reject-asn NO-TRANSIT {
+        indirect [ 174 701 3356 ]
     }
+}
+
+bgp {
     group ix {
         connection {
             remote {

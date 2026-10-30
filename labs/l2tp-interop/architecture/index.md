@@ -139,8 +139,12 @@ operator one, so the Stop reports Admin Reset, RFC 2866 Section 5.10 value 6.
 
 The typed plan starts the Go RADIUS peer on `172.29.0.5` before Ze and xl2tpd.
 The peer answers Access-Request and Accounting-Request packets and writes the
-decoded attributes that the checker compares. This scenario uses the same
-PPPoL2TP preflight as 01 and 02.
+decoded attributes that the checker compares. Its Access-Accept carries a
+Message-Authenticator (RFC 2869 Section 5.14), because ze discards an unsigned
+answer to an Access-Request unless the server's
+`require-message-authenticator` is false (BlastRADIUS, CVE-2024-3596).
+This scenario uses the same PPPoL2TP preflight as 01 and 02.
+<!-- source: internal/le/interoplab/l2tp/radiusmock/main.go -- appendMessageAuthenticator -->
 
 ### dns-resolver-l2tp-subscriber
 

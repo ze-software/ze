@@ -106,7 +106,7 @@ and <strong>runtime commands</strong> sent to the running daemon via SSH.</p>
 <li><a href="#show-dns-lookup">show dns lookup</a></li>
 <li><a href="#show-dns-cache-stats-list-record">show dns cache stats / list / record</a></li>
 <li><a href="#clear-dns-cache-all-stats-record">clear dns cache all / stats / record</a></li>
-<li><a href="#show-dns-resolver-clear-dns-resolver-cache-all">show dns-resolver / clear dns-resolver cache all</a></li>
+<li><a href="#show-dns-resolver-clear-dns-resolver-cache-all">show dns resolver / clear dns resolver cache all</a></li>
 <li><a href="#clear-peeringdb-cache-clear-irr-cache-clear-cymru-cache">clear peeringdb cache / clear irr cache / clear cymru cache</a></li>
 <li><a href="#show-resolve-rir">show resolve rir</a></li>
 <li><a href="#update-resolve-rir">update resolve rir</a></li>
@@ -1835,17 +1835,17 @@ clear dns cache record example.com                  # Delete all entries matchin
 clear dns cache record example.com type AAAA        # Delete a single entry by name and type
 </code></pre>
 <!-- source: internal/component/resolve/cmd/dns.go -- handleClearDNSCache, handleClearDNSCacheStats, handleClearDNSCacheRecord -->
-<h3 id="show-dns-resolver-clear-dns-resolver-cache-all">show dns-resolver / clear dns-resolver cache all</h3>
+<h3 id="show-dns-resolver-clear-dns-resolver-cache-all">show dns resolver / clear dns resolver cache all</h3>
 <p>The LAN DNS resolver (<code>service dns-resolver</code>, <a href="https://github.com/ze-software/ze/blob/main/docs/guide/dns-resolver.md" target="_blank" rel="noopener">guide</a>), which
 answers the hosts behind Ze. It is separate from the <code>show dns</code> and
 <code>clear dns</code> commands above, which cover the resolver Ze uses for its own
 lookups.</p>
-<pre><code>ze show dns-resolver                   # Config in force, listener state, cache entries, hit rate, refusals, drops, upstream results
-ze clear dns-resolver cache all        # Empty the answer and the negative cache; the counters are kept
+<pre><code>ze show dns resolver                   # Config in force, listener state, cache entries, hit rate, refusals, drops, upstream results
+ze clear dns resolver cache all        # Empty the answer and the negative cache; the counters are kept
 </code></pre>
-<p><code>clear dns-resolver cache</code> alone has no handler and empties nothing: it exits 1
-and lists <code>all</code>, the word emptying needs. <code>show dns-resolver</code> answers <code>running false</code> while the
-plugin is not running, and <code>clear dns-resolver cache all</code> answers an error that
+<p><code>clear dns resolver cache</code> alone has no handler and empties nothing: it exits 1
+and lists <code>all</code>, the word emptying needs. <code>show dns resolver</code> answers <code>running false</code> while the
+plugin is not running, and <code>clear dns resolver cache all</code> answers an error that
 names the config to commit.</p>
 <!-- source: internal/plugins/dnsresolver/show.go -- handleShowDNSResolver, handleClearDNSResolverCache -->
 <!-- source: internal/plugins/dnsresolver/yang/ze-dns-resolver-cmd.yang -- show and clear command tree -->
@@ -2381,6 +2381,7 @@ ze init --managed                # Fleet mode
 ze init --force --yes             # Replace an unowned store with a backup
 ze init --from database.zefs      # Import a local blob into the live store
 ze init --from https://provision.example.net/install/database.zefs --sha256 &lt;hex&gt;
+ze init --from tftp://192.0.2.1/install/database.zefs --sha256 &lt;hex&gt;
 </code></pre>
 <p>Input fields are username, password, host, port, and instance name.
 The default host is <code>127.0.0.1</code>, the port is <code>2222</code>, and the name is the hostname.
@@ -2419,7 +2420,7 @@ Normal initialization discovers interfaces and stores their initial config.</p>
 </tr>
 <tr>
 <td><code>--from &lt;source&gt;</code></td>
-<td>Import a blob from a local path or an <code>http</code> or <code>https</code> URL into the live store; reads no credentials; refuses <code>--seed</code>; with <code>--force --yes</code> replaces an existing store. A local blob is retired as <code>.replaced-&lt;stamp&gt;</code>. A URL is fetched into a <code>database.fetch-*</code> folder beside the store, and that folder is removed after the import</td>
+<td>Import a blob from a local path or an <code>http</code>, <code>https</code> or <code>tftp</code> URL into the live store; reads no credentials; refuses <code>--seed</code>; with <code>--force --yes</code> replaces an existing store. A local blob is retired as <code>.replaced-&lt;stamp&gt;</code>. A URL is fetched into a <code>database.fetch-*</code> folder beside the store, and that folder is removed after the import</td>
 </tr>
 <tr>
 <td><code>--sha256 &lt;hex&gt;</code></td>
@@ -2431,7 +2432,9 @@ Normal initialization discovers interfaces and stores their initial config.</p>
 A digest mismatch, a body that is not a blob, or a corrupt entry imports
 nothing, and the error names the reason or the key. Any other scheme is refused
 with the supported list. A redirect is followed only within the scheme and host
-of the URL. When an import stops after it recorded its intent, the fetched copy
+of the URL. A <code>tftp://host[:port]/file</code> URL is read in octet mode (<code>;mode=octet</code>
+is accepted, <code>;mode=netascii</code> is refused) from port 69 unless another port is
+given. TFTP authenticates nothing, so give <code>--sha256</code> with a TFTP source. When an import stops after it recorded its intent, the fetched copy
 stays and the error names it, because the recovery command
 <code>ze init --from &lt;copy&gt;</code> reads it.</p>
 <p>Replacement refuses a live store owner, regardless of the selected SSH target.
@@ -3540,7 +3543,11 @@ answered a different peer on each call.</p>
 <p>If the remote AS is unresolved, <code>action</code> is <code>undetermined</code> and <code>reason</code> tells you
 to wait for establishment and repeat <code>show policy test</code>. No filter executes,
 including a single-filter override. Trace and text are empty, with no wire
-changes. For a known EBGP session, an absent direction has a rejecting final.</p>
+changes. For a known EBGP session, an absent direction has a rejecting final.
+<code>policy</code> reports the direction's effective final, as <code>show policy chain</code> does:
+<code>final-source: rfc8212</code> marks the RFC 8212 default reject on an EBGP direction
+with no policy, and <code>undetermined</code> an absent direction whose session type is not
+known yet.</p>
 <!-- source: internal/component/bgp/reactor/policy_dryrun.go -- PolicyDryRun -->
 <p><code>text-before</code> and <code>text-after</code> name every attribute the UPDATE carries. Five of
 those names first appeared on 2026-09-04: <code>origin</code>, <code>med</code>, <code>local-preference</code>,
@@ -3858,6 +3865,11 @@ unicast; <code>mp &lt;family&gt; add &lt;prefixes&gt;</code>, <code>mp &lt;famil
 <td><code>show bgp rib rpf &lt;family&gt; &lt;source-addr&gt;</code></td>
 <td>read</td>
 <td>RPF lookup: longest-prefix-match against Loc-RIB for CIDR families <!-- source: internal/component/bgp/plugins/cmd/rib/ -- RIB proxy RPCs; internal/component/bgp/plugins/rib/ -- RIB plugin --></td>
+</tr>
+<tr>
+<td><code>show rib candidates [prefix &lt;prefix&gt;]</code></td>
+<td>read-only</td>
+<td>Every Loc-RIB path each protocol offered, selected, standing by or hidden by an import chain, with <code>hidden-by</code> and <code>chain</code> on a hidden path ("Seeing the hidden paths") <!-- source: internal/component/sysrib/candidates.go -- showRIBCandidates -->. <span class="ev-src"><span class="ev-ref"><code>docs/guide/route-policy.md</code></span></span></td>
 </tr>
 </tbody>
 </table>
@@ -4816,7 +4828,7 @@ reaches, where the daemon expands the chain.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 21:34 UTC</span>
+                    <span class="footer-published">Published 30 October 2026 17:53 UTC</span>
                 </div>
             </div>
         </footer>

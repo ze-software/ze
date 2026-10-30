@@ -42,6 +42,10 @@
                 {
                     "module": "github.com/creack/pty",
                     "why": "Opens a pseudo-terminal in a Linux integration test that exercises serial console handling."
+                },
+                {
+                    "module": "github.com/chromedp/chromedp",
+                    "why": "Drives headless Chrome in a test that proves the website fills its published figures from the facts snapshot."
                 }
             ]
         },

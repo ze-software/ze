@@ -1,6 +1,6 @@
 # RFC 2349 - TFTP Timeout Interval and Transfer Size Options
 
-No row in the public ledger. Every requirement this repository extracted from RFC 2349, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+Partial. Every requirement this repository extracted from RFC 2349, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
 
 ## Overview
 
@@ -14,8 +14,7 @@ what Ze has
 | One polarity plus reason | 0.0% | 0 of 4 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 4 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 4 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| No test at all | 0.0% | 0 of 4 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 0.0% | 0 of 2 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 66.7% | 4 of 6 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -24,11 +23,19 @@ measures that are neither good news nor bad
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | Gated MUSTs | 4 | of 6 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 3 | of 4 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 75.0% | 3 of 4 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Out of scope | 0 | of 4 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 0.0% | 0 of 4 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
 | Met below Ze | 0.0% | 0 of 4 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 4 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 | Linux cannot do this | 0.0% | 0 of 4 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit |
+
+### Negative
+
+what Ze owes
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| No test at all | 75.0% | 3 of 4 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
 The 9 shares marked as a part above are the whole of the 4 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -42,7 +49,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
-| No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
@@ -54,30 +61,38 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 | Field | Value |
 |---|---|
-| Public status | No row in the public ledger |
+| Public status | Partial |
 | Enrolment | Enrolled |
 | Requirements | 6 |
 | Gated MUST-level | 4 |
-| Not applicable, so out of scope | 3 |
-| Declared gaps | 0 |
+| Not applicable, so out of scope | 0 |
+| Declared gaps | 3 |
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 2 |
-| Tagged units | 2 |
-| Recorded audit verdicts | 1 |
-| Discrimination records | 0 |
+| Test tags | 6 |
+| Tagged units | 6 |
+| Recorded audit verdicts | 2 |
+| Discrimination records | 4 |
 | Summary | `rfc/short/rfc2349.md` |
 | Requirement shard | `rfc/requirements/rfc2349.md` |
 | RFC text | `rfc/full/rfc2349.txt` |
 
 ## Enrolment
 
-Enrolled: TFTP Timeout Interval and Transfer Size Options: four MUST-level requirements. RFC2349-x-3 (tsize in RRQ: client value "0", server returns actual file size in the OACK) is met and tested with both polarities via loopback OACK round-trips in rfc2349_tsize_test.go (producer handleRRQ os.Stat + oackOpts tsize, internal/plugins/tftpserver/handler.go:319-329): a 7-byte file returns tsize "7", a 20-byte file returns "20", and the server never echoes the client placeholder "0". The other three are {not-applicable}: RFC2349-x-1 (timeout acknowledged value matches request) and RFC2349-x-2 (timeout range 1-255) govern the timeout option, which Ze does not implement (parseRRQ recognizes only blksize/tsize/windowsize and ignores timeout per RFC 2347); RFC2349-x-4 (tsize in WRQ echoes the client size) governs write requests, which Ze (a read-only TFTP server) rejects with Illegal-Operation. No SHOULD/MAY requirements are gated.
+Enrolled: TFTP Timeout Interval and Transfer Size Options: four MUST-level requirements. RFC2349-x-3 (tsize in RRQ: client value "0", server returns actual file size in the OACK) is met and tested with both polarities via loopback OACK round-trips in rfc2349_tsize_test.go (producer handleRRQ os.Stat + oackOpts tsize, internal/plugins/tftpserver/handler.go:319-329): a 7-byte file returns tsize "7", a 20-byte file returns "20", and the server never echoes the client placeholder "0". The other three are gaps, with no owner decision declining either feature: RFC2349-x-1 (timeout acknowledged value matches request) and RFC2349-x-2 (timeout range 1-255) govern the timeout option, which Ze does not implement (parseRRQ recognizes only blksize/tsize/windowsize and ignores timeout per RFC 2347); RFC2349-x-4 (tsize in WRQ echoes the client size) governs write requests, which Ze (a read-only TFTP server) rejects with Illegal-Operation. No SHOULD/MAY requirements are gated. The client side of RFC2349-x-3 (the read request carries tsize "0" and the OACK size is taken) is tested by Ze's TFTP client, TestRFC2349ClientTsize (internal/core/tftp/request.go BuildRRQ, internal/core/tftp/oack.go grantTsize), and the MAY x-5 (a file too large for the client draws ERROR 3) by TestRFC2349ClientAbortsTooLargeFile.
 
 ## What the public ledger says
 
-No row in the public ledger, so its summary declares `| Support | - |` and docs/features/rfc-status.md carries no row for RFC 2349.
+**Status:** Partial
+
+**What the ledger says is covered:**
+
+The tsize option on a read request returns the file size in the OACK ([`internal/plugins/tftpserver/handler.go`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler.go)).
+
+**What the ledger says remains:**
+
+Three MUST gaps in the requirement checklist: ze implements no timeout option, so it neither acknowledges a timeout (RFC2349-x-1) nor range-checks one (RFC2349-x-2), and it serves no write request, so no WRQ tsize is echoed (RFC2349-x-4).
 
 ## Coverage
 
@@ -98,26 +113,26 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 
 ## Attainable ceiling
 
-Mandatory ceiling: 1 of 4 (25.0%); excluded: Not applicable (classification can be revisited): 3 of 4 (75.0%). Optional ceiling: 2 of 2 (100.0%). Lowest mandatory ceiling: rfc2349 1 of 4 (25.0%). Lowest optional ceiling: rfc2349 2 of 2 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+Mandatory ceiling: 4 of 4 (100.0%). Optional ceiling: 2 of 2 (100.0%). Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: rfc2349 4 of 4 (100.0%). Lowest optional ceiling: rfc2349 2 of 2 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
 
 ## Requirements
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC2349-x-1` | If the server is willing to accept the timeout option, it sends an Option Acknowledgment (OACK) to the client. The specified timeout value must match the value specified by the client. (§Timeout Interval Option Specification) | MUST | Timeout | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** Ze does not implement the RFC 2349 timeout option. Its RRQ parser recognizes only blksize, tsize, and windowsize (internal/plugins/tftpserver/handler.go:121-131 parseRRQ); a requested timeout option falls through and is ignored per RFC 2347 (an unacknowledged option is treated as never requested, gated as RFC2347-x-3). Ze never places timeout in an OACK, so it has no code path that could acknowledge a mismatched timeout value. |
-| `RFC2349-x-2` | The number of seconds to wait before retransmitting, specified in ASCII. Valid values range between "1" and "255" seconds, inclusive. (§Timeout Interval Option Specification) | MUST | Timeout | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** Ze does not implement the timeout option (parseRRQ recognizes only blksize/tsize/windowsize, internal/plugins/tftpserver/handler.go:121-131), so it has no timeout value to range-check against 1-255 seconds. |
-| `RFC2349-x-3` | In Read Request packets, a size of "0" is specified in the request and the size of the file, in octets, is returned in the OACK. (§Transfer Size Option Specification) | MUST | Transfer | **positive:** `unit/verify` [`TestRFC2349TsizeRRQReturnsActualSize`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2349_tsize_test.go#L32). **negative:** `unit/verify` [`TestRFC2349TsizeRRQReturnsActualSize`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2349_tsize_test.go#L37) |
-| `RFC2349-x-4` | In Write Request packets, the size of the file, in octets, is specified in the request and echoed back in the OACK. (§Transfer Size Option Specification) | MUST | Transfer | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** Ze is a read-only TFTP server: it rejects every write request (WRQ) with an Illegal-Operation error (internal/plugins/tftpserver/handler.go:226-227 "write not supported"; TestTFTPWriteRejected). With no WRQ transfer ever accepted, Ze has no code path that would echo a client-specified file size in a WRQ OACK. |
-| `RFC2349-x-5` | If the file is too large for the client to handle, it may abort the transfer with an Error packet (error code 3). (§Transfer Size Option Specification) | MAY | Transfer | **positive:** no positive test. **negative:** no negative test |
+| `RFC2349-x-1` | If the server is willing to accept the timeout option, it sends an Option Acknowledgment (OACK) to the client. The specified timeout value must match the value specified by the client. (§Timeout Interval Option Specification) | MUST | Timeout | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze implements no timeout option and no owner decision declines it: internal/plugins/tftpserver/handler.go::parseRRQ recognizes only blksize, tsize and windowsize, so buildOACK never acknowledges a timeout and no test asserts the OACK carries none |
+| `RFC2349-x-2` | The number of seconds to wait before retransmitting, specified in ASCII. Valid values range between "1" and "255" seconds, inclusive. (§Timeout Interval Option Specification) | MUST | Timeout | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze implements no timeout option and no owner decision declines it: internal/plugins/tftpserver/handler.go::parseRRQ ignores a timeout value, so nothing range-checks it against 1 to 255 |
+| `RFC2349-x-3` | In Read Request packets, a size of "0" is specified in the request and the size of the file, in octets, is returned in the OACK. (§Transfer Size Option Specification) | MUST | Transfer | **positive:** `unit/verify` [`TestRFC2349ClientTsize`](https://github.com/ze-software/ze/blob/main/internal/core/fetch/rfc2349_client_test.go#L17). **positive:** `unit/verify` [`TestRFC2349TsizeRRQReturnsActualSize`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2349_tsize_test.go#L32). **negative:** `unit/verify` [`TestRFC2349ClientTsize`](https://github.com/ze-software/ze/blob/main/internal/core/fetch/rfc2349_client_test.go#L20). **negative:** `unit/verify` [`TestRFC2349TsizeRRQReturnsActualSize`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2349_tsize_test.go#L37) |
+| `RFC2349-x-4` | In Write Request packets, the size of the file, in octets, is specified in the request and echoed back in the OACK. (§Transfer Size Option Specification) | MUST | Transfer | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze serves no write request and no owner decision declines writes: internal/plugins/tftpserver/handler.go answers every WRQ with an Illegal Operation error (write not supported, TestTFTPWriteRejected), so no WRQ tsize is echoed in an OACK |
+| `RFC2349-x-5` | If the file is too large for the client to handle, it may abort the transfer with an Error packet (error code 3). (§Transfer Size Option Specification) | MAY | Transfer | **positive:** `unit/verify` [`TestRFC2349ClientAbortsTooLargeFile`](https://github.com/ze-software/ze/blob/main/internal/core/fetch/rfc2349_client_test.go#L61). **negative:** `unit/verify` [`TestRFC2349ClientAbortsTooLargeFile`](https://github.com/ze-software/ze/blob/main/internal/core/fetch/rfc2349_client_test.go#L63) |
 | `RFC2349-x-6` | If the file is too large for the server to handle, it may abort the transfer with an Error packet (error code 3). (§Transfer Size Option Specification) | MAY | Transfer | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC2349-x-1`](#rfc2349-x-1) If the server is willing to accept the timeout option, it sends an Option Acknowledgment (OACK) to the client. The specified timeout value must match the value specified by the client. (§Timeout Interval Option Specification) | no test | no test carries this requirement id; annotated {not-applicable}: Ze does not implement the RFC 2349 timeout option. Its RRQ parser recognizes only blksize, tsize, and windowsize (internal/plugins/tftpserver/handler.go:121-131 parseRRQ); a requested timeout option falls through and is ignored per RFC 2347 (an unacknowledged option is treated as never requested, gated as RFC2347-x-3). Ze never places timeout in an OACK, so it has no code path that could acknowledge a mismatched timeout value. |
-| [`RFC2349-x-2`](#rfc2349-x-2) The number of seconds to wait before retransmitting, specified in ASCII. Valid values range between "1" and "255" seconds, inclusive. (§Timeout Interval Option Specification) | no test | no test carries this requirement id; annotated {not-applicable}: Ze does not implement the timeout option (parseRRQ recognizes only blksize/tsize/windowsize, internal/plugins/tftpserver/handler.go:121-131), so it has no timeout value to range-check against 1-255 seconds. |
-| [`RFC2349-x-4`](#rfc2349-x-4) In Write Request packets, the size of the file, in octets, is specified in the request and echoed back in the OACK. (§Transfer Size Option Specification) | no test | no test carries this requirement id; annotated {not-applicable}: Ze is a read-only TFTP server: it rejects every write request (WRQ) with an Illegal-Operation error (internal/plugins/tftpserver/handler.go:226-227 "write not supported"; TestTFTPWriteRejected). With no WRQ transfer ever accepted, Ze has no code path that would echo a client-specified file size in a WRQ OACK. |
+| [`RFC2349-x-1`](#rfc2349-x-1) If the server is willing to accept the timeout option, it sends an Option Acknowledgment (OACK) to the client. The specified timeout value must match the value specified by the client. (§Timeout Interval Option Specification) | {gap}, no test | ze implements no timeout option and no owner decision declines it: internal/plugins/tftpserver/handler.go::parseRRQ recognizes only blksize, tsize and windowsize, so buildOACK never acknowledges a timeout and no test asserts the OACK carries none |
+| [`RFC2349-x-2`](#rfc2349-x-2) The number of seconds to wait before retransmitting, specified in ASCII. Valid values range between "1" and "255" seconds, inclusive. (§Timeout Interval Option Specification) | {gap}, no test | ze implements no timeout option and no owner decision declines it: internal/plugins/tftpserver/handler.go::parseRRQ ignores a timeout value, so nothing range-checks it against 1 to 255 |
+| [`RFC2349-x-4`](#rfc2349-x-4) In Write Request packets, the size of the file, in octets, is specified in the request and echoed back in the OACK. (§Transfer Size Option Specification) | {gap}, no test | ze serves no write request and no owner decision declines writes: internal/plugins/tftpserver/handler.go answers every WRQ with an Illegal Operation error (write not supported, TestTFTPWriteRejected), so no WRQ tsize is echoed in an OACK |
 
 ## Proof state
 
@@ -143,11 +158,13 @@ No test carries RFC2349-x-2, so no unit is bound to it.
 
 In Read Request packets, a size of "0" is specified in the request and the size of the file, in octets, is returned in the OACK. (§Transfer Size Option Specification)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden (server half): an OACK whose tsize is not the file size in octets, e.g. echoing the client's "0" or a constant. TestRFC2349TsizeRRQReturnsActualSize asserts opts["tsize"] == "7" for a 7-octet file and == "20" (and != "0") for a 20-octet file, red on echo, constant, or wrong size. The first clause (the client specifies "0" in the request) binds a TFTP client, which Ze does not ship (read-only server). Both polarities.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Both clauses now in Ze's roles. Client: TestRFC2349ClientTsize compares the whole RRQ byte for byte against '\x00\x01f.bin\x00octet\x00blksize\x001468\x00tsize\x000\x00windowsize\x004\x00', red on any tsize value other than "0" or a missing tsize; its negative refuses a non-octet size '12k' with ERROR 8. Server: TestRFC2349TsizeRRQReturnsActualSize (unchanged) pins tsize 7 and 20 for 7- and 20-octet files, red on echo of "0" or a constant.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
+| negative | [`TestRFC2349ClientTsize`](https://github.com/ze-software/ze/blob/main/internal/core/fetch/rfc2349_client_test.go#L20) | unit/verify | revert, verified |
 | negative | [`TestRFC2349TsizeRRQReturnsActualSize`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2349_tsize_test.go#L37) | unit/verify | unproven |
+| positive | [`TestRFC2349ClientTsize`](https://github.com/ze-software/ze/blob/main/internal/core/fetch/rfc2349_client_test.go#L17) | unit/verify | revert, verified |
 | positive | [`TestRFC2349TsizeRRQReturnsActualSize`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc2349_tsize_test.go#L32) | unit/verify | unproven |
 
 ### [`RFC2349-x-4`](#rfc2349-x-4)
@@ -157,6 +174,17 @@ In Write Request packets, the size of the file, in octets, is specified in the r
 Audit verdict: not audited: no reader has judged these tests
 
 No test carries RFC2349-x-4, so no unit is bound to it.
+
+### [`RFC2349-x-5`](#rfc2349-x-5)
+
+If the file is too large for the client to handle, it may abort the transfer with an Error packet (error code 3). (§Transfer Size Option Specification)
+
+Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC2349ClientAbortsTooLargeFile: an OACK tsize of fileSizeMax+1 must draw ERROR with code exactly 3 before any ACK, then silence, and a failed fetch (red on ACK 0 or another code); exactly fileSizeMax draws ACK 0 and completes, so the bound is not off by one.
+
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC2349ClientAbortsTooLargeFile`](https://github.com/ze-software/ze/blob/main/internal/core/fetch/rfc2349_client_test.go#L63) | unit/verify | revert, verified |
+| positive | [`TestRFC2349ClientAbortsTooLargeFile`](https://github.com/ze-software/ze/blob/main/internal/core/fetch/rfc2349_client_test.go#L61) | unit/verify | revert, verified |
 
 ## Extraction sign-off
 

@@ -122,15 +122,15 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>4.3%</strong><b>1 of 23 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 23 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 23 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>44.4%</strong><b>20 of 45 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>40.0%</strong><b>18 of 45 tagged units, 0 escaped and 2 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>23</strong><b>of 46 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>1</strong><b>of 23 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>4.3%</strong><b>1 of 23 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 23 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 23 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 23 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>4.3%</strong><b>1 of 23 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 23 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0.0%</strong><b>0 of 23 gated MUSTs</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit</p></article>
 </div>
@@ -221,7 +221,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>23</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
-<td>1</td>
+<td>0</td>
 </tr>
 <tr><td>Declared gaps</td>
 <td>5</td>
@@ -313,7 +313,7 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <p class="rfc-id-list"><strong>Annotated (including scoped evidence) (7):</strong> <a href="#rfc5340-2.5-2"><code>RFC5340-2.5-2</code></a>, <a href="#rfc5340-2.8-2"><code>RFC5340-2.8-2</code></a>, <a href="#rfc5340-4.2.2-1"><code>RFC5340-4.2.2-1</code></a>, <a href="#rfc5340-4.2.2-2"><code>RFC5340-4.2.2-2</code></a>, <a href="#rfc5340-4.2.2-3"><code>RFC5340-4.2.2-3</code></a>, <a href="#rfc5340-4.9-1"><code>RFC5340-4.9-1</code></a>, <a href="#rfc5340-4.9-2"><code>RFC5340-4.9-2</code></a></p>
 </section>
 <section><h2>Attainable ceiling</h2>
-<p>Mandatory ceiling: 22 of 23 (95.7%); excluded: Not applicable (classification can be revisited): 1 of 23 (4.3%). Optional ceiling: 23 of 23 (100.0%). Lowest mandatory ceiling: rfc5340 22 of 23 (95.7%). Lowest optional ceiling: rfc5340 23 of 23 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.</p>
+<p>Mandatory ceiling: 22 of 23 (95.7%); excluded: Met by a lower layer: 1 of 23 (4.3%). Optional ceiling: 23 of 23 (100.0%). Lowest mandatory ceiling: rfc5340 22 of 23 (95.7%). Lowest optional ceiling: rfc5340 23 of 23 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.</p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -426,7 +426,7 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5340-4.2.2-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> AH and ESP are processed by the kernel XFRM inbound transform before the datagram reaches the socket; ze installs the require-policy that makes that happen (buildIPsecPolicies SADirIn, ipsec_install.go:449) and only samples the resulting drop counters (readXfrmDropsPlatform, ipsec_drops_linux.go:32). ze never parses or verifies an AH/ESP header, matching the RFC 4552 rows for the same delegation</p></td>
+</div><p class="rfc-mark"><strong>{lower-layer}:</strong> Linux XFRM AH and ESP input (net/ipv6/ah6.c, net/ipv6/esp6.c), linux:CONFIG_INET6_AH with CONFIG_INET6_ESP; internal/plugins/ospf/ipsec_install.go::buildIPsecPolicies installs the inbound require-policy (SADirIn, transport mode, upper-protocol 89, scoped to the arrival ifindex) and buildIPsecSA the manual-key state, so Linux XFRM processes and verifies the AH or ESP header before the datagram reaches ze&#39;s socket; the VPP IPsec backend refuses the direction-less multicast SA (vppUnsupportedSA, internal/component/ike/dataplane/vpp.go), so no VPP path carries OSPFv3 IPsec. Owed tag: a test that reads the installed policy and state back. Ze only samples the resulting drop counters (readXfrmDropsPlatform, ipsec_drops_linux.go)</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5340-4.2.2-5">RFC5340-4.2.2-5</code></td><td colspan="3"><span class="rfc-subject">The version number field MUST specify protocol version 3 (§4.2.2)</span></td></tr>
 <tr><td></td>
@@ -769,7 +769,7 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 </tr>
 <tr><td><a href="#rfc5340-4.2.2-3"><code>RFC5340-4.2.2-3</code></a> o Any encapsulating IP Authentication Headers (see [IPAUTH]) and the IP Encapsulating Security Payloads (see [IPESP]) MUST be processed and/or verified to ensure integrity and authentication/ confidentiality of OSPF routing exchanges. (§4.2.2)</td>
 <td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: AH and ESP are processed by the kernel XFRM inbound transform before the datagram reaches the socket; ze installs the require-policy that makes that happen (buildIPsecPolicies SADirIn, ipsec_install.go:449) and only samples the resulting drop counters (readXfrmDropsPlatform, ipsec_drops_linux.go:32). ze never parses or verifies an AH/ESP header, matching the RFC 4552 rows for the same delegation</td>
+<td>no test carries this requirement id; annotated {lower-layer}: Linux XFRM AH and ESP input (net/ipv6/ah6.c, net/ipv6/esp6.c), linux:CONFIG_INET6_AH with CONFIG_INET6_ESP; internal/plugins/ospf/ipsec_install.go::buildIPsecPolicies installs the inbound require-policy (SADirIn, transport mode, upper-protocol 89, scoped to the arrival ifindex) and buildIPsecSA the manual-key state, so Linux XFRM processes and verifies the AH or ESP header before the datagram reaches ze&#39;s socket; the VPP IPsec backend refuses the direction-less multicast SA (vppUnsupportedSA, internal/component/ike/dataplane/vpp.go), so no VPP path carries OSPFv3 IPsec. Owed tag: a test that reads the installed policy and state back. Ze only samples the resulting drop counters (readXfrmDropsPlatform, ipsec_drops_linux.go)</td>
 </tr>
 <tr><td><a href="#rfc5340-4.9-1"><code>RFC5340-4.9-1</code></a> o Each of the multiple interfaces MUST be configured with the same Interface Instance ID to be considered on the same link. (§4.9)</td>
 <td>{gap}, no test</td>
@@ -1149,7 +1149,7 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L487" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340IPv6InterfaceTransmitDelay</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_flood_age_test.go#L66" title="internal/plugins/ospf/rfc5340_flood_age_test.go" target="_blank" rel="noopener"><code>TestRFC5340FloodIncrementsAgeByInfTransDelay</code></a></td>
@@ -1159,7 +1159,7 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L483" title="internal/plugins/ospf/rfc5340_test.go" target="_blank" rel="noopener"><code>TestRFC5340IPv6InterfaceTransmitDelay</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -1949,7 +1949,7 @@ Five MUST gaps, annotated in <a href="https://github.com/ze-software/ze/blob/mai
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 19:30 UTC</span>
+                    <span class="footer-published">Published 30 October 2026 23:25 UTC</span>
                 </div>
             </div>
         </footer>

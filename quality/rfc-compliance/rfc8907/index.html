@@ -587,7 +587,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8907-5.4-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{feature-declined}:</strong> &#34;When the client queries the user for the information, the response MUST NOT be reflected in the user interface as it is entered.&#34;; this rule is conditional on interactive prompting. On 2026-09-21 the owner selected `tacacs_methods=&#39;Keep PAP authentication&#39;`, excluding ASCII interaction. internal/component/tacacs/client.go::Authenticate receives an already supplied username/password through aaa.AuthRequest and never prompts in response to a TACACS+ reply</p></td>
+</div><p class="rfc-mark"><strong>{feature-declined}:</strong> &#34;When the client queries the user for the information, the response MUST NOT be reflected in the user interface as it is entered.&#34;; ze never queries the user for the information: internal/component/tacacs/client.go::Authenticate builds a PAP START with NewPAPAuthenStart from the username and password already supplied through aaa.AuthRequest and returns the REPLY, so it never prompts the user in response to a TACACS+ reply. On 2026-09-21 the owner selected `tacacs_methods=&#39;Keep PAP authentication&#39;`, excluding ASCII interaction</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-5.4.2.2-1">RFC8907-5.4.2.2-1</code></td><td colspan="3"><span class="rfc-subject">The entire exchange MUST consist of a single START packet and a single REPLY. (§5.4.2.2, PAP Login)</span></td></tr>
 <tr><td></td>
@@ -933,7 +933,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
 </tr>
 <tr><td><a href="#rfc8907-5.4-2"><code>RFC8907-5.4-2</code></a> If the information being requested by the server from the client is sensitive, then the server should set the TAC_PLUS_REPLY_FLAG_NOECHO flag. When the client queries the user for the information, the response MUST NOT be reflected in the user interface as it is entered. (§5.4, Description of Authentication Process)</td>
 <td>no test</td>
-<td>no test carries this requirement id; annotated {feature-declined}: &#34;When the client queries the user for the information, the response MUST NOT be reflected in the user interface as it is entered.&#34;; this rule is conditional on interactive prompting. On 2026-09-21 the owner selected `tacacs_methods=&#39;Keep PAP authentication&#39;`, excluding ASCII interaction. internal/component/tacacs/client.go::Authenticate receives an already supplied username/password through aaa.AuthRequest and never prompts in response to a TACACS+ reply</td>
+<td>no test carries this requirement id; annotated {feature-declined}: &#34;When the client queries the user for the information, the response MUST NOT be reflected in the user interface as it is entered.&#34;; ze never queries the user for the information: internal/component/tacacs/client.go::Authenticate builds a PAP START with NewPAPAuthenStart from the username and password already supplied through aaa.AuthRequest and returns the REPLY, so it never prompts the user in response to a TACACS+ reply. On 2026-09-21 the owner selected `tacacs_methods=&#39;Keep PAP authentication&#39;`, excluding ASCII interaction</td>
 </tr>
 <tr><td><a href="#rfc8907-5.4.2.3-1"><code>RFC8907-5.4.2.3-1</code></a> The entire exchange MUST consist of a single START packet and a single REPLY. The START packet MUST contain the username in the user field, and the data field is a concatenation of the PPP id, the challenge, and the response. (§5.4.2.3, CHAP Login)</td>
 <td>no test</td>
@@ -2949,7 +2949,7 @@ Current implementation changes await test and discrimination runs. On 2026-09-21
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 19:30 UTC</span>
+                    <span class="footer-published">Published 30 October 2026 13:12 UTC</span>
                 </div>
             </div>
         </footer>

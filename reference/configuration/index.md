@@ -88,8 +88,8 @@ The container holds the plugin switch, the reusable profiles, and the sessions a
     Ze discards a Control packet whose TTL is less than this value, and the test is inclusive, so a TTL equal to it passes. A peer sends with a TTL of 255, so 254 allows one router between the peer and Ze. Raise the value toward 255 when the peer is fewer hops away, because a higher floor rejects a packet sent from further away.
   - **peer** `string`: Address of the remote system this session runs to.
     The value is the first word after the list name, so multi-hop-session 203.0.113.9 names this peer. Ze refuses an address it cannot parse, and IPv4 and IPv6 are both accepted. The peer, the local address and the VRF together identify the session.
-  - **profile** `string`: Name of the timer profile this session takes its intervals from.
-    Ze refuses a name that no profile declares, and it refuses a profile that enables echo. Without this leaf the session takes the engine values: a detect multiplier of 3, and 1000000 microseconds for both the transmit target and the receive floor.
+  - **profile** `leafref`: Name of the timer profile this session takes its intervals from.
+    Commit refuses a name that no profile declares, and names the profiles that exist. Ze also refuses a profile that enables echo. Without this leaf the session takes the engine values: a detect multiplier of 3, and 1000000 microseconds for both the transmit target and the receive floor.
   - **shutdown** `boolean`: Hold the session administratively down and keep its configuration.
     The session stays configured and stops sending control packets, so a peer sees it go down. Delete the list entry to remove it instead.
   - **vrf** `string`: Routing instance the session runs in. The default instance is named default.
@@ -137,8 +137,8 @@ The container holds the plugin switch, the reusable profiles, and the sessions a
     While the leaf is absent, the kernel selects the source address. The address is part of the session key. A change to it therefore releases the running session, and creates a new one at the next config load. An address written with a zone is refused: the link is written in interface.
   - **peer** `string`: Peer IPv4 or IPv6 address.
     The value is the first word after the list name, so single-hop-session 203.0.113.9 names this peer. Ze refuses an address it cannot parse, and IPv4 and IPv6 are both accepted. RFC 5881 Section 5 requires a received TTL of 255, so Ze discards a Control packet from this peer that crossed a router. An IPv6 link-local peer (fe80::/10) is refused unless the entry names its link in interface, and an address written with a zone (fe80::b%eth0) is refused: the link is written in interface.
-  - **profile** `string`: Named profile to inherit timer parameters from.
-    Ze refuses a name that no profile declares. Without this leaf the session takes the engine values: a detect multiplier of 3, and 1000000 microseconds for both the transmit target and the receive floor.
+  - **profile** `leafref`: Named profile to inherit timer parameters from.
+    Commit refuses a name that no profile declares, and names the profiles that exist. Without this leaf the session takes the engine values: a detect multiplier of 3, and 1000000 microseconds for both the transmit target and the receive floor.
   - **shutdown** `boolean`: When true, the session stays in AdminDown state. RFC 5880 Section 6.8.16.
     The session keeps its configuration and its place in the list, and Ze holds it in AdminDown. Ze applies the value again at each reload, so a change from true to false brings the session back with no restart. Delete the list entry to remove the session instead.
   - **vrf** `string`: Routing instance the session runs in. The default instance is named default.
@@ -146,7 +146,7 @@ The container holds the plugin switch, the reusable profiles, and the sessions a
 
 ## bgp
 
-*Provided by `bgp` ([ze-bgp-api.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/yang/ze-bgp-api.yang), [ze-bgp-conf.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/yang/ze-bgp-conf.yang)); `bgp-bmp` ([ze-bmp-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/yang/ze-bmp-cmd.yang), [ze-bmp-conf.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/yang/ze-bmp-conf.yang)); `bgp-filter-aspath` ([ze-filter-aspath.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_aspath/yang/ze-filter-aspath.yang)); `bgp-filter-aspath-length` ([ze-filter-aspath-length.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_aspath_length/yang/ze-filter-aspath-length.yang)); `bgp-filter-community` ([ze-filter-community.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_community/yang/ze-filter-community.yang)); `bgp-filter-community-match` ([ze-filter-community-match.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_community_match/yang/ze-filter-community-match.yang)); `bgp-filter-family` ([ze-filter-family.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_family/yang/ze-filter-family.yang)); `bgp-filter-irr` ([ze-filter-irr-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_irr/yang/ze-filter-irr-cmd.yang), [ze-filter-irr.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_irr/yang/ze-filter-irr.yang)); `bgp-filter-modify` ([ze-filter-modify.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_modify/yang/ze-filter-modify.yang)); `bgp-filter-path-asn` ([ze-filter-path-asn-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_path_asn/yang/ze-filter-path-asn-cmd.yang), [ze-filter-path-asn.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_path_asn/yang/ze-filter-path-asn.yang)); `bgp-filter-prefix` ([ze-filter-prefix.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_prefix/yang/ze-filter-prefix.yang)); `bgp-filter-remove-private-as` ([ze-filter-remove-private-as.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_remove_private_as/yang/ze-filter-remove-private-as.yang)); `bgp-gr` ([ze-graceful-restart.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/yang/ze-graceful-restart.yang)); `bgp-healthcheck` ([ze-healthcheck-conf.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/healthcheck/yang/ze-healthcheck-conf.yang)); `bgp-hostname` ([ze-hostname.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/hostname/yang/ze-hostname.yang)); `bgp-llnh` ([ze-link-local-nexthop.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/llnh/yang/ze-link-local-nexthop.yang)); `bgp-rib` ([ze-rib-api.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/yang/ze-rib-api.yang), [ze-rib.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/yang/ze-rib.yang)); `bgp-role` ([ze-role.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/yang/ze-role.yang)); `bgp-route-refresh` ([ze-refresh-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/route_refresh/yang/ze-refresh-cmd.yang), [ze-route-refresh-api.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/route_refresh/yang/ze-route-refresh-api.yang), [ze-route-refresh.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/route_refresh/yang/ze-route-refresh.yang)); `bgp-rpki` ([ze-rpki.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/yang/ze-rpki.yang)); `bgp-rs` ([ze-rs-conf.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rs/yang/ze-rs-conf.yang)); `bgp-softver` ([ze-softver.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/yang/ze-softver.yang)); `bgp-watchdog` ([ze-watchdog-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/watchdog/yang/ze-watchdog-cmd.yang))*
+*Provided by `bgp` ([ze-bgp-api.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/yang/ze-bgp-api.yang), [ze-bgp-conf.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/yang/ze-bgp-conf.yang)); `bgp-bmp` ([ze-bmp-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/yang/ze-bmp-cmd.yang), [ze-bmp-conf.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/yang/ze-bmp-conf.yang)); `bgp-filter-community` ([ze-filter-community.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_community/yang/ze-filter-community.yang)); `bgp-filter-irr` ([ze-filter-irr-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_irr/yang/ze-filter-irr-cmd.yang), [ze-filter-irr.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_irr/yang/ze-filter-irr.yang)); `bgp-gr` ([ze-graceful-restart.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/yang/ze-graceful-restart.yang)); `bgp-healthcheck` ([ze-healthcheck-conf.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/healthcheck/yang/ze-healthcheck-conf.yang)); `bgp-hostname` ([ze-hostname.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/hostname/yang/ze-hostname.yang)); `bgp-llnh` ([ze-link-local-nexthop.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/llnh/yang/ze-link-local-nexthop.yang)); `bgp-rib` ([ze-rib-api.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/yang/ze-rib-api.yang), [ze-rib.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/yang/ze-rib.yang)); `bgp-role` ([ze-role.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/yang/ze-role.yang)); `bgp-route-refresh` ([ze-refresh-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/route_refresh/yang/ze-refresh-cmd.yang), [ze-route-refresh-api.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/route_refresh/yang/ze-route-refresh-api.yang), [ze-route-refresh.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/route_refresh/yang/ze-route-refresh.yang)); `bgp-rpki` ([ze-rpki.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/yang/ze-rpki.yang)); `bgp-rs` ([ze-rs-conf.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rs/yang/ze-rs-conf.yang)); `bgp-softver` ([ze-softver.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/yang/ze-softver.yang)); `bgp-watchdog` ([ze-watchdog-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/watchdog/yang/ze-watchdog-cmd.yang))*
 
 Border Gateway Protocol routing configuration.
 
@@ -203,13 +203,13 @@ A peer inherits from its group defaults. A group inherits from this global level
 - **defaults** `container`: Values ze supplies when a route carries no such attribute.
   The container holds attribute alone today. A default that is not an attribute value gets its own container beside it, so an operator's existing leaves never move.
   - **attribute** `container`: The value policy arithmetic starts from when the route carries no such attribute.
-    The leaves govern the arithmetic in bgp { policy { modify NAME { increment } } } and its decrement sibling alone. They do NOT move the Decision Process: RFC 4271 Section 9.1.2.2 compares an absent MULTI_EXIT_DISC as 0 whatever med says here. There is deliberately no aigp leaf. RFC 7311 Section 4.1 removes a route with no AIGP TLV from consideration rather than scoring it, so no number stands in for the absence. Section 3.4.1 forbids ze to add the attribute to a route whose path leads outside the AIGP administrative domain.
+    The leaves govern the arithmetic in policy { modify NAME { increment } } and its decrement sibling alone. They do NOT move the Decision Process: RFC 4271 Section 9.1.2.2 compares an absent MULTI_EXIT_DISC as 0 whatever med says here. There is deliberately no aigp leaf. RFC 7311 Section 4.1 removes a route with no AIGP TLV from consideration rather than scoring it, so no number stands in for the absence. Section 3.4.1 forbids ze to add the attribute to a route whose path leads outside the AIGP administrative domain.
     - **local-preference** `uint32`: The LOCAL_PREF value policy arithmetic starts from when the route carries none.
       RFC 4271 Section 9.1.1 supplies no number: "The exact nature of this policy information, and the computation involved, is a local matter." 100 is the value FRR (BGP_DEFAULT_LOCAL_PREF) and BIRD (default_local_pref) use, and it is the default here for that reason alone. The leaf governs the modifier arithmetic. It does NOT supply the LOCAL_PREF an eBGP-learned route carries into iBGP readvertisement, which ze does not do.
     - **med** `uint32`: The MULTI_EXIT_DISC value policy arithmetic starts from when the route carries none.
       RFC 4271 Section 9.1.2.2 supplies this number: "Routes that do not have the MULTI_EXIT_DISC attribute are considered to have the lowest possible MULTI_EXIT_DISC value." A larger value makes an increment write a larger metric onto a route that arrived without one, and the speaker that receives it reads a larger metric as a worse path. The Decision Process comparison stays at 0 whatever this leaf holds.
 - **filter** `container`: Global route filter chains for import and export.
-  The group level and the peer level append to this base chain. A name references a filter instance defined in bgp/policy.
+  The group level and the peer level append to this base chain. A name references a filter instance defined under the top-level policy root.
   - **egress** `container`: Egress direction filters.
     The container holds the filters Ze runs over a route it sends to this peer.
     - **community** `container`: Community filter for egress.
@@ -328,7 +328,7 @@ A peer inherits from its group defaults. A group inherits from this global level
         - `multi-hop`: RFC 5883 multi-hop BFD on UDP 4784 with min-TTL.
         - `single-hop`: RFC 5881 single-hop BFD on UDP 3784 with GTSM.
       - **profile** `string`: Name of a profile defined under the top-level bfd { profile ... } block.
-        The referenced profile supplies the session's detect-multiplier, desired-min-tx-us, required-min-rx-us, passive role, authentication and echo interval, and replaces whatever the peer would otherwise use. The running daemon refuses to start, and refuses a commit or a SIGHUP reload, when the profile is not defined, when it sets passive on a single-hop peer (RFC 5881 Section 3), or when it enables echo on a multi-hop peer (RFC 5883 Section 3). ze config validate does not run this check. An empty value selects the BFD plugin defaults.
+        The referenced profile supplies the session's detect-multiplier, desired-min-tx-us, required-min-rx-us, passive role, authentication and echo interval, and replaces whatever the peer would otherwise use. Commit, ze config validate and a SIGHUP reload refuse a name no bfd profile defines, naming the profiles that exist; the editor completes those names. The leaf names a list of another module that a build without BFD leaves out, so it is a ze:reference, not a leafref. The running daemon also refuses to start, and refuses a commit or a SIGHUP reload, when the profile sets passive on a single-hop peer (RFC 5881 Section 3), or when it enables echo on a multi-hop peer (RFC 5883 Section 3); ze config validate does not run that check. Without this leaf the session takes the BFD plugin defaults.
       - **strict** `boolean`: BFD strict mode (draft-ietf-idr-bgp-bfd-strict-mode).
         Ze advertises BGP capability 74 in its OPEN and does not let the BGP session go past OpenSent until the BFD session is Up. Both speakers must advertise the capability: against a peer that does not, Ze establishes the session on the normal path and BFD stays a failure detector. Ze opens the BFD session before it starts the BGP FSM, and keeps it open while the BGP session is down.
     - **local** `container`: Local endpoint for the TCP session.
@@ -370,7 +370,7 @@ A peer inherits from its group defaults. A group inherits from this global level
   - **description** `string`: Free-text label for this peer.
     The CLI, the web UI, and the logs show the label. It usually names the role or the location of the peer, for example 'upstream-transit-provider'.
   - **filter** `container`: Route filter chains for import and export.
-    A name references a filter instance defined in bgp/policy.
+    A name references a filter instance defined under the top-level policy root.
     - **egress** `container`: Egress direction filters.
       The container holds the filters Ze runs over a route it sends to this peer.
       - **community** `container`: Community filter for egress.
@@ -489,7 +489,7 @@ A peer inherits from its group defaults. A group inherits from this global level
           - `multi-hop`: RFC 5883 multi-hop BFD on UDP 4784 with min-TTL.
           - `single-hop`: RFC 5881 single-hop BFD on UDP 3784 with GTSM.
         - **profile** `string`: Name of a profile defined under the top-level bfd { profile ... } block.
-          The referenced profile supplies the session's detect-multiplier, desired-min-tx-us, required-min-rx-us, passive role, authentication and echo interval, and replaces whatever the peer would otherwise use. The running daemon refuses to start, and refuses a commit or a SIGHUP reload, when the profile is not defined, when it sets passive on a single-hop peer (RFC 5881 Section 3), or when it enables echo on a multi-hop peer (RFC 5883 Section 3). ze config validate does not run this check. An empty value selects the BFD plugin defaults.
+          The referenced profile supplies the session's detect-multiplier, desired-min-tx-us, required-min-rx-us, passive role, authentication and echo interval, and replaces whatever the peer would otherwise use. Commit, ze config validate and a SIGHUP reload refuse a name no bfd profile defines, naming the profiles that exist; the editor completes those names. The leaf names a list of another module that a build without BFD leaves out, so it is a ze:reference, not a leafref. The running daemon also refuses to start, and refuses a commit or a SIGHUP reload, when the profile sets passive on a single-hop peer (RFC 5881 Section 3), or when it enables echo on a multi-hop peer (RFC 5883 Section 3); ze config validate does not run that check. Without this leaf the session takes the BFD plugin defaults.
         - **strict** `boolean`: BFD strict mode (draft-ietf-idr-bgp-bfd-strict-mode).
           Ze advertises BGP capability 74 in its OPEN and does not let the BGP session go past OpenSent until the BFD session is Up. Both speakers must advertise the capability: against a peer that does not, Ze establishes the session on the normal path and BFD stays a failure detector. Ze opens the BFD session before it starts the BGP FSM, and keeps it open while the BGP session is down.
       - **local** `container`: Local endpoint for the TCP session.
@@ -531,7 +531,7 @@ A peer inherits from its group defaults. A group inherits from this global level
     - **description** `string`: Free-text label for this peer.
       The CLI, the web UI, and the logs show the label. It usually names the role or the location of the peer, for example 'upstream-transit-provider'.
     - **filter** `container`: Route filter chains for import and export.
-      A name references a filter instance defined in bgp/policy.
+      A name references a filter instance defined under the top-level policy root.
       - **egress** `container`: Egress direction filters.
         The container holds the filters Ze runs over a route it sends to this peer.
         - **community** `container`: Community filter for egress.
@@ -1376,7 +1376,7 @@ A peer inherits from its group defaults. A group inherits from this global level
         - `multi-hop`: RFC 5883 multi-hop BFD on UDP 4784 with min-TTL.
         - `single-hop`: RFC 5881 single-hop BFD on UDP 3784 with GTSM.
       - **profile** `string`: Name of a profile defined under the top-level bfd { profile ... } block.
-        The referenced profile supplies the session's detect-multiplier, desired-min-tx-us, required-min-rx-us, passive role, authentication and echo interval, and replaces whatever the peer would otherwise use. The running daemon refuses to start, and refuses a commit or a SIGHUP reload, when the profile is not defined, when it sets passive on a single-hop peer (RFC 5881 Section 3), or when it enables echo on a multi-hop peer (RFC 5883 Section 3). ze config validate does not run this check. An empty value selects the BFD plugin defaults.
+        The referenced profile supplies the session's detect-multiplier, desired-min-tx-us, required-min-rx-us, passive role, authentication and echo interval, and replaces whatever the peer would otherwise use. Commit, ze config validate and a SIGHUP reload refuse a name no bfd profile defines, naming the profiles that exist; the editor completes those names. The leaf names a list of another module that a build without BFD leaves out, so it is a ze:reference, not a leafref. The running daemon also refuses to start, and refuses a commit or a SIGHUP reload, when the profile sets passive on a single-hop peer (RFC 5881 Section 3), or when it enables echo on a multi-hop peer (RFC 5883 Section 3); ze config validate does not run that check. Without this leaf the session takes the BFD plugin defaults.
       - **strict** `boolean`: BFD strict mode (draft-ietf-idr-bgp-bfd-strict-mode).
         Ze advertises BGP capability 74 in its OPEN and does not let the BGP session go past OpenSent until the BFD session is Up. Both speakers must advertise the capability: against a peer that does not, Ze establishes the session on the normal path and BFD stays a failure detector. Ze opens the BFD session before it starts the BGP FSM, and keeps it open while the BGP session is down.
     - **local** `container`: Local endpoint for the TCP session.
@@ -1418,7 +1418,7 @@ A peer inherits from its group defaults. A group inherits from this global level
   - **description** `string`: Free-text label for this peer.
     The CLI, the web UI, and the logs show the label. It usually names the role or the location of the peer, for example 'upstream-transit-provider'.
   - **filter** `container`: Route filter chains for import and export.
-    A name references a filter instance defined in bgp/policy.
+    A name references a filter instance defined under the top-level policy root.
     - **egress** `container`: Egress direction filters.
       The container holds the filters Ze runs over a route it sends to this peer.
       - **community** `container`: Community filter for egress.
@@ -1805,151 +1805,6 @@ A peer inherits from its group defaults. A group inherits from this global level
         request bgp watchdog announce <name> announces every route that carries the name, and request bgp watchdog withdraw <name> withdraws them. Ze skips a block whose name is empty.
       - **withdraw** `boolean`: Start in withdrawn state (default true)
         The bgp-watchdog plugin reads the PRESENCE of the leaf and not its value, so withdraw false starts every route of the block withdrawn exactly as withdraw true does. Delete the leaf to announce the routes as soon as the session reaches Established. request bgp watchdog announce <name> announces a withdrawn route.
-- **policy** `container`: Named filter definitions for the route policy framework.
-  Each filter type is a list that its plugin adds through an augment. A peer filter chain references a filter instance by name.
-  - **as-path-length <name>** `list`: Named AS-path length filter instance.
-    Ze rejects a route whose AS-path length falls outside the configured min..max range. Both min and max are optional, and an omitted bound is open.
-    - **max** `uint16`: Maximum allowed AS-path length (inclusive). Routes with longer paths are rejected.
-      An absent leaf leaves the upper bound open, so a filter that states neither bound accepts every route. Ze counts every ASN of the path, so a member of an AS_SET counts as one hop.
-    - **min** `uint16`: Minimum required AS-path length (inclusive). Routes with shorter paths are rejected.
-      An absent leaf leaves the lower bound open. A route that carries no AS_PATH counts 0 hops. min 1 therefore rejects a route Ze originated, and a route an iBGP peer sent with an empty path.
-  - **as-path-list <name>** `list`: Named AS-path regex filter instance.
-    Each list holds an ordered set of regex entries. Ze evaluates the entries in order, and the first match wins. No match is an implicit deny, so Ze rejects the route.
-    - **entry <regex>** `list`: One regex entry of the ordered list.
-      Ze matches each entry against the space-separated AS-path string, in the configured order. The first entry that matches wins.
-      - **action** `enumeration`: Action applied when this entry's regex matches.
-        The first entry whose pattern matches decides the UPDATE, and no later entry is read. A route whose path matches no entry is rejected, so a list needs no closing reject entry.
-        - `accept`: Accept a route whose AS-path matches.
-        - `reject`: Reject a route whose AS-path matches.
-  - **community-match <name>** `list`: Named community match filter instance.
-    Each list holds an ordered set of match entries. Ze reads the entries in order, and the first match wins. No match is an implicit deny, so the route is rejected.
-    - **entry <community>** `list`: Ordered match entry, checked against the route's community attributes.
-      Ze reads the entries in order, and the first match wins. An entry checks whether the named community value is present in the route's community attributes.
-      - **action** `enumeration`: Action applied when this community is found in the route.
-        The first entry whose community the route carries decides the UPDATE, and no later entry is read. A route that carries none of the listed communities is rejected, so a list needs no closing reject entry.
-        - `accept`: Accept routes containing this community
-        - `reject`: Reject routes containing this community
-      - **type** `enumeration`: Which community attribute type to check.
-        Ze reads the one attribute the leaf names. An entry of type standard therefore does not see a value that sits in the LARGE COMMUNITIES attribute. Write one entry for each attribute the route can carry the value in.
-        - `extended`: Match in extended community attribute (type 16)
-        - `large`: Match in large community attribute (type 32)
-        - `standard`: Match in standard community attribute (type 8)
-  - **family-filter <name>** `list`: Named address-family filter instance.
-    One instance matches one family, because family holds one value and is mandatory. A chain that must catch two families names two instances.
-    - **action** `enumeration`: Action to apply when the family matches.
-      remove strips the MP_REACH NLRI and the MP_UNREACH NLRI of the matched family from the UPDATE, on import and on export. If that removal empties the UPDATE, Ze drops the whole UPDATE for that peer. tear-down sends a BGP NOTIFICATION that carries the Cease code and the Connection Rejected subcode, then closes the session. tear-down acts on import only.
-      - `remove`: Strip the MP_REACH NLRI and the MP_UNREACH NLRI of the matched family.
-      - `tear-down`: Close the session with a BGP NOTIFICATION when a received UPDATE carries the family.
-    - **family** `address-family`: Address family to match, for example ipv4/flowspec.
-      Ze treats an UPDATE with no MP_REACH attribute and no MP_UNREACH attribute as ipv4/unicast.
-  - **irr** `container`: Global IRR filtering settings.
-    The container holds the IRR server, the PeeringDB endpoint and the refresh period. One resolution serves every peer of the same remote ASN, so two peers of one ASN cost one query.
-    - **peeringdb-url** `string`: Base URL of the PeeringDB API that Ze queries.
-      Ze reads the AS-SET of a peer from the PeeringDB API when the as-set leaf is empty. Set this leaf to the URL of a mock server to test the IRR filter without a query to the public PeeringDB service.
-    - **refresh-interval** `uint32`: Seconds between automatic IRR re-queries.
-      Ze re-queries every enrolled AS-SET on this period. The first query runs in the background at startup, so a slow IRR server never blocks the start of Ze. A failed query leaves the prefix list of the last query in force.
-    - **server** `string`: IRR whois server hostname or host:port.
-      Ze speaks whois to the server and adds port 43 when the value carries no port. A query that gets no answer in 10 seconds fails, and the prefix list of the last query stays in force.
-    - **source-address** `ip-address`: Source IP address for outbound IRR whois connections.
-      Ze binds the address on the whois connection only. The PeeringDB query does not read the leaf. When the leaf is absent, the kernel picks the source address of the route to the server.
-  - **loop-detection <name>** `list`: Named loop detection filter instance.
-    The instance configures AS loop detection and cluster-list loop detection, for each peer that references it.
-    - **allow-own-as** `uint8`: Own-AS occurrences permitted in AS_PATH before ze rejects the route.
-      The default is 0, which rejects the route on the first occurrence (RFC 4271 Section 9).
-    - **cluster-id** `ipv4-address`: Override Router ID for CLUSTER_LIST loop detection.
-      When this leaf is unset, ze uses the BGP Router ID (RFC 4456 Section 7).
-  - **modify <name>** `list`: Named route attribute modifier instance.
-    Ze modifies only the declared leaves, and keeps every undeclared attribute unchanged. One modifier can change several attributes.
-    - **decrement** `container`: Attributes to decrement on a matching route.
-      Ze subtracts the stated value from the current value of the attribute. The result floors at 0, so it never underflows. decrement is mutually exclusive with set for the same attribute.
-      - **aigp** `uint32`: Decrement AIGP metric by this value.
-        Ze runs the operation only on a route that already carries an AIGP TLV. A route with none is left alone, because RFC 7311 Section 3.4.1 forbids Ze to add the attribute.
-      - **local-preference** `uint32`: Decrement LOCAL_PREF by this value.
-        A route that carries no LOCAL_PREF counts as 100 before the subtraction. A decrement larger than the current value writes 0 rather than wrapping.
-      - **med** `uint32`: Decrement MED by this value.
-        A route that carries no MULTI_EXIT_DISC counts as 0, so the result is 0 and Ze writes a metric the route did not have. Use del med to remove the attribute instead.
-    - **del** `container`: Attributes Ze deletes from a matching route.
-      Ze applies only the leaves that are present in this container, and keeps every other attribute unchanged.
-      - **med** `empty`: Remove the MULTI_EXIT_DISC attribute (RFC 4271 type 4) from the route.
-        RFC 4271 Section 5.1.4 requires a mechanism, based on local configuration, that removes MULTI_EXIT_DISC from a route. The same section requires the removal to happen before the route reaches Decision Process phase 1 and phase 2. The del med operation is that mechanism, so it applies on an IMPORT chain only, and the route enters the decision process with no metric. Ze refuses del med on an export chain and writes a log line, because Section 9.1.2.2 states that a comparison on MULTI_EXIT_DISC followed by advertisement without it causes route loops. del med is mutually exclusive with set med, increment med and decrement med. Ze already keeps a metric received from one neighboring AS off another one with no configuration (RFC 4271 Section 5.1.4), so del med is for the operator who wants the metric removed from the route itself.
-    - **increment** `container`: Attributes to increment on a matching route.
-      Ze adds the stated value to the current value of the attribute. The result saturates at the uint32 maximum, 4294967295. increment is mutually exclusive with set for the same attribute.
-      - **aigp** `uint32`: Increment AIGP metric by this value.
-        Ze runs the operation only on a route that already carries an AIGP TLV, and creates none. RFC 7311 Section 3.4.1 forbids a speaker to add the attribute to a route whose path leaves the AIGP domain. Section 4.1 removes a route with no AIGP from the decision rather than scoring it.
-      - **local-preference** `uint32`: Increment LOCAL_PREF by this value.
-        A route that carries no LOCAL_PREF counts as 100, which is the value FRR and BIRD use for a route with none. RFC 4271 Section 9.1.1 leaves that number to local policy.
-      - **med** `uint32`: Increment MED by this value.
-        A route that carries no MULTI_EXIT_DISC counts as 0, which RFC 4271 Section 9.1.2.2 gives as the value of an absent metric. The result therefore equals the increment.
-    - **match** `container`: Condition a route meets before the operations apply.
-      A route that meets none of the stated values passes through unchanged, and Ze does not reject it. The chain drops a rejected route, and a conditional modifier exists so that the routes it does not touch keep flowing. An absent match container applies the operations to every route that reaches the modifier. The values across the three leaf-lists are alternatives, so one value present in the route satisfies the condition.
-      - **community** `string[]`: Apply only to a route whose COMMUNITIES attribute carries this value.
-        The COMMUNITIES attribute is RFC 1997, type 8. The value takes the form ASN:VAL, for example 65001:666, or a well-known name. The well-known names are blackhole, no-export, no-advertise, no-export-subconfed and nopeer. The two spellings of a well-known value are equivalent, so 65535:666 and blackhole select the same community. RFC 7999 registers that community, and RFC 7999 Section 4 names it with that suggested keyword.
-      - **extended-community** `string[]`: Apply only to a route whose EXTENDED COMMUNITIES attribute carries this value.
-        The EXTENDED COMMUNITIES attribute is RFC 4360, type 16. The value takes the form target:ASN:NN or origin:ASN:NN, or it is a hex string. Ze validates the value at configure time and compares its eight-octet value, so named and hex spellings of the same value select the same routes.
-      - **large-community** `string[]`: Apply only to a route whose LARGE COMMUNITIES attribute carries this value.
-        The LARGE COMMUNITIES attribute is RFC 8092, type 32. The value takes the form GA:LD1:LD2, for example 65001:100:200. Ze validates the value at configure time and compares its canonical decimal form.
-    - **set** `container`: Attributes Ze sets on a matching route.
-      Ze applies only the leaves that are present in this container, and keeps every other attribute unchanged.
-      - **as-path-prepend** `uint8`: Prepend the local AS to AS_PATH this many times.
-        Ze prepends the local-as of the peer, which the session config holds. The range 1 to 32 stops the path from growing without a limit.
-      - **community-add** `string[]`: Standard community values to add (ASN:VAL format).
-        Ze adds the values to the COMMUNITIES attribute of RFC 1997 and keeps every community already on the route. Ze reads each value at config load, and refuses the modifier when one does not parse.
-      - **community-remove** `string[]`: Standard community values to remove (ASN:VAL format).
-        Ze removes only the values named here, and keeps every other community of the route. A value the route does not carry costs nothing. Ze reads each value at config load, and refuses the modifier when one does not parse.
-      - **extended-community-add** `string[]`: Extended community values to add (target:ASN:NN or hex).
-        The EXTENDED COMMUNITIES attribute is RFC 4360, type 16, and each value is 8 bytes. target names a Route Target and origin names a Route Origin. A hex string writes the 8 bytes Ze has no keyword for.
-      - **extended-community-remove** `string[]`: Extended community values to remove (target:ASN:NN or hex).
-        Ze removes only the values named here, and leaves the standard and large communities of the route untouched. A value the route does not carry costs nothing.
-      - **large-community-add** `string[]`: Large community values to add (GA:LD1:LD2 format).
-        The LARGE COMMUNITIES attribute is RFC 8092, type 32, and it carries three 4-byte fields. A 4-byte ASN therefore fits, which a standard community cannot hold.
-      - **large-community-remove** `string[]`: Large community values to remove (GA:LD1:LD2 format).
-        Ze removes only the values named here, and leaves the standard and extended communities of the route untouched. A value the route does not carry costs nothing.
-      - **local-preference** `uint32`: Set LOCAL_PREF attribute (RFC 4271 type 5).
-        Ze replaces the value the route carried. RFC 4271 Section 5.1.5 forbids the attribute in an UPDATE to an external peer, so the value serves the local decision process and the internal peers. The leaf is mutually exclusive with increment local-preference and decrement local-preference.
-      - **med** `uint32`: Set MULTI_EXIT_DISC attribute (RFC 4271 type 4).
-        Ze replaces the metric the route carried, and writes one on a route that carried none. The leaf is mutually exclusive with del med, increment med and decrement med, and Ze refuses a modifier that carries two of them.
-      - **next-hop** `ip-address`: Set the NEXT_HOP attribute of the route.
-        NEXT_HOP is RFC 4271 type 3, and it carries an IPv4 address only. An IPv6 next-hop travels in the MP_REACH attribute instead, so this leaf does not set one.
-      - **origin** `enumeration`: Set ORIGIN attribute (RFC 4271 type 1).
-        The decision process reads the attribute at step 3, after LOCAL_PREF and the AS_PATH length. igp wins over egp, and egp wins over incomplete. Ze replaces whatever the route carried.
-        - `egp`: The route came from the retired EGP protocol.
-        - `igp`: The route started inside the local AS.
-        - `incomplete`: The route came from another source, such as redistribution.
-  - **prefix-list <name>** `list`: Named prefix-list filter instance.
-    Each list holds an ordered set of match entries. Ze evaluates the entries in order, and the first match wins. A route prefix that matches no entry is denied.
-    - **entry <prefix>** `list`: Ordered match entry. First match wins per route prefix.
-      Ze judges each prefix of an UPDATE on its own. An UPDATE whose prefixes are all accepted passes unchanged, and one whose prefixes are all rejected is dropped. A mixed UPDATE is rewritten to carry the accepted prefixes only. An UPDATE that carries no prefix is accepted.
-      - **action** `enumeration`: Action applied when this entry matches a route prefix.
-        The first entry that matches a route prefix decides it, and no later entry is read for that prefix. A prefix that matches no entry is rejected, so a list needs no closing reject entry.
-        - `accept`: Accept route prefixes matching this entry.
-        - `reject`: Reject route prefixes matching this entry.
-      - **ge** `uint8`: Minimum match length (greater-than-or-equal). Defaults to the prefix length of this entry.
-        Ze refuses a value of more than 32 on an IPv4 entry, and more than 128 on an IPv6 entry. Ze also refuses a ge greater than the le of the same entry. Write 0.0.0.0/0 with ge 8 and le 24 to accept every route between /8 and /24.
-      - **le** `uint8`: Maximum match length (less-than-or-equal). Defaults to 32 for IPv4 or 128 for IPv6.
-        The default accepts every length inside the entry, so an entry with no le and no ge matches the prefix and everything under it. Ze refuses a value greater than the family maximum rather than letting the entry match nothing.
-  - **reject-asn <name>** `list`: Named list of ASNs rejected by their position in the AS_PATH.
-    Every ASN written under the list is looked for in the AS_PATH of the route. The keyword it sits under decides which positions reject it. The list is an unordered reject set, so any keyword that matches rejects the route and no keyword wins over another. Ze reads the positions first and the patterns after them.
-    - **anywhere** `asn[]`: Reject these ASNs at any position: direct, transit and origin together.
-      The keyword is the union of the other three, so it rejects the ASN wherever it sits. The reject log line still names which of the three caught the route.
-    - **direct** `asn[]`: Reject these ASNs where they are the peer we are talking to, prepends collapsed.
-      The position is the leading run of tokens equal to the ASN of the sending peer, so four prepends are one direct position. On export no ASN is direct, because the filter input carries the destination peer rather than the sender. A path that starts with another ASN is a leak, and direct does not catch it.
-    - **indirect** `asn[]`: Reject these ASNs anywhere they are NOT the peer we are talking to.
-      The keyword covers transit and origin together. It is the leaf an operator writes for RFC 7454 Section 9. The route reached you through the ASN, and a direct session with that ASN is still fine. On export the sender is unknown, so indirect covers the whole path.
-    - **nth <index>** `list`: Reject the listed ASNs at one collapsed position of the AS_PATH.
-      Ze counts the positions from us, and 1 is the ASN we are talking to. A run of consecutive identical ASNs counts once, so a peer cannot move your rule by a prepend. The keyword cuts across the other five, because an ASN at position 2 CAN also be transit.
-      - **asn** `asn[]`: The ASNs this position rejects.
-        The completion of the leaf offers a curated table of transit-free networks, and that table constrains nothing. Every ASN the type admits stays valid, and an ASN the table never held is accepted with no warning. show bgp reject-asn known transit-free prints the table.
-    - **origin** `asn[]`: Reject these ASNs where they are the last ASN of the AS_PATH.
-      The last ASN of the path announced the route. The leading run of the sender wins over that last position, so a lone ASN sent by the peer that owns it is direct rather than the origin.
-    - **regex** `string[]`: Go RE2 patterns matched against the whole space-separated AS_PATH string.
-      No position applies to a pattern. Ze matches it against the flat path, so a pattern reaches an ASN inside an AS_SET and meets no bracket. The 512-character bound is the bound bgp-filter-aspath applies to a regex. Ze reads the patterns only when no position matched.
-    - **transit** `asn[]`: Reject these ASNs where they sit past the peer and are not the last ASN of the AS_PATH.
-      A token is transit when it sits neither inside the leading run of the sender nor at the end of the path. Ze gives every token exactly one of direct, transit and origin.
-  - **remove-private-as <name>** `list`: Named action filter that removes RFC 6996 Private Use ASNs.
-    Ze rewrites AS_PATH and AS4_PATH, and the filter runs on an import chain and on an export chain. A path that carries no Private Use ASN passes through unchanged.
-    - **replace-with** `enumeration`: Replacement mode. When absent, Private Use ASNs are stripped.
-      RFC 6996 Section 5 gives the ranges, which are 64512 to 65534 and 4200000000 to 4294967294. An absent leaf strips each of those ASNs, so the path loses one hop for each. peer-as writes the ASN of the peer in its place, so the path keeps its length.
-      - `peer-as`: Replace Private Use ASNs with the neighbor peer ASN.
 - **rib** `container`: RIB plugin state and operations.
   The subtree is read-only, so the CLI refuses set on every node under it. No code answers a read of it today. show bgp rib status reports the live per-peer counts, and show bgp rib reports the routes. request bgp rib inject and request bgp rib withdraw change what the RIB holds.
   - **adj-rib-in** `container`: Routes received from peers.
@@ -2172,6 +2027,16 @@ Connected route redistribution. Presence enables the plugin.
 
 The container carries no leaf, so writing it is the whole configuration. The plugin watches each interface address event and emits the network prefix of that address on the redistribute event bus. It counts the addresses of one prefix, so two addresses in one subnet announce the prefix once. The withdrawal waits for the last address of that prefix. The plugin registers the connected route source, and a redistribute statement names that source.
 
+- **filter** `container`: Route filter chains into the Loc-RIB.
+  A name references a filter instance defined under the top-level policy root. The chain judges routes as they enter the Loc-RIB; a protocol's own database (an IS-IS LSDB, an OSPF LSDB) is never filtered.
+  - **import** `container`: Import policy into the Loc-RIB
+    A rejected route stays in the Loc-RIB as a hidden path that is never selected, so relaxing the chain re-admits it without the protocol sending it again. The source's chain runs first, then the rib chain.
+    - **filters** `string[]`: Ordered filter instance references
+      Run these filter instances in order. Each one passes the route on or rejects it; a filter type with no Loc-RIB route evaluator is refused.
+    - **final** `enumeration`: Decision after every filter passes
+      Every present import policy must set final accept or final reject, even with no filters.
+      - `accept`: Accept a route that passes every filter
+      - `reject`: Reject a route that passes every filter
 
 ## control-plane-protection
 
@@ -2840,10 +2705,10 @@ Ze-managed nftables firewall tables. Table names are bare in config, and the com
           Hardware or software flow offload through an nftables flowtable. The VPP dataplane is itself the fast path, and it does not expose a flowtable surface.
           - **flowtable** `string`: Flowtable name declared in this table.
             The value is the bare flowtable name, and verify refuses a name the same table does not declare. A leading @ is part of the nft command syntax and not part of this value.
-        - **goto** `string`: Goto target chain (no return)
-          The target chain MUST be declared in the same table, and verify refuses a name the table does not hold. Evaluation does not come back, so the terms after this one never run for that packet.
-        - **jump** `string`: Jump to target chain
-          The target chain MUST be declared in the same table, and verify refuses a name the table does not hold. Evaluation comes back to the term after this one when the target chain ends or returns.
+        - **goto** `leafref`: Goto target chain (no return)
+          The target chain MUST be declared in the same table. The editor completes the chains the table holds, and a commit naming any other chain is refused. Evaluation does not come back, so the terms after this one never run for that packet.
+        - **jump** `leafref`: Jump to target chain
+          The target chain MUST be declared in the same table. The editor completes the chains the table holds, and a commit naming any other chain is refused. Evaluation comes back to the term after this one when the target chain ends or returns.
         - **limit-rate** `container`: Match only while the packet rate stays under a stated limit.
           Traffic past the limit stops matching the term, so it falls through to what follows rather than being dropped here. Put the drop in the next term when that is what you want.
           - **burst** `uint32`: Burst size
@@ -4663,6 +4528,16 @@ IS-IS routing instance configuration.
 
 The presence of this container starts the IS-IS component. At least one `net` leaf MUST be set for the engine to run. A commit with no net is accepted, and the engine then stays idle, opens no circuit and originates no LSP.
 
+- **filter** `container`: Route filter chains into the Loc-RIB.
+  A name references a filter instance defined under the top-level policy root. The chain judges routes as they enter the Loc-RIB; a protocol's own database (an IS-IS LSDB, an OSPF LSDB) is never filtered.
+  - **import** `container`: Import policy into the Loc-RIB
+    A rejected route stays in the Loc-RIB as a hidden path that is never selected, so relaxing the chain re-admits it without the protocol sending it again. The source's chain runs first, then the rib chain.
+    - **filters** `string[]`: Ordered filter instance references
+      Run these filter instances in order. Each one passes the route on or rejects it; a filter type with no Loc-RIB route evaluator is refused.
+    - **final** `enumeration`: Decision after every filter passes
+      Every present import policy must set final accept or final reject, even with no filters.
+      - `accept`: Accept a route that passes every filter
+      - `reject`: Reject a route that passes every filter
 - **hostname** `string`: Dynamic hostname this IS-IS instance advertises (RFC 5301 section 3).
   Dynamic hostname to advertise (RFC 5301 section 3). Printable 7-bit ASCII only, from space (0x20) to tilde (0x7e). Each dot-separated label is 1 to 63 octets and the whole name is at most 255 octets, including the separators (RFC 2181 section 11). One trailing dot is permitted. A non-ASCII name is refused, not converted.
 - **interfaces** `container`: IS-IS-enabled interfaces.
@@ -4688,36 +4563,36 @@ The presence of this container starts the IS-IS component. At least one `net` le
       - `l2`: Form only a Level-2 adjacency on this circuit.
     - **level-1** `container`: Level-1 per-interface overrides.
       The leaves here replace the circuit-wide value for Level-1 only. One circuit can then carry a different cost, a different DIS preference, a different Hello period or a different holding time at each level. A leaf that is not set keeps the circuit-wide value. A circuit that does not form Level-1 ignores the whole container.
-      - **auth-key-chain** `string`: L1 per-interface (IIH) key-chain reference.
+      - **auth-key-chain** `leafref`: L1 per-interface (IIH) key-chain reference.
         The value names a `key-chains` entry. Ze then signs and verifies the Level-1 IIH on this circuit with that chain. RFC 5304 section 2 states that 'IS-IS Hello PDUs SHALL use the Link Level Authentication String'. This leaf covers the hello only. The LSP, CSNP and PSNP take the chain that `isis/level-1/auth-key-chain` names.
       - **hello-interval** `uint16`: L1 hello-interval override.
         Ze sends the Level-1 IIH at this period, in place of the circuit-wide `hello-interval`. A broadcast circuit runs one Hello timer for each level it forms, because the Level-1 and the Level-2 LAN IIH are separate PDUs sent to separate multicast groups. A point-to-point circuit sends one IIH that serves both levels, so it runs one Hello timer, and that timer takes this pair whenever the circuit forms Level-1. An unset leaf keeps the circuit-wide value.
       - **hold-multiplier** `uint8`: L1 hold-multiplier override.
         Ze multiplies the Level-1 hello interval by this value and advertises the product as the holding time in each Level-1 IIH, clamped into 1 to 65535 seconds. It replaces the circuit-wide `hold-multiplier` for Level-1. An unset leaf keeps the circuit-wide value.
-      - **metric** `uint32`: L1 wide metric override.
-        Ze advertises this cost for the circuit in the Level-1 LSP, in place of `metric`. An unset leaf keeps the circuit-wide metric. The value also becomes the metric of the connected prefixes the circuit contributes at Level-1.
+      - **metric** `uint32`: L1 metric override.
+        Ze advertises this cost for the circuit in the Level-1 LSP, in place of `metric`. An unset leaf keeps the circuit-wide metric. The value also becomes the metric of the connected prefixes the circuit contributes at Level-1. Under the narrow and transition `metric-style` a value above 63 is refused.
       - **priority** `uint8`: L1 DIS priority override.
         Ze uses this priority in the Level-1 DIS election, in place of `priority`. An unset leaf keeps the circuit-wide priority, and so does the value 0: Ze reads an override only when it is more than 0. To ask for the lowest preference, set the circuit-wide `priority` to 0.
     - **level-2** `container`: Level-2 per-interface overrides.
       The leaves here replace the circuit-wide value for Level-2 only. One circuit can then carry a different cost, a different DIS preference, a different Hello period or a different holding time at each level. A leaf that is not set keeps the circuit-wide value. A circuit that does not form Level-2 ignores the whole container.
-      - **auth-key-chain** `string`: L2 per-interface (IIH) key-chain reference.
+      - **auth-key-chain** `leafref`: L2 per-interface (IIH) key-chain reference.
         The value names a `key-chains` entry. Ze then signs and verifies the Level-2 IIH on this circuit with that chain. RFC 5304 section 2 states that 'IS-IS Hello PDUs SHALL use the Link Level Authentication String'. This leaf covers the hello only. The LSP, CSNP and PSNP take the chain that `isis/level-2/auth-key-chain` names.
       - **hello-interval** `uint16`: L2 hello-interval override.
         Ze sends the Level-2 IIH at this period, in place of the circuit-wide `hello-interval`. A broadcast circuit runs one Hello timer for each level it forms, because the Level-1 and the Level-2 LAN IIH are separate PDUs sent to separate multicast groups. A point-to-point circuit sends one IIH that serves both levels, so it runs one Hello timer, and that timer takes this pair only on a circuit that forms Level-2 alone. An unset leaf keeps the circuit-wide value.
       - **hold-multiplier** `uint8`: L2 hold-multiplier override.
         Ze multiplies the Level-2 hello interval by this value and advertises the product as the holding time in each Level-2 IIH, clamped into 1 to 65535 seconds. It replaces the circuit-wide `hold-multiplier` for Level-2. An unset leaf keeps the circuit-wide value.
-      - **metric** `uint32`: L2 wide metric override.
-        Ze advertises this cost for the circuit in the Level-2 LSP, in place of `metric`. An unset leaf keeps the circuit-wide metric. The value also becomes the metric of the connected prefixes the circuit contributes at Level-2.
+      - **metric** `uint32`: L2 metric override.
+        Ze advertises this cost for the circuit in the Level-2 LSP, in place of `metric`. An unset leaf keeps the circuit-wide metric. The value also becomes the metric of the connected prefixes the circuit contributes at Level-2. Under the narrow and transition `metric-style` a value above 63 is refused.
       - **priority** `uint8`: L2 DIS priority override.
         Ze uses this priority in the Level-2 DIS election, in place of `priority`. An unset leaf keeps the circuit-wide priority, and so does the value 0: Ze reads an override only when it is more than 0. To ask for the lowest preference, set the circuit-wide `priority` to 0.
-    - **metric** `uint32`: Wide metric (RFC 5305).
-      The circuit advertises this cost in TLV 22, and its connected prefixes advertise it in TLV 135 and TLV 236. RFC 5305 section 3 states that 'The metric octets are encoded as a 24-bit unsigned integer', which is the 1 to 16777215 range here. SPF adds the value once for each hop, so a lower value makes the circuit preferred. `level-1/metric` and `level-2/metric` replace it at one level.
+    - **metric** `uint32`: Circuit metric (RFC 5305 wide, 1 to 63 when narrow).
+      The circuit advertises this cost in TLV 22, and its connected prefixes advertise it in TLV 135 and TLV 236. RFC 5305 section 3 states that 'The metric octets are encoded as a 24-bit unsigned integer', which is the 1 to 16777215 range here. Under the narrow and transition `metric-style` the cost also goes into TLV 2 and TLV 128, whose metric is 6 bits, so a value above 63 is refused there. SPF adds the value once for each hop, so a lower value makes the circuit preferred. `level-1/metric` and `level-2/metric` replace it at one level.
     - **passive** `boolean`: Advertise the interface but form no adjacencies.
       Ze opens no circuit for a passive interface, so it sends no hello and forms no adjacency. The connected prefixes of the interface still become TLV 135 and TLV 236 entries in the node's own LSP, at the metric `metric` sets. Use it on a loopback and on a customer LAN, where the prefix MUST be reachable and no IS-IS neighbor exists.
     - **priority** `uint8`: DIS election priority (broadcast circuits).
       The value rides in each LAN hello and decides the DIS election on a broadcast circuit. The highest priority wins, and the highest SNPA MAC address breaks a tie. A priority of 0 is valid and only lowers the preference, so it does not stop this IS from winning an election it is alone in. The leaf changes nothing on a point-to-point circuit.
 - **key-chains <name>** `list`: Named authentication key chains for hitless key rotation.
-  A chain holds the keys that sign and verify IS-IS PDUs. Ze authenticates nothing until an `auth-key-chain` leaf names the chain. Ze refuses the configuration when an `auth-key-chain` leaf names no entry of this list, because a circuit whose chain does not resolve sends and accepts every PDU unsigned. A key whose algorithm token Ze does not know, or whose secret does not decode, is dropped from the chain and signs nothing.
+  A chain holds the keys that sign and verify IS-IS PDUs. Ze authenticates nothing until an `auth-key-chain` leaf names the chain. Commit refuses an `auth-key-chain` leaf that names no entry of this list, naming the chains that exist, because a circuit whose chain does not resolve sends and accepts every PDU unsigned. A key whose algorithm token Ze does not know, or whose secret does not decode, is dropped from the chain and signs nothing.
   - **key <key-id>** `list`: Keys in this chain.
     Ze reads the keys in configuration order, which is key-id order. The first key whose send lifetime holds the current time signs a PDU. Every key whose accept lifetime holds that time is accepted on receive, up to 16 keys, which is what makes a rotation lose no adjacency.
     - **accept-lifetime** `container`: When this key is accepted on receive (hitless rotation).
@@ -4750,16 +4625,21 @@ The presence of this container starts the IS-IS component. At least one `net` le
   - `l2`: Level-2 (backbone) only.
 - **level-1** `container`: Level-1 (area) per-level configuration.
   The leaves here apply to Level-1 across the whole instance, and not to one circuit. RFC 5304 section 2 calls the key they select the Area Authentication string.
-  - **auth-key-chain** `string`: L1 per-level (LSP/SNP, area key) key-chain reference.
+  - **auth-key-chain** `leafref`: L1 per-level (LSP/SNP, area key) key-chain reference.
     The value names a `key-chains` entry. Ze then signs and verifies every Level-1 LSP, CSNP and PSNP with that chain. RFC 5304 section 2 states that 'Level 1 Sequence Number PDUs SHALL use the Area Authentication string as in Level 1 Link State PDUs'. The IIH is separate and takes the per-interface chain.
 - **level-2** `container`: Level-2 (domain) per-level configuration.
   The leaves here apply to Level-2 across the whole instance, and not to one circuit. RFC 5304 section 2 calls the key they select the domain authentication string.
-  - **auth-key-chain** `string`: L2 per-level (LSP/SNP, domain key) key-chain reference.
+  - **auth-key-chain** `leafref`: L2 per-level (LSP/SNP, domain key) key-chain reference.
     The value names a `key-chains` entry. Ze then signs and verifies every Level-2 LSP, CSNP and PSNP with that chain. RFC 5304 section 2 states that 'Level 2 Sequence Number PDUs SHALL use the domain authentication string as in Level 2 Link State PDUs'. The IIH is separate and takes the per-interface chain.
 - **lsp-lifetime** `uint16`: Maximum LSP remaining lifetime.
   The value stamps the Remaining Lifetime of every LSP this IS originates. A neighbor purges the LSP when that field reaches 0, so a refresh MUST land first. The default of 1200 seconds pairs with the 900-second refresh default. This value also bounds the refresh. A refresh of 0, or one that is not less than this value, falls back to half of it.
 - **lsp-refresh-interval** `uint16`: LSP refresh interval.
   Ze re-originates its own LSP set at this period, which bumps the sequence number and resets the Remaining Lifetime to `lsp-lifetime`. Without the refresh a quiet node ages out of every neighbor's database and disappears from the topology. A value of 0, or a value that is not less than `lsp-lifetime`, falls back to half of `lsp-lifetime`. A refresh then always lands before the purge.
+- **metric-style** `enumeration`: Metric style of the originated LSPs (RFC 3787 section 5).
+  The style picks the reachability TLVs of every LSP this IS originates, its pseudo-node LSPs included. wide, the default, writes the RFC 5305 TLV 22 and TLV 135 with their 24-bit and 32-bit metrics. narrow writes the TLV 2 and TLV 128 of ISO 10589 and RFC 1195, whose metric is 6 bits. transition writes both. RFC 3787 section 5 states that 'If not all devices in the IS-IS domain support wide metrics, narrow metrics MUST continue to be used', so set narrow while any router in the domain is narrow-only, and transition while the domain migrates. Under narrow and transition a circuit `metric` above 63 is refused. A prefix metric above 63, such as a redistributed route's, is advertised as 63 in TLV 128. IPv6 reachability stays in TLV 236 in every style.
+  - `narrow`: Narrow 6-bit metrics only (TLV 2, TLV 128).
+  - `transition`: Both narrow and wide metrics, for the migration.
+  - `wide`: Wide metrics only (TLV 22, TLV 135).
 - **net** `string[]`: Network Entity Title(s) of this IS-IS instance, at least one.
   Network Entity Title(s), for example 49.0001.0000.0000.0001.00. At least one is required. The System ID is the 6 octets before the NSEL.
 - **overload** `boolean`: Set the overload bit (RFC 3787).
@@ -5676,8 +5556,8 @@ The presence of this container starts the OSPFv2 engine, which RFC 2328 defines.
       - `stub`: Keep AS-external-LSAs out and reach external destinations through the default route.
     - **authentication** `container`: Area-level authentication defaults.
       An interface whose authentication mode is inherit takes the key chain of its area. An interface that names its own key chain overrides this default.
-      - **key-chain** `string`: Default key chain inherited by interfaces.
-        The value MUST name an entry of the key-chains list. Ze refuses the configuration when the name matches no entry, because an interface that inherits a chain which does not resolve would accept every packet unsigned.
+      - **key-chain** `leafref`: Default key chain inherited by interfaces.
+        The value MUST name an entry of the key-chains list. Commit refuses the configuration when the name matches no entry, and names the chains that exist, because an interface that inherits a chain which does not resolve would accept every packet unsigned.
     - **default-cost** `uint32`: Default summary metric for stub/NSSA areas.
       RFC 2328 Appendix C.2 names the value StubDefaultCost. It is the cost of the default summary-LSA this router advertises into the area. The value applies only when this router is an area border router of a stub area or an NSSA.
     - **no-summary** `boolean`: Suppress the Type 3 summaries of a totally-stubby or totally-NSSA area.
@@ -5739,6 +5619,16 @@ The presence of this container starts the OSPFv2 engine, which RFC 2328 defines.
     - `ti-lfa`: Add the Segment-Routing repair-list fallback (TI-LFA).
   - **node-protection** `boolean`: Prefer node-protecting alternates over link-only alternates (RFC 5286 Section 3.6).
     RFC 5286 section 3.2 gives Inequality 3 for a node-protecting alternate N against a primary neighbor E for destination D. Distance_opt(N, D) MUST be less than Distance_opt(N, E) plus Distance_opt(E, D). Section 3.6 takes a link-protecting alternate when no node-protecting one exists.
+- **filter** `container`: Route filter chains into the Loc-RIB.
+  A name references a filter instance defined under the top-level policy root. The chain judges routes as they enter the Loc-RIB; a protocol's own database (an IS-IS LSDB, an OSPF LSDB) is never filtered.
+  - **import** `container`: Import policy into the Loc-RIB
+    A rejected route stays in the Loc-RIB as a hidden path that is never selected, so relaxing the chain re-admits it without the protocol sending it again. The source's chain runs first, then the rib chain.
+    - **filters** `string[]`: Ordered filter instance references
+      Run these filter instances in order. Each one passes the route on or rejects it; a filter type with no Loc-RIB route evaluator is refused.
+    - **final** `enumeration`: Decision after every filter passes
+      Every present import policy must set final accept or final reject, even with no filters.
+      - `accept`: Accept a route that passes every filter
+      - `reject`: Reject a route that passes every filter
 - **graceful-restart** `container`: Graceful Restart, which keeps forwarding across a control-plane restart.
   RFC 3623 defines Graceful Restart for OSPFv2, and RFC 5187 for OSPFv3. The container is family-neutral and drives both address families. The OSPFv3 family inherits it unless that family configures its own.
   - **helper** `container`: Helper role of this router.
@@ -5764,8 +5654,8 @@ The presence of this container starts the OSPFv2 engine, which RFC 2328 defines.
       Ze enrolls the interface only when the areas container declares this area-id. An interface belongs to one area, which RFC 2328 Appendix C.3 names Area ID.
     - **authentication** `container`: Per-interface authentication settings.
       RFC 2328 Appendix C.3 states that the AuType MUST be the same for all routers attached to the network. Ze takes the AuType from the algorithm of the keys in the resolved chain.
-      - **key-chain** `string`: Key chain reference.
-        The value MUST name an entry of the key-chains list, and Ze refuses the configuration when it names no entry. Ze takes the area chain instead when the mode leaf is inherit, even when this leaf names a chain.
+      - **key-chain** `leafref`: Key chain reference.
+        The value MUST name an entry of the key-chains list, and commit refuses the configuration when it names no entry, naming the chains that exist. The check holds whatever the mode: Ze takes the area chain instead when the mode leaf is inherit, but a name written here still has to resolve.
       - **mode** `enumeration`: Authentication mode of this interface.
         The value inherit takes the area default.
         - `hmac-sha-1`: HMAC-SHA-1 digest (AuType 2).
@@ -6039,13 +5929,209 @@ Declares the plugins this daemon runs, and the hub transport they connect back o
 
 ## policy
 
-*Provided by `policy-routes` ([ze-policyroute-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/policyroute/yang/ze-policyroute-cmd.yang), [ze-policyroute-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/policyroute/yang/ze-policyroute-conf.yang))*
+*Provided by `bgp-filter-aspath` ([ze-filter-aspath.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_aspath/yang/ze-filter-aspath.yang)); `bgp-filter-aspath-length` ([ze-filter-aspath-length.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_aspath_length/yang/ze-filter-aspath-length.yang)); `bgp-filter-community-match` ([ze-filter-community-match.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_community_match/yang/ze-filter-community-match.yang)); `bgp-filter-family` ([ze-filter-family.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_family/yang/ze-filter-family.yang)); `bgp-filter-modify` ([ze-filter-modify.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_modify/yang/ze-filter-modify.yang)); `bgp-filter-path-asn` ([ze-filter-path-asn-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_path_asn/yang/ze-filter-path-asn-cmd.yang), [ze-filter-path-asn.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_path_asn/yang/ze-filter-path-asn.yang)); `bgp-filter-prefix` ([ze-filter-prefix.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_prefix/yang/ze-filter-prefix.yang)); `bgp-filter-remove-private-as` ([ze-filter-remove-private-as.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_remove_private_as/yang/ze-filter-remove-private-as.yang)); `policy` ([ze-policy-conf.yang](https://github.com/ze-software/ze/blob/main/internal/component/policy/yang/ze-policy-conf.yang))*
 
-Policy routing configuration.
+Route policy filters and policy routing.
 
-Ze merges every policy into one nftables table named ze_pr. The chain of that table attaches to the prerouting hook at priority -150. A rule marks the packet, and an ip rule then selects the kernel routing table for that mark. A packet that matches no rule keeps the routing decision of the main table.
+Each filter type is a list that its plugin adds through an augment and marks ze:filter. An entry of such a list is a named filter instance, and an import or export chain references it by name. One name belongs to one filter type only. Policy routing adds its route list here too; a route entry is never a filter.
 
+- **as-path-length <name>** `list`: Named AS-path length filter instance.
+  Ze rejects a route whose AS-path length falls outside the configured min..max range. Both min and max are optional, and an omitted bound is open.
+  - **max** `uint16`: Maximum allowed AS-path length (inclusive). Routes with longer paths are rejected.
+    An absent leaf leaves the upper bound open, so a filter that states neither bound accepts every route. Ze counts every ASN of the path, so a member of an AS_SET counts as one hop.
+  - **min** `uint16`: Minimum required AS-path length (inclusive). Routes with shorter paths are rejected.
+    An absent leaf leaves the lower bound open. A route that carries no AS_PATH counts 0 hops. min 1 therefore rejects a route Ze originated, and a route an iBGP peer sent with an empty path.
+- **as-path-list <name>** `list`: Named AS-path regex filter instance.
+  Each list holds an ordered set of regex entries. Ze evaluates the entries in order, and the first match wins. No match is an implicit deny, so Ze rejects the route.
+  - **entry <regex>** `list`: One regex entry of the ordered list.
+    Ze matches each entry against the space-separated AS-path string, in the configured order. The first entry that matches wins.
+    - **action** `enumeration`: Action applied when this entry's regex matches.
+      The first entry whose pattern matches decides the UPDATE, and no later entry is read. A route whose path matches no entry is rejected, so a list needs no closing reject entry.
+      - `accept`: Accept a route whose AS-path matches.
+      - `reject`: Reject a route whose AS-path matches.
+- **community-match <name>** `list`: Named community match filter instance.
+  Each list holds an ordered set of match entries. Ze reads the entries in order, and the first match wins. No match is an implicit deny, so the route is rejected.
+  - **entry <community>** `list`: Ordered match entry, checked against the route's community attributes.
+    Ze reads the entries in order, and the first match wins. An entry checks whether the named community value is present in the route's community attributes.
+    - **action** `enumeration`: Action applied when this community is found in the route.
+      The first entry whose community the route carries decides the UPDATE, and no later entry is read. A route that carries none of the listed communities is rejected, so a list needs no closing reject entry.
+      - `accept`: Accept routes containing this community
+      - `reject`: Reject routes containing this community
+    - **type** `enumeration`: Which community attribute type to check.
+      Ze reads the one attribute the leaf names. An entry of type standard therefore does not see a value that sits in the LARGE COMMUNITIES attribute. Write one entry for each attribute the route can carry the value in.
+      - `extended`: Match in extended community attribute (type 16)
+      - `large`: Match in large community attribute (type 32)
+      - `standard`: Match in standard community attribute (type 8)
+- **family-filter <name>** `list`: Named address-family filter instance.
+  One instance matches one family, because family holds one value and is mandatory. A chain that must catch two families names two instances.
+  - **action** `enumeration`: Action to apply when the family matches.
+    remove strips the MP_REACH NLRI and the MP_UNREACH NLRI of the matched family from the UPDATE, on import and on export. If that removal empties the UPDATE, Ze drops the whole UPDATE for that peer. tear-down sends a BGP NOTIFICATION that carries the Cease code and the Connection Rejected subcode, then closes the session. tear-down acts on import only.
+    - `remove`: Strip the MP_REACH NLRI and the MP_UNREACH NLRI of the matched family.
+    - `tear-down`: Close the session with a BGP NOTIFICATION when a received UPDATE carries the family.
+  - **family** `address-family`: Address family to match, for example ipv4/flowspec.
+    Ze treats an UPDATE with no MP_REACH attribute and no MP_UNREACH attribute as ipv4/unicast.
+- **irr** `container`: Global IRR filtering settings.
+  The container holds the IRR server, the PeeringDB endpoint and the refresh period. One resolution serves every peer of the same remote ASN, so two peers of one ASN cost one query.
+  - **peeringdb-url** `string`: Base URL of the PeeringDB API that Ze queries.
+    Ze reads the AS-SET of a peer from the PeeringDB API when the as-set leaf is empty. Set this leaf to the URL of a mock server to test the IRR filter without a query to the public PeeringDB service.
+  - **refresh-interval** `uint32`: Seconds between automatic IRR re-queries.
+    Ze re-queries every enrolled AS-SET on this period. The first query runs in the background at startup, so a slow IRR server never blocks the start of Ze. A failed query leaves the prefix list of the last query in force.
+  - **server** `string`: IRR whois server hostname or host:port.
+    Ze speaks whois to the server and adds port 43 when the value carries no port. A query that gets no answer in 10 seconds fails, and the prefix list of the last query stays in force.
+  - **source-address** `ip-address`: Source IP address for outbound IRR whois connections.
+    Ze binds the address on the whois connection only. The PeeringDB query does not read the leaf. When the leaf is absent, the kernel picks the source address of the route to the server.
+- **loop-detection <name>** `list`: Named loop detection filter instance.
+  The instance configures AS loop detection and cluster-list loop detection, for each peer that references it.
+  - **allow-own-as** `uint8`: Own-AS occurrences permitted in AS_PATH before ze rejects the route.
+    The default is 0, which rejects the route on the first occurrence (RFC 4271 Section 9).
+  - **cluster-id** `ipv4-address`: Override Router ID for CLUSTER_LIST loop detection.
+    When this leaf is unset, ze uses the BGP Router ID (RFC 4456 Section 7).
+- **match <name>** `list`: Named route match filter instance.
+  With action accept, a route that meets every condition the instance names passes on to the next filter and any other route is rejected; with action reject, a route that meets them is rejected and any other passes on. An instance is checked against only the conditions it names, so one naming prefix-list and tag attaches to static, OSPF and the rib chain, and is refused on IS-IS, whose routes carry no tag.
+  - **action** `enumeration`: Accept or reject the routes this instance matches
+    What happens to a route that meets every condition the instance names. The other routes get the opposite.
+    - `accept`: Pass on routes meeting every condition, reject the rest.
+    - `reject`: Reject routes meeting every condition, pass on the rest.
+  - **family** `string[]`: Match routes of this address family
+    An address family name such as ipv4/unicast or ipv6/unicast.
+  - **interface** `string[]`: Match routes through this interface
+    The outgoing interface the route names.
+  - **level** `uint8[]`: Match IS-IS routes of this level
+    The IS-IS level the route was selected at. Only IS-IS routes carry a level.
+  - **metric** `container`: Match routes whose metric is in this range
+    The route's metric as its source states it: the SPF metric or cost of an IGP route, a static route's configured metric. Either bound may be left out; a minimum above the maximum is refused.
+    - **maximum** `uint32`: Highest metric that matches
+      The highest metric that matches, inclusive. Left out, the range ends at 4294967295.
+    - **minimum** `uint32`: Lowest metric that matches
+      The lowest metric that matches, inclusive. Left out, the range starts at 0.
+  - **next-hop** `string[]`: Match routes whose next hop is in this prefix
+    An address prefix the route's next hop lies in, such as 192.0.2.0/24 or 2001:db8::1/128. A route with no next hop (connected) does not match.
+  - **prefix-list** `string`: Match routes the named prefix-list accepts
+    The route passes this condition when the named prefix-list accepts its prefix. The prefix-list is a policy prefix-list instance: the editor completes the configured ones, and a commit naming any other is refused. The prefix-list list belongs to the prefix filter, which a build without BGP leaves out, so this is a ze:reference, not a leafref.
+  - **protocol** `string[]`: Match routes from this source
+    A route source registered by this build (static, connected, ospf, isis, bgp, ...), or ebgp or ibgp for the class of a BGP best. An unknown name is refused at load.
+  - **route-type** `enumeration[]`: Match OSPF routes of this path type
+    The OSPF path type of RFC 2328 Section 11, with the NSSA types of RFC 3101. Only OSPF routes carry a route type.
+    - `external-1`: OSPF type 1 external path
+    - `external-2`: OSPF type 2 external path
+    - `inter-area`: OSPF inter-area path
+    - `intra-area`: OSPF intra-area path
+    - `nssa-1`: OSPF NSSA type 1 external path
+    - `nssa-2`: OSPF NSSA type 2 external path
+  - **tag** `uint32[]`: Match routes carrying this tag
+    OSPF carries the external route tag and static carries its tag leaf. IS-IS carries no administrative tag in Ze, so a filter reading tag is refused on an IS-IS chain.
+- **modify <name>** `list`: Named route attribute modifier instance.
+  Ze modifies only the declared leaves, and keeps every undeclared attribute unchanged. One modifier can change several attributes.
+  - **decrement** `container`: Attributes to decrement on a matching route.
+    Ze subtracts the stated value from the current value of the attribute. The result floors at 0, so it never underflows. decrement is mutually exclusive with set for the same attribute.
+    - **aigp** `uint32`: Decrement AIGP metric by this value.
+      Ze runs the operation only on a route that already carries an AIGP TLV. A route with none is left alone, because RFC 7311 Section 3.4.1 forbids Ze to add the attribute.
+    - **local-preference** `uint32`: Decrement LOCAL_PREF by this value.
+      A route that carries no LOCAL_PREF counts as 100 before the subtraction. A decrement larger than the current value writes 0 rather than wrapping.
+    - **med** `uint32`: Decrement MED by this value.
+      A route that carries no MULTI_EXIT_DISC counts as 0, so the result is 0 and Ze writes a metric the route did not have. Use del med to remove the attribute instead.
+  - **del** `container`: Attributes Ze deletes from a matching route.
+    Ze applies only the leaves that are present in this container, and keeps every other attribute unchanged.
+    - **med** `empty`: Remove the MULTI_EXIT_DISC attribute (RFC 4271 type 4) from the route.
+      RFC 4271 Section 5.1.4 requires a mechanism, based on local configuration, that removes MULTI_EXIT_DISC from a route. The same section requires the removal to happen before the route reaches Decision Process phase 1 and phase 2. The del med operation is that mechanism, so it applies on an IMPORT chain only, and the route enters the decision process with no metric. Ze refuses del med on an export chain and writes a log line, because Section 9.1.2.2 states that a comparison on MULTI_EXIT_DISC followed by advertisement without it causes route loops. del med is mutually exclusive with set med, increment med and decrement med. Ze already keeps a metric received from one neighboring AS off another one with no configuration (RFC 4271 Section 5.1.4), so del med is for the operator who wants the metric removed from the route itself.
+  - **increment** `container`: Attributes to increment on a matching route.
+    Ze adds the stated value to the current value of the attribute. The result saturates at the uint32 maximum, 4294967295. increment is mutually exclusive with set for the same attribute.
+    - **aigp** `uint32`: Increment AIGP metric by this value.
+      Ze runs the operation only on a route that already carries an AIGP TLV, and creates none. RFC 7311 Section 3.4.1 forbids a speaker to add the attribute to a route whose path leaves the AIGP domain. Section 4.1 removes a route with no AIGP from the decision rather than scoring it.
+    - **local-preference** `uint32`: Increment LOCAL_PREF by this value.
+      A route that carries no LOCAL_PREF counts as 100, which is the value FRR and BIRD use for a route with none. RFC 4271 Section 9.1.1 leaves that number to local policy.
+    - **med** `uint32`: Increment MED by this value.
+      A route that carries no MULTI_EXIT_DISC counts as 0, which RFC 4271 Section 9.1.2.2 gives as the value of an absent metric. The result therefore equals the increment.
+  - **match** `container`: Condition a route meets before the operations apply.
+    A route that meets none of the stated values passes through unchanged, and Ze does not reject it. The chain drops a rejected route, and a conditional modifier exists so that the routes it does not touch keep flowing. An absent match container applies the operations to every route that reaches the modifier. The values across the three leaf-lists are alternatives, so one value present in the route satisfies the condition.
+    - **community** `string[]`: Apply only to a route whose COMMUNITIES attribute carries this value.
+      The COMMUNITIES attribute is RFC 1997, type 8. The value takes the form ASN:VAL, for example 65001:666, or a well-known name. The well-known names are blackhole, no-export, no-advertise, no-export-subconfed and nopeer. The two spellings of a well-known value are equivalent, so 65535:666 and blackhole select the same community. RFC 7999 registers that community, and RFC 7999 Section 4 names it with that suggested keyword.
+    - **extended-community** `string[]`: Apply only to a route whose EXTENDED COMMUNITIES attribute carries this value.
+      The EXTENDED COMMUNITIES attribute is RFC 4360, type 16. The value takes the form target:ASN:NN or origin:ASN:NN, or it is a hex string. Ze validates the value at configure time and compares its eight-octet value, so named and hex spellings of the same value select the same routes.
+    - **large-community** `string[]`: Apply only to a route whose LARGE COMMUNITIES attribute carries this value.
+      The LARGE COMMUNITIES attribute is RFC 8092, type 32. The value takes the form GA:LD1:LD2, for example 65001:100:200. Ze validates the value at configure time and compares its canonical decimal form.
+    - **level** `uint8[]`: Match IS-IS routes of this level
+      The IS-IS level the route was selected at. Only IS-IS routes carry a level.
+    - **protocol** `string[]`: Match routes from this source
+      A route source registered by this build (static, connected, ospf, isis, bgp, ...), or ebgp or ibgp for the class of a BGP best. An unknown name is refused at load.
+    - **route-type** `enumeration[]`: Match OSPF routes of this path type
+      The OSPF path type of RFC 2328 Section 11, with the NSSA types of RFC 3101. Only OSPF routes carry a route type.
+      - `external-1`: OSPF type 1 external path
+      - `external-2`: OSPF type 2 external path
+      - `inter-area`: OSPF inter-area path
+      - `intra-area`: OSPF intra-area path
+      - `nssa-1`: OSPF NSSA type 1 external path
+      - `nssa-2`: OSPF NSSA type 2 external path
+    - **tag** `uint32[]`: Match routes carrying this tag
+      OSPF carries the external route tag and static carries its tag leaf. IS-IS carries no administrative tag in Ze, so a filter reading tag is refused on an IS-IS chain.
+  - **set** `container`: Attributes Ze sets on a matching route.
+    Ze applies only the leaves that are present in this container, and keeps every other attribute unchanged.
+    - **as-path-prepend** `uint8`: Prepend the local AS to AS_PATH this many times.
+      Ze prepends the local-as of the peer, which the session config holds. The range 1 to 32 stops the path from growing without a limit.
+    - **community-add** `string[]`: Standard community values to add (ASN:VAL format).
+      Ze adds the values to the COMMUNITIES attribute of RFC 1997 and keeps every community already on the route. Ze reads each value at config load, and refuses the modifier when one does not parse.
+    - **community-remove** `string[]`: Standard community values to remove (ASN:VAL format).
+      Ze removes only the values named here, and keeps every other community of the route. A value the route does not carry costs nothing. Ze reads each value at config load, and refuses the modifier when one does not parse.
+    - **distance** `uint8`: Set the administrative distance of a Loc-RIB route (0-255).
+      Ze ranks a matching route at this administrative distance in the Loc-RIB, in place of the distance declared for its protocol. A Loc-RIB import chain only: the instance is refused on a BGP chain. Removing the filter returns the route to the declared distance.
+    - **extended-community-add** `string[]`: Extended community values to add (target:ASN:NN or hex).
+      The EXTENDED COMMUNITIES attribute is RFC 4360, type 16, and each value is 8 bytes. target names a Route Target and origin names a Route Origin. A hex string writes the 8 bytes Ze has no keyword for.
+    - **extended-community-remove** `string[]`: Extended community values to remove (target:ASN:NN or hex).
+      Ze removes only the values named here, and leaves the standard and large communities of the route untouched. A value the route does not carry costs nothing.
+    - **large-community-add** `string[]`: Large community values to add (GA:LD1:LD2 format).
+      The LARGE COMMUNITIES attribute is RFC 8092, type 32, and it carries three 4-byte fields. A 4-byte ASN therefore fits, which a standard community cannot hold.
+    - **large-community-remove** `string[]`: Large community values to remove (GA:LD1:LD2 format).
+      Ze removes only the values named here, and leaves the standard and extended communities of the route untouched. A value the route does not carry costs nothing.
+    - **local-preference** `uint32`: Set LOCAL_PREF attribute (RFC 4271 type 5).
+      Ze replaces the value the route carried. RFC 4271 Section 5.1.5 forbids the attribute in an UPDATE to an external peer, so the value serves the local decision process and the internal peers. The leaf is mutually exclusive with increment local-preference and decrement local-preference.
+    - **med** `uint32`: Set MULTI_EXIT_DISC attribute (RFC 4271 type 4).
+      Ze replaces the metric the route carried, and writes one on a route that carried none. The leaf is mutually exclusive with del med, increment med and decrement med, and Ze refuses a modifier that carries two of them.
+    - **next-hop** `ip-address`: Set the NEXT_HOP attribute of the route.
+      NEXT_HOP is RFC 4271 type 3, and it carries an IPv4 address only. An IPv6 next-hop travels in the MP_REACH attribute instead, so this leaf does not set one.
+    - **origin** `enumeration`: Set ORIGIN attribute (RFC 4271 type 1).
+      The decision process reads the attribute at step 3, after LOCAL_PREF and the AS_PATH length. igp wins over egp, and egp wins over incomplete. Ze replaces whatever the route carried.
+      - `egp`: The route came from the retired EGP protocol.
+      - `igp`: The route started inside the local AS.
+      - `incomplete`: The route came from another source, such as redistribution.
+    - **tag** `uint32`: Set the tag of a Loc-RIB route.
+      Ze replaces the route's tag in the Loc-RIB with this value. A Loc-RIB import chain only: the instance is refused on a BGP chain.
+- **prefix-list <name>** `list`: Named prefix-list filter instance.
+  Each list holds an ordered set of match entries. Ze evaluates the entries in order, and the first match wins. A route prefix that matches no entry is denied.
+  - **entry <prefix>** `list`: Ordered match entry. First match wins per route prefix.
+    Ze judges each prefix of an UPDATE on its own. An UPDATE whose prefixes are all accepted passes unchanged, and one whose prefixes are all rejected is dropped. A mixed UPDATE is rewritten to carry the accepted prefixes only. An UPDATE that carries no prefix is accepted.
+    - **action** `enumeration`: Action applied when this entry matches a route prefix.
+      The first entry that matches a route prefix decides it, and no later entry is read for that prefix. A prefix that matches no entry is rejected, so a list needs no closing reject entry.
+      - `accept`: Accept route prefixes matching this entry.
+      - `reject`: Reject route prefixes matching this entry.
+    - **ge** `uint8`: Minimum match length (greater-than-or-equal). Defaults to the prefix length of this entry.
+      Ze refuses a value of more than 32 on an IPv4 entry, and more than 128 on an IPv6 entry. Ze also refuses a ge greater than the le of the same entry. Write 0.0.0.0/0 with ge 8 and le 24 to accept every route between /8 and /24.
+    - **le** `uint8`: Maximum match length (less-than-or-equal). Defaults to 32 for IPv4 or 128 for IPv6.
+      The default accepts every length inside the entry, so an entry with no le and no ge matches the prefix and everything under it. Ze refuses a value greater than the family maximum rather than letting the entry match nothing.
+- **reject-asn <name>** `list`: Named list of ASNs rejected by their position in the AS_PATH.
+  Every ASN written under the list is looked for in the AS_PATH of the route. The keyword it sits under decides which positions reject it. The list is an unordered reject set, so any keyword that matches rejects the route and no keyword wins over another. Ze reads the positions first and the patterns after them.
+  - **anywhere** `asn[]`: Reject these ASNs at any position: direct, transit and origin together.
+    The keyword is the union of the other three, so it rejects the ASN wherever it sits. The reject log line still names which of the three caught the route.
+  - **direct** `asn[]`: Reject these ASNs where they are the peer we are talking to, prepends collapsed.
+    The position is the leading run of tokens equal to the ASN of the sending peer, so four prepends are one direct position. On export no ASN is direct, because the filter input carries the destination peer rather than the sender. A path that starts with another ASN is a leak, and direct does not catch it.
+  - **indirect** `asn[]`: Reject these ASNs anywhere they are NOT the peer we are talking to.
+    The keyword covers transit and origin together. It is the leaf an operator writes for RFC 7454 Section 9. The route reached you through the ASN, and a direct session with that ASN is still fine. On export the sender is unknown, so indirect covers the whole path.
+  - **nth <index>** `list`: Reject the listed ASNs at one collapsed position of the AS_PATH.
+    Ze counts the positions from us, and 1 is the ASN we are talking to. A run of consecutive identical ASNs counts once, so a peer cannot move your rule by a prepend. The keyword cuts across the other five, because an ASN at position 2 CAN also be transit.
+    - **asn** `asn[]`: The ASNs this position rejects.
+      The completion of the leaf offers a curated table of transit-free networks, and that table constrains nothing. Every ASN the type admits stays valid, and an ASN the table never held is accepted with no warning. show bgp reject-asn known transit-free prints the table.
+  - **origin** `asn[]`: Reject these ASNs where they are the last ASN of the AS_PATH.
+    The last ASN of the path announced the route. The leading run of the sender wins over that last position, so a lone ASN sent by the peer that owns it is direct rather than the origin.
+  - **regex** `string[]`: Go RE2 patterns matched against the whole space-separated AS_PATH string.
+    No position applies to a pattern. Ze matches it against the flat path, so a pattern reaches an ASN inside an AS_SET and meets no bracket. The 512-character bound is the bound bgp-filter-aspath applies to a regex. Ze reads the patterns only when no position matched.
+  - **transit** `asn[]`: Reject these ASNs where they sit past the peer and are not the last ASN of the AS_PATH.
+    A token is transit when it sits neither inside the leading run of the sender nor at the end of the path. Ze gives every token exactly one of direct, transit and origin.
+- **remove-private-as <name>** `list`: Named action filter that removes RFC 6996 Private Use ASNs.
+  Ze rewrites AS_PATH and AS4_PATH, and the filter runs on an import chain and on an export chain. A path that carries no Private Use ASN passes through unchanged.
+  - **replace-with** `enumeration`: Replacement mode. When absent, Private Use ASNs are stripped.
+    RFC 6996 Section 5 gives the ranges, which are 64512 to 65534 and 4200000000 to 4294967294. An absent leaf strips each of those ASNs, so the path loses one hop for each. peer-as writes the ASN of the peer in its place, so the path keeps its length.
+    - `peer-as`: Replace Private Use ASNs with the neighbor peer ASN.
 - **route <name>** `list`: A named policy route applied to ingress interfaces.
+  *Provided by `policy-routes` ([ze-policyroute-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/policyroute/yang/ze-policyroute-cmd.yang), [ze-policyroute-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/policyroute/yang/ze-policyroute-conf.yang))*
   Ze applies the rules of this policy to packets that arrive on the listed interfaces. A policy that lists no interface matches on any ingress interface. Each rule that selects a table or a next-hop gets its own fwmark from range 0x50000 to 0x5FFFF. An ip rule then maps that mark to the table.
   - **interface** `string[]`: Ingress interfaces to match, where a trailing '*' matches by prefix.
     Name one interface, or several. The entries are an OR: Ze installs one nftables rule for each entry, and a packet that arrives on any one of them matches. A trailing * matches by prefix, so the entry l2tp* matches l2tp0 and l2tp1. Each entry keeps its own wildcard state, so one list holds eth0 and l2tp* together. With no interface named, the policy matches every ingress interface.
@@ -6168,6 +6254,16 @@ The system RIB takes the best route each protocol offers and selects one system 
     A static route is one the operator wrote under the static configuration. The default 10 ranks a static route above every dynamic protocol declared here and below a connected route. The range is 1 to 255. The Loc-RIB ranks each static route at this value unless the route carries its own distance leaf, which wins over it. Raise it to more than 20 to let an eBGP route win the same prefix.
 - **fib-withhold** `string[]`: Protocols whose selected routes are not programmed into the FIB. An empty list programs all.
   This list names the protocols Ze does not program. Selection is unchanged: the system RIB ranks the candidates for each prefix on administrative distance and picks one winner. A winner from a protocol named here stays in the RIB, `show rib` reports it, redistribution can offer it to another protocol, and the protocol's own event stream still carries it. Ze declines the write to the kernel, to VPP or to a P4 switch. It holds the prefix off `system-rib/best-change`, the stream every FIB writer reads, so the list applies to every FIB. Ze also releases the next-hop tracking for the prefix, so `show nexthop-table` stops listing it under its next-hop. An empty list withholds nothing, which is the behavior of a router that says nothing here. Withholding is one of the reasons a selected route is not programmed: a route the operating system installs, and a route whose SRv6 SID reaches nothing, are not written either. The values are the protocol names this build registered: the editor completes them, and a name nothing registered is refused at commit.
+- **filter** `container`: Route filter chains into the Loc-RIB.
+  A name references a filter instance defined under the top-level policy root. The chain judges routes as they enter the Loc-RIB; a protocol's own database (an IS-IS LSDB, an OSPF LSDB) is never filtered.
+  - **import** `container`: Import policy into the Loc-RIB
+    A rejected route stays in the Loc-RIB as a hidden path that is never selected, so relaxing the chain re-admits it without the protocol sending it again. The source's chain runs first, then the rib chain.
+    - **filters** `string[]`: Ordered filter instance references
+      Run these filter instances in order. Each one passes the route on or rejects it; a filter type with no Loc-RIB route evaluator is refused.
+    - **final** `enumeration`: Decision after every filter passes
+      Every present import policy must set final accept or final reject, even with no filters.
+      - `accept`: Accept a route that passes every filter
+      - `reject`: Reject a route that passes every filter
 
 ## routing-table
 
@@ -6482,8 +6578,8 @@ The container holds the settings of each service Ze runs, and the as112 containe
       - `fixed`: Use the serial leaf verbatim
   - **source <prefix>** `list`: Maps a client-IP prefix to a host-set.
     Maps a client-IP prefix to a host-set. The longest prefix wins. 0.0.0.0/0 and ::/0 are the catch-all external default.
-    - **host-set** `string`: Name of the host-set to answer for clients matching this prefix
-      The value names a `host-set` entry. A commit that names an unknown set is refused with 'references unknown host-set', and a source with no value here is refused as well. A client this prefix matches is answered from that set alone.
+    - **host-set** `leafref`: Name of the host-set to answer for clients matching this prefix
+      The value names a `host-set` entry. The editor completes the configured sets, a commit that names any other set is refused, and a source with no value here is refused as well. A client this prefix matches is answered from that set alone.
   - **tls** `container`: DNS-over-TLS listener and the certificate material shared with DoH.
     DNS-over-TLS (DoT, RFC 7858) listener and the certificate material shared with DoH. When the listener is enabled, DoT binds the configured listener IPs on 'listen-port'. When cert-file and key-file are unset, Ze uses an ephemeral self-signed certificate, which a strict client cannot validate.
     - **cert-file** `string`: Path to the PEM server certificate presented on DoT and DoH.
@@ -6535,6 +6631,16 @@ Static route configuration.
 
 Ze programs each route into the kernel through netlink, or into the VPP dataplane, and marks it with the static protocol number. A route the backend cannot program is skipped and logged, and the rest of the section still applies. Only a forward route in the default table reaches the redistribute bus, where BGP can announce it.
 
+- **filter** `container`: Route filter chains into the Loc-RIB.
+  A name references a filter instance defined under the top-level policy root. The chain judges routes as they enter the Loc-RIB; a protocol's own database (an IS-IS LSDB, an OSPF LSDB) is never filtered.
+  - **import** `container`: Import policy into the Loc-RIB
+    A rejected route stays in the Loc-RIB as a hidden path that is never selected, so relaxing the chain re-admits it without the protocol sending it again. The source's chain runs first, then the rib chain.
+    - **filters** `string[]`: Ordered filter instance references
+      Run these filter instances in order. Each one passes the route on or rejects it; a filter type with no Loc-RIB route evaluator is refused.
+    - **final** `enumeration`: Decision after every filter passes
+      Every present import policy must set final accept or final reject, even with no filters.
+      - `accept`: Accept a route that passes every filter
+      - `reject`: Reject a route that passes every filter
 - **table <name>** `list`: A named routing table that holds static routes.
   A named routing table grouping. The table name is resolved to a kernel table ID through the routing-table registry. Use 'default' for the main routing table.
   - **route <prefix>** `list`: A static route entry.
@@ -6552,7 +6658,7 @@ Ze programs each route into the kernel through netlink, or into the VPP dataplan
           - **hop <address>** `list`: Forward via gateway. Multiple entries produce ECMP with traffic distributed by weight.
             The gateway address is the key, so one route holds one entry for each gateway. Ze shares the traffic between the entries in proportion to their weights. An entry can name its own BFD profile, and a next hop whose BFD session goes down leaves the group.
             - **bfd-profile** `string`: BFD profile name for this next-hop, from the bfd/profile list.
-              BFD profile name (from bfd/profile list). When the BFD session to this next-hop goes down, Ze removes the next-hop from the ECMP group. Ze then reprograms the route with the remaining active next-hops. The session is single-hop, so a commit is refused when the profile is not defined or sets passive (RFC 5881 Section 3).
+              BFD profile name (from bfd/profile list). When the BFD session to this next-hop goes down, Ze removes the next-hop from the ECMP group. Ze then reprograms the route with the remaining active next-hops. Commit, ze config validate and a SIGHUP reload refuse a name no bfd profile defines, naming the profiles that exist; the editor completes those names. The leaf names a list of another module that a build without BFD leaves out, so it is a ze:reference, not a leafref. The session is single-hop, so a commit is also refused when the profile sets passive (RFC 5881 Section 3).
             - **interface** `string`: Outgoing interface. Required when the next-hop is a link-local IPv6 address.
               Ze resolves the name to a kernel interface index and sets it on the route. A link-local IPv6 gateway needs it, because the same address can exist on every link. A name that resolves to no interface skips this one route, which show static routes then reports with its reason.
             - **weight** `uint16`: ECMP weight of this next-hop, 1 by default.
@@ -6708,16 +6814,16 @@ The container holds the system-wide settings. This module attaches the local use
       The value independently bounds a TCP connect and one request/reply exchange for each server. Servers are tried in order; a dead reused connection also permits one fresh connection attempt. Waiting for another exchange on a shared connection can add to this time.
   - **tacacs-profile <level>** `list`: Maps TACACS+ privilege level to ze authorization profile
     The list turns the privilege level Ze resolves for a session into the ze authorization profiles of that session. A level with no entry here denies the login, so this mapping is what grants access, and not the PASS from the server. Ze also removes a reserved profile name from the set, and a level that then resolves to nothing denies the login too.
-    - **profile** `string[]`: Ze authorization profiles for this privilege level. At least one is required.
-      These local profiles govern the authenticated session. A missing, empty or all-reserved profile mapping denies login. To deny a privilege level, omit its mapping. Local command authorization denies when none of the named profiles exists in the local policy store.
+    - **profile** `leafref[]`: Ze authorization profiles for this privilege level. At least one is required.
+      These local profiles govern the authenticated session. A commit rejects a name that no profile under system authorization defines, naming the profiles that exist. The path is absolute because the profile list lives in the ze-authz-conf module's system container, not this module's. A missing, empty or all-reserved profile mapping denies login. To deny a privilege level, omit its mapping. Local command authorization denies when none of the named profiles exists in the local policy store.
   - **user <name>** `list`: Authenticated user (local)
     Authenticated user (local). Each entry is one local account. password carries the bcrypt hash the login compares against, and profile names the authorization profiles the account carries. A commit rejects an entry whose name is reserved for a built-in identity.
     - **password** `string`: Bcrypt-hashed password, in canonical form.
       The canonical form carries a cost prefix, for example $2a$10$ before the salt and the digest. Write the plaintext password to plaintext-password. On commit, ze hashes that value into this leaf and then discards the plaintext.
     - **plaintext-password** `string`: Write-only plaintext password.
       On commit, the config system hashes this value with bcrypt into the canonical password leaf, and it removes this leaf from the tree. Ze never writes the value to the config file. A display path renders the secret placeholder in its place.
-    - **profile** `string[]`: Authorization profile name(s) assigned to this user
-      Authorization profile names assigned to this user. A commit rejects a name that no profile under system authorization defines, and it rejects a reserved name. Once one profile exists, a user with no name here authenticates and is then denied every command.
+    - **profile** `leafref[]`: Authorization profile name(s) assigned to this user
+      Authorization profile names assigned to this user. A commit rejects a name that no profile under system authorization defines, naming the profiles that exist, and it rejects a reserved name. Once one profile exists, a user with no name here authenticates and is then denied every command.
     - **public-keys <name>** `list`: SSH public keys for key-based authentication. Each entry is a named key (e.g. user@host).
       Ze joins the type and the key of each entry into one authorized_keys line. A client key that equals any entry of this user authenticates that user. A key that does not parse is logged and skipped, and the other keys of the user still match. A user that carries a key and no profile authenticates, and the authorizer then decides what they can run.
       - **key** `string`: Base64-encoded public key data.
@@ -7249,20 +7355,20 @@ Ze declares one subsystem under it today, which is ipsec. That subsystem holds t
         - `eap-mschapv2`: EAP-MSCHAPv2: the client proves its password by challenge and response.
         - `eap-tls`: EAP-TLS, Type 13 (RFC 5216): the client authenticates with a certificate.
       - **x509** `container`: Server certificate references for EAP.
-        Server certificate references for EAP. Ze parses both leaves and no component reads them today, so neither takes effect. Ze also leaves both unchecked, so a name that no PKI store entry carries still commits here. The enforced leaves of these names are the site-to-site peer ones.
+        Server certificate references for EAP. Ze parses both leaves and no component reads them today, so neither takes effect. A commit still refuses a name the PKI store does not hold, and the editor completes the store's entries. The leaves a handshake reads are the site-to-site peer ones.
         - **ca-certificate** `string`: Name of the CA certificate in the PKI store. It has no effect today.
-          Ze compares the name against nothing, so a name no PKI store entry carries still commits. The trust anchor of a handshake comes from the ca-certificate leaf of the site-to-site peer.
+          A commit refuses a name that is not a ca entry of the PKI store. The trust anchor of a handshake comes from the ca-certificate leaf of the site-to-site peer.
         - **certificate** `string`: Name of the server certificate in the PKI store. It has no effect today.
-          Ze compares the name against nothing, so a name no PKI store entry carries still commits. The certificate a handshake presents comes from the certificate leaf of the site-to-site peer.
+          A commit refuses a name that is not a certificate entry of the PKI store. The certificate a handshake presents comes from the certificate leaf of the site-to-site peer.
     - **eap-user <name>** `list`: EAP user entry for remote access authentication.
       One entry holds the credential of one client. Which leaf carries that credential follows the mode of the authentication block: password for eap-mschapv2 and eap-md5, certificate for eap-tls. Ze validates every entry and no handshake reads one, because EAP runs against the credentials of the site-to-site peer.
       - **certificate** `string`: Client certificate name in PKI store. Required for eap-tls.
-        Ze reads the leaf when the mode of the authentication block is eap-tls, and ignores it under every other mode. Commit refuses an empty value under eap-tls. The name is compared against nothing, so a name the PKI store does not hold still commits.
+        Ze reads the leaf when the mode of the authentication block is eap-tls, and ignores it under every other mode. Commit refuses an empty value under eap-tls, and a name that is not a certificate entry of the PKI store under any mode.
       - **password** `string`: User password ($9$-encoded). Required for eap-mschapv2.
         Ze reads the leaf when the mode of the authentication block is eap-mschapv2 or eap-md5, and ignores it under every other mode. The $9$ wrapper is removed and what is left is the password. Commit refuses an empty value under those two modes, because an empty password authenticates every client that guesses the name. The CLI writes the value back $9$-encoded and masks it in the configuration output.
-    - **esp-group** `string`: Reference to an ESP group name.
+    - **esp-group** `leafref`: Reference to an ESP group name.
       The group MUST be declared under vpn ipsec esp-group, and commit refuses a name no group carries. No other code reads the reference, because no remote access session runs.
-    - **ike-group** `string`: Reference to an IKE group name.
+    - **ike-group** `leafref`: Reference to an IKE group name.
       The group MUST be declared under vpn ipsec ike-group, and commit refuses a name no group carries. No other code reads the reference, because no remote access session runs.
     - **pool <name>** `list`: Virtual IP pool for client address assignment.
       Virtual IP pool for client address assignment (IKEv2 Configuration Payload, RFC 7296 Section 2.19). Commit refuses two pools whose ranges overlap, because both could then lease one inner address to two peers (RFC 3948 Section 5.1).
@@ -7321,6 +7427,48 @@ Ze declares one subsystem under it today, which is ipsec. That subsystem holds t
           - `ipv6-address`: ID_IPV6_ADDR, an IPv6 address in sixteen octets.
           - `key-id`: ID_KEY_ID, an opaque octet string no certificate field can bind.
           - `rfc822-address`: ID_RFC822_ADDR, a mail address such as user@example.com.
+        - **second-round** `container`: A second authentication round in each direction (RFC 4739).
+          A second authentication round in each direction, after the round the leaves above configure (RFC 4739). Ze announces MULTIPLE_AUTH_SUPPORTED to this peer only when local or remote below holds a round, and runs each round in its own IKE_AUTH exchange, signing over the identity of that round. The tunnel establishes only when every configured round succeeded. A peer that starts a second round remote does not configure is refused with AUTHENTICATION_FAILED, and so is a peer that finishes without the round remote configures. When the peer does not announce MULTIPLE_AUTH_SUPPORTED, Ze completes with the first round alone and logs a warning that the local round was skipped. Commit refuses a second round on a peer whose mode is an EAP method. RFC 4739 Section 5: when the initiator authenticates more than once, the responder reveals its identity before all of the initiator's rounds have completed.
+          - **local** `container`: The credential Ze proves to this peer in its second round.
+            The credential Ze proves in its second round, with the identity it asserts for that round. Commit refuses mode x509 with no certificate and mode pre-shared-secret with no pre-shared-secret.
+            - **certificate** `string`: Name of the second-round device certificate in the PKI store.
+              Name of the device certificate in the PKI store that signs the AUTH of this round. Required when the mode is x509. Ze sends this certificate first, then the intermediate certificate the PKI entry carries.
+            - **id** `string`: Local identity asserted in the second round (required).
+              The identity Ze asserts in its second round, under the rules of local-id: an IP address literal goes out as ID_IPV4_ADDR or ID_IPV6_ADDR and every other value as ID_FQDN. Commit refuses a distinguished name, a subtree and an address range, and refuses the round when this leaf is not set: the round asserts an identity of its own, and a peer such as strongSwan selects the round's pre-shared key by that identity.
+            - **mode** `enumeration`: How Ze authenticates in its second round.
+              Ze reads pre-shared-secret for mode pre-shared-secret and certificate for mode x509. An EAP method cannot run in a second round.
+              - `pre-shared-secret`: Prove the secret taken from the pre-shared-secret leaf of this round.
+              - `x509`: Sign AUTH with the certificate named in this round.
+            - **pre-shared-secret** `string`: Pre-shared key of the second round ($9$-encoded).
+              Ze reads the leaf when the mode of this round is pre-shared-secret. The $9$ wrapper is removed first, and pre-shared-secret-encoding then decides whether the result is ASCII text or hexadecimal digit pairs.
+            - **pre-shared-secret-encoding** `enumeration`: How to read the pre-shared-secret value of the second round.
+              The encoding is stated here and never guessed from the value, as for the first round. A hex value with an odd length or a non-hexadecimal character is refused at commit rather than read as ASCII.
+              - `ascii`: Read the secret as ASCII text, one octet for each character.
+              - `hex`: Read the secret as hexadecimal digit pairs, two digits for each octet.
+          - **remote** `container`: The credential this peer must prove in its second round.
+            The credential the peer must prove in its second round, with the identity it must assert. Commit refuses mode x509 with no ca-certificate and mode pre-shared-secret with no pre-shared-secret.
+            - **ca-certificate** `string`: Name of the second-round CA certificate in the PKI store.
+              Name of the CA certificate in the PKI store that the peer's second-round certificate must chain to. Required when the mode is x509. The certificate must also carry the id of this round in a subject alternative name.
+            - **id** `string`: Identity the remote endpoint must assert in the second round.
+              The identity the peer must assert in its second round, under the rules of remote-id: one identity, or a set written with the hierarchy separator in front, such as '.example.com' or an address prefix. When it is empty Ze checks no identity in this round.
+            - **id-type** `enumeration`: The one IKE ID type the peer can assert in the second round.
+              The one IKE ID type the peer can assert in its second round, under the rules of remote-id-type. When it is absent any type Ze can compare is accepted.
+              - `der-asn1-dn`: ID_DER_ASN1_DN, the DER-encoded subject name of a certificate.
+              - `fqdn`: ID_FQDN, a fully qualified domain name.
+              - `ipv4-address`: ID_IPV4_ADDR, an IPv4 address in four octets.
+              - `ipv6-address`: ID_IPV6_ADDR, an IPv6 address in sixteen octets.
+              - `key-id`: ID_KEY_ID, an opaque octet string no certificate field can bind.
+              - `rfc822-address`: ID_RFC822_ADDR, a mail address such as user@example.com.
+            - **mode** `enumeration`: How the peer authenticates in its second round.
+              Ze reads pre-shared-secret for mode pre-shared-secret and ca-certificate for mode x509. An EAP method cannot run in a second round.
+              - `pre-shared-secret`: The peer proves the secret taken from the pre-shared-secret leaf of this round.
+              - `x509`: The peer signs AUTH with a certificate that chains to ca-certificate.
+            - **pre-shared-secret** `string`: Pre-shared key the peer proves in the second round ($9$-encoded).
+              Ze reads the leaf when the mode of this round is pre-shared-secret. The $9$ wrapper is removed first, and pre-shared-secret-encoding then decides whether the result is ASCII text or hexadecimal digit pairs.
+            - **pre-shared-secret-encoding** `enumeration`: How to read the pre-shared-secret value of the second round.
+              The encoding is stated here and never guessed from the value, as for the first round. A hex value with an odd length or a non-hexadecimal character is refused at commit rather than read as ASCII.
+              - `ascii`: Read the secret as ASCII text, one octet for each character.
+              - `hex`: Read the secret as hexadecimal digit pairs, two digits for each octet.
         - **session-resumption** `boolean`: Let an EAP-TLS exchange with this peer resume an earlier one.
           RFC 9190 Section 2.1.3 leaves resumption to each end: 'It is up to the EAP-TLS peer to use resumption', and 'the EAP-TLS server MAY choose to require a full handshake'. This leaf is that choice, and it covers both roles of this peer. With it true, an authentication that follows an earlier one skips the certificate exchange and reuses the session the ticket carries. Ze still checks the cached chain against the current ca-certificate and crl before it accepts the session, on both roles, so a revoked or expired certificate is refused on a resumed authentication as it is on a full one. With it false every authentication runs a full handshake. Ze still SENDS a session ticket, because RFC 9190 Section 2.1.2 makes that a MUST with no condition on it; the ticket is simply never accepted back. Changing this leaf, the certificate, the ca-certificate or the crl discards every ticket ze holds for this peer.
         - **x509** `container`: X.509 certificate references, deprecated in favor of the direct leaves.
@@ -7333,9 +7481,9 @@ Ze declares one subsystem under it today, which is ipsec. That subsystem holds t
         With `initiate` Ze starts the IKE_SA_INIT exchange toward remote-address. With respond Ze starts nothing and waits. Ze matches an unsolicited IKE_SA_INIT to a respond peer when the source address of the datagram equals its remote-address. A respond peer that names no remote-address therefore matches nothing.
         - `initiate`: Start the IKE_SA_INIT exchange toward remote-address.
         - `respond`: Start nothing and wait for an IKE_SA_INIT whose source is remote-address.
-      - **esp-group** `string`: Reference to an ESP group name.
+      - **esp-group** `leafref`: Reference to an ESP group name.
         The group MUST be declared under vpn ipsec esp-group, and commit refuses a name no group carries. It supplies the ESP proposals Ze offers for this peer's Child SAs and the lifetime those SAs run under.
-      - **ike-group** `string`: Reference to an IKE group name.
+      - **ike-group** `leafref`: Reference to an IKE group name.
         The group MUST be declared under vpn ipsec ike-group, and commit refuses a name no group carries. It supplies the IKE proposals, the IKE SA lifetime and the Dead Peer Detection timers of this peer.
       - **local-address** `string`: Local endpoint IP address.
         The value is an IP address literal. Ze reads it with net.ParseIP, so an interface name here resolves to nothing and the peer cannot build a Child SA. Name the interface under vpn ipsec interface instead, and Ze fills this leaf from the first IPv4 address of that interface.

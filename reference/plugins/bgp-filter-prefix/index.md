@@ -13,11 +13,11 @@ Named prefix-list filter (CIDR + ge/le + accept/reject)
 
 ## Configuration
 
-`bgp`
+`policy`
 
 ## Dependencies
 
-- Required: [`bgp`](../bgp/index.md)
+- Required: [`bgp`](../bgp/index.md), [`policy`](../policy/index.md)
 - Optional: None
 
 ## Used by

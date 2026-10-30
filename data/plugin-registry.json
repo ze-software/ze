@@ -87,7 +87,9 @@
     "config_roots": [
       "bgp"
     ],
-    "dependencies": [],
+    "dependencies": [
+      "policy"
+    ],
     "optional_dependencies": [],
     "start_after": [],
     "source_dir": "internal/component/bgp/plugin",
@@ -162,10 +164,11 @@
     "name": "bgp-filter-aspath",
     "description": "Named AS-path regex filter (ordered entries, first match wins, accept/reject)",
     "config_roots": [
-      "bgp"
+      "policy"
     ],
     "dependencies": [
-      "bgp"
+      "bgp",
+      "policy"
     ],
     "optional_dependencies": [],
     "start_after": [],
@@ -178,10 +181,11 @@
     "name": "bgp-filter-aspath-length",
     "description": "Named AS-path length filter (accept/reject based on hop count)",
     "config_roots": [
-      "bgp"
+      "policy"
     ],
     "dependencies": [
-      "bgp"
+      "bgp",
+      "policy"
     ],
     "optional_dependencies": [],
     "start_after": [],
@@ -210,10 +214,11 @@
     "name": "bgp-filter-community-match",
     "description": "Named community match filter (ordered entries, first match wins, accept/reject)",
     "config_roots": [
-      "bgp"
+      "policy"
     ],
     "dependencies": [
-      "bgp"
+      "bgp",
+      "policy"
     ],
     "optional_dependencies": [],
     "start_after": [],
@@ -226,10 +231,11 @@
     "name": "bgp-filter-family",
     "description": "Named address-family policy filter: remove a family's NLRI or tear down the session",
     "config_roots": [
-      "bgp"
+      "policy"
     ],
     "dependencies": [
-      "bgp"
+      "bgp",
+      "policy"
     ],
     "optional_dependencies": [],
     "start_after": [],
@@ -245,7 +251,8 @@
       "bgp"
     ],
     "dependencies": [
-      "bgp"
+      "bgp",
+      "policy"
     ],
     "optional_dependencies": [],
     "start_after": [],
@@ -259,10 +266,11 @@
     "name": "bgp-filter-modify",
     "description": "Named route attribute modifier (set local-preference, med, origin, next-hop)",
     "config_roots": [
-      "bgp"
+      "policy"
     ],
     "dependencies": [
-      "bgp"
+      "bgp",
+      "policy"
     ],
     "optional_dependencies": [],
     "start_after": [],
@@ -275,10 +283,11 @@
     "name": "bgp-filter-path-asn",
     "description": "Named reject-asn list: rejects a route whose AS_PATH carries a listed ASN at a listed position",
     "config_roots": [
-      "bgp"
+      "policy"
     ],
     "dependencies": [
-      "bgp"
+      "bgp",
+      "policy"
     ],
     "optional_dependencies": [],
     "start_after": [],
@@ -292,10 +301,11 @@
     "name": "bgp-filter-prefix",
     "description": "Named prefix-list filter (CIDR + ge/le + accept/reject)",
     "config_roots": [
-      "bgp"
+      "policy"
     ],
     "dependencies": [
-      "bgp"
+      "bgp",
+      "policy"
     ],
     "optional_dependencies": [],
     "start_after": [],
@@ -308,10 +318,11 @@
     "name": "bgp-filter-remove-private-as",
     "description": "Named AS-path action filter that removes RFC 6996 Private Use ASNs",
     "config_roots": [
-      "bgp"
+      "policy"
     ],
     "dependencies": [
-      "bgp"
+      "bgp",
+      "policy"
     ],
     "optional_dependencies": [],
     "start_after": [],
@@ -663,7 +674,9 @@
     "config_roots": [
       "connected"
     ],
-    "dependencies": [],
+    "dependencies": [
+      "policy"
+    ],
     "optional_dependencies": [],
     "start_after": [
       "redistribute-orchestrator"
@@ -1073,7 +1086,8 @@
     ],
     "dependencies": [
       "fib-kernel",
-      "sysctl"
+      "sysctl",
+      "policy"
     ],
     "optional_dependencies": [],
     "start_after": [],
@@ -1177,7 +1191,9 @@
     "name": "loop",
     "description": "Route loop detection (RFC 4271 S9, RFC 4456 S8)",
     "config_roots": [],
-    "dependencies": [],
+    "dependencies": [
+      "policy"
+    ],
     "optional_dependencies": [],
     "start_after": [],
     "source_dir": "internal/component/bgp/reactor/filter",
@@ -1233,7 +1249,8 @@
     "dependencies": [
       "interface",
       "fib-kernel",
-      "sysctl"
+      "sysctl",
+      "policy"
     ],
     "optional_dependencies": [],
     "start_after": [],
@@ -1244,10 +1261,24 @@
     ]
   },
   {
+    "name": "policy",
+    "description": "Route policy library: the policy root, named filter instances and the route field vocabulary",
+    "config_roots": [
+      "policy"
+    ],
+    "dependencies": [],
+    "optional_dependencies": [],
+    "start_after": [],
+    "source_dir": "internal/component/policy",
+    "yang_files": [
+      "internal/component/policy/yang/ze-policy-conf.yang"
+    ]
+  },
+  {
     "name": "policy-routes",
     "description": "Policy-based routing: nftables packet marking and ip rule table selection",
     "config_roots": [
-      "policy"
+      "policy/route"
     ],
     "dependencies": [
       "firewall"
@@ -1267,11 +1298,13 @@
       "redistribute"
     ],
     "dependencies": [
-      "bgp"
+      "policy"
     ],
     "optional_dependencies": [],
-    "start_after": [],
-    "source_dir": "internal/component/bgp/plugins/redistribute_egress",
+    "start_after": [
+      "bgp"
+    ],
+    "source_dir": "internal/plugins/redistribute",
     "yang_files": []
   },
   {
@@ -1280,7 +1313,9 @@
     "config_roots": [
       "rib"
     ],
-    "dependencies": [],
+    "dependencies": [
+      "policy"
+    ],
     "optional_dependencies": [],
     "start_after": [
       "bgp-rib"
@@ -1331,7 +1366,8 @@
     ],
     "dependencies": [
       "routing-table",
-      "rib"
+      "rib",
+      "policy"
     ],
     "optional_dependencies": [
       "interface"

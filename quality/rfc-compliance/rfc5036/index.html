@@ -122,7 +122,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>3.3%</strong><b>3 of 91 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 91 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 91 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>89.1%</strong><b>57 of 64 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>87.5%</strong><b>56 of 64 tagged units, 0 escaped and 1 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -138,7 +138,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>64.8%</strong><b>59 of 91 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>26</strong><b>of 91 gated MUSTs judged</b><p>2 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>26</strong><b>of 91 gated MUSTs judged</b><p>2 weak, wrong or unimplemented, 1 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 9 shares marked as a part above are the whole of the 91 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -1959,7 +1959,7 @@ Basic Discovery, active-only TCP session FSM with Initialization/KeepAlive negot
 </div>
 <h3><a href="#rfc5036-3.3-1"><code>RFC5036-3.3-1</code></a></h3>
 <p>Upon receipt of an unknown TLV, if U is clear (=0), a notification MUST be returned to the message originator and the entire message MUST be ignored; if U is set (=1), the unknown TLV MUST be silently ignored and the rest of the message processed as if the unknown TLV did not exist. (§3.3)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. TestRFC5036UnknownTLVWithUBitSetIsSkipped checks an unknown TLV with U=1 is skipped, the mapping is applied and nothing is written; TestRFC5036UnknownTLVWithUBitClearIsRefused checks U=0 draws the Unknown TLV Notification referring to the Label Mapping, the mapping is not applied and the session stays up. TestLDPInitUnknownTLVUClearNotifies (rfc5036_init_unknown_tlv_test.go) checks the same U=0 half for an Initialization: DecodeInit refuses with unknownTLVError, Session.ignoreUnknownTLV answers an Unknown TLV Notification referring to message 7 of type Initialization, processMessages returns nil and the session stays in OpenSent, so the whole message is ignored.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/plugins/ldp/rfc5036_init_unknown_tlv_test.go::TestLDPInitUnknownTLVUClearNotifies moved. TestRFC5036UnknownTLVWithUBitSetIsSkipped checks an unknown TLV with U=1 is skipped, the mapping is applied and nothing is written; TestRFC5036UnknownTLVWithUBitClearIsRefused checks U=0 draws the Unknown TLV Notification referring to the Label Mapping, the mapping is not applied and the session stays up. TestLDPInitUnknownTLVUClearNotifies (rfc5036_init_unknown_tlv_test.go) checks the same U=0 half for an Initialization: DecodeInit refuses with unknownTLVError, Session.ignoreUnknownTLV answers an Unknown TLV Notification referring to message 7 of type Initialization, processMessages returns nil and the session stays in OpenSent, so the whole message is ignored.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1967,7 +1967,7 @@ Basic Discovery, active-only TCP session FSM with Initialization/KeepAlive negot
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_init_unknown_tlv_test.go#L26" title="internal/plugins/ldp/rfc5036_init_unknown_tlv_test.go" target="_blank" rel="noopener"><code>TestLDPInitUnknownTLVUClearNotifies</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L128" title="internal/plugins/ldp/rfc5036_procedures_test.go" target="_blank" rel="noopener"><code>TestRFC5036UnknownTLVWithUBitClearIsRefused</code></a></td>
@@ -3372,7 +3372,7 @@ Basic Discovery, active-only TCP session FSM with Initialization/KeepAlive negot
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 19:30 UTC</span>
+                    <span class="footer-published">Published 30 October 2026 23:25 UTC</span>
                 </div>
             </div>
         </footer>

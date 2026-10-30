@@ -14,7 +14,6 @@ what Ze has
 | One polarity plus reason | 0.0% | 0 of 1 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 1 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 1 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| No test at all | 0.0% | 0 of 1 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 | Proven by a recorded break | 0.0% | 0 of 0 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
@@ -24,11 +23,19 @@ measures that are neither good news nor bad
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | Gated MUSTs | 1 | of 7 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 1 | of 1 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 100.0% | 1 of 1 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Out of scope | 0 | of 1 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 0.0% | 0 of 1 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
 | Met below Ze | 0.0% | 0 of 1 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 1 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 | Linux cannot do this | 0.0% | 0 of 1 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit |
+
+### Negative
+
+what Ze owes
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| No test at all | 100.0% | 1 of 1 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
 The 9 shares marked as a part above are the whole of the 1 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -42,7 +49,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
-| No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
@@ -58,8 +65,8 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Enrolment | Enrolled |
 | Requirements | 7 |
 | Gated MUST-level | 1 |
-| Not applicable, so out of scope | 1 |
-| Declared gaps | 0 |
+| Not applicable, so out of scope | 0 |
+| Declared gaps | 1 |
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
@@ -73,7 +80,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 ## Enrolment
 
-Enrolled: AS112 Redirection Using DNAME (EMPTY.AS112.ARPA): its sole MUST, RFC7535-6-1, states DNAME support on the AS112 node is never required -- the DNAME records live in the redirecting zones, not on the node, which only answers authoritatively for EMPTY.AS112.ARPA. {not-applicable}: ze's AS112 node serves the empty zone (internal/plugins/as112) and announces the DNAME-redirection anycast prefixes but implements no DNAME record processing, so the "never required" statement imposes no gated obligation. The 3.1/3.2/4 SHOULDs and MAYs (address/zone configuration, DNSSEC signing) are operator/zone-admin guidance, not gated.
+Enrolled: AS112 Redirection Using DNAME (EMPTY.AS112.ARPA): its sole MUST, RFC7535-6-1, states DNAME support on the AS112 node is never required -- the DNAME records live in the redirecting zones, not on the node, which only answers authoritatively for EMPTY.AS112.ARPA. ze fills the AS112 node role (internal/plugins/as112): it serves the empty zone, announces the DNAME-redirection anycast prefixes and implements no DNAME record processing, which meets the row, but no test carries it, so it is a gap in proof. The 3.1/3.2/4 SHOULDs and MAYs (address/zone configuration, DNSSEC signing) are operator/zone-admin guidance, not gated.
 
 ## What the public ledger says
 
@@ -85,7 +92,7 @@ EMPTY.AS112.ARPA DNAME-redirection zone.
 
 **What the ledger says remains:**
 
-No tracked gap in current source anchors.
+One MUST gap in the requirement checklist: ze's AS112 node serves EMPTY.AS112.ARPA with no DNAME processing, and no test proves it ([`RFC7535-6-1`](#rfc7535-6-1)).
 
 ## Coverage
 
@@ -104,13 +111,13 @@ No tracked gap in current source anchors.
 
 ## Attainable ceiling
 
-Mandatory ceiling: 0 of 1 (0.0%); excluded: Not applicable (classification can be revisited): 1 of 1 (100.0%). Optional ceiling: 6 of 6 (100.0%). Lowest mandatory ceiling: rfc7535 0 of 1 (0.0%). Lowest optional ceiling: rfc7535 6 of 6 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+Mandatory ceiling: 1 of 1 (100.0%). Optional ceiling: 6 of 6 (100.0%). Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: rfc7535 1 of 1 (100.0%). Lowest optional ceiling: rfc7535 6 of 6 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
 
 ## Requirements
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC7535-6-1` | DNAME support on AS112 nodes themselves is never required under this proposal. (§6) | MUST | 6 - DNAME Deployment Considerations | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** RFC 7535 places the DNAME records in the redirecting zones, not on the AS112 node -- the node only answers authoritatively for EMPTY.AS112.ARPA. ze's AS112 node does exactly that (internal/plugins/as112/server.go announces the DNAME-redirection anycast addresses and internal/plugins/as112/integration_linux_test.go resolves foo.empty.as112.arpa) and implements no DNAME record processing, so this "DNAME is never required on the node" statement imposes no gated obligation on ze |
+| `RFC7535-6-1` | DNAME support on AS112 nodes themselves is never required under this proposal. (§6) | MUST | 6 - DNAME Deployment Considerations | **positive:** no positive test. **negative:** no negative test. **{gap}:** gap in proof: internal/plugins/as112/server.go::answerQuery meets it, since ze's AS112 node answers authoritatively for EMPTY.AS112.ARPA and processes no DNAME record, the DNAME records living in the redirecting zones; no test asserts it (internal/plugins/as112/integration_linux_test.go resolves foo.empty.as112.arpa under no tag) |
 | `RFC7535-3.1-1` | Guidance to operators of AS112 nodes is extended to include configuration of the 192.31.196.1 and 2001:4:112::1 addresses, and the corresponding announcement of covering routes for those addresses (§3.1) | SHOULD | 3.1 - Extensions to Support DNAME Redirection | **positive:** no positive test. **negative:** no negative test |
 | `RFC7535-3.1-2` | Guidance to operators of AS112 nodes is extended to include configuration of the 192.31.196.1 and 2001:4:112::1 addresses, and the corresponding announcement of covering routes for those addresses, and to host the EMPTY.AS112.ARPA zone. (§3.1) | SHOULD | 3.1 - Extensions to Support DNAME Redirection | **positive:** no positive test. **negative:** no negative test |
 | `RFC7535-3.1-3` | IPv4-only AS112 nodes should only configure the 192.31.196.1 nameserver address (§3.1) | SHOULD | 3.1 - Extensions to Support DNAME Redirection | **positive:** no positive test. **negative:** no negative test |
@@ -122,7 +129,7 @@ Mandatory ceiling: 0 of 1 (0.0%); excluded: Not applicable (classification can b
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC7535-6-1`](#rfc7535-6-1) DNAME support on AS112 nodes themselves is never required under this proposal. (§6) | no test | no test carries this requirement id; annotated {not-applicable}: RFC 7535 places the DNAME records in the redirecting zones, not on the AS112 node -- the node only answers authoritatively for EMPTY.AS112.ARPA. ze's AS112 node does exactly that (internal/plugins/as112/server.go announces the DNAME-redirection anycast addresses and internal/plugins/as112/integration_linux_test.go resolves foo.empty.as112.arpa) and implements no DNAME record processing, so this "DNAME is never required on the node" statement imposes no gated obligation on ze |
+| [`RFC7535-6-1`](#rfc7535-6-1) DNAME support on AS112 nodes themselves is never required under this proposal. (§6) | {gap}, no test | gap in proof: internal/plugins/as112/server.go::answerQuery meets it, since ze's AS112 node answers authoritatively for EMPTY.AS112.ARPA and processes no DNAME record, the DNAME records living in the redirecting zones; no test asserts it (internal/plugins/as112/integration_linux_test.go resolves foo.empty.as112.arpa under no tag) |
 
 ## Proof state
 

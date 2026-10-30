@@ -286,12 +286,12 @@
             "type": "string"
           },
           {
-            "description": "Ze refuses a name that no profile declares, and it refuses a profile that\nenables echo. Without this leaf the session takes the engine values: a detect\nmultiplier of 3, and 1000000 microseconds for both the transmit target and the\nreceive floor.",
+            "description": "Commit refuses a name that no profile declares, and names the profiles that\nexist. Ze also refuses a profile that enables echo. Without this leaf the session takes the engine values: a detect\nmultiplier of 3, and 1000000 microseconds for both the transmit target and the\nreceive floor.",
             "kind": "leaf",
             "name": "profile",
             "short-help": "Name of the timer profile this session takes its intervals from.",
             "source": "config",
-            "type": "string"
+            "type": "leafref"
           },
           {
             "description": "The session stays configured and stops sending control packets, so a\npeer sees it go down. Delete the list entry to remove it instead.",
@@ -495,12 +495,12 @@
             "type": "string"
           },
           {
-            "description": "Ze refuses a name that no profile declares. Without this leaf the session takes\nthe engine values: a detect multiplier of 3, and 1000000 microseconds for both the\ntransmit target and the receive floor.",
+            "description": "Commit refuses a name that no profile declares, and names the profiles that\nexist. Without this leaf the session takes\nthe engine values: a detect multiplier of 3, and 1000000 microseconds for both the\ntransmit target and the receive floor.",
             "kind": "leaf",
             "name": "profile",
             "short-help": "Named profile to inherit timer parameters from.",
             "source": "config",
-            "type": "string"
+            "type": "leafref"
           },
           {
             "description": "The session keeps its configuration and its place in the list, and Ze holds it\nin AdminDown. Ze applies the value again at each reload, so a change from true to\nfalse brings the session back with no restart. Delete the list entry to remove the\nsession instead.",
@@ -759,7 +759,7 @@
                 "type": "uint32"
               }
             ],
-            "description": "The leaves govern the arithmetic in bgp { policy { modify NAME { increment } } } and its\ndecrement sibling alone. They do NOT move the Decision Process: RFC 4271 Section 9.1.2.2 compares\nan absent MULTI_EXIT_DISC as 0 whatever med says here.\n\nThere is deliberately no aigp leaf. RFC 7311 Section 4.1 removes a route with no AIGP TLV from\nconsideration rather than scoring it, so no number stands in for the absence. Section 3.4.1\nforbids ze to add the attribute to a route whose path leads outside the AIGP administrative\ndomain.",
+            "description": "The leaves govern the arithmetic in policy { modify NAME { increment } } and its\ndecrement sibling alone. They do NOT move the Decision Process: RFC 4271 Section 9.1.2.2 compares\nan absent MULTI_EXIT_DISC as 0 whatever med says here.\n\nThere is deliberately no aigp leaf. RFC 7311 Section 4.1 removes a route with no AIGP TLV from\nconsideration rather than scoring it, so no number stands in for the absence. Section 3.4.1\nforbids ze to add the attribute to a route whose path leads outside the AIGP administrative\ndomain.",
             "kind": "container",
             "name": "attribute",
             "short-help": "The value policy arithmetic starts from when the route carries no such attribute.",
@@ -967,7 +967,7 @@
             "source": "config"
           }
         ],
-        "description": "The group level and the peer level append to this base chain. A name references a filter instance\ndefined in bgp/policy.",
+        "description": "The group level and the peer level append to this base chain. A name references a filter instance\ndefined under the top-level policy root.",
         "kind": "container",
         "name": "filter",
         "short-help": "Global route filter chains for import and export.",
@@ -1254,7 +1254,7 @@
                     ]
                   },
                   {
-                    "description": "The referenced profile supplies the session's detect-multiplier, desired-min-tx-us,\nrequired-min-rx-us, passive role, authentication and echo interval, and replaces whatever the peer\nwould otherwise use. The running daemon refuses to start, and refuses a commit or a SIGHUP reload, when the profile is not\ndefined, when it sets passive on a single-hop peer (RFC 5881 Section 3), or when it enables echo on a\nmulti-hop peer (RFC 5883 Section 3). ze config validate does not run this check. An empty value\nselects the BFD plugin defaults.",
+                    "description": "The referenced profile supplies the session's detect-multiplier, desired-min-tx-us,\nrequired-min-rx-us, passive role, authentication and echo interval, and replaces whatever the peer\nwould otherwise use. Commit, ze config validate and a SIGHUP reload refuse a name no bfd profile\ndefines, naming the profiles that exist; the editor completes those names. The leaf names a list\nof another module that a build without BFD leaves out, so it is a ze:reference, not a leafref.\nThe running daemon also refuses to start, and refuses a commit or a SIGHUP reload, when the profile\nsets passive on a single-hop peer (RFC 5881 Section 3), or when it enables echo on a multi-hop peer\n(RFC 5883 Section 3); ze config validate does not run that check. Without this leaf the session\ntakes the BFD plugin defaults.",
                     "kind": "leaf",
                     "name": "profile",
                     "short-help": "Name of a profile defined under the top-level bfd { profile ... } block.",
@@ -1638,7 +1638,7 @@
                 "source": "config"
               }
             ],
-            "description": "A name references a filter instance defined in bgp/policy.",
+            "description": "A name references a filter instance defined under the top-level policy root.",
             "kind": "container",
             "name": "filter",
             "short-help": "Route filter chains for import and export.",
@@ -1925,7 +1925,7 @@
                         ]
                       },
                       {
-                        "description": "The referenced profile supplies the session's detect-multiplier, desired-min-tx-us,\nrequired-min-rx-us, passive role, authentication and echo interval, and replaces whatever the peer\nwould otherwise use. The running daemon refuses to start, and refuses a commit or a SIGHUP reload, when the profile is not\ndefined, when it sets passive on a single-hop peer (RFC 5881 Section 3), or when it enables echo on a\nmulti-hop peer (RFC 5883 Section 3). ze config validate does not run this check. An empty value\nselects the BFD plugin defaults.",
+                        "description": "The referenced profile supplies the session's detect-multiplier, desired-min-tx-us,\nrequired-min-rx-us, passive role, authentication and echo interval, and replaces whatever the peer\nwould otherwise use. Commit, ze config validate and a SIGHUP reload refuse a name no bfd profile\ndefines, naming the profiles that exist; the editor completes those names. The leaf names a list\nof another module that a build without BFD leaves out, so it is a ze:reference, not a leafref.\nThe running daemon also refuses to start, and refuses a commit or a SIGHUP reload, when the profile\nsets passive on a single-hop peer (RFC 5881 Section 3), or when it enables echo on a multi-hop peer\n(RFC 5883 Section 3); ze config validate does not run that check. Without this leaf the session\ntakes the BFD plugin defaults.",
                         "kind": "leaf",
                         "name": "profile",
                         "short-help": "Name of a profile defined under the top-level bfd { profile ... } block.",
@@ -2309,7 +2309,7 @@
                     "source": "config"
                   }
                 ],
-                "description": "A name references a filter instance defined in bgp/policy.",
+                "description": "A name references a filter instance defined under the top-level policy root.",
                 "kind": "container",
                 "name": "filter",
                 "short-help": "Route filter chains for import and export.",
@@ -5684,7 +5684,7 @@
                     ]
                   },
                   {
-                    "description": "The referenced profile supplies the session's detect-multiplier, desired-min-tx-us,\nrequired-min-rx-us, passive role, authentication and echo interval, and replaces whatever the peer\nwould otherwise use. The running daemon refuses to start, and refuses a commit or a SIGHUP reload, when the profile is not\ndefined, when it sets passive on a single-hop peer (RFC 5881 Section 3), or when it enables echo on a\nmulti-hop peer (RFC 5883 Section 3). ze config validate does not run this check. An empty value\nselects the BFD plugin defaults.",
+                    "description": "The referenced profile supplies the session's detect-multiplier, desired-min-tx-us,\nrequired-min-rx-us, passive role, authentication and echo interval, and replaces whatever the peer\nwould otherwise use. Commit, ze config validate and a SIGHUP reload refuse a name no bfd profile\ndefines, naming the profiles that exist; the editor completes those names. The leaf names a list\nof another module that a build without BFD leaves out, so it is a ze:reference, not a leafref.\nThe running daemon also refuses to start, and refuses a commit or a SIGHUP reload, when the profile\nsets passive on a single-hop peer (RFC 5881 Section 3), or when it enables echo on a multi-hop peer\n(RFC 5883 Section 3); ze config validate does not run that check. Without this leaf the session\ntakes the BFD plugin defaults.",
                     "kind": "leaf",
                     "name": "profile",
                     "short-help": "Name of a profile defined under the top-level bfd { profile ... } block.",
@@ -6068,7 +6068,7 @@
                 "source": "config"
               }
             ],
-            "description": "A name references a filter instance defined in bgp/policy.",
+            "description": "A name references a filter instance defined under the top-level policy root.",
             "kind": "container",
             "name": "filter",
             "short-help": "Route filter chains for import and export.",
@@ -7534,620 +7534,6 @@
           {
             "children": [
               {
-                "description": "An absent leaf leaves the upper bound open, so a filter that states neither bound accepts\nevery route. Ze counts every ASN of the path, so a member of an AS_SET counts as one hop.",
-                "kind": "leaf",
-                "name": "max",
-                "short-help": "Maximum allowed AS-path length (inclusive).\nRoutes with longer paths are rejected.",
-                "source": "config",
-                "type": "uint16"
-              },
-              {
-                "description": "An absent leaf leaves the lower bound open. A route that carries no AS_PATH counts 0\nhops. min 1 therefore rejects a route Ze originated, and a route an iBGP peer sent with an\nempty path.",
-                "kind": "leaf",
-                "name": "min",
-                "short-help": "Minimum required AS-path length (inclusive).\nRoutes with shorter paths are rejected.",
-                "source": "config",
-                "type": "uint16"
-              }
-            ],
-            "description": "Ze rejects a route whose AS-path length falls outside the\nconfigured min..max range. Both min and max are optional,\nand an omitted bound is open.",
-            "kind": "list[name]",
-            "name": "as-path-length",
-            "short-help": "Named AS-path length filter instance.",
-            "source": "config"
-          },
-          {
-            "children": [
-              {
-                "children": [
-                  {
-                    "description": "The first entry whose pattern matches decides the UPDATE, and no later entry is read. A\nroute whose path matches no entry is rejected, so a list needs no closing reject entry.",
-                    "kind": "leaf",
-                    "name": "action",
-                    "short-help": "Action applied when this entry's regex matches.",
-                    "source": "config",
-                    "type": "enumeration",
-                    "values": [
-                      {
-                        "name": "accept",
-                        "short-help": "Accept a route whose AS-path matches."
-                      },
-                      {
-                        "name": "reject",
-                        "short-help": "Reject a route whose AS-path matches."
-                      }
-                    ]
-                  }
-                ],
-                "description": "Ze matches each entry against the space-separated AS-path string,\nin the configured order. The first entry that matches wins.",
-                "kind": "list[regex]",
-                "name": "entry",
-                "short-help": "One regex entry of the ordered list.",
-                "source": "config"
-              }
-            ],
-            "description": "Each list holds an ordered set of regex entries. Ze evaluates the\nentries in order, and the first match wins. No match is an implicit deny, so Ze rejects\nthe route.",
-            "kind": "list[name]",
-            "name": "as-path-list",
-            "short-help": "Named AS-path regex filter instance.",
-            "source": "config"
-          },
-          {
-            "children": [
-              {
-                "children": [
-                  {
-                    "description": "The first entry whose community the route carries decides the UPDATE, and no later\nentry is read. A route that carries none of the listed communities is rejected, so a list\nneeds no closing reject entry.",
-                    "kind": "leaf",
-                    "name": "action",
-                    "short-help": "Action applied when this community is found in the route.",
-                    "source": "config",
-                    "type": "enumeration",
-                    "values": [
-                      {
-                        "name": "accept",
-                        "short-help": "Accept routes containing this community"
-                      },
-                      {
-                        "name": "reject",
-                        "short-help": "Reject routes containing this community"
-                      }
-                    ]
-                  },
-                  {
-                    "description": "Ze reads the one attribute the leaf names. An entry of type standard therefore does\nnot see a value that sits in the LARGE COMMUNITIES attribute. Write one entry for each\nattribute the route can carry the value in.",
-                    "kind": "leaf",
-                    "name": "type",
-                    "short-help": "Which community attribute type to check.",
-                    "source": "config",
-                    "type": "enumeration",
-                    "values": [
-                      {
-                        "name": "extended",
-                        "short-help": "Match in extended community attribute (type 16)"
-                      },
-                      {
-                        "name": "large",
-                        "short-help": "Match in large community attribute (type 32)"
-                      },
-                      {
-                        "name": "standard",
-                        "short-help": "Match in standard community attribute (type 8)"
-                      }
-                    ]
-                  }
-                ],
-                "description": "Ze reads the entries in order, and the first match wins.\nAn entry checks whether the named community value is\npresent in the route's community attributes.",
-                "kind": "list[community]",
-                "name": "entry",
-                "short-help": "Ordered match entry, checked against the route's community attributes.",
-                "source": "config"
-              }
-            ],
-            "description": "Each list holds an ordered set of match entries. Ze reads\nthe entries in order, and the first match wins. No match is\nan implicit deny, so the route is rejected.",
-            "kind": "list[name]",
-            "name": "community-match",
-            "short-help": "Named community match filter instance.",
-            "source": "config"
-          },
-          {
-            "children": [
-              {
-                "description": "remove strips the MP_REACH NLRI and the MP_UNREACH NLRI of the\nmatched family from the UPDATE, on import and on export. If that removal empties the\nUPDATE, Ze drops the whole UPDATE for that peer.\n\ntear-down sends a BGP NOTIFICATION that carries the Cease code and the Connection\nRejected subcode, then closes the session. tear-down acts on import only.",
-                "kind": "leaf",
-                "name": "action",
-                "short-help": "Action to apply when the family matches.",
-                "source": "config",
-                "type": "enumeration",
-                "values": [
-                  {
-                    "name": "remove",
-                    "short-help": "Strip the MP_REACH NLRI and the MP_UNREACH NLRI of the matched family."
-                  },
-                  {
-                    "name": "tear-down",
-                    "short-help": "Close the session with a BGP NOTIFICATION when a received UPDATE carries the family."
-                  }
-                ]
-              },
-              {
-                "description": "Ze treats an UPDATE with no MP_REACH attribute and no MP_UNREACH\nattribute as ipv4/unicast.",
-                "kind": "leaf",
-                "name": "family",
-                "short-help": "Address family to match, for example ipv4/flowspec.",
-                "source": "config",
-                "type": "address-family"
-              }
-            ],
-            "description": "One instance matches one family, because family holds one value and is mandatory. A chain that\nmust catch two families names two instances.",
-            "kind": "list[name]",
-            "name": "family-filter",
-            "short-help": "Named address-family filter instance.",
-            "source": "config"
-          },
-          {
-            "children": [
-              {
-                "description": "Ze reads the AS-SET of a peer from the PeeringDB API when the\nas-set leaf is empty. Set this leaf to the URL of a mock server to test the IRR filter\nwithout a query to the public PeeringDB service.",
-                "kind": "leaf",
-                "name": "peeringdb-url",
-                "short-help": "Base URL of the PeeringDB API that Ze queries.",
-                "source": "config",
-                "type": "string"
-              },
-              {
-                "description": "Ze re-queries every enrolled AS-SET on this period. The first query runs in the background\nat startup, so a slow IRR server never blocks the start of Ze. A failed query leaves the prefix\nlist of the last query in force.",
-                "kind": "leaf",
-                "name": "refresh-interval",
-                "short-help": "Seconds between automatic IRR re-queries.",
-                "source": "config",
-                "type": "uint32"
-              },
-              {
-                "description": "Ze speaks whois to the server and adds port 43 when the value carries no port. A query that\ngets no answer in 10 seconds fails, and the prefix list of the last query stays in force.",
-                "kind": "leaf",
-                "name": "server",
-                "short-help": "IRR whois server hostname or host:port.",
-                "source": "config",
-                "type": "string"
-              },
-              {
-                "description": "Ze binds the address on the whois connection only. The PeeringDB query does not read the\nleaf. When the leaf is absent, the kernel picks the source address of the route to the server.",
-                "kind": "leaf",
-                "name": "source-address",
-                "short-help": "Source IP address for outbound IRR whois connections.",
-                "source": "config",
-                "type": "ip-address"
-              }
-            ],
-            "description": "The container holds the IRR server, the PeeringDB endpoint and the refresh period. One\nresolution serves every peer of the same remote ASN, so two peers of one ASN cost one query.",
-            "kind": "container",
-            "name": "irr",
-            "short-help": "Global IRR filtering settings.",
-            "source": "config"
-          },
-          {
-            "children": [
-              {
-                "description": "The default is 0, which rejects the route on the first\noccurrence (RFC 4271 Section 9).",
-                "kind": "leaf",
-                "name": "allow-own-as",
-                "short-help": "Own-AS occurrences permitted in AS_PATH before ze rejects the route.",
-                "source": "config",
-                "type": "uint8"
-              },
-              {
-                "description": "When this leaf is unset, ze uses the BGP Router ID\n(RFC 4456 Section 7).",
-                "kind": "leaf",
-                "name": "cluster-id",
-                "short-help": "Override Router ID for CLUSTER_LIST loop detection.",
-                "source": "config",
-                "type": "ipv4-address"
-              }
-            ],
-            "description": "The instance configures AS loop detection and cluster-list\nloop detection, for each peer that references it.",
-            "kind": "list[name]",
-            "name": "loop-detection",
-            "short-help": "Named loop detection filter instance.",
-            "source": "config"
-          },
-          {
-            "children": [
-              {
-                "children": [
-                  {
-                    "description": "Ze runs the operation only on a route that already carries an AIGP TLV. A route with\nnone is left alone, because RFC 7311 Section 3.4.1 forbids Ze to add the attribute.",
-                    "kind": "leaf",
-                    "name": "aigp",
-                    "short-help": "Decrement AIGP metric by this value.",
-                    "source": "config",
-                    "type": "uint32"
-                  },
-                  {
-                    "description": "A route that carries no LOCAL_PREF counts as 100 before the subtraction. A decrement\nlarger than the current value writes 0 rather than wrapping.",
-                    "kind": "leaf",
-                    "name": "local-preference",
-                    "short-help": "Decrement LOCAL_PREF by this value.",
-                    "source": "config",
-                    "type": "uint32"
-                  },
-                  {
-                    "description": "A route that carries no MULTI_EXIT_DISC counts as 0, so the result is 0 and Ze writes a\nmetric the route did not have. Use del med to remove the attribute instead.",
-                    "kind": "leaf",
-                    "name": "med",
-                    "short-help": "Decrement MED by this value.",
-                    "source": "config",
-                    "type": "uint32"
-                  }
-                ],
-                "description": "Ze subtracts the stated value from the current value of the\nattribute. The result floors at 0, so it never underflows. decrement is mutually\nexclusive with set for the same attribute.",
-                "kind": "container",
-                "name": "decrement",
-                "short-help": "Attributes to decrement on a matching route.",
-                "source": "config"
-              },
-              {
-                "children": [
-                  {
-                    "description": "RFC 4271 Section 5.1.4 requires a mechanism, based on local\nconfiguration, that removes MULTI_EXIT_DISC from a route. The same section requires the\nremoval to happen before the route reaches Decision Process phase 1 and phase 2. The\ndel med operation is that mechanism, so it applies on an IMPORT chain only, and the\nroute enters the decision process with no metric. Ze refuses del med on an export chain\nand writes a log line, because Section 9.1.2.2 states that a comparison on\nMULTI_EXIT_DISC followed by advertisement without it causes route loops. del med is\nmutually exclusive with set med, increment med and decrement med. Ze already keeps a\nmetric received from one neighboring AS off another one with no configuration (RFC 4271\nSection 5.1.4), so del med is for the operator who wants the metric removed from the\nroute itself.",
-                    "kind": "leaf",
-                    "name": "med",
-                    "short-help": "Remove the MULTI_EXIT_DISC attribute (RFC 4271 type 4) from the route.",
-                    "source": "config",
-                    "type": "empty"
-                  }
-                ],
-                "description": "Ze applies only the leaves that are present in this container,\nand keeps every other attribute unchanged.",
-                "kind": "container",
-                "name": "del",
-                "short-help": "Attributes Ze deletes from a matching route.",
-                "source": "config"
-              },
-              {
-                "children": [
-                  {
-                    "description": "Ze runs the operation only on a route that already carries an AIGP TLV, and creates\nnone. RFC 7311 Section 3.4.1 forbids a speaker to add the attribute to a route whose path\nleaves the AIGP domain. Section 4.1 removes a route with no AIGP from the decision rather\nthan scoring it.",
-                    "kind": "leaf",
-                    "name": "aigp",
-                    "short-help": "Increment AIGP metric by this value.",
-                    "source": "config",
-                    "type": "uint32"
-                  },
-                  {
-                    "description": "A route that carries no LOCAL_PREF counts as 100, which is the value FRR and BIRD use\nfor a route with none. RFC 4271 Section 9.1.1 leaves that number to local policy.",
-                    "kind": "leaf",
-                    "name": "local-preference",
-                    "short-help": "Increment LOCAL_PREF by this value.",
-                    "source": "config",
-                    "type": "uint32"
-                  },
-                  {
-                    "description": "A route that carries no MULTI_EXIT_DISC counts as 0, which RFC 4271 Section 9.1.2.2\ngives as the value of an absent metric. The result therefore equals the increment.",
-                    "kind": "leaf",
-                    "name": "med",
-                    "short-help": "Increment MED by this value.",
-                    "source": "config",
-                    "type": "uint32"
-                  }
-                ],
-                "description": "Ze adds the stated value to the current value of the attribute.\nThe result saturates at the uint32 maximum, 4294967295. increment is mutually exclusive\nwith set for the same attribute.",
-                "kind": "container",
-                "name": "increment",
-                "short-help": "Attributes to increment on a matching route.",
-                "source": "config"
-              },
-              {
-                "children": [
-                  {
-                    "description": "The COMMUNITIES attribute is RFC 1997, type 8. The value takes\nthe form ASN:VAL, for example 65001:666, or a well-known name. The well-known names are\nblackhole, no-export, no-advertise, no-export-subconfed and nopeer. The two spellings\nof a well-known value are equivalent, so 65535:666 and blackhole select the same\ncommunity. RFC 7999 registers that community, and RFC 7999 Section 4 names it with that\nsuggested keyword.",
-                    "kind": "leaf-list",
-                    "name": "community",
-                    "short-help": "Apply only to a route whose COMMUNITIES attribute carries this value.",
-                    "source": "config",
-                    "type": "string"
-                  },
-                  {
-                    "description": "The EXTENDED COMMUNITIES attribute is RFC 4360, type 16. The\nvalue takes the form target:ASN:NN or origin:ASN:NN, or it is a hex string. Ze\nvalidates the value at configure time and compares its eight-octet value, so named\nand hex spellings of the same value select the same routes.",
-                    "kind": "leaf-list",
-                    "name": "extended-community",
-                    "short-help": "Apply only to a route whose EXTENDED COMMUNITIES attribute carries this value.",
-                    "source": "config",
-                    "type": "string"
-                  },
-                  {
-                    "description": "The LARGE COMMUNITIES attribute is RFC 8092, type 32. The value\ntakes the form GA:LD1:LD2, for example 65001:100:200. Ze validates the value at\nconfigure time and compares its canonical decimal form.",
-                    "kind": "leaf-list",
-                    "name": "large-community",
-                    "short-help": "Apply only to a route whose LARGE COMMUNITIES attribute carries this value.",
-                    "source": "config",
-                    "type": "string"
-                  }
-                ],
-                "description": "A route that meets none of the stated values passes through\nunchanged, and Ze does not reject it. The chain drops a rejected route, and a\nconditional modifier exists so that the routes it does not touch keep flowing. An\nabsent match container applies the operations to every route that reaches the modifier.\nThe values across the three leaf-lists are alternatives, so one value present in the\nroute satisfies the condition.",
-                "kind": "container",
-                "name": "match",
-                "short-help": "Condition a route meets before the operations apply.",
-                "source": "config"
-              },
-              {
-                "children": [
-                  {
-                    "description": "Ze prepends the local-as of the peer, which the session config\nholds. The range 1 to 32 stops the path from growing without a limit.",
-                    "kind": "leaf",
-                    "name": "as-path-prepend",
-                    "short-help": "Prepend the local AS to AS_PATH this many times.",
-                    "source": "config",
-                    "type": "uint8"
-                  },
-                  {
-                    "description": "Ze adds the values to the COMMUNITIES attribute of RFC 1997 and keeps every community\nalready on the route. Ze reads each value at config load, and refuses the modifier when one\ndoes not parse.",
-                    "kind": "leaf-list",
-                    "name": "community-add",
-                    "short-help": "Standard community values to add (ASN:VAL format).",
-                    "source": "config",
-                    "type": "string"
-                  },
-                  {
-                    "description": "Ze removes only the values named here, and keeps every other community of the route.\nA value the route does not carry costs nothing. Ze reads each value at config load, and\nrefuses the modifier when one does not parse.",
-                    "kind": "leaf-list",
-                    "name": "community-remove",
-                    "short-help": "Standard community values to remove (ASN:VAL format).",
-                    "source": "config",
-                    "type": "string"
-                  },
-                  {
-                    "description": "The EXTENDED COMMUNITIES attribute is RFC 4360, type 16, and each value is 8 bytes.\ntarget names a Route Target and origin names a Route Origin. A hex string writes the 8 bytes\nZe has no keyword for.",
-                    "kind": "leaf-list",
-                    "name": "extended-community-add",
-                    "short-help": "Extended community values to add (target:ASN:NN or hex).",
-                    "source": "config",
-                    "type": "string"
-                  },
-                  {
-                    "description": "Ze removes only the values named here, and leaves the standard and large communities of\nthe route untouched. A value the route does not carry costs nothing.",
-                    "kind": "leaf-list",
-                    "name": "extended-community-remove",
-                    "short-help": "Extended community values to remove (target:ASN:NN or hex).",
-                    "source": "config",
-                    "type": "string"
-                  },
-                  {
-                    "description": "The LARGE COMMUNITIES attribute is RFC 8092, type 32, and it carries three 4-byte\nfields. A 4-byte ASN therefore fits, which a standard community cannot hold.",
-                    "kind": "leaf-list",
-                    "name": "large-community-add",
-                    "short-help": "Large community values to add (GA:LD1:LD2 format).",
-                    "source": "config",
-                    "type": "string"
-                  },
-                  {
-                    "description": "Ze removes only the values named here, and leaves the standard and extended communities\nof the route untouched. A value the route does not carry costs nothing.",
-                    "kind": "leaf-list",
-                    "name": "large-community-remove",
-                    "short-help": "Large community values to remove (GA:LD1:LD2 format).",
-                    "source": "config",
-                    "type": "string"
-                  },
-                  {
-                    "description": "Ze replaces the value the route carried. RFC 4271 Section 5.1.5 forbids the attribute\nin an UPDATE to an external peer, so the value serves the local decision process and the\ninternal peers. The leaf is mutually exclusive with increment local-preference and decrement\nlocal-preference.",
-                    "kind": "leaf",
-                    "name": "local-preference",
-                    "short-help": "Set LOCAL_PREF attribute (RFC 4271 type 5).",
-                    "source": "config",
-                    "type": "uint32"
-                  },
-                  {
-                    "description": "Ze replaces the metric the route carried, and writes one on a route that carried none.\nThe leaf is mutually exclusive with del med, increment med and decrement med, and Ze refuses\na modifier that carries two of them.",
-                    "kind": "leaf",
-                    "name": "med",
-                    "short-help": "Set MULTI_EXIT_DISC attribute (RFC 4271 type 4).",
-                    "source": "config",
-                    "type": "uint32"
-                  },
-                  {
-                    "description": "NEXT_HOP is RFC 4271 type 3, and it carries an IPv4 address\nonly. An IPv6 next-hop travels in the MP_REACH attribute instead, so this leaf does not\nset one.",
-                    "kind": "leaf",
-                    "name": "next-hop",
-                    "short-help": "Set the NEXT_HOP attribute of the route.",
-                    "source": "config",
-                    "type": "ip-address"
-                  },
-                  {
-                    "description": "The decision process reads the attribute at step 3, after LOCAL_PREF and the AS_PATH\nlength. igp wins over egp, and egp wins over incomplete. Ze replaces whatever the route\ncarried.",
-                    "kind": "leaf",
-                    "name": "origin",
-                    "short-help": "Set ORIGIN attribute (RFC 4271 type 1).",
-                    "source": "config",
-                    "type": "enumeration",
-                    "values": [
-                      {
-                        "name": "egp",
-                        "short-help": "The route came from the retired EGP protocol."
-                      },
-                      {
-                        "name": "igp",
-                        "short-help": "The route started inside the local AS."
-                      },
-                      {
-                        "name": "incomplete",
-                        "short-help": "The route came from another source, such as redistribution."
-                      }
-                    ]
-                  }
-                ],
-                "description": "Ze applies only the leaves that are present in this container,\nand keeps every other attribute unchanged.",
-                "kind": "container",
-                "name": "set",
-                "short-help": "Attributes Ze sets on a matching route.",
-                "source": "config"
-              }
-            ],
-            "description": "Ze modifies only the declared leaves, and keeps every undeclared\nattribute unchanged. One modifier can change several attributes.",
-            "kind": "list[name]",
-            "name": "modify",
-            "short-help": "Named route attribute modifier instance.",
-            "source": "config"
-          },
-          {
-            "children": [
-              {
-                "children": [
-                  {
-                    "description": "The first entry that matches a route prefix decides it, and no later entry is read for\nthat prefix. A prefix that matches no entry is rejected, so a list needs no closing reject\nentry.",
-                    "kind": "leaf",
-                    "name": "action",
-                    "short-help": "Action applied when this entry matches a route prefix.",
-                    "source": "config",
-                    "type": "enumeration",
-                    "values": [
-                      {
-                        "name": "accept",
-                        "short-help": "Accept route prefixes matching this entry."
-                      },
-                      {
-                        "name": "reject",
-                        "short-help": "Reject route prefixes matching this entry."
-                      }
-                    ]
-                  },
-                  {
-                    "description": "Ze refuses a value of more than 32 on an IPv4 entry, and more than 128 on an IPv6\nentry. Ze also refuses a ge greater than the le of the same entry. Write 0.0.0.0/0 with ge 8\nand le 24 to accept every route between /8 and /24.",
-                    "kind": "leaf",
-                    "name": "ge",
-                    "short-help": "Minimum match length (greater-than-or-equal).\nDefaults to the prefix length of this entry.",
-                    "source": "config",
-                    "type": "uint8"
-                  },
-                  {
-                    "description": "The default accepts every length inside the entry, so an entry with no le and no ge\nmatches the prefix and everything under it. Ze refuses a value greater than the family\nmaximum rather than letting the entry match nothing.",
-                    "kind": "leaf",
-                    "name": "le",
-                    "short-help": "Maximum match length (less-than-or-equal).\nDefaults to 32 for IPv4 or 128 for IPv6.",
-                    "source": "config",
-                    "type": "uint8"
-                  }
-                ],
-                "description": "Ze judges each prefix of an UPDATE on its own. An UPDATE whose prefixes are all accepted\npasses unchanged, and one whose prefixes are all rejected is dropped. A mixed UPDATE is\nrewritten to carry the accepted prefixes only. An UPDATE that carries no prefix is accepted.",
-                "kind": "list[prefix]",
-                "name": "entry",
-                "short-help": "Ordered match entry. First match wins per route prefix.",
-                "source": "config"
-              }
-            ],
-            "description": "Each list holds an ordered set of match entries. Ze evaluates\nthe entries in order, and the first match wins. A route prefix\nthat matches no entry is denied.",
-            "kind": "list[name]",
-            "name": "prefix-list",
-            "short-help": "Named prefix-list filter instance.",
-            "source": "config"
-          },
-          {
-            "children": [
-              {
-                "description": "The keyword is the union of the other three, so it rejects the ASN wherever it sits. The\nreject log line still names which of the three caught the route.",
-                "kind": "leaf-list",
-                "name": "anywhere",
-                "short-help": "Reject these ASNs at any position: direct, transit and origin together.",
-                "source": "config",
-                "type": "asn"
-              },
-              {
-                "description": "The position is the leading run of tokens equal to the ASN of the sending peer, so four\nprepends are one direct position. On export no ASN is direct, because the filter input carries\nthe destination peer rather than the sender. A path that starts with another ASN is a leak, and\ndirect does not catch it.",
-                "kind": "leaf-list",
-                "name": "direct",
-                "short-help": "Reject these ASNs where they are the peer we are talking to, prepends collapsed.",
-                "source": "config",
-                "type": "asn"
-              },
-              {
-                "description": "The keyword covers transit and origin together. It is the leaf an operator writes for RFC\n7454 Section 9. The route reached you through the ASN, and a direct session with that ASN is\nstill fine. On export the sender is unknown, so indirect covers the whole path.",
-                "kind": "leaf-list",
-                "name": "indirect",
-                "short-help": "Reject these ASNs anywhere they are NOT the peer we are talking to.",
-                "source": "config",
-                "type": "asn"
-              },
-              {
-                "children": [
-                  {
-                    "description": "The completion of the leaf offers a curated table of transit-free networks, and that\ntable constrains nothing. Every ASN the type admits stays valid, and an ASN the table never\nheld is accepted with no warning. show bgp reject-asn known transit-free prints the table.",
-                    "kind": "leaf-list",
-                    "name": "asn",
-                    "short-help": "The ASNs this position rejects.",
-                    "source": "config",
-                    "type": "asn"
-                  }
-                ],
-                "description": "Ze counts the positions from us, and 1 is the ASN we are talking to. A run of consecutive\nidentical ASNs counts once, so a peer cannot move your rule by a prepend. The keyword cuts\nacross the other five, because an ASN at position 2 CAN also be transit.",
-                "kind": "list[index]",
-                "name": "nth",
-                "short-help": "Reject the listed ASNs at one collapsed position of the AS_PATH.",
-                "source": "config"
-              },
-              {
-                "description": "The last ASN of the path announced the route. The leading run of the sender wins over that\nlast position, so a lone ASN sent by the peer that owns it is direct rather than the origin.",
-                "kind": "leaf-list",
-                "name": "origin",
-                "short-help": "Reject these ASNs where they are the last ASN of the AS_PATH.",
-                "source": "config",
-                "type": "asn"
-              },
-              {
-                "description": "No position applies to a pattern. Ze matches it against the flat path, so a pattern reaches\nan ASN inside an AS_SET and meets no bracket. The 512-character bound is the bound\nbgp-filter-aspath applies to a regex. Ze reads the patterns only when no position matched.",
-                "kind": "leaf-list",
-                "name": "regex",
-                "short-help": "Go RE2 patterns matched against the whole space-separated AS_PATH string.",
-                "source": "config",
-                "type": "string"
-              },
-              {
-                "description": "A token is transit when it sits neither inside the leading run of the sender nor at the\nend of the path. Ze gives every token exactly one of direct, transit and origin.",
-                "kind": "leaf-list",
-                "name": "transit",
-                "short-help": "Reject these ASNs where they sit past the peer and are not the last ASN of the AS_PATH.",
-                "source": "config",
-                "type": "asn"
-              }
-            ],
-            "description": "Every ASN written under the list is looked for in the AS_PATH of the route. The keyword it\nsits under decides which positions reject it. The list is an unordered reject set, so any keyword\nthat matches rejects the route and no keyword wins over another. Ze reads the positions first and\nthe patterns after them.",
-            "kind": "list[name]",
-            "name": "reject-asn",
-            "short-help": "Named list of ASNs rejected by their position in the AS_PATH.",
-            "source": "config"
-          },
-          {
-            "children": [
-              {
-                "description": "RFC 6996 Section 5 gives the ranges, which are 64512 to 65534 and 4200000000 to\n4294967294. An absent leaf strips each of those ASNs, so the path loses one hop for each.\npeer-as writes the ASN of the peer in its place, so the path keeps its length.",
-                "kind": "leaf",
-                "name": "replace-with",
-                "short-help": "Replacement mode. When absent, Private Use ASNs are stripped.",
-                "source": "config",
-                "type": "enumeration",
-                "values": [
-                  {
-                    "name": "peer-as",
-                    "short-help": "Replace Private Use ASNs with the neighbor peer ASN."
-                  }
-                ]
-              }
-            ],
-            "description": "Ze rewrites AS_PATH and AS4_PATH, and the filter runs on an import chain and on an export\nchain. A path that carries no Private Use ASN passes through unchanged.",
-            "kind": "list[name]",
-            "name": "remove-private-as",
-            "short-help": "Named action filter that removes RFC 6996 Private Use ASNs.",
-            "source": "config"
-          }
-        ],
-        "description": "Each filter type is a list that its plugin adds through an augment. A peer filter chain references a\nfilter instance by name.",
-        "kind": "container",
-        "name": "policy",
-        "short-help": "Named filter definitions for the route policy framework.",
-        "source": "config"
-      },
-      {
-        "children": [
-          {
-            "children": [
-              {
                 "children": [
                   {
                     "description": "The count covers every address family of the peer. show bgp rib status answers it\nas the in value under route-counts, where a family filter scopes the number to\none family.",
@@ -8960,6 +8346,52 @@
     "source": "config"
   },
   "connected": {
+    "children": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "description": "Run these filter instances in order. Each one passes the route on or\nrejects it; a filter type with no Loc-RIB route evaluator is refused.",
+                "kind": "leaf-list",
+                "name": "filters",
+                "short-help": "Ordered filter instance references",
+                "source": "config",
+                "type": "string"
+              },
+              {
+                "description": "Every present import policy must set final accept or final reject, even with no filters.",
+                "kind": "leaf",
+                "name": "final",
+                "short-help": "Decision after every filter passes",
+                "source": "config",
+                "type": "enumeration",
+                "values": [
+                  {
+                    "name": "accept",
+                    "short-help": "Accept a route that passes every filter"
+                  },
+                  {
+                    "name": "reject",
+                    "short-help": "Reject a route that passes every filter"
+                  }
+                ]
+              }
+            ],
+            "description": "A rejected route stays in the Loc-RIB as a hidden path that is never selected,\nso relaxing the chain re-admits it without the protocol sending it again. The\nsource's chain runs first, then the rib chain.",
+            "kind": "container",
+            "name": "import",
+            "short-help": "Import policy into the Loc-RIB",
+            "source": "config"
+          }
+        ],
+        "description": "A name references a filter instance defined under the top-level policy root. The\nchain judges routes as they enter the Loc-RIB; a protocol's own database (an IS-IS\nLSDB, an OSPF LSDB) is never filtered.",
+        "kind": "container",
+        "name": "filter",
+        "short-help": "Route filter chains into the Loc-RIB.",
+        "source": "config"
+      }
+    ],
     "description": "The container carries no leaf, so writing it is the whole configuration.\nThe plugin watches each interface address event and emits the network\nprefix of that address on the redistribute event bus. It counts the\naddresses of one prefix, so two addresses in one subnet announce the prefix\nonce. The withdrawal waits for the last address of that prefix. The plugin\nregisters the connected route source, and a redistribute statement names\nthat source.",
     "kind": "container",
     "name": "connected",
@@ -11545,20 +10977,20 @@
                         "source": "config"
                       },
                       {
-                        "description": "The target chain MUST be declared in the same table, and verify refuses a name the table\ndoes not hold. Evaluation does not come back, so the terms after this one never run for\nthat packet.",
+                        "description": "The target chain MUST be declared in the same table. The editor completes the chains the\ntable holds, and a commit naming any other chain is refused. Evaluation does not come back, so the terms after this one never run for\nthat packet.",
                         "kind": "leaf",
                         "name": "goto",
                         "short-help": "Goto target chain (no return)",
                         "source": "config",
-                        "type": "string"
+                        "type": "leafref"
                       },
                       {
-                        "description": "The target chain MUST be declared in the same table, and verify refuses a name the table\ndoes not hold. Evaluation comes back to the term after this one when the target chain\nends or returns.",
+                        "description": "The target chain MUST be declared in the same table. The editor completes the chains the\ntable holds, and a commit naming any other chain is refused. Evaluation comes back to the term after this one when the target chain\nends or returns.",
                         "kind": "leaf",
                         "name": "jump",
                         "short-help": "Jump to target chain",
                         "source": "config",
-                        "type": "string"
+                        "type": "leafref"
                       },
                       {
                         "children": [
@@ -19043,6 +18475,50 @@
   "isis": {
     "children": [
       {
+        "children": [
+          {
+            "children": [
+              {
+                "description": "Run these filter instances in order. Each one passes the route on or\nrejects it; a filter type with no Loc-RIB route evaluator is refused.",
+                "kind": "leaf-list",
+                "name": "filters",
+                "short-help": "Ordered filter instance references",
+                "source": "config",
+                "type": "string"
+              },
+              {
+                "description": "Every present import policy must set final accept or final reject, even with no filters.",
+                "kind": "leaf",
+                "name": "final",
+                "short-help": "Decision after every filter passes",
+                "source": "config",
+                "type": "enumeration",
+                "values": [
+                  {
+                    "name": "accept",
+                    "short-help": "Accept a route that passes every filter"
+                  },
+                  {
+                    "name": "reject",
+                    "short-help": "Reject a route that passes every filter"
+                  }
+                ]
+              }
+            ],
+            "description": "A rejected route stays in the Loc-RIB as a hidden path that is never selected,\nso relaxing the chain re-admits it without the protocol sending it again. The\nsource's chain runs first, then the rib chain.",
+            "kind": "container",
+            "name": "import",
+            "short-help": "Import policy into the Loc-RIB",
+            "source": "config"
+          }
+        ],
+        "description": "A name references a filter instance defined under the top-level policy root. The\nchain judges routes as they enter the Loc-RIB; a protocol's own database (an IS-IS\nLSDB, an OSPF LSDB) is never filtered.",
+        "kind": "container",
+        "name": "filter",
+        "short-help": "Route filter chains into the Loc-RIB.",
+        "source": "config"
+      },
+      {
         "description": "Dynamic hostname to advertise (RFC 5301 section 3). Printable 7-bit ASCII only, from space (0x20) to\ntilde (0x7e). Each dot-separated label is 1 to 63 octets and the whole name is at most 255 octets,\nincluding the separators (RFC 2181 section 11). One trailing dot is permitted. A non-ASCII name is\nrefused, not converted.",
         "kind": "leaf",
         "name": "hostname",
@@ -19133,7 +18609,7 @@
                     "name": "auth-key-chain",
                     "short-help": "L1 per-interface (IIH) key-chain reference.",
                     "source": "config",
-                    "type": "string"
+                    "type": "leafref"
                   },
                   {
                     "description": "Ze sends the Level-1 IIH at this period, in place of the circuit-wide\n`hello-interval`. A broadcast circuit runs one Hello timer for each level it forms,\nbecause the Level-1 and the Level-2 LAN IIH are separate PDUs sent to separate multicast\ngroups. A point-to-point circuit sends one IIH that serves both levels, so it runs one\nHello timer, and that timer takes this pair whenever the circuit forms Level-1. An unset\nleaf keeps the circuit-wide value.",
@@ -19152,10 +18628,10 @@
                     "type": "uint8"
                   },
                   {
-                    "description": "Ze advertises this cost for the circuit in the Level-1 LSP, in place of `metric`. An\nunset leaf keeps the circuit-wide metric. The value also becomes the metric of the\nconnected prefixes the circuit contributes at Level-1.",
+                    "description": "Ze advertises this cost for the circuit in the Level-1 LSP, in place of `metric`. An\nunset leaf keeps the circuit-wide metric. The value also becomes the metric of the\nconnected prefixes the circuit contributes at Level-1. Under the narrow and\ntransition `metric-style` a value above 63 is refused.",
                     "kind": "leaf",
                     "name": "metric",
-                    "short-help": "L1 wide metric override.",
+                    "short-help": "L1 metric override.",
                     "source": "config",
                     "type": "uint32"
                   },
@@ -19182,7 +18658,7 @@
                     "name": "auth-key-chain",
                     "short-help": "L2 per-interface (IIH) key-chain reference.",
                     "source": "config",
-                    "type": "string"
+                    "type": "leafref"
                   },
                   {
                     "description": "Ze sends the Level-2 IIH at this period, in place of the circuit-wide\n`hello-interval`. A broadcast circuit runs one Hello timer for each level it forms,\nbecause the Level-1 and the Level-2 LAN IIH are separate PDUs sent to separate multicast\ngroups. A point-to-point circuit sends one IIH that serves both levels, so it runs one\nHello timer, and that timer takes this pair only on a circuit that forms Level-2 alone.\nAn unset leaf keeps the circuit-wide value.",
@@ -19201,10 +18677,10 @@
                     "type": "uint8"
                   },
                   {
-                    "description": "Ze advertises this cost for the circuit in the Level-2 LSP, in place of `metric`. An\nunset leaf keeps the circuit-wide metric. The value also becomes the metric of the\nconnected prefixes the circuit contributes at Level-2.",
+                    "description": "Ze advertises this cost for the circuit in the Level-2 LSP, in place of `metric`. An\nunset leaf keeps the circuit-wide metric. The value also becomes the metric of the\nconnected prefixes the circuit contributes at Level-2. Under the narrow and\ntransition `metric-style` a value above 63 is refused.",
                     "kind": "leaf",
                     "name": "metric",
-                    "short-help": "L2 wide metric override.",
+                    "short-help": "L2 metric override.",
                     "source": "config",
                     "type": "uint32"
                   },
@@ -19224,10 +18700,10 @@
                 "source": "config"
               },
               {
-                "description": "The circuit advertises this cost in TLV 22, and its connected prefixes advertise it in\nTLV 135 and TLV 236. RFC 5305 section 3 states that 'The metric octets are encoded as a\n24-bit unsigned integer', which is the 1 to 16777215 range here. SPF adds the value once for\neach hop, so a lower value makes the circuit preferred. `level-1/metric` and `level-2/metric`\nreplace it at one level.",
+                "description": "The circuit advertises this cost in TLV 22, and its connected prefixes advertise it in\nTLV 135 and TLV 236. RFC 5305 section 3 states that 'The metric octets are encoded as a\n24-bit unsigned integer', which is the 1 to 16777215 range here. Under the narrow and\ntransition `metric-style` the cost also goes into TLV 2 and TLV 128, whose metric is 6 bits,\nso a value above 63 is refused there. SPF adds the value once for each hop, so a lower value\nmakes the circuit preferred. `level-1/metric` and `level-2/metric` replace it at one level.",
                 "kind": "leaf",
                 "name": "metric",
-                "short-help": "Wide metric (RFC 5305).",
+                "short-help": "Circuit metric (RFC 5305 wide, 1 to 63 when narrow).",
                 "source": "config",
                 "type": "uint32"
               },
@@ -19369,7 +18845,7 @@
             "source": "config"
           }
         ],
-        "description": "A chain holds the keys that sign and verify IS-IS PDUs. Ze authenticates nothing until an\n`auth-key-chain` leaf names the chain. Ze refuses the configuration when an `auth-key-chain` leaf\nnames no entry of this list, because a circuit whose chain does not resolve sends and accepts every\nPDU unsigned. A key whose algorithm token Ze does not know, or whose secret does not decode, is\ndropped from the chain and signs nothing.",
+        "description": "A chain holds the keys that sign and verify IS-IS PDUs. Ze authenticates nothing until an\n`auth-key-chain` leaf names the chain. Commit refuses an `auth-key-chain` leaf that\nnames no entry of this list, naming the chains that exist, because a circuit whose chain does not resolve sends and accepts every\nPDU unsigned. A key whose algorithm token Ze does not know, or whose secret does not decode, is\ndropped from the chain and signs nothing.",
         "kind": "list[name]",
         "name": "key-chains",
         "short-help": "Named authentication key chains for hitless key rotation.",
@@ -19405,7 +18881,7 @@
             "name": "auth-key-chain",
             "short-help": "L1 per-level (LSP/SNP, area key) key-chain reference.",
             "source": "config",
-            "type": "string"
+            "type": "leafref"
           }
         ],
         "description": "The leaves here apply to Level-1 across the whole instance, and not to one circuit. RFC 5304\nsection 2 calls the key they select the Area Authentication string.",
@@ -19422,7 +18898,7 @@
             "name": "auth-key-chain",
             "short-help": "L2 per-level (LSP/SNP, domain key) key-chain reference.",
             "source": "config",
-            "type": "string"
+            "type": "leafref"
           }
         ],
         "description": "The leaves here apply to Level-2 across the whole instance, and not to one circuit. RFC 5304\nsection 2 calls the key they select the domain authentication string.",
@@ -19446,6 +18922,28 @@
         "short-help": "LSP refresh interval.",
         "source": "config",
         "type": "uint16"
+      },
+      {
+        "description": "The style picks the reachability TLVs of every LSP this IS originates, its pseudo-node LSPs\nincluded. wide, the default, writes the RFC 5305 TLV 22 and TLV 135 with their 24-bit and 32-bit\nmetrics. narrow writes the TLV 2 and TLV 128 of ISO 10589 and RFC 1195, whose metric is 6 bits.\ntransition writes both. RFC 3787 section 5 states that 'If not all devices in the IS-IS domain\nsupport wide metrics, narrow metrics MUST continue to be used', so set narrow while any router in\nthe domain is narrow-only, and transition while the domain migrates. Under narrow and transition a\ncircuit `metric` above 63 is refused. A prefix metric above 63, such as a redistributed route's, is\nadvertised as 63 in TLV 128. IPv6 reachability stays in TLV 236 in every style.",
+        "kind": "leaf",
+        "name": "metric-style",
+        "short-help": "Metric style of the originated LSPs (RFC 3787 section 5).",
+        "source": "config",
+        "type": "enumeration",
+        "values": [
+          {
+            "name": "narrow",
+            "short-help": "Narrow 6-bit metrics only (TLV 2, TLV 128)."
+          },
+          {
+            "name": "transition",
+            "short-help": "Both narrow and wide metrics, for the migration."
+          },
+          {
+            "name": "wide",
+            "short-help": "Wide metrics only (TLV 22, TLV 135)."
+          }
+        ]
       },
       {
         "description": "Network Entity Title(s), for example 49.0001.0000.0000.0001.00. At least one is required. The System\nID is the 6 octets before the NSEL.",
@@ -23124,12 +22622,12 @@
               {
                 "children": [
                   {
-                    "description": "The value MUST name an entry of the key-chains list. Ze\nrefuses the configuration when the name matches no entry, because an interface that\ninherits a chain which does not resolve would accept every packet unsigned.",
+                    "description": "The value MUST name an entry of the key-chains list. Commit\nrefuses the configuration when the name matches no entry, and names the chains that exist,\nbecause an interface that inherits a chain which does not resolve would accept every packet\nunsigned.",
                     "kind": "leaf",
                     "name": "key-chain",
                     "short-help": "Default key chain inherited by interfaces.",
                     "source": "config",
-                    "type": "string"
+                    "type": "leafref"
                   }
                 ],
                 "description": "An interface whose authentication mode is inherit takes the key\nchain of its area. An interface that names its own key chain overrides this default.",
@@ -23415,6 +22913,50 @@
           {
             "children": [
               {
+                "description": "Run these filter instances in order. Each one passes the route on or\nrejects it; a filter type with no Loc-RIB route evaluator is refused.",
+                "kind": "leaf-list",
+                "name": "filters",
+                "short-help": "Ordered filter instance references",
+                "source": "config",
+                "type": "string"
+              },
+              {
+                "description": "Every present import policy must set final accept or final reject, even with no filters.",
+                "kind": "leaf",
+                "name": "final",
+                "short-help": "Decision after every filter passes",
+                "source": "config",
+                "type": "enumeration",
+                "values": [
+                  {
+                    "name": "accept",
+                    "short-help": "Accept a route that passes every filter"
+                  },
+                  {
+                    "name": "reject",
+                    "short-help": "Reject a route that passes every filter"
+                  }
+                ]
+              }
+            ],
+            "description": "A rejected route stays in the Loc-RIB as a hidden path that is never selected,\nso relaxing the chain re-admits it without the protocol sending it again. The\nsource's chain runs first, then the rib chain.",
+            "kind": "container",
+            "name": "import",
+            "short-help": "Import policy into the Loc-RIB",
+            "source": "config"
+          }
+        ],
+        "description": "A name references a filter instance defined under the top-level policy root. The\nchain judges routes as they enter the Loc-RIB; a protocol's own database (an IS-IS\nLSDB, an OSPF LSDB) is never filtered.",
+        "kind": "container",
+        "name": "filter",
+        "short-help": "Route filter chains into the Loc-RIB.",
+        "source": "config"
+      },
+      {
+        "children": [
+          {
+            "children": [
+              {
                 "description": "RFC 3623 Appendix B.2 names this value\nRestartHelperStrictLSAChecking, and section 3.2 states the rule. Ze stops helper mode\nwhen it installs a changed LSA that would flood to the restarting router.",
                 "kind": "leaf",
                 "name": "strict-lsa-checking",
@@ -23498,12 +23040,12 @@
               {
                 "children": [
                   {
-                    "description": "The value MUST name an entry of the key-chains list, and Ze\nrefuses the configuration when it names no entry. Ze takes the area chain instead when the\nmode leaf is inherit, even when this leaf names a chain.",
+                    "description": "The value MUST name an entry of the key-chains list, and commit\nrefuses the configuration when it names no entry, naming the chains that exist. The check\nholds whatever the mode: Ze takes the area chain instead when the mode leaf is inherit, but\na name written here still has to resolve.",
                     "kind": "leaf",
                     "name": "key-chain",
                     "short-help": "Key chain reference.",
                     "source": "config",
-                    "type": "string"
+                    "type": "leafref"
                   },
                   {
                     "description": "The value inherit takes the area default.",
@@ -24621,6 +24163,827 @@
       {
         "children": [
           {
+            "description": "An absent leaf leaves the upper bound open, so a filter that states neither bound accepts\nevery route. Ze counts every ASN of the path, so a member of an AS_SET counts as one hop.",
+            "kind": "leaf",
+            "name": "max",
+            "short-help": "Maximum allowed AS-path length (inclusive).\nRoutes with longer paths are rejected.",
+            "source": "config",
+            "type": "uint16"
+          },
+          {
+            "description": "An absent leaf leaves the lower bound open. A route that carries no AS_PATH counts 0\nhops. min 1 therefore rejects a route Ze originated, and a route an iBGP peer sent with an\nempty path.",
+            "kind": "leaf",
+            "name": "min",
+            "short-help": "Minimum required AS-path length (inclusive).\nRoutes with shorter paths are rejected.",
+            "source": "config",
+            "type": "uint16"
+          }
+        ],
+        "description": "Ze rejects a route whose AS-path length falls outside the\nconfigured min..max range. Both min and max are optional,\nand an omitted bound is open.",
+        "kind": "list[name]",
+        "name": "as-path-length",
+        "short-help": "Named AS-path length filter instance.",
+        "source": "config"
+      },
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "description": "The first entry whose pattern matches decides the UPDATE, and no later entry is read. A\nroute whose path matches no entry is rejected, so a list needs no closing reject entry.",
+                "kind": "leaf",
+                "name": "action",
+                "short-help": "Action applied when this entry's regex matches.",
+                "source": "config",
+                "type": "enumeration",
+                "values": [
+                  {
+                    "name": "accept",
+                    "short-help": "Accept a route whose AS-path matches."
+                  },
+                  {
+                    "name": "reject",
+                    "short-help": "Reject a route whose AS-path matches."
+                  }
+                ]
+              }
+            ],
+            "description": "Ze matches each entry against the space-separated AS-path string,\nin the configured order. The first entry that matches wins.",
+            "kind": "list[regex]",
+            "name": "entry",
+            "short-help": "One regex entry of the ordered list.",
+            "source": "config"
+          }
+        ],
+        "description": "Each list holds an ordered set of regex entries. Ze evaluates the\nentries in order, and the first match wins. No match is an implicit deny, so Ze rejects\nthe route.",
+        "kind": "list[name]",
+        "name": "as-path-list",
+        "short-help": "Named AS-path regex filter instance.",
+        "source": "config"
+      },
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "description": "The first entry whose community the route carries decides the UPDATE, and no later\nentry is read. A route that carries none of the listed communities is rejected, so a list\nneeds no closing reject entry.",
+                "kind": "leaf",
+                "name": "action",
+                "short-help": "Action applied when this community is found in the route.",
+                "source": "config",
+                "type": "enumeration",
+                "values": [
+                  {
+                    "name": "accept",
+                    "short-help": "Accept routes containing this community"
+                  },
+                  {
+                    "name": "reject",
+                    "short-help": "Reject routes containing this community"
+                  }
+                ]
+              },
+              {
+                "description": "Ze reads the one attribute the leaf names. An entry of type standard therefore does\nnot see a value that sits in the LARGE COMMUNITIES attribute. Write one entry for each\nattribute the route can carry the value in.",
+                "kind": "leaf",
+                "name": "type",
+                "short-help": "Which community attribute type to check.",
+                "source": "config",
+                "type": "enumeration",
+                "values": [
+                  {
+                    "name": "extended",
+                    "short-help": "Match in extended community attribute (type 16)"
+                  },
+                  {
+                    "name": "large",
+                    "short-help": "Match in large community attribute (type 32)"
+                  },
+                  {
+                    "name": "standard",
+                    "short-help": "Match in standard community attribute (type 8)"
+                  }
+                ]
+              }
+            ],
+            "description": "Ze reads the entries in order, and the first match wins.\nAn entry checks whether the named community value is\npresent in the route's community attributes.",
+            "kind": "list[community]",
+            "name": "entry",
+            "short-help": "Ordered match entry, checked against the route's community attributes.",
+            "source": "config"
+          }
+        ],
+        "description": "Each list holds an ordered set of match entries. Ze reads\nthe entries in order, and the first match wins. No match is\nan implicit deny, so the route is rejected.",
+        "kind": "list[name]",
+        "name": "community-match",
+        "short-help": "Named community match filter instance.",
+        "source": "config"
+      },
+      {
+        "children": [
+          {
+            "description": "remove strips the MP_REACH NLRI and the MP_UNREACH NLRI of the\nmatched family from the UPDATE, on import and on export. If that removal empties the\nUPDATE, Ze drops the whole UPDATE for that peer.\n\ntear-down sends a BGP NOTIFICATION that carries the Cease code and the Connection\nRejected subcode, then closes the session. tear-down acts on import only.",
+            "kind": "leaf",
+            "name": "action",
+            "short-help": "Action to apply when the family matches.",
+            "source": "config",
+            "type": "enumeration",
+            "values": [
+              {
+                "name": "remove",
+                "short-help": "Strip the MP_REACH NLRI and the MP_UNREACH NLRI of the matched family."
+              },
+              {
+                "name": "tear-down",
+                "short-help": "Close the session with a BGP NOTIFICATION when a received UPDATE carries the family."
+              }
+            ]
+          },
+          {
+            "description": "Ze treats an UPDATE with no MP_REACH attribute and no MP_UNREACH\nattribute as ipv4/unicast.",
+            "kind": "leaf",
+            "name": "family",
+            "short-help": "Address family to match, for example ipv4/flowspec.",
+            "source": "config",
+            "type": "address-family"
+          }
+        ],
+        "description": "One instance matches one family, because family holds one value and is mandatory. A chain that\nmust catch two families names two instances.",
+        "kind": "list[name]",
+        "name": "family-filter",
+        "short-help": "Named address-family filter instance.",
+        "source": "config"
+      },
+      {
+        "children": [
+          {
+            "description": "Ze reads the AS-SET of a peer from the PeeringDB API when the\nas-set leaf is empty. Set this leaf to the URL of a mock server to test the IRR filter\nwithout a query to the public PeeringDB service.",
+            "kind": "leaf",
+            "name": "peeringdb-url",
+            "short-help": "Base URL of the PeeringDB API that Ze queries.",
+            "source": "config",
+            "type": "string"
+          },
+          {
+            "description": "Ze re-queries every enrolled AS-SET on this period. The first query runs in the background\nat startup, so a slow IRR server never blocks the start of Ze. A failed query leaves the prefix\nlist of the last query in force.",
+            "kind": "leaf",
+            "name": "refresh-interval",
+            "short-help": "Seconds between automatic IRR re-queries.",
+            "source": "config",
+            "type": "uint32"
+          },
+          {
+            "description": "Ze speaks whois to the server and adds port 43 when the value carries no port. A query that\ngets no answer in 10 seconds fails, and the prefix list of the last query stays in force.",
+            "kind": "leaf",
+            "name": "server",
+            "short-help": "IRR whois server hostname or host:port.",
+            "source": "config",
+            "type": "string"
+          },
+          {
+            "description": "Ze binds the address on the whois connection only. The PeeringDB query does not read the\nleaf. When the leaf is absent, the kernel picks the source address of the route to the server.",
+            "kind": "leaf",
+            "name": "source-address",
+            "short-help": "Source IP address for outbound IRR whois connections.",
+            "source": "config",
+            "type": "ip-address"
+          }
+        ],
+        "description": "The container holds the IRR server, the PeeringDB endpoint and the refresh period. One\nresolution serves every peer of the same remote ASN, so two peers of one ASN cost one query.",
+        "kind": "container",
+        "name": "irr",
+        "short-help": "Global IRR filtering settings.",
+        "source": "config"
+      },
+      {
+        "children": [
+          {
+            "description": "The default is 0, which rejects the route on the first\noccurrence (RFC 4271 Section 9).",
+            "kind": "leaf",
+            "name": "allow-own-as",
+            "short-help": "Own-AS occurrences permitted in AS_PATH before ze rejects the route.",
+            "source": "config",
+            "type": "uint8"
+          },
+          {
+            "description": "When this leaf is unset, ze uses the BGP Router ID\n(RFC 4456 Section 7).",
+            "kind": "leaf",
+            "name": "cluster-id",
+            "short-help": "Override Router ID for CLUSTER_LIST loop detection.",
+            "source": "config",
+            "type": "ipv4-address"
+          }
+        ],
+        "description": "The instance configures AS loop detection and cluster-list\nloop detection, for each peer that references it.",
+        "kind": "list[name]",
+        "name": "loop-detection",
+        "short-help": "Named loop detection filter instance.",
+        "source": "config"
+      },
+      {
+        "children": [
+          {
+            "description": "What happens to a route that meets every condition the instance names. The\nother routes get the opposite.",
+            "kind": "leaf",
+            "name": "action",
+            "short-help": "Accept or reject the routes this instance matches",
+            "source": "config",
+            "type": "enumeration",
+            "values": [
+              {
+                "name": "accept",
+                "short-help": "Pass on routes meeting every condition, reject the rest."
+              },
+              {
+                "name": "reject",
+                "short-help": "Reject routes meeting every condition, pass on the rest."
+              }
+            ]
+          },
+          {
+            "description": "An address family name such as ipv4/unicast or ipv6/unicast.",
+            "kind": "leaf-list",
+            "name": "family",
+            "short-help": "Match routes of this address family",
+            "source": "config",
+            "type": "string"
+          },
+          {
+            "description": "The outgoing interface the route names.",
+            "kind": "leaf-list",
+            "name": "interface",
+            "short-help": "Match routes through this interface",
+            "source": "config",
+            "type": "string"
+          },
+          {
+            "description": "The IS-IS level the route was selected at. Only IS-IS routes carry a level.",
+            "kind": "leaf-list",
+            "name": "level",
+            "short-help": "Match IS-IS routes of this level",
+            "source": "config",
+            "type": "uint8"
+          },
+          {
+            "children": [
+              {
+                "description": "The highest metric that matches, inclusive. Left out, the range ends at\n4294967295.",
+                "kind": "leaf",
+                "name": "maximum",
+                "short-help": "Highest metric that matches",
+                "source": "config",
+                "type": "uint32"
+              },
+              {
+                "description": "The lowest metric that matches, inclusive. Left out, the range starts at 0.",
+                "kind": "leaf",
+                "name": "minimum",
+                "short-help": "Lowest metric that matches",
+                "source": "config",
+                "type": "uint32"
+              }
+            ],
+            "description": "The route's metric as its source states it: the SPF metric or cost of an IGP\nroute, a static route's configured metric. Either bound may be left out;\na minimum above the maximum is refused.",
+            "kind": "container",
+            "name": "metric",
+            "short-help": "Match routes whose metric is in this range",
+            "source": "config"
+          },
+          {
+            "description": "An address prefix the route's next hop lies in, such as 192.0.2.0/24 or\n2001:db8::1/128. A route with no next hop (connected) does not match.",
+            "kind": "leaf-list",
+            "name": "next-hop",
+            "short-help": "Match routes whose next hop is in this prefix",
+            "source": "config",
+            "type": "string"
+          },
+          {
+            "description": "The route passes this condition when the named prefix-list accepts its prefix.\nThe prefix-list is a policy prefix-list instance: the editor completes the\nconfigured ones, and a commit naming any other is refused. The prefix-list\nlist belongs to the prefix filter, which a build without BGP leaves out, so\nthis is a ze:reference, not a leafref.",
+            "kind": "leaf",
+            "name": "prefix-list",
+            "short-help": "Match routes the named prefix-list accepts",
+            "source": "config",
+            "type": "string"
+          },
+          {
+            "description": "A route source registered by this build (static, connected, ospf, isis, bgp, ...),\nor ebgp or ibgp for the class of a BGP best. An unknown name is refused at load.",
+            "kind": "leaf-list",
+            "name": "protocol",
+            "short-help": "Match routes from this source",
+            "source": "config",
+            "type": "string"
+          },
+          {
+            "description": "The OSPF path type of RFC 2328 Section 11, with the NSSA types of RFC 3101.\nOnly OSPF routes carry a route type.",
+            "kind": "leaf-list",
+            "name": "route-type",
+            "short-help": "Match OSPF routes of this path type",
+            "source": "config",
+            "type": "enumeration",
+            "values": [
+              {
+                "name": "external-1",
+                "short-help": "OSPF type 1 external path"
+              },
+              {
+                "name": "external-2",
+                "short-help": "OSPF type 2 external path"
+              },
+              {
+                "name": "inter-area",
+                "short-help": "OSPF inter-area path"
+              },
+              {
+                "name": "intra-area",
+                "short-help": "OSPF intra-area path"
+              },
+              {
+                "name": "nssa-1",
+                "short-help": "OSPF NSSA type 1 external path"
+              },
+              {
+                "name": "nssa-2",
+                "short-help": "OSPF NSSA type 2 external path"
+              }
+            ]
+          },
+          {
+            "description": "OSPF carries the external route tag and static carries its tag leaf. IS-IS carries\nno administrative tag in Ze, so a filter reading tag is refused on an IS-IS chain.",
+            "kind": "leaf-list",
+            "name": "tag",
+            "short-help": "Match routes carrying this tag",
+            "source": "config",
+            "type": "uint32"
+          }
+        ],
+        "description": "With action accept, a route that meets every condition the instance names\npasses on to the next filter and any other route is rejected; with action\nreject, a route that meets them is rejected and any other passes on. An\ninstance is checked against only the\nconditions it names, so one naming prefix-list and tag attaches to static, OSPF\nand the rib chain, and is refused on IS-IS, whose routes carry no tag.",
+        "kind": "list[name]",
+        "name": "match",
+        "short-help": "Named route match filter instance.",
+        "source": "config"
+      },
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "description": "Ze runs the operation only on a route that already carries an AIGP TLV. A route with\nnone is left alone, because RFC 7311 Section 3.4.1 forbids Ze to add the attribute.",
+                "kind": "leaf",
+                "name": "aigp",
+                "short-help": "Decrement AIGP metric by this value.",
+                "source": "config",
+                "type": "uint32"
+              },
+              {
+                "description": "A route that carries no LOCAL_PREF counts as 100 before the subtraction. A decrement\nlarger than the current value writes 0 rather than wrapping.",
+                "kind": "leaf",
+                "name": "local-preference",
+                "short-help": "Decrement LOCAL_PREF by this value.",
+                "source": "config",
+                "type": "uint32"
+              },
+              {
+                "description": "A route that carries no MULTI_EXIT_DISC counts as 0, so the result is 0 and Ze writes a\nmetric the route did not have. Use del med to remove the attribute instead.",
+                "kind": "leaf",
+                "name": "med",
+                "short-help": "Decrement MED by this value.",
+                "source": "config",
+                "type": "uint32"
+              }
+            ],
+            "description": "Ze subtracts the stated value from the current value of the\nattribute. The result floors at 0, so it never underflows. decrement is mutually\nexclusive with set for the same attribute.",
+            "kind": "container",
+            "name": "decrement",
+            "short-help": "Attributes to decrement on a matching route.",
+            "source": "config"
+          },
+          {
+            "children": [
+              {
+                "description": "RFC 4271 Section 5.1.4 requires a mechanism, based on local\nconfiguration, that removes MULTI_EXIT_DISC from a route. The same section requires the\nremoval to happen before the route reaches Decision Process phase 1 and phase 2. The\ndel med operation is that mechanism, so it applies on an IMPORT chain only, and the\nroute enters the decision process with no metric. Ze refuses del med on an export chain\nand writes a log line, because Section 9.1.2.2 states that a comparison on\nMULTI_EXIT_DISC followed by advertisement without it causes route loops. del med is\nmutually exclusive with set med, increment med and decrement med. Ze already keeps a\nmetric received from one neighboring AS off another one with no configuration (RFC 4271\nSection 5.1.4), so del med is for the operator who wants the metric removed from the\nroute itself.",
+                "kind": "leaf",
+                "name": "med",
+                "short-help": "Remove the MULTI_EXIT_DISC attribute (RFC 4271 type 4) from the route.",
+                "source": "config",
+                "type": "empty"
+              }
+            ],
+            "description": "Ze applies only the leaves that are present in this container,\nand keeps every other attribute unchanged.",
+            "kind": "container",
+            "name": "del",
+            "short-help": "Attributes Ze deletes from a matching route.",
+            "source": "config"
+          },
+          {
+            "children": [
+              {
+                "description": "Ze runs the operation only on a route that already carries an AIGP TLV, and creates\nnone. RFC 7311 Section 3.4.1 forbids a speaker to add the attribute to a route whose path\nleaves the AIGP domain. Section 4.1 removes a route with no AIGP from the decision rather\nthan scoring it.",
+                "kind": "leaf",
+                "name": "aigp",
+                "short-help": "Increment AIGP metric by this value.",
+                "source": "config",
+                "type": "uint32"
+              },
+              {
+                "description": "A route that carries no LOCAL_PREF counts as 100, which is the value FRR and BIRD use\nfor a route with none. RFC 4271 Section 9.1.1 leaves that number to local policy.",
+                "kind": "leaf",
+                "name": "local-preference",
+                "short-help": "Increment LOCAL_PREF by this value.",
+                "source": "config",
+                "type": "uint32"
+              },
+              {
+                "description": "A route that carries no MULTI_EXIT_DISC counts as 0, which RFC 4271 Section 9.1.2.2\ngives as the value of an absent metric. The result therefore equals the increment.",
+                "kind": "leaf",
+                "name": "med",
+                "short-help": "Increment MED by this value.",
+                "source": "config",
+                "type": "uint32"
+              }
+            ],
+            "description": "Ze adds the stated value to the current value of the attribute.\nThe result saturates at the uint32 maximum, 4294967295. increment is mutually exclusive\nwith set for the same attribute.",
+            "kind": "container",
+            "name": "increment",
+            "short-help": "Attributes to increment on a matching route.",
+            "source": "config"
+          },
+          {
+            "children": [
+              {
+                "description": "The COMMUNITIES attribute is RFC 1997, type 8. The value takes\nthe form ASN:VAL, for example 65001:666, or a well-known name. The well-known names are\nblackhole, no-export, no-advertise, no-export-subconfed and nopeer. The two spellings\nof a well-known value are equivalent, so 65535:666 and blackhole select the same\ncommunity. RFC 7999 registers that community, and RFC 7999 Section 4 names it with that\nsuggested keyword.",
+                "kind": "leaf-list",
+                "name": "community",
+                "short-help": "Apply only to a route whose COMMUNITIES attribute carries this value.",
+                "source": "config",
+                "type": "string"
+              },
+              {
+                "description": "The EXTENDED COMMUNITIES attribute is RFC 4360, type 16. The\nvalue takes the form target:ASN:NN or origin:ASN:NN, or it is a hex string. Ze\nvalidates the value at configure time and compares its eight-octet value, so named\nand hex spellings of the same value select the same routes.",
+                "kind": "leaf-list",
+                "name": "extended-community",
+                "short-help": "Apply only to a route whose EXTENDED COMMUNITIES attribute carries this value.",
+                "source": "config",
+                "type": "string"
+              },
+              {
+                "description": "The LARGE COMMUNITIES attribute is RFC 8092, type 32. The value\ntakes the form GA:LD1:LD2, for example 65001:100:200. Ze validates the value at\nconfigure time and compares its canonical decimal form.",
+                "kind": "leaf-list",
+                "name": "large-community",
+                "short-help": "Apply only to a route whose LARGE COMMUNITIES attribute carries this value.",
+                "source": "config",
+                "type": "string"
+              },
+              {
+                "description": "The IS-IS level the route was selected at. Only IS-IS routes carry a level.",
+                "kind": "leaf-list",
+                "name": "level",
+                "short-help": "Match IS-IS routes of this level",
+                "source": "config",
+                "type": "uint8"
+              },
+              {
+                "description": "A route source registered by this build (static, connected, ospf, isis, bgp, ...),\nor ebgp or ibgp for the class of a BGP best. An unknown name is refused at load.",
+                "kind": "leaf-list",
+                "name": "protocol",
+                "short-help": "Match routes from this source",
+                "source": "config",
+                "type": "string"
+              },
+              {
+                "description": "The OSPF path type of RFC 2328 Section 11, with the NSSA types of RFC 3101.\nOnly OSPF routes carry a route type.",
+                "kind": "leaf-list",
+                "name": "route-type",
+                "short-help": "Match OSPF routes of this path type",
+                "source": "config",
+                "type": "enumeration",
+                "values": [
+                  {
+                    "name": "external-1",
+                    "short-help": "OSPF type 1 external path"
+                  },
+                  {
+                    "name": "external-2",
+                    "short-help": "OSPF type 2 external path"
+                  },
+                  {
+                    "name": "inter-area",
+                    "short-help": "OSPF inter-area path"
+                  },
+                  {
+                    "name": "intra-area",
+                    "short-help": "OSPF intra-area path"
+                  },
+                  {
+                    "name": "nssa-1",
+                    "short-help": "OSPF NSSA type 1 external path"
+                  },
+                  {
+                    "name": "nssa-2",
+                    "short-help": "OSPF NSSA type 2 external path"
+                  }
+                ]
+              },
+              {
+                "description": "OSPF carries the external route tag and static carries its tag leaf. IS-IS carries\nno administrative tag in Ze, so a filter reading tag is refused on an IS-IS chain.",
+                "kind": "leaf-list",
+                "name": "tag",
+                "short-help": "Match routes carrying this tag",
+                "source": "config",
+                "type": "uint32"
+              }
+            ],
+            "description": "A route that meets none of the stated values passes through\nunchanged, and Ze does not reject it. The chain drops a rejected route, and a\nconditional modifier exists so that the routes it does not touch keep flowing. An\nabsent match container applies the operations to every route that reaches the modifier.\nThe values across the three leaf-lists are alternatives, so one value present in the\nroute satisfies the condition.",
+            "kind": "container",
+            "name": "match",
+            "short-help": "Condition a route meets before the operations apply.",
+            "source": "config"
+          },
+          {
+            "children": [
+              {
+                "description": "Ze prepends the local-as of the peer, which the session config\nholds. The range 1 to 32 stops the path from growing without a limit.",
+                "kind": "leaf",
+                "name": "as-path-prepend",
+                "short-help": "Prepend the local AS to AS_PATH this many times.",
+                "source": "config",
+                "type": "uint8"
+              },
+              {
+                "description": "Ze adds the values to the COMMUNITIES attribute of RFC 1997 and keeps every community\nalready on the route. Ze reads each value at config load, and refuses the modifier when one\ndoes not parse.",
+                "kind": "leaf-list",
+                "name": "community-add",
+                "short-help": "Standard community values to add (ASN:VAL format).",
+                "source": "config",
+                "type": "string"
+              },
+              {
+                "description": "Ze removes only the values named here, and keeps every other community of the route.\nA value the route does not carry costs nothing. Ze reads each value at config load, and\nrefuses the modifier when one does not parse.",
+                "kind": "leaf-list",
+                "name": "community-remove",
+                "short-help": "Standard community values to remove (ASN:VAL format).",
+                "source": "config",
+                "type": "string"
+              },
+              {
+                "description": "Ze ranks a matching route at this administrative distance in the Loc-RIB,\nin place of the distance declared for its protocol. A Loc-RIB import chain only: the\ninstance is refused on a BGP chain. Removing the filter returns the route to the\ndeclared distance.",
+                "kind": "leaf",
+                "name": "distance",
+                "short-help": "Set the administrative distance of a Loc-RIB route (0-255).",
+                "source": "config",
+                "type": "uint8"
+              },
+              {
+                "description": "The EXTENDED COMMUNITIES attribute is RFC 4360, type 16, and each value is 8 bytes.\ntarget names a Route Target and origin names a Route Origin. A hex string writes the 8 bytes\nZe has no keyword for.",
+                "kind": "leaf-list",
+                "name": "extended-community-add",
+                "short-help": "Extended community values to add (target:ASN:NN or hex).",
+                "source": "config",
+                "type": "string"
+              },
+              {
+                "description": "Ze removes only the values named here, and leaves the standard and large communities of\nthe route untouched. A value the route does not carry costs nothing.",
+                "kind": "leaf-list",
+                "name": "extended-community-remove",
+                "short-help": "Extended community values to remove (target:ASN:NN or hex).",
+                "source": "config",
+                "type": "string"
+              },
+              {
+                "description": "The LARGE COMMUNITIES attribute is RFC 8092, type 32, and it carries three 4-byte\nfields. A 4-byte ASN therefore fits, which a standard community cannot hold.",
+                "kind": "leaf-list",
+                "name": "large-community-add",
+                "short-help": "Large community values to add (GA:LD1:LD2 format).",
+                "source": "config",
+                "type": "string"
+              },
+              {
+                "description": "Ze removes only the values named here, and leaves the standard and extended communities\nof the route untouched. A value the route does not carry costs nothing.",
+                "kind": "leaf-list",
+                "name": "large-community-remove",
+                "short-help": "Large community values to remove (GA:LD1:LD2 format).",
+                "source": "config",
+                "type": "string"
+              },
+              {
+                "description": "Ze replaces the value the route carried. RFC 4271 Section 5.1.5 forbids the attribute\nin an UPDATE to an external peer, so the value serves the local decision process and the\ninternal peers. The leaf is mutually exclusive with increment local-preference and decrement\nlocal-preference.",
+                "kind": "leaf",
+                "name": "local-preference",
+                "short-help": "Set LOCAL_PREF attribute (RFC 4271 type 5).",
+                "source": "config",
+                "type": "uint32"
+              },
+              {
+                "description": "Ze replaces the metric the route carried, and writes one on a route that carried none.\nThe leaf is mutually exclusive with del med, increment med and decrement med, and Ze refuses\na modifier that carries two of them.",
+                "kind": "leaf",
+                "name": "med",
+                "short-help": "Set MULTI_EXIT_DISC attribute (RFC 4271 type 4).",
+                "source": "config",
+                "type": "uint32"
+              },
+              {
+                "description": "NEXT_HOP is RFC 4271 type 3, and it carries an IPv4 address\nonly. An IPv6 next-hop travels in the MP_REACH attribute instead, so this leaf does not\nset one.",
+                "kind": "leaf",
+                "name": "next-hop",
+                "short-help": "Set the NEXT_HOP attribute of the route.",
+                "source": "config",
+                "type": "ip-address"
+              },
+              {
+                "description": "The decision process reads the attribute at step 3, after LOCAL_PREF and the AS_PATH\nlength. igp wins over egp, and egp wins over incomplete. Ze replaces whatever the route\ncarried.",
+                "kind": "leaf",
+                "name": "origin",
+                "short-help": "Set ORIGIN attribute (RFC 4271 type 1).",
+                "source": "config",
+                "type": "enumeration",
+                "values": [
+                  {
+                    "name": "egp",
+                    "short-help": "The route came from the retired EGP protocol."
+                  },
+                  {
+                    "name": "igp",
+                    "short-help": "The route started inside the local AS."
+                  },
+                  {
+                    "name": "incomplete",
+                    "short-help": "The route came from another source, such as redistribution."
+                  }
+                ]
+              },
+              {
+                "description": "Ze replaces the route's tag in the Loc-RIB with this value. A Loc-RIB\nimport chain only: the instance is refused on a BGP chain.",
+                "kind": "leaf",
+                "name": "tag",
+                "short-help": "Set the tag of a Loc-RIB route.",
+                "source": "config",
+                "type": "uint32"
+              }
+            ],
+            "description": "Ze applies only the leaves that are present in this container,\nand keeps every other attribute unchanged.",
+            "kind": "container",
+            "name": "set",
+            "short-help": "Attributes Ze sets on a matching route.",
+            "source": "config"
+          }
+        ],
+        "description": "Ze modifies only the declared leaves, and keeps every undeclared\nattribute unchanged. One modifier can change several attributes.",
+        "kind": "list[name]",
+        "name": "modify",
+        "short-help": "Named route attribute modifier instance.",
+        "source": "config"
+      },
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "description": "The first entry that matches a route prefix decides it, and no later entry is read for\nthat prefix. A prefix that matches no entry is rejected, so a list needs no closing reject\nentry.",
+                "kind": "leaf",
+                "name": "action",
+                "short-help": "Action applied when this entry matches a route prefix.",
+                "source": "config",
+                "type": "enumeration",
+                "values": [
+                  {
+                    "name": "accept",
+                    "short-help": "Accept route prefixes matching this entry."
+                  },
+                  {
+                    "name": "reject",
+                    "short-help": "Reject route prefixes matching this entry."
+                  }
+                ]
+              },
+              {
+                "description": "Ze refuses a value of more than 32 on an IPv4 entry, and more than 128 on an IPv6\nentry. Ze also refuses a ge greater than the le of the same entry. Write 0.0.0.0/0 with ge 8\nand le 24 to accept every route between /8 and /24.",
+                "kind": "leaf",
+                "name": "ge",
+                "short-help": "Minimum match length (greater-than-or-equal).\nDefaults to the prefix length of this entry.",
+                "source": "config",
+                "type": "uint8"
+              },
+              {
+                "description": "The default accepts every length inside the entry, so an entry with no le and no ge\nmatches the prefix and everything under it. Ze refuses a value greater than the family\nmaximum rather than letting the entry match nothing.",
+                "kind": "leaf",
+                "name": "le",
+                "short-help": "Maximum match length (less-than-or-equal).\nDefaults to 32 for IPv4 or 128 for IPv6.",
+                "source": "config",
+                "type": "uint8"
+              }
+            ],
+            "description": "Ze judges each prefix of an UPDATE on its own. An UPDATE whose prefixes are all accepted\npasses unchanged, and one whose prefixes are all rejected is dropped. A mixed UPDATE is\nrewritten to carry the accepted prefixes only. An UPDATE that carries no prefix is accepted.",
+            "kind": "list[prefix]",
+            "name": "entry",
+            "short-help": "Ordered match entry. First match wins per route prefix.",
+            "source": "config"
+          }
+        ],
+        "description": "Each list holds an ordered set of match entries. Ze evaluates\nthe entries in order, and the first match wins. A route prefix\nthat matches no entry is denied.",
+        "kind": "list[name]",
+        "name": "prefix-list",
+        "short-help": "Named prefix-list filter instance.",
+        "source": "config"
+      },
+      {
+        "children": [
+          {
+            "description": "The keyword is the union of the other three, so it rejects the ASN wherever it sits. The\nreject log line still names which of the three caught the route.",
+            "kind": "leaf-list",
+            "name": "anywhere",
+            "short-help": "Reject these ASNs at any position: direct, transit and origin together.",
+            "source": "config",
+            "type": "asn"
+          },
+          {
+            "description": "The position is the leading run of tokens equal to the ASN of the sending peer, so four\nprepends are one direct position. On export no ASN is direct, because the filter input carries\nthe destination peer rather than the sender. A path that starts with another ASN is a leak, and\ndirect does not catch it.",
+            "kind": "leaf-list",
+            "name": "direct",
+            "short-help": "Reject these ASNs where they are the peer we are talking to, prepends collapsed.",
+            "source": "config",
+            "type": "asn"
+          },
+          {
+            "description": "The keyword covers transit and origin together. It is the leaf an operator writes for RFC\n7454 Section 9. The route reached you through the ASN, and a direct session with that ASN is\nstill fine. On export the sender is unknown, so indirect covers the whole path.",
+            "kind": "leaf-list",
+            "name": "indirect",
+            "short-help": "Reject these ASNs anywhere they are NOT the peer we are talking to.",
+            "source": "config",
+            "type": "asn"
+          },
+          {
+            "children": [
+              {
+                "description": "The completion of the leaf offers a curated table of transit-free networks, and that\ntable constrains nothing. Every ASN the type admits stays valid, and an ASN the table never\nheld is accepted with no warning. show bgp reject-asn known transit-free prints the table.",
+                "kind": "leaf-list",
+                "name": "asn",
+                "short-help": "The ASNs this position rejects.",
+                "source": "config",
+                "type": "asn"
+              }
+            ],
+            "description": "Ze counts the positions from us, and 1 is the ASN we are talking to. A run of consecutive\nidentical ASNs counts once, so a peer cannot move your rule by a prepend. The keyword cuts\nacross the other five, because an ASN at position 2 CAN also be transit.",
+            "kind": "list[index]",
+            "name": "nth",
+            "short-help": "Reject the listed ASNs at one collapsed position of the AS_PATH.",
+            "source": "config"
+          },
+          {
+            "description": "The last ASN of the path announced the route. The leading run of the sender wins over that\nlast position, so a lone ASN sent by the peer that owns it is direct rather than the origin.",
+            "kind": "leaf-list",
+            "name": "origin",
+            "short-help": "Reject these ASNs where they are the last ASN of the AS_PATH.",
+            "source": "config",
+            "type": "asn"
+          },
+          {
+            "description": "No position applies to a pattern. Ze matches it against the flat path, so a pattern reaches\nan ASN inside an AS_SET and meets no bracket. The 512-character bound is the bound\nbgp-filter-aspath applies to a regex. Ze reads the patterns only when no position matched.",
+            "kind": "leaf-list",
+            "name": "regex",
+            "short-help": "Go RE2 patterns matched against the whole space-separated AS_PATH string.",
+            "source": "config",
+            "type": "string"
+          },
+          {
+            "description": "A token is transit when it sits neither inside the leading run of the sender nor at the\nend of the path. Ze gives every token exactly one of direct, transit and origin.",
+            "kind": "leaf-list",
+            "name": "transit",
+            "short-help": "Reject these ASNs where they sit past the peer and are not the last ASN of the AS_PATH.",
+            "source": "config",
+            "type": "asn"
+          }
+        ],
+        "description": "Every ASN written under the list is looked for in the AS_PATH of the route. The keyword it\nsits under decides which positions reject it. The list is an unordered reject set, so any keyword\nthat matches rejects the route and no keyword wins over another. Ze reads the positions first and\nthe patterns after them.",
+        "kind": "list[name]",
+        "name": "reject-asn",
+        "short-help": "Named list of ASNs rejected by their position in the AS_PATH.",
+        "source": "config"
+      },
+      {
+        "children": [
+          {
+            "description": "RFC 6996 Section 5 gives the ranges, which are 64512 to 65534 and 4200000000 to\n4294967294. An absent leaf strips each of those ASNs, so the path loses one hop for each.\npeer-as writes the ASN of the peer in its place, so the path keeps its length.",
+            "kind": "leaf",
+            "name": "replace-with",
+            "short-help": "Replacement mode. When absent, Private Use ASNs are stripped.",
+            "source": "config",
+            "type": "enumeration",
+            "values": [
+              {
+                "name": "peer-as",
+                "short-help": "Replace Private Use ASNs with the neighbor peer ASN."
+              }
+            ]
+          }
+        ],
+        "description": "Ze rewrites AS_PATH and AS4_PATH, and the filter runs on an import chain and on an export\nchain. A path that carries no Private Use ASN passes through unchanged.",
+        "kind": "list[name]",
+        "name": "remove-private-as",
+        "short-help": "Named action filter that removes RFC 6996 Private Use ASNs.",
+        "source": "config"
+      },
+      {
+        "children": [
+          {
             "description": "Name one interface, or several. The entries are an OR: Ze\ninstalls one nftables rule for each entry, and a packet that\narrives on any one of them matches. A trailing * matches by\nprefix, so the entry l2tp* matches l2tp0 and l2tp1. Each\nentry keeps its own wildcard state, so one list holds eth0\nand l2tp* together. With no interface named, the policy\nmatches every ingress interface.",
             "kind": "leaf-list",
             "name": "interface",
@@ -24801,10 +25164,10 @@
         "source": "config"
       }
     ],
-    "description": "Ze merges every policy into one nftables table named ze_pr. The\nchain of that table attaches to the prerouting hook at priority\n-150. A rule marks the packet, and an ip rule then selects the\nkernel routing table for that mark. A packet that matches no rule\nkeeps the routing decision of the main table.",
+    "description": "Each filter type is a list that its plugin adds through an augment and marks\nze:filter. An entry of such a list is a named filter instance, and an import or\nexport chain references it by name. One name belongs to one filter type only.\nPolicy routing adds its route list here too; a route entry is never a filter.",
     "kind": "container",
     "name": "policy",
-    "short-help": "Policy routing configuration.",
+    "short-help": "Route policy filters and policy routing.",
     "source": "config"
   },
   "pppoe": {
@@ -25048,6 +25411,50 @@
         "short-help": "Protocols whose selected routes are not programmed into the\nFIB. An empty list programs all.",
         "source": "config",
         "type": "string"
+      },
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "description": "Run these filter instances in order. Each one passes the route on or\nrejects it; a filter type with no Loc-RIB route evaluator is refused.",
+                "kind": "leaf-list",
+                "name": "filters",
+                "short-help": "Ordered filter instance references",
+                "source": "config",
+                "type": "string"
+              },
+              {
+                "description": "Every present import policy must set final accept or final reject, even with no filters.",
+                "kind": "leaf",
+                "name": "final",
+                "short-help": "Decision after every filter passes",
+                "source": "config",
+                "type": "enumeration",
+                "values": [
+                  {
+                    "name": "accept",
+                    "short-help": "Accept a route that passes every filter"
+                  },
+                  {
+                    "name": "reject",
+                    "short-help": "Reject a route that passes every filter"
+                  }
+                ]
+              }
+            ],
+            "description": "A rejected route stays in the Loc-RIB as a hidden path that is never selected,\nso relaxing the chain re-admits it without the protocol sending it again. The\nsource's chain runs first, then the rib chain.",
+            "kind": "container",
+            "name": "import",
+            "short-help": "Import policy into the Loc-RIB",
+            "source": "config"
+          }
+        ],
+        "description": "A name references a filter instance defined under the top-level policy root. The\nchain judges routes as they enter the Loc-RIB; a protocol's own database (an IS-IS\nLSDB, an OSPF LSDB) is never filtered.",
+        "kind": "container",
+        "name": "filter",
+        "short-help": "Route filter chains into the Loc-RIB.",
+        "source": "config"
       }
     ],
     "description": "The system RIB takes the best route each protocol offers and\nselects one system best for each prefix. The FIB plugins program\nthat winner into the kernel with netlink, into VPP, or into a P4\nswitch. The kernel FIB carries no administrative distance field, so\nthe ranking happens here and only the winner reaches netlink. The\ndistance container below is the one declaration of every protocol's\nadministrative distance. The fib-withhold leaf-list beside it names\nthe protocols whose winners are not programmed. Routes reach the\nsystem RIB from the protocols, never from this block.",
@@ -26265,12 +26672,12 @@
           {
             "children": [
               {
-                "description": "The value names a `host-set` entry. A commit that names an unknown set is refused with\n'references unknown host-set', and a source with no value here is refused as well. A client\nthis prefix matches is answered from that set alone.",
+                "description": "The value names a `host-set` entry. The editor completes the configured sets, a commit\nthat names any other set is refused, and a source with no value here is refused as well. A\nclient this prefix matches is answered from that set alone.",
                 "kind": "leaf",
                 "name": "host-set",
                 "short-help": "Name of the host-set to answer for clients matching this prefix",
                 "source": "config",
-                "type": "string"
+                "type": "leafref"
               }
             ],
             "description": "Maps a client-IP prefix to a host-set. The longest prefix wins. 0.0.0.0/0 and ::/0 are the catch-all\nexternal default.",
@@ -26471,6 +26878,50 @@
           {
             "children": [
               {
+                "description": "Run these filter instances in order. Each one passes the route on or\nrejects it; a filter type with no Loc-RIB route evaluator is refused.",
+                "kind": "leaf-list",
+                "name": "filters",
+                "short-help": "Ordered filter instance references",
+                "source": "config",
+                "type": "string"
+              },
+              {
+                "description": "Every present import policy must set final accept or final reject, even with no filters.",
+                "kind": "leaf",
+                "name": "final",
+                "short-help": "Decision after every filter passes",
+                "source": "config",
+                "type": "enumeration",
+                "values": [
+                  {
+                    "name": "accept",
+                    "short-help": "Accept a route that passes every filter"
+                  },
+                  {
+                    "name": "reject",
+                    "short-help": "Reject a route that passes every filter"
+                  }
+                ]
+              }
+            ],
+            "description": "A rejected route stays in the Loc-RIB as a hidden path that is never selected,\nso relaxing the chain re-admits it without the protocol sending it again. The\nsource's chain runs first, then the rib chain.",
+            "kind": "container",
+            "name": "import",
+            "short-help": "Import policy into the Loc-RIB",
+            "source": "config"
+          }
+        ],
+        "description": "A name references a filter instance defined under the top-level policy root. The\nchain judges routes as they enter the Loc-RIB; a protocol's own database (an IS-IS\nLSDB, an OSPF LSDB) is never filtered.",
+        "kind": "container",
+        "name": "filter",
+        "short-help": "Route filter chains into the Loc-RIB.",
+        "source": "config"
+      },
+      {
+        "children": [
+          {
+            "children": [
+              {
                 "children": [
                   {
                     "children": [
@@ -26495,7 +26946,7 @@
                           {
                             "children": [
                               {
-                                "description": "BFD profile name (from bfd/profile list). When the BFD session to this next-hop goes down, Ze\nremoves the next-hop from the ECMP group. Ze then reprograms the route with the remaining active\nnext-hops. The session is single-hop, so a commit is refused when the profile is not defined or\nsets passive (RFC 5881 Section 3).",
+                                "description": "BFD profile name (from bfd/profile list). When the BFD session to this next-hop goes down, Ze\nremoves the next-hop from the ECMP group. Ze then reprograms the route with the remaining active\nnext-hops. Commit, ze config validate and a SIGHUP reload refuse a name no bfd profile defines,\nnaming the profiles that exist; the editor completes those names. The leaf names a list of\nanother module that a build without BFD leaves out, so it is a ze:reference, not a leafref.\nThe session is single-hop, so a commit is also refused when the profile sets passive\n(RFC 5881 Section 3).",
                                 "kind": "leaf",
                                 "name": "bfd-profile",
                                 "short-help": "BFD profile name for this next-hop, from the bfd/profile list.",
@@ -27110,12 +27561,12 @@
           {
             "children": [
               {
-                "description": "These local profiles govern the authenticated session.\nA missing, empty or all-reserved profile mapping denies\nlogin. To deny a privilege level, omit its mapping.\nLocal command authorization denies when none of the\nnamed profiles exists in the local policy store.",
+                "description": "These local profiles govern the authenticated session. A commit rejects a\nname that no profile under system authorization defines, naming the\nprofiles that exist. The path is absolute because the profile list lives\nin the ze-authz-conf module's system container, not this module's.\nA missing, empty or all-reserved profile mapping denies\nlogin. To deny a privilege level, omit its mapping.\nLocal command authorization denies when none of the\nnamed profiles exists in the local policy store.",
                 "kind": "leaf-list",
                 "name": "profile",
                 "short-help": "Ze authorization profiles for this privilege level. At least one is required.",
                 "source": "config",
-                "type": "string"
+                "type": "leafref"
               }
             ],
             "description": "The list turns the privilege level Ze resolves for a\nsession into the ze authorization profiles of that session.\nA level with no entry here denies the login, so this mapping\nis what grants access, and not the PASS from the server. Ze\nalso removes a reserved profile name from the set, and a\nlevel that then resolves to nothing denies the login too.",
@@ -27143,12 +27594,12 @@
                 "type": "string"
               },
               {
-                "description": "Authorization profile names assigned to this user. A commit rejects a name that no profile\nunder system authorization defines, and it rejects a reserved name. Once one profile\nexists, a user with no name here authenticates and is then denied every command.",
+                "description": "Authorization profile names assigned to this user. A commit rejects a name that no profile\nunder system authorization defines, naming the profiles that exist, and it rejects a reserved name. Once one profile\nexists, a user with no name here authenticates and is then denied every command.",
                 "kind": "leaf-list",
                 "name": "profile",
                 "short-help": "Authorization profile name(s) assigned to this user",
                 "source": "config",
-                "type": "string"
+                "type": "leafref"
               },
               {
                 "children": [
@@ -29299,7 +29750,7 @@
                   {
                     "children": [
                       {
-                        "description": "Ze compares the name against nothing, so a name no PKI store entry\ncarries still commits. The trust anchor of a handshake comes from the\nca-certificate leaf of the site-to-site peer.",
+                        "description": "A commit refuses a name that is not a ca entry of the PKI store. The trust\nanchor of a handshake comes from the ca-certificate leaf of the site-to-site\npeer.",
                         "kind": "leaf",
                         "name": "ca-certificate",
                         "short-help": "Name of the CA certificate in the PKI store.\nIt has no effect today.",
@@ -29307,7 +29758,7 @@
                         "type": "string"
                       },
                       {
-                        "description": "Ze compares the name against nothing, so a name no PKI store entry\ncarries still commits. The certificate a handshake presents comes from\nthe certificate leaf of the site-to-site peer.",
+                        "description": "A commit refuses a name that is not a certificate entry of the PKI store.\nThe certificate a handshake presents comes from the certificate leaf of the\nsite-to-site peer.",
                         "kind": "leaf",
                         "name": "certificate",
                         "short-help": "Name of the server certificate in the PKI store.\nIt has no effect today.",
@@ -29315,7 +29766,7 @@
                         "type": "string"
                       }
                     ],
-                    "description": "Server certificate references for EAP. Ze parses\nboth leaves and no component reads them today, so neither\ntakes effect. Ze also leaves both unchecked, so a name that\nno PKI store entry carries still commits here. The enforced\nleaves of these names are the site-to-site peer ones.",
+                    "description": "Server certificate references for EAP. Ze parses\nboth leaves and no component reads them today, so neither\ntakes effect. A commit still refuses a name the PKI store does\nnot hold, and the editor completes the store's entries. The\nleaves a handshake reads are the site-to-site peer ones.",
                     "kind": "container",
                     "name": "x509",
                     "short-help": "Server certificate references for EAP.",
@@ -29331,7 +29782,7 @@
               {
                 "children": [
                   {
-                    "description": "Ze reads the leaf when the mode of the authentication block is eap-tls,\nand ignores it under every other mode. Commit refuses an empty value under\neap-tls. The name is compared against nothing, so a name the PKI store does\nnot hold still commits.",
+                    "description": "Ze reads the leaf when the mode of the authentication block is eap-tls,\nand ignores it under every other mode. Commit refuses an empty value under\neap-tls, and a name that is not a certificate entry of the PKI store under any\nmode.",
                     "kind": "leaf",
                     "name": "certificate",
                     "short-help": "Client certificate name in PKI store. Required for eap-tls.",
@@ -29359,7 +29810,7 @@
                 "name": "esp-group",
                 "short-help": "Reference to an ESP group name.",
                 "source": "config",
-                "type": "string"
+                "type": "leafref"
               },
               {
                 "description": "The group MUST be declared under vpn ipsec ike-group, and commit refuses a\nname no group carries. No other code reads the reference, because no remote\naccess session runs.",
@@ -29367,7 +29818,7 @@
                 "name": "ike-group",
                 "short-help": "Reference to an IKE group name.",
                 "source": "config",
-                "type": "string"
+                "type": "leafref"
               },
               {
                 "children": [
@@ -29594,6 +30045,187 @@
                         ]
                       },
                       {
+                        "children": [
+                          {
+                            "children": [
+                              {
+                                "description": "Name of the device certificate in the PKI store that signs the AUTH of\nthis round. Required when the mode is x509. Ze sends this certificate first,\nthen the intermediate certificate the PKI entry carries.",
+                                "kind": "leaf",
+                                "name": "certificate",
+                                "short-help": "Name of the second-round device certificate in the PKI store.",
+                                "source": "config",
+                                "type": "string"
+                              },
+                              {
+                                "description": "The identity Ze asserts in its second round, under the rules of local-id:\nan IP address literal goes out as ID_IPV4_ADDR or ID_IPV6_ADDR and every other\nvalue as ID_FQDN. Commit refuses a distinguished name, a subtree and an address\nrange, and refuses the round when this leaf is not set: the round asserts an\nidentity of its own, and a peer such as strongSwan selects the round's\npre-shared key by that identity.",
+                                "kind": "leaf",
+                                "name": "id",
+                                "short-help": "Local identity asserted in the second round (required).",
+                                "source": "config",
+                                "type": "string"
+                              },
+                              {
+                                "description": "Ze reads pre-shared-secret for mode pre-shared-secret and certificate for\nmode x509. An EAP method cannot run in a second round.",
+                                "kind": "leaf",
+                                "name": "mode",
+                                "short-help": "How Ze authenticates in its second round.",
+                                "source": "config",
+                                "type": "enumeration",
+                                "values": [
+                                  {
+                                    "name": "pre-shared-secret",
+                                    "short-help": "Prove the secret taken from the pre-shared-secret leaf of this round."
+                                  },
+                                  {
+                                    "name": "x509",
+                                    "short-help": "Sign AUTH with the certificate named in this round."
+                                  }
+                                ]
+                              },
+                              {
+                                "description": "Ze reads the leaf when the mode of this round is pre-shared-secret. The $9$\nwrapper is removed first, and pre-shared-secret-encoding then decides whether the\nresult is ASCII text or hexadecimal digit pairs.",
+                                "kind": "leaf",
+                                "name": "pre-shared-secret",
+                                "short-help": "Pre-shared key of the second round ($9$-encoded).",
+                                "source": "config",
+                                "type": "string"
+                              },
+                              {
+                                "description": "The encoding is stated here and never guessed from the value, as for the\nfirst round. A hex value with an odd length or a non-hexadecimal character is\nrefused at commit rather than read as ASCII.",
+                                "kind": "leaf",
+                                "name": "pre-shared-secret-encoding",
+                                "short-help": "How to read the pre-shared-secret value of the second round.",
+                                "source": "config",
+                                "type": "enumeration",
+                                "values": [
+                                  {
+                                    "name": "ascii",
+                                    "short-help": "Read the secret as ASCII text, one octet for each character."
+                                  },
+                                  {
+                                    "name": "hex",
+                                    "short-help": "Read the secret as hexadecimal digit pairs, two digits for each octet."
+                                  }
+                                ]
+                              }
+                            ],
+                            "description": "The credential Ze proves in its second round, with the identity it\nasserts for that round. Commit refuses mode x509 with no certificate and mode\npre-shared-secret with no pre-shared-secret.",
+                            "kind": "container",
+                            "name": "local",
+                            "short-help": "The credential Ze proves to this peer in its second round.",
+                            "source": "config"
+                          },
+                          {
+                            "children": [
+                              {
+                                "description": "Name of the CA certificate in the PKI store that the peer's second-round\ncertificate must chain to. Required when the mode is x509. The certificate must\nalso carry the id of this round in a subject alternative name.",
+                                "kind": "leaf",
+                                "name": "ca-certificate",
+                                "short-help": "Name of the second-round CA certificate in the PKI store.",
+                                "source": "config",
+                                "type": "string"
+                              },
+                              {
+                                "description": "The identity the peer must assert in its second round, under the rules of\nremote-id: one identity, or a set written with the hierarchy separator in front,\nsuch as '.example.com' or an address prefix. When it is empty Ze checks no\nidentity in this round.",
+                                "kind": "leaf",
+                                "name": "id",
+                                "short-help": "Identity the remote endpoint must assert in the second round.",
+                                "source": "config",
+                                "type": "string"
+                              },
+                              {
+                                "description": "The one IKE ID type the peer can assert in its second round, under the\nrules of remote-id-type. When it is absent any type Ze can compare is accepted.",
+                                "kind": "leaf",
+                                "name": "id-type",
+                                "short-help": "The one IKE ID type the peer can assert in the second round.",
+                                "source": "config",
+                                "type": "enumeration",
+                                "values": [
+                                  {
+                                    "name": "der-asn1-dn",
+                                    "short-help": "ID_DER_ASN1_DN, the DER-encoded subject name of a certificate."
+                                  },
+                                  {
+                                    "name": "fqdn",
+                                    "short-help": "ID_FQDN, a fully qualified domain name."
+                                  },
+                                  {
+                                    "name": "ipv4-address",
+                                    "short-help": "ID_IPV4_ADDR, an IPv4 address in four octets."
+                                  },
+                                  {
+                                    "name": "ipv6-address",
+                                    "short-help": "ID_IPV6_ADDR, an IPv6 address in sixteen octets."
+                                  },
+                                  {
+                                    "name": "key-id",
+                                    "short-help": "ID_KEY_ID, an opaque octet string no certificate field can bind."
+                                  },
+                                  {
+                                    "name": "rfc822-address",
+                                    "short-help": "ID_RFC822_ADDR, a mail address such as user@example.com."
+                                  }
+                                ]
+                              },
+                              {
+                                "description": "Ze reads pre-shared-secret for mode pre-shared-secret and ca-certificate for\nmode x509. An EAP method cannot run in a second round.",
+                                "kind": "leaf",
+                                "name": "mode",
+                                "short-help": "How the peer authenticates in its second round.",
+                                "source": "config",
+                                "type": "enumeration",
+                                "values": [
+                                  {
+                                    "name": "pre-shared-secret",
+                                    "short-help": "The peer proves the secret taken from the pre-shared-secret leaf of this round."
+                                  },
+                                  {
+                                    "name": "x509",
+                                    "short-help": "The peer signs AUTH with a certificate that chains to ca-certificate."
+                                  }
+                                ]
+                              },
+                              {
+                                "description": "Ze reads the leaf when the mode of this round is pre-shared-secret. The $9$\nwrapper is removed first, and pre-shared-secret-encoding then decides whether the\nresult is ASCII text or hexadecimal digit pairs.",
+                                "kind": "leaf",
+                                "name": "pre-shared-secret",
+                                "short-help": "Pre-shared key the peer proves in the second round ($9$-encoded).",
+                                "source": "config",
+                                "type": "string"
+                              },
+                              {
+                                "description": "The encoding is stated here and never guessed from the value, as for the\nfirst round. A hex value with an odd length or a non-hexadecimal character is\nrefused at commit rather than read as ASCII.",
+                                "kind": "leaf",
+                                "name": "pre-shared-secret-encoding",
+                                "short-help": "How to read the pre-shared-secret value of the second round.",
+                                "source": "config",
+                                "type": "enumeration",
+                                "values": [
+                                  {
+                                    "name": "ascii",
+                                    "short-help": "Read the secret as ASCII text, one octet for each character."
+                                  },
+                                  {
+                                    "name": "hex",
+                                    "short-help": "Read the secret as hexadecimal digit pairs, two digits for each octet."
+                                  }
+                                ]
+                              }
+                            ],
+                            "description": "The credential the peer must prove in its second round, with the identity\nit must assert. Commit refuses mode x509 with no ca-certificate and mode\npre-shared-secret with no pre-shared-secret.",
+                            "kind": "container",
+                            "name": "remote",
+                            "short-help": "The credential this peer must prove in its second round.",
+                            "source": "config"
+                          }
+                        ],
+                        "description": "A second authentication round in each direction, after the round the leaves\nabove configure (RFC 4739). Ze announces MULTIPLE_AUTH_SUPPORTED to this peer only\nwhen local or remote below holds a round, and runs each round in its own IKE_AUTH\nexchange, signing over the identity of that round. The tunnel establishes only\nwhen every configured round succeeded. A peer that starts a second round remote\ndoes not configure is refused with AUTHENTICATION_FAILED, and so is a peer that\nfinishes without the round remote configures. When the peer does not announce\nMULTIPLE_AUTH_SUPPORTED, Ze completes with the first round alone and logs a\nwarning that the local round was skipped. Commit refuses a second round on a peer\nwhose mode is an EAP method. RFC 4739 Section 5: when the initiator authenticates\nmore than once, the responder reveals its identity before all of the initiator's\nrounds have completed.",
+                        "kind": "container",
+                        "name": "second-round",
+                        "short-help": "A second authentication round in each direction (RFC 4739).",
+                        "source": "config"
+                      },
+                      {
                         "description": "RFC 9190 Section 2.1.3 leaves resumption to each end: 'It is up\nto the EAP-TLS peer to use resumption', and 'the EAP-TLS server\nMAY choose to require a full handshake'. This leaf is that\nchoice, and it covers both roles of this peer.\n\nWith it true, an authentication that follows an earlier one\nskips the certificate exchange and reuses the session the ticket\ncarries. Ze still checks the cached chain against the current\nca-certificate and crl before it accepts the session, on both\nroles, so a revoked or expired certificate is refused on a\nresumed authentication as it is on a full one.\n\nWith it false every authentication runs a full handshake. Ze\nstill SENDS a session ticket, because RFC 9190 Section 2.1.2\nmakes that a MUST with no condition on it; the ticket is simply\nnever accepted back.\n\nChanging this leaf, the certificate, the ca-certificate or the\ncrl discards every ticket ze holds for this peer.",
                         "kind": "leaf",
                         "name": "session-resumption",
@@ -29657,7 +30289,7 @@
                     "name": "esp-group",
                     "short-help": "Reference to an ESP group name.",
                     "source": "config",
-                    "type": "string"
+                    "type": "leafref"
                   },
                   {
                     "description": "The group MUST be declared under vpn ipsec ike-group, and commit refuses a\nname no group carries. It supplies the IKE proposals, the IKE SA lifetime\nand the Dead Peer Detection timers of this peer.",
@@ -29665,7 +30297,7 @@
                     "name": "ike-group",
                     "short-help": "Reference to an IKE group name.",
                     "source": "config",
-                    "type": "string"
+                    "type": "leafref"
                   },
                   {
                     "description": "The value is an IP address literal. Ze reads it with net.ParseIP, so an\ninterface name here resolves to nothing and the peer cannot build a Child\nSA. Name the interface under vpn ipsec interface instead, and Ze fills this\nleaf from the first IPv4 address of that interface.",

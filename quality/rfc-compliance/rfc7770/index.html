@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 7770 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 7770: Extensions to OSPF for Advertising Optional Router Capabilities. 11 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 7770: Extensions to OSPF for Advertising Optional Router Capabilities. 11 gated MUST-level requirements, 6 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 7770 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 7770: Extensions to OSPF for Advertising Optional Router Capabilities. 11 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 7770: Extensions to OSPF for Advertising Optional Router Capabilities. 11 gated MUST-level requirements, 6 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 7770 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 7770: Extensions to OSPF for Advertising Optional Router Capabilities. 11 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 7770: Extensions to OSPF for Advertising Optional Router Capabilities. 11 gated MUST-level requirements, 6 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -122,18 +122,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>27.3%</strong><b>3 of 11 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 <article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>76.9%</strong><b>10 of 13 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>11</strong><b>of 25 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>7</strong><b>of 11 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>63.6%</strong><b>7 of 11 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>1</strong><b>of 11 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>9.1%</strong><b>1 of 11 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit</p></article>
+</div>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>54.5%</strong><b>6 of 11 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 </div>
 <p>The 9 shares marked as a part above are the whole of the 11 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -167,7 +171,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
 </tr>
 <tr><td>No test at all</td>
-<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
 </tr>
 <tr><td>Not applicable</td>
@@ -217,10 +221,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>11</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
-<td>7</td>
+<td>1</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>0</td>
+<td>6</td>
 </tr>
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
@@ -257,14 +261,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Enrolled: OSPF Router Information LSA (RFC 7770): 1 MET (capabilities reflect config) + 3 single-polarity positive (TLV ordering, functional-cap zero) + 7 not-applicable (IETF document-author / IANA-process obligations)</p>
+<p>Enrolled: OSPF Router Information LSA (RFC 7770): ze is an OSPF router that originates the RI LSA. 1 MET (capabilities reflect config) + 3 single-polarity positive (TLV ordering, functional-cap zero) + 1 not-applicable (2.6-3 binds the specifications for functional capabilities) + 6 gaps: five obligations of IETF document authors and the IANA process whose sentences the evidence shapes do not admit, with no ze producer to test, and the Vendor Private Use Enterprise Code rule, which holds by construction with no test</p>
 </section>
 <section><h2>What the public ledger says</h2>
 <p><strong>Status:</strong> Experimental</p>
 <p><strong>What the ledger says is covered:</strong></p>
 Router Information LSA body and multi-instance ordering.
 <p><strong>What the ledger says remains:</strong></p>
-Same OSPF experimental status.
+Same OSPF experimental status. Six gaps, each annotated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc7770.md" target="_blank" rel="noopener"><code>rfc/short/rfc7770.md</code></a>: five bind IETF document authors or the IANA process and leave nothing in ze to test, and <a href="#rfc7770-5.2-1"><code>RFC7770-5.2-1</code></a> holds by construction with no test.
 </section>
 <section><h2>Coverage</h2>
 <div class="rfc-table-wrap">
@@ -307,7 +311,7 @@ Same OSPF experimental status.
 <p class="rfc-id-list"><strong>Annotated (including scoped evidence) (10):</strong> <a href="#rfc7770-2.4-1"><code>RFC7770-2.4-1</code></a>, <a href="#rfc7770-2.6-1"><code>RFC7770-2.6-1</code></a>, <a href="#rfc7770-2.6-2"><code>RFC7770-2.6-2</code></a>, <a href="#rfc7770-2.3-1"><code>RFC7770-2.3-1</code></a>, <a href="#rfc7770-2.6-3"><code>RFC7770-2.6-3</code></a>, <a href="#rfc7770-2.7-1"><code>RFC7770-2.7-1</code></a>, <a href="#rfc7770-5.2-1"><code>RFC7770-5.2-1</code></a>, <a href="#rfc7770-2-1"><code>RFC7770-2-1</code></a>, <a href="#rfc7770-5.3-1"><code>RFC7770-5.3-1</code></a>, <a href="#rfc7770-5.2-2"><code>RFC7770-5.2-2</code></a></p>
 </section>
 <section><h2>Attainable ceiling</h2>
-<p>Mandatory ceiling: 4 of 11 (36.4%); excluded: Not applicable (classification can be revisited): 7 of 11 (63.6%). Optional ceiling: 14 of 14 (100.0%). Lowest mandatory ceiling: rfc7770 4 of 11 (36.4%). Lowest optional ceiling: rfc7770 14 of 14 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.</p>
+<p>Mandatory ceiling: 10 of 11 (90.9%); excluded: Not applicable (classification can be revisited): 1 of 11 (9.1%). Optional ceiling: 14 of 14 (100.0%). Lowest mandatory ceiling: rfc7770 10 of 11 (90.9%). Lowest optional ceiling: rfc7770 14 of 14 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.</p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -364,7 +368,7 @@ Same OSPF experimental status.
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7770-2.3-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> this binds the author of an IETF specification that defines a new RI TLV; ze implements TLVs but publishes no such specification, so it plays no role this MUST governs</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> the obligation falls on the specification that defines a new Router Information LSA TLV, and ze writes none; the sentence names its party after a conditional clause, so neither evidence shape admits a not-applicable quote, and the row stays a gap with no ze producer to test</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7770-2.6-3">RFC7770-2.6-3</code></td><td colspan="3"><span class="rfc-subject">The specifications for functional capabilities advertised in this TLV MUST describe protocol behavior and address backwards compatibility. (§2.6)</span></td></tr>
 <tr><td></td>
@@ -373,7 +377,7 @@ Same OSPF experimental status.
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7770-2.6-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> this binds the author of a functional-capability specification; ze advertises no functional capability and authors no such document</p></td>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> &#34;The specifications for functional capabilities advertised in this TLV MUST describe protocol behavior and address backwards compatibility.&#34;; binds specifications for functional capabilities advertised in this TLV; ze writes no specification: it is an OSPF router that originates the Router Information LSA (internal/plugins/ospf/ri_registry.go) and advertises no functional capability</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7770-2.7-1">RFC7770-2.7-1</code></td><td colspan="3"><span class="rfc-subject">TLV flooding-scope rules will be specified on a per- TLV basis and MUST be specified in the accompanying specifications for future Router Information LSA TLVs. (§2.7)</span></td></tr>
 <tr><td></td>
@@ -382,7 +386,7 @@ Same OSPF experimental status.
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7770-2.7-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> this binds the author of a specification that defines a new RI-TLV; ze selects flooding scope per configuration and does not specify TLV scope rules in a standards document</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> the obligation falls on the specifications that define future Router Information LSA TLVs, and ze writes none; the sentence is in the passive voice, so neither evidence shape admits a not-applicable quote, and the row stays a gap with no ze producer to test</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7770-5.2-1">RFC7770-5.2-1</code></td><td colspan="3"><span class="rfc-subject">o OSPFv3 LSAs with an LSA Function Code in the Vendor Private Use range 8184-8190 MUST include the Enterprise Code [ENTERPRISE-CODE] as the first 4 octets following the 20 octets of LSA header. (§5.2)</span></td></tr>
 <tr><td></td>
@@ -391,7 +395,7 @@ Same OSPF experimental status.
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7770-5.2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze originates no OSPFv3 Vendor Private Use LSA (no reference to function codes 8184-8190 in internal/plugins/ospf/), so the requirement&#39;s antecedent never holds</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze originates no OSPFv3 LSA with a Vendor Private Use function code 8184-8190 (no such function code is used in internal/plugins/ospf), so no Enterprise Code is owed today; the rule holds by construction, with no test</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7770-2-1">RFC7770-2-1</code></td><td colspan="3"><span class="rfc-subject">If a new LSA Function Code is documented, the documentation MUST include the valid combinations of the U, S2, and S1 bits for the LSA. (§5.2) -- U=1 with S2/S1 = link/area/AS, 0x800C/0xA00C/0xC00C, documented in docs/architecture/wire/ospf.md</span></td></tr>
 <tr><td></td>
@@ -400,7 +404,7 @@ Same OSPF experimental status.
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7770-2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> this binds the party documenting a new OSPFv3 function code; ze implements the already-defined function code 12 rather than documenting a new one, so the antecedent is false (the U/S2/S1 combinations are recorded at docs/architecture/wire/ospf.md)</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> the obligation falls on whoever documents a new OSPFv3 LSA function code, and ze implements the existing function code 12 and documents no new one; the sentence names its party after a conditional clause, so neither evidence shape admits a not-applicable quote, and the row stays a gap with no ze producer to test</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7770-5.3-1">RFC7770-5.3-1</code></td><td colspan="3"><span class="rfc-subject">Types in the range 32778-65535 are reserved and are not to be assigned at this time. Before any assignments can be made in this range, there MUST be a Standards Track RFC that specifies IANA Considerations that cover the range being assigned. (§5.3)</span></td></tr>
 <tr><td></td>
@@ -409,7 +413,7 @@ Same OSPF experimental status.
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7770-5.3-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> this binds the IANA/IETF assignment process; ze registers no TLV type in the reserved 32778-65535 range and cannot author a Standards Track RFC</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> the obligation falls on the IETF and IANA assignment process for the reserved range 32778-65535, and ze registers no TLV type; the sentence names no party that could be quoted, so neither evidence shape admits a not-applicable quote, and the row stays a gap with no ze producer to test</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7770-5.2-2">RFC7770-5.2-2</code></td><td colspan="3"><span class="rfc-subject">New values are assigned through RFCs that have been shepherded through the IESG as AD-Sponsored or IETF WG documents [IANA-GUIDE]. o OSPFv3 LSA function codes in the range 8176-8183 are for experimental use; these will not be registered with IANA and MUST NOT be mentioned by RFCs. (§5.2)</span></td></tr>
 <tr><td></td>
@@ -418,7 +422,7 @@ Same OSPF experimental status.
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7770-5.2-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> this binds RFC authors; ze is an implementation, not an RFC, and references no experimental function code 8176-8183 in internal/plugins/ospf/</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> the obligation falls on RFCs, which may not mention the experimental function codes 8176-8183, and ze writes no RFC; the sentence is in the passive voice, so neither evidence shape admits a not-applicable quote, and the row stays a gap with no ze producer to test</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7770-2.1-1">RFC7770-2.1-1</code></td><td colspan="3"><span class="rfc-subject">The first Opaque ID, i.e., 0, SHOULD always contain the Router Informational Capabilities TLV and, if advertised, the Router Functional Capabilities TLV. (§2.1) -- Instance 0 always carries type-1 then type-2, spec-ospf-ext-3</span></td></tr>
 <tr><td></td>
@@ -556,32 +560,32 @@ Same OSPF experimental status.
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
 <tr><td><a href="#rfc7770-2.3-1"><code>RFC7770-2.3-1</code></a> When a new Router Information LSA TLV is defined, the specification MUST explicitly state whether the TLV is applicable to OSPFv2 only, OSPFv3 only, or both OSPFv2 and OSPFv3. (§2.3)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: this binds the author of an IETF specification that defines a new RI TLV; ze implements TLVs but publishes no such specification, so it plays no role this MUST governs</td>
+<td>{gap}, no test</td>
+<td>the obligation falls on the specification that defines a new Router Information LSA TLV, and ze writes none; the sentence names its party after a conditional clause, so neither evidence shape admits a not-applicable quote, and the row stays a gap with no ze producer to test</td>
 </tr>
 <tr><td><a href="#rfc7770-2.6-3"><code>RFC7770-2.6-3</code></a> The specifications for functional capabilities advertised in this TLV MUST describe protocol behavior and address backwards compatibility. (§2.6)</td>
 <td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: this binds the author of a functional-capability specification; ze advertises no functional capability and authors no such document</td>
+<td>no test carries this requirement id; annotated {not-applicable}: &#34;The specifications for functional capabilities advertised in this TLV MUST describe protocol behavior and address backwards compatibility.&#34;; binds specifications for functional capabilities advertised in this TLV; ze writes no specification: it is an OSPF router that originates the Router Information LSA (internal/plugins/ospf/ri_registry.go) and advertises no functional capability</td>
 </tr>
 <tr><td><a href="#rfc7770-2.7-1"><code>RFC7770-2.7-1</code></a> TLV flooding-scope rules will be specified on a per- TLV basis and MUST be specified in the accompanying specifications for future Router Information LSA TLVs. (§2.7)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: this binds the author of a specification that defines a new RI-TLV; ze selects flooding scope per configuration and does not specify TLV scope rules in a standards document</td>
+<td>{gap}, no test</td>
+<td>the obligation falls on the specifications that define future Router Information LSA TLVs, and ze writes none; the sentence is in the passive voice, so neither evidence shape admits a not-applicable quote, and the row stays a gap with no ze producer to test</td>
 </tr>
 <tr><td><a href="#rfc7770-5.2-1"><code>RFC7770-5.2-1</code></a> o OSPFv3 LSAs with an LSA Function Code in the Vendor Private Use range 8184-8190 MUST include the Enterprise Code [ENTERPRISE-CODE] as the first 4 octets following the 20 octets of LSA header. (§5.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: ze originates no OSPFv3 Vendor Private Use LSA (no reference to function codes 8184-8190 in internal/plugins/ospf/), so the requirement&#39;s antecedent never holds</td>
+<td>{gap}, no test</td>
+<td>ze originates no OSPFv3 LSA with a Vendor Private Use function code 8184-8190 (no such function code is used in internal/plugins/ospf), so no Enterprise Code is owed today; the rule holds by construction, with no test</td>
 </tr>
 <tr><td><a href="#rfc7770-2-1"><code>RFC7770-2-1</code></a> If a new LSA Function Code is documented, the documentation MUST include the valid combinations of the U, S2, and S1 bits for the LSA. (§5.2) -- U=1 with S2/S1 = link/area/AS, 0x800C/0xA00C/0xC00C, documented in docs/architecture/wire/ospf.md</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: this binds the party documenting a new OSPFv3 function code; ze implements the already-defined function code 12 rather than documenting a new one, so the antecedent is false (the U/S2/S1 combinations are recorded at docs/architecture/wire/ospf.md)</td>
+<td>{gap}, no test</td>
+<td>the obligation falls on whoever documents a new OSPFv3 LSA function code, and ze implements the existing function code 12 and documents no new one; the sentence names its party after a conditional clause, so neither evidence shape admits a not-applicable quote, and the row stays a gap with no ze producer to test</td>
 </tr>
 <tr><td><a href="#rfc7770-5.3-1"><code>RFC7770-5.3-1</code></a> Types in the range 32778-65535 are reserved and are not to be assigned at this time. Before any assignments can be made in this range, there MUST be a Standards Track RFC that specifies IANA Considerations that cover the range being assigned. (§5.3)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: this binds the IANA/IETF assignment process; ze registers no TLV type in the reserved 32778-65535 range and cannot author a Standards Track RFC</td>
+<td>{gap}, no test</td>
+<td>the obligation falls on the IETF and IANA assignment process for the reserved range 32778-65535, and ze registers no TLV type; the sentence names no party that could be quoted, so neither evidence shape admits a not-applicable quote, and the row stays a gap with no ze producer to test</td>
 </tr>
 <tr><td><a href="#rfc7770-5.2-2"><code>RFC7770-5.2-2</code></a> New values are assigned through RFCs that have been shepherded through the IESG as AD-Sponsored or IETF WG documents [IANA-GUIDE]. o OSPFv3 LSA function codes in the range 8176-8183 are for experimental use; these will not be registered with IANA and MUST NOT be mentioned by RFCs. (§5.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: this binds RFC authors; ze is an implementation, not an RFC, and references no experimental function code 8176-8183 in internal/plugins/ospf/</td>
+<td>{gap}, no test</td>
+<td>the obligation falls on RFCs, which may not mention the experimental function codes 8176-8183, and ze writes no RFC; the sentence is in the passive voice, so neither evidence shape admits a not-applicable quote, and the row stays a gap with no ze producer to test</td>
 </tr>
 </tbody>
 </table>
@@ -954,7 +958,7 @@ Same OSPF experimental status.
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 19:30 UTC</span>
+                    <span class="footer-published">Published 30 October 2026 23:25 UTC</span>
                 </div>
             </div>
         </footer>

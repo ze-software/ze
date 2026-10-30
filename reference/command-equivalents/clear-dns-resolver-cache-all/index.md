@@ -1,11 +1,11 @@
-# `clear dns-resolver cache all`
+# `clear dns resolver cache all`
 
 Empty every LAN DNS resolver cache\.
 
 ## Ze command
 
-- Registry path: `clear dns-resolver cache all`
-- Usage: `clear dns-resolver cache all`
+- Registry path: `clear dns resolver cache all`
+- Usage: `clear dns resolver cache all`
 - Mode: Daemon
 - Wire method: `ze-dnsresolver:clear-dns-resolver-cache`
 - Backends: any backend

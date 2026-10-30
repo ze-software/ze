@@ -56,6 +56,7 @@ user-facing behaviour; the wire format is documented in
 <div class="doc-layout">
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#routing-capabilities">Routing capabilities</a></li>
+<li><a href="#narrow-and-wide-metrics">Narrow and wide metrics</a></li>
 <li><a href="#the-dynamic-hostname">The dynamic hostname</a></li>
 <li><a href="#changing-an-interface-parameter-on-a-running-router">Changing an interface parameter on a running router</a></li>
 <li><a href="#broadcast-lans-dis-election-and-pseudo-nodes">Broadcast LANs: DIS election and pseudo-nodes</a></li>
@@ -97,7 +98,9 @@ Ze does not require one either: a neighbor that sends only IS-IS Hellos still
 forms its adjacency through the Hello exchange.</p>
 <p>Ze accepts narrow IPv4 reachability in TLV 128 and TLV 130 and preserves its
 internal or external metric type through SPF and inter-level leaking. Local
-connected and redistributed IPv4 prefixes use wide TLV 135. An adjacent
+connected and redistributed IPv4 prefixes use wide TLV 135 under the default
+<code>metric-style wide</code>, and narrow TLV 128 under <code>narrow</code> or <code>transition</code> (see
+"Narrow and wide metrics" below). An adjacent
 router's next-hop address can be on another logical subnet; forwarding retains
 the outgoing interface and marks the gateway on-link. Equal-cost originators
 contribute their capable next hops to the same route. If none of those selected
@@ -118,6 +121,72 @@ any advertised TE information unchanged.</p>
 <!-- source: internal/plugins/isis/spf_wiring.go -- ResolveNextHop, ResolveNextHopV6 -->
 <!-- source: internal/plugins/isis/lsdb/origination.go -- maxFragments, fragmentTLVs -->
 <!-- source: internal/plugins/isis/redistribute/source.go -- addEntry -->
+<h2 id="narrow-and-wide-metrics">Narrow and wide metrics</h2>
+<p><code>metric-style</code> picks the TLVs every LSP this router originates, its pseudo-node
+LSPs included, uses for its links and IPv4 prefixes:</p>
+<table>
+<thead>
+<tr>
+<th>Style</th>
+<th>Links</th>
+<th>IPv4 prefixes</th>
+<th>Metric range</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>wide</code> (default)</td>
+<td>TLV 22</td>
+<td>TLV 135</td>
+<td>circuit 1 to 16777215</td>
+</tr>
+<tr>
+<td><code>narrow</code></td>
+<td>TLV 2</td>
+<td>TLV 128</td>
+<td>circuit 1 to 63</td>
+</tr>
+<tr>
+<td><code>transition</code></td>
+<td>TLV 2 and TLV 22</td>
+<td>TLV 128 and TLV 135</td>
+<td>circuit 1 to 63</td>
+</tr>
+</tbody>
+</table>
+<p>A router that only understands narrow metrics cannot read TLV 22 or TLV 135, so
+it never computes a path through a wide-only Ze. RFC 3787 section 5 states that
+"If not all devices in the IS-IS domain support wide metrics, narrow metrics
+MUST continue to be used." Set <code>narrow</code> while any router in the domain is
+narrow-only:</p>
+<pre><code>isis {
+  net 49.0001.0000.0000.0001.00
+  metric-style narrow
+  interfaces {
+    interface eth0 {
+      metric 20
+    }
+  }
+}
+</code></pre>
+<p>To migrate, RFC 3787 section 5.1 moves every router to <code>transition</code> one by one,
+then to <code>wide</code> once every router advertises wide metrics. Ze's SPF already reads
+both families from every LSP and keeps the lower cost of a link described twice.</p>
+<p>Under <code>narrow</code> and <code>transition</code> a circuit <code>metric</code>, or a <code>level-1</code> / <code>level-2</code>
+<code>metric</code>, above 63 is refused at commit, because the 6-bit narrow metric cannot
+carry it:</p>
+<pre><code>isis: interface "eth0" metric 100 does not fit metric-style narrow, whose narrow
+metric is 1 to 63 (RFC 3787 section 5): set "isis interfaces interface eth0 metric 63"
+or lower, or set "isis metric-style wide" once every router in the domain supports wide metrics
+</code></pre>
+<p>A prefix metric Ze did not take from a circuit, such as the fixed redistribution
+metric of 100 or an inter-level leak's sum, is advertised as 63 in TLV 128. IPv6
+prefixes stay in TLV 236 in every style. A commit that changes only
+<code>metric-style</code> re-originates every own LSP at once.</p>
+<!-- source: internal/plugins/isis/lsdb/origination.go -- fragmentTLVs -->
+<!-- source: internal/plugins/isis/lsdb/pseudonode.go -- pseudonodeFragments -->
+<!-- source: internal/plugins/isis/config.go -- validateMetricStyle, narrowMetricFits -->
+<!-- source: internal/plugins/isis/server.go -- applyMetricStyle -->
 <h2 id="the-dynamic-hostname">The dynamic hostname</h2>
 <p><code>hostname</code> names this router in the IS-IS network. Ze floods it in the Dynamic
 Hostname TLV 137, and a peer renders it wherever it would otherwise print a
@@ -335,7 +404,8 @@ the first whose <code>send-lifetime</code> is current; on receive, every key who
 accepted before it becomes the signing key, the old key accepted for a while after)
 lets you roll a key without dropping adjacencies.</p>
 <p><strong>A name that does not resolve is refused.</strong> An <code>auth-key-chain</code> leaf naming no
-<code>key-chains</code> entry is rejected at commit, and the error names the chain. A
+<code>key-chains</code> entry is rejected by commit, a SIGHUP reload and <code>ze config validate</code>, and the error names the chain and the chains that exist: the leaf is a
+leafref to <code>isis key-chains</code>, so the editor also completes the chain names. A
 misspelled name would otherwise leave the circuit or the level running unsigned,
 which reads exactly like asking for no authentication. Naming no chain at all
 stays legitimate: that is how you run a circuit unauthenticated.</p>
@@ -381,7 +451,9 @@ when leaking a prefix to a lower level (RFC 2966), never to mark external origin
 <code>destination isis { import isis }</code> is accepted by the schema but is a no-op:
 loop prevention rejects redistributing IS-IS into IS-IS.</p>
 <p>The block above is the whole configuration. It needs no <code>plugin</code> block and no
-<code>attach process</code> block. <code>import bgp</code> derives each peer's delivery to the
+<code>attach process</code> block, and a router running IS-IS without BGP needs no <code>bgp</code>
+block: only a rule that names BGP does, and such a rule with no <code>bgp</code> block is
+refused at load and at commit. <code>import bgp</code> derives each peer's delivery to the
 Loc-RIB, and <code>destination bgp</code> derives the send permission the orchestrator
 needs on each peer.</p>
 <p>A consumer that registers after a producer emitted is replayed the producer's
@@ -389,7 +461,7 @@ current set. The static prefix therefore reaches the LSP whichever of the two
 plugins started first. See
 <a href="../redistribution/">Route Filters and Redistribution</a>, "Route Redistribution".</p>
 <!-- source: internal/component/bgp/config/redistribute_binding.go -- wireRedistributeDelivery -->
-<!-- source: internal/component/bgp/plugins/redistribute_egress/replay.go -- onConsumerRegistered -->
+<!-- source: internal/plugins/redistribute/replay.go -- onConsumerRegistered -->
 <p><strong>Connected and passive interfaces.</strong> IS-IS also advertises its own enabled and
 <strong>passive</strong> interface prefixes as internal reachability in its LSPs. A passive
 interface forms no adjacency but its prefix is still advertised, so loopbacks and
@@ -401,7 +473,11 @@ edge networks are reachable without running the protocol on them.</p>
 redistribution drives.</p>
 <p>Redistribution feeds the redistribute orchestrator only; the kernel FIB install of
 IS-IS SPF routes is the separate Loc-RIB path, ranked at the declared IS-IS
-distance (default 115). IPv6
+distance (default 115). Each installed path carries the level it was computed
+at, so an <code>isis filter import</code> chain can match <code>level [ 1 ]</code> or <code>level [ 2 ]</code>,
+and a <code>modify</code> there can set the distance. IS-IS paths carry no tag, because Ze
+does not implement RFC 5130, so a filter that reads a tag is refused on IS-IS
+(<a href="https://github.com/ze-software/ze/blob/main/docs/guide/route-policy.md" target="_blank" rel="noopener">Route Policy at the Loc-RIB</a>). IPv6
 redistribution (TLV 236) works the same way (see below).</p>
 <h2 id="dual-stack-ipv6">Dual-stack IPv6</h2>
 <p>Ze runs IPv6 over the same IS-IS instance as IPv4 (RFC 5308). Enable the IPv6
@@ -630,7 +706,7 @@ System ID embedded in the first NET.</li>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 02:50 UTC</span>
+                    <span class="footer-published">Published 30 October 2026 23:25 UTC</span>
                 </div>
             </div>
         </footer>

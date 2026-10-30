@@ -17,7 +17,7 @@ Connected routes: redistribute directly connected interface prefixes
 
 ## Dependencies
 
-- Required: None
+- Required: [`policy`](../policy/index.md)
 - Optional: None
 
 ## Used by

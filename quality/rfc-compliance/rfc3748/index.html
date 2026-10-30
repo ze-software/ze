@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 3748 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 3748: Extensible Authentication Protocol (EAP). 59 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 3748: Extensible Authentication Protocol (EAP). 59 gated MUST-level requirements, 6 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 3748 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 3748: Extensible Authentication Protocol (EAP). 59 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 3748: Extensible Authentication Protocol (EAP). 59 gated MUST-level requirements, 6 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 3748 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 3748: Extensible Authentication Protocol (EAP). 59 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 3748: Extensible Authentication Protocol (EAP). 59 gated MUST-level requirements, 6 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -122,18 +122,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>5.1%</strong><b>3 of 59 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 59 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 59 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 59 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 <article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>82.9%</strong><b>131 of 158 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>59</strong><b>of 63 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>6</strong><b>of 59 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>10.2%</strong><b>6 of 59 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 59 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 59 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 59 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 59 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0.0%</strong><b>0 of 59 gated MUSTs</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit</p></article>
+</div>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>10.2%</strong><b>6 of 59 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 </div>
 <p>The 9 shares marked as a part above are the whole of the 59 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -167,7 +171,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
 </tr>
 <tr><td>No test at all</td>
-<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
 </tr>
 <tr><td>Not applicable</td>
@@ -217,10 +221,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>59</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
-<td>6</td>
+<td>0</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>0</td>
+<td>6</td>
 </tr>
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
@@ -315,7 +319,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p class="rfc-id-list"><strong>Annotated (including scoped evidence) (9):</strong> <a href="#rfc3748-2-1"><code>RFC3748-2-1</code></a>, <a href="#rfc3748-4.1-2"><code>RFC3748-4.1-2</code></a>, <a href="#rfc3748-4.2-1"><code>RFC3748-4.2-1</code></a>, <a href="#rfc3748-4.2-4"><code>RFC3748-4.2-4</code></a>, <a href="#rfc3748-2.3-1"><code>RFC3748-2.3-1</code></a>, <a href="#rfc3748-3.1-1"><code>RFC3748-3.1-1</code></a>, <a href="#rfc3748-3.1-2"><code>RFC3748-3.1-2</code></a>, <a href="#rfc3748-3.1-3"><code>RFC3748-3.1-3</code></a>, <a href="#rfc3748-5.7-1"><code>RFC3748-5.7-1</code></a></p>
 </section>
 <section><h2>Attainable ceiling</h2>
-<p>Mandatory ceiling: 53 of 59 (89.8%); excluded: Not applicable (classification can be revisited): 6 of 59 (10.2%). Optional ceiling: 4 of 4 (100.0%). Lowest mandatory ceiling: rfc3748 53 of 59 (89.8%). Lowest optional ceiling: rfc3748 4 of 4 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.</p>
+<p>Mandatory ceiling: 59 of 59 (100.0%). Optional ceiling: 4 of 4 (100.0%). Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: rfc3748 59 of 59 (100.0%). Lowest optional ceiling: rfc3748 4 of 4 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.</p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -414,7 +418,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3748-4.1-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> duplicate-Request handling is delegated to the IKEv2 carrier -- on timeout the initiator (EAP peer) re-sends its last IKE_AUTH message, which carries its last EAP Response (sa.LastSentMsg, internal/component/ike/engine/fsm.go:138); the EAP peer state machine holds no per-Request retransmission state</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> a gap in proof. ze as the EAP peer is the IKE initiator, and its IKEv2 carrier stands in for this: a retransmitted IKE response is recognised by message ID and not re-processed, and on timeout the initiator resends the stored message holding its last EAP Response (sa.LastSentMsg, set in internal/component/ike/engine/fsm.go and multiple_auth.go), so the EAP peer never reprocesses a Request; no test shows a duplicate Request draws the original Response</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3748-4.2-1">RFC3748-4.2-1</code></td><td colspan="3"><span class="rfc-subject">Because the Success and Failure packets are not acknowledged, they are not retransmitted by the authenticator (§4.2)</span></td></tr>
 <tr><td></td>
@@ -454,7 +458,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3748-2.3-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze&#39;s authenticator always terminates the EAP method locally (eap.Session, internal/core/eap/eap.go:130); there is no AAA/RADIUS back end in the IKE engine, so it never operates as a pass-through</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> a gap in proof. ze never fills the pass-through role. The IKE engine&#39;s authenticator terminates the method itself (internal/component/ike/engine/eap_auth.go builds an eap.Session, internal/core/eap/eap.go) and holds no AAA back end to forward to. The RADIUS EAP path, internal/component/radius/authenticator_eap.go::authenticateEAP, runs internal/core/eap&#39;s PeerSession in process as the EAP peer, so every EAP packet it sends to the RADIUS server came out of that peer, and it forwards none from another node. The exclusion would be binds-another-role, which the gate presumes wrong (internal/le/rfc/artifact.go::ExclusionPresumedWrong), so the row stays a gap in proof until a test shows ze never forwards an EAP packet it did not produce</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3748-3.1-1">RFC3748-3.1-1</code></td><td colspan="3"><span class="rfc-subject">Lower layer transports for EAP MUST preserve ordering between a source and destination at a given priority level (the ordering guarantee provided by [IEEE-802]). (S3.1)</span></td></tr>
 <tr><td></td>
@@ -463,7 +467,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3748-3.1-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> in-order delivery is a lower-layer obligation; ze carries EAP only inside IKEv2, whose message-ID sequencing delivers each IKE_AUTH request/response in order (RFC 7296 Section 2.3; internal/component/ike/engine/msgid.go:76), so the EAP framework code neither provides nor can violate it</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> a gap in proof. ze&#39;s own IKEv2 carrier is the lower layer here, so ze fills the role: each EAP packet rides in an IKE_AUTH exchange, and the message ID sequencing in internal/component/ike/engine/msgid.go (SA.advanceMsgID, SA.advanceExpectedMsgID) delivers them in order, but no test ties that ordering to EAP</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3748-3.1-2">RFC3748-3.1-2</code></td><td colspan="3"><span class="rfc-subject">While EAP does not assume that the lower layer is reliable, it does rely on lower layer error detection (e.g., CRC, Checksum, MIC, etc.). (§3.1)</span></td></tr>
 <tr><td></td>
@@ -472,7 +476,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3748-3.1-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> bit-error detection is a lower-layer obligation; ze&#39;s EAP packets travel inside the IKEv2 SK payload whose AEAD/ICV check rejects any corrupted frame on decrypt (internal/component/ike/engine/fsm.go:658), so the EAP framework code adds no CRC of its own</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> a gap in proof. ze&#39;s own IKEv2 carrier is the lower layer here, so ze fills the role: an EAP packet travels inside the IKEv2 Encrypted payload, whose integrity check in internal/component/ike/engine/auth.go::decryptSKPayload rejects a corrupted message before EAP sees it, but no test ties that check to EAP</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3748-3.1-3">RFC3748-3.1-3</code></td><td colspan="3"><span class="rfc-subject">EAP is capable of functioning on lower layers that provide an EAP MTU size of 1020 octets or greater. (§3.1)</span></td></tr>
 <tr><td></td>
@@ -481,7 +485,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3748-3.1-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> the 1020-octet minimum MTU is a lower-layer obligation; ze carries EAP inside IKEv2 SK payloads over UDP, which admit EAP packets far larger than 1020 octets, and EAP-TLS method data is itself fragmented in 1024-octet chunks (internal/core/eap/eap_tls.go:28)</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> a gap in proof. ze&#39;s own IKEv2 carrier is the lower layer here, so ze fills the role: it carries EAP packets inside IKEv2 messages over UDP, and EAP-TLS fragments its method data in 1024-octet pieces (internal/core/eap/eap_tls.go, eapTLSFragmentSize), so an EAP MTU of 1020 octets or more is expected, but no test shows the carrier passes an EAP packet of that size</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3748-5.7-1">RFC3748-5.7-1</code></td><td colspan="3"><span class="rfc-subject">An implementation that supports the Expanded attribute MUST treat EAP Types that are less than 256 equivalently, whether they appear as a single octet or as the 32-bit Vendor-Type within an Expanded Type where Vendor-Id is 0. (§5.7)</span></td></tr>
 <tr><td></td>
@@ -490,7 +494,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3748-5.7-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze offers MD5-Challenge (4), EAP-TLS (13) and EAP-MSCHAPv2 (26); NewSession rejects every other type (NewSession, internal/core/eap/eap.go) and the codec never encodes or parses an Expanded Type (254) packet or its Vendor-Id field, so no Vendor-Id namespace rule can bind. The peer reads TypeExpandedEAP only to route a Type-254 Request to the legacy Nak that Section 5.7 prescribes for a peer not equipped to interpret it (PeerSession.naks, internal/core/eap/peer.go), and that Nak carries no Vendor-Id</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> the condition is an optional feature ze does not implement, and no owner decision declines it. ze offers MD5-Challenge (4), EAP-TLS (13) and EAP-MSCHAPv2 (26), NewSession (internal/core/eap/eap.go) rejects every other type, and the codec never encodes or parses an Expanded Type (254) packet or its Vendor-Id; the peer only answers a Type 254 Request with the legacy Nak (PeerSession.naks, internal/core/eap/peer.go). The row stays a gap until ze supports Expanded Types or Thomas declines the feature</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3748-7.10-2">RFC3748-7.10-2</code></td><td colspan="3"><span class="rfc-subject">an EAP method supporting key derivation MUST export a Master Session Key (MSK) of at least 64 octets, and an Extended Master Session Key (EMSK) of at least 64 octets. (§7.10)</span></td></tr>
 <tr><td></td>
@@ -954,28 +958,28 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
 <tr><td><a href="#rfc3748-4.1-2"><code>RFC3748-4.1-2</code></a> If a peer receives a valid duplicate Request for which it has already sent a Response, it MUST resend its original Response without reprocessing the Request. (S4.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: duplicate-Request handling is delegated to the IKEv2 carrier -- on timeout the initiator (EAP peer) re-sends its last IKE_AUTH message, which carries its last EAP Response (sa.LastSentMsg, internal/component/ike/engine/fsm.go:138); the EAP peer state machine holds no per-Request retransmission state</td>
+<td>{gap}, no test</td>
+<td>a gap in proof. ze as the EAP peer is the IKE initiator, and its IKEv2 carrier stands in for this: a retransmitted IKE response is recognised by message ID and not re-processed, and on timeout the initiator resends the stored message holding its last EAP Response (sa.LastSentMsg, set in internal/component/ike/engine/fsm.go and multiple_auth.go), so the EAP peer never reprocesses a Request; no test shows a duplicate Request draws the original Response</td>
 </tr>
 <tr><td><a href="#rfc3748-2.3-1"><code>RFC3748-2.3-1</code></a> Compliant pass- through authenticator implementations MUST by default forward EAP packets of any Type. (S2.3)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s authenticator always terminates the EAP method locally (eap.Session, internal/core/eap/eap.go:130); there is no AAA/RADIUS back end in the IKE engine, so it never operates as a pass-through</td>
+<td>{gap}, no test</td>
+<td>a gap in proof. ze never fills the pass-through role. The IKE engine&#39;s authenticator terminates the method itself (internal/component/ike/engine/eap_auth.go builds an eap.Session, internal/core/eap/eap.go) and holds no AAA back end to forward to. The RADIUS EAP path, internal/component/radius/authenticator_eap.go::authenticateEAP, runs internal/core/eap&#39;s PeerSession in process as the EAP peer, so every EAP packet it sends to the RADIUS server came out of that peer, and it forwards none from another node. The exclusion would be binds-another-role, which the gate presumes wrong (internal/le/rfc/artifact.go::ExclusionPresumedWrong), so the row stays a gap in proof until a test shows ze never forwards an EAP packet it did not produce</td>
 </tr>
 <tr><td><a href="#rfc3748-3.1-1"><code>RFC3748-3.1-1</code></a> Lower layer transports for EAP MUST preserve ordering between a source and destination at a given priority level (the ordering guarantee provided by [IEEE-802]). (S3.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: in-order delivery is a lower-layer obligation; ze carries EAP only inside IKEv2, whose message-ID sequencing delivers each IKE_AUTH request/response in order (RFC 7296 Section 2.3; internal/component/ike/engine/msgid.go:76), so the EAP framework code neither provides nor can violate it</td>
+<td>{gap}, no test</td>
+<td>a gap in proof. ze&#39;s own IKEv2 carrier is the lower layer here, so ze fills the role: each EAP packet rides in an IKE_AUTH exchange, and the message ID sequencing in internal/component/ike/engine/msgid.go (SA.advanceMsgID, SA.advanceExpectedMsgID) delivers them in order, but no test ties that ordering to EAP</td>
 </tr>
 <tr><td><a href="#rfc3748-3.1-2"><code>RFC3748-3.1-2</code></a> While EAP does not assume that the lower layer is reliable, it does rely on lower layer error detection (e.g., CRC, Checksum, MIC, etc.). (§3.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: bit-error detection is a lower-layer obligation; ze&#39;s EAP packets travel inside the IKEv2 SK payload whose AEAD/ICV check rejects any corrupted frame on decrypt (internal/component/ike/engine/fsm.go:658), so the EAP framework code adds no CRC of its own</td>
+<td>{gap}, no test</td>
+<td>a gap in proof. ze&#39;s own IKEv2 carrier is the lower layer here, so ze fills the role: an EAP packet travels inside the IKEv2 Encrypted payload, whose integrity check in internal/component/ike/engine/auth.go::decryptSKPayload rejects a corrupted message before EAP sees it, but no test ties that check to EAP</td>
 </tr>
 <tr><td><a href="#rfc3748-3.1-3"><code>RFC3748-3.1-3</code></a> EAP is capable of functioning on lower layers that provide an EAP MTU size of 1020 octets or greater. (§3.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: the 1020-octet minimum MTU is a lower-layer obligation; ze carries EAP inside IKEv2 SK payloads over UDP, which admit EAP packets far larger than 1020 octets, and EAP-TLS method data is itself fragmented in 1024-octet chunks (internal/core/eap/eap_tls.go:28)</td>
+<td>{gap}, no test</td>
+<td>a gap in proof. ze&#39;s own IKEv2 carrier is the lower layer here, so ze fills the role: it carries EAP packets inside IKEv2 messages over UDP, and EAP-TLS fragments its method data in 1024-octet pieces (internal/core/eap/eap_tls.go, eapTLSFragmentSize), so an EAP MTU of 1020 octets or more is expected, but no test shows the carrier passes an EAP packet of that size</td>
 </tr>
 <tr><td><a href="#rfc3748-5.7-1"><code>RFC3748-5.7-1</code></a> An implementation that supports the Expanded attribute MUST treat EAP Types that are less than 256 equivalently, whether they appear as a single octet or as the 32-bit Vendor-Type within an Expanded Type where Vendor-Id is 0. (§5.7)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: ze offers MD5-Challenge (4), EAP-TLS (13) and EAP-MSCHAPv2 (26); NewSession rejects every other type (NewSession, internal/core/eap/eap.go) and the codec never encodes or parses an Expanded Type (254) packet or its Vendor-Id field, so no Vendor-Id namespace rule can bind. The peer reads TypeExpandedEAP only to route a Type-254 Request to the legacy Nak that Section 5.7 prescribes for a peer not equipped to interpret it (PeerSession.naks, internal/core/eap/peer.go), and that Nak carries no Vendor-Id</td>
+<td>{gap}, no test</td>
+<td>the condition is an optional feature ze does not implement, and no owner decision declines it. ze offers MD5-Challenge (4), EAP-TLS (13) and EAP-MSCHAPv2 (26), NewSession (internal/core/eap/eap.go) rejects every other type, and the codec never encodes or parses an Expanded Type (254) packet or its Vendor-Id; the peer only answers a Type 254 Request with the legacy Nak (PeerSession.naks, internal/core/eap/peer.go). The row stays a gap until ze supports Expanded Types or Thomas declines the feature</td>
 </tr>
 </tbody>
 </table>
@@ -1484,7 +1488,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc3748-4-5"><code>RFC3748-4-5</code></a></h3>
 <p>Since EAP only defines Codes 1-4, EAP packets with other codes MUST be silently discarded by both authenticators and peers. (S4)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-26 (independent judge, clean clone at c8584247bb) after a965d7c0d4 changed the cited producer responder_eap.go::handleResponderEAP. RFC 3748 Section 4: &#34;Since EAP only defines Codes 1-4, EAP packets with other codes MUST be silently discarded by both authenticators and peers.&#34; The change adds CP payload collection to the inner-payload loop and, only when an AUTH payload is present and no CFG_REQUEST was decided yet, sets sa.cpRequest = decideCPRequest(cps); that branch then takes the AUTH-from-MSK path, which never reads the EAP payload. It sits after decryptAndParse and the eapMessageDiscarded early return, so a message carrying an EAP payload and no AUTH is handled exactly as before: sess.Process (eap.go) returns nil for Code 0 or above 4 before any state access, and handleResponderEAP returns at next == nil with no output. Peer Process (peer.go) and handleEAPResponse (fsm.go) are unchanged. The three tagged units are unchanged. TestEngineDiscardedEAPCodesPreserveExchange still sends encrypted Codes 0, 5 and 255 into both IKE roles through handleInbound, asserts state, expected Message ID, last sent message and retransmission deadline and count unchanged, then a held-back valid packet at the same Message ID advances each role and the exchange ends with matching nonzero MSKs and a verified AUTH. Discrimination records (whole-body reverts of the two Process functions) are current and prove reachability only; the handleEAPResponse result.Discarded return is held by the unchanged-state assertions. All three tagged tests and the core units pass at HEAD under -race.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 (independent judge, working tree) after uncommitted RFC 4739 work changed the cited producers responder.go::handleResponderInbound and responder_eap.go::handleResponderEAP. RFC 3748 Section 4: &#34;Since EAP only defines Codes 1-4, EAP packets with other codes MUST be silently discarded by both authenticators and peers.&#34; handleResponderInbound gains a StateAuthReceived arm calling replayCachedResponse then handleResponderAuthRound (multiple_auth.go); that state is set only by answerFirstAuthExchange, reached from handleAuthRequest after a verified AUTH payload (non-EAP first round), and handleResponderAuthRound collects only ID, AUTH, CERT and notifies, so no EAP session exists or is fed there. The StateEAPInProgress arm is unchanged: an EAP round still reaches handleResponderEAP. handleResponderEAP&#39;s new settleAnotherAuth refusal sits inside the authPayload != nil (AUTH-from-MSK) branch after verifyRemoteAuth, which never reads the EAP payload; a message with an EAP payload and no AUTH still reaches sess.Process (eap.go), which returns nil for Code 0 or above 4 before any state access, and handleResponderEAP returns at next == nil with no output and the SA kept. fsm.go changes touch handleAuthResponse (RFC 4739 second exchange) only; handleEAPResponse, eap.go::Process and peer.go::Process are byte-identical to the last judgement. The three tagged units are unchanged. TestEngineDiscardedEAPCodesPreserveExchange sends encrypted Codes 0, 5 and 255 into both IKE roles in StateEAPInProgress through handleInbound, asserts state, expected Message ID, last sent message and retransmission state unchanged, then a held-back valid packet at the same Message ID advances each role to matching nonzero MSKs and a verified AUTH. Core units: the authenticator Session.Process answers nothing for Codes 0, 5, 255 and wrong-role Codes, and PeerSession.Process reports a discard with no response, error, Done or MSK (eapdWantDiscarded), state, method and round budget unchanged; legitimate MS-CHAPv2 packets then complete the exchange with matching nonzero MSKs. All three tagged tests pass on the working tree under -race (go test -race -count=1).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -3009,7 +3013,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 19:30 UTC</span>
+                    <span class="footer-published">Published 30 October 2026 23:25 UTC</span>
                 </div>
             </div>
         </footer>

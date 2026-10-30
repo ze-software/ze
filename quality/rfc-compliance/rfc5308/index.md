@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0.0% | 0 of 8 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 8 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 8 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 86.7% | 26 of 30 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 100.0% | 30 of 30 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 | Audit verdicts | 8 | of 8 gated MUSTs judged | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 ### Neutral
@@ -67,7 +67,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 30 |
 | Tagged units | 30 |
 | Recorded audit verdicts | 8 |
-| Discrimination records | 26 |
+| Discrimination records | 30 |
 | Summary | `rfc/short/rfc5308.md` |
 | Requirement shard | `rfc/requirements/rfc5308.md` |
 | RFC text | `rfc/full/rfc5308.txt` |
@@ -137,8 +137,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. (a) 
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestISISOriginateTLV236`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/rfc5308_origination_ipv6_test.go#L66) | unit/verify | unproven |
-| positive | [`TestISISOriginateTLV236`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/rfc5308_origination_ipv6_test.go#L65) | unit/verify | unproven |
+| negative | [`TestISISOriginateTLV236`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/rfc5308_origination_ipv6_test.go#L66) | unit/verify | mutant, verified |
+| positive | [`TestISISOriginateTLV236`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/rfc5308_origination_ipv6_test.go#L65) | unit/verify | revert, verified |
 
 ### [`RFC5308-2-2`](#rfc5308-2-2)
 
@@ -228,8 +228,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. (a) 
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestISISMetricWidth`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/spf_test.go#L251) | unit/verify | unproven |
-| positive | [`TestISISMetricWidth`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/spf_test.go#L250) | unit/verify | unproven |
+| negative | [`TestISISMetricWidth`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/spf_test.go#L251) | unit/verify | mutant, verified |
+| positive | [`TestISISMetricWidth`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/spf_test.go#L250) | unit/verify | revert, verified |
 
 ## Extraction sign-off
 

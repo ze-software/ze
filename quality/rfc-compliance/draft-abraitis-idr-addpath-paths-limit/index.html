@@ -123,8 +123,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>58.6%</strong><b>17 of 29 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
-<article class="rfc-card rfc-ok"><span>Audit verdicts</span><strong>7</strong><b>of 4 gated MUSTs judged</b><p>0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>51.7%</strong><b>15 of 29 tagged units, 0 escaped and 2 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -192,7 +191,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -524,7 +523,7 @@ Receiver-advertised per-family path-count requests for ADD-PATH, with session-wi
 </div>
 <h3><a href="#draft-abraitis-idr-addpath-paths-limit-3-6"><code>DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-6</code></a></h3>
 <p>A sender advertising multiple paths for the same prefix SHOULD send only the specified maximum number of paths indicated in the PATHS-LIMIT capability. (§3)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-27 by an independent judge (authored none of the change). Section 3: &#34;A sender advertising multiple paths for the same prefix SHOULD send only the specified maximum number of paths indicated in the PATHS-LIMIT capability.&#34; The only change to test/plugin/paths-limit-live.ci is the daemon&#39;s container-level config line `limit 9` -&gt; `limit { receive 9; }`: that is ze&#39;s own receive request, incidental to this row, while the bound under test comes from the peer script&#39;s OPEN (option=open paths-limit ipv4/unicast limit=1, ipv6/unicast limit=2), which is unchanged. Every expect hex, sequence group, sentinel and action line is byte-identical to HEAD, so the negative (an excess identifier absent before the next different-prefix sentinel, admitted only after withdrawal and explicit retry) and the positive (admitted, replaced and reused identifiers reach the wire, per family) read exactly as before. The two Go units are unchanged. Ran green on the current tree, which carries phase 3&#39;s move of the send filter into pathsLimitAdmission: ./le test bgp plugin paths-limit-live 1/1 PASS. Separately, ./le rfc check reports this row&#39;s discrimination records producer-gone because phase 3 moved pathsLimitSection; that is a stale proof record owed a re-record, not a change to what the tests assert. Enforced stands.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: test/plugin/paths-limit-live.ci, test/plugin/paths-limit-live.ci#2 moved. Re-judged 2026-10-27 by an independent judge (authored none of the change). Section 3: &#34;A sender advertising multiple paths for the same prefix SHOULD send only the specified maximum number of paths indicated in the PATHS-LIMIT capability.&#34; The only change to test/plugin/paths-limit-live.ci is the daemon&#39;s container-level config line `limit 9` -&gt; `limit { receive 9; }`: that is ze&#39;s own receive request, incidental to this row, while the bound under test comes from the peer script&#39;s OPEN (option=open paths-limit ipv4/unicast limit=1, ipv6/unicast limit=2), which is unchanged. Every expect hex, sequence group, sentinel and action line is byte-identical to HEAD, so the negative (an excess identifier absent before the next different-prefix sentinel, admitted only after withdrawal and explicit retry) and the positive (admitted, replaced and reused identifiers reach the wire, per family) read exactly as before. The two Go units are unchanged. Ran green on the current tree, which carries phase 3&#39;s move of the send filter into pathsLimitAdmission: ./le test bgp plugin paths-limit-live 1/1 PASS. Separately, ./le rfc check reports this row&#39;s discrimination records producer-gone because phase 3 moved pathsLimitSection; that is a stale proof record owed a re-record, not a change to what the tests assert. Enforced stands.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -564,7 +563,7 @@ Receiver-advertised per-family path-count requests for ADD-PATH, with session-wi
 </div>
 <h3><a href="#draft-abraitis-idr-addpath-paths-limit-3-7"><code>DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-7</code></a></h3>
 <p>An implementation SHOULD provide a configuration knob to specify the maximum number of paths to accept from a sender. (§3)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-27 by an independent judge (authored none of the tests). Section 3: &#34;An implementation SHOULD provide a configuration knob to specify the maximum number of paths to accept from a sender.&#34; Both halves are now proven. Knob: TestParsePeerCapabilityPathsLimit and TestConfiguredPathsLimitOpen (unchanged) show limit { receive N; } at container and per-family level decides the advertised tuples, an omitted limit advertising none. Accept ceiling: the knob reaches session_negotiate.go initPathsLimitRecv(Encoding.PathsLimitRecv), and session_read.go calls receiveCeiling before checkPrefixLimits and delivery, which filters NLRIs admitPath refuses at len(prefix.ids) &gt;= f.limit. test/plugin/paths-limit-receive-ceiling.ci drives it end to end from config: with receive 2, the plugin sees ids 1 and 2 of 10.0.0.0/8 plus 20.0.0.0/8 in one exact event line (positive, also proving the other prefix is untouched), id 3 only after a withdrawal of admitted id 1 frees a slot, and never id 4 (negative; reject=path-id 4). TestProcessMessageRefusesPathOverReceiveCeiling asserts the exact delivered path list through processMessage and the admitted/refused counts 2/1; TestReceiveCeilingAdmitsUpToLimit asserts exact admitted ids [1 2 7], refused counter 1, and a replacement at the ceiling kept. Positive inputs are conforming (at or under the ceiling), negatives exceed this ceiling and no neighbouring rule; assertions are exact, not floors. Discrimination records for all six tags observed red under admitPath breaks: ceiling check -&gt; false (negatives) and limit -&gt; limit-1 (positives).</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: test/plugin/paths-limit-receive-ceiling.ci, test/plugin/paths-limit-receive-ceiling.ci#2 moved. Re-judged 2026-10-27 by an independent judge (authored none of the tests). Section 3: &#34;An implementation SHOULD provide a configuration knob to specify the maximum number of paths to accept from a sender.&#34; Both halves are now proven. Knob: TestParsePeerCapabilityPathsLimit and TestConfiguredPathsLimitOpen (unchanged) show limit { receive N; } at container and per-family level decides the advertised tuples, an omitted limit advertising none. Accept ceiling: the knob reaches session_negotiate.go initPathsLimitRecv(Encoding.PathsLimitRecv), and session_read.go calls receiveCeiling before checkPrefixLimits and delivery, which filters NLRIs admitPath refuses at len(prefix.ids) &gt;= f.limit. test/plugin/paths-limit-receive-ceiling.ci drives it end to end from config: with receive 2, the plugin sees ids 1 and 2 of 10.0.0.0/8 plus 20.0.0.0/8 in one exact event line (positive, also proving the other prefix is untouched), id 3 only after a withdrawal of admitted id 1 frees a slot, and never id 4 (negative; reject=path-id 4). TestProcessMessageRefusesPathOverReceiveCeiling asserts the exact delivered path list through processMessage and the admitted/refused counts 2/1; TestReceiveCeilingAdmitsUpToLimit asserts exact admitted ids [1 2 7], refused counter 1, and a replacement at the ceiling kept. Positive inputs are conforming (at or under the ceiling), negatives exceed this ceiling and no neighbouring rule; assertions are exact, not floors. Discrimination records for all six tags observed red under admitPath breaks: ceiling check -&gt; false (negatives) and limit -&gt; limit-1 (positives).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -587,7 +586,7 @@ Receiver-advertised per-family path-count requests for ADD-PATH, with session-wi
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/paths-limit-receive-ceiling.ci#L21" title="test/plugin/paths-limit-receive-ceiling.ci" target="_blank" rel="noopener"><code>paths-limit-receive-ceiling.ci</code></a></td>
 <td>functional/verify</td>
-<td>mutant, verified</td>
+<td>mutant, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/config_test.go#L564" title="internal/component/bgp/reactor/config_test.go" target="_blank" rel="noopener"><code>TestParsePeerCapabilityPathsLimit</code></a></td>
@@ -612,7 +611,7 @@ Receiver-advertised per-family path-count requests for ADD-PATH, with session-wi
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/paths-limit-receive-ceiling.ci#L20" title="test/plugin/paths-limit-receive-ceiling.ci" target="_blank" rel="noopener"><code>paths-limit-receive-ceiling.ci</code></a></td>
 <td>functional/verify</td>
-<td>mutant, verified</td>
+<td>mutant, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 </tbody>
 </table>
@@ -743,7 +742,7 @@ Receiver-advertised per-family path-count requests for ADD-PATH, with session-wi
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 19:30 UTC</span>
+                    <span class="footer-published">Published 30 October 2026 23:25 UTC</span>
                 </div>
             </div>
         </footer>

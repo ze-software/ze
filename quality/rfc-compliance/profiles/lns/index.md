@@ -4,14 +4,14 @@ Release profile. The RFCs this use case requires, each declared by the Use cases
 
 [All profiles](../) · [All RFCs](../../)
 
-- **Mandatory**: 55.2% (253 of 458 (55.2%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
+- **Mandatory**: 56.1% (257 of 458 (56.1%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
 - **Optional**: 4.3% (7 of 161 (4.3%)). MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.
-- **Mandatory ceiling**: 77.3% (354 of 458 (77.3%); excluded: Met by a lower layer: 96 of 458 (21.0%); Not applicable (classification can be revisited): 8 of 458 (1.7%)). Attainable mandatory rows under current classifications, over the unchanged total.
+- **Mandatory ceiling**: 79.5% (364 of 458 (79.5%); excluded: Met by a lower layer: 94 of 458 (20.5%)). Attainable mandatory rows under current classifications, over the unchanged total.
 - **Optional ceiling**: 100.0% (161 of 161 (100.0%)). Attainable optional rows under current classifications, over the unchanged total.
 - **Not walked**: 0 (of 14 RFCs). RFCs with no valid extraction sign-off: their rows count in neither figure.
 - **Mandatory register**: not complete (every row proven, none unwalked). A profile is complete only when it requires at least one RFC and none of them is unwalked.
 
-Mandatory ceiling: 354 of 458 (77.3%); excluded: Met by a lower layer: 96 of 458 (21.0%); Not applicable (classification can be revisited): 8 of 458 (1.7%). Optional ceiling: 161 of 161 (100.0%). Lowest mandatory ceiling: rfc4861 43 of 138 (31.2%). Lowest optional ceiling: rfc1332 6 of 6 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+Mandatory ceiling: 364 of 458 (79.5%); excluded: Met by a lower layer: 94 of 458 (20.5%). Optional ceiling: 161 of 161 (100.0%). Lowest mandatory ceiling: rfc4861 47 of 138 (34.1%). Lowest optional ceiling: rfc1332 6 of 6 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
 
 ## Tree
 
@@ -21,7 +21,7 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 
 | RFC | Title | Mandatory | Optional | Why it is here |
 |---|---|---|---|---|
-| [RFC 1661](../../rfc1661/) | The Point-to-Point Protocol (PPP) | 39 of 76 (51.3%); ceiling 70 of 76 (92.1%); excluded: Not applicable (classification can be revisited): 6 of 76 (7.9%) | 0 of 25 (0.0%); ceiling 25 of 25 (100.0%) | lns: required by rfc/short/rfc1661.md |
+| [RFC 1661](../../rfc1661/) | The Point-to-Point Protocol (PPP) | 39 of 76 (51.3%); ceiling 74 of 76 (97.4%); excluded: Met by a lower layer: 2 of 76 (2.6%) | 0 of 25 (0.0%); ceiling 25 of 25 (100.0%) | lns: required by rfc/short/rfc1661.md |
 | [RFC 2865](../../rfc2865/) (cycle with rfc2866) | Remote Authentication Dial In User Service (RADIUS) | 24 of 31 (77.4%); ceiling 31 of 31 (100.0%) | 0 of 1 (0.0%); ceiling 1 of 1 (100.0%) | lns: required by rfc/short/rfc2865.md |
 | [RFC 2866](../../rfc2866/) (cycle with rfc2865) | RADIUS Accounting | 8 of 15 (53.3%); ceiling 15 of 15 (100.0%) | 0 of 1 (0.0%); ceiling 1 of 1 (100.0%) | lns: required by rfc/short/rfc2866.md |
 
@@ -35,10 +35,10 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 
 | RFC | Title | Mandatory | Optional | Why it is here |
 |---|---|---|---|---|
-| [RFC 1332](../../rfc1332/) (cycle with rfc1034, rfc1035, rfc1122, rfc1191, rfc1195, rfc1812, rfc2131, rfc2132, rfc4291, rfc4443, rfc4861, rfc5905, rfc8200, rfc8201, rfc9293) | The PPP Internet Protocol Control Protocol (IPCP) | 6 of 8 (75.0%); ceiling 7 of 8 (87.5%); excluded: Not applicable (classification can be revisited): 1 of 8 (12.5%) | 0 of 6 (0.0%); ceiling 6 of 6 (100.0%) | lns: required by rfc/short/rfc1332.md |
-| [RFC 1334](../../rfc1334/) | PPP Authentication Protocols | 11 of 13 (84.6%); ceiling 13 of 13 (100.0%) | 0 of 3 (0.0%); ceiling 3 of 3 (100.0%) | lns: required by rfc/short/rfc1334.md |
+| [RFC 1332](../../rfc1332/) (cycle with rfc1034, rfc1035, rfc1122, rfc1191, rfc1195, rfc1812, rfc2131, rfc2132, rfc4291, rfc4443, rfc4861, rfc5905, rfc8200, rfc8201, rfc9293) | The PPP Internet Protocol Control Protocol (IPCP) | 8 of 8 (100.0%); ceiling 8 of 8 (100.0%) | 0 of 6 (0.0%); ceiling 6 of 6 (100.0%) | lns: required by rfc/short/rfc1332.md |
+| [RFC 1334](../../rfc1334/) | PPP Authentication Protocols | 13 of 13 (100.0%); ceiling 13 of 13 (100.0%) | 0 of 3 (0.0%); ceiling 3 of 3 (100.0%) | lns: required by rfc/short/rfc1334.md |
 | [RFC 2759](../../rfc2759/) | Microsoft PPP CHAP Extensions, Version 2 | 4 of 7 (57.1%); ceiling 7 of 7 (100.0%) | 2 of 4 (50.0%); ceiling 4 of 4 (100.0%) | lns: required by rfc/short/rfc2759.md |
-| [RFC 4861](../../rfc4861/) (cycle with rfc1034, rfc1035, rfc1122, rfc1191, rfc1195, rfc1332, rfc1812, rfc2131, rfc2132, rfc4291, rfc4443, rfc5905, rfc8200, rfc8201, rfc9293) | Neighbor Discovery for IP version 6 (IPv6) | 30 of 138 (21.7%); ceiling 43 of 138 (31.2%); excluded: Met by a lower layer: 95 of 138 (68.8%) | 0 of 79 (0.0%); ceiling 79 of 79 (100.0%) | lns: required by rfc/short/rfc4861.md |
+| [RFC 4861](../../rfc4861/) (cycle with rfc1034, rfc1035, rfc1122, rfc1191, rfc1195, rfc1332, rfc1812, rfc2131, rfc2132, rfc4291, rfc4443, rfc5905, rfc8200, rfc8201, rfc9293) | Neighbor Discovery for IP version 6 (IPv6) | 30 of 138 (21.7%); ceiling 47 of 138 (34.1%); excluded: Met by a lower layer: 91 of 138 (65.9%) | 0 of 79 (0.0%); ceiling 79 of 79 (100.0%) | lns: required by rfc/short/rfc4861.md |
 
 ### Level 3
 
@@ -50,7 +50,7 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 
 | RFC | Title | Mandatory | Optional | Why it is here |
 |---|---|---|---|---|
-| [RFC 5072](../../rfc5072/) | IP Version 6 over PPP | 9 of 16 (56.2%); ceiling 15 of 16 (93.8%); excluded: Not applicable (classification can be revisited): 1 of 16 (6.2%) | 0 of 12 (0.0%); ceiling 12 of 12 (100.0%) | lns: required by rfc/short/rfc5072.md |
+| [RFC 5072](../../rfc5072/) | IP Version 6 over PPP | 9 of 16 (56.2%); ceiling 16 of 16 (100.0%) | 0 of 12 (0.0%); ceiling 12 of 12 (100.0%) | lns: required by rfc/short/rfc5072.md |
 
 ### Level 5
 

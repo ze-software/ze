@@ -288,8 +288,8 @@ A trailing `*` on an interface name produces a prefix match. For example,
 | `accept` | Accept packet | `accept;` |
 | `drop` | Drop packet | `drop;` |
 | `reject` | Reject with ICMP | `reject { with icmp; code 3; }` |
-| `jump` | Jump to chain | `jump helper;` |
-| `goto` | Goto chain | `goto cleanup;` |
+| `jump` | Jump to a chain of the same table; the editor completes the table's chains and a commit naming another is refused | `jump helper;` |
+| `goto` | Goto a chain of the same table, completed and checked like `jump` | `goto cleanup;` |
 | `return` | Return from chain | `return;` |
 | `snat` | Source NAT | `snat { to "10.0.0.1"; }` |
 | `dnat` | Destination NAT | `dnat { to "10.1.1.1:8080"; }` |

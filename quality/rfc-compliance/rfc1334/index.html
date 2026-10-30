@@ -123,7 +123,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>81.2%</strong><b>26 of 32 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>100.0%</strong><b>32 of 32 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -241,7 +241,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>10</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>26</td>
+<td>32</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc1334.md</code></td>
@@ -543,12 +543,12 @@ No interoperability scenario exercises PAP: the PPPoE and L2TP labs authenticate
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_pap_test.go#L411" title="internal/component/l2tp/ppp/rfc1334_pap_test.go" target="_blank" rel="noopener"><code>TestPAPRejectWritesNak</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_pap_test.go#L293" title="internal/component/l2tp/ppp/rfc1334_pap_test.go" target="_blank" rel="noopener"><code>TestPAPRequestEmitsEvent</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -563,12 +563,12 @@ No interoperability scenario exercises PAP: the PPPoE and L2TP labs authenticate
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_pap_test.go#L297" title="internal/component/l2tp/ppp/rfc1334_pap_test.go" target="_blank" rel="noopener"><code>TestPAPRequestEmitsEvent</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_pap_test.go#L407" title="internal/component/l2tp/ppp/rfc1334_pap_test.go" target="_blank" rel="noopener"><code>TestPAPRejectWritesNak</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -733,12 +733,12 @@ No interoperability scenario exercises PAP: the PPPoE and L2TP labs authenticate
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_pap_test.go#L414" title="internal/component/l2tp/ppp/rfc1334_pap_test.go" target="_blank" rel="noopener"><code>TestPAPRejectWritesNak</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_pap_test.go#L300" title="internal/component/l2tp/ppp/rfc1334_pap_test.go" target="_blank" rel="noopener"><code>TestPAPRequestEmitsEvent</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1114,7 +1114,7 @@ No interoperability scenario exercises PAP: the PPPoE and L2TP labs authenticate
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 19:30 UTC</span>
+                    <span class="footer-published">Published 30 October 2026 14:16 UTC</span>
                 </div>
             </div>
         </footer>

@@ -1,6 +1,6 @@
 # Command Equivalents
 
-490 live Ze commands. 46 have vendor CLI today. 98 have been reviewed for migration intent. Vendor commands are curated migration hints, not exhaustive vendor CLI catalogs.
+491 live Ze commands. 46 have vendor CLI today. 98 have been reviewed for migration intent. Vendor commands are curated migration hints, not exhaustive vendor CLI catalogs.
 
 ## Commands with vendor CLI
 
@@ -74,7 +74,7 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `clear dns cache all` | Daemon | - | - | - | - | [details](clear-dns-cache-all/) |
 | `clear dns cache record` | Daemon | - | - | - | - | [details](clear-dns-cache-record/) |
 | `clear dns cache stats` | Daemon | - | - | - | - | [details](clear-dns-cache-stats/) |
-| `clear dns-resolver cache all` | Daemon | - | - | - | - | [details](clear-dns-resolver-cache-all/) |
+| `clear dns resolver cache all` | Daemon | - | - | - | - | [details](clear-dns-resolver-cache-all/) |
 | `clear firewall domain-group` | Daemon | - | - | - | - | [details](clear-firewall-domain-group/) |
 | `clear firewall irr as-set` | Daemon | - | - | - | - | [details](clear-firewall-irr-as-set/) |
 | `clear firewall irr asn` | Daemon | - | - | - | - | [details](clear-firewall-irr-asn/) |
@@ -370,7 +370,7 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `show dns cache record` | Read-only | - | - | - | `show dns` | [details](show-dns-cache-record/) |
 | `show dns cache stats` | Read-only | - | - | - | `show dns` | [details](show-dns-cache-stats/) |
 | `show dns lookup` | Read-only | - | - | - | `show dns` | [details](show-dns-lookup/) |
-| `show dns-resolver` | Read-only | - | - | - | - | [details](show-dns-resolver/) |
+| `show dns resolver` | Read-only | - | - | - | - | [details](show-dns-resolver/) |
 | `show doctor` | Read-only | - | - | - | `show hardware cpu`<br>`show system memory` | [details](show-doctor/) |
 | `show ecmp-groups` | Read-only | - | - | - | - | [details](show-ecmp-groups/) |
 | `show env get` | Read-only | - | - | - | - | [details](show-env-get/) |
@@ -522,6 +522,7 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `show reload-status` | Read-only | - | - | - | - | [details](show-reload-status/) |
 | `show resolve rir` | Read-only | - | - | - | - | [details](show-resolve-rir/) |
 | `show rib` | Read-only | - | - | - | - | [details](show-rib/) |
+| `show rib candidates` | Read-only | - | - | - | - | [details](show-rib-candidates/) |
 | `show route` | Read-only | `show route` | - | - | `show ip route` | [details](show-route/) |
 | `show route lookup` | Read-only | `show route <prefix>` | - | - | `show ip route <prefix>` | [details](show-route-lookup/) |
 | `show rr peers` | Read-only | - | - | - | - | [details](show-rr-peers/) |

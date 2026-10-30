@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 2473 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 2473: Generic Packet Tunneling in IPv6 Specification. 11 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 2473: Generic Packet Tunneling in IPv6 Specification. 11 gated MUST-level requirements, 3 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 2473 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 2473: Generic Packet Tunneling in IPv6 Specification. 11 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 2473: Generic Packet Tunneling in IPv6 Specification. 11 gated MUST-level requirements, 3 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 2473 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 2473: Generic Packet Tunneling in IPv6 Specification. 11 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 2473: Generic Packet Tunneling in IPv6 Specification. 11 gated MUST-level requirements, 3 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -45,9 +45,9 @@
         <main id="top" class="has-page-sidebar" tabindex="-1">
             <section aria-labeledby="rfc-detail-title" class="md-content reveal cat-observe">
 <div class="journey-hero reveal">
-    <span class="journey-eyebrow">No row in the public ledger</span>
+    <span class="journey-eyebrow">Partial</span>
     <h1 id="rfc-detail-title">RFC 2473 - Generic Packet Tunneling in IPv6 Specification</h1>
-    <p>Every requirement this repository extracted from RFC 2473, the tests bound to it, and what a reader has verified about them. This summary is not enrolled.</p>
+    <p>Every requirement this repository extracted from RFC 2473, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.</p>
 </div>
 <style>
 .rfc-table-wrap { overflow-x: auto; }
@@ -122,18 +122,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 <article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>100.0%</strong><b>2 of 2 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>MUSTs declared</span><strong>11</strong><b>of 21 this summary declares</b><p>MUST-level requirements this summary DECLARES. The gate holds none of them, because this RFC is not enrolled (third-party), so every share below reads what the summary records rather than what the gate enforces</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>10</strong><b>of 11 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>90.9%</strong><b>10 of 11 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>11</strong><b>of 21 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 11 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>63.6%</strong><b>7 of 11 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit</p></article>
+</div>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>27.3%</strong><b>3 of 11 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 </div>
 <p>The 9 shares marked as a part above are the whole of the 11 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -142,7 +146,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>Card</th><th>Tone here</th><th>Why that color</th></tr></thead>
 <tbody>
-<tr><td>MUSTs declared</td>
+<tr><td>Gated MUSTs</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
 <td>no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total</td>
 </tr>
@@ -167,7 +171,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
 </tr>
 <tr><td>No test at all</td>
-<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
 </tr>
 <tr><td>Not applicable</td>
@@ -205,10 +209,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Field</th><th>Value</th></tr></thead>
 <tbody>
 <tr><td>Public status</td>
-<td>No row in the public ledger</td>
+<td>Partial</td>
 </tr>
 <tr><td>Enrolment</td>
-<td>Not enrolled (third-party)</td>
+<td>Enrolled</td>
 </tr>
 <tr><td>Requirements</td>
 <td>21</td>
@@ -217,10 +221,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>11</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
-<td>10</td>
+<td>0</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>0</td>
+<td>3</td>
 </tr>
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
@@ -257,10 +261,19 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Not enrolled (third-party, a layer under or beside Ze performs the document and Ze holds no Go code for it, so the reason beside this kind names the component that does): The Linux ip6_tunnel module builds the outer IPv6 header and handles the Encapsulation Limit option. Ze only builds the netlink link descriptor, internal/plugins/iface/netlink/tunnel_linux.go::buildIp6tnl.</p>
+<p>Enrolled: Generic Packet Tunneling in IPv6. Ze fills the tunnel entry-point and exit-point node roles by programming ip6tnl and ipip6 tunnels through internal/plugins/iface/netlink/tunnel_linux.go::buildIp6tnl (linux:CONFIG_IPV6_TUNNEL), with no VPP backend for either kind, and the intermediate node role whenever it routes a tunnel packet. Seven MUSTs are lower-layer rows the Linux ip6_tunnel module performs, each owing a test over the link ze installs, 4.1.1-3 over the EncapLimit and Flags values. Three are gaps: the entry point does not fragment a tunnel packet larger than the path MTU (7.1-1, 7.1-4), and the intermediate-node rule is unverified on the VPP FIB backend (7.1-2)</p>
 </section>
 <section><h2>What the public ledger says</h2>
-<p>No row in the public ledger, so its summary declares `| Support | - |` and docs/features/rfc-status.md carries no row for RFC 2473.</p>
+<p><strong>Status:</strong> Partial</p>
+<details class="rfc-fold"><summary>What the ledger says is covered</summary>
+<ul class="rfc-prose">
+<li>Ze configures ip6tnl and ipip6 tunnels through the <code>tunnel</code> YANG list, built as a netlink Ip6tnl link (<code>buildIp6tnl</code>) with optional hop limit, traffic class and encapsulation limit, on the netlink backend only</li>
+<li>the Linux ip6_tunnel module carries the traffic and handles the Encapsulation Limit option.</li>
+</ul>
+</details>
+<details class="rfc-fold"><summary>What the ledger says remains</summary>
+Three MUST gaps in the requirement checklist. The tunnel entry point does not fragment a tunnel packet larger than the path MTU, sending Packet Too Big instead (<a href="#rfc2473-7.1-1"><code>RFC2473-7.1-1</code></a>, 7.1-4), and the intermediate-node no-fragmentation rule is unverified on the VPP FIB backend (<a href="#rfc2473-7.1-2"><code>RFC2473-7.1-2</code></a>). The seven kernel-performed rows owe tests over the link ze installs, <a href="#rfc2473-4.1.1-3"><code>RFC2473-4.1.1-3</code></a> over the EncapLimit and Flags values.
+</details>
 </section>
 <section><h2>Coverage</h2>
 <div class="rfc-table-wrap">
@@ -303,7 +316,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p class="rfc-id-list"><strong>Annotated (including scoped evidence) (10):</strong> <a href="#rfc2473-4.1.1-1"><code>RFC2473-4.1.1-1</code></a>, <a href="#rfc2473-4.1.1-3"><code>RFC2473-4.1.1-3</code></a>, <a href="#rfc2473-4.1.1-4"><code>RFC2473-4.1.1-4</code></a>, <a href="#rfc2473-4.1.2-1"><code>RFC2473-4.1.2-1</code></a>, <a href="#rfc2473-7.1-1"><code>RFC2473-7.1-1</code></a>, <a href="#rfc2473-7.1-2"><code>RFC2473-7.1-2</code></a>, <a href="#rfc2473-7.1-3"><code>RFC2473-7.1-3</code></a>, <a href="#rfc2473-7.1-4"><code>RFC2473-7.1-4</code></a>, <a href="#rfc2473-7.2-1"><code>RFC2473-7.2-1</code></a>, <a href="#rfc2473-8-1"><code>RFC2473-8-1</code></a></p>
 </section>
 <section><h2>Attainable ceiling</h2>
-<p>Mandatory ceiling: 1 of 11 (9.1%); excluded: Not applicable (classification can be revisited): 10 of 11 (90.9%). Optional ceiling: 10 of 10 (100.0%). Lowest mandatory ceiling: rfc2473 1 of 11 (9.1%). Lowest optional ceiling: rfc2473 10 of 10 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.</p>
+<p>Mandatory ceiling: 4 of 11 (36.4%); excluded: Met by a lower layer: 7 of 11 (63.6%). Optional ceiling: 10 of 10 (100.0%). Lowest mandatory ceiling: rfc2473 4 of 11 (36.4%). Lowest optional ceiling: rfc2473 10 of 10 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.</p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -317,7 +330,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2473-4.1.1-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> the tunnel-node datapath that processes the encapsulation-limit option and emits ICMPv6 Parameter Problem is the kernel ip6_tunnel module; ze only creates and configures the tunnel netdev (internal/plugins/iface/netlink/tunnel_linux.go:44)</p></td>
+</div><p class="rfc-mark"><strong>{lower-layer}:</strong> Linux IPv6 tunnel (net/ipv6/ip6_tunnel.c, ip6_tnl_parse_tlv_enc_lim and ipxip6_tnl_xmit), linux:CONFIG_IPV6_TUNNEL; internal/plugins/iface/netlink/tunnel_linux.go::buildIp6tnl creates the ip6tnl link, and before encapsulating an IPv6 packet the kernel looks for a Tunnel Encapsulation Limit option and, at a limit of 0, sends ICMPv6 Parameter Problem (ICMPV6_HDR_FIELD, pointing at the limit) and drops the packet; the lookup runs whatever flags the link carries, so no value ze writes decides it. ze installs no ip6tnl or ipip6 tunnel in VPP (internal/plugins/iface/vpp/tunnel.go::CreateTunnel refuses both kinds as netlink-only), so VPP performs nothing here on ze&#39;s behalf</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2473-4.1.1-2">RFC2473-4.1.1-2</code></td><td colspan="3"><span class="rfc-subject">(c) If a Tunnel Encapsulation Limit option is found in the packet entering the tunnel and its limit value is non-zero, an additional Tunnel Encapsulation Limit option must be included as part of the encapsulating headers being added at this entry point. The limit value in the encapsulating option is set to one less than the limit value found in the packet being encapsulated. (§4.1.1)</span></td></tr>
 <tr><td></td>
@@ -335,7 +348,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2473-4.1.1-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> inserting the configured encapsulation-limit option is done by the kernel ip6_tunnel datapath; ze passes IFLA_IPTUN_ENCAP_LIMIT at internal/plugins/iface/netlink/tunnel_linux.go:266-267</p></td>
+</div><p class="rfc-mark"><strong>{lower-layer}:</strong> Linux IPv6 tunnel (net/ipv6/ip6_tunnel.c, ip6_tnl_xmit and init_tel_txopt), linux:CONFIG_IPV6_TUNNEL; internal/plugins/iface/netlink/tunnel_linux.go::buildIp6tnl writes the encaplimit leaf (default 4) into EncapLimit, and the vendored netlink (vendor/github.com/vishvananda/netlink, addIp6tnlAttrs) always sends IFLA_IPTUN_ENCAP_LIMIT with IFLA_IPTUN_FLAGS 0, so IP6_TNL_F_IGN_ENCAP_LIMIT is never set and the kernel inserts a Tunnel Encapsulation Limit option carrying that value into every packet it encapsulates. The EncapLimit and Flags values ze installs decide this, so a test over them is owed. ze installs no ip6tnl or ipip6 tunnel in VPP (CreateTunnel refuses both kinds as netlink-only)</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2473-4.1.1-4">RFC2473-4.1.1-4</code></td><td colspan="3"><span class="rfc-subject">Examine the packet to see if a Tunnel Encapsulation Limit option is present following its IPv6 header. The headers following the IPv6 header must be examined in strict &#34;left-to-right&#34; order (§4.1.1)</span></td></tr>
 <tr><td></td>
@@ -344,7 +357,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2473-4.1.1-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> left-to-right extension-header parsing at packet time is kernel datapath parsing; ze carries no per-packet header path, only tunnel netdev creation (internal/plugins/iface/netlink/tunnel_linux.go:44)</p></td>
+</div><p class="rfc-mark"><strong>{lower-layer}:</strong> Linux IPv6 tunnel (net/ipv6/ip6_tunnel.c, ip6_tnl_parse_tlv_enc_lim), linux:CONFIG_IPV6_TUNNEL; internal/plugins/iface/netlink/tunnel_linux.go::buildIp6tnl creates the ip6tnl link, and the kernel walks the extension headers after the IPv6 header in order, following each nexthdr, until it finds the Destination Options header carrying the limit or a header that cannot precede it; no value ze writes decides this. ze installs no ip6tnl or ipip6 tunnel in VPP (internal/plugins/iface/vpp/tunnel.go::CreateTunnel refuses both kinds as netlink-only)</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2473-4.1.2-1">RFC2473-4.1.2-1</code></td><td colspan="3"><span class="rfc-subject">A particular case of encapsulation which must be avoided is the loopback encapsulation. Loopback encapsulation takes place when a tunnel IPv6 entry-point node encapsulates tunnel IPv6 packets originated from itself, and destined to itself. (§4.1.2)</span></td></tr>
 <tr><td></td>
@@ -353,7 +366,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2473-4.1.2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> detecting loopback encapsulation at packet time binds the kernel ip6_tunnel datapath; ze only creates the tunnel netdev (internal/plugins/iface/netlink/tunnel_linux.go:44)</p></td>
+</div><p class="rfc-mark"><strong>{lower-layer}:</strong> Linux IPv6 tunnel (net/ipv6/ip6_tunnel.c, ip6_tnl_xmit), linux:CONFIG_IPV6_TUNNEL; internal/plugins/iface/netlink/tunnel_linux.go::buildIp6tnl creates the ip6tnl link, and when the route for the encapsulated packet leads back out of the same tunnel device the kernel logs a local routing loop, counts a collision and drops the packet rather than encapsulating it again; no value ze writes decides this. ze installs no ip6tnl or ipip6 tunnel in VPP (internal/plugins/iface/vpp/tunnel.go::CreateTunnel refuses both kinds as netlink-only)</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2473-7.1-1">RFC2473-7.1-1</code></td><td colspan="3"><span class="rfc-subject">Therefore, like any source of an IPv6 packet, a tunnel entry-point node must support fragmentation of tunnel IPv6 packets. (§7)</span></td></tr>
 <tr><td></td>
@@ -362,7 +375,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2473-7.1-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> fragmenting outbound tunnel packets is a kernel/VPP datapath capability; ze holds no packet-forwarding code, only tunnel config (internal/plugins/iface/netlink/tunnel_linux.go:248)</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> unmet as read in the kernel source and untested. On the ip6tnl link internal/plugins/iface/netlink/tunnel_linux.go::buildIp6tnl creates (linux:CONFIG_IPV6_TUNNEL), ip6_tnl_xmit (net/ipv6/ip6_tunnel.c) floors the tunnel MTU at 1280 and encapsulates, but sets no ignore_df on the tunnel packet, so ip6_fragment (net/ipv6/ip6_output.c) answers a tunnel packet larger than the path MTU with Packet Too Big instead of fragmenting it. ze installs no ip6tnl or ipip6 tunnel in VPP (CreateTunnel refuses both kinds as netlink-only)</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2473-7.1-2">RFC2473-7.1-2</code></td><td colspan="3"><span class="rfc-subject">A tunnel intermediate node that forwards a tunnel packet to another node in the tunnel follows the general IPv6 rule that it must not fragment a packet undergoing forwarding. (§7)</span></td></tr>
 <tr><td></td>
@@ -371,7 +384,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2473-7.1-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze is a routing control plane with no IPv6 forwarding datapath; the intermediate-node no-fragment rule is enforced by the kernel/VPP</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> a gap in proof on one of the two FIB backends. ze is a tunnel intermediate node whenever it routes a tunnel packet. The Linux path is the verified half: ip6_forward (net/ipv6/ip6_output.c, linux:CONFIG_IPV6) never fragments a forwarded packet and answers one larger than the link MTU with Packet Too Big, on the routes internal/plugins/fib/kernel installs. The VPP half is unverified: fib-vpp (internal/plugins/fib/vpp/register.go, ze_vpp feature gate) is a shipped FIB backend that installs IPv6 routes in VPP, and no test shows VPP never fragments a packet it forwards</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2473-7.1-3">RFC2473-7.1-3</code></td><td colspan="3"><span class="rfc-subject">if the original IPv6 packet size is larger than the IPv6 minimum link MTU [IPv6-Spec], the entry-point node discards the packet and sends an ICMPv6 &#34;Packet Too Big&#34; message to the source address of the original packet with the recommended MTU size field set to the tunnel MTU or the IPv6 minimum link MTU, whichever is larger, i.e. max (tunnel MTU, IPv6 minimum link MTU). (§7.1)</span></td></tr>
 <tr><td></td>
@@ -380,7 +393,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2473-7.1-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> tunnel-MTU comparison, discard, and ICMPv6 Packet Too Big generation are kernel ip6_tunnel datapath actions ze does not perform</p></td>
+</div><p class="rfc-mark"><strong>{lower-layer}:</strong> Linux IPv6 tunnel (net/ipv6/ip6_tunnel.c, ip6_tnl_xmit and ipxip6_tnl_xmit), linux:CONFIG_IPV6_TUNNEL; internal/plugins/iface/netlink/tunnel_linux.go::buildIp6tnl creates the ip6tnl link, and the kernel compares the packet with the tunnel MTU (the path MTU less the tunnel headers, floored at 1280), and for a larger packet returns EMSGSIZE, so the caller drops it and sends ICMPv6 Packet Too Big carrying that MTU to the source; no value ze writes decides this, and the operator&#39;s mtu leaf only sets the tunnel device MTU. ze installs no ip6tnl or ipip6 tunnel in VPP (internal/plugins/iface/vpp/tunnel.go::CreateTunnel refuses both kinds as netlink-only)</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2473-7.1-4">RFC2473-7.1-4</code></td><td colspan="3"><span class="rfc-subject">if the original IPv6 packet is equal or smaller than the IPv6 minimum link MTU, the tunnel entry-point node encapsulates the original packet, and subsequently fragments the resulting IPv6 tunnel packet into IPv6 fragments that do not exceed the Path MTU to the tunnel exit-point. (§7.1)</span></td></tr>
 <tr><td></td>
@@ -389,7 +402,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2473-7.1-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> encapsulate-then-fragment is a kernel/VPP datapath operation; ze only configures the tunnel interface (internal/plugins/iface/netlink/tunnel_linux.go:248)</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> unmet as read in the kernel source and untested, as RFC2473-7.1-1. On the ip6tnl link internal/plugins/iface/netlink/tunnel_linux.go::buildIp6tnl creates (linux:CONFIG_IPV6_TUNNEL), ip6_tnl_xmit (net/ipv6/ip6_tunnel.c) encapsulates an original packet of 1280 octets or less, but the tunnel packet carries no ignore_df, so ip6_fragment (net/ipv6/ip6_output.c) refuses to fragment it when it exceeds the path MTU and sends Packet Too Big instead. ze installs no ip6tnl or ipip6 tunnel in VPP (CreateTunnel refuses both kinds as netlink-only)</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2473-7.2-1">RFC2473-7.2-1</code></td><td colspan="3"><span class="rfc-subject">if in the original IPv4 packet header the Don&#39;t Fragment - DF - bit flag is SET, the entry-point node discards the packet and returns an ICMP message. The ICMP message has the type = &#34;unreachable&#34;, the code = &#34;packet too big&#34;, and the recommended MTU size field set to the size of the tunnel MTU - see sections 6.7 and 8.3. (§7.2)</span></td></tr>
 <tr><td></td>
@@ -398,7 +411,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2473-7.2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> DF handling and ICMP unreachable/too-big generation for encapsulated IPv4 are kernel datapath behavior; ze only sets PMtuDisc via netlink (internal/plugins/iface/netlink/tunnel_linux.go:210-214)</p></td>
+</div><p class="rfc-mark"><strong>{lower-layer}:</strong> Linux IPv6 tunnel (net/ipv6/ip6_tunnel.c, ipxip6_tnl_xmit), linux:CONFIG_IPV6_TUNNEL; internal/plugins/iface/netlink/tunnel_linux.go::buildIp6tnl creates the ipip6 link (Proto IPPROTO_IPIP), and when an IPv4 packet exceeds the tunnel MTU the kernel drops it and sends ICMP Destination Unreachable, Fragmentation Needed, carrying the tunnel MTU, to its source; no value ze writes decides this. ze installs no ipip6 tunnel in VPP (internal/plugins/iface/vpp/tunnel.go::CreateTunnel refuses the kind as netlink-only)</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2473-8-1">RFC2473-8-1</code></td><td colspan="3"><span class="rfc-subject">To report a problem detected inside the tunnel to the source of an original packet, the tunnel entry point node must relay the ICMP message received from inside the tunnel to the source of that original IPv6 packet. (§8)</span></td></tr>
 <tr><td></td>
@@ -407,7 +420,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2473-8-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> relaying tunnel-internal ICMP errors to the original source is a kernel ip6_tunnel datapath function ze does not perform</p></td>
+</div><p class="rfc-mark"><strong>{lower-layer}:</strong> Linux IPv6 tunnel (net/ipv6/ip6_tunnel.c, ip6_tnl_err, ip4ip6_err and ip6ip6_err), linux:CONFIG_IPV6_TUNNEL; internal/plugins/iface/netlink/tunnel_linux.go::buildIp6tnl creates the ip6tnl or ipip6 link, and the kernel builds a new ICMP or ICMPv6 message from the error received inside the tunnel and sends it to the source of the original packet through icmp_send or icmpv6_send; no value ze writes decides this. ze installs no ip6tnl or ipip6 tunnel in VPP (internal/plugins/iface/vpp/tunnel.go::CreateTunnel refuses both kinds as netlink-only)</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2473-3.1-1">RFC2473-3.1-1</code></td><td colspan="3"><span class="rfc-subject">Tunnel extension headers should appear in the order recommended by the specifications that define the extension headers (§3.1)</span></td></tr>
 <tr><td></td>
@@ -510,43 +523,43 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="#rfc2473-4.1.1-1"><code>RFC2473-4.1.1-1</code></a> If a Tunnel Encapsulation Limit option is found in the packet entering the tunnel and its limit value is zero, the packet is discarded and an ICMP Parameter Problem message [ICMP-Spec] is sent to the source of the packet, which is the previous tunnel entry-point node. The Code field of the Parameter Problem message is set to zero (&#34;erroneous header field encountered&#34;) and the Pointer field is set to point to the third octet of the Tunnel Encapsulation Limit option (i.e., the octet containing the limit value of zero). (§4.1.1)</td>
 <td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: the tunnel-node datapath that processes the encapsulation-limit option and emits ICMPv6 Parameter Problem is the kernel ip6_tunnel module; ze only creates and configures the tunnel netdev (internal/plugins/iface/netlink/tunnel_linux.go:44)</td>
+<td>no test carries this requirement id; annotated {lower-layer}: Linux IPv6 tunnel (net/ipv6/ip6_tunnel.c, ip6_tnl_parse_tlv_enc_lim and ipxip6_tnl_xmit), linux:CONFIG_IPV6_TUNNEL; internal/plugins/iface/netlink/tunnel_linux.go::buildIp6tnl creates the ip6tnl link, and before encapsulating an IPv6 packet the kernel looks for a Tunnel Encapsulation Limit option and, at a limit of 0, sends ICMPv6 Parameter Problem (ICMPV6_HDR_FIELD, pointing at the limit) and drops the packet; the lookup runs whatever flags the link carries, so no value ze writes decides it. ze installs no ip6tnl or ipip6 tunnel in VPP (internal/plugins/iface/vpp/tunnel.go::CreateTunnel refuses both kinds as netlink-only), so VPP performs nothing here on ze&#39;s behalf</td>
 </tr>
 <tr><td><a href="#rfc2473-4.1.1-3"><code>RFC2473-4.1.1-3</code></a> If a Tunnel Encapsulation Limit option is not found in the packet entering the tunnel and if an encapsulation limit has been configured for this tunnel, a Tunnel Encapsulation Limit option must be included as part of the encapsulating headers being added at this entry point. The limit value in the option is set to the configured limit. (§4.1.1)</td>
 <td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: inserting the configured encapsulation-limit option is done by the kernel ip6_tunnel datapath; ze passes IFLA_IPTUN_ENCAP_LIMIT at internal/plugins/iface/netlink/tunnel_linux.go:266-267</td>
+<td>no test carries this requirement id; annotated {lower-layer}: Linux IPv6 tunnel (net/ipv6/ip6_tunnel.c, ip6_tnl_xmit and init_tel_txopt), linux:CONFIG_IPV6_TUNNEL; internal/plugins/iface/netlink/tunnel_linux.go::buildIp6tnl writes the encaplimit leaf (default 4) into EncapLimit, and the vendored netlink (vendor/github.com/vishvananda/netlink, addIp6tnlAttrs) always sends IFLA_IPTUN_ENCAP_LIMIT with IFLA_IPTUN_FLAGS 0, so IP6_TNL_F_IGN_ENCAP_LIMIT is never set and the kernel inserts a Tunnel Encapsulation Limit option carrying that value into every packet it encapsulates. The EncapLimit and Flags values ze installs decide this, so a test over them is owed. ze installs no ip6tnl or ipip6 tunnel in VPP (CreateTunnel refuses both kinds as netlink-only)</td>
 </tr>
 <tr><td><a href="#rfc2473-4.1.1-4"><code>RFC2473-4.1.1-4</code></a> Examine the packet to see if a Tunnel Encapsulation Limit option is present following its IPv6 header. The headers following the IPv6 header must be examined in strict &#34;left-to-right&#34; order (§4.1.1)</td>
 <td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: left-to-right extension-header parsing at packet time is kernel datapath parsing; ze carries no per-packet header path, only tunnel netdev creation (internal/plugins/iface/netlink/tunnel_linux.go:44)</td>
+<td>no test carries this requirement id; annotated {lower-layer}: Linux IPv6 tunnel (net/ipv6/ip6_tunnel.c, ip6_tnl_parse_tlv_enc_lim), linux:CONFIG_IPV6_TUNNEL; internal/plugins/iface/netlink/tunnel_linux.go::buildIp6tnl creates the ip6tnl link, and the kernel walks the extension headers after the IPv6 header in order, following each nexthdr, until it finds the Destination Options header carrying the limit or a header that cannot precede it; no value ze writes decides this. ze installs no ip6tnl or ipip6 tunnel in VPP (internal/plugins/iface/vpp/tunnel.go::CreateTunnel refuses both kinds as netlink-only)</td>
 </tr>
 <tr><td><a href="#rfc2473-4.1.2-1"><code>RFC2473-4.1.2-1</code></a> A particular case of encapsulation which must be avoided is the loopback encapsulation. Loopback encapsulation takes place when a tunnel IPv6 entry-point node encapsulates tunnel IPv6 packets originated from itself, and destined to itself. (§4.1.2)</td>
 <td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: detecting loopback encapsulation at packet time binds the kernel ip6_tunnel datapath; ze only creates the tunnel netdev (internal/plugins/iface/netlink/tunnel_linux.go:44)</td>
+<td>no test carries this requirement id; annotated {lower-layer}: Linux IPv6 tunnel (net/ipv6/ip6_tunnel.c, ip6_tnl_xmit), linux:CONFIG_IPV6_TUNNEL; internal/plugins/iface/netlink/tunnel_linux.go::buildIp6tnl creates the ip6tnl link, and when the route for the encapsulated packet leads back out of the same tunnel device the kernel logs a local routing loop, counts a collision and drops the packet rather than encapsulating it again; no value ze writes decides this. ze installs no ip6tnl or ipip6 tunnel in VPP (internal/plugins/iface/vpp/tunnel.go::CreateTunnel refuses both kinds as netlink-only)</td>
 </tr>
 <tr><td><a href="#rfc2473-7.1-1"><code>RFC2473-7.1-1</code></a> Therefore, like any source of an IPv6 packet, a tunnel entry-point node must support fragmentation of tunnel IPv6 packets. (§7)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: fragmenting outbound tunnel packets is a kernel/VPP datapath capability; ze holds no packet-forwarding code, only tunnel config (internal/plugins/iface/netlink/tunnel_linux.go:248)</td>
+<td>{gap}, no test</td>
+<td>unmet as read in the kernel source and untested. On the ip6tnl link internal/plugins/iface/netlink/tunnel_linux.go::buildIp6tnl creates (linux:CONFIG_IPV6_TUNNEL), ip6_tnl_xmit (net/ipv6/ip6_tunnel.c) floors the tunnel MTU at 1280 and encapsulates, but sets no ignore_df on the tunnel packet, so ip6_fragment (net/ipv6/ip6_output.c) answers a tunnel packet larger than the path MTU with Packet Too Big instead of fragmenting it. ze installs no ip6tnl or ipip6 tunnel in VPP (CreateTunnel refuses both kinds as netlink-only)</td>
 </tr>
 <tr><td><a href="#rfc2473-7.1-2"><code>RFC2473-7.1-2</code></a> A tunnel intermediate node that forwards a tunnel packet to another node in the tunnel follows the general IPv6 rule that it must not fragment a packet undergoing forwarding. (§7)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: ze is a routing control plane with no IPv6 forwarding datapath; the intermediate-node no-fragment rule is enforced by the kernel/VPP</td>
+<td>{gap}, no test</td>
+<td>a gap in proof on one of the two FIB backends. ze is a tunnel intermediate node whenever it routes a tunnel packet. The Linux path is the verified half: ip6_forward (net/ipv6/ip6_output.c, linux:CONFIG_IPV6) never fragments a forwarded packet and answers one larger than the link MTU with Packet Too Big, on the routes internal/plugins/fib/kernel installs. The VPP half is unverified: fib-vpp (internal/plugins/fib/vpp/register.go, ze_vpp feature gate) is a shipped FIB backend that installs IPv6 routes in VPP, and no test shows VPP never fragments a packet it forwards</td>
 </tr>
 <tr><td><a href="#rfc2473-7.1-3"><code>RFC2473-7.1-3</code></a> if the original IPv6 packet size is larger than the IPv6 minimum link MTU [IPv6-Spec], the entry-point node discards the packet and sends an ICMPv6 &#34;Packet Too Big&#34; message to the source address of the original packet with the recommended MTU size field set to the tunnel MTU or the IPv6 minimum link MTU, whichever is larger, i.e. max (tunnel MTU, IPv6 minimum link MTU). (§7.1)</td>
 <td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: tunnel-MTU comparison, discard, and ICMPv6 Packet Too Big generation are kernel ip6_tunnel datapath actions ze does not perform</td>
+<td>no test carries this requirement id; annotated {lower-layer}: Linux IPv6 tunnel (net/ipv6/ip6_tunnel.c, ip6_tnl_xmit and ipxip6_tnl_xmit), linux:CONFIG_IPV6_TUNNEL; internal/plugins/iface/netlink/tunnel_linux.go::buildIp6tnl creates the ip6tnl link, and the kernel compares the packet with the tunnel MTU (the path MTU less the tunnel headers, floored at 1280), and for a larger packet returns EMSGSIZE, so the caller drops it and sends ICMPv6 Packet Too Big carrying that MTU to the source; no value ze writes decides this, and the operator&#39;s mtu leaf only sets the tunnel device MTU. ze installs no ip6tnl or ipip6 tunnel in VPP (internal/plugins/iface/vpp/tunnel.go::CreateTunnel refuses both kinds as netlink-only)</td>
 </tr>
 <tr><td><a href="#rfc2473-7.1-4"><code>RFC2473-7.1-4</code></a> if the original IPv6 packet is equal or smaller than the IPv6 minimum link MTU, the tunnel entry-point node encapsulates the original packet, and subsequently fragments the resulting IPv6 tunnel packet into IPv6 fragments that do not exceed the Path MTU to the tunnel exit-point. (§7.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: encapsulate-then-fragment is a kernel/VPP datapath operation; ze only configures the tunnel interface (internal/plugins/iface/netlink/tunnel_linux.go:248)</td>
+<td>{gap}, no test</td>
+<td>unmet as read in the kernel source and untested, as RFC2473-7.1-1. On the ip6tnl link internal/plugins/iface/netlink/tunnel_linux.go::buildIp6tnl creates (linux:CONFIG_IPV6_TUNNEL), ip6_tnl_xmit (net/ipv6/ip6_tunnel.c) encapsulates an original packet of 1280 octets or less, but the tunnel packet carries no ignore_df, so ip6_fragment (net/ipv6/ip6_output.c) refuses to fragment it when it exceeds the path MTU and sends Packet Too Big instead. ze installs no ip6tnl or ipip6 tunnel in VPP (CreateTunnel refuses both kinds as netlink-only)</td>
 </tr>
 <tr><td><a href="#rfc2473-7.2-1"><code>RFC2473-7.2-1</code></a> if in the original IPv4 packet header the Don&#39;t Fragment - DF - bit flag is SET, the entry-point node discards the packet and returns an ICMP message. The ICMP message has the type = &#34;unreachable&#34;, the code = &#34;packet too big&#34;, and the recommended MTU size field set to the size of the tunnel MTU - see sections 6.7 and 8.3. (§7.2)</td>
 <td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: DF handling and ICMP unreachable/too-big generation for encapsulated IPv4 are kernel datapath behavior; ze only sets PMtuDisc via netlink (internal/plugins/iface/netlink/tunnel_linux.go:210-214)</td>
+<td>no test carries this requirement id; annotated {lower-layer}: Linux IPv6 tunnel (net/ipv6/ip6_tunnel.c, ipxip6_tnl_xmit), linux:CONFIG_IPV6_TUNNEL; internal/plugins/iface/netlink/tunnel_linux.go::buildIp6tnl creates the ipip6 link (Proto IPPROTO_IPIP), and when an IPv4 packet exceeds the tunnel MTU the kernel drops it and sends ICMP Destination Unreachable, Fragmentation Needed, carrying the tunnel MTU, to its source; no value ze writes decides this. ze installs no ipip6 tunnel in VPP (internal/plugins/iface/vpp/tunnel.go::CreateTunnel refuses the kind as netlink-only)</td>
 </tr>
 <tr><td><a href="#rfc2473-8-1"><code>RFC2473-8-1</code></a> To report a problem detected inside the tunnel to the source of an original packet, the tunnel entry point node must relay the ICMP message received from inside the tunnel to the source of that original IPv6 packet. (§8)</td>
 <td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: relaying tunnel-internal ICMP errors to the original source is a kernel ip6_tunnel datapath function ze does not perform</td>
+<td>no test carries this requirement id; annotated {lower-layer}: Linux IPv6 tunnel (net/ipv6/ip6_tunnel.c, ip6_tnl_err, ip4ip6_err and ip6ip6_err), linux:CONFIG_IPV6_TUNNEL; internal/plugins/iface/netlink/tunnel_linux.go::buildIp6tnl creates the ip6tnl or ipip6 link, and the kernel builds a new ICMP or ICMPv6 message from the error received inside the tunnel and sends it to the source of the original packet through icmp_send or icmpv6_send; no value ze writes decides this. ze installs no ip6tnl or ipip6 tunnel in VPP (internal/plugins/iface/vpp/tunnel.go::CreateTunnel refuses both kinds as netlink-only)</td>
 </tr>
 </tbody>
 </table>
@@ -951,7 +964,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 23:03 UTC</span>
+                    <span class="footer-published">Published 30 October 2026 23:25 UTC</span>
                 </div>
             </div>
         </footer>

@@ -72,6 +72,13 @@ engineering scenarios where destination-based routing is insufficient.</p>
 Each matching packet gets an fwmark; a kernel ip rule maps that mark to
 the target routing table.</p>
 <h2 id="configuration">Configuration</h2>
+<p>Policy routing lives in the <code>route</code> list of the top-level <code>policy</code> block.
+That block is shared: route filters (<code>prefix-list</code>, <code>modify</code> and the other
+filter types) are defined beside it, and the two never mix. A filter chain
+cannot name a <code>policy route</code> entry, and a <code>policy route</code> entry is not a filter.
+See <a href="../bgp-policy/">BGP Policy</a> for the filters.</p>
+<!-- source: internal/plugins/policyroute/yang/ze-policyroute-conf.yang -- augment /policy:policy -->
+<!-- source: internal/component/policy/registry.go -- BuildRegistry, ValidateName -->
 <p>Set references (<code>@DstBypass</code>, <code>@SrcBypass</code>) must be defined in the
 <code>firewall</code> config section. See <a href="../firewall/">Firewall Guide</a> for set
 syntax.</p>
@@ -361,6 +368,12 @@ Term names follow the pattern <code>policyname-rulename</code>. The table is
 managed through the firewall backend, sharing the same Apply
 reconciliation used by the firewall component.</p>
 <h2 id="dependencies">Dependencies</h2>
+<p>The policy-routes plugin loads only when the config holds at least one
+<code>policy route</code> entry: its config root is the list path <code>policy/route</code>, not the
+whole <code>policy</code> block. A <code>policy {}</code> block holding only filters therefore loads
+neither policy routing nor the firewall.</p>
+<!-- source: internal/plugins/policyroute/register.go -- configRoot -->
+<!-- source: internal/component/config/tree.go -- collectPaths -->
 <p>The policy-routes plugin depends on the firewall plugin. Both must be
 available for policy routing to function. The firewall backend (nft) is
 loaded by the firewall plugin; policy routing registers its tables with
@@ -411,7 +424,7 @@ the shared firewall table registry.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 02:50 UTC</span>
+                    <span class="footer-published">Published 30 October 2026 09:46 UTC</span>
                 </div>
             </div>
         </footer>

@@ -123,8 +123,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 7 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 7 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 7 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>52.2%</strong><b>12 of 23 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
-<article class="rfc-card rfc-ok"><span>Audit verdicts</span><strong>7</strong><b>of 7 gated MUSTs judged</b><p>0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>52.2%</strong><b>12 of 23 tagged units, 0 escaped and 1 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -192,7 +191,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -242,7 +241,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>7</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>12</td>
+<td>13</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc8092.md</code></td>
@@ -347,7 +346,7 @@ LARGE_COMMUNITY parsing, validation, duplicate removal, JSON, and RFC 7606 lengt
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8092-5-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc8092_text_append_test.go#L41" title="internal/core/bgp/attribute/rfc8092_text_append_test.go" target="_blank" rel="noopener"><code>TestAppendText_LargeCommunityElement</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the canonical rendering LargeCommunity.AppendText (internal/core/bgp/attribute/community.go:316) uses strconv.AppendUint, which never emits leading zeros and renders 0 as a single &#34;0&#34;, so every value is canonical and there is no non-canonical rendering to assert as a negative</p></td>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the canonical rendering LargeCommunity.AppendText (internal/core/bgp/attribute/text_append.go:48) uses strconv.AppendUint, which never emits leading zeros and renders 0 as a single &#34;0&#34;, so every value is canonical and there is no non-canonical rendering to assert as a negative</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8092-6-1">RFC8092-6-1</code></td><td colspan="3"><span class="rfc-subject">The BGP Large Communities Global Administrator field may contain any value, and a BGP Large Communities attribute MUST NOT be considered malformed if the Global Administrator field contains an unallocated, unassigned, or reserved ASN. (Section 6)</span></td></tr>
 <tr><td></td>
@@ -438,7 +437,7 @@ LARGE_COMMUNITY parsing, validation, duplicate removal, JSON, and RFC 7606 lengt
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc8092-3-1"><code>RFC8092-3-1</code></a></h3>
 <p>Duplicate BGP Large Community values MUST NOT be transmitted. (Section 3)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-14 (independent auditor, D2). RFC 8092 Section 3: &#34;Duplicate BGP Large Community values MUST NOT be transmitted.&#34; Producer: normalizeTransmittedUpdate&#39;s compactLargeCommunities, run by writeUpdateBody on every UPDATE write, raw included, so the adj-rib-out replay and forward-unchanged bytes the earlier verdict named now pass the same walk. Positive TestRFC8092WriteRemovesRepeatedLargeCommunity: [X,X,Y] sent as [X,Y], 20 values with one repeat (filter path) and 22 in Extended Length form sent with the repeat removed, first occurrence kept, lengths re-checked by sentLargeCommunities, on the raw, parsed, override and relay writers, zero allocations; TestRFC8092PolicyAddOfPresentValueSentOnce: received [X,Z] plus a policy body [X,Z,X,Y,Y] leaves as exactly [X,Z,Y], 36 octets, message length consistent; the .ci asserts the full relayed hex with the policy repeats gone; TestLargeCommunitiesWriteToNoDuplicates pins the local encoder. Negatives TestRFC8092WriteKeepsDistinctLargeCommunities (3, 16, 17, 20 distinct values leave byte for byte on every writer) and TestLargeCommunities, red on over-removal or reordering. Rejudged 2026-10-16 (independent reader) after the owner-approved withdrawal-Compatibility change: normalizeTransmittedUpdate gained an EncodingContext parameter read only by setWithdrawalCompatibility on an MP_UNREACH_NLRI. The edits in TestRFC8092WriteRemovesRepeatedLargeCommunity and TestRFC8092WriteKeepsDistinctLargeCommunities pass nil; their bodies carry no MP_UNREACH_NLRI, so the context is never read and the Large Community compaction and its exact-output assertions are unchanged. RFC 8092 Section 3: &#34;Duplicate BGP Large Community values MUST NOT be transmitted.&#34; Verdict stands.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: test/plugin/rfc8092-large-community-no-repeat-egress.ci moved. Re-judged 2026-10-14 (independent auditor, D2). RFC 8092 Section 3: &#34;Duplicate BGP Large Community values MUST NOT be transmitted.&#34; Producer: normalizeTransmittedUpdate&#39;s compactLargeCommunities, run by writeUpdateBody on every UPDATE write, raw included, so the adj-rib-out replay and forward-unchanged bytes the earlier verdict named now pass the same walk. Positive TestRFC8092WriteRemovesRepeatedLargeCommunity: [X,X,Y] sent as [X,Y], 20 values with one repeat (filter path) and 22 in Extended Length form sent with the repeat removed, first occurrence kept, lengths re-checked by sentLargeCommunities, on the raw, parsed, override and relay writers, zero allocations; TestRFC8092PolicyAddOfPresentValueSentOnce: received [X,Z] plus a policy body [X,Z,X,Y,Y] leaves as exactly [X,Z,Y], 36 octets, message length consistent; the .ci asserts the full relayed hex with the policy repeats gone; TestLargeCommunitiesWriteToNoDuplicates pins the local encoder. Negatives TestRFC8092WriteKeepsDistinctLargeCommunities (3, 16, 17, 20 distinct values leave byte for byte on every writer) and TestLargeCommunities, red on over-removal or reordering. Rejudged 2026-10-16 (independent reader) after the owner-approved withdrawal-Compatibility change: normalizeTransmittedUpdate gained an EncodingContext parameter read only by setWithdrawalCompatibility on an MP_UNREACH_NLRI. The edits in TestRFC8092WriteRemovesRepeatedLargeCommunity and TestRFC8092WriteKeepsDistinctLargeCommunities pass nil; their bodies carry no MP_UNREACH_NLRI, so the context is never read and the Large Community compaction and its exact-output assertions are unchanged. RFC 8092 Section 3: &#34;Duplicate BGP Large Community values MUST NOT be transmitted.&#34; Verdict stands.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -471,7 +470,7 @@ LARGE_COMMUNITY parsing, validation, duplicate removal, JSON, and RFC 7606 lengt
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/rfc8092-large-community-no-repeat-egress.ci#L4" title="test/plugin/rfc8092-large-community-no-repeat-egress.ci" target="_blank" rel="noopener"><code>rfc8092-large-community-no-repeat-egress.ci</code></a></td>
 <td>functional/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 </tbody>
 </table>
@@ -516,7 +515,7 @@ LARGE_COMMUNITY parsing, validation, duplicate removal, JSON, and RFC 7606 lengt
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc8092_text_append_test.go#L41" title="internal/core/bgp/attribute/rfc8092_text_append_test.go" target="_blank" rel="noopener"><code>TestAppendText_LargeCommunityElement</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -777,7 +776,7 @@ LARGE_COMMUNITY parsing, validation, duplicate removal, JSON, and RFC 7606 lengt
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 19:30 UTC</span>
+                    <span class="footer-published">Published 30 October 2026 23:25 UTC</span>
                 </div>
             </div>
         </footer>

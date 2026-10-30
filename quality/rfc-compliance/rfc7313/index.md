@@ -1,6 +1,6 @@
 # RFC 7313 - Enhanced Route Refresh Capability for BGP-4
 
-Supported. Every requirement this repository extracted from RFC 7313, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+Partial. Every requirement this repository extracted from RFC 7313, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
 
 ## Overview
 
@@ -23,10 +23,10 @@ measures that are neither good news nor bad
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | Gated MUSTs | 11 | of 17 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 1 | of 11 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Out of scope | 0 | of 11 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
 | Not applicable | 0.0% | 0 of 11 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
 | Met below Ze | 0.0% | 0 of 11 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 9.1% | 1 of 11 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
+| Optional feature declined | 0.0% | 0 of 11 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 | Linux cannot do this | 0.0% | 0 of 11 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit |
 
 ### Negative
@@ -35,7 +35,7 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 36.4% | 4 of 11 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| No test at all | 45.5% | 5 of 11 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
 The 9 shares marked as a part above are the whole of the 11 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -61,12 +61,12 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 | Field | Value |
 |---|---|
-| Public status | Supported |
+| Public status | Partial |
 | Enrolment | Enrolled |
 | Requirements | 17 |
 | Gated MUST-level | 11 |
 | Not applicable, so out of scope | 0 |
-| Declared gaps | 4 |
+| Declared gaps | 5 |
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
@@ -80,11 +80,11 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 ## Enrolment
 
-Enrolled: Enhanced Route Refresh Capability for BGP-4: ten MUST-level requirements. Six are met in internal/component/bgp: 4-3 (the ROUTE-REFRESH Message Subtype selects normal/BoRR/EoRR handling), 5-1 (an invalid-length ROUTE-REFRESH is a NOTIFICATION Route-Refresh Error), and 5-3 (an unknown Message Subtype is ignored and the session stays Established) carry positive+negative tags; 4-1 (send a BoRR before re-advertising), 4-2 (send an EoRR after re-advertising), and 5-2 (the NOTIFICATION data carries the complete ROUTE-REFRESH message) are {single-polarity: positive}. Four are {gap}: 4-4 and 4-5 (a received BoRR/EoRR is log-only, so ze marks no Adj-RIB-In routes stale and purges none) and 4-6 and 4-7 (no Graceful-Restart End-of-RIB gate on BoRR emission or acceptance). Disclosed in the docs/features/rfc-status.md RFC 7313 row.
+Enrolled: Enhanced Route Refresh Capability for BGP-4: eleven MUST-level requirements. Six are met in internal/component/bgp: 4-3 (the ROUTE-REFRESH Message Subtype selects normal/BoRR/EoRR handling), 5-1 (an invalid-length ROUTE-REFRESH is a NOTIFICATION Route-Refresh Error), and 5-3 (an unknown Message Subtype is ignored and the session stays Established) carry positive+negative tags; 4-1 (send a BoRR before re-advertising), 4-2 (send an EoRR after re-advertising), and 5-2 (the NOTIFICATION data carries the complete ROUTE-REFRESH message) are {single-polarity: positive}. Five are {gap}: 4-4 and 4-5 (a received BoRR/EoRR is log-only, so ze marks no Adj-RIB-In routes stale and purges none), 4-6 and 4-7 (no Graceful-Restart End-of-RIB gate on BoRR emission or acceptance), and 4-13 (ze starts no locally initiated route refresh, and no decision of Thomas's declines one). Disclosed in the docs/features/rfc-status.md RFC 7313 row.
 
 ## What the public ledger says
 
-**Status:** Supported
+**Status:** Partial
 
 **What the ledger says is covered:**
 
@@ -92,7 +92,9 @@ BoRR and EoRR support, capability checks, bounded route resend.
 
 **What the ledger says remains**
 
-Four MUST-level receive-side gaps annotated in [`rfc/short/rfc7313.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc7313.md): [`RFC7313-4-4`](#rfc7313-4-4)/4-5 -- a received BoRR/EoRR is log-only ([`internal/component/bgp/plugins/rib/rib.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib.go)), so ze marks no Adj-RIB-In routes stale and purges none; and [`RFC7313-4-6`](#rfc7313-4-6)/4-7 -- neither the send nor receive path applies a Graceful-Restart End-of-RIB gate to BoRR emission or acceptance. One feature is absent by decision, and it is not a conformance gap: ze starts no locally initiated route refresh (soft clear only asks the peer for its refresh), so the BoRR obligation conditional on one, [`RFC7313-4-13`](#rfc7313-4-13), is annotated {feature-declined}.
+Five MUST-level gaps annotated in [`rfc/short/rfc7313.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc7313.md), four of them on the receive side: [`RFC7313-4-4`](#rfc7313-4-4)/4-5 -- a received BoRR/EoRR is log-only ([`internal/component/bgp/plugins/rib/rib.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib.go)), so ze marks no Adj-RIB-In routes stale and purges none; and [`RFC7313-4-6`](#rfc7313-4-6)/4-7 -- neither the send nor receive path applies a Graceful-Restart End-of-RIB gate to BoRR emission or acceptance.
+
+- **The fifth is RFC7313-4-13:** ze starts no locally initiated route refresh (soft clear only asks the peer for its refresh), and no decision of Thomas's declines that feature, so the BoRR obligation conditional on one is a {gap}.
 
 ## Coverage
 
@@ -113,13 +115,13 @@ Four MUST-level receive-side gaps annotated in [`rfc/short/rfc7313.md`](https://
 
 ## Attainable ceiling
 
-Mandatory ceiling: 10 of 11 (90.9%); excluded: Optional feature not offered (classification can be revisited): 1 of 11 (9.1%). Optional ceiling: 6 of 6 (100.0%). Lowest mandatory ceiling: rfc7313 10 of 11 (90.9%). Lowest optional ceiling: rfc7313 6 of 6 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+Mandatory ceiling: 11 of 11 (100.0%). Optional ceiling: 6 of 6 (100.0%). Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: rfc7313 11 of 11 (100.0%). Lowest optional ceiling: rfc7313 6 of 6 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
 
 ## Requirements
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC7313-4-13` | Before the speaker starts a route refresh that is either initiated locally (§4) | MUST | 4 - Operation | **positive:** no positive test. **negative:** no negative test. **{feature-declined}:** "changes, only the modified route entry needs to be advertised"; a locally initiated refresh, re-advertising the entire Adj-RIB-Out on the speaker's own initiative, is a feature RFC 7313 never requires, because an Adj-RIB-Out change needs only the modified routes. ze starts no such refresh: internal/component/bgp/plugins/rib/rib.go::handleRefresh and internal/component/bgp/plugins/rib/rib_structured.go::handleRefreshStructured are the only producers of a BoRR and of a whole-table re-advertisement, and each runs only on a received ROUTE-REFRESH subtype 0 from the peer; internal/component/bgp/reactor/reactor_api.go::SoftClearPeer, ze's one operator refresh, sends the peer an inbound ROUTE-REFRESH request and re-advertises nothing. The peer-requested clause of the same sentence is RFC7313-4-1 |
+| `RFC7313-4-13` | Before the speaker starts a route refresh that is either initiated locally (§4) | MUST | 4 - Operation | **positive:** no positive test. **negative:** no negative test. **{gap}:** no owner decision declines a locally initiated route refresh. RFC 7313 Section 4 says "When a route entry in the "Adj-RIB-Out" changes, only the modified route entry needs to be advertised.", which makes a whole-table refresh unnecessary, not declined. ze starts no such refresh: internal/component/bgp/plugins/rib/rib.go::handleRefresh and internal/component/bgp/plugins/rib/rib_structured.go::handleRefreshStructured are the only producers of a BoRR and of a whole-table re-advertisement, and each runs only on a received ROUTE-REFRESH subtype 0 from the peer; internal/component/bgp/reactor/reactor_api.go::SoftClearPeer, ze's one operator refresh, sends the peer an inbound ROUTE-REFRESH request and re-advertises nothing. The peer-requested clause of the same sentence is RFC7313-4-1 |
 | `RFC7313-4-1` | or in response to a "normal route refresh request" from the peer, the speaker MUST send a BoRR message. (§4) | MUST | 4 - Operation | **positive:** `unit/verify` [`TestDispatchBGPPeerBoRR`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/route_refresh/handler/rfc7313_dispatch_test.go#L25). **positive:** `unit/verify` [`TestRFC7313BoRRRoutesEoRRInOneSequence`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7313_sequence_test.go#L149). **positive:** `unit/verify` [`TestRFC7313RefreshBracketsReadvertisementWithBoRRAndEoRR`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7313_test.go#L59). **positive:** `unit/verify` [`TestRouteRefreshSubtypes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/routerefresh_test.go#L139). **negative:** no negative test. **{single-polarity}:** both refresh producers, RIBManager.handleRefresh (internal/component/bgp/plugins/rib/rib.go) and handleRefreshStructured (rib_structured.go), dispatch the BoRR before sendRoutes in one straight-line path with no input that selects a re-advertisement without it, so no refusal path exists to drive a negative; the reading that takes the negative from a peer's re-advertisement lacking the BoRR has nothing to test either, because ze's receipt of BoRR/EoRR is log-only (RFC7313-4-4/4-5 gaps) |
 | `RFC7313-4-2` | After the speaker completes the re-advertisement of the entire Adj-RIB-Out to the peer, it MUST send an EoRR message. (§4) | MUST | 4 - Operation | **positive:** `unit/verify` [`TestDispatchBGPPeerEoRR`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/route_refresh/handler/rfc7313_dispatch_test.go#L43). **positive:** `unit/verify` [`TestRFC7313BoRRRoutesEoRRInOneSequence`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7313_sequence_test.go#L152). **positive:** `unit/verify` [`TestRFC7313EoRRFollowsTheRoutesItCloses`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7313_refresh_order_test.go#L79). **positive:** `unit/verify` [`TestRFC7313RefreshBracketsReadvertisementWithBoRRAndEoRR`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7313_test.go#L61). **positive:** `unit/verify` [`TestRouteRefreshSubtypes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/routerefresh_test.go#L142). **negative:** `unit/verify` [`TestRFC7313EoRRFollowsTheRoutesItCloses`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7313_refresh_order_test.go#L81) |
 | `RFC7313-4-3` | In processing a ROUTE-REFRESH message from a peer, the BGP speaker MUST examine the "message subtype" field of the message and take the appropriate actions. (§4) | MUST | 4 - Operation | **positive:** `unit/verify` [`TestHandleRouteRefreshBoRR`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2530). **positive:** `unit/verify` [`TestHandleRouteRefreshEoRR`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2563). **positive:** `unit/verify` [`TestRFC7313SubtypeZeroStartsTheRefresh`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7313_subtype_action_test.go#L61). **negative:** `unit/verify` [`TestHandleRouteRefreshUnknown`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2598). **negative:** `unit/verify` [`TestHandleRouteRefresh_UnknownSubtype`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_handlers_test.go#L488). **negative:** `unit/verify` [`TestRFC7313PeerMarkersStartNoRefresh`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7313_subtype_action_test.go#L69) |
@@ -141,7 +143,7 @@ Mandatory ceiling: 10 of 11 (90.9%); excluded: Optional feature not offered (cla
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC7313-4-13`](#rfc7313-4-13) Before the speaker starts a route refresh that is either initiated locally (§4) | no test | no test carries this requirement id; annotated {feature-declined}: "changes, only the modified route entry needs to be advertised"; a locally initiated refresh, re-advertising the entire Adj-RIB-Out on the speaker's own initiative, is a feature RFC 7313 never requires, because an Adj-RIB-Out change needs only the modified routes. ze starts no such refresh: internal/component/bgp/plugins/rib/rib.go::handleRefresh and internal/component/bgp/plugins/rib/rib_structured.go::handleRefreshStructured are the only producers of a BoRR and of a whole-table re-advertisement, and each runs only on a received ROUTE-REFRESH subtype 0 from the peer; internal/component/bgp/reactor/reactor_api.go::SoftClearPeer, ze's one operator refresh, sends the peer an inbound ROUTE-REFRESH request and re-advertises nothing. The peer-requested clause of the same sentence is RFC7313-4-1 |
+| [`RFC7313-4-13`](#rfc7313-4-13) Before the speaker starts a route refresh that is either initiated locally (§4) | {gap}, no test | no owner decision declines a locally initiated route refresh. RFC 7313 Section 4 says "When a route entry in the "Adj-RIB-Out" changes, only the modified route entry needs to be advertised.", which makes a whole-table refresh unnecessary, not declined. ze starts no such refresh: internal/component/bgp/plugins/rib/rib.go::handleRefresh and internal/component/bgp/plugins/rib/rib_structured.go::handleRefreshStructured are the only producers of a BoRR and of a whole-table re-advertisement, and each runs only on a received ROUTE-REFRESH subtype 0 from the peer; internal/component/bgp/reactor/reactor_api.go::SoftClearPeer, ze's one operator refresh, sends the peer an inbound ROUTE-REFRESH request and re-advertises nothing. The peer-requested clause of the same sentence is RFC7313-4-1 |
 | [`RFC7313-4-4`](#rfc7313-4-4) When a BGP speaker receives a BoRR message from a peer, it MUST mark all the routes with the given Address Family Identifier and Subsequent Address Family Identifier, <AFI, SAFI> [RFC2918], from that peer as stale. (§4) | {gap}, no test | ze logs a received BoRR but does not mark the peer's Adj-RIB-In routes stale -- internal/component/bgp/plugins/rib/rib.go:751-753 handles a received BoRR as log-only and rib_structured.go:506 returns early for a non-zero subtype, so no stale-marking occurs |
 | [`RFC7313-4-5`](#rfc7313-4-5) When a BGP speaker receives an EoRR message from a peer, it MUST immediately remove any routes from the peer that are still marked as stale for that <AFI, SAFI>. (§4) | {gap}, no test | ze logs a received EoRR but performs no stale-route removal -- internal/component/bgp/plugins/rib/rib.go:754-756 handles it as log-only, and because no BoRR stale-marking exists (RFC7313-4-4) there is nothing to purge |
 | [`RFC7313-4-6`](#rfc7313-4-6) For a BGP speaker that supports the BGP Graceful Restart, it MUST NOT send a BoRR for an <AFI, SAFI> to a neighbor before it sends the EoR for the <AFI, SAFI> to the neighbor. (§4) | {gap}, no test | ze's sendRouteRefresh (internal/component/bgp/reactor/reactor_api_forward.go:112) applies no Graceful-Restart End-of-RIB gate, and rib.go:1008-1013 emits the BoRR without checking End-of-RIB state, so the GR/EoR interaction is not enforced |

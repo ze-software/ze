@@ -1,8 +1,8 @@
 # Dependencies
 
-Ze is Go, and Go code leans on packages. 53 direct dependencies, read straight from `go.mod` so the list and versions can't drift -- each one with a plain-English reason it's there, grounded in where it's actually imported, not its own pitch.
+Ze is Go, and Go code leans on packages. 54 direct dependencies, read straight from `go.mod` so the list and versions can't drift -- each one with a plain-English reason it's there, grounded in where it's actually imported, not its own pitch.
 
-## Terminal, Web & SSH Interfaces (10)
+## Terminal, Web & SSH Interfaces (11)
 
 | Module | Version | Why we use it |
 | --- | --- | --- |
@@ -16,6 +16,7 @@ Ze is Go, and Go code leans on packages. 53 direct dependencies, read straight f
 | `github.com/charmbracelet/x/ansi` | `v0.11.8` | Strips terminal escape codes in the CLI editor tests, so a pattern matches the text the operator sees rather than its color codes. |
 | `github.com/muesli/reflow` | `v0.3.0` | ANSI-aware text width calculation, so the CLI's prompt and status bar line up correctly despite embedded color codes. |
 | `github.com/creack/pty` | `v1.1.24` | Opens a pseudo-terminal in a Linux integration test that exercises serial console handling. |
+| `github.com/chromedp/chromedp` | `v0.21.0` | Drives headless Chrome in a test that proves the website fills its published figures from the facts snapshot. |
 
 ## Networking & Protocols (6)
 
@@ -71,14 +72,14 @@ Ze is Go, and Go code leans on packages. 53 direct dependencies, read straight f
 
 | Module | Version | Why we use it |
 | --- | --- | --- |
-| `golang.org/x/crypto` | `v0.57.0` | SSH protocol primitives and certificate signing for the SSH server, plus password hashing. |
+| `golang.org/x/crypto` | `v0.58.0` | SSH protocol primitives and certificate signing for the SSH server, plus password hashing. |
 | `golang.org/x/mod` | `v0.41.0` | Parses and rewrites go.mod files when the appliance build prepares an isolated instance of the tree, so an image is never built from the tracked working copy. |
-| `golang.org/x/net` | `v0.60.0` | Raw ICMP packet connections for the traceroute plugin, and hostname normalization for MCP's auth. |
-| `golang.org/x/sync` | `v0.23.0` | errgroup, which the plugin manager uses to drain every plugin's event queue concurrently and return the first failure. |
-| `golang.org/x/sys` | `v0.48.0` | Low-level Linux syscalls: disk sync and reboot in the installer, used throughout the Linux-specific components. |
-| `golang.org/x/term` | `v0.46.0` | Reads passwords without echo and detects an interactive terminal during CLI login. |
-| `golang.org/x/text` | `v0.42.0` | Prepares TACACS+ usernames with the PRECIS UsernameCasePreserved profile that RFC 8907 Section 3.7 requires. |
-| `golang.org/x/tools` | `v0.50.0` | Build-time only: goimports, pinned via a tools.go tracking file, never compiled into Ze's binaries. |
+| `golang.org/x/net` | `v0.62.0` | Raw ICMP packet connections for the traceroute plugin, and hostname normalization for MCP's auth. |
+| `golang.org/x/sync` | `v0.24.0` | errgroup, which the plugin manager uses to drain every plugin's event queue concurrently and return the first failure. |
+| `golang.org/x/sys` | `v0.49.0` | Low-level Linux syscalls: disk sync and reboot in the installer, used throughout the Linux-specific components. |
+| `golang.org/x/term` | `v0.47.0` | Reads passwords without echo and detects an interactive terminal during CLI login. |
+| `golang.org/x/text` | `v0.43.0` | Prepares TACACS+ usernames with the PRECIS UsernameCasePreserved profile that RFC 8907 Section 3.7 requires. |
+| `golang.org/x/tools` | `v0.51.0` | Build-time only: goimports, pinned via a tools.go tracking file, never compiled into Ze's binaries. |
 | `golang.org/x/vuln` | `v1.7.0` | Build-time only: govulncheck, pinned through the tools.go tracking file, which reports known vulnerabilities in the modules Ze vendors. |
 
 ## Testing & Build Tooling (9)

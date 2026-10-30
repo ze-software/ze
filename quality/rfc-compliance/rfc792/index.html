@@ -123,7 +123,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 10 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 10 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 10 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>54.5%</strong><b>12 of 22 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>63.6%</strong><b>14 of 22 tagged units, 7 escaped and 0 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -241,7 +241,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>8</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>12</td>
+<td>21</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc792.md</code></td>
@@ -452,7 +452,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc792-echo-1"><code>RFC792-Echo-1</code></a></h3>
 <p>Type 8 for echo message; 0 for echo reply message. (§Echo)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply moved. Re-judged 2026-09-30. Positive: TestRFC792EchoRequestType takes the pair from probe.EchoTypes, which every ping and traceroute caller now uses (ping.go, ping/stream.go, traceroute probe_round.go and stream.go re-read), asserts (8,0) for IPv4, a built request of Type 8 and a Type 0 datagram matched as the reply; vrrp TestGatewayICMPEchoReply asserts the reply the stack forms is Type 0. Negative: ParseEchoReply refuses a Type 8 datagram and an ICMPv6 Type 129 as the IPv4 reply. Records: EchoTypes and ParseEchoReply reverts observed red; the vrrp record breaks Ze&#39;s netlink AddAddress, which proves the unit observes the reply of the stack Ze configures (whole-stack rule: Ze forms no reply itself).</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 (independent auditor) after the user-namespace conversion (d8427e4380): the TestGatewayICMPEchoReply unit gained only `if !userns.Enter(t) { return }` as its first statement and its build tag moved from integration&amp;&amp;linux to linux. userns.Enter (internal/test/userns/userns_linux.go) re-runs the one named test in a fresh user+net+mount namespace and returns false to the parent only when the child reported PASS or SKIP; a failing child, a non-zero exit, or a child that ran nothing calls t.Fatalf, so every assertion below the guard still fails the test when the behaviour breaks. Body otherwise byte-identical. RFC 792 Echo: &#34;0 for echo reply message.&#34; Fresh judgement: the stack reply to Ze&#39;s installed gateway address must carry Type 0 (answer[0] != 0 fails); TestRFC792EchoRequestType (unchanged) pins Type 8/0 for Ze&#39;s own probes and its negative refuses a Type 8 as reply. Enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -477,7 +477,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc792-echo-2"><code>RFC792-Echo-2</code></a></h3>
 <p>Type 8 for echo message; 0 for echo reply message. Code 0 (§Echo)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply moved. Re-judged 2026-09-30. Code 0 on both messages: probe TestRFC792EchoRequestCode pins byte 1 of the request Ze builds, vrrp TestGatewayICMPEchoReply pins Code 0 on the reply the stack forms for the gateway address Ze installs. {single-polarity} holds: Ze never varies the code, so no non-zero-code echo exists to refuse. vrrp record breaks AddAddress (reachability of the stack reply); the request-side assertion is exact.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 (independent auditor) after the user-namespace conversion (d8427e4380): the TestGatewayICMPEchoReply unit gained only `if !userns.Enter(t) { return }` as its first statement and its build tag moved from integration&amp;&amp;linux to linux. userns.Enter (internal/test/userns/userns_linux.go) re-runs the one named test in a fresh user+net+mount namespace and returns false to the parent only when the child reported PASS or SKIP; a failing child, a non-zero exit, or a child that ran nothing calls t.Fatalf, so every assertion below the guard still fails the test when the behaviour breaks. Body otherwise byte-identical. RFC 792 Echo: Code &#34;0&#34;. Fresh judgement: the reply&#39;s Code is asserted 0 and TestRFC792EchoRequestCode pins the request byte; single-polarity per the row. Enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -497,7 +497,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc792-echo-3"><code>RFC792-Echo-3</code></a></h3>
 <p>The checksum is the 16-bit ones&#39;s complement of the one&#39;s complement sum of the ICMP message starting with the ICMP Type. (§Echo)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply, internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply#2 moved. Re-judged c18 (2026-10-02): TestRFC792ChecksumValid changed only by losing its RFC1071-1-5 tag (moved off under D-15/R1, 1-5 now proven on ospf VerifyPacketChecksum); its body and RFC792-Echo-3 claim are unchanged, so the finding stands. Re-judged 2026-09-30. Positive: TestRFC792ChecksumValid (Ze&#39;s own request checksum folds to 0xffff) and the stack reply&#39;s checksum verifies in TestGatewayICMPEchoReply. Negative: a request whose checksum is not the defined one&#39;s complement sum is never answered, beside the valid control. The rejecting branch is Linux&#39;s on the address Ze installs, counted under the whole-stack rule; the tag claims the observed stack behaviour, not a Ze branch. TestRFC792ChecksumRejectsCorruption lost this tag correctly (it checked only a test helper). Records break AddAddress.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 (independent auditor) after the user-namespace conversion (d8427e4380): the TestGatewayICMPEchoReply unit gained only `if !userns.Enter(t) { return }` as its first statement and its build tag moved from integration&amp;&amp;linux to linux. userns.Enter (internal/test/userns/userns_linux.go) re-runs the one named test in a fresh user+net+mount namespace and returns false to the parent only when the child reported PASS or SKIP; a failing child, a non-zero exit, or a child that ran nothing calls t.Fatalf, so every assertion below the guard still fails the test when the behaviour breaks. Body otherwise byte-identical. RFC 792 Echo: &#34;The checksum is the 16-bit ones&#39;s complement of the one&#39;s complement sum of the ICMP message starting with the ICMP Type.&#34; Fresh judgement: the reply&#39;s checksum must fold to zero, and a request with a deliberately wrong checksum (sequence 2) must never be reflected, beside the valid control; the rejecting branch is Linux&#39;s on the address Ze installs (whole-stack rule). Enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -537,7 +537,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc792-echo-5"><code>RFC792-Echo-5</code></a></h3>
 <p>The data received in the echo message must be returned in the echo reply message. (§Echo)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply, internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReplyToTheQueriedAddress moved. Re-judged 2026-09-30. Positive: odd-length data returned byte-for-byte (TestGatewayICMPEchoReply). Negative: TestGatewayICMPEchoReplyToTheQueriedAddress sends 1, 333 and 1400 data octets with distinct bytes, and each reply must carry exactly its own data (bytes.Equal against its own request, no pad, truncation or cross-over), and every request must be answered. Linux forms the reply; the records break Ze&#39;s AddAddress, so they prove the units observe the stack answer Ze configures, and the data clause itself rests on the exact assertion. Counted under the whole-stack rule (ai/rules/rfc-compliance.md): Ze fills the gateway role and the stack performs the obligation on its behalf.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 (independent auditor) after the user-namespace conversion (d8427e4380): the TestGatewayICMPEchoReply unit gained only `if !userns.Enter(t) { return }` as its first statement and its build tag moved from integration&amp;&amp;linux to linux. userns.Enter (internal/test/userns/userns_linux.go) re-runs the one named test in a fresh user+net+mount namespace and returns false to the parent only when the child reported PASS or SKIP; a failing child, a non-zero exit, or a child that ran nothing calls t.Fatalf, so every assertion below the guard still fails the test when the behaviour breaks. Body otherwise byte-identical. RFC 792 Echo: &#34;The data received in the echo message must be returned in the echo reply message.&#34; Fresh judgement: odd-length data must come back byte-equal, and TestGatewayICMPEchoReplyToTheQueriedAddress (same guard-only change) requires 1, 333 and 1400 distinct-octet payloads each returned exactly to its own sequence and every request answered. Enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -557,7 +557,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc792-echo-6"><code>RFC792-Echo-6</code></a></h3>
 <p>To form an echo reply message, the source and destination addresses are simply reversed, the type code changed to 0, and the checksum recomputed. (§Echo)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply, internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReplyToTheQueriedAddress moved. Re-judged 2026-09-30. Positive: reply reverses addresses, Type 0, recomputed checksum verifies (TestGatewayICMPEchoReply). Negative: a request to the secondary 192.0.2.253 is answered from .253 to the request&#39;s source, never from the primary .254 a route-picked source would use (TestGatewayICMPEchoReplyToTheQueriedAddress). Records break AddAddress (stack reply reachability); the address clause is discriminated by the secondary-address design. Whole-stack rule applies as for Echo-5.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 (independent auditor) after the user-namespace conversion (d8427e4380): the TestGatewayICMPEchoReply unit gained only `if !userns.Enter(t) { return }` as its first statement and its build tag moved from integration&amp;&amp;linux to linux. userns.Enter (internal/test/userns/userns_linux.go) re-runs the one named test in a fresh user+net+mount namespace and returns false to the parent only when the child reported PASS or SKIP; a failing child, a non-zero exit, or a child that ran nothing calls t.Fatalf, so every assertion below the guard still fails the test when the behaviour breaks. Body otherwise byte-identical. RFC 792 Echo: &#34;To form an echo reply message, the source and destination addresses are simply reversed, the type code changed to 0, and the checksum recomputed.&#34; Fresh judgement: reversed addresses, Type 0 and a verifying checksum on the reply, and the secondary-address request must be answered from .253 to the requester, never from the primary .254. Enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -585,24 +585,24 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L321" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPDFDiscard</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>no-break escape (kernel-producer), which is not a proof, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L375" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPHeaderDiscard</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>no-break escape (kernel-producer), which is not a proof, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L348" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPTTLDiscard</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>no-break escape (kernel-producer), which is not a proof, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc792-unreachable-1"><code>RFC792-Unreachable-1</code></a></h3>
 <p>Another case is when a datagram must be fragmented to be forwarded by a gateway yet the Don&#39;t Fragment flag is on. In this case the gateway must discard the datagram and may return a destination unreachable message. (§Unreachable)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPDFDiscard, internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPDFDiscard#2 moved. Forbidden: a gateway forwarding a datagram that needs fragmentation while DF is set. Red on it: gatewayForwarded(t, captured, out, bad, false) in TestGatewayICMPDFDiscard fails if the 900-octet DF datagram appears on the 576-MTU link; the &#39;may return&#39; clause is checked by gatewayICMP(..., 3, 4). Negative: the DF datagram at MTU and the DF-clear oversize datagram are required to forward (the rule&#39;s own boundary).</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 (independent auditor) after the user-namespace conversion (d8427e4380): the TestGatewayICMPDFDiscard unit gained only `if !userns.Enter(t) { return }` as its first statement and its build tag moved from integration&amp;&amp;linux to linux. userns.Enter (internal/test/userns/userns_linux.go) re-runs the one named test in a fresh user+net+mount namespace and returns false to the parent only when the child reported PASS or SKIP; a failing child, a non-zero exit, or a child that ran nothing calls t.Fatalf, so every assertion below the guard still fails the test when the behaviour breaks. Body otherwise byte-identical. RFC 792 Destination Unreachable: &#34;In this case the gateway must discard the datagram and may return a destination unreachable message.&#34; Fresh judgement: a 900-octet DF datagram must not appear on the 576-MTU exit, now configured through Ze&#39;s netlinkBackend.SetMTU in routedExit (b8c4909334, helper only), with Fragmentation Needed returned; a DF datagram exactly at MTU and a DF-clear oversize datagram must forward, bounding the rule. newGatewayWire no longer skips on EPERM, which can only make the unit fail more often. Enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -610,19 +610,19 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L320" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPDFDiscard</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L319" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPDFDiscard</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc792-timeexceeded-1"><code>RFC792-TimeExceeded-1</code></a></h3>
 <p>If the gateway processing a datagram finds the time to live field is zero it must discard the datagram. (§TimeExceeded)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPTTLDiscard, internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPTTLDiscard#2 moved. First verdict 2026-09-27 (QF-2). Forbidden: forwarding a datagram whose TTL is zero. TestGatewayICMPTTLDiscard asserts gatewayForwarded(..., zero, false) and (..., one, false), red if either leaves the routed exit; the control asserts TTL two is forwarded unchanged, a distinct assertion. Enforced.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 (independent auditor) after the user-namespace conversion (d8427e4380): the TestGatewayICMPTTLDiscard unit gained only `if !userns.Enter(t) { return }` as its first statement and its build tag moved from integration&amp;&amp;linux to linux. userns.Enter (internal/test/userns/userns_linux.go) re-runs the one named test in a fresh user+net+mount namespace and returns false to the parent only when the child reported PASS or SKIP; a failing child, a non-zero exit, or a child that ran nothing calls t.Fatalf, so every assertion below the guard still fails the test when the behaviour breaks. Body otherwise byte-identical. RFC 792 Time Exceeded: &#34;If the gateway processing a datagram finds the time to live field is zero it must discard the datagram.&#34; Fresh judgement: TTL zero and TTL one must be absent on the routed exit and answered with Time Exceeded, while TTL two must forward on the same route, so a forwarding gateway fails. The discrimination record is a kernel-producer escape (ip_forward decides it from the packet alone): the test enforces the stack behaviour, but the row is published as escaped, not as proven by a break of Ze&#39;s code. Enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -630,12 +630,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L347" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPTTLDiscard</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>no-break escape (kernel-producer), which is not a proof, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L346" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPTTLDiscard</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>no-break escape (kernel-producer), which is not a proof, verified</td>
 </tr>
 </tbody>
 </table>
@@ -650,12 +650,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L374" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPHeaderDiscard</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>no-break escape (kernel-producer), which is not a proof, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go#L373" title="internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGatewayICMPHeaderDiscard</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>no-break escape (kernel-producer), which is not a proof, verified</td>
 </tr>
 </tbody>
 </table>
@@ -771,7 +771,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 29 October 2026 11:10 UTC</span>
+                    <span class="footer-published">Published 30 October 2026 12:24 UTC</span>
                 </div>
             </div>
         </footer>

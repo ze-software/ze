@@ -161,17 +161,18 @@ ze doctor
 <code>bgp filter</code> policy also counts as explicit policy for peers that inherit it.
 Filters accumulate from BGP to group to peer. The most-specific configured
 direction supplies the final decision, and an absent child inherits it.</p>
-<!-- source: internal/component/bgp/config/redistribution.go -- concatPolicies -->
+<!-- source: internal/component/policy/chain.go -- ConcatChains -->
 <h2 id="dynamic-peer-groups">Dynamic peer groups</h2>
 <p>A group with <code>connection { remote { ip dynamic } }</code> accepts a session from any address in its ranges. Use it for an IXP route server or any fabric where the members are not known when you write the configuration.</p>
 <p>A member that connects while Ze is still starting its plugins is held: its session opens only once every plugin is running, the same as a configured peer, so its first UPDATE meets the filters its policy names.</p>
 <!-- source: internal/component/bgp/reactor/reactor_dynamic.go -- createDynamicPeer -->
-<pre><code class="language-text">bgp {
-    policy {
-        reject-asn NO-TRANSIT {
-            indirect [ 174 701 3356 ]
-        }
+<pre><code class="language-text">policy {
+    reject-asn NO-TRANSIT {
+        indirect [ 174 701 3356 ]
     }
+}
+
+bgp {
     group ix {
         connection {
             remote {
@@ -536,7 +537,7 @@ ze cli -c "show bgp rib status"
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 20:33 UTC</span>
+                    <span class="footer-published">Published 30 October 2026 09:46 UTC</span>
                 </div>
             </div>
         </footer>

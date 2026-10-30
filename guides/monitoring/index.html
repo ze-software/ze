@@ -70,6 +70,7 @@
 <li><a href="#os-metrics-netdata-compatible">OS Metrics (Netdata-compatible)</a></li>
 <li><a href="#host-inventory-metrics">Host Inventory Metrics</a></li>
 <li><a href="#contained-panics">Contained Panics</a></li>
+<li><a href="#loc-rib-import-policy-metrics">Loc-RIB Import Policy Metrics</a></li>
 <li><a href="#bgp-metrics">BGP Metrics</a>
 <ol>
 <li><a href="#instance">Instance</a></li>
@@ -752,6 +753,37 @@ at zero from the moment the component has a metrics registry.</p>
 <!-- source: internal/component/gnmi/panic_guard.go -- rpcTask, endRPCAfterPanic -->
 <p>| <code>config-confirm</code> | <code>write</code> | One config write on the commit-confirm worker (a gNMI Set, an SSH, web or API commit, an accept, an abort, a managed push): its caller gets an error saying the write may be partly applied and naming the <code>ze show crashes</code> command; the worker serves the next write and the open window's deadline |</p>
 <!-- source: internal/component/config/confirm/panic_guard.go -- writeTask, writeEndedByPanic -->
+<h3 id="loc-rib-import-policy-metrics">Loc-RIB Import Policy Metrics</h3>
+<p>An import chain (<code>&lt;protocol&gt; filter import</code>, <code>rib filter import</code>) can hide a
+path: the Loc-RIB keeps it but never selects it. These two series count what
+the chains hid, labelled by the protocol that offered the path. What each
+hidden path is and which chain hid it: <code>show rib candidates prefix &lt;prefix&gt;</code>
+(<a href="https://github.com/ze-software/ze/blob/main/docs/guide/route-policy.md" target="_blank" rel="noopener">route policy</a>).</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Type</th>
+<th>Labels</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze_rib_policy_hidden_paths</code></td>
+<td>gauge</td>
+<td><code>source</code></td>
+<td>Paths of that source the Loc-RIB holds hidden now</td>
+</tr>
+<tr>
+<td><code>ze_rib_policy_rejected_total</code></td>
+<td>counter</td>
+<td><code>source</code>, <code>chain</code> (<code>source</code> or <code>central</code>)</td>
+<td>Rejections. Every route a protocol offers that a chain rejects counts once; a reload counts a stored path again only when its verdict changes</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/core/rib/locrib/policy_metrics.go -- SetPolicyMetricsRegistry, accountStored, accountRemoved -->
 <h3 id="bgp-metrics">BGP Metrics</h3>
 <!-- source: internal/component/bgp/reactor/reactor_metrics.go -- initReactorMetrics -->
 <h4 id="instance">Instance</h4>
@@ -1308,7 +1340,7 @@ ze cli -c "show bgp rpki status"
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 02:50 UTC</span>
+                    <span class="footer-published">Published 30 October 2026 17:53 UTC</span>
                 </div>
             </div>
         </footer>

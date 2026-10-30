@@ -68,19 +68,20 @@
 <h2 id="policy-model">Policy model</h2>
 <p>Policy has two parts:</p>
 <ol>
-<li>Named filter instances under <code>bgp { policy { ... } }</code>.</li>
+<li>Named filter instances under the top-level <code>policy { ... }</code> root.</li>
 <li>Direction policies under <code>filter</code>, each with ordered <code>filters</code> and a required <code>final accept</code> or <code>final reject</code>.</li>
 </ol>
-<pre><code class="language-text">bgp {
+<pre><code class="language-text">policy {
+    loop-detection no-self-as {
+        allow-own-as 0
+    }
+}
+
+bgp {
     router-id 192.0.2.1
     session {
         asn {
             local 65000
-        }
-    }
-    policy {
-        loop-detection no-self-as {
-            allow-own-as 0
         }
     }
 
@@ -96,6 +97,13 @@
     }
 }
 </code></pre>
+<p>The <code>policy</code> root is shared by every protocol, and policy routing's
+<code>policy route</code> list lives in it too. A filter type is a list the YANG schema
+marks <code>ze:filter</code>; <code>route</code> carries no marker, so a filter chain cannot name a
+<code>policy route</code> entry. A configuration that still writes <code>bgp { policy { ... } }</code>
+is refused with the command that converts it: <code>ze config migrate -o &lt;new-file&gt; &lt;file&gt;</code> moves the block to the top-level root.</p>
+<!-- source: internal/component/policy/registry.go -- BuildRegistry, ValidateName -->
+<!-- source: internal/component/config/relocated.go -- relocatedHint, ApplyRelocations -->
 <p>The effective references are cumulative: automatic safety filters run first,
 followed by global, group, and peer references. The most-specific configured
 direction supplies its final decision; references inherited from less-specific
@@ -181,16 +189,16 @@ fail-closed error, or teardown cannot be turned into acceptance by <code>final a
 a peer, and states WHERE in the AS_PATH each one is unacceptable. A peer that
 leaks its transit sends paths that run through its upstream, and this list drops
 those routes while the session stays up.</p>
-<pre><code>bgp {
+<pre><code>policy {
+    reject-asn NO-TRANSIT {
+        indirect [ 174 701 3356 ];
+    }
+}
+bgp {
     router-id 192.0.2.1
     session {
         asn {
             local 65000
-        }
-    }
-    policy {
-        reject-asn NO-TRANSIT {
-            indirect [ 174 701 3356 ];
         }
     }
     peer ix-member {
@@ -478,10 +486,46 @@ violating the arity contract and that an attribute went out unchanged.</p>
 <h2 id="verify-policy">Verify policy</h2>
 <p><code>show policy chain peer &lt;selector&gt; [import|export]</code> reports each effective direction as an object containing
 <code>filters</code> and <code>final</code>, including a configured direction with no filters.
-Peer detail reports the same policy under <code>import-policy</code> and <code>export-policy</code>.
-Automatic-only filters have no configured <code>final</code>; an entirely absent policy
-is omitted. These status objects describe configured presence, not the default.
-Policy dry-run applies the live session-aware final: absence rejects on EBGP and
+Peer detail reports the same policy under <code>import-policy</code> and <code>export-policy</code>,
+and <code>show policy test</code> reports it under <code>policy</code>. The <code>final</code> is the one the
+session applies when the chain ends:</p>
+<table>
+<thead>
+<tr>
+<th>Policy and session</th>
+<th><code>final</code></th>
+<th><code>final-source</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Configured policy</td>
+<td>the configured <code>accept</code> or <code>reject</code></td>
+<td>omitted</td>
+</tr>
+<tr>
+<td class="cell-no">✕</td>
+<td><code>reject</code></td>
+<td><code>rfc8212</code></td>
+</tr>
+<tr>
+<td class="cell-no">✕</td>
+<td>omitted; the direction is omitted when it has no automatic filters</td>
+<td>omitted</td>
+</tr>
+<tr>
+<td class="cell-no">✕</td>
+<td><code>undetermined</code></td>
+<td>omitted</td>
+</tr>
+</tbody>
+</table>
+<p><code>final-source: rfc8212</code> marks the reject RFC 8212 Section 3 applies to an EBGP
+direction nobody configured, so it never reads as a reject you wrote. Add
+<code>final accept</code> (or a filter chain) to that direction to let routes through.
+A dynamic peer's session type is known only once its OPEN arrives, so its
+absent direction stays <code>undetermined</code> until then.
+Policy dry-run applies the same final: absence rejects on EBGP and
 accepts on IBGP. With a rejecting final, a pure withdrawal remains <code>accept</code> with unchanged resulting
 text. A mixed announcement and withdrawal reports <code>modify</code>, with only its explicit
 withdrawals in the resulting text. A filter execution failure or teardown still
@@ -496,8 +540,10 @@ explanation; exercise it with an UPDATE on the peer session instead. Inactive
 references do not execute and have no trace entry.
 When the remote AS is unresolved, the overall action is <code>undetermined</code> and
 <code>reason</code> tells you to wait for establishment and repeat <code>show policy test</code>.
+<code>policy</code> still reports the direction, with <code>undetermined</code> for an absent final.
 No filter executes, including a single-filter override. Trace and text are empty.</p>
 <!-- source: internal/component/bgp/reactor/policy_dryrun.go -- PolicyDryRun -->
+<!-- source: internal/component/bgp/reactor/reactor_api.go -- policyInfo, absentPolicyInfo -->
 <p>Use the same route at each boundary:</p>
 <pre><code class="language-console">ze cli -c "show bgp rib peer transit-a"
 ze cli -c "show bgp rib best"
@@ -565,7 +611,7 @@ ze cli -c "show bgp peer transit-b rib"
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 20:33 UTC</span>
+                    <span class="footer-published">Published 30 October 2026 12:24 UTC</span>
                 </div>
             </div>
         </footer>

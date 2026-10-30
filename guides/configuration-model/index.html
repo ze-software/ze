@@ -53,6 +53,7 @@
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#syntax-rules">Syntax Rules</a></li>
 <li><a href="#file-format">File Format</a></li>
+<li><a href="#loc-rib-import-filters">Loc-RIB Import Filters</a></li>
 <li><a href="#ospf">OSPF</a></li>
 <li><a href="#inheritance">Inheritance</a></li>
 <li><a href="#peer-settings">Peer Settings</a></li>
@@ -368,7 +369,7 @@ Its peers inherit those explicit policies. Without an import or export policy
 at any level, EBGP rejects routes in that direction, but the session can still
 establish. The internal peer needs no policy to preserve its existing behavior.</p>
 <!-- source: internal/component/bgp/filterapi/policy.go -- Policy.AcceptsAtEnd -->
-<!-- source: internal/component/bgp/config/redistribution.go -- concatPolicies -->
+<!-- source: internal/component/policy/chain.go -- ConcatChains -->
 <p>The global <code>router-id</code> is the BGP Identifier every peer sends by default. A peer
 or group can override it with <code>session { router-id ... }</code>, and that peer's OPEN
 then carries the override. This departs from RFC 6286
@@ -403,6 +404,24 @@ AS is internal when it equals Ze's own AS, and also when it equals a configured
 either ASN of a migrating pair an iBGP peer, so the Section 2.2 identifier check
 binds it exactly as it binds a peer in the same AS.</p>
 <!-- source: internal/component/bgp/reactor/session_open_validation.go — validateOpenIdentifier; internal/component/bgp/reactor/peer.go — sessionPeerAS; internal/component/bgp/reactor/session_as_migration.go — isIBGPWith; internal/component/bgp/message/open.go — ValidateBGPIdentifier; internal/component/bgp/reactor/session.go — detectCollision; internal/component/bgp/reactor/config.go — parseRouterID -->
+<h2 id="loc-rib-import-filters">Loc-RIB Import Filters</h2>
+<p><code>isis</code>, <code>ospf</code>, <code>static</code> and <code>connected</code> each accept a
+<code>filter { import { filters [ ... ]; final accept|reject; } }</code> block that judges
+the routes the protocol offers to the Loc-RIB. The same block under <code>rib</code>
+judges routes from every source, after the protocol's own chain. The names in
+<code>filters</code> are filter instances defined under <code>policy {}</code>, such as a
+<code>prefix-list</code>.</p>
+<!-- source: internal/component/policy/yang/ze-policy-conf.yang -- grouping rib-import-filter -->
+<!-- source: internal/core/rib/policy/policy.go -- Snapshot.Evaluate -->
+<p>A filter's accept passes the route to the next filter, and <code>final</code> decides a
+route that passed them all. A rejected route is kept as a hidden path: it is
+not selected and does not reach the FIB, while the protocol's LSDB keeps it. A
+commit that relaxes the chain installs it again with no protocol event. A chain
+with no <code>final</code>, a <code>&lt;plugin&gt;:&lt;filter&gt;</code> reference, or a filter type that cannot
+run at the Loc-RIB is refused at load. See
+<a href="https://github.com/ze-software/ze/blob/main/docs/guide/route-policy.md" target="_blank" rel="noopener">Route Policy at the Loc-RIB</a>.</p>
+<!-- source: internal/component/policy/rib_compile.go -- ribChain.Evaluate, readRIBChain, compileRIBChain, installRIBImports -->
+<!-- source: internal/core/rib/locrib/policy.go -- admit, PublishPolicy -->
 <h2 id="ospf">OSPF</h2>
 <p>The top-level <code>ospf</code> block enables Ze's native OSPF engine. The root container
 configures OSPFv2 for IPv4; <code>ospf { address-family ipv6 { ... } }</code> enables the
@@ -695,7 +714,7 @@ delivered to a new peer.</p>
 <!-- source: internal/plugins/ospf/default.go -- applyDefaultInformation -->
 <!-- source: internal/plugins/ospf/redistribute/consumer.go -- Consumer InjectRoute -->
 <!-- source: internal/component/config/redistribute/route.go -- ImportRule.Destination, destination-scoped Accept -->
-<!-- source: internal/component/bgp/plugins/redistribute_egress/replay.go -- late-join replay-on-peer-up -->
+<!-- source: internal/plugins/redistribute/replay.go -- late-join replay-on-peer-up -->
 <h2 id="inheritance">Inheritance</h2>
 <p>Configuration uses 3-level inheritance: BGP globals, group defaults, peer overrides.</p>
 <table>
@@ -1274,7 +1293,7 @@ one <code>blackhole</code> container for all of its members:</p>
 <!-- source: internal/component/bgp/config/resolve.go -- resolveDynamicGroup -->
 <p>The route-server group explicitly permits both directions. Its blackhole
 agreement and policy are inherited by each member.</p>
-<!-- source: internal/component/bgp/config/redistribution.go -- concatPolicies -->
+<!-- source: internal/component/policy/chain.go -- ConcatChains -->
 <h3 id="announcing-a-blackhole-to-a-peer">Announcing a blackhole to a peer</h3>
 <p>The same <code>communities</code> list decides which peers Ze may ADVERTISE the well-known
 BLACKHOLE community to. RFC 7999 Section 3.1 requires the two networks to agree
@@ -1301,17 +1320,18 @@ untouched.</p>
 conditioned on a community rewrites whatever attribute the operator chooses,
 and a next-hop rewrite toward an address routed to a discard is the vendor
 two-step form of the same idea:</p>
-<pre><code>bgp {
+<pre><code>policy {
+    modify RTBH {
+        match { community 65001:666; }
+        set { next-hop 192.0.2.1; }
+    }
+}
+
+bgp {
     router-id 192.0.2.254
     session {
         asn {
             local 65000
-        }
-    }
-    policy {
-        modify RTBH {
-            match { community 65001:666; }
-            set { next-hop 192.0.2.1; }
         }
     }
     peer transit-a {
@@ -1974,7 +1994,7 @@ produces, peer by peer.</p>
 <p>Route filtering is configured via <code>filter</code> blocks at bgp, group, or peer level.
 Each direction is a presence container with an ordered <code>filters</code> list and a
 required <code>final accept</code> or <code>final reject</code>. References name instances from
-<code>bgp policy</code> or explicit <code>&lt;plugin&gt;:&lt;filter&gt;</code> plugin filters.</p>
+the top-level <code>policy</code> block or explicit <code>&lt;plugin&gt;:&lt;filter&gt;</code> plugin filters.</p>
 <pre><code>bgp {
     filter {
         import { filters [ rpki:validate ]; final accept; }
@@ -2020,9 +2040,10 @@ that the routing agreement requires. Loop-detection entries are prepended unless
 the chain already names them. <code>inactive: filters NAME;</code> retains a reference but
 disables its execution without changing an explicitly configured final.</p>
 <!-- source: internal/component/bgp/config/peers.go -- prependDefaultFilters -->
-<!-- source: internal/component/bgp/config/redistribution.go -- extractFilterPolicy, concatPolicies -->
+<!-- source: internal/component/policy/chain.go -- ExtractChain, ConcatChains -->
 <p>See <a href="../redistribution/">Route Filters</a> for details.</p>
-<!-- source: internal/component/bgp/config/redistribution.go -- extractFilterPolicy, concatPolicies, canonicalizeFilterRefs -->
+<!-- source: internal/component/policy/chain.go -- ExtractChain, ConcatChains, CanonicalName -->
+<!-- source: internal/component/bgp/config/redistribution.go -- canonicalizeFilterRefs -->
 <h2 id="cross-protocol-redistribute">Cross-Protocol Redistribute</h2>
 <p>The <code>redistribute</code> block nests import rules under a destination protocol.
 Each destination protocol registers a <code>RedistConsumer</code>; the orchestrator
@@ -2076,27 +2097,27 @@ gating BGP's own Adj-RIB-In on one dropped every received route, so the
 <!-- source: internal/component/config/redistribute/evaluator.go -- shared Global evaluator -->
 <!-- source: internal/component/config/redistribute/consumer.go -- consumer registry -->
 <!-- source: internal/component/plugin/all/ingress_redistribution_test.go -- no registered ingress filter drops an UPDATE for the redistribute block -->
-<!-- source: internal/component/bgp/plugins/redistribute_egress/redistribute.go -- orchestrator -->
+<!-- source: internal/plugins/redistribute/redistribute.go -- orchestrator -->
 <h3 id="prefix-list-filter">Prefix-List Filter</h3>
-<p>Named prefix-list filters live under <code>bgp { policy { prefix-list NAME { ... } } }</code>
+<p>Named prefix-list filters live under <code>policy { prefix-list NAME { ... } }</code>
 and are invoked via peer filter chains. Each list is an ordered sequence
 of match entries, first-match-wins, with an implicit deny on no match.</p>
-<pre><code>bgp {
-    policy {
-        prefix-list CUSTOMERS {
-            entry 10.0.0.0/8 {
-                ge 16
-                le 24
-                action accept
-            }
-            entry 192.168.0.0/16 {
-                ge 24
-                le 24
-                action reject
-            }
+<pre><code>policy {
+    prefix-list CUSTOMERS {
+        entry 10.0.0.0/8 {
+            ge 16
+            le 24
+            action accept
+        }
+        entry 192.168.0.0/16 {
+            ge 24
+            le 24
+            action reject
         }
     }
+}
 
+bgp {
     peer customer-a {
         connection {
             remote {
@@ -2152,7 +2173,7 @@ CIDR-family block, including legacy NLRI and MP_REACH/MP_UNREACH sections.
 A rejected prefix in a non-rewritable family, such as a FlowSpec destination
 component, rejects the whole UPDATE. The rewritten result still receives the
 policy's final decision; <code>modify</code> does not grant acceptance.</p>
-<p>Filter instance names are globally unique under <code>bgp policy</code>. Use the plain
+<p>Filter instance names are globally unique under the <code>policy</code> root. Use the plain
 name as the primary reference form. Prefixed forms are accepted for
 disambiguation or advanced use:</p>
 <table>
@@ -2184,15 +2205,15 @@ disambiguation or advanced use:</p>
 <p>The <code>bgp-filter-irr</code> plugin generates prefix-list filters from IRR (Internet
 Routing Registry) data. It queries a whois server for an AS-SET's prefixes
 and applies them as import filters, replacing the external bgpq4 workflow.</p>
-<pre><code>bgp {
-    policy {
-        irr {
-            server whois.radb.net    // IRR whois server (default)
-            peeringdb-url https://www.peeringdb.com  // PeeringDB API base URL (default)
-            refresh-interval 3600   // seconds between re-queries (60-86400)
-        }
+<pre><code>policy {
+    irr {
+        server whois.radb.net    // IRR whois server (default)
+        peeringdb-url https://www.peeringdb.com  // PeeringDB API base URL (default)
+        refresh-interval 3600   // seconds between re-queries (60-86400)
     }
+}
 
+bgp {
     peer customer-a {
         session {
             asn { local 65000; remote 65001; }
@@ -2263,27 +2284,27 @@ data in zefs (not in the config tree) and survive restarts.</p>
 <!-- source: internal/component/bgp/plugins/filter_irr/config.go -- parseIRRConfig -->
 <!-- source: internal/component/bgp/plugins/filter_irr/filter_irr.go -- runFilterIRR, handleFilterUpdate, handleConfigure -->
 <h3 id="as-path-filter">AS-Path Filter</h3>
-<p>Named AS-path regex filters live under <code>bgp { policy { as-path-list NAME { ... } } }</code>.
+<p>Named AS-path regex filters live under <code>policy { as-path-list NAME { ... } }</code>.
 Each list is an ordered sequence of regex entries with accept/reject action.
 The AS-path is converted to a space-separated decimal string and matched
 using Go RE2 (linear time, inherently ReDoS-safe). Use <code>[0-9]</code> instead of
 <code>\d</code> in regex strings (ze's config parser interprets backslash as escape).</p>
-<pre><code>bgp {
+<pre><code>policy {
+    as-path-list ALLOW-PEER {
+        entry "^65001" { action accept }
+    }
+    as-path-list TRANSIT {
+        entry "^[0-9]+( [0-9]+)+" { action accept }
+    }
+}
+
+bgp {
     router-id 192.0.2.1
     session {
         asn {
             local 65000
         }
     }
-    policy {
-        as-path-list ALLOW-PEER {
-            entry "^65001" { action accept }
-        }
-        as-path-list TRANSIT {
-            entry "^[0-9]+( [0-9]+)+" { action accept }
-        }
-    }
-
     peer customer-a {
         filter { import { filters [ as-path-list:ALLOW-PEER ]; final accept; } }
     }
@@ -2292,28 +2313,28 @@ using Go RE2 (linear time, inherently ReDoS-safe). Use <code>[0-9]</code> instea
 <!-- source: internal/component/bgp/plugins/filter_aspath/yang/ze-filter-aspath.yang -- as-path-list YANG container -->
 <!-- source: internal/component/bgp/plugins/filter_aspath/config.go -- parseAsPathLists -->
 <h3 id="reject-asn-filter">Reject-ASN Filter</h3>
-<p>Named reject-asn lists live under <code>bgp { policy { reject-asn NAME { ... } } }</code>.
+<p>Named reject-asn lists live under <code>policy { reject-asn NAME { ... } }</code>.
 A list names the ASNs that must not appear in the AS_PATH of a route exchanged
 with a peer, and the keyword each ASN is written under says where in the path it
 is unacceptable. A route matching any of them is rejected and the session stays
 up.</p>
-<pre><code>bgp {
+<pre><code>policy {
+    reject-asn NO-TRANSIT {
+        indirect [ 174 3356 ]
+        origin [ 65535 ]
+    }
+    reject-asn SHAPES {
+        regex [ "^3356 174 " ]
+    }
+}
+
+bgp {
     router-id 192.0.2.1
     session {
         asn {
             local 65000
         }
     }
-    policy {
-        reject-asn NO-TRANSIT {
-            indirect [ 174 3356 ]
-            origin [ 65535 ]
-        }
-        reject-asn SHAPES {
-            regex [ "^3356 174 " ]
-        }
-    }
-
     peer peer-a {
         filter {
             import { filters [ NO-TRANSIT ]; final accept; }
@@ -2395,26 +2416,26 @@ the network name for each ASN it recognizes.</p>
 <!-- source: internal/component/bgp/plugins/filter_path_asn/config.go -- parseRejectASNLists, positionsByKey -->
 <!-- source: internal/component/bgp/plugins/filter_path_asn/curated.go -- curatedTransitFree -->
 <h3 id="community-match-filter">Community Match Filter</h3>
-<p>Named community-match filters live under <code>bgp { policy { community-match NAME { ... } } }</code>.
+<p>Named community-match filters live under <code>policy { community-match NAME { ... } }</code>.
 Each entry checks for presence of a specific community value in the route's
 standard, large, or extended community attributes.</p>
-<pre><code>bgp {
+<pre><code>policy {
+    community-match BLOCK-NO-EXPORT {
+        entry no-export { type standard; action reject }
+    }
+    community-match ALLOW-CUSTOMER {
+        entry 65001:100 { type standard; action accept }
+        entry 65001:100:200 { type large; action accept }
+    }
+}
+
+bgp {
     router-id 192.0.2.1
     session {
         asn {
             local 65000
         }
     }
-    policy {
-        community-match BLOCK-NO-EXPORT {
-            entry no-export { type standard; action reject }
-        }
-        community-match ALLOW-CUSTOMER {
-            entry 65001:100 { type standard; action accept }
-            entry 65001:100:200 { type large; action accept }
-        }
-    }
-
     peer transit-a {
         filter { import { filters [ community-match:BLOCK-NO-EXPORT ]; final accept; } }
     }
@@ -2423,7 +2444,7 @@ standard, large, or extended community attributes.</p>
 <!-- source: internal/component/bgp/plugins/filter_community_match/yang/ze-filter-community-match.yang -- community-match YANG container -->
 <!-- source: internal/component/bgp/plugins/filter_community_match/config.go -- parseCommunityLists -->
 <h3 id="route-attribute-modifier">Route Attribute Modifier</h3>
-<p>Named modifier definitions live under <code>bgp { policy { modify NAME { ... } } }</code>.
+<p>Named modifier definitions live under <code>policy { modify NAME { ... } }</code>.
 Operations use <code>set</code>, <code>del</code>, <code>increment</code>, or <code>decrement</code> containers.
 Only present leaves are applied; undeclared attributes pass through unchanged.
 A definition applies to every route that reaches it. A definition that states a
@@ -2434,26 +2455,26 @@ leaves the pipe.</p>
 <p>An attribute change does not accept the route. Both attribute deltas and full
 payload rewrites receive the policy's final decision. A full rewrite ends filter
 traversal, but it does not bypass <code>final reject</code>.</p>
-<pre><code>bgp {
+<pre><code>policy {
+    modify PREFER-LOCAL {
+        set {
+            local-preference 200
+        }
+    }
+    modify PREPEND-3 {
+        set {
+            as-path-prepend 3
+        }
+    }
+}
+
+bgp {
     router-id 192.0.2.1
     session {
         asn {
             local 65000
         }
     }
-    policy {
-        modify PREFER-LOCAL {
-            set {
-                local-preference 200
-            }
-        }
-        modify PREPEND-3 {
-            set {
-                as-path-prepend 3
-            }
-        }
-    }
-
     peer transit-a {
         filter {
             import { filters [ prefix-list:CUSTOMERS modify:PREFER-LOCAL ]; final accept; }
@@ -3004,7 +3025,8 @@ port's own selector ambiguous. <code>mac/match</code> <strong>takes precedence o
 error.</p>
 <!-- source: internal/component/iface/config_apply.go -- bindDevices, validateSelectors, devicesWithMAC -->
 <!-- source: internal/component/iface/resolve.go -- matchByMAC, deviceMatchMAC -->
-<!-- source: internal/component/iface/doctor_linux.go -- checkEthernetInterfaces, selectedNetDevice -->
+<!-- source: internal/component/iface/doctor_linux.go -- checkEthernetInterfaces -->
+<!-- source: internal/component/iface/doctor_selector.go -- SelectedNetDevice, selectedNetDevice -->
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- leaf match (container mac) -->
 <h3 id="mac-address-binding">MAC Address Binding</h3>
 <p>For ethernet, veth, and bridge interfaces, the MAC container carries two independent
@@ -5499,7 +5521,7 @@ local interface or the connection fails with <code>cannot assign requested addre
 </tr>
 <tr>
 <td>IRR (filter)</td>
-<td><code>bgp policy irr</code></td>
+<td><code>policy irr</code></td>
 <td><code>source-address</code></td>
 <td>TCP</td>
 </tr>
@@ -5703,7 +5725,7 @@ match criteria, actions, reserved ranges, and CLI usage.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 21:34 UTC</span>
+                    <span class="footer-published">Published 30 October 2026 23:25 UTC</span>
                 </div>
             </div>
         </footer>

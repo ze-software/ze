@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 8671 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 8671: Support for Adj-RIB-Out in the BGP Monitoring Protocol (BMP). 10 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 8671: Support for Adj-RIB-Out in the BGP Monitoring Protocol (BMP). 11 gated MUST-level requirements, 2 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 8671 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 8671: Support for Adj-RIB-Out in the BGP Monitoring Protocol (BMP). 10 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 8671: Support for Adj-RIB-Out in the BGP Monitoring Protocol (BMP). 11 gated MUST-level requirements, 2 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 8671 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 8671: Support for Adj-RIB-Out in the BGP Monitoring Protocol (BMP). 10 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 8671: Support for Adj-RIB-Out in the BGP Monitoring Protocol (BMP). 11 gated MUST-level requirements, 2 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -45,7 +45,7 @@
         <main id="top" class="has-page-sidebar" tabindex="-1">
             <section aria-labeledby="rfc-detail-title" class="md-content reveal cat-observe">
 <div class="journey-hero reveal">
-    <span class="journey-eyebrow">Supported within BMP sender scope</span>
+    <span class="journey-eyebrow">Partial</span>
     <h1 id="rfc-detail-title">RFC 8671 - Support for Adj-RIB-Out in the BGP Monitoring Protocol (BMP)</h1>
     <p>Every requirement this repository extracted from RFC 8671, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.</p>
 </div>
@@ -118,24 +118,28 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>70.0%</strong><b>7 of 10 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>20.0%</strong><b>2 of 10 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 10 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 10 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 10 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>63.6%</strong><b>7 of 11 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>18.2%</strong><b>2 of 11 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>20.0%</strong><b>4 of 20 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>10</strong><b>of 11 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>1</strong><b>of 10 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 10 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 10 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>10.0%</strong><b>1 of 10 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0.0%</strong><b>0 of 10 gated MUSTs</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>11</strong><b>of 12 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 11 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit</p></article>
 </div>
-<p>The 9 shares marked as a part above are the whole of the 10 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>18.2%</strong><b>2 of 11 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+</div>
+<p>The 9 shares marked as a part above are the whole of the 11 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -167,7 +171,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
 </tr>
 <tr><td>No test at all</td>
-<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
 </tr>
 <tr><td>Not applicable</td>
@@ -205,22 +209,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Field</th><th>Value</th></tr></thead>
 <tbody>
 <tr><td>Public status</td>
-<td>Supported within BMP sender scope</td>
+<td>Partial</td>
 </tr>
 <tr><td>Enrolment</td>
 <td>Enrolled</td>
 </tr>
 <tr><td>Requirements</td>
-<td>11</td>
+<td>12</td>
 </tr>
 <tr><td>Gated MUST-level</td>
-<td>10</td>
+<td>11</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
 <td>0</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>0</td>
+<td>2</td>
 </tr>
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
@@ -260,11 +264,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>Enrolled: Support for Adj-RIB-Out in BMP: three MUSTs over the BMP Per-Peer Header (internal/component/bgp/plugins/bmp). RFC8671-x-1 (O flag is bit 4) both polarities: PeerFlagO == 1&lt;&lt;4 and a flags byte with bit 4 set decodes as Adj-RIB-Out while bit 3 does not (TestRFC8671OFlagBit4). RFC8671-x-2 (when O=1 the L flag is also set) both polarities: the sent direction sets O and L (TestPeerHeaderFromEventAdjRIBOut), the received direction sets neither (TestPeerHeaderFromEventAdjRIBIn). RFC8671-x-3 (Adj-RIB-Out Peer Up carries the same OPENs as Adj-RIB-In) is {single-polarity: positive}: ze sources both OPENs from the per-peer openCache (cacheOpenPDU, recordPeerUp in bmp_events.go) independent of the O flag, proven round-tripping in TestBMPPeerUpRoundTrip. Ledger row unchanged (no gap).</p>
 </section>
 <section><h2>What the public ledger says</h2>
-<p><strong>Status:</strong> Supported within BMP sender scope</p>
+<p><strong>Status:</strong> Partial</p>
 <p><strong>What the ledger says is covered:</strong></p>
 Adj-RIB-Out direction flag handling and sent-route monitoring.
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
-No MUST is a gap. <a href="#rfc8671-6.2-1"><code>RFC8671-6.2-1</code></a>, the O flag zero on a Statistics Report, was one until the <code>statistics-timeout</code> timer was built (spec-bmp-statistics-timeout-sends-no-report, 2026-09-06): ze now emits a periodic Statistics Report per established peer, so the obligation is exercised and TestRFC8671StatisticsReportOnTheWireClearsTheOFlag reads the flag off a report that path produced. One feature is absent by decision, and it is not a conformance gap: ze exports the post-policy Adj-RIB-Out view only, and the pre-policy Adj-RIB-Out view is not built. RFC 7854 Section 5, which this document updates, leaves that choice to the implementation, so the two obligations conditional on the pre-policy view do not bind ze. The first is <a href="#rfc8671-5.2-1"><code>RFC8671-5.2-1</code></a>, the L flag set to 0 to indicate pre-policy, annotated {feature-declined} on its checklist line in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc8671.md" target="_blank" rel="noopener"><code>rfc/short/rfc8671.md</code></a>. The second, that a mandatory attribute unknown at the pre-policy phase completion is zero or empty, is not declared as a requirement id: it is excluded at site 5.2:1 of <a href="https://github.com/ze-software/ze/blob/main/rfc/extraction/rfc8671.json" target="_blank" rel="noopener"><code>rfc/extraction/rfc8671.json</code></a>, with the kind feature-out-of-scope and the same reason. A later scope decision can revisit it and build the pre-policy view.
+<p>Two MUSTs are gaps, <a href="#rfc8671-5.2-1"><code>RFC8671-5.2-1</code></a> and <a href="#rfc8671-5.2-2"><code>RFC8671-5.2-2</code></a>. <a href="#rfc8671-6.2-1"><code>RFC8671-6.2-1</code></a>, the O flag zero on a Statistics Report, was one until the <code>statistics-timeout</code> timer was built (spec-bmp-statistics-timeout-sends-no-report, 2026-09-06): ze now emits a periodic Statistics Report per established peer, so the obligation is exercised and TestRFC8671StatisticsReportOnTheWireClearsTheOFlag reads the flag off a report that path produced.</p>
+<p class="rfc-prose"><strong>One feature is absent:</strong> ze exports the post-policy Adj-RIB-Out view only, and the pre-policy Adj-RIB-Out view is not built. RFC 7854 Section 5, which this document updates, leaves that choice to the implementation, but no decision of Thomas&#39;s declines the view, so the obligations conditional on it stay unmet. The first is <a href="#rfc8671-5.2-1"><code>RFC8671-5.2-1</code></a>, the L flag set to 0 to indicate pre-policy, annotated {gap} on its checklist line in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc8671.md" target="_blank" rel="noopener"><code>rfc/short/rfc8671.md</code></a>. The second is <a href="#rfc8671-5.2-2"><code>RFC8671-5.2-2</code></a>, that a mandatory attribute unknown at the pre-policy phase completion is zero or empty, also annotated {gap} and mapped from site 5.2:1 of <a href="https://github.com/ze-software/ze/blob/main/rfc/extraction/rfc8671.json" target="_blank" rel="noopener"><code>rfc/extraction/rfc8671.json</code></a>. A later scope decision can revisit both, or the pre-policy view can be built.</p>
 </details>
 </section>
 <section><h2>Coverage</h2>
@@ -277,7 +282,7 @@ No MUST is a gap. <a href="#rfc8671-6.2-1"><code>RFC8671-6.2-1</code></a>, the O
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated (including scoped evidence)</td>
-<td><strong>3</strong></td>
+<td><strong>4</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -300,15 +305,15 @@ No MUST is a gap. <a href="#rfc8671-6.2-1"><code>RFC8671-6.2-1</code></a>, the O
 <td><strong>0</strong></td>
 <td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>10</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>11</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
 </div>
 <p class="rfc-id-list"><strong>Positive and negative tests (7):</strong> <a href="#rfc8671-x-1"><code>RFC8671-x-1</code></a>, <a href="#rfc8671-x-2"><code>RFC8671-x-2</code></a>, <a href="#rfc8671-4-1"><code>RFC8671-4-1</code></a>, <a href="#rfc8671-5.1-1"><code>RFC8671-5.1-1</code></a>, <a href="#rfc8671-6.1-1"><code>RFC8671-6.1-1</code></a>, <a href="#rfc8671-6.3.1-1"><code>RFC8671-6.3.1-1</code></a>, <a href="#rfc8671-7.2-1"><code>RFC8671-7.2-1</code></a></p>
-<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (3):</strong> <a href="#rfc8671-x-3"><code>RFC8671-x-3</code></a>, <a href="#rfc8671-5.2-1"><code>RFC8671-5.2-1</code></a>, <a href="#rfc8671-6.2-1"><code>RFC8671-6.2-1</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (4):</strong> <a href="#rfc8671-x-3"><code>RFC8671-x-3</code></a>, <a href="#rfc8671-5.2-1"><code>RFC8671-5.2-1</code></a>, <a href="#rfc8671-5.2-2"><code>RFC8671-5.2-2</code></a>, <a href="#rfc8671-6.2-1"><code>RFC8671-6.2-1</code></a></p>
 </section>
 <section><h2>Attainable ceiling</h2>
-<p>Mandatory ceiling: 9 of 10 (90.0%); excluded: Optional feature not offered (classification can be revisited): 1 of 10 (10.0%). Optional ceiling: 1 of 1 (100.0%). Lowest mandatory ceiling: rfc8671 9 of 10 (90.0%). Lowest optional ceiling: rfc8671 1 of 1 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.</p>
+<p>Mandatory ceiling: 11 of 11 (100.0%). Optional ceiling: 1 of 1 (100.0%). Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: rfc8671 11 of 11 (100.0%). Lowest optional ceiling: rfc8671 1 of 1 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.</p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -379,7 +384,16 @@ No MUST is a gap. <a href="#rfc8671-6.2-1"><code>RFC8671-6.2-1</code></a>, the O
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8671-5.2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{feature-declined}:</strong> &#34;Similar to Adj-RIB-In policy validation, pre-policy Adj-RIB-Out can be used to validate and audit outbound policies.&#34;; the L flag rule binds a speaker that sends the pre-policy Adj-RIB-Out view, and ze declined that view. RFC 8671 states no obligation to offer it, and RFC 7854 Section 5, which this document updates, leaves the choice to the implementation: &#39;A BMP speaker may send pre-policy routes, post-policy routes, or both.&#39; internal/component/bgp/plugins/bmp/bmp_events.go::peerHeaderFromEvent is the only producer that sets the O flag, and it sets PeerFlagO and PeerFlagL in one statement for a sent-direction event, so no ze message carries O=1 with L=0. The route-monitoring-policy leaf (internal/component/bgp/plugins/bmp/yang/ze-bmp-conf.yang) offers pre-policy (Adj-RIB-In), post-policy (Adj-RIB-Out) and all, with no pre-policy Adj-RIB-Out choice</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> no owner decision declines the pre-policy Adj-RIB-Out view. RFC 8671 Section 5.2 says &#34;Similar to Adj-RIB-In policy validation, pre-policy Adj-RIB-Out can be used to validate and audit outbound policies.&#34;, and RFC 7854 Section 5, which this document updates, leaves the choice to the implementation: &#39;A BMP speaker may send pre-policy routes, post-policy routes, or both.&#39; ze does not build that view: internal/component/bgp/plugins/bmp/bmp_events.go::peerHeaderFromEvent is the only producer that sets the O flag, and it sets PeerFlagO and PeerFlagL in one statement for a sent-direction event, so no ze message carries O=1 with L=0. The route-monitoring-policy leaf (internal/component/bgp/plugins/bmp/yang/ze-bmp-conf.yang) offers pre-policy (Adj-RIB-In), post-policy (Adj-RIB-Out) and all, with no pre-policy Adj-RIB-Out choice</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8671-5.2-2">RFC8671-5.2-2</code></td><td colspan="3"><span class="rfc-subject">All mandatory attributes, such as next hop, MUST be either zero or have an empty length if they are unknown at the pre-policy phase completion. (§5.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5.2 - Pre-policy</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8671-5.2-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> no owner decision declines the pre-policy Adj-RIB-Out view, the same absent feature as RFC8671-5.2-1. RFC 7854 Section 5, which this document updates, leaves the choice to the implementation: &#39;A BMP speaker may send pre-policy routes, post-policy routes, or both.&#39; ze does not build that view, so it never reaches the pre-policy phase completion at which a mandatory attribute unknown there would have to be zero or empty: internal/component/bgp/plugins/bmp/bmp_events.go::peerHeaderFromEvent is the only producer that sets the O flag, and it sets PeerFlagO and PeerFlagL in one statement for a sent-direction event, and the route-monitoring-policy leaf (internal/component/bgp/plugins/bmp/yang/ze-bmp-conf.yang) offers no pre-policy Adj-RIB-Out choice</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8671-6.1-1">RFC8671-6.1-1</code></td><td colspan="3"><span class="rfc-subject">The O flag MUST be set accordingly to indicate if the route monitor or route mirroring message conveys Adj-RIB-In or Adj-RIB-Out. (§6.1)</span></td></tr>
 <tr><td></td>
@@ -428,8 +442,12 @@ No MUST is a gap. <a href="#rfc8671-6.2-1"><code>RFC8671-6.2-1</code></a>, the O
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
 <tr><td><a href="#rfc8671-5.2-1"><code>RFC8671-5.2-1</code></a> The L flag MUST be set to 0 to indicate pre-policy (§5.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {feature-declined}: &#34;Similar to Adj-RIB-In policy validation, pre-policy Adj-RIB-Out can be used to validate and audit outbound policies.&#34;; the L flag rule binds a speaker that sends the pre-policy Adj-RIB-Out view, and ze declined that view. RFC 8671 states no obligation to offer it, and RFC 7854 Section 5, which this document updates, leaves the choice to the implementation: &#39;A BMP speaker may send pre-policy routes, post-policy routes, or both.&#39; internal/component/bgp/plugins/bmp/bmp_events.go::peerHeaderFromEvent is the only producer that sets the O flag, and it sets PeerFlagO and PeerFlagL in one statement for a sent-direction event, so no ze message carries O=1 with L=0. The route-monitoring-policy leaf (internal/component/bgp/plugins/bmp/yang/ze-bmp-conf.yang) offers pre-policy (Adj-RIB-In), post-policy (Adj-RIB-Out) and all, with no pre-policy Adj-RIB-Out choice</td>
+<td>{gap}, no test</td>
+<td>no owner decision declines the pre-policy Adj-RIB-Out view. RFC 8671 Section 5.2 says &#34;Similar to Adj-RIB-In policy validation, pre-policy Adj-RIB-Out can be used to validate and audit outbound policies.&#34;, and RFC 7854 Section 5, which this document updates, leaves the choice to the implementation: &#39;A BMP speaker may send pre-policy routes, post-policy routes, or both.&#39; ze does not build that view: internal/component/bgp/plugins/bmp/bmp_events.go::peerHeaderFromEvent is the only producer that sets the O flag, and it sets PeerFlagO and PeerFlagL in one statement for a sent-direction event, so no ze message carries O=1 with L=0. The route-monitoring-policy leaf (internal/component/bgp/plugins/bmp/yang/ze-bmp-conf.yang) offers pre-policy (Adj-RIB-In), post-policy (Adj-RIB-Out) and all, with no pre-policy Adj-RIB-Out choice</td>
+</tr>
+<tr><td><a href="#rfc8671-5.2-2"><code>RFC8671-5.2-2</code></a> All mandatory attributes, such as next hop, MUST be either zero or have an empty length if they are unknown at the pre-policy phase completion. (§5.2)</td>
+<td>{gap}, no test</td>
+<td>no owner decision declines the pre-policy Adj-RIB-Out view, the same absent feature as RFC8671-5.2-1. RFC 7854 Section 5, which this document updates, leaves the choice to the implementation: &#39;A BMP speaker may send pre-policy routes, post-policy routes, or both.&#39; ze does not build that view, so it never reaches the pre-policy phase completion at which a mandatory attribute unknown there would have to be zero or empty: internal/component/bgp/plugins/bmp/bmp_events.go::peerHeaderFromEvent is the only producer that sets the O flag, and it sets PeerFlagO and PeerFlagL in one statement for a sent-direction event, and the route-monitoring-policy leaf (internal/component/bgp/plugins/bmp/yang/ze-bmp-conf.yang) offers no pre-policy Adj-RIB-Out choice</td>
 </tr>
 </tbody>
 </table>
@@ -551,6 +569,10 @@ No MUST is a gap. <a href="#rfc8671-6.2-1"><code>RFC8671-6.2-1</code></a>, the O
 <p>The L flag MUST be set to 0 to indicate pre-policy (§5.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8671-5.2-1, so no unit is bound to it.</p>
+<h3><a href="#rfc8671-5.2-2"><code>RFC8671-5.2-2</code></a></h3>
+<p>All mandatory attributes, such as next hop, MUST be either zero or have an empty length if they are unknown at the pre-policy phase completion. (§5.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC8671-5.2-2, so no unit is bound to it.</p>
 <h3><a href="#rfc8671-6.1-1"><code>RFC8671-6.1-1</code></a></h3>
 <p>The O flag MUST be set accordingly to indicate if the route monitor or route mirroring message conveys Adj-RIB-In or Adj-RIB-Out. (§6.1)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-read 2026-09-27. Forbidden: O not matching the RIB conveyed on Route Monitoring or Route Mirroring. TestRFC8671OFlagSetOnAdjRIBOutMessages fails if either message for a sent UPDATE lacks O; TestRFC8671OFlagClearOnAdjRIBInMessages fails if either for a received UPDATE carries it. Both read off the collector pipe after handleStructuredEvent.</p>
@@ -638,10 +660,10 @@ No MUST is a gap. <a href="#rfc8671-6.2-1"><code>RFC8671-6.2-1</code></a>, the O
 <thead><tr><th>Field</th><th>Value</th></tr></thead>
 <tbody>
 <tr><td>Reviewer</td>
-<td>ze-fix agent, false public conformance claim on rfc8671, section 5.2 re-walked 2026-09-05</td>
+<td>ze-fix agent, unowned feature-out-of-scope exclusion on rfc8671 site 5.2:1, section 5.2 re-walked 2026-10-30</td>
 </tr>
 <tr><td>Signed off</td>
-<td>2026-09-05</td>
+<td>2026-10-30</td>
 </tr>
 <tr><td>Register</td>
 <td>rfc2119</td>
@@ -656,10 +678,10 @@ No MUST is a gap. <a href="#rfc8671-6.2-1"><code>RFC8671-6.2-1</code></a>, the O
 <td>rfc/extraction/rfc8671.json</td>
 </tr>
 <tr><td>Mapped sentences</td>
-<td>8</td>
+<td>9</td>
 </tr>
 <tr><td>Declined as scope</td>
-<td>2</td>
+<td>1</td>
 </tr>
 <tr><td>Relocated to a spec, which Ze OWES</td>
 <td>0</td>
@@ -721,7 +743,7 @@ No MUST is a gap. <a href="#rfc8671-6.2-1"><code>RFC8671-6.2-1</code></a>, the O
 <td>Pre-policy</td>
 <td>2</td>
 <td>walked</td>
-<td>Pre-policy. Two capitalised MUSTs. Site 5.2:2 is mapped to RFC8671-5.2-1 and site 5.2:1 is excluded below. Each is conditional on the pre-policy Adj-RIB-Out view, an OPTIONAL feature ze declined, and the RFC8671-5.2-1 line of rfc/short/rfc8671.md carries the {feature-declined} annotation that records the decision. Until 2026-09-05 both sites read excluded as binding a role ze does not implement, which the presumed-wrong ruling on binds-another-role bans for a role ze fills: ze IS the BMP sender. The remaining prose is indicative: what the candidate route set holds for each peering session type, and that a null or loopback next hop is common before transmission. RFC8671-x-5 records that pre-policy Adj-RIB-Out is permitted and uncommon; that is read from this section&#39;s indicative prose, so it is listed as unsourced.</td>
+<td>Pre-policy. Two capitalised MUSTs, both conditional on the pre-policy Adj-RIB-Out view, which ze does not build and which no owner decision declines, so both are declared gaps. Site 5.2:2 is mapped to RFC8671-5.2-1 and site 5.2:1 to RFC8671-5.2-2, each carrying {gap} on its checklist line of rfc/short/rfc8671.md. Until 2026-09-05 both sites read excluded as binding a role ze does not implement, which the presumed-wrong ruling on binds-another-role bans for a role ze fills: ze IS the BMP sender; until 2026-10-30 site 5.2:1 stayed excluded as feature-out-of-scope with no owner decision behind it. The remaining prose is indicative: what the candidate route set holds for each peering session type, and that a null or loopback next hop is common before transmission. RFC8671-x-5 records that pre-policy Adj-RIB-Out is permitted and uncommon; that is read from this section&#39;s indicative prose, so it is listed as unsourced.</td>
 </tr>
 <tr><td><code>6</code></td>
 <td>BMP Messages</td>
@@ -820,11 +842,6 @@ No MUST is a gap. <a href="#rfc8671-6.2-1"><code>RFC8671-6.2-1</code></a>, the O
 <td>The Definitions entry for post-policy Adj-RIB-Out closes with the same sentence section 5.1 states: &#39;This MUST convey to the BMP receiver what is actually transmitted to the peer.&#39; Site 5.1:1 maps that obligation to RFC8671-5.1-1. One obligation, written twice.</td>
 <td>This MUST convey to the BMP receiver what is actually transmitted to the peer.</td>
 </tr>
-<tr><td><code>5.2:1</code></td>
-<td><code>feature-out-of-scope</code><br /><strong>never bound Ze</strong><br />the RFC makes a feature OPTIONAL, Ze decided not to offer it, and this obligation is conditional on offering it</td>
-<td>The obligation is CONDITIONAL on the pre-policy Adj-RIB-Out view, an OPTIONAL feature ze decided not to offer, so it is excluded rather than declared. The sentence binds a speaker only at &#39;the pre-policy phase completion&#39;, which ze never reaches. RFC 8671 states no obligation to offer the pre-policy view, and RFC 7854 Section 5, which this document updates, leaves the choice to the implementation: &#39;A BMP speaker may send pre-policy routes, post-policy routes, or both.&#39; peerHeaderFromEvent (internal/component/bgp/plugins/bmp/bmp_events.go) is the only producer that sets the O flag, and it sets PeerFlagO and PeerFlagL in one statement for a sent-direction event, so O=1 with L=0 is unreachable; the route-monitoring-policy leaf (yang/ze-bmp-conf.yang) offers pre-policy (Adj-RIB-In), post-policy (Adj-RIB-Out) and all, with no pre-policy Adj-RIB-Out choice. ze holds no route at a pre-policy phase for which it would have to zero or empty a mandatory attribute. This is a SCOPE DECISION and not outstanding work. The absent feature is disclosed on the summary&#39;s Support status and Support remaining rows, which name this site, and never as a conformance gap. It is NOT declared as a requirement id: rfc8671 derives 10 capitalised keyword sites and its summary already declares 10 gated requirements, two of them read from indicative prose and recorded in unsourced-ids, so an eleventh declaration would push DeriveRegister (internal/le/rfc/inventory.go) off the rfc2119 grade this source supports.</td>
-<td>All mandatory attributes, such as next hop, MUST be either zero or have an empty length if they are unknown at the pre-policy phase completion.</td>
-</tr>
 </tbody>
 </table>
 </div>
@@ -863,7 +880,7 @@ No MUST is a gap. <a href="#rfc8671-6.2-1"><code>RFC8671-6.2-1</code></a>, the O
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 19:30 UTC</span>
+                    <span class="footer-published">Published 30 October 2026 14:16 UTC</span>
                 </div>
             </div>
         </footer>

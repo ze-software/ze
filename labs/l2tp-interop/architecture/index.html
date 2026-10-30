@@ -172,8 +172,12 @@ of length zero.</p>
 operator one, so the Stop reports Admin Reset, RFC 2866 Section 5.10 value 6.</p>
 <p>The typed plan starts the Go RADIUS peer on <code>172.29.0.5</code> before Ze and xl2tpd.
 The peer answers Access-Request and Accounting-Request packets and writes the
-decoded attributes that the checker compares. This scenario uses the same
-PPPoL2TP preflight as 01 and 02.</p>
+decoded attributes that the checker compares. Its Access-Accept carries a
+Message-Authenticator (RFC 2869 Section 5.14), because ze discards an unsigned
+answer to an Access-Request unless the server's
+<code>require-message-authenticator</code> is false (BlastRADIUS, CVE-2024-3596).
+This scenario uses the same PPPoL2TP preflight as 01 and 02.</p>
+<!-- source: internal/le/interoplab/l2tp/radiusmock/main.go -- appendMessageAuthenticator -->
 <h3 id="dns-resolver-l2tp-subscriber">dns-resolver-l2tp-subscriber</h3>
 <p>Proves that a subscriber learns Ze's LAN DNS resolver through IPCP and
 resolves through it. The pool's <code>dns-primary</code> and <code>dns-secondary</code> are the
@@ -286,7 +290,7 @@ specific to this protocol.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 27 October 2026 23:56 UTC</span>
+                    <span class="footer-published">Published 30 October 2026 23:25 UTC</span>
                 </div>
             </div>
         </footer>

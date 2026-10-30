@@ -47,6 +47,22 @@ plugin {
     }
 }
 
+policy {
+    reject-asn NO-TRANSIT {
+        indirect [ 174 701 3356 ];
+    }
+    modify TRANSIT-A-PREF {
+        set {
+            local-preference 200;
+        }
+    }
+    modify TRANSIT-B-PREF {
+        set {
+            local-preference 100;
+        }
+    }
+}
+
 bgp {
     router-id 192.0.2.10;
     session {
@@ -63,22 +79,6 @@ bgp {
         action {
             invalid reject;
             not-found accept;
-        }
-    }
-
-    policy {
-        reject-asn NO-TRANSIT {
-            indirect [ 174 701 3356 ];
-        }
-        modify TRANSIT-A-PREF {
-            set {
-                local-preference 200;
-            }
-        }
-        modify TRANSIT-B-PREF {
-            set {
-                local-preference 100;
-            }
         }
     }
 

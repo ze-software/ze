@@ -13,11 +13,11 @@ Named AS-path length filter (accept/reject based on hop count)
 
 ## Configuration
 
-`bgp`
+`policy`
 
 ## Dependencies
 
-- Required: [`bgp`](../bgp/index.md)
+- Required: [`bgp`](../bgp/index.md), [`policy`](../policy/index.md)
 - Optional: None
 
 ## Used by

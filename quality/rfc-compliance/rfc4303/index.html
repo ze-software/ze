@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 4303 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 4303: IP Encapsulating Security Payload (ESP). 23 gated MUST-level requirements, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 4303: IP Encapsulating Security Payload (ESP). 23 gated MUST-level requirements, 15 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 4303 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 4303: IP Encapsulating Security Payload (ESP). 23 gated MUST-level requirements, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 4303: IP Encapsulating Security Payload (ESP). 23 gated MUST-level requirements, 15 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 4303 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 4303: IP Encapsulating Security Payload (ESP). 23 gated MUST-level requirements, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 4303: IP Encapsulating Security Payload (ESP). 23 gated MUST-level requirements, 15 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -122,15 +122,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>4.3%</strong><b>1 of 23 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 23 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 23 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 23 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>65.9%</strong><b>27 of 41 tagged units, 0 escaped and 4 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>61.0%</strong><b>25 of 41 tagged units, 0 escaped and 6 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>23</strong><b>of 27 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>14</strong><b>of 23 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>60.9%</strong><b>14 of 23 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 23 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 23 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 23 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 23 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0.0%</strong><b>0 of 23 gated MUSTs</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit</p></article>
@@ -138,6 +137,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>60.9%</strong><b>14 of 23 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 <article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>11</strong><b>of 23 gated MUSTs judged</b><p>1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 9 shares marked as a part above are the whole of the 23 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
@@ -172,7 +172,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
 </tr>
 <tr><td>No test at all</td>
-<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
 </tr>
 <tr><td>Not applicable</td>
@@ -222,10 +222,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>23</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
-<td>14</td>
+<td>0</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>1</td>
+<td>15</td>
 </tr>
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
@@ -262,7 +262,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Enrolled: IP Encapsulating Security Payload (RFC 4303): 1 MET (SPI 0/reserved never on the wire) + 1 single-polarity positive (32-packet anti-replay window projected) + 14 not-applicable (per-packet ESP datapath -- sequence, padding, TFC, SAD lookup, ICV, anti-replay check -- kernel XFRM)</p>
+<p>Enrolled: IP Encapsulating Security Payload. Ze is the ESP sender and receiver: its Go builds and installs every SA, through Linux XFRM (internal/component/ike/dataplane/xfrm_linux.go::InstallSA, linux:CONFIG_INET_ESP, linux:CONFIG_INET6_ESP, linux:CONFIG_XFRM_USER) or, on the ze_vpp IPsec dataplane, in VPP&#39;s SAD (internal/component/ike/dataplane/vpp.go::InstallSA), and the dataplane performs every per-packet operation. The fourteen per-packet MUSTs are gaps, because the VPP ESP datapath is a shipped path whose real-VPP test shows only that the SA is installed. Two are also unmet on Linux: no dummy packet can be generated (2.6-1), and ze sets no packet limit, so it establishes no new SA before the counter runs out (2.2-3). The other twelve hold on Linux and owe tests</p>
 </section>
 <section><h2>What the public ledger says</h2>
 <p><strong>Status:</strong> Partial</p>
@@ -273,7 +273,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </ul>
 </details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
-Integrity-only ESP is configurable on OSPFv3 manual SAs (<a href="#rfc4303-1-1"><code>RFC4303-1-1</code></a>) and negotiable in IKEv2 for Child SAs, where an esp-group proposal naming null with a hash offers and accepts ENCR_NULL (<a href="#rfc4303-1-2"><code>RFC4303-1-2</code></a>); the IKE SA still refuses ENCR_NULL per RFC 7296 Section 5. SPI 0 and anti-replay-needs-integrity are proven on one SA producer each (<a href="#rfc4303-2.1-1"><code>RFC4303-2.1-1</code></a>, <a href="#rfc4303-3.4.3-2"><code>RFC4303-3.4.3-2</code></a>). Protocol 50 (<a href="#rfc4303-2-1"><code>RFC4303-2-1</code></a>) is proven on the wire for the OSPFv3 manual SAs and at the installed SA for the IKE Child SA; the address-match indication for the inbound SA lookup (<a href="#rfc4303-2.1-2"><code>RFC4303-2.1-2</code></a>) is proven against the kernel&#39;s own lookup on both producers.
+<p>Integrity-only ESP is configurable on OSPFv3 manual SAs (<a href="#rfc4303-1-1"><code>RFC4303-1-1</code></a>) and negotiable in IKEv2 for Child SAs, where an esp-group proposal naming null with a hash offers and accepts ENCR_NULL (<a href="#rfc4303-1-2"><code>RFC4303-1-2</code></a>); the IKE SA still refuses ENCR_NULL per RFC 7296 Section 5. SPI 0 and anti-replay-needs-integrity are proven on one SA producer each (<a href="#rfc4303-2.1-1"><code>RFC4303-2.1-1</code></a>, <a href="#rfc4303-3.4.3-2"><code>RFC4303-3.4.3-2</code></a>). Protocol 50 (<a href="#rfc4303-2-1"><code>RFC4303-2-1</code></a>) is proven on the wire for the OSPFv3 manual SAs and at the installed SA for the IKE Child SA; the address-match indication for the inbound SA lookup (<a href="#rfc4303-2.1-2"><code>RFC4303-2.1-2</code></a>) is proven against the kernel&#39;s own lookup on both producers.</p>
+<p class="rfc-prose"><strong>Fourteen per-packet MUST gaps:</strong> no test shows what the VPP ESP datapath does with any of them, ze generates no dummy packet (<a href="#rfc4303-2.6-1"><code>RFC4303-2.6-1</code></a>), and with no packet limit on the SA nothing rekeys before the sequence counter runs out (<a href="#rfc4303-2.2-3"><code>RFC4303-2.2-3</code></a>); the other twelve hold on Linux XFRM and owe tests over the SAs ze installs.</p>
 </details>
 </section>
 <section><h2>Coverage</h2>
@@ -317,7 +318,7 @@ Integrity-only ESP is configurable on OSPFv3 manual SAs (<a href="#rfc4303-1-1">
 <p class="rfc-id-list"><strong>Annotated (including scoped evidence) (15):</strong> <a href="#rfc4303-2.2-1"><code>RFC4303-2.2-1</code></a>, <a href="#rfc4303-2.2-2"><code>RFC4303-2.2-2</code></a>, <a href="#rfc4303-2.2-3"><code>RFC4303-2.2-3</code></a>, <a href="#rfc4303-2.4-1"><code>RFC4303-2.4-1</code></a>, <a href="#rfc4303-2.6-1"><code>RFC4303-2.6-1</code></a>, <a href="#rfc4303-2.6-2"><code>RFC4303-2.6-2</code></a>, <a href="#rfc4303-3.3.3-1"><code>RFC4303-3.3.3-1</code></a>, <a href="#rfc4303-3.3.4-1"><code>RFC4303-3.3.4-1</code></a>, <a href="#rfc4303-3.3.4-2"><code>RFC4303-3.3.4-2</code></a>, <a href="#rfc4303-3.4.3-1"><code>RFC4303-3.4.3-1</code></a>, <a href="#rfc4303-3.4.3-3"><code>RFC4303-3.4.3-3</code></a>, <a href="#rfc4303-3.4.2-1"><code>RFC4303-3.4.2-1</code></a>, <a href="#rfc4303-3.4.2-2"><code>RFC4303-3.4.2-2</code></a>, <a href="#rfc4303-3.4.4.1-1"><code>RFC4303-3.4.4.1-1</code></a>, <a href="#rfc4303-3.4.4.2-1"><code>RFC4303-3.4.4.2-1</code></a></p>
 </section>
 <section><h2>Attainable ceiling</h2>
-<p>Mandatory ceiling: 9 of 23 (39.1%); excluded: Not applicable (classification can be revisited): 14 of 23 (60.9%). Optional ceiling: 4 of 4 (100.0%). Lowest mandatory ceiling: rfc4303 9 of 23 (39.1%). Lowest optional ceiling: rfc4303 4 of 4 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.</p>
+<p>Mandatory ceiling: 23 of 23 (100.0%). Optional ceiling: 4 of 4 (100.0%). Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: rfc4303 23 of 23 (100.0%). Lowest optional ceiling: rfc4303 4 of 4 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.</p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -397,7 +398,7 @@ Integrity-only ESP is configurable on OSPFv3 manual SAs (<a href="#rfc4303-1-1">
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4303-2.2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> the per-SA sequence counter is kernel XFRM/ESP per-packet state; ze installs the SA but never touches sequence numbers (internal/component/ike/dataplane/dataplane.go:80-108 has no sequence field)</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> a gap in proof on one of the two IPsec dataplanes. The Linux path is the verified half: on the SA internal/component/ike/dataplane/xfrm_linux.go::InstallSA installs (linux:CONFIG_INET_ESP, linux:CONFIG_INET6_ESP, linux:CONFIG_XFRM_USER), the kernel&#39;s xfrm_replay_overflow (net/xfrm/xfrm_replay.c) increments the outbound sequence counter for every packet; no test covers it. The VPP half is unverified: the ze_vpp IPsec dataplane (internal/component/ike/dataplane/register_vpp.go, vpp.go::InstallSA) is a shipped backend that installs the SA in VPP&#39;s SAD, and internal/component/ike/dataplane/vpp_real_integration_test.go shows only that VPP holds the SA, not what VPP&#39;s ESP datapath does</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4303-2.2-2">RFC4303-2.2-2</code></td><td colspan="3"><span class="rfc-subject">In other words, the sender MUST NOT send a packet on an SA if doing so would cause the sequence number to cycle. (§3.3.3)</span></td></tr>
 <tr><td></td>
@@ -406,7 +407,7 @@ Integrity-only ESP is configurable on OSPFv3 manual SAs (<a href="#rfc4303-1-1">
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4303-2.2-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> 32-bit counter overflow protection is enforced by the kernel XFRM datapath (it expires the state rather than wrapping); ze&#39;s control plane holds no per-packet counter</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> a gap in proof on one of the two IPsec dataplanes. The Linux path is the verified half: the kernel&#39;s __xfrm_replay_overflow (net/xfrm/xfrm_replay.c, linux:CONFIG_XFRM_USER) refuses with EOVERFLOW, and audits, a packet that would wrap the counter unless the SA carries XFRM_SA_XFLAG_OSEQ_MAY_WRAP, and internal/component/ike/dataplane/xfrm_linux.go::InstallSA leaves that flag clear as a written guard; that flag is the value ze writes, and no test covers it. The VPP half is unverified: the ze_vpp IPsec dataplane (internal/component/ike/dataplane/register_vpp.go, vpp.go::InstallSA, flags from vpp.go::vppSAFlags) installs the SA in VPP, and no test shows VPP stops at the counter&#39;s end</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4303-2.2-3">RFC4303-2.2-3</code></td><td colspan="3"><span class="rfc-subject">Thus, the sender&#39;s counter and the receiver&#39;s counter MUST be reset (by establishing a new SA and thus a new key) prior to the transmission of the 2^32nd packet on an SA. (§2.2)</span></td></tr>
 <tr><td></td>
@@ -415,7 +416,7 @@ Integrity-only ESP is configurable on OSPFv3 manual SAs (<a href="#rfc4303-1-1">
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4303-2.2-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> the sequence counter and receive window are kernel per-packet SA state; the kernel enforces the 2^32 boundary and a fresh counter/window arises from installing a new SA</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> unmet in part and unverified on VPP. On Linux the kernel refuses the packet that would wrap the counter (net/xfrm/xfrm_replay.c __xfrm_replay_overflow, linux:CONFIG_XFRM_USER), so the 2^32nd packet is never sent on the old SA, but internal/component/ike/dataplane/xfrm_linux.go::InstallSA sets no packet limit on the SA and ze rekeys a Child SA on time alone, so nothing establishes the new SA before the counter runs out and traffic stops instead. The VPP half is unverified: the ze_vpp IPsec dataplane (internal/component/ike/dataplane/register_vpp.go, vpp.go::InstallSA) installs the SA in VPP, and no test shows what VPP does at the counter&#39;s end</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4303-2.4-1">RFC4303-2.4-1</code></td><td colspan="3"><span class="rfc-subject">If an encryption algorithm is employed that requires the plaintext to be a multiple of some number of bytes, e.g., the block size of a block cipher, the Padding field is used to fill the plaintext (consisting of the Payload Data, Padding, Pad Length, and Next Header fields) to the size required by the algorithm. o Padding also may be required, irrespective of encryption algorithm requirements, to ensure that the resulting ciphertext terminates on a 4-byte boundary. Specifically, the Pad Length and Next Header fields must be right aligned within a 4-byte word, as illustrated in the ESP packet format figures above, to ensure that the ICV field (if present) is aligned on a 4-byte boundary. Padding beyond that required for the algorithm or alignment reasons cited above could be used to conceal the actual length of the payload, in support of TFC. However, the Padding field described is too limited to be effective for TFC and thus should not be used for that purpose. Instead, the separate mechanism described below (see Section 2.7) should be used when TFC is required. The sender MAY add 0 to 255 bytes of padding. Inclusion of the Padding field in an ESP packet is optional, subject to the requirements noted above, but all implementations MUST support generation and consumption of padding. (§2.4)</span></td></tr>
 <tr><td></td>
@@ -424,7 +425,7 @@ Integrity-only ESP is configurable on OSPFv3 manual SAs (<a href="#rfc4303-1-1">
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4303-2.4-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ESP padding is applied by the kernel encryption datapath during packet construction; ze projects only the algorithm choice and never builds ESP payloads</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> a gap in proof on one of the two IPsec dataplanes. The Linux path is the verified half: the kernel&#39;s esp_output (net/ipv4/esp4.c and net/ipv6/esp6.c, linux:CONFIG_INET_ESP, linux:CONFIG_INET6_ESP) pads the plaintext to the cipher&#39;s block size and to a 4-octet boundary, on the SA internal/component/ike/dataplane/xfrm_linux.go::InstallSA installs; no test covers it. The VPP half is unverified: the ze_vpp IPsec dataplane (internal/component/ike/dataplane/register_vpp.go, vpp.go::InstallSA) installs the SA in VPP, and internal/component/ike/dataplane/vpp_real_integration_test.go shows only that VPP holds it, not how VPP pads</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4303-2.6-1">RFC4303-2.6-1</code></td><td colspan="3"><span class="rfc-subject">the protocol value 59 (which means &#34;no next header&#34;) MUST be used to designate a &#34;dummy&#34; packet. A transmitter MUST be capable of generating dummy packets marked with this value in the next protocol field (§2.6)</span></td></tr>
 <tr><td></td>
@@ -433,7 +434,7 @@ Integrity-only ESP is configurable on OSPFv3 manual SAs (<a href="#rfc4303-1-1">
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4303-2.6-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> dummy/TFC packet generation is an ESP transmit-datapath function; ze emits no ESP packets, so it plays no role in producing Next-Header-59 dummies</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> unmet on Linux and unverified on VPP. The kernel&#39;s ESP output (net/ipv4/esp4.c, linux:CONFIG_INET_ESP) can pad for traffic flow confidentiality (tfcpad) but has no generator of dummy packets with Next Header 59, and internal/component/ike/dataplane/xfrm_linux.go::InstallSA asks for none, so ze cannot emit a dummy packet. On VPP, the ze_vpp IPsec dataplane (internal/component/ike/dataplane/register_vpp.go, vpp.go::InstallSA) installs the SA, and nothing shows VPP generates dummy packets</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4303-2.6-2">RFC4303-2.6-2</code></td><td colspan="3"><span class="rfc-subject">a receiver MUST be prepared to discard such packets, without indicating an error. (§2.6)</span></td></tr>
 <tr><td></td>
@@ -442,7 +443,7 @@ Integrity-only ESP is configurable on OSPFv3 manual SAs (<a href="#rfc4303-1-1">
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4303-2.6-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> inbound Next-Header-59 dummy discard occurs in the kernel ESP receive path after decryption; ze processes no inbound ESP payloads</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> a gap in proof on one of the two IPsec dataplanes. The Linux path is the verified half: the kernel&#39;s esp_input_done2 (net/ipv4/esp4.c and net/ipv6/esp6.c, linux:CONFIG_INET_ESP, linux:CONFIG_INET6_ESP) drops a decrypted packet whose Next Header is 59 without reporting an error, on the SA internal/component/ike/dataplane/xfrm_linux.go::InstallSA installs; no test covers it. The VPP half is unverified: the ze_vpp IPsec dataplane (internal/component/ike/dataplane/register_vpp.go, vpp.go::InstallSA) installs the SA in VPP, and no test shows VPP discards a dummy packet silently</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4303-3.2-1">RFC4303-3.2-1</code></td><td colspan="3"><span class="rfc-subject">Note that although both confidentiality and integrity are optional, at least one of these services MUST be selected, hence both algorithms MUST NOT be simultaneously NULL. (§3.2)</span></td></tr>
 <tr><td></td>
@@ -461,7 +462,7 @@ Integrity-only ESP is configurable on OSPFv3 manual SAs (<a href="#rfc4303-1-1">
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4303-3.3.3-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> the kernel initializes the sequence counter when the SA state is added; ze installs a fresh SA with no seq field and never sets or reads the counter (internal/component/ike/dataplane/xfrm_linux.go:21-86)</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> a gap in proof on one of the two IPsec dataplanes. The Linux path is the verified half: internal/component/ike/dataplane/xfrm_linux.go::InstallSA adds a new XFRM state with no replay state of its own, so the kernel starts its outbound counter at 0 and xfrm_replay_overflow (net/xfrm/xfrm_replay.c, linux:CONFIG_XFRM_USER) puts 1 in the first packet; no test covers it. The VPP half is unverified: the ze_vpp IPsec dataplane (internal/component/ike/dataplane/register_vpp.go, vpp.go::InstallSA) installs the SA in VPP, and no test shows the first sequence number VPP sends</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4303-3.3.4-1">RFC4303-3.3.4-1</code></td><td colspan="3"><span class="rfc-subject">Thus, transport mode ESP is applied only to whole IP datagrams (not to IP fragments). (§3.3.4)</span></td></tr>
 <tr><td></td>
@@ -470,7 +471,7 @@ Integrity-only ESP is configurable on OSPFv3 manual SAs (<a href="#rfc4303-1-1">
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4303-3.3.4-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ordering ESP relative to fragmentation is an outbound kernel datapath decision; ze selects transport vs tunnel mode as an SA parameter but does not apply ESP to packets (internal/plugins/ospf/ipsec_install.go:413)</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> a gap in proof on one of the two IPsec dataplanes. The Linux path is the verified half: the kernel applies the transform in xfrm_output (net/xfrm/xfrm_output.c, linux:CONFIG_XFRM_USER) to the whole datagram before the IP output path fragments the result, on the transport-mode SAs internal/component/ike/dataplane/xfrm_linux.go::InstallSA and internal/plugins/ospf/ipsec_install.go install; no test covers it. The VPP half is unverified: the ze_vpp IPsec dataplane (internal/component/ike/dataplane/register_vpp.go, vpp.go::InstallSA) installs the SA in VPP, and no test shows VPP never applies ESP to a fragment</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4303-3.3.4-2">RFC4303-3.3.4-2</code></td><td colspan="3"><span class="rfc-subject">In any case, an ESP implementation MUST support generation of ICMP PMTU messages (or equivalent internal signaling for native host implementations) to minimize the likelihood of fragmentation. (§3.3.4)</span></td></tr>
 <tr><td></td>
@@ -479,7 +480,7 @@ Integrity-only ESP is configurable on OSPFv3 manual SAs (<a href="#rfc4303-1-1">
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4303-3.3.4-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> Path MTU Discovery is provided by the kernel networking/XFRM stack; ze&#39;s control plane installs SAs and does not run the datapath MTU machinery</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> a gap in proof on one of the two IPsec dataplanes. The Linux path is the verified half: the kernel&#39;s xfrm4_tunnel_check_size and xfrm6_tunnel_check_size (net/xfrm/xfrm_output.c, linux:CONFIG_XFRM_USER) report a packet too big for the SA&#39;s path MTU through xfrm_local_error, which sends ICMP Fragmentation Needed or Packet Too Big, on the SA internal/component/ike/dataplane/xfrm_linux.go::InstallSA installs; no test covers it. The VPP half is unverified: the ze_vpp IPsec dataplane (internal/component/ike/dataplane/register_vpp.go, vpp.go::InstallSA) installs the SA in VPP with no path MTU, and no test shows VPP generates any PMTU message</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4303-3.4.3-1">RFC4303-3.4.3-1</code></td><td colspan="3"><span class="rfc-subject">A minimum window size of 32 packets MUST be supported when 32-bit sequence numbers are employed (§3.4.3)</span></td></tr>
 <tr><td></td>
@@ -507,7 +508,7 @@ Integrity-only ESP is configurable on OSPFv3 manual SAs (<a href="#rfc4303-1-1">
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4303-3.4.3-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> window advancement is gated on per-packet ICV verification inside the kernel ESP receive path; ze has no control over when the window advances</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> a gap in proof on one of the two IPsec dataplanes. The Linux path is the verified half: the kernel&#39;s xfrm_input (net/xfrm/xfrm_input.c, linux:CONFIG_XFRM_USER) checks the sequence number against the window before decryption and advances the window (xfrm_replay_advance) only after the transform&#39;s input, which verifies the ICV, has succeeded, on the SA internal/component/ike/dataplane/xfrm_linux.go::InstallSA installs with the replay window ze writes; no test covers it. The VPP half is unverified: the ze_vpp IPsec dataplane (internal/component/ike/dataplane/register_vpp.go, vpp.go::InstallSA) installs the SA in VPP, and no test shows when VPP advances its window</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4303-3.4.2-1">RFC4303-3.4.2-1</code></td><td colspan="3"><span class="rfc-subject">For a unicast SA, this determination is based on the SPI or the SPI plus protocol field, as described in Section 2.1. If an implementation supports multicast traffic, the destination address is also employed in the lookup (in addition to the SPI), and the sender address also may be employed, as described in Section 2.1. (This process is described in more detail in the Security Architecture document.) The SAD entry for the SA also indicates whether the Sequence Number field will be checked, whether 32- or 64-bit sequence numbers are employed for the SA, and whether the (explicit) ICV field should be present (and if so, its size). Also, the SAD entry will specify the algorithms and keys to be employed for decryption and ICV computation (if applicable). If no valid Security Association exists for this packet, the receiver MUST discard the packet; this is an auditable event. (§3.4.2)</span></td></tr>
 <tr><td></td>
@@ -516,7 +517,7 @@ Integrity-only ESP is configurable on OSPFv3 manual SAs (<a href="#rfc4303-1-1">
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4303-3.4.2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> inbound SAD lookup by SPI and discard/audit on miss is performed per packet by the kernel; ze installs SAs keyed by SPI but never performs the lookup (internal/plugins/ospf/ipsec_install.go:484-498 samples kernel drop counters only)</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> a gap in proof on one of the two IPsec dataplanes. The Linux path is the verified half: the kernel&#39;s xfrm_input (net/xfrm/xfrm_input.c, linux:CONFIG_XFRM_USER) looks the SA up by destination, SPI and protocol (xfrm_state_lookup), counts and drops a packet with no SA, and takes the sequence check, ICV size, algorithms and keys from the state internal/component/ike/dataplane/xfrm_linux.go::InstallSA or internal/plugins/ospf/ipsec_install.go installed; the inbound address match is proven separately (RFC4303-2.1-2), and no test covers the rest. The VPP half is unverified: the ze_vpp IPsec dataplane (internal/component/ike/dataplane/register_vpp.go, vpp.go::InstallSA) installs the SA in VPP&#39;s SAD, and no test shows how VPP resolves or discards an inbound packet</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4303-3.4.2-2">RFC4303-3.4.2-2</code></td><td colspan="3"><span class="rfc-subject">If an implementation supports multicast traffic, the destination address is also employed in the lookup (in addition to the SPI), and the sender address also may be employed, as described in Section 2.1. (§3.4.2)</span></td></tr>
 <tr><td></td>
@@ -525,7 +526,7 @@ Integrity-only ESP is configurable on OSPFv3 manual SAs (<a href="#rfc4303-1-1">
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4303-3.4.2-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> multicast SA resolution is a kernel per-packet lookup; ze only installs the wildcard state and proto-89 selector that lets the kernel resolve OSPFv3 multicast flows (internal/plugins/ospf/ipsec_install.go:415-419)</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> a gap in proof on one of the two IPsec dataplanes. The Linux path is the verified half: the kernel&#39;s xfrm_state_lookup (net/xfrm/xfrm_state.c, linux:CONFIG_XFRM_USER) always keys on the destination address with the SPI and protocol, so a multicast SA such as the OSPFv3 ones internal/plugins/ospf/ipsec_install.go installs resolves on its multicast destination; no test covers it. The VPP half is unverified: the ze_vpp IPsec dataplane (internal/component/ike/dataplane/register_vpp.go, vpp.go::InstallSA) installs the SA in VPP, and no test shows VPP uses the destination in its lookup</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4303-3.4.4.1-1">RFC4303-3.4.4.1-1</code></td><td colspan="3"><span class="rfc-subject">If separate confidentiality and integrity algorithms are employed processing proceeds as follows: 1. If integrity has been selected, the receiver computes the ICV over the ESP packet minus the ICV, using the specified integrity algorithm and verifies that it is the same as the ICV carried in the packet. Details of the computation are provided below. If the computed and received ICVs match, then the datagram is valid, and it is accepted. If the test fails, then the receiver MUST discard the received IP datagram as invalid; this is an auditable event. The log data SHOULD include the SPI value, date/time received, Source Address, Destination Address, the Sequence Number, and (for IPv6) the cleartext Flow ID. Implementation Note: Implementations can use any set of steps that results in the same result as the following set of steps. Begin by removing and saving the ICV field. Next check the overall length of the ESP packet minus the ICV field. If implicit padding is required, based on the block size of the integrity algorithm, append zero-filled bytes to the end of the ESP packet directly after the Next Header field, or after the high-order 32 bits of the sequence number if ESN is selected. Perform the ICV computation and compare the result with the saved value, using the comparison rules defined by the algorithm specification. 2. The receiver decrypts the ESP Payload Data, Padding, Pad Length, and Next Header using the key, encryption algorithm, algorithm mode, and cryptographic synchronization data (if any), indicated by the SA. As in Section 3.3.2, we speak here in terms of encryption always being applied because of the formatting implications. This is done with the understanding that &#34;no confidentiality&#34; is offered by using the NULL encryption algorithm (RFC 2410). - If explicit cryptographic synchronization data, e.g., an IV, is indicated, it is taken from the Payload field and input to the decryption algorithm as per the algorithm specification. - If implicit cryptographic synchronization data is indicated, a local version of the IV is constructed and input to the decryption algorithm as per the algorithm specification. 3. The receiver processes any Padding as specified in the encryption algorithm specification. (§3.4.4.1)</span></td></tr>
 <tr><td></td>
@@ -534,7 +535,7 @@ Integrity-only ESP is configurable on OSPFv3 manual SAs (<a href="#rfc4303-1-1">
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4303-3.4.4.1-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> the verify-then-decrypt-then-check-padding ordering is executed by the kernel ESP inbound datapath; ze projects the crypt+auth algorithm pair but does no packet processing (internal/component/ike/dataplane/xfrm_linux.go:59-71)</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> a gap in proof on one of the two IPsec dataplanes. The Linux path is the verified half: for an SA with separate cipher and integrity algorithms, which internal/component/ike/dataplane/xfrm_linux.go::InstallSA installs as an authenc pair, the kernel&#39;s ESP input (net/ipv4/esp4.c and net/ipv6/esp6.c, linux:CONFIG_INET_ESP, linux:CONFIG_INET6_ESP) verifies the ICV before it decrypts, drops a packet that fails, and audits it through xfrm_audit_state_icvfail (net/xfrm/xfrm_input.c); no test covers it. The VPP half is unverified: the ze_vpp IPsec dataplane (internal/component/ike/dataplane/register_vpp.go, vpp.go::InstallSA, algorithms from vpp.go::vppCryptoAlg and vppIntegAlg) installs the SA in VPP, and no test shows VPP discards a packet whose ICV fails</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4303-3.4.4.1-2">RFC4303-3.4.4.1-2</code></td><td colspan="3"><span class="rfc-subject">If the default padding scheme (see Section 2.4) has been employed, the receiver SHOULD inspect the Padding field before removing the padding prior to passing the decrypted data to the next layer. (§3.4.4.1)</span></td></tr>
 <tr><td></td>
@@ -552,7 +553,7 @@ Integrity-only ESP is configurable on OSPFv3 manual SAs (<a href="#rfc4303-1-1">
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4303-3.4.4.2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> the single AEAD decrypt-and-verify call is performed by the kernel; ze projects the AEAD transform name and ICV length as SA parameters only (internal/component/ike/dataplane/xfrm_linux.go:52-58)</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> a gap in proof on one of the two IPsec dataplanes. The Linux path is the verified half: for a combined-mode SA, which internal/component/ike/dataplane/xfrm_linux.go::InstallSA installs with the AEAD algorithm and ICV length it negotiated, the kernel&#39;s ESP input (net/ipv4/esp4.c and net/ipv6/esp6.c, linux:CONFIG_INET_ESP, linux:CONFIG_INET6_ESP) decrypts and verifies the payload, padding, pad length and next header in one crypto_aead_decrypt call; no test covers it. The VPP half is unverified: the ze_vpp IPsec dataplane (internal/component/ike/dataplane/register_vpp.go, vpp.go::InstallSA, salt from vpp.go::vppCryptoKeyAndSalt) installs the SA in VPP, and no test shows VPP decrypts and verifies it</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4303-2.2.1-1">RFC4303-2.2.1-1</code></td><td colspan="3"><span class="rfc-subject">To support high-speed IPsec implementations, Extended Sequence Numbers (ESNs) SHOULD be implemented, as an extension to the current, 32-bit sequence number field. (§2.2.1)</span></td></tr>
 <tr><td></td>
@@ -600,64 +601,64 @@ Integrity-only ESP is configurable on OSPFv3 manual SAs (<a href="#rfc4303-1-1">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
 <tr><td><a href="#rfc4303-2.2-1"><code>RFC4303-2.2-1</code></a> For a unicast SA or a single-sender multicast SA, the sender MUST increment this field for every transmitted packet. (§2.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: the per-SA sequence counter is kernel XFRM/ESP per-packet state; ze installs the SA but never touches sequence numbers (internal/component/ike/dataplane/dataplane.go:80-108 has no sequence field)</td>
+<td>{gap}, no test</td>
+<td>a gap in proof on one of the two IPsec dataplanes. The Linux path is the verified half: on the SA internal/component/ike/dataplane/xfrm_linux.go::InstallSA installs (linux:CONFIG_INET_ESP, linux:CONFIG_INET6_ESP, linux:CONFIG_XFRM_USER), the kernel&#39;s xfrm_replay_overflow (net/xfrm/xfrm_replay.c) increments the outbound sequence counter for every packet; no test covers it. The VPP half is unverified: the ze_vpp IPsec dataplane (internal/component/ike/dataplane/register_vpp.go, vpp.go::InstallSA) is a shipped backend that installs the SA in VPP&#39;s SAD, and internal/component/ike/dataplane/vpp_real_integration_test.go shows only that VPP holds the SA, not what VPP&#39;s ESP datapath does</td>
 </tr>
 <tr><td><a href="#rfc4303-2.2-2"><code>RFC4303-2.2-2</code></a> In other words, the sender MUST NOT send a packet on an SA if doing so would cause the sequence number to cycle. (§3.3.3)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: 32-bit counter overflow protection is enforced by the kernel XFRM datapath (it expires the state rather than wrapping); ze&#39;s control plane holds no per-packet counter</td>
+<td>{gap}, no test</td>
+<td>a gap in proof on one of the two IPsec dataplanes. The Linux path is the verified half: the kernel&#39;s __xfrm_replay_overflow (net/xfrm/xfrm_replay.c, linux:CONFIG_XFRM_USER) refuses with EOVERFLOW, and audits, a packet that would wrap the counter unless the SA carries XFRM_SA_XFLAG_OSEQ_MAY_WRAP, and internal/component/ike/dataplane/xfrm_linux.go::InstallSA leaves that flag clear as a written guard; that flag is the value ze writes, and no test covers it. The VPP half is unverified: the ze_vpp IPsec dataplane (internal/component/ike/dataplane/register_vpp.go, vpp.go::InstallSA, flags from vpp.go::vppSAFlags) installs the SA in VPP, and no test shows VPP stops at the counter&#39;s end</td>
 </tr>
 <tr><td><a href="#rfc4303-2.2-3"><code>RFC4303-2.2-3</code></a> Thus, the sender&#39;s counter and the receiver&#39;s counter MUST be reset (by establishing a new SA and thus a new key) prior to the transmission of the 2^32nd packet on an SA. (§2.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: the sequence counter and receive window are kernel per-packet SA state; the kernel enforces the 2^32 boundary and a fresh counter/window arises from installing a new SA</td>
+<td>{gap}, no test</td>
+<td>unmet in part and unverified on VPP. On Linux the kernel refuses the packet that would wrap the counter (net/xfrm/xfrm_replay.c __xfrm_replay_overflow, linux:CONFIG_XFRM_USER), so the 2^32nd packet is never sent on the old SA, but internal/component/ike/dataplane/xfrm_linux.go::InstallSA sets no packet limit on the SA and ze rekeys a Child SA on time alone, so nothing establishes the new SA before the counter runs out and traffic stops instead. The VPP half is unverified: the ze_vpp IPsec dataplane (internal/component/ike/dataplane/register_vpp.go, vpp.go::InstallSA) installs the SA in VPP, and no test shows what VPP does at the counter&#39;s end</td>
 </tr>
 <tr><td><a href="#rfc4303-2.4-1"><code>RFC4303-2.4-1</code></a> If an encryption algorithm is employed that requires the plaintext to be a multiple of some number of bytes, e.g., the block size of a block cipher, the Padding field is used to fill the plaintext (consisting of the Payload Data, Padding, Pad Length, and Next Header fields) to the size required by the algorithm. o Padding also may be required, irrespective of encryption algorithm requirements, to ensure that the resulting ciphertext terminates on a 4-byte boundary. Specifically, the Pad Length and Next Header fields must be right aligned within a 4-byte word, as illustrated in the ESP packet format figures above, to ensure that the ICV field (if present) is aligned on a 4-byte boundary. Padding beyond that required for the algorithm or alignment reasons cited above could be used to conceal the actual length of the payload, in support of TFC. However, the Padding field described is too limited to be effective for TFC and thus should not be used for that purpose. Instead, the separate mechanism described below (see Section 2.7) should be used when TFC is required. The sender MAY add 0 to 255 bytes of padding. Inclusion of the Padding field in an ESP packet is optional, subject to the requirements noted above, but all implementations MUST support generation and consumption of padding. (§2.4)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: ESP padding is applied by the kernel encryption datapath during packet construction; ze projects only the algorithm choice and never builds ESP payloads</td>
+<td>{gap}, no test</td>
+<td>a gap in proof on one of the two IPsec dataplanes. The Linux path is the verified half: the kernel&#39;s esp_output (net/ipv4/esp4.c and net/ipv6/esp6.c, linux:CONFIG_INET_ESP, linux:CONFIG_INET6_ESP) pads the plaintext to the cipher&#39;s block size and to a 4-octet boundary, on the SA internal/component/ike/dataplane/xfrm_linux.go::InstallSA installs; no test covers it. The VPP half is unverified: the ze_vpp IPsec dataplane (internal/component/ike/dataplane/register_vpp.go, vpp.go::InstallSA) installs the SA in VPP, and internal/component/ike/dataplane/vpp_real_integration_test.go shows only that VPP holds it, not how VPP pads</td>
 </tr>
 <tr><td><a href="#rfc4303-2.6-1"><code>RFC4303-2.6-1</code></a> the protocol value 59 (which means &#34;no next header&#34;) MUST be used to designate a &#34;dummy&#34; packet. A transmitter MUST be capable of generating dummy packets marked with this value in the next protocol field (§2.6)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: dummy/TFC packet generation is an ESP transmit-datapath function; ze emits no ESP packets, so it plays no role in producing Next-Header-59 dummies</td>
+<td>{gap}, no test</td>
+<td>unmet on Linux and unverified on VPP. The kernel&#39;s ESP output (net/ipv4/esp4.c, linux:CONFIG_INET_ESP) can pad for traffic flow confidentiality (tfcpad) but has no generator of dummy packets with Next Header 59, and internal/component/ike/dataplane/xfrm_linux.go::InstallSA asks for none, so ze cannot emit a dummy packet. On VPP, the ze_vpp IPsec dataplane (internal/component/ike/dataplane/register_vpp.go, vpp.go::InstallSA) installs the SA, and nothing shows VPP generates dummy packets</td>
 </tr>
 <tr><td><a href="#rfc4303-2.6-2"><code>RFC4303-2.6-2</code></a> a receiver MUST be prepared to discard such packets, without indicating an error. (§2.6)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: inbound Next-Header-59 dummy discard occurs in the kernel ESP receive path after decryption; ze processes no inbound ESP payloads</td>
+<td>{gap}, no test</td>
+<td>a gap in proof on one of the two IPsec dataplanes. The Linux path is the verified half: the kernel&#39;s esp_input_done2 (net/ipv4/esp4.c and net/ipv6/esp6.c, linux:CONFIG_INET_ESP, linux:CONFIG_INET6_ESP) drops a decrypted packet whose Next Header is 59 without reporting an error, on the SA internal/component/ike/dataplane/xfrm_linux.go::InstallSA installs; no test covers it. The VPP half is unverified: the ze_vpp IPsec dataplane (internal/component/ike/dataplane/register_vpp.go, vpp.go::InstallSA) installs the SA in VPP, and no test shows VPP discards a dummy packet silently</td>
 </tr>
 <tr><td><a href="#rfc4303-3.3.3-1"><code>RFC4303-3.3.3-1</code></a> The sender&#39;s counter is initialized to 0 when an SA is established. The sender increments the sequence number (or ESN) counter for this SA and inserts the low-order 32 bits of the value into the Sequence Number field. Thus, the first packet sent using a given SA will contain a sequence number of 1. (§3.3.3)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: the kernel initializes the sequence counter when the SA state is added; ze installs a fresh SA with no seq field and never sets or reads the counter (internal/component/ike/dataplane/xfrm_linux.go:21-86)</td>
+<td>{gap}, no test</td>
+<td>a gap in proof on one of the two IPsec dataplanes. The Linux path is the verified half: internal/component/ike/dataplane/xfrm_linux.go::InstallSA adds a new XFRM state with no replay state of its own, so the kernel starts its outbound counter at 0 and xfrm_replay_overflow (net/xfrm/xfrm_replay.c, linux:CONFIG_XFRM_USER) puts 1 in the first packet; no test covers it. The VPP half is unverified: the ze_vpp IPsec dataplane (internal/component/ike/dataplane/register_vpp.go, vpp.go::InstallSA) installs the SA in VPP, and no test shows the first sequence number VPP sends</td>
 </tr>
 <tr><td><a href="#rfc4303-3.3.4-1"><code>RFC4303-3.3.4-1</code></a> Thus, transport mode ESP is applied only to whole IP datagrams (not to IP fragments). (§3.3.4)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: ordering ESP relative to fragmentation is an outbound kernel datapath decision; ze selects transport vs tunnel mode as an SA parameter but does not apply ESP to packets (internal/plugins/ospf/ipsec_install.go:413)</td>
+<td>{gap}, no test</td>
+<td>a gap in proof on one of the two IPsec dataplanes. The Linux path is the verified half: the kernel applies the transform in xfrm_output (net/xfrm/xfrm_output.c, linux:CONFIG_XFRM_USER) to the whole datagram before the IP output path fragments the result, on the transport-mode SAs internal/component/ike/dataplane/xfrm_linux.go::InstallSA and internal/plugins/ospf/ipsec_install.go install; no test covers it. The VPP half is unverified: the ze_vpp IPsec dataplane (internal/component/ike/dataplane/register_vpp.go, vpp.go::InstallSA) installs the SA in VPP, and no test shows VPP never applies ESP to a fragment</td>
 </tr>
 <tr><td><a href="#rfc4303-3.3.4-2"><code>RFC4303-3.3.4-2</code></a> In any case, an ESP implementation MUST support generation of ICMP PMTU messages (or equivalent internal signaling for native host implementations) to minimize the likelihood of fragmentation. (§3.3.4)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: Path MTU Discovery is provided by the kernel networking/XFRM stack; ze&#39;s control plane installs SAs and does not run the datapath MTU machinery</td>
+<td>{gap}, no test</td>
+<td>a gap in proof on one of the two IPsec dataplanes. The Linux path is the verified half: the kernel&#39;s xfrm4_tunnel_check_size and xfrm6_tunnel_check_size (net/xfrm/xfrm_output.c, linux:CONFIG_XFRM_USER) report a packet too big for the SA&#39;s path MTU through xfrm_local_error, which sends ICMP Fragmentation Needed or Packet Too Big, on the SA internal/component/ike/dataplane/xfrm_linux.go::InstallSA installs; no test covers it. The VPP half is unverified: the ze_vpp IPsec dataplane (internal/component/ike/dataplane/register_vpp.go, vpp.go::InstallSA) installs the SA in VPP with no path MTU, and no test shows VPP generates any PMTU message</td>
 </tr>
 <tr><td><a href="#rfc4303-3.4.3-3"><code>RFC4303-3.4.3-3</code></a> The receive window is updated only if the integrity verification succeeds. (§3.4.3)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: window advancement is gated on per-packet ICV verification inside the kernel ESP receive path; ze has no control over when the window advances</td>
+<td>{gap}, no test</td>
+<td>a gap in proof on one of the two IPsec dataplanes. The Linux path is the verified half: the kernel&#39;s xfrm_input (net/xfrm/xfrm_input.c, linux:CONFIG_XFRM_USER) checks the sequence number against the window before decryption and advances the window (xfrm_replay_advance) only after the transform&#39;s input, which verifies the ICV, has succeeded, on the SA internal/component/ike/dataplane/xfrm_linux.go::InstallSA installs with the replay window ze writes; no test covers it. The VPP half is unverified: the ze_vpp IPsec dataplane (internal/component/ike/dataplane/register_vpp.go, vpp.go::InstallSA) installs the SA in VPP, and no test shows when VPP advances its window</td>
 </tr>
 <tr><td><a href="#rfc4303-3.4.2-1"><code>RFC4303-3.4.2-1</code></a> For a unicast SA, this determination is based on the SPI or the SPI plus protocol field, as described in Section 2.1. If an implementation supports multicast traffic, the destination address is also employed in the lookup (in addition to the SPI), and the sender address also may be employed, as described in Section 2.1. (This process is described in more detail in the Security Architecture document.) The SAD entry for the SA also indicates whether the Sequence Number field will be checked, whether 32- or 64-bit sequence numbers are employed for the SA, and whether the (explicit) ICV field should be present (and if so, its size). Also, the SAD entry will specify the algorithms and keys to be employed for decryption and ICV computation (if applicable). If no valid Security Association exists for this packet, the receiver MUST discard the packet; this is an auditable event. (§3.4.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: inbound SAD lookup by SPI and discard/audit on miss is performed per packet by the kernel; ze installs SAs keyed by SPI but never performs the lookup (internal/plugins/ospf/ipsec_install.go:484-498 samples kernel drop counters only)</td>
+<td>{gap}, no test</td>
+<td>a gap in proof on one of the two IPsec dataplanes. The Linux path is the verified half: the kernel&#39;s xfrm_input (net/xfrm/xfrm_input.c, linux:CONFIG_XFRM_USER) looks the SA up by destination, SPI and protocol (xfrm_state_lookup), counts and drops a packet with no SA, and takes the sequence check, ICV size, algorithms and keys from the state internal/component/ike/dataplane/xfrm_linux.go::InstallSA or internal/plugins/ospf/ipsec_install.go installed; the inbound address match is proven separately (RFC4303-2.1-2), and no test covers the rest. The VPP half is unverified: the ze_vpp IPsec dataplane (internal/component/ike/dataplane/register_vpp.go, vpp.go::InstallSA) installs the SA in VPP&#39;s SAD, and no test shows how VPP resolves or discards an inbound packet</td>
 </tr>
 <tr><td><a href="#rfc4303-3.4.2-2"><code>RFC4303-3.4.2-2</code></a> If an implementation supports multicast traffic, the destination address is also employed in the lookup (in addition to the SPI), and the sender address also may be employed, as described in Section 2.1. (§3.4.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: multicast SA resolution is a kernel per-packet lookup; ze only installs the wildcard state and proto-89 selector that lets the kernel resolve OSPFv3 multicast flows (internal/plugins/ospf/ipsec_install.go:415-419)</td>
+<td>{gap}, no test</td>
+<td>a gap in proof on one of the two IPsec dataplanes. The Linux path is the verified half: the kernel&#39;s xfrm_state_lookup (net/xfrm/xfrm_state.c, linux:CONFIG_XFRM_USER) always keys on the destination address with the SPI and protocol, so a multicast SA such as the OSPFv3 ones internal/plugins/ospf/ipsec_install.go installs resolves on its multicast destination; no test covers it. The VPP half is unverified: the ze_vpp IPsec dataplane (internal/component/ike/dataplane/register_vpp.go, vpp.go::InstallSA) installs the SA in VPP, and no test shows VPP uses the destination in its lookup</td>
 </tr>
 <tr><td><a href="#rfc4303-3.4.4.1-1"><code>RFC4303-3.4.4.1-1</code></a> If separate confidentiality and integrity algorithms are employed processing proceeds as follows: 1. If integrity has been selected, the receiver computes the ICV over the ESP packet minus the ICV, using the specified integrity algorithm and verifies that it is the same as the ICV carried in the packet. Details of the computation are provided below. If the computed and received ICVs match, then the datagram is valid, and it is accepted. If the test fails, then the receiver MUST discard the received IP datagram as invalid; this is an auditable event. The log data SHOULD include the SPI value, date/time received, Source Address, Destination Address, the Sequence Number, and (for IPv6) the cleartext Flow ID. Implementation Note: Implementations can use any set of steps that results in the same result as the following set of steps. Begin by removing and saving the ICV field. Next check the overall length of the ESP packet minus the ICV field. If implicit padding is required, based on the block size of the integrity algorithm, append zero-filled bytes to the end of the ESP packet directly after the Next Header field, or after the high-order 32 bits of the sequence number if ESN is selected. Perform the ICV computation and compare the result with the saved value, using the comparison rules defined by the algorithm specification. 2. The receiver decrypts the ESP Payload Data, Padding, Pad Length, and Next Header using the key, encryption algorithm, algorithm mode, and cryptographic synchronization data (if any), indicated by the SA. As in Section 3.3.2, we speak here in terms of encryption always being applied because of the formatting implications. This is done with the understanding that &#34;no confidentiality&#34; is offered by using the NULL encryption algorithm (RFC 2410). - If explicit cryptographic synchronization data, e.g., an IV, is indicated, it is taken from the Payload field and input to the decryption algorithm as per the algorithm specification. - If implicit cryptographic synchronization data is indicated, a local version of the IV is constructed and input to the decryption algorithm as per the algorithm specification. 3. The receiver processes any Padding as specified in the encryption algorithm specification. (§3.4.4.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: the verify-then-decrypt-then-check-padding ordering is executed by the kernel ESP inbound datapath; ze projects the crypt+auth algorithm pair but does no packet processing (internal/component/ike/dataplane/xfrm_linux.go:59-71)</td>
+<td>{gap}, no test</td>
+<td>a gap in proof on one of the two IPsec dataplanes. The Linux path is the verified half: for an SA with separate cipher and integrity algorithms, which internal/component/ike/dataplane/xfrm_linux.go::InstallSA installs as an authenc pair, the kernel&#39;s ESP input (net/ipv4/esp4.c and net/ipv6/esp6.c, linux:CONFIG_INET_ESP, linux:CONFIG_INET6_ESP) verifies the ICV before it decrypts, drops a packet that fails, and audits it through xfrm_audit_state_icvfail (net/xfrm/xfrm_input.c); no test covers it. The VPP half is unverified: the ze_vpp IPsec dataplane (internal/component/ike/dataplane/register_vpp.go, vpp.go::InstallSA, algorithms from vpp.go::vppCryptoAlg and vppIntegAlg) installs the SA in VPP, and no test shows VPP discards a packet whose ICV fails</td>
 </tr>
 <tr><td><a href="#rfc4303-3.4.4.1-2"><code>RFC4303-3.4.4.1-2</code></a> If the default padding scheme (see Section 2.4) has been employed, the receiver SHOULD inspect the Padding field before removing the padding prior to passing the decrypted data to the next layer. (§3.4.4.1)</td>
 <td>{gap}</td>
 <td>Ze&#39;s Go performs no ESP packet processing. Both dataplane backends decrypt in a layer below Ze and remove the padding there: Linux XFRM for an SA installed through internal/component/ike/dataplane/xfrm_linux.go, and VPP&#39;s IPsec SAD for an SA installed through internal/component/ike/dataplane/vpp.go (vppBackend.InstallSA writes an ipsec_sad_entry_v3 whose fields and vppSAFlags flags carry no padding check). Ze installs no SA attribute on either backend that asks for the Padding bytes to be inspected, and nothing in this repository shows the kernel or VPP inspects them, so the SHOULD is recorded unmet rather than delegated</td>
 </tr>
 <tr><td><a href="#rfc4303-3.4.4.2-1"><code>RFC4303-3.4.4.2-1</code></a> Decrypts and integrity checks the ESP Payload Data, Padding, Pad Length, and Next Header, using the key, algorithm, algorithm mode, and cryptographic synchronization data (if any), indicated by the SA. (§3.4.4.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: the single AEAD decrypt-and-verify call is performed by the kernel; ze projects the AEAD transform name and ICV length as SA parameters only (internal/component/ike/dataplane/xfrm_linux.go:52-58)</td>
+<td>{gap}, no test</td>
+<td>a gap in proof on one of the two IPsec dataplanes. The Linux path is the verified half: for a combined-mode SA, which internal/component/ike/dataplane/xfrm_linux.go::InstallSA installs with the AEAD algorithm and ICV length it negotiated, the kernel&#39;s ESP input (net/ipv4/esp4.c and net/ipv6/esp6.c, linux:CONFIG_INET_ESP, linux:CONFIG_INET6_ESP) decrypts and verifies the payload, padding, pad length and next header in one crypto_aead_decrypt call; no test covers it. The VPP half is unverified: the ze_vpp IPsec dataplane (internal/component/ike/dataplane/register_vpp.go, vpp.go::InstallSA, salt from vpp.go::vppCryptoKeyAndSalt) installs the SA in VPP, and no test shows VPP decrypts and verifies it</td>
 </tr>
 </tbody>
 </table>
@@ -770,7 +771,7 @@ Integrity-only ESP is configurable on OSPFv3 manual SAs (<a href="#rfc4303-1-1">
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L120" title="internal/component/ike/engine/rfc4303_peer_spi_test.go" target="_blank" rel="noopener"><code>TestInitiatorRefusesPeerSPIZero</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L191" title="internal/component/ike/engine/rfc4303_peer_spi_test.go" target="_blank" rel="noopener"><code>TestResponderRefusesPeerSPIZero</code></a></td>
@@ -810,7 +811,7 @@ Integrity-only ESP is configurable on OSPFv3 manual SAs (<a href="#rfc4303-1-1">
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L149" title="internal/component/ike/engine/rfc4303_peer_spi_test.go" target="_blank" rel="noopener"><code>TestInitiatorUsesPeerSPI</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L227" title="internal/component/ike/engine/rfc4303_peer_spi_test.go" target="_blank" rel="noopener"><code>TestResponderUsesPeerSPI</code></a></td>
@@ -1612,7 +1613,7 @@ Integrity-only ESP is configurable on OSPFv3 manual SAs (<a href="#rfc4303-1-1">
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 19:30 UTC</span>
+                    <span class="footer-published">Published 30 October 2026 23:25 UTC</span>
                 </div>
             </div>
         </footer>

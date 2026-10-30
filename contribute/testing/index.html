@@ -62,6 +62,7 @@ directives, fuzz target list), see <code>docs/functional-tests.md</code>.</p>
 <ol>
 <li><a href="#unit-tests-testgo">Unit tests (*_test.go)</a>
 <ol>
+<li><a href="#kernel-tests-in-a-user-namespace">Kernel tests in a user namespace</a></li>
 <li><a href="#fixture-environment-isolation">Fixture environment isolation</a></li>
 </ol></li>
 <li><a href="#functional-tests-ci-files">Functional tests (.ci files)</a></li>
@@ -243,6 +244,46 @@ namespace collisions. A list of caller filenames or helper names proves neither.
 For example, the redirect tests pass plugin JSON through the RIB parser before
 querying the session's effective setting.</p>
 <!-- source: internal/component/bgp/plugins/rib/rib_flowspec_redirect_config_test.go -- TestFlowSpecRedirectDynamicGroupLookup, TestFlowSpecRedirectDynamicGroupRejectsInvalidSwitch -->
+<h4 id="kernel-tests-in-a-user-namespace">Kernel tests in a user namespace</h4>
+<p>A unit test that needs kernel privilege (links, routes, XFRM, nftables,
+conntrack, raw or AF_PACKET sockets, a low port, a named network namespace)
+runs unprivileged through <code>userns.Enter</code> (<code>internal/test/userns</code>). <code>Enter</code>
+re-runs the one test as root over a user, network and mount namespace of its
+own, with <code>lo</code> up and a private <code>/run/netns</code>, so nothing it creates reaches
+the host. Write such a test this way:</p>
+<ul>
+<li><code>if !userns.Enter(t) { return }</code> is the first statement of each top-level
+test that reaches a privileged operation. Never call it from a helper or a
+subtest: the child selects the test by its top-level name. A helper that
+needs privilege is reached through the <code>Enter</code> of every top-level test that
+calls it.</li>
+<li>The test never calls <code>t.Parallel</code>, because the child re-runs that one named
+test in a fresh process.</li>
+<li>A refused operation inside the namespace fails the test with the operation
+and the errno, and never skips: the namespace grants the privilege, so a
+refusal is a defect or an unmet need. A skip that names an absent kernel
+feature or module (for example <code>CONFIG_MPLS_ROUTING</code>) stays a skip.</li>
+<li>Every child startup error fails the parent, namespace denial included. The
+message carries the error and names <code>./le setup install</code> and its
+<code>userns-unrestricted</code> check, which lifts the AppArmor restriction
+(<a href="../developer-setup/">developer setup</a>). Only a child that ran and
+reported its test skipped skips the parent.</li>
+<li>The file's build tag is <code>linux</code>, so every Linux unit run and the hosted CI
+unit job execute it. Keep <code>integration &amp;&amp; linux</code> only when the file runs a
+binary <code>./le setup</code> does not install (<code>nft</code>), needs a host grant (<code>/dev/ppp</code>,
+through <code>ppp-access</code>), takes an explicitly supplied <code>ze</code> executable, or needs
+a privilege only the initial user namespace holds. Say which in the file's
+header comment.</li>
+</ul>
+<p>Run the evidence as your own user through the launcher, for example
+<code>./le job run label unit-pkg quiet command go test -v -count=1 -run '^TestName$' ./internal/core/routewatch</code>,
+and read <code>--- PASS</code> for each test. Off Linux, <code>Enter</code> returns true at once and
+the test runs in place, which serves a portable test such as the traceroute
+command tests. The namespace mechanics are in
+<a href="https://github.com/ze-software/ze/blob/main/docs/architecture/testing/qemu-integration.md" target="_blank" rel="noopener">QEMU integration testing</a>,
+"Build Tags".</p>
+<!-- source: internal/test/userns/userns_linux.go -- Enter, childSetup, childFailure -->
+<!-- source: internal/test/userns/userns_other.go -- Enter -->
 <h4 id="fixture-environment-isolation">Fixture environment isolation</h4>
 <p>Native Go test commands remove the launching le's <code>ze.repo.root</code> and
 <code>ze.le.build.name</code> values under every case/dot/underscore spelling. The test
@@ -1002,7 +1043,7 @@ negotiated link-local address pair.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
+                    <span class="footer-published">Published 30 October 2026 09:46 UTC</span>
                 </div>
             </div>
         </footer>

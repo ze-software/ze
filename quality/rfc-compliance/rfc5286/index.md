@@ -23,8 +23,8 @@ measures that are neither good news nor bad
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | Gated MUSTs | 6 | of 30 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 1 | of 6 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 16.7% | 1 of 6 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Out of scope | 0 | of 6 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 0.0% | 0 of 6 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
 | Met below Ze | 0.0% | 0 of 6 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 6 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 | Linux cannot do this | 0.0% | 0 of 6 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit |
@@ -35,7 +35,7 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 33.3% | 2 of 6 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| No test at all | 50.0% | 3 of 6 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
 The 9 shares marked as a part above are the whole of the 6 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -65,8 +65,8 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Enrolment | Enrolled |
 | Requirements | 30 |
 | Gated MUST-level | 6 |
-| Not applicable, so out of scope | 1 |
-| Declared gaps | 2 |
+| Not applicable, so out of scope | 0 |
+| Declared gaps | 3 |
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
@@ -80,7 +80,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 ## Enrolment
 
-Enrolled: IP Fast Reroute: Loop-Free Alternates (LFA): six MUST-level requirements, computed in OSPF only (internal/plugins/ospf/spf/lfa.go). x-1 (Inequality 1 strict loop-free criterion), x-2 (no alternate over a link with forward/reverse cost LSInfinity), and x-3 (OSPF: exclude a neighbor whose every reverse link is LSInfinity) each carry positive+negative tags. x-4 (IS-IS overload-bit exclusion) is {not-applicable}: ze has no IS-IS LFA code path. x-5 (alternate only for shortest-path traffic) and x-6 (bound the alternate's lifetime) are {gap}: the backup is attached to every SPF route with no address-family guard so an OSPFv3 multicast AF route inherits it, and ze has no explicit RFC 5286 Section 4.1 hold-down/termination timer (only SPF reconvergence). Disclosed in the docs/features/rfc-status.md RFC 5286 row.
+Enrolled: IP Fast Reroute: Loop-Free Alternates (LFA): six MUST-level requirements, computed in OSPF only (internal/plugins/ospf/spf/lfa.go). x-1 (Inequality 1 strict loop-free criterion), x-2 (no alternate over a link with forward/reverse cost LSInfinity), and x-3 (OSPF: exclude a neighbor whose every reverse link is LSInfinity) each carry positive+negative tags. x-4 (IS-IS overload-bit exclusion) is {gap}: ze has no IS-IS LFA code path. x-5 (alternate only for shortest-path traffic) and x-6 (bound the alternate's lifetime) are {gap}: the backup is attached to every SPF route with no address-family guard so an OSPFv3 multicast AF route inherits it, and ze has no explicit RFC 5286 Section 4.1 hold-down/termination timer (only SPF reconvergence). Disclosed in the docs/features/rfc-status.md RFC 5286 row.
 
 ## What the public ledger says
 
@@ -92,7 +92,7 @@ LFA and TI-LFA fast reroute: per-neighbor SPFs, loop-free / node-protecting / do
 
 **What the ledger says remains**
 
-Two MUST gaps gated in [`rfc/short/rfc5286.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc5286.md): the LFA backup is attached to every SPF route regardless of address family, so an OSPFv3 multicast AF (RFC 5838) route inherits it (RFC5286-x-5); and no explicit Section 4.1 hold-down timer bounds how long an alternate stays active, only SPF reconvergence (RFC5286-x-6). IS-IS has no LFA.
+Three MUST gaps gated in [`rfc/short/rfc5286.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc5286.md): ze computes no IS-IS LFA, so no IS-IS computation excludes an overloaded neighbor (RFC5286-x-4); the LFA backup is attached to every SPF route regardless of address family, so an OSPFv3 multicast AF (RFC 5838) route inherits it (RFC5286-x-5); and no explicit Section 4.1 hold-down timer bounds how long an alternate stays active, only SPF reconvergence (RFC5286-x-6). IS-IS has no LFA.
 
 ## Coverage
 
@@ -113,7 +113,7 @@ Two MUST gaps gated in [`rfc/short/rfc5286.md`](https://github.com/ze-software/z
 
 ## Attainable ceiling
 
-Mandatory ceiling: 5 of 6 (83.3%); excluded: Not applicable (classification can be revisited): 1 of 6 (16.7%). Optional ceiling: 24 of 24 (100.0%). Lowest mandatory ceiling: rfc5286 5 of 6 (83.3%). Lowest optional ceiling: rfc5286 24 of 24 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+Mandatory ceiling: 6 of 6 (100.0%). Optional ceiling: 24 of 24 (100.0%). Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: rfc5286 6 of 6 (100.0%). Lowest optional ceiling: rfc5286 24 of 24 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
 
 ## Requirements
 
@@ -122,7 +122,7 @@ Mandatory ceiling: 5 of 6 (83.3%); excluded: Not applicable (classification can 
 | `RFC5286-x-1` | Alternate next hops used by implementations following this specification MUST conform to at least the loop-freeness condition stated above in Inequality 1. (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestRFC5286LoopFreeInequality1`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc5286_lfa_test.go#L22). **negative:** `unit/verify` [`TestRFC5286LoopFreeInequality1`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc5286_lfa_test.go#L37) |
 | `RFC5286-x-2` | For computing an alternate, a router MUST NOT use an alternate next- hop that is along a link whose cost or reverse cost is LSInfinity (for OSPF) or the maximum cost (for IS-IS) or that has the overload bit set (for IS-IS). (§3.5) | MUST NOT | 3.5 | **positive:** `unit/verify` [`TestRFC5286CostReverseCostGate`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc5286_lfa_test.go#L60). **positive:** `unit/verify` [`TestRFC5286CostedOutLinkMetric`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc5286_costed_out_test.go#L26). **negative:** `unit/verify` [`TestRFC5286CostReverseCostGate`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc5286_lfa_test.go#L66). **negative:** `unit/verify` [`TestRFC5286CostedOutLinkMetric`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc5286_costed_out_test.go#L32) |
 | `RFC5286-x-3` | In the case of OSPF, if all links from router S to a neighbor N_i have a reverse cost of LSInfinity, then router S MUST NOT use N_i as an alternate. (§3.5) | MUST NOT | 3.5 | **positive:** `unit/verify` [`TestRFC5286AllReverseLinksCostedOut`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc5286_costed_out_test.go#L59). **positive:** `unit/verify` [`TestRFC5286ReverseCostAllInfinite`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc5286_lfa_test.go#L99). **positive:** `unit/verify` [`TestRFC5286TransitNeighborFiniteReverseIsAlternate`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc5286_transit_reverse_test.go#L70). **negative:** `unit/verify` [`TestRFC5286AllReverseLinksCostedOut`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc5286_costed_out_test.go#L72). **negative:** `unit/verify` [`TestRFC5286ReverseCostAllInfinite`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc5286_lfa_test.go#L114). **negative:** `unit/verify` [`TestRFC5286TransitNeighborCostedOutReverseNotAlternate`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc5286_transit_reverse_test.go#L85) |
-| `RFC5286-x-4` | Similarly in the case of IS-IS, if N_i has the overload bit set, then S MUST NOT consider using N_i as an alternate. (§3.5) | MUST NOT | 3.5 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze computes Loop-Free Alternates only in OSPF (internal/plugins/ospf/spf/lfa.go); IS-IS has no LFA/backup-next-hop computation code path, so the IS-IS overload-bit exclusion has nothing to apply to |
+| `RFC5286-x-4` | Similarly in the case of IS-IS, if N_i has the overload bit set, then S MUST NOT consider using N_i as an alternate. (§3.5) | MUST NOT | 3.5 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze computes Loop-Free Alternates only in OSPF (internal/plugins/ospf/spf/lfa.go) and implements no IS-IS LFA, with no owner decision declining it, so no IS-IS computation excludes an overloaded neighbor |
 | `RFC5286-x-5` | The alternate next-hop MUST be used only for traffic types that are routed according to the shortest path. (§4) | MUST | 4 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze attaches the RFC 5286 alternate to a route's Loc-RIB Path unconditionally in Installer.insert (internal/plugins/ospf/spf/install.go:213-229) with no guard confining it to unicast shortest-path forwarding; an OSPFv3 multicast address-family engine (family.IPv4Multicast / family.IPv6Multicast, internal/plugins/ospf/multiaf.go:102-115) installs through the same NewInstallerFamily path (internal/plugins/ospf/spf_wiring.go:34) and inherits fast-reroute config (internal/plugins/ospf/config.go:709-711), so a multicast-AF route receives the same backup next-hop, which Section 4 confines to shortest-path traffic and Section 6.5 excludes from multicast RPF. Disclosed in the docs/features/rfc-status.md RFC 5286 row |
 | `RFC5286-x-6` | A router MUST limit the amount of time an alternate next-hop is used after the primary next-hop has become unavailable. (§4.1) | MUST | 4.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze relies on SPF reconvergence to replace a route with a stale alternate (internal/plugins/ospf/spf/install.go:171-195) and the kernel RTNH_F_LINKDOWN flag (internal/plugins/fib/kernel/nexthop_linux.go:113), but implements no explicit RFC 5286 Section 4.1 hold-down timer or termination-condition bounding how long an alternate stays active. Disclosed in the docs/features/rfc-status.md RFC 5286 row |
 | `RFC5286-x-7` | Since the functionality of link-and-node-protecting LFAs is greater than that of link-protecting downstream paths, a router SHOULD select a link-and-node-protecting LFA over a link-protecting downstream path. (§1.1) | SHOULD | 1.1 | **positive:** no positive test. **negative:** no negative test |
@@ -154,7 +154,7 @@ Mandatory ceiling: 5 of 6 (83.3%); excluded: Not applicable (classification can 
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC5286-x-4`](#rfc5286-x-4) Similarly in the case of IS-IS, if N_i has the overload bit set, then S MUST NOT consider using N_i as an alternate. (§3.5) | no test | no test carries this requirement id; annotated {not-applicable}: ze computes Loop-Free Alternates only in OSPF (internal/plugins/ospf/spf/lfa.go); IS-IS has no LFA/backup-next-hop computation code path, so the IS-IS overload-bit exclusion has nothing to apply to |
+| [`RFC5286-x-4`](#rfc5286-x-4) Similarly in the case of IS-IS, if N_i has the overload bit set, then S MUST NOT consider using N_i as an alternate. (§3.5) | {gap}, no test | ze computes Loop-Free Alternates only in OSPF (internal/plugins/ospf/spf/lfa.go) and implements no IS-IS LFA, with no owner decision declining it, so no IS-IS computation excludes an overloaded neighbor |
 | [`RFC5286-x-5`](#rfc5286-x-5) The alternate next-hop MUST be used only for traffic types that are routed according to the shortest path. (§4) | {gap}, no test | ze attaches the RFC 5286 alternate to a route's Loc-RIB Path unconditionally in Installer.insert (internal/plugins/ospf/spf/install.go:213-229) with no guard confining it to unicast shortest-path forwarding; an OSPFv3 multicast address-family engine (family.IPv4Multicast / family.IPv6Multicast, internal/plugins/ospf/multiaf.go:102-115) installs through the same NewInstallerFamily path (internal/plugins/ospf/spf_wiring.go:34) and inherits fast-reroute config (internal/plugins/ospf/config.go:709-711), so a multicast-AF route receives the same backup next-hop, which Section 4 confines to shortest-path traffic and Section 6.5 excludes from multicast RPF. Disclosed in the docs/features/rfc-status.md RFC 5286 row |
 | [`RFC5286-x-6`](#rfc5286-x-6) A router MUST limit the amount of time an alternate next-hop is used after the primary next-hop has become unavailable. (§4.1) | {gap}, no test | ze relies on SPF reconvergence to replace a route with a stale alternate (internal/plugins/ospf/spf/install.go:171-195) and the kernel RTNH_F_LINKDOWN flag (internal/plugins/fib/kernel/nexthop_linux.go:113), but implements no explicit RFC 5286 Section 4.1 hold-down timer or termination-condition bounding how long an alternate stays active. Disclosed in the docs/features/rfc-status.md RFC 5286 row |
 

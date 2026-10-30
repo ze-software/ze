@@ -217,11 +217,13 @@ a SIGHUP reload and <code>ze config validate</code> each refuse a <code>bfd-prof
 the <code>bfd</code> section is absent or sets <code>enabled false</code>, so BFD cannot be
 removed from under a monitored route: remove the <code>bfd-profile</code> lines first.
 They also refuse a <code>bfd-profile</code> that names no profile under
-<code>bfd { profile ... }</code>, and one whose profile sets <code>passive</code>, because RFC
-5881 §3 requires both ends of a single-hop session to be Active. The error
+<code>bfd { profile ... }</code>, naming the profiles that exist (the editor completes
+those names), and one whose profile sets <code>passive</code>, because RFC 5881 §3
+requires both ends of a single-hop session to be Active. The passive error
 names the route and the next-hop.</p>
 <!-- source: internal/plugins/static/register.go — checkBFDProfiles -->
 <!-- source: internal/component/bfd/api/profile_check.go — CheckProfile -->
+<!-- source: internal/component/bfd/api/profile_reference.go — profileReference -->
 <h3 id="blackhole-and-reject">Blackhole and reject</h3>
 <p>Blackhole silently discards matching packets. Reject discards and sends
 an ICMP unreachable reply.</p>
@@ -280,6 +282,14 @@ Appendix A.4.5). A route that carries a tag keeps it there, ahead of the <code>t
 configured for the whole source under <code>ospf { redistribute { static { ... } } }</code>;
 a route with no tag takes that configured value.</p>
 <!-- source: internal/plugins/static/inject.go -- emitRouteChangeID -->
+<p>The tag also rides on the path the route installs in the Loc-RIB, so a
+<code>static filter import</code> or <code>rib filter import</code> chain can match it: a <code>match</code>
+instance with <code>action reject; tag [ 4242 ];</code> hides every static route tagged
+4242 and leaves the others selected. A route with no <code>tag</code> leaf carries no
+tag, so it never meets a <code>tag</code> condition; <code>tag 0</code> is a real tag.
+<a href="https://github.com/ze-software/ze/blob/main/docs/guide/route-policy.md" target="_blank" rel="noopener">Route Policy at the Loc-RIB</a> covers the chains.</p>
+<!-- source: internal/plugins/static/locrib.go -- staticPath -->
+<!-- source: internal/plugins/static/config.go -- parseRoute -->
 <!-- source: internal/plugins/ospf/redist_wiring.go -- externalRouteTag -->
 <h2 id="cli">CLI</h2>
 <pre><code>ze&gt; show static
@@ -394,7 +404,7 @@ framework. BGP redistribute can import static routes:</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 02:50 UTC</span>
+                    <span class="footer-published">Published 30 October 2026 17:53 UTC</span>
                 </div>
             </div>
         </footer>

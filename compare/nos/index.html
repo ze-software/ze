@@ -3301,7 +3301,7 @@ about non-BGP router OS breadth.</p>
 <tr>
 <td>Testing</td>
 <td>Topology and interop tests</td>
-<td>Native Docker interop against FRR, BIRD, GoBGP, ExaBGP, and strongSwan is implemented by <code>internal/le/interoplab/bgp</code>, <code>internal/le/interoplab/ipsec</code>, and the action table in; <span data-ze-stat="interop.scenarios_display">210+</span> scenarios cover BGP, IS-IS, and OSPF. <span class="ev-src"><span class="ev-ref"><code>internal/le/integration/gates.go</code></span></span></td>
+<td>Native Docker interop against FRR, BIRD, GoBGP, ExaBGP, and strongSwan is implemented by <code>internal/le/interoplab/bgp</code>, <code>internal/le/interoplab/ipsec</code>, and the action table in; <span data-ze-stat="interop.scenarios_display">220+</span> scenarios cover BGP, IS-IS, and OSPF. <span class="ev-src"><span class="ev-ref"><code>internal/le/integration/gates.go</code></span></span></td>
 <td>GitHub workflow builds a custom ISO and runs smoketests in containers with privileged options; VPP smoketest and config-load jobs, <code>:225-252</code>, <code>:325-352</code>. Topology/interop beyond QEMU/VPP smoketest not found in inspected <code>vyos-1x</code> source. <span class="ev-src"><span class="ev-ref"><code>.github/workflows/package-smoketest.yml:150-183</code>, <code>:192-218</code></span></span></td>
 <td>Readme says <code>img</code> VM images are used for interop and dataplane testing; tester can launch multiple routers with generated ports and captures, selftest/topology scripts and. <span class="ev-src"><span class="ev-ref"><code>readme.md:55-60</code></span><span class="ev-ref"><code>src/org/freertr/user/userTester.java:36-48</code>, <code>:1437-1440</code>, <code>:2422-2429</code></span><span class="ev-ref"><code>src/t*.sh</code></span><span class="ev-ref"><code>cfg/*.tst</code></span></span></td>
 <td>Ze has most explicit source docs for third-party interop.</td>
@@ -3474,7 +3474,7 @@ about non-BGP router OS breadth.</p>
 <tr>
 <td>Protocol implementation model</td>
 <td>Own implementations vs external reuse</td>
-<td>Ze implements protocol engines/plugins in Go and also imports protocol-related libs for integration. Evidence: BGP plugin registration and SDK engine in; dependencies include, DHCP, netlink, govpp, WireGuard control in. <span class="ev-src"><span class="ev-ref"><code>internal/component/bgp/plugins/redistribute_egress/register.go:23-47</code></span><span class="ev-ref"><code>github.com/miekg/dns</code></span><span class="ev-ref"><code>go.mod:12-26</code></span></span></td>
+<td>Ze implements protocol engines/plugins in Go and also imports protocol-related libs for integration. Evidence: plugin registration and SDK engine in; dependencies include, DHCP, netlink, govpp, WireGuard control in. <span class="ev-src"><span class="ev-ref"><code>internal/plugins/redistribute/register.go</code></span><span class="ev-ref"><code>github.com/miekg/dns</code></span><span class="ev-ref"><code>go.mod:12-26</code></span></span></td>
 <td>VyOS often renders external daemon configs and applies them. BGP conf mode uses <code>FRRender</code> in <code>generate/apply</code> call <code>FRRender.generate/apply</code> at <code>:596-601</code>; system services are restarted via systemd as shown above. <span class="ev-src"><span class="ev-ref"><code>protocols_bgp.py:26-27</code></span></span></td>
 <td>freeRtr has many in-tree protocol classes by package names and fields, for example <code>cfgRtr</code> fields <code>rtrOspf4</code>, <code>rtrOspf6</code>, <code>rtrIsis</code>, <code>rtrBgp</code>, <code>rtrRpki</code> in; no external Java imports found by dependency scan. <span class="ev-src"><span class="ev-ref"><code>cfg/cfgRtr.java:108-166</code></span></span></td>
 <td>[analysis] Ze is mixed: own control-plane code plus Go libraries for OS/protocol helpers. VyOS is primarily orchestration over Linux and daemons such as FRR, nft, strongSwan, VPP, etc. freeRtr is closest to an own-stack protocol implementation in inspected sources.</td>
@@ -3625,7 +3625,7 @@ about non-BGP router OS breadth.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
+                    <span class="footer-published">Published 30 October 2026 23:25 UTC</span>
                 </div>
             </div>
         </footer>

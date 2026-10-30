@@ -89,7 +89,7 @@
 <ul>
 <li>Any host able to open a colliding TCP connection to a configured peer address could crash the BGP reactor before capability negotiation, because that path read an OPEN using the raw wire length with no upper bound. Auditing it found the connection winning collision resolution ran no OPEN validator at all, so role and router-id checks were bypassable there.</li>
 <li>Authorization fails closed. A login resolving to no profile is denied instead of falling through to built-in admin, and reserved identities are dropped on ingress from RADIUS and TACACS+.</li>
-<li>EAP-TLS performs certificate path validation on both sides, as RFC 5216 requires. A peer or responder with no usable trust anchor refuses the session instead of completing an unauthenticated handshake. The IPsec config validators now run at commit, so a peer naming an absent IKE group, ESP group or certificate is rejected there.</li>
+<li>EAP-TLS performs certificate path validation on both sides, and Ze makes it mandatory. (Corrected 2026-10-30: this line first said RFC 5216 requires it, counting path validation as a MUST of Section 5.3. The RFC states it at SHOULD: the server "SHOULD support validating the peer certificate" and the peer "SHOULD support validating the server certificate" using RFC 3280 compliant path validation.) A peer or responder with no usable trust anchor refuses the session instead of completing an unauthenticated handshake. The IPsec config validators now run at commit, so a peer naming an absent IKE group, ESP group or certificate is rejected there.</li>
 <li>Routing-table IDs are bounded before reaching netlink. An out-of-range value used to drop the attribute silently and send the rule to the default table.</li>
 <li><code>govulncheck</code> and CodeQL across the shipped build-tag combinations run on a schedule, and the dependency pins carry documented reasons.</li>
 </ul>
@@ -216,7 +216,7 @@
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 29 October 2026 17:13 UTC</span>
+                    <span class="footer-published">Published 30 October 2026 17:53 UTC</span>
                 </div>
             </div>
         </footer>

@@ -66,6 +66,7 @@
 </ol></li>
 <li><a href="#certificate-chain-length">Certificate chain length</a></li>
 <li><a href="#hash-and-url-certificates">Hash and URL certificates</a></li>
+<li><a href="#a-second-authentication-round-rfc-4739">A second authentication round (RFC 4739)</a></li>
 <li><a href="#eap-method-negotiation">EAP method negotiation</a></li>
 <li><a href="#eap-md5-challenge">EAP MD5-Challenge</a></li>
 <li><a href="#eap-tls-with-tls-13">EAP-TLS with TLS 1.3</a></li>
@@ -289,7 +290,7 @@ https://www.juniper.net/documentation/us/en/software/junos/cli-reference/topics/
 </tbody>
 </table>
 <h2 id="configuration">Configuration</h2>
-<p>IPsec is configured under <code>vpn { ipsec { } }</code>. Named <code>ike-group</code> and <code>esp-group</code> blocks hold the IKE and ESP proposals and lifetimes. Each <code>site-to-site</code> peer references a group pair, sets its authentication, and binds to an XFRM interface for route-based forwarding.</p>
+<p>IPsec is configured under <code>vpn { ipsec { } }</code>. Named <code>ike-group</code> and <code>esp-group</code> blocks hold the IKE and ESP proposals and lifetimes. Each <code>site-to-site</code> peer references a group pair, sets its authentication, and binds to an XFRM interface for route-based forwarding. A peer's and <code>remote-access</code>'s <code>ike-group</code> and <code>esp-group</code> are leafrefs: commit, a SIGHUP reload and <code>ze config validate</code> refuse a name no group declares, naming the groups that exist, and the editor completes the names.</p>
 <pre><code class="language-text">pki {
     certificate my-cert {
         certificate-file /etc/ze/certs/router.pem;
@@ -665,9 +666,11 @@ vpn ipsec site-to-site peer branch authentication {
     intermediate-certificate corp-sub
 }
 </code></pre>
-<p>Commit and reload refuse a name that is not a PKI <code>ca</code> entry, an entry that is
-not a CA certificate, and the list on a peer whose mode is not <code>eap-tls</code>, where
-nothing would read it.</p>
+<p>Commit and reload refuse a name that is not a PKI <code>ca</code> entry (as does
+<code>ze config validate</code>, because the leaf-list is a <code>ze:reference "pki-ca"</code>), an
+entry that holds no CA certificate, and the list on a peer whose mode is not
+<code>eap-tls</code>, where nothing would read it.</p>
+<!-- source: internal/component/pki/pkiref/reference.go -- CAReferenceSource -->
 <!-- source: internal/component/ike/ipsec/validate.go -- ValidateIntermediateRefs -->
 <!-- source: internal/core/eap/client_chain.go -- clientChainVerifier.verify -->
 <!-- source: internal/component/ike/engine/responder_eap.go -- eapTLSServerConfig reads intermediate-certificate -->
@@ -884,6 +887,81 @@ anchor. EAP-TLS has no server hostname, so the check validates the chain without
 DNS-name matching.</p>
 <!-- source: internal/core/eap/peer.go -- startTLSClient -->
 <!-- source: internal/core/eap/peer_chain.go -- serverChainCheck.verifyPeerCertificate -->
+<h2 id="a-second-authentication-round-rfc-4739">A second authentication round (RFC 4739)</h2>
+<p>A site-to-site peer can authenticate twice in each direction: for example a
+device certificate first, then a pre-shared key that belongs to a user or to a
+third party behind the gateway. The first round is the <code>authentication</code> block
+you already have. <code>second-round</code> adds one more round for each direction:</p>
+<pre><code>vpn ipsec site-to-site peer branch-1 authentication {
+    mode x509
+    local-id ze-device.example.com
+    remote-id 192.0.2.1
+    certificate ze-device
+    ca-certificate site-ca
+    second-round {
+        local {
+            mode pre-shared-secret
+            pre-shared-secret &lt;secret&gt;
+            id ze-user.example.com
+        }
+        remote {
+            mode pre-shared-secret
+            pre-shared-secret &lt;secret&gt;
+            id gateway-user.example.com
+        }
+    }
+}
+</code></pre>
+<p><code>local</code> is the credential Ze proves in its second round, and <code>remote</code> the one
+it requires from the peer. Either can be left out. Each round runs in its own
+IKE_AUTH exchange and signs over its own identity, and the tunnel comes up only
+once every configured round has succeeded. A round is <code>mode pre-shared-secret</code>
+or <code>mode x509</code>; an x509 round names its own <code>certificate</code> (local) or
+<code>ca-certificate</code> (remote).</p>
+<table>
+<thead>
+<tr>
+<th>Situation</th>
+<th>What Ze does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>The peer asks for a round that <code>second-round remote</code> does not configure</td>
+<td>Refuses with AUTHENTICATION_FAILED</td>
+</tr>
+<tr>
+<td><code>second-round remote</code> is set and the peer finishes without that round</td>
+<td>Refuses with AUTHENTICATION_FAILED, and the log names the leaf</td>
+</tr>
+<tr>
+<td>The peer asks for a third round</td>
+<td>Refuses with AUTHENTICATION_FAILED. Ze runs at most one extra round each way</td>
+</tr>
+<tr>
+<td><code>second-round local</code> is set and the peer does not announce RFC 4739 support</td>
+<td>Completes with the first round alone, and logs one warning naming the leaf to remove</td>
+</tr>
+</tbody>
+</table>
+<p>Commit refuses a second round on a peer whose first round is an EAP method, a
+round of mode pre-shared-secret with no secret, a local x509 round with no
+certificate, and a remote x509 round with no <code>ca-certificate</code>. It also refuses a
+<code>local</code> round with no <code>id</code>. The round asserts an identity of its own, and a peer
+such as strongSwan picks the round's pre-shared key by that identity, so falling
+back to the peer name would make it look up the first round's key.</p>
+<p><code>hash-and-url</code> applies to the first round only. A second-round certificate
+always goes out inline, which every peer accepts.</p>
+<p>Ze announces MULTIPLE_AUTH_SUPPORTED only to a peer that configures a second
+round, so every other peer sees exactly what it saw before. When Ze verifies a
+peer's second round it logs <code>ike: second authentication round verified</code> with
+the peer and the identity that round proved.</p>
+<p>One property comes with the RFC, and Ze does not change it: when the initiator
+authenticates more than once, the responder reveals its identity before all of
+the initiator's rounds have completed (RFC 4739 Section 5).</p>
+<!-- source: internal/component/ike/engine/multiple_auth.go -- settleAnotherAuth, verifySecondExchangeRound, answerFirstAuthExchange, handleResponderAuthRound, continueInitiatorAuth -->
+<!-- source: internal/component/ike/ipsec/second_round.go -- parseSecondRound, ValidateSecondRounds -->
+<!-- source: internal/component/ike/engine/cert_payload.go -- buildCertPayloads -->
 <h2 id="eap-method-negotiation">EAP method negotiation</h2>
 <p>The far end chooses the EAP method, and <code>authentication { mode ... }</code> sets the one
 Ze runs. When the far end asks for a different authentication method, Ze answers
@@ -2177,7 +2255,7 @@ boundaries; neither is a claim that every IKE extension is implemented.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 18:35 UTC</span>
+                    <span class="footer-published">Published 30 October 2026 23:25 UTC</span>
                 </div>
             </div>
         </footer>

@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 2003 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 2003: IP Encapsulation within IP. 13 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 2003: IP Encapsulation within IP. 13 gated MUST-level requirements, 13 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 2003 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 2003: IP Encapsulation within IP. 13 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 2003: IP Encapsulation within IP. 13 gated MUST-level requirements, 13 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 2003 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 2003: IP Encapsulation within IP. 13 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 2003: IP Encapsulation within IP. 13 gated MUST-level requirements, 13 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -45,9 +45,9 @@
         <main id="top" class="has-page-sidebar" tabindex="-1">
             <section aria-labeledby="rfc-detail-title" class="md-content reveal cat-observe">
 <div class="journey-hero reveal">
-    <span class="journey-eyebrow">No row in the public ledger</span>
+    <span class="journey-eyebrow">Partial</span>
     <h1 id="rfc-detail-title">RFC 2003 - IP Encapsulation within IP</h1>
-    <p>Every requirement this repository extracted from RFC 2003, the tests bound to it, and what a reader has verified about them. This summary is not enrolled.</p>
+    <p>Every requirement this repository extracted from RFC 2003, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.</p>
 </div>
 <style>
 .rfc-table-wrap { overflow-x: auto; }
@@ -122,18 +122,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 <article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 0 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>MUSTs declared</span><strong>13</strong><b>of 37 this summary declares</b><p>MUST-level requirements this summary DECLARES. The gate holds none of them, because this RFC is not enrolled (third-party), so every share below reads what the summary records rather than what the gate enforces</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>13</strong><b>of 13 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>100.0%</strong><b>13 of 13 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>13</strong><b>of 37 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 13 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit</p></article>
+</div>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>100.0%</strong><b>13 of 13 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 </div>
 <p>The 9 shares marked as a part above are the whole of the 13 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -142,7 +146,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>Card</th><th>Tone here</th><th>Why that color</th></tr></thead>
 <tbody>
-<tr><td>MUSTs declared</td>
+<tr><td>Gated MUSTs</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
 <td>no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total</td>
 </tr>
@@ -167,7 +171,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
 </tr>
 <tr><td>No test at all</td>
-<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
 </tr>
 <tr><td>Not applicable</td>
@@ -205,10 +209,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Field</th><th>Value</th></tr></thead>
 <tbody>
 <tr><td>Public status</td>
-<td>No row in the public ledger</td>
+<td>Partial</td>
 </tr>
 <tr><td>Enrolment</td>
-<td>Not enrolled (third-party)</td>
+<td>Enrolled</td>
 </tr>
 <tr><td>Requirements</td>
 <td>37</td>
@@ -217,10 +221,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>13</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
-<td>13</td>
+<td>0</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>0</td>
+<td>13</td>
 </tr>
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
@@ -257,10 +261,19 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Not enrolled (third-party, a layer under or beside Ze performs the document and Ze holds no Go code for it, so the reason beside this kind names the component that does): The Linux ipip module builds and parses every outer header. Ze only builds the netlink link descriptor, internal/plugins/iface/netlink/tunnel_linux.go::buildIptun.</p>
+<p>Enrolled: IP Encapsulation within IP (IP-in-IP, protocol 4). Ze fills the encapsulator and decapsulator roles, and the router role of Section 3.2, by programming ipip tunnels: on Linux through internal/plugins/iface/netlink/tunnel_linux.go::buildIptun (linux:CONFIG_NET_IPIP), and on the VPP interface backend (iface-vpp, ze_vpp feature gate) through internal/plugins/iface/vpp/tunnel.go::createIPIPTunnel. The kernel ipip module and VPP perform the per-packet work. All thirteen MUSTs are gaps, because the VPP datapath is a shipped path no test verifies. Six are also unmet on Linux: a TTL 0 inner datagram addressed to ze is delivered (3.1-3), no source-address loop check exists (3.2-1, 3.2-2), Datagram Too Big is answered through path MTU soft state rather than relayed (4.1-1), a remote Network Unreachable returns as Code 1 (4.1-2), and a Port Unreachable reaches the sender as Host Unreachable (4.1-3). Time Exceeded is reported only for a non-zero tunnel ttl, which an operator can set to 0 (4.4-1). The other six hold on Linux and owe tests</p>
 </section>
 <section><h2>What the public ledger says</h2>
-<p>No row in the public ledger, so its summary declares `| Support | - |` and docs/features/rfc-status.md carries no row for RFC 2003.</p>
+<p><strong>Status:</strong> Partial</p>
+<details class="rfc-fold"><summary>What the ledger says is covered</summary>
+<ul class="rfc-prose">
+<li>Ze configures ipip tunnels through the <code>tunnel</code> YANG list, built as a netlink Iptun link (<code>buildIptun</code>) with optional ttl, tos and no-pmtu-discovery, or as a VPP ipip tunnel (<code>createIPIPTunnel</code>) on the VPP interface backend</li>
+<li>the Linux ipip module or VPP carries the traffic.</li>
+</ul>
+</details>
+<details class="rfc-fold"><summary>What the ledger says remains</summary>
+Thirteen MUST gaps in the requirement checklist. No test verifies the VPP ipip datapath for any of them. On Linux a TTL 0 inner datagram addressed to ze is delivered (<a href="#rfc2003-3.1-3"><code>RFC2003-3.1-3</code></a>), nothing refuses a datagram sourced from ze&#39;s own address or from the tunnel destination (<a href="#rfc2003-3.2-1"><code>RFC2003-3.2-1</code></a>, 3.2-2), Datagram Too Big is answered through path MTU soft state rather than relayed (<a href="#rfc2003-4.1-1"><code>RFC2003-4.1-1</code></a>), a remote Network Unreachable is returned as Host Unreachable (<a href="#rfc2003-4.1-2"><code>RFC2003-4.1-2</code></a>), a Port Unreachable reaches the sender as Host Unreachable (<a href="#rfc2003-4.1-3"><code>RFC2003-4.1-3</code></a>), and an operator&#39;s ttl 0 stops Time Exceeded being reported (<a href="#rfc2003-4.4-1"><code>RFC2003-4.4-1</code></a>). The other six hold on Linux and owe tests over the link ze installs.
+</details>
 </section>
 <section><h2>Coverage</h2>
 <div class="rfc-table-wrap">
@@ -302,7 +315,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p class="rfc-id-list"><strong>Annotated (including scoped evidence) (13):</strong> <a href="#rfc2003-3.1-1"><code>RFC2003-3.1-1</code></a>, <a href="#rfc2003-3.1-2"><code>RFC2003-3.1-2</code></a>, <a href="#rfc2003-3.1-3"><code>RFC2003-3.1-3</code></a>, <a href="#rfc2003-3.2-1"><code>RFC2003-3.2-1</code></a>, <a href="#rfc2003-3.2-2"><code>RFC2003-3.2-2</code></a>, <a href="#rfc2003-4.1-1"><code>RFC2003-4.1-1</code></a>, <a href="#rfc2003-4.1-2"><code>RFC2003-4.1-2</code></a>, <a href="#rfc2003-4.1-3"><code>RFC2003-4.1-3</code></a>, <a href="#rfc2003-4.1-4"><code>RFC2003-4.1-4</code></a>, <a href="#rfc2003-4.4-1"><code>RFC2003-4.4-1</code></a>, <a href="#rfc2003-4.3-1"><code>RFC2003-4.3-1</code></a>, <a href="#rfc2003-4.5-1"><code>RFC2003-4.5-1</code></a>, <a href="#rfc2003-5.1-1"><code>RFC2003-5.1-1</code></a></p>
 </section>
 <section><h2>Attainable ceiling</h2>
-<p>Mandatory ceiling: 0 of 13 (0.0%); excluded: Not applicable (classification can be revisited): 13 of 13 (100.0%). Optional ceiling: 24 of 24 (100.0%). Lowest mandatory ceiling: rfc2003 0 of 13 (0.0%). Lowest optional ceiling: rfc2003 24 of 24 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.</p>
+<p>Mandatory ceiling: 13 of 13 (100.0%). Optional ceiling: 24 of 24 (100.0%). Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: rfc2003 13 of 13 (100.0%). Lowest optional ceiling: rfc2003 24 of 24 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.</p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -316,7 +329,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2003-3.1-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze constructs no IP-in-IP header and runs no encapsulation, decapsulation, ICMP-relay, or loop-prevention datapath: it programs only the tunnel configuration via netlink buildIptun (internal/plugins/iface/netlink/tunnel_linux.go:196, Proto IPPROTO_IPIP) and VPP ipip_add_tunnel (internal/plugins/iface/vpp/tunnel.go:113), and the kernel ipip module and VPP dataplane own the outer-header construction, decapsulation, ICMP handling, path-MTU soft state, and loop prevention, so this outer-header/encapsulation obligation has no ze code path</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> a gap in proof on one of the two interface backends. The Linux path is the verified half: internal/plugins/iface/netlink/tunnel_linux.go::buildIptun creates the ipip link (linux:CONFIG_NET_IPIP), and the kernel&#39;s ip_tunnel_xmit (net/ipv4/ip_tunnel.c) ORs the inner Don&#39;t Fragment bit into the outer header for every IPv4 payload, since ipip has no ignore_df knob, whichever PMtuDisc value buildIptun writes (1 unless no-pmtu-discovery sets 0); no test covers it. The VPP half is unverified: iface-vpp (internal/plugins/iface/vpp/register.go, ze_vpp feature gate) is a shipped interface backend whose internal/plugins/iface/vpp/tunnel.go::createIPIPTunnel installs the tunnel through ipip_add_tunnel, and no test shows what VPP&#39;s ipip datapath writes in the outer header</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-3.1-2">RFC2003-3.1-2</code></td><td colspan="3"><span class="rfc-subject">An encapsulator MUST NOT encapsulate a datagram with TTL = 0 (§3.1)</span></td></tr>
 <tr><td></td>
@@ -325,7 +338,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2003-3.1-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze constructs no IP-in-IP header and runs no encapsulation, decapsulation, ICMP-relay, or loop-prevention datapath: it programs only the tunnel configuration via netlink buildIptun (internal/plugins/iface/netlink/tunnel_linux.go:196, Proto IPPROTO_IPIP) and VPP ipip_add_tunnel (internal/plugins/iface/vpp/tunnel.go:113), and the kernel ipip module and VPP dataplane own the outer-header construction, decapsulation, ICMP handling, path-MTU soft state, and loop prevention, so this outer-header/encapsulation obligation has no ze code path</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> a gap in proof on one of the two interface backends. On Linux (linux:CONFIG_NET_IPIP, link built by internal/plugins/iface/netlink/tunnel_linux.go::buildIptun) a forwarded datagram reaches the tunnel only after ip_forward has dropped every TTL of 1 or less, and a local socket cannot set TTL 0, so no TTL 0 datagram is encapsulated; no test covers it. The VPP half is unverified: iface-vpp (internal/plugins/iface/vpp/register.go, ze_vpp feature gate) is a shipped interface backend whose internal/plugins/iface/vpp/tunnel.go::createIPIPTunnel installs the tunnel through ipip_add_tunnel, and no test shows VPP refuses to encapsulate a TTL 0 datagram</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-3.1-3">RFC2003-3.1-3</code></td><td colspan="3"><span class="rfc-subject">If, after decapsulation, the inner datagram has TTL = 0, the decapsulator MUST discard the datagram. (§3.1)</span></td></tr>
 <tr><td></td>
@@ -334,7 +347,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2003-3.1-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze constructs no IP-in-IP header and runs no encapsulation, decapsulation, ICMP-relay, or loop-prevention datapath: it programs only the tunnel configuration via netlink buildIptun (internal/plugins/iface/netlink/tunnel_linux.go:196, Proto IPPROTO_IPIP) and VPP ipip_add_tunnel (internal/plugins/iface/vpp/tunnel.go:113), and the kernel ipip module and VPP dataplane own the outer-header construction, decapsulation, ICMP handling, path-MTU soft state, and loop prevention, so this decapsulation obligation has no ze code path</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> unmet in part on Linux and unverified on VPP. On Linux (linux:CONFIG_NET_IPIP, link built by internal/plugins/iface/netlink/tunnel_linux.go::buildIptun) the decapsulated datagram re-enters ip_rcv, and ip_forward discards a TTL 0 datagram it would forward, but ip_local_deliver checks no TTL, so a TTL 0 inner datagram addressed to ze itself is delivered rather than discarded. The VPP half is unverified: iface-vpp (internal/plugins/iface/vpp/register.go, ze_vpp feature gate) installs the tunnel through internal/plugins/iface/vpp/tunnel.go::createIPIPTunnel, and no test shows VPP discards an inner TTL 0 datagram</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-3.2-1">RFC2003-3.2-1</code></td><td colspan="3"><span class="rfc-subject">If the IP Source Address of the datagram matches the router&#39;s own IP address on any of its network interfaces, the router MUST NOT tunnel the datagram (§3.2)</span></td></tr>
 <tr><td></td>
@@ -343,7 +356,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2003-3.2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze constructs no IP-in-IP header and runs no encapsulation, decapsulation, ICMP-relay, or loop-prevention datapath: it programs only the tunnel configuration via netlink buildIptun (internal/plugins/iface/netlink/tunnel_linux.go:196, Proto IPPROTO_IPIP) and VPP ipip_add_tunnel (internal/plugins/iface/vpp/tunnel.go:113), and the kernel ipip module and VPP dataplane own the outer-header construction, decapsulation, ICMP handling, path-MTU soft state, and loop prevention, so this tunnel loop-prevention check has no ze code path</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> unmet on Linux and unverified on VPP. The kernel&#39;s ip_tunnel_xmit (net/ipv4/ip_tunnel.c, linux:CONFIG_NET_IPIP) compares no source address with the router&#39;s own addresses before encapsulating, and nothing ze installs (internal/plugins/iface/netlink/tunnel_linux.go::buildIptun, no firewall rule) refuses such a datagram, so a datagram sourced from ze&#39;s own address is tunneled. On VPP, iface-vpp (internal/plugins/iface/vpp/register.go, ze_vpp feature gate) installs the tunnel through internal/plugins/iface/vpp/tunnel.go::createIPIPTunnel and no test shows VPP refuses it</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-3.2-2">RFC2003-3.2-2</code></td><td colspan="3"><span class="rfc-subject">If the IP Source Address of the datagram matches the IP address of the tunnel destination (the tunnel exit point is typically chosen by the router based on the Destination Address in the datagram&#39;s IP header), the router MUST NOT tunnel the datagram (§3.2)</span></td></tr>
 <tr><td></td>
@@ -352,7 +365,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2003-3.2-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze constructs no IP-in-IP header and runs no encapsulation, decapsulation, ICMP-relay, or loop-prevention datapath: it programs only the tunnel configuration via netlink buildIptun (internal/plugins/iface/netlink/tunnel_linux.go:196, Proto IPPROTO_IPIP) and VPP ipip_add_tunnel (internal/plugins/iface/vpp/tunnel.go:113), and the kernel ipip module and VPP dataplane own the outer-header construction, decapsulation, ICMP handling, path-MTU soft state, and loop prevention, so this tunnel loop-prevention check has no ze code path</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> unmet on Linux and unverified on VPP. The kernel&#39;s ip_tunnel_xmit (net/ipv4/ip_tunnel.c, linux:CONFIG_NET_IPIP) compares no inner source address with the tunnel destination before encapsulating, and nothing ze installs (internal/plugins/iface/netlink/tunnel_linux.go::buildIptun, no firewall rule) refuses such a datagram. On VPP, iface-vpp (internal/plugins/iface/vpp/register.go, ze_vpp feature gate) installs the tunnel through internal/plugins/iface/vpp/tunnel.go::createIPIPTunnel and no test shows VPP refuses it</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-4.1-1">RFC2003-4.1-1</code></td><td colspan="3"><span class="rfc-subject">The encapsulator MUST relay ICMP Datagram Too Big messages to the sender of the original unencapsulated datagram (§4.1)</span></td></tr>
 <tr><td></td>
@@ -361,7 +374,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2003-4.1-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze constructs no IP-in-IP header and runs no encapsulation, decapsulation, ICMP-relay, or loop-prevention datapath: it programs only the tunnel configuration via netlink buildIptun (internal/plugins/iface/netlink/tunnel_linux.go:196, Proto IPPROTO_IPIP) and VPP ipip_add_tunnel (internal/plugins/iface/vpp/tunnel.go:113), and the kernel ipip module and VPP dataplane own the outer-header construction, decapsulation, ICMP handling, path-MTU soft state, and loop prevention, so this ICMP-handling obligation has no ze code path</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> unmet on Linux and unverified on VPP. The kernel&#39;s ipip_err (net/ipv4/ipip.c, linux:CONFIG_NET_IPIP) relays no Datagram Too Big message: it lowers the tunnel&#39;s path MTU (ipv4_update_pmtu), and only the sender&#39;s next oversized Don&#39;t Fragment datagram draws a Fragmentation Needed from tnl_update_pmtu, so the datagram that met the error is never reported. On VPP, iface-vpp (internal/plugins/iface/vpp/register.go, ze_vpp feature gate) installs the tunnel through internal/plugins/iface/vpp/tunnel.go::createIPIPTunnel and no test shows what VPP does with the message</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-4.1-2">RFC2003-4.1-2</code></td><td colspan="3"><span class="rfc-subject">If the original destination in the unencapsulated datagram is on the same network as the encapsulator, the newly generated Destination Unreachable message sent by the encapsulator MAY have Code 1 (Host Unreachable), since presumably the datagram arrived at the correct network and the encapsulator is trying to create the appearance that the original destination is local to that network even if it is not. Otherwise, if the encapsulator returns a Destination Unreachable message, the Code field MUST be set to 0 (Network Unreachable). (§4.1)</span></td></tr>
 <tr><td></td>
@@ -370,7 +383,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2003-4.1-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze constructs no IP-in-IP header and runs no encapsulation, decapsulation, ICMP-relay, or loop-prevention datapath: it programs only the tunnel configuration via netlink buildIptun (internal/plugins/iface/netlink/tunnel_linux.go:196, Proto IPPROTO_IPIP) and VPP ipip_add_tunnel (internal/plugins/iface/vpp/tunnel.go:113), and the kernel ipip module and VPP dataplane own the outer-header construction, decapsulation, ICMP handling, path-MTU soft state, and loop prevention, so this ICMP-handling obligation has no ze code path</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> unmet on Linux and unverified on VPP. The kernel&#39;s ipip_err (net/ipv4/ipip.c, linux:CONFIG_NET_IPIP) translates every Destination Unreachable other than Source Route Failed and Fragmentation Needed into a later Host Unreachable (err_count, then dst_link_failure in ip_tunnel_xmit), whether or not the original destination is on the encapsulator&#39;s network, so a Network Unreachable from a remote network is returned with Code 1 where this requires Code 0. On VPP, iface-vpp (internal/plugins/iface/vpp/register.go, ze_vpp feature gate) installs the tunnel through internal/plugins/iface/vpp/tunnel.go::createIPIPTunnel and no test shows what VPP returns</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-4.1-3">RFC2003-4.1-3</code></td><td colspan="3"><span class="rfc-subject">It MUST NOT be relayed to the sender of the original unencapsulated datagram. (§4.1)</span></td></tr>
 <tr><td></td>
@@ -379,7 +392,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2003-4.1-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze constructs no IP-in-IP header and runs no encapsulation, decapsulation, ICMP-relay, or loop-prevention datapath: it programs only the tunnel configuration via netlink buildIptun (internal/plugins/iface/netlink/tunnel_linux.go:196, Proto IPPROTO_IPIP) and VPP ipip_add_tunnel (internal/plugins/iface/vpp/tunnel.go:113), and the kernel ipip module and VPP dataplane own the outer-header construction, decapsulation, ICMP handling, path-MTU soft state, and loop prevention, so this ICMP-handling obligation has no ze code path</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> unmet on Linux and unverified on VPP. The kernel&#39;s ipip_err (net/ipv4/ipip.c, linux:CONFIG_NET_IPIP) counts a Port Unreachable from inside the tunnel like any other Destination Unreachable, and ip_tunnel_xmit then sends the original sender a Host Unreachable through dst_link_failure, so the error reaches the sender. On VPP, iface-vpp (internal/plugins/iface/vpp/register.go, ze_vpp feature gate) installs the tunnel through internal/plugins/iface/vpp/tunnel.go::createIPIPTunnel and no test shows VPP withholds it</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-4.1-4">RFC2003-4.1-4</code></td><td colspan="3"><span class="rfc-subject">It MUST NOT be relayed to the sender of the original unencapsulated datagram. (§4.1)</span></td></tr>
 <tr><td></td>
@@ -388,7 +401,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2003-4.1-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze constructs no IP-in-IP header and runs no encapsulation, decapsulation, ICMP-relay, or loop-prevention datapath: it programs only the tunnel configuration via netlink buildIptun (internal/plugins/iface/netlink/tunnel_linux.go:196, Proto IPPROTO_IPIP) and VPP ipip_add_tunnel (internal/plugins/iface/vpp/tunnel.go:113), and the kernel ipip module and VPP dataplane own the outer-header construction, decapsulation, ICMP handling, path-MTU soft state, and loop prevention, so this ICMP-handling obligation has no ze code path</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> a gap in proof on one of the two interface backends. The Linux path is the verified half: the kernel&#39;s ipip_err (net/ipv4/ipip.c, linux:CONFIG_NET_IPIP) returns on ICMP_SR_FAILED before anything is counted or relayed, on the tunnel internal/plugins/iface/netlink/tunnel_linux.go::buildIptun creates; no test covers it. The VPP half is unverified: iface-vpp (internal/plugins/iface/vpp/register.go, ze_vpp feature gate) installs the tunnel through internal/plugins/iface/vpp/tunnel.go::createIPIPTunnel, and no test shows VPP withholds a Source Route Failed</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-4.4-1">RFC2003-4.4-1</code></td><td colspan="3"><span class="rfc-subject">Reception of Time Exceeded messages by the encapsulator MUST be reported to the sender of the original unencapsulated datagram as Host Unreachable (Type 3, Code 1). (§4.4)</span></td></tr>
 <tr><td></td>
@@ -397,7 +410,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2003-4.4-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze constructs no IP-in-IP header and runs no encapsulation, decapsulation, ICMP-relay, or loop-prevention datapath: it programs only the tunnel configuration via netlink buildIptun (internal/plugins/iface/netlink/tunnel_linux.go:196, Proto IPPROTO_IPIP) and VPP ipip_add_tunnel (internal/plugins/iface/vpp/tunnel.go:113), and the kernel ipip module and VPP dataplane own the outer-header construction, decapsulation, ICMP handling, path-MTU soft state, and loop prevention, so this ICMP-handling obligation has no ze code path</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> met on Linux only for a non-zero tunnel TTL, and unverified on VPP. The kernel&#39;s ipip_err (net/ipv4/ipip.c, linux:CONFIG_NET_IPIP) counts a Time Exceeded and ip_tunnel_xmit reports it to the sender as Host Unreachable through dst_link_failure, but it drops the message when the tunnel TTL is 0 (inherit). internal/plugins/iface/netlink/tunnel_linux.go::buildIptun writes the ttl leaf (default 64) into Ttl, and the uint8 leaf admits 0 with nothing refusing it, so an operator&#39;s ttl 0 defeats this. On VPP, iface-vpp (internal/plugins/iface/vpp/register.go, ze_vpp feature gate) installs the tunnel through internal/plugins/iface/vpp/tunnel.go::createIPIPTunnel and no test shows what VPP reports</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-4.3-1">RFC2003-4.3-1</code></td><td colspan="3"><span class="rfc-subject">It MUST NOT not relay the Redirect to the sender of the original unencapsulated datagram. (§4.3)</span></td></tr>
 <tr><td></td>
@@ -406,7 +419,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2003-4.3-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze constructs no IP-in-IP header and runs no encapsulation, decapsulation, ICMP-relay, or loop-prevention datapath: it programs only the tunnel configuration via netlink buildIptun (internal/plugins/iface/netlink/tunnel_linux.go:196, Proto IPPROTO_IPIP) and VPP ipip_add_tunnel (internal/plugins/iface/vpp/tunnel.go:113), and the kernel ipip module and VPP dataplane own the outer-header construction, decapsulation, ICMP handling, path-MTU soft state, and loop prevention, so this ICMP-handling obligation has no ze code path</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> a gap in proof on one of the two interface backends. The Linux path is the verified half: the kernel&#39;s ipip_err (net/ipv4/ipip.c, linux:CONFIG_NET_IPIP) handles a Redirect itself through ipv4_redirect and returns before anything is counted or relayed, on the tunnel internal/plugins/iface/netlink/tunnel_linux.go::buildIptun creates; no test covers it. The VPP half is unverified: iface-vpp (internal/plugins/iface/vpp/register.go, ze_vpp feature gate) installs the tunnel through internal/plugins/iface/vpp/tunnel.go::createIPIPTunnel, and no test shows VPP withholds a Redirect</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-4.5-1">RFC2003-4.5-1</code></td><td colspan="3"><span class="rfc-subject">if the problem occurs with an IP option inserted by the encapsulator, then the encapsulator MUST NOT relay the ICMP message to the original sender. (§4.5)</span></td></tr>
 <tr><td></td>
@@ -415,7 +428,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2003-4.5-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze constructs no IP-in-IP header and runs no encapsulation, decapsulation, ICMP-relay, or loop-prevention datapath: it programs only the tunnel configuration via netlink buildIptun (internal/plugins/iface/netlink/tunnel_linux.go:196, Proto IPPROTO_IPIP) and VPP ipip_add_tunnel (internal/plugins/iface/vpp/tunnel.go:113), and the kernel ipip module and VPP dataplane own the outer-header construction, decapsulation, ICMP handling, path-MTU soft state, and loop prevention, so this ICMP-handling obligation has no ze code path</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> a gap in proof on one of the two interface backends. The Linux path is the verified half: the kernel&#39;s ipip_err (net/ipv4/ipip.c, linux:CONFIG_NET_IPIP) returns on a Parameter Problem without relaying it, and the kernel inserts no IP option into the outer header of the tunnel internal/plugins/iface/netlink/tunnel_linux.go::buildIptun creates; no test covers it. The VPP half is unverified: iface-vpp (internal/plugins/iface/vpp/register.go, ze_vpp feature gate) installs the tunnel through internal/plugins/iface/vpp/tunnel.go::createIPIPTunnel, and no test shows what VPP does with a Parameter Problem</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-5.1-1">RFC2003-5.1-1</code></td><td colspan="3"><span class="rfc-subject">To support sending nodes which use Path MTU Discovery, all encapsulator implementations MUST support Path MTU Discovery [5, 7] soft state within their tunnels. (§5.1)</span></td></tr>
 <tr><td></td>
@@ -424,7 +437,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2003-5.1-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze constructs no IP-in-IP header and runs no encapsulation, decapsulation, ICMP-relay, or loop-prevention datapath: it programs only the tunnel configuration via netlink buildIptun (internal/plugins/iface/netlink/tunnel_linux.go:196, Proto IPPROTO_IPIP) and VPP ipip_add_tunnel (internal/plugins/iface/vpp/tunnel.go:113), and the kernel ipip module and VPP dataplane own the outer-header construction, decapsulation, ICMP handling, path-MTU soft state, and loop prevention, so this path-MTU soft-state obligation is set by the PMtuDisc flag ze programs (tunnel_linux.go:210-214) but maintained by the kernel/VPP dataplane, not by ze</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> a gap in proof on one of the two interface backends. The Linux path is the verified half: the kernel keeps path MTU soft state per tunnel (net/ipv4/ip_tunnel.c tnl_update_pmtu, ipv4_update_pmtu from ipip_err, linux:CONFIG_NET_IPIP) and answers an oversized Don&#39;t Fragment datagram with Fragmentation Needed; the PMtuDisc value internal/plugins/iface/netlink/tunnel_linux.go::buildIptun writes (1 unless no-pmtu-discovery sets 0) decides whether the outer header carries DF, and no test covers either. The VPP half is unverified: iface-vpp (internal/plugins/iface/vpp/register.go, ze_vpp feature gate) installs the tunnel through internal/plugins/iface/vpp/tunnel.go::createIPIPTunnel with no path MTU, and no test shows VPP keeps any</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-3.1-4">RFC2003-3.1-4</code></td><td colspan="3"><span class="rfc-subject">If the resulting TTL in the inner IP header is 0, the datagram is discarded and an ICMP Time Exceeded message SHOULD be returned to the sender. (§3.1)</span></td></tr>
 <tr><td></td>
@@ -652,56 +665,56 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
 <tr><td><a href="#rfc2003-3.1-1"><code>RFC2003-3.1-1</code></a> if the &#34;Don&#39;t Fragment&#34; bit is set in the inner IP header, it MUST be set in the outer IP header (§3.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: ze constructs no IP-in-IP header and runs no encapsulation, decapsulation, ICMP-relay, or loop-prevention datapath: it programs only the tunnel configuration via netlink buildIptun (internal/plugins/iface/netlink/tunnel_linux.go:196, Proto IPPROTO_IPIP) and VPP ipip_add_tunnel (internal/plugins/iface/vpp/tunnel.go:113), and the kernel ipip module and VPP dataplane own the outer-header construction, decapsulation, ICMP handling, path-MTU soft state, and loop prevention, so this outer-header/encapsulation obligation has no ze code path</td>
+<td>{gap}, no test</td>
+<td>a gap in proof on one of the two interface backends. The Linux path is the verified half: internal/plugins/iface/netlink/tunnel_linux.go::buildIptun creates the ipip link (linux:CONFIG_NET_IPIP), and the kernel&#39;s ip_tunnel_xmit (net/ipv4/ip_tunnel.c) ORs the inner Don&#39;t Fragment bit into the outer header for every IPv4 payload, since ipip has no ignore_df knob, whichever PMtuDisc value buildIptun writes (1 unless no-pmtu-discovery sets 0); no test covers it. The VPP half is unverified: iface-vpp (internal/plugins/iface/vpp/register.go, ze_vpp feature gate) is a shipped interface backend whose internal/plugins/iface/vpp/tunnel.go::createIPIPTunnel installs the tunnel through ipip_add_tunnel, and no test shows what VPP&#39;s ipip datapath writes in the outer header</td>
 </tr>
 <tr><td><a href="#rfc2003-3.1-2"><code>RFC2003-3.1-2</code></a> An encapsulator MUST NOT encapsulate a datagram with TTL = 0 (§3.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: ze constructs no IP-in-IP header and runs no encapsulation, decapsulation, ICMP-relay, or loop-prevention datapath: it programs only the tunnel configuration via netlink buildIptun (internal/plugins/iface/netlink/tunnel_linux.go:196, Proto IPPROTO_IPIP) and VPP ipip_add_tunnel (internal/plugins/iface/vpp/tunnel.go:113), and the kernel ipip module and VPP dataplane own the outer-header construction, decapsulation, ICMP handling, path-MTU soft state, and loop prevention, so this outer-header/encapsulation obligation has no ze code path</td>
+<td>{gap}, no test</td>
+<td>a gap in proof on one of the two interface backends. On Linux (linux:CONFIG_NET_IPIP, link built by internal/plugins/iface/netlink/tunnel_linux.go::buildIptun) a forwarded datagram reaches the tunnel only after ip_forward has dropped every TTL of 1 or less, and a local socket cannot set TTL 0, so no TTL 0 datagram is encapsulated; no test covers it. The VPP half is unverified: iface-vpp (internal/plugins/iface/vpp/register.go, ze_vpp feature gate) is a shipped interface backend whose internal/plugins/iface/vpp/tunnel.go::createIPIPTunnel installs the tunnel through ipip_add_tunnel, and no test shows VPP refuses to encapsulate a TTL 0 datagram</td>
 </tr>
 <tr><td><a href="#rfc2003-3.1-3"><code>RFC2003-3.1-3</code></a> If, after decapsulation, the inner datagram has TTL = 0, the decapsulator MUST discard the datagram. (§3.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: ze constructs no IP-in-IP header and runs no encapsulation, decapsulation, ICMP-relay, or loop-prevention datapath: it programs only the tunnel configuration via netlink buildIptun (internal/plugins/iface/netlink/tunnel_linux.go:196, Proto IPPROTO_IPIP) and VPP ipip_add_tunnel (internal/plugins/iface/vpp/tunnel.go:113), and the kernel ipip module and VPP dataplane own the outer-header construction, decapsulation, ICMP handling, path-MTU soft state, and loop prevention, so this decapsulation obligation has no ze code path</td>
+<td>{gap}, no test</td>
+<td>unmet in part on Linux and unverified on VPP. On Linux (linux:CONFIG_NET_IPIP, link built by internal/plugins/iface/netlink/tunnel_linux.go::buildIptun) the decapsulated datagram re-enters ip_rcv, and ip_forward discards a TTL 0 datagram it would forward, but ip_local_deliver checks no TTL, so a TTL 0 inner datagram addressed to ze itself is delivered rather than discarded. The VPP half is unverified: iface-vpp (internal/plugins/iface/vpp/register.go, ze_vpp feature gate) installs the tunnel through internal/plugins/iface/vpp/tunnel.go::createIPIPTunnel, and no test shows VPP discards an inner TTL 0 datagram</td>
 </tr>
 <tr><td><a href="#rfc2003-3.2-1"><code>RFC2003-3.2-1</code></a> If the IP Source Address of the datagram matches the router&#39;s own IP address on any of its network interfaces, the router MUST NOT tunnel the datagram (§3.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: ze constructs no IP-in-IP header and runs no encapsulation, decapsulation, ICMP-relay, or loop-prevention datapath: it programs only the tunnel configuration via netlink buildIptun (internal/plugins/iface/netlink/tunnel_linux.go:196, Proto IPPROTO_IPIP) and VPP ipip_add_tunnel (internal/plugins/iface/vpp/tunnel.go:113), and the kernel ipip module and VPP dataplane own the outer-header construction, decapsulation, ICMP handling, path-MTU soft state, and loop prevention, so this tunnel loop-prevention check has no ze code path</td>
+<td>{gap}, no test</td>
+<td>unmet on Linux and unverified on VPP. The kernel&#39;s ip_tunnel_xmit (net/ipv4/ip_tunnel.c, linux:CONFIG_NET_IPIP) compares no source address with the router&#39;s own addresses before encapsulating, and nothing ze installs (internal/plugins/iface/netlink/tunnel_linux.go::buildIptun, no firewall rule) refuses such a datagram, so a datagram sourced from ze&#39;s own address is tunneled. On VPP, iface-vpp (internal/plugins/iface/vpp/register.go, ze_vpp feature gate) installs the tunnel through internal/plugins/iface/vpp/tunnel.go::createIPIPTunnel and no test shows VPP refuses it</td>
 </tr>
 <tr><td><a href="#rfc2003-3.2-2"><code>RFC2003-3.2-2</code></a> If the IP Source Address of the datagram matches the IP address of the tunnel destination (the tunnel exit point is typically chosen by the router based on the Destination Address in the datagram&#39;s IP header), the router MUST NOT tunnel the datagram (§3.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: ze constructs no IP-in-IP header and runs no encapsulation, decapsulation, ICMP-relay, or loop-prevention datapath: it programs only the tunnel configuration via netlink buildIptun (internal/plugins/iface/netlink/tunnel_linux.go:196, Proto IPPROTO_IPIP) and VPP ipip_add_tunnel (internal/plugins/iface/vpp/tunnel.go:113), and the kernel ipip module and VPP dataplane own the outer-header construction, decapsulation, ICMP handling, path-MTU soft state, and loop prevention, so this tunnel loop-prevention check has no ze code path</td>
+<td>{gap}, no test</td>
+<td>unmet on Linux and unverified on VPP. The kernel&#39;s ip_tunnel_xmit (net/ipv4/ip_tunnel.c, linux:CONFIG_NET_IPIP) compares no inner source address with the tunnel destination before encapsulating, and nothing ze installs (internal/plugins/iface/netlink/tunnel_linux.go::buildIptun, no firewall rule) refuses such a datagram. On VPP, iface-vpp (internal/plugins/iface/vpp/register.go, ze_vpp feature gate) installs the tunnel through internal/plugins/iface/vpp/tunnel.go::createIPIPTunnel and no test shows VPP refuses it</td>
 </tr>
 <tr><td><a href="#rfc2003-4.1-1"><code>RFC2003-4.1-1</code></a> The encapsulator MUST relay ICMP Datagram Too Big messages to the sender of the original unencapsulated datagram (§4.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: ze constructs no IP-in-IP header and runs no encapsulation, decapsulation, ICMP-relay, or loop-prevention datapath: it programs only the tunnel configuration via netlink buildIptun (internal/plugins/iface/netlink/tunnel_linux.go:196, Proto IPPROTO_IPIP) and VPP ipip_add_tunnel (internal/plugins/iface/vpp/tunnel.go:113), and the kernel ipip module and VPP dataplane own the outer-header construction, decapsulation, ICMP handling, path-MTU soft state, and loop prevention, so this ICMP-handling obligation has no ze code path</td>
+<td>{gap}, no test</td>
+<td>unmet on Linux and unverified on VPP. The kernel&#39;s ipip_err (net/ipv4/ipip.c, linux:CONFIG_NET_IPIP) relays no Datagram Too Big message: it lowers the tunnel&#39;s path MTU (ipv4_update_pmtu), and only the sender&#39;s next oversized Don&#39;t Fragment datagram draws a Fragmentation Needed from tnl_update_pmtu, so the datagram that met the error is never reported. On VPP, iface-vpp (internal/plugins/iface/vpp/register.go, ze_vpp feature gate) installs the tunnel through internal/plugins/iface/vpp/tunnel.go::createIPIPTunnel and no test shows what VPP does with the message</td>
 </tr>
 <tr><td><a href="#rfc2003-4.1-2"><code>RFC2003-4.1-2</code></a> If the original destination in the unencapsulated datagram is on the same network as the encapsulator, the newly generated Destination Unreachable message sent by the encapsulator MAY have Code 1 (Host Unreachable), since presumably the datagram arrived at the correct network and the encapsulator is trying to create the appearance that the original destination is local to that network even if it is not. Otherwise, if the encapsulator returns a Destination Unreachable message, the Code field MUST be set to 0 (Network Unreachable). (§4.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: ze constructs no IP-in-IP header and runs no encapsulation, decapsulation, ICMP-relay, or loop-prevention datapath: it programs only the tunnel configuration via netlink buildIptun (internal/plugins/iface/netlink/tunnel_linux.go:196, Proto IPPROTO_IPIP) and VPP ipip_add_tunnel (internal/plugins/iface/vpp/tunnel.go:113), and the kernel ipip module and VPP dataplane own the outer-header construction, decapsulation, ICMP handling, path-MTU soft state, and loop prevention, so this ICMP-handling obligation has no ze code path</td>
+<td>{gap}, no test</td>
+<td>unmet on Linux and unverified on VPP. The kernel&#39;s ipip_err (net/ipv4/ipip.c, linux:CONFIG_NET_IPIP) translates every Destination Unreachable other than Source Route Failed and Fragmentation Needed into a later Host Unreachable (err_count, then dst_link_failure in ip_tunnel_xmit), whether or not the original destination is on the encapsulator&#39;s network, so a Network Unreachable from a remote network is returned with Code 1 where this requires Code 0. On VPP, iface-vpp (internal/plugins/iface/vpp/register.go, ze_vpp feature gate) installs the tunnel through internal/plugins/iface/vpp/tunnel.go::createIPIPTunnel and no test shows what VPP returns</td>
 </tr>
 <tr><td><a href="#rfc2003-4.1-3"><code>RFC2003-4.1-3</code></a> It MUST NOT be relayed to the sender of the original unencapsulated datagram. (§4.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: ze constructs no IP-in-IP header and runs no encapsulation, decapsulation, ICMP-relay, or loop-prevention datapath: it programs only the tunnel configuration via netlink buildIptun (internal/plugins/iface/netlink/tunnel_linux.go:196, Proto IPPROTO_IPIP) and VPP ipip_add_tunnel (internal/plugins/iface/vpp/tunnel.go:113), and the kernel ipip module and VPP dataplane own the outer-header construction, decapsulation, ICMP handling, path-MTU soft state, and loop prevention, so this ICMP-handling obligation has no ze code path</td>
+<td>{gap}, no test</td>
+<td>unmet on Linux and unverified on VPP. The kernel&#39;s ipip_err (net/ipv4/ipip.c, linux:CONFIG_NET_IPIP) counts a Port Unreachable from inside the tunnel like any other Destination Unreachable, and ip_tunnel_xmit then sends the original sender a Host Unreachable through dst_link_failure, so the error reaches the sender. On VPP, iface-vpp (internal/plugins/iface/vpp/register.go, ze_vpp feature gate) installs the tunnel through internal/plugins/iface/vpp/tunnel.go::createIPIPTunnel and no test shows VPP withholds it</td>
 </tr>
 <tr><td><a href="#rfc2003-4.1-4"><code>RFC2003-4.1-4</code></a> It MUST NOT be relayed to the sender of the original unencapsulated datagram. (§4.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: ze constructs no IP-in-IP header and runs no encapsulation, decapsulation, ICMP-relay, or loop-prevention datapath: it programs only the tunnel configuration via netlink buildIptun (internal/plugins/iface/netlink/tunnel_linux.go:196, Proto IPPROTO_IPIP) and VPP ipip_add_tunnel (internal/plugins/iface/vpp/tunnel.go:113), and the kernel ipip module and VPP dataplane own the outer-header construction, decapsulation, ICMP handling, path-MTU soft state, and loop prevention, so this ICMP-handling obligation has no ze code path</td>
+<td>{gap}, no test</td>
+<td>a gap in proof on one of the two interface backends. The Linux path is the verified half: the kernel&#39;s ipip_err (net/ipv4/ipip.c, linux:CONFIG_NET_IPIP) returns on ICMP_SR_FAILED before anything is counted or relayed, on the tunnel internal/plugins/iface/netlink/tunnel_linux.go::buildIptun creates; no test covers it. The VPP half is unverified: iface-vpp (internal/plugins/iface/vpp/register.go, ze_vpp feature gate) installs the tunnel through internal/plugins/iface/vpp/tunnel.go::createIPIPTunnel, and no test shows VPP withholds a Source Route Failed</td>
 </tr>
 <tr><td><a href="#rfc2003-4.4-1"><code>RFC2003-4.4-1</code></a> Reception of Time Exceeded messages by the encapsulator MUST be reported to the sender of the original unencapsulated datagram as Host Unreachable (Type 3, Code 1). (§4.4)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: ze constructs no IP-in-IP header and runs no encapsulation, decapsulation, ICMP-relay, or loop-prevention datapath: it programs only the tunnel configuration via netlink buildIptun (internal/plugins/iface/netlink/tunnel_linux.go:196, Proto IPPROTO_IPIP) and VPP ipip_add_tunnel (internal/plugins/iface/vpp/tunnel.go:113), and the kernel ipip module and VPP dataplane own the outer-header construction, decapsulation, ICMP handling, path-MTU soft state, and loop prevention, so this ICMP-handling obligation has no ze code path</td>
+<td>{gap}, no test</td>
+<td>met on Linux only for a non-zero tunnel TTL, and unverified on VPP. The kernel&#39;s ipip_err (net/ipv4/ipip.c, linux:CONFIG_NET_IPIP) counts a Time Exceeded and ip_tunnel_xmit reports it to the sender as Host Unreachable through dst_link_failure, but it drops the message when the tunnel TTL is 0 (inherit). internal/plugins/iface/netlink/tunnel_linux.go::buildIptun writes the ttl leaf (default 64) into Ttl, and the uint8 leaf admits 0 with nothing refusing it, so an operator&#39;s ttl 0 defeats this. On VPP, iface-vpp (internal/plugins/iface/vpp/register.go, ze_vpp feature gate) installs the tunnel through internal/plugins/iface/vpp/tunnel.go::createIPIPTunnel and no test shows what VPP reports</td>
 </tr>
 <tr><td><a href="#rfc2003-4.3-1"><code>RFC2003-4.3-1</code></a> It MUST NOT not relay the Redirect to the sender of the original unencapsulated datagram. (§4.3)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: ze constructs no IP-in-IP header and runs no encapsulation, decapsulation, ICMP-relay, or loop-prevention datapath: it programs only the tunnel configuration via netlink buildIptun (internal/plugins/iface/netlink/tunnel_linux.go:196, Proto IPPROTO_IPIP) and VPP ipip_add_tunnel (internal/plugins/iface/vpp/tunnel.go:113), and the kernel ipip module and VPP dataplane own the outer-header construction, decapsulation, ICMP handling, path-MTU soft state, and loop prevention, so this ICMP-handling obligation has no ze code path</td>
+<td>{gap}, no test</td>
+<td>a gap in proof on one of the two interface backends. The Linux path is the verified half: the kernel&#39;s ipip_err (net/ipv4/ipip.c, linux:CONFIG_NET_IPIP) handles a Redirect itself through ipv4_redirect and returns before anything is counted or relayed, on the tunnel internal/plugins/iface/netlink/tunnel_linux.go::buildIptun creates; no test covers it. The VPP half is unverified: iface-vpp (internal/plugins/iface/vpp/register.go, ze_vpp feature gate) installs the tunnel through internal/plugins/iface/vpp/tunnel.go::createIPIPTunnel, and no test shows VPP withholds a Redirect</td>
 </tr>
 <tr><td><a href="#rfc2003-4.5-1"><code>RFC2003-4.5-1</code></a> if the problem occurs with an IP option inserted by the encapsulator, then the encapsulator MUST NOT relay the ICMP message to the original sender. (§4.5)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: ze constructs no IP-in-IP header and runs no encapsulation, decapsulation, ICMP-relay, or loop-prevention datapath: it programs only the tunnel configuration via netlink buildIptun (internal/plugins/iface/netlink/tunnel_linux.go:196, Proto IPPROTO_IPIP) and VPP ipip_add_tunnel (internal/plugins/iface/vpp/tunnel.go:113), and the kernel ipip module and VPP dataplane own the outer-header construction, decapsulation, ICMP handling, path-MTU soft state, and loop prevention, so this ICMP-handling obligation has no ze code path</td>
+<td>{gap}, no test</td>
+<td>a gap in proof on one of the two interface backends. The Linux path is the verified half: the kernel&#39;s ipip_err (net/ipv4/ipip.c, linux:CONFIG_NET_IPIP) returns on a Parameter Problem without relaying it, and the kernel inserts no IP option into the outer header of the tunnel internal/plugins/iface/netlink/tunnel_linux.go::buildIptun creates; no test covers it. The VPP half is unverified: iface-vpp (internal/plugins/iface/vpp/register.go, ze_vpp feature gate) installs the tunnel through internal/plugins/iface/vpp/tunnel.go::createIPIPTunnel, and no test shows what VPP does with a Parameter Problem</td>
 </tr>
 <tr><td><a href="#rfc2003-5.1-1"><code>RFC2003-5.1-1</code></a> To support sending nodes which use Path MTU Discovery, all encapsulator implementations MUST support Path MTU Discovery [5, 7] soft state within their tunnels. (§5.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: ze constructs no IP-in-IP header and runs no encapsulation, decapsulation, ICMP-relay, or loop-prevention datapath: it programs only the tunnel configuration via netlink buildIptun (internal/plugins/iface/netlink/tunnel_linux.go:196, Proto IPPROTO_IPIP) and VPP ipip_add_tunnel (internal/plugins/iface/vpp/tunnel.go:113), and the kernel ipip module and VPP dataplane own the outer-header construction, decapsulation, ICMP handling, path-MTU soft state, and loop prevention, so this path-MTU soft-state obligation is set by the PMtuDisc flag ze programs (tunnel_linux.go:210-214) but maintained by the kernel/VPP dataplane, not by ze</td>
+<td>{gap}, no test</td>
+<td>a gap in proof on one of the two interface backends. The Linux path is the verified half: the kernel keeps path MTU soft state per tunnel (net/ipv4/ip_tunnel.c tnl_update_pmtu, ipv4_update_pmtu from ipip_err, linux:CONFIG_NET_IPIP) and answers an oversized Don&#39;t Fragment datagram with Fragmentation Needed; the PMtuDisc value internal/plugins/iface/netlink/tunnel_linux.go::buildIptun writes (1 unless no-pmtu-discovery sets 0) decides whether the outer header carries DF, and no test covers either. The VPP half is unverified: iface-vpp (internal/plugins/iface/vpp/register.go, ze_vpp feature gate) installs the tunnel through internal/plugins/iface/vpp/tunnel.go::createIPIPTunnel with no path MTU, and no test shows VPP keeps any</td>
 </tr>
 </tbody>
 </table>
@@ -965,7 +978,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 19:30 UTC</span>
+                    <span class="footer-published">Published 30 October 2026 23:25 UTC</span>
                 </div>
             </div>
         </footer>

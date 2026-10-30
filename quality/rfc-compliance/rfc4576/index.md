@@ -1,6 +1,6 @@
 # RFC 4576 - Using a Link State Advertisement (LSA) Options Bit to Prevent Looping in BGP/MPLS IP Virtual Private Networks (VPNs)
 
-No row in the public ledger. Every requirement this repository extracted from RFC 4576, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+Not supported. Every requirement this repository extracted from RFC 4576, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
 
 ## Overview
 
@@ -14,7 +14,6 @@ what Ze has
 | One polarity plus reason | 0.0% | 0 of 4 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 4 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 4 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| No test at all | 0.0% | 0 of 4 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 | Proven by a recorded break | 0.0% | 0 of 0 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
@@ -24,11 +23,19 @@ measures that are neither good news nor bad
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | Gated MUSTs | 4 | of 4 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 4 | of 4 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 100.0% | 4 of 4 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Out of scope | 0 | of 4 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 0.0% | 0 of 4 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
 | Met below Ze | 0.0% | 0 of 4 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 4 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 | Linux cannot do this | 0.0% | 0 of 4 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit |
+
+### Negative
+
+what Ze owes
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| No test at all | 100.0% | 4 of 4 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
 The 9 shares marked as a part above are the whole of the 4 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -42,7 +49,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
-| No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
@@ -54,12 +61,12 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 | Field | Value |
 |---|---|
-| Public status | No row in the public ledger |
+| Public status | Not supported |
 | Enrolment | Enrolled |
 | Requirements | 4 |
 | Gated MUST-level | 4 |
-| Not applicable, so out of scope | 4 |
-| Declared gaps | 0 |
+| Not applicable, so out of scope | 0 |
+| Declared gaps | 4 |
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
@@ -73,11 +80,19 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 ## Enrolment
 
-Enrolled: Using an LSA Options Bit (DN bit) to Prevent Looping in BGP/MPLS IP VPNs: four MUST-level requirements, all {not-applicable} to Ze. RFC 4576 governs OSPF running as a BGP/MPLS-VPN PE-CE protocol (the DN bit prevents PE-CE loops). Ze does NOT run OSPF as an MPLS-VPN PE-CE protocol -- it has no L3VPN OSPF code path (no VPN OSPF route redistribution, no sham links, no PE-CE OSPF; grep across internal/plugins/ospf/ for sham-link/PE-CE/vpn-ospf/domain-id finds nothing), running OSPF only as a plain IGP. RFC4576-4-1 (PE sets DN bit on type 3/5/7 LSA to CE) and RFC4576-4-2 (DN bit clear on all other LSA types) have no PE origination code path; RFC4576-4-3 (ignore DN bit on other LSA types) -- Ze decodes the DN bit as a field (internal/plugins/ospf/v3/types/prefix.go:68) but performs no VPN loop-prevention acting on it; RFC4576-4-4 (PE MUST NOT use a CE DN-bit-set LSA in route calc) has no PE route-calc code path. No SHOULD/MAY requirements are gated.
+Enrolled: Using an LSA Options Bit (DN bit) to Prevent Looping in BGP/MPLS IP VPNs: four MUST-level requirements, all gaps: two owed with OSPF PE-CE support (4-1, 4-4) and two met because ze never sets or reads the DN bit, untested (4-2, 4-3). RFC 4576 governs OSPF running as a BGP/MPLS-VPN PE-CE protocol (the DN bit prevents PE-CE loops). Ze does NOT run OSPF as an MPLS-VPN PE-CE protocol -- it has no L3VPN OSPF code path (no VPN OSPF route redistribution, no sham links, no PE-CE OSPF; grep across internal/plugins/ospf/ for sham-link/PE-CE/vpn-ospf/domain-id finds nothing), running OSPF only as a plain IGP. RFC4576-4-1 (PE sets DN bit on type 3/5/7 LSA to CE) and RFC4576-4-2 (DN bit clear on all other LSA types) have no PE origination code path; RFC4576-4-3 (ignore DN bit on other LSA types) -- Ze decodes the DN bit as a field (internal/plugins/ospf/v3/types/prefix.go:68) but performs no VPN loop-prevention acting on it; RFC4576-4-4 (PE MUST NOT use a CE DN-bit-set LSA in route calc) has no PE route-calc code path. No SHOULD/MAY requirements are gated.
 
 ## What the public ledger says
 
-No row in the public ledger, so its summary declares `| Support | - |` and docs/features/rfc-status.md carries no row for RFC 4576.
+**Status:** Not supported
+
+**What the ledger says is covered:**
+
+Ordinary OSPF only: ze neither sets nor reads the DN bit.
+
+**What the ledger says remains:**
+
+Four MUST gaps: the PE procedures are not built ([`RFC4576-4-1`](#rfc4576-4-1), 4-4), and the two rules met because ze never sets or reads the DN bit are untested ([`RFC4576-4-2`](#rfc4576-4-2), 4-3).
 
 ## Coverage
 
@@ -96,25 +111,25 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 
 ## Attainable ceiling
 
-Mandatory ceiling: 0 of 4 (0.0%); excluded: Not applicable (classification can be revisited): 4 of 4 (100.0%). Optional ceiling: no rows. Lowest mandatory ceiling: rfc4576 0 of 4 (0.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+Mandatory ceiling: 4 of 4 (100.0%). Optional ceiling: no rows. Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: rfc4576 4 of 4 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
 
 ## Requirements
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC4576-4-1` | When a type 3, 5, or 7 LSA is sent from a PE to a CE, the DN bit MUST be set. (§4) | MUST | 4 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** Ze does not run OSPF as a BGP/MPLS-VPN PE-CE protocol -- it has no L3VPN OSPF code path (no VPN OSPF route redistribution, no sham links, no PE-CE OSPF; grep for sham-link / PE-CE / vpn-ospf / domain-id across internal/plugins/ospf/ finds nothing). Ze runs OSPF only as a plain IGP, so it never originates a type 3/5/7 LSA "from a PE to a CE" and has no code path that would set the RFC 4576 DN bit. |
-| `RFC4576-4-2` | The DN bit MUST be clear in all other LSA types. +-------------------------------------+ \| DN \| * \| DC \| EA \| N/P \| MC \| E \| * \| +-------------------------------------+ (§4) | MUST | 4 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** Ze is not an MPLS-VPN PE and originates no LSAs in a VPN PE-CE context, so it never sets the DN bit on any LSA type; the "DN bit clear in all other LSA types" transmission rule governs a PE role Ze does not implement. |
-| `RFC4576-4-3` | The DN bit MUST be ignored in all other LSA types. (§4) | MUST | 4 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** This governs a VPN PE's receive processing of the DN bit. Ze runs plain (non-VPN) OSPF with no PE-CE role: its OSPFv3 prefix codec merely decodes the DN bit as a field (internal/plugins/ospf/v3/types/prefix.go:68 Down()) and Ze performs no VPN loop-prevention that acts on it, so the PE-CE DN-bit handling this requirement defines has no applicable code path. |
-| `RFC4576-4-4` | When the PE receives, from a CE router, a type 3, 5, or 7 LSA with the DN bit set, the information from that LSA MUST NOT be used during the OSPF route calculation. (§4) | MUST NOT | 4 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** This governs a VPN PE ignoring a CE's DN-bit-set LSA during OSPF route calculation. Ze is not an MPLS-VPN PE and runs no OSPF PE-CE / VPN OSPF route calculation, so there is no code path in which a PE would consume a CE's DN-bit-set LSA. |
+| `RFC4576-4-1` | When a type 3, 5, or 7 LSA is sent from a PE to a CE, the DN bit MUST be set. (§4) | MUST | 4 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze does not run OSPF as a BGP/MPLS VPN PE-CE protocol: internal/plugins/ospf has no VPN route redistribution, sham link or PE-CE code path, so it sends no type 3, 5 or 7 LSA from a PE to a CE with the DN bit set; owed with OSPF PE-CE support |
+| `RFC4576-4-2` | The DN bit MUST be clear in all other LSA types. +-------------------------------------+ \| DN \| * \| DC \| EA \| N/P \| MC \| E \| * \| +-------------------------------------+ (§4) | MUST | 4 | **positive:** no positive test. **negative:** no negative test. **{gap}:** gap in proof: ze meets it by never setting the DN bit: types.OptionDN (internal/plugins/ospf/types/options.go) and OptPrefixDN (internal/plugins/ospf/v3/types/prefix.go) are named outside their packages only by internal/plugins/ospf/neighbor_detail.go, for display, and no LSA producer sets either; no test asserts it |
+| `RFC4576-4-3` | The DN bit MUST be ignored in all other LSA types. (§4) | MUST | 4 | **positive:** no positive test. **negative:** no negative test. **{gap}:** gap in proof: ze meets it by acting on the DN bit in no LSA type: no route calculation reads types.OptionDN or PrefixOptions.Down (internal/plugins/ospf/v3/types/prefix.go), which only internal/plugins/ospf/neighbor_detail.go names, for display; no test asserts it |
+| `RFC4576-4-4` | When the PE receives, from a CE router, a type 3, 5, or 7 LSA with the DN bit set, the information from that LSA MUST NOT be used during the OSPF route calculation. (§4) | MUST NOT | 4 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze runs no PE OSPF route calculation for a VPN, so it does not exclude a CE's DN-bit-set type 3, 5 or 7 LSA from one; owed with OSPF PE-CE support |
 
 ## Gaps and untested MUSTs
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC4576-4-1`](#rfc4576-4-1) When a type 3, 5, or 7 LSA is sent from a PE to a CE, the DN bit MUST be set. (§4) | no test | no test carries this requirement id; annotated {not-applicable}: Ze does not run OSPF as a BGP/MPLS-VPN PE-CE protocol -- it has no L3VPN OSPF code path (no VPN OSPF route redistribution, no sham links, no PE-CE OSPF; grep for sham-link / PE-CE / vpn-ospf / domain-id across internal/plugins/ospf/ finds nothing). Ze runs OSPF only as a plain IGP, so it never originates a type 3/5/7 LSA "from a PE to a CE" and has no code path that would set the RFC 4576 DN bit. |
-| [`RFC4576-4-2`](#rfc4576-4-2) The DN bit MUST be clear in all other LSA types. +-------------------------------------+ \| DN \| * \| DC \| EA \| N/P \| MC \| E \| * \| +-------------------------------------+ (§4) | no test | no test carries this requirement id; annotated {not-applicable}: Ze is not an MPLS-VPN PE and originates no LSAs in a VPN PE-CE context, so it never sets the DN bit on any LSA type; the "DN bit clear in all other LSA types" transmission rule governs a PE role Ze does not implement. |
-| [`RFC4576-4-3`](#rfc4576-4-3) The DN bit MUST be ignored in all other LSA types. (§4) | no test | no test carries this requirement id; annotated {not-applicable}: This governs a VPN PE's receive processing of the DN bit. Ze runs plain (non-VPN) OSPF with no PE-CE role: its OSPFv3 prefix codec merely decodes the DN bit as a field (internal/plugins/ospf/v3/types/prefix.go:68 Down()) and Ze performs no VPN loop-prevention that acts on it, so the PE-CE DN-bit handling this requirement defines has no applicable code path. |
-| [`RFC4576-4-4`](#rfc4576-4-4) When the PE receives, from a CE router, a type 3, 5, or 7 LSA with the DN bit set, the information from that LSA MUST NOT be used during the OSPF route calculation. (§4) | no test | no test carries this requirement id; annotated {not-applicable}: This governs a VPN PE ignoring a CE's DN-bit-set LSA during OSPF route calculation. Ze is not an MPLS-VPN PE and runs no OSPF PE-CE / VPN OSPF route calculation, so there is no code path in which a PE would consume a CE's DN-bit-set LSA. |
+| [`RFC4576-4-1`](#rfc4576-4-1) When a type 3, 5, or 7 LSA is sent from a PE to a CE, the DN bit MUST be set. (§4) | {gap}, no test | ze does not run OSPF as a BGP/MPLS VPN PE-CE protocol: internal/plugins/ospf has no VPN route redistribution, sham link or PE-CE code path, so it sends no type 3, 5 or 7 LSA from a PE to a CE with the DN bit set; owed with OSPF PE-CE support |
+| [`RFC4576-4-2`](#rfc4576-4-2) The DN bit MUST be clear in all other LSA types. +-------------------------------------+ \| DN \| * \| DC \| EA \| N/P \| MC \| E \| * \| +-------------------------------------+ (§4) | {gap}, no test | gap in proof: ze meets it by never setting the DN bit: types.OptionDN (internal/plugins/ospf/types/options.go) and OptPrefixDN (internal/plugins/ospf/v3/types/prefix.go) are named outside their packages only by internal/plugins/ospf/neighbor_detail.go, for display, and no LSA producer sets either; no test asserts it |
+| [`RFC4576-4-3`](#rfc4576-4-3) The DN bit MUST be ignored in all other LSA types. (§4) | {gap}, no test | gap in proof: ze meets it by acting on the DN bit in no LSA type: no route calculation reads types.OptionDN or PrefixOptions.Down (internal/plugins/ospf/v3/types/prefix.go), which only internal/plugins/ospf/neighbor_detail.go names, for display; no test asserts it |
+| [`RFC4576-4-4`](#rfc4576-4-4) When the PE receives, from a CE router, a type 3, 5, or 7 LSA with the DN bit set, the information from that LSA MUST NOT be used during the OSPF route calculation. (§4) | {gap}, no test | ze runs no PE OSPF route calculation for a VPN, so it does not exclude a CE's DN-bit-set type 3, 5 or 7 LSA from one; owed with OSPF PE-CE support |
 
 ## Proof state
 

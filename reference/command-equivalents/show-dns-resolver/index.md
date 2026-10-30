@@ -1,11 +1,11 @@
-# `show dns-resolver`
+# `show dns resolver`
 
 LAN DNS resolver status\, cache and counters\.
 
 ## Ze command
 
-- Registry path: `show dns-resolver`
-- Usage: `show dns-resolver`
+- Registry path: `show dns resolver`
+- Usage: `show dns resolver`
 - Mode: Read-only
 - Wire method: `ze-dnsresolver:show-dns-resolver`
 - Backends: any backend

@@ -10,11 +10,10 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 100.0% | 2 of 2 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 0.0% | 0 of 2 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 2 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0.0% | 0 of 2 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| No test at all | 0.0% | 0 of 2 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Tested both ways | 66.7% | 2 of 3 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 0.0% | 0 of 3 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0.0% | 0 of 3 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial proof; remaining gap | 0.0% | 0 of 3 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | Proven by a recorded break | 100.0% | 10 of 10 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
@@ -23,14 +22,22 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 2 | of 2 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 0 | of 2 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 0.0% | 0 of 2 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 2 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 2 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
-| Linux cannot do this | 0.0% | 0 of 2 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit |
+| Gated MUSTs | 3 | of 3 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
+| Out of scope | 0 | of 3 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 0.0% | 0 of 3 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Met below Ze | 0.0% | 0 of 3 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
+| Optional feature declined | 0.0% | 0 of 3 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
+| Linux cannot do this | 0.0% | 0 of 3 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit |
 
-The 9 shares marked as a part above are the whole of the 2 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+### Negative
+
+what Ze owes
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| No test at all | 33.3% | 1 of 3 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+
+The 9 shares marked as a part above are the whole of the 3 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -42,7 +49,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
-| No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
@@ -56,10 +63,10 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|
 | Public status | Supported |
 | Enrolment | Enrolled |
-| Requirements | 2 |
-| Gated MUST-level | 2 |
+| Requirements | 3 |
+| Gated MUST-level | 3 |
 | Not applicable, so out of scope | 0 |
-| Declared gaps | 0 |
+| Declared gaps | 1 |
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
@@ -94,19 +101,21 @@ Both Section 3 MUST-level requirements implemented, each with a positive and a n
 | Bucket | Count | What it counts |
 |---|---|---|
 | Positive and negative tests | 2 | one part of the gated population |
-| Annotated (including scoped evidence) | 0 | one part of the gated population |
+| Annotated (including scoped evidence) | 1 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
 | Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **2** | every gated MUST falls in exactly one bucket above |
+| **Gated MUST-level requirements** | **3** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (2):** [`RFC9774-3-1`](#rfc9774-3-1), [`RFC9774-3-2`](#rfc9774-3-2)
 
+**Annotated (including scoped evidence) (1):** [`RFC9774-5.2-1`](#rfc9774-5.2-1)
+
 ## Attainable ceiling
 
-Mandatory ceiling: 2 of 2 (100.0%). Optional ceiling: no rows. Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: rfc9774 2 of 2 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+Mandatory ceiling: 3 of 3 (100.0%). Optional ceiling: no rows. Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: rfc9774 3 of 3 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
 
 ## Requirements
 
@@ -114,10 +123,13 @@ Mandatory ceiling: 2 of 2 (100.0%). Optional ceiling: no rows. Every RFC shown w
 |---|---|---|---|---|
 | `RFC9774-3-1` | MUST NOT advertise BGP UPDATE messages containing AS_SETs or AS_CONFED_SETs (§3) | MUST NOT | 3 | **positive:** `unit/verify` [`TestRFC9774SendASSetWrittenAsWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9774_send_test.go#L49). **negative:** `unit/verify` [`TestRFC9774SendASSetWrittenAsWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9774_send_test.go#L52) |
 | `RFC9774-3-2` | MUST use the "treat-as-withdraw" error handling behavior per [RFC7606] upon reception of BGP UPDATE messages containing AS_SETs or AS_CONFED_SETs in the AS_PATH or AS4_PATH [RFC6793] (§3) | MUST | 3 | **positive:** `unit/verify` [`TestRFC9774ReceiveAS4PathSetTreatAsWithdraw`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9774_receive_test.go#L131). **positive:** `unit/verify` [`TestRFC9774ReceiveASSetAcceptedByOperator`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9774_accept_test.go#L45). **positive:** `unit/verify` [`TestRFC9774ReceiveASSetTreatAsWithdraw`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9774_receive_test.go#L64). **positive:** `unit/verify` [`TestValidateAS4PathRejectsSetSegments`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc9774_test.go#L121). **positive:** `unit/verify` [`TestValidateASPathRejectsSetSegments`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc9774_test.go#L35). **negative:** `unit/verify` [`TestRFC9774ReceiveAS4PathSetTreatAsWithdraw`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9774_receive_test.go#L134). **negative:** `unit/verify` [`TestRFC9774ReceiveASSetTreatAsWithdraw`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9774_receive_test.go#L67). **negative:** `unit/verify` [`TestValidateASPathRejectsSetSegments`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc9774_test.go#L38) |
+| `RFC9774-5.2-1` | To ensure a consistent BGP origin AS is announced for aggregate BGP routes for implementations of "brief" BGP aggregation, the implementation MUST be configured to truncate the AS_PATH after the right-most instance of the desired origin AS for the aggregate. (§5.2) | MUST | 5.2 - Consistent brief aggregation | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze implements no route aggregation, brief or consistent brief, so no aggregate route is ever formed and nothing truncates its AS_PATH; aggregation (Sections 5, 5.2, 6.1, 6.2) is an absent feature of an implemented RFC with no owner decision declining it, owed after the first release |
 
 ## Gaps and untested MUSTs
 
-RFC 9774 declares no gap, and every gated MUST it carries has a test bound to it.
+| Requirement | State | Reason |
+|---|---|---|
+| [`RFC9774-5.2-1`](#rfc9774-5.2-1) To ensure a consistent BGP origin AS is announced for aggregate BGP routes for implementations of "brief" BGP aggregation, the implementation MUST be configured to truncate the AS_PATH after the right-most instance of the desired origin AS for the aggregate. (§5.2) | {gap}, no test | Ze implements no route aggregation, brief or consistent brief, so no aggregate route is ever formed and nothing truncates its AS_PATH; aggregation (Sections 5, 5.2, 6.1, 6.2) is an absent feature of an implemented RFC with no owner decision declining it, owed after the first release |
 
 ## Proof state
 
@@ -151,6 +163,14 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 | positive | [`TestRFC9774ReceiveAS4PathSetTreatAsWithdraw`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9774_receive_test.go#L131) | unit/verify | mutant, verified |
 | positive | [`TestRFC9774ReceiveASSetTreatAsWithdraw`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9774_receive_test.go#L64) | unit/verify | revert, verified |
 
+### [`RFC9774-5.2-1`](#rfc9774-5.2-1)
+
+To ensure a consistent BGP origin AS is announced for aggregate BGP routes for implementations of "brief" BGP aggregation, the implementation MUST be configured to truncate the AS_PATH after the right-most instance of the desired origin AS for the aggregate. (§5.2)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC9774-5.2-1, so no unit is bound to it.
+
 ## Extraction sign-off
 
 | Field | Value |
@@ -161,8 +181,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 | Source | rfc/full/rfc9774.txt |
 | Source fingerprint | 1c7ab2a8ddf3a013 |
 | Record | rfc/extraction/rfc9774.json |
-| Mapped sentences | 2 |
-| Declined as scope | 2 |
+| Mapped sentences | 3 |
+| Declined as scope | 1 |
 | Relocated to a spec, which Ze OWES | 0 |
 | Unclassified | 0 |
 
@@ -177,7 +197,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 | `4` | not stated | 0 | walked | Describes how RPKI-ROV, BGPsec and ASPA already treat a route with an AS_SET. Descriptive, no RFC 2119 keyword, and it obliges no BGP speaker beyond the documents it cites. |
 | `5` | Describes brief aggregation | 0 | walked | Describes brief aggregation. Its one SHOULD is a quotation of RFC 4271 Section 5.1.6 and belongs to RFC 4271; the section adds no obligation of its own. |
 | `5.1` | not stated | 0 | walked | Explains why brief aggregation yields an unpredictable origin AS for RPKI-ROV. Descriptive, no RFC 2119 keyword. |
-| `5.2` | Consistent brief aggregation | 1 | walked | Consistent brief aggregation. Its MUST (5.2:1) and its SHOULD to attach ATOMIC_AGGREGATE bind an aggregating implementation; Ze implements no aggregation, so 5.2:1 is excluded as feature-out-of-scope. |
+| `5.2` | Consistent brief aggregation | 1 | walked | Consistent brief aggregation. Its MUST (5.2:1) and its SHOULD to attach ATOMIC_AGGREGATE bind an aggregating implementation; Ze implements no aggregation, so 5.2:1 maps to RFC9774-5.2-1, which carries {gap}. |
 | `6` | not stated | 0 | walked | Section preamble: operator advice on deployment and configuration. No keyword. |
 | `6.1` | not stated | 1 | walked | Its MUST (6.1:1) binds an operator that aggregates; excluded as feature-out-of-scope with 5.2:1. |
 | `6.2` | not stated | 0 | walked | SHOULD NOT and SHOULD on announcing an aggregate to contributing ASes; recommendations conditional on aggregation, which Ze does not implement. No MUST-level site. |
@@ -199,7 +219,6 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Site | Excluded kind | Reason | Quote |
 |---|---|---|---|
-| `5.2:1` | `feature-out-of-scope` (never bound Ze): the RFC makes a feature OPTIONAL, Ze decided not to offer it, and this obligation is conditional on offering it | Binds implementations of brief BGP aggregation only. RFC 4271 Section 9.1 makes route aggregation optional: "Route aggregation and information reduction can optionally be performed within this phase." Owner decision 2026-10-18 scoped this work to RFC 9774 and not to an aggregation feature (spec-bgp-rfc9774-as-set-deprecation, Key Design Decisions). Ze has no aggregation code: the AS_PATH parsers (ParseASPathText, internal/core/bgp/attribute/text.go) build only AS_SEQUENCE. | To ensure a consistent BGP origin AS is announced for aggregate BGP routes for implementations of "brief" BGP aggregation, the implementation MUST be configured to truncate the AS_PATH after the right-most instance of the desired origin AS for the aggregate. |
 | `6.1:1` | `feature-out-of-scope` (never bound Ze): the RFC makes a feature OPTIONAL, Ze decided not to offer it, and this obligation is conditional on offering it | Binds an operator "When aggregating prefixes", which needs an aggregation feature in the speaker. RFC 4271 Section 9.1 makes route aggregation optional: "Route aggregation and information reduction can optionally be performed within this phase." Owner decision 2026-10-18 scoped this work to RFC 9774 and not to an aggregation feature (spec-bgp-rfc9774-as-set-deprecation, Key Design Decisions). Ze has no aggregation code: the AS_PATH parsers (ParseASPathText, internal/core/bgp/attribute/text.go) build only AS_SEQUENCE. | When aggregating prefixes, network operators MUST use consistent brief aggregation as described in Section 5.2. |
 
 ## Superseded

@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0.0% | 0 of 6 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 6 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 6 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 57.6% | 19 of 33 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 60.6% | 20 of 33 tagged units, 0 escaped and 1 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 | Audit verdicts | 7 | of 6 gated MUSTs judged | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 ### Neutral
@@ -67,7 +67,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 33 |
 | Tagged units | 33 |
 | Recorded audit verdicts | 7 |
-| Discrimination records | 19 |
+| Discrimination records | 21 |
 | Summary | `rfc/short/rfc4760.md` |
 | Requirement shard | `rfc/requirements/rfc4760.md` |
 | RFC text | `rfc/full/rfc4760.txt` |
@@ -148,8 +148,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Clau
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | positive | [`TestMPReachNLRI_WriteTo`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_test.go#L12) | unit/verify | unproven |
-| positive | [`TestRFC4760ReservedIsWrittenNotInherited`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc4760_reserved_test.go#L37) | unit/verify | unproven |
-| positive | [`TestRFC4760ReservedSurvivesBufferReuse`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc4760_reserved_test.go#L122) | unit/verify | unproven |
+| positive | [`TestRFC4760ReservedIsWrittenNotInherited`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc4760_reserved_test.go#L37) | unit/verify | mutant, verified |
+| positive | [`TestRFC4760ReservedSurvivesBufferReuse`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc4760_reserved_test.go#L122) | unit/verify | mutant, verified |
 
 ### [`RFC4760-3-2`](#rfc4760-3-2)
 
@@ -206,7 +206,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 | negative | [`TestRFC4760CorrectMPReachRaisesNoPeerDown`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4760_peer_down_link_test.go#L274) | unit/verify | revert, verified |
 | negative | [`TestRFC4760CorrectMPReachKeepsTheNeighborsRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4760_section7_test.go#L171) | unit/verify | unproven |
 | positive | [`TestRFC4760IncorrectMPAttributeResetsTheSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4760_mp_reach_test.go#L240) | unit/verify | revert, verified |
-| positive | [`TestRFC4760PeerDownDeletesOnlyThatNeighborsRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4760_peer_down_test.go#L48) | unit/verify | revert, verified |
+| positive | [`TestRFC4760PeerDownDeletesOnlyThatNeighborsRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4760_peer_down_test.go#L48) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | positive | [`TestHandleState_PeerDown`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_test.go#L311) | unit/verify | unproven |
 | positive | [`TestRFC4760IncorrectMPReachRaisesThePeerDownThatClearsTheRIB`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4760_peer_down_link_test.go#L232) | unit/verify | revert, verified |
 | positive | [`TestRFC4760IncorrectMPReachDeletesTheNeighborsRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4760_section7_test.go#L102) | unit/verify | revert, verified |

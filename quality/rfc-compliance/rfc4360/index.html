@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 4360 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 4360: BGP Extended Communities Attribute. 5 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 4360: BGP Extended Communities Attribute. 5 gated MUST-level requirements, 3 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 4360 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 4360: BGP Extended Communities Attribute. 5 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 4360: BGP Extended Communities Attribute. 5 gated MUST-level requirements, 3 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 4360 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 4360: BGP Extended Communities Attribute. 5 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 4360: BGP Extended Communities Attribute. 5 gated MUST-level requirements, 3 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -45,7 +45,7 @@
         <main id="top" class="has-page-sidebar" tabindex="-1">
             <section aria-labeledby="rfc-detail-title" class="md-content reveal cat-observe">
 <div class="journey-hero reveal">
-    <span class="journey-eyebrow">Supported</span>
+    <span class="journey-eyebrow">Partial</span>
     <h1 id="rfc-detail-title">RFC 4360 - BGP Extended Communities Attribute</h1>
     <p>Every requirement this repository extracted from RFC 4360, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.</p>
 </div>
@@ -122,18 +122,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 5 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 5 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 5 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 5 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 <article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>50.0%</strong><b>4 of 8 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>5</strong><b>of 9 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>3</strong><b>of 5 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>60.0%</strong><b>3 of 5 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 5 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 5 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 5 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 5 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0.0%</strong><b>0 of 5 gated MUSTs</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit</p></article>
+</div>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>60.0%</strong><b>3 of 5 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 </div>
 <p>The 9 shares marked as a part above are the whole of the 5 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -167,7 +171,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
 </tr>
 <tr><td>No test at all</td>
-<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
 </tr>
 <tr><td>Not applicable</td>
@@ -205,7 +209,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Field</th><th>Value</th></tr></thead>
 <tbody>
 <tr><td>Public status</td>
-<td>Supported</td>
+<td>Partial</td>
 </tr>
 <tr><td>Enrolment</td>
 <td>Enrolled</td>
@@ -217,10 +221,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>5</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
-<td>3</td>
+<td>0</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>0</td>
+<td>3</td>
 </tr>
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
@@ -257,14 +261,15 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Enrolled: BGP Extended Communities: five MUST-level requirements. Two are tested with both polarities over the codec (internal/core/bgp/attribute/community.go): RFC4360-2-1 (equal only when all 8 octets match) via ExtendedCommunity [8]byte equality, RFC4360-x-1 (length a multiple of 8) via ParseExtendedCommunities (wired at wire.go:412). Three are {not-applicable}: RFC4360-6-1 (best-path/forwarding-loop) since ze&#39;s best-path (rib/bestpath.go) never reads Extended Communities; RFC4360-7-1 and RFC4360-7-2 are IANA type-registry allocation rules, not implementation behavior. A non-supporting speaker&#39;s pass-through is RFC 4271&#39;s rule (RFC4271-5-3), so no RFC 4360 row carries it (rfc/corrections/rfc4360.md). The 6-2 SHOULD, 6-3 SHOULD NOT and 6-4/6-5 MAYs are not gated.</p>
+<p>Enrolled: BGP Extended Communities: five MUST-level requirements. Two are tested with both polarities over the codec (internal/core/bgp/attribute/community.go): RFC4360-2-1 (equal only when all 8 octets match) via ExtendedCommunity [8]byte equality, RFC4360-x-1 (length a multiple of 8) via ParseExtendedCommunities (wired at wire.go:412). Three are gaps: RFC4360-6-1, which ze&#39;s decision process meets (rib/bestpath.go reads no Extended Community) with no test and with operator policy free to steer selection from one, and RFC4360-7-1 and 7-2, IANA type-allocation rules no sentence scopes to a role, which no test checks against ze&#39;s type table. A non-supporting speaker&#39;s pass-through is RFC 4271&#39;s rule (RFC4271-5-3), so no RFC 4360 row carries it (rfc/corrections/rfc4360.md). The 6-2 SHOULD, 6-3 SHOULD NOT and 6-4/6-5 MAYs are not gated.</p>
 </section>
 <section><h2>What the public ledger says</h2>
-<p><strong>Status:</strong> Supported</p>
+<p><strong>Status:</strong> Partial</p>
 <p><strong>What the ledger says is covered:</strong></p>
 Extended community attribute parsing, encoding, JSON, and policy use.
-<p><strong>What the ledger says remains:</strong></p>
-No tracked gap in current source anchors.
+<details class="rfc-fold"><summary>What the ledger says remains</summary>
+Three MUST gaps in the requirement checklist: no test proves the decision process reads no Extended Community, and policy may steer selection from one with nothing refusing a loop (<a href="#rfc4360-6-1"><code>RFC4360-6-1</code></a>); no test checks ze&#39;s type table against the IANA allocation rules (<a href="#rfc4360-7-1"><code>RFC4360-7-1</code></a>, 7-2).
+</details>
 </section>
 <section><h2>Coverage</h2>
 <div class="rfc-table-wrap">
@@ -307,7 +312,7 @@ No tracked gap in current source anchors.
 <p class="rfc-id-list"><strong>Annotated (including scoped evidence) (3):</strong> <a href="#rfc4360-6-1"><code>RFC4360-6-1</code></a>, <a href="#rfc4360-7-1"><code>RFC4360-7-1</code></a>, <a href="#rfc4360-7-2"><code>RFC4360-7-2</code></a></p>
 </section>
 <section><h2>Attainable ceiling</h2>
-<p>Mandatory ceiling: 2 of 5 (40.0%); excluded: Not applicable (classification can be revisited): 3 of 5 (60.0%). Optional ceiling: 4 of 4 (100.0%). Lowest mandatory ceiling: rfc4360 2 of 5 (40.0%). Lowest optional ceiling: rfc4360 4 of 4 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.</p>
+<p>Mandatory ceiling: 5 of 5 (100.0%). Optional ceiling: 4 of 4 (100.0%). Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: rfc4360 5 of 5 (100.0%). Lowest optional ceiling: rfc4360 4 of 4 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.</p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -321,7 +326,7 @@ No tracked gap in current source anchors.
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4360-6-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze&#39;s best-path decision (internal/component/bgp/plugins/rib/bestpath.go) selects on the RFC 4271 tie-breakers only -- LOCAL_PREF, AS_PATH length, ORIGIN, MED, ..., Router ID -- and never reads the Extended Communities attribute, so there is no ext-comm-driven path selection that could create a forwarding loop</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> gap in proof: internal/component/bgp/plugins/rib/bestpath.go::comparePair meets it for the decision process itself, whose steps read no Extended Community; no test asserts it, and operator policy can still steer selection from an Extended Community (filter_community_match matches one, filter_modify then sets local-preference) with nothing refusing a policy that loops</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4360-7-1">RFC4360-7-1</code></td><td colspan="3"><span class="rfc-subject">The value allocated for a regular Type MUST NOT be reused as the value of the high-order octet when allocating an extended Type. (§7)</span></td></tr>
 <tr><td></td>
@@ -330,7 +335,7 @@ No tracked gap in current source anchors.
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4360-7-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> this constrains the IANA Extended Community type-code registry allocation, not a BGP implementation; ze consumes registry type codes and does not allocate them</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> an IANA allocation rule with no implementer role the RFC names; ze allocates no Type value, and its codec (internal/core/bgp/attribute/community.go) reads only codes IANA assigned; no test pins ze&#39;s type table against the registry, so nothing proves ze treats no regular Type as an extended Type&#39;s high-order octet</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4360-7-2">RFC4360-7-2</code></td><td colspan="3"><span class="rfc-subject">The value of the high-order octet allocated for an extended Type MUST NOT be reused when allocating a regular Type (§7)</span></td></tr>
 <tr><td></td>
@@ -339,7 +344,7 @@ No tracked gap in current source anchors.
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4360-7-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> same as 7-1 -- an IANA type-allocation rule on the registry, not implementation behavior; ze does not allocate Extended Community type codes</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> the converse IANA allocation rule of RFC4360-7-1, with no implementer role the RFC names; ze allocates no Type value, and no test pins the high-order octets of the extended Types ze decodes (internal/core/bgp/attribute/community.go) against the registry&#39;s regular Types</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4360-2-1">RFC4360-2-1</code></td><td colspan="3"><span class="rfc-subject">Two extended communities are declared equal only when all 8 octets of the community are equal. (§2)</span></td></tr>
 <tr><td></td>
@@ -409,16 +414,16 @@ No tracked gap in current source anchors.
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
 <tr><td><a href="#rfc4360-6-1"><code>RFC4360-6-1</code></a> The Extended Community attribute MUST NOT be used to modify the BGP best path selection algorithm in a way that leads to forwarding loops. (§6)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s best-path decision (internal/component/bgp/plugins/rib/bestpath.go) selects on the RFC 4271 tie-breakers only -- LOCAL_PREF, AS_PATH length, ORIGIN, MED, ..., Router ID -- and never reads the Extended Communities attribute, so there is no ext-comm-driven path selection that could create a forwarding loop</td>
+<td>{gap}, no test</td>
+<td>gap in proof: internal/component/bgp/plugins/rib/bestpath.go::comparePair meets it for the decision process itself, whose steps read no Extended Community; no test asserts it, and operator policy can still steer selection from an Extended Community (filter_community_match matches one, filter_modify then sets local-preference) with nothing refusing a policy that loops</td>
 </tr>
 <tr><td><a href="#rfc4360-7-1"><code>RFC4360-7-1</code></a> The value allocated for a regular Type MUST NOT be reused as the value of the high-order octet when allocating an extended Type. (§7)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: this constrains the IANA Extended Community type-code registry allocation, not a BGP implementation; ze consumes registry type codes and does not allocate them</td>
+<td>{gap}, no test</td>
+<td>an IANA allocation rule with no implementer role the RFC names; ze allocates no Type value, and its codec (internal/core/bgp/attribute/community.go) reads only codes IANA assigned; no test pins ze&#39;s type table against the registry, so nothing proves ze treats no regular Type as an extended Type&#39;s high-order octet</td>
 </tr>
 <tr><td><a href="#rfc4360-7-2"><code>RFC4360-7-2</code></a> The value of the high-order octet allocated for an extended Type MUST NOT be reused when allocating a regular Type (§7)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: same as 7-1 -- an IANA type-allocation rule on the registry, not implementation behavior; ze does not allocate Extended Community type codes</td>
+<td>{gap}, no test</td>
+<td>the converse IANA allocation rule of RFC4360-7-1, with no implementer role the RFC names; ze allocates no Type value, and no test pins the high-order octets of the extended Types ze decodes (internal/core/bgp/attribute/community.go) against the registry&#39;s regular Types</td>
 </tr>
 </tbody>
 </table>
@@ -699,7 +704,7 @@ No tracked gap in current source anchors.
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 19:30 UTC</span>
+                    <span class="footer-published">Published 30 October 2026 23:25 UTC</span>
                 </div>
             </div>
         </footer>

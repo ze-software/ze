@@ -10,12 +10,12 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 75.0% | 3 of 4 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| Tested both ways | 100.0% | 4 of 4 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 0.0% | 0 of 4 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 4 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 4 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 4 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 66.7% | 6 of 9 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 45.5% | 5 of 11 tagged units, 0 escaped and 6 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -24,8 +24,8 @@ measures that are neither good news nor bad
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | Gated MUSTs | 4 | of 7 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 1 | of 4 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 25.0% | 1 of 4 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Out of scope | 0 | of 4 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 0.0% | 0 of 4 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
 | Met below Ze | 0.0% | 0 of 4 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 4 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 | Linux cannot do this | 0.0% | 0 of 4 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit |
@@ -58,22 +58,22 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Enrolment | Enrolled |
 | Requirements | 7 |
 | Gated MUST-level | 4 |
-| Not applicable, so out of scope | 1 |
+| Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 9 |
-| Tagged units | 9 |
+| Test tags | 11 |
+| Tagged units | 11 |
 | Recorded audit verdicts | 3 |
-| Discrimination records | 6 |
+| Discrimination records | 11 |
 | Summary | `rfc/short/rfc7427.md` |
 | Requirement shard | `rfc/requirements/rfc7427.md` |
 | RFC text | `rfc/full/rfc7427.txt` |
 
 ## Enrolment
 
-Enrolled: Signature Authentication in IKEv2: three MUST-level requirements. RFC7427-3-4 (Section 3 permits the Digital Signature method only once a SIGNATURE_HASH_ALGORITHMS notify has been sent and received by each peer) is tested both polarities: computeX509Auth (internal/component/ike/engine/auth.go) refuses the method on an empty sa.RemoteHashAlgos and emits method 14 once one arrived (TestRFC7427DigitalSignatureNeedsTheNotify, TestAuthX509UsesMethod14), while PSK auth uses method 2 (TestAuthPSKCompute), and ze always sends the notify (buildSignatureHashAlgosNotify). RFC7427-4-1 (Section 4: the signer picks one algorithm the other peer sent) is tested both polarities over selectSignatureAlgorithm and computeX509Auth (TestRFC7427SignatureAlgorithmIsOneThePeerSent, TestRFC7427AuthRefusesAnAlgorithmThePeerDidNotSend). RFC7427-3-1 (ANSI X9.62 hash truncation) is {not-applicable}: ze delegates ECDSA to Go crypto/ecdsa (ecdsa.SignASN1/VerifyASN1), which does the truncation; ze implements none itself. No MUST gap remains gated. docs/features/rfc-status.md carries no RFC 7427 row, which its grandfathering permits and which no change here alters.
+Enrolled: Signature Authentication in IKEv2: four MUST-level requirements. RFC7427-3-4 (Section 3 permits the Digital Signature method only once a SIGNATURE_HASH_ALGORITHMS notify has been sent and received by each peer) is tested both polarities: computeX509Auth (internal/component/ike/engine/auth.go) refuses the method on an empty sa.RemoteHashAlgos and emits method 14 once one arrived (TestRFC7427DigitalSignatureNeedsTheNotify, TestAuthX509UsesMethod14), while PSK auth uses method 2 (TestAuthPSKCompute), and ze always sends the notify (buildSignatureHashAlgosNotify). RFC7427-4-1 (Section 4: the signer picks one algorithm the other peer sent) is tested both polarities over selectSignatureAlgorithm and computeX509Auth (TestRFC7427SignatureAlgorithmIsOneThePeerSent, TestRFC7427AuthRefusesAnAlgorithmThePeerDidNotSend). RFC7427-3-1 (ANSI X9.62 hash truncation) binds Ze as signer and verifier, and Go crypto/ecdsa (ecdsa.SignASN1, ecdsa.VerifyASN1) performs the truncation on the full digest Ze hands it: TestRFC7427ECDSAHashTruncationIsX962 has verifyRemoteAuth accept a P-256 peer's ecdsa-with-SHA384 signature over the leftmost 256 bits of the digest and refuse one over the rightmost 256. No MUST gap remains gated. docs/features/rfc-status.md carries no RFC 7427 row, which its grandfathering permits and which no change here alters.
 
 ## What the public ledger says
 
@@ -83,8 +83,8 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 3 | one part of the gated population |
-| Annotated (including scoped evidence) | 1 | one part of the gated population |
+| Positive and negative tests | 4 | one part of the gated population |
+| Annotated (including scoped evidence) | 0 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
 | Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
@@ -92,13 +92,11 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **4** | every gated MUST falls in exactly one bucket above |
 
-**Positive and negative tests (3):** [`RFC7427-4-1`](#rfc7427-4-1), [`RFC7427-3-4`](#rfc7427-3-4), [`RFC7427-3-5`](#rfc7427-3-5)
-
-**Annotated (including scoped evidence) (1):** [`RFC7427-3-1`](#rfc7427-3-1)
+**Positive and negative tests (4):** [`RFC7427-4-1`](#rfc7427-4-1), [`RFC7427-3-4`](#rfc7427-3-4), [`RFC7427-3-5`](#rfc7427-3-5), [`RFC7427-3-1`](#rfc7427-3-1)
 
 ## Attainable ceiling
 
-Mandatory ceiling: 3 of 4 (75.0%); excluded: Not applicable (classification can be revisited): 1 of 4 (25.0%). Optional ceiling: 3 of 3 (100.0%). Lowest mandatory ceiling: rfc7427 3 of 4 (75.0%). Lowest optional ceiling: rfc7427 3 of 3 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+Mandatory ceiling: 4 of 4 (100.0%). Optional ceiling: 3 of 3 (100.0%). Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: rfc7427 4 of 4 (100.0%). Lowest optional ceiling: rfc7427 3 of 3 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
 
 ## Requirements
 
@@ -107,16 +105,14 @@ Mandatory ceiling: 3 of 4 (75.0%); excluded: Not applicable (classification can 
 | `RFC7427-4-1` | When calculating the digital signature, a peer MUST pick one algorithm sent by the other peer. (§4) | MUST | 4 | **positive:** `unit/verify` [`TestRFC7427SignatureAlgorithmIsOneThePeerSent`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7427_sighash_test.go#L129). **negative:** `unit/verify` [`TestRFC7427AuthRefusesAnAlgorithmThePeerDidNotSend`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7427_sighash_test.go#L192). **negative:** `unit/verify` [`TestRFC7427SignatureAlgorithmIsOneThePeerSent`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7427_sighash_test.go#L134) |
 | `RFC7427-3-4` | the peer is only allowed to use this authentication method if the Notify payload of type SIGNATURE_HASH_ALGORITHMS has been sent and received by each peer. (§3) | MUST | 3 | **positive:** `unit/verify` [`TestAuthX509UsesMethod14`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7427_auth_test.go#L73). **positive:** `unit/verify` [`TestRFC7427DigitalSignatureNeedsTheNotify`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7427_sighash_test.go#L89). **positive:** `unit/verify` [`TestRFC7427IKESAInitSendsTheSignatureHashAlgorithmsNotify`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7427_notify_sent_test.go#L54). **negative:** `unit/verify` [`TestRFC7427DigitalSignatureNeedsTheNotify`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7427_sighash_test.go#L95) |
 | `RFC7427-3-5` | If both ends send and receive SIGNATURE_HASH_ALGORITHMS Notify payloads, and signature authentication is to be used, then the authentication method specified in this Authentication payload MUST be used. (§3) | MUST | 3 | **positive:** `unit/verify` [`TestRFC7427DigitalSignatureMethodIsUsed`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7427_method_test.go#L24). **negative:** `unit/verify` [`TestRFC7427DigitalSignatureMethodIsUsed`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7427_method_test.go#L25) |
-| `RFC7427-3-1` | For hash truncation, the method specified in ANSI X9.62:2005 [X9.62] MUST be used. (§3) | MUST | 3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze does not implement ECDSA hash truncation itself -- it passes the full digest to Go's crypto/ecdsa (signDigest -> ecdsa.SignASN1, and verifySignature -> ecdsa.VerifyASN1, both in internal/component/ike/engine/auth.go), which performs the FIPS 186-4 / ANSI X9.62 leftmost-bits truncation internally. There is no ze-authored truncation code to gate |
+| `RFC7427-3-1` | For hash truncation, the method specified in ANSI X9.62:2005 [X9.62] MUST be used. (§3) | MUST | 3 | **positive:** `unit/verify` [`TestRFC7427ECDSAHashTruncationIsX962`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7427_truncation_test.go#L52). **negative:** `unit/verify` [`TestRFC7427ECDSAHashTruncationIsX962`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7427_truncation_test.go#L57) |
 | `RFC7427-4-2` | The supported hash algorithms that can be used for the signature algorithms are indicated with a Notify payload of type SIGNATURE_HASH_ALGORITHMS sent inside the IKE_SA_INIT exchange. This notification also implicitly indicates support of the new "Digital Signature" algorithm method, as well as the list of hash functions supported by the sending peer. Both ends send their list of supported hash algorithms. (§4) | SHOULD | 4 | **positive:** no positive test. **negative:** no negative test |
 | `RFC7427-3-2` | When encoding the ASN.1, implementations SHOULD use the preferred format called for by the algorithm specification. If the algorithm specification says "preferredPresent", then the parameters object needs to be present, although it will be NULL if no parameters are specified. If the algorithm specification says "preferredAbsent", then the entire optional parameters object is missing. (§3) | SHOULD | 3 | **positive:** no positive test. **negative:** no negative test |
 | `RFC7427-3-3` | This length field allows simple implementations to know the length of the ASN.1 object without the need to parse it, so they can use it as a binary blob to be compared against known signature algorithm ASN.1 objects. (§3) | MAY | 3 | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
-| Requirement | State | Reason |
-|---|---|---|
-| [`RFC7427-3-1`](#rfc7427-3-1) For hash truncation, the method specified in ANSI X9.62:2005 [X9.62] MUST be used. (§3) | no test | no test carries this requirement id; annotated {not-applicable}: ze does not implement ECDSA hash truncation itself -- it passes the full digest to Go's crypto/ecdsa (signDigest -> ecdsa.SignASN1, and verifySignature -> ecdsa.VerifyASN1, both in internal/component/ike/engine/auth.go), which performs the FIPS 186-4 / ANSI X9.62 leftmost-bits truncation internally. There is no ze-authored truncation code to gate |
+RFC 7427 declares no gap, and every gated MUST it carries has a test bound to it.
 
 ## Proof state
 
@@ -130,9 +126,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC7427AuthRefusesAnAlgorithmThePeerDidNotSend`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7427_sighash_test.go#L192) | unit/verify | unproven |
-| negative | [`TestRFC7427SignatureAlgorithmIsOneThePeerSent`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7427_sighash_test.go#L134) | unit/verify | unproven |
-| positive | [`TestRFC7427SignatureAlgorithmIsOneThePeerSent`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7427_sighash_test.go#L129) | unit/verify | unproven |
+| negative | [`TestRFC7427AuthRefusesAnAlgorithmThePeerDidNotSend`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7427_sighash_test.go#L192) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC7427SignatureAlgorithmIsOneThePeerSent`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7427_sighash_test.go#L134) | unit/verify | revert, verified |
+| positive | [`TestRFC7427SignatureAlgorithmIsOneThePeerSent`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7427_sighash_test.go#L129) | unit/verify | revert, verified |
 
 ### [`RFC7427-3-4`](#rfc7427-3-4)
 
@@ -142,10 +138,10 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Rece
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC7427DigitalSignatureNeedsTheNotify`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7427_sighash_test.go#L95) | unit/verify | revert, verified |
-| positive | [`TestAuthX509UsesMethod14`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7427_auth_test.go#L73) | unit/verify | revert, verified |
+| negative | [`TestRFC7427DigitalSignatureNeedsTheNotify`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7427_sighash_test.go#L95) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestAuthX509UsesMethod14`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7427_auth_test.go#L73) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | positive | [`TestRFC7427IKESAInitSendsTheSignatureHashAlgorithmsNotify`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7427_notify_sent_test.go#L54) | unit/verify | revert, verified |
-| positive | [`TestRFC7427DigitalSignatureNeedsTheNotify`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7427_sighash_test.go#L89) | unit/verify | revert, verified |
+| positive | [`TestRFC7427DigitalSignatureNeedsTheNotify`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7427_sighash_test.go#L89) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC7427-3-5`](#rfc7427-3-5)
 
@@ -155,8 +151,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC7427DigitalSignatureMethodIsUsed`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7427_method_test.go#L25) | unit/verify | revert, verified |
-| positive | [`TestRFC7427DigitalSignatureMethodIsUsed`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7427_method_test.go#L24) | unit/verify | revert, verified |
+| negative | [`TestRFC7427DigitalSignatureMethodIsUsed`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7427_method_test.go#L25) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC7427DigitalSignatureMethodIsUsed`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7427_method_test.go#L24) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC7427-3-1`](#rfc7427-3-1)
 
@@ -164,7 +160,10 @@ For hash truncation, the method specified in ANSI X9.62:2005 [X9.62] MUST be use
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC7427-3-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC7427ECDSAHashTruncationIsX962`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7427_truncation_test.go#L57) | unit/verify | revert, verified |
+| positive | [`TestRFC7427ECDSAHashTruncationIsX962`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7427_truncation_test.go#L52) | unit/verify | revert, verified |
 
 ## Extraction sign-off
 

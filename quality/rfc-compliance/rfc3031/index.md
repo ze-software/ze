@@ -1,6 +1,6 @@
 # RFC 3031 - Multiprotocol Label Switching Architecture
 
-No row in the public ledger. Every requirement this repository extracted from RFC 3031, the tests bound to it, and what a reader has verified about them. This summary is not enrolled.
+Partial. Every requirement this repository extracted from RFC 3031, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
 
 ## Overview
 
@@ -22,9 +22,9 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| MUSTs declared | 10 | of 12 this summary declares | MUST-level requirements this summary DECLARES. The gate holds none of them, because this RFC is not enrolled (third-party), so every share below reads what the summary records rather than what the gate enforces |
-| Out of scope | 4 | of 10 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 40.0% | 4 of 10 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Gated MUSTs | 10 | of 12 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
+| Out of scope | 0 | of 10 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 0.0% | 0 of 10 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
 | Met below Ze | 0.0% | 0 of 10 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 10 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 | Linux cannot do this | 0.0% | 0 of 10 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit |
@@ -35,7 +35,7 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 40.0% | 4 of 10 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| No test at all | 80.0% | 8 of 10 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
 The 9 shares marked as a part above are the whole of the 10 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -43,7 +43,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| MUSTs declared | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
+| Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
@@ -61,14 +61,14 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 | Field | Value |
 |---|---|
-| Public status | No row in the public ledger |
-| Enrolment | Not enrolled (third-party) |
+| Public status | Partial |
+| Enrolment | Enrolled |
 | Requirements | 12 |
 | Gated MUST-level | 10 |
-| Not applicable, so out of scope | 4 |
-| Declared gaps | 0 |
+| Not applicable, so out of scope | 0 |
+| Declared gaps | 8 |
 | Declared gaps a test demonstrates | 0 |
-| Gated with no test | 4 |
+| Gated with no test | 0 |
 | Nightly-only evidence | 0 |
 | Test tags | 5 |
 | Tagged units | 5 |
@@ -80,20 +80,28 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 ## Enrolment
 
-Not enrolled (third-party, a layer under or beside Ze performs the document and Ze holds no Go code for it, so the reason beside this kind names the component that does): The Linux AF_MPLS forwarding path performs label lookup, swap and TTL handling. Ze only installs the swap route, internal/plugins/fib/kernel/mplsentry_linux.go::addMPLSSwap.
+Enrolled: Multiprotocol Label Switching Architecture: ten MUST-level requirements. Four are forwarding-plane behaviors executed below ze, by Linux AF_MPLS or the VPP FIB, and are gaps in proof naming both halves: ze is an MPLS control plane that programs label operations as kernel AF_MPLS routes (internal/plugins/fib/kernel/mplsentry_linux.go addMPLSSwap) and VPP entries (internal/plugins/fib/vpp/mpls.go), and has no in-process MPLS packet-forwarding path. Six bind ze's own label distribution, four of them with no test under their ids (3.16-2, 3.16-3, 3.23-1, 4.1.2.2-1): label-value uniqueness per peer (S3.14), the three penultimate-hop-popping obligations (S3.16), the shim TTL field (S3.23), and the per-prefix label binding and distribution each LSR owes (S4.1.2.2).
 
 ## What the public ledger says
 
-No row in the public ledger, so its summary declares `| Support | - |` and docs/features/rfc-status.md carries no row for RFC 3031.
+**Status:** Partial
+
+**What the ledger says is covered:**
+
+Label distribution and label route installation on the Linux AF_MPLS and VPP FIB backends.
+
+**What the ledger says remains**
+
+Eight MUST gaps. Four are gaps in proof ([`RFC3031-3.8-1`](#rfc3031-3.8-1), 3.10-1, 3.10-2, x-1): the forwarding behaviour runs on Linux AF_MPLS or VPP over the entries ze installs, and no test reads those entries back. Four bind ze's own label distribution or the shim the forwarders build and carry no test under these ids ([`RFC3031-3.16-2`](#rfc3031-3.16-2), 3.16-3, 3.23-1, 4.1.2.2-1).
 
 ## Coverage
 
 | Bucket | Count | What it counts |
 |---|---|---|
 | Positive and negative tests | 2 | one part of the gated population |
-| Annotated (including scoped evidence) | 4 | one part of the gated population |
+| Annotated (including scoped evidence) | 8 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 4 | one part of the gated population |
+| No test and no annotation | 0 | one part of the gated population |
 | Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
@@ -101,28 +109,26 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 
 **Positive and negative tests (2):** [`RFC3031-3.14-1`](#rfc3031-3.14-1), [`RFC3031-3.16-1`](#rfc3031-3.16-1)
 
-**Annotated (including scoped evidence) (4):** [`RFC3031-3.8-1`](#rfc3031-3.8-1), [`RFC3031-3.10-1`](#rfc3031-3.10-1), [`RFC3031-3.10-2`](#rfc3031-3.10-2), [`RFC3031-x-1`](#rfc3031-x-1)
-
-**No test and no annotation (4):** [`RFC3031-3.16-2`](#rfc3031-3.16-2), [`RFC3031-3.16-3`](#rfc3031-3.16-3), [`RFC3031-3.23-1`](#rfc3031-3.23-1), [`RFC3031-4.1.2.2-1`](#rfc3031-4.1.2.2-1)
+**Annotated (including scoped evidence) (8):** [`RFC3031-3.8-1`](#rfc3031-3.8-1), [`RFC3031-3.10-1`](#rfc3031-3.10-1), [`RFC3031-3.10-2`](#rfc3031-3.10-2), [`RFC3031-x-1`](#rfc3031-x-1), [`RFC3031-3.16-2`](#rfc3031-3.16-2), [`RFC3031-3.16-3`](#rfc3031-3.16-3), [`RFC3031-3.23-1`](#rfc3031-3.23-1), [`RFC3031-4.1.2.2-1`](#rfc3031-4.1.2.2-1)
 
 ## Attainable ceiling
 
-Mandatory ceiling: 6 of 10 (60.0%); excluded: Not applicable (classification can be revisited): 4 of 10 (40.0%). Optional ceiling: 2 of 2 (100.0%). Lowest mandatory ceiling: rfc3031 6 of 10 (60.0%). Lowest optional ceiling: rfc3031 2 of 2 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+Mandatory ceiling: 10 of 10 (100.0%). Optional ceiling: 2 of 2 (100.0%). Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: rfc3031 10 of 10 (100.0%). Lowest optional ceiling: rfc3031 2 of 2 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
 
 ## Requirements
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC3031-3.8-1` | The "Next Hop Label Forwarding Entry" (NHLFE) is used when forwarding a labeled packet. (§3.10) | MUST | 3.10 - The NHLFE | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze is an MPLS control plane that programs the incoming-label-to-NHLFE mapping as kernel AF_MPLS routes (internal/plugins/fib/kernel/mplsentry_linux.go:21 addMPLSSwap) and VPP entries (internal/plugins/fib/vpp/mpls.go); the NHLFE lookup on a forwarded packet is executed by the kernel/VPP dataplane, and ze has no in-process MPLS packet-forwarding path |
+| `RFC3031-3.8-1` | The "Next Hop Label Forwarding Entry" (NHLFE) is used when forwarding a labeled packet. (§3.10) | MUST | 3.10 - The NHLFE | **positive:** no positive test. **negative:** no negative test. **{gap}:** gap in proof: two forwarding backends carry ze's labels, and the proof is missing on both halves. On Linux, AF_MPLS (net/mpls, linux:CONFIG_MPLS_ROUTING) looks up the NHLFE for each labeled packet in the label routes internal/plugins/fib/kernel/mplsentry_linux.go::addMPLSSwap installs; on the VPP FIB backend, VPP does the same from the entries internal/plugins/fib/vpp/mpls.go::addMPLSSwap programs. No test reads the installed entry back on either |
 | `RFC3031-3.14-1` | In all other cases, Rd MUST NOT distribute to Ru bindings of the same label value to two different FECs (S3.14) | MUST | 3.14 | **positive:** `unit/verify` [`TestRFC3031LocalFECsGetDistinctLabels`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc3031_label_test.go#L60). **negative:** `unit/verify` [`TestLDPLabelExhaustionRefusesSecondBinding`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc3031_label_test.go#L195). **negative:** `unit/verify` [`TestRFC3031WrappedAllocatorNeverReissuesALabel`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc3031_label_test.go#L93) |
-| `RFC3031-3.10-1` | If the packet's "next hop" is the current LSR, then the label stack operation MUST be to "pop the stack" (S3.10) | MUST | 3.10 - The NHLFE | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** the NHLFE label stack operation is executed on a forwarded packet by the kernel AF_MPLS or VPP dataplane; ze programs the pop disposition as a route (internal/plugins/fib/kernel/mplsentry_linux.go:44-56) and has no in-process MPLS packet-forwarding path |
-| `RFC3031-3.10-2` | The processing is always based on the top label, without regard for the possibility that some number of other labels may have been "above it" in the past, or that some number of other labels may be below it at present. (§3.9) | MUST | 3.9 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze keys each programmed swap entry on the top/incoming label (internal/plugins/fib/kernel/mplsentry_linux.go:24 MPLSDst), but the top-label-only forwarding decision on a packet is executed by the kernel dataplane; ze has no in-process forwarding path |
-| `RFC3031-x-1` | Therefore, when a labeled packet is received with an invalid incoming label, it MUST be discarded, UNLESS it is determined by some means (not within the scope of the current document) that forwarding it unlabeled cannot cause any harm. (§3.18) | MUST | 3.18 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** discarding a packet whose top label has no ILM entry is executed by the kernel/VPP dataplane on a lookup miss; ze programs the entries and has no MPLS packet-forwarding path that could observe an unknown-label miss |
+| `RFC3031-3.10-1` | If the packet's "next hop" is the current LSR, then the label stack operation MUST be to "pop the stack" (S3.10) | MUST | 3.10 - The NHLFE | **positive:** no positive test. **negative:** no negative test. **{gap}:** gap in proof: two forwarding backends carry ze's labels, and the proof is missing on both halves. On Linux, AF_MPLS (net/mpls, linux:CONFIG_MPLS_ROUTING) pops the stack for the pop disposition ze installs as a label route (internal/plugins/fib/kernel/mplsentry_linux.go); on the VPP FIB backend, VPP pops for the entries internal/plugins/fib/vpp/mpls.go programs. No test reads the installed disposition back on either |
+| `RFC3031-3.10-2` | The processing is always based on the top label, without regard for the possibility that some number of other labels may have been "above it" in the past, or that some number of other labels may be below it at present. (§3.9) | MUST | 3.9 | **positive:** no positive test. **negative:** no negative test. **{gap}:** gap in proof: two forwarding backends carry ze's labels, and the proof is missing on both halves. ze keys each entry on the incoming top label, MPLSDst in internal/plugins/fib/kernel/mplsentry_linux.go::addMPLSSwap and inLabel in internal/plugins/fib/vpp/mpls.go::addMPLSSwap, and Linux AF_MPLS (net/mpls, linux:CONFIG_MPLS_ROUTING) or VPP makes the top-label-only decision on each packet. No test reads the installed key back on either |
+| `RFC3031-x-1` | Therefore, when a labeled packet is received with an invalid incoming label, it MUST be discarded, UNLESS it is determined by some means (not within the scope of the current document) that forwarding it unlabeled cannot cause any harm. (§3.18) | MUST | 3.18 | **positive:** no positive test. **negative:** no negative test. **{gap}:** gap in proof: two forwarding backends carry ze's labels, and the proof is missing on both halves. Linux AF_MPLS (net/mpls, linux:CONFIG_MPLS_ROUTING) drops a packet whose top label has no route among those internal/plugins/fib/kernel/mplsentry_linux.go::addMPLSSwap installs, and VPP drops on a lookup miss in the table internal/plugins/fib/vpp/mpls.go programs; ze installs no unlabeled fallback on either. No test sends an unknown label on either |
 | `RFC3031-3.16-1` | An LSR which is capable of popping the label stack at all MUST do penultimate hop popping when so requested by its downstream label distribution peer (S3.16) | MUST | 3.16 | **positive:** `unit/verify` [`TestApplyRemoteBindingImplicitNull`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc3031_label_test.go#L171). **negative:** `unit/verify` [`TestApplyRemoteBindingRealLabel`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc3031_label_test.go#L154) |
-| `RFC3031-3.16-2` | Initial label distribution protocol negotiations MUST allow each LSR to determine whether its neighboring LSRS are capable of popping the label stack. (S3.16) | MUST | 3.16 | **positive:** no positive test. **negative:** no negative test |
-| `RFC3031-3.16-3` | A LSR MUST NOT request a label distribution peer to pop the label stack unless it is capable of doing so (S3.16) | MUST | 3.16 | **positive:** no positive test. **negative:** no negative test |
-| `RFC3031-3.23-1` | If the label values are encoded in a "shim" that sits between the data link and network layer headers, then this shim MUST have a TTL field that SHOULD be initially loaded from the network layer header TTL field, SHOULD be decremented at each LSR-hop, and SHOULD be copied into the network layer header TTL field when the packet emerges from its LSP (S3.23) | MUST | 3.23 | **positive:** no positive test. **negative:** no negative test |
-| `RFC3031-4.1.2.2-1` | In order to use MPLS for the forwarding of packets according to the hop-by-hop route corresponding to any address prefix, each LSR MUST: 1. bind one or more labels to each address prefix that appears in its routing table; 2. for each such address prefix X, use a label distribution protocol to distribute the binding of a label to X to each of its label distribution peers for X. (S4.1.2.2) | MUST | 4.1.2.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC3031-3.16-2` | Initial label distribution protocol negotiations MUST allow each LSR to determine whether its neighboring LSRS are capable of popping the label stack. (S3.16) | MUST | 3.16 | **positive:** no positive test. **negative:** no negative test. **{gap}:** unverified: ze's LDP (internal/plugins/ldp) applies the implicit null label a peer advertises, but no test carries this id or shows that the session negotiation lets ze learn whether a neighbour can pop the label stack |
+| `RFC3031-3.16-3` | A LSR MUST NOT request a label distribution peer to pop the label stack unless it is capable of doing so (S3.16) | MUST | 3.16 | **positive:** no positive test. **negative:** no negative test. **{gap}:** unverified: no test carries this id or shows that ze asks a peer for penultimate hop popping, by advertising implicit null, only where it can pop the stack itself through the pop entry it installs (internal/plugins/fib/kernel/mplsentry_linux.go) |
+| `RFC3031-3.23-1` | If the label values are encoded in a "shim" that sits between the data link and network layer headers, then this shim MUST have a TTL field that SHOULD be initially loaded from the network layer header TTL field, SHOULD be decremented at each LSR-hop, and SHOULD be copied into the network layer header TTL field when the packet emerges from its LSP (S3.23) | MUST | 3.23 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the shim is built by Linux AF_MPLS (net/mpls) or by VPP from the label routes ze installs (internal/plugins/fib/kernel/mplsentry_linux.go::addMPLSSwap, internal/plugins/fib/vpp/mpls.go::addMPLSSwap), and no test carries this id on either |
+| `RFC3031-4.1.2.2-1` | In order to use MPLS for the forwarding of packets according to the hop-by-hop route corresponding to any address prefix, each LSR MUST: 1. bind one or more labels to each address prefix that appears in its routing table; 2. for each such address prefix X, use a label distribution protocol to distribute the binding of a label to X to each of its label distribution peers for X. (S4.1.2.2) | MUST | 4.1.2.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** unverified: ze's LDP binds and distributes labels for prefixes (internal/plugins/ldp/wire.go::encodeLabelMapping encodes each Label Mapping), but no test carries this id or shows a binding for every prefix in the routing table distributed to every label distribution peer |
 | `RFC3031-3.14-2` | The MPLS architecture accommodates both merging and non-merging LSRs, but allows for the fact that there may be LSRs which do not support label merging. (§3.26) | MAY | 3.26 | **positive:** no positive test. **negative:** no negative test |
 | `RFC3031-2.1-1` | Sometimes it is desirable to force a packet to follow a particular route which is explicitly chosen at or before the time the packet enters the network, rather than being chosen by the normal dynamic routing algorithm as the packet travels through the network. This may be done as a matter of policy, or to support traffic engineering. (S2.1) | MAY | 2.1 | **positive:** no positive test. **negative:** no negative test |
 
@@ -130,14 +136,14 @@ Mandatory ceiling: 6 of 10 (60.0%); excluded: Not applicable (classification can
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC3031-3.8-1`](#rfc3031-3.8-1) The "Next Hop Label Forwarding Entry" (NHLFE) is used when forwarding a labeled packet. (§3.10) | no test | no test carries this requirement id; annotated {not-applicable}: ze is an MPLS control plane that programs the incoming-label-to-NHLFE mapping as kernel AF_MPLS routes (internal/plugins/fib/kernel/mplsentry_linux.go:21 addMPLSSwap) and VPP entries (internal/plugins/fib/vpp/mpls.go); the NHLFE lookup on a forwarded packet is executed by the kernel/VPP dataplane, and ze has no in-process MPLS packet-forwarding path |
-| [`RFC3031-3.10-1`](#rfc3031-3.10-1) If the packet's "next hop" is the current LSR, then the label stack operation MUST be to "pop the stack" (S3.10) | no test | no test carries this requirement id; annotated {not-applicable}: the NHLFE label stack operation is executed on a forwarded packet by the kernel AF_MPLS or VPP dataplane; ze programs the pop disposition as a route (internal/plugins/fib/kernel/mplsentry_linux.go:44-56) and has no in-process MPLS packet-forwarding path |
-| [`RFC3031-3.10-2`](#rfc3031-3.10-2) The processing is always based on the top label, without regard for the possibility that some number of other labels may have been "above it" in the past, or that some number of other labels may be below it at present. (§3.9) | no test | no test carries this requirement id; annotated {not-applicable}: ze keys each programmed swap entry on the top/incoming label (internal/plugins/fib/kernel/mplsentry_linux.go:24 MPLSDst), but the top-label-only forwarding decision on a packet is executed by the kernel dataplane; ze has no in-process forwarding path |
-| [`RFC3031-x-1`](#rfc3031-x-1) Therefore, when a labeled packet is received with an invalid incoming label, it MUST be discarded, UNLESS it is determined by some means (not within the scope of the current document) that forwarding it unlabeled cannot cause any harm. (§3.18) | no test | no test carries this requirement id; annotated {not-applicable}: discarding a packet whose top label has no ILM entry is executed by the kernel/VPP dataplane on a lookup miss; ze programs the entries and has no MPLS packet-forwarding path that could observe an unknown-label miss |
-| [`RFC3031-3.16-2`](#rfc3031-3.16-2) Initial label distribution protocol negotiations MUST allow each LSR to determine whether its neighboring LSRS are capable of popping the label stack. (S3.16) | no test | no test carries this requirement id |
-| [`RFC3031-3.16-3`](#rfc3031-3.16-3) A LSR MUST NOT request a label distribution peer to pop the label stack unless it is capable of doing so (S3.16) | no test | no test carries this requirement id |
-| [`RFC3031-3.23-1`](#rfc3031-3.23-1) If the label values are encoded in a "shim" that sits between the data link and network layer headers, then this shim MUST have a TTL field that SHOULD be initially loaded from the network layer header TTL field, SHOULD be decremented at each LSR-hop, and SHOULD be copied into the network layer header TTL field when the packet emerges from its LSP (S3.23) | no test | no test carries this requirement id |
-| [`RFC3031-4.1.2.2-1`](#rfc3031-4.1.2.2-1) In order to use MPLS for the forwarding of packets according to the hop-by-hop route corresponding to any address prefix, each LSR MUST: 1. bind one or more labels to each address prefix that appears in its routing table; 2. for each such address prefix X, use a label distribution protocol to distribute the binding of a label to X to each of its label distribution peers for X. (S4.1.2.2) | no test | no test carries this requirement id |
+| [`RFC3031-3.8-1`](#rfc3031-3.8-1) The "Next Hop Label Forwarding Entry" (NHLFE) is used when forwarding a labeled packet. (§3.10) | {gap}, no test | gap in proof: two forwarding backends carry ze's labels, and the proof is missing on both halves. On Linux, AF_MPLS (net/mpls, linux:CONFIG_MPLS_ROUTING) looks up the NHLFE for each labeled packet in the label routes internal/plugins/fib/kernel/mplsentry_linux.go::addMPLSSwap installs; on the VPP FIB backend, VPP does the same from the entries internal/plugins/fib/vpp/mpls.go::addMPLSSwap programs. No test reads the installed entry back on either |
+| [`RFC3031-3.10-1`](#rfc3031-3.10-1) If the packet's "next hop" is the current LSR, then the label stack operation MUST be to "pop the stack" (S3.10) | {gap}, no test | gap in proof: two forwarding backends carry ze's labels, and the proof is missing on both halves. On Linux, AF_MPLS (net/mpls, linux:CONFIG_MPLS_ROUTING) pops the stack for the pop disposition ze installs as a label route (internal/plugins/fib/kernel/mplsentry_linux.go); on the VPP FIB backend, VPP pops for the entries internal/plugins/fib/vpp/mpls.go programs. No test reads the installed disposition back on either |
+| [`RFC3031-3.10-2`](#rfc3031-3.10-2) The processing is always based on the top label, without regard for the possibility that some number of other labels may have been "above it" in the past, or that some number of other labels may be below it at present. (§3.9) | {gap}, no test | gap in proof: two forwarding backends carry ze's labels, and the proof is missing on both halves. ze keys each entry on the incoming top label, MPLSDst in internal/plugins/fib/kernel/mplsentry_linux.go::addMPLSSwap and inLabel in internal/plugins/fib/vpp/mpls.go::addMPLSSwap, and Linux AF_MPLS (net/mpls, linux:CONFIG_MPLS_ROUTING) or VPP makes the top-label-only decision on each packet. No test reads the installed key back on either |
+| [`RFC3031-x-1`](#rfc3031-x-1) Therefore, when a labeled packet is received with an invalid incoming label, it MUST be discarded, UNLESS it is determined by some means (not within the scope of the current document) that forwarding it unlabeled cannot cause any harm. (§3.18) | {gap}, no test | gap in proof: two forwarding backends carry ze's labels, and the proof is missing on both halves. Linux AF_MPLS (net/mpls, linux:CONFIG_MPLS_ROUTING) drops a packet whose top label has no route among those internal/plugins/fib/kernel/mplsentry_linux.go::addMPLSSwap installs, and VPP drops on a lookup miss in the table internal/plugins/fib/vpp/mpls.go programs; ze installs no unlabeled fallback on either. No test sends an unknown label on either |
+| [`RFC3031-3.16-2`](#rfc3031-3.16-2) Initial label distribution protocol negotiations MUST allow each LSR to determine whether its neighboring LSRS are capable of popping the label stack. (S3.16) | {gap}, no test | unverified: ze's LDP (internal/plugins/ldp) applies the implicit null label a peer advertises, but no test carries this id or shows that the session negotiation lets ze learn whether a neighbour can pop the label stack |
+| [`RFC3031-3.16-3`](#rfc3031-3.16-3) A LSR MUST NOT request a label distribution peer to pop the label stack unless it is capable of doing so (S3.16) | {gap}, no test | unverified: no test carries this id or shows that ze asks a peer for penultimate hop popping, by advertising implicit null, only where it can pop the stack itself through the pop entry it installs (internal/plugins/fib/kernel/mplsentry_linux.go) |
+| [`RFC3031-3.23-1`](#rfc3031-3.23-1) If the label values are encoded in a "shim" that sits between the data link and network layer headers, then this shim MUST have a TTL field that SHOULD be initially loaded from the network layer header TTL field, SHOULD be decremented at each LSR-hop, and SHOULD be copied into the network layer header TTL field when the packet emerges from its LSP (S3.23) | {gap}, no test | the shim is built by Linux AF_MPLS (net/mpls) or by VPP from the label routes ze installs (internal/plugins/fib/kernel/mplsentry_linux.go::addMPLSSwap, internal/plugins/fib/vpp/mpls.go::addMPLSSwap), and no test carries this id on either |
+| [`RFC3031-4.1.2.2-1`](#rfc3031-4.1.2.2-1) In order to use MPLS for the forwarding of packets according to the hop-by-hop route corresponding to any address prefix, each LSR MUST: 1. bind one or more labels to each address prefix that appears in its routing table; 2. for each such address prefix X, use a label distribution protocol to distribute the binding of a label to X to each of its label distribution peers for X. (S4.1.2.2) | {gap}, no test | unverified: ze's LDP binds and distributes labels for prefixes (internal/plugins/ldp/wire.go::encodeLabelMapping encodes each Label Mapping), but no test carries this id or shows a binding for every prefix in the routing table distributed to every label distribution peer |
 
 ## Proof state
 

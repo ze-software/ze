@@ -1499,7 +1499,7 @@ clear dns cache record example.com type AAAA        # Delete a single entry by n
 
 <!-- source: internal/component/resolve/cmd/dns.go -- handleClearDNSCache, handleClearDNSCacheStats, handleClearDNSCacheRecord -->
 
-### show dns-resolver / clear dns-resolver cache all
+### show dns resolver / clear dns resolver cache all
 
 The LAN DNS resolver (`service dns-resolver`, [guide](https://github.com/ze-software/ze/blob/main/docs/guide/dns-resolver.md)), which
 answers the hosts behind Ze. It is separate from the `show dns` and
@@ -1507,13 +1507,13 @@ answers the hosts behind Ze. It is separate from the `show dns` and
 lookups.
 
 ```
-ze show dns-resolver                   # Config in force, listener state, cache entries, hit rate, refusals, drops, upstream results
-ze clear dns-resolver cache all        # Empty the answer and the negative cache; the counters are kept
+ze show dns resolver                   # Config in force, listener state, cache entries, hit rate, refusals, drops, upstream results
+ze clear dns resolver cache all        # Empty the answer and the negative cache; the counters are kept
 ```
 
-`clear dns-resolver cache` alone has no handler and empties nothing: it exits 1
-and lists `all`, the word emptying needs. `show dns-resolver` answers `running false` while the
-plugin is not running, and `clear dns-resolver cache all` answers an error that
+`clear dns resolver cache` alone has no handler and empties nothing: it exits 1
+and lists `all`, the word emptying needs. `show dns resolver` answers `running false` while the
+plugin is not running, and `clear dns resolver cache all` answers an error that
 names the config to commit.
 
 <!-- source: internal/plugins/dnsresolver/show.go -- handleShowDNSResolver, handleClearDNSResolverCache -->
@@ -2099,6 +2099,7 @@ ze init --managed                # Fleet mode
 ze init --force --yes             # Replace an unowned store with a backup
 ze init --from database.zefs      # Import a local blob into the live store
 ze init --from https://provision.example.net/install/database.zefs --sha256 <hex>
+ze init --from tftp://192.0.2.1/install/database.zefs --sha256 <hex>
 ```
 
 Input fields are username, password, host, port, and instance name.
@@ -2113,14 +2114,16 @@ Normal initialization discovers interfaces and stores their initial config.
 | `--web-cert <address>` | Generate a web TLS certificate |
 | `--web-cert-name <name>` | Add a DNS name to that certificate |
 | `--seed` | Build a `database.zefs` appliance seed without host interface discovery |
-| `--from <source>` | Import a blob from a local path or an `http` or `https` URL into the live store; reads no credentials; refuses `--seed`; with `--force --yes` replaces an existing store. A local blob is retired as `.replaced-<stamp>`. A URL is fetched into a `database.fetch-*` folder beside the store, and that folder is removed after the import |
+| `--from <source>` | Import a blob from a local path or an `http`, `https` or `tftp` URL into the live store; reads no credentials; refuses `--seed`; with `--force --yes` replaces an existing store. A local blob is retired as `.replaced-<stamp>`. A URL is fetched into a `database.fetch-*` folder beside the store, and that folder is removed after the import |
 | `--sha256 <hex>` | Refuse the `--from` source unless its bytes have this SHA-256, 64 hex digits; the check runs before a key is written |
 
 Every `--from` source is checked whole (`zefs.Check`) before a key is written.
 A digest mismatch, a body that is not a blob, or a corrupt entry imports
 nothing, and the error names the reason or the key. Any other scheme is refused
 with the supported list. A redirect is followed only within the scheme and host
-of the URL. When an import stops after it recorded its intent, the fetched copy
+of the URL. A `tftp://host[:port]/file` URL is read in octet mode (`;mode=octet`
+is accepted, `;mode=netascii` is refused) from port 69 unless another port is
+given. TFTP authenticates nothing, so give `--sha256` with a TFTP source. When an import stops after it recorded its intent, the fetched copy
 stays and the error names it, because the recovery command
 `ze init --from <copy>` reads it.
 
@@ -2802,6 +2805,10 @@ If the remote AS is unresolved, `action` is `undetermined` and `reason` tells yo
 to wait for establishment and repeat `show policy test`. No filter executes,
 including a single-filter override. Trace and text are empty, with no wire
 changes. For a known EBGP session, an absent direction has a rejecting final.
+`policy` reports the direction's effective final, as `show policy chain` does:
+`final-source: rfc8212` marks the RFC 8212 default reject on an EBGP direction
+with no policy, and `undetermined` an absent direction whose session type is not
+known yet.
 <!-- source: internal/component/bgp/reactor/policy_dryrun.go -- PolicyDryRun -->
 
 `text-before` and `text-after` name every attribute the UPDATE carries. Five of
@@ -2947,6 +2954,7 @@ unicast; `mp <family> add <prefixes>`, `mp <family> del <prefixes>` and
 | `request bgp rib inject <peer> <family> <prefix> [attrs...]` | write | Insert route into Adj-RIB-In as if received from peer |
 | `request bgp rib withdraw <peer> <family> <prefix>` | write | Remove route from Adj-RIB-In |
 | `show bgp rib rpf <family> <source-addr>` | read | RPF lookup: longest-prefix-match against Loc-RIB for CIDR families <!-- source: internal/component/bgp/plugins/cmd/rib/ -- RIB proxy RPCs; internal/component/bgp/plugins/rib/ -- RIB plugin --> |
+| `show rib candidates [prefix <prefix>]` | read-only | Every Loc-RIB path each protocol offered, selected, standing by or hidden by an import chain, with `hidden-by` and `chain` on a hidden path (`docs/guide/route-policy.md`, "Seeing the hidden paths") <!-- source: internal/component/sysrib/candidates.go -- showRIBCandidates --> |
 
 ### IRR Filter Commands
 

@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 6.2% | 1 of 16 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 16 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 16 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 82.4% | 14 of 17 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 76.5% | 13 of 17 tagged units, 0 escaped and 1 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -23,8 +23,8 @@ measures that are neither good news nor bad
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | Gated MUSTs | 16 | of 27 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 2 | of 16 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 12.5% | 2 of 16 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Out of scope | 0 | of 16 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 0.0% | 0 of 16 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
 | Met below Ze | 0.0% | 0 of 16 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 16 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 | Linux cannot do this | 0.0% | 0 of 16 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit |
@@ -35,7 +35,7 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 50.0% | 8 of 16 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| No test at all | 62.5% | 10 of 16 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
 The 9 shares marked as a part above are the whole of the 16 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -65,8 +65,8 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Enrolment | Enrolled |
 | Requirements | 27 |
 | Gated MUST-level | 16 |
-| Not applicable, so out of scope | 2 |
-| Declared gaps | 8 |
+| Not applicable, so out of scope | 0 |
+| Declared gaps | 10 |
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
@@ -80,7 +80,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 ## Enrolment
 
-Enrolled: Support of Address Families in OSPFv3 (RFC 5838): 4 MET (non-default-AF AF-bit discard + base-AF ignore, AF-conformance route-computation gate, IPv4 forwarding-address AF-width, global-IPv6 virtual-link endpoints) + 2 single-polarity positive (base-AF no-reject path, IPv4 forwarding-address remaining-bits-zero) + 8 gap (AF-bit not set in LSAs, IPv4 Link-LSA link-local, section 2.7 per-AF MTU / M6-bit machinery) + 2 not-applicable (IPsec restricted to default IPv6-unicast AF, IANA 128-255 Standards-Action process)
+Enrolled: Support of Address Families in OSPFv3 (RFC 5838): 4 MET (non-default-AF AF-bit discard + base-AF ignore, AF-conformance route-computation gate, IPv4 forwarding-address AF-width, global-IPv6 virtual-link endpoints) + 2 single-polarity positive (base-AF no-reject path, IPv4 forwarding-address remaining-bits-zero) + 10 gap (AF-bit not set in LSAs, IPv4 Link-LSA link-local, section 2.7 per-AF MTU / M6-bit machinery, the shared interface SA ze meets with no test, the IANA 128-255 Standards-Action process)
 
 ## What the public ledger says
 
@@ -94,7 +94,7 @@ Enrolled: Support of Address Families in OSPFv3 (RFC 5838): 4 MET (non-default-A
 
 **What the ledger says remains**
 
-Eight MUST gaps annotated in [`rfc/short/rfc5838.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc5838.md): the AF-bit is not set in originated LSAs ([`RFC5838-2.2-1`](#rfc5838-2.2-1)); an IPv4-AF Link-LSA carries no IPv4 link-local address ([`RFC5838-2.5-1`](#rfc5838-2.5-1)); and the RFC 5838 §2.7 per-address-family MTU handling is unimplemented -- no separate AF-versus-IPv6 MTU, no IPv4 interface MTU, and no M6-bit ([`RFC5838-2.7-1`](#rfc5838-2.7-1), 2.7-2, 2.7-3, 2.7-4, 2.7-8, 2.7-11). Feature remains under OSPF experimental status.
+Ten MUST gaps annotated in [`rfc/short/rfc5838.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc5838.md): no test shows every OSPFv3 instance on an interface shares the one SA ([`RFC5838-4-1`](#rfc5838-4-1)) or ties ze's Instance ID refusal to the IANA rule ([`RFC5838-5-3`](#rfc5838-5-3)); the AF-bit is not set in originated LSAs ([`RFC5838-2.2-1`](#rfc5838-2.2-1)); an IPv4-AF Link-LSA carries no IPv4 link-local address ([`RFC5838-2.5-1`](#rfc5838-2.5-1)); and the RFC 5838 §2.7 per-address-family MTU handling is unimplemented -- no separate AF-versus-IPv6 MTU, no IPv4 interface MTU, and no M6-bit ([`RFC5838-2.7-1`](#rfc5838-2.7-1), 2.7-2, 2.7-3, 2.7-4, 2.7-8, 2.7-11). Feature remains under OSPF experimental status.
 
 ## Coverage
 
@@ -115,7 +115,7 @@ Eight MUST gaps annotated in [`rfc/short/rfc5838.md`](https://github.com/ze-soft
 
 ## Attainable ceiling
 
-Mandatory ceiling: 14 of 16 (87.5%); excluded: Not applicable (classification can be revisited): 2 of 16 (12.5%). Optional ceiling: 11 of 11 (100.0%). Lowest mandatory ceiling: rfc5838 14 of 16 (87.5%). Lowest optional ceiling: rfc5838 11 of 11 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+Mandatory ceiling: 16 of 16 (100.0%). Optional ceiling: 11 of 11 (100.0%). Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: rfc5838 16 of 16 (100.0%). Lowest optional ceiling: rfc5838 11 of 11 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
 
 ## Requirements
 
@@ -135,8 +135,8 @@ Mandatory ceiling: 14 of 16 (87.5%); excluded: Not applicable (classification ca
 | `RFC5838-2.7-8` | If the IPv6 and IPv4 MTUs differ, the M6-bit MUST be set for non-IPv6 address families. (§2.7) | MUST | 2.7 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze implements no M6-bit -- a grep for m6 across internal/plugins/ospf returns nothing -- so the DD encoder at encoder_v6.go:90 never sets it for a non-IPv6 AF |
 | `RFC5838-2.7-11` | If the M6-bit is set in a received Database Description packet for a non-IPv6 address family, the receiving router MUST NOT check the Interface MTU in the Database Description packet against the receiving interface's IPv6 MTU. (§2.7) | MUST NOT | 2.7 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze neither sets nor reads the M6-bit and performs only the single-MTU check at neighbor/dd.go:45, so the M6-conditioned suppression of an IPv6-MTU comparison is unimplemented |
 | `RFC5838-2.8-1` | there MUST be a global IPv6 address associated with the virtual link so that OSPFv3 control packets are forwarded correctly by the intermediate hops between virtual link endpoints. (§2.8) | MUST | 2.8 | **positive:** `unit/verify` [`TestV6VirtualEndpointResolvesGlobalAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/virtual_link_test.go#L518). **negative:** `unit/verify` [`TestRFC5838VirtualLinkRequiresLocalGlobalAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_af_test.go#L143). **negative:** `unit/verify` [`TestV6VirtualEndpointRequiresGlobalAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/virtual_link_test.go#L554) |
-| `RFC5838-4-1` | When multiple OSPFv3 instances use the same interface, they all MUST use the same Security Association (SA), since the SA selectors do not provide selection based on data in OSPFv3 Header fields (e.g., the Instance ID). (§4) | MUST | 4 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze runs OSPFv3 IPsec on the default IPv6-unicast AF only -- validateConfigAF at config.go:907-909 rejects an ipsec block on any non-IPv6 family -- so multiple AF instances never share an interface SA and the requirement's precondition never arises |
-| `RFC5838-5-3` | Instance IDs in the range 128-255 are not assigned at this time. Before any assignments can be made in this range, there MUST be a Standards Track RFC including an IANA Considerations section explicitly specifying the AF Instance IDs being assigned. (§5) | MUST | 5 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this binds the IANA registration process, not an implementation; ze has no code path that assigns AF Instance IDs and it rejects Instance IDs above 127 for AF use at multiaf.go:71 and via ErrInstanceIDRange in config.go |
+| `RFC5838-4-1` | When multiple OSPFv3 instances use the same interface, they all MUST use the same Security Association (SA), since the SA selectors do not provide selection based on data in OSPFv3 Header fields (e.g., the Instance ID). (§4) | MUST | 4 | **positive:** no positive test. **negative:** no negative test. **{gap}:** gap in proof: internal/plugins/ospf/ipsec_install.go::buildIPsecPolicies meets it, since the policy selects on upper-protocol 89 and the interface alone, never on the Instance ID, so every OSPFv3 instance on an interface uses the one SA, and validateConfigAF accepts an ipsec block only on the IPv6-unicast family; no test asserts it |
+| `RFC5838-5-3` | Instance IDs in the range 128-255 are not assigned at this time. Before any assignments can be made in this range, there MUST be a Standards Track RFC including an IANA Considerations section explicitly specifying the AF Instance IDs being assigned. (§5) | MUST | 5 | **positive:** no positive test. **negative:** no negative test. **{gap}:** an IANA assignment rule with no implementer role the RFC names; ze assigns no AF Instance ID and refuses one above 127 for AF use (internal/plugins/ospf/multiaf.go, ErrInstanceIDRange in config.go), and no test ties that refusal to this requirement |
 | `RFC5838-2.5-2` | An implementation SHOULD resolve layer 3 to layer 2 mappings via the Address Resolution Protocol (ARP) [ARP] or Neighbor Discovery (ND) [ND] for a DIA even if the IPv4 address is not on the same subnet as the router's interface IP address. (§2.5) | SHOULD | 2.5 | **positive:** no positive test. **negative:** no negative test |
 | `RFC5838-2.7-5` | If the M6-bit is clear, the specified MTU SHOULD also be checked against the IPv6 MTU (§2.7) | SHOULD | 2.7 | **positive:** no positive test. **negative:** no negative test |
 | `RFC5838-2.7-6` | If the M6-bit is clear, the specified MTU SHOULD also be checked against the IPv6 MTU, and the Database Description packet SHOULD be rejected if the MTU is larger than the receiving interface's IPv6 MTU. (§2.7) | SHOULD | 2.7 | **positive:** no positive test. **negative:** no negative test |
@@ -161,8 +161,8 @@ Mandatory ceiling: 14 of 16 (87.5%); excluded: Not applicable (classification ca
 | [`RFC5838-2.7-4`](#rfc5838-2.7-4) The value used for OSPFv3 maximum packet size determination MUST also be compatible for an adjacency to be established. (§2.7) | {gap}, no test | the adjacency MTU-compatibility gate at neighbor/dd.go:45 compares the single interface MTU only; ze does not derive an IPv6-MTU-based maximum packet size distinct from the AF MTU per RFC 5838 §2.7 |
 | [`RFC5838-2.7-8`](#rfc5838-2.7-8) If the IPv6 and IPv4 MTUs differ, the M6-bit MUST be set for non-IPv6 address families. (§2.7) | {gap}, no test | ze implements no M6-bit -- a grep for m6 across internal/plugins/ospf returns nothing -- so the DD encoder at encoder_v6.go:90 never sets it for a non-IPv6 AF |
 | [`RFC5838-2.7-11`](#rfc5838-2.7-11) If the M6-bit is set in a received Database Description packet for a non-IPv6 address family, the receiving router MUST NOT check the Interface MTU in the Database Description packet against the receiving interface's IPv6 MTU. (§2.7) | {gap}, no test | ze neither sets nor reads the M6-bit and performs only the single-MTU check at neighbor/dd.go:45, so the M6-conditioned suppression of an IPv6-MTU comparison is unimplemented |
-| [`RFC5838-4-1`](#rfc5838-4-1) When multiple OSPFv3 instances use the same interface, they all MUST use the same Security Association (SA), since the SA selectors do not provide selection based on data in OSPFv3 Header fields (e.g., the Instance ID). (§4) | no test | no test carries this requirement id; annotated {not-applicable}: ze runs OSPFv3 IPsec on the default IPv6-unicast AF only -- validateConfigAF at config.go:907-909 rejects an ipsec block on any non-IPv6 family -- so multiple AF instances never share an interface SA and the requirement's precondition never arises |
-| [`RFC5838-5-3`](#rfc5838-5-3) Instance IDs in the range 128-255 are not assigned at this time. Before any assignments can be made in this range, there MUST be a Standards Track RFC including an IANA Considerations section explicitly specifying the AF Instance IDs being assigned. (§5) | no test | no test carries this requirement id; annotated {not-applicable}: this binds the IANA registration process, not an implementation; ze has no code path that assigns AF Instance IDs and it rejects Instance IDs above 127 for AF use at multiaf.go:71 and via ErrInstanceIDRange in config.go |
+| [`RFC5838-4-1`](#rfc5838-4-1) When multiple OSPFv3 instances use the same interface, they all MUST use the same Security Association (SA), since the SA selectors do not provide selection based on data in OSPFv3 Header fields (e.g., the Instance ID). (§4) | {gap}, no test | gap in proof: internal/plugins/ospf/ipsec_install.go::buildIPsecPolicies meets it, since the policy selects on upper-protocol 89 and the interface alone, never on the Instance ID, so every OSPFv3 instance on an interface uses the one SA, and validateConfigAF accepts an ipsec block only on the IPv6-unicast family; no test asserts it |
+| [`RFC5838-5-3`](#rfc5838-5-3) Instance IDs in the range 128-255 are not assigned at this time. Before any assignments can be made in this range, there MUST be a Standards Track RFC including an IANA Considerations section explicitly specifying the AF Instance IDs being assigned. (§5) | {gap}, no test | an IANA assignment rule with no implementer role the RFC names; ze assigns no AF Instance ID and refuses one above 127 for AF use (internal/plugins/ospf/multiaf.go, ErrInstanceIDRange in config.go), and no test ties that refusal to this requirement |
 
 ## Proof state
 
@@ -184,7 +184,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC5838NonConformingExternalPrefixNotInRouteComputation`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_af_test.go#L117) | unit/verify | revert, verified |
+| negative | [`TestRFC5838NonConformingExternalPrefixNotInRouteComputation`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_af_test.go#L117) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | negative | [`TestRFC5838NonConformingInterAreaPrefixNotInRouteComputation`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_af_test.go#L93) | unit/verify | revert, verified |
 | negative | [`TestRFC5838NonConformingPrefixNotInRouteComputation`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_af_test.go#L23) | unit/verify | revert, verified |
 | positive | [`TestIPv4OverV3BuildRoutes`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_afstrategy_v6_test.go#L283) | unit/verify | revert, verified |

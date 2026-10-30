@@ -13,7 +13,7 @@ Policy-based routing: nftables packet marking and ip rule table selection
 
 ## Configuration
 
-`policy`
+`policy/route`
 
 ## Dependencies
 

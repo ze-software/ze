@@ -1185,19 +1185,23 @@
     ]
   },
   {
-    "path": "clear dns-resolver cache all",
+    "path": "clear dns resolver cache all",
     "short-help": "Empty every LAN DNS resolver cache.",
     "description": "Empties the answer and the negative cache, so the next query for any\nname goes upstream. The counters are kept.",
     "mode": "daemon",
     "wire-method": "ze-dnsresolver:clear-dns-resolver-cache",
-    "usage": "clear dns-resolver cache all",
+    "usage": "clear dns resolver cache all",
     "grammar": [
       {
         "text": "clear",
         "kind": "keyword"
       },
       {
-        "text": "dns-resolver",
+        "text": "dns",
+        "kind": "keyword"
+      },
+      {
+        "text": "resolver",
         "kind": "keyword"
       },
       {
@@ -29526,19 +29530,23 @@
     ]
   },
   {
-    "path": "show dns-resolver",
+    "path": "show dns resolver",
     "short-help": "LAN DNS resolver status, cache and counters.",
     "description": "Enabled, mode, listeners, allow-from count, upstreams, limits, the\nanswer and negative cache entry counts, cache hits, misses and hit rate, the queries\nrefused (by reason), rate-limited and dropped, and the upstream exchanges by result.",
     "mode": "read-only",
     "wire-method": "ze-dnsresolver:show-dns-resolver",
-    "usage": "show dns-resolver",
+    "usage": "show dns resolver",
     "grammar": [
       {
         "text": "show",
         "kind": "keyword"
       },
       {
-        "text": "dns-resolver",
+        "text": "dns",
+        "kind": "keyword"
+      },
+      {
+        "text": "resolver",
         "kind": "keyword"
       }
     ],
@@ -47776,6 +47784,106 @@
     "short-help": "Show each route the system RIB holds, with its family, next hop, protocol and equal-cost paths.",
     "mode": "read-only",
     "usage": "show rib",
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
+      }
+    ]
+  },
+  {
+    "path": "show rib candidates",
+    "short-help": "Show every path each protocol offered the Loc-RIB, hidden ones included, with the import chain that hid each.",
+    "description": "Lists, per prefix, every path a protocol offered: the selected one, the ones standing by, and the ones an import chain hid. Each path shows its source, next hop, distance and metric, its tag, IS-IS level or OSPF route type when it carries one, and for a hidden path the chain that hid it: `source` (the protocol's own `filter import`) or `central` (`rib filter import`). `prefix <prefix>` limits the answer to one prefix.",
+    "mode": "read-only",
+    "usage": "show rib candidates prefix <prefix>",
     "operators": [
       {
         "name": "json",

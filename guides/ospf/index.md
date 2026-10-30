@@ -25,6 +25,20 @@ MinLSInterval still limits publication, and the maintenance timer retries it.
 <!-- source: internal/plugins/ospf/instance.go -- nsmAdapter, originateSelfLSAsDeferred, startNeighborRetransmitLoop -->
 <!-- source: internal/plugins/ospf/bfd_client.go -- neighborEventSinkValue -->
 
+### Filtering what OSPF installs
+
+`ospf filter import` judges each route SPF installs before the Loc-RIB selects
+it; the LSDB is never filtered. Each installed path carries its OSPF path type
+(`intra-area`, `inter-area`, `external-1`, `external-2`, and `nssa-1` or
+`nssa-2` for a route from a Type-7 LSA) and, for an external route, its tag.
+An OSPFv2 external route always carries the External Route Tag of its LSA. An
+OSPFv3 one carries a tag only when its LSA sets the T bit (RFC 5340 Appendix
+A.4.7). A `match` on `route-type` or `tag`, or a `modify` that sets the
+distance, then applies; [Route Policy at the Loc-RIB](https://github.com/ze-software/ze/blob/main/docs/guide/route-policy.md) covers
+the chains.
+<!-- source: internal/plugins/ospf/spf/install.go -- ribRouteType -->
+<!-- source: internal/plugins/ospf/spf/external.go -- ExternalRecord -->
+
 ## Interface network types
 
 Each interface selects an RFC 2328 / RFC 5340 network type with `network-type`, in
@@ -270,15 +284,16 @@ through an NSSA. SPF retains per-area candidates until these checks complete.
 <!-- source: internal/plugins/ospf/spf/external.go -- ComputeExternalWith -->
 <!-- source: internal/plugins/ospf/spf/external.go -- externalCandidateFrom, resolveForwarding -->
 
-**Selected role (2026-09-21): ordinary OSPF, including CE operation.** Ze does
-not select RFC 4577's native VPN-PE role, VRF/domain VPN import/export or
-optional sham links. Section 1 says: "No special procedures are needed in the
-CE router though; CE routers just run whatever OSPF implementations they may
-have." Ordinary routing, authentication and backbone attachment remain
-required. When deploying Ze as a CE with a third-party PE, configure the
-backbone attachment required by RFC 4577 §4.1.4, directly or by virtual link.
-The plain-prefix redistribution metric/tag settings do not perform VPN-domain
-comparison or generate VPN-IPv4 metadata.
+**OSPF as a PE/CE protocol (RFC 4577): CE side only.** Ze runs ordinary OSPF,
+which is all a CE router needs. Section 1 says: "No special procedures are
+needed in the CE router though; CE routers just run whatever OSPF
+implementations they may have." Ze does not implement the PE side: there is no
+VRF or OSPF-domain association, no Domain Identifier, no VPN-IPv4 import or
+export, no DN bit or VPN Route Tag loop prevention, and no sham links. These are
+not built yet; they have not been declined. When deploying Ze as a CE with a
+third-party PE, configure the backbone attachment RFC 4577 §4.1.4 requires,
+directly or by virtual link. The plain-prefix redistribution metric and tag
+settings do not compare VPN domains or generate VPN-IPv4 metadata.
 <!-- source: internal/plugins/ospf/redist_wiring.go -- InjectExternal -->
 <!-- source: internal/plugins/ospf/config.go -- parseRedistribute -->
 <!-- source: internal/plugins/ospf/redistribute/source.go -- emitDelta -->

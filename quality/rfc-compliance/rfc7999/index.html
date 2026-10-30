@@ -123,8 +123,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>42.1%</strong><b>16 of 38 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
-<article class="rfc-card rfc-ok"><span>Audit verdicts</span><strong>7</strong><b>of 4 gated MUSTs judged</b><p>0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>47.4%</strong><b>18 of 38 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -192,7 +191,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -242,7 +241,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>7</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>16</td>
+<td>18</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc7999.md</code></td>
@@ -548,7 +547,7 @@ No tracked gap. Every MUST-level row is proven in both polarities. <a href="#rfc
 </div>
 <h3><a href="#rfc7999-3.3-1"><code>RFC7999-3.3-1</code></a></h3>
 <p>BGP speakers in a bilateral peering relationship using the BLACKHOLE community MUST only accept and honor BGP announcements carrying the BLACKHOLE community under the two following conditions: o The announced prefix is covered by an equal or shorter prefix that the neighboring network is authorized to advertise. (§3.3)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent source rejudgment of every current cover including checkRFC7999Blackhole. RFC 7999 Section 3.3: BGP speakers in a bilateral peering relationship using the BLACKHOLE community MUST only accept and honor BGP announcements carrying the BLACKHOLE community under the two following conditions: The announced prefix is covered by an equal or shorter prefix that the neighboring network is authorized to advertise. The receiving party agreed to honor the BLACKHOLE community on the particular BGP session. Equal-/24 and covered-/32 positives require exact Blackhole on best-change and Loc-RIB; longer-/25 authorization and outside-prefix negatives require exact type 0. Dynamic group tests require the matching group rule, peer override precedence, and event-carried group identity reaching Loc-RIB. coveredByAuthorized, blackholeRouteTypeForBest and checkBestPathChange produce the type consumed by sysrib and the kernel discard builder. checkRFC7999Blackhole assertion 4 requires a real kernel discard and assertion 5 positively requires forwarding for the unauthorized prefix, after both foreign sessions and all destination routes exist. Q1-Q4 pass for the authorization clause with agreement held true; the dynamic fixture is consumer-boundary rather than eBGP-admission evidence. Stored panic records establish reachability only. No checks were run; live FRR/BIRD/Linux and VPP acceptance and changed-unit proof maintenance remain pending.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/le/interoplab/bgp/check_rfc.go::checkRFC7999Blackhole, internal/le/interoplab/bgp/check_rfc.go::checkRFC7999Blackhole#2 moved. Independent source rejudgment of every current cover including checkRFC7999Blackhole. RFC 7999 Section 3.3: BGP speakers in a bilateral peering relationship using the BLACKHOLE community MUST only accept and honor BGP announcements carrying the BLACKHOLE community under the two following conditions: The announced prefix is covered by an equal or shorter prefix that the neighboring network is authorized to advertise. The receiving party agreed to honor the BLACKHOLE community on the particular BGP session. Equal-/24 and covered-/32 positives require exact Blackhole on best-change and Loc-RIB; longer-/25 authorization and outside-prefix negatives require exact type 0. Dynamic group tests require the matching group rule, peer override precedence, and event-carried group identity reaching Loc-RIB. coveredByAuthorized, blackholeRouteTypeForBest and checkBestPathChange produce the type consumed by sysrib and the kernel discard builder. checkRFC7999Blackhole assertion 4 requires a real kernel discard and assertion 5 positively requires forwarding for the unauthorized prefix, after both foreign sessions and all destination routes exist. Q1-Q4 pass for the authorization clause with agreement held true; the dynamic fixture is consumer-boundary rather than eBGP-admission evidence. Stored panic records establish reachability only. No checks were run; live FRR/BIRD/Linux and VPP acceptance and changed-unit proof maintenance remain pending.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -598,7 +597,7 @@ No tracked gap. Every MUST-level row is proven in both polarities. <a href="#rfc
 </div>
 <h3><a href="#rfc7999-3.3-2"><code>RFC7999-3.3-2</code></a></h3>
 <p>BGP speakers in a bilateral peering relationship using the BLACKHOLE community MUST only accept and honor BGP announcements carrying the BLACKHOLE community under the two following conditions: o The announced prefix is covered by an equal or shorter prefix that the neighboring network is authorized to advertise. o The receiving party agreed to honor the BLACKHOLE community on the particular BGP session. (§3.3)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent source rejudgment of every current cover including checkRFC7999Blackhole. RFC 7999 Section 3.3: BGP speakers in a bilateral peering relationship using the BLACKHOLE community MUST only accept and honor BGP announcements carrying the BLACKHOLE community under the two following conditions: The announced prefix is covered by an equal or shorter prefix that the neighboring network is authorized to advertise. The receiving party agreed to honor the BLACKHOLE community on the particular BGP session. The row includes both bullets: equal/covered positives require exact Blackhole; outside and too-short announced-prefix negatives require type 0 despite agreement. Authorized/no-community internal config requires type 0; dynamic group membership and peer-rule precedence have distinct outcomes, and the structured consumer must retain ix and install Blackhole. The synthetic empty-community map is not user config-parser proof: prefixes-only defaults agreement. The interop scenario instead explicitly agrees only 65001:666 for BIRD sending 65535:666; assertion 6 requires a gateway route, while assertion 4 requires discard for the authorized/agreed FRR route and assertion 5 isolates authorization. blackholeRouteTypeForBest scopes the decision to the winning session and blackholeRouteType requires both conditions before sysrib/FIB consumption. Q1-Q4 pass over the combined population; group-membership negative alone is not agreement-isolated. Stored coveredByAuthorized HALTs prove reachability only. No checks ran; current live foreign/Linux/VPP acceptance and changed-unit proof maintenance remain pending.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/le/interoplab/bgp/check_rfc.go::checkRFC7999Blackhole, internal/le/interoplab/bgp/check_rfc.go::checkRFC7999Blackhole#2 moved. Independent source rejudgment of every current cover including checkRFC7999Blackhole. RFC 7999 Section 3.3: BGP speakers in a bilateral peering relationship using the BLACKHOLE community MUST only accept and honor BGP announcements carrying the BLACKHOLE community under the two following conditions: The announced prefix is covered by an equal or shorter prefix that the neighboring network is authorized to advertise. The receiving party agreed to honor the BLACKHOLE community on the particular BGP session. The row includes both bullets: equal/covered positives require exact Blackhole; outside and too-short announced-prefix negatives require type 0 despite agreement. Authorized/no-community internal config requires type 0; dynamic group membership and peer-rule precedence have distinct outcomes, and the structured consumer must retain ix and install Blackhole. The synthetic empty-community map is not user config-parser proof: prefixes-only defaults agreement. The interop scenario instead explicitly agrees only 65001:666 for BIRD sending 65535:666; assertion 6 requires a gateway route, while assertion 4 requires discard for the authorized/agreed FRR route and assertion 5 isolates authorization. blackholeRouteTypeForBest scopes the decision to the winning session and blackholeRouteType requires both conditions before sysrib/FIB consumption. Q1-Q4 pass over the combined population; group-membership negative alone is not agreement-isolated. Stored coveredByAuthorized HALTs prove reachability only. No checks ran; current live foreign/Linux/VPP acceptance and changed-unit proof maintenance remain pending.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -661,19 +660,19 @@ No tracked gap. Every MUST-level row is proven in both polarities. <a href="#rfc
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc7999_blackhole_decision_test.go#L80" title="internal/component/bgp/plugins/rpki/rfc7999_blackhole_decision_test.go" target="_blank" rel="noopener"><code>TestBlackholeDoesNotSurviveAWrongOrigin</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc7999_blackhole_decision_test.go#L60" title="internal/component/bgp/plugins/rpki/rfc7999_blackhole_decision_test.go" target="_blank" rel="noopener"><code>TestBlackholeSurvivesLengthOnlyInvalid</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc7999-3.2-1"><code>RFC7999-3.2-1</code></a></h3>
 <p>A BGP speaker receiving an announcement tagged with the BLACKHOLE community SHOULD add the NO_ADVERTISE or NO_EXPORT community as defined in [RFC1997], or a similar community, to prevent propagation of the prefix outside the local AS. (§3.2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Positive TestRFC7999ReceivedBlackholeRouteGainsThePropagationCommunity: config leaf parsed, [BLACKHOLE 64496:1] leaves applyIngressFilter with NO_EXPORT (or NO_ADVERTISE) appended and the other community kept. Negative TestRFC7999RouteWithoutBlackholeGainsNoPropagationCommunity: with the guard on, no COMMUNITY, 65535:665 (one below BLACKHOLE) and 64496:1 pass unchanged, so the trigger is BLACKHOLE alone. Both carry revert records on blackholePropagationGuard. SHOULD: the add is operator-enabled (no leaf: unchanged), which 3.2-2 permits.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: test/plugin/community-blackhole-noexport.ci moved. Positive TestRFC7999ReceivedBlackholeRouteGainsThePropagationCommunity: config leaf parsed, [BLACKHOLE 64496:1] leaves applyIngressFilter with NO_EXPORT (or NO_ADVERTISE) appended and the other community kept. Negative TestRFC7999RouteWithoutBlackholeGainsNoPropagationCommunity: with the guard on, no COMMUNITY, 65535:665 (one below BLACKHOLE) and 64496:1 pass unchanged, so the trigger is BLACKHOLE alone. Both carry revert records on blackholePropagationGuard. SHOULD: the add is operator-enabled (no leaf: unchanged), which 3.2-2 permits.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -728,7 +727,7 @@ No tracked gap. Every MUST-level row is proven in both polarities. <a href="#rfc
 </div>
 <h3><a href="#rfc7999-4-1"><code>RFC7999-4-1</code></a></h3>
 <p>Without an explicit configuration directive set by the operator, network elements SHOULD NOT discard traffic destined towards IP prefixes that are tagged with the BLACKHOLE community. (§4)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. SHOULD NOT discard without an operator directive. Positive (conforming) TestBlackholeCommunityLeavesNextHopAloneWithoutAgreement: a modify naming only 65001:100 accepts the 65535:666 route with no change; rib TestBlackholeNotStampedWithoutAgreement / ...WhenNoCommunityAgreedButAuthorizationExists: RouteType 0 on both rails. Negative TestBlackholeCommunityRewritesNextHopWhenAgreed is the directive-present counter-case (next-hop rewritten to the named discard address). Accepted as the negative: it shows the no-discard outcome is caused by the absent directive, so a filter that never rewrote anything cannot pass the pair. Revert records on (matchCond).matches for both filter_modify units; the rib positives have none.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/component/bgp/plugins/filter_modify/rfc7999_match_test.go::TestBlackholeCommunityLeavesNextHopAloneWithoutAgreement, internal/component/bgp/plugins/filter_modify/rfc7999_match_test.go::TestBlackholeCommunityRewritesNextHopWhenAgreed moved. SHOULD NOT discard without an operator directive. Positive (conforming) TestBlackholeCommunityLeavesNextHopAloneWithoutAgreement: a modify naming only 65001:100 accepts the 65535:666 route with no change; rib TestBlackholeNotStampedWithoutAgreement / ...WhenNoCommunityAgreedButAuthorizationExists: RouteType 0 on both rails. Negative TestBlackholeCommunityRewritesNextHopWhenAgreed is the directive-present counter-case (next-hop rewritten to the named discard address). Accepted as the negative: it shows the no-discard outcome is caused by the absent directive, so a filter that never rewrote anything cannot pass the pair. Revert records on (matchCond).matches for both filter_modify units; the rib positives have none.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -935,7 +934,7 @@ No tracked gap. Every MUST-level row is proven in both polarities. <a href="#rfc
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 19:30 UTC</span>
+                    <span class="footer-published">Published 30 October 2026 23:25 UTC</span>
                 </div>
             </div>
         </footer>

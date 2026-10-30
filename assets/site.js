@@ -270,23 +270,55 @@ document.addEventListener("DOMContentLoaded", function () {
         return value;
     }
 
-    function initRepoStats() {
-        var nodes = slice(document.querySelectorAll("[data-ze-stat]"));
-        if (!nodes.length || !window.fetch) return;
-        fetch(siteRootFromScript() + "data/site-facts.json")
+    // The snapshot is fetched at most once per page load, however many
+    // subtrees ask for it: the body fills at load and the shared header fills
+    // after it is inserted, and both read this one promise. It answers null
+    // when the snapshot cannot be read, and every element keeps the value the
+    // last build wrote into it.
+    var siteFactsPromise = null;
+
+    function loadSiteFacts() {
+        if (siteFactsPromise) return siteFactsPromise;
+        siteFactsPromise = fetch(siteRootFromScript() + "data/site-facts.json")
             .then(function (response) {
                 if (!response.ok) throw new Error("site facts");
                 return response.json();
             })
-            .then(function (facts) {
-                nodes.forEach(function (node) {
-                    var value = lookupFact(facts, node.getAttribute("data-ze-stat"));
-                    if (value !== null && value !== undefined) {
-                        node.textContent = String(value);
-                    }
-                });
-            })
-            .catch(function () {});
+            .catch(function () {
+                return null;
+            });
+        return siteFactsPromise;
+    }
+
+    // fillRepoStats replaces the text of every [data-ze-stat] element under
+    // scope with the snapshot's value for its dotted key. It writes
+    // textContent only, so a snapshot value can never become markup.
+    //
+    // A [data-ze-stat-width] element is a bar drawn from a percentage: its
+    // width is set from the snapshot's value for its key, so the bar and the
+    // figure beside it move together. A value that is not a number from 0 to
+    // 100 leaves the width the last build wrote.
+    function fillRepoStats(scope) {
+        if (!scope || !window.fetch) return;
+        var nodes = slice(scope.querySelectorAll("[data-ze-stat]"));
+        var bars = slice(scope.querySelectorAll("[data-ze-stat-width]"));
+        if (!nodes.length && !bars.length) return;
+        loadSiteFacts().then(function (facts) {
+            if (!facts) return;
+            nodes.forEach(function (node) {
+                var value = lookupFact(facts, node.getAttribute("data-ze-stat"));
+                if (value !== null && value !== undefined) {
+                    node.textContent = String(value);
+                }
+            });
+            bars.forEach(function (bar) {
+                var value = lookupFact(facts, bar.getAttribute("data-ze-stat-width"));
+                if (value === null || value === undefined || String(value).trim() === "") return;
+                var percent = Number(value);
+                if (!isFinite(percent) || percent < 0 || percent > 100) return;
+                bar.style.width = percent + "%";
+            });
+        });
     }
 
 
@@ -306,12 +338,19 @@ document.addEventListener("DOMContentLoaded", function () {
         if (!mount) return Promise.resolve();
 
         // The generator only ever writes a run of "../" for the root and the
-        // header fragment below it. Anything else is not trusted: the root is
-        // spliced into links and into the fetched header's markup.
-        var root = mount.getAttribute("data-site-root") || "";
-        if (!/^(\.\.\/)*$/.test(root)) root = "";
-        var source = mount.getAttribute("data-header-src") || "";
-        if (!/^(\.\.\/)*assets\/header\.html$/.test(source)) source = root + "assets/header.html";
+        // header fragment below it. Only the length of that run is read from
+        // the page: the strings spliced into links and into the fetched
+        // header's markup are rebuilt here, so no attribute text reaches them.
+        // A root other than such a run counts as depth zero, and an invalid
+        // header source follows the root.
+        function parentSteps(depth) {
+            return new Array(depth + 1).join("../");
+        }
+        var rootAttr = mount.getAttribute("data-site-root") || "";
+        var root = parentSteps(/^(\.\.\/)*$/.test(rootAttr) ? rootAttr.length / 3 : 0);
+        var sourceAttr = mount.getAttribute("data-header-src") || "";
+        var sourceRun = /^((?:\.\.\/)*)assets\/header\.html$/.exec(sourceAttr);
+        var source = (sourceRun ? parentSteps(sourceRun[1].length / 3) : root) + "assets/header.html";
 
         function renderFallback() {
             var header = document.createElement("header");
@@ -1933,7 +1972,10 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
+    // The header arrives after the body's figures were filled, so its own
+    // marked figures are filled here, from the same snapshot fetch.
     loadSharedHeader().then(function () {
+        fillRepoStats(document.querySelector("header.site-header"));
         initThemeToggle();
         initNavigation();
         initSearchOverlay();
@@ -2117,5 +2159,5 @@ document.addEventListener("DOMContentLoaded", function () {
     initSourceLinks();
     initCodeCopyButtons();
     initFAQDeepLinks();
-    initRepoStats();
+    fillRepoStats(document);
 });

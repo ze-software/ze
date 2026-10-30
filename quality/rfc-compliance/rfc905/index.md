@@ -1,6 +1,6 @@
 # RFC 905 - ISO Transport Protocol Specification (ISO DP 8073)
 
-No row in the public ledger. Every requirement this repository extracted from RFC 905, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+Partial. Every requirement this repository extracted from RFC 905, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
 
 ## Overview
 
@@ -14,7 +14,6 @@ what Ze has
 | One polarity plus reason | 0.0% | 0 of 11 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 11 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 11 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| No test at all | 0.0% | 0 of 11 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 | Proven by a recorded break | 79.3% | 23 of 29 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
@@ -24,11 +23,19 @@ measures that are neither good news nor bad
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | Gated MUSTs | 11 | of 11 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 3 | of 11 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 27.3% | 3 of 11 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Out of scope | 0 | of 11 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 0.0% | 0 of 11 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
 | Met below Ze | 0.0% | 0 of 11 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 11 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 | Linux cannot do this | 0.0% | 0 of 11 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit |
+
+### Negative
+
+what Ze owes
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| No test at all | 27.3% | 3 of 11 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
 The 9 shares marked as a part above are the whole of the 11 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -42,7 +49,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
-| No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
@@ -54,12 +61,12 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 | Field | Value |
 |---|---|
-| Public status | No row in the public ledger |
+| Public status | Partial |
 | Enrolment | Enrolled |
 | Requirements | 11 |
 | Gated MUST-level | 11 |
-| Not applicable, so out of scope | 3 |
-| Declared gaps | 0 |
+| Not applicable, so out of scope | 0 |
+| Declared gaps | 3 |
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
@@ -73,11 +80,19 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 ## Enrolment
 
-Enrolled: ISO Transport Protocol: nine MUST-level requirements. The six that ze realizes are the Annex B Fletcher checksum (mod-255 arithmetic, two-pass generation, verify-both-sums-zero, OSPF LSA checksum excluding LS Age, encode+decode vectors) -- x-1,x-2,x-3,x-4,x-6,x-7 -- each bound with positive+negative tags on the IS-IS (internal/plugins/isis/packet/checksum.go) and OSPF (internal/plugins/ospf/types/checksum.go, ospf/packet/checksum.go) checksum tests. The three ISO Transport TPDU MUSTs (6.17.3-1 generation, 6.17.3-2 receive/verify-and-discard, 13.2.3.1-1 0xC3 checksum parameter) are {not-applicable}: ze has no ISO Transport TPDU sender/receiver and no 0xC3 transport-checksum-parameter code path.
+Enrolled: ISO Transport Protocol: nine MUST-level requirements. The six that ze realizes are the Annex B Fletcher checksum (mod-255 arithmetic, two-pass generation, verify-both-sums-zero, OSPF LSA checksum excluding LS Age, encode+decode vectors) -- x-1,x-2,x-3,x-4,x-6,x-7 -- each bound with positive+negative tags on the IS-IS (internal/plugins/isis/packet/checksum.go) and OSPF (internal/plugins/ospf/types/checksum.go, ospf/packet/checksum.go) checksum tests. The three ISO Transport TPDU MUSTs (6.17.3-1 generation, 6.17.3-2 receive/verify-and-discard, 13.2.3.1-1 0xC3 checksum parameter) are gaps: ze has no ISO Transport TPDU sender/receiver and no 0xC3 transport-checksum-parameter code path.
 
 ## What the public ledger says
 
-No row in the public ledger, so its summary declares `| Support | - |` and docs/features/rfc-status.md carries no row for RFC 905.
+**Status:** Partial
+
+**What the ledger says is covered:**
+
+The Annex B Fletcher checksum, used by IS-IS and OSPF.
+
+**What the ledger says remains:**
+
+Three MUST gaps ([`RFC905-6.17.3-1`](#rfc905-6.17.3-1), 6.17.3-2, 13.2.3.1-1): ze has no ISO Transport Protocol entity, so it neither sends nor receives a TPDU.
 
 ## Coverage
 
@@ -98,14 +113,14 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 
 ## Attainable ceiling
 
-Mandatory ceiling: 8 of 11 (72.7%); excluded: Not applicable (classification can be revisited): 3 of 11 (27.3%). Optional ceiling: no rows. Lowest mandatory ceiling: rfc905 8 of 11 (72.7%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+Mandatory ceiling: 11 of 11 (100.0%). Optional ceiling: no rows. Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: rfc905 11 of 11 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
 
 ## Requirements
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC905-6.17.3-1` | The sending transport entity shall transmit TPDUs with the checksum parameter set such that the following formulas are satisfied: SUM(from i=1 to i=L) OF a[i] EQUALS <zero> (module 255) SUM(from i=1 to i=L) OF i*a[i] EQUALS <zero> (module 255) (§6.17.3) | MUST | 6.17.3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze implements the RFC 905 Annex B Fletcher checksum (reused by IS-IS at internal/plugins/isis/packet/checksum.go and OSPF at internal/plugins/ospf/types/checksum.go) but has no ISO Transport Protocol TPDU generator that sets a transport checksum parameter (grep for TPDU/TP4/0xC3 across internal/ is empty) |
-| `RFC905-6.17.3-2` | A transport entity which receives a TPDU for a transport connection for which the use of checksum has been agreed and which does not satisfy the above formulas shall discard the TPDU (§6.17.3) | MUST | 6.17.3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze implements the RFC 905 Annex B Fletcher checksum (reused by IS-IS at internal/plugins/isis/packet/checksum.go and OSPF at internal/plugins/ospf/types/checksum.go) but has no ISO Transport Protocol TPDU receiver that verifies and discards a transport TPDU (grep for TPDU/TP4/0xC3 across internal/ is empty) |
+| `RFC905-6.17.3-1` | The sending transport entity shall transmit TPDUs with the checksum parameter set such that the following formulas are satisfied: SUM(from i=1 to i=L) OF a[i] EQUALS <zero> (module 255) SUM(from i=1 to i=L) OF i*a[i] EQUALS <zero> (module 255) (§6.17.3) | MUST | 6.17.3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze has no ISO Transport Protocol entity: it implements the Annex B Fletcher checksum for IS-IS (internal/plugins/isis/packet/checksum.go) and OSPF (internal/plugins/ospf/types/checksum.go) and sends no TPDU, so no TPDU carries a checksum parameter. The lower-case shall fits neither not-applicable shape |
+| `RFC905-6.17.3-2` | A transport entity which receives a TPDU for a transport connection for which the use of checksum has been agreed and which does not satisfy the above formulas shall discard the TPDU (§6.17.3) | MUST | 6.17.3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze has no ISO Transport Protocol entity: it implements the Annex B Fletcher checksum for IS-IS (internal/plugins/isis/packet/checksum.go) and OSPF (internal/plugins/ospf/types/checksum.go) and receives no TPDU, so none is verified or discarded. The subject carries a relative clause and a lower-case shall, which fit neither not-applicable shape |
 | `RFC905-x-1` | Addition is performed in one of the two following modes: a) modulo 255 arithmetic; b) one's complement arithmetic in which if any of the variables has the value minus zero (i.e. 255) it shall be regarded as though it was plus zero (i.e. 0). (§B.2) | MUST | B.2 | **positive:** `unit/verify` [`TestISISChecksumFixedVector`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc905_checksum_vectors_test.go#L69). **positive:** `unit/verify` [`TestISISChecksumModulus`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc905_checksum_vectors_test.go#L128). **positive:** `unit/verify` [`TestRFC905MinusZeroReadAsZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc905_arithmetic_test.go#L49). **negative:** `unit/verify` [`TestRFC905FaultySenderChecksumRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc905_arithmetic_test.go#L84) |
 | `RFC905-x-2` | Process each octet sequentially from i = 1 to L by: a) adding the value of the octet to C0; then b) adding the value of C0 to C1. (§B.3) | MUST | B.3 | **positive:** `unit/verify` [`TestISISChecksumVectors`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc905_checksum_vectors_test.go#L16). **negative:** `unit/verify` [`TestRFC905FaultySenderChecksumRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc905_arithmetic_test.go#L85) |
 | `RFC905-x-3` | Calculate X and Y such that X = -C1 + (L-n).CO Y = C1 - (L-n+1).C0 (§B.3) | MUST | B.3 | **positive:** `unit/verify` [`TestFletcherGenerateMatchesClosedForm`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/types/rfc_checksum_forms_test.go#L68). **positive:** `unit/verify` [`TestFletcherRFC905Vectors`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/types/checksum_test.go#L27). **positive:** `unit/verify` [`TestISISChecksumFixedVector`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc905_checksum_vectors_test.go#L68). **positive:** `unit/verify` [`TestISISChecksumMatchesClosedForm`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc905_checksum_test.go#L43). **positive:** `unit/verify` [`TestISISChecksumVectors`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc905_checksum_vectors_test.go#L17). **positive:** `unit/verify` [`TestOSPFLSAChecksum`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/checksum_test.go#L71). **negative:** `unit/verify` [`TestFletcherGenerateRefusesMisplacedXY`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/types/rfc_checksum_forms_test.go#L134). **negative:** `unit/verify` [`TestISISChecksumRefusesMisplacedXY`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc905_checksum_test.go#L108) |
@@ -114,15 +129,15 @@ Mandatory ceiling: 8 of 11 (72.7%); excluded: Not applicable (classification can
 | `RFC905-B.3.2-1` | Initialize C0 and C1 to zero. (§B.3.2) | MUST | B.3.2 | **positive:** `unit/verify` [`TestRFC905GeneratorStartsFromZeroSums`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc905_annexb_steps_test.go#L114). **negative:** `unit/verify` [`TestRFC905SenderWithSeededSumsRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc905_annexb_steps_test.go#L138) |
 | `RFC905-B.3.5-1` | Place the values X and Y in octets n and (n + 1) respectively. (§B.3.5) | MUST | B.3.5 | **positive:** `unit/verify` [`TestRFC905LSPPlacesXAtNAndYAtNPlus1`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc905_annexb_steps_test.go#L194). **negative:** `unit/verify` [`TestRFC905LSPWithSwappedXYRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc905_annexb_steps_test.go#L223) |
 | `RFC905-B.4.2-1` | Process each octet of the TPDU sequentially from i = 1 to L by: a) adding the value of the octet to C0; then b) adding the value of C0 to C1. (§B.4.2) | MUST | B.4.2 | **positive:** `unit/verify` [`TestRFC905VerifierAcceptsEveryPlacement`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc905_annexb_steps_test.go#L259). **negative:** `unit/verify` [`TestRFC905VerifierReadsTheFirstAndLastOctet`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc905_annexb_steps_test.go#L286) |
-| `RFC905-13.2.3.1-1` | Parameter Code: 1100 0011 Parameter Length: 2 Parameter Value: Result of checksum algorithm. This algorithm is specified in 6.17. (§13.2.3.1) | MUST | 13.2.3.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze implements the RFC 905 Annex B Fletcher checksum (reused by IS-IS at internal/plugins/isis/packet/checksum.go and OSPF at internal/plugins/ospf/types/checksum.go) but has no ISO Transport Protocol code path that encodes the 0xC3 transport checksum parameter (grep for TPDU/TP4/0xC3 across internal/ is empty) |
+| `RFC905-13.2.3.1-1` | Parameter Code: 1100 0011 Parameter Length: 2 Parameter Value: Result of checksum algorithm. This algorithm is specified in 6.17. (§13.2.3.1) | MUST | 13.2.3.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze has no ISO Transport Protocol entity, so it encodes no 0xC3 checksum parameter; its Annex B Fletcher checksum serves IS-IS (internal/plugins/isis/packet/checksum.go) and OSPF (internal/plugins/ospf/types/checksum.go) only. The row is a field layout with no subject, which fits neither not-applicable shape |
 
 ## Gaps and untested MUSTs
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC905-6.17.3-1`](#rfc905-6.17.3-1) The sending transport entity shall transmit TPDUs with the checksum parameter set such that the following formulas are satisfied: SUM(from i=1 to i=L) OF a[i] EQUALS <zero> (module 255) SUM(from i=1 to i=L) OF i*a[i] EQUALS <zero> (module 255) (§6.17.3) | no test | no test carries this requirement id; annotated {not-applicable}: ze implements the RFC 905 Annex B Fletcher checksum (reused by IS-IS at internal/plugins/isis/packet/checksum.go and OSPF at internal/plugins/ospf/types/checksum.go) but has no ISO Transport Protocol TPDU generator that sets a transport checksum parameter (grep for TPDU/TP4/0xC3 across internal/ is empty) |
-| [`RFC905-6.17.3-2`](#rfc905-6.17.3-2) A transport entity which receives a TPDU for a transport connection for which the use of checksum has been agreed and which does not satisfy the above formulas shall discard the TPDU (§6.17.3) | no test | no test carries this requirement id; annotated {not-applicable}: ze implements the RFC 905 Annex B Fletcher checksum (reused by IS-IS at internal/plugins/isis/packet/checksum.go and OSPF at internal/plugins/ospf/types/checksum.go) but has no ISO Transport Protocol TPDU receiver that verifies and discards a transport TPDU (grep for TPDU/TP4/0xC3 across internal/ is empty) |
-| [`RFC905-13.2.3.1-1`](#rfc905-13.2.3.1-1) Parameter Code: 1100 0011 Parameter Length: 2 Parameter Value: Result of checksum algorithm. This algorithm is specified in 6.17. (§13.2.3.1) | no test | no test carries this requirement id; annotated {not-applicable}: ze implements the RFC 905 Annex B Fletcher checksum (reused by IS-IS at internal/plugins/isis/packet/checksum.go and OSPF at internal/plugins/ospf/types/checksum.go) but has no ISO Transport Protocol code path that encodes the 0xC3 transport checksum parameter (grep for TPDU/TP4/0xC3 across internal/ is empty) |
+| [`RFC905-6.17.3-1`](#rfc905-6.17.3-1) The sending transport entity shall transmit TPDUs with the checksum parameter set such that the following formulas are satisfied: SUM(from i=1 to i=L) OF a[i] EQUALS <zero> (module 255) SUM(from i=1 to i=L) OF i*a[i] EQUALS <zero> (module 255) (§6.17.3) | {gap}, no test | ze has no ISO Transport Protocol entity: it implements the Annex B Fletcher checksum for IS-IS (internal/plugins/isis/packet/checksum.go) and OSPF (internal/plugins/ospf/types/checksum.go) and sends no TPDU, so no TPDU carries a checksum parameter. The lower-case shall fits neither not-applicable shape |
+| [`RFC905-6.17.3-2`](#rfc905-6.17.3-2) A transport entity which receives a TPDU for a transport connection for which the use of checksum has been agreed and which does not satisfy the above formulas shall discard the TPDU (§6.17.3) | {gap}, no test | ze has no ISO Transport Protocol entity: it implements the Annex B Fletcher checksum for IS-IS (internal/plugins/isis/packet/checksum.go) and OSPF (internal/plugins/ospf/types/checksum.go) and receives no TPDU, so none is verified or discarded. The subject carries a relative clause and a lower-case shall, which fit neither not-applicable shape |
+| [`RFC905-13.2.3.1-1`](#rfc905-13.2.3.1-1) Parameter Code: 1100 0011 Parameter Length: 2 Parameter Value: Result of checksum algorithm. This algorithm is specified in 6.17. (§13.2.3.1) | {gap}, no test | ze has no ISO Transport Protocol entity, so it encodes no 0xC3 checksum parameter; its Annex B Fletcher checksum serves IS-IS (internal/plugins/isis/packet/checksum.go) and OSPF (internal/plugins/ospf/types/checksum.go) only. The row is a field layout with no subject, which fits neither not-applicable shape |
 
 ## Proof state
 

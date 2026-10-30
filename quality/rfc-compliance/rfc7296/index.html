@@ -123,7 +123,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 234 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 234 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 234 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>36.5%</strong><b>267 of 731 tagged units, 0 escaped and 4 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>33.9%</strong><b>248 of 731 tagged units, 0 escaped and 23 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -359,8 +359,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_proposal_negotiation_test.go#L8" title="internal/component/ike/crypto/rfc7296_proposal_negotiation_test.go" target="_blank" rel="noopener"><code>TestProposalNegotiationFirstMatch</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_esn_test.go#L87" title="internal/component/ike/engine/rfc7296_esn_test.go" target="_blank" rel="noopener"><code>TestEsnResponderAnswersOnlyAValueTheOfferCarried</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_proposal_negotiation_test.go#L63" title="internal/component/ike/crypto/rfc7296_proposal_negotiation_test.go" target="_blank" rel="noopener"><code>TestProposalNegotiationNoMatch</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1389" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkESNBothOffered</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1358" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkESNExtendedOnlyRefused</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1391" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkESNBothOffered</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1360" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkESNExtendedOnlyRefused</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7296-3.3-1">RFC7296-3.3-1</code></td><td colspan="3"><span class="rfc-subject">If an initiator wants to propose both combined- mode ciphers and normal ciphers, it must include two proposals: one will have all the combined-mode ciphers, and the other will have all the normal ciphers with the integrity algorithms. (§3.3)</span></td></tr>
@@ -789,12 +789,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>2.16</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7296-2.16-11">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_eap_auth_test.go#L324" title="internal/component/ike/engine/rfc7296_eap_auth_test.go" target="_blank" rel="noopener"><code>TestEapAuthConfigAcceptsPreSharedKeyPeer</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_eap_auth_test.go#L240" title="internal/component/ike/engine/rfc7296_eap_auth_test.go" target="_blank" rel="noopener"><code>TestEapAuthNonEAPPreSharedKeyStillAuthenticates</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_eap_auth_test.go#L82" title="internal/component/ike/engine/rfc7296_eap_auth_test.go" target="_blank" rel="noopener"><code>TestEapAuthResponderSignsWithPublicKey</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_eap_auth_test.go#L206" title="internal/component/ike/engine/rfc7296_eap_auth_test.go" target="_blank" rel="noopener"><code>TestEapAuthConfigRejectsEAPWithoutCertificate</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_eap_auth_test.go#L267" title="internal/component/ike/engine/rfc7296_eap_auth_test.go" target="_blank" rel="noopener"><code>TestEapAuthInitiatorRefusesPreSharedKeyResponder</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_eap_auth_test.go#L153" title="internal/component/ike/engine/rfc7296_eap_auth_test.go" target="_blank" rel="noopener"><code>TestEapAuthResponderRefusesWithoutCertificate</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_eap_auth_test.go#L318" title="internal/component/ike/engine/rfc7296_eap_auth_test.go" target="_blank" rel="noopener"><code>TestEapAuthConfigAcceptsPreSharedKeyPeer</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_eap_auth_test.go#L234" title="internal/component/ike/engine/rfc7296_eap_auth_test.go" target="_blank" rel="noopener"><code>TestEapAuthNonEAPPreSharedKeyStillAuthenticates</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_eap_auth_test.go#L78" title="internal/component/ike/engine/rfc7296_eap_auth_test.go" target="_blank" rel="noopener"><code>TestEapAuthResponderSignsWithPublicKey</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_eap_auth_test.go#L202" title="internal/component/ike/engine/rfc7296_eap_auth_test.go" target="_blank" rel="noopener"><code>TestEapAuthConfigRejectsEAPWithoutCertificate</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_eap_auth_test.go#L261" title="internal/component/ike/engine/rfc7296_eap_auth_test.go" target="_blank" rel="noopener"><code>TestEapAuthInitiatorRefusesPreSharedKeyResponder</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_eap_auth_test.go#L149" title="internal/component/ike/engine/rfc7296_eap_auth_test.go" target="_blank" rel="noopener"><code>TestEapAuthResponderRefusesWithoutCertificate</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7296-2.16-6">RFC7296-2.16-6</code></td><td colspan="3"><span class="rfc-subject">Extensible authentication is implemented in IKE as additional IKE_AUTH exchanges that MUST be completed in order to initialize the IKE SA (§2.16)</span></td></tr>
@@ -2783,12 +2783,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_initial_exchanges_test.go#L190" title="internal/component/ike/engine/rfc7296_initial_exchanges_test.go" target="_blank" rel="noopener"><code>TestRFC7296TamperedIKESAInitFailsIKEAuth</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_test.go#L35" title="internal/component/ike/engine/rfc7296_test.go" target="_blank" rel="noopener"><code>TestInitialExchangeEncryptionBoundary</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_initial_exchanges_test.go#L81" title="internal/component/ike/engine/rfc7296_initial_exchanges_test.go" target="_blank" rel="noopener"><code>TestRFC7296InitialExchangesCarryWhatSection12Names</code></a></td>
@@ -2845,7 +2845,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc7296-2.7-1"><code>RFC7296-2.7-1</code></a></h3>
 <p>The responder MUST accept a single proposal or reject them all and return an error. The error is given in a notification of type NO_PROPOSAL_CHOSEN. Each IPsec protocol proposal contains one or more transforms. Each transform contains a Transform Type. The accepted cryptographic suite MUST contain exactly one transform of each type included in the proposal. (§2.7)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 7296 Section 2.7 (rfc/full/rfc7296.txt): &#34;The responder MUST accept a single proposal or reject them all and return an error. The error is given in a notification of type NO_PROPOSAL_CHOSEN.&#34; and &#34;The accepted cryptographic suite MUST contain exactly one transform of each type included in the proposal.&#34; NegotiateIKE picks one proposal or returns ErrNoProposalChosen (TestProposalNegotiationFirstMatch/NoMatch); TestEsnResponderAnswersOnlyAValueTheOfferCarried asserts SAr2 carries one proposal with exactly one ESN transform of a value the offer carried and maps refusal to NO_PROPOSAL_CHOSEN. Interop: checkESNExtendedOnlyRefused isolates the ESN type (aes256gcm16-esn alone) and asserts ze reached NO_PROPOSAL_CHOSEN (logged by buildChildlessAuthResponse as it builds the refusal notify) with no CHILD_SA on strongSwan and zero XFRM states on both ends, recorded red with the espProposalMatches ESN comparison reverted; checkESNBothOffered asserts both ends keyed, strongSwan&#39;s state carries no esn, and traffic crosses, so both ends selected the same single ESN value. Limitation, not a defect: the interop negative reads ze&#39;s log, not strongSwan&#39;s receipt of the notify; the wire mapping is held by the engine unit test. Re-judged 2026-10-10 (independent judge, mode rejudge): every tagged unit, and the helpers they call (waitLog, listSAs, checkXFRMCount, establish, waitXFRM, xfrmState, verifyTunnelTraffic), is byte-identical between 35c3b0b699 and HEAD; the diff touches the scenarioCheckers registry shape (both ESN scenarios still map to these checkers) and the childless-IKE-SA checkers, and the producer change adds only a fix field to the refusal log line, so the verdict stands.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/le/interoplab/ipsec/checkers.go::checkESNBothOffered, internal/le/interoplab/ipsec/checkers.go::checkESNExtendedOnlyRefused moved. RFC 7296 Section 2.7 (rfc/full/rfc7296.txt): &#34;The responder MUST accept a single proposal or reject them all and return an error. The error is given in a notification of type NO_PROPOSAL_CHOSEN.&#34; and &#34;The accepted cryptographic suite MUST contain exactly one transform of each type included in the proposal.&#34; NegotiateIKE picks one proposal or returns ErrNoProposalChosen (TestProposalNegotiationFirstMatch/NoMatch); TestEsnResponderAnswersOnlyAValueTheOfferCarried asserts SAr2 carries one proposal with exactly one ESN transform of a value the offer carried and maps refusal to NO_PROPOSAL_CHOSEN. Interop: checkESNExtendedOnlyRefused isolates the ESN type (aes256gcm16-esn alone) and asserts ze reached NO_PROPOSAL_CHOSEN (logged by buildChildlessAuthResponse as it builds the refusal notify) with no CHILD_SA on strongSwan and zero XFRM states on both ends, recorded red with the espProposalMatches ESN comparison reverted; checkESNBothOffered asserts both ends keyed, strongSwan&#39;s state carries no esn, and traffic crosses, so both ends selected the same single ESN value. Limitation, not a defect: the interop negative reads ze&#39;s log, not strongSwan&#39;s receipt of the notify; the wire mapping is held by the engine unit test. Re-judged 2026-10-10 (independent judge, mode rejudge): every tagged unit, and the helpers they call (waitLog, listSAs, checkXFRMCount, establish, waitXFRM, xfrmState, verifyTunnelTraffic), is byte-identical between 35c3b0b699 and HEAD; the diff touches the scenarioCheckers registry shape (both ESN scenarios still map to these checkers) and the childless-IKE-SA checkers, and the producer change adds only a fix field to the refusal log line, so the verdict stands.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -2861,7 +2861,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1358" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkESNExtendedOnlyRefused</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1360" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkESNExtendedOnlyRefused</code></a></td>
 <td>interop/nightly</td>
 <td>unproven</td>
 </tr>
@@ -2876,7 +2876,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1389" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkESNBothOffered</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1391" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkESNBothOffered</code></a></td>
 <td>interop/nightly</td>
 <td>unproven</td>
 </tr>
@@ -3263,12 +3263,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_transport_test.go#L273" title="internal/component/ike/engine/rfc7296_transport_test.go" target="_blank" rel="noopener"><code>TestUseTransportModeNotifyIsEchoedOnlyWhenAccepted</code></a></td>
 <td>unit/verify</td>
-<td>mutant, verified</td>
+<td>mutant, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_transport_test.go#L261" title="internal/component/ike/engine/rfc7296_transport_test.go" target="_blank" rel="noopener"><code>TestUseTransportModeNotifyIsEchoedOnlyWhenAccepted</code></a></td>
 <td>unit/verify</td>
-<td>mutant, verified</td>
+<td>mutant, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -3463,7 +3463,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_nat_port4500_test.go#L73" title="internal/component/ike/engine/rfc7296_nat_port4500_test.go" target="_blank" rel="noopener"><code>TestRFC7296InitiatorCheckFindsNoNATOnMatchingPayloads</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/nat_test.go#L63" title="internal/component/ike/transport/nat_test.go" target="_blank" rel="noopener"><code>TestNATDetectionAbsent</code></a></td>
@@ -3473,7 +3473,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_nat_port4500_test.go#L36" title="internal/component/ike/engine/rfc7296_nat_port4500_test.go" target="_blank" rel="noopener"><code>TestRFC7296InitiatorChecksEachNATDetectionPayload</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/nat_test.go#L43" title="internal/component/ike/transport/nat_test.go" target="_blank" rel="noopener"><code>TestNATDetectionPresent</code></a></td>
@@ -3990,38 +3990,38 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc7296-2.16-11"><code>RFC7296-2.16-11</code></a></h3>
 <p>these protocols are typically used to authenticate the initiator to the responder and MUST be used in conjunction with a public-key-signature-based authentication of the responder to the initiator. (§2.16)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. EAP responder AUTH is an RFC 7427 signature verified under the cert key; no-cert EAP refused at setup and config; initiator refuses PSK AUTH from EAP responder; PSK peers unaffected</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 by an independent auditor after 05646d85eb dropped the always-true hasCA/hasCert stubs from ValidatePKIRefs (existence now a ze:reference at config load). RFC 7296 Section 2.16 re-read in rfc/full/rfc7296.txt: &#34;For this reason, these protocols are typically used to authenticate the initiator to the responder and MUST be used in conjunction with a public-key-signature-based authentication of the responder to the initiator.&#34; The two changed units keep their inputs and assertions: TestEapAuthConfigRejectsEAPWithoutCertificate requires ValidatePKIRefs to refuse an eap-mschapv2 and an eap-tls peer with no certificate, naming the peer, &#39;certificate&#39; and &#39;RFC 7296 Section 2.16&#39;, and to accept the same peer once a certificate is named; TestEapAuthConfigAcceptsPreSharedKeyPeer requires a pre-shared-secret peer to pass. Read at the producer: ipsec/validate.go ValidatePKIRefs still refuses IsEAPMode with an empty Auth.Certificate before any lookup, so the stubs never decided the outcome. The unchanged units still cover the wire: the EAP responder AUTH is an RFC 7427 signature verified under the certificate key, computeServerAuth refuses no-cert EAP at setup, and the initiator refuses a PSK AUTH from an EAP responder. Q1-Q4 unchanged from the earlier judgement: EAP responder AUTH is a public-key signature, no-cert EAP refused at setup and config, PSK peers unaffected.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_eap_auth_test.go#L206" title="internal/component/ike/engine/rfc7296_eap_auth_test.go" target="_blank" rel="noopener"><code>TestEapAuthConfigRejectsEAPWithoutCertificate</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_eap_auth_test.go#L202" title="internal/component/ike/engine/rfc7296_eap_auth_test.go" target="_blank" rel="noopener"><code>TestEapAuthConfigRejectsEAPWithoutCertificate</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_eap_auth_test.go#L267" title="internal/component/ike/engine/rfc7296_eap_auth_test.go" target="_blank" rel="noopener"><code>TestEapAuthInitiatorRefusesPreSharedKeyResponder</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_eap_auth_test.go#L261" title="internal/component/ike/engine/rfc7296_eap_auth_test.go" target="_blank" rel="noopener"><code>TestEapAuthInitiatorRefusesPreSharedKeyResponder</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_eap_auth_test.go#L153" title="internal/component/ike/engine/rfc7296_eap_auth_test.go" target="_blank" rel="noopener"><code>TestEapAuthResponderRefusesWithoutCertificate</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_eap_auth_test.go#L149" title="internal/component/ike/engine/rfc7296_eap_auth_test.go" target="_blank" rel="noopener"><code>TestEapAuthResponderRefusesWithoutCertificate</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_eap_auth_test.go#L324" title="internal/component/ike/engine/rfc7296_eap_auth_test.go" target="_blank" rel="noopener"><code>TestEapAuthConfigAcceptsPreSharedKeyPeer</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_eap_auth_test.go#L318" title="internal/component/ike/engine/rfc7296_eap_auth_test.go" target="_blank" rel="noopener"><code>TestEapAuthConfigAcceptsPreSharedKeyPeer</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_eap_auth_test.go#L240" title="internal/component/ike/engine/rfc7296_eap_auth_test.go" target="_blank" rel="noopener"><code>TestEapAuthNonEAPPreSharedKeyStillAuthenticates</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_eap_auth_test.go#L234" title="internal/component/ike/engine/rfc7296_eap_auth_test.go" target="_blank" rel="noopener"><code>TestEapAuthNonEAPPreSharedKeyStillAuthenticates</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_eap_auth_test.go#L82" title="internal/component/ike/engine/rfc7296_eap_auth_test.go" target="_blank" rel="noopener"><code>TestEapAuthResponderSignsWithPublicKey</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_eap_auth_test.go#L78" title="internal/component/ike/engine/rfc7296_eap_auth_test.go" target="_blank" rel="noopener"><code>TestEapAuthResponderSignsWithPublicKey</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -6068,7 +6068,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_auth_child_refusal_test.go#L118" title="internal/component/ike/engine/rfc7296_auth_child_refusal_test.go" target="_blank" rel="noopener"><code>TestInitiatorKeepsChildlessIKESA</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_notify_error_test.go#L468" title="internal/component/ike/engine/rfc7296_notify_error_test.go" target="_blank" rel="noopener"><code>TestErrInitiatorSurvivesPiggybackedErrorNotify</code></a></td>
@@ -6078,7 +6078,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_auth_child_refusal_test.go#L115" title="internal/component/ike/engine/rfc7296_auth_child_refusal_test.go" target="_blank" rel="noopener"><code>TestInitiatorKeepsChildlessIKESA</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_notify_error_test.go#L458" title="internal/component/ike/engine/rfc7296_notify_error_test.go" target="_blank" rel="noopener"><code>TestErrInitiatorSurvivesPiggybackedErrorNotify</code></a></td>
@@ -6098,12 +6098,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L141" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeAuthExtensionErrorsRequirePeerUnderstanding</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L139" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeAuthExtensionErrorsRequirePeerUnderstanding</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -6333,7 +6333,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_unprotected_notify_handshake_test.go#L25" title="internal/component/ike/engine/rfc7296_unprotected_notify_handshake_test.go" target="_blank" rel="noopener"><code>TestErrUnprotectedNotifyLeavesHalfOpenSA</code></a></td>
 <td>unit/verify</td>
-<td>mutant, verified</td>
+<td>mutant, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -6703,22 +6703,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_psk_terminator_test.go#L85" title="internal/component/ike/engine/rfc7296_psk_terminator_test.go" target="_blank" rel="noopener"><code>TestRFC7296PSKWithANullTerminatorAddedIsRefused</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/ipsec/rfc7296_test.go#L86" title="internal/component/ike/ipsec/rfc7296_test.go" target="_blank" rel="noopener"><code>TestPSKHasNoNullTerminatorAdded</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_psk_terminator_test.go#L57" title="internal/component/ike/engine/rfc7296_psk_terminator_test.go" target="_blank" rel="noopener"><code>TestRFC7296PSKIsUsedWithoutANullTerminator</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/ipsec/rfc7296_test.go#L81" title="internal/component/ike/ipsec/rfc7296_test.go" target="_blank" rel="noopener"><code>TestPSKHasNoNullTerminatorAdded</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -6838,7 +6838,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_header_test.go#L209" title="internal/component/ike/engine/rfc7296_header_test.go" target="_blank" rel="noopener"><code>TestSPIZeroRules</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_header_test.go#L204" title="internal/component/ike/engine/rfc7296_header_test.go" target="_blank" rel="noopener"><code>TestSPIZeroRules</code></a></td>
@@ -6948,7 +6948,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_header_test.go#L370" title="internal/component/ike/engine/rfc7296_header_test.go" target="_blank" rel="noopener"><code>TestResponseBitMatchesDirection</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -6998,7 +6998,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_header_test.go#L374" title="internal/component/ike/engine/rfc7296_header_test.go" target="_blank" rel="noopener"><code>TestResponseBitMatchesDirection</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_noresponse_test.go#L257" title="internal/component/ike/engine/rfc7296_noresponse_test.go" target="_blank" rel="noopener"><code>TestNrsInformationalHandlerRefusesAResponse</code></a></td>
@@ -8058,7 +8058,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_cp_version_test.go#L34" title="internal/component/ike/engine/rfc7296_cp_version_test.go" target="_blank" rel="noopener"><code>TestRFC7296ResponderAnswersAVersionRequestWithNoCP</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -9647,7 +9647,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 19:30 UTC</span>
+                    <span class="footer-published">Published 30 October 2026 23:25 UTC</span>
                 </div>
             </div>
         </footer>

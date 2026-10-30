@@ -487,8 +487,31 @@ Tab completion is driven by registered YANG schemas. The editor suggests:
   `peer vrf interface`), the first value of each configured entry, once, so
   one peer on two links is offered once; the key leaf names follow it
 - Well-known values a plugin offers for one of its own leaves, such as the
-  transit-free ASNs on `bgp policy reject-asn ... via`
-<!-- source: internal/component/cli/completer.go -- valueCompletions, validateCompletions, listKeyCompletions -->
+  transit-free ASNs on `policy reject-asn ... via`
+- For a leaf that names another configured entry, the entries it may name at
+  that position: Tab on traffic-control `default-class` offers the classes of
+  that qdisc, and Tab on a filter chain's `filters [ ` offers the policy
+  filters that chain's protocol accepts. The other references completed this
+  way: a bfd session, BGP peer or static next-hop bfd profile; an OSPF or IS-IS
+  key-chain; a user's or tacacs-profile's authorization profile; an IPsec
+  peer's or remote-access gateway's `ike-group` and `esp-group`; a firewall
+  term's `jump` and `goto` chain; a geodns source's `host-set`; a policy match
+  instance's `prefix-list`; and every PKI certificate or CA name a web, looking
+  glass, plugin, IPsec, RPKI, geodns or AS112 block carries. Completion and commit run the same
+  check, so commit accepts every value offered; with none configured, Tab
+  shows the type hint
+- Inside a leaf-list's brackets, the next value: `set filters [ P ` completes
+  a second filter
+<!-- source: internal/component/cli/completer.go -- valueCompletions, referenceCompletions, validateCompletions, listKeyCompletions, completeSetPath -->
+<!-- source: internal/component/config/yang/reference_instances.go -- ReferenceInstances -->
+<!-- source: internal/component/policy/reference_source.go -- filterReference -->
+
+List keys and every other value read from the config come from your own
+candidate configuration, uncommitted edits included. In the web CLI each user
+completes from their own session, so another user's uncommitted entries never
+appear in your suggestions.
+<!-- source: internal/component/cli/completer.go -- Complete -->
+<!-- source: internal/component/web/cli.go -- completeCLIInput -->
 
 **A suggestion is never a constraint.** A leaf that offers well-known values
 still accepts every value its YANG type admits, so an ASN outside the offered

@@ -582,8 +582,8 @@ profile "test" run: entry 10: invalid regex "[broken": error parsing regexp: mis
 </tr>
 <tr>
 <td>Referencing a profile name that does not exist</td>
-<td>The profile is skipped silently; if all assigned profiles are missing, the user gets admin defaults</td>
-<td>Define the profile, or use one of the built-in names (<code>admin</code>, <code>read-only</code>)</td>
+<td>Commit and <code>ze config validate</code> refuse it, naming the profiles that exist: a user's <code>profile</code> and a <code>tacacs-profile</code>'s <code>profile</code> are leafrefs to <code>system authorization profile</code></td>
+<td>Define the profile in the same commit, or name one that exists</td>
 </tr>
 </tbody>
 </table>
@@ -683,7 +683,7 @@ profile "test" run: entry 10: invalid regex "[broken": error parsing regexp: mis
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 02:50 UTC</span>
+                    <span class="footer-published">Published 30 October 2026 17:53 UTC</span>
                 </div>
             </div>
         </footer>

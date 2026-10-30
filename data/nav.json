@@ -23,7 +23,7 @@
             "columns": [
                 [
                     {"label_only": "Capabilities and fit"},
-                    {"href": "features/", "icon": "🧩", "title": "Features", "desc": "%(features)s features, grouped by category", "feature": true},
+                    {"href": "features/", "icon": "🧩", "title": "Features", "desc": "{{ze:features.core_experimental}} features, grouped by category", "feature": true},
                     {"href": "compare/", "icon": "⚖️", "title": "Compare", "desc": "Compare Ze with BIRD, FRR, VyOS, and more"},
                     {"href": "performance/", "icon": "⚡", "title": "Performance", "desc": "Measured BGP benchmarks and reports"}
                 ],
@@ -32,7 +32,7 @@
                     {"href": "quality/", "icon": "✓", "title": "Code quality", "desc": "Tests, QEMU, fuzzing, and mutation checks", "feature": true},
                     {"href": "quality/health/", "icon": "📈", "title": "Testing health", "desc": "Measured test state and how it moves over time"},
                     {"href": "quality/rfc-compliance/", "icon": "🤖", "title": "RFC compliance gate", "desc": "RFC requirements, tests, gaps, and public claims checked by AI"},
-                    {"href": "reference/dependencies/", "icon": "📦", "title": "Dependencies", "desc": "%(dependencies)s direct packages, generated from go.mod"},
+                    {"href": "reference/dependencies/", "icon": "📦", "title": "Dependencies", "desc": "{{ze:dependencies}} direct packages, generated from go.mod"},
                     {"href": "security/", "icon": "🔒", "title": "Security", "desc": "Security policy and vulnerability reporting"}
                 ]
             ]
@@ -88,8 +88,8 @@
                 [
                     {"label_only": "Live system"},
                     {"href": "reference/", "icon": "📚", "title": "Reference index", "desc": "Commands, configuration, plugins, standards, and feature status", "feature": true},
-                    {"href": "reference/cli/", "icon": "⌨️", "title": "CLI reference", "desc": "%(cli_commands)s commands, generated from Ze's live binary"},
-                    {"href": "reference/configuration/", "icon": "🧬", "title": "Configuration reference", "desc": "%(config_sections)s sections, indexed from live YANG"},
+                    {"href": "reference/cli/", "icon": "⌨️", "title": "CLI reference", "desc": "{{ze:cli_commands}} commands, generated from Ze's live binary"},
+                    {"href": "reference/configuration/", "icon": "🧬", "title": "Configuration reference", "desc": "{{ze:config_sections}} sections, indexed from live YANG"},
                     {"href": "reference/plugins/", "icon": "🔌", "title": "Plugin catalogue", "desc": "Find runtime plugins by purpose, config, or dependency"}
                 ],
                 [
@@ -108,7 +108,7 @@
                     {"label_only": "Progress and history"},
                     {"href": "project/", "icon": "🧭", "title": "Project overview", "desc": "Progress, history, talks, and contribution paths", "feature": true},
                     {"href": "project/roadmap/", "icon": "\ud83d\uddfa\ufe0f", "title": "Roadmap", "desc": "Release work items and nice-to-haves, an inventory preview"},
-                    {"href": "project/changes/", "icon": "🧾", "title": "Changes", "desc": "What shipped, week by week"},
+                    {"href": "project/changes/", "icon": "🧾", "title": "Changes", "desc": "{{ze:changes}} weekly updates, what shipped week by week"},
                     {"href": "project/milestones/", "icon": "🏁", "title": "Milestones", "desc": "Landmark features, oldest to newest"},
                     {"href": "project/activity/", "icon": "📈", "title": "Activity", "desc": "A year of commits, at a glance"},
                     {"href": "project/history/", "icon": "🕰️", "title": "Project history", "desc": "How ExaBGP's programmable model grew into Ze"}

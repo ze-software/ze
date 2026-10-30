@@ -1,6 +1,6 @@
 # RFC 8097 - BGP Prefix Origin Validation State Extended Community
 
-No row in the public ledger. Every requirement this repository extracted from RFC 8097, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+Unsupported. Every requirement this repository extracted from RFC 8097, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
 
 ## Overview
 
@@ -14,7 +14,6 @@ what Ze has
 | One polarity plus reason | 0.0% | 0 of 5 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 5 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 5 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| No test at all | 0.0% | 0 of 5 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 | Proven by a recorded break | 0.0% | 0 of 0 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
@@ -24,11 +23,19 @@ measures that are neither good news nor bad
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | Gated MUSTs | 5 | of 10 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 5 | of 5 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 100.0% | 5 of 5 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Out of scope | 0 | of 5 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 0.0% | 0 of 5 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
 | Met below Ze | 0.0% | 0 of 5 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 5 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 | Linux cannot do this | 0.0% | 0 of 5 gated MUSTs | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit |
+
+### Negative
+
+what Ze owes
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| No test at all | 100.0% | 5 of 5 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
 The 9 shares marked as a part above are the whole of the 5 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -42,7 +49,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
-| No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
@@ -54,12 +61,12 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 | Field | Value |
 |---|---|
-| Public status | No row in the public ledger |
+| Public status | Unsupported |
 | Enrolment | Enrolled |
 | Requirements | 10 |
 | Gated MUST-level | 5 |
-| Not applicable, so out of scope | 5 |
-| Declared gaps | 0 |
+| Not applicable, so out of scope | 0 |
+| Declared gaps | 5 |
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
@@ -73,11 +80,19 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 ## Enrolment
 
-Enrolled: BGP Prefix Origin Validation State Extended Community: five MUST-level requirements, all {not-applicable} to Ze. Ze performs local RFC 6811 origin validation (internal/component/bgp/plugins/rpki/validate.go) but does not implement the RFC 8097 origin-validation-state extended community -- it has no encoder/decoder for the type-0x43 community and treats every extended community as a generic opaque 8-octet value (internal/core/bgp/attribute/community.go:231 ExtendedCommunity [8]byte, community.go:275 ParseExtendedCommunities). RFC8097-2-1 (Reserved field 0 on transmission) has no encoder; RFC8097-2-2 (ignore Reserved on receipt) and RFC8097-2-5 (RFC 7606 discard if state > 2) have no field/state decoding; RFC8097-2-3 (disregard all but greatest validation state) has no multi-instance selection; RFC8097-2-4 (drop from eBGP without processing) has no OV-state recognition. The 2-6..2-10 SHOULD/SHOULD-NOT clauses are not gated.
+Enrolled: BGP Prefix Origin Validation State Extended Community: five MUST-level requirements, all gaps. Ze performs local RFC 6811 origin validation (internal/component/bgp/plugins/rpki/validate.go) but does not implement the RFC 8097 origin validation state extended community: it has no encoder or decoder for the type-0x43 community and treats every extended community as an opaque 8-octet value (internal/core/bgp/attribute/community.go, ExtendedCommunity and ParseExtendedCommunities). An operator can still configure one in the 0x hex form with any Reserved value, and one received from an EBGP peer is readvertised unchanged rather than dropped (RFC8097-2-4). No owner decision declines the community, so each row is owed.
 
 ## What the public ledger says
 
-No row in the public ledger, so its summary declares `| Support | - |` and docs/features/rfc-status.md carries no row for RFC 8097.
+**Status:** Unsupported
+
+**What the ledger says is covered:**
+
+None: ze carries the type 0x43 community as eight opaque octets and neither builds nor reads it. Local origin validation is RFC 6811's row.
+
+**What the ledger says remains:**
+
+Five MUST-level gaps ([`RFC8097-2-1`](#rfc8097-2-1) to [`RFC8097-2-5`](#rfc8097-2-5)): no zero Reserved field, no greatest-value selection, no attribute discard above 2, and a community received over EBGP is readvertised to IBGP peers instead of dropped.
 
 ## Coverage
 
@@ -96,17 +111,17 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 
 ## Attainable ceiling
 
-Mandatory ceiling: 0 of 5 (0.0%); excluded: Not applicable (classification can be revisited): 5 of 5 (100.0%). Optional ceiling: 5 of 5 (100.0%). Lowest mandatory ceiling: rfc8097 0 of 5 (0.0%). Lowest optional ceiling: rfc8097 5 of 5 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+Mandatory ceiling: 5 of 5 (100.0%). Optional ceiling: 5 of 5 (100.0%). Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: rfc8097 5 of 5 (100.0%). Lowest optional ceiling: rfc8097 5 of 5 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
 
 ## Requirements
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC8097-2-1` | The Reserved field MUST be set to 0 (§2) | MUST | 2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** Ze does not implement the RFC 8097 BGP Prefix Origin Validation State Extended Community. It performs local RFC 6811 origin validation (internal/component/bgp/plugins/rpki/validate.go) but has no encoder for the origin-validation-state extended community (type 0x43); its extended-community codec is a generic opaque 8-octet carrier (internal/core/bgp/attribute/community.go:231 ExtendedCommunity [8]byte), so Ze never originates this community and has no Reserved field to zero. |
-| `RFC8097-2-2` | The Reserved field MUST be set to 0 and ignored upon the receipt of this community. (§2) | MUST | 2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** Ze does not decode the origin-validation-state extended community; ParseExtendedCommunities (internal/core/bgp/attribute/community.go:275) retains every extended community as an opaque 8-octet value and never interprets bytes 2-6 as a reserved field, so there is no RFC 8097 Reserved field for Ze to ignore. |
-| `RFC8097-2-3` | However, if more than one instance is received, an implementation MUST disregard all instances other than the one with the numerically greatest validation state value. (§2) | MUST | 2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** Ze does not process the origin-validation-state extended community (no type-0x43 decoder; community.go:275 keeps ext-communities opaque), so there is no validation-state value to compare across instances and no greatest-state selection code path. |
-| `RFC8097-2-4` | By default, implementations MUST drop the origin validation state extended community if received from an External BGP (EBGP) peer, without processing it further. (§2) | MUST | 2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** Ze does not recognize or process the origin-validation-state extended community (no type-0x43 handling; community.go:275), so it applies no RFC 8097 semantics -- there is no origin-validation-state community for Ze to drop-vs-process based on the eBGP/iBGP peer type. |
-| `RFC8097-2-5` | If the value received is greater than the largest specified value (2), the implementation MUST apply a strategy similar to attribute discard [RFC7606] by discarding the erroneous community and logging the error for further analysis. (§2) | MUST | 2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** Ze does not decode the origin-validation-state extended community's validation-state octet (community.go:275 keeps the 8-octet value opaque and never reads it as a validation state), so it has no code path that could observe a state value > 2 to apply the RFC 7606 discard against. |
+| `RFC8097-2-1` | The Reserved field MUST be set to 0 (§2) | MUST | 2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze never builds the community itself, but an operator can configure the community in the 0x hex form with any value (internal/core/bgp/attribute/extcomm_hex.go::ParseExtendedCommunityHex interprets no type octets), so nothing refuses a non-zero Reserved field. ze implements no origin validation state extended community: internal/core/bgp/attribute/community.go::ParseExtendedCommunities keeps every extended community as eight opaque octets and nothing reads type 0x43 sub-type 0x00. No owner decision declines the community, so this is owed with it |
+| `RFC8097-2-2` | The Reserved field MUST be set to 0 and ignored upon the receipt of this community. (§2) | MUST | 2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze reads no Reserved field of the community. ze implements no origin validation state extended community: internal/core/bgp/attribute/community.go::ParseExtendedCommunities keeps every extended community as eight opaque octets and nothing reads type 0x43 sub-type 0x00. No owner decision declines the community, so this is owed with it |
+| `RFC8097-2-3` | However, if more than one instance is received, an implementation MUST disregard all instances other than the one with the numerically greatest validation state value. (§2) | MUST | 2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze compares no validation state across instances. ze implements no origin validation state extended community: internal/core/bgp/attribute/community.go::ParseExtendedCommunities keeps every extended community as eight opaque octets and nothing reads type 0x43 sub-type 0x00. No owner decision declines the community, so this is owed with it |
+| `RFC8097-2-4` | By default, implementations MUST drop the origin validation state extended community if received from an External BGP (EBGP) peer, without processing it further. (§2) | MUST | 2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** a community received from an EBGP peer is kept and readvertised unchanged, to IBGP peers included (internal/core/bgp/attribute/community.go::ExtendedCommunities.WriteTo copies it back out), so the default drop does not happen. ze implements no origin validation state extended community: internal/core/bgp/attribute/community.go::ParseExtendedCommunities keeps every extended community as eight opaque octets and nothing reads type 0x43 sub-type 0x00. No owner decision declines the community, so this is owed with it |
+| `RFC8097-2-5` | If the value received is greater than the largest specified value (2), the implementation MUST apply a strategy similar to attribute discard [RFC7606] by discarding the erroneous community and logging the error for further analysis. (§2) | MUST | 2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze reads no validation state value, so a value above 2 is neither discarded nor logged. ze implements no origin validation state extended community: internal/core/bgp/attribute/community.go::ParseExtendedCommunities keeps every extended community as eight opaque octets and nothing reads type 0x43 sub-type 0x00. No owner decision declines the community, so this is owed with it |
 | `RFC8097-2-6` | If the router is configured to support the extensions defined in this document, it SHOULD attach the origin validation state extended community to BGP UPDATE messages sent to IBGP peers by mapping the computed validation state in the last octet of the extended community. (§2) | SHOULD | 2 | **positive:** no positive test. **negative:** no negative test |
 | `RFC8097-2-7` | Similarly, a receiving BGP speaker, in the absence of validation state set based on local data, SHOULD derive a validation state from the last octet of the extended community, if present. (§2) | SHOULD | 2 | **positive:** no positive test. **negative:** no negative test |
 | `RFC8097-2-8` | An implementation SHOULD NOT send more than one instance of the origin validation state extended community. (§2) | SHOULD NOT | 2 | **positive:** no positive test. **negative:** no negative test |
@@ -117,11 +132,11 @@ Mandatory ceiling: 0 of 5 (0.0%); excluded: Not applicable (classification can b
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC8097-2-1`](#rfc8097-2-1) The Reserved field MUST be set to 0 (§2) | no test | no test carries this requirement id; annotated {not-applicable}: Ze does not implement the RFC 8097 BGP Prefix Origin Validation State Extended Community. It performs local RFC 6811 origin validation (internal/component/bgp/plugins/rpki/validate.go) but has no encoder for the origin-validation-state extended community (type 0x43); its extended-community codec is a generic opaque 8-octet carrier (internal/core/bgp/attribute/community.go:231 ExtendedCommunity [8]byte), so Ze never originates this community and has no Reserved field to zero. |
-| [`RFC8097-2-2`](#rfc8097-2-2) The Reserved field MUST be set to 0 and ignored upon the receipt of this community. (§2) | no test | no test carries this requirement id; annotated {not-applicable}: Ze does not decode the origin-validation-state extended community; ParseExtendedCommunities (internal/core/bgp/attribute/community.go:275) retains every extended community as an opaque 8-octet value and never interprets bytes 2-6 as a reserved field, so there is no RFC 8097 Reserved field for Ze to ignore. |
-| [`RFC8097-2-3`](#rfc8097-2-3) However, if more than one instance is received, an implementation MUST disregard all instances other than the one with the numerically greatest validation state value. (§2) | no test | no test carries this requirement id; annotated {not-applicable}: Ze does not process the origin-validation-state extended community (no type-0x43 decoder; community.go:275 keeps ext-communities opaque), so there is no validation-state value to compare across instances and no greatest-state selection code path. |
-| [`RFC8097-2-4`](#rfc8097-2-4) By default, implementations MUST drop the origin validation state extended community if received from an External BGP (EBGP) peer, without processing it further. (§2) | no test | no test carries this requirement id; annotated {not-applicable}: Ze does not recognize or process the origin-validation-state extended community (no type-0x43 handling; community.go:275), so it applies no RFC 8097 semantics -- there is no origin-validation-state community for Ze to drop-vs-process based on the eBGP/iBGP peer type. |
-| [`RFC8097-2-5`](#rfc8097-2-5) If the value received is greater than the largest specified value (2), the implementation MUST apply a strategy similar to attribute discard [RFC7606] by discarding the erroneous community and logging the error for further analysis. (§2) | no test | no test carries this requirement id; annotated {not-applicable}: Ze does not decode the origin-validation-state extended community's validation-state octet (community.go:275 keeps the 8-octet value opaque and never reads it as a validation state), so it has no code path that could observe a state value > 2 to apply the RFC 7606 discard against. |
+| [`RFC8097-2-1`](#rfc8097-2-1) The Reserved field MUST be set to 0 (§2) | {gap}, no test | ze never builds the community itself, but an operator can configure the community in the 0x hex form with any value (internal/core/bgp/attribute/extcomm_hex.go::ParseExtendedCommunityHex interprets no type octets), so nothing refuses a non-zero Reserved field. ze implements no origin validation state extended community: internal/core/bgp/attribute/community.go::ParseExtendedCommunities keeps every extended community as eight opaque octets and nothing reads type 0x43 sub-type 0x00. No owner decision declines the community, so this is owed with it |
+| [`RFC8097-2-2`](#rfc8097-2-2) The Reserved field MUST be set to 0 and ignored upon the receipt of this community. (§2) | {gap}, no test | ze reads no Reserved field of the community. ze implements no origin validation state extended community: internal/core/bgp/attribute/community.go::ParseExtendedCommunities keeps every extended community as eight opaque octets and nothing reads type 0x43 sub-type 0x00. No owner decision declines the community, so this is owed with it |
+| [`RFC8097-2-3`](#rfc8097-2-3) However, if more than one instance is received, an implementation MUST disregard all instances other than the one with the numerically greatest validation state value. (§2) | {gap}, no test | ze compares no validation state across instances. ze implements no origin validation state extended community: internal/core/bgp/attribute/community.go::ParseExtendedCommunities keeps every extended community as eight opaque octets and nothing reads type 0x43 sub-type 0x00. No owner decision declines the community, so this is owed with it |
+| [`RFC8097-2-4`](#rfc8097-2-4) By default, implementations MUST drop the origin validation state extended community if received from an External BGP (EBGP) peer, without processing it further. (§2) | {gap}, no test | a community received from an EBGP peer is kept and readvertised unchanged, to IBGP peers included (internal/core/bgp/attribute/community.go::ExtendedCommunities.WriteTo copies it back out), so the default drop does not happen. ze implements no origin validation state extended community: internal/core/bgp/attribute/community.go::ParseExtendedCommunities keeps every extended community as eight opaque octets and nothing reads type 0x43 sub-type 0x00. No owner decision declines the community, so this is owed with it |
+| [`RFC8097-2-5`](#rfc8097-2-5) If the value received is greater than the largest specified value (2), the implementation MUST apply a strategy similar to attribute discard [RFC7606] by discarding the erroneous community and logging the error for further analysis. (§2) | {gap}, no test | ze reads no validation state value, so a value above 2 is neither discarded nor logged. ze implements no origin validation state extended community: internal/core/bgp/attribute/community.go::ParseExtendedCommunities keeps every extended community as eight opaque octets and nothing reads type 0x43 sub-type 0x00. No owner decision declines the community, so this is owed with it |
 
 ## Proof state
 

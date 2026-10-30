@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 6810 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 6810: The Resource Public Key Infrastructure (RPKI) to Router Protocol. 40 gated MUST-level requirements, 4 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 6810: The Resource Public Key Infrastructure (RPKI) to Router Protocol. 40 gated MUST-level requirements, 38 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 6810 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 6810: The Resource Public Key Infrastructure (RPKI) to Router Protocol. 40 gated MUST-level requirements, 4 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 6810: The Resource Public Key Infrastructure (RPKI) to Router Protocol. 40 gated MUST-level requirements, 38 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 6810 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 6810: The Resource Public Key Infrastructure (RPKI) to Router Protocol. 40 gated MUST-level requirements, 4 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 6810: The Resource Public Key Infrastructure (RPKI) to Router Protocol. 40 gated MUST-level requirements, 38 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -45,7 +45,7 @@
         <main id="top" class="has-page-sidebar" tabindex="-1">
             <section aria-labeledby="rfc-detail-title" class="md-content reveal cat-observe">
 <div class="journey-hero reveal">
-    <span class="journey-eyebrow">Partial</span>
+    <span class="journey-eyebrow">Unsupported</span>
     <h1 id="rfc-detail-title">RFC 6810 - The Resource Public Key Infrastructure (RPKI) to Router Protocol</h1>
     <p>Every requirement this repository extracted from RFC 6810, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.</p>
 </div>
@@ -118,18 +118,18 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>15.0%</strong><b>6 of 40 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>5.0%</strong><b>2 of 40 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>0.0%</strong><b>0 of 40 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 40 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 40 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 40 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>61.9%</strong><b>13 of 21 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 0 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>40</strong><b>of 68 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>28</strong><b>of 40 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>70.0%</strong><b>28 of 40 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>2</strong><b>of 40 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>5.0%</strong><b>2 of 40 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 40 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 40 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0.0%</strong><b>0 of 40 gated MUSTs</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit</p></article>
@@ -137,7 +137,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>10.0%</strong><b>4 of 40 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>95.0%</strong><b>38 of 40 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>6</strong><b>of 40 gated MUSTs judged</b><p>6 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 9 shares marked as a part above are the whole of the 40 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -195,7 +196,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -209,7 +210,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Field</th><th>Value</th></tr></thead>
 <tbody>
 <tr><td>Public status</td>
-<td>Partial</td>
+<td>Unsupported</td>
 </tr>
 <tr><td>Enrolment</td>
 <td>Enrolled</td>
@@ -221,10 +222,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>40</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
-<td>28</td>
+<td>2</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>4</td>
+<td>38</td>
 </tr>
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
@@ -236,16 +237,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>23</td>
+<td>0</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>21</td>
+<td>0</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>6</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>13</td>
+<td>0</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc6810.md</code></td>
@@ -261,18 +262,15 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Enrolled: RPKI to Router Protocol v0 / RPKI-RTR (RFC 6810): router / cache-client role. 6 MET + 2 single-polarity positive + 4 gap + 28 not-applicable (cache-server-side obligations ze does not perform). The MET rows include RFC6810-5.1-3, added 2026-09-21 from the Section 5.1 sentence the checklist had not carried</p>
+<p>Enrolled: RPKI to Router Protocol v0 / RPKI-RTR (RFC 6810): router (cache-client) role. Ze does not speak RTR protocol version 0, which this document defines: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, as RFC 8210 Section 7 permits in place of a downgrade. Version 0 is owed work (owner ruling 2026-10-30). Of the 40 MUST-level rows, 38 are gaps and 2 are not-applicable (cache obligations, each quoting the RFC sentence that binds the cache). No row counts as met: RFC6810-5-1, 5.1-1, 5.1-3, 6.1-1, 6.3-1, 6.4-1, 7-1 and 8-2 were tagged by tests that run version 1 sessions, which prove RFC 8210 behaviour and not RFC 6810, so under that ruling they are gaps and their RFC6810 tags leave those tests. RFC6810-5.1-3 was added 2026-09-21 from the Section 5.1 sentence the checklist had not carried</p>
 </section>
 <section><h2>What the public ledger says</h2>
-<p><strong>Status:</strong> Partial</p>
+<p><strong>Status:</strong> Unsupported</p>
 <details class="rfc-fold"><summary>What the ledger says is covered</summary>
-<ul class="rfc-prose">
-<li>ze is the RTR router (client): it parses IPv4/IPv6 Prefix, Cache Response, End of Data, Cache Reset, Serial Notify and Error Report PDUs (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu.go" target="_blank" rel="noopener"><code>internal/component/bgp/plugins/rpki/rtr_pdu.go</code></a>, rtr_session.go), sends Reset/Serial Queries, rejects a Prefix PDU whose Max Length is below its Prefix Length on receipt, validates route origins against the merged VRP cache (validate.go), and re-issues a Reset Query on Cache Reset and No Data Available. The v0 wire is reached through these shared router behaviors</li>
-<li>ze negotiates RTR v1/v2 (min version 1).</li>
-</ul>
+None at version 0. Ze does not speak RTR protocol version 0, which this document defines: handlePDU in <a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session.go" target="_blank" rel="noopener"><code>internal/component/bgp/plugins/rpki/rtr_session.go</code></a> refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, as RFC 8210 Section 7 permits in place of a downgrade. The router behaviours version 0 shares with version 1 (Prefix PDU parsing, Reset and Serial Queries, Max Length rejection, Cache Reset handling, cache preference, TLS client rules) are reached only in a version 1 or 2 session and are covered on the RFC 8210 row.
 </details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
-Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc6810.md" target="_blank" rel="noopener"><code>rfc/short/rfc6810.md</code></a>: <a href="#rfc6810-5.1-2"><code>RFC6810-5.1-2</code></a> -- no Session ID mismatch detection or cache flush (rtr_session.go adopts the cache Session ID unconditionally); <a href="#rfc6810-4-1"><code>RFC6810-4-1</code></a> -- no most-preferred-cache selection (rpki.go runs every configured cache concurrently); <a href="#rfc6810-8-1"><code>RFC6810-8-1</code></a> -- VRPs are not marked by source cache (one shared ROACache, rpki.go, roa_cache.go); <a href="#rfc6810-7-3"><code>RFC6810-7-3</code></a> -- no protected RTR transport (rtr_session.go dials only unprotected TCP, with no SSH/TLS/TCP-MD5/TCP-AO client).
+All of version 0, owed work (owner ruling 2026-10-30). 38 MUST-level gaps, each annotated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc6810.md" target="_blank" rel="noopener"><code>rfc/short/rfc6810.md</code></a>, and each opening with the fact that ze implements no version 0, plus 2 not-applicable cache rows. Of the gaps, 8 (<a href="#rfc6810-5-1"><code>RFC6810-5-1</code></a>, 5.1-1, 5.1-3, 6.1-1, 6.3-1, 6.4-1, 7-1, 8-2) are met by the shared router code only in version 1 sessions, proven under their RFC 8210 ids; 12 more are obligations the shared router code meets at versions 1 and 2 and proves only under RFC 8210 ids (cache preference, source separation, protected transport, the TLS client rules, Error Report rules, trust); <a href="#rfc6810-5.10-1"><code>RFC6810-5.10-1</code></a> and 5.10-3 are conditions ze never creates (a generic Error Report, error text); <a href="#rfc6810-5.1-2"><code>RFC6810-5.1-2</code></a>: no Session ID mismatch detection or cache flush (handlePDU adopts the cache Session ID unconditionally); <a href="#rfc6810-7.1-2"><code>RFC6810-7.1-2</code></a>, 7.3-1, 7.3-2 and 7.4-1 to 7.4-4: no SSH, TCP-MD5 or TCP-AO transport; <a href="#rfc6810-7-2"><code>RFC6810-7-2</code></a>: the trusted network is the operator&#39;s assertion, never checked; the rest bind the cache, whose payload, End of Data and Serial Notify PDUs ze never writes.
 </details>
 </section>
 <section><h2>Coverage</h2>
@@ -281,11 +279,11 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>6</strong></td>
+<td><strong>0</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated (including scoped evidence)</td>
-<td><strong>34</strong></td>
+<td><strong>40</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -312,11 +310,10 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (6):</strong> <a href="#rfc6810-5-1"><code>RFC6810-5-1</code></a>, <a href="#rfc6810-5.1-1"><code>RFC6810-5.1-1</code></a>, <a href="#rfc6810-5.1-3"><code>RFC6810-5.1-3</code></a>, <a href="#rfc6810-6.3-1"><code>RFC6810-6.3-1</code></a>, <a href="#rfc6810-6.4-1"><code>RFC6810-6.4-1</code></a>, <a href="#rfc6810-8-2"><code>RFC6810-8-2</code></a></p>
-<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (34):</strong> <a href="#rfc6810-5.6-1"><code>RFC6810-5.6-1</code></a>, <a href="#rfc6810-5.5-1"><code>RFC6810-5.5-1</code></a>, <a href="#rfc6810-5.8-1"><code>RFC6810-5.8-1</code></a>, <a href="#rfc6810-5.10-1"><code>RFC6810-5.10-1</code></a>, <a href="#rfc6810-5.10-2"><code>RFC6810-5.10-2</code></a>, <a href="#rfc6810-5.10-3"><code>RFC6810-5.10-3</code></a>, <a href="#rfc6810-5.10-4"><code>RFC6810-5.10-4</code></a>, <a href="#rfc6810-2-1"><code>RFC6810-2-1</code></a>, <a href="#rfc6810-5.1-2"><code>RFC6810-5.1-2</code></a>, <a href="#rfc6810-4-1"><code>RFC6810-4-1</code></a>, <a href="#rfc6810-6.1-1"><code>RFC6810-6.1-1</code></a>, <a href="#rfc6810-6.2-1"><code>RFC6810-6.2-1</code></a>, <a href="#rfc6810-3-1"><code>RFC6810-3-1</code></a>, <a href="#rfc6810-4-2"><code>RFC6810-4-2</code></a>, <a href="#rfc6810-7-1"><code>RFC6810-7-1</code></a>, <a href="#rfc6810-7-2"><code>RFC6810-7-2</code></a>, <a href="#rfc6810-7-3"><code>RFC6810-7-3</code></a>, <a href="#rfc6810-7.1-1"><code>RFC6810-7.1-1</code></a>, <a href="#rfc6810-7.1-2"><code>RFC6810-7.1-2</code></a>, <a href="#rfc6810-8-1"><code>RFC6810-8-1</code></a>, <a href="#rfc6810-7.2-1"><code>RFC6810-7.2-1</code></a>, <a href="#rfc6810-7.2-2"><code>RFC6810-7.2-2</code></a>, <a href="#rfc6810-7.2-3"><code>RFC6810-7.2-3</code></a>, <a href="#rfc6810-7.2-4"><code>RFC6810-7.2-4</code></a>, <a href="#rfc6810-7.2-5"><code>RFC6810-7.2-5</code></a>, <a href="#rfc6810-7.2-6"><code>RFC6810-7.2-6</code></a>, <a href="#rfc6810-7.2-7"><code>RFC6810-7.2-7</code></a>, <a href="#rfc6810-7.2-8"><code>RFC6810-7.2-8</code></a>, <a href="#rfc6810-7.3-1"><code>RFC6810-7.3-1</code></a>, <a href="#rfc6810-7.3-2"><code>RFC6810-7.3-2</code></a>, <a href="#rfc6810-7.4-1"><code>RFC6810-7.4-1</code></a>, <a href="#rfc6810-7.4-2"><code>RFC6810-7.4-2</code></a>, <a href="#rfc6810-7.4-3"><code>RFC6810-7.4-3</code></a>, <a href="#rfc6810-7.4-4"><code>RFC6810-7.4-4</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (40):</strong> <a href="#rfc6810-5-1"><code>RFC6810-5-1</code></a>, <a href="#rfc6810-5.1-1"><code>RFC6810-5.1-1</code></a>, <a href="#rfc6810-5.1-3"><code>RFC6810-5.1-3</code></a>, <a href="#rfc6810-5.6-1"><code>RFC6810-5.6-1</code></a>, <a href="#rfc6810-5.5-1"><code>RFC6810-5.5-1</code></a>, <a href="#rfc6810-5.8-1"><code>RFC6810-5.8-1</code></a>, <a href="#rfc6810-5.10-1"><code>RFC6810-5.10-1</code></a>, <a href="#rfc6810-5.10-2"><code>RFC6810-5.10-2</code></a>, <a href="#rfc6810-5.10-3"><code>RFC6810-5.10-3</code></a>, <a href="#rfc6810-5.10-4"><code>RFC6810-5.10-4</code></a>, <a href="#rfc6810-2-1"><code>RFC6810-2-1</code></a>, <a href="#rfc6810-5.1-2"><code>RFC6810-5.1-2</code></a>, <a href="#rfc6810-4-1"><code>RFC6810-4-1</code></a>, <a href="#rfc6810-6.1-1"><code>RFC6810-6.1-1</code></a>, <a href="#rfc6810-6.2-1"><code>RFC6810-6.2-1</code></a>, <a href="#rfc6810-6.3-1"><code>RFC6810-6.3-1</code></a>, <a href="#rfc6810-6.4-1"><code>RFC6810-6.4-1</code></a>, <a href="#rfc6810-3-1"><code>RFC6810-3-1</code></a>, <a href="#rfc6810-4-2"><code>RFC6810-4-2</code></a>, <a href="#rfc6810-7-1"><code>RFC6810-7-1</code></a>, <a href="#rfc6810-7-2"><code>RFC6810-7-2</code></a>, <a href="#rfc6810-7-3"><code>RFC6810-7-3</code></a>, <a href="#rfc6810-7.1-1"><code>RFC6810-7.1-1</code></a>, <a href="#rfc6810-7.1-2"><code>RFC6810-7.1-2</code></a>, <a href="#rfc6810-8-1"><code>RFC6810-8-1</code></a>, <a href="#rfc6810-8-2"><code>RFC6810-8-2</code></a>, <a href="#rfc6810-7.2-1"><code>RFC6810-7.2-1</code></a>, <a href="#rfc6810-7.2-2"><code>RFC6810-7.2-2</code></a>, <a href="#rfc6810-7.2-3"><code>RFC6810-7.2-3</code></a>, <a href="#rfc6810-7.2-4"><code>RFC6810-7.2-4</code></a>, <a href="#rfc6810-7.2-5"><code>RFC6810-7.2-5</code></a>, <a href="#rfc6810-7.2-6"><code>RFC6810-7.2-6</code></a>, <a href="#rfc6810-7.2-7"><code>RFC6810-7.2-7</code></a>, <a href="#rfc6810-7.2-8"><code>RFC6810-7.2-8</code></a>, <a href="#rfc6810-7.3-1"><code>RFC6810-7.3-1</code></a>, <a href="#rfc6810-7.3-2"><code>RFC6810-7.3-2</code></a>, <a href="#rfc6810-7.4-1"><code>RFC6810-7.4-1</code></a>, <a href="#rfc6810-7.4-2"><code>RFC6810-7.4-2</code></a>, <a href="#rfc6810-7.4-3"><code>RFC6810-7.4-3</code></a>, <a href="#rfc6810-7.4-4"><code>RFC6810-7.4-4</code></a></p>
 </section>
 <section><h2>Attainable ceiling</h2>
-<p>Mandatory ceiling: 12 of 40 (30.0%); excluded: Not applicable (classification can be revisited): 28 of 40 (70.0%). Optional ceiling: 28 of 28 (100.0%). Lowest mandatory ceiling: rfc6810 12 of 40 (30.0%). Lowest optional ceiling: rfc6810 28 of 28 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.</p>
+<p>Mandatory ceiling: 38 of 40 (95.0%); excluded: Not applicable (classification can be revisited): 2 of 40 (5.0%). Optional ceiling: 28 of 28 (100.0%). Lowest mandatory ceiling: rfc6810 38 of 40 (95.0%). Lowest optional ceiling: rfc6810 28 of 28 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.</p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -328,30 +325,27 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <td>MUST</td>
 <td>5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-5-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu_test.go#L16" title="internal/component/bgp/plugins/rpki/rtr_pdu_test.go" target="_blank" rel="noopener"><code>TestWriteResetQuery</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu_reserved_test.go#L52" title="internal/component/bgp/plugins/rpki/rtr_pdu_reserved_test.go" target="_blank" rel="noopener"><code>TestWriteResetQueryZeroesReservedOverGarbage</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu_test.go#L35" title="internal/component/bgp/plugins/rpki/rtr_pdu_test.go" target="_blank" rel="noopener"><code>TestWriteSerialQuery</code></a></span></div>
-</div></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented, and version 0 is owed work (owner ruling 2026-10-30); the shared router code zeroes unspecified fields at versions 1 and 2 (writeResetQuery in internal/component/bgp/plugins/rpki/rtr_pdu.go), proven under RFC8210-5-1 by TestWriteResetQuery, TestWriteSerialQuery and TestWriteResetQueryZeroesReservedOverGarbage, which run version 1 sessions and so prove RFC 8210 behaviour, not this row; no test carries this id</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-5.1-1">RFC6810-5.1-1</code></td><td colspan="3"><span class="rfc-subject">Max Length: An 8-bit unsigned integer denoting the longest prefix allowed by the prefix. This MUST NOT be less than the Prefix Length element. (Section 5.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-5.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu_test.go#L57" title="internal/component/bgp/plugins/rpki/rtr_pdu_test.go" target="_blank" rel="noopener"><code>TestParseIPv4Prefix</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu_test.go#L130" title="internal/component/bgp/plugins/rpki/rtr_pdu_test.go" target="_blank" rel="noopener"><code>TestParseIPv4PrefixMaxLenLessThanPrefixLen</code></a></span></div>
-</div></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented, and version 0 is owed work (owner ruling 2026-10-30); the shared router code refuses a Max Length below the Prefix Length at versions 1 and 2 (parsePrefixPDU in internal/component/bgp/plugins/rpki/rtr_pdu.go), proven under RFC8210-5.1-2 by TestParseIPv4Prefix and TestParseIPv4PrefixMaxLenLessThanPrefixLen, which run version 1 sessions and so prove RFC 8210 behaviour, not this row; no test carries this id</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-5.1-3">RFC6810-5.1-3</code></td><td colspan="3"><span class="rfc-subject">The value of such a field MUST be ignored on receipt. (Section 5.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-5.1-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go#L37" title="internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go" target="_blank" rel="noopener"><code>TestRFC6810ReservedPrefixOctetsIgnored</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L472" title="internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRReservedOctetsIgnoredOnReceipt</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go#L38" title="internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go" target="_blank" rel="noopener"><code>TestRFC6810ReservedPrefixOctetsIgnored</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L495" title="internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRReservedOctetsIgnoredOnReceipt</code></a></span></div>
-</div></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented, and version 0 is owed work (owner ruling 2026-10-30); the shared router code ignores reserved fields on receipt at versions 1 and 2 (parsePrefixPDU in internal/component/bgp/plugins/rpki/rtr_pdu.go, handlePDU), proven under RFC8210-5-1 and RFC8210-5.1-1 by TestReservedPrefixFieldsPreserveValidation, TestRTRReservedOctetsIgnoredOnReceipt and TestParsePrefixPDUFlagsHighBitsIgnored, which run version 1 sessions and so prove RFC 8210 behaviour, not this row; no test carries this id</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-5.6-1">RFC6810-5.6-1</code></td><td colspan="3"><span class="rfc-subject">The cache server MUST ensure that it has told the router client to have one and only one IPvX PDU for a unique {Prefix, Len, Max-Len, ASN} at any one point in time. (Section 5.6)</span></td></tr>
 <tr><td></td>
@@ -360,7 +354,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-5.6-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> cache-side emission guarantee -- ze is the RTR router; it only parses Prefix PDUs (internal/component/bgp/plugins/rpki/rtr_pdu.go:114 parsePrefixPDU) and has no Prefix PDU writer, so it never emits or enforces one-PDU-per-VRP</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented; the obligation binds the cache server, but its sentence holds braces, which the annotation&#39;s own braces cannot carry in a quote, so no exclusion shape the gate accepts fits; ze fills only the router role: it parses received Prefix PDUs (parseIPv4Prefix, parseIPv6Prefix) and internal/component/bgp/plugins/rpki/rtr_pdu.go writes only Reset Query, Serial Query and Error Report PDUs (writeResetQuery, writeSerialQuery, writeErrorReport), so it tells no router client what to hold, and the obligation has no producer and no test</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-5.5-1">RFC6810-5.5-1</code></td><td colspan="3"><span class="rfc-subject">When replying to a Reset Query, the cache sends the set of all data records it has; in this case, the withdraw/announce field in the payload PDUs MUST have the value 1 (announce). (Section 5.5)</span></td></tr>
 <tr><td></td>
@@ -369,7 +363,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-5.5-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> cache-side emission obligation -- ze reads the announce/withdraw flag on receipt (internal/component/bgp/plugins/rpki/rtr_pdu.go:132) but sends no Prefix PDUs, so it never sets this field on transmission</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented; the obligation binds the cache&#39;s payload PDUs, but its sentence opens with a clause and takes no exclusion shape the gate accepts; ze is the router and writes no payload PDU (internal/component/bgp/plugins/rpki/rtr_pdu.go holds only writeResetQuery, writeSerialQuery and writeErrorReport), so the obligation has no producer and no test</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-5.8-1">RFC6810-5.8-1</code></td><td colspan="3"><span class="rfc-subject">The Session ID MUST be the same as that of the corresponding Cache Response that began the, possibly null, sequence of data PDUs. (Section 5.8)</span></td></tr>
 <tr><td></td>
@@ -378,7 +372,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-5.8-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> cache-side emission obligation -- ze reads End of Data for its serial only (internal/component/bgp/plugins/rpki/rtr_session.go:291) and emits neither Cache Response nor End of Data PDUs whose Session IDs it would have to match</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented; the Session ID rule binds the cache&#39;s End of Data PDU, but its sentence names a field, not a role, and takes no exclusion shape the gate accepts; ze writes no End of Data or Cache Response PDU (internal/component/bgp/plugins/rpki/rtr_pdu.go holds only writeResetQuery, writeSerialQuery and writeErrorReport), so the obligation has no producer and no test</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-5.10-1">RFC6810-5.10-1</code></td><td colspan="3"><span class="rfc-subject">If the error is generic (e.g., &#34;Internal Error&#34;) and not associated with the PDU to which it is responding, the Erroneous PDU field MUST be empty and the Length of Encapsulated PDU field MUST be zero. (Section 5.10)</span></td></tr>
 <tr><td></td>
@@ -387,7 +381,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-5.10-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> Error Report sender obligation -- ze only reads received Error Reports (internal/component/bgp/plugins/rpki/rtr_session.go:363) and has no Error Report writer, so it never encodes Length of Encapsulated PDU</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented; no exclusion shape fits this conditional sentence; ze&#39;s router does send Error Reports, always with the offending PDU encapsulated and never a generic one (readLoop in internal/component/bgp/plugins/rpki/rtr_session.go reports a malformed ASPA PDU or an unsupported version through writeErrorReport), and no test carries this id</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-5.10-2">RFC6810-5.10-2</code></td><td colspan="3"><span class="rfc-subject">An Error Report PDU MUST NOT be sent for an Error Report PDU (Section 5.10)</span></td></tr>
 <tr><td></td>
@@ -396,7 +390,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-5.10-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> Error Report sender obligation -- ze has no Error Report writer (it only reads them at internal/component/bgp/plugins/rpki/rtr_session.go:363), so it can never emit an Error Report about an Error Report</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented; the shared router code meets it at versions 1 and 2 (readLoop in internal/component/bgp/plugins/rpki/rtr_session.go writes no Error Report when the failing PDU is itself an Error Report), proven under RFC8210-5.11-1 in rtr_session_test.go, and no test carries this id</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-5.10-3">RFC6810-5.10-3</code></td><td colspan="3"><span class="rfc-subject">If error text is present, it MUST be a string in UTF-8 encoding (see [RFC3269]). (Section 5.10)</span></td></tr>
 <tr><td></td>
@@ -405,7 +399,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-5.10-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> Error Report sender obligation -- ze emits no Error Report PDU (it only reads them at internal/component/bgp/plugins/rpki/rtr_session.go:363), so it never encodes error text</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented; no exclusion shape fits this conditional sentence; writeErrorReport in internal/component/bgp/plugins/rpki/rtr_pdu.go takes no text argument, so ze never sends error text, and no test carries this id</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-5.10-4">RFC6810-5.10-4</code></td><td colspan="3"><span class="rfc-subject">The diagnostic text is optional; if not present, the Length of Error Text field MUST be zero. (Section 5.10)</span></td></tr>
 <tr><td></td>
@@ -414,7 +408,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-5.10-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> Error Report sender obligation -- ze emits no Error Report PDU (it only reads them at internal/component/bgp/plugins/rpki/rtr_session.go:363), so it never sets Length of Error Text</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented; the shared router code meets it at versions 1 and 2 (writeErrorReport in internal/component/bgp/plugins/rpki/rtr_pdu.go always writes a zero Length of Error Text), proven under RFC8210-5.11-4 in rtr_session_test.go, and no test carries this id</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-2-1">RFC6810-2-1</code></td><td colspan="3"><span class="rfc-subject">As a cache is receiving, new incoming data and implicit deletes are associated with the new serial but MUST NOT be sent until the fetch is complete. (§2)</span></td></tr>
 <tr><td></td>
@@ -423,7 +417,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> cache-side transmission obligation on serial-associated data -- ze is the consumer; it buffers a delta in pendingVRPs and applies it atomically only at End of Data (internal/component/bgp/plugins/rpki/rtr_session.go:307), and sends no serial-tagged data</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented; the obligation binds a cache&#39;s transmission, but its sentence opens with a clause and takes no exclusion shape the gate accepts; ze is the router, sends no payload data to any party, and stages a received delta until End of Data (pendingVRPs in internal/component/bgp/plugins/rpki/rtr_session.go), so the obligation has no producer and no test</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-5.1-2">RFC6810-5.1-2</code></td><td colspan="3"><span class="rfc-subject">If, at any time, either the router or the cache finds the value of the session identifier is not the same as the other&#39;s, they MUST completely drop the session and the router MUST flush all data learned from that cache. (Section 5.1)</span></td></tr>
 <tr><td></td>
@@ -432,7 +426,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-5.1-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> ze does not detect a Session ID change -- handlePDU adopts the Cache Response Session ID unconditionally (internal/component/bgp/plugins/rpki/rtr_session.go:233, s.sessionID = hdr.SessionID) with no comparison to the prior value and no cache flush</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented; ze does not detect a Session ID change -- handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go adopts the Cache Response Session ID unconditionally (s.sessionID = hdr.SessionID) with no comparison to the prior value and no cache flush</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-4-1">RFC6810-4-1</code></td><td colspan="3"><span class="rfc-subject">The router MUST choose the most preferred, by configuration, cache or set of caches so that the operator may control load on their caches and the Global RPKI. (Section 4)</span></td></tr>
 <tr><td></td>
@@ -441,17 +435,16 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-4-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> ze does not select the most preferred cache -- startSessions launches a Run goroutine for every configured cache concurrently (internal/component/bgp/plugins/rpki/rpki.go:291-298) and the parsed preference is only surfaced for display (rpki.go:1026), never used to order or choose caches</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented; the shared router code meets it at versions 1 and 2 (cacheGroup in internal/component/bgp/plugins/rpki/rtr_session.go polls the caches in preference order after sortCachesByPreference in rpki_config.go, and loads from the most preferred one that answers), proven under RFC8210-4-1 in rfc8210_rtr_preference_test.go, and no test carries this id</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-6.1-1">RFC6810-6.1-1</code></td><td colspan="3"><span class="rfc-subject">To limit the length of time a cache must keep the data necessary to generate incremental updates, a router MUST send either a Serial Query or a Reset Query no less frequently than once an hour. (Section 6.1, Section 6.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-6.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go#L23" title="internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go" target="_blank" rel="noopener"><code>TestRFC6810DefaultPollCadenceIsHourly</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L512" title="internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRPollsAtLeastHourly</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the re-query cadence is Run&#39;s post-sync wait of s.retryInterval (internal/component/bgp/plugins/rpki/rtr_session.go:106-110), defaulting to 600s (rtr_session.go:81) which is below the one-hour ceiling; there is no malformed input that yields a too-infrequent negative case</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented, and version 0 is owed work (owner ruling 2026-10-30); the shared router code re-queries on the Refresh and Retry Intervals at versions 1 and 2 (cacheGroup.Run and pollDelay in internal/component/bgp/plugins/rpki/rtr_session.go), proven under RFC8210-8.1-1 by TestRunPollsOnRefreshAfterSuccessRetryAfterFailure, which run version 1 sessions and so prove RFC 8210 behaviour, not this row; no test carries this id</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-6.2-1">RFC6810-6.2-1</code></td><td colspan="3"><span class="rfc-subject">The cache MUST rate limit Serial Notifies to no more frequently than one per minute. (Section 6.2)</span></td></tr>
 <tr><td></td>
@@ -460,27 +453,25 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-6.2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> cache-side rate limit on Serial Notify emission -- ze receives Serial Notify and ignores it during sync (internal/component/bgp/plugins/rpki/rtr_session.go:359) and never sends one</p></td>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> &#34;The cache MUST rate limit Serial Notifies to no more frequently than one per minute.&#34;; binds cache; ze fills only the router role: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go reads a received Serial Notify and internal/component/bgp/plugins/rpki/rtr_pdu.go writes only writeResetQuery, writeSerialQuery and writeErrorReport, none of them a Serial Notify</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-6.3-1">RFC6810-6.3-1</code></td><td colspan="3"><span class="rfc-subject">If there are no more preferred caches, it MUST issue a Reset Query and get an entire new load from the cache. (Section 6.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-6.3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L302" title="internal/component/bgp/plugins/rpki/rtr_session_test.go" target="_blank" rel="noopener"><code>TestCacheResetTriggersResetQuery</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L325" title="internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRCacheResetReloadsTheWholeSet</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L318" title="internal/component/bgp/plugins/rpki/rtr_session_test.go" target="_blank" rel="noopener"><code>TestCacheResetTriggersResetQuery</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L338" title="internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRCacheResetReloadsTheWholeSet</code></a></span></div>
-</div></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented, and version 0 is owed work (owner ruling 2026-10-30); the shared router code answers a Cache Reset with a Reset Query and a whole new load at versions 1 and 2 (handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go), proven under RFC8210-8.3-1 by TestCacheResetTriggersResetQuery and TestRTRCacheResetReloadsTheWholeSet, which run version 1 sessions and so prove RFC 8210 behaviour, not this row; no test carries this id</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-6.4-1">RFC6810-6.4-1</code></td><td colspan="3"><span class="rfc-subject">If no other caches are available, the router MUST issue periodic Reset Queries until it gets a new usable load from the cache. (Section 6.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-6.4-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go#L71" title="internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go" target="_blank" rel="noopener"><code>TestRFC6810NoDataAvailableRepeatsResetQuery</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go#L72" title="internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go" target="_blank" rel="noopener"><code>TestRFC6810NoDataAvailableRepeatsResetQuery</code></a></span></div>
-</div></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented, and version 0 is owed work (owner ruling 2026-10-30); the shared router code repeats Reset Queries after No Data Available at versions 1 and 2 (internal/component/bgp/plugins/rpki/rtr_session.go), proven under RFC8210-8.4-1 by TestNoDataAvailableKeepsResetQueryMode, which run version 1 sessions and so prove RFC 8210 behaviour, not this row; no test carries this id</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-3-1">RFC6810-3-1</code></td><td colspan="3"><span class="rfc-subject">A relying party, e.g., router or other client, MUST have a trust relationship with, and a trusted transport channel to, any authoritative cache(s) it uses. (Section 3)</span></td></tr>
 <tr><td></td>
@@ -489,7 +480,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-3-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> operator deployment obligation -- the trust relationship and trusted channel are established by network placement; ze dials the operator-configured cache over unprotected TCP (internal/component/bgp/plugins/rpki/rtr_session.go:127) and has no in-band trust mechanism to produce or violate</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented; the shared router code meets it at versions 1 and 2 (parseRPKIConfig in internal/component/bgp/plugins/rpki/rpki_config.go refuses a cache with neither TLS nor trusted-network true, and buildRTRTLSConfig in rtr_tls.go trusts only the named CA; the subject holds a list, so no exclusion shape fits, and the router is ze&#39;s role), proven under RFC8210-3-1 in rfc8210_rtr_tls_test.go and rfc8210_rtr_transport_test.go, and no test carries this id</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-4-2">RFC6810-4-2</code></td><td colspan="3"><span class="rfc-subject">As a cache server must evaluate certificates and ROAs (Route Origin Attestations; see [RFC6480]), which are time dependent, servers&#39; clocks MUST be correct to a tolerance of approximately an hour. (Section 4)</span></td></tr>
 <tr><td></td>
@@ -498,17 +489,16 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-4-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> cache-server clock obligation -- ze is the RTR router client that dials out (internal/component/bgp/plugins/rpki/rtr_session.go:125 connectAndSync); it runs no cache and holds no clock this binds</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented; the obligation binds the cache server&#39;s clock, but its sentence opens with a clause and takes no exclusion shape the gate accepts; ze is the router and evaluates no certificate or ROA, so the obligation has no producer and no test</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7-1">RFC6810-7-1</code></td><td colspan="3"><span class="rfc-subject">Caches and routers MUST implement unprotected transport over TCP using a port, rpki-rtr (323); see Section 12. (Section 7)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>7</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-7-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rpki_config_test.go#L88" title="internal/component/bgp/plugins/rpki/rpki_config_test.go" target="_blank" rel="noopener"><code>TestParseRPKIConfigDefaults</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_transport_rfc8210_test.go#L26" title="internal/component/bgp/plugins/rpki/rtr_transport_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRUnprotectedTCPFromConfig</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze implements the unprotected TCP transport by dialing tcp (internal/component/bgp/plugins/rpki/rtr_session.go:127) and defaults the RTR port to 323 (rpki_config.go:174); it never declines to offer unprotected TCP, so there is no negative case</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented, and version 0 is owed work (owner ruling 2026-10-30); the shared router code dials unprotected TCP on rpki-rtr port 323 at versions 1 and 2 (internal/component/bgp/plugins/rpki/rtr_session.go, rpki_config.go), proven under RFC8210-9-1 by TestParseRPKIConfigDefaults and TestRTRUnprotectedTCPFromConfig, which run version 1 sessions and so prove RFC 8210 behaviour, not this row; no test carries this id</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7-2">RFC6810-7-2</code></td><td colspan="3"><span class="rfc-subject">If unprotected TCP is the transport, the cache and routers MUST be on the same trusted and controlled network. (Section 7)</span></td></tr>
 <tr><td></td>
@@ -517,7 +507,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-7-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> operator deployment obligation -- when unprotected TCP is used the trusted-network placement is the operator&#39;s; ze dials plain TCP (internal/component/bgp/plugins/rpki/rtr_session.go:127) with no code path to enforce network topology</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented; the obligation binds the routers as well as the cache, so it is ze&#39;s; ze cannot see the topology, so parseRPKIConfig in internal/component/bgp/plugins/rpki/rpki_config.go only refuses unprotected TCP unless the cache carries trusted-network true, nothing checks that the network is trusted and controlled, and no test carries this id</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7-3">RFC6810-7-3</code></td><td colspan="3"><span class="rfc-subject">If available to the operator, caches and routers MUST use one of the following more protected protocols. (Section 7)</span></td></tr>
 <tr><td></td>
@@ -526,7 +516,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-7-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> ze implements no protected RTR transport -- connectAndSync dials only unprotected TCP (internal/component/bgp/plugins/rpki/rtr_session.go:127) and the plugin has no SSH, TLS, TCP-MD5, or TCP-AO client, so no more protected protocol is available to select</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented; the shared router code meets it at versions 1 and 2 (connectAndSync in internal/component/bgp/plugins/rpki/rtr_session.go starts TLS for a cache configured with it, and parseRPKIConfig in rpki_config.go refuses unprotected TCP unless the operator sets trusted-network true), proven under RFC8210-9-3 in rfc8210_rtr_tls_test.go, and no test carries this id</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7.1-1">RFC6810-7.1-1</code></td><td colspan="3"><span class="rfc-subject">Cache servers supporting SSH transport MUST accept RSA and Digital Signature Algorithm (DSA) authentication (Section 7.1)</span></td></tr>
 <tr><td></td>
@@ -535,7 +525,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-7.1-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> cache-server SSH obligation -- ze runs no RTR SSH server and no SSH client (connectAndSync dials plain TCP, internal/component/bgp/plugins/rpki/rtr_session.go:127), so it performs no SSH authentication</p></td>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> &#34;Cache servers supporting SSH transport MUST accept RSA and Digital Signature Algorithm (DSA) authentication and SHOULD accept Elliptic Curve Digital Signature Algorithm (ECDSA) authentication.&#34;; binds cache servers supporting SSH transport; ze fills only the router role and accepts no RTR connection on any transport: connectAndSync in internal/component/bgp/plugins/rpki/rtr_session.go dials out to each configured cache</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7.1-2">RFC6810-7.1-2</code></td><td colspan="3"><span class="rfc-subject">User authentication MUST be supported (Section 7.1)</span></td></tr>
 <tr><td></td>
@@ -544,7 +534,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-7.1-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> SSH-transport obligation -- ze implements no SSH RTR transport (connectAndSync dials plain TCP, internal/component/bgp/plugins/rpki/rtr_session.go:127), so SSH user authentication has no code path</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented; user authentication binds both ends of an SSH transport, and ze implements no RTR SSH transport (connectAndSync in internal/component/bgp/plugins/rpki/rtr_session.go dials TCP and optionally starts TLS); SSH is a MAY transport in Section 7 and the owner declined no SSH feature, so the obligation has no producer and no test</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-8-1">RFC6810-8-1</code></td><td colspan="3"><span class="rfc-subject">A client may hold data from multiple caches but MUST keep the data marked as to source, as later updates MUST affect the correct data. (Section 8)</span></td></tr>
 <tr><td></td>
@@ -553,16 +543,16 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-8-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> ze does not mark VRPs by source cache -- every RTR session writes one shared ROACache (internal/component/bgp/plugins/rpki/rpki.go:292) and vrpEntry carries only MaxLength and ASN (roa_cache.go:12-15) with no source field, so a withdraw from one cache can remove a VRP another announced</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented; the shared router code meets it at versions 1 and 2 (ze loads from one cache at a time and each cache switch replaces the published VRP and ASPA sets with that cache&#39;s own (cacheGroup in internal/component/bgp/plugins/rpki/rtr_session.go), so no update from one cache can touch another cache&#39;s data), proven under RFC8210-10-2 in rfc8210_rtr_preference_test.go, and no test carries this id</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-8-2">RFC6810-8-2</code></td><td colspan="3"><span class="rfc-subject">If data from multiple caches are held, implementations MUST NOT distinguish between data sources when performing validation (Section 8)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>8</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-8-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/roa_cache_test.go#L152" title="internal/component/bgp/plugins/rpki/roa_cache_test.go" target="_blank" rel="noopener"><code>TestValidationDoesNotDistinguishCacheSource</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/roa_cache_test.go#L159" title="internal/component/bgp/plugins/rpki/roa_cache_test.go" target="_blank" rel="noopener"><code>TestValidationDoesNotDistinguishCacheSource</code></a></span></div>
-</div></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented, and version 0 is owed work (owner ruling 2026-10-30); the shared router code validates against the merged cache content at versions 1 and 2 (internal/component/bgp/plugins/rpki/roa_cache.go), proven under RFC8210-10-1 by TestValidationDoesNotDistinguishCacheSource and TestRTRValidationIgnoresWhichCacheSupplied, which run version 1 sessions and so prove RFC 8210 behaviour, not this row; no test carries this id</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7.2-1">RFC6810-7.2-1</code></td><td colspan="3"><span class="rfc-subject">Client routers using TLS transport MUST present client-side certificates to authenticate themselves to the cache in order to allow the cache to manage the load by rejecting connections from unauthorized routers. (Section 7.2)</span></td></tr>
 <tr><td></td>
@@ -571,7 +561,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-7.2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> TLS-transport obligation -- ze implements no TLS RTR client (connectAndSync dials plain TCP, internal/component/bgp/plugins/rpki/rtr_session.go:127), so the client-certificate requirement has no code path</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented; the shared router code meets it at versions 1 and 2 (startTLS in internal/component/bgp/plugins/rpki/rtr_tls.go presents the named PKI certificate through GetClientCertificate), proven under RFC8210-9.2-1 in rfc8210_rtr_tls_test.go, and no test carries this id</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7.2-2">RFC6810-7.2-2</code></td><td colspan="3"><span class="rfc-subject">Certificates used to authenticate client routers in this protocol MUST include a subjectAltName extension [RFC5280] containing one or more iPAddress identities (Section 7.2)</span></td></tr>
 <tr><td></td>
@@ -580,7 +570,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-7.2-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> TLS-transport obligation -- ze implements no TLS RTR transport (internal/component/bgp/plugins/rpki/rtr_session.go:127), so it issues and validates no rpki-rtr TLS certificates</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented; the shared router code meets it at versions 1 and 2 (buildRTRTLSConfig in internal/component/bgp/plugins/rpki/rtr_tls.go refuses a router certificate with no iPAddress subjectAltName), proven under RFC8210-9.2-2 in rfc8210_rtr_tls_test.go, and no test carries this id</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7.2-3">RFC6810-7.2-3</code></td><td colspan="3"><span class="rfc-subject">when authenticating the router&#39;s certificate, the cache MUST check the IP address of the TLS connection against these iPAddress identities (Section 7.2)</span></td></tr>
 <tr><td></td>
@@ -589,7 +579,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-7.2-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> cache-side TLS obligation -- ze runs no RTR TLS server (it is a client that dials out, internal/component/bgp/plugins/rpki/rtr_session.go:125), so it checks no connecting IP against iPAddress identities</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented; the check binds the cache, but the sentence&#39;s first MUST binds the router&#39;s certificate, so no exclusion shape the gate accepts fits the row; ze is the TLS client and authenticates no connecting router (startTLS in internal/component/bgp/plugins/rpki/rtr_tls.go dials out), so the obligation has no producer and no test</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7.2-4">RFC6810-7.2-4</code></td><td colspan="3"><span class="rfc-subject">Routers MUST also verify the cache&#39;s TLS server certificate, using subjectAltName dNSName identities as described in [RFC6125], to avoid monkey-in-the-middle attacks. (Section 7.2)</span></td></tr>
 <tr><td></td>
@@ -598,7 +588,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-7.2-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> TLS-transport obligation -- ze implements no TLS RTR client (internal/component/bgp/plugins/rpki/rtr_session.go:127), so it verifies no cache server certificate</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented; the shared router code meets it at versions 1 and 2 (buildRTRTLSConfig in internal/component/bgp/plugins/rpki/rtr_tls.go sets ServerName to the DNS reference and RootCAs to the named CA, so Go crypto/tls verifies the cache certificate&#39;s dNSName), proven under RFC8210-9.2-4 in rfc8210_rtr_tls_test.go, and no test carries this id</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7.2-5">RFC6810-7.2-5</code></td><td colspan="3"><span class="rfc-subject">Support for DNS-ID identifier type (that is, the dNSName identity in the subjectAltName extension) is REQUIRED in rpki-rtr server and client implementations that use TLS. (Section 7.2)</span></td></tr>
 <tr><td></td>
@@ -607,7 +597,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-7.2-5">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> TLS-transport obligation -- ze has no rpki-rtr TLS implementation (internal/component/bgp/plugins/rpki/rtr_session.go:127 dials plain TCP), so DNS-ID identifier support does not apply</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented; the shared router code meets it at versions 1 and 2 (rtrServerName in internal/component/bgp/plugins/rpki/rtr_tls.go accepts only a DNS reference name, so the client side supports DNS-ID), proven under RFC8210-9.2-11 in rfc8210_rtr_tls_test.go, and no test carries this id</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7.2-6">RFC6810-7.2-6</code></td><td colspan="3"><span class="rfc-subject">DNS-ID identifier type MUST be present in rpki-rtr server certificates (Section 7.2)</span></td></tr>
 <tr><td></td>
@@ -616,7 +606,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-7.2-6">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> cache-server-certificate obligation under TLS -- ze runs no RTR TLS server and issues no server certificate (it is a plain-TCP client, internal/component/bgp/plugins/rpki/rtr_session.go:127)</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented; the obligation binds the cache&#39;s server certificate, but the sentence&#39;s first MUST binds certification authorities, so no exclusion shape the gate accepts fits the row; ze&#39;s router refuses a cache certificate without a matching dNSName (buildRTRTLSConfig in internal/component/bgp/plugins/rpki/rtr_tls.go, proven under RFC8210-9.2-4), which enforces the rule from the client side but is not the issuer&#39;s obligation, and no test carries this id</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7.2-7">RFC6810-7.2-7</code></td><td colspan="3"><span class="rfc-subject">rpki-rtr implementations that use TLS MUST NOT use CN-ID identifiers; a CN field may be present in the server certificate&#39;s subject name, but MUST NOT be used for authentication within the rules described in [RFC6125]. (Section 7.2)</span></td></tr>
 <tr><td></td>
@@ -625,7 +615,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-7.2-7">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> TLS-transport obligation -- ze has no rpki-rtr TLS implementation (internal/component/bgp/plugins/rpki/rtr_session.go:127), so it uses no certificate identifiers, CN-ID or otherwise</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented; the shared router code meets it at versions 1 and 2 (buildRTRTLSConfig in internal/component/bgp/plugins/rpki/rtr_tls.go verifies the DNS reference through Go crypto/tls, which matches subjectAltName names only and never falls back to the Common Name), proven under RFC8210-9.2-5 and RFC8210-9.2-10 in rfc8210_rtr_tls_test.go, and no test carries this id</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7.2-8">RFC6810-7.2-8</code></td><td colspan="3"><span class="rfc-subject">The client router MUST set its &#34;reference identifier&#34; to the DNS name of the rpki-rtr cache (Section 7.2)</span></td></tr>
 <tr><td></td>
@@ -634,7 +624,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-7.2-8">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> TLS-transport obligation -- ze implements no TLS RTR client (internal/component/bgp/plugins/rpki/rtr_session.go:127), so it sets no TLS reference identifier</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented; the shared router code meets it at versions 1 and 2 (rtrServerName in internal/component/bgp/plugins/rpki/rtr_tls.go makes the cache&#39;s DNS name the TLS ServerName), proven under RFC8210-9.2-8 in rfc8210_rtr_tls_test.go, and no test carries this id</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7.3-1">RFC6810-7.3-1</code></td><td colspan="3"><span class="rfc-subject">If TCP MD5 is used, implementations MUST support key lengths of at least 80 printable ASCII bytes, per Section 4.5 of [RFC2385]. (Section 7.3)</span></td></tr>
 <tr><td></td>
@@ -643,7 +633,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-7.3-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> TCP-MD5 transport obligation -- ze implements no TCP-MD5 for RTR (connectAndSync dials plain TCP, internal/component/bgp/plugins/rpki/rtr_session.go:127), so it holds no MD5 keys</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented; ze implements no TCP-MD5 for RTR (connectAndSync in internal/component/bgp/plugins/rpki/rtr_session.go dials TCP and optionally starts TLS, and sets no TCP-MD5 key); TCP MD5 is a MAY transport in Section 7 and the owner declined no TCP-MD5 feature, so the obligation has no producer and no test</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7.3-2">RFC6810-7.3-2</code></td><td colspan="3"><span class="rfc-subject">Implementations MUST also support hexadecimal sequences of at least 32 characters, i.e., 128 bits. (Section 7.3)</span></td></tr>
 <tr><td></td>
@@ -652,7 +642,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-7.3-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> TCP-MD5 transport obligation -- ze implements no TCP-MD5 for RTR (internal/component/bgp/plugins/rpki/rtr_session.go:127), so it parses no MD5 key material</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented; ze implements no TCP-MD5 for RTR (connectAndSync in internal/component/bgp/plugins/rpki/rtr_session.go dials TCP and optionally starts TLS, and sets no TCP-MD5 key); TCP MD5 is a MAY transport in Section 7 and the owner declined no TCP-MD5 feature, so the obligation has no producer and no test</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7.4-1">RFC6810-7.4-1</code></td><td colspan="3"><span class="rfc-subject">Implementations MUST support key lengths of at least 80 printable ASCII bytes. (Section 7.4)</span></td></tr>
 <tr><td></td>
@@ -661,7 +651,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-7.4-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> TCP-AO transport obligation -- ze implements no TCP-AO for RTR (connectAndSync dials plain TCP, internal/component/bgp/plugins/rpki/rtr_session.go:127), so it holds no AO keys</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented; ze implements no TCP-AO for RTR (connectAndSync in internal/component/bgp/plugins/rpki/rtr_session.go dials TCP and optionally starts TLS, and sets no TCP-AO key); TCP-AO is a SHOULD transport in Section 7 and the owner declined no TCP-AO feature, so the obligation has no producer and no test</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7.4-2">RFC6810-7.4-2</code></td><td colspan="3"><span class="rfc-subject">Implementations MUST also support hexadecimal sequences of at least 32 characters, i.e., 128 bits. (Section 7.4)</span></td></tr>
 <tr><td></td>
@@ -670,7 +660,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-7.4-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> TCP-AO transport obligation -- ze implements no TCP-AO for RTR (internal/component/bgp/plugins/rpki/rtr_session.go:127), so it parses no AO key material</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented; ze implements no TCP-AO for RTR (connectAndSync in internal/component/bgp/plugins/rpki/rtr_session.go dials TCP and optionally starts TLS, and sets no TCP-AO key); TCP-AO is a SHOULD transport in Section 7 and the owner declined no TCP-AO feature, so the obligation has no producer and no test</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7.4-3">RFC6810-7.4-3</code></td><td colspan="3"><span class="rfc-subject">MAC (Message Authentication Code) lengths of at least 96 bits MUST be supported, per Section 5.1 of [RFC5925]. (Section 7.4)</span></td></tr>
 <tr><td></td>
@@ -679,7 +669,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-7.4-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> TCP-AO transport obligation -- ze implements no TCP-AO for RTR (internal/component/bgp/plugins/rpki/rtr_session.go:127), so it negotiates no MAC length</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented; ze implements no TCP-AO for RTR (connectAndSync in internal/component/bgp/plugins/rpki/rtr_session.go dials TCP and optionally starts TLS, and sets no TCP-AO key); TCP-AO is a SHOULD transport in Section 7 and the owner declined no TCP-AO feature, so the obligation has no producer and no test</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7.4-4">RFC6810-7.4-4</code></td><td colspan="3"><span class="rfc-subject">The cryptographic algorithms and associated parameters described in [RFC5926] MUST be supported. (Section 7.4)</span></td></tr>
 <tr><td></td>
@@ -688,7 +678,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-7.4-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> TCP-AO transport obligation -- ze implements no TCP-AO for RTR (internal/component/bgp/plugins/rpki/rtr_session.go:127), so it supports no RFC 5926 algorithms</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented; ze implements no TCP-AO for RTR (connectAndSync in internal/component/bgp/plugins/rpki/rtr_session.go dials TCP and optionally starts TLS, and sets no TCP-AO key); TCP-AO is a SHOULD transport in Section 7 and the owner declined no TCP-AO feature, so the obligation has no producer and no test</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-6.2-2">RFC6810-6.2-2</code></td><td colspan="3"><span class="rfc-subject">The cache server SHOULD send a notify PDU with its current Serial Number when the cache&#39;s serial changes (Section 6.2)</span></td></tr>
 <tr><td></td>
@@ -951,133 +941,165 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
+<tr><td><a href="#rfc6810-5-1"><code>RFC6810-5-1</code></a> Fields with unspecified content MUST be zero on transmission (Section 5)</td>
+<td>{gap}, no test</td>
+<td>ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented, and version 0 is owed work (owner ruling 2026-10-30); the shared router code zeroes unspecified fields at versions 1 and 2 (writeResetQuery in internal/component/bgp/plugins/rpki/rtr_pdu.go), proven under RFC8210-5-1 by TestWriteResetQuery, TestWriteSerialQuery and TestWriteResetQueryZeroesReservedOverGarbage, which run version 1 sessions and so prove RFC 8210 behaviour, not this row; no test carries this id</td>
+</tr>
+<tr><td><a href="#rfc6810-5.1-1"><code>RFC6810-5.1-1</code></a> Max Length: An 8-bit unsigned integer denoting the longest prefix allowed by the prefix. This MUST NOT be less than the Prefix Length element. (Section 5.1)</td>
+<td>{gap}, no test</td>
+<td>ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented, and version 0 is owed work (owner ruling 2026-10-30); the shared router code refuses a Max Length below the Prefix Length at versions 1 and 2 (parsePrefixPDU in internal/component/bgp/plugins/rpki/rtr_pdu.go), proven under RFC8210-5.1-2 by TestParseIPv4Prefix and TestParseIPv4PrefixMaxLenLessThanPrefixLen, which run version 1 sessions and so prove RFC 8210 behaviour, not this row; no test carries this id</td>
+</tr>
+<tr><td><a href="#rfc6810-5.1-3"><code>RFC6810-5.1-3</code></a> The value of such a field MUST be ignored on receipt. (Section 5.1)</td>
+<td>{gap}, no test</td>
+<td>ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented, and version 0 is owed work (owner ruling 2026-10-30); the shared router code ignores reserved fields on receipt at versions 1 and 2 (parsePrefixPDU in internal/component/bgp/plugins/rpki/rtr_pdu.go, handlePDU), proven under RFC8210-5-1 and RFC8210-5.1-1 by TestReservedPrefixFieldsPreserveValidation, TestRTRReservedOctetsIgnoredOnReceipt and TestParsePrefixPDUFlagsHighBitsIgnored, which run version 1 sessions and so prove RFC 8210 behaviour, not this row; no test carries this id</td>
+</tr>
 <tr><td><a href="#rfc6810-5.6-1"><code>RFC6810-5.6-1</code></a> The cache server MUST ensure that it has told the router client to have one and only one IPvX PDU for a unique {Prefix, Len, Max-Len, ASN} at any one point in time. (Section 5.6)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: cache-side emission guarantee -- ze is the RTR router; it only parses Prefix PDUs (internal/component/bgp/plugins/rpki/rtr_pdu.go:114 parsePrefixPDU) and has no Prefix PDU writer, so it never emits or enforces one-PDU-per-VRP</td>
+<td>{gap}, no test</td>
+<td>ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented; the obligation binds the cache server, but its sentence holds braces, which the annotation&#39;s own braces cannot carry in a quote, so no exclusion shape the gate accepts fits; ze fills only the router role: it parses received Prefix PDUs (parseIPv4Prefix, parseIPv6Prefix) and internal/component/bgp/plugins/rpki/rtr_pdu.go writes only Reset Query, Serial Query and Error Report PDUs (writeResetQuery, writeSerialQuery, writeErrorReport), so it tells no router client what to hold, and the obligation has no producer and no test</td>
 </tr>
 <tr><td><a href="#rfc6810-5.5-1"><code>RFC6810-5.5-1</code></a> When replying to a Reset Query, the cache sends the set of all data records it has; in this case, the withdraw/announce field in the payload PDUs MUST have the value 1 (announce). (Section 5.5)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: cache-side emission obligation -- ze reads the announce/withdraw flag on receipt (internal/component/bgp/plugins/rpki/rtr_pdu.go:132) but sends no Prefix PDUs, so it never sets this field on transmission</td>
+<td>{gap}, no test</td>
+<td>ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented; the obligation binds the cache&#39;s payload PDUs, but its sentence opens with a clause and takes no exclusion shape the gate accepts; ze is the router and writes no payload PDU (internal/component/bgp/plugins/rpki/rtr_pdu.go holds only writeResetQuery, writeSerialQuery and writeErrorReport), so the obligation has no producer and no test</td>
 </tr>
 <tr><td><a href="#rfc6810-5.8-1"><code>RFC6810-5.8-1</code></a> The Session ID MUST be the same as that of the corresponding Cache Response that began the, possibly null, sequence of data PDUs. (Section 5.8)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: cache-side emission obligation -- ze reads End of Data for its serial only (internal/component/bgp/plugins/rpki/rtr_session.go:291) and emits neither Cache Response nor End of Data PDUs whose Session IDs it would have to match</td>
+<td>{gap}, no test</td>
+<td>ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented; the Session ID rule binds the cache&#39;s End of Data PDU, but its sentence names a field, not a role, and takes no exclusion shape the gate accepts; ze writes no End of Data or Cache Response PDU (internal/component/bgp/plugins/rpki/rtr_pdu.go holds only writeResetQuery, writeSerialQuery and writeErrorReport), so the obligation has no producer and no test</td>
 </tr>
 <tr><td><a href="#rfc6810-5.10-1"><code>RFC6810-5.10-1</code></a> If the error is generic (e.g., &#34;Internal Error&#34;) and not associated with the PDU to which it is responding, the Erroneous PDU field MUST be empty and the Length of Encapsulated PDU field MUST be zero. (Section 5.10)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: Error Report sender obligation -- ze only reads received Error Reports (internal/component/bgp/plugins/rpki/rtr_session.go:363) and has no Error Report writer, so it never encodes Length of Encapsulated PDU</td>
+<td>{gap}, no test</td>
+<td>ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented; no exclusion shape fits this conditional sentence; ze&#39;s router does send Error Reports, always with the offending PDU encapsulated and never a generic one (readLoop in internal/component/bgp/plugins/rpki/rtr_session.go reports a malformed ASPA PDU or an unsupported version through writeErrorReport), and no test carries this id</td>
 </tr>
 <tr><td><a href="#rfc6810-5.10-2"><code>RFC6810-5.10-2</code></a> An Error Report PDU MUST NOT be sent for an Error Report PDU (Section 5.10)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: Error Report sender obligation -- ze has no Error Report writer (it only reads them at internal/component/bgp/plugins/rpki/rtr_session.go:363), so it can never emit an Error Report about an Error Report</td>
+<td>{gap}, no test</td>
+<td>ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented; the shared router code meets it at versions 1 and 2 (readLoop in internal/component/bgp/plugins/rpki/rtr_session.go writes no Error Report when the failing PDU is itself an Error Report), proven under RFC8210-5.11-1 in rtr_session_test.go, and no test carries this id</td>
 </tr>
 <tr><td><a href="#rfc6810-5.10-3"><code>RFC6810-5.10-3</code></a> If error text is present, it MUST be a string in UTF-8 encoding (see [RFC3269]). (Section 5.10)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: Error Report sender obligation -- ze emits no Error Report PDU (it only reads them at internal/component/bgp/plugins/rpki/rtr_session.go:363), so it never encodes error text</td>
+<td>{gap}, no test</td>
+<td>ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented; no exclusion shape fits this conditional sentence; writeErrorReport in internal/component/bgp/plugins/rpki/rtr_pdu.go takes no text argument, so ze never sends error text, and no test carries this id</td>
 </tr>
 <tr><td><a href="#rfc6810-5.10-4"><code>RFC6810-5.10-4</code></a> The diagnostic text is optional; if not present, the Length of Error Text field MUST be zero. (Section 5.10)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: Error Report sender obligation -- ze emits no Error Report PDU (it only reads them at internal/component/bgp/plugins/rpki/rtr_session.go:363), so it never sets Length of Error Text</td>
+<td>{gap}, no test</td>
+<td>ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented; the shared router code meets it at versions 1 and 2 (writeErrorReport in internal/component/bgp/plugins/rpki/rtr_pdu.go always writes a zero Length of Error Text), proven under RFC8210-5.11-4 in rtr_session_test.go, and no test carries this id</td>
 </tr>
 <tr><td><a href="#rfc6810-2-1"><code>RFC6810-2-1</code></a> As a cache is receiving, new incoming data and implicit deletes are associated with the new serial but MUST NOT be sent until the fetch is complete. (§2)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: cache-side transmission obligation on serial-associated data -- ze is the consumer; it buffers a delta in pendingVRPs and applies it atomically only at End of Data (internal/component/bgp/plugins/rpki/rtr_session.go:307), and sends no serial-tagged data</td>
+<td>{gap}, no test</td>
+<td>ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented; the obligation binds a cache&#39;s transmission, but its sentence opens with a clause and takes no exclusion shape the gate accepts; ze is the router, sends no payload data to any party, and stages a received delta until End of Data (pendingVRPs in internal/component/bgp/plugins/rpki/rtr_session.go), so the obligation has no producer and no test</td>
 </tr>
 <tr><td><a href="#rfc6810-5.1-2"><code>RFC6810-5.1-2</code></a> If, at any time, either the router or the cache finds the value of the session identifier is not the same as the other&#39;s, they MUST completely drop the session and the router MUST flush all data learned from that cache. (Section 5.1)</td>
 <td>{gap}, no test</td>
-<td>ze does not detect a Session ID change -- handlePDU adopts the Cache Response Session ID unconditionally (internal/component/bgp/plugins/rpki/rtr_session.go:233, s.sessionID = hdr.SessionID) with no comparison to the prior value and no cache flush</td>
+<td>ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented; ze does not detect a Session ID change -- handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go adopts the Cache Response Session ID unconditionally (s.sessionID = hdr.SessionID) with no comparison to the prior value and no cache flush</td>
 </tr>
 <tr><td><a href="#rfc6810-4-1"><code>RFC6810-4-1</code></a> The router MUST choose the most preferred, by configuration, cache or set of caches so that the operator may control load on their caches and the Global RPKI. (Section 4)</td>
 <td>{gap}, no test</td>
-<td>ze does not select the most preferred cache -- startSessions launches a Run goroutine for every configured cache concurrently (internal/component/bgp/plugins/rpki/rpki.go:291-298) and the parsed preference is only surfaced for display (rpki.go:1026), never used to order or choose caches</td>
+<td>ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented; the shared router code meets it at versions 1 and 2 (cacheGroup in internal/component/bgp/plugins/rpki/rtr_session.go polls the caches in preference order after sortCachesByPreference in rpki_config.go, and loads from the most preferred one that answers), proven under RFC8210-4-1 in rfc8210_rtr_preference_test.go, and no test carries this id</td>
+</tr>
+<tr><td><a href="#rfc6810-6.1-1"><code>RFC6810-6.1-1</code></a> To limit the length of time a cache must keep the data necessary to generate incremental updates, a router MUST send either a Serial Query or a Reset Query no less frequently than once an hour. (Section 6.1, Section 6.2)</td>
+<td>{gap}, no test</td>
+<td>ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented, and version 0 is owed work (owner ruling 2026-10-30); the shared router code re-queries on the Refresh and Retry Intervals at versions 1 and 2 (cacheGroup.Run and pollDelay in internal/component/bgp/plugins/rpki/rtr_session.go), proven under RFC8210-8.1-1 by TestRunPollsOnRefreshAfterSuccessRetryAfterFailure, which run version 1 sessions and so prove RFC 8210 behaviour, not this row; no test carries this id</td>
 </tr>
 <tr><td><a href="#rfc6810-6.2-1"><code>RFC6810-6.2-1</code></a> The cache MUST rate limit Serial Notifies to no more frequently than one per minute. (Section 6.2)</td>
 <td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: cache-side rate limit on Serial Notify emission -- ze receives Serial Notify and ignores it during sync (internal/component/bgp/plugins/rpki/rtr_session.go:359) and never sends one</td>
+<td>no test carries this requirement id; annotated {not-applicable}: &#34;The cache MUST rate limit Serial Notifies to no more frequently than one per minute.&#34;; binds cache; ze fills only the router role: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go reads a received Serial Notify and internal/component/bgp/plugins/rpki/rtr_pdu.go writes only writeResetQuery, writeSerialQuery and writeErrorReport, none of them a Serial Notify</td>
+</tr>
+<tr><td><a href="#rfc6810-6.3-1"><code>RFC6810-6.3-1</code></a> If there are no more preferred caches, it MUST issue a Reset Query and get an entire new load from the cache. (Section 6.3)</td>
+<td>{gap}, no test</td>
+<td>ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented, and version 0 is owed work (owner ruling 2026-10-30); the shared router code answers a Cache Reset with a Reset Query and a whole new load at versions 1 and 2 (handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go), proven under RFC8210-8.3-1 by TestCacheResetTriggersResetQuery and TestRTRCacheResetReloadsTheWholeSet, which run version 1 sessions and so prove RFC 8210 behaviour, not this row; no test carries this id</td>
+</tr>
+<tr><td><a href="#rfc6810-6.4-1"><code>RFC6810-6.4-1</code></a> If no other caches are available, the router MUST issue periodic Reset Queries until it gets a new usable load from the cache. (Section 6.4)</td>
+<td>{gap}, no test</td>
+<td>ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented, and version 0 is owed work (owner ruling 2026-10-30); the shared router code repeats Reset Queries after No Data Available at versions 1 and 2 (internal/component/bgp/plugins/rpki/rtr_session.go), proven under RFC8210-8.4-1 by TestNoDataAvailableKeepsResetQueryMode, which run version 1 sessions and so prove RFC 8210 behaviour, not this row; no test carries this id</td>
 </tr>
 <tr><td><a href="#rfc6810-3-1"><code>RFC6810-3-1</code></a> A relying party, e.g., router or other client, MUST have a trust relationship with, and a trusted transport channel to, any authoritative cache(s) it uses. (Section 3)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: operator deployment obligation -- the trust relationship and trusted channel are established by network placement; ze dials the operator-configured cache over unprotected TCP (internal/component/bgp/plugins/rpki/rtr_session.go:127) and has no in-band trust mechanism to produce or violate</td>
+<td>{gap}, no test</td>
+<td>ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented; the shared router code meets it at versions 1 and 2 (parseRPKIConfig in internal/component/bgp/plugins/rpki/rpki_config.go refuses a cache with neither TLS nor trusted-network true, and buildRTRTLSConfig in rtr_tls.go trusts only the named CA; the subject holds a list, so no exclusion shape fits, and the router is ze&#39;s role), proven under RFC8210-3-1 in rfc8210_rtr_tls_test.go and rfc8210_rtr_transport_test.go, and no test carries this id</td>
 </tr>
 <tr><td><a href="#rfc6810-4-2"><code>RFC6810-4-2</code></a> As a cache server must evaluate certificates and ROAs (Route Origin Attestations; see [RFC6480]), which are time dependent, servers&#39; clocks MUST be correct to a tolerance of approximately an hour. (Section 4)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: cache-server clock obligation -- ze is the RTR router client that dials out (internal/component/bgp/plugins/rpki/rtr_session.go:125 connectAndSync); it runs no cache and holds no clock this binds</td>
+<td>{gap}, no test</td>
+<td>ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented; the obligation binds the cache server&#39;s clock, but its sentence opens with a clause and takes no exclusion shape the gate accepts; ze is the router and evaluates no certificate or ROA, so the obligation has no producer and no test</td>
+</tr>
+<tr><td><a href="#rfc6810-7-1"><code>RFC6810-7-1</code></a> Caches and routers MUST implement unprotected transport over TCP using a port, rpki-rtr (323); see Section 12. (Section 7)</td>
+<td>{gap}, no test</td>
+<td>ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented, and version 0 is owed work (owner ruling 2026-10-30); the shared router code dials unprotected TCP on rpki-rtr port 323 at versions 1 and 2 (internal/component/bgp/plugins/rpki/rtr_session.go, rpki_config.go), proven under RFC8210-9-1 by TestParseRPKIConfigDefaults and TestRTRUnprotectedTCPFromConfig, which run version 1 sessions and so prove RFC 8210 behaviour, not this row; no test carries this id</td>
 </tr>
 <tr><td><a href="#rfc6810-7-2"><code>RFC6810-7-2</code></a> If unprotected TCP is the transport, the cache and routers MUST be on the same trusted and controlled network. (Section 7)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: operator deployment obligation -- when unprotected TCP is used the trusted-network placement is the operator&#39;s; ze dials plain TCP (internal/component/bgp/plugins/rpki/rtr_session.go:127) with no code path to enforce network topology</td>
+<td>{gap}, no test</td>
+<td>ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented; the obligation binds the routers as well as the cache, so it is ze&#39;s; ze cannot see the topology, so parseRPKIConfig in internal/component/bgp/plugins/rpki/rpki_config.go only refuses unprotected TCP unless the cache carries trusted-network true, nothing checks that the network is trusted and controlled, and no test carries this id</td>
 </tr>
 <tr><td><a href="#rfc6810-7-3"><code>RFC6810-7-3</code></a> If available to the operator, caches and routers MUST use one of the following more protected protocols. (Section 7)</td>
 <td>{gap}, no test</td>
-<td>ze implements no protected RTR transport -- connectAndSync dials only unprotected TCP (internal/component/bgp/plugins/rpki/rtr_session.go:127) and the plugin has no SSH, TLS, TCP-MD5, or TCP-AO client, so no more protected protocol is available to select</td>
+<td>ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented; the shared router code meets it at versions 1 and 2 (connectAndSync in internal/component/bgp/plugins/rpki/rtr_session.go starts TLS for a cache configured with it, and parseRPKIConfig in rpki_config.go refuses unprotected TCP unless the operator sets trusted-network true), proven under RFC8210-9-3 in rfc8210_rtr_tls_test.go, and no test carries this id</td>
 </tr>
 <tr><td><a href="#rfc6810-7.1-1"><code>RFC6810-7.1-1</code></a> Cache servers supporting SSH transport MUST accept RSA and Digital Signature Algorithm (DSA) authentication (Section 7.1)</td>
 <td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: cache-server SSH obligation -- ze runs no RTR SSH server and no SSH client (connectAndSync dials plain TCP, internal/component/bgp/plugins/rpki/rtr_session.go:127), so it performs no SSH authentication</td>
+<td>no test carries this requirement id; annotated {not-applicable}: &#34;Cache servers supporting SSH transport MUST accept RSA and Digital Signature Algorithm (DSA) authentication and SHOULD accept Elliptic Curve Digital Signature Algorithm (ECDSA) authentication.&#34;; binds cache servers supporting SSH transport; ze fills only the router role and accepts no RTR connection on any transport: connectAndSync in internal/component/bgp/plugins/rpki/rtr_session.go dials out to each configured cache</td>
 </tr>
 <tr><td><a href="#rfc6810-7.1-2"><code>RFC6810-7.1-2</code></a> User authentication MUST be supported (Section 7.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: SSH-transport obligation -- ze implements no SSH RTR transport (connectAndSync dials plain TCP, internal/component/bgp/plugins/rpki/rtr_session.go:127), so SSH user authentication has no code path</td>
+<td>{gap}, no test</td>
+<td>ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented; user authentication binds both ends of an SSH transport, and ze implements no RTR SSH transport (connectAndSync in internal/component/bgp/plugins/rpki/rtr_session.go dials TCP and optionally starts TLS); SSH is a MAY transport in Section 7 and the owner declined no SSH feature, so the obligation has no producer and no test</td>
 </tr>
 <tr><td><a href="#rfc6810-8-1"><code>RFC6810-8-1</code></a> A client may hold data from multiple caches but MUST keep the data marked as to source, as later updates MUST affect the correct data. (Section 8)</td>
 <td>{gap}, no test</td>
-<td>ze does not mark VRPs by source cache -- every RTR session writes one shared ROACache (internal/component/bgp/plugins/rpki/rpki.go:292) and vrpEntry carries only MaxLength and ASN (roa_cache.go:12-15) with no source field, so a withdraw from one cache can remove a VRP another announced</td>
+<td>ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented; the shared router code meets it at versions 1 and 2 (ze loads from one cache at a time and each cache switch replaces the published VRP and ASPA sets with that cache&#39;s own (cacheGroup in internal/component/bgp/plugins/rpki/rtr_session.go), so no update from one cache can touch another cache&#39;s data), proven under RFC8210-10-2 in rfc8210_rtr_preference_test.go, and no test carries this id</td>
+</tr>
+<tr><td><a href="#rfc6810-8-2"><code>RFC6810-8-2</code></a> If data from multiple caches are held, implementations MUST NOT distinguish between data sources when performing validation (Section 8)</td>
+<td>{gap}, no test</td>
+<td>ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented, and version 0 is owed work (owner ruling 2026-10-30); the shared router code validates against the merged cache content at versions 1 and 2 (internal/component/bgp/plugins/rpki/roa_cache.go), proven under RFC8210-10-1 by TestValidationDoesNotDistinguishCacheSource and TestRTRValidationIgnoresWhichCacheSupplied, which run version 1 sessions and so prove RFC 8210 behaviour, not this row; no test carries this id</td>
 </tr>
 <tr><td><a href="#rfc6810-7.2-1"><code>RFC6810-7.2-1</code></a> Client routers using TLS transport MUST present client-side certificates to authenticate themselves to the cache in order to allow the cache to manage the load by rejecting connections from unauthorized routers. (Section 7.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: TLS-transport obligation -- ze implements no TLS RTR client (connectAndSync dials plain TCP, internal/component/bgp/plugins/rpki/rtr_session.go:127), so the client-certificate requirement has no code path</td>
+<td>{gap}, no test</td>
+<td>ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented; the shared router code meets it at versions 1 and 2 (startTLS in internal/component/bgp/plugins/rpki/rtr_tls.go presents the named PKI certificate through GetClientCertificate), proven under RFC8210-9.2-1 in rfc8210_rtr_tls_test.go, and no test carries this id</td>
 </tr>
 <tr><td><a href="#rfc6810-7.2-2"><code>RFC6810-7.2-2</code></a> Certificates used to authenticate client routers in this protocol MUST include a subjectAltName extension [RFC5280] containing one or more iPAddress identities (Section 7.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: TLS-transport obligation -- ze implements no TLS RTR transport (internal/component/bgp/plugins/rpki/rtr_session.go:127), so it issues and validates no rpki-rtr TLS certificates</td>
+<td>{gap}, no test</td>
+<td>ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented; the shared router code meets it at versions 1 and 2 (buildRTRTLSConfig in internal/component/bgp/plugins/rpki/rtr_tls.go refuses a router certificate with no iPAddress subjectAltName), proven under RFC8210-9.2-2 in rfc8210_rtr_tls_test.go, and no test carries this id</td>
 </tr>
 <tr><td><a href="#rfc6810-7.2-3"><code>RFC6810-7.2-3</code></a> when authenticating the router&#39;s certificate, the cache MUST check the IP address of the TLS connection against these iPAddress identities (Section 7.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: cache-side TLS obligation -- ze runs no RTR TLS server (it is a client that dials out, internal/component/bgp/plugins/rpki/rtr_session.go:125), so it checks no connecting IP against iPAddress identities</td>
+<td>{gap}, no test</td>
+<td>ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented; the check binds the cache, but the sentence&#39;s first MUST binds the router&#39;s certificate, so no exclusion shape the gate accepts fits the row; ze is the TLS client and authenticates no connecting router (startTLS in internal/component/bgp/plugins/rpki/rtr_tls.go dials out), so the obligation has no producer and no test</td>
 </tr>
 <tr><td><a href="#rfc6810-7.2-4"><code>RFC6810-7.2-4</code></a> Routers MUST also verify the cache&#39;s TLS server certificate, using subjectAltName dNSName identities as described in [RFC6125], to avoid monkey-in-the-middle attacks. (Section 7.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: TLS-transport obligation -- ze implements no TLS RTR client (internal/component/bgp/plugins/rpki/rtr_session.go:127), so it verifies no cache server certificate</td>
+<td>{gap}, no test</td>
+<td>ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented; the shared router code meets it at versions 1 and 2 (buildRTRTLSConfig in internal/component/bgp/plugins/rpki/rtr_tls.go sets ServerName to the DNS reference and RootCAs to the named CA, so Go crypto/tls verifies the cache certificate&#39;s dNSName), proven under RFC8210-9.2-4 in rfc8210_rtr_tls_test.go, and no test carries this id</td>
 </tr>
 <tr><td><a href="#rfc6810-7.2-5"><code>RFC6810-7.2-5</code></a> Support for DNS-ID identifier type (that is, the dNSName identity in the subjectAltName extension) is REQUIRED in rpki-rtr server and client implementations that use TLS. (Section 7.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: TLS-transport obligation -- ze has no rpki-rtr TLS implementation (internal/component/bgp/plugins/rpki/rtr_session.go:127 dials plain TCP), so DNS-ID identifier support does not apply</td>
+<td>{gap}, no test</td>
+<td>ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented; the shared router code meets it at versions 1 and 2 (rtrServerName in internal/component/bgp/plugins/rpki/rtr_tls.go accepts only a DNS reference name, so the client side supports DNS-ID), proven under RFC8210-9.2-11 in rfc8210_rtr_tls_test.go, and no test carries this id</td>
 </tr>
 <tr><td><a href="#rfc6810-7.2-6"><code>RFC6810-7.2-6</code></a> DNS-ID identifier type MUST be present in rpki-rtr server certificates (Section 7.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: cache-server-certificate obligation under TLS -- ze runs no RTR TLS server and issues no server certificate (it is a plain-TCP client, internal/component/bgp/plugins/rpki/rtr_session.go:127)</td>
+<td>{gap}, no test</td>
+<td>ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented; the obligation binds the cache&#39;s server certificate, but the sentence&#39;s first MUST binds certification authorities, so no exclusion shape the gate accepts fits the row; ze&#39;s router refuses a cache certificate without a matching dNSName (buildRTRTLSConfig in internal/component/bgp/plugins/rpki/rtr_tls.go, proven under RFC8210-9.2-4), which enforces the rule from the client side but is not the issuer&#39;s obligation, and no test carries this id</td>
 </tr>
 <tr><td><a href="#rfc6810-7.2-7"><code>RFC6810-7.2-7</code></a> rpki-rtr implementations that use TLS MUST NOT use CN-ID identifiers; a CN field may be present in the server certificate&#39;s subject name, but MUST NOT be used for authentication within the rules described in [RFC6125]. (Section 7.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: TLS-transport obligation -- ze has no rpki-rtr TLS implementation (internal/component/bgp/plugins/rpki/rtr_session.go:127), so it uses no certificate identifiers, CN-ID or otherwise</td>
+<td>{gap}, no test</td>
+<td>ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented; the shared router code meets it at versions 1 and 2 (buildRTRTLSConfig in internal/component/bgp/plugins/rpki/rtr_tls.go verifies the DNS reference through Go crypto/tls, which matches subjectAltName names only and never falls back to the Common Name), proven under RFC8210-9.2-5 and RFC8210-9.2-10 in rfc8210_rtr_tls_test.go, and no test carries this id</td>
 </tr>
 <tr><td><a href="#rfc6810-7.2-8"><code>RFC6810-7.2-8</code></a> The client router MUST set its &#34;reference identifier&#34; to the DNS name of the rpki-rtr cache (Section 7.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: TLS-transport obligation -- ze implements no TLS RTR client (internal/component/bgp/plugins/rpki/rtr_session.go:127), so it sets no TLS reference identifier</td>
+<td>{gap}, no test</td>
+<td>ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented; the shared router code meets it at versions 1 and 2 (rtrServerName in internal/component/bgp/plugins/rpki/rtr_tls.go makes the cache&#39;s DNS name the TLS ServerName), proven under RFC8210-9.2-8 in rfc8210_rtr_tls_test.go, and no test carries this id</td>
 </tr>
 <tr><td><a href="#rfc6810-7.3-1"><code>RFC6810-7.3-1</code></a> If TCP MD5 is used, implementations MUST support key lengths of at least 80 printable ASCII bytes, per Section 4.5 of [RFC2385]. (Section 7.3)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: TCP-MD5 transport obligation -- ze implements no TCP-MD5 for RTR (connectAndSync dials plain TCP, internal/component/bgp/plugins/rpki/rtr_session.go:127), so it holds no MD5 keys</td>
+<td>{gap}, no test</td>
+<td>ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented; ze implements no TCP-MD5 for RTR (connectAndSync in internal/component/bgp/plugins/rpki/rtr_session.go dials TCP and optionally starts TLS, and sets no TCP-MD5 key); TCP MD5 is a MAY transport in Section 7 and the owner declined no TCP-MD5 feature, so the obligation has no producer and no test</td>
 </tr>
 <tr><td><a href="#rfc6810-7.3-2"><code>RFC6810-7.3-2</code></a> Implementations MUST also support hexadecimal sequences of at least 32 characters, i.e., 128 bits. (Section 7.3)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: TCP-MD5 transport obligation -- ze implements no TCP-MD5 for RTR (internal/component/bgp/plugins/rpki/rtr_session.go:127), so it parses no MD5 key material</td>
+<td>{gap}, no test</td>
+<td>ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented; ze implements no TCP-MD5 for RTR (connectAndSync in internal/component/bgp/plugins/rpki/rtr_session.go dials TCP and optionally starts TLS, and sets no TCP-MD5 key); TCP MD5 is a MAY transport in Section 7 and the owner declined no TCP-MD5 feature, so the obligation has no producer and no test</td>
 </tr>
 <tr><td><a href="#rfc6810-7.4-1"><code>RFC6810-7.4-1</code></a> Implementations MUST support key lengths of at least 80 printable ASCII bytes. (Section 7.4)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: TCP-AO transport obligation -- ze implements no TCP-AO for RTR (connectAndSync dials plain TCP, internal/component/bgp/plugins/rpki/rtr_session.go:127), so it holds no AO keys</td>
+<td>{gap}, no test</td>
+<td>ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented; ze implements no TCP-AO for RTR (connectAndSync in internal/component/bgp/plugins/rpki/rtr_session.go dials TCP and optionally starts TLS, and sets no TCP-AO key); TCP-AO is a SHOULD transport in Section 7 and the owner declined no TCP-AO feature, so the obligation has no producer and no test</td>
 </tr>
 <tr><td><a href="#rfc6810-7.4-2"><code>RFC6810-7.4-2</code></a> Implementations MUST also support hexadecimal sequences of at least 32 characters, i.e., 128 bits. (Section 7.4)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: TCP-AO transport obligation -- ze implements no TCP-AO for RTR (internal/component/bgp/plugins/rpki/rtr_session.go:127), so it parses no AO key material</td>
+<td>{gap}, no test</td>
+<td>ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented; ze implements no TCP-AO for RTR (connectAndSync in internal/component/bgp/plugins/rpki/rtr_session.go dials TCP and optionally starts TLS, and sets no TCP-AO key); TCP-AO is a SHOULD transport in Section 7 and the owner declined no TCP-AO feature, so the obligation has no producer and no test</td>
 </tr>
 <tr><td><a href="#rfc6810-7.4-3"><code>RFC6810-7.4-3</code></a> MAC (Message Authentication Code) lengths of at least 96 bits MUST be supported, per Section 5.1 of [RFC5925]. (Section 7.4)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: TCP-AO transport obligation -- ze implements no TCP-AO for RTR (internal/component/bgp/plugins/rpki/rtr_session.go:127), so it negotiates no MAC length</td>
+<td>{gap}, no test</td>
+<td>ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented; ze implements no TCP-AO for RTR (connectAndSync in internal/component/bgp/plugins/rpki/rtr_session.go dials TCP and optionally starts TLS, and sets no TCP-AO key); TCP-AO is a SHOULD transport in Section 7 and the owner declined no TCP-AO feature, so the obligation has no producer and no test</td>
 </tr>
 <tr><td><a href="#rfc6810-7.4-4"><code>RFC6810-7.4-4</code></a> The cryptographic algorithms and associated parameters described in [RFC5926] MUST be supported. (Section 7.4)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: TCP-AO transport obligation -- ze implements no TCP-AO for RTR (internal/component/bgp/plugins/rpki/rtr_session.go:127), so it supports no RFC 5926 algorithms</td>
+<td>{gap}, no test</td>
+<td>ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented; ze implements no TCP-AO for RTR (connectAndSync in internal/component/bgp/plugins/rpki/rtr_session.go dials TCP and optionally starts TLS, and sets no TCP-AO key); TCP-AO is a SHOULD transport in Section 7 and the owner declined no TCP-AO feature, so the obligation has no producer and no test</td>
 </tr>
 </tbody>
 </table>
@@ -1088,78 +1110,15 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <h3><a href="#rfc6810-5-1"><code>RFC6810-5-1</code></a></h3>
 <p>Fields with unspecified content MUST be zero on transmission (Section 5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<div class="rfc-table-wrap">
-<table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
-<tbody>
-<tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu_test.go#L35" title="internal/component/bgp/plugins/rpki/rtr_pdu_test.go" target="_blank" rel="noopener"><code>TestWriteSerialQuery</code></a></td>
-<td>unit/verify</td>
-<td>unproven</td>
-</tr>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu_reserved_test.go#L52" title="internal/component/bgp/plugins/rpki/rtr_pdu_reserved_test.go" target="_blank" rel="noopener"><code>TestWriteResetQueryZeroesReservedOverGarbage</code></a></td>
-<td>unit/verify</td>
-<td>unproven</td>
-</tr>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu_test.go#L16" title="internal/component/bgp/plugins/rpki/rtr_pdu_test.go" target="_blank" rel="noopener"><code>TestWriteResetQuery</code></a></td>
-<td>unit/verify</td>
-<td>unproven</td>
-</tr>
-</tbody>
-</table>
-</div>
+<p>No test carries RFC6810-5-1, so no unit is bound to it.</p>
 <h3><a href="#rfc6810-5.1-1"><code>RFC6810-5.1-1</code></a></h3>
 <p>Max Length: An 8-bit unsigned integer denoting the longest prefix allowed by the prefix. This MUST NOT be less than the Prefix Length element. (Section 5.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: accepting a Prefix PDU whose Max Length is below its Prefix Length. TestParseIPv4PrefixMaxLenLessThanPrefixLen (prefix 24, max 16, otherwise valid) fails unless parseIPv4Prefix errors with &#34;invalid&#34;; the check sits in parsePrefixPDU, which the IPv6 parser shares. Positive: max 24 over prefix 8 yields a VRP with MaxLength 24.</p>
-<div class="rfc-table-wrap">
-<table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
-<tbody>
-<tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu_test.go#L130" title="internal/component/bgp/plugins/rpki/rtr_pdu_test.go" target="_blank" rel="noopener"><code>TestParseIPv4PrefixMaxLenLessThanPrefixLen</code></a></td>
-<td>unit/verify</td>
-<td>unproven</td>
-</tr>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu_test.go#L57" title="internal/component/bgp/plugins/rpki/rtr_pdu_test.go" target="_blank" rel="noopener"><code>TestParseIPv4Prefix</code></a></td>
-<td>unit/verify</td>
-<td>unproven</td>
-</tr>
-</tbody>
-</table>
-</div>
+<p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), fresh. Re-judged 2026-10-30 (independent judge) after the row moved to {gap} under the owner ruling that RTR version 0 is owed. RFC 6810 Section 5.1 reads &#39;Max Length:  An 8-bit unsigned integer denoting the longest prefix allowed by the prefix.  This MUST NOT be less than the Prefix Length element.&#39; and Section 5 defines the Protocol Version as &#39;An eight-bit unsigned integer, currently 0, denoting the version of this protocol.&#39; The obligation is on a version 0 Prefix PDU, and Ze never processes one: internal/component/bgp/plugins/rpki/rtr_session.go::RTRSession.handlePDU returns errRtrUnsupportedProtocol for every PDU but a Serial Notify or Error Report whose version is below rtrVersionMin = 1, refuses a cache&#39;s Error Report code 4 that offers a version below rtrVersionMin, and RTRSession.syncOnce bounds the downgrade loop at rtrVersionMin. parsePrefixPDU does refuse a Max Length below the Prefix Length, but only in version 1 and 2 sessions; that proof is RFC8210-5.1-2&#39;s, and the earlier enforced verdict rested on version 1 tests that no longer carry this id. No version 0 path exists, so the requirement is unmet.</p>
+<p>No test carries RFC6810-5.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc6810-5.1-3"><code>RFC6810-5.1-3</code></a></h3>
 <p>The value of such a field MUST be ignored on receipt. (Section 5.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Receipt of unspecified-content fields proven for every router-received PDU that has one: IPv4 Prefix (TestRFC6810ReservedPrefixOctetsIgnored), IPv6 Prefix header zero field, reserved flags and zero octet all ones still authorize 2001:db8::/32, and Cache Reset octets 2-3 0xFFFF still reset (TestRTRReservedOctetsIgnoredOnReceipt). Serial Notify, Cache Response and End of Data carry Session ID there, not a reserved field. Negative: the same 0xFFFF in a Cache Response is read as Session ID.</p>
-<div class="rfc-table-wrap">
-<table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
-<tbody>
-<tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go#L38" title="internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go" target="_blank" rel="noopener"><code>TestRFC6810ReservedPrefixOctetsIgnored</code></a></td>
-<td>unit/verify</td>
-<td>revert, verified</td>
-</tr>
-<tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L495" title="internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRReservedOctetsIgnoredOnReceipt</code></a></td>
-<td>unit/verify</td>
-<td>revert, verified</td>
-</tr>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go#L37" title="internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go" target="_blank" rel="noopener"><code>TestRFC6810ReservedPrefixOctetsIgnored</code></a></td>
-<td>unit/verify</td>
-<td>revert, verified</td>
-</tr>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L472" title="internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRReservedOctetsIgnoredOnReceipt</code></a></td>
-<td>unit/verify</td>
-<td>revert, verified</td>
-</tr>
-</tbody>
-</table>
-</div>
+<p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), fresh. Re-judged 2026-10-30 (independent judge) after the row moved to {gap} under the owner ruling that RTR version 0 is owed. RFC 6810 Section 5.1 reads &#39;Zero:  Fields shown as zero or reserved MUST be zero.  The value of such a field MUST be ignored on receipt.&#39; for the PDUs of protocol version 0 (&#39;currently 0&#39;, Section 5). Ze never receives a version 0 PDU into its parsers: internal/component/bgp/plugins/rpki/rtr_session.go::RTRSession.handlePDU returns errRtrUnsupportedProtocol for every PDU but a Serial Notify or Error Report whose version is below rtrVersionMin = 1, refuses a cache&#39;s Error Report code 4 that offers a version below rtrVersionMin, and RTRSession.syncOnce never downgrades below rtrVersionMin. The reserved-field tolerance of parsePrefixPDU and handlePDU is real but is reached only in version 1 and 2 sessions and is proven under RFC8210-5-1 and RFC8210-5.1-1; the tests that once carried this id run version 1 and no longer tag it. No version 0 path exists, so the requirement is unmet.</p>
+<p>No test carries RFC6810-5.1-3, so no unit is bound to it.</p>
 <h3><a href="#rfc6810-5.6-1"><code>RFC6810-5.6-1</code></a></h3>
 <p>The cache server MUST ensure that it has told the router client to have one and only one IPvX PDU for a unique {Prefix, Len, Max-Len, ASN} at any one point in time. (Section 5.6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -1202,78 +1161,20 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <p>No test carries RFC6810-4-1, so no unit is bound to it.</p>
 <h3><a href="#rfc6810-6.1-1"><code>RFC6810-6.1-1</code></a></h3>
 <p>To limit the length of time a cache must keep the data necessary to generate incremental updates, a router MUST send either a Serial Query or a Reset Query no less frequently than once an hour. (Section 6.1, Section 6.2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Single-polarity positive (row annotation). TestRTRPollsAtLeastHourly: after an End of Data with zero interval fields, pollDelay(true) and pollDelay(false) are both at most one hour; the running cacheGroup queries again when the wait ends (Reset then Serial on the wire with a 1s wait), so the loop does re-query. TestRFC6810DefaultPollCadenceIsHourly keeps the fresh-session defaults.</p>
-<div class="rfc-table-wrap">
-<table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
-<tbody>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go#L23" title="internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go" target="_blank" rel="noopener"><code>TestRFC6810DefaultPollCadenceIsHourly</code></a></td>
-<td>unit/verify</td>
-<td>revert, verified</td>
-</tr>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L512" title="internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRPollsAtLeastHourly</code></a></td>
-<td>unit/verify</td>
-<td>revert, verified</td>
-</tr>
-</tbody>
-</table>
-</div>
+<p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), fresh. Re-judged 2026-10-30 (independent judge) after the row moved to {gap} under the owner ruling that RTR version 0 is owed. RFC 6810 Section 6.1 reads &#39;To limit the length of time a cache must keep the data necessary to generate incremental updates, a router MUST send either a Serial Query or a Reset Query no less frequently than once an hour.&#39; The Serial and Reset Queries this binds are version 0 PDUs, and Ze sends none: RTRSession starts at rtrVersionMax, RTRSession.syncOnce bounds the downgrade loop at rtrVersionMin = 1, and internal/component/bgp/plugins/rpki/rtr_session.go::RTRSession.handlePDU refuses a cache&#39;s Error Report code 4 that offers a version below rtrVersionMin and any data PDU below it, so a version 0 cache never gets a session to poll. The periodic re-query on the Refresh and Retry Intervals (cacheGroup.Run, pollDelay) runs only in version 1 and 2 sessions and is proven under RFC8210-8.1-1; RFC 8210 also replaces the fixed hour with the cache-signalled Refresh Interval. No version 0 path exists, so the requirement is unmet.</p>
+<p>No test carries RFC6810-6.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc6810-6.2-1"><code>RFC6810-6.2-1</code></a></h3>
 <p>The cache MUST rate limit Serial Notifies to no more frequently than one per minute. (Section 6.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC6810-6.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc6810-6.3-1"><code>RFC6810-6.3-1</code></a></h3>
 <p>If there are no more preferred caches, it MUST issue a Reset Query and get an entire new load from the cache. (Section 6.3)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Same units as RFC8210-8.3-1: TestRTRCacheResetReloadsTheWholeSet, one-session group, Cache Reset makes the next wire query a Reset Query and its load replaces the old set; negative: data in answer to the Serial Query keeps Serial Queries and merges.</p>
-<div class="rfc-table-wrap">
-<table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
-<tbody>
-<tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L338" title="internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRCacheResetReloadsTheWholeSet</code></a></td>
-<td>unit/verify</td>
-<td>revert, verified</td>
-</tr>
-<tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L318" title="internal/component/bgp/plugins/rpki/rtr_session_test.go" target="_blank" rel="noopener"><code>TestCacheResetTriggersResetQuery</code></a></td>
-<td>unit/verify</td>
-<td>revert, verified</td>
-</tr>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L325" title="internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRCacheResetReloadsTheWholeSet</code></a></td>
-<td>unit/verify</td>
-<td>revert, verified</td>
-</tr>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L302" title="internal/component/bgp/plugins/rpki/rtr_session_test.go" target="_blank" rel="noopener"><code>TestCacheResetTriggersResetQuery</code></a></td>
-<td>unit/verify</td>
-<td>revert, verified</td>
-</tr>
-</tbody>
-</table>
-</div>
+<p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), fresh. Re-judged 2026-10-30 (independent judge) after the row moved to {gap} under the owner ruling that RTR version 0 is owed. RFC 6810 Section 6.3 reads &#39;When a router receives this, the router SHOULD attempt to connect to any more preferred caches in its cache list.  If there are no more preferred caches, it MUST issue a Reset Query and get an entire new load from the cache.&#39; The Cache Reset and Reset Query are version 0 PDUs here, and Ze exchanges none: internal/component/bgp/plugins/rpki/rtr_session.go::RTRSession.handlePDU returns errRtrUnsupportedProtocol for a Cache Reset whose version is below rtrVersionMin = 1 and refuses a cache&#39;s Error Report code 4 that offers such a version, and RTRSession.syncOnce never downgrades below rtrVersionMin. The Cache Reset to Reset Query reload in handlePDU runs only in version 1 and 2 sessions and is proven under RFC8210-8.3-1. No version 0 path exists, so the requirement is unmet.</p>
+<p>No test carries RFC6810-6.3-1, so no unit is bound to it.</p>
 <h3><a href="#rfc6810-6.4-1"><code>RFC6810-6.4-1</code></a></h3>
 <p>If no other caches are available, the router MUST issue periodic Reset Queries until it gets a new usable load from the cache. (Section 6.4)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: stopping, or sending anything but a Reset Query, after No Data Available with no other cache. TestRFC6810NoDataAvailableRepeatsResetQuery runs one live cache that answers two queries with Error Report code 2 and asserts three consecutive received queries are pduResetQuery, each within 4s (t.Fatal on silence, assert.Equal on a Serial Query). Negative: once the cache supplies a load the route validates and the next query is pduSerialQuery, so the reset mode ends at the usable load.</p>
-<div class="rfc-table-wrap">
-<table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
-<tbody>
-<tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go#L72" title="internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go" target="_blank" rel="noopener"><code>TestRFC6810NoDataAvailableRepeatsResetQuery</code></a></td>
-<td>unit/verify</td>
-<td>revert, verified</td>
-</tr>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go#L71" title="internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go" target="_blank" rel="noopener"><code>TestRFC6810NoDataAvailableRepeatsResetQuery</code></a></td>
-<td>unit/verify</td>
-<td>revert, verified</td>
-</tr>
-</tbody>
-</table>
-</div>
+<p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), fresh. Re-judged 2026-10-30 (independent judge) after the row moved to {gap} under the owner ruling that RTR version 0 is owed. RFC 6810 Section 6.4 reads &#39;When a router receives this kind of error, the router SHOULD attempt to connect to any other caches in its cache list, in preference order.  If no other caches are available, the router MUST issue periodic Reset Queries until it gets a new usable load from the cache.&#39; The No Data Available Error Report and the Reset Queries are version 0 PDUs here. Ze reads an Error Report of any version, but internal/component/bgp/plugins/rpki/rtr_session.go::RTRSession.handlePDU refuses a cache&#39;s Error Report code 4 that offers a version below rtrVersionMin = 1, returns errRtrUnsupportedProtocol for any data PDU below it, and RTRSession.syncOnce never downgrades below rtrVersionMin, so Ze never holds a version 0 session in which to issue a version 0 Reset Query. The repeated Reset Queries after No Data Available run only in version 1 and 2 sessions and are proven under RFC8210-8.4-1. No version 0 path exists, so the requirement is unmet.</p>
+<p>No test carries RFC6810-6.4-1, so no unit is bound to it.</p>
 <h3><a href="#rfc6810-3-1"><code>RFC6810-3-1</code></a></h3>
 <p>A relying party, e.g., router or other client, MUST have a trust relationship with, and a trusted transport channel to, any authoritative cache(s) it uses. (Section 3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -1284,24 +1185,8 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <p>No test carries RFC6810-4-2, so no unit is bound to it.</p>
 <h3><a href="#rfc6810-7-1"><code>RFC6810-7-1</code></a></h3>
 <p>Caches and routers MUST implement unprotected transport over TCP using a port, rpki-rtr (323); see Section 12. (Section 7)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Single-polarity positive (row annotation). Same unit as RFC8210-9-1: TestRTRUnprotectedTCPFromConfig drives a config-parsed trusted-network cache (default port 323) over plain TCP to a completed sync with the VRP used.</p>
-<div class="rfc-table-wrap">
-<table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
-<tbody>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rpki_config_test.go#L88" title="internal/component/bgp/plugins/rpki/rpki_config_test.go" target="_blank" rel="noopener"><code>TestParseRPKIConfigDefaults</code></a></td>
-<td>unit/verify</td>
-<td>unproven</td>
-</tr>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_transport_rfc8210_test.go#L26" title="internal/component/bgp/plugins/rpki/rtr_transport_rfc8210_test.go" target="_blank" rel="noopener"><code>TestRTRUnprotectedTCPFromConfig</code></a></td>
-<td>unit/verify</td>
-<td>revert, verified</td>
-</tr>
-</tbody>
-</table>
-</div>
+<p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), fresh. Re-judged 2026-10-30 (independent judge) after the row moved to {gap} under the owner ruling that RTR version 0 is owed. RFC 6810 Section 7 reads &#39;Caches and routers MUST implement unprotected transport over TCP using a port, rpki-rtr (323); see Section 12.&#39; The transport is the carrier of the version 0 protocol this document defines, and Ze carries no version 0 session over it: Ze dials unprotected TCP on port 323, but internal/component/bgp/plugins/rpki/rtr_session.go::RTRSession.handlePDU returns errRtrUnsupportedProtocol for every PDU but a Serial Notify or Error Report whose version is below rtrVersionMin = 1 and refuses a cache&#39;s Error Report code 4 that offers such a version, and RTRSession.syncOnce never downgrades below rtrVersionMin. The unprotected TCP transport is proven for versions 1 and 2 under RFC8210-9-1 by tests that no longer carry this id. With no version 0 session, a version 0 cache gets no usable transport from Ze, so the requirement is unmet.</p>
+<p>No test carries RFC6810-7-1, so no unit is bound to it.</p>
 <h3><a href="#rfc6810-7-2"><code>RFC6810-7-2</code></a></h3>
 <p>If unprotected TCP is the transport, the cache and routers MUST be on the same trusted and controlled network. (Section 7)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -1325,23 +1210,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <h3><a href="#rfc6810-8-2"><code>RFC6810-8-2</code></a></h3>
 <p>If data from multiple caches are held, implementations MUST NOT distinguish between data sources when performing validation (Section 8)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<div class="rfc-table-wrap">
-<table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
-<tbody>
-<tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/roa_cache_test.go#L159" title="internal/component/bgp/plugins/rpki/roa_cache_test.go" target="_blank" rel="noopener"><code>TestValidationDoesNotDistinguishCacheSource</code></a></td>
-<td>unit/verify</td>
-<td>unproven</td>
-</tr>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/roa_cache_test.go#L152" title="internal/component/bgp/plugins/rpki/roa_cache_test.go" target="_blank" rel="noopener"><code>TestValidationDoesNotDistinguishCacheSource</code></a></td>
-<td>unit/verify</td>
-<td>unproven</td>
-</tr>
-</tbody>
-</table>
-</div>
+<p>No test carries RFC6810-8-2, so no unit is bound to it.</p>
 <h3><a href="#rfc6810-7.2-1"><code>RFC6810-7.2-1</code></a></h3>
 <p>Client routers using TLS transport MUST present client-side certificates to authenticate themselves to the cache in order to allow the cache to manage the load by rejecting connections from unauthorized routers. (Section 7.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -2071,7 +1940,7 @@ Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 19:30 UTC</span>
+                    <span class="footer-published">Published 30 October 2026 23:25 UTC</span>
                 </div>
             </div>
         </footer>

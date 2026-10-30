@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 2181 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 2181: Clarifications to the DNS Specification. 23 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 2181: Clarifications to the DNS Specification. 23 gated MUST-level requirements, 5 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 2181 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 2181: Clarifications to the DNS Specification. 23 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 2181: Clarifications to the DNS Specification. 23 gated MUST-level requirements, 5 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 2181 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 2181: Clarifications to the DNS Specification. 23 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 2181: Clarifications to the DNS Specification. 23 gated MUST-level requirements, 5 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -122,18 +122,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>39.1%</strong><b>9 of 23 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 23 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 23 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 23 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 <article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>81.6%</strong><b>31 of 38 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>23</strong><b>of 70 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>5</strong><b>of 23 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>17.4%</strong><b>4 of 23 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 23 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 23 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 23 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>4.3%</strong><b>1 of 23 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 23 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0.0%</strong><b>0 of 23 gated MUSTs</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit</p></article>
+</div>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>21.7%</strong><b>5 of 23 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 </div>
 <p>The 9 shares marked as a part above are the whole of the 23 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -167,7 +171,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
 </tr>
 <tr><td>No test at all</td>
-<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
 </tr>
 <tr><td>Not applicable</td>
@@ -217,10 +221,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>23</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
-<td>4</td>
+<td>0</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>0</td>
+<td>5</td>
 </tr>
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
@@ -257,7 +261,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Enrolled: Clarifications to the DNS Specification (RFC 2181): ze is authoritative (internal/plugins/geodns, internal/plugins/as112), a stub resolver+cache (internal/component/resolve/dns), and a caching forwarding resolver for customer LANs (internal/plugins/dnsresolver). Both polarities tagged: TC on a datagram reply whose RRSet does not fit 5.1-1, the whole RRSIG RRset 5.3.1-2, section RRSIG never taken as the RRSet 5.3.1-3, section RRSIG never cached for an RRSIG query 5.3.1-4, cache RRSet replacement 5.4-2, trust ranking 5.4.1-3 (alias target data from an authoritative reply ranks as non-authoritative), AA set by the authoritative harness and clear on resolver replies 5.4.1-9, the section 8 TTL bound 8-1, label/name limits 11-1. Single-polarity positive: UDP reply source-IP/port fidelity 4.1-1/4.2-1/4.2-2, RRSet equal TTLs 5.2-1, no merge 5.4-1, canonical NS targets with A glue 10.3-1/10.3-2, unrestricted labels 11-2/11-3. 1 feature-declined (5.4.1-8, conditional on DNS security, optional-only for fttx-edge, post-release). 4 not-applicable (AXFR 5.5-4, CNAME/PTR authoring 10.1-4/10.1.1-1/10.2-1)</p>
+<p>Enrolled: Clarifications to the DNS Specification (RFC 2181): ze is authoritative (internal/plugins/geodns, internal/plugins/as112), a stub resolver+cache (internal/component/resolve/dns), and a caching forwarding resolver for customer LANs (internal/plugins/dnsresolver). Both polarities tagged: TC on a datagram reply whose RRSet does not fit 5.1-1, the whole RRSIG RRset 5.3.1-2, section RRSIG never taken as the RRSet 5.3.1-3, section RRSIG never cached for an RRSIG query 5.3.1-4, cache RRSet replacement 5.4-2, trust ranking 5.4.1-3 (alias target data from an authoritative reply ranks as non-authoritative), AA set by the authoritative harness and clear on resolver replies 5.4.1-9, the section 8 TTL bound 8-1, label/name limits 11-1. Single-polarity positive: UDP reply source-IP/port fidelity 4.1-1/4.2-1/4.2-2, RRSet equal TTLs 5.2-1, no merge 5.4-1, canonical NS targets with A glue 10.3-1/10.3-2, unrestricted labels 11-2/11-3. Five gaps: DNSSEC validation is post-release with no owner decision declining it (5.4.1-8), ze implements no zone transfer (5.5-4), and the CNAME and PTR rules hold because ze authors neither record, with no test (10.1-4, 10.1.1-1, 10.2-1)</p>
 </section>
 <section><h2>What the public ledger says</h2>
 <p><strong>Status:</strong> Partial</p>
@@ -269,8 +273,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </ul>
 </details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
-<p>No MUST gap is recorded.</p>
-<p class="rfc-prose"><strong>The status stays Partial:</strong> the rows tagged in this change rest on hand-written breaks that still owe an independent ze-test-judge reading and carry no /ze-rfc-audit verdict yet, and the single-polarity rows are proven in one polarity only (4.1-1, 4.2-1, 4.2-2, 5.2-1, 5.4-1, 10.3-1, 10.3-2, 11-2, 11-3). One feature is absent by decision, and it is not a conformance gap: ze offers no DNSSEC validation, optional-only for fttx-edge, post-release (<a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc4034.md" target="_blank" rel="noopener"><code>rfc/short/rfc4034.md</code></a>), so <a href="#rfc2181-5.4.1-8"><code>RFC2181-5.4.1-8</code></a>, which binds only &#34;When DNS security [RFC2065] is in use&#34;, is feature-declined; the AXFR and CNAME/PTR-authoring MUSTs are not-applicable (ze serves no zone transfer and authors no CNAME or PTR record).</p>
+Five gaps in the requirement checklist. Ze implements no zone transfer, so no AXFR keeps its duplicated SOA TTLs equal (<a href="#rfc2181-5.5-4"><code>RFC2181-5.5-4</code></a>); ze offers no DNSSEC validation, post-release work no owner decision declines, so authenticated data never outranks unauthenticated data (<a href="#rfc2181-5.4.1-8"><code>RFC2181-5.4.1-8</code></a>); ze authors no CNAME or PTR record, which meets the alias rules with no test (<a href="#rfc2181-10.1-4"><code>RFC2181-10.1-4</code></a>, 10.1.1-1, 10.2-1). The rows tagged in this change rest on hand-written breaks that still owe an independent ze-test-judge reading and carry no /ze-rfc-audit verdict yet, and the single-polarity rows are proven in one polarity only (4.1-1, 4.2-1, 4.2-2, 5.2-1, 5.4-1, 10.3-1, 10.3-2, 11-2, 11-3).
 </details>
 </section>
 <section><h2>Coverage</h2>
@@ -314,7 +317,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p class="rfc-id-list"><strong>Annotated (including scoped evidence) (14):</strong> <a href="#rfc2181-4.1-1"><code>RFC2181-4.1-1</code></a>, <a href="#rfc2181-4.2-1"><code>RFC2181-4.2-1</code></a>, <a href="#rfc2181-4.2-2"><code>RFC2181-4.2-2</code></a>, <a href="#rfc2181-5.2-1"><code>RFC2181-5.2-1</code></a>, <a href="#rfc2181-5.4-1"><code>RFC2181-5.4-1</code></a>, <a href="#rfc2181-5.4.1-8"><code>RFC2181-5.4.1-8</code></a>, <a href="#rfc2181-5.5-4"><code>RFC2181-5.5-4</code></a>, <a href="#rfc2181-10.1-4"><code>RFC2181-10.1-4</code></a>, <a href="#rfc2181-10.1.1-1"><code>RFC2181-10.1.1-1</code></a>, <a href="#rfc2181-10.2-1"><code>RFC2181-10.2-1</code></a>, <a href="#rfc2181-10.3-1"><code>RFC2181-10.3-1</code></a>, <a href="#rfc2181-10.3-2"><code>RFC2181-10.3-2</code></a>, <a href="#rfc2181-11-2"><code>RFC2181-11-2</code></a>, <a href="#rfc2181-11-3"><code>RFC2181-11-3</code></a></p>
 </section>
 <section><h2>Attainable ceiling</h2>
-<p>Mandatory ceiling: 18 of 23 (78.3%); excluded: Optional feature not offered (classification can be revisited): 1 of 23 (4.3%); Not applicable (classification can be revisited): 4 of 23 (17.4%). Optional ceiling: 47 of 47 (100.0%). Lowest mandatory ceiling: rfc2181 18 of 23 (78.3%). Lowest optional ceiling: rfc2181 47 of 47 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.</p>
+<p>Mandatory ceiling: 23 of 23 (100.0%). Optional ceiling: 47 of 47 (100.0%). Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: rfc2181 23 of 23 (100.0%). Lowest optional ceiling: rfc2181 47 of 47 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.</p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -433,7 +436,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-5.4.1-8">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{feature-declined}:</strong> &#34;to enable correct operation with servers that are not security aware (almost all currently)&#34;; optional-only for fttx-edge, post-release: ze offers no DNSSEC validation, so no reply is ever authenticated and verified. internal/plugins/dnsresolver/forward.go::upstreamQuery sends every upstream query with the EDNS0 DO bit clear, so the resolver is not security-aware, and the stub at internal/component/resolve/dns/resolver.go relies on a validating upstream. The owner ruling that DNSSEC is optional for fttx-edge is recorded in rfc/short/rfc4034.md (Enrolment reason, commit 5ff4834b67); validation is homed in plan/post-release/features/spec-dns-resolver-dnssec-validation.md</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze offers no DNSSEC validation, which is post-release work with no owner decision declining it, so no reply is ever authenticated and verified and authenticated data never outranks unauthenticated data: internal/plugins/dnsresolver/forward.go::upstreamQuery sends every upstream query with the EDNS0 DO bit clear, and the stub at internal/component/resolve/dns/resolver.go relies on a validating upstream</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.4.1-9">RFC2181-5.4.1-9</code></td><td colspan="3"><span class="rfc-subject">However DNSSEC aware servers must still correctly set the AA bit in responses to enable correct operation with servers that are not security aware (almost all currently). (§5.4.1)</span></td></tr>
 <tr><td></td>
@@ -451,7 +454,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-5.5-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze serves no AXFR -- the geodns YANG notes this at internal/plugins/geodns/yang/ze-geodns-conf.yang:95 and no plugin emits an SOA twice in one message, so no duplicate RRSet arises</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze implements no zone transfer, so the duplicated SOA of an AXFR is never sent and no ze path keeps its two TTLs equal; neither geodns (internal/plugins/geodns/server.go) nor as112 (internal/plugins/as112/server.go::answerQuery) answers an AXFR, and no owner decision declines it</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-8-1">RFC2181-8-1</code></td><td colspan="3"><span class="rfc-subject">It is hereby specified that a TTL value is an unsigned number, with a minimum value of 0, and a maximum value of 2147483647. That is, a maximum of 2^31 - 1. When transmitted, this value shall be encoded in the less significant 31 bits of the 32 bit TTL field, with the most significant, or sign, bit set to zero. (§8)</span></td></tr>
 <tr><td></td>
@@ -459,9 +462,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>8</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-8-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_clarifications_test.go#L173" title="internal/plugins/geodns/rfc2181_clarifications_test.go" target="_blank" rel="noopener"><code>TestRFC2181TTLTransmittedWithSignBitClear</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_config_test.go#L226" title="internal/plugins/geodns/rfc2181_config_test.go" target="_blank" rel="noopener"><code>TestRFC2181_TTLSignBitBound</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_config_test.go#L225" title="internal/plugins/geodns/rfc2181_config_test.go" target="_blank" rel="noopener"><code>TestRFC2181_TTLSignBitBound</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_cache_test.go#L141" title="internal/plugins/dnsresolver/rfc2181_resolver_cache_test.go" target="_blank" rel="noopener"><code>TestRFC2181ResolverTTLBounds</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_config_test.go#L239" title="internal/plugins/geodns/rfc2181_config_test.go" target="_blank" rel="noopener"><code>TestRFC2181_TTLSignBitBound</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_config_test.go#L238" title="internal/plugins/geodns/rfc2181_config_test.go" target="_blank" rel="noopener"><code>TestRFC2181_TTLSignBitBound</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-10.1-4">RFC2181-10.1-4</code></td><td colspan="3"><span class="rfc-subject">An alias name (label of a CNAME record) may, if DNSSEC is in use, have SIG, NXT, and KEY RRs, but may have no other data. (§10.1)</span></td></tr>
@@ -471,7 +474,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-10.1-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze serves no CNAME records -- geodns emits only A/AAAA/SRV at internal/plugins/geodns/record.go:10 and as112 only SOA/NS/TXT, so no CNAME can coexist with other data</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> gap in proof: internal/plugins/geodns/record.go::recordKind meets it, since geodns authors only A, AAAA and SRV records and as112 only SOA, NS and TXT, so no CNAME owner carries other data; no test asserts it</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-10.1.1-1">RFC2181-10.1.1-1</code></td><td colspan="3"><span class="rfc-subject">Care must therefore be taken to be very clear whether the label, or the value (the canonical name) of a CNAME resource record is intended. (§10.1.1)</span></td></tr>
 <tr><td></td>
@@ -480,7 +483,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-10.1.1-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze authors no CNAME records at internal/plugins/geodns/record.go:10, so there is no label-versus-canonical-name ambiguity for an implementation to resolve</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> gap in proof: internal/plugins/geodns/record.go::recordKind meets it on the authoritative side, which authors no CNAME; no test shows the LAN resolver (internal/plugins/dnsresolver) and the stub (internal/component/resolve/dns) keep a CNAME&#39;s owner label and its canonical-name value apart when they follow an alias</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-10.2-1">RFC2181-10.2-1</code></td><td colspan="3"><span class="rfc-subject">Note that while the value of a PTR record must not be an alias, there is no requirement that the process of resolving a PTR record not encounter any aliases. (§10.2)</span></td></tr>
 <tr><td></td>
@@ -489,7 +492,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-10.2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze authors no PTR records -- geodns serves A/AAAA/SRV and as112 reverse zones return NODATA with the SOA at internal/plugins/as112/zones.go:273 rather than any PTR, so no PTR value can be an alias</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> gap in proof: internal/plugins/as112/server.go::answerQuery meets it, since the AS112 reverse zones answer NODATA with the SOA and never a PTR, and geodns authors no PTR record (internal/plugins/geodns/record.go::recordKind); no test asserts that ze serves no PTR whose value is an alias</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-10.3-1">RFC2181-10.3-1</code></td><td colspan="3"><span class="rfc-subject">The domain name used as the value of a NS resource record, or part of the value of a MX resource record must not be an alias. (§10.3)</span></td></tr>
 <tr><td></td>
@@ -525,7 +528,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST NOT</td>
 <td>11</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-11-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_config_test.go#L272" title="internal/plugins/geodns/rfc2181_config_test.go" target="_blank" rel="noopener"><code>TestRFC2181_LabelsUnrestricted</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_config_test.go#L271" title="internal/plugins/geodns/rfc2181_config_test.go" target="_blank" rel="noopener"><code>TestRFC2181_LabelsUnrestricted</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> geodns applies no label-content restriction -- parseHost at internal/plugins/geodns/config.go:270 accepts any label characters and only requires a configured-zone suffix, so underscore and other non-hostname labels are served</p></td>
 </tr>
@@ -534,7 +537,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST NOT</td>
 <td>11</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-11-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_config_test.go#L261" title="internal/plugins/geodns/rfc2181_config_test.go" target="_blank" rel="noopener"><code>TestRFC2181_LabelsUnrestricted</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_config_test.go#L260" title="internal/plugins/geodns/rfc2181_config_test.go" target="_blank" rel="noopener"><code>TestRFC2181_LabelsUnrestricted</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> geodns never refuses a zone for questionable labels -- config parsing at internal/plugins/geodns/config.go:246 rejects only a missing zone suffix or an invalid IP, never label characters</p></td>
 </tr>
@@ -971,24 +974,24 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
 <tr><td><a href="#rfc2181-5.4.1-8"><code>RFC2181-5.4.1-8</code></a> When DNS security [RFC2065] is in use, and an authenticated reply has been received and verified, the data thus authenticated shall be considered more trustworthy than unauthenticated data of the same type. (§5.4.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {feature-declined}: &#34;to enable correct operation with servers that are not security aware (almost all currently)&#34;; optional-only for fttx-edge, post-release: ze offers no DNSSEC validation, so no reply is ever authenticated and verified. internal/plugins/dnsresolver/forward.go::upstreamQuery sends every upstream query with the EDNS0 DO bit clear, so the resolver is not security-aware, and the stub at internal/component/resolve/dns/resolver.go relies on a validating upstream. The owner ruling that DNSSEC is optional for fttx-edge is recorded in rfc/short/rfc4034.md (Enrolment reason, commit 5ff4834b67); validation is homed in plan/post-release/features/spec-dns-resolver-dnssec-validation.md</td>
+<td>{gap}, no test</td>
+<td>ze offers no DNSSEC validation, which is post-release work with no owner decision declining it, so no reply is ever authenticated and verified and authenticated data never outranks unauthenticated data: internal/plugins/dnsresolver/forward.go::upstreamQuery sends every upstream query with the EDNS0 DO bit clear, and the stub at internal/component/resolve/dns/resolver.go relies on a validating upstream</td>
 </tr>
 <tr><td><a href="#rfc2181-5.5-4"><code>RFC2181-5.5-4</code></a> Where duplicates are required this way, the TTL transmitted in each case must be the same. (§5.5)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: ze serves no AXFR -- the geodns YANG notes this at internal/plugins/geodns/yang/ze-geodns-conf.yang:95 and no plugin emits an SOA twice in one message, so no duplicate RRSet arises</td>
+<td>{gap}, no test</td>
+<td>ze implements no zone transfer, so the duplicated SOA of an AXFR is never sent and no ze path keeps its two TTLs equal; neither geodns (internal/plugins/geodns/server.go) nor as112 (internal/plugins/as112/server.go::answerQuery) answers an AXFR, and no owner decision declines it</td>
 </tr>
 <tr><td><a href="#rfc2181-10.1-4"><code>RFC2181-10.1-4</code></a> An alias name (label of a CNAME record) may, if DNSSEC is in use, have SIG, NXT, and KEY RRs, but may have no other data. (§10.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: ze serves no CNAME records -- geodns emits only A/AAAA/SRV at internal/plugins/geodns/record.go:10 and as112 only SOA/NS/TXT, so no CNAME can coexist with other data</td>
+<td>{gap}, no test</td>
+<td>gap in proof: internal/plugins/geodns/record.go::recordKind meets it, since geodns authors only A, AAAA and SRV records and as112 only SOA, NS and TXT, so no CNAME owner carries other data; no test asserts it</td>
 </tr>
 <tr><td><a href="#rfc2181-10.1.1-1"><code>RFC2181-10.1.1-1</code></a> Care must therefore be taken to be very clear whether the label, or the value (the canonical name) of a CNAME resource record is intended. (§10.1.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: ze authors no CNAME records at internal/plugins/geodns/record.go:10, so there is no label-versus-canonical-name ambiguity for an implementation to resolve</td>
+<td>{gap}, no test</td>
+<td>gap in proof: internal/plugins/geodns/record.go::recordKind meets it on the authoritative side, which authors no CNAME; no test shows the LAN resolver (internal/plugins/dnsresolver) and the stub (internal/component/resolve/dns) keep a CNAME&#39;s owner label and its canonical-name value apart when they follow an alias</td>
 </tr>
 <tr><td><a href="#rfc2181-10.2-1"><code>RFC2181-10.2-1</code></a> Note that while the value of a PTR record must not be an alias, there is no requirement that the process of resolving a PTR record not encounter any aliases. (§10.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: ze authors no PTR records -- geodns serves A/AAAA/SRV and as112 reverse zones return NODATA with the SOA at internal/plugins/as112/zones.go:273 rather than any PTR, so no PTR value can be an alias</td>
+<td>{gap}, no test</td>
+<td>gap in proof: internal/plugins/as112/server.go::answerQuery meets it, since the AS112 reverse zones answer NODATA with the SOA and never a PTR, and geodns authors no PTR record (internal/plugins/geodns/record.go::recordKind); no test asserts that ze serves no PTR whose value is an alias</td>
 </tr>
 </tbody>
 </table>
@@ -1251,7 +1254,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>No test carries RFC2181-5.5-4, so no unit is bound to it.</p>
 <h3><a href="#rfc2181-8-1"><code>RFC2181-8-1</code></a></h3>
 <p>It is hereby specified that a TTL value is an unsigned number, with a minimum value of 0, and a maximum value of 2147483647. That is, a maximum of 2^31 - 1. When transmitted, this value shall be encoded in the less significant 31 bits of the 32 bit TTL field, with the most significant, or sign, bit set to zero. (§8)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged (independent auditor) after 0bf856490c retagged the resolver high-bit paragraph to RFC2181-8-2. Section 8: &#34;It is hereby specified that a TTL value is an unsigned number, with a minimum value of 0, and a maximum value of 2147483647.&#34; and &#34;When transmitted, this value shall be encoded in the less significant 31 bits of the 32 bit TTL field, with the most significant, or sign, bit set to zero.&#34; geodns (unchanged units): TestRFC2181TTLTransmittedWithSignBitClear accepts configured TTL 0 and reads every packed A/NS/SOA TTL field back at default-ttl 2147483647 with the top bit clear; TestRFC2181_TTLSignBitBound positive keeps 2147483647 exactly and its negative refuses 2147483648 at parseTTL, the only source of a configured geodns TTL (default-ttl and per-host ttl). That is a genuine conforming/violating pair over both clauses. Resolver: the 8-1 negative now stands alone in this scope and is a conforming boundary input, not a violating one: a received 2147483647 with max-ttl raised to 2147483647 is answered and re-served from cache unchanged, which catches an off-by-one that treats the maximum as out of range (record: receivedTTL ttl &gt;= ttlSignBit-1 mutant, observed red); it is a second positive in substance, and the row&#39;s violating-input negative is the geodns 2147483648 refusal. The resolver&#39;s transmit clause is held by receivedTTL&#39;s sign-bit check plus min with a limit the YANG bounds to 0..2147483647 (cache max-ttl and max-negative-ttl); a resolver relaying a sign-bit TTL would turn this same unit red through its RFC2181-8-2 assertion (0x80000001 answered as 0), but no 8-1-tagged assertion and no tagged test of the YANG range would, and the 8-2 record&#39;s break (false &amp;&amp; sign check) leaves 8-1 met because the YANG-bounded cap still clears the bit. Finding recorded, verdict stands on the geodns pair plus the resolver unit.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/plugins/geodns/rfc2181_config_test.go::TestRFC2181_TTLSignBitBound, internal/plugins/geodns/rfc2181_config_test.go::TestRFC2181_TTLSignBitBound#2 moved. Re-judged (independent auditor) after 0bf856490c retagged the resolver high-bit paragraph to RFC2181-8-2. Section 8: &#34;It is hereby specified that a TTL value is an unsigned number, with a minimum value of 0, and a maximum value of 2147483647.&#34; and &#34;When transmitted, this value shall be encoded in the less significant 31 bits of the 32 bit TTL field, with the most significant, or sign, bit set to zero.&#34; geodns (unchanged units): TestRFC2181TTLTransmittedWithSignBitClear accepts configured TTL 0 and reads every packed A/NS/SOA TTL field back at default-ttl 2147483647 with the top bit clear; TestRFC2181_TTLSignBitBound positive keeps 2147483647 exactly and its negative refuses 2147483648 at parseTTL, the only source of a configured geodns TTL (default-ttl and per-host ttl). That is a genuine conforming/violating pair over both clauses. Resolver: the 8-1 negative now stands alone in this scope and is a conforming boundary input, not a violating one: a received 2147483647 with max-ttl raised to 2147483647 is answered and re-served from cache unchanged, which catches an off-by-one that treats the maximum as out of range (record: receivedTTL ttl &gt;= ttlSignBit-1 mutant, observed red); it is a second positive in substance, and the row&#39;s violating-input negative is the geodns 2147483648 refusal. The resolver&#39;s transmit clause is held by receivedTTL&#39;s sign-bit check plus min with a limit the YANG bounds to 0..2147483647 (cache max-ttl and max-negative-ttl); a resolver relaying a sign-bit TTL would turn this same unit red through its RFC2181-8-2 assertion (0x80000001 answered as 0), but no 8-1-tagged assertion and no tagged test of the YANG range would, and the 8-2 record&#39;s break (false &amp;&amp; sign check) leaves 8-1 met because the YANG-bounded cap still clears the bit. Finding recorded, verdict stands on the geodns pair plus the resolver unit.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1262,7 +1265,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>mutant, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_config_test.go#L239" title="internal/plugins/geodns/rfc2181_config_test.go" target="_blank" rel="noopener"><code>TestRFC2181_TTLSignBitBound</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_config_test.go#L238" title="internal/plugins/geodns/rfc2181_config_test.go" target="_blank" rel="noopener"><code>TestRFC2181_TTLSignBitBound</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1272,7 +1275,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_config_test.go#L226" title="internal/plugins/geodns/rfc2181_config_test.go" target="_blank" rel="noopener"><code>TestRFC2181_TTLSignBitBound</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_config_test.go#L225" title="internal/plugins/geodns/rfc2181_config_test.go" target="_blank" rel="noopener"><code>TestRFC2181_TTLSignBitBound</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1359,7 +1362,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_config_test.go#L272" title="internal/plugins/geodns/rfc2181_config_test.go" target="_blank" rel="noopener"><code>TestRFC2181_LabelsUnrestricted</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_config_test.go#L271" title="internal/plugins/geodns/rfc2181_config_test.go" target="_blank" rel="noopener"><code>TestRFC2181_LabelsUnrestricted</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1374,7 +1377,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_config_test.go#L261" title="internal/plugins/geodns/rfc2181_config_test.go" target="_blank" rel="noopener"><code>TestRFC2181_LabelsUnrestricted</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_config_test.go#L260" title="internal/plugins/geodns/rfc2181_config_test.go" target="_blank" rel="noopener"><code>TestRFC2181_LabelsUnrestricted</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1721,7 +1724,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 19:30 UTC</span>
+                    <span class="footer-published">Published 30 October 2026 23:25 UTC</span>
                 </div>
             </div>
         </footer>

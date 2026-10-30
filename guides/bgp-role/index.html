@@ -445,16 +445,17 @@ editor's <code>commit</code>, naming the peer, the role and the chain.</p>
 <p>RFC 9234 names the LOCAL speaker's position, so <code>customer</code> means the remote is
 our upstream: they legitimately send us the whole table, and the obligation is
 on what we send THEM.</p>
-<pre><code>bgp {
+<pre><code>policy {
+    reject-asn NO-TRANSIT {
+        indirect [ 174 701 1299 3356 ]
+    }
+}
+
+bgp {
     router-id 192.0.2.1
     session {
         asn {
             local 65000
-        }
-    }
-    policy {
-        reject-asn NO-TRANSIT {
-            indirect [ 174 701 1299 3356 ]
         }
     }
     peer upstream {
@@ -535,7 +536,7 @@ RFC 9234; a reject-asn list works against any peer and needs nothing from it.</p
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
+                    <span class="footer-published">Published 30 October 2026 09:46 UTC</span>
                 </div>
             </div>
         </footer>

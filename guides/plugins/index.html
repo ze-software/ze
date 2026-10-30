@@ -82,6 +82,7 @@
 <li><a href="#infrastructure">Infrastructure</a></li>
 <li><a href="#l2tp">L2TP</a></li>
 <li><a href="#route-filters">Route Filters</a></li>
+<li><a href="#route-evaluators-at-the-loc-rib">Route Evaluators at the Loc-RIB</a></li>
 <li><a href="#cross-protocol-redistribute-redistribute-orchestrator">Cross-Protocol Redistribute (redistribute-orchestrator)</a></li>
 <li><a href="#prefix-list-filter-bgp-filter-prefix">Prefix-List Filter (bgp-filter-prefix)</a></li>
 <li><a href="#as-path-filter-bgp-filter-aspath">AS-Path Filter (bgp-filter-aspath)</a></li>
@@ -99,7 +100,10 @@
 <li><a href="#declaring-what-your-commands-answer-holds">Declaring what your command&#39;s answer holds</a></li>
 <li><a href="#naming-a-pipe-alias-for-your-own-command">Naming a pipe alias for your own command</a></li>
 </ol></li>
-<li><a href="#dependencies">Dependencies</a></li>
+<li><a href="#dependencies">Dependencies</a>
+<ol>
+<li><a href="#the-policy-dependency">The policy dependency</a></li>
+</ol></li>
 <li><a href="#exclusive-roles">Exclusive Roles</a>
 <ol>
 <li><a href="#a-claim-is-daemon-wide-and-delivery-is-per-peer">A claim is daemon-wide, and delivery is per-peer</a></li>
@@ -166,6 +170,11 @@
 <td>Config-driven static routes with ECMP, weighted load balancing, BFD failover. A main-table route competes with other protocols on <code>rib { distance { static } }</code> and the FIB plugin programs the winner; a named-table route is programmed directly. <a href="../static-routes/">Guide</a></td>
 </tr>
 <tr>
+<td>Route policy library</td>
+<td><code>policy</code> (auto-loaded)</td>
+<td>Owns the top-level <code>policy {}</code> root, discovers its filter types from the <code>ze:filter</code> YANG marker, and holds the route field vocabulary filter chains are checked against. A <code>policy {}</code> section loads it, and so does every protocol with a filter attachment, because each lists it in <code>Dependencies</code></td>
+</tr>
+<tr>
 <td>OSPFv2 edge plugin</td>
 <td>(auto-loaded)</td>
 <td><code>ospf {}</code> starts the native OSPFv2 edge plugin, validates router-id/area/interface config, opens raw IPv4 sockets for active links, runs the Interface and Neighbor State Machines, and handles LSDB flooding</td>
@@ -178,6 +187,15 @@
 <p>BGP itself is a config-driven plugin. If your config has a <code>bgp { }</code> section, BGP loads automatically. If it doesn't, ze starts without BGP (useful for interface-only or FIB-only deployments). Native OSPFv2 follows the same pattern: an <code>ospf { }</code> section auto-loads the <code>ospf</code> edge plugin through <code>ConfigRoots ["ospf"]</code>.</p>
 <!-- source: internal/component/plugin/server/startup_autoload.go -- getConfigPathPlugins, autoLoadForNewConfigPaths -->
 <!-- source: internal/plugins/ospf/register.go -- registerOSPF ConfigRoots -->
+<p>A config root can also be a list path. Policy routing registers
+<code>ConfigRoots ["policy/route"]</code>, so it loads only when the config holds a
+<code>policy { route ... }</code> entry; a <code>policy {}</code> block that holds only filters loads
+the <code>policy</code> plugin and leaves policy routing (and the firewall it needs) out.
+The config tree reports the path of every non-empty list beside its
+containers, which is what lets a list path match.</p>
+<!-- source: internal/component/config/tree.go -- collectPaths -->
+<!-- source: internal/plugins/policyroute/register.go -- configRoot -->
+<!-- source: internal/component/policy/register.go -- init, PluginName, RootName -->
 <!-- source: internal/plugins/ospf/neighbor/table.go -- Table, Hello -->
 <!-- source: internal/plugins/ospf/neighbor/dd.go -- HandleDBDesc -->
 <!-- source: internal/plugins/ospf/lsdb/lsdb.go -- LSDB -->
@@ -1239,7 +1257,22 @@ for the names and their value shapes. Filters respond accept, reject, or modify
 </table>
 <p>Filters can declare <code>overrides</code> to remove default filters from the chain
 (e.g., <code>allow-own-as:relaxed</code> overrides <code>rfc:no-self-as</code> for a specific peer).</p>
-<!-- source: internal/component/bgp/config/redistribution.go -- extractFilterPolicy, canonicalizeFilterRefs -->
+<!-- source: internal/component/policy/chain.go -- ExtractChain -->
+<!-- source: internal/component/bgp/config/redistribution.go -- canonicalizeFilterRefs -->
+<h3 id="route-evaluators-at-the-loc-rib">Route Evaluators at the Loc-RIB</h3>
+<p>The Loc-RIB import chains (<code>isis</code>, <code>ospf</code>, <code>static</code>, <code>connected</code> and <code>rib</code>
+<code>filter { import { ... } }</code>) run in the engine on every route insert, so they
+never call a plugin process. A filter type works there only when its package
+registers an in-process route evaluator with <code>policy.MustRegisterRouteEvaluator</code>
+from its <code>init()</code>. <code>prefix-list</code> and <code>family-filter</code> register one, so their
+instances under <code>policy {}</code> can be named in those chains. A chain that names
+a type with no evaluator is refused at load, and the message lists the types
+that have one. A plugin whose config holds a Loc-RIB attachment declares it
+with <code>policy.MustRegisterRIBImport</code>. See <a href="https://github.com/ze-software/ze/blob/main/docs/guide/route-policy.md" target="_blank" rel="noopener">Route Policy at the Loc-RIB</a>.</p>
+<!-- source: internal/component/policy/rib.go -- MustRegisterRouteEvaluator, MustRegisterRIBImport -->
+<!-- source: internal/component/bgp/plugins/filter_prefix/register.go -- MustRegisterRouteEvaluator -->
+<!-- source: internal/component/bgp/plugins/filter_family/register.go -- MustRegisterRouteEvaluator -->
+<!-- source: internal/component/policy/rib_compile.go -- compileRIBChain -->
 <h3 id="cross-protocol-redistribute-redistribute-orchestrator">Cross-Protocol Redistribute (<code>redistribute-orchestrator</code>)</h3>
 <p><code>redistribute-orchestrator</code> is the single subscriber that dispatches non-consumer
 protocol route-change events to registered <code>RedistConsumer</code> implementations.
@@ -1320,18 +1353,23 @@ out-of-process producer re-emits asynchronously.</p>
 <code>_withdrawals</code>, <code>_filtered_protocol_total</code>, <code>_filtered_rule_total</code>,
 <code>ze_bgp_redistribute_replay_total{source}</code> (routes replayed, to a newly
 established peer or to a consumer that registered late).</p>
-<!-- source: internal/component/bgp/plugins/redistribute_egress/redistribute.go -- consumer plugin, watchConsumers -->
-<!-- source: internal/component/bgp/plugins/redistribute_egress/replay.go -- onPeerUp, onConsumerRegistered -->
+<!-- source: internal/plugins/redistribute/redistribute.go -- consumer plugin, watchConsumers -->
+<!-- source: internal/plugins/redistribute/replay.go -- onPeerUp, onConsumerRegistered -->
 <!-- source: internal/core/redistevents/registry.go -- ProtocolID + producer registration -->
 <h3 id="prefix-list-filter-bgp-filter-prefix">Prefix-List Filter (<code>bgp-filter-prefix</code>)</h3>
 <p><code>bgp-filter-prefix</code> is a built-in filter plugin that matches IPv4 and IPv6
-routes against ordered prefix lists defined in <code>bgp { policy { prefix-list NAME { ... } } }</code>. Each list is a sequence of <code>entry &lt;CIDR&gt;</code> blocks with
+routes against ordered prefix lists defined in <code>policy { prefix-list NAME { ... } }</code>. Each list is a sequence of <code>entry &lt;CIDR&gt;</code> blocks with
 optional <code>ge</code> / <code>le</code> bounds and an <code>action</code> of <code>accept</code> or <code>reject</code>; the
 first matching entry wins and no match is an implicit deny.</p>
 <p>Filter chain references use the standard <code>&lt;plugin&gt;:&lt;filter&gt;</code> form:
 <code>bgp-filter-prefix:CUSTOMERS</code>. The shorter form <code>prefix-list:CUSTOMERS</code> also
 resolves to the same plugin via the filter-type registration, and a bare
 <code>CUSTOMERS</code> resolves if no other filter plugin claims a filter of that name.</p>
+<p>A prefix-list can also run in a Loc-RIB import chain, named there by its bare
+instance name. It judges one route at a time with the same entry matching: the
+first matching entry decides and no match rejects the route
+(<a href="https://github.com/ze-software/ze/blob/main/docs/guide/route-policy.md" target="_blank" rel="noopener">Route Policy at the Loc-RIB</a>).</p>
+<!-- source: internal/component/bgp/plugins/filter_prefix/rib_evaluator.go -- compileRouteEvaluator -->
 <table>
 <thead>
 <tr>
@@ -1372,7 +1410,7 @@ not rewrite a FlowSpec NLRI.</p>
 <!-- source: internal/component/bgp/reactor/filter_nlri_delta.go -- sectionNLRIDelta -->
 <h3 id="as-path-filter-bgp-filter-aspath">AS-Path Filter (<code>bgp-filter-aspath</code>)</h3>
 <p><code>bgp-filter-aspath</code> matches the UPDATE's AS-path against ordered regex
-entries defined in <code>bgp { policy { as-path-list NAME { entry REGEX { action accept|reject; } } } }</code>. Each entry's regex is matched against the AS-path
+entries defined in <code>policy { as-path-list NAME { entry REGEX { action accept|reject; } } }</code>. Each entry's regex is matched against the AS-path
 string using Go's RE2 engine (linear time, inherently ReDoS-safe). First
 match wins; no match is implicit deny.</p>
 <p>Chain references: <code>bgp-filter-aspath:NAME</code>, <code>as-path-list:NAME</code>, or bare
@@ -1410,16 +1448,17 @@ same list whether the path came off the wire or out of a plugin.</li>
 listed position, and leaves the session up. It is the cheap answer to a peer
 leaking its transit, which the max-prefix limit otherwise stops by dropping the
 whole session.</p>
-<pre><code>bgp {
+<pre><code>policy {
+    reject-asn NO-TRANSIT {
+        indirect [ 174 3356 ]
+    }
+}
+
+bgp {
     router-id 192.0.2.1
     session {
         asn {
             local 65000
-        }
-    }
-    policy {
-        reject-asn NO-TRANSIT {
-            indirect [ 174 3356 ]
         }
     }
     peer peer-a {
@@ -1524,7 +1563,7 @@ curated date as comments, and after the paste the config holds the numbers.
 <h3 id="community-match-filter-bgp-filter-community-match">Community Match Filter (<code>bgp-filter-community-match</code>)</h3>
 <p><code>bgp-filter-community-match</code> checks for presence of a specific community
 value in the route's standard, large, or extended community attributes.
-Defined in <code>bgp { policy { community-match NAME { entry COMMUNITY { type standard|large|extended; action accept|reject; } } } }</code>. First match wins;
+Defined in <code>policy { community-match NAME { entry COMMUNITY { type standard|large|extended; action accept|reject; } } }</code>. First match wins;
 no match is implicit deny.</p>
 <p>Separate from the tag/strip community plugin (<code>bgp-filter-community</code>) because
 intent differs: this plugin filters (accept/reject), that one modifies
@@ -1626,7 +1665,7 @@ when you want the rest dropped:</p>
 <h3 id="as-path-length-filter-bgp-filter-aspath-length">AS-Path Length Filter (<code>bgp-filter-aspath-length</code>)</h3>
 <p><code>bgp-filter-aspath-length</code> accepts or rejects routes based on AS_PATH hop count.
 Configure named filters with min and/or max bounds:
-<code>bgp { policy { as-path-length REJECT-LONG { max 30; } } }</code>.
+<code>policy { as-path-length REJECT-LONG { max 30; } }</code>.
 Routes outside the configured range are rejected. At least one of max or min
 is required. Path length counts AS_SEQUENCE entries individually and AS_SET as 1,
 following RFC 4271 Section 9.1.2.2.</p>
@@ -1636,23 +1675,24 @@ following RFC 4271 Section 9.1.2.2.</p>
 <h3 id="remove-private-as-bgp-filter-remove-private-as">Remove Private AS (<code>bgp-filter-remove-private-as</code>)</h3>
 <p><code>bgp-filter-remove-private-as</code> removes RFC 6996 Private Use ASNs from AS path
 attributes in an import or export policy chain. Define named actions in
-<code>bgp { policy { remove-private-as NAME { ... } } }</code> and reference them from a
+<code>policy { remove-private-as NAME { ... } }</code> and reference them from a
 peer, group, or global filter chain by their unique name.</p>
 <p>Default mode strips private ASNs from <code>AS_PATH</code> and <code>AS4_PATH</code>. The optional
 <code>replace-with peer-as</code> mode replaces each private ASN with the destination peer
 AS on export, or the source peer AS on import.</p>
-<pre><code>bgp {
+<pre><code>policy {
+    remove-private-as STRIP {
+    }
+    remove-private-as REPLACE {
+        replace-with peer-as
+    }
+}
+
+bgp {
     router-id 192.0.2.1
     session {
         asn {
             local 65000
-        }
-    }
-    policy {
-        remove-private-as STRIP {
-        }
-        remove-private-as REPLACE {
-            replace-with peer-as
         }
     }
     peer transit-a {
@@ -1665,7 +1705,7 @@ AS on export, or the source peer AS on import.</p>
     }
 }
 </code></pre>
-<p>Filter instance names are globally unique under <code>bgp policy</code>. When a name is
+<p>Filter instance names are globally unique under the <code>policy</code> root. When a name is
 unique, reference it directly (e.g. <code>STRIP</code>). The prefixed forms
 <code>remove-private-as:STRIP</code> and <code>bgp-filter-remove-private-as:STRIP</code> remain
 accepted for disambiguation or advanced use.</p>
@@ -1934,6 +1974,27 @@ no schema for it. The refusal says the keyword belongs to a plugin this build
 lacks and names the build tag to rebuild with, on a <code>fix:</code> line. A keyword no
 build knows (a typo) keeps the closest-keyword hint.</p>
 <!-- source: internal/component/config/compiled_out_root.go -- TopLevelKeywordHint -->
+<h3 id="the-policy-dependency">The <code>policy</code> dependency</h3>
+<p>Every protocol that attaches filter chains lists <code>policy</code> in its hard
+<code>Dependencies</code>: <code>bgp</code>, <code>isis</code>, <code>ospf</code>, <code>static</code>, <code>connected</code>, <code>rib</code> and the
+redistribute orchestrator. Each filter-type plugin lists it too. Loading any of
+them loads the policy library, and a build without it refuses the config with
+the missing-dependency message rather than ignoring a <code>filter</code> block.
+<code>TestFilterAttachmentOwnersDependOnPolicy</code> derives the set from the attachment
+registrations and the registered filter types, so a new attachment without the
+edge fails by name.</p>
+<!-- source: internal/component/policy/fields.go -- MustRegisterAttachment, AttachmentOwners -->
+<!-- source: internal/component/plugin/all/policy_dependency_test.go -- TestFilterAttachmentOwnersDependOnPolicy -->
+<p>Filter-type plugins own the <code>policy</code> root (<code>ConfigRoots</code>), where their named
+instances live. A filter type that also needs BGP settings declares
+<code>ConfigReads ["bgp"]</code>, so its configure and reload deliveries carry the <code>bgp</code>
+section beside <code>policy</code>: <code>bgp-filter-family</code>, <code>bgp-filter-modify</code> and
+<code>bgp-filter-path-asn</code> do. <code>bgp-filter-irr</code> is the other way round: it owns
+<code>bgp</code>, because a BGP-only config with IRR peers must load it, and reads
+<code>policy</code> for its <code>irr</code> settings.</p>
+<!-- source: internal/component/bgp/plugins/filter_family/register.go -- ConfigRoots, ConfigReads -->
+<!-- source: internal/component/bgp/plugins/filter_irr/register.go -- ConfigRoots, ConfigReads -->
+<!-- source: internal/component/policy/section.go -- SectionsParser -->
 <p><code>StartAfter</code> is separate from either kind of dependency. It orders two plugins
 only when both are already selected and never activates its target. BFD starts
 after <code>interface</code> when interface configuration is present, so its logical names
@@ -2075,7 +2136,7 @@ backend. Cycles among selected plugins are refused for order-only edges too.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 02:50 UTC</span>
+                    <span class="footer-published">Published 30 October 2026 23:25 UTC</span>
                 </div>
             </div>
         </footer>

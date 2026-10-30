@@ -6,20 +6,21 @@ Ze applies ordered import and export filter chains to BGP updates. Define named 
 
 Policy has two parts:
 
-1. Named filter instances under `bgp { policy { ... } }`.
+1. Named filter instances under the top-level `policy { ... }` root.
 2. Direction policies under `filter`, each with ordered `filters` and a required `final accept` or `final reject`.
 
 ```text
+policy {
+    loop-detection no-self-as {
+        allow-own-as 0
+    }
+}
+
 bgp {
     router-id 192.0.2.1
     session {
         asn {
             local 65000
-        }
-    }
-    policy {
-        loop-detection no-self-as {
-            allow-own-as 0
         }
     }
 
@@ -35,6 +36,15 @@ bgp {
     }
 }
 ```
+
+The `policy` root is shared by every protocol, and policy routing's
+`policy route` list lives in it too. A filter type is a list the YANG schema
+marks `ze:filter`; `route` carries no marker, so a filter chain cannot name a
+`policy route` entry. A configuration that still writes `bgp { policy { ... } }`
+is refused with the command that converts it: `ze config migrate -o <new-file>
+<file>` moves the block to the top-level root.
+<!-- source: internal/component/policy/registry.go -- BuildRegistry, ValidateName -->
+<!-- source: internal/component/config/relocated.go -- relocatedHint, ApplyRelocations -->
 
 The effective references are cumulative: automatic safety filters run first,
 followed by global, group, and peer references. The most-specific configured
@@ -138,16 +148,16 @@ leaks its transit sends paths that run through its upstream, and this list drops
 those routes while the session stays up.
 
 ```
+policy {
+    reject-asn NO-TRANSIT {
+        indirect [ 174 701 3356 ];
+    }
+}
 bgp {
     router-id 192.0.2.1
     session {
         asn {
             local 65000
-        }
-    }
-    policy {
-        reject-asn NO-TRANSIT {
-            indirect [ 174 701 3356 ];
         }
     }
     peer ix-member {
@@ -412,10 +422,23 @@ See [Route filters and redistribution](../redistribution/index.md) for the curre
 
 `show policy chain peer <selector> [import|export]` reports each effective direction as an object containing
 `filters` and `final`, including a configured direction with no filters.
-Peer detail reports the same policy under `import-policy` and `export-policy`.
-Automatic-only filters have no configured `final`; an entirely absent policy
-is omitted. These status objects describe configured presence, not the default.
-Policy dry-run applies the live session-aware final: absence rejects on EBGP and
+Peer detail reports the same policy under `import-policy` and `export-policy`,
+and `show policy test` reports it under `policy`. The `final` is the one the
+session applies when the chain ends:
+
+| Policy and session | `final` | `final-source` |
+|--------------------|---------|----------------|
+| Configured policy | the configured `accept` or `reject` | omitted |
+| No policy, EBGP session | `reject` | `rfc8212` |
+| No policy, IBGP session | omitted; the direction is omitted when it has no automatic filters | omitted |
+| No policy, dynamic peer not yet established | `undetermined` | omitted |
+
+`final-source: rfc8212` marks the reject RFC 8212 Section 3 applies to an EBGP
+direction nobody configured, so it never reads as a reject you wrote. Add
+`final accept` (or a filter chain) to that direction to let routes through.
+A dynamic peer's session type is known only once its OPEN arrives, so its
+absent direction stays `undetermined` until then.
+Policy dry-run applies the same final: absence rejects on EBGP and
 accepts on IBGP. With a rejecting final, a pure withdrawal remains `accept` with unchanged resulting
 text. A mixed announcement and withdrawal reports `modify`, with only its explicit
 withdrawals in the resulting text. A filter execution failure or teardown still
@@ -431,8 +454,10 @@ explanation; exercise it with an UPDATE on the peer session instead. Inactive
 references do not execute and have no trace entry.
 When the remote AS is unresolved, the overall action is `undetermined` and
 `reason` tells you to wait for establishment and repeat `show policy test`.
+`policy` still reports the direction, with `undetermined` for an absent final.
 No filter executes, including a single-filter override. Trace and text are empty.
 <!-- source: internal/component/bgp/reactor/policy_dryrun.go -- PolicyDryRun -->
+<!-- source: internal/component/bgp/reactor/reactor_api.go -- policyInfo, absentPolicyInfo -->
 
 Use the same route at each boundary:
 

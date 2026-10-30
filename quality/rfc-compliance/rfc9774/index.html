@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 9774 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 9774: Deprecation of AS_SET and AS_CONFED_SET in BGP. 2 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 9774: Deprecation of AS_SET and AS_CONFED_SET in BGP. 3 gated MUST-level requirements, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 9774 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 9774: Deprecation of AS_SET and AS_CONFED_SET in BGP. 2 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 9774: Deprecation of AS_SET and AS_CONFED_SET in BGP. 3 gated MUST-level requirements, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 9774 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 9774: Deprecation of AS_SET and AS_CONFED_SET in BGP. 2 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 9774: Deprecation of AS_SET and AS_CONFED_SET in BGP. 3 gated MUST-level requirements, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -118,24 +118,28 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>100.0%</strong><b>2 of 2 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 2 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 2 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 2 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 2 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>66.7%</strong><b>2 of 3 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 3 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 3 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 3 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>100.0%</strong><b>10 of 10 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>2</strong><b>of 2 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 2 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 2 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 2 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 2 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0.0%</strong><b>0 of 2 gated MUSTs</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>3</strong><b>of 3 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 3 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 3 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 3 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 3 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0.0%</strong><b>0 of 3 gated MUSTs</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit</p></article>
 </div>
-<p>The 9 shares marked as a part above are the whole of the 2 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>33.3%</strong><b>1 of 3 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+</div>
+<p>The 9 shares marked as a part above are the whole of the 3 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -167,7 +171,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
 </tr>
 <tr><td>No test at all</td>
-<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
 </tr>
 <tr><td>Not applicable</td>
@@ -211,16 +215,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Enrolled</td>
 </tr>
 <tr><td>Requirements</td>
-<td>2</td>
+<td>3</td>
 </tr>
 <tr><td>Gated MUST-level</td>
-<td>2</td>
+<td>3</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
 <td>0</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>0</td>
+<td>1</td>
 </tr>
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
@@ -279,7 +283,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated (including scoped evidence)</td>
-<td><strong>0</strong></td>
+<td><strong>1</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -302,14 +306,15 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><strong>0</strong></td>
 <td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>2</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>3</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
 </div>
 <p class="rfc-id-list"><strong>Positive and negative tests (2):</strong> <a href="#rfc9774-3-1"><code>RFC9774-3-1</code></a>, <a href="#rfc9774-3-2"><code>RFC9774-3-2</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (1):</strong> <a href="#rfc9774-5.2-1"><code>RFC9774-5.2-1</code></a></p>
 </section>
 <section><h2>Attainable ceiling</h2>
-<p>Mandatory ceiling: 2 of 2 (100.0%). Optional ceiling: no rows. Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: rfc9774 2 of 2 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.</p>
+<p>Mandatory ceiling: 3 of 3 (100.0%). Optional ceiling: no rows. Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: rfc9774 3 of 3 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.</p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -340,12 +345,31 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc9774_test.go#L38" title="internal/component/bgp/message/rfc9774_test.go" target="_blank" rel="noopener"><code>TestValidateASPathRejectsSetSegments</code></a></span></div>
 </div></td>
 </tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9774-5.2-1">RFC9774-5.2-1</code></td><td colspan="3"><span class="rfc-subject">To ensure a consistent BGP origin AS is announced for aggregate BGP routes for implementations of &#34;brief&#34; BGP aggregation, the implementation MUST be configured to truncate the AS_PATH after the right-most instance of the desired origin AS for the aggregate. (§5.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5.2 - Consistent brief aggregation</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9774-5.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> Ze implements no route aggregation, brief or consistent brief, so no aggregate route is ever formed and nothing truncates its AS_PATH; aggregation (Sections 5, 5.2, 6.1, 6.2) is an absent feature of an implemented RFC with no owner decision declining it, owed after the first release</p></td>
+</tr>
 </tbody>
 </table>
 </div>
 </section>
 <section><h2>Gaps and untested MUSTs</h2>
-<p>RFC 9774 declares no gap, and every gated MUST it carries has a test bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><a href="#rfc9774-5.2-1"><code>RFC9774-5.2-1</code></a> To ensure a consistent BGP origin AS is announced for aggregate BGP routes for implementations of &#34;brief&#34; BGP aggregation, the implementation MUST be configured to truncate the AS_PATH after the right-most instance of the desired origin AS for the aggregate. (§5.2)</td>
+<td>{gap}, no test</td>
+<td>Ze implements no route aggregation, brief or consistent brief, so no aggregate route is ever formed and nothing truncates its AS_PATH; aggregation (Sections 5, 5.2, 6.1, 6.2) is an absent feature of an implemented RFC with no owner decision declining it, owed after the first release</td>
+</tr>
+</tbody>
+</table>
+</div>
 </section>
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
@@ -419,6 +443,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tbody>
 </table>
 </div>
+<h3><a href="#rfc9774-5.2-1"><code>RFC9774-5.2-1</code></a></h3>
+<p>To ensure a consistent BGP origin AS is announced for aggregate BGP routes for implementations of &#34;brief&#34; BGP aggregation, the implementation MUST be configured to truncate the AS_PATH after the right-most instance of the desired origin AS for the aggregate. (§5.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9774-5.2-1, so no unit is bound to it.</p>
 </section>
 <section><h2>Extraction sign-off</h2>
 <div class="rfc-table-wrap">
@@ -444,10 +472,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>rfc/extraction/rfc9774.json</td>
 </tr>
 <tr><td>Mapped sentences</td>
-<td>2</td>
+<td>3</td>
 </tr>
 <tr><td>Declined as scope</td>
-<td>2</td>
+<td>1</td>
 </tr>
 <tr><td>Relocated to a spec, which Ze OWES</td>
 <td>0</td>
@@ -509,7 +537,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Consistent brief aggregation</td>
 <td>1</td>
 <td>walked</td>
-<td>Consistent brief aggregation. Its MUST (5.2:1) and its SHOULD to attach ATOMIC_AGGREGATE bind an aggregating implementation; Ze implements no aggregation, so 5.2:1 is excluded as feature-out-of-scope.</td>
+<td>Consistent brief aggregation. Its MUST (5.2:1) and its SHOULD to attach ATOMIC_AGGREGATE bind an aggregating implementation; Ze implements no aggregation, so 5.2:1 maps to RFC9774-5.2-1, which carries {gap}.</td>
 </tr>
 <tr><td><code>6</code></td>
 <td>not stated</td>
@@ -615,11 +643,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>Site</th><th>Excluded kind</th><th>Reason</th><th>Quote</th></tr></thead>
 <tbody>
-<tr><td><code>5.2:1</code></td>
-<td><code>feature-out-of-scope</code><br /><strong>never bound Ze</strong><br />the RFC makes a feature OPTIONAL, Ze decided not to offer it, and this obligation is conditional on offering it</td>
-<td>Binds implementations of brief BGP aggregation only. RFC 4271 Section 9.1 makes route aggregation optional: &#34;Route aggregation and information reduction can optionally be performed within this phase.&#34; Owner decision 2026-10-18 scoped this work to RFC 9774 and not to an aggregation feature (spec-bgp-rfc9774-as-set-deprecation, Key Design Decisions). Ze has no aggregation code: the AS_PATH parsers (ParseASPathText, internal/core/bgp/attribute/text.go) build only AS_SEQUENCE.</td>
-<td>To ensure a consistent BGP origin AS is announced for aggregate BGP routes for implementations of &#34;brief&#34; BGP aggregation, the implementation MUST be configured to truncate the AS_PATH after the right-most instance of the desired origin AS for the aggregate.</td>
-</tr>
 <tr><td><code>6.1:1</code></td>
 <td><code>feature-out-of-scope</code><br /><strong>never bound Ze</strong><br />the RFC makes a feature OPTIONAL, Ze decided not to offer it, and this obligation is conditional on offering it</td>
 <td>Binds an operator &#34;When aggregating prefixes&#34;, which needs an aggregation feature in the speaker. RFC 4271 Section 9.1 makes route aggregation optional: &#34;Route aggregation and information reduction can optionally be performed within this phase.&#34; Owner decision 2026-10-18 scoped this work to RFC 9774 and not to an aggregation feature (spec-bgp-rfc9774-as-set-deprecation, Key Design Decisions). Ze has no aggregation code: the AS_PATH parsers (ParseASPathText, internal/core/bgp/attribute/text.go) build only AS_SEQUENCE.</td>
@@ -663,7 +686,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 19:30 UTC</span>
+                    <span class="footer-published">Published 30 October 2026 17:53 UTC</span>
                 </div>
             </div>
         </footer>

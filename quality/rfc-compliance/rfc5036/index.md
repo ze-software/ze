@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 3.3% | 3 of 91 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 91 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 91 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 89.1% | 57 of 64 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 87.5% | 56 of 64 tagged units, 0 escaped and 1 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -36,7 +36,7 @@ what Ze owes
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | No test at all | 64.8% | 59 of 91 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Audit verdicts | 26 | of 91 gated MUSTs judged | 2 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+| Audit verdicts | 26 | of 91 gated MUSTs judged | 2 weak, wrong or unimplemented, 1 no longer current. Each is named below under its own requirement id |
 
 The 9 shares marked as a part above are the whole of the 91 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -737,11 +737,11 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Glob
 
 Upon receipt of an unknown TLV, if U is clear (=0), a notification MUST be returned to the message originator and the entire message MUST be ignored; if U is set (=1), the unknown TLV MUST be silently ignored and the rest of the message processed as if the unknown TLV did not exist. (§3.3)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC5036UnknownTLVWithUBitSetIsSkipped checks an unknown TLV with U=1 is skipped, the mapping is applied and nothing is written; TestRFC5036UnknownTLVWithUBitClearIsRefused checks U=0 draws the Unknown TLV Notification referring to the Label Mapping, the mapping is not applied and the session stays up. TestLDPInitUnknownTLVUClearNotifies (rfc5036_init_unknown_tlv_test.go) checks the same U=0 half for an Initialization: DecodeInit refuses with unknownTLVError, Session.ignoreUnknownTLV answers an Unknown TLV Notification referring to message 7 of type Initialization, processMessages returns nil and the session stays in OpenSent, so the whole message is ignored.
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/plugins/ldp/rfc5036_init_unknown_tlv_test.go::TestLDPInitUnknownTLVUClearNotifies moved. TestRFC5036UnknownTLVWithUBitSetIsSkipped checks an unknown TLV with U=1 is skipped, the mapping is applied and nothing is written; TestRFC5036UnknownTLVWithUBitClearIsRefused checks U=0 draws the Unknown TLV Notification referring to the Label Mapping, the mapping is not applied and the session stays up. TestLDPInitUnknownTLVUClearNotifies (rfc5036_init_unknown_tlv_test.go) checks the same U=0 half for an Initialization: DecodeInit refuses with unknownTLVError, Session.ignoreUnknownTLV answers an Unknown TLV Notification referring to message 7 of type Initialization, processMessages returns nil and the session stays in OpenSent, so the whole message is ignored.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestLDPInitUnknownTLVUClearNotifies`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_init_unknown_tlv_test.go#L26) | unit/verify | revert, verified |
+| negative | [`TestLDPInitUnknownTLVUClearNotifies`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_init_unknown_tlv_test.go#L26) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
 | negative | [`TestRFC5036UnknownTLVWithUBitClearIsRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L128) | unit/verify | revert, verified |
 | positive | [`TestRFC5036UnknownTLVWithUBitSetIsSkipped`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L99) | unit/verify | revert, verified |
 

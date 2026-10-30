@@ -82,13 +82,13 @@ One page per RFC, naming each requirement, the test evidence behind it, and the 
 
 Tests help catch changes that break existing behavior. Go tests, end-to-end scenarios, protocol checks, fuzzing and interoperability tests cover different failure modes. The figures describe the test suite and its coverage. Each card explains what is checked and links to how those checks work.
 
- [See completion by use case](https://ze-software.net/quality/rfc-compliance/profiles/) [Read the evidence map](https://ze-software.net/quality/) [Watch product demos](https://ze-software.net/demos/terminal/) [**63.4% RFC MUSTs tested**
+ [See completion by use case](https://ze-software.net/quality/rfc-compliance/profiles/) [Read the evidence map](https://ze-software.net/quality/) [Watch product demos](https://ze-software.net/demos/terminal/) [**43.3% RFC MUSTs tested**
 
-- 2,888 of 4,556 tracked MUSTs
-- Across 167 RFCs
+- 2,057 of 4,753 MUSTs in walked RFCs
+- Across 194 RFCs, 0 not walked yet
 - Tests tied to requirements
 
- RFC requirement ledger.](https://ze-software.net/quality/rfc-compliance/) [**39,800+ Go tests**
+ RFC requirement ledger.](https://ze-software.net/quality/rfc-compliance/) [**40,200+ Go tests**
 
 - Check encoded bytes and parsed values.
 - Verify config, state transitions and plugins.
@@ -106,7 +106,7 @@ Tests help catch changes that break existing behavior. Go tests, end-to-end scen
 - Probe packets and config text for crashes.
 - Replay saved failures as regression cases.
 
- Fuzz inputs and regression cases.](https://ze-software.net/quality/unit-fuzz-mutation/#fuzz-targets-are-still-tests) [**11 interop test images**
+ Fuzz inputs and regression cases.](https://ze-software.net/quality/unit-fuzz-mutation/#fuzz-targets-are-still-tests) [**13 interop test images**
 
 - Peer CLIs check sessions and route exchange.
 - BGP, OSPF, IS-IS, BFD, BMP, RPKI, VRRP.

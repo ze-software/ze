@@ -80,19 +80,19 @@
     }
 }
 
+policy {
+    irr {
+        server whois.radb.net
+        peeringdb-url https://www.peeringdb.com
+        refresh-interval 3600
+    }
+}
+
 bgp {
     router-id 192.0.2.1
     session {
         asn {
             local 65000
-        }
-    }
-
-    policy {
-        irr {
-            server whois.radb.net
-            peeringdb-url https://www.peeringdb.com
-            refresh-interval 3600
         }
     }
 
@@ -149,8 +149,8 @@ bgp {
 <pre><code class="language-console">$ sudo systemctl stop ze.service
 $ ze config cat ze.conf |
 &gt; ze config set - plugin internal bgp-filter-irr use bgp-filter-irr |
-&gt; ze config set - bgp policy irr server whois.radb.net |
-&gt; ze config set - bgp policy irr refresh-interval 3600 |
+&gt; ze config set - policy irr server whois.radb.net |
+&gt; ze config set - policy irr refresh-interval 3600 |
 &gt; ze config set - bgp peer customer-a session irr as-set AS-CUSTOMER |
 &gt; ze config set - bgp peer customer-a filter import filters bgp-filter-irr:65001 |
 &gt; ze config set - bgp peer customer-a filter import final accept |
@@ -466,7 +466,7 @@ must succeed before this source is published as a recording.</code></pre>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 18:35 UTC</span>
+                    <span class="footer-published">Published 30 October 2026 09:46 UTC</span>
                 </div>
             </div>
         </footer>

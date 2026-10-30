@@ -463,7 +463,7 @@ Implementation features not offered under the 2026-09-21 scope decision: authori
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8414-2-13">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{feature-declined}:</strong> &#34;OPTIONAL. URL of the authorization server&#39;s OAuth 2.0 introspection endpoint [RFC7662].&#34;; §2 makes introspection metadata optional. Thomas chose the present OAuth roles on 2026-09-21, retaining local token verification rather than introspection. internal/component/mcp/streamable_auth.go::buildAuthForMode constructs a JWKS-backed verifier and makes no introspection request that would need an authentication method</p></td>
+</div><p class="rfc-mark"><strong>{feature-declined}:</strong> &#34;introspection_endpoint OPTIONAL.&#34;; §2 makes introspection metadata optional. Thomas chose the present OAuth roles on 2026-09-21, retaining local token verification rather than introspection. internal/component/mcp/streamable_auth.go::buildAuthForMode constructs a JWKS-backed verifier and makes no introspection request that would need an authentication method</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8414-2-14">RFC8414-2-14</code></td><td colspan="3"><span class="rfc-subject">used to authenticate the client at the introspection endpoint for the &#34;private_key_jwt&#34; and &#34;client_secret_jwt&#34; authentication methods. This metadata entry MUST be present if either of these authentication methods are specified in the &#34;introspection_endpoint_auth_methods_supported&#34; entry. (§2)</span></td></tr>
 <tr><td></td>
@@ -667,7 +667,7 @@ Implementation features not offered under the 2026-09-21 scope decision: authori
 </tr>
 <tr><td><a href="#rfc8414-2-13"><code>RFC8414-2-13</code></a> (These values are and will remain distinct, due to Section 7.2.) If omitted, the set of supported authentication methods MUST be determined by other means. (§2)</td>
 <td>no test</td>
-<td>no test carries this requirement id; annotated {feature-declined}: &#34;OPTIONAL. URL of the authorization server&#39;s OAuth 2.0 introspection endpoint [RFC7662].&#34;; §2 makes introspection metadata optional. Thomas chose the present OAuth roles on 2026-09-21, retaining local token verification rather than introspection. internal/component/mcp/streamable_auth.go::buildAuthForMode constructs a JWKS-backed verifier and makes no introspection request that would need an authentication method</td>
+<td>no test carries this requirement id; annotated {feature-declined}: &#34;introspection_endpoint OPTIONAL.&#34;; §2 makes introspection metadata optional. Thomas chose the present OAuth roles on 2026-09-21, retaining local token verification rather than introspection. internal/component/mcp/streamable_auth.go::buildAuthForMode constructs a JWKS-backed verifier and makes no introspection request that would need an authentication method</td>
 </tr>
 <tr><td><a href="#rfc8414-2-14"><code>RFC8414-2-14</code></a> used to authenticate the client at the introspection endpoint for the &#34;private_key_jwt&#34; and &#34;client_secret_jwt&#34; authentication methods. This metadata entry MUST be present if either of these authentication methods are specified in the &#34;introspection_endpoint_auth_methods_supported&#34; entry. (§2)</td>
 <td>no test</td>
@@ -1396,7 +1396,7 @@ Implementation features not offered under the 2026-09-21 scope decision: authori
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 19:30 UTC</span>
+                    <span class="footer-published">Published 30 October 2026 13:12 UTC</span>
                 </div>
             </div>
         </footer>

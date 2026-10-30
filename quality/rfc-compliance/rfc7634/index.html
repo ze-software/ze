@@ -326,7 +326,7 @@ ChaCha20-Poly1305 is not offered for the IKE SA (Section 3). Requirement test ow
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7634-2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{lower-layer}:</strong> Linux XFRM rfc7539esp(chacha20,poly1305) and its IV generator; internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams installs only the key and salt, and the kernel chooses every IV</p></td>
+</div><p class="rfc-mark"><strong>{lower-layer}:</strong> Linux XFRM rfc7539esp(chacha20,poly1305) and its seqiv IV generator, linux:CONFIG_CRYPTO_CHACHA20POLY1305; internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams installs only the key and salt, and the kernel chooses every IV; the generator derives each IV from the SA&#39;s sequence number, and the value Ze installs that keeps it unique is OSeqMayWrap=false, written on every state by the `state.OSeqMayWrap = false` guard in xfrmStateFromParams. Owed tag on that value: internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go (TestRFC4301SADItemSequenceCounterOverflowIsNeverRollover) and rfc4106_gcm_install_linux_test.go (TestRFC4106GCMKeyCannotOutliveTheSequenceSpace)</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7634-4-1">RFC7634-4-1</code></td><td colspan="3"><span class="rfc-subject">As with other AEAD algorithms, INTEG (type 3) transform substructures MUST NOT be specified, or just one INTEG transform MAY be included with value NONE (0). (§4)</span></td></tr>
 <tr><td></td>
@@ -375,7 +375,7 @@ ChaCha20-Poly1305 is not offered for the IKE SA (Section 3). Requirement test ow
 <tbody>
 <tr><td><a href="#rfc7634-2-1"><code>RFC7634-2-1</code></a> The IV MUST be unique for each invocation for a particular security association (SA) but does not need to be unpredictable. (§2)</td>
 <td>no test</td>
-<td>no test carries this requirement id; annotated {lower-layer}: Linux XFRM rfc7539esp(chacha20,poly1305) and its IV generator; internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams installs only the key and salt, and the kernel chooses every IV</td>
+<td>no test carries this requirement id; annotated {lower-layer}: Linux XFRM rfc7539esp(chacha20,poly1305) and its seqiv IV generator, linux:CONFIG_CRYPTO_CHACHA20POLY1305; internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams installs only the key and salt, and the kernel chooses every IV; the generator derives each IV from the SA&#39;s sequence number, and the value Ze installs that keeps it unique is OSeqMayWrap=false, written on every state by the `state.OSeqMayWrap = false` guard in xfrmStateFromParams. Owed tag on that value: internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go (TestRFC4301SADItemSequenceCounterOverflowIsNeverRollover) and rfc4106_gcm_install_linux_test.go (TestRFC4106GCMKeyCannotOutliveTheSequenceSpace)</td>
 </tr>
 </tbody>
 </table>
@@ -586,7 +586,7 @@ ChaCha20-Poly1305 is not offered for the IKE SA (Section 3). Requirement test ow
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 19:30 UTC</span>
+                    <span class="footer-published">Published 30 October 2026 17:53 UTC</span>
                 </div>
             </div>
         </footer>

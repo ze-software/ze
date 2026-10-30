@@ -122,7 +122,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>20.8%</strong><b>5 of 24 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 24 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 24 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>74.7%</strong><b>62 of 83 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>63.9%</strong><b>53 of 83 tagged units, 0 escaped and 9 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -543,12 +543,12 @@ Unproven duplicate-attribute wire handling remains recorded by <a href="#rfc8669
 <td>8</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8669-8-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_forward_prefix_sid_announce_rail_test.go#L49" title="internal/component/bgp/reactor/rfc8669_forward_prefix_sid_announce_rail_test.go" target="_blank" rel="noopener"><code>TestAnnounceRailKeepsPrefixSIDInsideTheSRDomain</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_forward_prefix_sid_test.go#L158" title="internal/component/bgp/reactor/rfc8669_forward_prefix_sid_test.go" target="_blank" rel="noopener"><code>TestPrefixSIDEgressBoundary</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_forward_prefix_sid_test.go#L291" title="internal/component/bgp/reactor/rfc8669_forward_prefix_sid_test.go" target="_blank" rel="noopener"><code>TestPrefixSIDOriginationBoundary</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_forward_prefix_sid_test.go#L168" title="internal/component/bgp/reactor/rfc8669_forward_prefix_sid_test.go" target="_blank" rel="noopener"><code>TestPrefixSIDEgressBoundary</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_forward_prefix_sid_test.go#L301" title="internal/component/bgp/reactor/rfc8669_forward_prefix_sid_test.go" target="_blank" rel="noopener"><code>TestPrefixSIDOriginationBoundary</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_forward_prefix_sid_readvertise_rail_test.go#L141" title="internal/component/bgp/reactor/rfc8669_forward_prefix_sid_readvertise_rail_test.go" target="_blank" rel="noopener"><code>TestStaleReadvertiseKeepsPrefixSIDInsideTheSRDomain</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_forward_prefix_sid_announce_rail_test.go#L46" title="internal/component/bgp/reactor/rfc8669_forward_prefix_sid_announce_rail_test.go" target="_blank" rel="noopener"><code>TestAnnounceRailKeepsPrefixSIDInsideTheSRDomain</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_forward_prefix_sid_test.go#L159" title="internal/component/bgp/reactor/rfc8669_forward_prefix_sid_test.go" target="_blank" rel="noopener"><code>TestPrefixSIDEgressBoundary</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_forward_prefix_sid_test.go#L292" title="internal/component/bgp/reactor/rfc8669_forward_prefix_sid_test.go" target="_blank" rel="noopener"><code>TestPrefixSIDOriginationBoundary</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_forward_prefix_sid_test.go#L169" title="internal/component/bgp/reactor/rfc8669_forward_prefix_sid_test.go" target="_blank" rel="noopener"><code>TestPrefixSIDEgressBoundary</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_forward_prefix_sid_test.go#L302" title="internal/component/bgp/reactor/rfc8669_forward_prefix_sid_test.go" target="_blank" rel="noopener"><code>TestPrefixSIDOriginationBoundary</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_forward_prefix_sid_readvertise_rail_test.go#L138" title="internal/component/bgp/reactor/rfc8669_forward_prefix_sid_readvertise_rail_test.go" target="_blank" rel="noopener"><code>TestStaleReadvertiseKeepsPrefixSIDInsideTheSRDomain</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/prefixsid-announce-rail-boundary.ci#L7" title="test/plugin/prefixsid-announce-rail-boundary.ci" target="_blank" rel="noopener"><code>prefixsid-announce-rail-boundary.ci</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/prefixsid-ebgp-egress-boundary.ci#L7" title="test/plugin/prefixsid-ebgp-egress-boundary.ci" target="_blank" rel="noopener"><code>prefixsid-ebgp-egress-boundary.ci</code></a></span></div>
@@ -835,7 +835,7 @@ Unproven duplicate-attribute wire handling remains recorded by <a href="#rfc8669
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc8669-3-1"><code>RFC8669-3-1</code></a></h3>
 <p>For future extensibility, unknown TLVs MUST be ignored and propagated unmodified. (§3, §6)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-20 (independent auditor, authored none of the change). RFC 8669 Section 3: &#34;For future extensibility, unknown TLVs MUST be ignored and propagated unmodified.&#34; The only change to test/plugin/prefixsid-malformed-receive.ci since the last judgement is 1f662ce70b (relayed UPDATE leads with its MP attribute): each changed expect hex was parsed attribute by attribute and the old and new frames carry the identical set of attribute TLVs, byte for byte, with the same message and attribute lengths and NLRI; only MP_REACH_NLRI moved to the front (RFC 7606 Section 5.1). No action line, comment or other directive changed. Frame (f) (10.0.7.0/24 IPv4 VPN, Label-Index with Reserved AA and Flags BBCC) still requires attribute 40 relayed octet-equal (C0280A010007AABBCC00000064), which is this row&#39;s functional cover; the Go units are unchanged. Ran green at HEAD: ./le test bgp plugin prefixsid-malformed-receive. Verdict stands.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: test/plugin/prefixsid-malformed-receive.ci moved. Re-judged 2026-10-20 (independent auditor, authored none of the change). RFC 8669 Section 3: &#34;For future extensibility, unknown TLVs MUST be ignored and propagated unmodified.&#34; The only change to test/plugin/prefixsid-malformed-receive.ci since the last judgement is 1f662ce70b (relayed UPDATE leads with its MP attribute): each changed expect hex was parsed attribute by attribute and the old and new frames carry the identical set of attribute TLVs, byte for byte, with the same message and attribute lengths and NLRI; only MP_REACH_NLRI moved to the front (RFC 7606 Section 5.1). No action line, comment or other directive changed. Frame (f) (10.0.7.0/24 IPv4 VPN, Label-Index with Reserved AA and Flags BBCC) still requires attribute 40 relayed octet-equal (C0280A010007AABBCC00000064), which is this row&#39;s functional cover; the Go units are unchanged. Ran green at HEAD: ./le test bgp plugin prefixsid-malformed-receive. Verdict stands.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -863,7 +863,7 @@ Unproven duplicate-attribute wire handling remains recorded by <a href="#rfc8669
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/prefixsid-malformed-receive.ci#L7" title="test/plugin/prefixsid-malformed-receive.ci" target="_blank" rel="noopener"><code>prefixsid-malformed-receive.ci</code></a></td>
 <td>functional/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 </tbody>
 </table>
@@ -874,7 +874,7 @@ Unproven duplicate-attribute wire handling remains recorded by <a href="#rfc8669
 <p>No test carries RFC8669-3.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc8669-3.1-2"><code>RFC8669-3.1-2</code></a></h3>
 <p>It MUST be ignored when received for other BGP AFI/SAFI combinations. (§3.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-20 (independent auditor, authored none of the change). RFC 8669 Section 3.1: &#34;It MUST be ignored when received for other BGP AFI/SAFI combinations.&#34; The only change to test/plugin/prefixsid-malformed-receive.ci since the last judgement is 1f662ce70b: each changed expect hex was parsed attribute by attribute and the old and new frames carry the identical set of attribute TLVs, byte for byte, with the same message and attribute lengths and NLRI; only MP_REACH_NLRI moved to the front (RFC 7606 Section 5.1). No action line, comment or other directive changed. Frame (c) (10.0.3.0/24 IPv4 VPN, 6-octet Label-Index then a valid L3 Service TLV) still requires attribute 40 relayed octet-equal; the Go units are unchanged. Single-polarity annotation unchanged and still accurate. Ran green at HEAD. Verdict stands.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: test/plugin/prefixsid-malformed-receive.ci moved. Re-judged 2026-10-20 (independent auditor, authored none of the change). RFC 8669 Section 3.1: &#34;It MUST be ignored when received for other BGP AFI/SAFI combinations.&#34; The only change to test/plugin/prefixsid-malformed-receive.ci since the last judgement is 1f662ce70b: each changed expect hex was parsed attribute by attribute and the old and new frames carry the identical set of attribute TLVs, byte for byte, with the same message and attribute lengths and NLRI; only MP_REACH_NLRI moved to the front (RFC 7606 Section 5.1). No action line, comment or other directive changed. Frame (c) (10.0.3.0/24 IPv4 VPN, 6-octet Label-Index then a valid L3 Service TLV) still requires attribute 40 relayed octet-equal; the Go units are unchanged. Single-polarity annotation unchanged and still accurate. Ran green at HEAD. Verdict stands.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -902,7 +902,7 @@ Unproven duplicate-attribute wire handling remains recorded by <a href="#rfc8669
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/prefixsid-malformed-receive.ci#L6" title="test/plugin/prefixsid-malformed-receive.ci" target="_blank" rel="noopener"><code>prefixsid-malformed-receive.ci</code></a></td>
 <td>functional/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 </tbody>
 </table>
@@ -1187,7 +1187,7 @@ Unproven duplicate-attribute wire handling remains recorded by <a href="#rfc8669
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/prefixsid-malformed-receive.ci#L5" title="test/plugin/prefixsid-malformed-receive.ci" target="_blank" rel="noopener"><code>prefixsid-malformed-receive.ci</code></a></td>
 <td>functional/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8669_tlv_length_test.go#L172" title="internal/component/bgp/message/rfc8669_tlv_length_test.go" target="_blank" rel="noopener"><code>TestRFC8669NoLabelIndexInvalidOnLabeledUnicast</code></a></td>
@@ -1254,24 +1254,24 @@ Unproven duplicate-attribute wire handling remains recorded by <a href="#rfc8669
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_forward_prefix_sid_test.go#L159" title="internal/component/bgp/reactor/rfc8669_forward_prefix_sid_test.go" target="_blank" rel="noopener"><code>TestPrefixSIDEgressBoundary</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_forward_prefix_sid_test.go#L169" title="internal/component/bgp/reactor/rfc8669_forward_prefix_sid_test.go" target="_blank" rel="noopener"><code>TestPrefixSIDEgressBoundary</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_forward_prefix_sid_test.go#L292" title="internal/component/bgp/reactor/rfc8669_forward_prefix_sid_test.go" target="_blank" rel="noopener"><code>TestPrefixSIDOriginationBoundary</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_forward_prefix_sid_test.go#L302" title="internal/component/bgp/reactor/rfc8669_forward_prefix_sid_test.go" target="_blank" rel="noopener"><code>TestPrefixSIDOriginationBoundary</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/prefixsid-announce-rail-boundary.ci#L4" title="test/plugin/prefixsid-announce-rail-boundary.ci" target="_blank" rel="noopener"><code>prefixsid-announce-rail-boundary.ci</code></a></td>
 <td>functional/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/prefixsid-ebgp-egress-boundary.ci#L4" title="test/plugin/prefixsid-ebgp-egress-boundary.ci" target="_blank" rel="noopener"><code>prefixsid-ebgp-egress-boundary.ci</code></a></td>
 <td>functional/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_forward_prefix_sid_announce_rail_test.go#L49" title="internal/component/bgp/reactor/rfc8669_forward_prefix_sid_announce_rail_test.go" target="_blank" rel="noopener"><code>TestAnnounceRailKeepsPrefixSIDInsideTheSRDomain</code></a></td>
@@ -1284,31 +1284,31 @@ Unproven duplicate-attribute wire handling remains recorded by <a href="#rfc8669
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_forward_prefix_sid_test.go#L158" title="internal/component/bgp/reactor/rfc8669_forward_prefix_sid_test.go" target="_blank" rel="noopener"><code>TestPrefixSIDEgressBoundary</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_forward_prefix_sid_test.go#L168" title="internal/component/bgp/reactor/rfc8669_forward_prefix_sid_test.go" target="_blank" rel="noopener"><code>TestPrefixSIDEgressBoundary</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_forward_prefix_sid_test.go#L291" title="internal/component/bgp/reactor/rfc8669_forward_prefix_sid_test.go" target="_blank" rel="noopener"><code>TestPrefixSIDOriginationBoundary</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_forward_prefix_sid_test.go#L301" title="internal/component/bgp/reactor/rfc8669_forward_prefix_sid_test.go" target="_blank" rel="noopener"><code>TestPrefixSIDOriginationBoundary</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/prefixsid-announce-rail-boundary.ci#L7" title="test/plugin/prefixsid-announce-rail-boundary.ci" target="_blank" rel="noopener"><code>prefixsid-announce-rail-boundary.ci</code></a></td>
 <td>functional/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/prefixsid-ebgp-egress-boundary.ci#L7" title="test/plugin/prefixsid-ebgp-egress-boundary.ci" target="_blank" rel="noopener"><code>prefixsid-ebgp-egress-boundary.ci</code></a></td>
 <td>functional/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc8669-6-1"><code>RFC8669-6-1</code></a></h3>
 <p>When a BGP speaker receives a BGP UPDATE message containing a malformed or invalid BGP Prefix-SID attribute attached to an IPv4/ IPv6 Labeled Unicast prefix ([RFC8277]), it MUST ignore the received BGP Prefix-SID attribute and not advertise it to other BGP peers. (§6)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-20 (independent auditor, authored none of the change). RFC 8669 Section 6: &#34;When a BGP speaker receives a BGP UPDATE message containing a malformed or invalid BGP Prefix-SID attribute attached to an IPv4/ IPv6 Labeled Unicast prefix ([RFC8277]), it MUST ignore the received BGP Prefix-SID attribute and not advertise it to other BGP peers.&#34; The only change to test/plugin/prefixsid-malformed-receive.ci since the last judgement is 1f662ce70b: each changed expect hex was parsed attribute by attribute and the old and new frames carry the identical set of attribute TLVs, byte for byte, with the same message and attribute lengths and NLRI; only MP_REACH_NLRI moved to the front (RFC 7606 Section 5.1). No action line, comment or other directive changed. Frames (a), (d) and (e1) on IPv4 labeled unicast still require attribute 40 absent and an ATTR_TOMBSTONE (C0FC) naming code 40 in its place; the message units are unchanged. Ran green at HEAD. Verdict stands.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: test/plugin/prefixsid-malformed-receive.ci moved. Re-judged 2026-10-20 (independent auditor, authored none of the change). RFC 8669 Section 6: &#34;When a BGP speaker receives a BGP UPDATE message containing a malformed or invalid BGP Prefix-SID attribute attached to an IPv4/ IPv6 Labeled Unicast prefix ([RFC8277]), it MUST ignore the received BGP Prefix-SID attribute and not advertise it to other BGP peers.&#34; The only change to test/plugin/prefixsid-malformed-receive.ci since the last judgement is 1f662ce70b: each changed expect hex was parsed attribute by attribute and the old and new frames carry the identical set of attribute TLVs, byte for byte, with the same message and attribute lengths and NLRI; only MP_REACH_NLRI moved to the front (RFC 7606 Section 5.1). No action line, comment or other directive changed. Frames (a), (d) and (e1) on IPv4 labeled unicast still require attribute 40 absent and an ATTR_TOMBSTONE (C0FC) naming code 40 in its place; the message units are unchanged. Ran green at HEAD. Verdict stands.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1341,7 +1341,7 @@ Unproven duplicate-attribute wire handling remains recorded by <a href="#rfc8669
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/prefixsid-malformed-receive.ci#L4" title="test/plugin/prefixsid-malformed-receive.ci" target="_blank" rel="noopener"><code>prefixsid-malformed-receive.ci</code></a></td>
 <td>functional/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8669_test.go#L187" title="internal/component/bgp/message/rfc8669_test.go" target="_blank" rel="noopener"><code>TestRFC8669WellFormedAttributeAccepted</code></a></td>
@@ -1362,7 +1362,7 @@ Unproven duplicate-attribute wire handling remains recorded by <a href="#rfc8669
 <p>No test carries RFC8669-6-2, so no unit is bound to it.</p>
 <h3><a href="#rfc8669-6-3"><code>RFC8669-6-3</code></a></h3>
 <p>Similarly, if a recognized TLV appears more than once in a BGP Prefix-SID attribute while the specification only allows for a single occurrence, then all the occurrences of the TLV other than the first one SHALL be discarded and the Prefix-SID attribute will continue to be processed. (§6)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged after 465af38f1d against rfc/full/rfc8669.txt Sections 3, 3.1, 3.2 and 6 and rfc/full/rfc9252.txt Section 7. Positive TestRFC8669DuplicateServiceTLVDiscardedOnReceive drives the real receive entry (enforceRFC7606 to publishBase) on an internal and a route-server-client session and asserts no error, RFC7606ActionNone, exactly one attribute 40 equal to the received TLVs less the repeat in received order, the peer&#39;s header width, the received attributes after code 40 octet for octet, and the same TLVs on the forward path; its cases are repeated SRv6 L3 and L2 Service TLVs on labelled unicast, Label-Index twice with an unknown TLV between, an unknown TLV after the repeat, a COMMUNITIES attribute after code 40, an Extended Length header, and L3 Service twice on IPv4 unicast (RFC 9252 Section 7 names no family). Negative TestRFC8669SingleOccurrencePrefixSIDKeptWhole pins the &#39;only allows for a single occurrence&#39; qualifier and the Section 6 MUST &#39;unknown TLVs MUST be ignored and propagated unmodified&#39;: each type once, an unknown TLV twice, an Originator SRGB TLV twice (Section 3.2 &#39;MUST NOT be changed during the propagation&#39;, so keeping both copies is the conforming answer) and a Label-Index TLV twice on IPv4 unicast must publish the received body octet-equal and forward every TLV. test/plugin/prefixsid-duplicate-tlv-relay.ci proves the session-in to session-out path with two byte-identical controls (unknown repeat; Label-Index repeat off labelled unicast) and an L3 Service repeat trimmed with the trailing unknown TLV and COMMUNITIES kept. The judge ran five -overlay mutants on HEAD, none recorded: Label-Index single on every family, stop copying after the first discard, family always read as IPv4 unicast, Extended Length header read as 3 octets, and the attributes after code 40 dropped; each turned a tagged reactor test red. Recorded discrimination records cover all three reactor/.ci tags (producer disabled). Readings, not findings: RFC 8669 sets no explicit occurrence limit for Label-Index; Ze treats it as single on IPv4/IPv6 labelled unicast from &#39;the label index for a given prefix&#39;, and off labelled unicast, where Section 3.1 says it &#39;MUST be ignored when received for other BGP AFI/SAFI combinations&#39;, as unrecognized and propagated unmodified (owner decision 2026-10-03). This is a defensible reading of an RFC that is silent, not RFC text. An UPDATE carrying both RFC 4271 NLRI and an MP_REACH_NLRI is judged by the MP_REACH family (prefixSIDRouteFamily), and no test covers it. The pool pair TestRFC8669DuplicateRecognizedTLVFirstWins / CannotOverrideFirst is one read-side first-wins assertion wearing two hats (the SIDs are swapped), so the polarity pair rests on the reactor and .ci tests, not on these two. A malformed repeat stays treat-as-withdraw first (untagged TestRFC8669DuplicateMalformedServiceTLVStillWithdrawn), which is RFC 9252 Section 7 and outside this row. Re-judged 2026-10-14 (independent reader, after 8c1c4013f2 and 7d37dcd562). Both units&#39; labeled-unicast cases now lead with a Label-Index TLV, because a labeled-unicast Prefix-SID without one is invalid (Section 4.1) and would be discarded before the repeat rule is reached; the assertions are unchanged, so each buffer still isolates this rule. Verdict unchanged.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: test/plugin/prefixsid-duplicate-tlv-relay.ci moved. Re-judged after 465af38f1d against rfc/full/rfc8669.txt Sections 3, 3.1, 3.2 and 6 and rfc/full/rfc9252.txt Section 7. Positive TestRFC8669DuplicateServiceTLVDiscardedOnReceive drives the real receive entry (enforceRFC7606 to publishBase) on an internal and a route-server-client session and asserts no error, RFC7606ActionNone, exactly one attribute 40 equal to the received TLVs less the repeat in received order, the peer&#39;s header width, the received attributes after code 40 octet for octet, and the same TLVs on the forward path; its cases are repeated SRv6 L3 and L2 Service TLVs on labelled unicast, Label-Index twice with an unknown TLV between, an unknown TLV after the repeat, a COMMUNITIES attribute after code 40, an Extended Length header, and L3 Service twice on IPv4 unicast (RFC 9252 Section 7 names no family). Negative TestRFC8669SingleOccurrencePrefixSIDKeptWhole pins the &#39;only allows for a single occurrence&#39; qualifier and the Section 6 MUST &#39;unknown TLVs MUST be ignored and propagated unmodified&#39;: each type once, an unknown TLV twice, an Originator SRGB TLV twice (Section 3.2 &#39;MUST NOT be changed during the propagation&#39;, so keeping both copies is the conforming answer) and a Label-Index TLV twice on IPv4 unicast must publish the received body octet-equal and forward every TLV. test/plugin/prefixsid-duplicate-tlv-relay.ci proves the session-in to session-out path with two byte-identical controls (unknown repeat; Label-Index repeat off labelled unicast) and an L3 Service repeat trimmed with the trailing unknown TLV and COMMUNITIES kept. The judge ran five -overlay mutants on HEAD, none recorded: Label-Index single on every family, stop copying after the first discard, family always read as IPv4 unicast, Extended Length header read as 3 octets, and the attributes after code 40 dropped; each turned a tagged reactor test red. Recorded discrimination records cover all three reactor/.ci tags (producer disabled). Readings, not findings: RFC 8669 sets no explicit occurrence limit for Label-Index; Ze treats it as single on IPv4/IPv6 labelled unicast from &#39;the label index for a given prefix&#39;, and off labelled unicast, where Section 3.1 says it &#39;MUST be ignored when received for other BGP AFI/SAFI combinations&#39;, as unrecognized and propagated unmodified (owner decision 2026-10-03). This is a defensible reading of an RFC that is silent, not RFC text. An UPDATE carrying both RFC 4271 NLRI and an MP_REACH_NLRI is judged by the MP_REACH family (prefixSIDRouteFamily), and no test covers it. The pool pair TestRFC8669DuplicateRecognizedTLVFirstWins / CannotOverrideFirst is one read-side first-wins assertion wearing two hats (the SIDs are swapped), so the polarity pair rests on the reactor and .ci tests, not on these two. A malformed repeat stays treat-as-withdraw first (untagged TestRFC8669DuplicateMalformedServiceTLVStillWithdrawn), which is RFC 9252 Section 7 and outside this row. Re-judged 2026-10-14 (independent reader, after 8c1c4013f2 and 7d37dcd562). Both units&#39; labeled-unicast cases now lead with a Label-Index TLV, because a labeled-unicast Prefix-SID without one is invalid (Section 4.1) and would be discarded before the repeat rule is reached; the assertions are unchanged, so each buffer still isolates this rule. Verdict unchanged.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1390,7 +1390,7 @@ Unproven duplicate-attribute wire handling remains recorded by <a href="#rfc8669
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/prefixsid-duplicate-tlv-relay.ci#L4" title="test/plugin/prefixsid-duplicate-tlv-relay.ci" target="_blank" rel="noopener"><code>prefixsid-duplicate-tlv-relay.ci</code></a></td>
 <td>functional/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 </tbody>
 </table>
@@ -1712,7 +1712,7 @@ Unproven duplicate-attribute wire handling remains recorded by <a href="#rfc8669
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 19:30 UTC</span>
+                    <span class="footer-published">Published 30 October 2026 23:25 UTC</span>
                 </div>
             </div>
         </footer>

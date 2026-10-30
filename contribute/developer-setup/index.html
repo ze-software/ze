@@ -607,8 +607,11 @@ OTHER architecture needs that architecture's set too, through
 <p><strong>Unprivileged user namespaces.</strong> Ubuntu 23.10+ ships
 <code>kernel.apparmor_restrict_unprivileged_userns=1</code>, which blocks the sandbox
 Chrome relies on and makes the <code>agent-browser</code> web functional tests fail to
-launch Chrome (<code>No usable sandbox!</code>). Setup checks this tunable as
-<code>userns-unrestricted</code>. When it is restricted, <code>./le setup install</code>
+launch Chrome (<code>No usable sandbox!</code>). It also breaks the kernel tests that run
+in a user namespace of their own (<code>userns.Enter</code>, see
+<a href="../testing/">the testing guide</a>): the namespace holds no
+capability, so each such test fails and its message names this check. Setup
+checks this tunable as <code>userns-unrestricted</code>. When it is restricted, <code>./le setup install</code>
 echoes and then runs these commands via <code>sudo</code> to lift it globally:</p>
 <pre><code class="language-bash">echo "kernel.apparmor_restrict_unprivileged_userns = 0" | sudo tee /etc/sysctl.d/60-ze-userns.conf
 sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
@@ -638,8 +641,11 @@ virtualisation, or a VM without nested virt) reports <code>n/a</code>: QEMU runs
 native QEMU actions select the Apple hypervisor (<code>hvf</code>) by platform.</p>
 <!-- source: internal/le/test/qemu/actions.go -- Answer -->
 <p><strong>PPP device access.</strong> The L2TP and PPPoE tests open <code>/dev/ppp</code> to drive the
-kernel PPP channel. A stock Debian host makes it <code>root:root</code> mode 0600, so a
-test run as you cannot open it. Setup checks this as <code>ppp-access</code> and grants
+kernel PPP channel. They run as you, in a user namespace of their own
+(<code>userns.Enter</code>), where root holds the <code>CAP_NET_ADMIN</code> the PPP ioctls need,
+and your supplementary groups still apply to the open. A stock Debian host
+makes the device <code>root:root</code> mode 0600, so a test run as you cannot open it,
+and the test fails naming <code>./le setup install</code> and <code>ppp-access</code>. Setup checks this as <code>ppp-access</code> and grants
 the device to the <code>dip</code> group. Debian ships <code>dip</code> (gid 30) for PPP dial-up,
 pppd's documentation names it, and you are usually in it already, so a second
 group of Ze's own would grant the same device to the same person under another
@@ -671,6 +677,24 @@ install prints the commands above with <code>sudo</code> instead of running them
 reports the step <code>skipped</code>: it has no <code>/dev/ppp</code>, and the PPP tests run in the
 Linux VM.</p>
 <!-- source: internal/le/setup/ppp.go -- visitPpp, pppSteps, pppProbe, pppRuleBody -->
+<!-- source: internal/component/l2tp/pppoeclient/unit_reservation_integration_linux_test.go -- TestPADTRetainsUnitUntilOwnerCleanup -->
+<!-- source: internal/test/userns/userns_linux.go -- childFailure -->
+<p><strong>Kernel features.</strong> A test that needs a kernel feature runs on Ze's kernel,
+which carries it. The nftables flowtable test needs <code>NF_FLOW_TABLE</code>,
+<code>NF_FLOW_TABLE_INET</code> and <code>NFT_FLOW_OFFLOAD</code>, and the tc ingress policer tests
+need <code>NET_ACT_POLICE</code> and <code>NET_ACT_GACT</code>. Ze's kernel builds all five in
+(<code>gokrazy/kernel/kernel.config</code> and <code>runtime.config</code>). A distribution kernel
+may build them as modules or not at all, and the kernel then answers the test
+with a bare <code>no such file or directory</code>. The test still fails, never skips, and
+its failure adds a line for each option the running kernel lacks or has not
+loaded: the kernel release, the option, and the fix. The fix is to boot Ze's
+kernel (on a Linux host, <code>./le setup docker kernel install</code>, then reboot) or,
+for a module that is built but not loaded, <code>sudo modprobe &lt;module&gt;</code>. The
+options are read from <code>/proc/config.gz</code>, else <code>/boot/config-&lt;release&gt;</code>, and the
+loaded modules from <code>/proc/modules</code>. Setup does not load these modules.</p>
+<!-- source: internal/test/kernelfeature/kernelfeature.go -- Features, Explain, Read -->
+<!-- source: internal/plugins/firewall/nft/integration_linux_test.go -- TestApplyAcceptsAFlowOffloadToATableFlowtable -->
+<!-- source: internal/plugins/traffic/netlink/integration_linux_test.go -- TestNetlinkIntegration_IngressPolicerReachesTheKernel -->
 <p><strong>Loopback addresses.</strong> The functional fixtures give each end of a BGP session
 its own address: RFC 4271 Section 5.1.3 forbids a peer its own address as
 NEXT_HOP, so a session whose two ends share one address has every originated
@@ -748,7 +772,7 @@ preventing the lists from drifting apart.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 18:35 UTC</span>
+                    <span class="footer-published">Published 30 October 2026 09:46 UTC</span>
                 </div>
             </div>
         </footer>

@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 5881 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 5881: Bidirectional Forwarding Detection (BFD) for IPv4 and IPv6 (Single Hop). 23 gated MUST-level requirements, 6 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 5881: Bidirectional Forwarding Detection (BFD) for IPv4 and IPv6 (Single Hop). 23 gated MUST-level requirements, 8 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 5881 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 5881: Bidirectional Forwarding Detection (BFD) for IPv4 and IPv6 (Single Hop). 23 gated MUST-level requirements, 6 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 5881: Bidirectional Forwarding Detection (BFD) for IPv4 and IPv6 (Single Hop). 23 gated MUST-level requirements, 8 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 5881 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 5881: Bidirectional Forwarding Detection (BFD) for IPv4 and IPv6 (Single Hop). 23 gated MUST-level requirements, 6 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 5881: Bidirectional Forwarding Detection (BFD) for IPv4 and IPv6 (Single Hop). 23 gated MUST-level requirements, 8 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -122,14 +122,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>4.3%</strong><b>1 of 23 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 23 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 23 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>88.7%</strong><b>47 of 53 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>84.9%</strong><b>45 of 53 tagged units, 0 escaped and 2 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>23</strong><b>of 33 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>2</strong><b>of 23 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>8.7%</strong><b>2 of 23 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 23 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 23 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 23 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 23 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0.0%</strong><b>0 of 23 gated MUSTs</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit</p></article>
@@ -137,7 +137,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>26.1%</strong><b>6 of 23 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>34.8%</strong><b>8 of 23 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 </div>
 <p>The 9 shares marked as a part above are the whole of the 23 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -221,10 +221,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>23</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
-<td>2</td>
+<td>0</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>6</td>
+<td>8</td>
 </tr>
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
@@ -272,7 +272,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </ul>
 </details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
-Six MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc5881.md" target="_blank" rel="noopener"><code>rfc/short/rfc5881.md</code></a>: <a href="#rfc5881-4-2"><code>RFC5881-4-2</code></a> -- the control socket transmits from port 3784 rather than an ephemeral 49152-65535 source port (single-socket design, <a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/transport/udp.go" target="_blank" rel="noopener"><code>internal/component/bfd/transport/udp.go</code></a>); <a href="#rfc5881-2-4"><code>RFC5881-2-4</code></a>/4-6/4-7 -- the echo function is application-level ZEEC reflection to the peer (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/echo.go" target="_blank" rel="noopener"><code>internal/component/bfd/engine/echo.go</code></a>) rather than the RFC self-addressed, forwarding-plane-looped echo, so self-addressing, forward-back destination, and redirect-avoiding source are unimplemented; and <a href="#rfc5881-6-3"><code>RFC5881-6-3</code></a>/6-4 -- point-to-point links are not modelled distinctly, so the first-packet demux keys on the peer source address (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/loop.go" target="_blank" rel="noopener"><code>internal/component/bfd/engine/loop.go</code></a>) instead of accepting any initial source. IPv6 dual-bind and wider deployment proof remain tracked with BFD.
+Eight MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc5881.md" target="_blank" rel="noopener"><code>rfc/short/rfc5881.md</code></a>: <a href="#rfc5881-2-1"><code>RFC5881-2-1</code></a> -- two sessions to one system that differ only by local address share whatever path the kernel FIB picks; <a href="#rfc5881-2-3"><code>RFC5881-2-3</code></a> -- the Echo function runs with no ingress-filtering exemption, so an rp_filter or firewall setting can drop the looped packets; <a href="#rfc5881-4-2"><code>RFC5881-4-2</code></a> -- the control socket transmits from port 3784 rather than an ephemeral 49152-65535 source port (single-socket design, <a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/transport/udp.go" target="_blank" rel="noopener"><code>internal/component/bfd/transport/udp.go</code></a>); <a href="#rfc5881-2-4"><code>RFC5881-2-4</code></a>/4-6/4-7 -- the echo function is application-level ZEEC reflection to the peer (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/echo.go" target="_blank" rel="noopener"><code>internal/component/bfd/engine/echo.go</code></a>) rather than the RFC self-addressed, forwarding-plane-looped echo, so self-addressing, forward-back destination, and redirect-avoiding source are unimplemented; and <a href="#rfc5881-6-3"><code>RFC5881-6-3</code></a>/6-4 -- point-to-point links are not modelled distinctly, so the first-packet demux keys on the peer source address (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/loop.go" target="_blank" rel="noopener"><code>internal/component/bfd/engine/loop.go</code></a>) instead of accepting any initial source. IPv6 dual-bind and wider deployment proof remain tracked with BFD.
 </details>
 </section>
 <section><h2>Coverage</h2>
@@ -316,7 +316,7 @@ Six MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc
 <p class="rfc-id-list"><strong>Annotated (including scoped evidence) (9):</strong> <a href="#rfc5881-2-1"><code>RFC5881-2-1</code></a>, <a href="#rfc5881-2-3"><code>RFC5881-2-3</code></a>, <a href="#rfc5881-2-4"><code>RFC5881-2-4</code></a>, <a href="#rfc5881-4-2"><code>RFC5881-4-2</code></a>, <a href="#rfc5881-4-3"><code>RFC5881-4-3</code></a>, <a href="#rfc5881-4-6"><code>RFC5881-4-6</code></a>, <a href="#rfc5881-4-7"><code>RFC5881-4-7</code></a>, <a href="#rfc5881-6-3"><code>RFC5881-6-3</code></a>, <a href="#rfc5881-6-4"><code>RFC5881-6-4</code></a></p>
 </section>
 <section><h2>Attainable ceiling</h2>
-<p>Mandatory ceiling: 21 of 23 (91.3%); excluded: Not applicable (classification can be revisited): 2 of 23 (8.7%). Optional ceiling: 10 of 10 (100.0%). Lowest mandatory ceiling: rfc5881 21 of 23 (91.3%). Lowest optional ceiling: rfc5881 10 of 10 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.</p>
+<p>Mandatory ceiling: 23 of 23 (100.0%). Optional ceiling: 10 of 10 (100.0%). Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: rfc5881 23 of 23 (100.0%). Lowest optional ceiling: rfc5881 10 of 10 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.</p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -330,7 +330,7 @@ Six MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5881-2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze cannot select or guarantee the network-layer path a session&#39;s packets take; the datagram is handed to the kernel FIB by internal/component/bfd/transport/udp.go:226 (conn.WriteToUDP), and separating two sessions onto distinct L3 paths is an operator topology property the BFD plugin does not control</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> api.Key (internal/component/bfd/api/events.go:165) dedups sessions on Peer, Local, Interface, VRF and Mode, and a single-hop session binds its socket to its interface with SO_BINDTODEVICE, so two sessions to one system already differ by interface, VRF or hop mode. What remains is two sessions that differ only by local address: ze hands their datagrams to the kernel FIB (internal/component/bfd/transport/udp.go, WriteToUDP), which may route both over the same path, and no test asserts that sessions to a pair of systems traverse separate paths</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5881-2-2">RFC5881-2-2</code></td><td colspan="3"><span class="rfc-subject">If BFD is to be used in conjunction with both IPv4 and IPv6 on a particular path, a separate BFD session MUST be established for each protocol (and thus encapsulated by that protocol) over that link. (§2)</span></td></tr>
 <tr><td></td>
@@ -349,7 +349,7 @@ Six MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5881-2-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ingress filtering (BCP 38) is host and network policy; the echo transport opens a plain UDP socket at internal/component/bfd/bfd.go:393 (newEchoTransport) and the BFD plugin neither configures nor exempts kernel ingress filters</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze supports the Echo function (internal/component/bfd/bfd.go::newEchoTransport) yet neither disables ingress filtering on the interface nor exempts Echo packets: the operator&#39;s rp_filter sysctl, or a firewall rule, can drop the looped Echo packets with nothing refusing the combination, and no test asserts Echo survives on an interface ze runs it on</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5881-2-4">RFC5881-2-4</code></td><td colspan="3"><span class="rfc-subject">A system implementing the Echo function MUST be capable of sending packets to its own address, which will typically require bypassing the normal forwarding lookup. (§2)</span></td></tr>
 <tr><td></td>
@@ -654,12 +654,12 @@ Six MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
 <tr><td><a href="#rfc5881-2-1"><code>RFC5881-2-1</code></a> Each BFD session between a pair of systems MUST traverse a separate network-layer path in both directions. (§2)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: ze cannot select or guarantee the network-layer path a session&#39;s packets take; the datagram is handed to the kernel FIB by internal/component/bfd/transport/udp.go:226 (conn.WriteToUDP), and separating two sessions onto distinct L3 paths is an operator topology property the BFD plugin does not control</td>
+<td>{gap}, no test</td>
+<td>api.Key (internal/component/bfd/api/events.go:165) dedups sessions on Peer, Local, Interface, VRF and Mode, and a single-hop session binds its socket to its interface with SO_BINDTODEVICE, so two sessions to one system already differ by interface, VRF or hop mode. What remains is two sessions that differ only by local address: ze hands their datagrams to the kernel FIB (internal/component/bfd/transport/udp.go, WriteToUDP), which may route both over the same path, and no test asserts that sessions to a pair of systems traverse separate paths</td>
 </tr>
 <tr><td><a href="#rfc5881-2-3"><code>RFC5881-2-3</code></a> Implementations that support the Echo function MUST ensure that ingress filtering is not used on an interface that employs the Echo function or make an exception for ingress filtering Echo packets. (§2)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: ingress filtering (BCP 38) is host and network policy; the echo transport opens a plain UDP socket at internal/component/bfd/bfd.go:393 (newEchoTransport) and the BFD plugin neither configures nor exempts kernel ingress filters</td>
+<td>{gap}, no test</td>
+<td>ze supports the Echo function (internal/component/bfd/bfd.go::newEchoTransport) yet neither disables ingress filtering on the interface nor exempts Echo packets: the operator&#39;s rp_filter sysctl, or a firewall rule, can drop the looped Echo packets with nothing refusing the combination, and no test asserts Echo survives on an interface ze runs it on</td>
 </tr>
 <tr><td><a href="#rfc5881-2-4"><code>RFC5881-2-4</code></a> A system implementing the Echo function MUST be capable of sending packets to its own address, which will typically require bypassing the normal forwarding lookup. (§2)</td>
 <td>{gap}, no test</td>
@@ -743,7 +743,7 @@ Six MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5881_test.go#L105" title="internal/component/bfd/rfc5881_test.go" target="_blank" rel="noopener"><code>TestRFC5881SingleHopPassiveProfileRejected</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5881_test.go#L52" title="internal/component/bfd/session/rfc5881_test.go" target="_blank" rel="noopener"><code>TestRFC5881NonActiveStaysSilent</code></a></td>
@@ -758,7 +758,7 @@ Six MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5881_test.go#L117" title="internal/component/bfd/rfc5881_test.go" target="_blank" rel="noopener"><code>TestRFC5881SingleHopActiveProfileAccepted</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5881_test.go#L37" title="internal/component/bfd/session/rfc5881_test.go" target="_blank" rel="noopener"><code>TestRFC5881SingleHopTakesActiveRole</code></a></td>
@@ -1322,7 +1322,7 @@ Six MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/main/rfc
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 19:30 UTC</span>
+                    <span class="footer-published">Published 30 October 2026 23:25 UTC</span>
                 </div>
             </div>
         </footer>

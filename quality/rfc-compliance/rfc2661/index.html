@@ -587,7 +587,7 @@ Partial. Nine MUST rows carry {gap}; the retransmit count before a tunnel is cle
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2661-3.1-7">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{lower-layer}:</strong> Linux l2tp_ppp; internal/component/l2tp/kernel_linux.go::pppSetupReal creates the pppol2tp session the data plane runs on and installs no value the module reads to ignore Nr; reactor.go::handle drops every data message before reading Ns or Nr, so no value Ze writes decides this field</p></td>
+</div><p class="rfc-mark"><strong>{lower-layer}:</strong> Linux L2TP core (net/l2tp/l2tp_core.c, l2tp_recv_common reads Nr and acts on nothing in it), linux:CONFIG_L2TP; internal/component/l2tp/kernel_linux.go::pppSetupReal creates the pppol2tp session the data plane runs on and installs no value the module reads to ignore Nr; internal/component/l2tp/reactor.go::handle drops every data message that reaches Ze&#39;s control socket before reading Ns or Nr, so no value Ze writes decides this field</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2661-4.1-5">RFC2661-4.1-5</code></td><td colspan="3"><span class="rfc-subject">If the M bit is not set, an unrecognized AVP MUST be ignored (§4.1)</span></td></tr>
 <tr><td></td>
@@ -1312,7 +1312,7 @@ Partial. Nine MUST rows carry {gap}; the retransmit count before a tunnel is cle
 </tr>
 <tr><td><a href="#rfc2661-3.1-7"><code>RFC2661-3.1-7</code></a> In data messages, Nr is reserved and, if present (as indicated by the S-bit), MUST be ignored upon receipt (§3.1)</td>
 <td>no test</td>
-<td>no test carries this requirement id; annotated {lower-layer}: Linux l2tp_ppp; internal/component/l2tp/kernel_linux.go::pppSetupReal creates the pppol2tp session the data plane runs on and installs no value the module reads to ignore Nr; reactor.go::handle drops every data message before reading Ns or Nr, so no value Ze writes decides this field</td>
+<td>no test carries this requirement id; annotated {lower-layer}: Linux L2TP core (net/l2tp/l2tp_core.c, l2tp_recv_common reads Nr and acts on nothing in it), linux:CONFIG_L2TP; internal/component/l2tp/kernel_linux.go::pppSetupReal creates the pppol2tp session the data plane runs on and installs no value the module reads to ignore Nr; internal/component/l2tp/reactor.go::handle drops every data message that reaches Ze&#39;s control socket before reading Ns or Nr, so no value Ze writes decides this field</td>
 </tr>
 <tr><td><a href="#rfc2661-4.2-2"><code>RFC2661-4.2-2</code></a> Use of the M-bit with new AVPs (those not defined in this document) MUST provide the ability to configure the associated feature off, such that the AVP is either not sent, or sent with the M-bit not set (§4.2)</td>
 <td>{gap}, no test</td>
@@ -4092,7 +4092,7 @@ Partial. Nine MUST rows carry {gap}; the retransmit count before a tunnel is cle
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 19:30 UTC</span>
+                    <span class="footer-published">Published 30 October 2026 17:53 UTC</span>
                 </div>
             </div>
         </footer>

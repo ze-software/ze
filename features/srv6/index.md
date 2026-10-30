@@ -135,23 +135,24 @@ service's Route Target with `community-match`; rejecting a match withholds the
 whole route, not just its Prefix-SID attribute:
 
 ```
+policy {
+    community-match SERVICE-20 {
+        entry target:65000:10 {
+            type extended;
+            action reject;
+        }
+        entry target:65000:20 {
+            type extended;
+            action accept;
+        }
+    }
+}
+
 bgp {
     router-id 192.0.2.1
     session {
         asn {
             local 65000
-        }
-    }
-    policy {
-        community-match SERVICE-20 {
-            entry target:65000:10 {
-                type extended;
-                action reject;
-            }
-            entry target:65000:20 {
-                type extended;
-                action accept;
-            }
         }
     }
     peer pe1 {

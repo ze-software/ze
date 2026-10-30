@@ -49,7 +49,7 @@
     <h1 id="plugin-catalog-title">Plugin catalog</h1>
     <p>Ze features are composed from plugins. This catalog is generated from the live registry and explains what each plugin is for, what it configures, and which other plugins it relies on. Click any plugin to open a local detail page.</p>
 </div>
-                <p class="plugin-summary">Generated from 95 registry entries: 95 runtime plugins. Among runtime plugins, 74 declare configuration roots, 51 declare dependencies, and 78 ship YANG modules.</p>
+                <p class="plugin-summary">Generated from 96 registry entries: 96 runtime plugins. Among runtime plugins, 75 declare configuration roots, 55 declare dependencies, and 79 ship YANG modules.</p>
                 <div class="plugin-console" role="search" aria-label="Search plugins">
                     <label for="plugin-search">Search by feature, protocol, config root, dependency, or source path</label>
                     <input id="plugin-search" type="search" autocomplete="off" placeholder="Try RPKI, FlowSpec, FIB, DHCP, DDoS, l2tp, bgp-filter..." />
@@ -59,7 +59,7 @@
                                 <select id="plugin-category" autocomplete="off">
                                     <option value="">All categories</option>
                                     <option value="routing" data-label="Routing">Routing (38)</option>
-                                    <option value="security" data-label="Policy &amp; security">Policy &amp; security (25)</option>
+                                    <option value="security" data-label="Policy &amp; security">Policy &amp; security (26)</option>
                                     <option value="tunneling" data-label="Tunneling">Tunneling (7)</option>
                                     <option value="services" data-label="Network services">Network services (8)</option>
                                     <option value="dataplane" data-label="Interfaces &amp; dataplane">Interfaces &amp; dataplane (11)</option>
@@ -73,12 +73,12 @@
                                     <optgroup label="Routing">
                                     <option value="bgp" data-category="routing" data-label="BGP">BGP (20)</option>
                                     <option value="bgp-nlri" data-category="routing" data-label="BGP NLRI">BGP NLRI (10)</option>
-                                    <option value="bgp-redistribute" data-category="routing" data-label="BGP Redistribute">BGP Redistribute (1)</option>
                                     <option value="connected" data-category="routing" data-label="Connected">Connected (1)</option>
                                     <option value="exabgp" data-category="routing" data-label="Exabgp">Exabgp (1)</option>
                                     <option value="isis" data-category="routing" data-label="IS-IS">IS-IS (1)</option>
                                     <option value="ospf" data-category="routing" data-label="OSPF">OSPF (1)</option>
                                     <option value="rib" data-category="routing" data-label="RIB">RIB (1)</option>
+                                    <option value="redistribute" data-category="routing" data-label="Redistribute">Redistribute (1)</option>
                                     <option value="routing-table" data-category="routing" data-label="Routing Table">Routing Table (1)</option>
                                     <option value="static" data-category="routing" data-label="Static">Static (1)</option>
                                     </optgroup>
@@ -89,7 +89,7 @@
                                     <option value="ddos" data-category="security" data-label="DDoS">DDoS (5)</option>
                                     <option value="firewall" data-category="security" data-label="Firewall">Firewall (3)</option>
                                     <option value="flowspec-firewall" data-category="security" data-label="Flowspec Firewall">Flowspec Firewall (1)</option>
-                                    <option value="policy" data-category="security" data-label="Policy">Policy (1)</option>
+                                    <option value="policy" data-category="security" data-label="Policy">Policy (2)</option>
                                     </optgroup>
                                     <optgroup label="Tunneling">
                                     <option value="l2tp" data-category="tunneling" data-label="L2TP">L2TP (4)</option>
@@ -200,15 +200,16 @@
                     <p>Generated group for registry entries mapped to the BGP area. Config roots: <code>bgp</code>, <code>bgp-epe</code>, <code>bgp-ls-export</code>, <code>environment</code>. Source area: <code>internal/component/bgp</code>.</p>
                     <div class="cards plugin-grid">
 
-                    <article class="card plugin-card cat-routing" id="plugin-bgp" data-plugin-card data-family="bgp" data-category="routing" data-search="bgp BGP routing daemon BGP routing daemon internal/component/bgp/plugin BGP   bgp    internal/component/bgp/yang/ze-bgp-api.yang internal/component/bgp/yang/ze-bgp-conf.yang">
+                    <article class="card plugin-card cat-routing" id="plugin-bgp" data-plugin-card data-family="bgp" data-category="routing" data-search="bgp BGP routing daemon BGP routing daemon internal/component/bgp/plugin BGP   bgp policy   internal/component/bgp/yang/ze-bgp-api.yang internal/component/bgp/yang/ze-bgp-conf.yang">
                         <span class="cat">BGP</span>
                         <h3><a href="bgp/"><code>bgp</code></a></h3>
                         <p class="plugin-desc">BGP routing daemon</p>
                         <div class="chips">
                             <span class="chip mode">config:bgp</span>
+                            <span class="chip">needs:policy</span>
                             <span class="chip">YANG:2</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>bgp</code></dd></div><div><dt>YANG</dt><dd>2 modules</dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>bgp</code></dd></div><div><dt>Needs</dt><dd><code>policy</code></dd></div><div><dt>YANG</dt><dd>2 modules</dd></div></dl>
                     </article>
 
                     <article class="card plugin-card cat-routing" id="plugin-bgp-adj-rib-in" data-plugin-card data-family="bgp" data-category="routing" data-search="bgp-adj-rib-in Adj-RIB-In storage (raw hex replay) Adj-RIB-In storage (raw hex replay) internal/component/bgp/plugins/adj_rib_in BGP       internal/component/bgp/plugins/adj_rib_in/yang/ze-adj-rib-in-api.yang">
@@ -444,31 +445,33 @@
                         <h2 id="plugin-group-bgp-filter">BGP Filter</h2>
                         <span>11 plugins</span>
                     </div>
-                    <p>Generated group for registry entries mapped to the BGP Filter area. Config roots: <code>bgp</code>. Source area: <code>internal/component/bgp</code>.</p>
+                    <p>Generated group for registry entries mapped to the BGP Filter area. Config roots: <code>bgp</code>, <code>policy</code>. Source area: <code>internal/component/bgp</code>.</p>
                     <div class="cards plugin-grid">
 
-                    <article class="card plugin-card cat-routing" id="plugin-bgp-filter-aspath" data-plugin-card data-family="bgp-filter" data-category="security" data-search="bgp-filter-aspath Named AS-path regex filter (ordered entries, first match wins, accept/reject) Named AS-path regex filter (ordered entries, first match wins, accept/reject) internal/component/bgp/plugins/filter_aspath BGP Filter   bgp bgp   internal/component/bgp/plugins/filter_aspath/yang/ze-filter-aspath.yang">
+                    <article class="card plugin-card cat-routing" id="plugin-bgp-filter-aspath" data-plugin-card data-family="bgp-filter" data-category="security" data-search="bgp-filter-aspath Named AS-path regex filter (ordered entries, first match wins, accept/reject) Named AS-path regex filter (ordered entries, first match wins, accept/reject) internal/component/bgp/plugins/filter_aspath BGP Filter   policy bgp policy   internal/component/bgp/plugins/filter_aspath/yang/ze-filter-aspath.yang">
                         <span class="cat">BGP Filter</span>
                         <h3><a href="bgp-filter-aspath/"><code>bgp-filter-aspath</code></a></h3>
                         <p class="plugin-desc">Named AS-path regex filter (ordered entries, first match wins, accept/reject)</p>
                         <div class="chips">
-                            <span class="chip mode">config:bgp</span>
+                            <span class="chip mode">config:policy</span>
                             <span class="chip">needs:bgp</span>
+                            <span class="chip">needs:policy</span>
                             <span class="chip">YANG:1</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>bgp</code></dd></div><div><dt>Needs</dt><dd><code>bgp</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>policy</code></dd></div><div><dt>Needs</dt><dd><code>bgp</code>, <code>policy</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
                     </article>
 
-                    <article class="card plugin-card cat-routing" id="plugin-bgp-filter-aspath-length" data-plugin-card data-family="bgp-filter" data-category="security" data-search="bgp-filter-aspath-length Named AS-path length filter (accept/reject based on hop count) Named AS-path length filter (accept/reject based on hop count) internal/component/bgp/plugins/filter_aspath_length BGP Filter   bgp bgp   internal/component/bgp/plugins/filter_aspath_length/yang/ze-filter-aspath-length.yang">
+                    <article class="card plugin-card cat-routing" id="plugin-bgp-filter-aspath-length" data-plugin-card data-family="bgp-filter" data-category="security" data-search="bgp-filter-aspath-length Named AS-path length filter (accept/reject based on hop count) Named AS-path length filter (accept/reject based on hop count) internal/component/bgp/plugins/filter_aspath_length BGP Filter   policy bgp policy   internal/component/bgp/plugins/filter_aspath_length/yang/ze-filter-aspath-length.yang">
                         <span class="cat">BGP Filter</span>
                         <h3><a href="bgp-filter-aspath-length/"><code>bgp-filter-aspath-length</code></a></h3>
                         <p class="plugin-desc">Named AS-path length filter (accept/reject based on hop count)</p>
                         <div class="chips">
-                            <span class="chip mode">config:bgp</span>
+                            <span class="chip mode">config:policy</span>
                             <span class="chip">needs:bgp</span>
+                            <span class="chip">needs:policy</span>
                             <span class="chip">YANG:1</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>bgp</code></dd></div><div><dt>Needs</dt><dd><code>bgp</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>policy</code></dd></div><div><dt>Needs</dt><dd><code>bgp</code>, <code>policy</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
                     </article>
 
                     <article class="card plugin-card cat-routing" id="plugin-bgp-filter-community" data-plugin-card data-family="bgp-filter" data-category="security" data-search="bgp-filter-community Community tag/strip filter (standard, large, extended) Community tag/strip filter (standard, large, extended) internal/component/bgp/plugins/filter_community BGP Filter   bgp bgp   internal/component/bgp/plugins/filter_community/yang/ze-filter-community.yang">
@@ -483,98 +486,106 @@
                         <dl class="plugin-meta"><div><dt>Config</dt><dd><code>bgp</code></dd></div><div><dt>Needs</dt><dd><code>bgp</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
                     </article>
 
-                    <article class="card plugin-card cat-routing" id="plugin-bgp-filter-community-match" data-plugin-card data-family="bgp-filter" data-category="security" data-search="bgp-filter-community-match Named community match filter (ordered entries, first match wins, accept/reject) Named community match filter (ordered entries, first match wins, accept/reject) internal/component/bgp/plugins/filter_community_match BGP Filter   bgp bgp   internal/component/bgp/plugins/filter_community_match/yang/ze-filter-community-match.yang">
+                    <article class="card plugin-card cat-routing" id="plugin-bgp-filter-community-match" data-plugin-card data-family="bgp-filter" data-category="security" data-search="bgp-filter-community-match Named community match filter (ordered entries, first match wins, accept/reject) Named community match filter (ordered entries, first match wins, accept/reject) internal/component/bgp/plugins/filter_community_match BGP Filter   policy bgp policy   internal/component/bgp/plugins/filter_community_match/yang/ze-filter-community-match.yang">
                         <span class="cat">BGP Filter</span>
                         <h3><a href="bgp-filter-community-match/"><code>bgp-filter-community-match</code></a></h3>
                         <p class="plugin-desc">Named community match filter (ordered entries, first match wins, accept/reject)</p>
                         <div class="chips">
-                            <span class="chip mode">config:bgp</span>
+                            <span class="chip mode">config:policy</span>
                             <span class="chip">needs:bgp</span>
+                            <span class="chip">needs:policy</span>
                             <span class="chip">YANG:1</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>bgp</code></dd></div><div><dt>Needs</dt><dd><code>bgp</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>policy</code></dd></div><div><dt>Needs</dt><dd><code>bgp</code>, <code>policy</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
                     </article>
 
-                    <article class="card plugin-card cat-routing" id="plugin-bgp-filter-family" data-plugin-card data-family="bgp-filter" data-category="security" data-search="bgp-filter-family Named address-family policy filter: remove a family&#39;s NLRI or tear down the session Named address-family policy filter: remove a family&#39;s NLRI or tear down the session internal/component/bgp/plugins/filter_family BGP Filter   bgp bgp   internal/component/bgp/plugins/filter_family/yang/ze-filter-family.yang">
+                    <article class="card plugin-card cat-routing" id="plugin-bgp-filter-family" data-plugin-card data-family="bgp-filter" data-category="security" data-search="bgp-filter-family Named address-family policy filter: remove a family&#39;s NLRI or tear down the session Named address-family policy filter: remove a family&#39;s NLRI or tear down the session internal/component/bgp/plugins/filter_family BGP Filter   policy bgp policy   internal/component/bgp/plugins/filter_family/yang/ze-filter-family.yang">
                         <span class="cat">BGP Filter</span>
                         <h3><a href="bgp-filter-family/"><code>bgp-filter-family</code></a></h3>
                         <p class="plugin-desc">Named address-family policy filter: remove a family&#39;s NLRI or tear down the session</p>
                         <div class="chips">
-                            <span class="chip mode">config:bgp</span>
+                            <span class="chip mode">config:policy</span>
                             <span class="chip">needs:bgp</span>
+                            <span class="chip">needs:policy</span>
                             <span class="chip">YANG:1</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>bgp</code></dd></div><div><dt>Needs</dt><dd><code>bgp</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>policy</code></dd></div><div><dt>Needs</dt><dd><code>bgp</code>, <code>policy</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
                     </article>
 
-                    <article class="card plugin-card cat-routing" id="plugin-bgp-filter-irr" data-plugin-card data-family="bgp-filter" data-category="security" data-search="bgp-filter-irr IRR-based prefix-list filter for eBGP peers IRR-based prefix-list filter for eBGP peers internal/component/bgp/plugins/filter_irr BGP Filter   bgp bgp   internal/component/bgp/plugins/filter_irr/yang/ze-filter-irr-cmd.yang internal/component/bgp/plugins/filter_irr/yang/ze-filter-irr.yang">
+                    <article class="card plugin-card cat-routing" id="plugin-bgp-filter-irr" data-plugin-card data-family="bgp-filter" data-category="security" data-search="bgp-filter-irr IRR-based prefix-list filter for eBGP peers IRR-based prefix-list filter for eBGP peers internal/component/bgp/plugins/filter_irr BGP Filter   bgp bgp policy   internal/component/bgp/plugins/filter_irr/yang/ze-filter-irr-cmd.yang internal/component/bgp/plugins/filter_irr/yang/ze-filter-irr.yang">
                         <span class="cat">BGP Filter</span>
                         <h3><a href="bgp-filter-irr/"><code>bgp-filter-irr</code></a></h3>
                         <p class="plugin-desc">IRR-based prefix-list filter for eBGP peers</p>
                         <div class="chips">
                             <span class="chip mode">config:bgp</span>
                             <span class="chip">needs:bgp</span>
+                            <span class="chip">needs:policy</span>
                             <span class="chip">YANG:2</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>bgp</code></dd></div><div><dt>Needs</dt><dd><code>bgp</code></dd></div><div><dt>YANG</dt><dd>2 modules</dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>bgp</code></dd></div><div><dt>Needs</dt><dd><code>bgp</code>, <code>policy</code></dd></div><div><dt>YANG</dt><dd>2 modules</dd></div></dl>
                     </article>
 
-                    <article class="card plugin-card cat-routing" id="plugin-bgp-filter-modify" data-plugin-card data-family="bgp-filter" data-category="security" data-search="bgp-filter-modify Named route attribute modifier (set local-preference, med, origin, next-hop) Named route attribute modifier (set local-preference, med, origin, next-hop) internal/component/bgp/plugins/filter_modify BGP Filter   bgp bgp   internal/component/bgp/plugins/filter_modify/yang/ze-filter-modify.yang">
+                    <article class="card plugin-card cat-routing" id="plugin-bgp-filter-modify" data-plugin-card data-family="bgp-filter" data-category="security" data-search="bgp-filter-modify Named route attribute modifier (set local-preference, med, origin, next-hop) Named route attribute modifier (set local-preference, med, origin, next-hop) internal/component/bgp/plugins/filter_modify BGP Filter   policy bgp policy   internal/component/bgp/plugins/filter_modify/yang/ze-filter-modify.yang">
                         <span class="cat">BGP Filter</span>
                         <h3><a href="bgp-filter-modify/"><code>bgp-filter-modify</code></a></h3>
                         <p class="plugin-desc">Named route attribute modifier (set local-preference, med, origin, next-hop)</p>
                         <div class="chips">
-                            <span class="chip mode">config:bgp</span>
+                            <span class="chip mode">config:policy</span>
                             <span class="chip">needs:bgp</span>
+                            <span class="chip">needs:policy</span>
                             <span class="chip">YANG:1</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>bgp</code></dd></div><div><dt>Needs</dt><dd><code>bgp</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>policy</code></dd></div><div><dt>Needs</dt><dd><code>bgp</code>, <code>policy</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
                     </article>
 
-                    <article class="card plugin-card cat-routing" id="plugin-bgp-filter-path-asn" data-plugin-card data-family="bgp-filter" data-category="security" data-search="bgp-filter-path-asn Named reject-asn list: rejects a route whose AS_PATH carries a listed ASN at a listed position Named reject-asn list: rejects a route whose AS_PATH carries a listed ASN at a listed position internal/component/bgp/plugins/filter_path_asn BGP Filter   bgp bgp   internal/component/bgp/plugins/filter_path_asn/yang/ze-filter-path-asn-cmd.yang internal/component/bgp/plugins/filter_path_asn/yang/ze-filter-path-asn.yang">
+                    <article class="card plugin-card cat-routing" id="plugin-bgp-filter-path-asn" data-plugin-card data-family="bgp-filter" data-category="security" data-search="bgp-filter-path-asn Named reject-asn list: rejects a route whose AS_PATH carries a listed ASN at a listed position Named reject-asn list: rejects a route whose AS_PATH carries a listed ASN at a listed position internal/component/bgp/plugins/filter_path_asn BGP Filter   policy bgp policy   internal/component/bgp/plugins/filter_path_asn/yang/ze-filter-path-asn-cmd.yang internal/component/bgp/plugins/filter_path_asn/yang/ze-filter-path-asn.yang">
                         <span class="cat">BGP Filter</span>
                         <h3><a href="bgp-filter-path-asn/"><code>bgp-filter-path-asn</code></a></h3>
                         <p class="plugin-desc">Named reject-asn list: rejects a route whose AS_PATH carries a listed ASN at a listed position</p>
                         <div class="chips">
-                            <span class="chip mode">config:bgp</span>
+                            <span class="chip mode">config:policy</span>
                             <span class="chip">needs:bgp</span>
+                            <span class="chip">needs:policy</span>
                             <span class="chip">YANG:2</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>bgp</code></dd></div><div><dt>Needs</dt><dd><code>bgp</code></dd></div><div><dt>YANG</dt><dd>2 modules</dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>policy</code></dd></div><div><dt>Needs</dt><dd><code>bgp</code>, <code>policy</code></dd></div><div><dt>YANG</dt><dd>2 modules</dd></div></dl>
                     </article>
 
-                    <article class="card plugin-card cat-routing" id="plugin-bgp-filter-prefix" data-plugin-card data-family="bgp-filter" data-category="security" data-search="bgp-filter-prefix Named prefix-list filter (CIDR + ge/le + accept/reject) Named prefix-list filter (CIDR + ge/le + accept/reject) internal/component/bgp/plugins/filter_prefix BGP Filter   bgp bgp   internal/component/bgp/plugins/filter_prefix/yang/ze-filter-prefix.yang">
+                    <article class="card plugin-card cat-routing" id="plugin-bgp-filter-prefix" data-plugin-card data-family="bgp-filter" data-category="security" data-search="bgp-filter-prefix Named prefix-list filter (CIDR + ge/le + accept/reject) Named prefix-list filter (CIDR + ge/le + accept/reject) internal/component/bgp/plugins/filter_prefix BGP Filter   policy bgp policy   internal/component/bgp/plugins/filter_prefix/yang/ze-filter-prefix.yang">
                         <span class="cat">BGP Filter</span>
                         <h3><a href="bgp-filter-prefix/"><code>bgp-filter-prefix</code></a></h3>
                         <p class="plugin-desc">Named prefix-list filter (CIDR + ge/le + accept/reject)</p>
                         <div class="chips">
-                            <span class="chip mode">config:bgp</span>
+                            <span class="chip mode">config:policy</span>
                             <span class="chip">needs:bgp</span>
+                            <span class="chip">needs:policy</span>
                             <span class="chip">YANG:1</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>bgp</code></dd></div><div><dt>Needs</dt><dd><code>bgp</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>policy</code></dd></div><div><dt>Needs</dt><dd><code>bgp</code>, <code>policy</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
                     </article>
 
-                    <article class="card plugin-card cat-routing" id="plugin-bgp-filter-remove-private-as" data-plugin-card data-family="bgp-filter" data-category="security" data-search="bgp-filter-remove-private-as Named AS-path action filter that removes RFC 6996 Private Use ASNs Named AS-path action filter that removes RFC 6996 Private Use ASNs internal/component/bgp/plugins/filter_remove_private_as BGP Filter   bgp bgp   internal/component/bgp/plugins/filter_remove_private_as/yang/ze-filter-remove-private-as.yang">
+                    <article class="card plugin-card cat-routing" id="plugin-bgp-filter-remove-private-as" data-plugin-card data-family="bgp-filter" data-category="security" data-search="bgp-filter-remove-private-as Named AS-path action filter that removes RFC 6996 Private Use ASNs Named AS-path action filter that removes RFC 6996 Private Use ASNs internal/component/bgp/plugins/filter_remove_private_as BGP Filter   policy bgp policy   internal/component/bgp/plugins/filter_remove_private_as/yang/ze-filter-remove-private-as.yang">
                         <span class="cat">BGP Filter</span>
                         <h3><a href="bgp-filter-remove-private-as/"><code>bgp-filter-remove-private-as</code></a></h3>
                         <p class="plugin-desc">Named AS-path action filter that removes RFC 6996 Private Use ASNs</p>
                         <div class="chips">
-                            <span class="chip mode">config:bgp</span>
+                            <span class="chip mode">config:policy</span>
                             <span class="chip">needs:bgp</span>
+                            <span class="chip">needs:policy</span>
                             <span class="chip">YANG:1</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>bgp</code></dd></div><div><dt>Needs</dt><dd><code>bgp</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>policy</code></dd></div><div><dt>Needs</dt><dd><code>bgp</code>, <code>policy</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
                     </article>
 
-                    <article class="card plugin-card cat-routing" id="plugin-loop" data-plugin-card data-family="bgp-filter" data-category="security" data-search="loop Route loop detection (RFC 4271 S9, RFC 4456 S8) Route loop detection (RFC 4271 S9, RFC 4456 S8) internal/component/bgp/reactor/filter BGP Filter       internal/component/bgp/reactor/filter/yang/ze-loop-detection.yang">
+                    <article class="card plugin-card cat-routing" id="plugin-loop" data-plugin-card data-family="bgp-filter" data-category="security" data-search="loop Route loop detection (RFC 4271 S9, RFC 4456 S8) Route loop detection (RFC 4271 S9, RFC 4456 S8) internal/component/bgp/reactor/filter BGP Filter    policy   internal/component/bgp/reactor/filter/yang/ze-loop-detection.yang">
                         <span class="cat">BGP Filter</span>
                         <h3><a href="loop/"><code>loop</code></a></h3>
                         <p class="plugin-desc">Route loop detection (RFC 4271 S9, RFC 4456 S8)</p>
                         <div class="chips">
+                            <span class="chip">needs:policy</span>
                             <span class="chip">YANG:1</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>YANG</dt><dd>1 module</dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Needs</dt><dd><code>policy</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
                     </article>
                     </div>
                 </section>
@@ -687,26 +698,6 @@
                     </article>
                     </div>
                 </section>
-                <section class="plugin-group" data-plugin-group data-family="bgp-redistribute" data-category="routing" aria-labelledby="plugin-group-bgp-redistribute">
-                    <div class="plugin-group-head cat-routing">
-                        <h2 id="plugin-group-bgp-redistribute">BGP Redistribute</h2>
-                        <span>1 plugin</span>
-                    </div>
-                    <p>Generated group for registry entries mapped to the BGP Redistribute area. Config roots: <code>redistribute</code>. Source area: <code>internal/component/bgp</code>.</p>
-                    <div class="cards plugin-grid">
-
-                    <article class="card plugin-card cat-routing" id="plugin-redistribute-orchestrator" data-plugin-card data-family="bgp-redistribute" data-category="routing" data-search="redistribute-orchestrator Redistribute orchestrator: dispatches protocol route events to registered consumers Redistribute orchestrator: dispatches protocol route events to registered consumers internal/component/bgp/plugins/redistribute_egress BGP Redistribute   redistribute bgp   ">
-                        <span class="cat">BGP Redistribute</span>
-                        <h3><a href="redistribute-orchestrator/"><code>redistribute-orchestrator</code></a></h3>
-                        <p class="plugin-desc">Redistribute orchestrator: dispatches protocol route events to registered consumers</p>
-                        <div class="chips">
-                            <span class="chip mode">config:redistribute</span>
-                            <span class="chip">needs:bgp</span>
-                        </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>redistribute</code></dd></div><div><dt>Needs</dt><dd><code>bgp</code></dd></div></dl>
-                    </article>
-                    </div>
-                </section>
                 <section class="plugin-group" data-plugin-group data-family="class-of-service" data-category="services" aria-labelledby="plugin-group-class-of-service">
                     <div class="plugin-group-head cat-services">
                         <h2 id="plugin-group-class-of-service">Class of Service</h2>
@@ -736,16 +727,17 @@
                     <p>Generated group for registry entries mapped to the Connected area. Config roots: <code>connected</code>. Source area: <code>internal/plugins/connected</code>.</p>
                     <div class="cards plugin-grid">
 
-                    <article class="card plugin-card cat-routing" id="plugin-connected" data-plugin-card data-family="connected" data-category="routing" data-search="connected Connected routes: redistribute directly connected interface prefixes Connected routes: redistribute directly connected interface prefixes internal/plugins/connected Connected   connected   redistribute-orchestrator internal/plugins/connected/yang/ze-connected-conf.yang">
+                    <article class="card plugin-card cat-routing" id="plugin-connected" data-plugin-card data-family="connected" data-category="routing" data-search="connected Connected routes: redistribute directly connected interface prefixes Connected routes: redistribute directly connected interface prefixes internal/plugins/connected Connected   connected policy  redistribute-orchestrator internal/plugins/connected/yang/ze-connected-conf.yang">
                         <span class="cat">Connected</span>
                         <h3><a href="connected/"><code>connected</code></a></h3>
                         <p class="plugin-desc">Connected routes: redistribute directly connected interface prefixes</p>
                         <div class="chips">
                             <span class="chip mode">config:connected</span>
+                            <span class="chip">needs:policy</span>
                             <span class="chip">Start after:redistribute-orchestrator</span>
                             <span class="chip">YANG:1</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>connected</code></dd></div><div><dt>Start after</dt><dd><code>redistribute-orchestrator</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>connected</code></dd></div><div><dt>Needs</dt><dd><code>policy</code></dd></div><div><dt>Start after</dt><dd><code>redistribute-orchestrator</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
                     </article>
                     </div>
                 </section>
@@ -1040,7 +1032,7 @@
                     <p>Generated group for registry entries mapped to the IS-IS area. Config roots: <code>isis</code>. Source area: <code>internal/plugins/isis</code>.</p>
                     <div class="cards plugin-grid">
 
-                    <article class="card plugin-card cat-routing" id="plugin-isis" data-plugin-card data-family="isis" data-category="routing" data-search="isis Intermediate System to Intermediate System (ISO/IEC 10589, RFC 1195): native link-state IGP Intermediate System to Intermediate System (ISO/IEC 10589, RFC 1195): native link-state IGP internal/plugins/isis IS-IS   isis fib-kernel sysctl   internal/plugins/isis/yang/ze-isis-cmd.yang internal/plugins/isis/yang/ze-isis-conf.yang">
+                    <article class="card plugin-card cat-routing" id="plugin-isis" data-plugin-card data-family="isis" data-category="routing" data-search="isis Intermediate System to Intermediate System (ISO/IEC 10589, RFC 1195): native link-state IGP Intermediate System to Intermediate System (ISO/IEC 10589, RFC 1195): native link-state IGP internal/plugins/isis IS-IS   isis fib-kernel sysctl policy   internal/plugins/isis/yang/ze-isis-cmd.yang internal/plugins/isis/yang/ze-isis-conf.yang">
                         <span class="cat">IS-IS</span>
                         <h3><a href="isis/"><code>isis</code></a></h3>
                         <p class="plugin-desc">Intermediate System to Intermediate System (ISO/IEC 10589, RFC 1195): native link-state IGP</p>
@@ -1048,9 +1040,10 @@
                             <span class="chip mode">config:isis</span>
                             <span class="chip">needs:fib-kernel</span>
                             <span class="chip">needs:sysctl</span>
+                            <span class="chip">needs:policy</span>
                             <span class="chip">YANG:2</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>isis</code></dd></div><div><dt>Needs</dt><dd><code>fib-kernel</code>, <code>sysctl</code></dd></div><div><dt>YANG</dt><dd>2 modules</dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>isis</code></dd></div><div><dt>Needs</dt><dd><code>fib-kernel</code>, <code>sysctl</code>, <code>policy</code></dd></div><div><dt>YANG</dt><dd>2 modules</dd></div></dl>
                     </article>
                     </div>
                 </section>
@@ -1252,7 +1245,7 @@
                     <p>Generated group for registry entries mapped to the OSPF area. Config roots: <code>ospf</code>. Source area: <code>internal/plugins/ospf</code>.</p>
                     <div class="cards plugin-grid">
 
-                    <article class="card plugin-card cat-routing" id="plugin-ospf" data-plugin-card data-family="ospf" data-category="routing" data-search="ospf Open Shortest Path First v2 (RFC 2328): native link-state IPv4 IGP Open Shortest Path First v2 (RFC 2328): native link-state IPv4 IGP internal/plugins/ospf OSPF   ospf interface fib-kernel sysctl   internal/plugins/ospf/yang/ze-ospf-cmd.yang internal/plugins/ospf/yang/ze-ospf-conf.yang">
+                    <article class="card plugin-card cat-routing" id="plugin-ospf" data-plugin-card data-family="ospf" data-category="routing" data-search="ospf Open Shortest Path First v2 (RFC 2328): native link-state IPv4 IGP Open Shortest Path First v2 (RFC 2328): native link-state IPv4 IGP internal/plugins/ospf OSPF   ospf interface fib-kernel sysctl policy   internal/plugins/ospf/yang/ze-ospf-cmd.yang internal/plugins/ospf/yang/ze-ospf-conf.yang">
                         <span class="cat">OSPF</span>
                         <h3><a href="ospf/"><code>ospf</code></a></h3>
                         <p class="plugin-desc">Open Shortest Path First v2 (RFC 2328): native link-state IPv4 IGP</p>
@@ -1261,30 +1254,42 @@
                             <span class="chip">needs:interface</span>
                             <span class="chip">needs:fib-kernel</span>
                             <span class="chip">needs:sysctl</span>
+                            <span class="chip">+1 deps</span>
                             <span class="chip">YANG:2</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>ospf</code></dd></div><div><dt>Needs</dt><dd><code>interface</code>, <code>fib-kernel</code>, <code>sysctl</code></dd></div><div><dt>YANG</dt><dd>2 modules</dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>ospf</code></dd></div><div><dt>Needs</dt><dd><code>interface</code>, <code>fib-kernel</code>, <code>sysctl</code>, <code>policy</code></dd></div><div><dt>YANG</dt><dd>2 modules</dd></div></dl>
                     </article>
                     </div>
                 </section>
                 <section class="plugin-group" data-plugin-group data-family="policy" data-category="security" aria-labelledby="plugin-group-policy">
                     <div class="plugin-group-head cat-services">
                         <h2 id="plugin-group-policy">Policy</h2>
-                        <span>1 plugin</span>
+                        <span>2 plugins</span>
                     </div>
-                    <p>Generated group for registry entries mapped to the Policy area. Config roots: <code>policy</code>. Source area: <code>internal/plugins/policyroute</code>.</p>
+                    <p>Generated group for registry entries mapped to the Policy area. Config roots: <code>policy</code>. Source area: <code>internal/component/policy</code>, <code>internal/plugins/policyroute</code>.</p>
                     <div class="cards plugin-grid">
 
-                    <article class="card plugin-card cat-services" id="plugin-policy-routes" data-plugin-card data-family="policy" data-category="security" data-search="policy-routes Policy-based routing: nftables packet marking and ip rule table selection Policy-based routing: nftables packet marking and ip rule table selection internal/plugins/policyroute Policy   policy firewall   internal/plugins/policyroute/yang/ze-policyroute-cmd.yang internal/plugins/policyroute/yang/ze-policyroute-conf.yang">
+                    <article class="card plugin-card cat-services" id="plugin-policy" data-plugin-card data-family="policy" data-category="security" data-search="policy Route policy library: the policy root, named filter instances and the route field vocabulary Route policy library: the policy root, named filter instances and the route field vocabulary internal/component/policy Policy   policy    internal/component/policy/yang/ze-policy-conf.yang">
+                        <span class="cat">Policy</span>
+                        <h3><a href="policy/"><code>policy</code></a></h3>
+                        <p class="plugin-desc">Route policy library: the policy root, named filter instances and the route field vocabulary</p>
+                        <div class="chips">
+                            <span class="chip mode">config:policy</span>
+                            <span class="chip">YANG:1</span>
+                        </div>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>policy</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
+                    </article>
+
+                    <article class="card plugin-card cat-services" id="plugin-policy-routes" data-plugin-card data-family="policy" data-category="security" data-search="policy-routes Policy-based routing: nftables packet marking and ip rule table selection Policy-based routing: nftables packet marking and ip rule table selection internal/plugins/policyroute Policy   policy/route firewall   internal/plugins/policyroute/yang/ze-policyroute-cmd.yang internal/plugins/policyroute/yang/ze-policyroute-conf.yang">
                         <span class="cat">Policy</span>
                         <h3><a href="policy-routes/"><code>policy-routes</code></a></h3>
                         <p class="plugin-desc">Policy-based routing: nftables packet marking and ip rule table selection</p>
                         <div class="chips">
-                            <span class="chip mode">config:policy</span>
+                            <span class="chip mode">config:policy/route</span>
                             <span class="chip">needs:firewall</span>
                             <span class="chip">YANG:2</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>policy</code></dd></div><div><dt>Needs</dt><dd><code>firewall</code></dd></div><div><dt>YANG</dt><dd>2 modules</dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>policy/route</code></dd></div><div><dt>Needs</dt><dd><code>firewall</code></dd></div><div><dt>YANG</dt><dd>2 modules</dd></div></dl>
                     </article>
                     </div>
                 </section>
@@ -1296,16 +1301,17 @@
                     <p>Generated group for registry entries mapped to the RIB area. Config roots: <code>rib</code>. Source area: <code>internal/component/sysrib</code>.</p>
                     <div class="cards plugin-grid">
 
-                    <article class="card plugin-card cat-routing" id="plugin-rib" data-plugin-card data-family="rib" data-category="routing" data-search="rib System RIB: selects best route across protocols by admin distance System RIB: selects best route across protocols by admin distance internal/component/sysrib RIB   rib   bgp-rib internal/component/sysrib/yang/ze-rib-conf.yang">
+                    <article class="card plugin-card cat-routing" id="plugin-rib" data-plugin-card data-family="rib" data-category="routing" data-search="rib System RIB: selects best route across protocols by admin distance System RIB: selects best route across protocols by admin distance internal/component/sysrib RIB   rib policy  bgp-rib internal/component/sysrib/yang/ze-rib-conf.yang">
                         <span class="cat">RIB</span>
                         <h3><a href="rib/"><code>rib</code></a></h3>
                         <p class="plugin-desc">System RIB: selects best route across protocols by admin distance</p>
                         <div class="chips">
                             <span class="chip mode">config:rib</span>
+                            <span class="chip">needs:policy</span>
                             <span class="chip">Start after:bgp-rib</span>
                             <span class="chip">YANG:1</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>rib</code></dd></div><div><dt>Start after</dt><dd><code>bgp-rib</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>rib</code></dd></div><div><dt>Needs</dt><dd><code>policy</code></dd></div><div><dt>Start after</dt><dd><code>bgp-rib</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
                     </article>
                     </div>
                 </section>
@@ -1329,6 +1335,27 @@
                             <span class="chip">YANG:2</span>
                         </div>
                         <dl class="plugin-meta"><div><dt>Config</dt><dd><code>rsvp-te</code></dd></div><div><dt>Needs</dt><dd><code>interface</code>, <code>fib-kernel</code>, <code>sysctl</code></dd></div><div><dt>YANG</dt><dd>2 modules</dd></div></dl>
+                    </article>
+                    </div>
+                </section>
+                <section class="plugin-group" data-plugin-group data-family="redistribute" data-category="routing" aria-labelledby="plugin-group-redistribute">
+                    <div class="plugin-group-head cat-meta">
+                        <h2 id="plugin-group-redistribute">Redistribute</h2>
+                        <span>1 plugin</span>
+                    </div>
+                    <p>Generated group for registry entries mapped to the Redistribute area. Config roots: <code>redistribute</code>. Source area: <code>internal/plugins/redistribute</code>.</p>
+                    <div class="cards plugin-grid">
+
+                    <article class="card plugin-card cat-meta" id="plugin-redistribute-orchestrator" data-plugin-card data-family="redistribute" data-category="routing" data-search="redistribute-orchestrator Redistribute orchestrator: dispatches protocol route events to registered consumers Redistribute orchestrator: dispatches protocol route events to registered consumers internal/plugins/redistribute Redistribute   redistribute policy  bgp ">
+                        <span class="cat">Redistribute</span>
+                        <h3><a href="redistribute-orchestrator/"><code>redistribute-orchestrator</code></a></h3>
+                        <p class="plugin-desc">Redistribute orchestrator: dispatches protocol route events to registered consumers</p>
+                        <div class="chips">
+                            <span class="chip mode">config:redistribute</span>
+                            <span class="chip">needs:policy</span>
+                            <span class="chip">Start after:bgp</span>
+                        </div>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>redistribute</code></dd></div><div><dt>Needs</dt><dd><code>policy</code></dd></div><div><dt>Start after</dt><dd><code>bgp</code></dd></div></dl>
                     </article>
                     </div>
                 </section>
@@ -1439,7 +1466,7 @@
                     <p>Generated group for registry entries mapped to the Static area. Config roots: <code>static</code>. Source area: <code>internal/plugins/static</code>.</p>
                     <div class="cards plugin-grid">
 
-                    <article class="card plugin-card cat-routing" id="plugin-static" data-plugin-card data-family="static" data-category="routing" data-search="static Static routes: config-driven kernel/VPP route programming with ECMP Static routes: config-driven kernel/VPP route programming with ECMP internal/plugins/static Static   static routing-table rib interface bfd redistribute-orchestrator internal/plugins/static/yang/ze-static-cmd.yang internal/plugins/static/yang/ze-static-conf.yang">
+                    <article class="card plugin-card cat-routing" id="plugin-static" data-plugin-card data-family="static" data-category="routing" data-search="static Static routes: config-driven kernel/VPP route programming with ECMP Static routes: config-driven kernel/VPP route programming with ECMP internal/plugins/static Static   static routing-table rib policy interface bfd redistribute-orchestrator internal/plugins/static/yang/ze-static-cmd.yang internal/plugins/static/yang/ze-static-conf.yang">
                         <span class="cat">Static</span>
                         <h3><a href="static/"><code>static</code></a></h3>
                         <p class="plugin-desc">Static routes: config-driven kernel/VPP route programming with ECMP</p>
@@ -1447,11 +1474,12 @@
                             <span class="chip mode">config:static</span>
                             <span class="chip">needs:routing-table</span>
                             <span class="chip">needs:rib</span>
+                            <span class="chip">needs:policy</span>
                             <span class="chip">optional:interface</span>
                             <span class="chip">Start after:bfd</span>
                             <span class="chip">YANG:2</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>static</code></dd></div><div><dt>Needs</dt><dd><code>routing-table</code>, <code>rib</code></dd></div><div><dt>Optional</dt><dd><code>interface</code></dd></div><div><dt>Start after</dt><dd><code>bfd</code>, <code>redistribute-orchestrator</code></dd></div><div><dt>YANG</dt><dd>2 modules</dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>static</code></dd></div><div><dt>Needs</dt><dd><code>routing-table</code>, <code>rib</code>, <code>policy</code></dd></div><div><dt>Optional</dt><dd><code>interface</code></dd></div><div><dt>Start after</dt><dd><code>bfd</code>, <code>redistribute-orchestrator</code></dd></div><div><dt>YANG</dt><dd>2 modules</dd></div></dl>
                     </article>
                     </div>
                 </section>
@@ -1691,7 +1719,7 @@
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 29 October 2026 17:17 UTC</span>
+                    <span class="footer-published">Published 30 October 2026 23:25 UTC</span>
                 </div>
             </div>
         </footer>

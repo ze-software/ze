@@ -248,23 +248,24 @@ provisioned outside this ingress FIB path.</p>
 <p>Use a peer's export chain to control which SRv6 services it receives. Match the
 service's Route Target with <code>community-match</code>; rejecting a match withholds the
 whole route, not just its Prefix-SID attribute:</p>
-<pre><code>bgp {
+<pre><code>policy {
+    community-match SERVICE-20 {
+        entry target:65000:10 {
+            type extended;
+            action reject;
+        }
+        entry target:65000:20 {
+            type extended;
+            action accept;
+        }
+    }
+}
+
+bgp {
     router-id 192.0.2.1
     session {
         asn {
             local 65000
-        }
-    }
-    policy {
-        community-match SERVICE-20 {
-            entry target:65000:10 {
-                type extended;
-                action reject;
-            }
-            entry target:65000:20 {
-                type extended;
-                action accept;
-            }
         }
     }
     peer pe1 {
@@ -598,7 +599,7 @@ propagates without negotiation. Ze does not signal SRv6 support via capabilities
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
+                    <span class="footer-published">Published 30 October 2026 09:46 UTC</span>
                 </div>
             </div>
         </footer>

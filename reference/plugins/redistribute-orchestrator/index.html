@@ -45,7 +45,7 @@
         <main id="top" class="has-page-sidebar" tabindex="-1">
             <section class="md-content reveal cat-automate plugin-detail" aria-labelledby="plugin-detail-title">
 <div class="journey-hero reveal cat-automate">
-    <span class="journey-eyebrow">BGP Redistribute</span>
+    <span class="journey-eyebrow">Redistribute</span>
     <h1 id="plugin-detail-title"><code>redistribute-orchestrator</code></h1>
     <p>Redistribute orchestrator: dispatches protocol route events to registered consumers</p>
 </div>
@@ -53,9 +53,9 @@
                     <article class="plugin-detail-panel">
                         <h2>At a glance</h2>
                         <dl class="plugin-detail-facts">
-                            <div><dt>Registry area</dt><dd>BGP Redistribute</dd></div>
+                            <div><dt>Registry area</dt><dd>Redistribute</dd></div>
                             <div><dt>Kind</dt><dd>Runtime plugin</dd></div>
-                            <div><dt>Source path</dt><dd><code>internal/component/bgp/plugins/redistribute_egress</code></dd></div>
+                            <div><dt>Source path</dt><dd><code>internal/plugins/redistribute</code></dd></div>
                             <div><dt>YANG modules</dt><dd>0</dd></div>
                             <div><dt>Metadata source</dt><dd>Registration</dd></div>
                         </dl>
@@ -67,7 +67,7 @@
                     <article class="plugin-detail-panel">
                         <h2>Dependencies</h2>
                         <h3>Required</h3>
-                        <ul><li><a href="../bgp/"><code>bgp</code></a></li></ul>
+                        <ul><li><a href="../policy/"><code>policy</code></a></li></ul>
                         <h3>Optional</h3>
                         <p class="plugin-detail-empty">None declared.</p>
                     </article>
@@ -82,7 +82,7 @@
                         <h2>Startup ordering</h2>
                         <p>Order only when both plugins are selected; never auto-loads a plugin.</p>
                         <h3>Start after</h3>
-                        <p class="plugin-detail-empty">None declared.</p>
+                        <ul><li><a href="../bgp/"><code>bgp</code></a></li></ul>
                         <h3>Starts before</h3>
                         <ul><li><a href="../as112/"><code>as112</code></a></li><li><a href="../connected/"><code>connected</code></a></li><li><a href="../static/"><code>static</code></a></li></ul>
                     </article>
@@ -90,7 +90,7 @@
                         <h2>Repository artifacts</h2>
                         <p>These paths come from the registry extraction and are shown locally so the detail page stays on the site.</p>
                         <dl class="plugin-detail-facts">
-                            <div><dt>Package</dt><dd><code>internal/component/bgp/plugins/redistribute_egress</code></dd></div>
+                            <div><dt>Package</dt><dd><code>internal/plugins/redistribute</code></dd></div>
                         </dl>
                         <h3>YANG files</h3>
                         <p class="plugin-detail-empty">None declared.</p>
@@ -127,7 +127,7 @@
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
+                    <span class="footer-published">Published 30 October 2026 23:25 UTC</span>
                 </div>
             </div>
         </footer>

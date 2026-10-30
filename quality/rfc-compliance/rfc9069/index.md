@@ -16,7 +16,6 @@ what Ze has
 | Partial proof; remaining gap | 0.0% | 0 of 16 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 16 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 | Proven by a recorded break | 66.7% | 20 of 30 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
-| Audit verdicts | 16 | of 16 gated MUSTs judged | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 ### Neutral
 
@@ -49,7 +48,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | ok | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -146,7 +145,7 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 The unused bits are reserved for future use. They MUST be transmitted as 0 (§4.2)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a reserved (non-F) per-peer flag bit transmitted as 1 on the Loc-RIB header. internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBPeerHeader: ph.Flags != 0 is Errorf, red on any set bit. Single-polarity marker: no producer sets a flag, so no negative input exists. The row claims only the transmit half; the 'ignored on receipt' clause of the same sentence is not quoted and has no row.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBPeerHeader moved. Forbidden: a reserved (non-F) per-peer flag bit transmitted as 1 on the Loc-RIB header. internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBPeerHeader: ph.Flags != 0 is Errorf, red on any set bit. Single-polarity marker: no producer sets a flag, so no negative input exists. The row claims only the transmit half; the 'ignored on receipt' clause of the same sentence is not quoted and has no row.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -156,7 +155,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 There MUST be at least one emulated peer for each Loc-RIB instance, such as with VRFs. (§6.1.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-23. TestLocRIBSinglePeerUpPerInstance changed by fixture only: each best change now carries Attributes (ORIGIN IGP), because buildLocRIBUpdateBody refuses an announce with no stored attribute set. The assertion is unchanged: two BGP peers' best changes produce exactly one Loc-RIB Peer Up (peerUps != 1 is Errorf), red on zero and on one per peer. Single-polarity annotation stands: the one-shot locRIBUpSent guard has no per-peer path to reject. Ze runs one Loc-RIB instance.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBSinglePeerUpPerInstance moved. Re-judged 2026-10-23. TestLocRIBSinglePeerUpPerInstance changed by fixture only: each best change now carries Attributes (ORIGIN IGP), because buildLocRIBUpdateBody refuses an announce with no stored attribute set. The assertion is unchanged: two BGP peers' best changes produce exactly one Loc-RIB Peer Up (peerUps != 1 is Errorf), red on zero and on one per peer. Single-polarity annotation stands: the one-shot locRIBUpSent guard has no per-peer path to reject. Ze runs one Loc-RIB instance.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -166,7 +165,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 Received OPEN Message: Repeat of the same sent OPEN message. (§5.2)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-23. TestHandleBestChangeEmitsPeerUpThenRM changed by fixture only: the replayed best change carries Attributes (ORIGIN IGP) so the Route Monitoring after the Peer Up is encoded rather than refused. The Received OPEN assertions are unchanged: an empty SentOpenMsg is Fatal and SentOpenMsg != ReceivedOpenMsg is Errorf, so a received OPEN that is not a repeat of the sent one goes red. Single-polarity annotation stands: both producers pass one fabricateLocRIBOpen result to both fields.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestHandleBestChangeEmitsPeerUpThenRM moved. Re-judged 2026-10-23. TestHandleBestChangeEmitsPeerUpThenRM changed by fixture only: the replayed best change carries Attributes (ORIGIN IGP) so the Route Monitoring after the Peer Up is encoded rather than refused. The Received OPEN assertions are unchanged: an empty SentOpenMsg is Fatal and SentOpenMsg != ReceivedOpenMsg is Errorf, so a received OPEN that is not a repeat of the sent one goes red. Single-polarity annotation stands: both producers pass one fabricateLocRIBOpen result to both fields.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -176,7 +175,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 Route Monitoring messages are used for initial synchronization of the Loc-RIB. (§5.4, Route Monitoring)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-29 (row prose rewritten, claim unchanged). rfc9069_verdict_test.go::TestStartLocRIBDeliversTheInitialDumpAsRouteMonitoring subscribes a stand-in RIB that answers startLocRIB's replay-request with one best change carrying its token, and requires after the Loc-RIB Peer Up a Route Monitoring of Peer Type 3 carrying 10.20.30.0/24: the initial synchronization arrives as Route Monitoring. bmp_locrib_test.go::TestStartLocRIBTriggersInitialDump asserts the trigger and its per-dump tokens; it carries no discrimination record, the delivery unit does (startLocRIB break). {single-polarity: positive} holds: no non-conformant input to refuse.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestStartLocRIBTriggersInitialDump moved. Re-judged 2026-09-29 (row prose rewritten, claim unchanged). rfc9069_verdict_test.go::TestStartLocRIBDeliversTheInitialDumpAsRouteMonitoring subscribes a stand-in RIB that answers startLocRIB's replay-request with one best change carrying its token, and requires after the Loc-RIB Peer Up a Route Monitoring of Peer Type 3 carrying 10.20.30.0/24: the initial synchronization arrives as Route Monitoring. bmp_locrib_test.go::TestStartLocRIBTriggersInitialDump asserts the trigger and its per-dump tokens; it carries no discrimination record, the delivery unit does (startLocRIB break). {single-polarity: positive} holds: no non-conformant input to refuse.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -187,7 +186,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 Peer Address: Zero-filled. The remote peer address is not applicable. (§5.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a non-zero Peer Address on the Loc-RIB header. internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBPeerHeader: ph.Address != [16]byte{} is Errorf. Single-polarity marker.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBPeerHeader moved. Forbidden: a non-zero Peer Address on the Loc-RIB header. internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBPeerHeader: ph.Address != [16]byte{} is Errorf. Single-polarity marker.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -197,7 +196,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 Loc-RIB Route Monitoring messages MUST use a 4-byte ASN encoding as indicated in the Peer Up sent OPEN message (Section 5.2) capability. (§5.4.1). Proven in both polarities by TestLocRIBRouteMonitoringUsesFourByteASNs: the encoded AS_PATH segment is 4 octets per ASN, and an ASN above 65535 round-trips whole, which a 2-byte encoding cannot represent at all
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-23. The Route Monitoring UPDATE now carries the best path's stored attributes, so AGGREGATOR became a second ASN carrier and the unit was extended to it. TestLocRIBRouteMonitoringUsesFourByteASNs asserts: AS_PATH value 2+4n octets (Fatal) with ASN 4200000001 whole (Errorf); AGGREGATOR value 8 octets with AS 4200000001 (Fatal/Errorf); AS4_PATH and AS4_AGGREGATOR absent (RFC 6793 Section 4.1), red observed with the attrCodeAfter AS4 filter removed. The stored AGGREGATOR's four-octet form is established at ingest (attribute.ReconcileASPathFamily, per storage.ParseAttributes), outside this unit: the unit proves the encoder carries it as stored and adds no two-octet companion. Both polarity tags on one unit.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBRouteMonitoringUsesFourByteASNs, internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBRouteMonitoringUsesFourByteASNs#2 moved. Re-judged 2026-10-23. The Route Monitoring UPDATE now carries the best path's stored attributes, so AGGREGATOR became a second ASN carrier and the unit was extended to it. TestLocRIBRouteMonitoringUsesFourByteASNs asserts: AS_PATH value 2+4n octets (Fatal) with ASN 4200000001 whole (Errorf); AGGREGATOR value 8 octets with AS 4200000001 (Fatal/Errorf); AS4_PATH and AS4_AGGREGATOR absent (RFC 6793 Section 4.1), red observed with the attrCodeAfter AS4 filter removed. The stored AGGREGATOR's four-octet form is established at ingest (attribute.ReconcileASPathFamily, per storage.ParseAttributes), outside this unit: the unit proves the encoder carries it as stored and adds no two-octet companion. Both polarity tags on one unit.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -208,7 +207,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 Sent OPEN Message: This is a fabricated BGP OPEN message. Capabilities MUST include the 4-octet ASN and all necessary capabilities to represent the Loc-RIB Route Monitoring messages. Only include capabilities if they will be used for Loc-RIB monitoring messages. (§5.2)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-23. TestLocRIBIPv4RouteWithIPv6NextHopIsBackedByExtendedNextHop changed by fixture only: Attributes (ORIGIN IGP) and mustLocRIBBody, which fails the test on the encoder's new error. Assertions unchanged: the IPv4 route with an IPv6 next hop travels in MP_REACH_NLRI and the fabricated OPEN carries Extended Next Hop. Carrying the stored attribute set adds no capability need: path attributes other than the ASN carriers need none, and the ASN carriers are four-octet as the 4-octet ASN capability states. The other two units are unchanged. Single-polarity annotation stands.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestFabricatedLocRIBOpenCarriesTheRequiredCapabilities moved. Re-judged 2026-10-23. TestLocRIBIPv4RouteWithIPv6NextHopIsBackedByExtendedNextHop changed by fixture only: Attributes (ORIGIN IGP) and mustLocRIBBody, which fails the test on the encoder's new error. Assertions unchanged: the IPv4 route with an IPv6 next hop travels in MP_REACH_NLRI and the fabricated OPEN carries Extended Next Hop. Carrying the stored attribute set adds no capability need: path attributes other than the ASN carriers need none, and the ASN carriers are four-octet as the 4-octet ASN capability states. The other two units are unchanged. Single-polarity annotation stands.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -220,7 +219,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 Peer Autonomous System (AS): Set to the primary router BGP autonomous system number (ASN). (§5.1). Corrected 2026-08-31: this row read "Peer AS MUST be 0", which is what the RFC requires of the Peer ADDRESS, row RFC9069-x-5, and the reverse of what it requires of this field. The value is the 4-octet ASN, read from the `bgp session asn local` leaf rather than from a session that may not exist: an OPEN cache is empty until a peer comes up, which is the very case this RFC exists to serve, and an ASN read from the two-octet My AS field of an AS4 speaker is AS_TRANS rather than the router's. Proven positive by TestLocRIBPeerHeader and by TestRFC9069ReloadTurningLocRIBOnAnnouncesTheRouterIdentity, which commits the leaf over the reload rail with the OPEN cache EMPTY, and negative by TestLocRIBPeerHeaderCarriesTheIdentityItIsGiven
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: Peer AS other than the router's primary ASN (zero, a constant, AS_TRANS). internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBPeerHeader PeerAS != 4200000001 Errorf; ::TestLocRIBPeerHeaderCarriesTheIdentityItIsGiven two identities must give 65001 and 65002; internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC9069ReloadTurningLocRIBOnAnnouncesTheRouterIdentity reads Peer AS 4200000001 off the wire with the OPEN cache empty.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBPeerHeader, internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBPeerHeaderCarriesTheIdentityItIsGiven moved. Forbidden: Peer AS other than the router's primary ASN (zero, a constant, AS_TRANS). internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBPeerHeader PeerAS != 4200000001 Errorf; ::TestLocRIBPeerHeaderCarriesTheIdentityItIsGiven two identities must give 65001 and 65002; internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC9069ReloadTurningLocRIBOnAnnouncesTheRouterIdentity reads Peer AS 4200000001 off the wire with the OPEN cache empty.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -242,7 +241,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 Peer BGP ID: Set the ID to the router-id of the VRF instance if VRF is used; otherwise, set to the global instance router-id. (§5.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: Peer BGP ID other than the global instance router-id. internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBPeerHeader PeerBGPID != 0x0a141e01 Errorf. Single-polarity marker. The VRF clause is conditional on a VRF Loc-RIB instance, which ze does not implement (one global instance), so it has no reachable case.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBPeerHeader moved. Forbidden: Peer BGP ID other than the global instance router-id. internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBPeerHeader PeerBGPID != 0x0a141e01 Errorf. Single-polarity marker. The VRF clause is conditional on a VRF Loc-RIB instance, which ze does not implement (one global instance), so it has no reachable case.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|

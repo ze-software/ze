@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 9568 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 9568: Virtual Router Redundancy Protocol (VRRP) Version 3 for IPv4 and IPv6. 66 gated MUST-level requirements, 4 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 9568: Virtual Router Redundancy Protocol (VRRP) Version 3 for IPv4 and IPv6. 66 gated MUST-level requirements, 10 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 9568 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 9568: Virtual Router Redundancy Protocol (VRRP) Version 3 for IPv4 and IPv6. 66 gated MUST-level requirements, 4 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 9568: Virtual Router Redundancy Protocol (VRRP) Version 3 for IPv4 and IPv6. 66 gated MUST-level requirements, 10 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 9568 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 9568: Virtual Router Redundancy Protocol (VRRP) Version 3 for IPv4 and IPv6. 66 gated MUST-level requirements, 4 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 9568: Virtual Router Redundancy Protocol (VRRP) Version 3 for IPv4 and IPv6. 66 gated MUST-level requirements, 10 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -122,14 +122,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>9.1%</strong><b>6 of 66 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 66 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 66 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>37.6%</strong><b>71 of 189 tagged units, 0 escaped and 39 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>58.9%</strong><b>112 of 190 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>66</strong><b>of 94 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>6</strong><b>of 66 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>9.1%</strong><b>6 of 66 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 66 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 66 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 66 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 66 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0.0%</strong><b>0 of 66 gated MUSTs</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit</p></article>
@@ -137,8 +137,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>6.1%</strong><b>4 of 66 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>55</strong><b>of 66 gated MUSTs judged</b><p>1 weak, wrong or unimplemented, 16 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>15.2%</strong><b>10 of 66 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>55</strong><b>of 66 gated MUSTs judged</b><p>1 weak, wrong or unimplemented, 1 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 9 shares marked as a part above are the whole of the 66 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -222,10 +222,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>66</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
-<td>6</td>
+<td>0</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>4</td>
+<td>10</td>
 </tr>
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
@@ -237,16 +237,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>189</td>
+<td>190</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>189</td>
+<td>190</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>55</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>110</td>
+<td>112</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc9568.md</code></td>
@@ -270,8 +270,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (Backup/Master, Master_Down_Timer, skew time), priority and preemption (including preempt-delay), the address-owner priority 255 rule, centisecond Max_Advert_Int, virtual MAC 00:00:5e:00:01:{vrid} (IPv4) / 00:00:5e:00:02:{vrid} (IPv6) on a per-group macvlan, 224.0.0.18 / ff02::12 multicast, IP protocol 112, GTSM TTL/hop-limit 255 on TX and RX, gratuitous ARP and unsolicited NA on Master transition, Accept_Mode enforced on the dataplane (an Active router that is neither the address owner nor configured Accept_Mode True does not accept packets addressed to the virtual addresses, while still answering ARP and Neighbor Discovery for them and forwarding for the virtual MAC), including the Section 6.1 carve-out that never drops IPv6 Neighbor Solicitations or Advertisements.
 </details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
-<p>Four gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc9568.md" target="_blank" rel="noopener"><code>rfc/short/rfc9568.md</code></a>. For VRRPv3 over IPv4 a group sends and accepts only the RFC 9568 Section 5.2.8 message-only checksum by default; <code>checksum rfc5798-compatible</code> switches that group, on both sides, to the RFC 5798 pseudo-header form keepalived and the pre-RFC 9568 deployed base require. <a href="#rfc9568-6.4.3-4"><code>RFC9568-6.4.3-4</code></a>: an Active router sends no ND Router Advertisement for an IPv6 Virtual Router; the only ICMPv6 message the plugin builds is the unsolicited Neighbor Advertisement (<a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/na.go" target="_blank" rel="noopener"><code>internal/plugins/vrrp/transport/na.go</code></a>). <a href="#rfc9568-8.2.2-2"><code>RFC9568-8.2.2-2</code></a> and <a href="#rfc9568-8.2.2-3"><code>RFC9568-8.2.2-3</code></a>: the Neighbor Solicitations an Active router sends for a LAN host are sent by the kernel from the parent interface, so their source link-layer address option carries the parent&#39;s physical MAC rather than the Virtual Router MAC. <a href="#rfc9568-7.1-12"><code>RFC9568-7.1-12</code></a> departs for one kind of group, owner-approved 2026-10-20: in a group configured <code>checksum rfc5798-compatible</code>, a VRRPv3 address owner discards an advertisement for its VRID as RFC 5798 Section 7.1 orders, counts it under the <code>owner</code> discard reason and writes no log line, where <a href="#rfc9568-7.1-12"><code>RFC9568-7.1-12</code></a> asks it to log the event; every other group logs and processes it (<code>onPacket</code>, <a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance.go" target="_blank" rel="noopener"><code>internal/plugins/vrrp/instance.go</code></a>). <a href="#rfc9568-8.1.3-1"><code>RFC9568-8.1.3-1</code></a> is met by refusal: <code>ze config verify</code> refuses proxy ARP on any interface an IPv4 VRRP group uses (<a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/proxyarp.go" target="_blank" rel="noopener"><code>internal/plugins/vrrp/proxyarp.go</code></a>), because the kernel would answer with the device&#39;s own MAC rather than the Virtual Router MAC. <a href="#rfc9568-8.2.3-1"><code>RFC9568-8.2.3-1</code></a>: the Backup Routers cannot be configured to send the address owner&#39;s Router Advertisement options, because no Router Advertisement is sent (<a href="#rfc9568-6.4.3-4"><code>RFC9568-6.4.3-4</code></a>).</p>
-<p class="rfc-prose"><strong>Evidence caveat:</strong> <a href="#rfc9568-5.1.2.3-1"><code>RFC9568-5.1.2.3-1</code></a> (IPv6 Hop Limit 255 on transmit) rests entirely on an integration-gated test that needs CAP_NET_RAW and CAP_NET_ADMIN (<a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/transport_integration_linux_test.go" target="_blank" rel="noopener"><code>internal/plugins/vrrp/transport/transport_integration_linux_test.go</code></a>, build tag <code>integration &amp;&amp; linux</code>); it runs in the privileged QEMU suite and skips everywhere else.</p>
+<p>Ten gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc9568.md" target="_blank" rel="noopener"><code>rfc/short/rfc9568.md</code></a>. <a href="#rfc9568-5.1.1.2-1"><code>RFC9568-5.1.1.2-1</code></a> and 5.1.2.2-1: ze is a router, and no test shows that the kernel or VPP dataplane it programs forwards no datagram to 224.0.0.18 or ff02::12. <a href="#rfc9568-6.4.2-3"><code>RFC9568-6.4.2-3</code></a>: the VRRP plugin sends no Router Advertisement, but no test proves a Backup&#39;s interface sends none. <a href="#rfc9568-8.4.2-1"><code>RFC9568-8.4.2-1</code></a>, 8.4.2-2 and 8.4.2-3: ze implements no VRRPv2 and VRRPv3 interoperation mode. For VRRPv3 over IPv4 a group sends and accepts only the RFC 9568 Section 5.2.8 message-only checksum by default; <code>checksum rfc5798-compatible</code> switches that group, on both sides, to the RFC 5798 pseudo-header form keepalived and the pre-RFC 9568 deployed base require. <a href="#rfc9568-6.4.3-4"><code>RFC9568-6.4.3-4</code></a>: an Active router sends no ND Router Advertisement for an IPv6 Virtual Router; the only ICMPv6 message the plugin builds is the unsolicited Neighbor Advertisement (<a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/na.go" target="_blank" rel="noopener"><code>internal/plugins/vrrp/transport/na.go</code></a>). <a href="#rfc9568-8.2.2-2"><code>RFC9568-8.2.2-2</code></a> and <a href="#rfc9568-8.2.2-3"><code>RFC9568-8.2.2-3</code></a>: the Neighbor Solicitations an Active router sends for a LAN host are sent by the kernel from the parent interface, so their source link-layer address option carries the parent&#39;s physical MAC rather than the Virtual Router MAC. <a href="#rfc9568-7.1-12"><code>RFC9568-7.1-12</code></a> departs for one kind of group, owner-approved 2026-10-20: in a group configured <code>checksum rfc5798-compatible</code>, a VRRPv3 address owner discards an advertisement for its VRID as RFC 5798 Section 7.1 orders, counts it under the <code>owner</code> discard reason and writes no log line, where <a href="#rfc9568-7.1-12"><code>RFC9568-7.1-12</code></a> asks it to log the event; every other group logs and processes it (<code>onPacket</code>, <a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance.go" target="_blank" rel="noopener"><code>internal/plugins/vrrp/instance.go</code></a>). <a href="#rfc9568-8.1.3-1"><code>RFC9568-8.1.3-1</code></a> is met by refusal: <code>ze config verify</code> refuses proxy ARP on any interface an IPv4 VRRP group uses (<a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/proxyarp.go" target="_blank" rel="noopener"><code>internal/plugins/vrrp/proxyarp.go</code></a>), because the kernel would answer with the device&#39;s own MAC rather than the Virtual Router MAC. <a href="#rfc9568-8.2.3-1"><code>RFC9568-8.2.3-1</code></a>: the Backup Routers cannot be configured to send the address owner&#39;s Router Advertisement options, because no Router Advertisement is sent (<a href="#rfc9568-6.4.3-4"><code>RFC9568-6.4.3-4</code></a>). <a href="#rfc9568-5.1.2.3-1"><code>RFC9568-5.1.2.3-1</code></a> (IPv6 Hop Limit 255 on transmit) rests on one Linux test (<a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/transport_integration_linux_test.go" target="_blank" rel="noopener"><code>internal/plugins/vrrp/transport/transport_integration_linux_test.go</code></a>, build tag <code>linux</code>) that runs unprivileged in a user namespace of its own and reads the hop limit back from both sockets; a recorded break of the value turns it red.</p>
 <p class="rfc-prose"><strong>Interoperability IS proven:</strong> ze exchanges adverts with keepalived 2.3.1 under QEMU and passes election, node-death failover, and graceful-stop scenarios, including virtual-MAC ownership of the virtual IP (a foreign host resolves the VIP to 00:00:5e:00:01:{vrid}). Experimental pending deployment hardening.</p>
 </details>
 </section>
@@ -316,7 +315,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <p class="rfc-id-list"><strong>Annotated (including scoped evidence) (16):</strong> <a href="#rfc9568-5.1.1.2-1"><code>RFC9568-5.1.1.2-1</code></a>, <a href="#rfc9568-5.1.1.3-1"><code>RFC9568-5.1.1.3-1</code></a>, <a href="#rfc9568-5.1.2.2-1"><code>RFC9568-5.1.2.2-1</code></a>, <a href="#rfc9568-5.1.2.3-1"><code>RFC9568-5.1.2.3-1</code></a>, <a href="#rfc9568-6.4.2-3"><code>RFC9568-6.4.2-3</code></a>, <a href="#rfc9568-6.4.3-2"><code>RFC9568-6.4.3-2</code></a>, <a href="#rfc9568-6.4.3-4"><code>RFC9568-6.4.3-4</code></a>, <a href="#rfc9568-7.2-1"><code>RFC9568-7.2-1</code></a>, <a href="#rfc9568-7.2-2"><code>RFC9568-7.2-2</code></a>, <a href="#rfc9568-7.2-4"><code>RFC9568-7.2-4</code></a>, <a href="#rfc9568-8.2.2-2"><code>RFC9568-8.2.2-2</code></a>, <a href="#rfc9568-8.2.2-3"><code>RFC9568-8.2.2-3</code></a>, <a href="#rfc9568-8.2.3-1"><code>RFC9568-8.2.3-1</code></a>, <a href="#rfc9568-8.4.2-1"><code>RFC9568-8.4.2-1</code></a>, <a href="#rfc9568-8.4.2-2"><code>RFC9568-8.4.2-2</code></a>, <a href="#rfc9568-8.4.2-3"><code>RFC9568-8.4.2-3</code></a></p>
 </section>
 <section><h2>Attainable ceiling</h2>
-<p>Mandatory ceiling: 60 of 66 (90.9%); excluded: Not applicable (classification can be revisited): 6 of 66 (9.1%). Optional ceiling: 28 of 28 (100.0%). Lowest mandatory ceiling: rfc9568 60 of 66 (90.9%). Lowest optional ceiling: rfc9568 28 of 28 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.</p>
+<p>Mandatory ceiling: 66 of 66 (100.0%). Optional ceiling: 28 of 28 (100.0%). Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: rfc9568 66 of 66 (100.0%). Lowest optional ceiling: rfc9568 28 of 28 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.</p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -330,7 +329,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9568-5.1.1.2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> the VRRP plugin forwards no IP datagram -- instance.onPacket internal/plugins/vrrp/instance.go:453 consumes every received advert into the state machine and re-emits nothing, and the tx socket scopes adverts to the link-local group with IP_MULTICAST_LOOP 0 at internal/plugins/vrrp/transport/backend_linux.go:143</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze is the router this binds, and the forwarding decision is the dataplane&#39;s, not the VRRP plugin&#39;s: onPacket (internal/plugins/vrrp/instance.go) consumes every received advertisement and re-emits nothing, but whether the kernel or the VPP backend ze programs forwards a transit datagram to 224.0.0.18 is not shown, and no test reads either backend&#39;s behaviour or names a verified layer token, so the row is a gap</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-5.1.1.3-1">RFC9568-5.1.1.3-1</code></td><td colspan="3"><span class="rfc-subject">The TTL MUST be set to 255. (§5.1.1.3)</span></td></tr>
 <tr><td></td>
@@ -359,7 +358,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9568-5.1.2.2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> the VRRP plugin forwards no IPv6 datagram -- instance.onPacket internal/plugins/vrrp/instance.go:453 consumes every received advert into the state machine, and the v6 tx socket sets IPV6_MULTICAST_LOOP 0 at internal/plugins/vrrp/transport/backend_linux.go:193</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze is the router this binds, and the forwarding decision is the dataplane&#39;s, not the VRRP plugin&#39;s: onPacket (internal/plugins/vrrp/instance.go) consumes every received advertisement and re-emits nothing, but whether the kernel or the VPP backend ze programs forwards a transit datagram to ff02::12 is not shown, and no test reads either backend&#39;s behaviour or names a verified layer token, so the row is a gap</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-5.1.2.3-1">RFC9568-5.1.2.3-1</code></td><td colspan="3"><span class="rfc-subject">The Hop Limit MUST be set to 255. (§5.1.2.3)</span></td></tr>
 <tr><td></td>
@@ -368,7 +367,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9568-5.1.2.3-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/transport_integration_linux_test.go#L260" title="internal/plugins/vrrp/transport/transport_integration_linux_test.go" target="_blank" rel="noopener"><code>TestIntegrationOpenInstanceSocketOptions</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the hop limit is a socket option, IPV6_MULTICAST_HOPS 255 set once at openV6 internal/plugins/vrrp/transport/backend_linux.go:185, so every advertisement on that socket carries 255 and no input produces another value -- the receive-side hop-limit discard is the separate RFC9568-5.1.2.3-2. EVIDENCE DISCLOSURE: the sole positive test is internal/plugins/vrrp/transport/transport_integration_linux_test.go:239, which does NOT run in the ordinary unit suite -- the file is gated //go:build integration &amp;&amp; linux and its setupLab (internal/plugins/vrrp/transport/transport_integration_linux_test.go:86) skips without CAP_NET_RAW (skipNoRaw, internal/plugins/vrrp/transport/transport_integration_linux_test.go:76-80) and without CAP_NET_ADMIN (internal/plugins/vrrp/transport/transport_integration_linux_test.go:96, :102, :120). It runs under the privileged QEMU integration suite; on an unprivileged host it skips and this requirement is proven by nothing. The evidence itself is genuine: the test getsockopt reads IPV6_MULTICAST_HOPS back from both the tx and the NA socket and requires 255, so the kernel accepted the value</p></td>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the hop limit is a socket option, IPV6_MULTICAST_HOPS 255 set once at openV6 internal/plugins/vrrp/transport/backend_linux.go:185, so every advertisement on that socket carries 255 and no input produces another value -- the receive-side hop-limit discard is the separate RFC9568-5.1.2.3-2. The sole positive test is in internal/plugins/vrrp/transport/transport_integration_linux_test.go, gated //go:build linux; it runs unprivileged in a user and network namespace of its own (userns.Enter, internal/test/userns), and its setupLab fails rather than skips when it lacks a privilege. The evidence itself is genuine: the test getsockopt reads IPV6_MULTICAST_HOPS back from both the tx and the NA socket and requires 255, so the kernel accepted the value</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-5.1.2.3-2">RFC9568-5.1.2.3-2</code></td><td colspan="3"><span class="rfc-subject">A VRRP Router receiving a packet with the Hop Limit not equal to 255 MUST discard the packet [RFC5082]. (§5.1.2.3)</span></td></tr>
 <tr><td></td>
@@ -466,8 +465,8 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <td>MUST NOT</td>
 <td>6.4.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9568-6.4.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L399" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceStartupNonOwnerGoesBackup</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L436" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceOwnerStartupGoesMaster</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L417" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceStartupNonOwnerGoesBackup</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L454" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceOwnerStartupGoesMaster</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-6.4.2-2">RFC9568-6.4.2-2</code></td><td colspan="3"><span class="rfc-subject">- It MUST NOT respond to ND Neighbor Solicitation messages for the IPv6 address(es) associated with the Virtual Router. (§6.4.2)</span></td></tr>
@@ -475,8 +474,8 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <td>MUST NOT</td>
 <td>6.4.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9568-6.4.2-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L720" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceIPv6VIPLivesOnVirtualMACDevice</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L722" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceIPv6VIPLivesOnVirtualMACDevice</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L738" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceIPv6VIPLivesOnVirtualMACDevice</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L740" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceIPv6VIPLivesOnVirtualMACDevice</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-6.4.2-3">RFC9568-6.4.2-3</code></td><td colspan="3"><span class="rfc-subject">- It MUST NOT send ND Router Advertisement messages for the Virtual Router. (§6.4.2)</span></td></tr>
@@ -486,7 +485,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9568-6.4.2-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze emits no ND Router Advertisement in any state -- the only ICMPv6 message the plugin builds is the unsolicited Neighbor Advertisement, type 136 at internal/plugins/vrrp/transport/na.go:25,58, and a grep for a type-134 or router-advertisement builder over internal/plugins/vrrp returns nothing, so a Backup has no path that could send one. The absent Active-side emission is the gap tracked at RFC9568-6.4.3-4</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> the VRRP plugin builds no Router Advertisement in any state, since its only ICMPv6 message is the unsolicited Neighbor Advertisement (icmpv6TypeNA in internal/plugins/vrrp/transport/na.go), but ze carries a Router Advertisement builder elsewhere (internal/core/ndp/ra.go) and no test proves that a Backup&#39;s interface sends none for the Virtual Router; the Active-side emission is the gap RFC9568-6.4.3-4</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-6.4.2-4">RFC9568-6.4.2-4</code></td><td colspan="3"><span class="rfc-subject">* It MUST discard packets with a destination link-layer MAC address equal to the Virtual Router MAC address. (§6.4.2)</span></td></tr>
 <tr><td></td>
@@ -504,8 +503,8 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <td>MUST NOT</td>
 <td>6.4.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9568-6.4.2-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L401" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceStartupNonOwnerGoesBackup</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L438" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceOwnerStartupGoesMaster</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L419" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceStartupNonOwnerGoesBackup</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L456" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceOwnerStartupGoesMaster</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-6.4.2-6">RFC9568-6.4.2-6</code></td><td colspan="3"><span class="rfc-subject">If a Shutdown event is received, then: - Cancel the Active_Down_Timer - Transition to the {Initialize} state (§6.4.2)</span></td></tr>
@@ -573,9 +572,10 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <td>MUST</td>
 <td>6.4.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9568-6.4.3-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L724" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceIPv6VIPLivesOnVirtualMACDevice</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L742" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceIPv6VIPLivesOnVirtualMACDevice</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc9568_solicited_node_integration_linux_test.go#L58" title="internal/plugins/vrrp/rfc9568_solicited_node_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPActiveJoinsSolicitedNodeBeforeItsAddressIsInstalled</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the membership is the kernel&#39;s automatic consequence of the address install ze performs on promotion (doInstallVIPs internal/plugins/vrrp/instance.go:369 registers the VIP on the virtual-MAC macvlan), so there is no ze input that installs the address yet skips the join, and the not-a-member case is the Backup requirement RFC9568-6.4.2-2</p></td>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> on promotion ze joins the group on the virtual-MAC macvlan itself, before the address exists (doInstallVIPs calls joinSolicitedNode, internal/plugins/vrrp/solicitednode_linux.go), and the kernel joins it again when the address install lands, so the not-a-member case is the Backup requirement RFC9568-6.4.2-2</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-6.4.3-3">RFC9568-6.4.3-3</code></td><td colspan="3"><span class="rfc-subject">- It MUST respond to ND Neighbor Solicitation messages (with the Router Flag (R) set) for the IPv6 address(es) associated with the Virtual Router. (§6.4.3, §8.2.2)</span></td></tr>
 <tr><td></td>
@@ -613,9 +613,9 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9568-6.4.3-6">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L267" title="internal/plugins/vrrp/acceptfilter_test.go" target="_blank" rel="noopener"><code>TestActiveAddressOwnerAcceptsWhateverAcceptModeSays</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L241" title="internal/plugins/vrrp/acceptfilter_test.go" target="_blank" rel="noopener"><code>TestActiveNonOwnerWithAcceptModeTrueAcceptsLocalDelivery</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L435" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceOwnerStartupGoesMaster</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L453" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceOwnerStartupGoesMaster</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L205" title="internal/plugins/vrrp/acceptfilter_test.go" target="_blank" rel="noopener"><code>TestActiveNonOwnerWithAcceptModeFalseSuppressesLocalDelivery</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L403" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceStartupNonOwnerGoesBackup</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L421" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceStartupNonOwnerGoesBackup</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-6.4.3-7">RFC9568-6.4.3-7</code></td><td colspan="3"><span class="rfc-subject">It MUST accept packets addressed to the IPvX address(es) associated with the Virtual Router if it is the IPvX address owner or if Accept_Mode is True. Otherwise, it MUST NOT accept these packets. (§6.4.3)</span></td></tr>
@@ -634,7 +634,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <td>6.4.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9568-6.4.3-8">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L125" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMTransitionMatrix</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L506" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceShutdownAsMasterSendsPriorityZero</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L524" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceShutdownAsMasterSendsPriorityZero</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L127" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMTransitionMatrix</code></a></span></div>
 </div></td>
 </tr>
@@ -765,8 +765,8 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <td>7.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9568-7.1-6">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rx_discard_test.go#L102" title="internal/plugins/vrrp/rx_discard_test.go" target="_blank" rel="noopener"><code>TestInstanceRxFailedCheckIsDiscarded</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L555" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceRxValidAdvertReachesFSM</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L530" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceRxDecodeErrorMapsReason</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L573" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceRxValidAdvertReachesFSM</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L548" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceRxDecodeErrorMapsReason</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rx_discard_test.go#L101" title="internal/plugins/vrrp/rx_discard_test.go" target="_blank" rel="noopener"><code>TestInstanceRxFailedCheckIsDiscarded</code></a></span></div>
 </div></td>
 </tr>
@@ -887,10 +887,10 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9568-8.1.2-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/boot_order_test.go#L34" title="internal/plugins/vrrp/boot_order_test.go" target="_blank" rel="noopener"><code>TestEngineAnnouncesNothingBeforeTheVirtualMACDevice</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/boot_late_device_test.go#L113" title="internal/plugins/vrrp/boot_late_device_test.go" target="_blank" rel="noopener"><code>TestEngineWaitsForALateVirtualMACDevice</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L771" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceDelaysAnnounceUntilParentUsable</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L789" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceDelaysAnnounceUntilParentUsable</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/boot_order_test.go#L35" title="internal/plugins/vrrp/boot_order_test.go" target="_blank" rel="noopener"><code>TestEngineAnnouncesNothingBeforeTheVirtualMACDevice</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/boot_late_device_test.go#L114" title="internal/plugins/vrrp/boot_late_device_test.go" target="_blank" rel="noopener"><code>TestEngineWaitsForALateVirtualMACDevice</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L772" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceDelaysAnnounceUntilParentUsable</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L790" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceDelaysAnnounceUntilParentUsable</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-8.1.3-1">RFC9568-8.1.3-1</code></td><td colspan="3"><span class="rfc-subject">If Proxy ARP is to be used on a VRRP Router, then the VRRP Router MUST advertise the Virtual Router MAC address in the Proxy ARP message. (§8.1.3)</span></td></tr>
@@ -907,7 +907,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <td>MUST NOT</td>
 <td>8.2.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9568-8.2.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L726" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceIPv6VIPLivesOnVirtualMACDevice</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L744" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceIPv6VIPLivesOnVirtualMACDevice</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/ownerfilter_test.go#L174" title="internal/plugins/vrrp/ownerfilter_test.go" target="_blank" rel="noopener"><code>TestOwnerFilterWiredOnPromotionForEveryFamily</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/nd_nonowner_integration_linux_test.go#L32" title="internal/plugins/vrrp/nd_nonowner_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/owner_answer_integration_linux_test.go#L54" title="internal/plugins/vrrp/owner_answer_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPOwnerAnswersWithVirtualMACOnly</code></a></span></div>
@@ -941,10 +941,10 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9568-8.2.2-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/boot_order_test.go#L36" title="internal/plugins/vrrp/boot_order_test.go" target="_blank" rel="noopener"><code>TestEngineAnnouncesNothingBeforeTheVirtualMACDevice</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/boot_late_device_test.go#L115" title="internal/plugins/vrrp/boot_late_device_test.go" target="_blank" rel="noopener"><code>TestEngineWaitsForALateVirtualMACDevice</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L773" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceDelaysAnnounceUntilParentUsable</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L791" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceDelaysAnnounceUntilParentUsable</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/boot_order_test.go#L37" title="internal/plugins/vrrp/boot_order_test.go" target="_blank" rel="noopener"><code>TestEngineAnnouncesNothingBeforeTheVirtualMACDevice</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/boot_late_device_test.go#L116" title="internal/plugins/vrrp/boot_late_device_test.go" target="_blank" rel="noopener"><code>TestEngineWaitsForALateVirtualMACDevice</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L775" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceDelaysAnnounceUntilParentUsable</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L793" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceDelaysAnnounceUntilParentUsable</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-8.2.2-8">RFC9568-8.2.2-8</code></td><td colspan="3"><span class="rfc-subject">When a host sends an ND Neighbor Solicitation message for a Virtual Router IPv6 address, the Active Router MUST respond to the ND Neighbor Solicitation message with the Virtual Router MAC address for the Virtual Router. (§8.2.2)</span></td></tr>
@@ -974,7 +974,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9568-8.4.2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze implements no VRRPv2/VRRPv3 dual mode -- a group runs exactly one version (parseVersion internal/plugins/vrrp/groups.go:429 admits 2 or 3, doSendAdvert internal/plugins/vrrp/instance.go:350 encodes that single spec.Version), and the receive ladder discards any advert whose wire version differs from the group&#39;s at internal/plugins/vrrp/packet/validate.go:149, so no dual-send path exists</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze implements no Section 8.4.2 VRRPv2 and VRRPv3 interoperation mode: a group runs exactly one version (parseVersion in internal/plugins/vrrp/groups.go), advertises in that version only (doSendAdvert in internal/plugins/vrrp/instance.go), and the receive path discards an advertisement of another version with ErrVersion (internal/plugins/vrrp/packet/validate.go); no owner decision declines the mode, so no Active Router sends both versions</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-8.4.2-2">RFC9568-8.4.2-2</code></td><td colspan="3"><span class="rfc-subject">When a Virtual Router is configured this way and is the Backup Router, it MUST time out based on the rate advertised by the Active Router. (§8.4.2)</span></td></tr>
 <tr><td></td>
@@ -983,7 +983,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9568-8.4.2-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> this requirement is scoped to the Section 8.4.2 interop mode, which ze does not implement -- one version per group (parseVersion internal/plugins/vrrp/groups.go:429) and a version-mismatch discard at internal/plugins/vrrp/packet/validate.go:149 mean a VRRPv2 Active Router is never heard by a v3 group at all. Native v3 interval adoption is the separate RFC9568-6.4.2-9</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze implements no Section 8.4.2 VRRPv2 and VRRPv3 interoperation mode: a group runs exactly one version (parseVersion in internal/plugins/vrrp/groups.go), advertises in that version only (doSendAdvert in internal/plugins/vrrp/instance.go), and the receive path discards an advertisement of another version with ErrVersion (internal/plugins/vrrp/packet/validate.go); no owner decision declines the mode, so no Backup Router times out on a VRRPv2 Active Router&#39;s rate</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-8.4.2-3">RFC9568-8.4.2-3</code></td><td colspan="3"><span class="rfc-subject">In the case of a VRRPv2 Active Router, this means it MUST translate the timeout value it receives (in seconds) into centiseconds. (§8.4.2)</span></td></tr>
 <tr><td></td>
@@ -992,7 +992,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9568-8.4.2-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> with no interop mode, a v3 group never accepts a VRRPv2 advert to translate -- the receive ladder discards a wire version that differs from the configured group version at internal/plugins/vrrp/packet/validate.go:149; the seconds/centiseconds conversion helpers exist per version (v2SecondsToMS and v3CentisecondsToMS internal/plugins/vrrp/packet/packet.go:233,240) and are never combined in one group</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze implements no Section 8.4.2 VRRPv2 and VRRPv3 interoperation mode: a group runs exactly one version (parseVersion in internal/plugins/vrrp/groups.go), advertises in that version only (doSendAdvert in internal/plugins/vrrp/instance.go), and the receive path discards an advertisement of another version with ErrVersion (internal/plugins/vrrp/packet/validate.go); no owner decision declines the mode, so no group translates a VRRPv2 interval into centiseconds, although per-version conversion helpers exist in internal/plugins/vrrp/packet/packet.go</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-2.5-1">RFC9568-2.5-1</code></td><td colspan="3"><span class="rfc-subject">If the Active Router observes that this is occurring, it SHOULD log the problem (subject to rate-limiting). (§2.5)</span></td></tr>
 <tr><td></td>
@@ -1256,16 +1256,16 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
 <tr><td><a href="#rfc9568-5.1.1.2-1"><code>RFC9568-5.1.1.2-1</code></a> Routers MUST NOT forward a datagram with this destination address, regardless of its TTL. (§5.1.1.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: the VRRP plugin forwards no IP datagram -- instance.onPacket internal/plugins/vrrp/instance.go:453 consumes every received advert into the state machine and re-emits nothing, and the tx socket scopes adverts to the link-local group with IP_MULTICAST_LOOP 0 at internal/plugins/vrrp/transport/backend_linux.go:143</td>
+<td>{gap}, no test</td>
+<td>ze is the router this binds, and the forwarding decision is the dataplane&#39;s, not the VRRP plugin&#39;s: onPacket (internal/plugins/vrrp/instance.go) consumes every received advertisement and re-emits nothing, but whether the kernel or the VPP backend ze programs forwards a transit datagram to 224.0.0.18 is not shown, and no test reads either backend&#39;s behaviour or names a verified layer token, so the row is a gap</td>
 </tr>
 <tr><td><a href="#rfc9568-5.1.2.2-1"><code>RFC9568-5.1.2.2-1</code></a> Routers MUST NOT forward a datagram with this destination address, regardless of its Hop Limit. (§5.1.2.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: the VRRP plugin forwards no IPv6 datagram -- instance.onPacket internal/plugins/vrrp/instance.go:453 consumes every received advert into the state machine, and the v6 tx socket sets IPV6_MULTICAST_LOOP 0 at internal/plugins/vrrp/transport/backend_linux.go:193</td>
+<td>{gap}, no test</td>
+<td>ze is the router this binds, and the forwarding decision is the dataplane&#39;s, not the VRRP plugin&#39;s: onPacket (internal/plugins/vrrp/instance.go) consumes every received advertisement and re-emits nothing, but whether the kernel or the VPP backend ze programs forwards a transit datagram to ff02::12 is not shown, and no test reads either backend&#39;s behaviour or names a verified layer token, so the row is a gap</td>
 </tr>
 <tr><td><a href="#rfc9568-6.4.2-3"><code>RFC9568-6.4.2-3</code></a> - It MUST NOT send ND Router Advertisement messages for the Virtual Router. (§6.4.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: ze emits no ND Router Advertisement in any state -- the only ICMPv6 message the plugin builds is the unsolicited Neighbor Advertisement, type 136 at internal/plugins/vrrp/transport/na.go:25,58, and a grep for a type-134 or router-advertisement builder over internal/plugins/vrrp returns nothing, so a Backup has no path that could send one. The absent Active-side emission is the gap tracked at RFC9568-6.4.3-4</td>
+<td>{gap}, no test</td>
+<td>the VRRP plugin builds no Router Advertisement in any state, since its only ICMPv6 message is the unsolicited Neighbor Advertisement (icmpv6TypeNA in internal/plugins/vrrp/transport/na.go), but ze carries a Router Advertisement builder elsewhere (internal/core/ndp/ra.go) and no test proves that a Backup&#39;s interface sends none for the Virtual Router; the Active-side emission is the gap RFC9568-6.4.3-4</td>
 </tr>
 <tr><td><a href="#rfc9568-6.4.3-4"><code>RFC9568-6.4.3-4</code></a> It MUST send ND Router Advertisements for the Virtual Router. (§6.4.3)</td>
 <td>{gap}, no test</td>
@@ -1284,16 +1284,16 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <td>the obligation rests on the Router Advertisement ze does not send, which is the gap at RFC9568-6.4.3-4. The vrrp group carries no Router Advertisement leaf at all -- applyGroupLeaves internal/plugins/vrrp/groups.go accepts vrid, virtual-address, priority, preempt, preempt-delay-seconds, advertise-interval-milliseconds, accept-mode and version only -- so there is no option set a Backup could be configured to match</td>
 </tr>
 <tr><td><a href="#rfc9568-8.4.2-1"><code>RFC9568-8.4.2-1</code></a> When a Virtual Router is configured this way and is the Active Router, it MUST send both types at the configured rate, even if it is sub-second. (§8.4.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: ze implements no VRRPv2/VRRPv3 dual mode -- a group runs exactly one version (parseVersion internal/plugins/vrrp/groups.go:429 admits 2 or 3, doSendAdvert internal/plugins/vrrp/instance.go:350 encodes that single spec.Version), and the receive ladder discards any advert whose wire version differs from the group&#39;s at internal/plugins/vrrp/packet/validate.go:149, so no dual-send path exists</td>
+<td>{gap}, no test</td>
+<td>ze implements no Section 8.4.2 VRRPv2 and VRRPv3 interoperation mode: a group runs exactly one version (parseVersion in internal/plugins/vrrp/groups.go), advertises in that version only (doSendAdvert in internal/plugins/vrrp/instance.go), and the receive path discards an advertisement of another version with ErrVersion (internal/plugins/vrrp/packet/validate.go); no owner decision declines the mode, so no Active Router sends both versions</td>
 </tr>
 <tr><td><a href="#rfc9568-8.4.2-2"><code>RFC9568-8.4.2-2</code></a> When a Virtual Router is configured this way and is the Backup Router, it MUST time out based on the rate advertised by the Active Router. (§8.4.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: this requirement is scoped to the Section 8.4.2 interop mode, which ze does not implement -- one version per group (parseVersion internal/plugins/vrrp/groups.go:429) and a version-mismatch discard at internal/plugins/vrrp/packet/validate.go:149 mean a VRRPv2 Active Router is never heard by a v3 group at all. Native v3 interval adoption is the separate RFC9568-6.4.2-9</td>
+<td>{gap}, no test</td>
+<td>ze implements no Section 8.4.2 VRRPv2 and VRRPv3 interoperation mode: a group runs exactly one version (parseVersion in internal/plugins/vrrp/groups.go), advertises in that version only (doSendAdvert in internal/plugins/vrrp/instance.go), and the receive path discards an advertisement of another version with ErrVersion (internal/plugins/vrrp/packet/validate.go); no owner decision declines the mode, so no Backup Router times out on a VRRPv2 Active Router&#39;s rate</td>
 </tr>
 <tr><td><a href="#rfc9568-8.4.2-3"><code>RFC9568-8.4.2-3</code></a> In the case of a VRRPv2 Active Router, this means it MUST translate the timeout value it receives (in seconds) into centiseconds. (§8.4.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: with no interop mode, a v3 group never accepts a VRRPv2 advert to translate -- the receive ladder discards a wire version that differs from the configured group version at internal/plugins/vrrp/packet/validate.go:149; the seconds/centiseconds conversion helpers exist per version (v2SecondsToMS and v3CentisecondsToMS internal/plugins/vrrp/packet/packet.go:233,240) and are never combined in one group</td>
+<td>{gap}, no test</td>
+<td>ze implements no Section 8.4.2 VRRPv2 and VRRPv3 interoperation mode: a group runs exactly one version (parseVersion in internal/plugins/vrrp/groups.go), advertises in that version only (doSendAdvert in internal/plugins/vrrp/instance.go), and the receive path discards an advertisement of another version with ErrVersion (internal/plugins/vrrp/packet/validate.go); no owner decision declines the mode, so no group translates a VRRPv2 interval into centiseconds, although per-version conversion helpers exist in internal/plugins/vrrp/packet/packet.go</td>
 </tr>
 </tbody>
 </table>
@@ -1356,7 +1356,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <p>No test carries RFC9568-5.1.2.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc9568-5.1.2.3-1"><code>RFC9568-5.1.2.3-1</code></a></h3>
 <p>The Hop Limit MUST be set to 255. (§5.1.2.3)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/plugins/vrrp/transport/transport_integration_linux_test.go::TestIntegrationOpenInstanceSocketOptions moved. TestIntegrationOpenInstanceSocketOptions/v6 reads IPV6_MULTICAST_HOPS back from the tx and NA sockets and requires 255; runs only under integration &amp;&amp; linux with CAP_NET_RAW/ADMIN, as the row&#39;s marker discloses</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 (independent auditor, after d3195edb70 rewrote the row annotation and openV6 changed on 2026-10-27): RFC 9568 Section 5.1.2.3 says &#34;The Hop Limit MUST be set to 255.&#34; openV6 (internal/plugins/vrrp/transport/backend_linux.go) still sets IPV6_MULTICAST_HOPS 255 on the advertisement tx socket, and advertisements go only to ff02::12 through SendAdvert&#39;s Sendmsg on that socket, so the multicast hop limit is the one every advertisement carries; openNASocket sets the same on the NA socket. TestIntegrationOpenInstanceSocketOptions (//go:build linux, opens with userns.Enter, which runs it unprivileged in its own user, network and mount namespace and carries the child&#39;s fail or skip back) reads IPV6_MULTICAST_HOPS back with getsockopt from both the tx and NA socket and requires exactly 255; the kernel default is 1, so an openV6 that stopped setting it fails, and the recorded mutant (255 -&gt; 254 in openV6) went red. Single-polarity per the row annotation: a socket constant no input changes; receive-side discard is the separate -5.1.2.3-2 row. The rewritten annotation now matches the test. Findings outside this verdict: the tag&#39;s claim still cites backend_linux.go:185 where the call is now at :187, and the summary&#39;s Support remaining text still calls this evidence integration-gated, QEMU-only and unreachable by ./le rfc record, which is no longer true. Verdict enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1364,7 +1364,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/transport_integration_linux_test.go#L260" title="internal/plugins/vrrp/transport/transport_integration_linux_test.go" target="_blank" rel="noopener"><code>TestIntegrationOpenInstanceSocketOptions</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1607,12 +1607,12 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L436" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceOwnerStartupGoesMaster</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L454" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceOwnerStartupGoesMaster</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L399" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceStartupNonOwnerGoesBackup</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L417" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceStartupNonOwnerGoesBackup</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1627,12 +1627,12 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L722" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceIPv6VIPLivesOnVirtualMACDevice</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L740" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceIPv6VIPLivesOnVirtualMACDevice</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L720" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceIPv6VIPLivesOnVirtualMACDevice</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L738" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceIPv6VIPLivesOnVirtualMACDevice</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1645,7 +1645,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <p>No test carries RFC9568-6.4.2-3, so no unit is bound to it.</p>
 <h3><a href="#rfc9568-6.4.2-4"><code>RFC9568-6.4.2-4</code></a></h3>
 <p>* It MUST discard packets with a destination link-layer MAC address equal to the Virtual Router MAC address. (§6.4.2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPBackupDoesNotForwardVirtualMACFrames, internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPBackupDoesNotForwardVirtualMACFrames#2 moved. vrrp judge 2026-09-29 (independent, continuation 3): Wiring now proven on the host: TestBackupDiscardFollowsTheState drives the FSM and asserts the worker sets the discard on the Virtual Router MAC device at start (idle worker: on then off), entering Backup adds no call, promotion withdraws it once after the only install, and a higher-priority advert demotes and sets it again before the only removal (records observed red on doRemoveVIPs; the run revert was also observed red but the ledger keeps one record per unit/polarity). Wire effect: TestVRRPBackupDoesNotForwardVirtualMACFrames (QEMU guest) forwards a transit datagram sent to the Virtual Router MAC without the nft drop and stops it with it (records on backupFilterTables). The host unit&#39;s negative tag is a state contrast; the violating negative (no discard, frame forwarded) is the QEMU control.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 (independent auditor, after the user-namespace conversion): every tagged unit now opens with `if !userns.Enter(t) { return }`, which re-executes the test in its own user, network and mount namespace and carries the child&#39;s fail or skip to the parent (Enter, internal/test/userns/userns_linux.go), and the file builds under plain linux instead of integration &amp;&amp; linux. RFC 9568 Section 6.4.2 says &#34;MUST discard packets with a destination link-layer MAC address equal to the Virtual Router MAC address.&#34; TestVRRPBackupDoesNotForwardVirtualMACFrames is otherwise unchanged: with the recipe in force and no filter a datagram sent to the virtual MAC is forwarded (control), with setBackupFilter the same datagram is not forwarded, each asserted from a capture on the next hop. TestBackupDiscardFollowsTheState (unchanged) still proves the worker sets and withdraws the discard with the state. Verdict enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1658,7 +1658,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/vmac_state_integration_linux_test.go#L127" title="internal/plugins/vrrp/vmac_state_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPBackupDoesNotForwardVirtualMACFrames</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/backupfilter_test.go#L110" title="internal/plugins/vrrp/backupfilter_test.go" target="_blank" rel="noopener"><code>TestBackupDiscardFollowsTheState</code></a></td>
@@ -1668,7 +1668,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/vmac_state_integration_linux_test.go#L126" title="internal/plugins/vrrp/vmac_state_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPBackupDoesNotForwardVirtualMACFrames</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1681,12 +1681,12 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L438" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceOwnerStartupGoesMaster</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L456" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceOwnerStartupGoesMaster</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L401" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceStartupNonOwnerGoesBackup</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L419" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceStartupNonOwnerGoesBackup</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1810,7 +1810,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 </div>
 <h3><a href="#rfc9568-6.4.3-1"><code>RFC9568-6.4.3-1</code></a></h3>
 <p>- It MUST respond to ARP requests for the IPv4 address(es) associated with the Virtual Router. (§6.4.3, §8.1.2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly, internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly#2 moved. vrrp closure judge 2026-09-30 (independent) re-judged: the tagged units changed only by added RFC requirement tag comment lines for the new rows (8.1.2-6 / 8.2.2-8 / 8.2-4 / 8.1.1-2); test bodies byte-identical, records current, verdict unchanged. Prior note: vrrp judge 2026-09-29 (independent, continuation 3): Product install now proven: TestPromotionInstallsIPv4AddressOnVirtualMACDevice (v3 and v2 subtests) asserts a Backup installs nothing and the promoted non-owner makes exactly one install, on the virtual-MAC macvlan zv4-2-10 (never the parent), of exactly 192.0.2.1/24 (record observed red on doInstallVIPs). TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly (QEMU guest) proves that installed state answers ARP and that no reply is seen with the address removed (records on vipCIDRs). The dataplane_linux_test sysctl tags stay without records.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 (independent auditor, after the user-namespace conversion): every tagged unit now opens with `if !userns.Enter(t) { return }`, which re-executes the test in its own user, network and mount namespace and carries the child&#39;s fail or skip to the parent (Enter, internal/test/userns/userns_linux.go), and the file builds under plain linux instead of integration &amp;&amp; linux. RFC 9568 Section 6.4.3 says &#34;MUST respond to ARP requests for the IPv4 address(es) associated with the Virtual Router.&#34; TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly, otherwise unchanged, observes ARP replies for the virtual address held on the virtual-MAC macvlan and none once the address is removed; the sender hardware address read is arp[8:14]. TestPromotionInstallsIPv4AddressOnVirtualMACDevice (unchanged) proves the product installs that address on promotion only. Verdict enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1823,7 +1823,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/vmac_state_integration_linux_test.go#L68" title="internal/plugins/vrrp/vmac_state_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L71" title="internal/plugins/vrrp/dataplane_linux_test.go" target="_blank" rel="noopener"><code>TestDataplaneApplyIPv4SetsRecipe</code></a></td>
@@ -1838,22 +1838,27 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/vmac_state_integration_linux_test.go#L67" title="internal/plugins/vrrp/vmac_state_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc9568-6.4.3-2"><code>RFC9568-6.4.3-2</code></a></h3>
 <p>- It MUST be a member of the Solicited-Node multicast address for the IPv6 address(es) associated with the Virtual Router. (§6.4.3)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. single-polarity; TestInstanceIPv6VIPLivesOnVirtualMACDevice requires the Active router to install the IPv6 address on the vMAC macvlan, which makes the kernel join the Solicited-Node group</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 (independent auditor, after f1b637444b tagged a second unit and corrected the row annotation): RFC 9568 Section 6.4.3 says an Active router protecting an IPv6 address &#34;MUST be a member of the Solicited-Node multicast address for the IPv6 address(es) associated with the Virtual Router.&#34; Two producers meet it: doInstallVIPs (internal/plugins/vrrp/instance.go) calls joinSolicitedNode (solicitednode_linux.go), which adds a link-layer PACKET_MR_MULTICAST membership for 33:33:ff:xx:xx:xx on the virtual-MAC macvlan and syncs the receive filter down the device stack before returning, then registers the addresses, whose install on that macvlan makes the kernel take the IPv6 group membership itself. TestVRRPActiveJoinsSolicitedNodeBeforeItsAddressIsInstalled (//go:build linux, userns.Enter) drives the real FSM and promotion with the real joinSolicitedNode and address-owner registry on a macvlan with the product&#39;s recipe: it requires no membership as Backup, the group in the macvlan&#39;s /proc/thread-self/net/dev_mcast and synced onto the parent when the promotion returns while the address is provably not installed, a reconfiguration while Active to add the new group, drop the removed one and never drop the shared fe80::1 group (sampled concurrently), the group gone after demotion, and after a second promotion and install a single multicast solicitation answered with the Virtual Router MAC, which shows the group is functional at the IPv6 level, not just listed. The recorded mutant (solicitedNodeMACs(nil) in joinSolicitedNode) went red. TestInstanceIPv6VIPLivesOnVirtualMACDevice (instance_test.go) covers the other half: the Active router installs every IPv6 virtual address on the virtual-MAC device and never on the parent, so the kernel&#39;s membership lands on the device that answers; a Backup installs none. Single-polarity per the row annotation: the not-a-member case is the Backup requirement RFC9568-6.4.2-2 (both units still assert it). Finding outside this verdict: the unit-test tag cites instance.go:369 for doInstallVIPs, which now sits near line 617. Verdict enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L724" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceIPv6VIPLivesOnVirtualMACDevice</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L742" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceIPv6VIPLivesOnVirtualMACDevice</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc9568_solicited_node_integration_linux_test.go#L58" title="internal/plugins/vrrp/rfc9568_solicited_node_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPActiveJoinsSolicitedNodeBeforeItsAddressIsInstalled</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1868,12 +1873,12 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc9568_nd_router_flag_integration_linux_test.go#L37" title="internal/plugins/vrrp/rfc9568_nd_router_flag_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPSolicitedNACarriesRouterFlag</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc9568_nd_router_flag_integration_linux_test.go#L36" title="internal/plugins/vrrp/rfc9568_nd_router_flag_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPSolicitedNACarriesRouterFlag</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1884,7 +1889,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <p>No test carries RFC9568-6.4.3-4, so no unit is bound to it.</p>
 <h3><a href="#rfc9568-6.4.3-5"><code>RFC9568-6.4.3-5</code></a></h3>
 <p>* It MUST forward packets with a destination link-layer MAC address equal to the Virtual Router MAC address. (§6.4.3)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPBackupDoesNotForwardVirtualMACFrames, internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPBackupDoesNotForwardVirtualMACFrames#2 moved. vrrp judge 2026-09-29 (independent, continuation 3): Wiring now proven on the host: TestBackupDiscardFollowsTheState asserts promotion withdraws the discard exactly once and only after the address install, and that it holds before promotion and after demotion (records observed red on doInstallVIPs and doRemoveVIPs). Wire effect: TestVRRPBackupDoesNotForwardVirtualMACFrames (QEMU guest) forwards the datagram sent to the Virtual Router MAC once the filter is withdrawn and the address installed, and not while the filter holds (records on clearBackupFilter).</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 (independent auditor, after the user-namespace conversion): every tagged unit now opens with `if !userns.Enter(t) { return }`, which re-executes the test in its own user, network and mount namespace and carries the child&#39;s fail or skip to the parent (Enter, internal/test/userns/userns_linux.go), and the file builds under plain linux instead of integration &amp;&amp; linux. RFC 9568 Section 6.4.3 says &#34;MUST forward packets with a destination link-layer MAC address equal to the Virtual Router MAC address.&#34; TestVRRPBackupDoesNotForwardVirtualMACFrames, otherwise unchanged, forwards the datagram to the next hop once the filter is withdrawn and the addresses installed, and not while the filter holds, read from the capture. Verdict enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1897,7 +1902,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/vmac_state_integration_linux_test.go#L133" title="internal/plugins/vrrp/vmac_state_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPBackupDoesNotForwardVirtualMACFrames</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/backupfilter_test.go#L116" title="internal/plugins/vrrp/backupfilter_test.go" target="_blank" rel="noopener"><code>TestBackupDiscardFollowsTheState</code></a></td>
@@ -1907,7 +1912,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/vmac_state_integration_linux_test.go#L132" title="internal/plugins/vrrp/vmac_state_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPBackupDoesNotForwardVirtualMACFrames</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1925,7 +1930,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L403" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceStartupNonOwnerGoesBackup</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L421" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceStartupNonOwnerGoesBackup</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1940,7 +1945,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L435" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceOwnerStartupGoesMaster</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L453" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceOwnerStartupGoesMaster</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1990,7 +1995,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L506" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceShutdownAsMasterSendsPriorityZero</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L524" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceShutdownAsMasterSendsPriorityZero</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -2244,7 +2249,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 </div>
 <h3><a href="#rfc9568-7.1-4"><code>RFC9568-7.1-4</code></a></h3>
 <p>It MUST verify that the VRID is configured on the receiving interface. (§7.1, erratum 8298)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/plugins/vrrp/transport/rfc_rx_iface_verdict_linux_test.go::TestRxAdvertScopedToReceivingInterface, internal/plugins/vrrp/transport/rfc_rx_iface_verdict_linux_test.go::TestRxAdvertScopedToReceivingInterface#2 moved. Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 9568 Section 7.1 says &#34;It MUST verify that the VRID is configured on the receiving interface.&#34; TestDecodeGoldenV3IPv4 now decodes the RFC 9568 message-only golden G2 under the default-mode lookup instead of the pseudo-header golden G2c, and lost only the removed MsgOnlyChecksum assertion; the subtests of TestNegativeReferenceBugs other than N1 gained only the FillChecksum mode argument. The positive is still a fully conforming advert, the checksum check precedes the checks this row names so a wrong form would fail with ErrChecksum and not pass silently, and each negative still asserts its exact sentinel. TestRxAdvertScopedToReceivingInterface changed only by the checksum-mode plumbing (a Checksum: packet.ChecksumRFC9568 field added to the GroupSpec, AdvertParams or packet.Local literal, or the mode argument added to packet.FillChecksum); every assertion and every isolating input is byte-for-byte the same. TestRxV3VRIDCheckedOnTheReceivingInterface, unchanged, still discards VRID 10 received on the VRID-20 interface with exactly [vrid]. Verdict unchanged.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 (independent auditor, after the user-namespace conversion): every tagged unit now opens with `if !userns.Enter(t) { return }`, which re-executes the test in its own user, network and mount namespace and carries the child&#39;s fail or skip to the parent (Enter, internal/test/userns/userns_linux.go), and the file builds under plain linux instead of integration &amp;&amp; linux. RFC 9568 Section 7.1 says &#34;It MUST verify that the VRID is configured on the receiving interface&#34; TestRxAdvertScopedToReceivingInterface sends, for v2 and v3, a VRID 10 advert on the interface that holds only VRID 20 and fails if it reaches the VRID 10 instance, requires it to arrive at the VRID 20 instance (so absence is not vacuous) and decode there as ErrUnknownVRID, then requires the same advert on the VRID 10 interface to reach its instance and decode. Its other change is rp_filter 0 on the second macvlan so the IPv4 multicast is received at all. The unchanged packet/validate_test.go and rfc9568_rx_interface_v3_test.go tags stand. Verdict enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -2262,7 +2267,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/rfc_rx_iface_verdict_linux_test.go#L131" title="internal/plugins/vrrp/transport/rfc_rx_iface_verdict_linux_test.go" target="_blank" rel="noopener"><code>TestRxAdvertScopedToReceivingInterface</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L80" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestDecodeGoldenV3IPv4</code></a></td>
@@ -2277,7 +2282,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/rfc_rx_iface_verdict_linux_test.go#L130" title="internal/plugins/vrrp/transport/rfc_rx_iface_verdict_linux_test.go" target="_blank" rel="noopener"><code>TestRxAdvertScopedToReceivingInterface</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -2310,7 +2315,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L530" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceRxDecodeErrorMapsReason</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L548" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceRxDecodeErrorMapsReason</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -2320,7 +2325,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L555" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceRxValidAdvertReachesFSM</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L573" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceRxValidAdvertReachesFSM</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -2394,7 +2399,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 </div>
 <h3><a href="#rfc9568-7.2-2"><code>RFC9568-7.2-2</code></a></h3>
 <p>* Set the source MAC address to the Virtual Router MAC address (§7.2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire, internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV6OnWire moved. Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 9568 Section 7.2 says &#34;Set the source MAC address to the Virtual Router MAC address&#34;. TestTxAdvertV4OnWire changed only by the checksum-mode plumbing (a Checksum: packet.ChecksumRFC9568 field added to the GroupSpec, AdvertParams or packet.Local literal, or the mode argument added to packet.FillChecksum); every assertion and every isolating input is byte-for-byte the same; the captured source MAC is still compared with the literal Virtual Router MAC. Single-polarity. Verdict unchanged; the guest record is owed a re-record.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 (independent auditor, after the user-namespace conversion): every tagged unit now opens with `if !userns.Enter(t) { return }`, which re-executes the test in its own user, network and mount namespace and carries the child&#39;s fail or skip to the parent (Enter, internal/test/userns/userns_linux.go), and the file builds under plain linux instead of integration &amp;&amp; linux. RFC 9568 Section 7.2 says &#34;Set the source MAC address to the Virtual Router MAC address&#34; TestTxAdvertV4OnWire (v2 and v3) and TestTxAdvertV6OnWire capture the transmitted frame on the peer veth and compare its source MAC with the literals 00-00-5e-00-01-0a and 00-00-5e-00-02-0a, never the package constants. Single-polarity. Verdict enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -2407,19 +2412,19 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go#L42" title="internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go" target="_blank" rel="noopener"><code>TestTxAdvertV4OnWire</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go#L105" title="internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go" target="_blank" rel="noopener"><code>TestTxAdvertV6OnWire</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc9568-7.2-3"><code>RFC9568-7.2-3</code></a></h3>
 <p>* If the protected address is an IPv4 address, then: - Set the source IPv4 address to the interface&#39;s primary IPv4 address * else // IPv6 - Set the source IPv6 address to the interface&#39;s link-local IPv6 address (§7.2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire, internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV6OnWire moved. Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 9568 Section 7.2 says &#34;If the protected address is an IPv4 address, then: - Set the source IPv4 address to the interface&#39;s primary IPv4 address * else // IPv6 - Set the source IPv6 address to the interface&#39;s link-local IPv6 address&#34;. TestTxAdvertV4OnWire and TestSendAdvertNoLinkLocalSkipsAndCounts changed only by the checksum-mode plumbing (a Checksum: packet.ChecksumRFC9568 field added to the GroupSpec, AdvertParams or packet.Local literal, or the mode argument added to packet.FillChecksum); every assertion and every isolating input is byte-for-byte the same; the IPv4 primary-source capture and the IPv6 no-link-local negative are unchanged. Verdict unchanged.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 (independent auditor, after the user-namespace conversion): every tagged unit now opens with `if !userns.Enter(t) { return }`, which re-executes the test in its own user, network and mount namespace and carries the child&#39;s fail or skip to the parent (Enter, internal/test/userns/userns_linux.go), and the file builds under plain linux instead of integration &amp;&amp; linux. RFC 9568 Section 7.2 says &#34;Set the source IPv4 address to the interface&#39;s primary IPv4 address&#34; TestTxAdvertV4OnWire adds a lower secondary 192.0.2.5/24 after the primary and requires the captured source to be the primary 192.0.2.251; TestTxAdvertV6OnWire requires the captured source to be the macvlan&#39;s link-local address; TestSendAdvertNoLinkLocalSkipsAndCounts (unchanged) is the negative. Verdict enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -2437,12 +2442,12 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go#L45" title="internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go" target="_blank" rel="noopener"><code>TestTxAdvertV4OnWire</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go#L107" title="internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go" target="_blank" rel="noopener"><code>TestTxAdvertV6OnWire</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/transport_test.go#L218" title="internal/plugins/vrrp/transport/transport_test.go" target="_blank" rel="noopener"><code>TestSendAdvertUsesParentPrimaryV4Source</code></a></td>
@@ -2454,7 +2459,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 </div>
 <h3><a href="#rfc9568-7.2-4"><code>RFC9568-7.2-4</code></a></h3>
 <p>* Set the IPvX protocol to VRRP * Send the VRRP packet to the VRRP IPvX multicast group (§7.2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire, internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV6OnWire moved. Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 9568 Section 7.2 says &#34;Set the IPvX protocol to VRRP * Send the VRRP packet to the VRRP IPvX multicast group&#34;. TestTxAdvertV4OnWire and TestSendAdvertV3IPv4HeaderTTLProtoDst changed only by the checksum-mode plumbing (a Checksum: packet.ChecksumRFC9568 field added to the GroupSpec, AdvertParams or packet.Local literal, or the mode argument added to packet.FillChecksum); every assertion and every isolating input is byte-for-byte the same; protocol 112 and 224.0.0.18 are still compared with literals. Single-polarity. Verdict unchanged.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 (independent auditor, after the user-namespace conversion): every tagged unit now opens with `if !userns.Enter(t) { return }`, which re-executes the test in its own user, network and mount namespace and carries the child&#39;s fail or skip to the parent (Enter, internal/test/userns/userns_linux.go), and the file builds under plain linux instead of integration &amp;&amp; linux. RFC 9568 Section 7.2 says &#34;Send the VRRP packet to the VRRP IPvX multicast group&#34; Both wire tests compare protocol/next header 112 and destination 224.0.0.18 / ff02::12 with literals from the captured frame. Single-polarity. Verdict enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -2462,12 +2467,12 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go#L48" title="internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go" target="_blank" rel="noopener"><code>TestTxAdvertV4OnWire</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go#L109" title="internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go" target="_blank" rel="noopener"><code>TestTxAdvertV6OnWire</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/transport_test.go#L318" title="internal/plugins/vrrp/transport/transport_test.go" target="_blank" rel="noopener"><code>TestSendAdvertV3IPv4HeaderTTLProtoDst</code></a></td>
@@ -2487,19 +2492,19 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc9568_vmac_link_local_integration_linux_test.go#L37" title="internal/plugins/vrrp/rfc9568_vmac_link_local_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPMacvlanDerivesNoLinkLocalFromVirtualMAC</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc9568_vmac_link_local_integration_linux_test.go#L36" title="internal/plugins/vrrp/rfc9568_vmac_link_local_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPMacvlanDerivesNoLinkLocalFromVirtualMAC</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc9568-8.1.1-2"><code>RFC9568-8.1.1-2</code></a></h3>
 <p>If a VRRP Router is acting as the Active Router for Virtual Router(s) containing address(es) it does not own, then it must determine to which Virtual Router the packet was sent when selecting the redirect source address. (§8.1.1; lowercase &#34;must&#34; in the RFC)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/plugins/vrrp/redirect_integration_linux_test.go::TestVRRPRedirectSourceFollowsVirtualMAC, internal/plugins/vrrp/redirect_integration_linux_test.go::TestVRRPRedirectSourceFollowsVirtualMAC#2 moved. Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 9568 Section 8.1.1 says &#34;If a VRRP Router is acting as the Active Router for Virtual Router(s) containing address(es) it does not own, then it must determine to which Virtual Router the packet was sent when selecting the redirect source address.&#34; TestVRRPRedirectSourceFollowsVirtualMAC changed only by the checksum-mode plumbing (a Checksum: packet.ChecksumRFC9568 field added to the GroupSpec, AdvertParams or packet.Local literal, or the mode argument added to packet.FillChecksum); every assertion and every isolating input is byte-for-byte the same; the redirect-source capture and its physical-MAC control are unchanged. Verdict unchanged; the guest record is owed a re-record.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 (independent auditor, after the user-namespace conversion): every tagged unit now opens with `if !userns.Enter(t) { return }`, which re-executes the test in its own user, network and mount namespace and carries the child&#39;s fail or skip to the parent (Enter, internal/test/userns/userns_linux.go), and the file builds under plain linux instead of integration &amp;&amp; linux. RFC 9568 Section 8.1.1 says &#34;If a VRRP Router is acting as the Active Router for Virtual Router(s) containing address(es) it does not own, then it must determine to which Virtual Router the packet was sent when selecting the redirect source address.&#34; TestVRRPRedirectSourceFollowsVirtualMAC, otherwise unchanged, pins the reverse route through the parent with source 192.0.2.254, then requires each of two virtual MACs to draw a redirect sourced from its own virtual address and the physical MAC to draw one from 192.0.2.254. Verdict enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -2507,19 +2512,19 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/redirect_integration_linux_test.go#L29" title="internal/plugins/vrrp/redirect_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPRedirectSourceFollowsVirtualMAC</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/redirect_integration_linux_test.go#L28" title="internal/plugins/vrrp/redirect_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPRedirectSourceFollowsVirtualMAC</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc9568-8.2.1-2"><code>RFC9568-8.2.1-2</code></a></h3>
 <p>If a VRRP Router is acting as the Active Router for Virtual Router(s) containing address(es) it does not own, then it has to determine to which Virtual Router the packet was sent when selecting the redirect source address. (§8.2.1; &#34;has to&#34; in the RFC, no BCP 14 keyword; read as the §8.1.1 &#34;must&#34; restated for IPv6)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/plugins/vrrp/redirect_v6_integration_linux_test.go::TestVRRPIPv6RedirectFollowsVirtualMAC, internal/plugins/vrrp/redirect_v6_integration_linux_test.go::TestVRRPIPv6RedirectFollowsVirtualMAC#2 moved. Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 9568 Section 8.2.1 says &#34;If a VRRP Router is acting as the Active Router for Virtual Router(s) containing address(es) it does not own, then it has to determine to which Virtual Router the packet was sent when selecting the redirect source address.&#34; TestVRRPIPv6RedirectFollowsVirtualMAC changed only by the checksum-mode plumbing (a Checksum: packet.ChecksumRFC9568 field added to the GroupSpec, AdvertParams or packet.Local literal, or the mode argument added to packet.FillChecksum); every assertion and every isolating input is byte-for-byte the same; the ICMPv6 redirect source capture and its physical-MAC control are unchanged. Verdict unchanged; the guest record is owed a re-record.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 (independent auditor, after the user-namespace conversion): every tagged unit now opens with `if !userns.Enter(t) { return }`, which re-executes the test in its own user, network and mount namespace and carries the child&#39;s fail or skip to the parent (Enter, internal/test/userns/userns_linux.go), and the file builds under plain linux instead of integration &amp;&amp; linux. RFC 9568 Section 8.2.1 says &#34;If a VRRP Router is acting as the Active Router for Virtual Router(s) containing address(es) it does not own, then it has to determine to which Virtual Router the packet was sent when selecting the redirect source address.&#34; TestVRRPIPv6RedirectFollowsVirtualMAC, otherwise unchanged, requires the ICMPv6 redirect for a datagram sent to each virtual MAC to come from a link-local held by that macvlan and by neither the other macvlan nor the parent, and the physical-MAC datagram&#39;s redirect from a parent link-local. Verdict enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -2527,19 +2532,19 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/redirect_v6_integration_linux_test.go#L40" title="internal/plugins/vrrp/redirect_v6_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPIPv6RedirectFollowsVirtualMAC</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/redirect_v6_integration_linux_test.go#L39" title="internal/plugins/vrrp/redirect_v6_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPIPv6RedirectFollowsVirtualMAC</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc9568-8.1.2-1"><code>RFC9568-8.1.2-1</code></a></h3>
 <p>The Active Router MUST NOT respond with its physical MAC address in the ARP response. (§8.1.2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly, internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly#2, internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly, internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly#2 moved. Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 9568 Section 8.1.2 says &#34;The Active Router MUST NOT respond with its physical MAC address in the ARP response.&#34; TestVRRPOwnerAnswersWithVirtualMACOnly changed only by the checksum-mode plumbing (a Checksum: packet.ChecksumRFC9568 field added to the GroupSpec, AdvertParams or packet.Local literal, or the mode argument added to packet.FillChecksum); every assertion and every isolating input is byte-for-byte the same; the ARP captures with and without the owner filter are unchanged. Verdict unchanged; the guest record is owed a re-record.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 (independent auditor, after the user-namespace conversion): every tagged unit now opens with `if !userns.Enter(t) { return }`, which re-executes the test in its own user, network and mount namespace and carries the child&#39;s fail or skip to the parent (Enter, internal/test/userns/userns_linux.go), and the file builds under plain linux instead of integration &amp;&amp; linux. RFC 9568 Section 8.1.2 says &#34;The Active Router MUST NOT respond with its physical MAC address in the ARP response.&#34; TestVRRPOwnerAnswersWithVirtualMACOnly (owner case; its helper ownerAwaitUsable now also syncs the macvlan receive filter before probing, outside the unit) sees the physical MAC as ARP sender hardware address without the owner filter, only the virtual MAC with it, and the physical MAC again once withdrawn; TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly gives the non-owner case with the recipe as control. ownerExpect fails on any MAC other than the two and requires the virtual MAC in every phase. The owner unit still t.Skipf&#39;s when the nft backend cannot load, as before. Verdict enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -2552,7 +2557,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/owner_answer_integration_linux_test.go#L51" title="internal/plugins/vrrp/owner_answer_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPOwnerAnswersWithVirtualMACOnly</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/ownerfilter_test.go#L179" title="internal/plugins/vrrp/ownerfilter_test.go" target="_blank" rel="noopener"><code>TestOwnerFilterWiredOnPromotionForEveryFamily</code></a></td>
@@ -2562,7 +2567,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/vmac_state_integration_linux_test.go#L62" title="internal/plugins/vrrp/vmac_state_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L73" title="internal/plugins/vrrp/dataplane_linux_test.go" target="_blank" rel="noopener"><code>TestDataplaneApplyIPv4SetsRecipe</code></a></td>
@@ -2572,7 +2577,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/owner_answer_integration_linux_test.go#L50" title="internal/plugins/vrrp/owner_answer_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPOwnerAnswersWithVirtualMACOnly</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/ownerfilter_test.go#L178" title="internal/plugins/vrrp/ownerfilter_test.go" target="_blank" rel="noopener"><code>TestOwnerFilterWiredOnPromotionForEveryFamily</code></a></td>
@@ -2582,14 +2587,14 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/vmac_state_integration_linux_test.go#L61" title="internal/plugins/vrrp/vmac_state_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc9568-8.1.2-6"><code>RFC9568-8.1.2-6</code></a></h3>
 <p>When a host sends an ARP request for one of the Virtual Router IPv4 addresses, the Active Router MUST respond to the ARP request with an ARP response that indicates the Virtual Router MAC address for the Virtual Router. (§8.1.2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly, internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly#2, internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly, internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly#2 moved. Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 9568 Section 8.1.2 says &#34;When a host sends an ARP request for one of the Virtual Router IPv4 addresses, the Active Router MUST respond to the ARP request with an ARP response that indicates the Virtual Router MAC address for the Virtual Router.&#34; TestVRRPOwnerAnswersWithVirtualMACOnly changed only by the checksum-mode plumbing (a Checksum: packet.ChecksumRFC9568 field added to the GroupSpec, AdvertParams or packet.Local literal, or the mode argument added to packet.FillChecksum); every assertion and every isolating input is byte-for-byte the same; the ARP captures with and without the owner filter are unchanged. Verdict unchanged; the guest record is owed a re-record.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 (independent auditor, after the user-namespace conversion): every tagged unit now opens with `if !userns.Enter(t) { return }`, which re-executes the test in its own user, network and mount namespace and carries the child&#39;s fail or skip to the parent (Enter, internal/test/userns/userns_linux.go), and the file builds under plain linux instead of integration &amp;&amp; linux. RFC 9568 Section 8.1.2 says &#34;the Active Router MUST respond to the ARP request with an ARP response that indicates the Virtual Router MAC address for the Virtual Router.&#34; TestVRRPOwnerAnswersWithVirtualMACOnly (owner case; its helper ownerAwaitUsable now also syncs the macvlan receive filter before probing, outside the unit) sees the physical MAC as ARP sender hardware address without the owner filter, only the virtual MAC with it, and the physical MAC again once withdrawn; TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly gives the non-owner case with the recipe as control. ownerExpect fails on any MAC other than the two and requires the virtual MAC in every phase. The owner unit still t.Skipf&#39;s when the nft backend cannot load, as before. Verdict enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -2597,22 +2602,22 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/owner_answer_integration_linux_test.go#L57" title="internal/plugins/vrrp/owner_answer_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPOwnerAnswersWithVirtualMACOnly</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/vmac_state_integration_linux_test.go#L70" title="internal/plugins/vrrp/vmac_state_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/owner_answer_integration_linux_test.go#L56" title="internal/plugins/vrrp/owner_answer_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPOwnerAnswersWithVirtualMACOnly</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/vmac_state_integration_linux_test.go#L69" title="internal/plugins/vrrp/vmac_state_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -2635,7 +2640,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L772" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceDelaysAnnounceUntilParentUsable</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L790" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceDelaysAnnounceUntilParentUsable</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -2650,7 +2655,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L771" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceDelaysAnnounceUntilParentUsable</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L789" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceDelaysAnnounceUntilParentUsable</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -2679,7 +2684,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 </div>
 <h3><a href="#rfc9568-8.2.2-1"><code>RFC9568-8.2.2-1</code></a></h3>
 <p>The Active Router MUST NOT respond with its physical MAC address. (§8.2.2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/plugins/vrrp/nd_nonowner_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly, internal/plugins/vrrp/nd_nonowner_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly#2, internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly, internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly#2 moved. Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 9568 Section 8.2.2 says &#34;The Active Router MUST NOT respond with its physical MAC address.&#34; TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly and TestVRRPOwnerAnswersWithVirtualMACOnly changed only by the checksum-mode plumbing (a Checksum: packet.ChecksumRFC9568 field added to the GroupSpec, AdvertParams or packet.Local literal, or the mode argument added to packet.FillChecksum); every assertion and every isolating input is byte-for-byte the same; the Neighbor Advertisement captures and their physical-MAC controls are unchanged. Verdict unchanged; the guest records are owed a re-record.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 (independent auditor, after the user-namespace conversion): every tagged unit now opens with `if !userns.Enter(t) { return }`, which re-executes the test in its own user, network and mount namespace and carries the child&#39;s fail or skip to the parent (Enter, internal/test/userns/userns_linux.go), and the file builds under plain linux instead of integration &amp;&amp; linux. RFC 9568 Section 8.2.2 says &#34;The Active Router MUST NOT respond with its physical MAC address.&#34; TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly, otherwise unchanged, sees the physical MAC in the Target Link-Layer Address option with the address on the parent, only the virtual MAC once it lives on the macvlan, and no advertisement once removed; TestVRRPOwnerAnswersWithVirtualMACOnly gives the owner case with and without the owner filter. Verdict enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -2692,7 +2697,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/owner_answer_integration_linux_test.go#L55" title="internal/plugins/vrrp/owner_answer_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPOwnerAnswersWithVirtualMACOnly</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/ownerfilter_test.go#L175" title="internal/plugins/vrrp/ownerfilter_test.go" target="_blank" rel="noopener"><code>TestOwnerFilterWiredOnPromotionForEveryFamily</code></a></td>
@@ -2700,7 +2705,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L726" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceIPv6VIPLivesOnVirtualMACDevice</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L744" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceIPv6VIPLivesOnVirtualMACDevice</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -2712,7 +2717,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/owner_answer_integration_linux_test.go#L54" title="internal/plugins/vrrp/owner_answer_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPOwnerAnswersWithVirtualMACOnly</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/ownerfilter_test.go#L174" title="internal/plugins/vrrp/ownerfilter_test.go" target="_blank" rel="noopener"><code>TestOwnerFilterWiredOnPromotionForEveryFamily</code></a></td>
@@ -2748,7 +2753,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L775" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceDelaysAnnounceUntilParentUsable</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L793" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceDelaysAnnounceUntilParentUsable</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -2763,7 +2768,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L773" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceDelaysAnnounceUntilParentUsable</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L791" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceDelaysAnnounceUntilParentUsable</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -2772,7 +2777,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 </div>
 <h3><a href="#rfc9568-8.2.2-8"><code>RFC9568-8.2.2-8</code></a></h3>
 <p>When a host sends an ND Neighbor Solicitation message for a Virtual Router IPv6 address, the Active Router MUST respond to the ND Neighbor Solicitation message with the Virtual Router MAC address for the Virtual Router. (§8.2.2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/plugins/vrrp/nd_nonowner_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly, internal/plugins/vrrp/nd_nonowner_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly#2, internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly, internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly#2 moved. Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 9568 Section 8.2.2 says &#34;When a host sends an ND Neighbor Solicitation message for a Virtual Router IPv6 address, the Active Router MUST respond to the ND Neighbor Solicitation message with the Virtual Router MAC address for the Virtual Router.&#34; TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly and TestVRRPOwnerAnswersWithVirtualMACOnly changed only by the checksum-mode plumbing (a Checksum: packet.ChecksumRFC9568 field added to the GroupSpec, AdvertParams or packet.Local literal, or the mode argument added to packet.FillChecksum); every assertion and every isolating input is byte-for-byte the same; the Neighbor Advertisement captures and their physical-MAC controls are unchanged. Verdict unchanged; the guest records are owed a re-record.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 (independent auditor, after the user-namespace conversion): every tagged unit now opens with `if !userns.Enter(t) { return }`, which re-executes the test in its own user, network and mount namespace and carries the child&#39;s fail or skip to the parent (Enter, internal/test/userns/userns_linux.go), and the file builds under plain linux instead of integration &amp;&amp; linux. RFC 9568 Section 8.2.2 says &#34;the Active Router MUST respond to the ND Neighbor Solicitation message with the Virtual Router MAC address for the Virtual Router.&#34; TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly, otherwise unchanged, sees the physical MAC in the Target Link-Layer Address option with the address on the parent, only the virtual MAC once it lives on the macvlan, and no advertisement once removed; TestVRRPOwnerAnswersWithVirtualMACOnly gives the owner case with and without the owner filter. Verdict enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -2780,12 +2785,12 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/nd_nonowner_integration_linux_test.go#L37" title="internal/plugins/vrrp/nd_nonowner_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/owner_answer_integration_linux_test.go#L63" title="internal/plugins/vrrp/owner_answer_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPOwnerAnswersWithVirtualMACOnly</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/nd_nonowner_integration_linux_test.go#L36" title="internal/plugins/vrrp/nd_nonowner_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly</code></a></td>
@@ -2795,7 +2800,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/owner_answer_integration_linux_test.go#L62" title="internal/plugins/vrrp/owner_answer_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPOwnerAnswersWithVirtualMACOnly</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -2838,7 +2843,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 </div>
 <h3><a href="#rfc9568-8.1.1-1"><code>RFC9568-8.1.1-1</code></a></h3>
 <p>The IPv4 source address of an ICMP redirect should be the address that the end-host used when making its next-hop routing decision. (§8.1.1; lowercase &#34;should&#34; in the RFC)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/plugins/vrrp/redirect_integration_linux_test.go::TestVRRPRedirectSourceFollowsVirtualMAC, internal/plugins/vrrp/redirect_integration_linux_test.go::TestVRRPRedirectSourceFollowsVirtualMAC#2 moved. Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 9568 Section 8.1.1 says &#34;The IPv4 source address of an ICMP redirect should be the address that the end-host used when making its next-hop routing decision.&#34; TestVRRPRedirectSourceFollowsVirtualMAC changed only by the checksum-mode plumbing (a Checksum: packet.ChecksumRFC9568 field added to the GroupSpec, AdvertParams or packet.Local literal, or the mode argument added to packet.FillChecksum); every assertion and every isolating input is byte-for-byte the same; the redirect-source capture and its physical-MAC control are unchanged. Verdict unchanged; the guest record is owed a re-record.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 (independent auditor, after the user-namespace conversion): every tagged unit now opens with `if !userns.Enter(t) { return }`, which re-executes the test in its own user, network and mount namespace and carries the child&#39;s fail or skip to the parent (Enter, internal/test/userns/userns_linux.go), and the file builds under plain linux instead of integration &amp;&amp; linux. RFC 9568 Section 8.1.1 says &#34;The IPv4 source address of an ICMP redirect should be the address that the end-host used when making its next-hop routing decision.&#34; TestVRRPRedirectSourceFollowsVirtualMAC, otherwise unchanged, pins the reverse route through the parent with source 192.0.2.254, then requires each of two virtual MACs to draw a redirect sourced from its own virtual address and the physical MAC to draw one from 192.0.2.254. Verdict enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -2846,12 +2851,12 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/redirect_integration_linux_test.go#L31" title="internal/plugins/vrrp/redirect_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPRedirectSourceFollowsVirtualMAC</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/redirect_integration_linux_test.go#L30" title="internal/plugins/vrrp/redirect_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPRedirectSourceFollowsVirtualMAC</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -2866,12 +2871,12 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc9568_vmac_link_local_integration_linux_test.go#L98" title="internal/plugins/vrrp/rfc9568_vmac_link_local_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPIPv6RedirectSourcedFromVirtualLinkLocal</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc9568_vmac_link_local_integration_linux_test.go#L97" title="internal/plugins/vrrp/rfc9568_vmac_link_local_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPIPv6RedirectSourcedFromVirtualLinkLocal</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -3504,7 +3509,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 29 October 2026 11:10 UTC</span>
+                    <span class="footer-published">Published 30 October 2026 23:25 UTC</span>
                 </div>
             </div>
         </footer>

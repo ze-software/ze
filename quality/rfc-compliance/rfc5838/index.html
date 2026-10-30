@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 5838 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 5838: Support of Address Families in OSPFv3. 16 gated MUST-level requirements, 8 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 5838: Support of Address Families in OSPFv3. 16 gated MUST-level requirements, 10 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 5838 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 5838: Support of Address Families in OSPFv3. 16 gated MUST-level requirements, 8 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 5838: Support of Address Families in OSPFv3. 16 gated MUST-level requirements, 10 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 5838 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 5838: Support of Address Families in OSPFv3. 16 gated MUST-level requirements, 8 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 5838: Support of Address Families in OSPFv3. 16 gated MUST-level requirements, 10 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -122,14 +122,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>6.2%</strong><b>1 of 16 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 16 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 16 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>82.4%</strong><b>14 of 17 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>76.5%</strong><b>13 of 17 tagged units, 0 escaped and 1 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>16</strong><b>of 27 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>2</strong><b>of 16 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>12.5%</strong><b>2 of 16 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 16 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 16 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 16 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 16 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0.0%</strong><b>0 of 16 gated MUSTs</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit</p></article>
@@ -137,7 +137,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>50.0%</strong><b>8 of 16 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>62.5%</strong><b>10 of 16 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 </div>
 <p>The 9 shares marked as a part above are the whole of the 16 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -221,10 +221,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>16</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
-<td>2</td>
+<td>0</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>8</td>
+<td>10</td>
 </tr>
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
@@ -261,7 +261,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Enrolled: Support of Address Families in OSPFv3 (RFC 5838): 4 MET (non-default-AF AF-bit discard + base-AF ignore, AF-conformance route-computation gate, IPv4 forwarding-address AF-width, global-IPv6 virtual-link endpoints) + 2 single-polarity positive (base-AF no-reject path, IPv4 forwarding-address remaining-bits-zero) + 8 gap (AF-bit not set in LSAs, IPv4 Link-LSA link-local, section 2.7 per-AF MTU / M6-bit machinery) + 2 not-applicable (IPsec restricted to default IPv6-unicast AF, IANA 128-255 Standards-Action process)</p>
+<p>Enrolled: Support of Address Families in OSPFv3 (RFC 5838): 4 MET (non-default-AF AF-bit discard + base-AF ignore, AF-conformance route-computation gate, IPv4 forwarding-address AF-width, global-IPv6 virtual-link endpoints) + 2 single-polarity positive (base-AF no-reject path, IPv4 forwarding-address remaining-bits-zero) + 10 gap (AF-bit not set in LSAs, IPv4 Link-LSA link-local, section 2.7 per-AF MTU / M6-bit machinery, the shared interface SA ze meets with no test, the IANA 128-255 Standards-Action process)</p>
 </section>
 <section><h2>What the public ledger says</h2>
 <p><strong>Status:</strong> Experimental</p>
@@ -272,7 +272,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </ul>
 </details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
-Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc5838.md" target="_blank" rel="noopener"><code>rfc/short/rfc5838.md</code></a>: the AF-bit is not set in originated LSAs (<a href="#rfc5838-2.2-1"><code>RFC5838-2.2-1</code></a>); an IPv4-AF Link-LSA carries no IPv4 link-local address (<a href="#rfc5838-2.5-1"><code>RFC5838-2.5-1</code></a>); and the RFC 5838 §2.7 per-address-family MTU handling is unimplemented -- no separate AF-versus-IPv6 MTU, no IPv4 interface MTU, and no M6-bit (<a href="#rfc5838-2.7-1"><code>RFC5838-2.7-1</code></a>, 2.7-2, 2.7-3, 2.7-4, 2.7-8, 2.7-11). Feature remains under OSPF experimental status.
+Ten MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc5838.md" target="_blank" rel="noopener"><code>rfc/short/rfc5838.md</code></a>: no test shows every OSPFv3 instance on an interface shares the one SA (<a href="#rfc5838-4-1"><code>RFC5838-4-1</code></a>) or ties ze&#39;s Instance ID refusal to the IANA rule (<a href="#rfc5838-5-3"><code>RFC5838-5-3</code></a>); the AF-bit is not set in originated LSAs (<a href="#rfc5838-2.2-1"><code>RFC5838-2.2-1</code></a>); an IPv4-AF Link-LSA carries no IPv4 link-local address (<a href="#rfc5838-2.5-1"><code>RFC5838-2.5-1</code></a>); and the RFC 5838 §2.7 per-address-family MTU handling is unimplemented -- no separate AF-versus-IPv6 MTU, no IPv4 interface MTU, and no M6-bit (<a href="#rfc5838-2.7-1"><code>RFC5838-2.7-1</code></a>, 2.7-2, 2.7-3, 2.7-4, 2.7-8, 2.7-11). Feature remains under OSPF experimental status.
 </details>
 </section>
 <section><h2>Coverage</h2>
@@ -316,7 +316,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <p class="rfc-id-list"><strong>Annotated (including scoped evidence) (11):</strong> <a href="#rfc5838-2.2-1"><code>RFC5838-2.2-1</code></a>, <a href="#rfc5838-2.4-2"><code>RFC5838-2.4-2</code></a>, <a href="#rfc5838-2.5-1"><code>RFC5838-2.5-1</code></a>, <a href="#rfc5838-2.7-1"><code>RFC5838-2.7-1</code></a>, <a href="#rfc5838-2.7-2"><code>RFC5838-2.7-2</code></a>, <a href="#rfc5838-2.7-3"><code>RFC5838-2.7-3</code></a>, <a href="#rfc5838-2.7-4"><code>RFC5838-2.7-4</code></a>, <a href="#rfc5838-2.7-8"><code>RFC5838-2.7-8</code></a>, <a href="#rfc5838-2.7-11"><code>RFC5838-2.7-11</code></a>, <a href="#rfc5838-4-1"><code>RFC5838-4-1</code></a>, <a href="#rfc5838-5-3"><code>RFC5838-5-3</code></a></p>
 </section>
 <section><h2>Attainable ceiling</h2>
-<p>Mandatory ceiling: 14 of 16 (87.5%); excluded: Not applicable (classification can be revisited): 2 of 16 (12.5%). Optional ceiling: 11 of 11 (100.0%). Lowest mandatory ceiling: rfc5838 14 of 16 (87.5%). Lowest optional ceiling: rfc5838 11 of 11 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.</p>
+<p>Mandatory ceiling: 16 of 16 (100.0%). Optional ceiling: 11 of 11 (100.0%). Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: rfc5838 16 of 16 (100.0%). Lowest optional ceiling: rfc5838 11 of 11 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.</p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -462,7 +462,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5838-4-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze runs OSPFv3 IPsec on the default IPv6-unicast AF only -- validateConfigAF at config.go:907-909 rejects an ipsec block on any non-IPv6 family -- so multiple AF instances never share an interface SA and the requirement&#39;s precondition never arises</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> gap in proof: internal/plugins/ospf/ipsec_install.go::buildIPsecPolicies meets it, since the policy selects on upper-protocol 89 and the interface alone, never on the Instance ID, so every OSPFv3 instance on an interface uses the one SA, and validateConfigAF accepts an ipsec block only on the IPv6-unicast family; no test asserts it</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5838-5-3">RFC5838-5-3</code></td><td colspan="3"><span class="rfc-subject">Instance IDs in the range 128-255 are not assigned at this time. Before any assignments can be made in this range, there MUST be a Standards Track RFC including an IANA Considerations section explicitly specifying the AF Instance IDs being assigned. (§5)</span></td></tr>
 <tr><td></td>
@@ -471,7 +471,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5838-5-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> this binds the IANA registration process, not an implementation; ze has no code path that assigns AF Instance IDs and it rejects Instance IDs above 127 for AF use at multiaf.go:71 and via ErrInstanceIDRange in config.go</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> an IANA assignment rule with no implementer role the RFC names; ze assigns no AF Instance ID and refuses one above 127 for AF use (internal/plugins/ospf/multiaf.go, ErrInstanceIDRange in config.go), and no test ties that refusal to this requirement</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5838-2.5-2">RFC5838-2.5-2</code></td><td colspan="3"><span class="rfc-subject">An implementation SHOULD resolve layer 3 to layer 2 mappings via the Address Resolution Protocol (ARP) [ARP] or Neighbor Discovery (ND) [ND] for a DIA even if the IPv4 address is not on the same subnet as the router&#39;s interface IP address. (§2.5)</span></td></tr>
 <tr><td></td>
@@ -614,12 +614,12 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>ze neither sets nor reads the M6-bit and performs only the single-MTU check at neighbor/dd.go:45, so the M6-conditioned suppression of an IPv6-MTU comparison is unimplemented</td>
 </tr>
 <tr><td><a href="#rfc5838-4-1"><code>RFC5838-4-1</code></a> When multiple OSPFv3 instances use the same interface, they all MUST use the same Security Association (SA), since the SA selectors do not provide selection based on data in OSPFv3 Header fields (e.g., the Instance ID). (§4)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: ze runs OSPFv3 IPsec on the default IPv6-unicast AF only -- validateConfigAF at config.go:907-909 rejects an ipsec block on any non-IPv6 family -- so multiple AF instances never share an interface SA and the requirement&#39;s precondition never arises</td>
+<td>{gap}, no test</td>
+<td>gap in proof: internal/plugins/ospf/ipsec_install.go::buildIPsecPolicies meets it, since the policy selects on upper-protocol 89 and the interface alone, never on the Instance ID, so every OSPFv3 instance on an interface uses the one SA, and validateConfigAF accepts an ipsec block only on the IPv6-unicast family; no test asserts it</td>
 </tr>
 <tr><td><a href="#rfc5838-5-3"><code>RFC5838-5-3</code></a> Instance IDs in the range 128-255 are not assigned at this time. Before any assignments can be made in this range, there MUST be a Standards Track RFC including an IANA Considerations section explicitly specifying the AF Instance IDs being assigned. (§5)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: this binds the IANA registration process, not an implementation; ze has no code path that assigns AF Instance IDs and it rejects Instance IDs above 127 for AF use at multiaf.go:71 and via ErrInstanceIDRange in config.go</td>
+<td>{gap}, no test</td>
+<td>an IANA assignment rule with no implementer role the RFC names; ze assigns no AF Instance ID and refuses one above 127 for AF use (internal/plugins/ospf/multiaf.go, ErrInstanceIDRange in config.go), and no test ties that refusal to this requirement</td>
 </tr>
 </tbody>
 </table>
@@ -641,7 +641,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_af_test.go#L117" title="internal/plugins/ospf/rfc5838_af_test.go" target="_blank" rel="noopener"><code>TestRFC5838NonConformingExternalPrefixNotInRouteComputation</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_af_test.go#L93" title="internal/plugins/ospf/rfc5838_af_test.go" target="_blank" rel="noopener"><code>TestRFC5838NonConformingInterAreaPrefixNotInRouteComputation</code></a></td>
@@ -1016,7 +1016,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 19:30 UTC</span>
+                    <span class="footer-published">Published 30 October 2026 23:25 UTC</span>
                 </div>
             </div>
         </footer>

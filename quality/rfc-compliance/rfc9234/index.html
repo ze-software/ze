@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 9234 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 9234: Route Leak Prevention and Detection Using Roles in UPDATE and OPEN Messages. 19 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 9234: Route Leak Prevention and Detection Using Roles in UPDATE and OPEN Messages. 19 gated MUST-level requirements, 3 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 9234 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 9234: Route Leak Prevention and Detection Using Roles in UPDATE and OPEN Messages. 19 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 9234: Route Leak Prevention and Detection Using Roles in UPDATE and OPEN Messages. 19 gated MUST-level requirements, 3 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 9234 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 9234: Route Leak Prevention and Detection Using Roles in UPDATE and OPEN Messages. 19 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 9234: Route Leak Prevention and Detection Using Roles in UPDATE and OPEN Messages. 19 gated MUST-level requirements, 3 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -45,7 +45,7 @@
         <main id="top" class="has-page-sidebar" tabindex="-1">
             <section aria-labeledby="rfc-detail-title" class="md-content reveal cat-observe">
 <div class="journey-hero reveal">
-    <span class="journey-eyebrow">Supported</span>
+    <span class="journey-eyebrow">Partial</span>
     <h1 id="rfc-detail-title">RFC 9234 - Route Leak Prevention and Detection Using Roles in UPDATE and OPEN Messages</h1>
     <p>Every requirement this repository extracted from RFC 9234, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.</p>
 </div>
@@ -122,18 +122,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>15.8%</strong><b>3 of 19 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 19 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 19 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 19 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>27.3%</strong><b>18 of 66 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>19.7%</strong><b>13 of 66 tagged units, 0 escaped and 5 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>19</strong><b>of 24 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>3</strong><b>of 19 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>15.8%</strong><b>3 of 19 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 19 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 19 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 19 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 19 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0.0%</strong><b>0 of 19 gated MUSTs</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit</p></article>
+</div>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>15.8%</strong><b>3 of 19 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 </div>
 <p>The 9 shares marked as a part above are the whole of the 19 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -167,7 +171,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
 </tr>
 <tr><td>No test at all</td>
-<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
 </tr>
 <tr><td>Not applicable</td>
@@ -205,7 +209,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Field</th><th>Value</th></tr></thead>
 <tbody>
 <tr><td>Public status</td>
-<td>Supported</td>
+<td>Partial</td>
 </tr>
 <tr><td>Enrolment</td>
 <td>Enrolled</td>
@@ -217,10 +221,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>19</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
-<td>3</td>
+<td>0</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>0</td>
+<td>3</td>
 </tr>
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
@@ -257,15 +261,15 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Enrolled: BGP Open Policy / Roles + Only-To-Customer OTC attribute (RFC 9234): role plugin. 13 MET (Role capability advertise, Table-2 pair correspondence + code-2/subcode-11 Role Mismatch, OTC ingress leak rules for Customer/RS-Client/Peer, ingress/egress stamping, no-propagate-upstream, preserve-unchanged, unicast-only, Gao-Rexford prohibition, malformed-OTC treat-as-withdraw) + 3 single-polarity positive (one Role capability per peer, egress stamp uses internet-facing local AS, OTC procedures non-overridable) + 3 not-applicable (no AS Confederation, no Complex peering)</p>
+<p>Enrolled: BGP Open Policy / Roles + Only-To-Customer OTC attribute (RFC 9234): role plugin. 13 MET (Role capability advertise, Table-2 pair correspondence + code-2/subcode-11 Role Mismatch, OTC ingress leak rules for Customer/RS-Client/Peer, ingress/egress stamping, no-propagate-upstream, preserve-unchanged, unicast-only, Gao-Rexford prohibition, malformed-OTC treat-as-withdraw) + 3 single-polarity positive (one Role capability per peer, egress stamp uses internet-facing local AS, OTC procedures non-overridable) + 3 gaps (no AS Confederation for 5-7 and 5-8, no refusal of a role on a Complex peering for 6-1)</p>
 </section>
 <section><h2>What the public ledger says</h2>
-<p><strong>Status:</strong> Supported</p>
+<p><strong>Status:</strong> Partial</p>
 <details class="rfc-fold"><summary>What the ledger says is covered</summary>
 Role capability negotiation, role mismatch NOTIFICATION, OTC egress stamping, OTC ingress leak detection and treat-as-withdraw, unicast-only (AFI 1/2, SAFI 1) OTC scoping read from MP_REACH_NLRI or, for a withdrawal, MP_UNREACH_NLRI. Both stamping rules are conditioned on the UPDATE advertising reachable NLRI, per Section 5&#39;s &#34;if a route is to be advertised&#34; / &#34;if a route is received&#34;, so a withdrawal, an MP_UNREACH-only UPDATE and an End-of-RIB marker (both RFC 4724 encodings, which an added attribute would stop being a marker at all) are never stamped (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc.go" target="_blank" rel="noopener"><code>internal/component/bgp/plugins/role/otc.go</code></a> <code>payloadAdvertisesNLRI</code>, <code>isPayloadUnicast</code>).
 </details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
-No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a href="https://github.com/ze-software/ze/blob/main/test/plugin/role-otc-fwd-withdraw.ci" target="_blank" rel="noopener"><code>test/plugin/role-otc-fwd-withdraw.ci</code></a> asserts byte for byte that a withdraw-only UPDATE relayed to a Customer leaves the wire with <code>attrLen=0000</code> and no attribute of any code, <a href="https://github.com/ze-software/ze/blob/main/test/plugin/role-otc-rs-withdraw-eor.ci" target="_blank" rel="noopener"><code>test/plugin/role-otc-rs-withdraw-eor.ci</code></a> does the same for an End-of-RIB marker, and <code>test/interop/scenarios/bgp-role-otc-withdraw-frr</code> runs a conforming FRR 10.3.1 receiver against the shape RFC 7606 Section 5.2 escalates to &#34;session reset&#34;. The producer all three drive is <code>payloadAdvertisesNLRI</code> in <a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc.go" target="_blank" rel="noopener"><code>internal/component/bgp/plugins/role/otc.go</code></a>.
+Three MUST gaps in the requirement checklist: ze implements no AS Confederation, so no confederation egress stamps the Confederation Identifier or strips a Member-AS OTC value (<a href="#rfc9234-5-7"><code>RFC9234-5-7</code></a>, 5-8), and no operator documentation states that a role must not be configured on a Complex eBGP session (<a href="#rfc9234-6-1"><code>RFC9234-6-1</code></a>). The coverage gap disclosed here until 2026-08-05 is closed: <a href="https://github.com/ze-software/ze/blob/main/test/plugin/role-otc-fwd-withdraw.ci" target="_blank" rel="noopener"><code>test/plugin/role-otc-fwd-withdraw.ci</code></a> asserts byte for byte that a withdraw-only UPDATE relayed to a Customer leaves the wire with <code>attrLen=0000</code> and no attribute of any code, <a href="https://github.com/ze-software/ze/blob/main/test/plugin/role-otc-rs-withdraw-eor.ci" target="_blank" rel="noopener"><code>test/plugin/role-otc-rs-withdraw-eor.ci</code></a> does the same for an End-of-RIB marker, and <code>test/interop/scenarios/bgp-role-otc-withdraw-frr</code> runs a conforming FRR 10.3.1 receiver against the shape RFC 7606 Section 5.2 escalates to &#34;session reset&#34;. The producer all three drive is <code>payloadAdvertisesNLRI</code> in <a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc.go" target="_blank" rel="noopener"><code>internal/component/bgp/plugins/role/otc.go</code></a>.
 </details>
 </section>
 <section><h2>Coverage</h2>
@@ -309,7 +313,7 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 <p class="rfc-id-list"><strong>Annotated (including scoped evidence) (6):</strong> <a href="#rfc9234-4.1-2"><code>RFC9234-4.1-2</code></a>, <a href="#rfc9234-5-7"><code>RFC9234-5-7</code></a>, <a href="#rfc9234-5-8"><code>RFC9234-5-8</code></a>, <a href="#rfc9234-5-9"><code>RFC9234-5-9</code></a>, <a href="#rfc9234-5-11"><code>RFC9234-5-11</code></a>, <a href="#rfc9234-6-1"><code>RFC9234-6-1</code></a></p>
 </section>
 <section><h2>Attainable ceiling</h2>
-<p>Mandatory ceiling: 16 of 19 (84.2%); excluded: Not applicable (classification can be revisited): 3 of 19 (15.8%). Optional ceiling: 5 of 5 (100.0%). Lowest mandatory ceiling: rfc9234 16 of 19 (84.2%). Lowest optional ceiling: rfc9234 5 of 5 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.</p>
+<p>Mandatory ceiling: 19 of 19 (100.0%). Optional ceiling: 5 of 5 (100.0%). Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: rfc9234 19 of 19 (100.0%). Lowest optional ceiling: rfc9234 5 of 5 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.</p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -449,7 +453,7 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9234-5-7">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze does not operate as an AS Confederation (no confederation-identifier or member-AS config exists anywhere in config or the role plugin); the egress OTC stamp at internal/component/bgp/plugins/role/otc.go:432 uses only dest.LocalAS, so there is no confederation egress boundary at which a confederation identifier could be stamped</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze implements no AS Confederation and no owner decision declines it: no confederation-identifier or member-AS leaf exists in the BGP YANG, and the egress OTC stamp (internal/component/bgp/plugins/role/otc.go) uses only the destination&#39;s local AS, so no confederation egress stamps the Confederation Identifier</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9234-5-8">RFC9234-5-8</code></td><td colspan="3"><span class="rfc-subject">Also, on egress from the AS Confederation, an UPDATE MUST NOT contain an OTC Attribute with a value corresponding to any Member-AS Number other than the AS Confederation Identifier. (S5)</span></td></tr>
 <tr><td></td>
@@ -458,7 +462,7 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9234-5-8">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze has no AS Confederation membership (no member-AS or confederation-identifier config); the egress OTC stamp at internal/component/bgp/plugins/role/otc.go:432 uses only dest.LocalAS, so an UPDATE never carries a member-AS OTC value at a confederation boundary</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze implements no AS Confederation and no owner decision declines it: with no member-AS or confederation-identifier configuration, internal/component/bgp/plugins/role/otc.go has no confederation egress boundary at which to strip a Member-AS OTC value</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9234-5-9">RFC9234-5-9</code></td><td colspan="3"><span class="rfc-subject">On egress from the Internet- facing AS, the OTC Attribute MUST NOT contain a value other than the Internet-facing ASN. (S5)</span></td></tr>
 <tr><td></td>
@@ -498,7 +502,7 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9234-6-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze has no representation of a Complex peering relationship; parseRoleContainer (internal/component/bgp/plugins/role/config.go:66) parses one role per peer with no relationship-complexity classification, so there is no ze code path that could place a role on a complex session to guard against</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> this MUST binds the operator&#39;s configuration, and ze cannot know whether a peering relationship is Complex (internal/component/bgp/plugins/role/config.go::parseRoleContainer reads one role per peer). What is owed is operator documentation stating that a role must not be configured on a Complex eBGP session, and no test asserts that the documentation carries it</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9234-3.1-1">RFC9234-3.1-1</code></td><td colspan="3"><span class="rfc-subject">Customer: MAY propagate any route learned from a Customer, or that is locally originated, to a Provider. All other routes MUST NOT be propagated. Route Server (RS): MAY propagate any available route to a Route Server Client (RS-Client). Route Server Client (RS-Client): MAY propagate any route learned from a Customer, or that is locally originated, to an RS. All other routes MUST NOT be propagated. Peer: MAY propagate any route learned from a Customer, or that is locally originated, to a Peer. All other routes MUST NOT be propagated. (§3.1)</span></td></tr>
 <tr><td></td>
@@ -577,16 +581,16 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
 <tr><td><a href="#rfc9234-5-7"><code>RFC9234-5-7</code></a> If an OTC Attribute is added on egress from the AS Confederation, its value MUST equal the AS Confederation Identifier. (S5)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: ze does not operate as an AS Confederation (no confederation-identifier or member-AS config exists anywhere in config or the role plugin); the egress OTC stamp at internal/component/bgp/plugins/role/otc.go:432 uses only dest.LocalAS, so there is no confederation egress boundary at which a confederation identifier could be stamped</td>
+<td>{gap}, no test</td>
+<td>ze implements no AS Confederation and no owner decision declines it: no confederation-identifier or member-AS leaf exists in the BGP YANG, and the egress OTC stamp (internal/component/bgp/plugins/role/otc.go) uses only the destination&#39;s local AS, so no confederation egress stamps the Confederation Identifier</td>
 </tr>
 <tr><td><a href="#rfc9234-5-8"><code>RFC9234-5-8</code></a> Also, on egress from the AS Confederation, an UPDATE MUST NOT contain an OTC Attribute with a value corresponding to any Member-AS Number other than the AS Confederation Identifier. (S5)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: ze has no AS Confederation membership (no member-AS or confederation-identifier config); the egress OTC stamp at internal/component/bgp/plugins/role/otc.go:432 uses only dest.LocalAS, so an UPDATE never carries a member-AS OTC value at a confederation boundary</td>
+<td>{gap}, no test</td>
+<td>ze implements no AS Confederation and no owner decision declines it: with no member-AS or confederation-identifier configuration, internal/component/bgp/plugins/role/otc.go has no confederation egress boundary at which to strip a Member-AS OTC value</td>
 </tr>
 <tr><td><a href="#rfc9234-6-1"><code>RFC9234-6-1</code></a> Roles MUST NOT be configured on an eBGP session with a Complex peering relationship. (S6)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: ze has no representation of a Complex peering relationship; parseRoleContainer (internal/component/bgp/plugins/role/config.go:66) parses one role per peer with no relationship-complexity classification, so there is no ze code path that could place a role on a complex session to guard against</td>
+<td>{gap}, no test</td>
+<td>this MUST binds the operator&#39;s configuration, and ze cannot know whether a peering relationship is Complex (internal/component/bgp/plugins/role/config.go::parseRoleContainer reads one role per peer). What is owed is operator documentation stating that a role must not be configured on a Complex eBGP session, and no test asserts that the documentation carries it</td>
 </tr>
 </tbody>
 </table>
@@ -596,7 +600,7 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc9234-4.1-1"><code>RFC9234-4.1-1</code></a></h3>
 <p>If the BGP Role is locally configured, the eBGP speaker MUST advertise the BGP Role Capability in the BGP OPEN message. (S4.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 9234 Section 4.1: &#34;If the BGP Role is locally configured, the eBGP speaker MUST advertise the BGP Role Capability in the BGP OPEN message.&#34; Producer internal/component/bgp/plugins/role/config.go::extractRoleCapabilities emits code 9 and one-octet role values from extractPeerRoleConfigs; reactor/peer.go::getPluginCapabilities consumes the selector declarations, including dynamic groups. TestExtractRoleCapabilities_ParseBGPConfig checks all five values, exactly one declaration and peer, and no declaration for absent/empty/invalid roles. dynamic-peer-gets-group-role-capability.ci pins the entire 002E OPEN ending 090101, then the EoR and dynamic-session establishment, with local AS 65533 and peer AS 65010. A missing, duplicate or wrong-valued capability fails the wire assertion. Rejudged independently against RFC source and every tagged carrier on 2026-10-22. Functional judgments use the corresponding test/draft/plugin files, not the unpromoted old-syntax live files. Their inactive NO-TRANSIT import/export policies explicitly end in accept; reactor runEgressPolicyChain applies that final only after mandatory in-process OTC, and OPEN validation is independent. This is a source judgment, not a new runtime or discrimination result; parent owns promotion and native freshness before stamping.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: test/plugin/dynamic-peer-gets-group-role-capability.ci moved. RFC 9234 Section 4.1: &#34;If the BGP Role is locally configured, the eBGP speaker MUST advertise the BGP Role Capability in the BGP OPEN message.&#34; Producer internal/component/bgp/plugins/role/config.go::extractRoleCapabilities emits code 9 and one-octet role values from extractPeerRoleConfigs; reactor/peer.go::getPluginCapabilities consumes the selector declarations, including dynamic groups. TestExtractRoleCapabilities_ParseBGPConfig checks all five values, exactly one declaration and peer, and no declaration for absent/empty/invalid roles. dynamic-peer-gets-group-role-capability.ci pins the entire 002E OPEN ending 090101, then the EoR and dynamic-session establishment, with local AS 65533 and peer AS 65010. A missing, duplicate or wrong-valued capability fails the wire assertion. Rejudged independently against RFC source and every tagged carrier on 2026-10-22. Functional judgments use the corresponding test/draft/plugin files, not the unpromoted old-syntax live files. Their inactive NO-TRANSIT import/export policies explicitly end in accept; reactor runEgressPolicyChain applies that final only after mandatory in-process OTC, and OPEN validation is independent. This is a source judgment, not a new runtime or discrimination result; parent owns promotion and native freshness before stamping.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -621,7 +625,7 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 </div>
 <h3><a href="#rfc9234-4.1-2"><code>RFC9234-4.1-2</code></a></h3>
 <p>An eBGP speaker MUST NOT advertise multiple versions of the BGP Role Capability. (S4.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 9234 Section 4.1: &#34;An eBGP speaker MUST NOT advertise multiple versions of the BGP Role Capability.&#34; The single-polarity annotation remains justified: config.go::parseRoleContainer reads one scalar import role and extractRoleCapabilities emits one declaration per selected peer; reactor/peer.go::getPluginCapabilities consumes those declarations for its selector set. TestExtractRoleCapabilities_ParseBGPConfig requires exactly one capability and one peer for every configured role. dynamic-peer-gets-group-role-capability.ci asserts the whole OPEN with exactly one 090101 TLV, including all enclosing lengths; duplicate emission cannot hide behind a substring assertion. No fabricated negative configuration is required. Rejudged independently against RFC source and every tagged carrier on 2026-10-22. Functional judgments use the corresponding test/draft/plugin files, not the unpromoted old-syntax live files. Their inactive NO-TRANSIT import/export policies explicitly end in accept; reactor runEgressPolicyChain applies that final only after mandatory in-process OTC, and OPEN validation is independent. This is a source judgment, not a new runtime or discrimination result; parent owns promotion and native freshness before stamping.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: test/plugin/dynamic-peer-gets-group-role-capability.ci moved. RFC 9234 Section 4.1: &#34;An eBGP speaker MUST NOT advertise multiple versions of the BGP Role Capability.&#34; The single-polarity annotation remains justified: config.go::parseRoleContainer reads one scalar import role and extractRoleCapabilities emits one declaration per selected peer; reactor/peer.go::getPluginCapabilities consumes those declarations for its selector set. TestExtractRoleCapabilities_ParseBGPConfig requires exactly one capability and one peer for every configured role. dynamic-peer-gets-group-role-capability.ci asserts the whole OPEN with exactly one 090101 TLV, including all enclosing lengths; duplicate emission cannot hide behind a substring assertion. No fabricated negative configuration is required. Rejudged independently against RFC source and every tagged carrier on 2026-10-22. Functional judgments use the corresponding test/draft/plugin files, not the unpromoted old-syntax live files. Their inactive NO-TRANSIT import/export policies explicitly end in accept; reactor runEgressPolicyChain applies that final only after mandatory in-process OTC, and OPEN validation is independent. This is a source judgment, not a new runtime or discrimination result; parent owns promotion and native freshness before stamping.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -666,7 +670,7 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 </div>
 <h3><a href="#rfc9234-4.2-2"><code>RFC9234-4.2-2</code></a></h3>
 <p>If the Roles do not correspond, the BGP speaker MUST reject the connection using the Role Mismatch Notification (code 2, subcode 11). (S4.2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 9234 Section 4.2: &#34;If the Roles do not correspond, the BGP speaker MUST reject the connection using the Role Mismatch Notification (code 2, subcode 11).&#34; Producer role/validate.go::validateOpenRolePair checks Table 2; server/validate.go::askOpenValidators converts a rejected ValidateOpenOutput into OpenValidationError and reactor/session_open_validation.go::runOpenValidator sends its codes. role-mismatch-notification.ci supplies Provider/Provider and requires exact FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001503020B, rejecting EoR; peer-open-role-complement.ci changes the remote role to Customer, requires EoR and rejects 03020B. TestValidateOpenRolePair_ValidPairs and InvalidPairs pin accept/refuse and exact codes; TestValidateOpenRolePairRunsForADynamicGroupMember also checks group lookup, refusal and complementary acceptance. Server TestBroadcastValidateOpenRefusesAnUnansweredPerPeerPolicy, TestAskOpenValidatorsLeavesASilentPluginPending and TestBroadcastValidateOpenAcceptsAPeerWithNoPerPeerPolicy retain the owner-selected fail-closed plumbing: those are supplemental robustness evidence, not a claim that the RFC equates plugin silence with an observed role mismatch. Rejudged independently against RFC source and every tagged carrier on 2026-10-22. Functional judgments use the corresponding test/draft/plugin files, not the unpromoted old-syntax live files. Their inactive NO-TRANSIT import/export policies explicitly end in accept; reactor runEgressPolicyChain applies that final only after mandatory in-process OTC, and OPEN validation is independent. This is a source judgment, not a new runtime or discrimination result; parent owns promotion and native freshness before stamping.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: test/plugin/peer-open-role-complement.ci, test/plugin/role-mismatch-notification.ci moved. RFC 9234 Section 4.2: &#34;If the Roles do not correspond, the BGP speaker MUST reject the connection using the Role Mismatch Notification (code 2, subcode 11).&#34; Producer role/validate.go::validateOpenRolePair checks Table 2; server/validate.go::askOpenValidators converts a rejected ValidateOpenOutput into OpenValidationError and reactor/session_open_validation.go::runOpenValidator sends its codes. role-mismatch-notification.ci supplies Provider/Provider and requires exact FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001503020B, rejecting EoR; peer-open-role-complement.ci changes the remote role to Customer, requires EoR and rejects 03020B. TestValidateOpenRolePair_ValidPairs and InvalidPairs pin accept/refuse and exact codes; TestValidateOpenRolePairRunsForADynamicGroupMember also checks group lookup, refusal and complementary acceptance. Server TestBroadcastValidateOpenRefusesAnUnansweredPerPeerPolicy, TestAskOpenValidatorsLeavesASilentPluginPending and TestBroadcastValidateOpenAcceptsAPeerWithNoPerPeerPolicy retain the owner-selected fail-closed plumbing: those are supplemental robustness evidence, not a claim that the RFC equates plugin silence with an observed role mismatch. Rejudged independently against RFC source and every tagged carrier on 2026-10-22. Functional judgments use the corresponding test/draft/plugin files, not the unpromoted old-syntax live files. Their inactive NO-TRANSIT import/export policies explicitly end in accept; reactor runEgressPolicyChain applies that final only after mandatory in-process OTC, and OPEN validation is independent. This is a source judgment, not a new runtime or discrimination result; parent owns promotion and native freshness before stamping.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -684,7 +688,7 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/peer-open-role-complement.ci#L4" title="test/plugin/peer-open-role-complement.ci" target="_blank" rel="noopener"><code>peer-open-role-complement.ci</code></a></td>
 <td>functional/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_dynamic_group_test.go#L123" title="internal/component/bgp/plugins/role/rfc9234_dynamic_group_test.go" target="_blank" rel="noopener"><code>TestValidateOpenRolePairRunsForADynamicGroupMember</code></a></td>
@@ -709,14 +713,14 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/role-mismatch-notification.ci#L4" title="test/plugin/role-mismatch-notification.ci" target="_blank" rel="noopener"><code>role-mismatch-notification.ci</code></a></td>
 <td>functional/verify</td>
-<td>mutant, verified</td>
+<td>mutant, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc9234-4.2-3"><code>RFC9234-4.2-3</code></a></h3>
 <p>If multiple BGP Role Capabilities are received and not all of them have the same value, then the BGP speaker MUST reject the connection using the Role Mismatch Notification (code 2, subcode 11). (§4.2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 9234 Section 4.2: &#34;If multiple BGP Role Capabilities are received and not all of them have the same value, then the BGP speaker MUST reject the connection using the Role Mismatch Notification (code 2, subcode 11).&#34; The complementary sentence is: &#34;If an eBGP speaker receives multiple but identical BGP Role Capabilities with the same value in each, then the speaker considers them to be a single BGP Role Capability and proceeds [RFC5492].&#34; Producer role/validate.go::validateOpenRolePair compares values, not just the count; server askOpenValidators and session runOpenValidator consume the refusal. role-multiple-roles-notification.ci sends Customer then Peer against Provider, requires exact NOTIFICATION 2/11 and no EoR; Customer alone corresponds, isolating the second differing value. role-multiple-same-roles.ci sends Customer twice, requires EoR and rejects 03020B. TestValidateOpenRolePair_MultipleDifferentRoles pins false, 2/11 and the multiple reason; MultipleSameRoles pins true. Rejudged independently against RFC source and every tagged carrier on 2026-10-22. Functional judgments use the corresponding test/draft/plugin files, not the unpromoted old-syntax live files. Their inactive NO-TRANSIT import/export policies explicitly end in accept; reactor runEgressPolicyChain applies that final only after mandatory in-process OTC, and OPEN validation is independent. This is a source judgment, not a new runtime or discrimination result; parent owns promotion and native freshness before stamping.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: test/plugin/role-multiple-roles-notification.ci, test/plugin/role-multiple-same-roles.ci moved. RFC 9234 Section 4.2: &#34;If multiple BGP Role Capabilities are received and not all of them have the same value, then the BGP speaker MUST reject the connection using the Role Mismatch Notification (code 2, subcode 11).&#34; The complementary sentence is: &#34;If an eBGP speaker receives multiple but identical BGP Role Capabilities with the same value in each, then the speaker considers them to be a single BGP Role Capability and proceeds [RFC5492].&#34; Producer role/validate.go::validateOpenRolePair compares values, not just the count; server askOpenValidators and session runOpenValidator consume the refusal. role-multiple-roles-notification.ci sends Customer then Peer against Provider, requires exact NOTIFICATION 2/11 and no EoR; Customer alone corresponds, isolating the second differing value. role-multiple-same-roles.ci sends Customer twice, requires EoR and rejects 03020B. TestValidateOpenRolePair_MultipleDifferentRoles pins false, 2/11 and the multiple reason; MultipleSameRoles pins true. Rejudged independently against RFC source and every tagged carrier on 2026-10-22. Functional judgments use the corresponding test/draft/plugin files, not the unpromoted old-syntax live files. Their inactive NO-TRANSIT import/export policies explicitly end in accept; reactor runEgressPolicyChain applies that final only after mandatory in-process OTC, and OPEN validation is independent. This is a source judgment, not a new runtime or discrimination result; parent owns promotion and native freshness before stamping.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -729,7 +733,7 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/role-multiple-same-roles.ci#L4" title="test/plugin/role-multiple-same-roles.ci" target="_blank" rel="noopener"><code>role-multiple-same-roles.ci</code></a></td>
 <td>functional/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_validate_test.go#L166" title="internal/component/bgp/plugins/role/rfc9234_validate_test.go" target="_blank" rel="noopener"><code>TestValidateOpenRolePair_MultipleDifferentRoles</code></a></td>
@@ -739,7 +743,7 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/role-multiple-roles-notification.ci#L4" title="test/plugin/role-multiple-roles-notification.ci" target="_blank" rel="noopener"><code>role-multiple-roles-notification.ci</code></a></td>
 <td>functional/verify</td>
-<td>mutant, verified</td>
+<td>mutant, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 </tbody>
 </table>
@@ -821,7 +825,7 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 </div>
 <h3><a href="#rfc9234-5-4"><code>RFC9234-5-4</code></a></h3>
 <p>If a route is to be advertised to a Customer, a Peer, or an RS- Client (when the sender is an RS), and the OTC Attribute is not present, then when advertising the route, an OTC Attribute MUST be added with a value equal to the AS number of the local AS. (§5)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 9234 Section 5: &#34;If a route is to be advertised to a Customer, a Peer, or an RS-Client (when the sender is an RS), and the OTC Attribute is not present, then when advertising the route, an OTC Attribute MUST be added with a value equal to the AS number of the local AS.&#34; role/otc.go::OTCEgressFilter checks payloadAdvertisesNLRI, destination role and absent OTC, then queues AttrModSet code 35 with dest.LocalAS; reactor forwardUpdateCore consumes mandatory filter operations before the terminal export final. TestRFC9234OTCStampedToEveryDownstreamDestination checks exactly one four-octet set operation with 65000 for Customer, Peer and RS-Client; TestRFC9234OTCNotStampedOutsideTheDownstreamScope covers Provider/RS with real NLRI and existing OTC toward Customer. Other tagged units TestOTCEgressStampMod, TestOTCEgressNoStampProvider, TestOTCEgressStampsToCustomerWhenSourceHasNoRoleConfig, TestOTCEgressNoStampOnPureWithdrawal, TestOTCEgressNoStampOnMPUnreachOnly and TestOTCEgressStampsMixedWithdrawAndAnnounce retain their scoped assertions. role-otc-fwd-withdraw.ci pins C023040000FDE8 in the complete advertisement and an exact attribute-free withdrawal; role-otc-rs-withdraw-eor.ci additionally pins the empty EoR; role-otc-rs-client-dest-stamp.ci negotiates local RS/remote RS-Client and requires the same exact local-AS OTC. internal/le/interoplab/bgp/check_rfc.go::checkOTCWithdrawal independently reads FRR OTC 65001, route removal and session survival. Supplemental no-config-source count assertion is narrower than a complete stamp proof; the exact unit/wire carriers supply the code/value proof. No withdrawal or EoR is mistaken for an advertised route. Rejudged independently against RFC source and every tagged carrier on 2026-10-22. Functional judgments use the corresponding test/draft/plugin files, not the unpromoted old-syntax live files. Their inactive NO-TRANSIT import/export policies explicitly end in accept; reactor runEgressPolicyChain applies that final only after mandatory in-process OTC, and OPEN validation is independent. This is a source judgment, not a new runtime or discrimination result; parent owns promotion and native freshness before stamping.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: test/plugin/role-otc-fwd-withdraw.ci, test/plugin/role-otc-fwd-withdraw.ci#2, test/plugin/role-otc-rs-client-dest-stamp.ci, test/plugin/role-otc-rs-withdraw-eor.ci, test/plugin/role-otc-rs-withdraw-eor.ci#2 moved. RFC 9234 Section 5: &#34;If a route is to be advertised to a Customer, a Peer, or an RS-Client (when the sender is an RS), and the OTC Attribute is not present, then when advertising the route, an OTC Attribute MUST be added with a value equal to the AS number of the local AS.&#34; role/otc.go::OTCEgressFilter checks payloadAdvertisesNLRI, destination role and absent OTC, then queues AttrModSet code 35 with dest.LocalAS; reactor forwardUpdateCore consumes mandatory filter operations before the terminal export final. TestRFC9234OTCStampedToEveryDownstreamDestination checks exactly one four-octet set operation with 65000 for Customer, Peer and RS-Client; TestRFC9234OTCNotStampedOutsideTheDownstreamScope covers Provider/RS with real NLRI and existing OTC toward Customer. Other tagged units TestOTCEgressStampMod, TestOTCEgressNoStampProvider, TestOTCEgressStampsToCustomerWhenSourceHasNoRoleConfig, TestOTCEgressNoStampOnPureWithdrawal, TestOTCEgressNoStampOnMPUnreachOnly and TestOTCEgressStampsMixedWithdrawAndAnnounce retain their scoped assertions. role-otc-fwd-withdraw.ci pins C023040000FDE8 in the complete advertisement and an exact attribute-free withdrawal; role-otc-rs-withdraw-eor.ci additionally pins the empty EoR; role-otc-rs-client-dest-stamp.ci negotiates local RS/remote RS-Client and requires the same exact local-AS OTC. internal/le/interoplab/bgp/check_rfc.go::checkOTCWithdrawal independently reads FRR OTC 65001, route removal and session survival. Supplemental no-config-source count assertion is narrower than a complete stamp proof; the exact unit/wire carriers supply the code/value proof. No withdrawal or EoR is mistaken for an advertised route. Rejudged independently against RFC source and every tagged carrier on 2026-10-22. Functional judgments use the corresponding test/draft/plugin files, not the unpromoted old-syntax live files. Their inactive NO-TRANSIT import/export policies explicitly end in accept; reactor runEgressPolicyChain applies that final only after mandatory in-process OTC, and OPEN validation is independent. This is a source judgment, not a new runtime or discrimination result; parent owns promotion and native freshness before stamping.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1083,7 +1087,7 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 </div>
 <h3><a href="#rfc9234-4.2-5"><code>RFC9234-4.2-5</code></a></h3>
 <p>An operator may choose to apply a &#34;strict mode&#34; in which the receipt of a BGP Role Capability from the remote AS is required. When operating in the &#34;strict mode&#34;, if the BGP Role Capability is sent but one is not received, the connection is rejected using the Role Mismatch Notification (code 2, subcode 11). (§4.2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 9234 Section 4.2: &#34;An operator may choose to apply a &#34;strict mode&#34; in which the receipt of a BGP Role Capability from the remote AS is required.&#34; &#34;When operating in the &#34;strict mode&#34;, if the BGP Role Capability is sent but one is not received, the connection is rejected using the Role Mismatch Notification (code 2, subcode 11).&#34; role/validate.go::validateOpenRolePair branches on cfg.strict when peerRoles is empty. role-strict-enforcement.ci configures customer and strict true, drops capability 9 from the remote OPEN and requires exact NOTIFICATION 2/11. TestValidateOpenStrictModeRefusesADynamicGroupMemberWithNoRole checks strict refusal with 2/11 and acceptance of the corresponding group member; TestValidateOpenRolePair_NoPeerRole_NoStrict accepts a missing remote role with strict false. The adjacent backward-compatibility sentence says SHOULD ignore absence, not MUST; the negative pins the chosen non-strict behavior without upgrading that SHOULD. The functional fixture remains ASN 1/1 as before; it is supplemented by the role/group unit controls, not described as an eBGP wire fixture. Rejudged independently against RFC source and every tagged carrier on 2026-10-22. Functional judgments use the corresponding test/draft/plugin files, not the unpromoted old-syntax live files. Their inactive NO-TRANSIT import/export policies explicitly end in accept; reactor runEgressPolicyChain applies that final only after mandatory in-process OTC, and OPEN validation is independent. This is a source judgment, not a new runtime or discrimination result; parent owns promotion and native freshness before stamping.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: test/plugin/role-strict-enforcement.ci moved. RFC 9234 Section 4.2: &#34;An operator may choose to apply a &#34;strict mode&#34; in which the receipt of a BGP Role Capability from the remote AS is required.&#34; &#34;When operating in the &#34;strict mode&#34;, if the BGP Role Capability is sent but one is not received, the connection is rejected using the Role Mismatch Notification (code 2, subcode 11).&#34; role/validate.go::validateOpenRolePair branches on cfg.strict when peerRoles is empty. role-strict-enforcement.ci configures customer and strict true, drops capability 9 from the remote OPEN and requires exact NOTIFICATION 2/11. TestValidateOpenStrictModeRefusesADynamicGroupMemberWithNoRole checks strict refusal with 2/11 and acceptance of the corresponding group member; TestValidateOpenRolePair_NoPeerRole_NoStrict accepts a missing remote role with strict false. The adjacent backward-compatibility sentence says SHOULD ignore absence, not MUST; the negative pins the chosen non-strict behavior without upgrading that SHOULD. The functional fixture remains ASN 1/1 as before; it is supplemented by the role/group unit controls, not described as an eBGP wire fixture. Rejudged independently against RFC source and every tagged carrier on 2026-10-22. Functional judgments use the corresponding test/draft/plugin files, not the unpromoted old-syntax live files. Their inactive NO-TRANSIT import/export policies explicitly end in accept; reactor runEgressPolicyChain applies that final only after mandatory in-process OTC, and OPEN validation is independent. This is a source judgment, not a new runtime or discrimination result; parent owns promotion and native freshness before stamping.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1101,7 +1105,7 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/role-strict-enforcement.ci#L4" title="test/plugin/role-strict-enforcement.ci" target="_blank" rel="noopener"><code>role-strict-enforcement.ci</code></a></td>
 <td>functional/verify</td>
-<td>mutant, verified</td>
+<td>mutant, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 </tbody>
 </table>
@@ -1296,7 +1300,7 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 19:30 UTC</span>
+                    <span class="footer-published">Published 30 October 2026 23:25 UTC</span>
                 </div>
             </div>
         </footer>

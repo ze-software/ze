@@ -64,6 +64,7 @@ validation against ExaBGP (Ze's predecessor, a BGP implementation in Python).</p
 <li><a href="#the-docker-host-kernel-check">The Docker host kernel check</a></li>
 <li><a href="#the-exact-grant-set-check">The exact grant-set check</a></li>
 <li><a href="#container-addresses">Container Addresses</a></li>
+<li><a href="#separate-links-between-daemons">Separate links between daemons</a></li>
 <li><a href="#scenario-structure">Scenario Structure</a></li>
 <li><a href="#optional-sidecars">Optional sidecars</a></li>
 <li><a href="#live-rpki-policy-reload">Live RPKI policy reload</a></li>
@@ -84,11 +85,13 @@ validation against ExaBGP (Ze's predecessor, a BGP implementation in Python).</p
 <li><a href="#the-strongswan-lab-drop-in">The strongSwan lab drop-in</a></li>
 <li><a href="#aes-ccm-on-the-strongswan-peer">AES CCM on the strongSwan peer</a></li>
 <li><a href="#integrity-only-esp-on-the-strongswan-peer">Integrity-only ESP on the strongSwan peer</a></li>
+<li><a href="#rfc-4739-multiple-authentication-on-the-strongswan-peer">RFC 4739 multiple authentication on the strongSwan peer</a></li>
 <li><a href="#esp-transform-kernel-proof">ESP transform kernel proof</a></li>
 <li><a href="#l2tp-and-pppoe-lifecycle-fault-scenarios">L2TP and PPPoE lifecycle fault scenarios</a></li>
 <li><a href="#the-freeradius-admin-login-suite">The FreeRADIUS admin-login suite</a></li>
 <li><a href="#the-freeradius-subscriber-suite">The FreeRADIUS subscriber suite</a></li>
 <li><a href="#independent-tftp-duplicate-ack-recovery">Independent TFTP duplicate-ACK recovery</a></li>
+<li><a href="#zes-tftp-client-against-dnsmasq">Ze&#39;s TFTP client against dnsmasq</a></li>
 <li><a href="#the-freerouter-rsvp-te-suite">The freeRouter RSVP-TE suite</a></li>
 <li><a href="#typed-checker-operations">Typed checker operations</a></li>
 <li><a href="#raw-frame-injection-from-inside-a-peer-container">Raw frame injection from inside a peer container</a></li>
@@ -1120,8 +1123,10 @@ route: it installs the cached runtime kernel for the host's architecture under
 <code>/boot</code> and <code>/lib/modules</code>, rebuilds the initramfs and the GRUB menu with the
 Debian tools, and saves the new entry as GRUB's default by its title. It
 refuses before any step unless <code>GRUB_DEFAULT=saved</code>, and unless the cached
-release ends with the <code>CONFIG_LOCALVERSION</code> suffix its config declares (<code>-ze</code>,
-so never a bare upstream release another kernel could own), and unless the
+release is the version <code>internal/appliance/kernel.version</code> pins followed by the
+<code>CONFIG_LOCALVERSION</code> suffix its config declares (<code>-ze</code>, so never a bare
+upstream release another kernel could own, nor an entry built before a version
+bump), and unless the
 cached kernel's config builds in, or as a module, every option this host
 relies on its running kernel for: the PCI hotplug drivers when an interface in
 <code>/sys/class/net</code>, or one netplan's generated
@@ -1135,15 +1140,17 @@ break, the missing options, and the rebuild (<code>hostdeps.go</code>). After th
 it reads <code>/boot/grub/grub.cfg</code>, through <code>sudo cat</code> when the host keeps it
 root-only, to find the entry's title. Without
 <code>confirm &lt;release&gt;</code> it prints the steps and runs none, because passwordless
-sudo asks nothing: <code>./le setup docker kernel install confirm 7.2.9-ze</code>. The
-cache entry is keyed by the backend that built the kernel, and ze-host answers
+sudo asks nothing: <code>./le setup docker kernel install confirm &lt;release&gt;</code>, where
+<code>&lt;release&gt;</code> is the version <code>internal/appliance/kernel.version</code> pins with the
+<code>-ze</code> suffix. The cache entry is keyed by the backend that built the kernel, and ze-host answers
 docker's entry whenever the docker binary is on PATH, so a kernel built with
 QEMU on such a host is named with <code>builder qemu</code>
-(<code>./le setup docker kernel install builder qemu confirm 7.2.9-ze</code>); the dry
+(<code>./le setup docker kernel install builder qemu confirm &lt;release&gt;</code>); the dry
 run's confirming command and every rebuild it prints keep that backend. A
 reinstall replaces: it removes <code>/lib/modules/&lt;release&gt;</code> and
 <code>/boot/initrd.img-&lt;release&gt;</code> before writing them again, so <code>cp -a</code> never nests
-the new modules inside the old tree. It prints each <code>sudo</code> step before it runs
+the new modules inside the old tree. The copy drops the cache's ownership, so
+the installed modules belong to root, not to the user who built them. It prints each <code>sudo</code> step before it runs
 it, and never reboots. Off Linux it refuses: on macOS it names the <code>ze</code> Colima
 profile, <code>./le setup docker host start</code>; on any other system the guest route,
 <code>./le test qemu docker-lab</code> (<code>docs/architecture/testing/qemu-integration.md</code>).</p>
@@ -1306,6 +1313,11 @@ what it holds, a socket included, reaches the container unread.</p>
 <td>172.30.0.14</td>
 <td><code>ze-iop-stayrtr-standby-&lt;pid&gt;</code></td>
 </tr>
+<tr>
+<td>Second FRR (<code>frr-sink.conf</code>)</td>
+<td>172.30.0.15</td>
+<td><code>ze-iop-frr-sink-&lt;pid&gt;</code></td>
+</tr>
 </tbody>
 </table>
 <p>Container names include the runner PID, which prevents name collisions.
@@ -1335,6 +1347,11 @@ that owns it:</p>
 <td><code>@FRR_LINK_LOCAL@</code></td>
 <td><code>frr</code></td>
 <td>3</td>
+</tr>
+<tr>
+<td><code>@FRR_SINK_LINK_LOCAL@</code></td>
+<td><code>frr-sink</code></td>
+<td>15</td>
 </tr>
 </tbody>
 </table>
@@ -1368,6 +1385,28 @@ remain established after both assertions. These are two routes on one session,
 not identical UPDATEs differing only in their next-hop length.</p>
 <!-- source: internal/le/interoplab/bgp/prepare.go -- prepareScenario, renderScenario, needsIPv6, linkLocalOwners, linkLocalAt, assignLinkLocal, ownerPrestarts, scenarioPrestarts, renderPrestarts -->
 <!-- source: internal/le/interoplab/bgp/check_rfc.go -- checkRFC2545NextHops -->
+<p><code>bgp-rfc2545-third-party-linklocal-frr</code> is the same sentence for a next hop that
+names another router. A second FRR, <code>frr-sink</code> (IPv6 host 15), runs no BGP and
+carries no link-local placeholder, so it owns exactly the one link-local its
+kernel gave <code>eth0</code>. The checker reads that address from the container's
+<code>/proc/net/if_inet6</code> and its MAC from <code>/sys/class/net/eth0/address</code>, then pings
+frr-sink's global and link-local from Ze's container, so Ze's kernel learns
+both by Neighbor Discovery. It requires <code>ip -j -6 neigh show dev eth0</code> in Ze's
+container to bind both addresses to that MAC, with no second link-local on it:
+any other table is a lab that cannot discriminate and fails there, not later.
+It then runs <code>send bgp * update text ... nhop &lt;frr-sink's global&gt;</code> through
+<code>ze cli</code> and requires FRR to decode frr-sink's global then frr-sink's
+link-local, and to install the route through that link-local. Ze's <code>ze.conf</code>
+sets no <code>link-local</code> leaf, so the second address can only come from Ze's
+neighbor table. The config is BGP-only, with no <code>interface</code> block, so the
+scenario also proves that Ze follows the table when no interface monitor
+runs: frr-sink resolves after the session is up, and only the reactor's
+neighbor table watch makes Ze read the table again. The announce is resent
+each round of the 60 second wait, because the watch signal that refreshes
+Ze's table read can race the first send; a resend is an implicit replace, and
+a Ze that never adds the router's link-local fails every round.</p>
+<!-- source: internal/le/interoplab/bgp/check_rfc2545_third_party.go -- checkRFC2545ThirdPartyLinkLocal, thirdPartyIdentity, resolveThirdParty -->
+<!-- source: internal/le/interoplab/bgp/check_rfc2545_third_party_predicate.go -- onlyLinkLocal, requireNeighborPair, parseContainerMAC -->
 <p>Typed checker queries and their expected JSON field values are rendered onto the
 same selected network. Rendering clones the expected-field map so concurrent or
 later runs cannot change the registered scenario's addresses. In <code>inject.msg</code>,
@@ -1445,6 +1484,51 @@ subscriber routes must disappear before the proof stops the rejected peer.
 The control tunnel and its validated zero-ID management context may remain
 until that peer exits; they cannot stand in for a surviving PPP data session.</p>
 <!-- source: internal/le/test/deployment/l2tppppauth.go -- assertWrongSecret, l2tpPPPCHAPRejected, l2tpPPPRejectedState -->
+<h3 id="separate-links-between-daemons">Separate links between daemons</h3>
+<p>Every container sits on the lab bridge's untagged <code>eth0</code>, so a protocol that
+finds its neighbors by multicast (IS-IS, OSPF) meets every daemon of the
+scenario there. A scenario that must keep two peers apart, so that one can
+learn the other's routes only through Ze, declares links: one VLAN over the
+bridge per link, joined only by its members. Its register file adds a
+<code>scenarioLinks</code> entry under the scenario's name, one <code>labLink</code> per link with
+its VLAN, its IPv4 /24 and its members (owners from the link-local table
+above: <code>ze</code>, <code>frr</code>, <code>frr-sink</code>). A member reaches its Nth link as <code>eth&lt;N&gt;</code>, in
+declaration order, at its host number on the link's subnet, and the scenario's
+files name those devices and addresses.</p>
+<p>The links are built in the member's start wrapper, after any eth0 link-local
+and before its prestart and its daemon, so the daemon's first hello already
+goes out on them. A container on a link and with no link-local is wrapped too,
+with no eth0 address. Preparation refuses a link it cannot build as declared:
+a VLAN outside 1 to 4094 or used twice, a subnet that is not an IPv4 network
+of at most /24, fewer than two members, a member named twice, or a member whose
+config file the scenario does not carry, because that link would carry nothing
+and the checker would read a silent lab as the daemon's fault. A scenario with
+no entry runs every daemon on <code>eth0</code> alone, as before.</p>
+<!-- source: internal/le/interoplab/bgp/prepare_links.go -- labLink, scenarioLinks, renderLinks, validateLink -->
+<!-- source: internal/le/interoplab/bgp/prepare.go -- prepareScenario, wrapStart -->
+<p><code>isis-import-policy-frr</code> is the one user: FRR-A (<code>frr</code>) meets Ze on VLAN 101
+(<code>10.101.0.0/24</code>, Ze's <code>eth1</code>) and FRR-B (<code>frr-sink</code>) on VLAN 102
+(<code>10.102.0.0/24</code>, Ze's <code>eth2</code>). FRR-A originates the hidden prefix
+10.77.1.0/24 and the control 10.77.2.0/24; Ze's <code>isis filter import</code> rejects
+the first. The checker requires both adjacencies; the control in Ze's
+<code>show rib</code> and kernel FIB and the hidden prefix absent from both, read beside
+the control; both prefixes in Ze's LSDB; the JSON of
+<code>show rib candidates prefix &lt;p&gt;</code> with the hidden prefix's one IS-IS path
+<code>hidden</code>, <code>hidden-by</code> <code>source</code>, <code>chain</code> <code>isis import</code>, and the control's one
+path selected and not hidden; and last, FRR-B's <code>show ip route &lt;p&gt; json</code> with
+a selected IS-IS route for BOTH prefixes through Ze's <code>10.102.0.2</code>. FRR-B's
+only neighbor is Ze, so that last assertion is the proof that Ze still floods
+the LSP whose prefix its own import chain hid.</p>
+<!-- source: internal/le/interoplab/bgp/check_import_policy.go -- checkISISImportPolicy, waitRIBCandidates, waitFRRISISRoute -->
+<!-- source: internal/le/interoplab/bgp/check_rib_candidates_predicate.go -- ribCandidatesVerdict, frrISISRouteVerdict -->
+<!-- source: internal/le/interoplab/bgp/register_import_policy.go -- scenarioLinks entry -->
+<p><code>ospf-import-policy-bird</code> reads the same JSON per path: the tagged external
+10.88.1.0/24 holds exactly an OSPF path at the distance 200 the modify set,
+not selected, and a selected static path at 150; the untagged 10.88.2.0/24 a
+selected OSPF path at 110 and a static path at 150. Every field is judged on
+its own path, so the static path's 150 cannot stand for the OSPF path's
+distance.</p>
+<!-- source: internal/le/interoplab/bgp/check_import_policy.go -- checkOSPFImportPolicy -->
 <h3 id="scenario-structure">Scenario Structure</h3>
 <p>Each scenario is a directory under <code>test/interop/scenarios/</code>:</p>
 <pre><code>scenarios/bgp-ebgp-ipv4-frr/
@@ -2304,15 +2388,76 @@ Child SA is installed. The flushed logger makes that exact proposal observable
 without changing the negotiation, kernel-state or received-traffic assertions.</p>
 <!-- source: test/interop-ipsec/scenarios/esp-integrity-only-null/ -- the integrity-only ESP fixtures -->
 <!-- source: internal/le/interoplab/ipsec/checkers.go -- checkESPIntegrityOnlyNull -->
+<h3 id="rfc-4739-multiple-authentication-on-the-strongswan-peer">RFC 4739 multiple authentication on the strongSwan peer</h3>
+<p><code>multiple-auth-ze-initiator</code> and <code>multiple-auth-ze-responder</code> run a second
+authentication round in each direction inside one IKE_AUTH phase. strongSwan
+takes its rounds from <code>local-2</code> and <code>remote-2</code>, and charon announces the
+extension by default (<code>ike_auth.c</code> <code>multiple_auth_enabled</code>). Ze takes them from
+<code>authentication second-round local</code> and <code>remote</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Scenario</th>
+<th>Ze role</th>
+<th>Round 1</th>
+<th>Round 2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>multiple-auth-ze-initiator</code></td>
+<td>initiator</td>
+<td>X.509 both ways (<code>client.pem</code>, <code>server.pem</code>)</td>
+<td>pre-shared key both ways, <code>ze-user.example.com</code> and <code>swan-user.example.com</code></td>
+</tr>
+<tr>
+<td><code>multiple-auth-ze-responder</code></td>
+<td>responder</td>
+<td>X.509 both ways (<code>server.pem</code>, <code>client.pem</code>)</td>
+<td>pre-shared key both ways, <code>swan-user.example.com</code> and <code>ze-user.example.com</code></td>
+</tr>
+</tbody>
+</table>
+<p>A tunnel coming up does not show that a second round ran, so each checker also
+reads both sides' logs. charon logs <code>authentication of '&lt;id&gt;' with pre-shared key successful</code> (<code>psk_authenticator.c</code>) for each of Ze's rounds it verifies,
+and Ze logs <code>ike: second authentication round verified</code> with the <code>peer</code> and
+<code>id</code> attributes on one line. Every round-2 identity is one that round 1 does
+not use, so the identity says which round a line belongs to.</p>
+<p>The round-2 identities are FQDNs. Ze sends any identity that is not an address
+literal as ID_FQDN (<code>encodeIKEID</code>), while charon reads <code>user@domain</code> as
+ID_RFC822_ADDR, and the two types never match. charon matches a pre-shared key
+against an unordered list of owner identities (<code>mem_cred.c</code>), so the
+scenarios use one round-2 secret for both directions.</p>
+<p>Two charon policies shape the responder scenario. charon's initiator runs the
+strict check of every configured remote round as soon as its current local
+round is a pre-shared key (<code>ike_auth.c</code> <code>require_strict</code>), so a strongSwan
+initiator whose round 1 is a PSK refuses a responder's first IKE_AUTH response
+with "insufficient authentication rounds" before the responder's second round
+can come; strongSwan's round 1 is therefore a certificate. And charon counts a
+configured round as done when a completed round complies with it
+(<code>do_another_auth</code>), so a <code>local-2</code> identical to <code>local</code> is never sent, which
+is why strongSwan's second round is a pre-shared key rather than <code>server.pem</code>
+again. Ze's x509 second round is proven Ze to Ze
+(<code>TestRFC4739ZeToZeTwoRoundsEachWay</code>).</p>
+<p>Each scenario was walked red: with <code>multipleAuthRequestNotifies</code>,
+<code>settleAnotherAuth</code> and <code>moreAuthRounds</code> reverted through an overlay, charon
+refuses the Ze initiator's single round ("insufficient authentication rounds"),
+and the Ze responder establishes after one round while charon still owes its
+second, so the strongSwan SA never comes up. Both scenarios set
+<code>send_cert = always</code>, and both flush charon's log to stderr the way
+<code>esp-integrity-only-null</code> does.</p>
+<!-- source: test/interop-ipsec/scenarios/multiple-auth-ze-initiator/ -- the Ze-initiator fixtures -->
+<!-- source: test/interop-ipsec/scenarios/multiple-auth-ze-responder/ -- the Ze-responder fixtures -->
+<!-- source: internal/le/interoplab/ipsec/multiauth.go -- checkMultipleAuthZeInitiator, checkMultipleAuthZeResponder -->
 <h3 id="esp-transform-kernel-proof">ESP transform kernel proof</h3>
 <p><code>esp-aes-cbc-sha256</code>, <code>esp-chacha20poly1305</code> and <code>esp-3des-sha1</code> offer one
 ESP combination to strongSwan. <code>checkESPKernel</code> requires the negotiated
 encryption and both kernels' installed transforms in both directions, then
 lossless traffic and increasing receiver counters. The IKE SA stays on
 AES-GCM/SHA256; the legacy 3DES/SHA1 choice applies only to ESP.</p>
-<p><code>test deployment vpn-kernel-test</code> selects these scenarios alongside the
+<p><code>test deployment vpn-kernel</code> selects these scenarios alongside the
 existing GCM and NULL scenarios, then runs the WireGuard kernel proof.
-<code>test qemu vpn-kernel-test</code> supplies the disposable Ze-system guest.
+<code>test qemu vpn-kernel</code> supplies the disposable Ze-system guest.
 The external scenarios exercise Ze-initiator establishment and bidirectional
 traffic, not both roles' rekey exchanges.
 Cleanup is part of the verdict: a scenario or image cleanup failure makes the
@@ -2580,6 +2725,21 @@ outside the fault window refuse the run. The relay neither constructs client
 requests nor generates acknowledgments.
 The new carrier still owes green and forced-red execution evidence.</p>
 <!-- source: internal/plugins/tftpserver/tftp_curl_docker_test.go -- TestTFTPCurlDuplicateACKInterop, curlTFTPRelay.transfer -->
+<h3 id="zes-tftp-client-against-dnsmasq">Ze's TFTP client against dnsmasq</h3>
+<p>The Linux, Docker-tagged <code>TestTFTPClientDnsmasqInterop</code> builds dnsmasq 2.91
+from <code>test/interop-tftp/Dockerfile.dnsmasq</code> through <code>labtest.Start</code> and runs it
+on the host network, because dnsmasq answers each transfer from a fresh port
+(its TID) that a published port does not carry. Ze's client fetches a
+116-block file, a file of exactly three 1468-octet blocks and an empty file,
+and must negotiate blksize 1468 and tsize equal to the file size, fall back to
+a window of one block (dnsmasq acknowledges no windowsize), and deliver the
+exact bytes; the last fetch runs through the scheme table with a SHA-256. With
+<code>tftp.ParseOACK</code> broken to grant nothing, the client refuses dnsmasq's
+1468-octet block 1 with ERROR 4 and the test goes red. On a Mac, where Colima's
+port forwarder does not reach the container's transfer port, the test binary is
+cross-built for linux/arm64 with <code>go test -c -tags docker</code> and run in a
+<code>docker:cli</code> container on the VM's host network with the Docker socket mounted.</p>
+<!-- source: internal/core/fetch/tftp_dnsmasq_docker_test.go -- TestTFTPClientDnsmasqInterop -->
 <h3 id="the-freerouter-rsvp-te-suite">The freeRouter RSVP-TE suite</h3>
 <p><code>internal/le/interoplab/rsvpte/</code> puts up to four nodes on one Docker segment,
 <code>172.29.81.0/24</code>, in four roles: <code>ingress</code> (host 2), <code>transit</code> (3), <code>egress</code>
@@ -3610,6 +3770,18 @@ is not packet-forwarding evidence.</p>
 <td>Ze (the ze_le daemon), FRR 10.7.1, BIRD 3.4.0</td>
 <td>RFC 4271 Section 6.7 and Section 4.5, a panic on one session's read path contained to that session: the scenario's <code>ze-le-daemon</code> file starts the ze_le build, the checker creates <code>/run/ze-inject/bgp-read-panic-&lt;FRR address&gt;</code> in ze's container and makes FRR redistribute 10.49.1.0/24, and the injected panic on that UPDATE must reach FRR as a received NOTIFICATION Cease / Unspecific (<code>lastResetDueTo</code> naming a received notification, <code>lastNotificationReason</code> a Cease with no named subcode). FRR's session must come back (two establishments, one drop), while ze counts one establishment and no drop toward BIRD and BIRD stays Established. Green on 2026-10-27, twice. Red on 2026-10-27, <code>ceaseAfterPanic</code> without its <code>tryNotificationWithin</code> send (a <code>GOFLAGS=-overlay</code> build, image rebuilt by the harness): assertion 5, FRR's <code>lastResetDueTo</code> "Peer closed the session" after ze logged the contained panic. The shipped <code>ze-linux</code> holds neither <code>injectReadPanic</code> nor the trigger path; only <code>ze-le-linux</code> does</td>
 </tr>
+<tr>
+<td>61</td>
+<td>isis-import-policy-frr</td>
+<td>Ze, FRR 10.7.1 twice (FRR-A, FRR-B on separate links)</td>
+<td><code>isis filter import</code> decides what Ze installs and nothing else: the hidden prefix is out of Ze's RIB and FIB, listed by <code>show rib candidates</code> as hidden by the <code>isis import</code> chain, and still flooded on, so FRR-B learns it through Ze ("Separate links between daemons")</td>
+</tr>
+<tr>
+<td>62</td>
+<td>ospf-import-policy-bird</td>
+<td>Ze, BIRD 3.4.0</td>
+<td><code>ospf filter import</code> sets distance 200 on BIRD's tagged external, which then loses to a static path at 150, while the untagged one keeps 110 and wins, judged per path in <code>show rib candidates</code></td>
+</tr>
 </tbody>
 </table>
 <!-- source: internal/le/interoplab/bgp/check_session_protection.go -- checkSessionProtection, sessionProbeScript -->
@@ -4128,7 +4300,7 @@ ExaBGP compat covers wire encoding for all supported address families.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 20:33 UTC</span>
+                    <span class="footer-published">Published 30 October 2026 23:25 UTC</span>
                 </div>
             </div>
         </footer>

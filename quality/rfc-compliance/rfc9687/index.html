@@ -124,7 +124,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 <article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>22.9%</strong><b>8 of 35 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
-<article class="rfc-card rfc-ok"><span>Audit verdicts</span><strong>13</strong><b>of 13 gated MUSTs judged</b><p>0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -192,7 +191,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -669,7 +668,7 @@ No tracked gap in current source anchors.
 </div>
 <h3><a href="#rfc9687-4.3-8"><code>RFC9687-4.3-8</code></a></h3>
 <p>Each time the local system sends a BGP message, it restarts the | SendHoldTimer (§4.3)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21 (independent auditor, authored none of b228f3f8ae) after b228f3f8ae changed three tagged units. RFC 9687 Section 4.3: &#34;Each time the local system sends a BGP message, it restarts the SendHoldTimer unless the SendHoldTime value is zero or the negotiated HoldTime value is zero, in which case the SendHoldTimer is stopped.&#34; The only change to TestRFC9687EmissionRestartsExactSendHoldDeadline, TestRFC9687SuppressedAttemptsDoNotRestartSendHold and TestRFC9687RemainingWritersRestartSendHold is the appendFwdDirty(nil, s) signature: a nil peer, whose handOffForwardFlush answers false, and in every one of these calls writeMu is free at flush time, so flushFwdDirty takes the TryLock branch and flushes inline exactly as before. Same inputs, same exact-wire and exact-deadline assertions, same live-session/expiry checks. The new producer path (a contended destination handed to the peer&#39;s forward worker) reaches the timer through the same accounting: fwdBatchHandler takes writeMu and calls session.flushWrites, which restarts the timer only after a successful flush with writePending set by the fast-path bufWriter write; the raw and parsed fwdBatchHandler cases of TestRFC9687RemainingWritersRestartSendHold cover that flush, and buffering alone still earns no restart (the emission test). The hand-off itself is proven by the untagged TestFlushFwdDirtyContendedReachesWire, not by these tags. The zero-time exception stays with RFC9687-4.3-9. Other carriers unchanged. Verdict stands.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/component/bgp/reactor/rfc9687_remaining_writers_test.go::TestRFC9687RemainingWritersRestartSendHold moved. Re-judged 2026-10-21 (independent auditor, authored none of b228f3f8ae) after b228f3f8ae changed three tagged units. RFC 9687 Section 4.3: &#34;Each time the local system sends a BGP message, it restarts the SendHoldTimer unless the SendHoldTime value is zero or the negotiated HoldTime value is zero, in which case the SendHoldTimer is stopped.&#34; The only change to TestRFC9687EmissionRestartsExactSendHoldDeadline, TestRFC9687SuppressedAttemptsDoNotRestartSendHold and TestRFC9687RemainingWritersRestartSendHold is the appendFwdDirty(nil, s) signature: a nil peer, whose handOffForwardFlush answers false, and in every one of these calls writeMu is free at flush time, so flushFwdDirty takes the TryLock branch and flushes inline exactly as before. Same inputs, same exact-wire and exact-deadline assertions, same live-session/expiry checks. The new producer path (a contended destination handed to the peer&#39;s forward worker) reaches the timer through the same accounting: fwdBatchHandler takes writeMu and calls session.flushWrites, which restarts the timer only after a successful flush with writePending set by the fast-path bufWriter write; the raw and parsed fwdBatchHandler cases of TestRFC9687RemainingWritersRestartSendHold cover that flush, and buffering alone still earns no restart (the emission test). The hand-off itself is proven by the untagged TestFlushFwdDirtyContendedReachesWire, not by these tags. The zero-time exception stays with RFC9687-4.3-9. Other carriers unchanged. Verdict stands.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1014,7 +1013,7 @@ No tracked gap in current source anchors.
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 19:30 UTC</span>
+                    <span class="footer-published">Published 30 October 2026 09:46 UTC</span>
                 </div>
             </div>
         </footer>

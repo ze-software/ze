@@ -595,7 +595,7 @@ Four MUST rows carry {gap}. <code>BuildPADI</code> limits the PPPoE header and p
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2516-6-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{lower-layer}:</strong> Linux pppoe (PX_PROTO_OE); internal/component/l2tp/pppoe/kernel_linux.go::pppoeCreate connects the AF_PPPOX socket to the session ID, the peer MAC and the device, and the module writes the CODE byte of every session frame itself, so no value Ze writes decides this field</p></td>
+</div><p class="rfc-mark"><strong>{lower-layer}:</strong> Linux pppoe (PX_PROTO_OE, drivers/net/ppp/pppoe.c), linux:CONFIG_PPPOE; internal/component/l2tp/pppoe/kernel_linux.go::pppoeCreate connects the AF_PPPOX socket to the session ID, the peer MAC and the device, and the module writes the CODE byte of every session frame itself, so no value Ze writes decides this field</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2516-7-2">RFC2516-7-2</code></td><td colspan="3"><span class="rfc-subject">An implementation MUST NOT request any of the following options, and MUST reject a request for such an option: Field Check Sequence (FCS) Alternatives, Address-and-Control-Field-Compression (ACFC), Asynchronous-Control-Character-Map (ACCM) (§7)</span></td></tr>
 <tr><td></td>
@@ -724,7 +724,7 @@ Four MUST rows carry {gap}. <code>BuildPADI</code> limits the PPPoE header and p
 </tr>
 <tr><td><a href="#rfc2516-6-1"><code>RFC2516-6-1</code></a> The PPPoE CODE MUST be set to 0x00. (§6)</td>
 <td>no test</td>
-<td>no test carries this requirement id; annotated {lower-layer}: Linux pppoe (PX_PROTO_OE); internal/component/l2tp/pppoe/kernel_linux.go::pppoeCreate connects the AF_PPPOX socket to the session ID, the peer MAC and the device, and the module writes the CODE byte of every session frame itself, so no value Ze writes decides this field</td>
+<td>no test carries this requirement id; annotated {lower-layer}: Linux pppoe (PX_PROTO_OE, drivers/net/ppp/pppoe.c), linux:CONFIG_PPPOE; internal/component/l2tp/pppoe/kernel_linux.go::pppoeCreate connects the AF_PPPOX socket to the session ID, the peer MAC and the device, and the module writes the CODE byte of every session frame itself, so no value Ze writes decides this field</td>
 </tr>
 <tr><td><a href="#rfc2516-x-11"><code>RFC2516-x-11</code></a> A Relay-Session-Id TAG MUST NOT be added if the discovery packet already contains one. (Appendix A, §11)</td>
 <td>{gap}, no test</td>
@@ -1711,7 +1711,7 @@ Four MUST rows carry {gap}. <code>BuildPADI</code> limits the PPPoE header and p
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 19:30 UTC</span>
+                    <span class="footer-published">Published 30 October 2026 17:53 UTC</span>
                 </div>
             </div>
         </footer>

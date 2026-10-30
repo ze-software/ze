@@ -123,7 +123,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>89.5%</strong><b>17 of 19 tagged units, 0 escaped and 2 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>100.0%</strong><b>19 of 19 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -334,14 +334,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>6.1 - Backwards Compatibility</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5082-3-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_gtsm_linux_test.go#L196" title="internal/component/gtsm/rfc5082_gtsm_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMDropsADangerousQuotedICMPError</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_gtsm_linux_test.go#L335" title="internal/component/gtsm/rfc5082_gtsm_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMMinHopCountDropsALowHopLimitICMPv6Error</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_gtsm_linux_test.go#L71" title="internal/component/gtsm/rfc5082_gtsm_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMTransmittedICMPErrorCarriesTTL255</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_gtsm_linux_test.go#L117" title="internal/component/gtsm/rfc5082_gtsm_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMTransmittedICMPv6ErrorCarriesHopLimit255</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_gtsm_linux_test.go#L236" title="internal/component/gtsm/rfc5082_gtsm_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMDeliversAQuotedICMPErrorAtTTL255</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_gtsm_linux_test.go#L93" title="internal/component/gtsm/rfc5082_gtsm_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMTransmittedICMPErrorWithoutTheRouteMetricIsNot255</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_gtsm_linux_test.go#L135" title="internal/component/gtsm/rfc5082_gtsm_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMTransmittedICMPv6ErrorWithoutTheRouteMetricIsNot255</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_gtsm_linux_test.go#L361" title="internal/component/gtsm/rfc5082_gtsm_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMWithoutMinHopCountDeliversTheSameICMPv6Error</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_gtsm_linux_test.go#L210" title="internal/component/gtsm/rfc5082_gtsm_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMDropsADangerousQuotedICMPError</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_gtsm_linux_test.go#L358" title="internal/component/gtsm/rfc5082_gtsm_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMMinHopCountDropsALowHopLimitICMPv6Error</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_gtsm_linux_test.go#L73" title="internal/component/gtsm/rfc5082_gtsm_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMTransmittedICMPErrorCarriesTTL255</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_gtsm_linux_test.go#L125" title="internal/component/gtsm/rfc5082_gtsm_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMTransmittedICMPv6ErrorCarriesHopLimit255</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_gtsm_linux_test.go#L253" title="internal/component/gtsm/rfc5082_gtsm_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMDeliversAQuotedICMPErrorAtTTL255</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_gtsm_linux_test.go#L98" title="internal/component/gtsm/rfc5082_gtsm_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMTransmittedICMPErrorWithoutTheRouteMetricIsNot255</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_gtsm_linux_test.go#L146" title="internal/component/gtsm/rfc5082_gtsm_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMTransmittedICMPv6ErrorWithoutTheRouteMetricIsNot255</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_gtsm_linux_test.go#L387" title="internal/component/gtsm/rfc5082_gtsm_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMWithoutMinHopCountDeliversTheSameICMPv6Error</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5082-3-3">RFC5082-3-3</code></td><td colspan="3"><span class="rfc-subject">The TTL of GTSM-enabled sessions MUST NOT be decremented. (§3)</span></td></tr>
@@ -349,7 +349,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST NOT</td>
 <td>3 - GTSM Procedure</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5082-3-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/network/rfc5082_ttl_gtsm_egress_integration_linux_test.go#L27" title="internal/core/network/rfc5082_ttl_gtsm_egress_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMConfiguredEgressDoesNotDecrement</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/network/rfc5082_ttl_gtsm_egress_integration_linux_test.go#L36" title="internal/core/network/rfc5082_ttl_gtsm_egress_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMConfiguredEgressDoesNotDecrement</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> owner ruling 11 (2026-10-02 continuation ba93202e): local-output proof over configured egress, not transit forwarding; no legitimate negative input exists.</p></td>
 </tr>
@@ -358,11 +358,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST NOT</td>
 <td>3 - GTSM Procedure</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5082-3-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_gtsm_linux_test.go#L281" title="internal/component/gtsm/rfc5082_gtsm_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMDeliversAnICMPErrorNoSessionClaims</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_gtsm_linux_test.go#L301" title="internal/component/gtsm/rfc5082_gtsm_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMDeliversAnICMPErrorNoSessionClaims</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/network/rfc5082_ttl_gtsm_linux_test.go#L129" title="internal/core/network/rfc5082_ttl_gtsm_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMFloorDeliversATrustedPacket</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_listener_integration_linux_test.go#L119" title="internal/component/gtsm/rfc5082_listener_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMListenerSYNAtFloorAccepted</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_listener_integration_linux_test.go#L131" title="internal/component/gtsm/rfc5082_listener_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMListenerSYNAtFloorAcceptedIPv6</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_listener_integration_linux_test.go#L222" title="internal/component/gtsm/rfc5082_listener_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMListenerUnknownNotDropped</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_listener_integration_linux_test.go#L125" title="internal/component/gtsm/rfc5082_listener_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMListenerSYNAtFloorAccepted</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_listener_integration_linux_test.go#L140" title="internal/component/gtsm/rfc5082_listener_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMListenerSYNAtFloorAcceptedIPv6</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_listener_integration_linux_test.go#L240" title="internal/component/gtsm/rfc5082_listener_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMListenerUnknownNotDropped</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/network/rfc5082_ttl_gtsm_linux_test.go#L156" title="internal/core/network/rfc5082_ttl_gtsm_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMNoFloorDeliversAnUnknownPacket</code></a></span></div>
 </div></td>
 </tr>
@@ -390,7 +390,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>3 - GTSM Procedure</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5082-3-7">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_listener_integration_linux_test.go#L63" title="internal/component/gtsm/rfc5082_listener_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMListenerSYNBelowFloorDropped</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_listener_integration_linux_test.go#L74" title="internal/component/gtsm/rfc5082_listener_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMListenerSYNBelowFloorDroppedIPv6</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_listener_integration_linux_test.go#L77" title="internal/component/gtsm/rfc5082_listener_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMListenerSYNBelowFloorDroppedIPv6</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
@@ -452,48 +452,48 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc5082-3-2"><code>RFC5082-3-2</code></a></h3>
 <p>RFC 3682 [RFC3682] did not specify how to handle &#34;related messages&#34; (ICMP errors).  This specification mandates setting and verifying TTL=255 of those as well as the main protocol packets. (§6.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-read 2026-10-17 against the Section 6.1 sentence &#34;This specification mandates setting and verifying TTL=255 of those as well as the main protocol packets.&#34; after the IPv4 receive proofs moved to match-scoped nft counters. Setting is unchanged: TestGTSMTransmittedICMPErrorCarriesTTL255 fails on packet[8]!=255 and the ICMPv6 twin on packet[7]!=255, over the route applyHopLimitRoutes installs, and the withdraw negatives bind the 255 to that route. Verifying, IPv4: TestGTSMDropsADangerousQuotedICMPError waits on the quoted-destination term&#39;s counter (bounded by captureWait), then fails when IcmpMsg InType3 rises, when any term other than exactly that one matched, or when TCPMinTTLDrop moved; Observed in an arm64 guest on kernel 7.2.9: Drop turned to Accept in peerTerms leaves the term matching and the message delivered, and the test goes red at the InType3 assertion. TestGTSMDeliversAQuotedICMPErrorAtTTL255 is a real negative: the same message at TTL 255 must raise InType3 by one and match no term, and with Accept plus the TTL match removed from peerTerms it was observed red at assertNoTermMatched, naming the quoted-destination term. rulePackets now fails a rule with no counter, so a vanished counter cannot read as no match. Verifying, IPv6: TestGTSMMinHopCountDropsALowHopLimitICMPv6Error fails when TCPMinTTLDrop does not rise, unchanged.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 by an independent auditor after the userns conversion. The unit&#39;s only change since the last verdict is userns.Enter(t) as its first statement (the child re-runs the whole body in its own user, network and mount namespace; a child failure or skip propagates to the parent, and a child that ran nothing fails it) plus removal of EPERM/EACCES skips, so a refused privilege now fails instead of skipping. Assertions are byte-identical. Section 6.1: &#39;This specification mandates setting and verifying TTL=255 of those as well as the main protocol packets.&#39; Setting: TestGTSMTransmittedICMPErrorCarriesTTL255 (packet[8]==255) and its ICMPv6 twin (packet[7]==255) over the route installGTSMRoute installs and reads back; the withdraw negatives require the system default and not 255, binding the 255 to Ze&#39;s route. Verifying IPv4: TestGTSMDropsADangerousQuotedICMPError waits on the quoted-destination term counter, then fails if IcmpMsg InType3 rose, if any other term matched, or if TCPMinTTLDrop moved, from the peer and from a third host; TestGTSMDeliversAQuotedICMPErrorAtTTL255 is the negative, same message at TTL 255 must raise InType3 by one and match no term. Verifying IPv6: TestGTSMMinHopCountDropsALowHopLimitICMPv6Error requires TCPMinTTLDrop +1 and no socket error; TestGTSMWithoutMinHopCountDeliversTheSameICMPv6Error requires no drop and ECONNREFUSED delivered.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_gtsm_linux_test.go#L236" title="internal/component/gtsm/rfc5082_gtsm_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMDeliversAQuotedICMPErrorAtTTL255</code></a></td>
-<td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
-</tr>
-<tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_gtsm_linux_test.go#L93" title="internal/component/gtsm/rfc5082_gtsm_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMTransmittedICMPErrorWithoutTheRouteMetricIsNot255</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_gtsm_linux_test.go#L253" title="internal/component/gtsm/rfc5082_gtsm_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMDeliversAQuotedICMPErrorAtTTL255</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_gtsm_linux_test.go#L135" title="internal/component/gtsm/rfc5082_gtsm_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMTransmittedICMPv6ErrorWithoutTheRouteMetricIsNot255</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_gtsm_linux_test.go#L98" title="internal/component/gtsm/rfc5082_gtsm_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMTransmittedICMPErrorWithoutTheRouteMetricIsNot255</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_gtsm_linux_test.go#L361" title="internal/component/gtsm/rfc5082_gtsm_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMWithoutMinHopCountDeliversTheSameICMPv6Error</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_gtsm_linux_test.go#L146" title="internal/component/gtsm/rfc5082_gtsm_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMTransmittedICMPv6ErrorWithoutTheRouteMetricIsNot255</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_gtsm_linux_test.go#L387" title="internal/component/gtsm/rfc5082_gtsm_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMWithoutMinHopCountDeliversTheSameICMPv6Error</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_gtsm_linux_test.go#L196" title="internal/component/gtsm/rfc5082_gtsm_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMDropsADangerousQuotedICMPError</code></a></td>
-<td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
-</tr>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_gtsm_linux_test.go#L335" title="internal/component/gtsm/rfc5082_gtsm_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMMinHopCountDropsALowHopLimitICMPv6Error</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_gtsm_linux_test.go#L210" title="internal/component/gtsm/rfc5082_gtsm_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMDropsADangerousQuotedICMPError</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_gtsm_linux_test.go#L71" title="internal/component/gtsm/rfc5082_gtsm_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMTransmittedICMPErrorCarriesTTL255</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_gtsm_linux_test.go#L358" title="internal/component/gtsm/rfc5082_gtsm_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMMinHopCountDropsALowHopLimitICMPv6Error</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_gtsm_linux_test.go#L117" title="internal/component/gtsm/rfc5082_gtsm_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMTransmittedICMPv6ErrorCarriesHopLimit255</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_gtsm_linux_test.go#L73" title="internal/component/gtsm/rfc5082_gtsm_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMTransmittedICMPErrorCarriesTTL255</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_gtsm_linux_test.go#L125" title="internal/component/gtsm/rfc5082_gtsm_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMTransmittedICMPv6ErrorCarriesHopLimit255</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -502,13 +502,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc5082-3-3"><code>RFC5082-3-3</code></a></h3>
 <p>The TTL of GTSM-enabled sessions MUST NOT be decremented. (§3)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent post-lint judgment after reading the full RFC and actual socket boundary. RFC 5082 Section 3: &#39;On some architectures, the TTL of control plane originated traffic is under some configurations decremented in the forwarding plane. The TTL of GTSM-enabled sessions MUST NOT be decremented.&#39; TestGTSMConfiguredEgressDoesNotDecrement configures RealDialer.OutTTL=255 and observes both SYN and exact data payload at the adjacent veth in a separate namespace. Every captured sender packet must carry TTL exactly 255. newTCPEgress creates two network namespaces, addresses the MTU-1500 veth and checks the route&#39;s egress link, so local delivery cannot substitute for the claimed path. Its promoted-field Veth literal retains Name, MTU, PeerName and PeerNamespace. receive/receiveFrame now return errors that the calling test makes fatal; IP total length, IP/TCP header bounds, peer link, bounded frame count, socket timeout and owned packet clone still guard the observer. Actual producer network.go::DialContext sets IP_TTL before the SYN through ttl_linux.go::setIPTTL; Linux&#39;s local-output path emits the captured packets. A TTL-setting omission or decrement to 254 fails the exact on-wire assertion. The owner&#39;s single-positive local-output scope is retained: there is no legitimate negative input for this invariant, and normal transit forwarding decrement is not the prohibited local-output behavior. This does not invent IPv6, ICMP or transit proof for this IPv4 carrier. Reviewed parent&#39;s job-network-wire-observers-privileged-cdc8e23e.log lines 43-46: this unit PASS, package PASS, no skip. Parent reports native Linux -race and only the test executable elevated via -exec &#39;sudo -n&#39; within fixture-created private namespaces. Earlier pre-body privilege/restore failure proves nothing. Existing native setIPTTL-panic discrimination must be renewed for the changed unit; this audit neither executed nor claims that red.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 by an independent auditor after the userns conversion. The unit&#39;s only change since the last verdict is userns.Enter(t) as its first statement (the child re-runs the whole body in its own user, network and mount namespace; a child failure or skip propagates to the parent, and a child that ran nothing fails it) plus removal of EPERM/EACCES skips, so a refused privilege now fails instead of skipping. Assertions are byte-identical. Section 3: &#39;The TTL of GTSM-enabled sessions MUST NOT be decremented.&#39; Single positive per the owner&#39;s local-output scope. TestGTSMConfiguredEgressDoesNotDecrement dials with RealDialer OutTTL 255 over a two-namespace veth and fails unless every captured packet from 192.0.2.1 carries TTL exactly 255 and both the SYN and the exact data payload are seen; newTCPEgress now fails instead of skipping on a refused namespace. Producer network.go DialContext through ttl_linux.go setIPTTL before the SYN; an omission or a 254 fails the on-wire assertion.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/network/rfc5082_ttl_gtsm_egress_integration_linux_test.go#L27" title="internal/core/network/rfc5082_ttl_gtsm_egress_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMConfiguredEgressDoesNotDecrement</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/network/rfc5082_ttl_gtsm_egress_integration_linux_test.go#L36" title="internal/core/network/rfc5082_ttl_gtsm_egress_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMConfiguredEgressDoesNotDecrement</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -517,7 +517,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc5082-3-4"><code>RFC5082-3-4</code></a></h3>
 <p>+ MUST NOT drop (as part of GTSM processing) packets classified as Trusted or Unknown. (§3)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-27 by an independent auditor against Section 3: &#34;MUST NOT drop (as part of GTSM processing) packets classified as Trusted or Unknown.&#34; Ze has three GTSM processing points, and each now carries a 3-4 tag with a recorded break. Socket floor: TestGTSMFloorDeliversATrustedPacket (Trusted) and TestGTSMNoFloorDeliversAnUnknownPacket (Unknown), revert records on setIPMinTTL. ICMP-error terms: TestGTSMDeliversAnICMPErrorNoSessionClaims (Unknown errors delivered, no term counter), revert record on quotedIPv4HeaderGuard. Listen-port rule: TestGTSMListenerUnknownNotDropped (Unknown SYNs at TTL/hop limit 1 answered, no counter; mutant on listenPortTerm&#39;s MatchSourceAddress) and, new, TestGTSMListenerSYNAtFloorAccepted and its IPv6 twin (listenerAtFloorProof): a SYN from the GTSM peer at TTL/hop limit 255 with floor 255 gets a SYN-ACK, the injected ACK completes a connection the listener accepts from the peer&#39;s address, and assertNoTermMatched finds no ze_gtsm counter nonzero; mutant records lower_linux.go:947 lowerIPv4TTLBelowMatch and :972 lowerIPv6HopLimitBelowMatch CmpOpLt-&gt;CmpOpLte, observed red. This discharges the previous finding (Trusted half of the listen-port rule tagged only under 3-7). Each claim states what its body checks: at floor 255 the Trusted range is exactly TTL 255, so &#39;drops no SYN classified Trusted&#39; is not wider than the body. Residuals, not verdict changes: only floor 255 is driven, so a compare of the form ttl != floor would pass at this floor (the claims do not claim other floors); Trusted ICMP errors at TTL 255 are asserted by TestGTSMDeliversAQuotedICMPErrorAtTTL255 under the 3-2 tag, and their only drop path is the same shared lowerIPv4TTLBelowMatch compare the IPv4 at-floor record discriminates; listenerAtFloorProof does not itself read that the listen rule is installed, which the mutant record covers for the recorded run.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 by an independent auditor after the userns conversion. The unit&#39;s only change since the last verdict is userns.Enter(t) as its first statement (the child re-runs the whole body in its own user, network and mount namespace; a child failure or skip propagates to the parent, and a child that ran nothing fails it) plus removal of EPERM/EACCES skips, so a refused privilege now fails instead of skipping. Assertions are byte-identical. Section 3: &#39;MUST NOT drop (as part of GTSM processing) packets classified as Trusted or Unknown.&#39; Re-read the four changed units. TestGTSMDeliversAnICMPErrorNoSessionClaims: Unknown ICMPv4 errors at TTL 1 (other port, other host, quoted header with options spelling port 179) must raise InType3 by one and match no term. TestGTSMListenerUnknownNotDropped: SYNs at TTL/hop limit 1 from a non-GTSM peer, an unconfigured address, the GTSM peer to another port, and an IPv6 non-GTSM host must each get a SYN-ACK with no term matched. TestGTSMListenerSYNAtFloorAccepted and its IPv6 twin: a SYN at the 255 floor gets a SYN-ACK, the injected ACK yields an accepted connection from the peer, and no term counter moved. Socket-floor units in rfc5082_ttl_gtsm_linux_test.go are unchanged. Residuals as before: only floor 255 is driven at the listener; listenerAtFloorProof does not itself read that the listen rule is installed.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -528,22 +528,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_gtsm_linux_test.go#L281" title="internal/component/gtsm/rfc5082_gtsm_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMDeliversAnICMPErrorNoSessionClaims</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_gtsm_linux_test.go#L301" title="internal/component/gtsm/rfc5082_gtsm_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMDeliversAnICMPErrorNoSessionClaims</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_listener_integration_linux_test.go#L119" title="internal/component/gtsm/rfc5082_listener_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMListenerSYNAtFloorAccepted</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_listener_integration_linux_test.go#L125" title="internal/component/gtsm/rfc5082_listener_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMListenerSYNAtFloorAccepted</code></a></td>
 <td>unit/verify</td>
 <td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_listener_integration_linux_test.go#L131" title="internal/component/gtsm/rfc5082_listener_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMListenerSYNAtFloorAcceptedIPv6</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_listener_integration_linux_test.go#L140" title="internal/component/gtsm/rfc5082_listener_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMListenerSYNAtFloorAcceptedIPv6</code></a></td>
 <td>unit/verify</td>
 <td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_listener_integration_linux_test.go#L222" title="internal/component/gtsm/rfc5082_listener_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMListenerUnknownNotDropped</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_listener_integration_linux_test.go#L240" title="internal/component/gtsm/rfc5082_listener_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMListenerUnknownNotDropped</code></a></td>
 <td>unit/verify</td>
 <td>mutant, verified</td>
 </tr>
@@ -568,7 +568,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_listener_integration_linux_test.go#L74" title="internal/component/gtsm/rfc5082_listener_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMListenerSYNBelowFloorDroppedIPv6</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/rfc5082_listener_integration_linux_test.go#L77" title="internal/component/gtsm/rfc5082_listener_integration_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMListenerSYNBelowFloorDroppedIPv6</code></a></td>
 <td>unit/verify</td>
 <td>mutant, verified</td>
 </tr>
@@ -812,7 +812,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 19:30 UTC</span>
+                    <span class="footer-published">Published 30 October 2026 12:24 UTC</span>
                 </div>
             </div>
         </footer>

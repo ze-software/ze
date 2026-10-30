@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 905 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 905: ISO Transport Protocol Specification (ISO DP 8073). 11 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 905: ISO Transport Protocol Specification (ISO DP 8073). 11 gated MUST-level requirements, 3 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 905 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 905: ISO Transport Protocol Specification (ISO DP 8073). 11 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 905: ISO Transport Protocol Specification (ISO DP 8073). 11 gated MUST-level requirements, 3 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 905 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 905: ISO Transport Protocol Specification (ISO DP 8073). 11 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 905: ISO Transport Protocol Specification (ISO DP 8073). 11 gated MUST-level requirements, 3 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -45,7 +45,7 @@
         <main id="top" class="has-page-sidebar" tabindex="-1">
             <section aria-labeledby="rfc-detail-title" class="md-content reveal cat-observe">
 <div class="journey-hero reveal">
-    <span class="journey-eyebrow">No row in the public ledger</span>
+    <span class="journey-eyebrow">Partial</span>
     <h1 id="rfc-detail-title">RFC 905 - ISO Transport Protocol Specification (ISO DP 8073)</h1>
     <p>Every requirement this repository extracted from RFC 905, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.</p>
 </div>
@@ -122,18 +122,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 <article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>79.3%</strong><b>23 of 29 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>11</strong><b>of 11 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>3</strong><b>of 11 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>27.3%</strong><b>3 of 11 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 11 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit</p></article>
+</div>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>27.3%</strong><b>3 of 11 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 </div>
 <p>The 9 shares marked as a part above are the whole of the 11 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -167,7 +171,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
 </tr>
 <tr><td>No test at all</td>
-<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
 </tr>
 <tr><td>Not applicable</td>
@@ -205,7 +209,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Field</th><th>Value</th></tr></thead>
 <tbody>
 <tr><td>Public status</td>
-<td>No row in the public ledger</td>
+<td>Partial</td>
 </tr>
 <tr><td>Enrolment</td>
 <td>Enrolled</td>
@@ -217,10 +221,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>11</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
-<td>3</td>
+<td>0</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>0</td>
+<td>3</td>
 </tr>
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
@@ -257,10 +261,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Enrolled: ISO Transport Protocol: nine MUST-level requirements. The six that ze realizes are the Annex B Fletcher checksum (mod-255 arithmetic, two-pass generation, verify-both-sums-zero, OSPF LSA checksum excluding LS Age, encode+decode vectors) -- x-1,x-2,x-3,x-4,x-6,x-7 -- each bound with positive+negative tags on the IS-IS (internal/plugins/isis/packet/checksum.go) and OSPF (internal/plugins/ospf/types/checksum.go, ospf/packet/checksum.go) checksum tests. The three ISO Transport TPDU MUSTs (6.17.3-1 generation, 6.17.3-2 receive/verify-and-discard, 13.2.3.1-1 0xC3 checksum parameter) are {not-applicable}: ze has no ISO Transport TPDU sender/receiver and no 0xC3 transport-checksum-parameter code path.</p>
+<p>Enrolled: ISO Transport Protocol: nine MUST-level requirements. The six that ze realizes are the Annex B Fletcher checksum (mod-255 arithmetic, two-pass generation, verify-both-sums-zero, OSPF LSA checksum excluding LS Age, encode+decode vectors) -- x-1,x-2,x-3,x-4,x-6,x-7 -- each bound with positive+negative tags on the IS-IS (internal/plugins/isis/packet/checksum.go) and OSPF (internal/plugins/ospf/types/checksum.go, ospf/packet/checksum.go) checksum tests. The three ISO Transport TPDU MUSTs (6.17.3-1 generation, 6.17.3-2 receive/verify-and-discard, 13.2.3.1-1 0xC3 checksum parameter) are gaps: ze has no ISO Transport TPDU sender/receiver and no 0xC3 transport-checksum-parameter code path.</p>
 </section>
 <section><h2>What the public ledger says</h2>
-<p>No row in the public ledger, so its summary declares `| Support | - |` and docs/features/rfc-status.md carries no row for RFC 905.</p>
+<p><strong>Status:</strong> Partial</p>
+<p><strong>What the ledger says is covered:</strong></p>
+The Annex B Fletcher checksum, used by IS-IS and OSPF.
+<p><strong>What the ledger says remains:</strong></p>
+Three MUST gaps (<a href="#rfc905-6.17.3-1"><code>RFC905-6.17.3-1</code></a>, 6.17.3-2, 13.2.3.1-1): ze has no ISO Transport Protocol entity, so it neither sends nor receives a TPDU.
 </section>
 <section><h2>Coverage</h2>
 <div class="rfc-table-wrap">
@@ -303,7 +311,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p class="rfc-id-list"><strong>Annotated (including scoped evidence) (3):</strong> <a href="#rfc905-6.17.3-1"><code>RFC905-6.17.3-1</code></a>, <a href="#rfc905-6.17.3-2"><code>RFC905-6.17.3-2</code></a>, <a href="#rfc905-13.2.3.1-1"><code>RFC905-13.2.3.1-1</code></a></p>
 </section>
 <section><h2>Attainable ceiling</h2>
-<p>Mandatory ceiling: 8 of 11 (72.7%); excluded: Not applicable (classification can be revisited): 3 of 11 (27.3%). Optional ceiling: no rows. Lowest mandatory ceiling: rfc905 8 of 11 (72.7%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.</p>
+<p>Mandatory ceiling: 11 of 11 (100.0%). Optional ceiling: no rows. Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: rfc905 11 of 11 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.</p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -317,7 +325,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC905-6.17.3-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze implements the RFC 905 Annex B Fletcher checksum (reused by IS-IS at internal/plugins/isis/packet/checksum.go and OSPF at internal/plugins/ospf/types/checksum.go) but has no ISO Transport Protocol TPDU generator that sets a transport checksum parameter (grep for TPDU/TP4/0xC3 across internal/ is empty)</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze has no ISO Transport Protocol entity: it implements the Annex B Fletcher checksum for IS-IS (internal/plugins/isis/packet/checksum.go) and OSPF (internal/plugins/ospf/types/checksum.go) and sends no TPDU, so no TPDU carries a checksum parameter. The lower-case shall fits neither not-applicable shape</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc905-6.17.3-2">RFC905-6.17.3-2</code></td><td colspan="3"><span class="rfc-subject">A transport entity which receives a TPDU for a transport connection for which the use of checksum has been agreed and which does not satisfy the above formulas shall discard the TPDU (§6.17.3)</span></td></tr>
 <tr><td></td>
@@ -326,7 +334,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC905-6.17.3-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze implements the RFC 905 Annex B Fletcher checksum (reused by IS-IS at internal/plugins/isis/packet/checksum.go and OSPF at internal/plugins/ospf/types/checksum.go) but has no ISO Transport Protocol TPDU receiver that verifies and discards a transport TPDU (grep for TPDU/TP4/0xC3 across internal/ is empty)</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze has no ISO Transport Protocol entity: it implements the Annex B Fletcher checksum for IS-IS (internal/plugins/isis/packet/checksum.go) and OSPF (internal/plugins/ospf/types/checksum.go) and receives no TPDU, so none is verified or discarded. The subject carries a relative clause and a lower-case shall, which fit neither not-applicable shape</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc905-x-1">RFC905-x-1</code></td><td colspan="3"><span class="rfc-subject">Addition is performed in one of the two following modes: a) modulo 255 arithmetic; b) one&#39;s complement arithmetic in which if any of the variables has the value minus zero (i.e. 255) it shall be regarded as though it was plus zero (i.e. 0). (§B.2)</span></td></tr>
 <tr><td></td>
@@ -420,7 +428,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC905-13.2.3.1-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze implements the RFC 905 Annex B Fletcher checksum (reused by IS-IS at internal/plugins/isis/packet/checksum.go and OSPF at internal/plugins/ospf/types/checksum.go) but has no ISO Transport Protocol code path that encodes the 0xC3 transport checksum parameter (grep for TPDU/TP4/0xC3 across internal/ is empty)</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze has no ISO Transport Protocol entity, so it encodes no 0xC3 checksum parameter; its Annex B Fletcher checksum serves IS-IS (internal/plugins/isis/packet/checksum.go) and OSPF (internal/plugins/ospf/types/checksum.go) only. The row is a field layout with no subject, which fits neither not-applicable shape</p></td>
 </tr>
 </tbody>
 </table>
@@ -432,16 +440,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
 <tr><td><a href="#rfc905-6.17.3-1"><code>RFC905-6.17.3-1</code></a> The sending transport entity shall transmit TPDUs with the checksum parameter set such that the following formulas are satisfied: SUM(from i=1 to i=L) OF a[i] EQUALS &lt;zero&gt; (module 255) SUM(from i=1 to i=L) OF i*a[i] EQUALS &lt;zero&gt; (module 255) (§6.17.3)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: ze implements the RFC 905 Annex B Fletcher checksum (reused by IS-IS at internal/plugins/isis/packet/checksum.go and OSPF at internal/plugins/ospf/types/checksum.go) but has no ISO Transport Protocol TPDU generator that sets a transport checksum parameter (grep for TPDU/TP4/0xC3 across internal/ is empty)</td>
+<td>{gap}, no test</td>
+<td>ze has no ISO Transport Protocol entity: it implements the Annex B Fletcher checksum for IS-IS (internal/plugins/isis/packet/checksum.go) and OSPF (internal/plugins/ospf/types/checksum.go) and sends no TPDU, so no TPDU carries a checksum parameter. The lower-case shall fits neither not-applicable shape</td>
 </tr>
 <tr><td><a href="#rfc905-6.17.3-2"><code>RFC905-6.17.3-2</code></a> A transport entity which receives a TPDU for a transport connection for which the use of checksum has been agreed and which does not satisfy the above formulas shall discard the TPDU (§6.17.3)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: ze implements the RFC 905 Annex B Fletcher checksum (reused by IS-IS at internal/plugins/isis/packet/checksum.go and OSPF at internal/plugins/ospf/types/checksum.go) but has no ISO Transport Protocol TPDU receiver that verifies and discards a transport TPDU (grep for TPDU/TP4/0xC3 across internal/ is empty)</td>
+<td>{gap}, no test</td>
+<td>ze has no ISO Transport Protocol entity: it implements the Annex B Fletcher checksum for IS-IS (internal/plugins/isis/packet/checksum.go) and OSPF (internal/plugins/ospf/types/checksum.go) and receives no TPDU, so none is verified or discarded. The subject carries a relative clause and a lower-case shall, which fit neither not-applicable shape</td>
 </tr>
 <tr><td><a href="#rfc905-13.2.3.1-1"><code>RFC905-13.2.3.1-1</code></a> Parameter Code: 1100 0011 Parameter Length: 2 Parameter Value: Result of checksum algorithm. This algorithm is specified in 6.17. (§13.2.3.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: ze implements the RFC 905 Annex B Fletcher checksum (reused by IS-IS at internal/plugins/isis/packet/checksum.go and OSPF at internal/plugins/ospf/types/checksum.go) but has no ISO Transport Protocol code path that encodes the 0xC3 transport checksum parameter (grep for TPDU/TP4/0xC3 across internal/ is empty)</td>
+<td>{gap}, no test</td>
+<td>ze has no ISO Transport Protocol entity, so it encodes no 0xC3 checksum parameter; its Annex B Fletcher checksum serves IS-IS (internal/plugins/isis/packet/checksum.go) and OSPF (internal/plugins/ospf/types/checksum.go) only. The row is a field layout with no subject, which fits neither not-applicable shape</td>
 </tr>
 </tbody>
 </table>
@@ -4020,7 +4028,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 19:30 UTC</span>
+                    <span class="footer-published">Published 30 October 2026 23:25 UTC</span>
                 </div>
             </div>
         </footer>

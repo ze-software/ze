@@ -17,7 +17,7 @@ Open Shortest Path First v2 (RFC 2328): native link-state IPv4 IGP
 
 ## Dependencies
 
-- Required: [`interface`](../interface/index.md), [`fib-kernel`](../fib-kernel/index.md), [`sysctl`](../sysctl/index.md)
+- Required: [`interface`](../interface/index.md), [`fib-kernel`](../fib-kernel/index.md), [`sysctl`](../sysctl/index.md), [`policy`](../policy/index.md)
 - Optional: None
 
 ## Used by

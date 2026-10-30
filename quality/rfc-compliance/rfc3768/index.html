@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 3768 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 3768: Virtual Router Redundancy Protocol (VRRP). 41 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 3768: Virtual Router Redundancy Protocol (VRRP). 41 gated MUST-level requirements, 2 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 3768 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 3768: Virtual Router Redundancy Protocol (VRRP). 41 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 3768: Virtual Router Redundancy Protocol (VRRP). 41 gated MUST-level requirements, 2 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 3768 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 3768: Virtual Router Redundancy Protocol (VRRP). 41 gated MUST-level requirements, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 3768: Virtual Router Redundancy Protocol (VRRP). 41 gated MUST-level requirements, 2 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -122,18 +122,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>12.2%</strong><b>5 of 41 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 41 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 41 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 41 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 <article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>57.7%</strong><b>82 of 142 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>41</strong><b>of 52 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>3</strong><b>of 41 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>7.3%</strong><b>3 of 41 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>1</strong><b>of 41 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 41 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 41 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 41 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>2.4%</strong><b>1 of 41 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0.0%</strong><b>0 of 41 gated MUSTs</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit</p></article>
+</div>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>4.9%</strong><b>2 of 41 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 </div>
 <p>The 9 shares marked as a part above are the whole of the 41 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -167,7 +171,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
 </tr>
 <tr><td>No test at all</td>
-<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
 </tr>
 <tr><td>Not applicable</td>
@@ -217,10 +221,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>41</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
-<td>3</td>
+<td>0</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>0</td>
+<td>2</td>
 </tr>
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
@@ -264,8 +268,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <details class="rfc-fold"><summary>What the ledger says is covered</summary>
 Opt-in via <code>version 2</code>. Whole-second Advertisement_Interval encoding, v2 advert format, the v2 receive-validation ladder (version, complete-packet, checksum, VRID, Auth Type 0, interval-mismatch discard, address-list discard), the Section 6.4 state machine (priority/master election, skew time, preemption, silent losing-advert discard), virtual-MAC ownership of the VIP via a per-group macvlan, and the v2 rejection rules (no accept-mode, no IPv6).
 </details>
-<p><strong>What the ledger says remains:</strong></p>
-RFC 3768 authentication types are deliberately not implemented: RFC 9568 Section 9 removed them as providing no real security. Same VRRP experimental status.
+<details class="rfc-fold"><summary>What the ledger says remains</summary>
+The requirement checklist carries gaps: no test shows the kernel or VPP dataplane forwards no datagram to 224.0.0.18 (<a href="#rfc3768-5.2.2-1"><code>RFC3768-5.2.2-1</code></a>), and ze implements no VRRP over token ring (<a href="#rfc3768-9.2-1"><code>RFC3768-9.2-1</code></a>). Proxy ARP on a VRRP unit is refused by owner decision (<a href="#rfc3768-8.3-1"><code>RFC3768-8.3-1</code></a>). RFC 3768 authentication types are deliberately not implemented: RFC 9568 Section 9 removed them as providing no real security. Same VRRP experimental status.
+</details>
 </section>
 <section><h2>Coverage</h2>
 <div class="rfc-table-wrap">
@@ -308,7 +313,7 @@ RFC 3768 authentication types are deliberately not implemented: RFC 9568 Section
 <p class="rfc-id-list"><strong>Annotated (including scoped evidence) (8):</strong> <a href="#rfc3768-5.2.2-1"><code>RFC3768-5.2.2-1</code></a>, <a href="#rfc3768-5.2.3-1"><code>RFC3768-5.2.3-1</code></a>, <a href="#rfc3768-7.2-1"><code>RFC3768-7.2-1</code></a>, <a href="#rfc3768-7.2-2"><code>RFC3768-7.2-2</code></a>, <a href="#rfc3768-7.2-3"><code>RFC3768-7.2-3</code></a>, <a href="#rfc3768-7.2-4"><code>RFC3768-7.2-4</code></a>, <a href="#rfc3768-8.3-1"><code>RFC3768-8.3-1</code></a>, <a href="#rfc3768-9.2-1"><code>RFC3768-9.2-1</code></a></p>
 </section>
 <section><h2>Attainable ceiling</h2>
-<p>Mandatory ceiling: 38 of 41 (92.7%); excluded: Not applicable (classification can be revisited): 3 of 41 (7.3%). Optional ceiling: 11 of 11 (100.0%). Lowest mandatory ceiling: rfc3768 38 of 41 (92.7%). Lowest optional ceiling: rfc3768 11 of 11 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.</p>
+<p>Mandatory ceiling: 40 of 41 (97.6%); excluded: Optional feature not offered (classification can be revisited): 1 of 41 (2.4%). Optional ceiling: 11 of 11 (100.0%). Lowest mandatory ceiling: rfc3768 40 of 41 (97.6%). Lowest optional ceiling: rfc3768 11 of 11 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.</p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -322,7 +327,7 @@ RFC 3768 authentication types are deliberately not implemented: RFC 9568 Section
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3768-5.2.2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> the VRRP plugin performs no IP datagram forwarding -- instance.onPacket internal/plugins/vrrp/instance.go:453 consumes each received advert into the FSM and never re-emits it, and tx scopes adverts to link-local multicast with IP_MULTICAST_LOOP 0 at internal/plugins/vrrp/transport/backend_linux.go:143</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze is a router, and the VRRP plugin never re-emits a received advertisement (internal/plugins/vrrp/instance.go::onPacket), but forwarding is the dataplane&#39;s: no test shows that the Linux kernel or the VPP FIB backend ze programs forwards no datagram addressed to 224.0.0.18</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3768-5.2.3-1">RFC3768-5.2.3-1</code></td><td colspan="3"><span class="rfc-subject">The TTL MUST be set to 255. (§5.2.3)</span></td></tr>
 <tr><td></td>
@@ -393,9 +398,9 @@ RFC 3768 authentication types are deliberately not implemented: RFC 9568 Section
 <td>MUST NOT</td>
 <td>6.4.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3768-6.4.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L396" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceStartupNonOwnerGoesBackup</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L414" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceStartupNonOwnerGoesBackup</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc3768_v2_group_test.go#L137" title="internal/plugins/vrrp/rfc3768_v2_group_test.go" target="_blank" rel="noopener"><code>TestV2BackupHoldsNoVirtualAddress</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L433" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceOwnerStartupGoesMaster</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L451" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceOwnerStartupGoesMaster</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc3768_v2_group_test.go#L138" title="internal/plugins/vrrp/rfc3768_v2_group_test.go" target="_blank" rel="noopener"><code>TestV2BackupHoldsNoVirtualAddress</code></a></span></div>
 </div></td>
 </tr>
@@ -415,9 +420,9 @@ RFC 3768 authentication types are deliberately not implemented: RFC 9568 Section
 <td>MUST NOT</td>
 <td>6.4.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3768-6.4.2-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L397" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceStartupNonOwnerGoesBackup</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L415" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceStartupNonOwnerGoesBackup</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc3768_v2_group_test.go#L139" title="internal/plugins/vrrp/rfc3768_v2_group_test.go" target="_blank" rel="noopener"><code>TestV2BackupHoldsNoVirtualAddress</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L434" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceOwnerStartupGoesMaster</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L452" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceOwnerStartupGoesMaster</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc3768_v2_group_test.go#L140" title="internal/plugins/vrrp/rfc3768_v2_group_test.go" target="_blank" rel="noopener"><code>TestV2BackupHoldsNoVirtualAddress</code></a></span></div>
 </div></td>
 </tr>
@@ -515,9 +520,9 @@ RFC 3768 authentication types are deliberately not implemented: RFC 9568 Section
 <td>6.4.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3768-6.4.3-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L379" title="internal/plugins/vrrp/acceptfilter_test.go" target="_blank" rel="noopener"><code>TestActiveV2RouterAcceptsOnlyWhenItOwnsTheAddress</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L432" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceOwnerStartupGoesMaster</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L450" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceOwnerStartupGoesMaster</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L380" title="internal/plugins/vrrp/acceptfilter_test.go" target="_blank" rel="noopener"><code>TestActiveV2RouterAcceptsOnlyWhenItOwnsTheAddress</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L398" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceStartupNonOwnerGoesBackup</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L416" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceStartupNonOwnerGoesBackup</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3768-6.4.3-5">RFC3768-6.4.3-5</code></td><td colspan="3"><span class="rfc-subject">If a Shutdown event is received, then: o Cancel the Adver_Timer o Send an ADVERTISEMENT with Priority = 0 o Transition to the {Initialize} state (§6.4.3)</span></td></tr>
@@ -526,7 +531,7 @@ RFC 3768 authentication types are deliberately not implemented: RFC 9568 Section
 <td>6.4.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3768-6.4.3-5">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L96" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMTransitionMatrix</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L505" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceShutdownAsMasterSendsPriorityZero</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L523" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceShutdownAsMasterSendsPriorityZero</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc3768_v2_group_test.go#L243" title="internal/plugins/vrrp/rfc3768_v2_group_test.go" target="_blank" rel="noopener"><code>TestV2MasterShutdown</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L97" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMTransitionMatrix</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc3768_v2_group_test.go#L244" title="internal/plugins/vrrp/rfc3768_v2_group_test.go" target="_blank" rel="noopener"><code>TestV2MasterShutdown</code></a></span></div>
@@ -614,10 +619,10 @@ RFC 3768 authentication types are deliberately not implemented: RFC 9568 Section
 <td>7.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3768-7.1-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L45" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestDecodeGoldenV2</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L1191" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceV2OwnerDiscardsAdvert</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L1209" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceV2OwnerDiscardsAdvert</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/rfc_rx_iface_verdict_linux_test.go#L132" title="internal/plugins/vrrp/transport/rfc_rx_iface_verdict_linux_test.go" target="_blank" rel="noopener"><code>TestRxAdvertScopedToReceivingInterface</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc3768_rx_interface_test.go#L25" title="internal/plugins/vrrp/rfc3768_rx_interface_test.go" target="_blank" rel="noopener"><code>TestRxVRIDCheckedOnTheReceivingInterface</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L1190" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceV2OwnerDiscardsAdvert</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L1208" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceV2OwnerDiscardsAdvert</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/rfc_rx_iface_verdict_linux_test.go#L133" title="internal/plugins/vrrp/transport/rfc_rx_iface_verdict_linux_test.go" target="_blank" rel="noopener"><code>TestRxAdvertScopedToReceivingInterface</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc3768_rx_interface_test.go#L26" title="internal/plugins/vrrp/rfc3768_rx_interface_test.go" target="_blank" rel="noopener"><code>TestRxVRIDCheckedOnTheReceivingInterface</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L156" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestValidationOrder</code></a></span></div>
@@ -638,8 +643,8 @@ RFC 3768 authentication types are deliberately not implemented: RFC 9568 Section
 <td>7.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3768-7.1-6">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rx_discard_test.go#L106" title="internal/plugins/vrrp/rx_discard_test.go" target="_blank" rel="noopener"><code>TestInstanceRxFailedCheckIsDiscarded</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L554" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceRxValidAdvertReachesFSM</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L529" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceRxDecodeErrorMapsReason</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L572" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceRxValidAdvertReachesFSM</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L547" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceRxDecodeErrorMapsReason</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rx_discard_test.go#L105" title="internal/plugins/vrrp/rx_discard_test.go" target="_blank" rel="noopener"><code>TestInstanceRxFailedCheckIsDiscarded</code></a></span></div>
 </div></td>
 </tr>
@@ -648,9 +653,9 @@ RFC 3768 authentication types are deliberately not implemented: RFC 9568 Section
 <td>MUST</td>
 <td>7.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3768-7.1-7">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L638" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceV2AddressListMatchReachesFSM</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L1238" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceV2AddressListMismatchFromOwnerContinues</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L599" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceV2AddressListMismatchDrops</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L656" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceV2AddressListMatchReachesFSM</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L1256" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceV2AddressListMismatchFromOwnerContinues</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L617" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceV2AddressListMismatchDrops</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3768-7.1-8">RFC3768-7.1-8</code></td><td colspan="3"><span class="rfc-subject">- MUST verify that the Adver Interval in the packet is the same as the locally configured for this virtual router (§7.1)</span></td></tr>
@@ -744,7 +749,7 @@ RFC 3768 authentication types are deliberately not implemented: RFC 9568 Section
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3768-8.3-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> the condition &#34;If Proxy ARP is to be used&#34; never holds, because ze refuses proxy ARP on every unit that carries an IPv4 VRRP group, at config verify and on a runtime set sysctl (validateNoProxyARP, refuseLiveProxyARP internal/plugins/vrrp/proxyarp.go); the refusal is ze&#39;s owner-approved choice (2026-10-20), made because proxy ARP on the parent answers with the parent&#39;s MAC (Linux limitation LL-PROXY-ARP-MAC, docs/architecture/linux-limitations.md)</p></td>
+</div><p class="rfc-mark"><strong>{feature-declined}:</strong> heading &#34;Proxy ARP&#34;; ze never uses Proxy ARP on a VRRP router: internal/plugins/vrrp/proxyarp.go::validateNoProxyARP refuses proxy ARP at config verify on every unit that carries an IPv4 VRRP group, and refuseLiveProxyARP refuses it on a runtime set sysctl; Owner decision 2026-10-20 in commit de23385159, because proxy ARP on the parent answers with the parent&#39;s MAC (LL-PROXY-ARP-MAC, docs/architecture/linux-limitations.md)</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3768-9.2-1">RFC3768-9.2-1</code></td><td colspan="3"><span class="rfc-subject">The functional address mode of operation MUST be implemented by routers supporting VRRP on token ring. (§9.2)</span></td></tr>
 <tr><td></td>
@@ -753,7 +758,7 @@ RFC 3768 authentication types are deliberately not implemented: RFC 9568 Section
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3768-9.2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze supports only Ethernet-family parents (ethernet, veth, bridge, dummy -- internal/plugins/vrrp/groups.go:76) over AF_PACKET macvlan transport internal/plugins/vrrp/transport/backend_linux.go, with no token-ring transport, so the functional-address mode has no applicable code path</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze implements no VRRP over token ring and no owner decision declines it: VRRP runs only on Ethernet-family parents (internal/plugins/vrrp/groups.go) over the AF_PACKET macvlan transport (internal/plugins/vrrp/transport/backend_linux.go), so no functional-address mode exists</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3768-5.3.10-1">RFC3768-5.3.10-1</code></td><td colspan="3"><span class="rfc-subject">The authentication string is currently only used to maintain backwards compatibility with RFC 2338. It SHOULD be set to zero on transmission and ignored on reception. (§5.3.10)</span></td></tr>
 <tr><td></td>
@@ -864,16 +869,16 @@ RFC 3768 authentication types are deliberately not implemented: RFC 9568 Section
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
 <tr><td><a href="#rfc3768-5.2.2-1"><code>RFC3768-5.2.2-1</code></a> Routers MUST NOT forward a datagram with this destination address regardless of its TTL. (§5.2.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: the VRRP plugin performs no IP datagram forwarding -- instance.onPacket internal/plugins/vrrp/instance.go:453 consumes each received advert into the FSM and never re-emits it, and tx scopes adverts to link-local multicast with IP_MULTICAST_LOOP 0 at internal/plugins/vrrp/transport/backend_linux.go:143</td>
+<td>{gap}, no test</td>
+<td>ze is a router, and the VRRP plugin never re-emits a received advertisement (internal/plugins/vrrp/instance.go::onPacket), but forwarding is the dataplane&#39;s: no test shows that the Linux kernel or the VPP FIB backend ze programs forwards no datagram addressed to 224.0.0.18</td>
 </tr>
 <tr><td><a href="#rfc3768-8.3-1"><code>RFC3768-8.3-1</code></a> If Proxy ARP is to be used on a VRRP router, then the VRRP router must advertise the Virtual Router MAC address in the Proxy ARP message. (§8.3; lowercase &#34;must&#34; in the RFC)</td>
 <td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: the condition &#34;If Proxy ARP is to be used&#34; never holds, because ze refuses proxy ARP on every unit that carries an IPv4 VRRP group, at config verify and on a runtime set sysctl (validateNoProxyARP, refuseLiveProxyARP internal/plugins/vrrp/proxyarp.go); the refusal is ze&#39;s owner-approved choice (2026-10-20), made because proxy ARP on the parent answers with the parent&#39;s MAC (Linux limitation LL-PROXY-ARP-MAC, docs/architecture/linux-limitations.md)</td>
+<td>no test carries this requirement id; annotated {feature-declined}: heading &#34;Proxy ARP&#34;; ze never uses Proxy ARP on a VRRP router: internal/plugins/vrrp/proxyarp.go::validateNoProxyARP refuses proxy ARP at config verify on every unit that carries an IPv4 VRRP group, and refuseLiveProxyARP refuses it on a runtime set sysctl; Owner decision 2026-10-20 in commit de23385159, because proxy ARP on the parent answers with the parent&#39;s MAC (LL-PROXY-ARP-MAC, docs/architecture/linux-limitations.md)</td>
 </tr>
 <tr><td><a href="#rfc3768-9.2-1"><code>RFC3768-9.2-1</code></a> The functional address mode of operation MUST be implemented by routers supporting VRRP on token ring. (§9.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: ze supports only Ethernet-family parents (ethernet, veth, bridge, dummy -- internal/plugins/vrrp/groups.go:76) over AF_PACKET macvlan transport internal/plugins/vrrp/transport/backend_linux.go, with no token-ring transport, so the functional-address mode has no applicable code path</td>
+<td>{gap}, no test</td>
+<td>ze implements no VRRP over token ring and no owner decision declines it: VRRP runs only on Ethernet-family parents (internal/plugins/vrrp/groups.go) over the AF_PACKET macvlan transport (internal/plugins/vrrp/transport/backend_linux.go), so no functional-address mode exists</td>
 </tr>
 </tbody>
 </table>
@@ -1058,7 +1063,7 @@ RFC 3768 authentication types are deliberately not implemented: RFC 9568 Section
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L433" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceOwnerStartupGoesMaster</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L451" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceOwnerStartupGoesMaster</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1068,7 +1073,7 @@ RFC 3768 authentication types are deliberately not implemented: RFC 9568 Section
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L396" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceStartupNonOwnerGoesBackup</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L414" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceStartupNonOwnerGoesBackup</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1082,7 +1087,7 @@ RFC 3768 authentication types are deliberately not implemented: RFC 9568 Section
 </div>
 <h3><a href="#rfc3768-6.4.2-2"><code>RFC3768-6.4.2-2</code></a></h3>
 <p>- MUST discard packets with a destination link layer MAC address equal to the virtual router MAC address. (§6.4.2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPBackupDoesNotForwardVirtualMACFrames, internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPBackupDoesNotForwardVirtualMACFrames#2 moved. vrrp judge 2026-09-29 (independent, continuation 3): Wiring now proven on the host: TestBackupDiscardFollowsTheState drives the FSM and asserts the worker sets the discard on the virtual router MAC device at start (idle worker: on then off), entering Backup adds no call, promotion withdraws it once after the only install, and a higher-priority advert demotes and sets it again before the only removal (records observed red on doRemoveVIPs; the run revert was also observed red but the ledger keeps one record per unit/polarity). Wire effect: TestVRRPBackupDoesNotForwardVirtualMACFrames (QEMU guest) forwards a transit datagram sent to the Virtual Router MAC without the nft drop and stops it with it (records on backupFilterTables). The host unit&#39;s negative tag is a state contrast; the violating negative (no discard, frame forwarded) is the QEMU control.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 (independent auditor) after the user-namespace conversion (25fbb6e890/d8427e4380): the TestVRRPBackupDoesNotForwardVirtualMACFrames unit gained only `if !userns.Enter(t) { return }` as its first statement and its build tag moved from integration&amp;&amp;linux to linux. userns.Enter (internal/test/userns/userns_linux.go) re-runs the one named test in a fresh user+net+mount namespace and returns false to the parent only when the child reported PASS or SKIP; a failing child, a non-zero exit, or a child that ran nothing calls t.Fatalf, so every assertion below the guard still fails the test when the behaviour breaks. Body otherwise byte-identical. RFC 3768 Section 6.4.2: &#34;MUST discard packets with a destination link layer MAC address equal to the virtual router MAC address.&#34; Fresh judgement: the QEMU/namespace unit sends a transit datagram to the Virtual Router MAC; with no filter it must forward (control, proves the capture sees a forward), with setBackupFilter it must not appear on the next hop. The host unit TestBackupDiscardFollowsTheState pins the worker&#39;s filter lifetime across Backup/promotion/demotion. Enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1118,7 +1123,7 @@ RFC 3768 authentication types are deliberately not implemented: RFC 9568 Section
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L434" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceOwnerStartupGoesMaster</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L452" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceOwnerStartupGoesMaster</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1128,7 +1133,7 @@ RFC 3768 authentication types are deliberately not implemented: RFC 9568 Section
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L397" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceStartupNonOwnerGoesBackup</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L415" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceStartupNonOwnerGoesBackup</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1297,7 +1302,7 @@ RFC 3768 authentication types are deliberately not implemented: RFC 9568 Section
 </div>
 <h3><a href="#rfc3768-6.4.3-1"><code>RFC3768-6.4.3-1</code></a></h3>
 <p>- MUST respond to ARP requests for the IP address(es) associated with the virtual router. (§6.4.3, §8.2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly, internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly#2 moved. vrrp closure judge 2026-09-30 (independent) re-judged: the tagged units changed only by added RFC requirement tag comment lines for the new rows (8.1.2-6 / 8.2.2-8 / 8.2-4 / 8.1.1-2); test bodies byte-identical, records current, verdict unchanged. Prior note: vrrp judge 2026-09-29 (independent, continuation 3): Product install now proven: TestPromotionInstallsIPv4AddressOnVirtualMACDevice (v2 subtest) asserts a Backup installs nothing and the promoted non-owner makes exactly one install, on the virtual-MAC macvlan zv4-2-10 (never the parent), of exactly 192.0.2.1/24 (record observed red on doInstallVIPs). TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly (QEMU guest) proves that installed state answers ARP and that no reply is seen with the address removed (records on vipCIDRs). The dataplane_linux_test sysctl tags stay without records.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 (independent auditor) after the user-namespace conversion (25fbb6e890/d8427e4380): the TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly unit gained only `if !userns.Enter(t) { return }` as its first statement and its build tag moved from integration&amp;&amp;linux to linux. userns.Enter (internal/test/userns/userns_linux.go) re-runs the one named test in a fresh user+net+mount namespace and returns false to the parent only when the child reported PASS or SKIP; a failing child, a non-zero exit, or a child that ran nothing calls t.Fatalf, so every assertion below the guard still fails the test when the behaviour breaks. Body otherwise byte-identical. RFC 3768 Section 6.4.3: &#34;MUST respond to ARP requests for the IP address(es) associated with the virtual router.&#34; Fresh judgement: with the VIP installed by Ze&#39;s backend AddAddress on the virtual-MAC macvlan a LAN host&#39;s ARP request is answered; with the address removed (Backup state) no reply is seen, so a router that does not answer is detected. TestPromotionInstallsIPv4AddressOnVirtualMACDevice pins that promotion installs exactly that address on that device. Enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1332,7 +1337,7 @@ RFC 3768 authentication types are deliberately not implemented: RFC 9568 Section
 </div>
 <h3><a href="#rfc3768-6.4.3-2"><code>RFC3768-6.4.3-2</code></a></h3>
 <p>- MUST forward packets with a destination link layer MAC address equal to the virtual router MAC address. (§6.4.3)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPBackupDoesNotForwardVirtualMACFrames, internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPBackupDoesNotForwardVirtualMACFrames#2 moved. vrrp judge 2026-09-29 (independent, continuation 3): Wiring now proven on the host: TestBackupDiscardFollowsTheState asserts promotion withdraws the discard exactly once and only after the address install, and that it holds before promotion and after demotion (records observed red on doInstallVIPs and doRemoveVIPs). Wire effect: TestVRRPBackupDoesNotForwardVirtualMACFrames (QEMU guest) forwards the datagram sent to the Virtual Router MAC once the filter is withdrawn and the address installed, and not while the filter holds (records on clearBackupFilter).</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 (independent auditor) after the user-namespace conversion (25fbb6e890/d8427e4380): the TestVRRPBackupDoesNotForwardVirtualMACFrames unit gained only `if !userns.Enter(t) { return }` as its first statement and its build tag moved from integration&amp;&amp;linux to linux. userns.Enter (internal/test/userns/userns_linux.go) re-runs the one named test in a fresh user+net+mount namespace and returns false to the parent only when the child reported PASS or SKIP; a failing child, a non-zero exit, or a child that ran nothing calls t.Fatalf, so every assertion below the guard still fails the test when the behaviour breaks. Body otherwise byte-identical. RFC 3768 Section 6.4.3: &#34;MUST forward packets with a destination link layer MAC address equal to the virtual router MAC address.&#34; Fresh judgement: after clearBackupFilter and the address install the datagram sent to the Virtual Router MAC must reach the next hop, while the filtered phase must not, so the master-phase assertion is contrasted. TestBackupDiscardFollowsTheState pins the withdraw-after-install ordering. Enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1393,7 +1398,7 @@ RFC 3768 authentication types are deliberately not implemented: RFC 9568 Section
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L398" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceStartupNonOwnerGoesBackup</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L416" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceStartupNonOwnerGoesBackup</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1403,7 +1408,7 @@ RFC 3768 authentication types are deliberately not implemented: RFC 9568 Section
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L432" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceOwnerStartupGoesMaster</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L450" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceOwnerStartupGoesMaster</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1433,7 +1438,7 @@ RFC 3768 authentication types are deliberately not implemented: RFC 9568 Section
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L505" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceShutdownAsMasterSendsPriorityZero</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L523" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceShutdownAsMasterSendsPriorityZero</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1652,13 +1657,13 @@ RFC 3768 authentication types are deliberately not implemented: RFC 9568 Section
 </div>
 <h3><a href="#rfc3768-7.1-4"><code>RFC3768-7.1-4</code></a></h3>
 <p>MUST verify that the VRID is configured on the receiving interface and the local router is not the IP Address owner (Priority equals 255 (decimal)). (§7.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/plugins/vrrp/transport/rfc_rx_iface_verdict_linux_test.go::TestRxAdvertScopedToReceivingInterface, internal/plugins/vrrp/transport/rfc_rx_iface_verdict_linux_test.go::TestRxAdvertScopedToReceivingInterface#2 moved. Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 3768 Section 7.1 says &#34;MUST verify that the VRID is configured on the receiving interface and the local router is not the IP Address owner (Priority equals 255 (decimal)).&#34; TestDecodeGoldenV2 lost only the assertion on the removed MsgOnlyChecksum flag, which carried no RFC 3768 content, and TestNegativeReferenceBugs gained the FillChecksum mode argument and an rfc5798-compatible lookup in N1 alone; verifyReceived returns before any mode is read for version 2, so the VRRPv2 decode under judgement is unchanged. TestRxAdvertScopedToReceivingInterface changed only by the checksum-mode plumbing (a Checksum: packet.ChecksumRFC9568 field added to the GroupSpec, AdvertParams or packet.Local literal, or the mode argument added to packet.FillChecksum); every assertion and every isolating input is byte-for-byte the same, so the VRID 10 advert sent on the VRID-20 interface is still refused with ErrUnknownVRID and arrives on its own interface. Verdict unchanged; its discrimination records read unit-changed and need re-recording in the guest.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 (independent auditor) after the user-namespace conversion (25fbb6e890/d8427e4380): the TestRxAdvertScopedToReceivingInterface unit gained only `if !userns.Enter(t) { return }` as its first statement and its build tag moved from integration&amp;&amp;linux to linux. userns.Enter (internal/test/userns/userns_linux.go) re-runs the one named test in a fresh user+net+mount namespace and returns false to the parent only when the child reported PASS or SKIP; a failing child, a non-zero exit, or a child that ran nothing calls t.Fatalf, so every assertion below the guard still fails the test when the behaviour breaks. Body otherwise byte-identical. RFC 3768 Section 7.1: &#34;MUST verify that the VRID is configured on the receiving interface and the local router is not the IP Address owner (Priority equals 255 (decimal)).&#34; Fresh judgement: a VRRPv2 VRID-10 advert sent on the VRID-20 interface must never reach the VRID-10 instance, must arrive at B (so absence at A is meaningful) and must decode to ErrUnknownVRID; sent on A it must reach A and decode. The owner half is covered by TestInstanceV2OwnerDiscardsAdvert and the decode units, unchanged. Enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L1190" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceV2OwnerDiscardsAdvert</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L1208" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceV2OwnerDiscardsAdvert</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1678,7 +1683,7 @@ RFC 3768 authentication types are deliberately not implemented: RFC 9568 Section
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L1191" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceV2OwnerDiscardsAdvert</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L1209" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceV2OwnerDiscardsAdvert</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1728,7 +1733,7 @@ RFC 3768 authentication types are deliberately not implemented: RFC 9568 Section
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L529" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceRxDecodeErrorMapsReason</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L547" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceRxDecodeErrorMapsReason</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1738,7 +1743,7 @@ RFC 3768 authentication types are deliberately not implemented: RFC 9568 Section
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L554" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceRxValidAdvertReachesFSM</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L572" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceRxValidAdvertReachesFSM</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1758,17 +1763,17 @@ RFC 3768 authentication types are deliberately not implemented: RFC 9568 Section
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L599" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceV2AddressListMismatchDrops</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L617" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceV2AddressListMismatchDrops</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L638" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceV2AddressListMatchReachesFSM</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L656" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceV2AddressListMatchReachesFSM</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L1238" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceV2AddressListMismatchFromOwnerContinues</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L1256" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceV2AddressListMismatchFromOwnerContinues</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1817,7 +1822,7 @@ RFC 3768 authentication types are deliberately not implemented: RFC 9568 Section
 </div>
 <h3><a href="#rfc3768-7.2-2"><code>RFC3768-7.2-2</code></a></h3>
 <p>Set the source MAC address to Virtual Router MAC Address (§7.2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire moved. Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 3768 Section 7.2 says &#34;Set the source MAC address to Virtual Router MAC Address&#34;. TestTxAdvertV4OnWire changed only by the checksum-mode plumbing (a Checksum: packet.ChecksumRFC9568 field added to the GroupSpec, AdvertParams or packet.Local literal, or the mode argument added to packet.FillChecksum); every assertion and every isolating input is byte-for-byte the same; the captured VRRPv2 source MAC is still compared with 00-00-5e-00-01-0a. Verdict unchanged; the guest-only discrimination record reads unit-changed and is owed a re-record under QEMU.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 (independent auditor) after the user-namespace conversion (25fbb6e890/d8427e4380): the TestTxAdvertV4OnWire unit gained only `if !userns.Enter(t) { return }` as its first statement and its build tag moved from integration&amp;&amp;linux to linux. userns.Enter (internal/test/userns/userns_linux.go) re-runs the one named test in a fresh user+net+mount namespace and returns false to the parent only when the child reported PASS or SKIP; a failing child, a non-zero exit, or a child that ran nothing calls t.Fatalf, so every assertion below the guard still fails the test when the behaviour breaks. Body otherwise byte-identical. RFC 3768 Section 7.2: &#34;Set the source MAC address to Virtual Router MAC Address&#34;. Fresh judgement: the captured VRRPv2 frame&#39;s source MAC is compared with the literal 00-00-5e-00-01-0a; single-polarity per the row. Enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1837,7 +1842,7 @@ RFC 3768 authentication types are deliberately not implemented: RFC 9568 Section
 </div>
 <h3><a href="#rfc3768-7.2-3"><code>RFC3768-7.2-3</code></a></h3>
 <p>Set the source IP address to interface primary IP address (§7.2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire moved. Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 3768 Section 7.2 says &#34;Set the source IP address to interface primary IP address&#34;. TestTxAdvertV4OnWire changed only by the checksum-mode plumbing (a Checksum: packet.ChecksumRFC9568 field added to the GroupSpec, AdvertParams or packet.Local literal, or the mode argument added to packet.FillChecksum); every assertion and every isolating input is byte-for-byte the same; the captured VRRPv2 source must still be the primary 192.0.2.251 over a lower secondary. Verdict unchanged; the guest-only discrimination record reads unit-changed and is owed a re-record under QEMU.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 (independent auditor) after the user-namespace conversion (25fbb6e890/d8427e4380): the TestTxAdvertV4OnWire unit gained only `if !userns.Enter(t) { return }` as its first statement and its build tag moved from integration&amp;&amp;linux to linux. userns.Enter (internal/test/userns/userns_linux.go) re-runs the one named test in a fresh user+net+mount namespace and returns false to the parent only when the child reported PASS or SKIP; a failing child, a non-zero exit, or a child that ran nothing calls t.Fatalf, so every assertion below the guard still fails the test when the behaviour breaks. Body otherwise byte-identical. RFC 3768 Section 7.2: &#34;Set the source IP address to interface primary IP address&#34;. Fresh judgement: a secondary address is added to the parent and the captured VRRPv2 source must still equal the primary parentV4, so a lowest/most-recent-address choice fails. Enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1857,7 +1862,7 @@ RFC 3768 authentication types are deliberately not implemented: RFC 9568 Section
 </div>
 <h3><a href="#rfc3768-7.2-4"><code>RFC3768-7.2-4</code></a></h3>
 <p>Set the IP protocol to VRRP - Send the VRRP packet to the VRRP IP multicast group (§7.2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire moved. Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 3768 Section 7.2 says &#34;Set the IP protocol to VRRP - Send the VRRP packet to the VRRP IP multicast group&#34;. TestTxAdvertV4OnWire and TestSendAdvertIPv4HeaderTTLProtoDst changed only by the checksum-mode plumbing (a Checksum: packet.ChecksumRFC9568 field added to the GroupSpec, AdvertParams or packet.Local literal, or the mode argument added to packet.FillChecksum); every assertion and every isolating input is byte-for-byte the same; the protocol 112 and destination 224.0.0.18 comparisons are unchanged. Single-polarity per the row annotation. Verdict unchanged.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 (independent auditor) after the user-namespace conversion (25fbb6e890/d8427e4380): the TestTxAdvertV4OnWire unit gained only `if !userns.Enter(t) { return }` as its first statement and its build tag moved from integration&amp;&amp;linux to linux. userns.Enter (internal/test/userns/userns_linux.go) re-runs the one named test in a fresh user+net+mount namespace and returns false to the parent only when the child reported PASS or SKIP; a failing child, a non-zero exit, or a child that ran nothing calls t.Fatalf, so every assertion below the guard still fails the test when the behaviour breaks. Body otherwise byte-identical. RFC 3768 Section 7.2: &#34;Set the IP protocol to VRRP&#34; and send to the VRRP IP multicast group. Fresh judgement: protocol 112 and destination 224.0.0.18 are compared with literals on the captured frame; single-polarity per the row. Enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1877,7 +1882,7 @@ RFC 3768 authentication types are deliberately not implemented: RFC 9568 Section
 </div>
 <h3><a href="#rfc3768-8.1-1"><code>RFC3768-8.1-1</code></a></h3>
 <p>If a VRRP router is acting as Master for virtual router(s) containing addresses it does not own, then it must determine which virtual router the packet was sent to when selecting the redirect source address. (§8.1; lowercase &#34;must&#34; in the RFC)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/plugins/vrrp/redirect_integration_linux_test.go::TestVRRPRedirectSourceFollowsVirtualMAC, internal/plugins/vrrp/redirect_integration_linux_test.go::TestVRRPRedirectSourceFollowsVirtualMAC#2 moved. Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 3768 Section 8.1 says &#34;If a VRRP router is acting as Master for virtual router(s) containing addresses it does not own, then it must determine which virtual router the packet was sent to when selecting the redirect source address.&#34; TestVRRPRedirectSourceFollowsVirtualMAC changed only by the checksum-mode plumbing (a Checksum: packet.ChecksumRFC9568 field added to the GroupSpec, AdvertParams or packet.Local literal, or the mode argument added to packet.FillChecksum); every assertion and every isolating input is byte-for-byte the same; the redirect-source capture and its physical-MAC control are unchanged. Verdict unchanged; the integration record is owed a guest re-record.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 (independent auditor) after the user-namespace conversion (25fbb6e890/d8427e4380): the TestVRRPRedirectSourceFollowsVirtualMAC unit gained only `if !userns.Enter(t) { return }` as its first statement and its build tag moved from integration&amp;&amp;linux to linux. userns.Enter (internal/test/userns/userns_linux.go) re-runs the one named test in a fresh user+net+mount namespace and returns false to the parent only when the child reported PASS or SKIP; a failing child, a non-zero exit, or a child that ran nothing calls t.Fatalf, so every assertion below the guard still fails the test when the behaviour breaks. Body otherwise byte-identical. RFC 3768 Section 8.1: &#34;If a VRRP router is acting as Master for virtual router(s) containing addresses it does not own, then it must determine which virtual router the packet was sent to when selecting the redirect source address.&#34; Fresh judgement: two non-owner groups on one LAN, reverse route pinned through the parent with source .254; a frame to each virtual MAC must draw a redirect sourced from that group&#39;s own VIP, and a frame to the physical MAC from .254, so a route-picked or wrong-group source fails. Enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1897,7 +1902,7 @@ RFC 3768 authentication types are deliberately not implemented: RFC 9568 Section
 </div>
 <h3><a href="#rfc3768-8.2-1"><code>RFC3768-8.2-1</code></a></h3>
 <p>The Master virtual router MUST NOT respond with its physical MAC address. (§8.2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly, internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly#2, internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly, internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly#2 moved. Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 3768 Section 8.2 says &#34;The Master virtual router MUST NOT respond with its physical MAC address.&#34; TestVRRPOwnerAnswersWithVirtualMACOnly changed only by the checksum-mode plumbing (a Checksum: packet.ChecksumRFC9568 field added to the GroupSpec, AdvertParams or packet.Local literal, or the mode argument added to packet.FillChecksum); every assertion and every isolating input is byte-for-byte the same; the owner-filter ARP capture and its physical-MAC control are unchanged. Verdict unchanged; the integration record is owed a guest re-record.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 (independent auditor) after the user-namespace conversion (25fbb6e890/d8427e4380): the TestVRRPOwnerAnswersWithVirtualMACOnly and TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly unit gained only `if !userns.Enter(t) { return }` as its first statement and its build tag moved from integration&amp;&amp;linux to linux. userns.Enter (internal/test/userns/userns_linux.go) re-runs the one named test in a fresh user+net+mount namespace and returns false to the parent only when the child reported PASS or SKIP; a failing child, a non-zero exit, or a child that ran nothing calls t.Fatalf, so every assertion below the guard still fails the test when the behaviour breaks. Body otherwise byte-identical. RFC 3768 Section 8.2: &#34;The Master virtual router MUST NOT respond with its physical MAC address.&#34; Fresh judgement: owner case, with the owner filter every ARP reply carries the virtual MAC and none the physical one, against a control where the parent answers with its physical MAC and a withdrawal that restores it; non-owner case, the product recipe removes the physical-MAC answer seen in the control. Enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1947,7 +1952,7 @@ RFC 3768 authentication types are deliberately not implemented: RFC 9568 Section
 </div>
 <h3><a href="#rfc3768-8.2-4"><code>RFC3768-8.2-4</code></a></h3>
 <p>When a host sends an ARP request for one of the virtual router IP addresses, the Master virtual router MUST respond to the ARP request with the virtual MAC address for the virtual router. (§8.2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly, internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly#2, internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly, internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly#2 moved. Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 3768 Section 8.2 says &#34;When a host sends an ARP request for one of the virtual router IP addresses, the Master virtual router MUST respond to the ARP request with the virtual MAC address for the virtual router.&#34; TestVRRPOwnerAnswersWithVirtualMACOnly changed only by the checksum-mode plumbing (a Checksum: packet.ChecksumRFC9568 field added to the GroupSpec, AdvertParams or packet.Local literal, or the mode argument added to packet.FillChecksum); every assertion and every isolating input is byte-for-byte the same; the owner-filter ARP capture and its physical-MAC control are unchanged. Verdict unchanged; the integration record is owed a guest re-record.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 (independent auditor) after the user-namespace conversion (25fbb6e890/d8427e4380): the TestVRRPOwnerAnswersWithVirtualMACOnly and TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly unit gained only `if !userns.Enter(t) { return }` as its first statement and its build tag moved from integration&amp;&amp;linux to linux. userns.Enter (internal/test/userns/userns_linux.go) re-runs the one named test in a fresh user+net+mount namespace and returns false to the parent only when the child reported PASS or SKIP; a failing child, a non-zero exit, or a child that ran nothing calls t.Fatalf, so every assertion below the guard still fails the test when the behaviour breaks. Body otherwise byte-identical. RFC 3768 Section 8.2: &#34;When a host sends an ARP request for one of the virtual router IP addresses, the Master virtual router MUST respond to the ARP request with the virtual MAC address for the virtual router.&#34; Fresh judgement: both units require an ARP reply carrying the virtual MAC (owner via the owner filter, non-owner via the recipe), contrasted with the physical-MAC control and, for the non-owner, no reply once the address is removed. Enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -2764,7 +2769,7 @@ RFC 3768 authentication types are deliberately not implemented: RFC 9568 Section
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 29 October 2026 11:10 UTC</span>
+                    <span class="footer-published">Published 30 October 2026 23:25 UTC</span>
                 </div>
             </div>
         </footer>

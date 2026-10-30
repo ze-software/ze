@@ -53,6 +53,7 @@
 </div>
 <div class="doc-layout">
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
+<li><a href="#filtering-what-ospf-installs">Filtering what OSPF installs</a></li>
 <li><a href="#interface-network-types">Interface network types</a></li>
 <li><a href="#unnumbered-point-to-point-interfaces">Unnumbered point-to-point interfaces</a></li>
 <li><a href="#interface-cost">Interface cost</a></li>
@@ -94,6 +95,18 @@ addresses and link speeds. Changes during an active pass queue another pass;
 MinLSInterval still limits publication, and the maintenance timer retries it.</p>
 <!-- source: internal/plugins/ospf/instance.go -- nsmAdapter, originateSelfLSAsDeferred, startNeighborRetransmitLoop -->
 <!-- source: internal/plugins/ospf/bfd_client.go -- neighborEventSinkValue -->
+<h3 id="filtering-what-ospf-installs">Filtering what OSPF installs</h3>
+<p><code>ospf filter import</code> judges each route SPF installs before the Loc-RIB selects
+it; the LSDB is never filtered. Each installed path carries its OSPF path type
+(<code>intra-area</code>, <code>inter-area</code>, <code>external-1</code>, <code>external-2</code>, and <code>nssa-1</code> or
+<code>nssa-2</code> for a route from a Type-7 LSA) and, for an external route, its tag.
+An OSPFv2 external route always carries the External Route Tag of its LSA. An
+OSPFv3 one carries a tag only when its LSA sets the T bit (RFC 5340 Appendix
+A.4.7). A <code>match</code> on <code>route-type</code> or <code>tag</code>, or a <code>modify</code> that sets the
+distance, then applies; <a href="https://github.com/ze-software/ze/blob/main/docs/guide/route-policy.md" target="_blank" rel="noopener">Route Policy at the Loc-RIB</a> covers
+the chains.</p>
+<!-- source: internal/plugins/ospf/spf/install.go -- ribRouteType -->
+<!-- source: internal/plugins/ospf/spf/external.go -- ExternalRecord -->
 <h2 id="interface-network-types">Interface network types</h2>
 <p>Each interface selects an RFC 2328 / RFC 5340 network type with <code>network-type</code>, in
 both families (the IPv6 <code>address-family ipv6</code> interface omits <code>loopback</code>):</p>
@@ -333,15 +346,16 @@ Type-5 ASBR and forwarding-address resolution use normal areas, not paths
 through an NSSA. SPF retains per-area candidates until these checks complete.</p>
 <!-- source: internal/plugins/ospf/spf/external.go -- ComputeExternalWith -->
 <!-- source: internal/plugins/ospf/spf/external.go -- externalCandidateFrom, resolveForwarding -->
-<p><strong>Selected role (2026-09-21): ordinary OSPF, including CE operation.</strong> Ze does
-not select RFC 4577's native VPN-PE role, VRF/domain VPN import/export or
-optional sham links. Section 1 says: "No special procedures are needed in the
-CE router though; CE routers just run whatever OSPF implementations they may
-have." Ordinary routing, authentication and backbone attachment remain
-required. When deploying Ze as a CE with a third-party PE, configure the
-backbone attachment required by RFC 4577 §4.1.4, directly or by virtual link.
-The plain-prefix redistribution metric/tag settings do not perform VPN-domain
-comparison or generate VPN-IPv4 metadata.</p>
+<p><strong>OSPF as a PE/CE protocol (RFC 4577): CE side only.</strong> Ze runs ordinary OSPF,
+which is all a CE router needs. Section 1 says: "No special procedures are
+needed in the CE router though; CE routers just run whatever OSPF
+implementations they may have." Ze does not implement the PE side: there is no
+VRF or OSPF-domain association, no Domain Identifier, no VPN-IPv4 import or
+export, no DN bit or VPN Route Tag loop prevention, and no sham links. These are
+not built yet; they have not been declined. When deploying Ze as a CE with a
+third-party PE, configure the backbone attachment RFC 4577 §4.1.4 requires,
+directly or by virtual link. The plain-prefix redistribution metric and tag
+settings do not compare VPN domains or generate VPN-IPv4 metadata.</p>
 <!-- source: internal/plugins/ospf/redist_wiring.go -- InjectExternal -->
 <!-- source: internal/plugins/ospf/config.go -- parseRedistribute -->
 <!-- source: internal/plugins/ospf/redistribute/source.go -- emitDelta -->
@@ -796,7 +810,7 @@ $ ze-demo card topic-ospf recap</code></pre>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 18:35 UTC</span>
+                    <span class="footer-published">Published 30 October 2026 17:53 UTC</span>
                 </div>
             </div>
         </footer>

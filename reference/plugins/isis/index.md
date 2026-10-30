@@ -17,7 +17,7 @@ Intermediate System to Intermediate System (ISO/IEC 10589, RFC 1195): native lin
 
 ## Dependencies
 
-- Required: [`fib-kernel`](../fib-kernel/index.md), [`sysctl`](../sysctl/index.md)
+- Required: [`fib-kernel`](../fib-kernel/index.md), [`sysctl`](../sysctl/index.md), [`policy`](../policy/index.md)
 - Optional: None
 
 ## Used by

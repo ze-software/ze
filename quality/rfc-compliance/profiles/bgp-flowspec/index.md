@@ -6,12 +6,12 @@ Technology aggregate. BGP Flow Specification. The RFCs whose summary names the b
 
 - **Mandatory**: 53.1% (26 of 49 (53.1%)). MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that a recorded test break proves.
 - **Optional**: 18.8% (6 of 32 (18.8%)). MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows, counted the same way.
-- **Mandatory ceiling**: 95.9% (47 of 49 (95.9%); excluded: Not applicable (classification can be revisited): 2 of 49 (4.1%)). Attainable mandatory rows under current classifications, over the unchanged total.
+- **Mandatory ceiling**: 98.0% (48 of 49 (98.0%); excluded: Not applicable (classification can be revisited): 1 of 49 (2.0%)). Attainable mandatory rows under current classifications, over the unchanged total.
 - **Optional ceiling**: 100.0% (32 of 32 (100.0%)). Attainable optional rows under current classifications, over the unchanged total.
 - **Not walked**: 0 (of 4 RFCs). RFCs with no valid extraction sign-off: their rows count in neither figure.
 - **Mandatory register**: not complete (every row proven, none unwalked). A profile is complete only when it requires at least one RFC and none of them is unwalked.
 
-Mandatory ceiling: 47 of 49 (95.9%); excluded: Not applicable (classification can be revisited): 2 of 49 (4.1%). Optional ceiling: 32 of 32 (100.0%). Lowest mandatory ceiling: rfc8955 27 of 29 (93.1%). Lowest optional ceiling: rfc5575 4 of 4 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
+Mandatory ceiling: 48 of 49 (98.0%); excluded: Not applicable (classification can be revisited): 1 of 49 (2.0%). Optional ceiling: 32 of 32 (100.0%). Lowest mandatory ceiling: rfc8955 28 of 29 (96.6%). Lowest optional ceiling: rfc5575 4 of 4 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.
 
 ## Tree
 
@@ -21,7 +21,7 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 
 | RFC | Title | Mandatory | Optional |
 |---|---|---|---|
-| [RFC 8955](../../rfc8955/) | Dissemination of Flow Specification Rules | 13 of 29 (44.8%); ceiling 27 of 29 (93.1%); excluded: Not applicable (classification can be revisited): 2 of 29 (6.9%) | 6 of 20 (30.0%); ceiling 20 of 20 (100.0%) |
+| [RFC 8955](../../rfc8955/) | Dissemination of Flow Specification Rules | 13 of 29 (44.8%); ceiling 28 of 29 (96.6%); excluded: Not applicable (classification can be revisited): 1 of 29 (3.4%) | 6 of 20 (30.0%); ceiling 20 of 20 (100.0%) |
 
 ### Level 9
 

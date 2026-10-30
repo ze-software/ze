@@ -346,7 +346,7 @@ Response signing and signed metadata are features not offered.
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9728-2-7">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{feature-declined}:</strong> &#34;OPTIONAL. URL of the protected resource&#39;s JSON Web Key (JWK) Set [JWK] document.&#34;; Thomas excluded response signing on 2026-09-21. internal/component/mcp/oauth.go::writeResourceMetadata publishes no resource jwks_uri and internal/component/mcp/streamable.go::ServeHTTP has no resource-key response producer. The AS verification-key cache is a different key set governed by RFC8414-2-8</p></td>
+</div><p class="rfc-mark"><strong>{feature-declined}:</strong> &#34;When both signing and encryption keys are made available, a use (public key use) parameter value is REQUIRED for all keys in the referenced JWK Set to indicate each key&#39;s intended usage.&#34;; ze never makes signing and encryption keys available: internal/component/mcp/oauth.go::writeResourceMetadata publishes no resource jwks_uri, and internal/component/mcp/streamable.go::ServeHTTP has no resource-key response producer. Thomas excluded response signing on 2026-09-21. The AS verification-key cache is a different key set governed by RFC8414-2-8</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9728-2-8">RFC9728-2-8</code></td><td colspan="3"><span class="rfc-subject">resource_signing_alg_values_supported OPTIONAL. JSON array containing a list of the JWS [JWS] signing algorithms (alg values) [JWA] supported by the protected resource for signing resource responses, for instance, as described in [FAPI.MessageSigning]. No default algorithms are implied if this entry is omitted. The value none MUST NOT be used. (§2)</span></td></tr>
 <tr><td></td>
@@ -355,7 +355,7 @@ Response signing and signed metadata are features not offered.
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9728-2-8">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{feature-declined}:</strong> &#34;OPTIONAL. JSON array containing a list of the JWS [JWS] signing algorithms (alg values) [JWA] supported by the protected resource for signing resource responses, for instance, as described in [FAPI.MessageSigning].&#34;; Thomas excluded response signing on 2026-09-21. internal/component/mcp/oauth.go::writeResourceMetadata emits no resource_signing_alg_values_supported; token-verification algorithms are not resource-response signing capabilities</p></td>
+</div><p class="rfc-mark"><strong>{feature-declined}:</strong> &#34;resource_signing_alg_values_supported OPTIONAL.&#34;; Thomas excluded response signing on 2026-09-21. internal/component/mcp/oauth.go::writeResourceMetadata emits no resource_signing_alg_values_supported; token-verification algorithms are not resource-response signing capabilities</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9728-2.1-1">RFC9728-2.1-1</code></td><td colspan="3"><span class="rfc-subject">If any human-readable field is sent without a language tag, parties using it MUST NOT make any assumptions about the language, character set, or script of the string value (§2.1)</span></td></tr>
 <tr><td></td>
@@ -483,7 +483,7 @@ Response signing and signed metadata are features not offered.
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9728-3.3-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{feature-declined}:</strong> &#34;Consumers of the metadata MAY ignore the signed metadata if they do not support this feature.&#34;; Thomas excluded signed metadata and resource-discovery clients on 2026-09-21. internal/component/mcp/oauth.go::writeResourceMetadata emits only plain JSON; internal/component/mcp/streamable_auth.go::buildAuthForMode constructs a local access-token verifier, not a protected-resource signed-metadata recipient</p></td>
+</div><p class="rfc-mark"><strong>{feature-declined}:</strong> §2.2 &#34;Consumers of the metadata MAY ignore the signed metadata if they do not support this feature.&#34;; Thomas excluded signed metadata and resource-discovery clients on 2026-09-21. internal/component/mcp/oauth.go::writeResourceMetadata emits only plain JSON; internal/component/mcp/streamable_auth.go::buildAuthForMode constructs a local access-token verifier, not a protected-resource signed-metadata recipient</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9728-6-1">RFC9728-6-1</code></td><td colspan="3"><span class="rfc-subject">Unicode Normalization [USA15] MUST NOT be applied at any point to either the JSON string or the string it is to be compared against. (§6)</span></td></tr>
 <tr><td></td>
@@ -632,11 +632,11 @@ Response signing and signed metadata are features not offered.
 </tr>
 <tr><td><a href="#rfc9728-2-7"><code>RFC9728-2-7</code></a> When both signing and encryption keys are made available, a use (public key use) parameter value is REQUIRED for all keys in the referenced JWK Set to indicate each key&#39;s intended usage. (§2)</td>
 <td>no test</td>
-<td>no test carries this requirement id; annotated {feature-declined}: &#34;OPTIONAL. URL of the protected resource&#39;s JSON Web Key (JWK) Set [JWK] document.&#34;; Thomas excluded response signing on 2026-09-21. internal/component/mcp/oauth.go::writeResourceMetadata publishes no resource jwks_uri and internal/component/mcp/streamable.go::ServeHTTP has no resource-key response producer. The AS verification-key cache is a different key set governed by RFC8414-2-8</td>
+<td>no test carries this requirement id; annotated {feature-declined}: &#34;When both signing and encryption keys are made available, a use (public key use) parameter value is REQUIRED for all keys in the referenced JWK Set to indicate each key&#39;s intended usage.&#34;; ze never makes signing and encryption keys available: internal/component/mcp/oauth.go::writeResourceMetadata publishes no resource jwks_uri, and internal/component/mcp/streamable.go::ServeHTTP has no resource-key response producer. Thomas excluded response signing on 2026-09-21. The AS verification-key cache is a different key set governed by RFC8414-2-8</td>
 </tr>
 <tr><td><a href="#rfc9728-2-8"><code>RFC9728-2-8</code></a> resource_signing_alg_values_supported OPTIONAL. JSON array containing a list of the JWS [JWS] signing algorithms (alg values) [JWA] supported by the protected resource for signing resource responses, for instance, as described in [FAPI.MessageSigning]. No default algorithms are implied if this entry is omitted. The value none MUST NOT be used. (§2)</td>
 <td>no test</td>
-<td>no test carries this requirement id; annotated {feature-declined}: &#34;OPTIONAL. JSON array containing a list of the JWS [JWS] signing algorithms (alg values) [JWA] supported by the protected resource for signing resource responses, for instance, as described in [FAPI.MessageSigning].&#34;; Thomas excluded response signing on 2026-09-21. internal/component/mcp/oauth.go::writeResourceMetadata emits no resource_signing_alg_values_supported; token-verification algorithms are not resource-response signing capabilities</td>
+<td>no test carries this requirement id; annotated {feature-declined}: &#34;resource_signing_alg_values_supported OPTIONAL.&#34;; Thomas excluded response signing on 2026-09-21. internal/component/mcp/oauth.go::writeResourceMetadata emits no resource_signing_alg_values_supported; token-verification algorithms are not resource-response signing capabilities</td>
 </tr>
 <tr><td><a href="#rfc9728-2.1-1"><code>RFC9728-2.1-1</code></a> If any human-readable field is sent without a language tag, parties using it MUST NOT make any assumptions about the language, character set, or script of the string value (§2.1)</td>
 <td>no test</td>
@@ -664,7 +664,7 @@ Response signing and signed metadata are features not offered.
 </tr>
 <tr><td><a href="#rfc9728-3.3-4"><code>RFC9728-3.3-4</code></a> The recipient MUST validate that any signed metadata was signed by a key belonging to the issuer and that the signature is valid (§3.3)</td>
 <td>no test</td>
-<td>no test carries this requirement id; annotated {feature-declined}: &#34;Consumers of the metadata MAY ignore the signed metadata if they do not support this feature.&#34;; Thomas excluded signed metadata and resource-discovery clients on 2026-09-21. internal/component/mcp/oauth.go::writeResourceMetadata emits only plain JSON; internal/component/mcp/streamable_auth.go::buildAuthForMode constructs a local access-token verifier, not a protected-resource signed-metadata recipient</td>
+<td>no test carries this requirement id; annotated {feature-declined}: §2.2 &#34;Consumers of the metadata MAY ignore the signed metadata if they do not support this feature.&#34;; Thomas excluded signed metadata and resource-discovery clients on 2026-09-21. internal/component/mcp/oauth.go::writeResourceMetadata emits only plain JSON; internal/component/mcp/streamable_auth.go::buildAuthForMode constructs a local access-token verifier, not a protected-resource signed-metadata recipient</td>
 </tr>
 <tr><td><a href="#rfc9728-7.3-1"><code>RFC9728-7.3-1</code></a> TLS certificate checking MUST be performed by the client as described in [RFC9525] when making a protected resource metadata request. (§7.3)</td>
 <td>no test</td>
@@ -1411,7 +1411,7 @@ Response signing and signed metadata are features not offered.
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 19:30 UTC</span>
+                    <span class="footer-published">Published 30 October 2026 13:12 UTC</span>
                 </div>
             </div>
         </footer>

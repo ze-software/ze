@@ -2641,6 +2641,9 @@
     <loc>https://ze-software.net/reference/command-equivalents/show-resolve-rir/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-rib-candidates/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-rib/</loc>
   </url>
   <url>
@@ -3188,6 +3191,9 @@
   </url>
   <url>
     <loc>https://ze-software.net/reference/plugins/policy-routes/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/plugins/policy/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/plugins/redistribute-orchestrator/</loc>

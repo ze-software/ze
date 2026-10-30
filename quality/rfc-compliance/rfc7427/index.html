@@ -118,19 +118,19 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>75.0%</strong><b>3 of 4 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>100.0%</strong><b>4 of 4 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>66.7%</strong><b>6 of 9 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>45.5%</strong><b>5 of 11 tagged units, 0 escaped and 6 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>4</strong><b>of 7 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>1</strong><b>of 4 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>25.0%</strong><b>1 of 4 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 4 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and remains unmet; it stays in every denominator and earns no proof credit</p></article>
@@ -217,7 +217,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>4</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
-<td>1</td>
+<td>0</td>
 </tr>
 <tr><td>Declared gaps</td>
 <td>0</td>
@@ -232,16 +232,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>9</td>
+<td>11</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>9</td>
+<td>11</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>3</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>6</td>
+<td>11</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc7427.md</code></td>
@@ -257,7 +257,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Enrolled: Signature Authentication in IKEv2: three MUST-level requirements. RFC7427-3-4 (Section 3 permits the Digital Signature method only once a SIGNATURE_HASH_ALGORITHMS notify has been sent and received by each peer) is tested both polarities: computeX509Auth (internal/component/ike/engine/auth.go) refuses the method on an empty sa.RemoteHashAlgos and emits method 14 once one arrived (TestRFC7427DigitalSignatureNeedsTheNotify, TestAuthX509UsesMethod14), while PSK auth uses method 2 (TestAuthPSKCompute), and ze always sends the notify (buildSignatureHashAlgosNotify). RFC7427-4-1 (Section 4: the signer picks one algorithm the other peer sent) is tested both polarities over selectSignatureAlgorithm and computeX509Auth (TestRFC7427SignatureAlgorithmIsOneThePeerSent, TestRFC7427AuthRefusesAnAlgorithmThePeerDidNotSend). RFC7427-3-1 (ANSI X9.62 hash truncation) is {not-applicable}: ze delegates ECDSA to Go crypto/ecdsa (ecdsa.SignASN1/VerifyASN1), which does the truncation; ze implements none itself. No MUST gap remains gated. docs/features/rfc-status.md carries no RFC 7427 row, which its grandfathering permits and which no change here alters.</p>
+<p>Enrolled: Signature Authentication in IKEv2: four MUST-level requirements. RFC7427-3-4 (Section 3 permits the Digital Signature method only once a SIGNATURE_HASH_ALGORITHMS notify has been sent and received by each peer) is tested both polarities: computeX509Auth (internal/component/ike/engine/auth.go) refuses the method on an empty sa.RemoteHashAlgos and emits method 14 once one arrived (TestRFC7427DigitalSignatureNeedsTheNotify, TestAuthX509UsesMethod14), while PSK auth uses method 2 (TestAuthPSKCompute), and ze always sends the notify (buildSignatureHashAlgosNotify). RFC7427-4-1 (Section 4: the signer picks one algorithm the other peer sent) is tested both polarities over selectSignatureAlgorithm and computeX509Auth (TestRFC7427SignatureAlgorithmIsOneThePeerSent, TestRFC7427AuthRefusesAnAlgorithmThePeerDidNotSend). RFC7427-3-1 (ANSI X9.62 hash truncation) binds Ze as signer and verifier, and Go crypto/ecdsa (ecdsa.SignASN1, ecdsa.VerifyASN1) performs the truncation on the full digest Ze hands it: TestRFC7427ECDSAHashTruncationIsX962 has verifyRemoteAuth accept a P-256 peer&#39;s ecdsa-with-SHA384 signature over the leftmost 256 bits of the digest and refuse one over the rightmost 256. No MUST gap remains gated. docs/features/rfc-status.md carries no RFC 7427 row, which its grandfathering permits and which no change here alters.</p>
 </section>
 <section><h2>What the public ledger says</h2>
 <p>No row in the public ledger, so its summary declares `| Support | - |` and docs/features/rfc-status.md carries no row for RFC 7427.</p>
@@ -268,11 +268,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>3</strong></td>
+<td><strong>4</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated (including scoped evidence)</td>
-<td><strong>1</strong></td>
+<td><strong>0</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -299,11 +299,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (3):</strong> <a href="#rfc7427-4-1"><code>RFC7427-4-1</code></a>, <a href="#rfc7427-3-4"><code>RFC7427-3-4</code></a>, <a href="#rfc7427-3-5"><code>RFC7427-3-5</code></a></p>
-<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (1):</strong> <a href="#rfc7427-3-1"><code>RFC7427-3-1</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (4):</strong> <a href="#rfc7427-4-1"><code>RFC7427-4-1</code></a>, <a href="#rfc7427-3-4"><code>RFC7427-3-4</code></a>, <a href="#rfc7427-3-5"><code>RFC7427-3-5</code></a>, <a href="#rfc7427-3-1"><code>RFC7427-3-1</code></a></p>
 </section>
 <section><h2>Attainable ceiling</h2>
-<p>Mandatory ceiling: 3 of 4 (75.0%); excluded: Not applicable (classification can be revisited): 1 of 4 (25.0%). Optional ceiling: 3 of 3 (100.0%). Lowest mandatory ceiling: rfc7427 3 of 4 (75.0%). Lowest optional ceiling: rfc7427 3 of 3 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.</p>
+<p>Mandatory ceiling: 4 of 4 (100.0%). Optional ceiling: 3 of 3 (100.0%). Every RFC shown with measured rows can reach 100% under current classifications. Lowest mandatory ceiling: rfc7427 4 of 4 (100.0%). Lowest optional ceiling: rfc7427 3 of 3 (100.0%). Ceilings describe current classifications, not an immutable Linux maximum. Not-applicable and feature-declined classifications can be revisited. Every gap remains work Ze owes.</p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -345,9 +344,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7427-3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze does not implement ECDSA hash truncation itself -- it passes the full digest to Go&#39;s crypto/ecdsa (signDigest -&gt; ecdsa.SignASN1, and verifySignature -&gt; ecdsa.VerifyASN1, both in internal/component/ike/engine/auth.go), which performs the FIPS 186-4 / ANSI X9.62 leftmost-bits truncation internally. There is no ze-authored truncation code to gate</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7427_truncation_test.go#L52" title="internal/component/ike/engine/rfc7427_truncation_test.go" target="_blank" rel="noopener"><code>TestRFC7427ECDSAHashTruncationIsX962</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7427_truncation_test.go#L57" title="internal/component/ike/engine/rfc7427_truncation_test.go" target="_blank" rel="noopener"><code>TestRFC7427ECDSAHashTruncationIsX962</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7427-4-2">RFC7427-4-2</code></td><td colspan="3"><span class="rfc-subject">The supported hash algorithms that can be used for the signature algorithms are indicated with a Notify payload of type SIGNATURE_HASH_ALGORITHMS sent inside the IKE_SA_INIT exchange. This notification also implicitly indicates support of the new &#34;Digital Signature&#34; algorithm method, as well as the list of hash functions supported by the sending peer. Both ends send their list of supported hash algorithms. (§4)</span></td></tr>
 <tr><td></td>
@@ -381,17 +380,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Gaps and untested MUSTs</h2>
-<div class="rfc-table-wrap">
-<table class="rfc-table">
-<thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
-<tbody>
-<tr><td><a href="#rfc7427-3-1"><code>RFC7427-3-1</code></a> For hash truncation, the method specified in ANSI X9.62:2005 [X9.62] MUST be used. (§3)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: ze does not implement ECDSA hash truncation itself -- it passes the full digest to Go&#39;s crypto/ecdsa (signDigest -&gt; ecdsa.SignASN1, and verifySignature -&gt; ecdsa.VerifyASN1, both in internal/component/ike/engine/auth.go), which performs the FIPS 186-4 / ANSI X9.62 leftmost-bits truncation internally. There is no ze-authored truncation code to gate</td>
-</tr>
-</tbody>
-</table>
-</div>
+<p>RFC 7427 declares no gap, and every gated MUST it carries has a test bound to it.</p>
 </section>
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
@@ -405,17 +394,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7427_sighash_test.go#L192" title="internal/component/ike/engine/rfc7427_sighash_test.go" target="_blank" rel="noopener"><code>TestRFC7427AuthRefusesAnAlgorithmThePeerDidNotSend</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7427_sighash_test.go#L134" title="internal/component/ike/engine/rfc7427_sighash_test.go" target="_blank" rel="noopener"><code>TestRFC7427SignatureAlgorithmIsOneThePeerSent</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7427_sighash_test.go#L129" title="internal/component/ike/engine/rfc7427_sighash_test.go" target="_blank" rel="noopener"><code>TestRFC7427SignatureAlgorithmIsOneThePeerSent</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -430,12 +419,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7427_sighash_test.go#L95" title="internal/component/ike/engine/rfc7427_sighash_test.go" target="_blank" rel="noopener"><code>TestRFC7427DigitalSignatureNeedsTheNotify</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7427_auth_test.go#L73" title="internal/component/ike/engine/rfc7427_auth_test.go" target="_blank" rel="noopener"><code>TestAuthX509UsesMethod14</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7427_notify_sent_test.go#L54" title="internal/component/ike/engine/rfc7427_notify_sent_test.go" target="_blank" rel="noopener"><code>TestRFC7427IKESAInitSendsTheSignatureHashAlgorithmsNotify</code></a></td>
@@ -445,7 +434,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7427_sighash_test.go#L89" title="internal/component/ike/engine/rfc7427_sighash_test.go" target="_blank" rel="noopener"><code>TestRFC7427DigitalSignatureNeedsTheNotify</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -460,12 +449,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7427_method_test.go#L25" title="internal/component/ike/engine/rfc7427_method_test.go" target="_blank" rel="noopener"><code>TestRFC7427DigitalSignatureMethodIsUsed</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7427_method_test.go#L24" title="internal/component/ike/engine/rfc7427_method_test.go" target="_blank" rel="noopener"><code>TestRFC7427DigitalSignatureMethodIsUsed</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -473,7 +462,23 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3><a href="#rfc7427-3-1"><code>RFC7427-3-1</code></a></h3>
 <p>For hash truncation, the method specified in ANSI X9.62:2005 [X9.62] MUST be used. (§3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC7427-3-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7427_truncation_test.go#L57" title="internal/component/ike/engine/rfc7427_truncation_test.go" target="_blank" rel="noopener"><code>TestRFC7427ECDSAHashTruncationIsX962</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7427_truncation_test.go#L52" title="internal/component/ike/engine/rfc7427_truncation_test.go" target="_blank" rel="noopener"><code>TestRFC7427ECDSAHashTruncationIsX962</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 </section>
 <section><h2>Extraction sign-off</h2>
 <div class="rfc-table-wrap">
@@ -795,7 +800,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 19:30 UTC</span>
+                    <span class="footer-published">Published 30 October 2026 17:53 UTC</span>
                 </div>
             </div>
         </footer>

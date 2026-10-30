@@ -110,7 +110,7 @@ are not pinned in a manifest.
 
 ## VPN Kernel Proof
 
-`./le test qemu vpn-kernel-test` boots Ze's docker-host image with its own
+`./le test qemu vpn-kernel` boots Ze's docker-host image with its own
 kernel and base, on the host's native architecture. It uses the shared
 Docker lab transport: KVM on Linux or HVF on macOS, never a stock guest or
 foreign-architecture emulation. This is a manual kernel proof, not a check

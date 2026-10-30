@@ -6,9 +6,9 @@ Redistribute orchestrator: dispatches protocol route events to registered consum
 
 | Field | Value |
 |-------|-------|
-| Registry area | BGP Redistribute |
+| Registry area | Redistribute |
 | Kind | Runtime plugin |
-| Source path | `internal/component/bgp/plugins/redistribute_egress` |
+| Source path | `internal/plugins/redistribute` |
 | YANG modules | 0 |
 
 ## Configuration
@@ -17,7 +17,7 @@ Redistribute orchestrator: dispatches protocol route events to registered consum
 
 ## Dependencies
 
-- Required: [`bgp`](../bgp/index.md)
+- Required: [`policy`](../policy/index.md)
 - Optional: None
 
 ## Used by
@@ -29,12 +29,12 @@ Redistribute orchestrator: dispatches protocol route events to registered consum
 
 Order only when both plugins are selected; never auto-loads a plugin.
 
-- Start after: None
+- Start after: [`bgp`](../bgp/index.md)
 - Starts before: [`as112`](../as112/index.md), [`connected`](../connected/index.md), [`static`](../static/index.md)
 
 ## Repository artifacts
 
-Package: `internal/component/bgp/plugins/redistribute_egress`
+Package: `internal/plugins/redistribute`
 
 YANG files: None
 Metadata source: `Registration`

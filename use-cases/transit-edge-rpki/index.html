@@ -96,6 +96,22 @@ or exported.</p>
     }
 }
 
+policy {
+    reject-asn NO-TRANSIT {
+        indirect [ 174 701 3356 ];
+    }
+    modify TRANSIT-A-PREF {
+        set {
+            local-preference 200;
+        }
+    }
+    modify TRANSIT-B-PREF {
+        set {
+            local-preference 100;
+        }
+    }
+}
+
 bgp {
     router-id 192.0.2.10;
     session {
@@ -112,22 +128,6 @@ bgp {
         action {
             invalid reject;
             not-found accept;
-        }
-    }
-
-    policy {
-        reject-asn NO-TRANSIT {
-            indirect [ 174 701 3356 ];
-        }
-        modify TRANSIT-A-PREF {
-            set {
-                local-preference 200;
-            }
-        }
-        modify TRANSIT-B-PREF {
-            set {
-                local-preference 100;
-            }
         }
     }
 
@@ -313,7 +313,7 @@ preference returns without stale paths.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 00:45 UTC</span>
+                    <span class="footer-published">Published 30 October 2026 09:46 UTC</span>
                 </div>
             </div>
         </footer>
