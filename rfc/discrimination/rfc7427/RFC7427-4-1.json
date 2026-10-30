@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC7427-4-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7427_sighash_test.go::TestRFC7427AuthRefusesAnAlgorithmThePeerDidNotSend",
+    "unit-sha": "a0de06b26e0eb772",
+    "claim-sha": "fb045b4a00a2bef1",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/auth.go::computeX509Auth",
+    "producer-sha": "c1712c246202024a",
+    "break": "body of computeX509Auth replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7427-4-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7427_sighash_test.go::TestRFC7427SignatureAlgorithmIsOneThePeerSent",
+    "unit-sha": "f23a5cc16ed88119",
+    "claim-sha": "54cbfb8b464c3cbf",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/auth.go::selectSignatureAlgorithm",
+    "producer-sha": "5e501f12672e08e2",
+    "break": "body of selectSignatureAlgorithm replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7427-4-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7427_sighash_test.go::TestRFC7427SignatureAlgorithmIsOneThePeerSent",
+    "unit-sha": "f23a5cc16ed88119",
+    "claim-sha": "594fba7cfc3600df",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/auth.go::selectSignatureAlgorithm",
+    "producer-sha": "5e501f12672e08e2",
+    "break": "body of selectSignatureAlgorithm replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]
