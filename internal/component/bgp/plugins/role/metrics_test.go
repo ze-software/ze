@@ -17,7 +17,7 @@ import (
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
-// --- recording metrics registry (mirrors redistribute_egress/metrics_test.go,
+// --- recording metrics registry (mirrors internal/plugins/redistribute/metrics_test.go,
 // extended to record CounterVec children per label value) ---
 
 type recordingCounter struct{ value atomic.Int64 }

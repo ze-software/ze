@@ -18,6 +18,11 @@ type RouteSource struct {
 	Name        string // "ibgp", "ebgp", "static", "connected", ...
 	Protocol    string // "bgp", "static", "connected", "ospf", "isis"
 	Description string
+	// ConfigRoot is the config root the source's protocol runs from. A rule
+	// importing the source in a config without that root is refused
+	// (config.RefuseRedistributeRules), because nothing would produce its
+	// routes. Empty means the source needs no root.
+	ConfigRoot string
 }
 
 var (

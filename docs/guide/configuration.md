@@ -555,7 +555,7 @@ The `as112` DNS plugin is also a redistribute source: `redistribute { destinatio
 <!-- source: internal/plugins/ospf/default.go -- applyDefaultInformation -->
 <!-- source: internal/plugins/ospf/redistribute/consumer.go -- Consumer InjectRoute -->
 <!-- source: internal/component/config/redistribute/route.go -- ImportRule.Destination, destination-scoped Accept -->
-<!-- source: internal/component/bgp/plugins/redistribute_egress/replay.go -- late-join replay-on-peer-up -->
+<!-- source: internal/plugins/redistribute/replay.go -- late-join replay-on-peer-up -->
 
 ## Inheritance
 
@@ -1735,7 +1735,7 @@ gating BGP's own Adj-RIB-In on one dropped every received route, so the
 <!-- source: internal/component/config/redistribute/evaluator.go -- shared Global evaluator -->
 <!-- source: internal/component/config/redistribute/consumer.go -- consumer registry -->
 <!-- source: internal/component/plugin/all/ingress_redistribution_test.go -- no registered ingress filter drops an UPDATE for the redistribute block -->
-<!-- source: internal/component/bgp/plugins/redistribute_egress/redistribute.go -- orchestrator -->
+<!-- source: internal/plugins/redistribute/redistribute.go -- orchestrator -->
 
 ### Prefix-List Filter
 

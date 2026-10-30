@@ -1,6 +1,6 @@
 // Design: docs/architecture/core-design.md -- redistribute orchestrator
 //
-// Package redistributeegress implements the redistribute-orchestrator plugin:
+// Package redistribute implements the redistribute-orchestrator plugin:
 // the single EventBus subscriber that turns non-consumer protocol route-change
 // events into dispatches to registered RedistConsumer implementations.
 //
@@ -24,7 +24,7 @@
 // `events.Register[*RouteChangeBatch](name, redistevents.EventType)`, and
 // subscribes. No handle pointer crosses a plugin boundary.
 
-package redistributeegress
+package redistribute
 
 import (
 	"context"

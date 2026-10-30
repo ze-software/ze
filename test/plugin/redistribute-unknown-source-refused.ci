@@ -3,11 +3,11 @@
 #
 # VALIDATES: spec-fixit-redistribution-chain-drops-silently AC-5, at the process
 # boundary. ExtractRedistributeRules (internal/component/config/loader_redistribute.go)
-# refuses a source that is in no component's registry, and initRedistribute
-# (internal/component/bgp/config/loader_create.go) returns that error to
-# CreateReactorFromTree instead of logging it.
+# refuses a source that is in no component's registry, and LoadConfig refuses
+# the config with that error before any plugin starts (RefuseRedistributeRules,
+# the same file), instead of logging it.
 #
-# PREVENTS: the behavior this spec removed. initRedistribute used to warn once
+# PREVENTS: the behavior this spec removed. The loader used to warn once
 # and return, which left the global evaluator nil and therefore disabled EVERY
 # redistribution rule in the file. A config with three correct rules and one
 # typo redistributed nothing at all, and the only trace was a startup log line.

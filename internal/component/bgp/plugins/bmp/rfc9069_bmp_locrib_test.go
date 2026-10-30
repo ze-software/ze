@@ -692,7 +692,7 @@ func (bp *BMPPlugin) dumpToken(t *testing.T, bus *locRIBTestBus) uint64 {
 
 // locRIBTestBus is a minimal in-memory ze.EventBus for exercising the Loc-RIB replay-request
 // path: it delivers Emit synchronously to matching Subscribe handlers (mirrors the testBus in
-// redistribute_egress/redistribute_test.go).
+// internal/plugins/redistribute/redistribute_test.go).
 type locRIBTestBus struct {
 	mu   sync.Mutex
 	subs []*locRIBTestSub

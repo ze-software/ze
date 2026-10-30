@@ -217,7 +217,7 @@ func (b *fakeBus) Subscribe(string, string, func(any)) func() { return func() {}
 // bus for an SPF add delta with both an L1 and an L2 route under the single isis
 // ProtocolID (AC-1, AC-2): the orchestrator (which subscribes to that handle)
 // resolves the source as ProtocolName(Protocol) == "isis" and dispatches to the
-// BGP consumer. The dispatch-to-BGP half is covered by the redistribute_egress
+// BGP consumer. The dispatch-to-BGP half is covered by the redistribute orchestrator
 // handleBatch tests (generic over producer) and the isis-redist-bgp.ci functional
 // test; here we prove the producer emit half end to end on a bus.
 func TestISISRedistSourceToBGP(t *testing.T) {

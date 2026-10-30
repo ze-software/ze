@@ -9,7 +9,7 @@
 // best paths (post best-path selection) are streamed to collectors as Route
 // Monitoring messages carrying a PeerType=3 per-peer header. bmp is an
 // in-process BGP plugin, so it subscribes to the same EventBus the RIB
-// publishes best-change events on (mirrors redistribute_egress), reconstructs
+// publishes best-change events on (mirrors the redistribute orchestrator), reconstructs
 // a minimal UPDATE PDU from the typed best-change entry, and fans it out to
 // every configured collector.
 
@@ -80,7 +80,7 @@ func locRIBTableNameTLVBytes() []byte {
 // eventBusPtr holds the in-process EventBus, installed by the plugin's
 // registration (register.go ConfigureEventBus). bmp subscribes to the RIB's
 // best-change events on it for Loc-RIB monitoring. Package-level (mirrors
-// redistribute_egress) because registration runs before any BMPPlugin exists.
+// the redistribute orchestrator) because registration runs before any BMPPlugin exists.
 var eventBusPtr atomic.Pointer[ze.EventBus]
 
 // setEventBus installs the EventBus (called from register.go ConfigureEventBus).

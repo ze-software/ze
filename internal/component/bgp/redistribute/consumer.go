@@ -22,20 +22,16 @@ const updateRouteTimeout = 10 * time.Second
 // printed nothing under any ze.log key, so the consumer's lines were lost.
 var logger = slogutil.LazyLogger("bgp.redistribute")
 
-// RouteDispatcher abstracts the plugin SDK's UpdateRoute method.
-type RouteDispatcher interface {
-	UpdateRoute(ctx context.Context, peerSelector, command string) (uint32, uint32, error)
-}
-
 // BGPConsumer implements redistribute.RedistConsumer for the BGP protocol.
 // It translates redistributed routes into text-form update-route commands
-// dispatched to the reactor via UpdateRoute.
+// dispatched to the reactor via UpdateRoute, over the redistribute
+// orchestrator's engine connection (register.go, the consumer factory).
 type BGPConsumer struct {
-	dispatcher RouteDispatcher
+	dispatcher redistribute.RouteUpdater
 }
 
 // NewBGPConsumer creates a BGP redistribution consumer wrapping the given dispatcher.
-func NewBGPConsumer(d RouteDispatcher) *BGPConsumer {
+func NewBGPConsumer(d redistribute.RouteUpdater) *BGPConsumer {
 	return &BGPConsumer{dispatcher: d}
 }
 

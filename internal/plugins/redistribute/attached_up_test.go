@@ -1,4 +1,4 @@
-package redistributeegress
+package redistribute
 
 import (
 	"testing"

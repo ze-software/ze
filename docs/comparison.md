@@ -165,7 +165,7 @@ through one shared control plane with a single family-neutral `graceful-restart`
 <!-- source: internal/plugins/ospf/spf/external.go -- ComputeExternal E1/E2 -->
 <!-- source: internal/plugins/ospf/redistribute/consumer.go -- Consumer InjectRoute -->
 
-<!-- source: internal/component/bgp/plugins/redistribute_egress/redistribute.go -- consumer -->
+<!-- source: internal/plugins/redistribute/redistribute.go -- consumer -->
 <!-- source: internal/plugins/isis/redistribute/source.go -- isis source + producer emit -->
 <!-- source: internal/plugins/isis/redistribute/consumer.go -- isis consumer (TLV 135) -->
 <!-- source: internal/core/redistevents/events.go -- producer-shared payload -->

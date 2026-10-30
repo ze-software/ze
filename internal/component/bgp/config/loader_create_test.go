@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/config"
-	"github.com/ze-software/ze/internal/component/config/redistribute"
 )
 
 // redistConfig wraps a `redistribute` block in the smallest config that reaches
@@ -72,10 +71,13 @@ redistribute {
 }
 
 // TestValidRedistributeLoads is the positive that keeps the refusal honest: a
-// config naming a registered source still starts, and installs its rules.
+// config naming a registered source still starts.
 //
 // VALIDATES: R-4 -- the fatal error refuses a config that is wrong, not a
-// config that works.
+// config that works. Installing the rules is the redistribute orchestrator's,
+// which owns the `redistribute` root (TestConfigureInstallsTheRules,
+// internal/plugins/redistribute/config_test.go): the reactor builder does not
+// run on a router with no bgp block, so it cannot be where the rules live.
 func TestValidRedistributeLoads(t *testing.T) {
 	_, err := loadReactor(redistConfig(`
 ospf {
@@ -89,33 +91,6 @@ redistribute {
 }
 `))
 	require.NoError(t, err)
-
-	ev := redistribute.Global()
-	require.NotNil(t, ev, "a config with rules installs an evaluator")
-	assert.True(t, ev.HasDestination("ospf"))
-}
-
-// TestNoRedistributeInstallsAnEmptyEvaluator is the second half of the finding
-// this spec carried. initRedistribute used to set NOTHING for an empty rule
-// list. A reload that removed the last `redistribute` block therefore left the
-// previous rules live until the daemon restarted.
-//
-// VALIDATES: an evaluator is always installed, and it accepts nothing when the
-// config asks for nothing.
-// PREVENTS: a removed `redistribute` block that keeps redistributing.
-func TestNoRedistributeInstallsAnEmptyEvaluator(t *testing.T) {
-	redistribute.SetGlobal(redistribute.NewEvaluator([]redistribute.ImportRule{
-		{Source: "connected", Destination: "ospf"},
-	}))
-	require.True(t, redistribute.Global().HasDestination("ospf"), "the stale evaluator is installed")
-
-	_, err := loadReactor(redistConfig(""))
-	require.NoError(t, err)
-
-	ev := redistribute.Global()
-	require.NotNil(t, ev)
-	assert.False(t, ev.HasDestination("ospf"), "a config with no redistribute block redistributes nothing")
-	assert.Empty(t, ev.Rules())
 }
 
 // TestEmptyDestinationRefusesLoad holds a destination that imports nothing to

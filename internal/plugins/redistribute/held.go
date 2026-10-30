@@ -6,7 +6,7 @@
 // consumer hold the route a rejected Add would replace, or a rejected Remove
 // withdraws?
 
-package redistributeegress
+package redistribute
 
 import (
 	"context"

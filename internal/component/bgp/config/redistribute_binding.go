@@ -35,7 +35,7 @@ const locRIBReceive = "update state refresh"
 // nothing.
 //
 // `receive [ state ]` is what the plugin declares (SetStartupSubscriptions,
-// internal/component/bgp/plugins/redistribute_egress/register.go). It carries
+// internal/plugins/redistribute/register.go). It carries
 // the peer's down-to-up edge, which is what fires the peer-up replay.
 const (
 	orchestratorReceive = "state"

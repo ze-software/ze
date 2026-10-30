@@ -1,15 +1,15 @@
-package redistributeegress
+package redistribute
 
 import (
 	"context"
 	"net"
 	"strings"
 
-	bgpredist "github.com/ze-software/ze/internal/component/bgp/redistribute"
 	configredist "github.com/ze-software/ze/internal/component/config/redistribute"
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/component/policy"
+	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -17,10 +17,9 @@ import (
 	"github.com/ze-software/ze/pkg/ze"
 )
 
-// Compile-time contract: the BGP redistribute consumer satisfies the generic
-// RedistConsumer seam it is registered under (below). Stated here so the
-// cross-package BGPConsumer type is an explicit dependency of this plugin.
-var _ configredist.RedistConsumer = (*bgpredist.BGPConsumer)(nil)
+// Compile-time contract: the SDK plugin is the engine connection a consumer
+// factory builds on (configredist.ConsumerFactory, buildFactoryConsumers).
+var _ configredist.RouteUpdater = (*sdk.Plugin)(nil)
 
 func init() {
 	// The filter attachment points this plugin's config holds, with the route
@@ -33,13 +32,18 @@ func init() {
 	reg := registry.Registration{
 		Name:        Name,
 		Description: "Redistribute orchestrator: dispatches protocol route events to registered consumers",
-		ConfigRoots: []string{"redistribute"},
-		// BGP dependency: the orchestrator registers a BGP consumer whose
-		// UpdateRoute dispatches via this plugin's SDK connection to the reactor.
-		// When future protocols add consumers, each will register in its own plugin.
+		ConfigRoots: []string{configRoot},
 		// policy: the redistribute import chains name filters under the policy root.
-		Dependencies: []string{"bgp", policy.PluginName},
-		RunEngine:    runPlugin,
+		Dependencies: []string{policy.PluginName},
+		// bgp is order only. A destination such as BGP whose consumer a
+		// factory builds over this plugin's connection (buildFactoryConsumers)
+		// needs its engine up before the consumer sends, and its peer state
+		// events are what fire the peer-up replay. A config with no bgp block
+		// starts no bgp: redistribution between other protocols needs none, and
+		// a rule naming BGP without the block is refused before startup
+		// (config.RefuseRedistributeRules).
+		StartAfter: []string{"bgp"},
+		RunEngine:  runPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},
@@ -73,14 +77,20 @@ func runPlugin(conn net.Conn) int {
 	coord := newReplayCoordinator()
 	setReplayCoordinator(coord)
 
+	// The import rules are this plugin's to install: it owns the redistribute
+	// root, and the evaluator it reads is the one it sets.
+	rules := &ruleState{}
+	p.OnConfigure(rules.configure)
+	p.OnConfigVerify(rules.verify)
+	p.OnConfigApply(func(_ []sdk.ConfigDiffSection) error { return rules.apply() })
+	p.OnConfigRollback(func(_ string) error { return rules.rollback() })
+	p.OnConfigCommitted(func(_ string) error {
+		rules.committed()
+		return nil
+	})
+
 	p.OnStarted(func(ctx context.Context) error {
-		// p provides UpdateRoute, satisfying the RouteDispatcher seam the BGP
-		// consumer wraps to dispatch redistributed routes to the reactor.
-		var _ bgpredist.RouteDispatcher = p
-		consumer := bgpredist.NewBGPConsumer(p)
-		if err := configredist.RegisterConsumer(consumer); err != nil {
-			logger().Warn("failed to register BGP consumer", "error", err)
-		}
+		buildFactoryConsumers(p)
 		go run(ctx)
 		return nil
 	})
@@ -89,13 +99,21 @@ func runPlugin(conn net.Conn) int {
 	// newly-established peer receives the current redistribute route set. Mirrors
 	// the watchdog's state-subscription pattern (in-process DirectBridge via
 	// OnStructuredEvent, text fallback via OnEvent).
-	p.SetStartupSubscriptions([]string{"state"}, nil, "")
+	// The state events are BGP's. A build without BGP registers no bgp
+	// namespace, so the plugin subscribes to nothing rather than ask for a
+	// namespace the engine cannot resolve.
+	if events.IsValidNamespace(bgpStateNamespace) {
+		p.SetStartupSubscriptionsIn(bgpStateNamespace, []string{"state"}, nil, "")
+	}
 	p.SetEncoding("text")
 	p.OnStructuredEvent(func(events []any) error {
 		bus := getEventBus()
 		for _, event := range events {
 			se, ok := event.(*rpc.StructuredEvent)
-			if !ok || se.PeerAddress == "" {
+			if !ok {
+				continue
+			}
+			if se.PeerAddress == "" {
 				continue
 			}
 			if se.State == rpc.SessionStateUp {
@@ -122,11 +140,29 @@ func runPlugin(conn net.Conn) int {
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
-	if err := p.Run(ctx, &sdk.Registration{}); err != nil {
+	if err := p.Run(ctx, &sdk.Registration{WantsConfig: []string{configRoot}}); err != nil {
 		logger().Error(Name+" plugin failed", "error", err)
 		return 1
 	}
 	return 0
+}
+
+// bgpStateNamespace is the event namespace the BGP peer state events live in.
+const bgpStateNamespace = "bgp"
+
+// buildFactoryConsumers builds every destination a consumer factory declares
+// over this plugin's engine connection and registers it. A destination's own
+// package registers the factory from init() (BGP does, in
+// internal/component/bgp/redistribute/register.go), so this plugin names no
+// destination and a build without that package has none. Re-registering
+// replaces the consumer an earlier start built, because an SDK reconnect runs
+// OnStarted again.
+func buildFactoryConsumers(updater configredist.RouteUpdater) {
+	for _, factory := range configredist.ConsumerFactories() {
+		if configredist.ReregisterConsumer(factory.New(updater)) {
+			logger().Debug(Name+": consumer rebuilt", "destination", factory.Name)
+		}
+	}
 }
 
 // parseStateEvent extracts the peer address, state and reason from a text state event
@@ -136,7 +172,10 @@ func runPlugin(conn net.Conn) int {
 // relevant to this non-readiness consumer. Unrecognized lines return ("", "", "").
 func parseStateEvent(text string) (peerAddr, state, reason string) {
 	fields := strings.Fields(strings.TrimRight(text, "\n"))
-	if len(fields) < 4 || fields[0] != "peer" {
+	if len(fields) < 4 {
+		return "", "", ""
+	}
+	if fields[0] != "peer" {
 		return "", "", ""
 	}
 	for i := 2; i < len(fields)-1; i++ {

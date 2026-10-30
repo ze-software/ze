@@ -3,8 +3,7 @@
 #
 # VALIDATES: spec-fixit-redistribution-chain-drops-silently AC-3, at the process
 # boundary. The orchestrator dispatches over the consumer registry read LIVE at
-# event time (handleBatch, internal/component/bgp/plugins/redistribute_egress/
-# redistribute.go), so a batch emitted one moment before a consumer registered
+# event time (handleBatch, internal/plugins/redistribute/redistribute.go), so a batch emitted one moment before a consumer registered
 # reached every consumer except that one and was lost with no line in any log.
 # A consumer becoming registered now fires a replay request of its own, every
 # producer re-emits its current set, and the answer is injected through that

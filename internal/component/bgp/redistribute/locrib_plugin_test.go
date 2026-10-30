@@ -9,8 +9,8 @@ import (
 	bgpredist "github.com/ze-software/ze/internal/component/bgp/redistribute"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 
-	_ "github.com/ze-software/ze/internal/component/bgp/plugins/redistribute_egress"
 	_ "github.com/ze-software/ze/internal/component/bgp/plugins/rib"
+	_ "github.com/ze-software/ze/internal/plugins/redistribute"
 )
 
 // TestLocRIBPluginNamesARegisteredPlugin compares the copy against its source.

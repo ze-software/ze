@@ -1,0 +1,52 @@
+# Test: a redistribute rule that names BGP is refused when the config has no
+# bgp block, at validate time and at daemon start, with the fix in the message.
+#
+# VALIDATES: RefuseRedistributeRules (internal/component/config/loader_redistribute.go)
+#            reads the root BGP declares where it registers: the bgp, ibgp and
+#            ebgp sources (internal/component/bgp/redistribute/bgp.go) and the
+#            BGP consumer factory (internal/component/bgp/redistribute/register.go)
+#            each need a `bgp { }` block. `ze config validate` (the commit door)
+#            and LoadConfig (boot) both refuse.
+# PREVENTS:  `destination bgp` with no bgp block stopping the daemon at startup
+#            with "missing required bgp { } block", and `import bgp` into IS-IS
+#            with no bgp block booting and moving nothing in silence.
+
+stdin=dest-bgp:terminator=EOF_DEST
+isis {
+	net 49.0001.0000.0000.0001.00
+	level l1-l2
+}
+
+redistribute {
+	destination bgp {
+		import isis
+	}
+}
+EOF_DEST
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=dest-bgp
+expect=exit:code=1
+expect=stdout:contains=redistribute: "destination bgp" needs bgp configured, and this config has no bgp { } block
+expect=stdout:contains=fix: configure bgp in a bgp { } block
+
+stdin=import-bgp:terminator=EOF_IMPORT
+isis {
+	net 49.0001.0000.0000.0001.00
+	level l1-l2
+}
+
+redistribute {
+	destination isis {
+		import bgp
+	}
+}
+EOF_IMPORT
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=import-bgp
+expect=exit:code=1
+expect=stdout:contains=redistribute: "import bgp" under "destination isis" needs bgp configured
+
+cmd=foreground:seq=3:exec=ze -:stdin=import-bgp:timeout=15s
+expect=exit:code=1
+expect=stderr:contains=redistribute: "import bgp" under "destination isis" needs bgp configured
+reject=stderr:pattern=missing required bgp

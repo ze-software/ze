@@ -368,7 +368,9 @@ when leaking a prefix to a lower level (RFC 2966), never to mark external origin
 loop prevention rejects redistributing IS-IS into IS-IS.
 
 The block above is the whole configuration. It needs no `plugin` block and no
-`attach process` block. `import bgp` derives each peer's delivery to the
+`attach process` block, and a router running IS-IS without BGP needs no `bgp`
+block: only a rule that names BGP does, and such a rule with no `bgp` block is
+refused at load and at commit. `import bgp` derives each peer's delivery to the
 Loc-RIB, and `destination bgp` derives the send permission the orchestrator
 needs on each peer.
 
@@ -377,7 +379,7 @@ current set. The static prefix therefore reaches the LSP whichever of the two
 plugins started first. See
 [Route Filters and Redistribution](redistribution.md), "Route Redistribution".
 <!-- source: internal/component/bgp/config/redistribute_binding.go -- wireRedistributeDelivery -->
-<!-- source: internal/component/bgp/plugins/redistribute_egress/replay.go -- onConsumerRegistered -->
+<!-- source: internal/plugins/redistribute/replay.go -- onConsumerRegistered -->
 
 **Connected and passive interfaces.** IS-IS also advertises its own enabled and
 **passive** interface prefixes as internal reachability in its LSPs. A passive

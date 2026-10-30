@@ -16,7 +16,6 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/reactor"
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/infra"
-	"github.com/ze-software/ze/internal/component/config/redistribute"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/host"
 	"github.com/ze-software/ze/internal/component/plugin"
@@ -27,30 +26,6 @@ import (
 	"github.com/ze-software/ze/internal/core/network"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
-
-// initRedistribute parses redistribute import rules from the config tree and
-// installs the global evaluator. Called during reactor creation and on reload.
-//
-// A config it cannot turn into rules REFUSES the load. Until 2026-09-04 it
-// warned once and returned. That left the global evaluator nil, which disabled
-// EVERY redistribution rule in the file. One mistyped source name stopped every
-// rule the operator wrote, and the only trace was a startup log line nobody
-// reads (ai/rules/principles.md, a silently wrong value must not be reachable).
-// The daemon cannot do what the operator asked, so it says so and stops
-// (ai/rules/go-standards.md, fail early).
-//
-// An empty rule list installs an EMPTY evaluator rather than leaving whatever
-// was installed before. A reload that removed the last `redistribute` block
-// must stop redistributing. The old code set nothing at all in that case, so
-// the removed rules stayed live until the daemon restarted.
-func initRedistribute(tree *config.Tree) error {
-	rules, err := config.ExtractRedistributeRules(tree)
-	if err != nil {
-		return err
-	}
-	redistribute.SetGlobal(redistribute.NewEvaluator(rules))
-	return nil
-}
 
 // CreateReactorFromTree creates a Reactor directly from a parsed config tree.
 func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plugins []reactor.PluginConfig, store storage.Storage, standalone bool) (*reactor.Reactor, error) {
@@ -92,14 +67,6 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 	updateDelay, err := ParseUpdateDelay(tree)
 	if err != nil {
 		return nil, err
-	}
-
-	// Parse and install redistribution import rules. It runs ahead of the peer
-	// walk because that walk derives process bindings from the same rules
-	// (wireRedistributeDelivery, redistribute_binding.go). A redistribution
-	// error is then reported as one, rather than wrapped in "build peers".
-	if err := initRedistribute(tree); err != nil {
-		return nil, fmt.Errorf("redistribute config: %w", err)
 	}
 
 	// Record the notation this process writes an AS number in. This is the
@@ -382,13 +349,6 @@ func reloadPeersFromTree(tree *config.Tree) ([]*reactor.PeerSettings, reactor.Gl
 	}
 	if err := refuseIncompletePeers(schema, resolved); err != nil {
 		return nil, reactor.Globals{}, nil, err
-	}
-
-	// Update redistribute rules on reload. A reload that cannot build them
-	// refuses, for the reason the initial load refuses: a nil evaluator
-	// disables every rule in the file.
-	if err := initRedistribute(tree); err != nil {
-		return nil, reactor.Globals{}, nil, fmt.Errorf("redistribute config: %w", err)
 	}
 
 	// The builder prunes inactive nodes and resolves the tree, and it returns

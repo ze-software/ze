@@ -826,8 +826,8 @@ Counters: `ze_bgp_redistribute_events_received`, `_announcements`,
 `ze_bgp_redistribute_replay_total{source}` (routes replayed, to a newly
 established peer or to a consumer that registered late).
 
-<!-- source: internal/component/bgp/plugins/redistribute_egress/redistribute.go -- consumer plugin, watchConsumers -->
-<!-- source: internal/component/bgp/plugins/redistribute_egress/replay.go -- onPeerUp, onConsumerRegistered -->
+<!-- source: internal/plugins/redistribute/redistribute.go -- consumer plugin, watchConsumers -->
+<!-- source: internal/plugins/redistribute/replay.go -- onPeerUp, onConsumerRegistered -->
 <!-- source: internal/core/redistevents/registry.go -- ProtocolID + producer registration -->
 
 ### Prefix-List Filter (`bgp-filter-prefix`)

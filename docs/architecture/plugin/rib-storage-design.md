@@ -266,7 +266,7 @@ announced route, and `redistribute-orchestrator` fires no redistribute replay.
 <!-- source: internal/component/bgp/plugins/rs/server_handlers.go -- handleAttachedUp -->
 <!-- source: internal/component/bgp/plugins/rib/rib.go -- handleStructuredState -->
 <!-- source: internal/component/bgp/plugins/watchdog/server.go -- handlePeerUp -->
-<!-- source: internal/component/bgp/plugins/redistribute_egress/replay.go -- onStateUp -->
+<!-- source: internal/plugins/redistribute/replay.go -- onStateUp -->
 The initial token remains valid while the peer-up replay fence is held, even
 after Ze's own EOR. Completion carries the same captured token to the actual
 readiness owner, including when no replay group was emitted; old work cannot

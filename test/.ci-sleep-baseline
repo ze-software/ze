@@ -176,7 +176,7 @@
 # zeReadyFileEnabled to modeForeground times sampling-config out at 10s, while
 # the same mutation left the pre-conversion file GREEN at 2.6s -- it never
 # depended on the marker it claimed did not exist. Dropping every entry in the
-# redistribute egress fan-out (redistribute_egress/redistribute.go) fails both
+# redistribute egress fan-out (internal/plugins/redistribute/redistribute.go) fails both
 # plugin tests with "its UPDATE was never counted as sent".
 -14
 

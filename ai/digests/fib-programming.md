@@ -26,7 +26,7 @@ the kernel, and they are easy to conflate:
 `internal/core/redistevents` (`RouteChangeBatch`, easy to confuse with sysrib's
 `BestChangeBatch`) is a DIFFERENT bus: it carries route changes for redistribution INTO
 other protocols' advertisement (e.g. "redistribute static into BGP"), consumed by
-`bgp/plugins/redistribute_egress`, `ospf/redistribute`, `isis/redistribute`. It never
+`plugins/redistribute`, `ospf/redistribute`, `isis/redistribute`. It never
 installs a kernel route (`internal/plugins/isis/spf/install.go` states this
 contract explicitly). Static and connected emit on both buses (redistevents for
 advertisement, and, for static, direct netlink for the FIB); BGP/OSPF/IS-IS emit only
@@ -137,7 +137,7 @@ Route wins in a protocol, then gets programmed in the kernel:
     routing-table is resolved to a kernel table ID via
     `internal/core/routingtable.Registry.Resolve` (`internal/core/routingtable/registry.go`,
     called from `internal/plugins/static/config.go`). Static ALSO emits
-    `redistevents.RouteChange` (`inject.go`) purely so `bgp/plugins/redistribute_egress`
+    `redistevents.RouteChange` (`inject.go`) purely so `plugins/redistribute`
     etc. can advertise the route; that emit never reaches sysrib or the kernel.
 14. **Connected routes.** `routeObserver.handleAddrAdded`/`emit`
     (`internal/plugins/connected/connected.go`, `:130`) only emit

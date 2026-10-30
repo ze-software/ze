@@ -306,16 +306,21 @@ The rule only decides what may enter a destination, never what must leave it.
 When a source withdraws a route a destination holds, the withdrawal reaches
 that destination even if its rule would reject the withdrawal itself, for
 instance because the rules changed since the route was announced.
-<!-- source: internal/component/bgp/plugins/redistribute_egress/held.go -- removeReplacedRoute -->
+<!-- source: internal/plugins/redistribute/held.go -- removeReplacedRoute -->
 <!-- source: internal/plugins/static/inject.go -- applyRouteLocked -->
 
 That block is the whole configuration. It needs no `plugin` block and no
 `attach process` block. The orchestrator that dispatches the routes auto-loads
-because the `redistribute` root is present. The two peer bindings the rules
+because the `redistribute` root is present, and it installs the rules from that
+root itself. It needs no `bgp` block either: a router that runs IS-IS or OSPF
+without BGP redistributes static, connected and IGP routes between them. When a
+rule names BGP, BGP must be configured (below). The two peer bindings the rules
 depend on are derived from the rules (below).
 
 <!-- source: internal/component/config/redistribute/yang/ze-redistribute-conf.yang -- redistribute container -->
 <!-- source: internal/component/config/loader_redistribute.go -- ExtractRedistributeRules -->
+<!-- source: internal/plugins/redistribute/register.go -- StartAfter bgp, no hard dependency -->
+<!-- source: internal/plugins/redistribute/config.go -- ruleState -->
 
 ### Sources and Destinations
 
@@ -335,13 +340,17 @@ token first.
 | `ipsec` | the IKE engine | the remote traffic selector of each established Child SA |
 
 A destination is the name of a protocol whose consumer registered: `bgp`, `ospf`
-and `isis` today.
+and `isis` today. OSPF and IS-IS register their consumers from their own
+plugins. BGP declares a consumer factory, which the orchestrator builds over its
+own connection to the engine, so a build without BGP has no `bgp` destination.
 
 **A protocol is never redistributed into itself.** `destination isis { import
 isis }` parses and moves nothing, at every guard: the config evaluator, the
 dispatch fan-out and the replay all ask one predicate.
 
 <!-- source: internal/component/config/redistribute/registry.go -- RegisterSource, LookupSource -->
+<!-- source: internal/component/config/redistribute/consumer_factory.go -- ConsumerFactory -->
+<!-- source: internal/component/bgp/redistribute/register.go -- the BGP consumer factory -->
 <!-- source: internal/core/redistevents/registry.go -- WouldLoop, the one loop definition -->
 
 ### What the Rules Wire For You
@@ -381,8 +390,8 @@ route withdrawn before the consumer registered is therefore absent.
 The same mechanism covers a BGP peer that establishes after an injection, where
 the replay reaches that one peer.
 
-<!-- source: internal/component/bgp/plugins/redistribute_egress/replay.go -- onPeerUp, onConsumerRegistered -->
-<!-- source: internal/component/bgp/plugins/redistribute_egress/redistribute.go -- watchConsumers -->
+<!-- source: internal/plugins/redistribute/replay.go -- onPeerUp, onConsumerRegistered -->
+<!-- source: internal/plugins/redistribute/redistribute.go -- watchConsumers -->
 
 ### When Redistribution Cannot Work
 
@@ -394,6 +403,7 @@ and the error names what you typed:
 | `import rip`, and no component registers `rip` | the load fails: `redistribute: unknown source "rip" under destination "ospf"` |
 | `family [ ipv9/unicast ]` | the load fails naming the family |
 | `destination ospf { }` with no import | the load fails: the destination imports nothing |
+| `import bgp` or `destination bgp`, and no `bgp { }` block | the load, `ze config validate` and a commit fail: `redistribute: "import bgp" needs a bgp { } block, and this config has none`, with the fix on its own line |
 
 A refusal is deliberate. Ze used to warn once and carry on with redistribution
 disabled for the WHOLE file. One mistyped word silently stopped rules that were
@@ -408,6 +418,7 @@ unknown source under `doctor-redistribute-unknown-source`.
 ze doctor
 ```
 
+<!-- source: internal/component/config/loader_redistribute.go -- RefuseRedistributeRules -->
 <!-- source: internal/component/config/doctor_redistribute.go -- checkRedistributeRules -->
 <!-- source: internal/core/diagnostic/codes.go -- doctor-redistribute-unknown-source, doctor-redistribute-unknown-destination -->
 
@@ -422,4 +433,4 @@ ze doctor
 | `ze_bgp_redistribute_filtered_rule_total` | entries the evaluator rejected |
 | `ze_bgp_redistribute_replay_total{source}` | routes replayed, to a new peer or to a consumer that registered late |
 
-<!-- source: internal/component/bgp/plugins/redistribute_egress/redistribute.go -- setMetricsRegistry -->
+<!-- source: internal/plugins/redistribute/redistribute.go -- setMetricsRegistry -->

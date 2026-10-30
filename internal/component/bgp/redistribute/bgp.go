@@ -33,16 +33,19 @@ func RegisterBGPSources() {
 			Name:        sourceNameBGP,
 			Protocol:    protocolName,
 			Description: "all BGP learned routes",
+			ConfigRoot:  bgpConfigRoot,
 		})
 		mustRegister(redistribute.RouteSource{
 			Name:        sourceNameIBGP,
 			Protocol:    protocolName,
 			Description: "iBGP learned routes",
+			ConfigRoot:  bgpConfigRoot,
 		})
 		mustRegister(redistribute.RouteSource{
 			Name:        sourceNameEBGP,
 			Protocol:    protocolName,
 			Description: "eBGP learned routes",
+			ConfigRoot:  bgpConfigRoot,
 		})
 	})
 }

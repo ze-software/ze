@@ -48,8 +48,11 @@ var sourcesOnce sync.Once
 func RegisterISISSources() {
 	sourcesOnce.Do(func() {
 		mustRegister(configredist.RouteSource{
-			Name:        "isis",
-			Protocol:    "isis",
+			Name:     "isis",
+			Protocol: "isis",
+			// A rule importing isis with no isis block moves nothing, so it is
+			// refused at load and commit (config.RefuseRedistributeRules).
+			ConfigRoot:  "isis",
 			Description: "IS-IS SPF routes",
 		})
 	})

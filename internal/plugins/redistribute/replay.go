@@ -19,7 +19,7 @@
 // The producer never learns the target. The coordinator alone holds the
 // replayID -> target mapping, so the returning batch stays target-agnostic.
 
-package redistributeegress
+package redistribute
 
 import (
 	"context"
@@ -159,7 +159,13 @@ func (c *replayCoordinator) markPeerUp(peer string) {
 // there is no configured evaluator, or no import feeds BGP. The evaluator gate
 // avoids a pointless broadcast when redistribute has no BGP destination.
 func (c *replayCoordinator) onPeerUp(bus ze.EventBus, peer string) (uint64, bool) {
-	if c == nil || bus == nil || peer == "" {
+	if c == nil {
+		return 0, false
+	}
+	if bus == nil {
+		return 0, false
+	}
+	if peer == "" {
 		return 0, false
 	}
 
@@ -174,7 +180,10 @@ func (c *replayCoordinator) onPeerUp(bus ze.EventBus, peer string) (uint64, bool
 	// Cheap gate: only fire when an import feeds BGP, so a deployment with no
 	// bgp redistribute destination does not storm producers on every peer-up.
 	ev := configredist.Global()
-	if ev == nil || !ev.HasDestination(bgpDestination) {
+	if ev == nil {
+		return 0, false
+	}
+	if !ev.HasDestination(bgpDestination) {
 		return 0, false
 	}
 
@@ -202,11 +211,20 @@ func (c *replayCoordinator) onPeerUp(bus ze.EventBus, peer string) (uint64, bool
 //
 //nolint:unparam // the replayID pairs with onPeerUp's, whose tests read both; this trigger has no test of its own yet.
 func (c *replayCoordinator) onConsumerRegistered(bus ze.EventBus, consumer string) (uint64, bool) {
-	if c == nil || bus == nil || consumer == "" {
+	if c == nil {
+		return 0, false
+	}
+	if bus == nil {
+		return 0, false
+	}
+	if consumer == "" {
 		return 0, false
 	}
 	ev := configredist.Global()
-	if ev == nil || !ev.HasDestination(consumer) {
+	if ev == nil {
+		return 0, false
+	}
+	if !ev.HasDestination(consumer) {
 		return 0, false
 	}
 	return c.fire(bus, replayKindConsumer, consumer)
@@ -228,6 +246,7 @@ func (c *replayCoordinator) fire(bus ze.EventBus, kind replayKind, name string) 
 	// c.mu. Holding the lock here would deadlock that nested dispatch.
 	if _, err := redistevents.ReplayRequestEvent.Emit(bus, &redistevents.ReplayRequest{ReplayID: id}); err != nil {
 		logger().Warn("redistribute-orchestrator: replay-request emit failed", "target", name, "replay-id", id, "error", err)
+		// refuse-by-default: guards lookupTarget -- the mapping is recorded before the emit, so a producer that did receive the request is still answered
 		return id, true
 	}
 	logger().Debug("redistribute-orchestrator: replay request fired", "kind", kind, "target", name, "replay-id", id)
@@ -237,7 +256,10 @@ func (c *replayCoordinator) fire(bus ze.EventBus, kind replayKind, name string) 
 // onPeerDown clears the up state for a peer so a later re-establishment is seen
 // as a fresh down->up edge and fires a new replay.
 func (c *replayCoordinator) onPeerDown(peer string) {
-	if c == nil || peer == "" {
+	if c == nil {
+		return
+	}
+	if peer == "" {
 		return
 	}
 	c.mu.Lock()

@@ -1308,9 +1308,18 @@ the process keeps its own binding unchanged.
 
 `redistribute { destination <proto> { import <source> } }` is read once at load
 and again on every SIGHUP reload, and a config it cannot turn into rules
-REFUSES the load. Three shapes fail, each naming what the operator typed: a
-source no component registered, a family name that is not a registered address
-family, and a `destination` that imports nothing.
+REFUSES the load, and `ze config validate` and a commit refuse it too. Four
+shapes fail, each naming what the operator typed: a source no component
+registered, a family name that is not a registered address family, a
+`destination` that imports nothing, and a rule naming a source or a destination
+whose protocol has no block in the config (`import bgp` or `destination bgp`
+with no `bgp { }` block). The root each source or destination needs is declared
+where it registers, so the check names no protocol.
+
+The rules are installed by the redistribute orchestrator, the plugin that owns
+the `redistribute` root, from its own config section at startup and at each
+reload. The block needs no `bgp` block: redistribution between IS-IS, OSPF,
+static and connected runs on a router with no BGP.
 
 The refusal replaced a warning. The warning left the global evaluator nil, which
 disabled every redistribution rule in the file rather than the one line that was
@@ -1324,7 +1333,8 @@ An empty rule list installs an EMPTY evaluator rather than leaving the previous
 one standing, so a reload that removed the last `redistribute` block stops
 redistributing.
 <!-- source: internal/component/config/loader_redistribute.go -- ExtractRedistributeRules -->
-<!-- source: internal/component/bgp/config/loader_create.go -- initRedistribute -->
+<!-- source: internal/component/config/loader_redistribute.go -- RefuseRedistributeRules -->
+<!-- source: internal/plugins/redistribute/config.go -- ruleState -->
 <!-- source: internal/component/config/doctor_redistribute.go -- checkRedistributeRules -->
 
 ---

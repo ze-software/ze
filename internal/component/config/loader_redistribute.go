@@ -4,6 +4,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 
@@ -88,6 +89,67 @@ func ExtractRedistributeRules(tree *Tree) ([]redistribute.ImportRule, error) {
 		return nil, nil
 	}
 	return rules, nil
+}
+
+// RefuseRedistributeRules refuses a config whose `redistribute` block cannot
+// act: every refusal ExtractRedistributeRules makes, and a rule that names a
+// source or a destination whose protocol has no config root in this config.
+//
+// It needs the whole tree, which only the config doors hold: LoadConfig (boot
+// and reload) and VerifyPluginConfigMapTransition (`ze config validate`, the
+// editor and API commit). The redistribute orchestrator sees its own root only,
+// so it cannot tell that a `bgp` block is missing, and BGP does not start at
+// all without one. Without this check `destination bgp` on a router with no
+// `bgp` block stopped the daemon at startup with "missing required bgp { }
+// block", and `import bgp` moved nothing and said nothing.
+//
+// The root a source or a destination needs is declared where it is registered
+// (RouteSource.ConfigRoot, ConsumerFactory.ConfigRoot), so this check names no
+// protocol. Every rule that fails is reported, so the operator fixes them in
+// one pass.
+func RefuseRedistributeRules(tree *Tree) error {
+	rules, err := ExtractRedistributeRules(tree)
+	if err != nil {
+		return err
+	}
+	var refusals []error
+	// A destination is refused once, however many imports sit under it.
+	refusedDestinations := make(map[string]bool)
+	for i := range rules {
+		rule := &rules[i]
+		if src, ok := redistribute.LookupSource(rule.Source); ok {
+			if refusal := refuseAbsentRoot(tree, src.ConfigRoot, `"import `+rule.Source+`" under "destination `+rule.Destination+`"`, "import "+rule.Source); refusal != nil {
+				refusals = append(refusals, refusal)
+			}
+		}
+		if refusedDestinations[rule.Destination] {
+			continue
+		}
+		if factory, ok := redistribute.LookupConsumerFactory(rule.Destination); ok {
+			if refusal := refuseAbsentRoot(tree, factory.ConfigRoot, `"destination `+rule.Destination+`"`, "destination "+rule.Destination); refusal != nil {
+				refusedDestinations[rule.Destination] = true
+				refusals = append(refusals, refusal)
+			}
+		}
+	}
+	return errors.Join(refusals...)
+}
+
+// refuseAbsentRoot answers the refusal for a statement whose protocol needs
+// root when the config has none, and nil when root is empty or present.
+// statement names what the operator wrote and where, already quoted; remove is
+// the statement the fix tells them to delete.
+func refuseAbsentRoot(tree *Tree, root, statement, remove string) error {
+	if root == "" {
+		return nil
+	}
+	if tree.GetContainer(root) != nil {
+		return nil
+	}
+	return fmt.Errorf("redistribute: %s needs %s configured, and this config has no %s { } block\n"+
+		"  without it no %s runs, so the rule would move no route\n"+
+		"  fix: configure %s in a %s { } block, or remove %q from the redistribute block",
+		statement, root, root, root, root, root, remove)
 }
 
 // importTag reads the optional `tag` leaf of one import entry. It reports the value

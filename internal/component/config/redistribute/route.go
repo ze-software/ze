@@ -93,7 +93,7 @@ func mustNameImportingProtocol(importingProtocol string) {
 func (r ImportRule) Accept(route RedistRoute, importingProtocol string) bool {
 	mustNameImportingProtocol(importingProtocol)
 	// Loop prevention: one shared definition of the invariant (redistevents.WouldLoop),
-	// also enforced at the two runtime guards in redistribute_egress.
+	// also enforced at the two runtime guards in the redistribute orchestrator.
 	if redistevents.WouldLoop(route.Origin, importingProtocol) {
 		return false
 	}

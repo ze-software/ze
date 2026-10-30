@@ -109,6 +109,7 @@ import (
 	_ "github.com/ze-software/ze/internal/plugins/memlock"
 	_ "github.com/ze-software/ze/internal/plugins/meta/cmd"
 	_ "github.com/ze-software/ze/internal/plugins/passwd"
+	_ "github.com/ze-software/ze/internal/plugins/redistribute"
 	_ "github.com/ze-software/ze/internal/plugins/routingtable"
 	_ "github.com/ze-software/ze/internal/plugins/signal"
 	_ "github.com/ze-software/ze/internal/plugins/skills"

@@ -2333,7 +2333,7 @@ calls `Accept(route, consumerName)` with the protocol that is actually importing
 ingress filter over a received UPDATE with a destination-scoped evaluator
 installed, and requires each one to accept.
 
-<!-- source: internal/component/bgp/plugins/redistribute_egress/redistribute.go -- handleBatch, the per-consumer Accept -->
+<!-- source: internal/plugins/redistribute/redistribute.go -- handleBatch, the per-consumer Accept -->
 <!-- source: internal/component/config/redistribute/route.go -- ImportRule.Accept, destination scoping -->
 <!-- source: internal/component/plugin/all/ingress_redistribution_test.go -- the guard over the whole pipeline -->
 
@@ -2394,8 +2394,8 @@ Destination scoping: an `ImportRule` records the `destination` protocol it was p
 under, and `Accept(route, importingProtocol)` requires the importing protocol to match
 that destination -- so an import under `destination bgp` no longer satisfies
 `Accept(_, "ospf")`. An empty `Destination` stays destination-agnostic (back-compat).
-<!-- source: internal/component/bgp/plugins/redistribute_egress/replay.go -- replayCoordinator, onPeerUp, onConsumerRegistered, handleReplayBatch, ReplayID->target TTL map -->
-<!-- source: internal/component/bgp/plugins/redistribute_egress/redistribute.go -- watchConsumers, the observer and the startup sweep -->
+<!-- source: internal/plugins/redistribute/replay.go -- replayCoordinator, onPeerUp, onConsumerRegistered, handleReplayBatch, ReplayID->target TTL map -->
+<!-- source: internal/plugins/redistribute/redistribute.go -- watchConsumers, the observer and the startup sweep -->
 <!-- source: internal/component/config/redistribute/consumer.go -- SetConsumerObserver, the registration announcement -->
 <!-- source: internal/core/replay/replay.go -- shared Request token, Broadcast sentinel, IsReplay marker (all three replay hops) -->
 <!-- source: internal/core/redistevents/events.go -- ReplayRequest (alias of replay.Request) + RouteChangeBatch.ReplayID + IsReplay -->

@@ -73,6 +73,11 @@ func LoadConfig(input, configPath string, cliPlugins []string) (*LoadConfigResul
 	if err := refuseAbsentOptionalProviders(tree.ToPluginMap); err != nil {
 		return nil, err
 	}
+	// A redistribute rule that cannot act is refused here, before any plugin
+	// starts, by the same check the validate and commit doors run.
+	if err := RefuseRedistributeRules(tree); err != nil {
+		return nil, err
+	}
 	// Validators use supplied values and registries, not candidate environment.
 	// Publish only after refusal is impossible at this validation boundary.
 	applyParsedEnvironment(tree)

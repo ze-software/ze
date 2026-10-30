@@ -143,6 +143,20 @@ func VerifyPluginConfigTransition(previous, candidate *Tree) []error {
 	return verifyTree(oldMap, candidate)
 }
 
+// refuseRedistributeRulesMap runs RefuseRedistributeRules over a lowered
+// config. A config with no `redistribute` root costs no rebuild.
+func refuseRedistributeRulesMap(configTree map[string]any) error {
+	// refuse-by-default: guards RefuseRedistributeRules -- a config with no redistribute root holds no rule to refuse
+	if _, ok := configTree["redistribute"]; !ok {
+		return nil
+	}
+	tree, err := TreeFromPluginMap(configTree)
+	if err != nil {
+		return fmt.Errorf("redistribute: rebuild the config to check its rules: %w", err)
+	}
+	return RefuseRedistributeRules(tree)
+}
+
 // VerifyPluginConfigMap is the map-form equivalent of VerifyPluginConfig.
 func VerifyPluginConfigMap(configTree map[string]any) []error {
 	return VerifyPluginConfigMapTransition(nil, configTree)
@@ -159,6 +173,11 @@ func VerifyPluginConfigMapTransition(previousTree, configTree map[string]any) []
 	// The same check LoadConfig runs at boot and reload, so validate, commit
 	// and load agree on a config that needs a plugin this build lacks.
 	if err := refuseAbsentOptionalProviders(func() map[string]any { return configTree }); err != nil {
+		errs = append(errs, err)
+	}
+	// The same redistribute check LoadConfig runs, so validate and commit
+	// refuse a rule the daemon would refuse at boot.
+	if err := refuseRedistributeRulesMap(configTree); err != nil {
 		errs = append(errs, err)
 	}
 	for _, reg := range registry.All() {
