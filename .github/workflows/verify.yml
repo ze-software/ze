@@ -88,6 +88,7 @@ jobs:
           git archive FETCH_HEAD | tar -x -C ../gh-pages
 
       - name: Set up Go
+        id: setup-go
         uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
@@ -161,6 +162,33 @@ jobs:
           CGO_ENABLED=0 go install -mod=vendor golang.org/x/vuln/cmd/govulncheck
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
 
+      # The Staticcheck feature matrix keeps its own cache at
+      # cache/staticcheck-matrix (CacheDir, internal/le/go/staticcheck/judge.go),
+      # and the launcher links cache/ to ~/.cache/ze, so the directory lives at
+      # ~/.cache/ze/staticcheck-matrix. A runner starts with it empty, so every
+      # piece type-checked the whole module cold and ran past its 90s-a-row
+      # bound in every shard (verify run 41071626530: 9m0s for six rows, 10m30s
+      # for seven). Entries are keyed by package action IDs, so an older cache
+      # still answers every package the push did not move. The key names what
+      # invalidates it (the Go toolchain, the vendored Staticcheck, go.sum) and
+      # the piece this shard judges; the commit makes each run save afresh.
+      - name: Read the vendored Staticcheck version
+        id: staticcheck-version
+        run: |
+          version="$(awk '$1 == "#" && $2 == "honnef.co/go/tools" {print $3; exit}' vendor/modules.txt)"
+          test -n "$version" || { echo "::error::vendor/modules.txt names no honnef.co/go/tools module, so the Staticcheck matrix cache cannot be keyed. Fix: run go mod vendor." >&2; exit 1; }
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Restore the Staticcheck matrix cache
+        id: staticcheck-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: ~/.cache/ze/staticcheck-matrix
+          key: staticcheck-matrix-${{ runner.os }}-go${{ steps.setup-go.outputs.go-version }}-${{ steps.staticcheck-version.outputs.version }}-${{ hashFiles('go.sum') }}-piece${{ matrix.shard }}of${{ strategy.job-total }}-${{ github.sha }}
+          restore-keys: |
+            staticcheck-matrix-${{ runner.os }}-go${{ steps.setup-go.outputs.go-version }}-${{ steps.staticcheck-version.outputs.version }}-${{ hashFiles('go.sum') }}-piece${{ matrix.shard }}of${{ strategy.job-total }}-
+            staticcheck-matrix-${{ runner.os }}-go${{ steps.setup-go.outputs.go-version }}-${{ steps.staticcheck-version.outputs.version }}-
+
       # functional/exabgp runs the compatibility suite through
       # `uv run --with paramiko`, so a runner without uv answers 127 before the
       # first case. The installer is the route uv documents; it writes to
@@ -199,3 +227,13 @@ jobs:
             ./le "${action[@]}" || status=$?
           done < "$SHARD_LIST"
           exit "$status"
+
+      # A shard is often red for a reason that has nothing to do with
+      # Staticcheck, and actions/cache saves only on success, so the save is a
+      # step of its own that runs whatever the verdict was.
+      - name: Save the Staticcheck matrix cache
+        if: ${{ !cancelled() && steps.staticcheck-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@v6
+        with:
+          path: ~/.cache/ze/staticcheck-matrix
+          key: ${{ steps.staticcheck-cache.outputs.cache-primary-key }}

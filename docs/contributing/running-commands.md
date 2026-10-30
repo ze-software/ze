@@ -961,6 +961,12 @@ each, shared by every checkout and verify worktree. The lint cache is not a Go
 cache, so no `go clean` reaches it; it held 9.5G on 2026-09-13, when it still
 sat under `tmp/` on the checkout's own device. Staticcheck trims its own cache
 only once a day and keeps five days of entries, so it held 9.3G on 2026-10-23.
+A CI runner starts with none of them, so `.github/workflows/verify.yml` restores
+`~/.cache/ze/staticcheck-matrix` before the shard's actions and saves it after
+them whatever their verdict, keyed on the Go version, the vendored Staticcheck
+version, `go.sum`, the matrix piece the shard judges and the commit, falling back
+to the newest entry for the same piece. Without it every piece ran cold and past
+its deadline (verify run 41071626530).
 The ambient cache is the one a bare `go` command writes, and the bootstrap
 cache `tmp/go-cache` is the `le` launcher's fallback where `cache/` cannot be
 created. The launcher can still write it on any host, so its row stays on a
