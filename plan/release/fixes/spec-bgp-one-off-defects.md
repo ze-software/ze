@@ -184,6 +184,7 @@ Each AC is met when its test is red against HEAD before the fix and green after.
 | AC-55 | initial-sync hold | A peer granting `send [ update ]` to a process that never reports does not hold its announces for `apiSyncTimeout` |
 | AC-56 | prefix-list multi-entry test | The multi-entry test is fed the shape `ParseBGPSubtree` produces from config |
 | AC-57 | ROUTE-REFRESH subtype | RFC 7313 Section 5: a ROUTE-REFRESH with an unknown Message Subtype "MUST be ignored"; a test sends subtype 3 and sees no reply and no error |
+| AC-58 | MRT abbreviated MP_REACH_NLRI | RFC 6396 Section 4.3.4: a TABLE_DUMP_V2 RIB entry's MP_REACH_NLRI holds only Next Hop Address Length and Next Hop Address, its length adjusted (cut at `reconstructWireAttrs` or `appendOtherAttrsWire`); a test reads the written attribute bytes of an IPv6 route and carries the RFC6396-4.3.4-2 tags |
 
 ## 🧪 TDD Test Plan
 
@@ -296,6 +297,7 @@ Each AC is met when its test is red against HEAD before the fix and green after.
 | `declared-format-contradicts-payload` | 2026-09-06 | `as-path-prepend` four-octet segment on a two-octet path |
 | `declared-format-contradicts-payload` | 2026-10-05 | `TranscodeASPath` malformed AS_PATH consumes NLRI |
 | `declared-format-contradicts-payload` | 2026-10-07 | MRT `writeTableDumpV2` ignores SAFI |
+| `declared-format-contradicts-payload` | 2026-10-30 | MRT TABLE_DUMP_V2 RIB entry carries MP_REACH_NLRI unabbreviated |
 | `declared-format-contradicts-payload` | 2026-10-14 | `<state-event>` reason one token vs `connection lost` |
 | `false-synchronization-claim` | 2026-08-23 | readers of mutable `PeerSettings` fields |
 | `false-synchronization-claim` | 2026-10-05 | RIB `locRIB` and session `sendCtxID` races |
