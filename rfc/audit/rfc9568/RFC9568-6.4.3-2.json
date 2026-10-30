@@ -1,11 +1,13 @@
 {
-  "note": "single-polarity; TestInstanceIPv6VIPLivesOnVirtualMACDevice requires the Active router to install the IPv6 address on the vMAC macvlan, which makes the kernel join the Solicited-Node group",
+  "note": "Re-judged 2026-10-30 (independent auditor, after f1b637444b tagged a second unit and corrected the row annotation): RFC 9568 Section 6.4.3 says an Active router protecting an IPv6 address \"MUST be a member of the Solicited-Node multicast address for the IPv6 address(es) associated with the Virtual Router.\" Two producers meet it: doInstallVIPs (internal/plugins/vrrp/instance.go) calls joinSolicitedNode (solicitednode_linux.go), which adds a link-layer PACKET_MR_MULTICAST membership for 33:33:ff:xx:xx:xx on the virtual-MAC macvlan and syncs the receive filter down the device stack before returning, then registers the addresses, whose install on that macvlan makes the kernel take the IPv6 group membership itself. TestVRRPActiveJoinsSolicitedNodeBeforeItsAddressIsInstalled (//go:build linux, userns.Enter) drives the real FSM and promotion with the real joinSolicitedNode and address-owner registry on a macvlan with the product's recipe: it requires no membership as Backup, the group in the macvlan's /proc/thread-self/net/dev_mcast and synced onto the parent when the promotion returns while the address is provably not installed, a reconfiguration while Active to add the new group, drop the removed one and never drop the shared fe80::1 group (sampled concurrently), the group gone after demotion, and after a second promotion and install a single multicast solicitation answered with the Virtual Router MAC, which shows the group is functional at the IPv6 level, not just listed. The recorded mutant (solicitedNodeMACs(nil) in joinSolicitedNode) went red. TestInstanceIPv6VIPLivesOnVirtualMACDevice (instance_test.go) covers the other half: the Active router installs every IPv6 virtual address on the virtual-MAC device and never on the parent, so the kernel's membership lands on the device that answers; a Backup installs none. Single-polarity per the row annotation: the not-a-member case is the Backup requirement RFC9568-6.4.2-2 (both units still assert it). Finding outside this verdict: the unit-test tag cites instance.go:369 for doInstallVIPs, which now sits near line 617. Verdict enforced.",
   "requirement_sha": "48f1c6581de4b908",
   "tests": {
-    "internal/plugins/vrrp/instance_test.go::TestInstanceIPv6VIPLivesOnVirtualMACDevice": "90d279832a92de75"
+    "internal/plugins/vrrp/instance_test.go::TestInstanceIPv6VIPLivesOnVirtualMACDevice": "52298a1ed170e60a",
+    "internal/plugins/vrrp/rfc9568_solicited_node_integration_linux_test.go::TestVRRPActiveJoinsSolicitedNodeBeforeItsAddressIsInstalled": "fea2b9910d5666ba"
   },
   "units": {
-    "internal/plugins/vrrp/instance_test.go::TestInstanceIPv6VIPLivesOnVirtualMACDevice": "bb1f308ff09eb61c"
+    "internal/plugins/vrrp/instance_test.go::TestInstanceIPv6VIPLivesOnVirtualMACDevice": "bb1f308ff09eb61c",
+    "internal/plugins/vrrp/rfc9568_solicited_node_integration_linux_test.go::TestVRRPActiveJoinsSolicitedNodeBeforeItsAddressIsInstalled": "1b179b8a70c579ab"
   },
   "verdict": "enforced"
 }
