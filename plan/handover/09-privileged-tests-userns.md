@@ -12,7 +12,24 @@ done. The spec stays open only on the owner decisions below, then `/ze-review`
 and `/ze-close`. The previous version of this file (P5/P7 blockers) is in git
 history; every blocker it named is fixed or explained.
 
-## Waiting on Thomas
+## State on 2026-10-30
+
+Thomas decided the four questions below on 2026-10-29. They are done except
+the reboot:
+
+| Decision | Outcome |
+|---|---|
+| AC-8 kernel features | Tests run on Ze's kernel (META rule). Ze's build carries all five options; the host ran a 2026-10-14 build. A current runtime kernel is built in `~/.cache/ze/mac-check-kernel` on the Linux host; the install replaces the running release's modules, so it runs immediately before the reboot: `cd ~/.cache/ze/mac-check-kernel && ./le setup docker kernel install confirm 7.2.9-ze && sudo reboot`, at a moment Thomas picks. Then rerun the three tests (323bb6fd26 makes them name the missing option). Ze loading modules on vendor kernels is its own spec, `plan/release/delivery/spec-ze-loads-kernel-modules-on-vendor-kernels.md` (ready), for a fresh session |
+| AC-12, AC-13, AC-15 | Rewritten to the landed P2 design (323bb6fd26) |
+| RFC 792 kernel rows | (a): seven rows are kernel-producer escapes (54fb01a2e6, 7f1a79f1cc); route (b) is `plan/post-release/kernel/spec-rfc-kernel-patch-discrimination-route.md` |
+| VRRP ND window | Closed in the product (0dc36bd960). The boot-announce defect it exposed is a journal row owned by `spec-vrrp-owner-arp-rfc-defects` (03833b3160) |
+
+Left for closure: the reboot and the AC-8 rerun; AC-10 and AC-11 whole-tree
+checks (Thomas runs them); a judge for the RFC-tag comments in
+`internal/plugins/vrrp/instance_test.go` that still name the old location of
+`doInstallVIPs`; then `/ze-review` and `/ze-close`.
+
+## Waiting on Thomas (2026-10-29, now answered)
 
 | Decision | What it unblocks |
 |---|---|
