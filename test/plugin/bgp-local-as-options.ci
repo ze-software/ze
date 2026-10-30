@@ -94,6 +94,11 @@ plugin {
 	}
 }
 bgp {
+	# RFC 8212: an EBGP direction with no policy is refused; this test exchanges routes.
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
 	# The router's globally configured ASN. Every peer below inherits it unless
 	# it states a local-as of its own, and it is the ASN RFC 7705 calls "the
 	# globally configured ASN" throughout Section 3.3.

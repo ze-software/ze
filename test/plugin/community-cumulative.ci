@@ -44,12 +44,15 @@ bgp {
 	}
 
 	# BGP-level tag (applies to all peers)
+	# RFC 8212: an EBGP direction with no policy is refused; this test exchanges routes.
 	filter {
 		ingress {
 			community {
 				tag global-mark
 			}
 		}
+		import { final accept; }
+		export { final accept; }
 	}
 
 	peer peer1 {
