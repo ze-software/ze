@@ -186,10 +186,14 @@ func TestALowerLayerRequirementIsAnnotatedAndNotProven(t *testing.T) {
 	}
 }
 
-// TestALowerLayerAnnotationIsStaleBesideATaggedTest checks the arm of evaluate
-// that {lower-layer} joined. A requirement Ze CAN prove is one the annotation
-// may not cover, and the tag is the evidence that it can.
-func TestALowerLayerAnnotationIsStaleBesideATaggedTest(t *testing.T) {
+// TestALowerLayerRowAcceptsATaggedTest checks AC-3 on the gate. Goal: a test
+// tagged on a {lower-layer} row is the test of the OS behaviour on the state Ze
+// installs, which the owner rule asks for, so evaluate does not refuse the
+// annotation as stale; its record decides OS verified (figuresByStem). Method:
+// the row with one tagged test, and the same row untagged, each through
+// evaluate: neither raises a finding, because an untested row is an OS testing
+// gap the figures count, not a refusal.
+func TestALowerLayerRowAcceptsATaggedTest(t *testing.T) {
 	requirements := []Requirement{{RFC: "rfc1", RID: "RFC1-1-1", Level: levelMust,
 		Source: "rfc/short/rfc1.md", Line: 7, Annotation: &Annotation{
 			Kind: AnnotationLowerLayer, Layer: "Linux XFRM",
@@ -198,12 +202,11 @@ func TestALowerLayerAnnotationIsStaleBesideATaggedTest(t *testing.T) {
 		}}}
 	tags := []Tag{{RID: "RFC1-1-1", Polarity: PolarityPositive, File: "a_test.go", Line: 3}}
 
-	findings := evaluate(requirements, tags, map[string]bool{"rfc1": true})
-	if len(findings) != 1 {
-		t.Fatalf("evaluate answered %d findings, want 1: %+v", len(findings), findings)
+	if findings := evaluate(requirements, tags, map[string]bool{"rfc1": true}); len(findings) != 0 {
+		t.Errorf("a tagged lower-layer row raised findings: %+v", findings)
 	}
-	if !strings.Contains(findings[0].Message, "the annotation is stale") {
-		t.Errorf("finding %q does not say the annotation is stale", findings[0].Message)
+	if findings := evaluate(requirements, nil, map[string]bool{"rfc1": true}); len(findings) != 0 {
+		t.Errorf("an untagged lower-layer row raised findings: %+v", findings)
 	}
 }
 
