@@ -1,6 +1,9 @@
 {
-  "no_code_path": "Ze runs no validator: resolve/dns dnssecDecision reads only the upstream rcode (SERVFAIL) under the configured mode; there is no signature verification, trust anchor, DS chain or NSEC proof, so no Ze code decides whether an RRset should be signed. The stub role is RFC 4035 Section 4.9's, a different row set.",
-  "note": "Binds a validating (security-aware) resolver; Ze's resolver is a non-validating stub.",
+  "code": {
+    "internal/component/resolve/dns/resolver.go::dnssecDecision": "50572e22568b5744",
+    "internal/plugins/dnsresolver/forward.go::upstreamQuery": "26bd82c1636e08e5"
+  },
+  "note": "Re-judged 2026-10-30 (independent judge) after the row's annotation moved from {not-applicable} to {gap}. RFC 4035 Section 4.3 reads 'A security-aware resolver MUST be able to determine whether it should expect a particular RRset to be signed.' Ze's stub fills the security-aware resolver role (the summary holds it to the Section 4.1 rows: DO bit, 1220-octet size, advertised payload size), and local validation is post-release work, not declined (commit 5ff4834b67, plan/post-release/features/spec-dns-resolver-dnssec-validation.md), so the absent behaviour is a gap and the earlier not-applicable verdict no longer stands. internal/component/resolve/dns/resolver.go::dnssecDecision inspects only the upstream rcode (SERVFAIL) under the configured mode, with no trust anchor, DS chain, signature check or NSEC proof, and internal/plugins/dnsresolver/forward.go::upstreamQuery sends every upstream query with the DO bit clear, so no Ze code classifies an RRset as secure, insecure, bogus or indeterminate.",
   "requirement_sha": "22f84a25459a1464",
-  "verdict": "not-applicable"
+  "verdict": "unimplemented"
 }

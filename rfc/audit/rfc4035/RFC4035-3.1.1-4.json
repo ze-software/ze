@@ -1,6 +1,9 @@
 {
-  "no_code_path": "The TC obligation arises only when a security-aware name server has RRSIG RRs it cannot fit. geodns and as112 hold no RRSIG, NSEC, DS or DNSKEY record to place in any section, so no response of theirs can be short of one.",
-  "note": "Binds a security-aware name server holding RRSIGs; Ze's authoritative servers are not security-aware.",
+  "code": {
+    "internal/plugins/as112/zones.go::answerQuestions": "ac5438f1c347c4ee",
+    "internal/plugins/geodns/server.go::answerQuestions": "a418b32cdccb6418"
+  },
+  "note": "Re-judged 2026-10-30 (independent judge) after the row's annotation moved from {not-applicable} to {gap}. RFC 4035 Section 3.1.1 reads 'If space does not permit inclusion of these RRSIG RRs, the name server MUST set the TC bit.' The summary holds Ze's authoritative servers to the security-aware name server role (RFC4035-3-1 and the CD/AD rows), and DNSSEC is post-release work, not declined (commit 5ff4834b67), so the obligation is a gap rather than an exclusion. Ze's authoritative servers hold no RRSIG to include: internal/plugins/geodns/server.go::answerQuestions builds only A, AAAA, SRV, SOA and NS answers and internal/plugins/as112/zones.go::answerQuestions builds only SOA, NS and the hostname TXT record or a negative answer, so no code places an RRSIG in a response or sets TC for one that does not fit.",
   "requirement_sha": "930635817c738fa3",
-  "verdict": "not-applicable"
+  "verdict": "unimplemented"
 }

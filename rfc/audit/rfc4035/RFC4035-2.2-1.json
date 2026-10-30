@@ -1,6 +1,9 @@
 {
-  "no_code_path": "The rule constrains the RRSIGs of a signed zone, which only the zone signer produces. Ze creates no DNSKEY, RRSIG, NSEC or DS record: geodns answerQuestions synthesizes A/AAAA/SRV/SOA/NS only and as112 answers negatively, and no layer signs on Ze's behalf.",
-  "note": "Binds the signer of a signed zone; Ze signs no zone.",
+  "code": {
+    "internal/plugins/as112/zones.go::answerQuestions": "ac5438f1c347c4ee",
+    "internal/plugins/geodns/server.go::answerQuestions": "a418b32cdccb6418"
+  },
+  "note": "Re-judged 2026-10-30 (independent judge) after the row's annotation moved from {not-applicable} to {gap}. RFC 4035 Section 2.2 reads 'For each authoritative RRset in a signed zone, there MUST be at least one RRSIG record that meets the following requirements:'. Ze is the authoritative source of the zones it serves (geodns builds its zone from configuration, as112 its AS112 zones), so the zone-signer role is Ze's to fill once it signs. DNSSEC is post-release work, not declined (commit 5ff4834b67, plan/post-release/features/spec-dns-resolver-dnssec-validation.md), and no owner decision excludes signing, so the absent feature is a conformance gap and the earlier not-applicable verdict no longer stands. Ze signs no zone: internal/plugins/geodns/server.go::answerQuestions builds only A, AAAA, SRV, SOA and NS answers, and internal/plugins/as112/zones.go::answerQuestions builds only SOA, NS and the hostname TXT record or a negative answer; neither creates an RRSIG, and no layer signs on Ze's behalf.",
   "requirement_sha": "12bd90ea60de8337",
-  "verdict": "not-applicable"
+  "verdict": "unimplemented"
 }
