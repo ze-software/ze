@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC9568-6.4.3-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/rfc9568_solicited_node_integration_linux_test.go::TestVRRPActiveJoinsSolicitedNodeBeforeItsAddressIsInstalled",
+    "unit-sha": "7b5fc9d5115d77e8",
+    "claim-sha": "a0a87bbf952b4b9c",
+    "route": "mutant",
+    "producer": "internal/plugins/vrrp/solicitednode_linux.go::joinSolicitedNode",
+    "producer-sha": "06dc7611f691c913",
+    "break": "line 56: \"groups := solicitedNodeMACs(vips)\" -\u003e \"groups := solicitedNodeMACs(nil)\""
+  }
+]

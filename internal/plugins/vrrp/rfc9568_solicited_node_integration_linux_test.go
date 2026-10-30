@@ -55,11 +55,7 @@ import (
 // Virtual Router MAC. The kernel's own membership for an address it removes
 // is dropped later, on its own schedule, so the test never asserts on it.
 //
-// It exercises RFC 9568 Section 6.4.3 (RFC9568-6.4.3-2) and carries no
-// requirement tag. What it shows: the Active router's virtual-MAC device is a
-// member of the Solicited-Node group of its IPv6 virtual address from the
-// moment the promotion returns, before the address exists, and a Backup's is
-// not (joinSolicitedNode solicitednode_linux.go, doInstallVIPs instance.go).
+// RFC requirement: RFC9568-6.4.3-2 positive -- when the promotion to Active returns, before the IPv6 virtual address is installed, the Virtual Router MAC macvlan holds that address's Solicited-Node group (33:33:ff:00:00:60) in its multicast list and the group is synced onto the parent; a reconfiguration while Active adds the new address's group, drops the removed one's and never drops the group of fe80::1, which both address sets hold (joinSolicitedNode solicitednode_linux.go, doInstallVIPs instance.go).
 func TestVRRPActiveJoinsSolicitedNodeBeforeItsAddressIsInstalled(t *testing.T) {
 	if !userns.Enter(t) {
 		return
