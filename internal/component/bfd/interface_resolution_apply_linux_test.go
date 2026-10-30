@@ -84,7 +84,7 @@ func TestBFDUnresolvedSelectorKeepsActiveConfigurationAndHandles(t *testing.T) {
 	t.Cleanup(state.stopAll)
 	entry, err := parseSingleHopSession(wireListener.String(), map[string]any{
 		"local": wireSender.String(), "interface": "bfd-real-lo",
-	}, nil)
+	})
 	require.NoError(t, err)
 	active := &pluginConfig{
 		enabled: true,

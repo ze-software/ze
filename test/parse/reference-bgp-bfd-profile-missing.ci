@@ -1,0 +1,85 @@
+# Test: a BGP peer naming a bfd profile no bfd profile declares is refused
+#
+# VALIDATES: the BGP peer's connection bfd profile leaf declares
+#            `ze:reference "bfd-profile"` (ze-bgp-conf.yang), whose source
+#            (bfd/api profileReference) lists the profiles the bfd section
+#            defines, so `ze config validate` refuses a name none defines,
+#            naming the leaf, the value and the profiles that exist, and
+#            accepts a defined name.
+# PREVENTS: a dangling peer bfd profile passing `ze config validate`, which
+#           did not run the BGP-side profile check, so it failed only at boot.
+
+stdin=missing:terminator=EOF_MISSING
+bfd {
+	enabled true
+	profile fast {
+		detect-multiplier 3
+	}
+}
+bgp {
+	peer peer1 {
+		connection {
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+			remote {
+				ip 127.0.0.254
+			}
+			bfd {
+				enabled true
+				profile missing
+			}
+		}
+		session {
+			asn {
+				local 65001
+				remote 65002
+			}
+			router-id 10.0.0.1
+		}
+	}
+}
+EOF_MISSING
+
+stdin=present:terminator=EOF_PRESENT
+bfd {
+	enabled true
+	profile fast {
+		detect-multiplier 3
+	}
+}
+bgp {
+	peer peer1 {
+		connection {
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+			remote {
+				ip 127.0.0.254
+			}
+			bfd {
+				enabled true
+				profile fast
+			}
+		}
+		session {
+			asn {
+				local 65001
+				remote 65002
+			}
+			router-id 10.0.0.1
+		}
+	}
+}
+EOF_PRESENT
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=missing
+expect=exit:code=1
+expect=stdout:contains=no profile "missing" is configured
+expect=stdout:contains=name one of "fast"
+expect=stdout:contains=connection/bfd/profile
+cmd=foreground:seq=2:exec=ze config validate -:stdin=present
+expect=exit:code=0
+expect=stdout:contains=configuration valid

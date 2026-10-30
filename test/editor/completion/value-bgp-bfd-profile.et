@@ -1,0 +1,55 @@
+# Test: a BGP peer's bfd profile completion offers the configured profiles
+# VALIDATES: Tab on a BGP peer's connection bfd profile leaf, a ze:reference
+#            to the bfd-profile source (bfd/api profileReference), offers the
+#            profiles the bfd section declares.
+# PREVENTS: the peer's profile leaf completing only a type hint, so the
+#           operator types a profile name from memory and learns of a typo at
+#           commit.
+
+tmpfs=test.conf:terminator=EOF_CONF
+bfd {
+	enabled true
+	profile fast {
+		detect-multiplier 3
+	}
+	profile slow {
+		detect-multiplier 5
+	}
+	single-hop-session 192.0.2.1 {
+	}
+}
+bgp {
+	peer peer1 {
+		connection {
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+			remote {
+				ip 127.0.0.254
+			}
+			bfd {
+				enabled true
+			}
+		}
+		session {
+			asn {
+				local 65001
+				remote 65002
+			}
+			router-id 10.0.0.1
+		}
+	}
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# A BGP peer's bfd profile offers the same names through the bfd-profile source
+input=type:text=edit bgp peer peer1 connection bfd
+input=enter
+expect=context:path=bgp/peer/peer1/connection/bfd
+input=type:text=set profile
+input=space
+expect=completion:contains=fast,slow

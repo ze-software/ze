@@ -1,11 +1,11 @@
 # Test: a BGP peer naming an undefined bfd profile cannot boot
 #
-# VALIDATES: the daemon refuses a startup config whose peer names bfd profile missing, which the bfd section does not define: BGP's OnConfigure runs the commit's profile check.
+# VALIDATES: the daemon refuses a startup config whose peer names bfd profile missing, which the bfd section does not define: the profile leaf's ze:reference "bfd-profile" is checked when the config loads.
 # PREVENTS: the config booting, and every later commit that reaches bgp (a bfd-only edit included, bfd being a root bgp reads) then being refused for a profile the commit never touched.
 #
 # Method: ze boots the config and the exit code and the refusal line are
-# asserted. The refusal names the plugin phase (bgp configure), so it cannot be
-# another plugin's check.
+# asserted. The refusal names the leaf path, the value and the profiles that
+# exist, so it cannot be another check.
 
 option=env:var=ze.bfd.test-parallel:value=true
 # BFD binds the RFC 5881 fixed ports; see test/plugin/bgp-bfd-opt-in.ci.
@@ -51,6 +51,5 @@ EOF_CONF
 
 cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=30s
 expect=exit:code=1
-expect=stderr:contains=bgp configure: peer 127.0.0.254: connection bfd
-expect=stderr:contains=is not defined under bfd
+expect=stderr:contains=bgp/peer[peer1]/connection/bfd/profile: no profile "missing" is configured: name one of "fast"
 reject=stderr:contains=bgp peers started

@@ -26,7 +26,7 @@ func multiHopServiceIn(t *testing.T, vrf string, pinned map[string]any) (*runtim
 	state.loops[key] = loop
 	state.loopDevices[key] = loopDeviceFor(api.SessionRequest{VRF: vrf})
 
-	entry, err := parseMultiHopSession("203.0.113.9", pinned, nil)
+	entry, err := parseMultiHopSession("203.0.113.9", pinned)
 	if err != nil {
 		t.Fatalf("parseMultiHopSession: %v", err)
 	}

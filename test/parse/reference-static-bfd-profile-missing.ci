@@ -1,0 +1,63 @@
+# Test: a static next-hop naming a bfd profile no bfd profile declares is refused
+#
+# VALIDATES: the static next-hop bfd-profile leaf declares
+#            `ze:reference "bfd-profile"` (ze-static-conf.yang), whose source
+#            (bfd/api profileReference) lists the profiles the bfd section
+#            defines, so `ze config validate` refuses a name none defines,
+#            naming the leaf, the value and the profiles that exist, and
+#            accepts a defined name.
+# PREVENTS: a dangling next-hop bfd profile passing commit, which leaves the
+#           route with no BFD monitoring.
+
+stdin=missing:terminator=EOF_MISSING
+bfd {
+	profile fast {
+		detect-multiplier 5
+	}
+	profile slow {
+		detect-multiplier 9
+	}
+}
+static {
+	table default {
+		route 192.0.2.0/24 {
+			next {
+				hop 10.0.0.1 {
+					bfd-profile fsat
+				}
+			}
+		}
+	}
+}
+EOF_MISSING
+
+stdin=present:terminator=EOF_PRESENT
+bfd {
+	profile fast {
+		detect-multiplier 5
+	}
+	profile slow {
+		detect-multiplier 9
+	}
+}
+static {
+	table default {
+		route 192.0.2.0/24 {
+			next {
+				hop 10.0.0.1 {
+					bfd-profile fast
+				}
+			}
+		}
+	}
+}
+EOF_PRESENT
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=missing
+expect=exit:code=1
+expect=stdout:contains=no bfd-profile "fsat" is configured
+expect=stdout:contains=name one of "fast slow"
+expect=stdout:contains=hop[10.0.0.1]/bfd-profile
+cmd=foreground:seq=2:exec=ze config validate -:stdin=present
+expect=exit:code=0
+expect=stdout:contains=configuration valid

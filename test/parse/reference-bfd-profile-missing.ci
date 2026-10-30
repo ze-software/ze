@@ -1,0 +1,67 @@
+# Test: a BFD session naming a profile no bfd profile declares is refused
+#
+# VALIDATES: the single-hop-session and multi-hop-session profile leaves are
+#            YANG leafrefs to "../../profile/name" (ze-bfd-conf.yang), so
+#            `ze config validate` refuses a name no profile declares, naming
+#            the leaf, the value and the profiles that exist
+#            (Validator.ValidateReferences), and accepts a declared name.
+# PREVENTS: a dangling session profile reaching the bfd plugin, whose own
+#           parse-time check was the only refusal and named no choices.
+
+stdin=single:terminator=EOF_SINGLE
+bfd {
+	enabled true
+	profile fast {
+		detect-multiplier 3
+	}
+	profile slow {
+		detect-multiplier 5
+	}
+	single-hop-session 192.0.2.1 {
+		profile missing
+	}
+}
+EOF_SINGLE
+
+stdin=multi:terminator=EOF_MULTI
+bfd {
+	enabled true
+	profile fast {
+		detect-multiplier 3
+	}
+	multi-hop-session 198.51.100.1 {
+		local 192.0.2.2
+		profile absent
+	}
+}
+EOF_MULTI
+
+stdin=present:terminator=EOF_PRESENT
+bfd {
+	enabled true
+	profile fast {
+		detect-multiplier 3
+	}
+	single-hop-session 192.0.2.1 {
+		profile fast
+	}
+	multi-hop-session 198.51.100.1 {
+		local 192.0.2.2
+		profile fast
+	}
+}
+EOF_PRESENT
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=single
+expect=exit:code=1
+expect=stdout:contains=no name "missing" exists at "../../profile/name"
+expect=stdout:contains=name one of "fast slow"
+expect=stdout:contains=bfd/single-hop-session[192.0.2.1]/profile
+reject=stdout:contains=unknown profile
+cmd=foreground:seq=2:exec=ze config validate -:stdin=multi
+expect=exit:code=1
+expect=stdout:contains=no name "absent" exists at "../../profile/name"
+expect=stdout:contains=name one of "fast"
+cmd=foreground:seq=3:exec=ze config validate -:stdin=present
+expect=exit:code=0
+expect=stdout:contains=configuration valid

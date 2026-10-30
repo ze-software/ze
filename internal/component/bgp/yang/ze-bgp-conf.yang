@@ -664,12 +664,16 @@ module ze-bgp-conf {
 
                 leaf profile {
                     type string;
+                    ze:reference "bfd-profile";
                     description "The referenced profile supplies the session's detect-multiplier, desired-min-tx-us,
                         required-min-rx-us, passive role, authentication and echo interval, and replaces whatever the peer
-                        would otherwise use. The running daemon refuses to start, and refuses a commit or a SIGHUP reload, when the profile is not
-                        defined, when it sets passive on a single-hop peer (RFC 5881 Section 3), or when it enables echo on a
-                        multi-hop peer (RFC 5883 Section 3). ze config validate does not run this check. An empty value
-                        selects the BFD plugin defaults.";
+                        would otherwise use. Commit, ze config validate and a SIGHUP reload refuse a name no bfd profile
+                        defines, naming the profiles that exist; the editor completes those names. The leaf names a list
+                        of another module that a build without BFD leaves out, so it is a ze:reference, not a leafref.
+                        The running daemon also refuses to start, and refuses a commit or a SIGHUP reload, when the profile
+                        sets passive on a single-hop peer (RFC 5881 Section 3), or when it enables echo on a multi-hop peer
+                        (RFC 5883 Section 3); ze config validate does not run that check. Without this leaf the session
+                        takes the BFD plugin defaults.";
                     ze:help "Name of a profile defined under the top-level bfd { profile ... } block.";
                 }
 

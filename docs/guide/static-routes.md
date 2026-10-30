@@ -188,11 +188,13 @@ a SIGHUP reload and `ze config validate` each refuse a `bfd-profile` while
 the `bfd` section is absent or sets `enabled false`, so BFD cannot be
 removed from under a monitored route: remove the `bfd-profile` lines first.
 They also refuse a `bfd-profile` that names no profile under
-`bfd { profile ... }`, and one whose profile sets `passive`, because RFC
-5881 §3 requires both ends of a single-hop session to be Active. The error
+`bfd { profile ... }`, naming the profiles that exist (the editor completes
+those names), and one whose profile sets `passive`, because RFC 5881 §3
+requires both ends of a single-hop session to be Active. The passive error
 names the route and the next-hop.
 <!-- source: internal/plugins/static/register.go — checkBFDProfiles -->
 <!-- source: internal/component/bfd/api/profile_check.go — CheckProfile -->
+<!-- source: internal/component/bfd/api/profile_reference.go — profileReference -->
 
 ### Blackhole and reject
 

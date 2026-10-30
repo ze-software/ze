@@ -48,7 +48,7 @@ func TestPinnedSessionReachesTheSharedKey(t *testing.T) {
 	// The operator writes the peer and nothing else: no interface, no local
 	// address, no VRF. This is the entry a `bfd { single-hop-session
 	// 172.30.0.10 { } }` stanza parses to.
-	bare, err := parseSingleHopSession("172.30.0.10", map[string]any{}, nil)
+	bare, err := parseSingleHopSession("172.30.0.10", map[string]any{})
 	if err != nil {
 		t.Fatalf("parseSingleHopSession: %v", err)
 	}
@@ -62,7 +62,7 @@ func TestPinnedSessionReachesTheSharedKey(t *testing.T) {
 		"local":     "172.30.0.2",
 		"interface": "eth0",
 		"vrf":       "default",
-	}, nil)
+	})
 	if err != nil {
 		t.Fatalf("parseSingleHopSession (all leaves): %v", err)
 	}

@@ -321,10 +321,11 @@ and an echo profile on a multi-hop peer are each refused there, naming
 the peer. An edit that touches only the `bfd` block is checked too, so
 deleting a profile a peer still names is refused. At startup the check
 stops the daemon, so a file whose peer names an undefined profile never
-boots. `ze config validate`
-does not run this check for a BGP peer: it reports such a file valid,
-and only the daemon refuses it. A static next-hop's `bfd-profile` is
-checked by both.
+boots. `ze config validate` refuses a BGP peer or static next-hop
+profile that is not defined, naming the profiles that exist, because both
+leaves name the `bfd-profile` reference source; the editor completes the same
+names. It does not run the passive and echo checks for a BGP peer: only the
+daemon refuses those. A static next-hop's passive profile is checked by both.
 
 A client that opts into BFD needs BFD running. A config in which a BGP
 peer's `connection bfd` is enabled, a static next-hop names a

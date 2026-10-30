@@ -1,0 +1,37 @@
+# Test: a static next-hop's bfd-profile completion offers the configured profiles
+# VALIDATES: Tab on a static next-hop's bfd-profile leaf, a ze:reference to the
+#            bfd-profile source (bfd/api profileReference), offers the profiles
+#            the bfd section declares.
+# PREVENTS: the leaf completing only a type hint, so the operator types a
+#           profile name from memory and learns of a typo at commit.
+
+tmpfs=test.conf:terminator=EOF_CONF
+bfd {
+	profile fast {
+		detect-multiplier 5
+	}
+	profile slow {
+		detect-multiplier 9
+	}
+}
+static {
+	table default {
+		route 192.0.2.0/24 {
+			next {
+				hop 10.0.0.1 {
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+input=type:text=edit static table default route 192.0.2.0/24 next hop 10.0.0.1
+input=enter
+expect=context:path=static/table/default/route/192.0.2.0/24/next/hop/10.0.0.1
+input=type:text=set bfd-profile
+input=space
+expect=completion:contains=fast,slow

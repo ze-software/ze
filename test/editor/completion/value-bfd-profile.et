@@ -1,0 +1,56 @@
+# Test: bfd profile reference completion offers the configured profiles
+# VALIDATES: Tab on a BFD session's profile leaf, a YANG leafref to
+#            "../../profile/name", offers the profiles the bfd section
+#            declares, and Tab on a BGP peer's connection bfd profile, a
+#            ze:reference to the bfd-profile source (bfd/api
+#            profileReference), offers the same names.
+# PREVENTS: a profile leaf completing only a type hint, so the operator types
+#           a profile name from memory and learns of a typo at commit.
+
+tmpfs=test.conf:terminator=EOF_CONF
+bfd {
+	enabled true
+	profile fast {
+		detect-multiplier 3
+	}
+	profile slow {
+		detect-multiplier 5
+	}
+	single-hop-session 192.0.2.1 {
+	}
+}
+bgp {
+	peer peer1 {
+		connection {
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+			remote {
+				ip 127.0.0.254
+			}
+			bfd {
+				enabled true
+			}
+		}
+		session {
+			asn {
+				local 65001
+				remote 65002
+			}
+			router-id 10.0.0.1
+		}
+	}
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# A pinned session's profile offers the two declared profiles
+input=type:text=edit bfd single-hop-session 192.0.2.1
+input=enter
+expect=context:path=bfd/single-hop-session/192.0.2.1
+input=type:text=set profile
+input=space
+expect=completion:contains=fast,slow

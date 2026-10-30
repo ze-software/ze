@@ -262,8 +262,12 @@ module ze-bfd-conf {
                 ze:help "Routing instance the session runs in. The default instance is named default.";
             }
             leaf profile {
-                type string;
-                description "Ze refuses a name that no profile declares. Without this leaf the session takes
+                type leafref {
+                    path "../../profile/name";
+                    require-instance true;
+                }
+                description "Commit refuses a name that no profile declares, and names the profiles that
+                    exist. Without this leaf the session takes
                     the engine values: a detect multiplier of 3, and 1000000 microseconds for both the
                     transmit target and the receive floor.";
                 ze:help "Named profile to inherit timer parameters from.";
@@ -328,9 +332,12 @@ module ze-bfd-conf {
                          for GTSM on multi-hop paths.";
             }
             leaf profile {
-                type string;
-                description "Ze refuses a name that no profile declares, and it refuses a profile that
-                    enables echo. Without this leaf the session takes the engine values: a detect
+                type leafref {
+                    path "../../profile/name";
+                    require-instance true;
+                }
+                description "Commit refuses a name that no profile declares, and names the profiles that
+                    exist. Ze also refuses a profile that enables echo. Without this leaf the session takes the engine values: a detect
                     multiplier of 3, and 1000000 microseconds for both the transmit target and the
                     receive floor.";
                 ze:help "Name of the timer profile this session takes its intervals from.";

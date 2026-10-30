@@ -96,7 +96,7 @@ func TestBFDPinnedAliasBindsKernelDeviceAndSharesSession(t *testing.T) {
 	t.Cleanup(state.stopAll)
 	entry, err := parseSingleHopSession(wireListener.String(), map[string]any{
 		"local": wireSender.String(), "interface": bfdLogicalLoopback,
-	}, nil)
+	})
 	if err != nil {
 		t.Fatal(err)
 	}

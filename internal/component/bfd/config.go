@@ -11,9 +11,10 @@
 // it across the SDK boundary, so this parser walks a
 // `map[string]any` tree (mirroring `internal/component/iface/config.go`)
 // rather than json-tagging into typed structs. Structural errors
-// (missing peer, malformed address, unknown profile reference) abort
-// verify with a descriptive message so the operator sees the failure
-// at config-validate time.
+// (missing peer, malformed address) abort verify with a descriptive
+// message so the operator sees the failure at config-validate time. A
+// session profile naming no declared profile is a YANG leafref, which
+// config validation refuses before this parser runs.
 package bfd
 
 import (
@@ -159,7 +160,7 @@ func parseBFDSection(data string) (*pluginConfig, error) {
 	if singleMap, ok := bfdMap["single-hop-session"].(map[string]any); ok {
 		for key, raw := range singleMap {
 			fields, _ := raw.(map[string]any)
-			s, err := parseSingleHopSession(key, fields, cfg.profiles)
+			s, err := parseSingleHopSession(key, fields)
 			if err != nil {
 				return nil, err
 			}
@@ -173,7 +174,7 @@ func parseBFDSection(data string) (*pluginConfig, error) {
 	if multiMap, ok := bfdMap["multi-hop-session"].(map[string]any); ok {
 		for key, raw := range multiMap {
 			fields, _ := raw.(map[string]any)
-			s, err := parseMultiHopSession(key, fields, cfg.profiles)
+			s, err := parseMultiHopSession(key, fields)
 			if err != nil {
 				return nil, err
 			}
@@ -444,7 +445,7 @@ func addressFirstValue(listKey string) string {
 // address (`fe80::b interface zbl1`), whose first value is the peer, and
 // its `interface` and `vrf` leaves. Fall back to fields["peer"] when the
 // config is delivered via an API writer that populated the leaves directly.
-func parseSingleHopSession(listKey string, fields map[string]any, profiles map[string]profileConfig) (sessionConfig, error) {
+func parseSingleHopSession(listKey string, fields map[string]any) (sessionConfig, error) {
 	peerStr, _ := fields["peer"].(string)
 	if peerStr == "" {
 		peerStr = addressFirstValue(listKey)
@@ -491,11 +492,6 @@ func parseSingleHopSession(listKey string, fields map[string]any, profiles map[s
 	if v, ok := fields["shutdown"].(string); ok {
 		s.shutdown = parseBool(v, false)
 	}
-	if s.profile != "" {
-		if _, ok := profiles[s.profile]; !ok {
-			return sessionConfig{}, fmt.Errorf("bfd: single-hop-session %s: unknown profile %q", peer, s.profile)
-		}
-	}
 	return s, nil
 }
 
@@ -519,7 +515,7 @@ func isIPv6LinkLocal(addr netip.Addr) bool {
 // address/peer fallback as parseSingleHopSession; the YANG key is
 // "peer local vrf", so the address carries `local` too
 // (`198.51.100.9 local 10.0.0.1`).
-func parseMultiHopSession(listKey string, fields map[string]any, profiles map[string]profileConfig) (sessionConfig, error) {
+func parseMultiHopSession(listKey string, fields map[string]any) (sessionConfig, error) {
 	peerStr, _ := fields["peer"].(string)
 	if peerStr == "" {
 		peerStr = addressFirstValue(listKey)
@@ -555,11 +551,6 @@ func parseMultiHopSession(listKey string, fields map[string]any, profiles map[st
 	}
 	if v, ok := fields["shutdown"].(string); ok {
 		s.shutdown = parseBool(v, false)
-	}
-	if s.profile != "" {
-		if _, ok := profiles[s.profile]; !ok {
-			return sessionConfig{}, fmt.Errorf("bfd: multi-hop-session %s: unknown profile %q", peer, s.profile)
-		}
 	}
 	return s, nil
 }
@@ -599,8 +590,8 @@ func defaultVRF(v string) string {
 
 // toSessionRequest builds an api.SessionRequest from a parsed entry,
 // inheriting timer parameters from the named profile when one is set.
-// Profiles are looked up by name; an unknown name was already rejected
-// in parse* but the lookup defends against caller mistakes.
+// Profiles are looked up by name; an unknown name was already refused at
+// commit by the YANG leafref on the session's profile leaf.
 func (s sessionConfig) toSessionRequest(profiles map[string]profileConfig) api.SessionRequest {
 	req := api.SessionRequest{
 		Peer:      s.peer,
@@ -733,8 +724,9 @@ func (cfg *pluginConfig) validate() error {
 			continue
 		}
 		p, ok := cfg.profiles[s.profile]
+		// refuse-by-default: guards permitsMode -- a dangling profile is refused at commit by the YANG leafref on the session's profile leaf, naming the profiles that exist; only a defined profile has a mode to judge
 		if !ok {
-			return fmt.Errorf("bfd: %s-session %s: unknown profile %q", s.mode, s.peer, s.profile)
+			continue
 		}
 		// RFC 5881 Section 3, RFC 5883 Section 3.
 		if err := p.permitsMode(s.mode); err != nil {
