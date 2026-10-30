@@ -38,8 +38,8 @@ you have broken one, stop and tell the user.
 - Development never happens in a worktree, and verification always does:
   `./le verify changed` judges a commit's change set in a throwaway worktree,
   and is the agent's evidence. The full verification (`./le verify current`,
-  `./le verify worktree`) is Thomas's release check: an agent never starts it,
-  and gives him the exact command when one is owed.
+  `./le verify worktree`) is the release check: an agent never starts it, and
+  a spec's closure never waits on it. GitHub CI/CD runs it on a pushed commit.
 - A worktree agent works and commits on its own branch. It never merges,
   cherry-picks, rebases or copies into main.
 
@@ -93,12 +93,12 @@ Ze is a **Network OS** in Go with its own BGP implementation and interface confi
 **Components** (`internal/component/`) are independent unless they explicitly depend on each other; `config`, `command`, and `plugin` are infrastructure components nearly everything uses.
 
 <!-- BEGIN GENERATED: arch-components (internal/le/repo/archmap.Update; ./le repo arch-map update) -->
-46 directories under `internal/component/`:
+47 directories under `internal/component/`:
 
 aaa, aihelp, api, authz, bfd, bgp, cli, cmd, command, config, debug, doctor,
 engine, firewall, gnmi, gokrazy, gtsm, host, hub, iface, ike, kernelcap, l2tp,
-lg, managed, mcp, mpls, mtu, ping, pki, plugin, radius, resolve, ssh, storage,
-support, sysctl, sysrib, tacacs, telemetry, traceroute, traffic,
+lg, managed, mcp, mpls, mtu, ping, pki, plugin, policy, radius, resolve, ssh,
+storage, support, sysctl, sysrib, tacacs, telemetry, traceroute, traffic,
 trafficfeature, trafficstat, vpp, web
 <!-- END GENERATED: arch-components -->
 

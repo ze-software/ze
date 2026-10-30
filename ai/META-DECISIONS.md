@@ -159,7 +159,7 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   whether or not the commit caused it. The commit names the reds it knows of in
   its body. A refusal that judges what the commit itself adds (an open journal
   row no spec owns, a test weakened without the judge's approval) is not a
-  red, and it stands. Reds are owed at release, where Thomas's release check must be
+  red, and it stands. Reds are owed at release, where the release check must be
   green.
 - Day-to-day work is judged only by the tests of the components it changed
   (BGP, OSPF, IS-IS, a plugin, the tooling), found from the change itself: the
@@ -167,10 +167,14 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   functional suites that exercise them. A piece of work, its closure, a commit
   and a push owe that scoped evidence and nothing wider.
 - The full verification (`./le verify current`, `./le verify worktree`) is
-  Thomas's release check, which proves no regression across the tree. It is not run day
-  to day, and an agent never runs it: when one is owed, the agent gives Thomas
-  the exact command and he runs it himself, so it runs once. The tooling
-  refuses a full verification started without an interactive terminal.
+  the release check, which proves no regression across the tree. It is not run day
+  to day, and an agent never runs it. It takes over four hours and starves
+  the machine while agents develop on it, so Thomas does not run it for each
+  spec: closing a spec never waits on a whole-tree check. GitHub CI/CD runs
+  it (the `verify` workflow on a pushed commit), and a spec whose acceptance
+  criteria name one cites that run as the evidence. Thomas may still run it
+  himself when he chooses. The tooling refuses a full verification started
+  without an interactive terminal.
 - Only Thomas knows when the machine will stay quiet long enough for a full
   verification: several agent sessions run at once nearly all the time, and
   he starts new sessions, agents start agents, and he tests features by hand.
