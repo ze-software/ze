@@ -67,7 +67,7 @@ var actions = leaction.New(area,
 			// names the report and the mutant it applies, and the no-break
 			// route gives a reason instead. validateDiscrimination holds that
 			// rule, which a flat keyword table cannot state.
-			{Keyword: keyProducer, Kind: leaction.KindString, Help: "the producing function the break is applied to: <path>::<Func>, or <path>::<Type>.<Method> for a method whatever its receiver, never (*Type).Method", Value: "<path>::<Func>", Requirement: leaction.Optional},
+			{Keyword: keyProducer, Kind: leaction.KindString, Help: "the function broken, as path::Func or path::Type.Method", Value: "path::Func", Requirement: leaction.Optional},
 			{Keyword: keyReport, Kind: leaction.KindPath, Help: "the discriminate report the break comes from", Value: keyPath, Requirement: leaction.Optional},
 			// Repeat: every mutant named is applied to the one broken run, for
 			// a property two checks guard on the same path (PairedBreak).
