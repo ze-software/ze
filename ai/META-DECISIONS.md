@@ -67,7 +67,9 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   sentence makes the feature optional, or a sentence makes the obligation
   conditional on using the feature (as in "If the client uses a delegated
   prefix ... MUST"). The second case also needs evidence that Ze never meets
-  the condition.
+  the condition. A section heading that names the declined feature scopes
+  every obligation under it the same way (RFC 8907 "CHAP", RFC 9915
+  "DUID-LLT"), with the same evidence that Ze never uses the feature.
 - A requirement the operating system meets on Ze's behalf still owes a test
   that checks the OS behaviour on the state Ze installs. Until that test
   exists, the requirement is recorded as a gap in testing, never as a gap in
