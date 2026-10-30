@@ -46,7 +46,20 @@ type adjRIBOut struct {
 	// Every reset of routes clears it, and it holds at most one key per
 	// prefix so deleted in this session.
 	tombstones map[adjOutKey]struct{}
-	pending    bool
+	// released holds the exact sent receipts a write removed while their
+	// source held an in-place import invalidation open
+	// (adjOutWrite.keepReleased): the owner, its slot (identifier reservation
+	// and ingress binding), the revision and the invalidation's apply epoch.
+	// Only that invalidation's abort restore re-installs one
+	// (sentOwnerCurrent); an install of the key, the source's own withdrawal
+	// or the owner's exact removal drops it, and so do the invalidation's
+	// release, the source's departure, revocation and stop
+	// (Reactor.dropReleasedSource). Every reset of routes clears it. A key
+	// holds at most one record per owner (keepReleased), so it holds at most
+	// one record for each source whose receipt of the key an invalidation still
+	// open removed in this session: the records live only for that window.
+	released map[adjOutKey][]adjOutReleased
+	pending  bool
 	// suppressed counts the routes this peer was NOT sent because it already
 	// held them. A suppression and a drop are different outcomes and an operator
 	// must be able to tell them apart (ai/rules/principles.md), so the count is
@@ -421,7 +434,8 @@ func (a *adjRIBOut) tombstoned(key adjOutKey) bool {
 }
 
 // clearRoutes empties routes and everything framed for them: source bindings,
-// identifier reservations, the owed set and tombstones. MUST hold mu.
+// identifier reservations, the owed set, tombstones and released receipts.
+// MUST hold mu.
 func (a *adjRIBOut) clearRoutes() {
 	if len(a.routes) != 0 {
 		fwdPathIDs.mu.Lock()
@@ -432,9 +446,20 @@ func (a *adjRIBOut) clearRoutes() {
 		}
 		fwdPathIDs.mu.Unlock()
 	}
+	if len(a.released) != 0 {
+		fwdPathIDs.mu.Lock()
+		// An ADD-PATH key holds one record (takeReleased), so one reservation.
+		for key := range a.released {
+			if key.addPath {
+				fwdPathIDs.releaseLocked(key.path.received)
+			}
+		}
+		fwdPathIDs.mu.Unlock()
+	}
 	a.sourcePaths = nil
 	a.routes = nil
 	a.tombstones = nil
+	a.released = nil
 	a.dropOwed()
 	a.pending = false
 }

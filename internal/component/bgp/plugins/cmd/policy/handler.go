@@ -21,16 +21,20 @@ type policyFilterRef struct {
 	Canonical string `json:"canonical"`
 }
 
+// policyChain is one direction of `show policy chain`. Final and FinalSource
+// carry plugin.PolicyInfo's effective final unchanged, so the chain view and peer
+// detail never disagree on a default reject (RFC 8212) or an undetermined final.
 type policyChain struct {
-	Filters []policyFilterRef `json:"filters"`
-	Final   string            `json:"final,omitempty"`
+	Filters     []policyFilterRef `json:"filters"`
+	Final       string            `json:"final,omitempty"`
+	FinalSource string            `json:"final-source,omitempty"`
 }
 
 func toPolicyChain(policy *plugin.PolicyInfo) *policyChain {
 	if policy == nil {
 		return nil
 	}
-	return &policyChain{Filters: toFilterRefs(policy.Filters), Final: policy.Final}
+	return &policyChain{Filters: toFilterRefs(policy.Filters), Final: policy.Final, FinalSource: policy.FinalSource}
 }
 
 const (

@@ -17,23 +17,28 @@ import (
 
 var errPeerNotInReloadConfig = errors.New("peer not found in reload config")
 
-// VerifyConfigOperation validates one BGP config operation without mutating state.
-func (r *Reactor) VerifyConfigOperation(op *rpc.ConfigOperation) error {
-	return (&reactorAPIAdapter{r: r}).verifyConfigOperation(op)
+// VerifyConfigOperation validates one BGP config operation of transaction txID
+// without mutating state. The transaction's operations share one resolution
+// of the candidate config (operationCandidateSlot) with its apply.
+func (r *Reactor) VerifyConfigOperation(txID string, op *rpc.ConfigOperation) error {
+	return (&reactorAPIAdapter{r: r}).verifyConfigOperation(txID, op)
 }
 
-// ApplyConfigOperation applies one BGP config operation and records its inverse.
+// ApplyConfigOperation applies one BGP config operation and records its
+// inverse. The journal names the operation's transaction when it carries one
+// (sourcePolicyTransaction), and the transaction's operations then share one
+// resolution of the candidate config with its verify.
 func (r *Reactor) ApplyConfigOperation(op *rpc.ConfigOperation, j registry.ConfigJournal) (*rpc.ConfigOperationApplyOutput, error) {
 	return (&reactorAPIAdapter{r: r}).applyConfigOperation(op, j)
 }
 
-func (a *reactorAPIAdapter) verifyConfigOperation(op *rpc.ConfigOperation) error {
+func (a *reactorAPIAdapter) verifyConfigOperation(txID string, op *rpc.ConfigOperation) error {
 	if op == nil {
 		return errors.New("bgp operation verify requires an operation")
 	}
 	switch op.Type {
 	case configop.AddPeer:
-		_, err := a.candidatePeerSettingsFromOperationConfig(op)
+		_, _, err := a.resolveOperationCandidate(txID, op)
 		return err
 	case configop.RemovePeer:
 		_, err := a.runningPeerSettings(op)
@@ -42,7 +47,14 @@ func (a *reactorAPIAdapter) verifyConfigOperation(op *rpc.ConfigOperation) error
 		if _, err := a.runningPeerSettings(op); err != nil {
 			return err
 		}
-		_, err := a.candidatePeerSettingsFromOperationConfig(op)
+		_, _, err := a.resolveOperationCandidate(txID, op)
+		return err
+	case configop.ReconcilePeers:
+		tree, err := operationBGPTree(op)
+		if err != nil {
+			return err
+		}
+		_, err = a.peerDiffCount(tree)
 		return err
 	default:
 		return fmt.Errorf("bgp operation %s not supported", op.Type)
@@ -56,6 +68,13 @@ func (a *reactorAPIAdapter) applyConfigOperation(op *rpc.ConfigOperation, j conf
 	if j == nil {
 		return nil, errors.New("bgp operation apply requires a journal")
 	}
+	// The journal names the operation's transaction when it carries one, and
+	// the transaction's operations then share one candidate resolution with
+	// its verify (operationCandidateSlot).
+	var txID string
+	if tx, ok := j.(sourcePolicyTransaction); ok {
+		txID, _ = tx.SourcePolicyTransaction()
+	}
 	// A config operation is a config APPLY, so it discards the operator's live
 	// `subscribe` overrides, as the section apply does at the end of
 	// reconcilePeersJournaled (R-10). It runs BEFORE the peer changes: a session
@@ -66,7 +85,7 @@ func (a *reactorAPIAdapter) applyConfigOperation(op *rpc.ConfigOperation, j conf
 	}
 	switch op.Type {
 	case configop.AddPeer:
-		settings, err := a.candidatePeerSettingsFromOperationConfig(op)
+		settings, _, err := a.resolveOperationCandidate(txID, op)
 		if err != nil {
 			return nil, err
 		}
@@ -101,11 +120,11 @@ func (a *reactorAPIAdapter) applyConfigOperation(op *rpc.ConfigOperation, j conf
 		if err != nil {
 			return nil, err
 		}
-		newSettings, err := a.candidatePeerSettingsFromOperationConfig(op)
+		newSettings, policyResolved, err := a.resolveOperationCandidate(txID, op)
 		if err != nil {
 			return nil, err
 		}
-		swapped, err := a.swapPeerForOperation(newSettings, j)
+		swapped, err := a.swapPeerForOperation(newSettings, policyResolved, j)
 		if err != nil {
 			return nil, err
 		}
@@ -127,9 +146,38 @@ func (a *reactorAPIAdapter) applyConfigOperation(op *rpc.ConfigOperation, j conf
 		}
 		a.emitOperationListenerReady(newSettings)
 		return bgpOperationApplyOutput(newSettings), nil
+	case configop.ReconcilePeers:
+		// The rest of the diff the peer operations before it did not carry
+		// (bgpResidualOperation): the section apply's reconcile, under this
+		// operation's journal, so its undo and its transaction are this one's.
+		tree, err := operationBGPTree(op)
+		if err != nil {
+			return nil, err
+		}
+		loaded, err := a.loadPeersFullOrTree(tree)
+		if err != nil {
+			return nil, fmt.Errorf("bgp operation %s load peers: %w", op.Type, err)
+		}
+		if err := a.reconcilePeersJournaled(loaded.peers, loaded.globals, loaded.groups, "apply config operation", j); err != nil {
+			return nil, err
+		}
+		return &rpc.ConfigOperationApplyOutput{Status: rpc.StatusOK}, nil
 	default:
 		return nil, fmt.Errorf("bgp operation %s not supported", op.Type)
 	}
+}
+
+// operationBGPTree reads the candidate bgp root a reconcile-peers operation
+// carries.
+func operationBGPTree(op *rpc.ConfigOperation) (map[string]any, error) {
+	if len(op.Params.Config) == 0 {
+		return nil, fmt.Errorf("bgp operation %s carries no candidate bgp root", op.Type)
+	}
+	var tree map[string]any
+	if err := json.Unmarshal(op.Params.Config, &tree); err != nil {
+		return nil, fmt.Errorf("bgp operation %s candidate bgp root: %w", op.Type, err)
+	}
+	return tree, nil
 }
 
 func (a *reactorAPIAdapter) emitOperationListenerReady(settings *PeerSettings) {
@@ -193,18 +241,42 @@ func (a *reactorAPIAdapter) runningPeerSettings(op *rpc.ConfigOperation) (*PeerS
 	return found.settingsSnapshot(), nil
 }
 
+// candidatePeerSettingsFromOperationConfig resolves op's candidate peer outside
+// any transaction, so nothing is shared: resolveOperationCandidate with no
+// transaction ID, without the import-policy report.
 func (a *reactorAPIAdapter) candidatePeerSettingsFromOperationConfig(op *rpc.ConfigOperation) (*PeerSettings, error) {
-	settings, err := a.peerSettingsFromReloadConfig(op)
-	if err == nil {
-		return settings, nil
-	}
-	if !errors.Is(err, errPeerNotInReloadConfig) {
-		return nil, err
-	}
-	return a.peerSettingsFromOperationConfig(op)
+	settings, _, err := a.resolveOperationCandidate("", op)
+	return settings, err
 }
 
+// resolveOperationCandidate answers op's candidate peer, resolved once per
+// transaction txID (operationCandidateSlot; empty resolves alone), and
+// reports whether the settings carry the peer's effective import policy:
+// false when they were built from the operation's config leaves alone, which
+// carry no filter chain (peerSettingsFromOperationConfig).
+func (a *reactorAPIAdapter) resolveOperationCandidate(txID string, op *rpc.ConfigOperation) (*PeerSettings, bool, error) {
+	settings, err := a.reloadCandidatePeer(txID, op)
+	if err == nil {
+		return settings, true, nil
+	}
+	if !errors.Is(err, errPeerNotInReloadConfig) {
+		return nil, false, err
+	}
+	settings, err = a.peerSettingsFromOperationConfig(op)
+	return settings, false, err
+}
+
+// peerSettingsFromReloadConfig answers op's peer from the loaded candidate
+// outside any transaction: reloadCandidatePeer with no transaction ID.
 func (a *reactorAPIAdapter) peerSettingsFromReloadConfig(op *rpc.ConfigOperation) (*PeerSettings, error) {
+	return a.reloadCandidatePeer("", op)
+}
+
+// reloadCandidatePeer answers a copy of op's peer from the candidate the
+// reload function loads, loaded once per transaction txID
+// (operationCandidateSlot), and errPeerNotInReloadConfig when the reactor has
+// no reload function or the candidate does not name the peer.
+func (a *reactorAPIAdapter) reloadCandidatePeer(txID string, op *rpc.ConfigOperation) (*PeerSettings, error) {
 	if a == nil || a.r == nil || op == nil {
 		return nil, errPeerNotInReloadConfig
 	}
@@ -219,16 +291,11 @@ func (a *reactorAPIAdapter) peerSettingsFromReloadConfig(op *rpc.ConfigOperation
 	if peerName == "" {
 		return nil, fmt.Errorf("bgp operation %s requires peer name", op.Type)
 	}
-	peers, _, _, err := reloadFn(configPath)
+	peers, err := a.r.operationCandidate.peers(txID, configPath, reloadFn)
 	if err != nil {
 		return nil, fmt.Errorf("bgp operation %s load candidate peer config: %w", op.Type, err)
 	}
-	for _, peer := range peers {
-		if peer != nil && peer.Name == peerName {
-			return peer, nil
-		}
-	}
-	return nil, errPeerNotInReloadConfig
+	return operationCandidatePeer(peers, peerName, txID != "")
 }
 
 // peerSettingsFromOperationConfig builds a peer from the candidate config the
@@ -332,7 +399,7 @@ func (a *reactorAPIAdapter) restartPeerForOperation(settings *PeerSettings) erro
 // (resolveDynamicPeerSettings, reactor_dynamic.go), so they are not a candidate
 // the config entry can be diffed against, and its establishment goroutine
 // writes fields applyHotSwappableSettings would write here.
-func (a *reactorAPIAdapter) swapPeerForOperation(next *PeerSettings, j configJournal) (bool, error) {
+func (a *reactorAPIAdapter) swapPeerForOperation(next *PeerSettings, policyResolved bool, j configJournal) (bool, error) {
 	if next == nil {
 		return false, nil
 	}
@@ -355,7 +422,7 @@ func (a *reactorAPIAdapter) swapPeerForOperation(next *PeerSettings, j configJou
 		reactorLogger().Info("peer restart required", "phase", "operation", "peer", key, "changed", reason)
 		return false, nil
 	}
-	if err := a.swapPeerSettingsJournaled([]peerSettingsSwap{{key: key, next: next, apply: apply}}, j); err != nil {
+	if err := a.swapPeerSettingsJournaled([]peerSettingsSwap{{key: key, next: next, apply: apply, policyUnresolved: !policyResolved}}, j); err != nil {
 		return false, err
 	}
 	reactorLogger().Debug("peer settings swapped in place", "phase", "operation", "peer", key)

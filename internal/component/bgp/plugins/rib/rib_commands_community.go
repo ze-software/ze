@@ -179,13 +179,18 @@ func (r *RIBManager) deleteWithCommunityCommand(args []string) (string, any, err
 	writes := r.withdrawRemovedSentLocked(peerAddr, removed)
 
 	r.peerMu.Unlock()
-	r.dispatchSentLifecycle(writes)
+	refused := r.dispatchSentLifecycle(writes)
 
 	for _, route := range toDelete {
 		change, ok := r.checkBestPathChange(fam, route.nlri, route.addPath, nil)
 		if ok {
 			publishBestChanges([]bestChangeEntry{change}, fam)
 		}
+	}
+	if refused != nil {
+		return statusError, nil, fmt.Errorf("delete-with-community removed %d paths of peer %s, but a destination "+
+			"refused their withdrawal and still advertises them until its session restarts: %w; each destination "+
+			"must grant this RIB process `send [ update ]` in its `attach process` block", deleted, peerAddr, refused)
 	}
 
 	logger().Debug("delete-with-community", "peer", peerAddr, "family", familyStr,

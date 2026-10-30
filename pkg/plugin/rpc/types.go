@@ -1475,7 +1475,11 @@ type SourcePolicyIdentity struct {
 
 // SourcePolicyInput is a raw lifecycle request. Owners MUST match the captured
 // identity and retain prepare pins until abort or finalize has settled.
-// Coordinators MUST use fresh, monotonically newer targets for apply and abort.
+// Coordinators MUST use a fresh, monotonically newer target for apply, and
+// for an abort after the source's epoch advanced. An abort before the epoch
+// advanced (the transaction was prepared and never applied) carries target
+// zero, and the owner then only releases its prepare pins: it restamps
+// nothing, changes no eligibility and writes nothing downstream.
 type SourcePolicyInput struct {
 	TransactionID   string                `json:"transaction-id"`
 	Operation       SourcePolicyOperation `json:"operation"`

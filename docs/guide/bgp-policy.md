@@ -422,10 +422,23 @@ See [Route filters and redistribution](redistribution.md) for the current chain 
 
 `show policy chain peer <selector> [import|export]` reports each effective direction as an object containing
 `filters` and `final`, including a configured direction with no filters.
-Peer detail reports the same policy under `import-policy` and `export-policy`.
-Automatic-only filters have no configured `final`; an entirely absent policy
-is omitted. These status objects describe configured presence, not the default.
-Policy dry-run applies the live session-aware final: absence rejects on EBGP and
+Peer detail reports the same policy under `import-policy` and `export-policy`,
+and `show policy test` reports it under `policy`. The `final` is the one the
+session applies when the chain ends:
+
+| Policy and session | `final` | `final-source` |
+|--------------------|---------|----------------|
+| Configured policy | the configured `accept` or `reject` | omitted |
+| No policy, EBGP session | `reject` | `rfc8212` |
+| No policy, IBGP session | omitted; the direction is omitted when it has no automatic filters | omitted |
+| No policy, dynamic peer not yet established | `undetermined` | omitted |
+
+`final-source: rfc8212` marks the reject RFC 8212 Section 3 applies to an EBGP
+direction nobody configured, so it never reads as a reject you wrote. Add
+`final accept` (or a filter chain) to that direction to let routes through.
+A dynamic peer's session type is known only once its OPEN arrives, so its
+absent direction stays `undetermined` until then.
+Policy dry-run applies the same final: absence rejects on EBGP and
 accepts on IBGP. With a rejecting final, a pure withdrawal remains `accept` with unchanged resulting
 text. A mixed announcement and withdrawal reports `modify`, with only its explicit
 withdrawals in the resulting text. A filter execution failure or teardown still
@@ -441,8 +454,10 @@ explanation; exercise it with an UPDATE on the peer session instead. Inactive
 references do not execute and have no trace entry.
 When the remote AS is unresolved, the overall action is `undetermined` and
 `reason` tells you to wait for establishment and repeat `show policy test`.
+`policy` still reports the direction, with `undetermined` for an absent final.
 No filter executes, including a single-filter override. Trace and text are empty.
 <!-- source: internal/component/bgp/reactor/policy_dryrun.go -- PolicyDryRun -->
+<!-- source: internal/component/bgp/reactor/reactor_api.go -- policyInfo, absentPolicyInfo -->
 
 Use the same route at each boundary:
 

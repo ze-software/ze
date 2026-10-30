@@ -131,9 +131,21 @@ func (input SourcePolicyInput) Validate(now time.Time) error {
 		if input.NextPolicyEpoch != 0 {
 			return fmt.Errorf("source-policy prepare/finalize requires a zero target epoch")
 		}
-	case SourcePolicyApply, SourcePolicyAbort:
+	case SourcePolicyApply:
 		if input.NextPolicyEpoch <= input.Source.PolicyEpoch {
-			return fmt.Errorf("source-policy apply/abort requires a newer target epoch")
+			return fmt.Errorf("source-policy apply requires a target epoch newer than the captured one")
+		}
+	case SourcePolicyAbort:
+		// Zero aborts a transaction that was prepared and never applied: the
+		// owner releases its pins and changes nothing else. A nonzero target
+		// aborts after apply, and owners restamp the restored paths to it.
+		// Which of the two an owner's stage admits is the owner's ledger's
+		// decision (internal/core/bgp/sourcepolicy).
+		if input.NextPolicyEpoch == 0 {
+			break
+		}
+		if input.NextPolicyEpoch <= input.Source.PolicyEpoch {
+			return fmt.Errorf("source-policy abort requires a zero target (before apply) or one newer than the captured epoch")
 		}
 	case SourcePolicyUnspecified:
 		return fmt.Errorf("source-policy operation is unspecified")

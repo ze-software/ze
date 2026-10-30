@@ -148,6 +148,9 @@ func TestPolicyChainFinalDisplay(t *testing.T) {
 		{name: "empty reject", policy: &plugin.PolicyInfo{Final: "reject"}, want: `{"filters":null,"final":"reject"}`},
 		{name: "automatic", policy: &plugin.PolicyInfo{Filters: []string{"rfc:no-self-as"}}, want: `{"filters":[{"name":"no-self-as","canonical":"rfc:no-self-as"}]}`},
 		{name: "inactive", policy: &plugin.PolicyInfo{Filters: []string{"inactive:plug:SKIP"}, Final: "reject"}, want: `{"filters":[{"name":"inactive:SKIP","canonical":"inactive:plug:SKIP"}],"final":"reject"}`},
+		{name: "rfc8212 default", policy: &plugin.PolicyInfo{Final: "reject", FinalSource: "rfc8212"}, want: `{"filters":null,"final":"reject","final-source":"rfc8212"}`},
+		{name: "automatic rfc8212 default", policy: &plugin.PolicyInfo{Filters: []string{"rfc:no-self-as"}, Final: "reject", FinalSource: "rfc8212"}, want: `{"filters":[{"name":"no-self-as","canonical":"rfc:no-self-as"}],"final":"reject","final-source":"rfc8212"}`},
+		{name: "undetermined", policy: &plugin.PolicyInfo{Final: "undetermined"}, want: `{"filters":null,"final":"undetermined"}`},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			got, err := json.Marshal(toPolicyChain(tc.policy))

@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 )
 
@@ -225,6 +226,10 @@ func TestRecoveryPackLiveDepartureOneUpdatePerFit(t *testing.T) {
 	}
 	for _, setting := range settings {
 		setting.RSClient = true
+		// Every session is EBGP, and RFC 8212 Section 3 rejects at an absent
+		// policy, so each carries explicit accepting import and export policies.
+		setting.ImportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
+		setting.ExportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
 	}
 	peers := lowLiveRouter(t, settings...)
 	a, b, c := peers[0], peers[1], peers[2]

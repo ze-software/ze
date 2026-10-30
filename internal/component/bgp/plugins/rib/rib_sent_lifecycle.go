@@ -4,6 +4,8 @@ package rib
 import (
 	"context"
 	"encoding/binary"
+	"errors"
+	"fmt"
 	"net/netip"
 	"slices"
 	"strconv"
@@ -266,10 +268,26 @@ func attachSentCommunity(entry *ribOutEntry, community []byte) bool {
 	return true
 }
 
-func (r *RIBManager) dispatchSentLifecycle(writes []sentLifecycleWrite) {
+// dispatchSentLifecycle sends each lifecycle write and answers every refusal,
+// one per destination, joined. Each write stands alone, so a refusal does not
+// stop the rest. The sent inventory already dropped (or holds) the entry, so a
+// refused write leaves that destination disagreeing with it: a caller that
+// answers somebody MUST pass the error on, and only a caller nobody waits for
+// (a timer, a command whose answer carries no error) may log it instead.
+func (r *RIBManager) dispatchSentLifecycle(writes []sentLifecycleWrite) error {
+	var refused []error
 	for _, write := range writes {
-		r.updateRouteWithMeta(write.peer, write.command, sentLifecycleMeta(write)) //nolint:errcheck // updateRouteWithMeta logs the failure; each lifecycle write stands alone, so the rest still go
+		if err := r.updateRouteWithMeta(write.peer, write.command, sentLifecycleMeta(write)); err != nil {
+			refused = append(refused, sentWriteRefused(write.peer, err))
+		}
 	}
+	return errors.Join(refused...)
+}
+
+// sentWriteRefused names the destination whose write the engine refused, and
+// the engine's reason.
+func sentWriteRefused(destination string, err error) error {
+	return fmt.Errorf("peer %s refused the write: %w", destination, err)
 }
 
 // sentLifecycleMeta marks a lifecycle write as RIB feedback and carries the

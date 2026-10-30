@@ -9,6 +9,7 @@ package rib
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/netip"
 	"strconv"
 
@@ -183,10 +184,33 @@ func (r *RIBManager) applySourcePolicy(peer netip.Addr, input rpc.SourcePolicyIn
 	received, addPath := txn.received, txn.addPath
 	r.peerMu.Unlock()
 
-	// RFC 8212 Section 3: settle every destination before the receipt.
-	r.dispatchSentLifecycle(writes)
+	// RFC 8212 Section 3: settle every destination before the receipt. A
+	// refused withdrawal fails the apply, so the coordinator aborts and the
+	// reload is never reported applied while a destination keeps a denied route.
+	refused := r.dispatchSentLifecycle(writes)
 	r.reelectSourcePolicy(received, addPath)
+	if refused != nil {
+		return errors.Join(err, sourcePolicyWithdrawRefused(peer, refused))
+	}
 	return err
+}
+
+// sourcePolicyWithdrawRefused is the apply receipt's error when a destination
+// refused the withdrawal of a denied route: it names the source, each refusing
+// destination with the engine's reason, and the fix.
+func sourcePolicyWithdrawRefused(source netip.Addr, refused error) error {
+	return fmt.Errorf("bgp-rib could not withdraw the routes of peer %s that the new import policy rejects, "+
+		"so a destination still advertises them and the import change is refused: %w; "+
+		"each destination must grant this RIB process `send [ update ]` in its `attach process` block: "+
+		"add it, then commit the import change again", source, refused)
+}
+
+// sourcePolicyRestoreRefused is the abort receipt's error when a destination
+// refused a restored route's announcement.
+func sourcePolicyRestoreRefused(source netip.Addr, refused error) error {
+	return fmt.Errorf("bgp-rib could not announce again the routes of peer %s that the restored import policy accepts, "+
+		"so a destination lacks them until that peer's session restarts: %w; "+
+		"each destination must grant this RIB process `send [ update ]` in its `attach process` block", source, refused)
 }
 
 // pinDeniedSentLocked withdraws the forwarded copies the denied received
@@ -225,9 +249,10 @@ func (r *RIBManager) pinDeniedSentLocked(source netip.Addr, denied removedReceiv
 	return writes
 }
 
-// abortSourcePolicy restores each pinned path the PeerRIB still holds as the
-// same path, restamped to the abort's fresh epoch so the engine's writers
-// accept it again. After an apply it also drops every other denied path rather
+// abortSourcePolicy releases the pins of a transaction that was never applied
+// (target zero) and changes nothing else. With a target it restores each
+// pinned path the PeerRIB still holds as the same path, restamped to the
+// abort's fresh epoch so the engine's writers accept it again. After an apply it also drops every other denied path rather
 // than keeping it, puts back the denial bound the PeerRIB held before the
 // apply, returns the forwarded copies of restored paths to the sent inventory
 // and announces them again. It re-elects, and runs no import evaluation and
@@ -245,6 +270,15 @@ func (r *RIBManager) abortSourcePolicy(peer netip.Addr, input rpc.SourcePolicyIn
 	if duplicate {
 		r.peerMu.Unlock()
 		return nil
+	}
+	if input.NextPolicyEpoch == 0 {
+		// The ledger admits a zero target only before apply: nothing was
+		// excluded and the epoch did not move, so only the pins go.
+		txn.releaseSent()
+		txn.received = nil
+		err = txn.ledger.Record(input, sourcepolicy.StageAborted, nil)
+		r.peerMu.Unlock()
+		return err
 	}
 	bound, target := txn.ledger.Source().PolicyEpoch, input.NextPolicyEpoch
 	applied := txn.ledger.Stage() == sourcepolicy.StageApplied
@@ -295,14 +329,21 @@ func (r *RIBManager) abortSourcePolicy(peer netip.Addr, input rpc.SourcePolicyIn
 	addPath := txn.addPath
 	r.peerMu.Unlock()
 
-	// RFC 8212 Section 3: settle every destination before the receipt.
+	// RFC 8212 Section 3: settle every destination before the receipt. Each
+	// announcement stands alone, and a refused one fails the abort.
+	var refused []error
 	for _, write := range announces {
 		var digits [20]byte
 		meta := map[string]any{metaKeyReplay: true,
 			bgptypes.SentOwnerMessageMeta: string(strconv.AppendUint(digits[:0], write.message, 10))}
-		r.updateRouteWithProvenance(write.peer, write.command, meta, target) //nolint:errcheck // The helper logs the failure; each destination's announcement stands alone.
+		if sendErr := r.updateRouteWithProvenance(write.peer, write.command, meta, target); sendErr != nil {
+			refused = append(refused, sentWriteRefused(write.peer, sendErr))
+		}
 	}
 	r.reelectSourcePolicy(affected, addPath)
+	if len(refused) > 0 {
+		return errors.Join(err, sourcePolicyRestoreRefused(peer, errors.Join(refused...)))
+	}
 	return err
 }
 
@@ -312,8 +353,11 @@ func (r *RIBManager) abortSourcePolicy(peer netip.Addr, input rpc.SourcePolicyIn
 // announcement does not record a sent entry (handleSentStructured skips replay
 // meta), so without this the destination would hold a route the inventory
 // never withdraws. The inventory takes over the copy's pool reference; a copy
-// not restored, or whose key a later announcement already holds at that
-// destination, stays in txn.sent for releaseSent. MUST hold peerMu.
+// not restored stays in txn.sent for releaseSent. A restored copy whose key
+// another announcement holds at that destination is still re-sent, so the
+// reactor owes it to the recovery election between the two paths, and it
+// stays in txn.sent too: the election's write is what the inventory records.
+// MUST hold peerMu.
 func (r *RIBManager) restoreSentLocked(txn *sourcePolicyTxn, restored removedReceivedOwners, target uint64) []sentLifecycleWrite {
 	var writes []sentLifecycleWrite
 	kept := txn.sent[:0]
@@ -328,13 +372,20 @@ func (r *RIBManager) restoreSentLocked(txn *sourcePolicyTxn, restored removedRec
 			kept = append(kept, s)
 			continue
 		}
+		write := sentLifecycleWrite{peer: s.destination.String(),
+			command: bgp.FormatAnnounceCommand(reconstructRoute(s.entry, s.fam, s.key)), message: s.entry.MsgID}
 		destinations := r.ribOut[s.destination]
 		if _, taken := destinations[s.fam][s.key]; taken {
+			// RFC 4271 Section 9.1: the restored path is a candidate again,
+			// and another owner (a recovery survivor) holds the key. The
+			// re-send still goes out: the reactor owes it to the recovery
+			// election, which writes the winner and records it here, so the
+			// copy is not reinstated in the inventory.
+			writes = append(writes, write)
 			kept = append(kept, s)
 			continue
 		}
-		writes = append(writes, sentLifecycleWrite{peer: s.destination.String(),
-			command: bgp.FormatAnnounceCommand(reconstructRoute(s.entry, s.fam, s.key)), message: s.entry.MsgID})
+		writes = append(writes, write)
 		if destinations == nil {
 			destinations = make(map[family.Family]map[ribOutKey]ribOutEntry)
 			r.ribOut[s.destination] = destinations

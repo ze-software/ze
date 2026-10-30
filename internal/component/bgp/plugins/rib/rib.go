@@ -293,6 +293,12 @@ type RIBManager struct {
 	// (meta["replay"], sendRoutes).
 	updateHook func(command string, meta map[string]any)
 
+	// updateRefuseHook, when non-nil, answers each update-route request first,
+	// the way the engine answers a write it refuses (a destination whose attach
+	// block grants this process no `send [ update ]`). A non-nil answer is the
+	// refusal and the request goes no further. Production leaves it nil.
+	updateRefuseHook func(input rpc.UpdateRouteInput) error
+
 	// purgeRemoveHook, when non-nil, runs in emitPurgedWithdraws at the instant
 	// a route the purge left with no candidate leaves the Loc-RIB, so a test
 	// can land a concurrent election there. Production leaves it nil.
@@ -851,6 +857,12 @@ func (r *RIBManager) updateRouteWithMetaContext(parent context.Context, peerSele
 
 // updateRouteRequest bounds a command RPC by the caller's lifecycle context.
 func (r *RIBManager) updateRouteRequest(parent context.Context, input rpc.UpdateRouteInput) error {
+	if r.updateRefuseHook != nil {
+		if err := r.updateRefuseHook(input); err != nil {
+			logger().Warn("update-route-with-meta failed", "peer", input.PeerSelector, "error", err)
+			return err
+		}
+	}
 	if r.updateHook != nil {
 		r.updateHook(input.Command, input.Meta)
 		return nil

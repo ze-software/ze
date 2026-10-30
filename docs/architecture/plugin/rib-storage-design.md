@@ -94,7 +94,7 @@ read them to invalidate and restore a source in place.
 
 ### Source-policy lifecycle owners
 
-`bgp-rib` and `bgp-adj-rib-in` register an `OnSourcePolicy` handler, so each
+`bgp-rib`, `bgp-adj-rib-in` and `bgp-rs` register an `OnSourcePolicy` handler, so each
 declares itself a source-policy owner at Stage 1 and answers the four phases of
 an RFC 8212 Section 3 import invalidation (`docs/architecture/api/process-protocol.md`).
 Both match `source.peer` as the peer address their received-UPDATE events
@@ -106,7 +106,7 @@ work is done.
 |-------|-----------|------------------|
 | Prepare | Refuses a source whose session is down, a token older than a path it already holds (a stored epoch above `policy-epoch`), and a source another open transaction holds. Pins the identity of every stored path: family, NLRI, received message ID and attribute fingerprint | Same refusals. Pins the `RawRoute` pointers of the source's installed and validation-pending routes |
 | Apply | Records the denial bound on the source's `PeerRIB`, keeping the bound it held before: every path stored at or below the captured epoch leaves candidacy (`candidateAdmitted`) and FlowSpec authorization, in place. Withdraws the forwarded copies those paths own at every destination and holds their sent entries, then re-elects each pinned route and emits the best changes, one batch per family, before the receipt | Records the bound, keeping the previous one; `routeEligible`, replay and `replay-path` exclude the paths, VPN and the other families keyed by NLRI included |
-| Abort | Restamps each pinned path still stored with the same identity to `next-policy-epoch`. After an apply it also drops every other denied path, puts back the bound from before the apply, returns the held copies of restored paths to the sent inventory under the new epoch and announces them again; it then re-elects and emits. No Route Refresh and no import evaluation | Restamps the pinned pointers still stored; after an apply, drops the rest and puts back the previous bound |
+| Abort | With target zero (prepared, never applied) only releases the pins: no restamp, no re-election, no write; a zero target after apply is refused. Otherwise restamps each pinned path still stored with the same identity to `next-policy-epoch`. After an apply it also drops every other denied path, puts back the bound from before the apply, returns the held copies of restored paths to the sent inventory under the new epoch and announces them again. A held copy whose key another owner now holds at that destination (the survivor a recovery round wrote) is announced again too and stays out of the inventory: the destination owes it to its recovery election, which chooses between the restored path and the survivor and writes the winner. It then re-elects and emits. No Route Refresh and no import evaluation | Restamps the pinned pointers still stored; after an apply, drops the rest and puts back the previous bound |
 | Finalize | Admitted only after apply: abort closes a transaction that was not applied. Removes the denied paths, so no denied state is retained for a later recovery, and releases the held sent entries. The bound stays | Same, without sent entries |
 
 The ledger both owners keep (stage, captured identity, recorded outcome of
@@ -123,7 +123,28 @@ the emit returns, but a plugin-process subscriber such as
 queued and not yet applied. The event bus offers no emit-and-wait, so the
 owner's receipt does not prove those consumers settled; the coordinator owns
 that barrier after the owner call, beside the destination writers it already
-joins.
+joins. It drains the plugin-process subscribers of `bgp-rib/validation-change`
+as well: `bgp-adj-rib-in` publishes one on apply and abort when its validation
+gate is on, and `bgp-rib` answers it with best changes a forwarder relays. That
+drain also runs after each owner's call, before the next owner is called.
+
+The coordinator calls the captured owners in their registered dependency order
+(`Dependencies`, `OptionalDependencies` and `StartAfter`, as startup orders
+them), breaking
+ties by name, for every phase. `bgp-rs` depends on `bgp-rib` and
+`bgp-adj-rib-in`, so it is called after both, and a relay their phase caused is
+already queued on its source worker when its own settle runs.
+
+`bgp-rib` is the only downstream writer of a forwarded copy. Its sent inventory
+holds every copy a forwarder (`bgp-rs`, `bgp-rr`) sent, so its apply withdraws
+them with sent-owner authority and the destination's recovery re-elects at a
+destination without ADD-PATH. The forwarders only settle their own pending
+work. Prepare therefore refuses, before anything is published, a source whose
+UPDATEs reach a forwarder (an owner declaring `FencesLiveForwards`) while the
+process answering the RIB recovery command is not a captured owner: the message
+names the peer and the forwarder, and tells the operator to attach the RIB to
+the peer with `receive [ update-received ]` or to take the peer down around the
+change.
 
 Pins are temporary and belong to one transaction: no second route store and no
 copied UPDATE. A path the source withdrew, GR purged or a later UPDATE replaced
@@ -140,11 +161,30 @@ the session and the bound stays; neither owner restores anything locally. The
 coordinator's later abort is refused, and the coordinator reports the
 compensation as incomplete, naming the peer and the owner that refused.
 
-`bgp-rs` and `bgp-rr` keep per-source state for every peer whose UPDATEs they
-receive and implement no lifecycle, so they declare `source-policy-owner`
-without `source-policy`. Preflight then refuses an import-policy removal for
-such a peer before publication and tells the operator to disable the peer,
-commit, set the new policy, re-enable the peer and commit again.
+`bgp-rs` is an owner with a handler too, but it holds no route and runs no
+election: it forwards each UPDATE and keeps, per source, its queued forwarding
+work and the withdrawal inventory a departure is built from, each key stamped
+with the policy epoch it was admitted under. Its phases act on those two, and
+the withdrawal or replacement of every copy it forwarded is `bgp-rib`'s apply
+above, because `bgp-rs` depends on `bgp-rib`, whose sent inventory holds those
+copies, and the destination's recovery worker elects the replacement from it.
+
+| Phase | `bgp-rs` |
+|-------|----------|
+| Prepare | Refuses a source whose session is down, a token older than a key it already forwarded, and a source another open transaction holds. Waits for a departure still queued for the source to be sent and for every item on the source's worker, its forward batch included, to reach the engine. Pins the source's withdrawal-inventory keys |
+| Apply | Settles the source's worker again, so every forward queued for the source, and each relay of the receive store's (`bgp-adj-rib-in`) eligibility change, has reached the engine before the receipt. The relay is covered because the coordinator calls `bgp-rs` after `bgp-adj-rib-in` and `bgp-rib` and drains the validation-change subscribers in between, not by anything `bgp-rs` does. The keys stay for abort |
+| Abort | With target zero only releases the pins. Otherwise restamps each pinned key still held at or below the captured epoch to `next-policy-epoch`, then settles the worker, so the receive store's re-announcement relays, queued before this phase by the same order and drain, have reached the engine before the receipt |
+| Finalize | Removes every key held at or below the captured epoch, so a later departure owes none of the denied routes |
+
+A settle is bounded by the request's deadline, and a settle that does not
+finish is the phase's error. The session's down drops its transaction with its
+inventory. `bgp-rs` runs only in process (`RunRouteServer` refuses an external
+process), so DirectBridge is its one transport.
+
+`bgp-rr` is an owner that settles its own pending work for the source in each
+phase and drops the denied entries it keeps for the source on finalize. Like
+`bgp-rs`, it neither withdraws nor replaces a copy it forwarded: that is
+`bgp-rib`'s apply.
 
 <!-- source: internal/component/bgp/plugins/rib/source_policy.go -- handleSourcePolicy, applySourcePolicy, abortSourcePolicy -->
 <!-- source: internal/component/bgp/plugins/rib/storage/peerrib.go -- DenySourcePolicyThrough, RestoreSourcePolicyDenial, SourcePolicyEligible -->
@@ -153,6 +193,9 @@ commit, set the new policy, re-enable the peer and commit again.
 <!-- source: internal/core/bgp/sourcepolicy/ledger.go -- Owner.Admit, Owner.Reprepare, Ledger.Record -->
 <!-- source: internal/component/bgp/plugins/rib/source_policy.go -- restoreSentLocked, reelectSourcePolicy, dropSourcePolicyLocked -->
 <!-- source: internal/component/bgp/plugins/rs/server.go -- routeServerRegistration -->
+<!-- source: internal/component/bgp/reactor/source_policy_reload.go -- requireSentOwner, drainValidation, settleDownstream -->
+<!-- source: internal/component/plugin/server/source_policy.go -- orderSourcePolicyOwners -->
+<!-- source: internal/component/bgp/plugins/rs/source_policy.go -- handleSourcePolicy, settleSource -->
 <!-- source: internal/component/bgp/plugins/rr/rr.go -- routeReflectorRegistration -->
 
 ### Adj-RIB-Out native inventory

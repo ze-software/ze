@@ -1,6 +1,7 @@
 package syncutil
 
 import (
+	"context"
 	"maps"
 	"slices"
 	"sync"
@@ -123,5 +124,66 @@ func TestCoalescerKeysRunConcurrently(t *testing.T) {
 	}
 	if calls["stalled"] != 2 || calls["other"] != 1 {
 		t.Fatalf("calls %v, want stalled:2 other:1", calls)
+	}
+}
+
+// TestCoalescerAwait holds the worker inside one key's value, then waits on
+// that key, on a key nothing queued, and on the held key under a context that
+// ends.
+//
+// VALIDATES: Await on a key with nothing queued returns at once; Await on a key
+// being handled returns only after its handler returned; a context that ends
+// first is returned as the error while the handler is still held.
+// PREVENTS: a caller that settles one source's departure before draining its
+// in-flight work reading "settled" while the departure is still being sent.
+func TestCoalescerAwait(t *testing.T) {
+	entered := make(chan struct{})
+	release := make(chan struct{})
+	var done sync.WaitGroup
+	handled := make(chan string, 2)
+	c := NewCoalescer(2,
+		func(waiting, _ int) int { return waiting },
+		func(key string, _ int) {
+			if key == "held" {
+				close(entered)
+				<-release
+			}
+			handled <- key
+		},
+	)
+	defer c.Stop()
+	// Registered after Stop so it runs first: a failure below must not leave
+	// the handler held while Stop waits for it.
+	var releaseOnce sync.Once
+	releaseHandler := func() { releaseOnce.Do(func() { close(release) }) }
+	defer releaseHandler()
+	c.Enqueue("held", 1)
+	<-entered
+
+	if err := c.Await(t.Context(), "idle"); err != nil {
+		t.Fatalf("Await on a key nothing queued: %v", err)
+	}
+	short, cancel := context.WithTimeout(t.Context(), 20*time.Millisecond)
+	defer cancel()
+	if err := c.Await(short, "held"); err == nil {
+		t.Fatal("Await returned nil while the key's handler was still held")
+	}
+
+	awaited := make(chan error, 1)
+	done.Go(func() {
+		awaited <- c.Await(t.Context(), "held")
+	})
+	select {
+	case err := <-awaited:
+		t.Fatalf("Await returned %v before the handler returned", err)
+	case <-time.After(20 * time.Millisecond):
+	}
+	releaseHandler()
+	done.Wait()
+	if err := <-awaited; err != nil {
+		t.Fatalf("Await after the handler returned: %v", err)
+	}
+	if got := <-handled; got != "held" {
+		t.Fatalf("handled %q, want held", got)
 	}
 }

@@ -504,6 +504,8 @@ func (p *Peer) unbindProcesses(r *Reactor, names []string) {
 		return
 	}
 	p.forwardRevocation.Add(1)
+	// The revoked binding's released receipts can never be restored.
+	r.dropReleasedSource(p)
 	sink := bindEventsOf(r)
 	if sink == nil {
 		return

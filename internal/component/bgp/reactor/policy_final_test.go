@@ -143,11 +143,15 @@ func TestPolicyFinalIngressPreservesWithdrawals(t *testing.T) {
 // TestPolicyFinalReloadRetainedRoutes uses live sessions and the registered
 // receive store. The source sends once; final transitions and rollback must
 // withdraw and restore its route without another source UPDATE or a reconnect.
+// Both sessions are EBGP, so removing the export policy is a reject
+// (RFC 8212 Section 3): removal withdraws a held route and restores none, and
+// the source needs an explicit import policy for its route to be eligible.
 func TestPolicyFinalReloadRetainedRoutes(t *testing.T) {
 	settings := []*PeerSettings{lowLiveSettings("192.0.2.1", 65000, 65002), lowLiveSettings("192.0.2.2", 65000, 65003)}
 	for _, setting := range settings {
 		setting.RSClient = true
 	}
+	settings[0].ImportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
 	settings[1].ExportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
 	peers := rsLiveRouter(t, settings...)
 	source, target := peers[0], peers[1]
@@ -164,9 +168,17 @@ func TestPolicyFinalReloadRetainedRoutes(t *testing.T) {
 	absent := target.peer.settingsSnapshot()
 	absent.ExportPolicy = filterapi.Policy{}
 	mustApplyHotSwappableSettings(t, target.peer, absent, hotSwappableSettings)
+	if _, held := ownershipLiveRead(t, target).routes[prefix]; held {
+		t.Fatal("removing a reject export policy on EBGP re-advertised the route")
+	}
+	mustApplyHotSwappableSettings(t, target.peer, previous, hotSwappableSettings)
 	ownershipLiveThrough(t, target, prefix, attrs)
+	mustApplyHotSwappableSettings(t, target.peer, absent, hotSwappableSettings)
+	lowEventually(t, func() bool { _, held := ownershipLiveRead(t, target).routes[prefix]; return !held }, "export policy removal on EBGP withdraws")
 	mustApplyHotSwappableSettings(t, target.peer, next, hotSwappableSettings)
-	lowEventually(t, func() bool { _, held := ownershipLiveRead(t, target).routes[prefix]; return !held }, "reject after removal withdraws again")
+	if _, held := ownershipLiveRead(t, target).routes[prefix]; held {
+		t.Fatal("reject after removal re-advertised the route")
+	}
 	mustApplyHotSwappableSettings(t, target.peer, previous, hotSwappableSettings)
 	ownershipLiveThrough(t, target, prefix, attrs)
 	if target.peer.currentSession() != session {
@@ -177,6 +189,8 @@ func TestPolicyFinalReloadRetainedRoutes(t *testing.T) {
 
 // TestPolicyFinalReloadStaticRoutes observes the normal originated writer on
 // one connection, including restoration of a configured route after denial.
+// The session is EBGP, so an absent export policy withholds originated routes
+// too (RFC 8212 Section 3), from a denied state and from an advertised one.
 func TestPolicyFinalReloadStaticRoutes(t *testing.T) {
 	peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast)
 	peer.settings.LocalAddress = netip.MustParseAddr("10.9.9.9")
@@ -211,9 +225,17 @@ func TestPolicyFinalReloadStaticRoutes(t *testing.T) {
 	next.ExportPolicy = mustPolicy(t, nil, routepolicy.FinalReject)
 	mustApplyHotSwappableSettings(t, peer, next, hotSwappableSettings)
 	assertHeld(false)
-	next = peer.settingsSnapshot()
-	next.ExportPolicy = filterapi.Policy{}
-	mustApplyHotSwappableSettings(t, peer, next, hotSwappableSettings)
+	absent := peer.settingsSnapshot()
+	absent.ExportPolicy = filterapi.Policy{}
+	mustApplyHotSwappableSettings(t, peer, absent, hotSwappableSettings)
+	assertHeld(false)
+	accept := peer.settingsSnapshot()
+	accept.ExportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
+	mustApplyHotSwappableSettings(t, peer, accept, hotSwappableSettings)
+	assertHeld(true)
+	mustApplyHotSwappableSettings(t, peer, absent, hotSwappableSettings)
+	assertHeld(false)
+	mustApplyHotSwappableSettings(t, peer, accept, hotSwappableSettings)
 	assertHeld(true)
 	if peer.currentSession() != session {
 		t.Fatal("static final reload replaced the session")
@@ -361,11 +383,15 @@ func TestPolicyFinalDoesNotReplaceTerminalFailure(t *testing.T) {
 
 // TestPolicyFinalReloadStoreSelfReplay preserves the receive store's existing
 // per-peer fallback when no exclusive replay claimant is attached to that peer.
+// Both sessions are EBGP, so the source carries an explicit import policy and
+// the restoring transition is to an explicit accept: an absent export policy
+// would reject (RFC 8212 Section 3) and replay nothing.
 func TestPolicyFinalReloadStoreSelfReplay(t *testing.T) {
 	settings := []*PeerSettings{lowLiveSettings("192.0.2.1", 65000, 65002), lowLiveSettings("192.0.2.2", 65000, 65003)}
 	for _, setting := range settings {
 		setting.RSClient = true
 	}
+	settings[0].ImportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
 	settings[1].ExportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
 	peers := rsLiveRouter(t, settings...)
 	source, destination := peers[0], peers[1]
@@ -378,7 +404,7 @@ func TestPolicyFinalReloadStoreSelfReplay(t *testing.T) {
 	mustApplyHotSwappableSettings(t, destination.peer, next, hotSwappableSettings)
 	lowEventually(t, func() bool { _, held := ownershipLiveRead(t, destination).routes[prefix]; return !held }, "self-replay setup withdrawal")
 	next = destination.peer.settingsSnapshot()
-	next.ExportPolicy = filterapi.Policy{}
+	next.ExportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
 	var bindings []ProcessBinding
 	for _, binding := range next.ProcessBindings {
 		if binding.PluginName != "bgp-rs" {

@@ -3,7 +3,10 @@
 
 package syncutil
 
-import "sync"
+import (
+	"context"
+	"sync"
+)
 
 // Coalescer is a fixed set of long-lived workers that hand each queued value
 // to its handler, taking keys in the order each was first queued.
@@ -85,6 +88,39 @@ func (c *Coalescer[K, V]) Stop() {
 	c.ready.Broadcast()
 	c.mu.Unlock()
 	c.exited.Wait()
+}
+
+// Await waits until no value of key is waiting or being handled, so every
+// value queued under key before the call has been handled, or until ctx ends,
+// which it returns. A value queued under key while it waits extends the wait.
+// It never waits on another key. Safe for concurrent use.
+func (c *Coalescer[K, V]) Await(ctx context.Context, key K) error {
+	// The cond cannot watch ctx: its end wakes every waiter to look again.
+	wake := context.AfterFunc(ctx, func() {
+		c.mu.Lock()
+		c.ready.Broadcast()
+		c.mu.Unlock()
+	})
+	defer wake()
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for c.holds(key) {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		c.ready.Wait()
+	}
+	return nil
+}
+
+// holds reports whether a value of key waits or is being handled. MUST be
+// called with mu held.
+func (c *Coalescer[K, V]) holds(key K) bool {
+	if _, waiting := c.waiting[key]; waiting {
+		return true
+	}
+	_, busy := c.active[key]
+	return busy
 }
 
 // run is one worker. It handles values until Stop was called and nothing is

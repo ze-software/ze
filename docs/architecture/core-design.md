@@ -2562,7 +2562,12 @@ struct, so a field nobody classified still counts as a change.
 `hotSwappableSettings` is the swap set, and it is a SUBTRACTION from the whole
 struct rather than a list of what matters. Four fields qualify: `ImportPolicy`,
 `ExportPolicy`, `PrefixUpdated` and `StaticRoutes`; `ProcessBindings` does
-for a receive-only binding, and `BFD` for a non-strict opt-in (both below). Every other field forces a
+for a receive-only binding, and `BFD` for a non-strict opt-in (both below). An
+`ImportPolicy` swap that removes an Established session's last accepting
+import policy is a coordinated transaction step of its own: input pauses, the
+route owners invalidate and either restore or finalize, and the section path
+refuses it (`docs/architecture/behavior/peer-lifecycle.md`, "In-place import
+invalidation"). Every other field forces a
 restart, so a field added to `PeerSettings` tomorrow is restart-scoped until
 somebody classifies it on purpose. A wrongly restarted session is visible and
 self-healing; a session left running on settings nobody checked is silent.

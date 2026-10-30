@@ -18,8 +18,9 @@ import (
 const rfc8212FaultOperation rpc.ConfigOperationType = "rfc8212-record-candidate"
 
 // rfc8212ReloadFault retains actual delivered source events and an operation's
-// candidate. This is a transaction participant, NOT an invented invalidation
-// owner. Phase 3 must add the real ownership declaration and lifecycle callbacks.
+// candidate. It is a transaction participant and never a working invalidation
+// owner: in the `unsupported` mode it declares source-policy ownership with no
+// source-policy handler, which the engine's preflight must refuse.
 // Safe for concurrent callback/event delivery; its maps are initialized by driver.
 type rfc8212ReloadFault struct {
 	mu        sync.Mutex
@@ -47,13 +48,7 @@ func rfc8212ReloadFaultDriver(ctx context.Context, args []string) error {
 	if err := os.WriteFile("owner.received", []byte("{}"), 0o600); err != nil {
 		return err
 	}
-	wire := newRFC8212ReloadWire()
-	p.OnEvent(func(event string) error {
-		if err := state.record(event); err != nil {
-			return err
-		}
-		return wire.receive(event)
-	})
+	p.OnEvent(state.record)
 	p.SetStartupSubscriptions([]string{"update", "state"}, []string{"*"}, "full")
 	p.OnConfigApply(func([]sdk.ConfigDiffSection) error {
 		return errors.New("operation participant unexpectedly received coarse apply")
@@ -99,24 +94,33 @@ func rfc8212ReloadFaultDriver(ctx context.Context, args []string) error {
 		if err := os.WriteFile("fault.reached-"+mode, []byte(input.TransactionID), 0o600); err != nil {
 			return nil, err
 		}
+		// This callback holds the SDK event loop, so this process receives no
+		// event until it returns: the downstream is read from the reload
+		// observer's snapshot, and the source's admission from its engine
+		// UPDATE counter, never from this process's own deliveries.
 		if mode != "unsupported" {
-			if err := wire.wait(ctx, "10.72.2.0/24", "10.72.3.0/24"); err != nil {
+			if err := rfc8212DownstreamSettled(ctx, "10.72.2.0/24", "10.72.3.0/24"); err != nil {
 				return nil, fmt.Errorf("source apply did not settle downstream before %s fault: %w", mode, err)
 			}
 		}
 		if mode == "apply" || mode == "commit" || mode == "outer" {
 			epoch := map[string]string{"apply": "2", "commit": "3", "outer": "4"}[mode]
+			prior, err := rfc8212ReloadInput(ctx, p)
+			if err != nil {
+				return nil, err
+			}
 			if err := rfc8212ReloadTrigger(ctx, p, "127.0.0.1", epoch); err != nil {
 				return nil, err
 			}
 			if !waitForFile(ctx, "source.buffered-"+epoch, 80, liveStagesPollDelay) {
 				return nil, errors.New("source never wrote buffered input on its original socket")
 			}
-			state.mu.Lock()
-			delivered := state.received["10.73."+epoch+".0/24"]
-			state.mu.Unlock()
-			if delivered != 0 {
-				return nil, fmt.Errorf("buffered input crossed admission before %s rollback: %d deliveries", mode, delivered)
+			after, err := rfc8212ReloadInput(ctx, p)
+			if err != nil {
+				return nil, err
+			}
+			if after != prior {
+				return nil, fmt.Errorf("buffered input crossed admission before %s rollback: source UPDATE count %d -> %d", mode, prior, after)
 			}
 		}
 		if err := os.WriteFile("fault.injected-"+mode, []byte(input.TransactionID), 0o600); err != nil {
@@ -172,9 +176,17 @@ func rfc8212ReloadFaultDriver(ctx context.Context, args []string) error {
 		}
 		return nil
 	})
+	unsupported, err := rfc8212ReloadUnsupportedOwner()
+	if err != nil {
+		return err
+	}
 	err = p.Run(ctx, &sdk.Registration{
 		WantsConfig: []string{"environment"}, ApplyBudget: 5,
-		ConfigOperations: []rpc.ConfigOperationDecl{{Root: "environment", Decompose: true, Operations: []rpc.ConfigOperationType{rfc8212FaultOperation}}},
+		// The SDK derives SourcePolicy from a registered handler and this
+		// process registers none, so the declaration alone is what the
+		// preflight sees: retained source state it cannot invalidate.
+		SourcePolicyOwner: unsupported,
+		ConfigOperations:  []rpc.ConfigOperationDecl{{Root: "environment", Decompose: true, Operations: []rpc.ConfigOperationType{rfc8212FaultOperation}}},
 	})
 	state.mu.Lock()
 	died := state.died
@@ -225,4 +237,19 @@ func rfc8212ReloadRefusalGuard(ctx context.Context, args []string) error {
 		return os.WriteFile("refusal.applied", []byte("apply reached"), 0o600)
 	})
 	return p.Run(ctx, &sdk.Registration{WantsConfig: []string{"bgp"}})
+}
+
+// rfc8212ReloadUnsupportedOwner reports whether `reload/rfc8212-select-owner
+// unsupported` ran before the daemon started. The mode file is optional: a test
+// that never selects an owner fault runs the plain participant.
+func rfc8212ReloadUnsupportedOwner() (bool, error) {
+	mode, err := os.ReadFile("owner.mode")
+	// refuse-by-default: guards rfc8212ReloadFaultDriver -- no mode file means no owner fault was selected
+	if errors.Is(err, os.ErrNotExist) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return strings.TrimSpace(string(mode)) == "unsupported", nil
 }

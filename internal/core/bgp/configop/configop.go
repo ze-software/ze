@@ -25,4 +25,9 @@ const (
 	AddPeer    rpc.ConfigOperationType = "add-peer"
 	RemovePeer rpc.ConfigOperationType = "remove-peer"
 	ModifyPeer rpc.ConfigOperationType = "modify-peer"
+	// ReconcilePeers applies the rest of a bgp diff the peer operations of the
+	// same decomposition do not carry (a group's or a grouped peer's change):
+	// it reconciles every peer against the candidate root it carries, after
+	// those operations, under its own journal.
+	ReconcilePeers rpc.ConfigOperationType = "reconcile-peers"
 )

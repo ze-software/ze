@@ -22,12 +22,30 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
-// PolicyInfo is the operational policy after inheritance and canonicalization.
-// An empty Final means automatic filters only, with no configured operator final.
+// PolicyInfo is the operational policy after inheritance and canonicalization,
+// with the direction's effective final.
+//
+// Final is PolicyFinalAccept or PolicyFinalReject for a configured policy and for
+// a known EBGP session with no policy, PolicyFinalUndetermined for an absent
+// policy on a session whose type is not known yet (a dynamic peer before it
+// establishes), and empty for an absent policy on a known IBGP session, which
+// carries automatic filters only. FinalSource is empty for a configured final and
+// PolicyFinalSourceRFC8212 for the reject that RFC 8212 Section 3 derives for an
+// EBGP session with no explicit policy, so a default reject is never read as one
+// the operator configured.
 type PolicyInfo struct {
-	Filters []string `json:"filters"`
-	Final   string   `json:"final,omitempty"`
+	Filters     []string `json:"filters"`
+	Final       string   `json:"final,omitempty"`
+	FinalSource string   `json:"final-source,omitempty"`
 }
+
+// The values PolicyInfo.Final and PolicyInfo.FinalSource carry.
+const (
+	PolicyFinalAccept        = "accept"
+	PolicyFinalReject        = "reject"
+	PolicyFinalUndetermined  = "undetermined"
+	PolicyFinalSourceRFC8212 = "rfc8212"
+)
 
 // PeerState represents the high-level state of a BGP peer.
 type PeerState uint8
@@ -427,7 +445,12 @@ type PolicyDryRunResult struct {
 	Peer      string `json:"peer"`
 	Action    string `json:"action"`
 	// Reason explains an undetermined action when the remote AS is unresolved.
-	Reason       string             `json:"reason,omitempty"`
+	Reason string `json:"reason,omitempty"`
+	// Policy is the direction's effective policy in the PolicyInfo form peer
+	// detail reports, so the exhaustion verdict stays distinct from Action: a
+	// pure withdrawal is accepted under a default-reject policy. Nil for an
+	// absent direction on an IBGP session with no automatic filters.
+	Policy       *PolicyInfo        `json:"policy,omitempty"`
 	Trace        []PolicyTraceEntry `json:"trace"`
 	TextBefore   string             `json:"text-before"`
 	TextAfter    string             `json:"text-after"`

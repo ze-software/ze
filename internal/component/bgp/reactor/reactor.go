@@ -333,6 +333,13 @@ type Reactor struct {
 	// doing synchronous TCP writes, eliminating head-of-line blocking.
 	fwdPool *fwdPool
 
+	// sourcePolicy holds the in-place import invalidations a config
+	// transaction owns until it is accepted or rejected (source_policy_reload.go).
+	sourcePolicy sourcePolicyCoordinator
+	// operationCandidate is the current reload transaction's resolved
+	// candidate config, shared by its operations (operation_candidate.go).
+	operationCandidate operationCandidateSlot
+
 	// fwdWeights tracks per-peer buffer demand and recalculates pool
 	// budget when peers are added, removed, or complete EOR.
 	fwdWeights *weightTracker
@@ -489,6 +496,11 @@ type Reactor struct {
 	// reloadFunc is called by Reload() to get the list of peers from config.
 	// Set via SetReloadFunc. If nil, Reload() returns an error.
 	reloadFunc ReloadFunc
+
+	// treeReloadFunc builds the peers of a configuration tree the caller
+	// hands over, through the same pipeline as reloadFunc. Set via
+	// SetTreeReloadFunc (reload_tree.go).
+	treeReloadFunc TreeReloadFunc
 
 	// postStartFunc is called after the API server starts.
 	// Used by config loader to wire deferred components (SSH executor, authz).

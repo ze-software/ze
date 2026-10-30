@@ -19,6 +19,7 @@ func rfc8212ReloadDriver(scenario func(context.Context, *sdk.Plugin, *rfc8212Rel
 			return errors.New("RFC8212 reload observer takes no arguments")
 		}
 		wire := newRFC8212ReloadWire()
+		wire.snapshot = rfc8212DownstreamFile
 		return observeConfigured(ctx, "rfc8212-reload", &sdk.Registration{}, func(p *sdk.Plugin) error {
 			p.OnEvent(wire.receive)
 			p.SetStartupSubscriptions([]string{"update", "state"}, []string{"*"}, "full")
@@ -218,6 +219,54 @@ func rfc8212ReloadNoRefresh(ctx context.Context, p *sdk.Plugin, wire *rfc8212Rel
 }
 
 func rfc8212ReloadInvalidate(ctx context.Context, p *sdk.Plugin, wire *rfc8212ReloadWire, tree *config.Tree, schema *config.Schema) error {
+	return rfc8212ReloadInvalidateBy(ctx, p, wire, tree, schema, func(tree *config.Tree) error {
+		return rfc8212ReloadPolicy(tree, "absent")
+	})
+}
+
+// rfc8212ReloadInherited removes the import policy peer-1 inherits from its
+// group, so the same invalidation must follow a change at the group layer.
+func rfc8212ReloadInherited(ctx context.Context, p *sdk.Plugin, wire *rfc8212ReloadWire, tree *config.Tree, schema *config.Schema) error {
+	return rfc8212ReloadInvalidateBy(ctx, p, wire, tree, schema, rfc8212ReloadGroupImportAbsent)
+}
+
+// rfc8212ReloadGroupImportAbsent removes group sources' import policy. The
+// group MUST carry one and peer-1 MUST NOT, or the edit changes nothing peer-1
+// inherits and the scenario would test the wrong layer.
+func rfc8212ReloadGroupImportAbsent(tree *config.Tree) error {
+	bgp := tree.GetContainer("bgp")
+	if bgp == nil {
+		return errors.New("fixture omitted bgp")
+	}
+	group := bgp.GetList("group")["sources"]
+	if group == nil {
+		return errors.New("fixture omitted group sources")
+	}
+	filter := group.GetContainer("filter")
+	if filter == nil {
+		return errors.New("fixture omitted the group filter")
+	}
+	if filter.GetContainer("import") == nil {
+		return errors.New("fixture omitted the group import policy")
+	}
+	peer := group.GetList("peer")["peer-1"]
+	if peer == nil {
+		return errors.New("fixture omitted peer-1 inside group sources")
+	}
+	if own := peer.GetContainer("filter"); own != nil {
+		if own.GetContainer("import") != nil {
+			return errors.New("peer-1 carries its own import policy, so the group edit is not inherited")
+		}
+	}
+	filter.RemoveContainer("import")
+	return nil
+}
+
+// rfc8212ReloadInvalidateBy seeds the three sessions, applies edit (which
+// removes the source's last accepting import layer) through a live reload, and
+// checks the downstream withdrawal, the re-election, the unchanged export to
+// the source and the preserved session identity.
+func rfc8212ReloadInvalidateBy(ctx context.Context, p *sdk.Plugin, wire *rfc8212ReloadWire, tree *config.Tree, schema *config.Schema, edit func(*config.Tree) error) error {
 	if err := rfc8212ReloadSeed(ctx, p, wire, true); err != nil {
 		return err
 	}
@@ -225,7 +274,7 @@ func rfc8212ReloadInvalidate(ctx context.Context, p *sdk.Plugin, wire *rfc8212Re
 	if err != nil {
 		return err
 	}
-	if err := rfc8212ReloadPolicy(tree, "absent"); err != nil {
+	if err := edit(tree); err != nil {
 		return err
 	}
 	if err := policyFinalReload(ctx, p, config.Serialize(tree, schema), "applied"); err != nil {

@@ -19,6 +19,11 @@ import (
 //  3. Update the withdrawal map AFTER forwarding using the pre-extracted records,
 //     keeping per-prefix string-keyed map maintenance off the forward critical path.
 func (rs *routeServer) processForward(key workerKey, item workItem) {
+	if item.barrier != nil {
+		rs.flushWorkerBatch(key)
+		close(item.barrier)
+		return
+	}
 	if item.validation.Prefix.IsValid() || item.validation.NLRI != "" {
 		rs.processValidation(key, item.validation)
 		return

@@ -228,6 +228,8 @@ func (p *Peer) sessionDown(session *Session, publication *receivePublication, de
 	reactor := p.reactor
 	p.mu.RUnlock()
 	if reactor != nil {
+		// The departed session's released receipts can never be restored.
+		reactor.dropReleasedSource(p)
 		p.announceDown(reactor, closed)
 	}
 	peerLogger().Info("session closed", "peer", p.settings.Address.String(), "reason", reason)

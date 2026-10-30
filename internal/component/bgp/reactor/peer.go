@@ -303,6 +303,19 @@ type Peer struct {
 	// Only advanceSourcePolicyEpoch writes it; retained work MUST keep its original value.
 	sourcePolicyEpoch atomic.Uint64
 
+	// sourcePolicyWindow is the in-place import invalidation this source
+	// holds open, nil when none: the epoch its apply issued and, once it
+	// aborted, the epoch the abort issued. Only the coordinator writes it
+	// (source_policy_reload.go); the final writer reads it to keep and to
+	// re-admit released receipts (adjOutWrite.keepReleased, sentOwnerCurrent).
+	sourcePolicyWindow atomic.Pointer[sourcePolicyWindow]
+
+	// establishGate joins establishment to an import swap's admission
+	// boundary (enterEstablished, swapImportFalling): a swap that removes the
+	// last accepting import policy of a peer it finds not Established
+	// publishes under it, and establishment waits it out before admitting.
+	establishGate sync.Mutex
+
 	// forwardRevocation fences this source's Adj-RIB-Out ownership across a
 	// targeted down on a session that stays up (unbindProcesses), which moves no
 	// generation. Every adj-out owner records it at write (adjOutPath.revocation);
@@ -2049,6 +2062,12 @@ func (p *Peer) stopWithCease(subcode uint8) {
 		_ = session.Teardown(subcode, "")
 	}
 	p.Stop()
+	// The stopped Peer never restarts, so no abort restore can name its
+	// released receipts again.
+	p.mu.RLock()
+	reactor := p.reactor
+	p.mu.RUnlock()
+	reactor.dropReleasedSource(p)
 }
 
 // peerStop is a stop a caller decided under r.mu and runs once it has released

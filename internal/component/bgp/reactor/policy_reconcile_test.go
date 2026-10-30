@@ -153,7 +153,10 @@ func policyStopReplayStore(t *testing.T, server *pluginserver.Server, destinatio
 // when one reload removes both an accepting policy and a configured route.
 func TestPolicyFinalAcceptRemovalWithdrawsRemovedStatic(t *testing.T) {
 	peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast)
-	peer.reactor = &Reactor{clock: clock.RealClock{}}
+	// The withdrawal selects its target by address from the reactor's peers
+	// (WithdrawNLRIBatch), so the peer is registered there as AddPeer would.
+	peer.reactor = &Reactor{clock: clock.RealClock{},
+		peers: map[netip.AddrPort]*Peer{peer.Settings().PeerKey(): peer}}
 	peer.settings.ExportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
 	peer.settings.StaticRoutes = []StaticRoute{staticRouteAt("10.17.2.0/24", "10.9.9.9")}
 	peer.sendInitialRoutes()
@@ -349,6 +352,10 @@ func TestPolicyFinalFlowSpecOnlyRestorationWithoutReceiveStore(t *testing.T) {
 	settings := []*PeerSettings{source, destination}
 	for _, setting := range settings {
 		setting.RSClient = true
+		// Both sessions are EBGP, and RFC 8212 Section 3 rejects at an absent
+		// policy, so each carries explicit accepting import and export policies.
+		setting.ImportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
+		setting.ExportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
 		for _, binding := range []struct{ name, receive string }{
 			{"bgp-rib", "update state refresh"},
 			{"bgp-rs", "update-received state open-received refresh"},

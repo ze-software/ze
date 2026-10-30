@@ -1,10 +1,12 @@
 // Design: docs/architecture/bgp/structural-forwarding.md -- validation-triggered reflection
 // RFC: rfc/short/rfc8955.md -- Section 6, unicast-triggered revalidation
+// Related: source_policy.go -- each source-policy phase waits for the worker (settleValidation)
 package rr
 
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -17,50 +19,110 @@ import (
 
 var validationBus atomic.Pointer[ze.EventBus]
 
+// validationQueue is the reflector's revalidation worker state: notifications
+// coalesce by received path in pending while the worker performs RPC, and a
+// settle barrier queued in settles is closed once the batch it joined has
+// been relayed. wake holds at most one signal; done is closed when the worker
+// returns. mu guards pending and settles. Safe for concurrent use.
+type validationQueue struct {
+	mu      sync.Mutex
+	pending map[ribevents.ValidationRoute]struct{}
+	settles []chan struct{}
+	wake    chan struct{}
+	done    chan struct{}
+}
+
+// signal wakes the worker, or leaves the wake already pending to collect
+// what the caller queued.
+func (q *validationQueue) signal() {
+	select {
+	case q.wake <- struct{}{}:
+	default:
+		// A pending wake will collect the queued work as well.
+	}
+}
+
 // startValidation MUST be paired with the returned stop function before closing
-// the SDK connection. Notifications coalesce by received path while the worker
-// performs RPC. The callback MUST NOT wait for that worker: its RPC may need the
-// same receive-store command handler that is publishing the notification.
+// the SDK connection, and MUST be called before the source-policy worker runs
+// (before Run): it publishes the queue settleValidation reads. Notifications
+// coalesce by received path while the worker performs RPC. The callback MUST
+// NOT wait for that worker: its RPC may need the same receive-store command
+// handler that is publishing the notification.
 func (rr *routeReflector) startValidation(parent context.Context, bus ze.EventBus) func() {
 	ctx, cancel := context.WithCancel(parent)
-	wake := make(chan struct{}, 1)
-	var mu sync.Mutex
-	pending := make(map[ribevents.ValidationRoute]struct{})
-	done := make(chan struct{})
+	q := &validationQueue{
+		pending: make(map[ribevents.ValidationRoute]struct{}),
+		wake:    make(chan struct{}, 1),
+		done:    make(chan struct{}),
+	}
+	rr.validation = q
 	unsubscribe := ribevents.ValidationChange.Subscribe(bus, func(routes []ribevents.ValidationRoute) {
-		mu.Lock()
+		q.mu.Lock()
 		for _, route := range routes {
-			pending[route] = struct{}{}
+			q.pending[route] = struct{}{}
 		}
-		mu.Unlock()
-		select {
-		case wake <- struct{}{}:
-		default:
-			// A pending wake will collect these keys as well.
-		}
+		q.mu.Unlock()
+		q.signal()
 	})
-	go func() {
-		defer close(done)
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-wake:
-				mu.Lock()
-				routes := make([]ribevents.ValidationRoute, 0, len(pending))
-				for route := range pending {
-					routes = append(routes, route)
-				}
-				clear(pending)
-				mu.Unlock()
-				rr.replayValidation(ctx, routes)
-			}
-		}
-	}()
+	go rr.runValidation(ctx, q)
 	return func() {
 		cancel()
 		unsubscribe()
-		<-done
+		<-q.done
+	}
+}
+
+// runValidation is the revalidation worker startValidation starts: it relays
+// each coalesced batch, then closes the settle barriers queued with it. It
+// returns when ctx ends, closing q.done.
+func (rr *routeReflector) runValidation(ctx context.Context, q *validationQueue) {
+	defer close(q.done)
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-q.wake:
+			q.mu.Lock()
+			routes := make([]ribevents.ValidationRoute, 0, len(q.pending))
+			for route := range q.pending {
+				routes = append(routes, route)
+			}
+			clear(q.pending)
+			settles := q.settles
+			q.settles = nil
+			q.mu.Unlock()
+			rr.replayValidation(ctx, routes)
+			for _, settle := range settles {
+				close(settle)
+			}
+		}
+	}
+}
+
+// settleValidation returns once every revalidation the worker held or was
+// relaying when it was called has been relayed: a ValidationChange the
+// receive store published is queued for the worker, so an event drain does
+// not settle it. It refuses when the worker stopped or ctx ended first. One
+// source-policy phase runs at a time, so at most one barrier waits.
+func (rr *routeReflector) settleValidation(ctx context.Context) error {
+	q := rr.validation
+	// refuse-by-default: guards startValidation -- with no event bus no worker was started, so no revalidation can be queued
+	if q == nil {
+		return nil
+	}
+	settle := make(chan struct{})
+	q.mu.Lock()
+	q.settles = append(q.settles, settle)
+	q.mu.Unlock()
+	q.signal()
+	select {
+	case <-settle:
+		return nil
+	case <-q.done:
+		return errors.New("the revalidation worker stopped before it relayed its queued paths")
+	case <-ctx.Done():
+		return errors.New("its revalidation relays did not reach the engine before the source-policy deadline: " +
+			ctx.Err().Error())
 	}
 }
 

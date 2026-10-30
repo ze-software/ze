@@ -489,13 +489,16 @@ back with a session and no routes.
 <!-- source: internal/component/bgp/reactor/operation.go -- runningPeerSettings -->
 <!-- source: internal/component/bgp/config/peers.go -- peersAndDynamicGroups -->
 
-**Verify applies no dynamic group.** The ReloadFunc returns the peers, the
-globals and the dynamic groups, and installs none of them, so verify and the
-budget estimate leave the running reactor as it was. A reactor built with no
-ReloadFunc (the tree route) reads no group at all, and answers "not read",
-which the dynamic step treats as "leave every dynamic peer as it is", never as
-"every group is gone".
-<!-- source: internal/component/bgp/config/loader_create.go -- createReloadFunc -->
+**Verify applies no dynamic group.** The reload loaders return the peers, the
+globals and the dynamic groups, and install none of them, so verify and the
+budget estimate leave the running reactor as it was. A file-configured reactor
+has two, sharing one pipeline: the ReloadFunc re-reads the file, and the
+TreeReloadFunc loads the tree the coordinator hands ApplyConfigDiff; verify
+keeps the file. A reactor built with neither (the tree route) reads no group
+at all, and answers "not read", which the dynamic step treats as "leave every
+dynamic peer as it is", never as "every group is gone".
+<!-- source: internal/component/bgp/config/loader_create.go -- createReloadFunc, createTreeReloadFunc, reloadPeersFromTree -->
+<!-- source: internal/component/bgp/reactor/reload_tree.go -- loadPeersFromConfig -->
 <!-- source: internal/component/bgp/reactor/reactor_dynamic.go -- dynamicGroupsLoad -->
 
 **Dynamic peers are reconciled by their own journaled step, the first one after
@@ -516,7 +519,33 @@ allows it.** The decision is `peerSettingsSwapPlan`, the same one the section
 apply's reconcile takes, so which path a reload travels does not decide whether
 the operator's session bounces.
 <!-- source: internal/component/bgp/reactor/operation.go -- swapPeerForOperation -->
+
+**A transaction resolves its candidate peers once.** An add-peer or
+modify-peer takes its peer from the candidate the reload function loads, a full
+read and parse of the config. A bgp-level change on N peers would cost 2N of
+those, one per operation in verify and again in apply, so the reactor keeps the
+candidate of the current transaction, keyed by its transaction ID (verify
+receives it, apply reads it from the operation's journal), and hands each
+operation its own copy of its peer, because `AddPeer` keeps the pointer it is
+given. The transaction's `config-complete` receipt drops the candidate, and a
+resolution for any other transaction replaces it, so at most one transaction's
+candidate is held.
+<!-- source: internal/component/bgp/reactor/operation_candidate.go -- operationCandidateSlot, operationCandidatePeer -->
+<!-- source: internal/component/bgp/reactor/operation.go -- VerifyConfigOperation, reloadCandidatePeer -->
 <!-- source: internal/component/bgp/reactor/peer_settings_apply.go -- peerSettingsSwapPlan -->
+
+**A reconcile-peers carries the rest of a bgp diff the peer operations leave.**
+A root that owns operations gets no section apply, so a change no operation
+names, such as another group's hold-time, the `router-id` or a dynamic group
+beside a group's import-layer change, would be dropped. The bgp decomposer
+emits one `reconcile-peers` when the bgp root without its static peer bodies
+changed, or when a peer no other operation names resolves differently, and it
+consumes every peer those
+operations produce, so it runs after them. The reactor applies it as the
+section apply's reconcile over the candidate root, under the operation's own
+journal: a later failure undoes it with the rest of the commit.
+<!-- source: internal/component/bgp/plugin/operation.go -- bgpResidualOperation -->
+<!-- source: internal/component/bgp/reactor/operation.go -- ApplyConfigOperation, operationBGPTree -->
 
 **A test that reaches a plugin: `test/reload/config-apply-ordering-coarse-root.ci`.**
 It changes one root nothing decomposes and asserts the line the receiving plugin

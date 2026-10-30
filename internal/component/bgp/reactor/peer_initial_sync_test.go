@@ -47,6 +47,9 @@ func newInitialSyncPeer(t *testing.T, established bool, families ...family.Famil
 	peer.negotiated.Store(nc)
 
 	session := NewSession(settings)
+	// The session writes the peer's own Adj-RIB-Out, as every session the peer
+	// runs does (peer_run.go binds it after newSession).
+	session.adjOut = &peer.adjOut
 	if established {
 		require.NoError(t, session.fsm.Event(fsm.EventManualStart))
 		require.NoError(t, session.fsm.Event(fsm.EventTCPConnectionConfirmed))

@@ -255,18 +255,33 @@ func (a *reactorAPIAdapter) announceBatchToPeers(ctx context.Context, targets []
 }
 
 // sendBatchUpdate carries explicit local or captured sent-owner authority all
-// the way to the final writer; no post-send producer mutates adjOut.
+// the way to the final writer; no post-send producer mutates adjOut. A
+// sent-owner write also carries the request's SourcePolicyEpoch: the writer
+// resolves the received owner from the exact receipt (its entry, or the
+// released record of one an invalidation removed) and admits the
+// announcement only when the reactor's own record of that owner agrees and
+// the epoch is the live one of a source Peer that still exists
+// (sentOwnerCurrent). Its withdrawal is never fenced.
+// RFC 8212 Section 3 (sentOwnerCurrent).
 func (target announceTarget) sendBatchUpdate(ctx context.Context, update *message.Update, maxSize int, addPath bool, batch bgptypes.NLRIBatch) error {
 	if batch.InitialReplay == 0 && batch.SentOwnerMessage != 0 && target.peer.withdrawBehindForwards() {
-		return target.queueBehindForwards(batch.SentOwnerMessage, batch.Replay)(ctx, update, maxSize, addPath)
+		// RFC 8212 Section 3 (sentOwnerCurrent): the queued item
+		// carries the request's epoch to the same final writer.
+		return target.queueBehindForwards(batch.SentOwnerMessage, batch.SourcePolicyEpoch, batch.Replay)(ctx, update, maxSize, addPath)
 	}
 	owner := fwdItem{peer: target.peer, session: target.session, originated: true}
 	if batch.SentOwnerMessage != 0 {
 		owner.authority = adjOutExpected
 		owner.expectedMessage = batch.SentOwnerMessage
+		// RFC 8212 Section 3 (sentOwnerCurrent): the request's
+		// admission of a received route, judged by the final writer
+		// against the exact receipt's owner. An initial
+		// replay below sets its own.
+		owner.sourcePolicyEpoch = batch.SourcePolicyEpoch
 	}
 	if batch.InitialReplay != 0 {
 		owner.authority = adjOutInitial
+		owner.sourcePolicyEpoch = 0 // A local replay carries none; a received one is set below.
 		owner.initialUpdate = true
 		owner.initialReplay = batch.InitialReplay
 		owner.initialLocal = batch.InitialLocal
@@ -700,7 +715,7 @@ func (a *reactorAPIAdapter) withdrawBatchFromPeers(ctx context.Context, peers []
 			target := announceTarget{peer: peer, session: peer.currentSession()}
 			var sendErr error
 			if peer.withdrawBehindForwards() {
-				sendErr = target.queueBehindForwards(batch.SentOwnerMessage, batch.Replay)(ctx, update, maxMsgSize, facts.addPath)
+				sendErr = target.queueBehindForwards(batch.SentOwnerMessage, batch.SourcePolicyEpoch, batch.Replay)(ctx, update, maxMsgSize, facts.addPath)
 			} else {
 				sendErr = target.sendBatchUpdate(ctx, update, maxMsgSize, facts.addPath, batch)
 			}
@@ -736,7 +751,7 @@ var errForwardPoolStopped = errors.New("forward pool stopped: update not queued"
 //
 // The write happens later on the worker, which logs a failure: a nil answer
 // means queued, as a forwarded UPDATE's does.
-func (target announceTarget) queueBehindForwards(expectedMessage uint64, replay bool) func(context.Context, *message.Update, int, bool) error {
+func (target announceTarget) queueBehindForwards(expectedMessage, sourcePolicyEpoch uint64, replay bool) func(context.Context, *message.Update, int, bool) error {
 	return func(_ context.Context, update *message.Update, maxMsgSize int, addPath bool) error {
 		key := fwdKey{peerAddr: target.peer.settings.PeerKey()}
 		s := message.GetSplitter()
@@ -746,6 +761,7 @@ func (target announceTarget) queueBehindForwards(expectedMessage uint64, replay 
 			if expectedMessage != 0 {
 				item.authority = adjOutExpected
 				item.expectedMessage = expectedMessage
+				item.sourcePolicyEpoch = sourcePolicyEpoch
 			}
 			if replay {
 				item.meta = map[string]any{"replay": true}

@@ -177,10 +177,15 @@ func (a *reactorAPIAdapter) PolicyDryRun(peerAddr, direction, filterOverride str
 	if !found {
 		return nil, errPeerNotFound
 	}
+	// The direction's effective policy, taken before any filter override: an
+	// override replaces the refs and keeps the disposition, and the report is
+	// the policy the live session runs, not the one-filter test chain.
+	effective := policyInfo(policy, policySessionOf(peerAS, internal))
 	if peerAS == 0 {
 		return &plugin.PolicyDryRunResult{
 			Direction: direction,
 			Peer:      peerAddr,
+			Policy:    effective,
 			Action:    "undetermined",
 			Reason:    "remote AS is unresolved; wait for the peer session to establish, then repeat show policy test",
 		}, nil
@@ -283,6 +288,7 @@ func (a *reactorAPIAdapter) PolicyDryRun(peerAddr, direction, filterOverride str
 		Direction:    direction,
 		Peer:         peerAddr,
 		Action:       actionStr,
+		Policy:       effective,
 		Trace:        trace,
 		TextBefore:   textBefore,
 		TextAfter:    textAfter,

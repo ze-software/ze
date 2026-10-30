@@ -2764,6 +2764,10 @@ If the remote AS is unresolved, `action` is `undetermined` and `reason` tells yo
 to wait for establishment and repeat `show policy test`. No filter executes,
 including a single-filter override. Trace and text are empty, with no wire
 changes. For a known EBGP session, an absent direction has a rejecting final.
+`policy` reports the direction's effective final, as `show policy chain` does:
+`final-source: rfc8212` marks the RFC 8212 default reject on an EBGP direction
+with no policy, and `undetermined` an absent direction whose session type is not
+known yet.
 <!-- source: internal/component/bgp/reactor/policy_dryrun.go -- PolicyDryRun -->
 
 `text-before` and `text-after` name every attribute the UPDATE carries. Five of

@@ -106,6 +106,14 @@ type routeReflector struct {
 	// withdrawals tracks announced routes per source peer for withdrawal on peer-down.
 	// sourcePeer -> routeKey (family|prefix) -> withdrawalInfo.
 	withdrawals map[string]map[string]withdrawalInfo
+	// sourcePolicy holds each source's open source-policy transaction
+	// (source_policy.go), keyed like withdrawals and guarded by withdrawalMu.
+	sourcePolicy map[string]*sourcePolicyTxn
+	// forwards counts the received UPDATEs being reflected, and validation
+	// is the revalidation worker (nil without an event bus): a source-policy
+	// phase waits for both (settleSource).
+	forwards   forwardGate
+	validation *validationQueue
 
 	// departures holds the workers that send each departed source's routes
 	// to the engine (sendPeerDown), up to departureWorkers sources at once,
@@ -117,6 +125,12 @@ type routeReflector struct {
 	departureMu       sync.Mutex
 	departures        *syncutil.Coalescer[netip.Addr, map[string]withdrawalInfo]
 	departuresStopped bool
+	// departing counts each source's departures queued or running, so a
+	// source-policy prepare can wait for them (awaitDepartures). merged is
+	// set by the Coalescer's merge, which runs inside Enqueue, so an enqueue
+	// merged into a waiting departure adds no count. departureMu guards both.
+	departing map[netip.Addr]*departureWait
+	merged    bool
 	// downCtx bounds every peer-down recovery request. It is canceled at
 	// shutdown and carries no deadline: the engine keeps a departure's keys
 	// owed until it decides them, so a command timeout would only stop the
@@ -143,7 +157,13 @@ func runRouteReflector(conn net.Conn) int {
 			"configure it as plugin { internal <name> { use bgp-rr } }")
 		return 1
 	}
+	return serveRouteReflector(p)
+}
 
+// serveRouteReflector registers the reflector's callbacks on p and runs it
+// until the connection ends. runRouteReflector's process check comes first:
+// only a test of the SDK callbacks over the wire transport calls it alone.
+func serveRouteReflector(p *sdk.Plugin) int {
 	downCtx, stopDown := context.WithCancel(context.Background())
 	rr := &routeReflector{
 		plugin:      p,
@@ -167,10 +187,12 @@ func runRouteReflector(conn net.Conn) int {
 					// Update withdrawal map BEFORE forwarding: the forward path can
 					// trigger cache eviction which frees the pool buffer backing
 					// msg.WireUpdate. Reading WireUpdate after forward is use-after-free.
+					rr.forwards.enter()
 					rr.withdrawalMu.Lock()
 					rr.updateWithdrawalMapWire(se.PeerAddress, msg)
 					rr.withdrawalMu.Unlock()
 					rr.forwardUpdate(msg.MessageID)
+					rr.forwards.leave()
 				}
 			case rpc.EventKindState:
 				rr.handleStructuredState(se)
@@ -194,6 +216,9 @@ func runRouteReflector(conn net.Conn) int {
 		rr.dispatchText(eventStr)
 		return nil
 	})
+
+	// RFC 8212 Section 3: the source-policy lifecycle owner (source_policy.go).
+	p.OnSourcePolicy(rr.handleSourcePolicy)
 
 	// Register command handler.
 	p.OnExecuteCommand(func(_, command string, _ []string, _ string) (string, any, error) {
@@ -386,6 +411,7 @@ func (rr *routeReflector) handleStateDown(peerAddr string, generation uint64) {
 	rr.withdrawalMu.Lock()
 	entries := rr.withdrawals[peerAddr]
 	delete(rr.withdrawals, peerAddr)
+	rr.dropSourcePolicyLocked(peerAddr)
 	rr.withdrawalMu.Unlock()
 
 	if len(entries) == 0 {
@@ -456,13 +482,31 @@ func (rr *routeReflector) enqueueDeparture(source netip.Addr, entries map[string
 	if rr.departures == nil {
 		rr.departures = syncutil.NewCoalescer(departureWorkers,
 			func(waiting, next map[string]withdrawalInfo) map[string]withdrawalInfo {
+				// Runs inside Enqueue, under departureMu (merged).
+				rr.merged = true
 				maps.Copy(waiting, next)
 				return waiting
 			},
-			rr.sendPeerDown,
+			rr.sendDeparture,
 		)
 	}
-	return rr.departures.Enqueue(source, entries)
+	rr.merged = false
+	if !rr.departures.Enqueue(source, entries) {
+		return false
+	}
+	if rr.merged {
+		return true
+	}
+	if rr.departing == nil {
+		rr.departing = make(map[netip.Addr]*departureWait)
+	}
+	wait := rr.departing[source]
+	if wait == nil {
+		wait = &departureWait{idle: make(chan struct{})}
+		rr.departing[source] = wait
+	}
+	wait.count++
+	return true
 }
 
 // stopDepartures refuses further departures and, when the workers were
@@ -699,12 +743,14 @@ func (rr *routeReflector) dispatchText(text string) {
 		// Update withdrawal map from text before forwarding.
 		peerAddr := fields[1]
 		ops := parseTextNLRIOps(text)
+		rr.forwards.enter()
 		if len(ops) > 0 {
 			rr.withdrawalMu.Lock()
 			rr.updateWithdrawalMapText(peerAddr, ops, sourcePolicyEpoch)
 			rr.withdrawalMu.Unlock()
 		}
 		rr.forwardUpdate(msgID)
+		rr.forwards.leave()
 	}
 }
 
@@ -928,11 +974,12 @@ func routeReflectorRegistration() *sdk.Registration {
 		CacheConsumer:          true,
 		CacheConsumerUnordered: true,
 		// SourcePolicyOwner: this plugin keeps per-source state for the peers
-		// whose UPDATEs it receives (forwarded routes and the withdrawal map),
-		// and registers no OnSourcePolicy handler, so it cannot drop that state
-		// when the source's import policy is removed. Declaring ownership makes
-		// the engine refuse such a change before publication rather than leave
-		// the forwarded routes in place (RFC 8212 Section 3).
+		// whose UPDATEs it receives (forwarded routes and the withdrawal map).
+		// Run also sets it, with SourcePolicy, from the OnSourcePolicy handler
+		// serveRouteReflector registers (source_policy.go); declaring it here
+		// keeps the compiled declaration an owner even without that handler,
+		// so the engine refuses rather than treats it as an observer
+		// (RFC 8212 Section 3).
 		SourcePolicyOwner: true,
 		Commands:          commandDecls(),
 	}

@@ -162,6 +162,46 @@ func sourcePolicyCurrent(peer *Peer, epoch uint64) bool {
 	return peer == nil || (epoch != 0 && peer.sourcePolicyEpoch.Load() == epoch)
 }
 
+// sentOwnerCurrent is the import-policy fence for a plugin's re-send of an
+// exact sent advertisement (an adjOutExpected write: bgp-rib's replay, resend
+// or abort restore). The reactor decides it; the request's epoch alone never
+// does, since any plugin can learn the live one. owner is the exact receipt's
+// owner, from the destination's entry or, for a receipt an invalidation
+// removed, its released record, whose stamp is window (zero for an entry);
+// epoch is the request's SourcePolicyEpoch, under which an admitted write
+// re-owns the entry. A nil source is a local origin and is current. Otherwise
+// the source Peer must still exist (a Peer a configuration change removed is
+// stopping and never restarts; its replacement is another Peer with its own
+// epoch), epoch must be the live one, and either:
+//   - a live entry's own admission is that live epoch, or
+//   - the released record is stamped with the invalidation whose abort issued
+//     the live epoch (sourcePolicyWindow), so the write is its abort restore.
+//
+// Everything else is refused: an entry admitted under a superseded policy, a
+// record of a finalized or another invalidation. Lock-free; the writer calls
+// it under the destination's writeMu.
+// RFC 8212 Section 3: "Routes contained in an Adj-RIB-In associated with an
+// EBGP peer SHALL NOT be considered eligible in the Decision Process if no
+// explicit Import Policy has been applied."
+func sentOwnerCurrent(owner adjOutPath, window, epoch uint64) bool {
+	source := owner.source
+	// refuse-by-default: guards adjOutPath.source -- a nil source is the local-origin owner, which no source policy admits, so no epoch can supersede it
+	if source == nil {
+		return true
+	}
+	if source.stopping.Load() {
+		return false
+	}
+	if !sourcePolicyCurrent(source, epoch) {
+		return false
+	}
+	if window == 0 {
+		return owner.policyEpoch == epoch
+	}
+	open := source.sourcePolicyWindow.Load()
+	return open != nil && open.aborted && open.restore == epoch && open.applied == window
+}
+
 // fwdWriteDeadlineDefault is the default TCP write deadline for forward pool
 // batch writes (30 seconds). Overridable via env var ze.fwd.write.deadline.
 const fwdWriteDeadlineDefault = 30 * time.Second

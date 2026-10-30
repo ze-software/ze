@@ -15,6 +15,7 @@ import (
 	pluginmgr "github.com/ze-software/ze/internal/component/plugin/manager"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 	"github.com/ze-software/ze/internal/core/family"
@@ -110,6 +111,10 @@ func flowForwardLiveRouter(t *testing.T, mode string) []*lowLivePeer {
 	dest.LocalAddress = netip.Addr{}
 	settings := []*PeerSettings{source, dest}
 	for _, s := range settings {
+		// Both sessions are EBGP, and RFC 8212 Section 3 rejects at an absent
+		// policy, so each carries explicit accepting import and export policies.
+		s.ImportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
+		s.ExportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
 		for _, afi := range []capability.AFI{1, 2} {
 			for _, safi := range []capability.SAFI{1, 128, 133, 134} {
 				if afi != 1 || safi != 1 {

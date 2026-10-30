@@ -580,6 +580,89 @@ before the teardown producer sends its notification. Receipt checks may report
 the impending loss to the coordinator, but cannot turn that report into a
 premature reader exit.
 
+### In-place import invalidation (RFC 8212 D-2)
+
+A reload that removes an Established session's last accepting import policy
+keeps the session. `Peer.importDecisionFalls` compares the effective
+import decision before and after the swap (`filterapi.Policy.AcceptsAtEnd`
+on what the swap publishes), whatever the session type, so a change that keeps
+the same decision triggers nothing. A candidate the operation could only build
+from its config leaves (no config file to resolve it from) carries no filter
+chain, so its decision is unknown: a swap that would deliver it over an
+accepting policy is refused, never guessed.
+
+Establishment joins the swap's boundary. `swapImportFalling` takes the peer's
+`establishGate` and reads its state: a peer that is not Established admits
+nothing, so the rejecting policy is published under the gate, with no epoch
+change and no owner call, and `enterEstablished` (the FSM's Established
+transition) waits for the gate before the first UPDATE is read. Such a peer can
+still have paths its previous session admitted: Graceful Restart and LLGR keep
+them in bgp-rib, stale and eligible. Once the policy is published,
+`purgeRetained` runs bgp-rib's `request bgp rib purge-stale <peer>`, which
+deletes them, withdraws every copy sent and re-elects, as the restart timer's
+expiry would; with no RIB command registered nothing is retained. The purge
+is not undone by a rollback: the peer's next session sends those routes again.
+An Established
+peer takes the coordinator (`source_policy_reload.go`), which runs inside the
+BGP operation journal:
+
+| Step | When | What happens |
+|------|------|--------------|
+| Prepare | before the journal apply, nothing published | the source-policy owners are captured from the delivery graph (the processes granted the peer's received UPDATEs), in their registered dependency order with ties broken by name; a capture with a forwarder (an owner declaring `FencesLiveForwards`) but without the process holding the sent inventory (the RIB recovery owner) is refused, because nobody would withdraw the copies the forwarder sent; `PauseAdmission` with a one-second abort/resume reserve; the receive-publication cut is awaited; a session replaced meanwhile refuses the change (it holds no pause); each owner gets `prepare` with the captured peer address, peer owner, session generation, policy epoch, receive frontier and template generation |
+| Apply | journal apply | the settings are published, the epoch advances (E1) and the source's invalidation window opens under it, every Established destination's writer is joined (pool barrier then `writeMu`), each owner in turn gets `apply` with E1, with the validation-change subscribers drained after each, then the downstream settles (below) |
+| Commit check | operation commit | `Reactor.CheckSourcePolicyTx` refuses a commit whose receipt work deadline has passed, so the transaction rolls back |
+| Abort before apply | a failed owner prepare, or apply refused before it advanced the epoch (budget exhausted, publish failed) | the previous settings are restored if any were published; the epoch does not move and no window opens, so an owner's re-send stamped with the unchanged epoch stays current; each prepared owner, and the owner whose prepare failed (its call may have timed out after it pinned), gets `abort` with target zero and only releases its pins; an owner that never prepared answers it as done; nothing downstream to settle |
+| Abort | journal undo after apply advanced the epoch: a later apply failure, a rolled-back commit, or outer compensation | the previous settings are restored, the epoch advances again (E2) and the window records that this abort issued it, writers are joined, each prepared owner in turn gets `abort` with E2, with the validation-change subscribers drained after each, then the downstream settles (below); input stays paused and the receipt is kept, because the rest of the rollback (section-owned filter definitions included) has not run yet |
+| Resume after abort | `config-complete` rejected for the transaction, sent after the whole rollback | the receipt is released, so the first resumed UPDATE is evaluated under the restored config. A rollback inside the transaction gets this receipt from `runTxCoordinator` once `Execute` returns; an outer rejection gets it from `restoreReload` after the section restore. If none arrives by the receipt's completion deadline, a timer releases the pause, logs the expiry, and the late receipt reports it |
+| Undo on rejection | `config-complete` rejected while an operation journal of the transaction is still recorded | the BGP plugin rolls those journals back first, last operation first (`completeBGPTransaction`), so each invalidation is aborted with its settings restore before the receipt below resumes input; no journal outlives the receipt |
+| Rejection without undo | `config-complete` rejected for an invalidation no journal undid | the published import policy decides (`rejectNotUndone`): while it still rejects, the owners get `finalize` and the receipt reports that the rejected transaction's policy stays in effect, because restoring eligibility would admit the routes under a rejecting policy; only an accepting published policy lets the abort restore them |
+| Finalize | `config-complete` accepted | each owner gets `finalize`, bounded by the receipt's own deadline and the session's live HoldTimer expiry, never by the operation's apply deadline, which a slow accepted reload has passed; then the receipt is released, which closes the window and drops its released receipts |
+
+**Downstream settle.** An owner recomputes best paths before it answers
+`apply` or `abort`, and publishes each change as a RIB best-change and a
+redistribution route change; `bgp-adj-rib-in` publishes an eligibility change
+as a validation change, which `bgp-rib` answers with best changes. A subscriber
+running as a plugin process receives those events queued and may write to
+destinations in answer, so after the owners the coordinator drains every
+process subscribed to the three events, validation changes first
+(`DrainEventSubscribers`, `process-protocol.md`), then joins the destination
+writers again. It does not wait for a recovery round a destination owes: the
+round writes later, and the epoch fences refuse any write it admits under a
+superseded import policy. A drain or join that misses the deadline fails the apply, which
+then aborts, or reports the abort as incomplete compensation. Engine-side
+subscribers write inside the emit, before the owner answers, so the join alone
+settles them.
+
+The receipt is released exactly once, on every path, failure included. A
+failed owner call during apply aborts at once; a failed abort is reported as
+"compensation incomplete" naming the owner, never as a rollback, and the
+advanced epoch stays. Owners own the destination writes for invalidation and
+restore, and among them `bgp-rib` alone writes: its sent inventory holds the
+copies the forwarders sent, which only settle their own pending work. The only adj-out work of the coordinator is bookkeeping: a release
+closes the window, then drops the receipts destinations kept for the abort
+restore (`docs/architecture/bgp/structural-forwarding.md`, "Receive validation and cache changes"), and writes
+nothing to the wire. A second
+transaction that touches a peer whose invalidation is still open is refused.
+The BGP decomposer routes every change to an import layer a peer sees (the
+bgp level, its group, a grouped or top-level peer's own `filter import`) as a
+modify-peer operation, so the change runs under a transaction. The rest of
+the same commit (another group's hold-time, the `router-id`, a dynamic group) reaches the reactor as one
+`reconcile-peers` operation ordered after those modify-peers, under its own
+journal, so a mixed commit applies whole and rolls back whole
+(`transaction-protocol.md`, "Decomposition ownership"). The
+section-path journal (`ReconcilePeersWithJournal`, internal
+Reload/ApplyConfigDiff) carries no transaction, so a change that still reaches
+it is refused there before anything is published, with an error saying to
+commit the import change on its own and to report a repeat as a defect. Dynamic peers and the D-1 relaxation are not yet
+coordinated.
+
+<!-- source: internal/component/bgp/reactor/source_policy_reload.go -- importDecisionFalls, enterEstablished, swapImportFalling, sourceInvalidation.finalizeDeadline, prepareImportInvalidation, sourceInvalidation.apply, sourceInvalidation.undo, sourceInvalidation.abort, sourceInvalidation.holdUntilCompletion, sourceInvalidation.expire, sourceInvalidation.finalize, CheckSourcePolicyTx, CompleteSourcePolicyTx -->
+<!-- source: internal/component/bgp/reactor/source_policy_reload.go -- sourceInvalidation.settleDownstream, joinSourceWriters -->
+<!-- source: internal/component/plugin/server/source_policy.go -- DrainEventSubscribers -->
+<!-- source: internal/component/bgp/plugin/operation.go -- bgpImportLayerChanges, collectBGPImportLayers, bgpResidualOperation, completeBGPTransaction -->
+<!-- source: internal/component/plugin/server/reload_tx.go -- completeRolledBack, sendTransactionReceipt -->
+<!-- source: internal/component/bgp/reactor/peer_settings_apply.go -- swapImportInvalidating -->
+
 <!-- source: internal/component/bgp/reactor/session_flow.go -- PauseAdmission, AdmissionReceipt.Check, AdmissionReceipt.CheckCompletion, AdmissionReceipt.CompletionDeadline, AdmissionReceipt.Release, beginAdmission, endAdmission, stopAdmission -->
 <!-- source: internal/component/bgp/reactor/session_read.go -- readAndProcessMessage -->
 <!-- source: internal/component/bgp/reactor/session_coalesce.go -- readAndProcessCoalesced -->

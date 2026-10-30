@@ -81,7 +81,7 @@ func (r *RIBManager) autoExpireStale(peerAddr netip.Addr, owner *peerGRState) {
 	delete(r.grState, peerAddr)
 	writes := r.withdrawRemovedSentLocked(peerAddr, removed)
 	r.peerMu.Unlock()
-	r.dispatchSentLifecycle(writes)
+	r.dispatchSentLifecycle(writes) //nolint:errcheck // No caller waits on this answer (a timer, or a command whose answer carries no error); updateRouteRequest logs each refusal
 
 	for _, a := range affected {
 		change, ok := r.checkBestPathChange(a.fam, a.nlri, a.addPath, nil)
@@ -891,7 +891,7 @@ func (r *RIBManager) retainRoutes(selectorStr string, families []family.Family, 
 		retained++
 	}
 	r.peerMu.Unlock()
-	r.dispatchSentLifecycle(writes)
+	r.dispatchSentLifecycle(writes) //nolint:errcheck // No caller waits on this answer (a timer, or a command whose answer carries no error); updateRouteRequest logs each refusal
 	r.reconcileBestPathBulk(affected)
 
 	return map[string]any{"retained-peers": retained}
@@ -926,7 +926,7 @@ func (r *RIBManager) releaseRoutes(selectorStr string) any {
 		released++
 	}
 	r.peerMu.Unlock()
-	r.dispatchSentLifecycle(writes)
+	r.dispatchSentLifecycle(writes) //nolint:errcheck // No caller waits on this answer (a timer, or a command whose answer carries no error); updateRouteRequest logs each refusal
 
 	r.reconcileBestPathBulk(purgedPeers)
 
@@ -1109,7 +1109,7 @@ func (r *RIBManager) purgeStaleCommand(args []string) (string, any, error) {
 	}
 	writes := r.withdrawRemovedSentLocked(peerAddr, removed)
 	r.peerMu.Unlock()
-	r.dispatchSentLifecycle(writes)
+	refused := r.dispatchSentLifecycle(writes)
 
 	for _, a := range affected {
 		change, ok := r.checkBestPathChange(a.fam, a.nlri, a.addPath, nil)
@@ -1117,10 +1117,25 @@ func (r *RIBManager) purgeStaleCommand(args []string) (string, any, error) {
 			publishBestChanges([]bestChangeEntry{change}, a.fam)
 		}
 	}
+	if refused != nil {
+		return statusError, nil, purgeStaleRefused(peerAddr, refused)
+	}
 
 	logger().Debug("purge-stale", "peer", peerAddr, "purged", purged, "family", familyFilter)
 
 	return statusDone, map[string]any{"purged": purged}, nil
+}
+
+// purgeStaleRefused is purge-stale's error when a destination refused the
+// withdrawal of a purged path. The paths are already gone from the RIB, so
+// running the purge again withdraws nothing: the destination keeps them until
+// its session restarts. The reactor's source-policy purge (purgeRetained)
+// reports this error, so an import change is never answered as applied while
+// a destination still advertises a retained path the new policy rejects.
+func purgeStaleRefused(peer netip.Addr, refused error) error {
+	return fmt.Errorf("purge-stale removed the retained paths of peer %s, but a destination refused their withdrawal "+
+		"and still advertises them until its session restarts: %w; each destination must grant this RIB process "+
+		"`send [ update ]` in its `attach process` block", peer, refused)
 }
 
 // bestPathStatus returns summary statistics about the best-path computation.

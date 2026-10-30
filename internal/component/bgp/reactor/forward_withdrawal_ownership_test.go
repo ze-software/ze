@@ -389,6 +389,11 @@ func ownershipRailNew(t *testing.T, gate *ownershipRailGate) *ownershipRailFixtu
 	// the route server `send [ update ]`, so the fast path hands neither back
 	// on the skipped list when the other one sends (reactorForwardRSSection).
 	source.settings.ProcessBindings = append(source.settings.ProcessBindings, rsRelaySendBinding())
+	// Each source is a destination when the other one sends. Every session is
+	// EBGP, and RFC 8212 Section 3 rejects at an absent policy, so each carries
+	// explicit accepting import and export policies.
+	source.settings.ImportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
+	source.settings.ExportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
 	source.refreshForwardFacts()
 	other := NewPeer(&PeerSettings{
 		Connection:      ConnectionBoth,
@@ -397,6 +402,10 @@ func ownershipRailNew(t *testing.T, gate *ownershipRailGate) *ownershipRailFixtu
 		PeerAS:          65001,
 		RouterID:        0x01020303,
 		ProcessBindings: []ProcessBinding{rsRelaySendBinding()},
+		// The session is EBGP, and RFC 8212 Section 3 rejects at an absent
+		// policy, so it carries explicit accepting import and export policies.
+		ImportPolicy: mustPolicy(t, nil, routepolicy.FinalAccept),
+		ExportPolicy: mustPolicy(t, nil, routepolicy.FinalAccept),
 	})
 	other.state.Store(int32(PeerStateEstablished))
 	other.negotiated.Store(&NegotiatedCapabilities{

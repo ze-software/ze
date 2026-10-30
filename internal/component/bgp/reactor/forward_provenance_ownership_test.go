@@ -170,6 +170,16 @@ func ownershipReplayBatch(t *testing.T, f *ownershipRailFixture, body []byte) bg
 	if batch.SentOwnerMessage == 0 {
 		t.Fatal("successful actual-wire announcement has no sent receipt")
 	}
+	// The epoch the sent event reported for this receipt, the owner's
+	// original admission, which bgp-rib stores and re-sends with it
+	// (sentOwnerCurrent).
+	f.destination.adjOut.mu.Lock()
+	for _, entry := range f.destination.adjOut.routes {
+		if entry.revision == batch.SentOwnerMessage {
+			batch.SourcePolicyEpoch = entry.owner.policyEpoch
+		}
+	}
+	f.destination.adjOut.mu.Unlock()
 	return batch
 }
 

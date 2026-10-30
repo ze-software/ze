@@ -27,14 +27,14 @@ func rfc8212PolicyStatus(ctx context.Context, args []string) error {
 		}
 		// Connect without sending OPEN. The real accept path creates a dynamic
 		// peer, but no remote AS has been negotiated or guessed by this fixture.
-		dialer := net.Dialer{LocalAddr: &net.TCPAddr{IP: net.ParseIP("127.0.0.9")}}
-		conn, err := dialer.DialContext(ctx, "tcp", net.JoinHostPort("127.0.0.8", args[0]))
+		dialer := net.Dialer{LocalAddr: &net.TCPAddr{IP: net.ParseIP("127.0.0.6")}}
+		conn, err := dialer.DialContext(ctx, "tcp", net.JoinHostPort("127.0.0.5", args[0]))
 		if err != nil {
 			return err
 		}
 		defer conn.Close() //nolint:errcheck // Closing the deliberately incomplete session is cleanup.
 		if !Poll(ctx, 60, liveStagesPollDelay, func() bool {
-			rows, err := peerRows03(ctx, plugin, "127.0.0.9")
+			rows, err := peerRows03(ctx, plugin, "127.0.0.6")
 			return err == nil && len(rows) == 1
 		}) {
 			return errors.New("dynamic accept did not publish the unresolved peer")
@@ -44,11 +44,11 @@ func rfc8212PolicyStatus(ctx context.Context, args []string) error {
 			{"127.0.0.2", "accept", "", "accept"},
 			{"127.0.0.3", "reject", "", "reject"},
 			{"127.0.0.4", "", "", "accept"},
-			{"127.0.0.9", "undetermined", "", "undetermined"},
+			{"127.0.0.6", "undetermined", "", "undetermined"},
 		} {
 			for _, direction := range []string{"import", "export"} {
 				final := row.final
-				if row.peer == "127.0.0.9" && direction == "import" {
+				if row.peer == "127.0.0.6" && direction == "import" {
 					final = "accept"
 				}
 				if err := rfc8212PolicyStatusDirection(ctx, plugin, row.peer, direction, final, row.source, row.action); err != nil {

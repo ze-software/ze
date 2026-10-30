@@ -488,7 +488,9 @@ func (p *Peer) runOnce() error {
 			// Before Established is published, so the first owed key has a worker.
 			session.startRecovery(p)
 			p.cycleReachedEstablished.Store(true)
-			p.setState(PeerStateEstablished)
+			// RFC 8212 Section 3: establishment joins the import swap's
+			// admission boundary before the first UPDATE is read.
+			p.enterEstablished()
 			p.setEstablishedNow()
 
 			// Start EOR timeout if GR was negotiated (AC-11).

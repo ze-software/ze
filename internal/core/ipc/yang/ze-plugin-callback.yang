@@ -77,7 +77,7 @@ module ze-plugin-callback {
             type uint64;
             mandatory true;
             ze:help "Target policy epoch";
-            description "Apply and abort require a fresh epoch newer than the original. Prepare and finalize require explicit zero.";
+            description "Apply requires a fresh epoch newer than the original. Abort carries explicit zero for a transaction that was prepared and never applied (the owner only releases its pins), or a fresh epoch newer than the original after apply. Prepare and finalize require explicit zero.";
         }
     }
 

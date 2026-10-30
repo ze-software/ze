@@ -12,6 +12,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 )
 
@@ -395,6 +396,10 @@ func ownershipLiveSameASPeers(t *testing.T) []*lowLivePeer {
 	}
 	for _, s := range settings {
 		s.RSClient = true
+		// Every session is EBGP, and RFC 8212 Section 3 rejects at an absent
+		// policy, so each carries explicit accepting import and export policies.
+		s.ImportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
+		s.ExportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
 		for _, binding := range []struct{ name, receive string }{
 			{"bgp-rib", "update state refresh"},
 			{"bgp-rs", "update-received state open-received refresh"},

@@ -15,6 +15,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/report"
+	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 // swapTestPeerSettings is the baseline a reload starts from. Every swap test
@@ -123,43 +124,83 @@ func TestReloadExportPolicyRefreshesForwardFacts(t *testing.T) {
 
 // TestPolicyFinalSwapRollbackPreservesSession checks final-only edits and policy
 // removal through the journaled reload, including both published snapshots.
+//
+// A case whose import transition removes the EBGP peer's last accepting import
+// policy (falling) is the RFC 8212 Section 3 invalidation, which only a config
+// transaction can carry (swapImportInvalidating, peer_settings_apply.go): it
+// runs on the transaction fixture (newRFC8212ImportFixture: a real admission
+// session and a source-policy owner) under rfc8212TxJournal, and the rollback
+// is followed by the transaction's rejection receipt, which resumes input. The
+// bare session of the other cases has no plugin server to capture owners from
+// (sourceInvalidation.capture, source_policy_reload.go) and no admitted import
+// epoch, so it cannot carry that transaction.
 func TestPolicyFinalSwapRollbackPreservesSession(t *testing.T) {
 	accept := mustPolicy(t, nil, routepolicy.FinalAccept)
 	reject := mustPolicy(t, nil, routepolicy.FinalReject)
 	for _, tc := range []struct {
-		name string
-		from filterapi.Policy
-		to   filterapi.Policy
+		name    string
+		from    filterapi.Policy
+		to      filterapi.Policy
+		falling bool
 	}{
-		{name: "accept to reject", from: accept, to: reject},
+		{name: "accept to reject", from: accept, to: reject, falling: true},
 		{name: "reject to accept", from: reject, to: accept},
 		{name: "remove reject", from: reject},
-		{name: "remove accept", from: accept},
+		{name: "remove accept", from: accept, falling: true},
 		{name: "configure reject", to: reject},
 		{name: "configure accept", to: accept},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			initial := swapTestPeerSettings(t)
-			initial.ImportPolicy = tc.from
-			initial.ExportPolicy = tc.from
-			next := *initial
+			var (
+				r        *Reactor
+				peer     *Peer
+				session  *Session
+				next     *PeerSettings
+				j        configJournal
+				complete func(t *testing.T)
+			)
+			if tc.falling {
+				fx := newRFC8212ImportFixture(t, false)
+				r, peer, session = fx.r, fx.peer, fx.f.s
+				peer.mu.Lock()
+				peer.settings.ImportPolicy = tc.from
+				peer.settings.ExportPolicy = tc.from
+				peer.mu.Unlock()
+				next = peer.settingsSnapshot()
+				tx := &rfc8212TxJournal{Journal: sdk.NewJournal(), txID: "tx-swap-rollback",
+					deadline: fx.f.clock.Now().Add(30 * time.Second)}
+				j = tx
+				complete = func(t *testing.T) {
+					t.Helper()
+					require.True(t, session.IsPaused(), "input resumed before the transaction's receipt")
+					require.NoError(t, r.CompleteSourcePolicyTx(t.Context(), tx.txID, false))
+					fx.settled(t, true)
+				}
+			} else {
+				initial := swapTestPeerSettings(t)
+				initial.ImportPolicy = tc.from
+				initial.ExportPolicy = tc.from
+				copied := *initial
+				next = &copied
+				r, peer = newSwapTestReactor(t, initial, next)
+				session = NewSession(initial)
+				peer.mu.Lock()
+				peer.session = session
+				peer.mu.Unlock()
+				peer.state.Store(int32(PeerStateEstablished))
+				j = &internalJournal{}
+				complete = func(*testing.T) {}
+			}
 			next.ImportPolicy = tc.to
 			next.ExportPolicy = tc.to
-			r, peer := newSwapTestReactor(t, initial, &next)
-			session := NewSession(initial)
-			peer.mu.Lock()
-			peer.session = session
-			peer.mu.Unlock()
-			peer.state.Store(int32(PeerStateEstablished))
 			peer.refreshForwardFacts()
 			before := peer.forwardFacts()
 			require.NotNil(t, before)
 			generation := r.peerGeneration.Load()
 
-			j := &internalJournal{}
 			adapter := &reactorAPIAdapter{r: r}
 			require.NoError(t, adapter.reconcilePeersJournaled(
-				[]*PeerSettings{&next}, Globals{}, dynamicGroupsNotRead, "test", j))
+				[]*PeerSettings{next}, Globals{}, dynamicGroupsNotRead, "test", j))
 			require.Equal(t, tc.to, peer.ImportPolicy())
 			require.Equal(t, tc.to, peer.ExportPolicy())
 			require.NotNil(t, peer.forwardFacts())
@@ -181,6 +222,7 @@ func TestPolicyFinalSwapRollbackPreservesSession(t *testing.T) {
 			assert.True(t, peer.currentSession() == session, "rollback must keep the same session")
 			assert.Equal(t, PeerStateEstablished, peer.State())
 			assert.Equal(t, generation, r.peerGeneration.Load())
+			complete(t)
 		})
 	}
 }

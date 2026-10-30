@@ -159,7 +159,13 @@ func (r *AdjRIBInManager) validationNLRILocked(peer netip.Addr, key compactRoute
 		return "", false
 	}
 	change := ribevents.ValidationRoute{Peer: peer, Family: key.Fam, PathID: key.PathID, NLRI: string(wire)}
-	if resolved, ok := validationRouteKey(change); !ok || resolved != key {
+	resolved, ok := validationRouteKey(change)
+	if !ok {
+		logger().Error("validation change not announced: the stored route's NLRI does not parse as a store key, so no subscriber could find the route; this is a bgp-adj-rib-in defect, report it with this line",
+			"peer", peer, "family", key.Fam, "route", key.routeName(), "nlri", route.NLRIHex)
+		return "", false
+	}
+	if resolved != key {
 		logger().Error("validation change not announced: the stored route's NLRI does not name its own store key, so no subscriber could find the route; this is a bgp-adj-rib-in defect, report it with this line",
 			"peer", peer, "family", key.Fam, "route", key.routeName(), "nlri", route.NLRIHex)
 		return "", false

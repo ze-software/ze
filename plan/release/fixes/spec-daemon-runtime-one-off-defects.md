@@ -160,6 +160,7 @@ The plugin RPC answer format, the transaction orchestrator, the storage registry
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
 | `second-logger-detaches-runtime-level` | 2026-10-28 | panic guards calling `slogutil.Logger` twice |
+| `zero-value-as-valid-answer` | 2026-10-30 | `TreeFromPluginMap` unordered multi-entry list loads zero peers |
 | `deferral-sized-from-the-visible-half` | 2026-09-04 | `spec-pki-full-chain` looking glass TLS |
 | `enabled-gate-discards-settings` | 2026-08-10 | MCP `ze.mcp.enabled` |
 | `error-path-discards-data-already-received` | 2026-09-05 | `answerValue` |

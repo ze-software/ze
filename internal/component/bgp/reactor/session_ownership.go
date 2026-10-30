@@ -220,8 +220,8 @@ func (w *adjOutWrite) allow(fam family.Family, raw []byte, withdraw, multiprotoc
 			return false, err
 		}
 		// The owner's session generation and revocation epoch tell a departure
-		// whether the source still owns the path. An expected write keeps
-		// entry.owner.
+		// whether the source still owns the path. An expected write takes
+		// the exact receipt's owner, under the request's epoch.
 		owner.generation = item.receivedGeneration
 		owner.policyEpoch = item.sourcePolicyEpoch
 		if owner.source != nil {
@@ -232,8 +232,9 @@ func (w *adjOutWrite) allow(fam family.Family, raw []byte, withdraw, multiprotoc
 		// before it binds an identifier, is owed or elected, or is staged as
 		// a recovery survivor. Withdrawals are never fenced here: a current
 		// explicit withdrawal and an exact-owner removal keep their
-		// authority. An expected write is fenced below on its ORIGINAL
-		// owner, after its revision check. A forwarded announcement is
+		// authority. An expected write is fenced below, after its revision
+		// check, on the exact receipt's owner and the request's epoch
+		// (sentOwnerCurrent). A forwarded announcement is
 		// dropped as the import policy would drop it; a replay or recovery
 		// survivor fails, so the work stays owed rather than reported sent.
 		if !withdraw && item.authority != adjOutExpected && item.authority != adjOutUnspecified {
@@ -282,14 +283,27 @@ func (w *adjOutWrite) allow(fam family.Family, raw []byte, withdraw, multiprotoc
 			// path held ineligible from its first receipt, or refused by an
 			// egress gate before any announcement, stays silent.
 			if entry == nil {
+				// The source withdrew a receipt an invalidation removed: no
+				// abort restore may bring it back.
+				w.table.dropReleasedOwner(key, owner)
 				return false, nil
 			}
 			if !adjOutSameOwner(entry.owner, owner) {
 				return false, nil
 			}
 		case adjOutExpected:
+			var exact adjOutPath
+			// window is the released record's invalidation stamp, zero for
+			// a live entry.
+			var window uint64
 			if entry == nil {
-				return false, nil
+				// A receipt an open invalidation removed is re-sent by its
+				// abort restore.
+				released, held := w.releasedReceipt(key, owner.revision, withdraw)
+				if !held {
+					return false, nil
+				}
+				exact, window = released.owner, released.window
 			}
 			if !withdraw && w.table.owed[key] != nil {
 				// A bgp-rib replay of an owed key replays the route being
@@ -297,19 +311,41 @@ func (w *adjOutWrite) allow(fam family.Family, raw []byte, withdraw, multiprotoc
 				w.refused[key] = struct{}{}
 				return false, nil
 			}
-			if owner.revision == 0 {
+			if entry != nil && entry.revision != owner.revision && !withdraw {
+				// RFC 8212 Section 3 (sentOwnerCurrent): an abort restore
+				// whose key a recovery survivor took while the receipt was
+				// released is one candidate among several. It is owed, so
+				// the recovery election chooses between the survivor and the
+				// restored path, as a contested initial replay is.
+				w.oweReleasedRestore(fam, key, entry, owner.revision, item.sourcePolicyEpoch, raw)
 				return false, nil
 			}
-			if entry.revision != owner.revision {
-				return false, nil
+			if entry != nil {
+				if owner.revision == 0 {
+					return false, nil
+				}
+				if entry.revision != owner.revision {
+					return false, nil
+				}
+				exact = entry.owner
 			}
-			owner = entry.owner
-			// RFC 8212 Section 3 (sourcePolicyCurrent): the exact receipt
-			// reannounces only while its original owner's import admission
-			// is current. Its removal is never fenced, and a local owner
-			// has no import policy.
-			if !withdraw && !sourcePolicyCurrent(owner.source, owner.policyEpoch) {
-				return false, nil
+			owner = exact
+			// RFC 8212 Section 3 (sentOwnerCurrent): the reactor decides
+			// whether the re-send is admitted. A live entry re-announces
+			// only under its own admission while it is the live one; a
+			// released receipt only as the abort restore of the
+			// invalidation that released it. The request's epoch must be
+			// the live one either way, and the source Peer must still
+			// exist. The entry is then owned under that epoch, so a
+			// restored receipt is current again. Its removal is never
+			// fenced, and a local owner has no import policy.
+			if !withdraw {
+				if !sentOwnerCurrent(owner, window, item.sourcePolicyEpoch) {
+					return false, nil
+				}
+				if owner.source != nil {
+					owner.policyEpoch = item.sourcePolicyEpoch
+				}
 			}
 		case adjOutInitial:
 			if owner.source != item.receivedPeer {
@@ -417,7 +453,10 @@ func (w *adjOutWrite) bindSourcePath(key *adjOutKey, entry *adjRIBOutRoute, owne
 			}
 			stagedID = key.path.received
 			_, stagedSlot := w.owners[*key]
-			if entry != nil || stagedSlot {
+			// RFC 7911 Section 2: a receipt another source released keeps
+			// its slot, so its abort restore finds it free.
+			heldSlot := w.table.releasedByOther(*key, owner)
+			if entry != nil || stagedSlot || heldSlot {
 				stagedID = fwdPathIDs.reserve()
 			} else {
 				// The source mapping may already have been evicted. Keep
@@ -969,9 +1008,20 @@ func (w *adjOutWrite) recordSection(data, attrs []byte, fam family.Family, withd
 		if entry == nil {
 			entry = new(adjRIBOutRoute)
 			w.table.routes[key] = entry
-			if key.addPath {
+			if taken, held := w.table.takeReleased(key, owner); held {
+				// The released receipt's slot, its identifier reservation
+				// and ingress binding, passes to the entry; setOwner below
+				// rebinds it if another owner takes the key.
+				entry.owner = taken
+			} else if key.addPath {
 				fwdPathIDs.retain(key.path.received)
 			}
+		} else if !key.addPath && !adjOutSameOwner(entry.owner, owner) {
+			// RFC 8212 Section 3: a recovery survivor replacing a receipt
+			// its invalidation denied keeps the receipt's record, as a
+			// removal does, so the abort restore can be owed to the
+			// election between the two paths (oweReleasedRestore).
+			w.keepReleased(key, entry)
 		}
 		w.table.setOwner(&key, entry, owner)
 		if _, contested := w.contested[key]; contested {
@@ -988,6 +1038,10 @@ func (w *adjOutWrite) recordSection(data, attrs []byte, fam family.Family, withd
 			if !replay || entry.revision == 0 {
 				entry.revision = w.session.sentReceipt.MessageID()
 			}
+		} else if entry.revision == 0 {
+			// A re-installed released receipt keeps the revision its owner
+			// names, so the owner's later exact removal still matches it.
+			entry.revision = w.session.sentForward.expectedMessage
 		}
 		if item := w.session.sentForward; item != nil && item.authority == adjOutInitial {
 			entry.revision = item.expectedMessage
@@ -1022,9 +1076,11 @@ func (w *adjOutWrite) recordSection(data, attrs []byte, fam family.Family, withd
 // generation move, then meets it and is owed rather than written with no
 // election. A recovery decision's own withdrawal removes the tombstone,
 // because no candidate the destination may receive remained at its drain.
+// A receipt removed because its import admission was superseded keeps its
+// slot as a released record instead (keepReleased).
 func (w *adjOutWrite) recordDeletion(key adjOutKey) {
 	entry := w.table.routes[key]
-	if entry != nil {
+	if entry != nil && !w.keepReleased(key, entry) {
 		w.table.releasePath(&key, entry)
 	}
 	delete(w.table.routes, key)

@@ -8,7 +8,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"reflect"
+	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -23,6 +26,57 @@ type rfc8212ReloadWire struct {
 	adds    map[string]int
 	downs   int
 	failure error
+	// snapshot, when set, names the file each change of routes is written
+	// to, one prefix per line in sorted order, so a process whose own event
+	// loop is blocked can still read the downstream (rfc8212DownstreamSettled).
+	snapshot string
+}
+
+// rfc8212DownstreamFile is the reload observer's downstream snapshot. The
+// fault participant reads it from inside its operation apply, where the SDK
+// event loop delivers that process no event until the apply returns
+// (pkg/plugin/sdk/sdk_dispatch.go eventLoop runs the callback inline).
+const rfc8212DownstreamFile = "rfc8212.downstream"
+
+// writeSnapshotLocked writes routes' prefixes to the snapshot file, through a
+// rename so a reader never sees a partial write. Caller MUST hold s.mu.
+func (s *rfc8212ReloadWire) writeSnapshotLocked() {
+	if s.snapshot == "" {
+		return
+	}
+	prefixes := make([]string, 0, len(s.routes))
+	for prefix := range s.routes {
+		prefixes = append(prefixes, prefix)
+	}
+	slices.Sort(prefixes)
+	if err := os.WriteFile(s.snapshot+".tmp", []byte(strings.Join(prefixes, "\n")), 0o600); err != nil {
+		s.failure = err
+		return
+	}
+	if err := os.Rename(s.snapshot+".tmp", s.snapshot); err != nil {
+		s.failure = err
+	}
+}
+
+// rfc8212DownstreamSettled polls the reload observer's snapshot until the
+// downstream holds exactly prefixes.
+func rfc8212DownstreamSettled(ctx context.Context, prefixes ...string) error {
+	want := slices.Clone(prefixes)
+	slices.Sort(want)
+	expected := strings.Join(want, "\n")
+	var got string
+	if Poll(ctx, 80, liveStagesPollDelay, func() bool {
+		data, err := os.ReadFile(rfc8212DownstreamFile)
+		if err != nil {
+			got = err.Error()
+			return false
+		}
+		got = string(data)
+		return got == expected
+	}) {
+		return nil
+	}
+	return fmt.Errorf("downstream routes=%q, want exactly %v", got, want)
 }
 
 func newRFC8212ReloadWire() *rfc8212ReloadWire {
@@ -94,6 +148,7 @@ func (s *rfc8212ReloadWire) receive(event string) error {
 			}
 		}
 	}
+	s.writeSnapshotLocked()
 	return nil
 }
 

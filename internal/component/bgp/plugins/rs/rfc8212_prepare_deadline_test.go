@@ -1,0 +1,58 @@
+// Design: docs/architecture/plugin/rib-storage-design.md -- source-policy lifecycle owner
+// RFC: rfc/short/rfc8212.md -- Section 3 default import rejection
+
+package rs
+
+import (
+	"context"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/pkg/plugin/rpc"
+)
+
+// settledAtDeadline is a context whose deadline has passed but whose Done
+// channel never closes, so a settle that selects on it finishes on its
+// barrier: the shape of a settle that completed just as the coordinator's
+// call timed out.
+type settledAtDeadline struct{ context.Context }
+
+func (settledAtDeadline) Err() error { return context.DeadlineExceeded }
+
+// TestRFC8212PrepareTimeoutDoesNotLockSource proves a prepare whose call timed
+// out leaves the source free for the next transaction. Goal: when the
+// coordinator stops waiting on a prepare, bgp-rs pins nothing once its settle
+// returns past the deadline, the coordinator's target-zero abort for that
+// transaction is answered as done, and a second transaction for the same
+// source and identity prepares. Method: the first prepare runs under a
+// context that has ended while its Done channel stays open, so the settle
+// completes on its barrier and only the re-check after it can refuse.
+// PREVENTS: a late prepare recording StagePrepared that refuses every later
+// transaction for the source until its session drops.
+func TestRFC8212PrepareTimeoutDoesNotLockSource(t *testing.T) {
+	rs, _ := newPolicyRouteServer(t)
+	input := func(tx string, op rpc.SourcePolicyOperation) rpc.SourcePolicyInput {
+		in := rpc.SourcePolicyInput{TransactionID: tx, Operation: op,
+			Source: rpc.SourcePolicyIdentity{Peer: policySource, PeerOwner: 1, SessionGeneration: 3,
+				PolicyEpoch: 5, ReceiveFrontier: 9, TemplateGeneration: 1},
+			DeadlineMS: time.Now().Add(time.Minute).UnixMilli()}
+		require.NoError(t, in.Validate(time.Now()))
+		return in
+	}
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	defer cancel()
+
+	err := rs.handleSourcePolicy(settledAtDeadline{ctx}, input("tx-late", rpc.SourcePolicyPrepare))
+	require.ErrorContains(t, err, "reached its deadline while settling")
+	rs.withdrawalMu.Lock()
+	held := rs.sourcePolicy[policySource]
+	rs.withdrawalMu.Unlock()
+	require.Nil(t, held, "a prepare past its deadline pinned the source")
+
+	require.NoError(t, rs.handleSourcePolicy(ctx, input("tx-late", rpc.SourcePolicyAbort)),
+		"the coordinator's target-zero abort of a transaction never prepared is refused")
+	require.NoError(t, rs.handleSourcePolicy(ctx, input("tx-next", rpc.SourcePolicyPrepare)),
+		"the next transaction for the source is refused")
+}

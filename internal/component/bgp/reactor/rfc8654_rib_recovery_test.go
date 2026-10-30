@@ -17,6 +17,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	bgprib "github.com/ze-software/ze/internal/component/bgp/plugins/rib"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
@@ -351,6 +352,10 @@ func extendedRecoveryPeers(t *testing.T, extended, alternate bool, families ...c
 			s.Capabilities = append(s.Capabilities, &capability.Multiprotocol{AFI: fam.AFI, SAFI: fam.SAFI})
 		}
 		s.RSClient = true
+		// Every session is EBGP, and RFC 8212 Section 3 rejects at an absent
+		// policy, so each carries explicit accepting import and export policies.
+		s.ImportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
+		s.ExportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
 		for _, binding := range []struct{ name, receive string }{
 			{"bgp-rib", "update state refresh"},
 			{"bgp-rs", "update-received state open-received refresh"},

@@ -24,7 +24,6 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/rib"
 	"github.com/ze-software/ze/internal/component/plugin"
-	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/asn"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 	"github.com/ze-software/ze/internal/core/configorder"
@@ -179,6 +178,7 @@ func (a *reactorAPIAdapter) Peers() []plugin.PeerInfo {
 		}
 		localPort, remotePort := p.tCPPorts()
 		local, localString := connectedLocalEndpoint(p, s.LocalAddress, p.localAddrString)
+		importPolicy, exportPolicy := p.policyStatus()
 		info := plugin.PeerInfo{
 			Address:              s.Address,
 			LocalAddress:         local,
@@ -211,8 +211,8 @@ func (a *reactorAPIAdapter) Peers() []plugin.PeerInfo {
 			ClusterID:            s.ClusterID,
 			NextHopMode:          s.NextHopMode,
 			NextHopAddress:       s.NextHopAddress,
-			ImportPolicy:         policyInfo(p.ImportPolicy()),
-			ExportPolicy:         policyInfo(p.ExportPolicy()),
+			ImportPolicy:         importPolicy,
+			ExportPolicy:         exportPolicy,
 
 			OpensReceived:         stats.OpensReceived,
 			OpensSent:             stats.OpensSent,
@@ -275,20 +275,88 @@ func (a *reactorAPIAdapter) Peers() []plugin.PeerInfo {
 	return result
 }
 
-// policyInfo retains automatic references without inventing an operator final.
-func policyInfo(policy filterapi.Policy) *plugin.PolicyInfo {
-	if !policy.Configured() && len(policy.Filters()) == 0 {
-		return nil
+// policyStatus reports both directions' effective policy from one p.mu
+// snapshot, so a dynamic peer's remote AS and the two policies
+// publishDynamicResolution writes with it under the same lock always agree.
+func (p *Peer) policyStatus() (importPolicy, exportPolicy *plugin.PolicyInfo) {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	session := policySessionOf(p.settings.PeerAS, p.settings.IsIBGP())
+	return policyInfo(p.settings.ImportPolicy, session), policyInfo(p.settings.ExportPolicy, session)
+}
+
+// policyInfo reports one direction's effective policy for a classified session.
+func policyInfo(policy filterapi.Policy, session policySession) *plugin.PolicyInfo {
+	filters := filterapi.FilterRefStrings(policy.Filters())
+	if !policy.Configured() {
+		return absentPolicyInfo(policy, filters, session)
 	}
-	info := &plugin.PolicyInfo{Filters: filterapi.FilterRefStrings(policy.Filters())}
-	if policy.Configured() {
-		if policy.Final() == routepolicy.FinalAccept {
-			info.Final = "accept"
-		} else {
-			info.Final = "reject"
+	// A configured final does not depend on the session type, so an unresolved
+	// dynamic peer still reports the final its operator wrote.
+	return &plugin.PolicyInfo{Filters: filters, Final: policyFinalWord(policy.AcceptsAtEnd(session == policySessionExternal))}
+}
+
+// absentPolicyInfo reports a direction with no operator policy. The verdict is
+// filterapi.Policy.AcceptsAtEnd, the same call the ingress and egress paths make,
+// so status cannot disagree with what the session does to a route.
+func absentPolicyInfo(policy filterapi.Policy, filters []string, session policySession) *plugin.PolicyInfo {
+	switch session {
+	case policySessionUnresolved:
+		// Remote AS zero is a dynamic peer before establishment, not an EBGP
+		// session: isIBGPWith(0) is false, so asking AcceptsAtEnd here would
+		// report reject for a session that may resolve to IBGP.
+		return &plugin.PolicyInfo{Filters: filters, Final: plugin.PolicyFinalUndetermined}
+	case policySessionInternal, policySessionExternal:
+	case policySessionUnspecified:
+		panic("BUG: policyInfo called without a session type")
+	}
+	if policy.AcceptsAtEnd(session == policySessionExternal) {
+		// IBGP with no policy: no final to report. An empty direction stays
+		// omitted, and automatic filters are reported on their own.
+		if len(filters) == 0 {
+			return nil
 		}
+		return &plugin.PolicyInfo{Filters: filters}
 	}
-	return info
+	return &plugin.PolicyInfo{
+		Filters:     filters,
+		Final:       plugin.PolicyFinalReject,
+		FinalSource: plugin.PolicyFinalSourceRFC8212,
+	}
+}
+
+// policyFinalWord names an exhaustion verdict in the PolicyInfo vocabulary.
+func policyFinalWord(accepts bool) string {
+	if accepts {
+		return plugin.PolicyFinalAccept
+	}
+	return plugin.PolicyFinalReject
+}
+
+// policySession is the session type a policy status is reported for. The zero
+// value is not a session type, so a caller that forgets to classify is caught.
+type policySession uint8
+
+const (
+	policySessionUnspecified policySession = iota
+	// policySessionUnresolved is a dynamic peer whose remote AS is not known yet.
+	policySessionUnresolved
+	policySessionInternal
+	policySessionExternal
+)
+
+// policySessionOf classifies a session from one coherent snapshot of the peer's
+// remote AS and its IBGP verdict (isIBGPWith). A remote AS of zero is only ever
+// a dynamic peer before establishment: buildDynamicPeerSettings leaves it zero
+// and resolveDynamicPeerSettings fills it.
+func policySessionOf(peerAS uint32, internal bool) policySession {
+	if peerAS == 0 {
+		return policySessionUnresolved
+	}
+	if internal {
+		return policySessionInternal
+	}
+	return policySessionExternal
 }
 
 // PeerNegotiatedCapabilities returns negotiated capabilities for a peer.
@@ -952,14 +1020,12 @@ func (a *reactorAPIAdapter) VerifyConfig(tree map[string]any) error {
 
 // ApplyConfigDiff applies peer changes from config.
 // tree is the whole configuration tree, as SetConfigTree takes it. Peer
-// parsing goes through loadPeersFullOrTree.
+// parsing goes through loadPeersFromConfig, over this tree and never the file:
+// an outer compensation hands it the prior tree while the rejected candidate
+// is still staged (reload_tree.go).
 // Called by the reload coordinator during the apply phase.
 func (a *reactorAPIAdapter) ApplyConfigDiff(tree map[string]any) error {
-	bgpTree, err := configBGPBlock(tree)
-	if err != nil {
-		return fmt.Errorf("apply config diff: %w", err)
-	}
-	loaded, err := a.loadPeersFullOrTree(bgpTree)
+	loaded, err := a.loadPeersFromConfig(tree)
 	if err != nil {
 		return fmt.Errorf("apply config diff: %w", err)
 	}
@@ -997,9 +1063,11 @@ func configBGPBlock(tree map[string]any) (map[string]any, error) {
 // dynamic step does (reconcileDynamicGroupsJournaled, reactor_dynamic.go).
 //
 // Every other reactor parses the bgp block it was handed, with none of that
-// around it. VerifyConfig and ApplyConfigDiff take the whole configuration
-// tree and hand the bgp block over (configBGPBlock); the BGP plugin's apply
-// hands its bgp section (ReconcilePeersWithJournal, reactor.go). The only stage the two routes share is PeersFromTree (config.go), and
+// around it. VerifyConfig takes the whole configuration tree and hands the bgp
+// block over (configBGPBlock), and so does ApplyConfigDiff on a reactor with
+// no TreeReloadFunc; with one, ApplyConfigDiff never comes here
+// (loadPeersFromConfig, reload_tree.go). The BGP plugin's apply hands its bgp
+// section (ReconcilePeersWithJournal, reactor.go). The only stage the two routes share is PeersFromTree (config.go), and
 // sharing it is what stops them disagreeing about how a peer's config is READ.
 // It does not make them equivalent, because they differ in what reaches the
 // parser and in what runs on the result. The tree route reads no dynamic group,

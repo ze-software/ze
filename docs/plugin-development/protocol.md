@@ -545,14 +545,19 @@ the request deadline, so the handler's context never outlives the caller. The
 source identity comprises peer, peer incarnation,
 session generation, original policy epoch, receive frontier and template
 generation. Every field MUST be present and non-null; the last two may be zero.
-Prepare/finalize require explicit target zero. Apply/abort require a fresh target
-newer than the captured epoch; the coordinator enforces monotonicity between calls.
+Prepare/finalize require explicit target zero. Apply requires a fresh target
+newer than the captured epoch. Abort carries target zero when the transaction was
+prepared and never applied: release your prepare pins and change nothing else (no
+restamp, no eligibility change, no downstream write). After apply, abort carries a
+fresh target newer than the captured epoch, and you restamp restored state to it.
+Refuse a zero abort after apply. The coordinator enforces monotonicity between calls.
 The SDK rejects malformed, unknown and expired requests before calling the owner.
 
 The engine strictly drains event application before prepare, but the handler
 MUST additionally fence its own workers and downstream writes. It MUST honor the
 context deadline and return only after the requested work settles. Keep prepare
-pins through apply; abort restores them, while finalize releases accepted pins.
+pins through apply; abort restores them (a zero-target abort only releases them),
+while finalize releases accepted pins.
 The SDK returns an exact identity/target receipt only after the handler returns.
 The engine checks the captured process and connection again after acknowledgement.
 Neither this callback transport nor copied epoch fields alone invalidate routes.

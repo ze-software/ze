@@ -217,39 +217,62 @@ func (a *reloadAcceptance) completeBatches(ctx context.Context, accepted bool) e
 	var result error
 	for _, batch := range a.operationBatches() {
 		if !batch.completed {
-			deadline, _ := ctx.Deadline()
-			for _, name := range slices.Sorted(maps.Keys(batch.participants)) {
-				participant := batch.participants[name]
-				reg := participant.proc.Registration()
-				if reg == nil {
-					continue
-				}
-				if !reg.ConfigCompletion {
-					continue
-				}
-				if a.removedParticipant(participant) {
-					continue // Normal removal already released this lifetime's resources.
-				}
-				var err error
-				if !participant.current(a.server) {
-					err = fmt.Errorf("captured process lifetime ended")
-				} else {
-					err = participant.conn.SendConfigComplete(ctx, &rpc.ConfigCompleteInput{
-						TransactionID: batch.txID, Accepted: accepted, DeadlineMS: deadline.UnixMilli(),
-					})
-					if err == nil && !participant.current(a.server) {
-						err = fmt.Errorf("captured process lifetime ended")
-					}
-				}
-				if err != nil {
-					batch.err = errors.Join(batch.err, fmt.Errorf("owner %s transaction %s: %w", name, batch.txID, err))
-				}
-			}
+			batch.err = errors.Join(batch.err, a.server.sendTransactionReceipt(ctx, batch, accepted, a.removedParticipant))
 			batch.completed = true
 		}
 		result = errors.Join(result, batch.err)
 	}
 	return result
+}
+
+// sendTransactionReceipt sends batch's transaction receipt, config-complete
+// with accepted, to every participant registered for completion, and waits for
+// each acknowledgement under ctx. removed, when not nil, names a participant
+// whose planned removal already released its resources.
+func (s *Server) sendTransactionReceipt(ctx context.Context, batch *reloadOperationBatch, accepted bool, removed func(reloadParticipant) bool) error {
+	var result error
+	deadline, _ := ctx.Deadline()
+	for _, name := range slices.Sorted(maps.Keys(batch.participants)) {
+		participant := batch.participants[name]
+		reg := participant.proc.Registration()
+		if reg == nil {
+			continue
+		}
+		if !reg.ConfigCompletion {
+			continue
+		}
+		if removed != nil && removed(participant) {
+			continue // Normal removal already released this lifetime's resources.
+		}
+		err := fmt.Errorf("captured process lifetime ended")
+		if participant.current(s) {
+			err = participant.conn.SendConfigComplete(ctx, &rpc.ConfigCompleteInput{
+				TransactionID: batch.txID, Accepted: accepted, DeadlineMS: deadline.UnixMilli(),
+			})
+			if err == nil && !participant.current(s) {
+				err = fmt.Errorf("captured process lifetime ended")
+			}
+		}
+		if err != nil {
+			result = errors.Join(result, fmt.Errorf("owner %s transaction %s: %w", name, batch.txID, err))
+		}
+	}
+	return result
+}
+
+// completeRolledBack sends a transaction the orchestrator rolled back its
+// rejection receipt. Execute returns only after the whole rollback, the
+// operation undo and then the section-owned restore (afterRollback), so a
+// participant that holds state across the transaction, such as a paused BGP
+// session, resumes only once every participant runs its previous config again.
+func (s *Server) completeRolledBack(ctx context.Context, batch *reloadOperationBatch) error {
+	var removed func(reloadParticipant) bool
+	if pending, _ := ctx.Value(reloadAcceptanceKey{}).(*reloadAcceptance); pending != nil {
+		removed = pending.removedParticipant
+	}
+	bounded, cancel := context.WithTimeout(context.WithoutCancel(ctx), reloadCompletionBudget)
+	defer cancel()
+	return s.sendTransactionReceipt(bounded, batch, false, removed)
 }
 
 func (a *reloadAcceptance) operationBatches() []*reloadOperationBatch {
@@ -355,6 +378,19 @@ func reloadTransactionIDs(ctx context.Context) map[string]string {
 	return pending.transactions
 }
 
+// completeShutdown sends a transaction Stop stood down its rejection receipt.
+// The orchestrator skips the rollback for shutdown, so an operation that
+// applied stays applied; the receipt still ends every state a completion
+// owner holds across the transaction, such as a paused BGP session, which
+// would otherwise wait for its hold or the session's end. The send is bounded
+// by txShutdownGrace, the wait Stop gives the transaction to unwind, so
+// shutdown is never held longer by it.
+func (s *Server) completeShutdown(ctx context.Context, batch *reloadOperationBatch) error {
+	bounded, cancel := context.WithTimeout(context.WithoutCancel(ctx), txShutdownGrace)
+	defer cancel()
+	return s.sendTransactionReceipt(bounded, batch, false, nil)
+}
+
 // runTxCoordinator runs the transaction orchestrator for a reload once the
 // caller has computed the affected plugins and the raw diff. It builds
 // participants from the affected plugin registrations, converts the diff
@@ -364,7 +400,10 @@ func reloadTransactionIDs(ctx context.Context) map[string]string {
 // TxCoordinator.Execute.
 //
 // Returns nil on commit. Returns a non-nil error on abort (verify failed),
-// rollback (apply failed), or gateway misconfiguration. Callers use the
+// rollback (apply failed), or gateway misconfiguration. A rolled-back
+// transaction also sends its completion owners config-complete(false), after
+// the whole rollback (completeRolledBack), and one Stop stood down sends
+// them config-complete(false) too, bounded (completeShutdown). Callers use the
 // returned error verbatim as the reload error so operators see the same
 // message they did on the legacy RPC loop.
 func (s *Server) runTxCoordinator(ctx context.Context, affected []affectedPlugin, diff *config.ConfigDiff, runningTree, candidateTree map[string]any) error {
@@ -396,6 +435,14 @@ func (s *Server) runTxCoordinator(ctx context.Context, affected []affectedPlugin
 	coordinator.SetOperationPlanner(operationPlannerFromTrees(gateway, runningTree, candidateTree, participants))
 
 	result := coordinator.Execute(ctx, diffs)
+	if result.State == transaction.StateRolledBack {
+		batch := &reloadOperationBatch{txID: coordinator.TransactionID(), participants: bridge.participants}
+		return errors.Join(txResultToError(result), s.completeRolledBack(ctx, batch))
+	}
+	if result.State == transaction.StateAborted && errors.Is(result.Err, transaction.ErrShutdown) {
+		batch := &reloadOperationBatch{txID: coordinator.TransactionID(), participants: bridge.participants}
+		return errors.Join(txResultToError(result), s.completeShutdown(ctx, batch))
+	}
 	if result.State == transaction.StateCommitted {
 		recordReloadTransaction(ctx, coordinator.TransactionID(), affected)
 		if pending, _ := ctx.Value(reloadAcceptanceKey{}).(*reloadAcceptance); pending != nil {

@@ -167,6 +167,9 @@ func (rs *routeServer) handleStateDown(peerAddr string, generation uint64) {
 	rs.withdrawalMu.Lock()
 	entries := rs.withdrawals[peerAddr]
 	delete(rs.withdrawals, peerAddr)
+	// The session's source-policy transaction ends with it: a later phase is
+	// refused rather than applied to a successor session (source_policy.go).
+	delete(rs.sourcePolicy, peerAddr)
 	rs.withdrawalMu.Unlock()
 
 	// Resolve retention synchronously: a reconnect or expiry must not change

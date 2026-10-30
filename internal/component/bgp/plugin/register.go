@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"strings"
 	"sync"
 
 	bfdapi "github.com/ze-software/ze/internal/component/bfd/api"
@@ -276,7 +275,7 @@ func runBGPEngine(conn net.Conn) int {
 	// Transaction protocol: verify, apply with journal, rollback.
 	var pendingTree map[string]any
 	var activeJournal *sdk.Journal
-	operationJournals := make(map[string]*sdk.Journal)
+	operationJournals := make(map[string]*bgpOperationJournal)
 	var operationMu sync.Mutex
 
 	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
@@ -349,12 +348,12 @@ func runBGPEngine(conn net.Conn) int {
 
 	p.OnConfigOperationVerify(func(input sdk.ConfigOperationVerifyInput) error {
 		captureBGPConfigEvent(bgpReactor, capture.OpVerify, input.TransactionID, &input.Operation)
-		return verifyBGPOperation(&input.Operation, bgpReactor)
+		return verifyBGPOperation(input.TransactionID, &input.Operation, bgpReactor)
 	})
 
 	p.OnConfigOperationApply(func(input sdk.ConfigOperationApplyInput) (*sdk.ConfigOperationApplyOutput, error) {
 		captureBGPConfigEvent(bgpReactor, captureOperationPhase(input.Operation.Type), input.TransactionID, &input.Operation)
-		j := sdk.NewJournal()
+		j := newBGPOperationJournal(input.TransactionID, input.DeadlineMS)
 		out, err := applyBGPOperation(&input.Operation, bgpReactor, j)
 		if err != nil {
 			return nil, errors.Join(err, errors.Join(j.Rollback()...))
@@ -388,6 +387,13 @@ func runBGPEngine(conn net.Conn) int {
 	p.OnConfigOperationCommit(func(input sdk.ConfigOperationCommitInput) error {
 		captureBGPConfigEvent(bgpReactor, capture.OpCommit, input.TransactionID, nil)
 		pendingTree = nil
+		if bgpReactor != nil {
+			// An import invalidation whose admission budget ran out refuses the
+			// commit, and the transaction rolls this operation back.
+			if err := checkBGPSourcePolicy(input.TransactionID, bgpReactor); err != nil {
+				return fmt.Errorf("bgp operation commit: %w", err)
+			}
+		}
 		log.Info("bgp config operation journal committed")
 		return nil
 	})
@@ -395,16 +401,13 @@ func runBGPEngine(conn net.Conn) int {
 	p.OnConfigComplete(func(ctx context.Context, input sdk.ConfigCompleteInput) error {
 		operationMu.Lock()
 		defer operationMu.Unlock()
-		for key, j := range operationJournals {
-			if strings.HasPrefix(key, input.TransactionID+"\x00") {
-				if !input.Accepted {
-					return fmt.Errorf("bgp transaction %s still has unapplied undo", input.TransactionID)
-				}
-				j.Discard()
-				delete(operationJournals, key)
+		var complete func(context.Context, string, bool) error
+		if bgpReactor != nil {
+			complete = func(ctx context.Context, txID string, accepted bool) error {
+				return completeBGPSourcePolicy(ctx, txID, accepted, bgpReactor)
 			}
 		}
-		return ctx.Err()
+		return completeBGPTransaction(ctx, input.TransactionID, input.Accepted, operationJournals, complete)
 	})
 
 	ctx, cancel := sdk.SignalContext()
@@ -418,6 +421,7 @@ func runBGPEngine(conn net.Conn) int {
 				configop.AddPeer,
 				configop.RemovePeer,
 				configop.ModifyPeer,
+				configop.ReconcilePeers,
 			},
 		}},
 		VerifyBudget: 5,

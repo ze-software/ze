@@ -29,6 +29,10 @@ type workItem struct {
 	msg               *bgptypes.RawMessage
 	validation        ribevents.ValidationRoute
 	textPayload       string
+	// barrier, when set, makes the item a settle marker: the worker flushes
+	// its batch and closes it, so every item queued before it was handled
+	// (settleSource). It carries no UPDATE.
+	barrier chan struct{}
 }
 
 // poolConfig holds configuration for a workerPool.

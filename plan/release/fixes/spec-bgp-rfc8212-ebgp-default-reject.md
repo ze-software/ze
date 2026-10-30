@@ -8,9 +8,9 @@
 | Release reason | The route-server release profile requires RFC 8212. Today an EBGP session with no import or export policy accepts every route into the Decision Process and advertises every route, which is the route-leak default RFC 8212 exists to remove |
 | RFC gaps | RFC8212-3-1, RFC8212-3-2 |
 | Depends | - |
-| Phase | 3/7 |
+| Phase | 4/7 |
 | Handoff | - |
-| Updated | 2026-10-28 |
+| Updated | 2026-10-30 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -371,6 +371,7 @@ over the closing commits.
 | `test-asserts-superseded-behaviour.md` | 2026-10-30 | reactor tests expect accept for EBGP with no export policy |
 | `unwired-feature.md` | 2026-09-02 | Named automatic loop-filter references dispatch to a nonexistent external plugin |
 | `unwired-feature.md` | 2026-10-28 | Startup subscriptions discard every peer selector after the first |
+| `discarded-error-becomes-destructive.md` | 2026-10-30 | bgp-rib apply acknowledges a refused downstream withdrawal |
 
 ## Key Design Decisions
 
@@ -1102,19 +1103,65 @@ handoff. Record what was implemented, what actually ran, unresolved failures
 and the next action before continuing. The specification, not only transient
 session context, must identify where implementation resumes.
 
-Current phase: **3/7, reversible lifecycle**. No whole-spec success, closure or
+Current phase: **4/7, reload and operations**. No whole-spec success, closure or
 RFC conformance claim is made. The approved acceptance criteria remain intact.
 
-Implementation paused at the owner's request on 2026-10-28. Resume from
-`plan/handover/30-bgp-rfc8212-phase3.md`; no acceptance criterion was removed.
-All active implementation agents parked without partial source edits.
+Checkpoint 2026-10-30. Phase 3 (D-2, the reversible removal of an Established
+EBGP session's last accepting import policy) is implemented and landed with
+AC-8 in one commit. The detailed per-package record is the session state file
+`tmp/session/2026-10-29-3514eb97-23b7-4530-b40e-d986b1aecd02/state/session-state-spec-bgp-rfc8212-ebgp-default-reject-3514eb97-23b7-4530-b40e-d986b1aecd02.md`,
+whose handoffs supersede the 2026-10-28 handover for Phase 3.
+
+What Phase 3 delivered:
+
+- The reload coordinator (`reactor/source_policy_reload.go`): a falling import
+  transition pauses the session's input, captures the source-policy owners
+  (`bgp-rib`, `bgp-adj-rib-in`, `bgp-rs`, `bgp-rr`) in dependency order,
+  prepares and applies the invalidation under a fresh policy epoch, settles
+  downstream writers, and on a rejected transaction aborts and restores the
+  routes before input resumes. The section path refuses the transition.
+- Policy-epoch fences on Adj-RIB-Out, forwarding, released receipts and sent
+  owners, so stale work under an old epoch is never reported written.
+- The ledger (`core/bgp/sourcepolicy`): a Prepared ledger of an abandoned
+  transaction is replaced, an Applied one holds.
+- Operation-based reload: the bgp decomposer's `reconcile-peers` residual, one
+  candidate resolution per transaction, operation commit refusal on a spent
+  admission budget, and `config-complete` finalize or settle.
+- `ApplyConfigDiff` loads the tree it is handed, so compensation restores the
+  prior tree; a created peer keeps its YANG defaults across a restore.
+- Reload functional tests `test/reload/rfc8212-import-invalidate`,
+  `-invalidate-refresh`, `-inherited`, `-rollback` and `-owner-failure`, each
+  shown red under a broken owner apply or abort, and 80 of 80 under stress.
+
+AC-8 is done: peer detail, `show policy chain` and policy dry-run report the
+effective final and mark the RFC 8212 default (`final-source rfc8212`), with
+`test/plugin/rfc8212-policy-status.ci` red under two producer breaks.
+
+Known reds at this checkpoint: 67 top-level failures in a full reactor package
+run, not yet triaged per test. Most look like RFC 8212 default-reject fallout in
+EBGP fixtures that assume an absent policy accepts; the link-local ones may come
+from another session's in-flight `link_scope*` work.
+
+What remains:
+
+- Phase 4: D-1 (import relaxation when Route Refresh is unavailable), AC-6 and
+  AC-7 end to end on a real reload, static and dynamic boundaries, and the
+  AC-9 establishment warnings.
+- Phase 5: triage of the 67 reactor reds and the rest of the EBGP fixture debt,
+  with independent judgment of each test change, and renewed RFC
+  discrimination and audit records.
+- Phase 6: the ExaBGP compatibility runs listed in its row.
+- Phase 7: the FRR interop scenario, AC-11 tagged tests with discrimination
+  records, removal of the `{gap}` annotations, and closure through `/ze-close`.
+- Gates owed for the landed work: a scoped lint of reactor, cmd/policy, rs,
+  bgp/config and bgp/plugin once the tree builds for them.
 
 | Phase | Status | Observed evidence and remaining work |
 |-------|--------|--------------------------------------|
 | 1. Wiring | Finished | Real-entry drafts reached the intended missing verdict, reload and status behavior after the documented automatic-filter and subscription prerequisites were repaired. Rollback/owner-fault fixtures still need the lifecycle before their later fault assertions can run |
 | 2. Verdict | Implemented and scoped verification passed | Session-aware exhaustion, coherent session snapshots and raw injection admission are implemented. Focused race tests, native import/IBGP drafts and the seven-origin export draft passed. Raw body, full-packet and concatenated-control bypasses were observed red before repair. Fourteen documentation configurations passed native validation. RFC proof records, draft promotion and broader affected-fixture checks remain in Phases5/7 |
-| 3. Reversible lifecycle | In progress | Captured-session admission and timer-budget tests passed. Original journal retention and acknowledged completion are implemented; targeted ordering, decision-decoding and captured-lifetime repairs passed. A newly reproduced removed-infrastructure/retained-owner compensation defect remains under repair. Lifecycle protocol, policy-epoch transport and stored provenance are being implemented; actual owner invalidation, undo pins and whole-reload source coordination remain owed |
-| 4. Reload and operations | Not started | D-1 preflight/refresh, D-2 integration, complete static/dynamic boundaries, status projections and establishment warnings remain owed |
+| 3. Reversible lifecycle | Implemented 2026-10-30 | Owner invalidation, undo pins, downstream settlement and whole-reload coordination landed with the D-2 reload functional tests (see the checkpoint above). The 67 untriaged reactor reds move to Phase 5 |
+| 4. Reload and operations | In progress | D-2 integration and the status projections (AC-8) done. D-1 preflight/refresh, AC-6 and AC-7 end to end, complete static/dynamic boundaries and establishment warnings (AC-9) remain owed |
 | 5. Fixture compatibility | Not started | Existing EBGP fixtures, independent judgments and renewed affected RFC discrimination/audit records remain owed |
 | 6. ExaBGP migration | Implemented; compatibility verification incomplete | Migration package race tests, revised serialized-policy unit and native migration/validation draft passed. Actual CLI smoke verified each peer's explanatory warning. Six golden changes received independent judgment. Old-4.2, old-5.0 and current scripts plus the external-peer wire control and affected compatibility regression remain owed |
 | 7. Interop and proof closure | Not started | FRR scenario, forced-red records, support ledgers and final scoped regression evidence remain owed. Closure stays a separate `/ze-close` phase |

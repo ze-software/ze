@@ -7,21 +7,33 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
+	"fmt"
+	"net"
 	"net/netip"
 	"reflect"
+	"slices"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/internal/core/bgp/wire"
+	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
+	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 // TestRFC8212PolicyDryRunWiring drives the existing PolicyDryRunner entry point,
@@ -790,4 +802,443 @@ func TestRFC8212ExpectedOwnerEpochFence(t *testing.T) {
 		t.Fatal(err)
 	}
 	f.await(t, 3, syncOrderPrefixWire)
+}
+
+// rfc8212ImportOwnerName is the fixture owner's process name.
+const rfc8212ImportOwnerName = "rfc8212-import-owner"
+
+// rfc8212ImportOwner models the acknowledged-settlement contract the real route
+// owners (bgp-rib, bgp-adj-rib-in) implement for one source: prepare pins its
+// stored path, apply makes it ineligible, abort restores it restamped to
+// NextPolicyEpoch, finalize drops the pins. Safe for concurrent use.
+type rfc8212ImportOwner struct {
+	mu        sync.Mutex
+	ops       []rpc.SourcePolicyOperation
+	targets   []uint64
+	eligible  bool
+	epoch     uint64
+	pinned    bool
+	hang      rpc.SourcePolicyOperation
+	onPrepare func()
+	onApply   func()
+	onAbort   func()
+	// plugin is the owner's SDK handle, set once its engine runs, so a hook
+	// can call the engine from inside a lifecycle callback.
+	plugin *sdk.Plugin
+}
+
+// sdkPlugin returns the owner's SDK handle once its engine runs.
+func (o *rfc8212ImportOwner) sdkPlugin() *sdk.Plugin {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	return o.plugin
+}
+
+func (o *rfc8212ImportOwner) handle(ctx context.Context, in rpc.SourcePolicyInput) error {
+	o.mu.Lock()
+	o.ops = append(o.ops, in.Operation)
+	o.targets = append(o.targets, in.NextPolicyEpoch)
+	hang := o.hang == in.Operation
+	o.mu.Unlock()
+	if hang {
+		<-ctx.Done()
+		return ctx.Err()
+	}
+	switch in.Operation {
+	case rpc.SourcePolicyPrepare:
+		if o.onPrepare != nil {
+			o.onPrepare()
+		}
+	case rpc.SourcePolicyApply:
+		if o.onApply != nil {
+			o.onApply()
+		}
+	case rpc.SourcePolicyAbort:
+		if o.onAbort != nil {
+			o.onAbort()
+		}
+	case rpc.SourcePolicyFinalize, rpc.SourcePolicyUnspecified:
+	}
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	switch in.Operation {
+	case rpc.SourcePolicyPrepare:
+		if in.Source.PolicyEpoch != o.epoch {
+			return fmt.Errorf("identity epoch %d, stored path at %d", in.Source.PolicyEpoch, o.epoch)
+		}
+		o.pinned = true
+	case rpc.SourcePolicyApply:
+		if !o.pinned {
+			return errors.New("apply without prepare")
+		}
+		o.eligible = false
+	case rpc.SourcePolicyAbort:
+		if !o.pinned && in.NextPolicyEpoch == 0 {
+			return nil // Never prepared: nothing to release (sourcepolicy Owner.Admit).
+		}
+		if !o.pinned {
+			return errors.New("abort without prepare")
+		}
+		o.eligible, o.epoch, o.pinned = true, in.NextPolicyEpoch, false
+	case rpc.SourcePolicyFinalize:
+		o.pinned = false
+	case rpc.SourcePolicyUnspecified:
+		return errors.New("unspecified operation")
+	}
+	return nil
+}
+
+func (o *rfc8212ImportOwner) seen() ([]rpc.SourcePolicyOperation, []uint64, bool, uint64) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	return slices.Clone(o.ops), slices.Clone(o.targets), o.eligible, o.epoch
+}
+
+// rfc8212TxJournal is an operation journal that belongs to a transaction.
+type rfc8212TxJournal struct {
+	*sdk.Journal
+	txID     string
+	deadline time.Time
+}
+
+func (j *rfc8212TxJournal) SourcePolicyTransaction() (string, time.Time) { return j.txID, j.deadline }
+
+// rfc8212Admitted is what the session's admission saw for one UPDATE.
+type rfc8212Admitted struct {
+	accepts bool
+	epoch   uint64
+}
+
+type rfc8212ImportFixture struct {
+	r          *Reactor
+	peer       *Peer
+	f          *admissionSession
+	owner      *rfc8212ImportOwner
+	admitted   chan rfc8212Admitted
+	read       chan (<-chan error)
+	early      atomic.Bool
+	generation uint64
+	original   uint64
+}
+
+// newRFC8212ImportFixture builds an Established EBGP peer over a real wire
+// handshake whose import policy is `final accept`, with the fixture owner
+// running as a real SDK plugin attached `receive [ update-received ]`. wire
+// hides the connection type so the SDK takes the RPC transport, not DirectBridge.
+func newRFC8212ImportFixture(t *testing.T, wire bool) *rfc8212ImportFixture {
+	t.Helper()
+	return newRFC8212ImportFixtureWith(t, wire)
+}
+
+// newRFC8212ImportFixtureWith is newRFC8212ImportFixture with further internal
+// plugins started beside the owner; the caller registers each one first.
+func newRFC8212ImportFixtureWith(t *testing.T, wire bool, extra ...string) *rfc8212ImportFixture {
+	t.Helper()
+	fx := &rfc8212ImportFixture{f: newAdmissionSession(t), owner: &rfc8212ImportOwner{eligible: true},
+		admitted: make(chan rfc8212Admitted, 4), read: make(chan (<-chan error), 1), generation: 7}
+	accept, err := filterapi.NewPolicy(nil, routepolicy.FinalAccept)
+	require.NoError(t, err)
+	settings := NewPeerSettings(netip.MustParseAddr("192.0.2.1"), 65001, 65002, 0x01020301)
+	settings.ImportPolicy = accept
+	settings.ProcessBindings = []ProcessBinding{{PluginName: rfc8212ImportOwnerName,
+		Receive: map[string]events.Direction{bgpevents.EventUpdate: events.DirReceived}}}
+	fx.peer = NewPeer(settings)
+	fx.peer.state.Store(int32(PeerStateEstablished))
+	fx.peer.session = fx.f.s
+	fx.peer.forwardGeneration.Store(fx.generation)
+	fx.original = fx.peer.advanceSourcePolicyEpoch()
+	fx.owner.epoch = fx.original
+	fx.owner.onPrepare = func() {
+		fx.f.write(admissionUpdate(9))
+		fx.read <- fx.f.read(false)
+	}
+	fx.owner.onApply = func() {
+		if len(fx.admitted) != 0 {
+			fx.early.Store(true)
+		}
+	}
+	peer := fx.peer
+	fx.f.s.onMessageReceived = func(_ netip.Addr, typ msgtype.MessageType, _ []byte,
+		_ *wireu.WireUpdate, _ bgpctx.ContextID, _ rpc.MessageDirection,
+		_ BufHandle, _ map[string]any, _ string, _ uint64) bool {
+		if typ == msgtype.TypeUPDATE {
+			s := peer.settingsSnapshot()
+			fx.admitted <- rfc8212Admitted{accepts: s.ImportPolicy.AcceptsAtEnd(s.IsEBGP()), epoch: peer.sourcePolicyEpoch.Load()}
+		}
+		return false
+	}
+	fx.r = New(&Config{ListenAddr: "127.0.0.1:0", LocalAS: 65001})
+	fx.peer.reactor = fx.r
+	fx.r.peers[settings.PeerKey()] = fx.peer
+	snapshot := registry.Snapshot()
+	t.Cleanup(func() { registry.Restore(snapshot) })
+	owner := fx.owner
+	require.NoError(t, registry.Register(registry.Registration{
+		Name: rfc8212ImportOwnerName, Description: "RFC 8212 import owner fixture",
+		RunEngine: func(conn net.Conn) int {
+			if wire {
+				conn = struct{ net.Conn }{conn}
+			}
+			p := sdk.NewWithConn(rfc8212ImportOwnerName, conn)
+			defer p.Close() //nolint:errcheck // The server owns shutdown.
+			owner.mu.Lock()
+			owner.plugin = p
+			owner.mu.Unlock()
+			p.OnSourcePolicy(owner.handle)
+			if err := p.Run(context.Background(), &sdk.Registration{}); err != nil {
+				return 1
+			}
+			return 0
+		},
+		CLIHandler: func([]string) int { return 0 },
+	}))
+	policyFinalPluginServer(t, fx.r, append([]string{rfc8212ImportOwnerName}, extra...)...)
+	fx.r.mu.Lock()
+	fx.r.publishDeliveryGraphLocked()
+	fx.r.mu.Unlock()
+	return fx
+}
+
+// swap removes the peer's only import policy through the journaled swap.
+func (fx *rfc8212ImportFixture) swap(j configJournal) error {
+	next := fx.peer.settingsSnapshot()
+	next.ImportPolicy = filterapi.Policy{}
+	copyImport := func(dst, src *PeerSettings) { dst.ImportPolicy = src.ImportPolicy }
+	return (&reactorAPIAdapter{r: fx.r}).swapPeerSettingsJournaled([]peerSettingsSwap{{
+		key: fx.peer.Settings().PeerKey(), next: next, apply: copyImport}}, j)
+}
+
+// settled asserts identity, release-once, policy and the one admission of the
+// UPDATE sent while input was paused.
+func (fx *rfc8212ImportFixture) settled(t *testing.T, accepts bool) {
+	t.Helper()
+	require.Same(t, fx.f.s, fx.peer.currentSession(), "source session replaced")
+	require.Equal(t, fx.generation, fx.peer.forwardGeneration.Load(), "session generation changed")
+	require.False(t, fx.f.s.IsPaused(), "input left paused")
+	fx.f.s.pauseMu.Lock()
+	claims := fx.f.s.admissionClaims
+	fx.f.s.pauseMu.Unlock()
+	require.Zero(t, claims, "admission receipt not released exactly once")
+	s := fx.peer.settingsSnapshot()
+	require.Equal(t, accepts, s.ImportPolicy.AcceptsAtEnd(s.IsEBGP()), "import decision")
+	require.False(t, fx.early.Load(), "UPDATE admitted before the transaction settled")
+	select {
+	case read := <-fx.read:
+		select {
+		case admitted := <-fx.admitted:
+			require.Equal(t, accepts, admitted.accepts, "UPDATE admitted under the wrong policy")
+			require.Equal(t, fx.peer.sourcePolicyEpoch.Load(), admitted.epoch, "UPDATE admitted under a stale epoch")
+		case <-time.After(5 * time.Second):
+			t.Fatal("UPDATE sent during the pause was never admitted")
+		}
+		require.NoError(t, <-read)
+	case <-time.After(5 * time.Second):
+		t.Fatal("owner never saw prepare")
+	}
+	select {
+	case extra := <-fx.admitted:
+		t.Fatalf("UPDATE admitted twice: %+v", extra)
+	case <-time.After(50 * time.Millisecond):
+	}
+}
+
+// rfc8212ImportScenario drives one transaction outcome and checks the owner saw
+// prepare, apply(E1) and then abort(E2 > E1) or finalize, in that order.
+func rfc8212ImportScenario(t *testing.T, wire bool, outcome string) {
+	fx := newRFC8212ImportFixture(t, wire)
+	// The deadline is read on the session's fake clock (PauseAdmission,
+	// AdmissionReceipt.Check), so it is stamped from that clock: a wall-clock
+	// stamp would add the fixture's setup time to the budget, and the
+	// refused-commit step's 29.5 s advance would then not exhaust it on a
+	// loaded host.
+	j := &rfc8212TxJournal{Journal: sdk.NewJournal(), txID: "tx-" + outcome, deadline: fx.f.clock.Now().Add(30 * time.Second)}
+	require.NoError(t, fx.swap(j))
+	require.True(t, fx.f.s.IsPaused(), "input resumed before acceptance")
+	switch outcome {
+	case "later-apply-failure":
+		require.Empty(t, j.Rollback())
+		require.True(t, fx.f.s.IsPaused(), "input resumed before the whole rollback completed")
+		require.NoError(t, fx.r.CompleteSourcePolicyTx(t.Context(), j.txID, false))
+	case "refused-commit":
+		fx.f.clock.Add(29500 * time.Millisecond)
+		err := fx.r.CheckSourcePolicyTx(j.txID)
+		require.ErrorContains(t, err, "budget exhausted before commit")
+		require.Empty(t, j.Rollback())
+		require.True(t, fx.f.s.IsPaused(), "input resumed before the whole rollback completed")
+		require.NoError(t, fx.r.CompleteSourcePolicyTx(t.Context(), j.txID, false))
+	case "rollback-after-commit":
+		require.NoError(t, fx.r.CheckSourcePolicyTx(j.txID))
+		require.Empty(t, j.Rollback())
+		require.NoError(t, fx.r.CompleteSourcePolicyTx(t.Context(), j.txID, false))
+	case "accepted":
+		require.NoError(t, fx.r.CheckSourcePolicyTx(j.txID))
+		require.NoError(t, fx.r.CompleteSourcePolicyTx(t.Context(), j.txID, true))
+		j.Discard()
+	}
+	ops, targets, eligible, epoch := fx.owner.seen()
+	accepted := outcome == "accepted"
+	last := rpc.SourcePolicyAbort
+	if accepted {
+		last = rpc.SourcePolicyFinalize
+	}
+	require.Equal(t, []rpc.SourcePolicyOperation{rpc.SourcePolicyPrepare, rpc.SourcePolicyApply, last}, ops)
+	require.Greater(t, targets[1], fx.original, "apply target not newer than the captured epoch")
+	require.Equal(t, !accepted, eligible, "owner eligibility")
+	if !accepted {
+		require.Greater(t, targets[2], targets[1], "abort target not newer than apply")
+		require.Equal(t, fx.peer.sourcePolicyEpoch.Load(), epoch, "restored path not restamped to the current epoch")
+	}
+	fx.settled(t, !accepted)
+}
+
+// TestRFC8212ImportRollbackAcrossAcceptance proves AC-13: removing the last
+// accepting import policy of an Established EBGP session is undone by a later
+// apply failure, a refused commit and a rollback after commit, and finalized on
+// acceptance. Method: a real SDK owner over DirectBridge and over RPC; the
+// UPDATE sent while input is paused is admitted once, after the outcome, under
+// the restored (or accepted) policy and the current epoch; the session, its
+// generation and the single admission receipt are checked at the end.
+func TestRFC8212ImportRollbackAcrossAcceptance(t *testing.T) {
+	for _, wire := range []bool{false, true} {
+		for _, outcome := range []string{"later-apply-failure", "refused-commit", "rollback-after-commit", "accepted"} {
+			t.Run(fmt.Sprintf("wire=%t/%s", wire, outcome), func(t *testing.T) {
+				rfc8212ImportScenario(t, wire, outcome)
+			})
+		}
+	}
+}
+
+// TestRFC8212ImportAdmissionDeadline proves AC-15's deadline half: a HoldTimer
+// budget no larger than the reserve refuses before publication; a hung owner is
+// aborted inside the completion deadline with an error naming it; HoldTime 0 is
+// bounded by the transaction; an exhausted budget at commit rolls back.
+func TestRFC8212ImportAdmissionDeadline(t *testing.T) {
+	t.Run("budget-below-reserve", func(t *testing.T) {
+		fx := newRFC8212ImportFixture(t, false)
+		fx.f.clock.Add(89500 * time.Millisecond)
+		j := &rfc8212TxJournal{Journal: sdk.NewJournal(), txID: "tx-budget", deadline: time.Now().Add(10 * time.Minute)}
+		err := fx.swap(j)
+		require.ErrorContains(t, err, "insufficient session budget")
+		ops, _, _, _ := fx.owner.seen()
+		require.Empty(t, ops, "owner called before a refused pause")
+		require.Equal(t, fx.original, fx.peer.sourcePolicyEpoch.Load(), "epoch advanced by a refused change")
+		s := fx.peer.settingsSnapshot()
+		require.True(t, s.ImportPolicy.AcceptsAtEnd(s.IsEBGP()), "policy published by a refused change")
+		require.False(t, fx.f.s.IsPaused())
+	})
+	t.Run("hung-owner", func(t *testing.T) {
+		fx := newRFC8212ImportFixture(t, true)
+		fx.owner.hang = rpc.SourcePolicyApply
+		start := time.Now()
+		j := &rfc8212TxJournal{Journal: sdk.NewJournal(), txID: "tx-hung", deadline: start.Add(3 * time.Second)}
+		err := fx.swap(j)
+		require.ErrorContains(t, err, "source-policy owner "+rfc8212ImportOwnerName)
+		require.Less(t, time.Since(start), 4*time.Second, "abort outlived the completion deadline")
+		ops, _, _, _ := fx.owner.seen()
+		require.Equal(t, []rpc.SourcePolicyOperation{rpc.SourcePolicyPrepare, rpc.SourcePolicyApply, rpc.SourcePolicyAbort}, ops)
+		// The failed apply leaves the transaction to roll back; its receipt
+		// (config-complete false) is what resumes input.
+		require.True(t, fx.f.s.IsPaused(), "input resumed before the whole rollback completed")
+		require.NoError(t, fx.r.CompleteSourcePolicyTx(t.Context(), j.txID, false))
+		fx.settled(t, true)
+	})
+	t.Run("hold-zero-bounded-by-transaction", func(t *testing.T) {
+		fx := newRFC8212ImportFixture(t, false)
+		fx.f.s.timers.StopHoldTimer()
+		fx.f.s.timers.SetHoldTime(0)
+		deadline := time.Now().Add(20 * time.Second)
+		j := &rfc8212TxJournal{Journal: sdk.NewJournal(), txID: "tx-hold-zero", deadline: deadline}
+		require.NoError(t, fx.swap(j))
+		held := fx.r.sourcePolicy.transaction(j.txID)
+		require.Len(t, held, 1)
+		require.Equal(t, deadline, held[0].receipt.CompletionDeadline())
+		require.NoError(t, fx.r.CompleteSourcePolicyTx(t.Context(), j.txID, true))
+		fx.settled(t, false)
+	})
+	t.Run("exhausted-at-commit", func(t *testing.T) {
+		rfc8212ImportScenario(t, false, "refused-commit")
+	})
+}
+
+// rfc8212SectionRestore wraps the fixture's admission hook so each admitted
+// UPDATE also records whether the section-owned filter definitions had been
+// restored when it was evaluated.
+func rfc8212SectionRestore(fx *rfc8212ImportFixture) (*atomic.Bool, chan bool) {
+	restored := &atomic.Bool{}
+	seen := make(chan bool, 4)
+	inner := fx.f.s.onMessageReceived
+	fx.f.s.onMessageReceived = func(addr netip.Addr, typ msgtype.MessageType, raw []byte,
+		update *wireu.WireUpdate, ctxID bgpctx.ContextID, dir rpc.MessageDirection,
+		buf BufHandle, meta map[string]any, owner string, id uint64) bool {
+		if typ == msgtype.TypeUPDATE {
+			seen <- restored.Load()
+		}
+		return inner(addr, typ, raw, update, ctxID, dir, buf, meta, owner, id)
+	}
+	return restored, seen
+}
+
+// TestRFC8212ImportAbortHoldsInputUntilRejection proves AC-13's ordering: when
+// the transaction that removed the last accepting import policy is undone, the
+// session's input stays paused past BGP's own journal undo, through the
+// restore of the section-owned filter definitions, until the transaction's
+// config-complete(false) receipt. Method: the UPDATE written during prepare is
+// held; the test then restores a stand-in for the section-owned definitions,
+// delivers the receipt, and checks the UPDATE was evaluated once, after that
+// restore, under the restored policy. Both the rollback inside the transaction
+// and the rejection after its commit are driven.
+func TestRFC8212ImportAbortHoldsInputUntilRejection(t *testing.T) {
+	for _, outcome := range []string{"inner-rollback", "outer-rejection"} {
+		t.Run(outcome, func(t *testing.T) {
+			fx := newRFC8212ImportFixture(t, false)
+			restored, seen := rfc8212SectionRestore(fx)
+			j := &rfc8212TxJournal{Journal: sdk.NewJournal(), txID: "tx-hold-" + outcome, deadline: time.Now().Add(30 * time.Second)}
+			require.NoError(t, fx.swap(j))
+			if outcome == "outer-rejection" {
+				require.NoError(t, fx.r.CheckSourcePolicyTx(j.txID))
+			}
+			require.Empty(t, j.Rollback(), "BGP journal undo")
+			require.True(t, fx.f.s.IsPaused(), "input resumed at BGP's undo, before the section restore")
+			select {
+			case early := <-fx.admitted:
+				t.Fatalf("UPDATE admitted before the whole rollback completed: %+v", early)
+			case <-time.After(200 * time.Millisecond):
+			}
+			restored.Store(true)
+			require.NoError(t, fx.r.CompleteSourcePolicyTx(t.Context(), j.txID, false))
+			select {
+			case atRestore := <-seen:
+				require.True(t, atRestore, "first resumed UPDATE evaluated before the section-owned definitions were restored")
+			case <-time.After(5 * time.Second):
+				t.Fatal("UPDATE never admitted after the rejection receipt")
+			}
+			ops, _, _, _ := fx.owner.seen()
+			require.Equal(t, []rpc.SourcePolicyOperation{rpc.SourcePolicyPrepare, rpc.SourcePolicyApply, rpc.SourcePolicyAbort}, ops)
+			fx.settled(t, true)
+		})
+	}
+}
+
+// TestRFC8212ImportAbortHoldExpires proves the hold is bounded: an aborted
+// invalidation whose rejection receipt never arrives resumes input at the
+// receipt's completion deadline, and the late receipt reports that expiry.
+// Method: fake session clock advanced past the completion deadline.
+func TestRFC8212ImportAbortHoldExpires(t *testing.T) {
+	fx := newRFC8212ImportFixture(t, false)
+	j := &rfc8212TxJournal{Journal: sdk.NewJournal(), txID: "tx-hold-expiry", deadline: time.Now().Add(30 * time.Second)}
+	require.NoError(t, fx.swap(j))
+	held := fx.r.sourcePolicy.transaction(j.txID)
+	require.Len(t, held, 1)
+	completion := held[0].receipt.CompletionDeadline()
+	require.Empty(t, j.Rollback())
+	require.True(t, fx.f.s.IsPaused(), "input resumed before the rejection receipt")
+	fx.f.clock.Add(completion.Sub(fx.f.clock.Now()) - time.Millisecond)
+	require.True(t, fx.f.s.IsPaused(), "hold released before its completion deadline")
+	fx.f.clock.Add(2 * time.Millisecond)
+	require.Eventually(t, func() bool { return !fx.f.s.IsPaused() }, 5*time.Second, 5*time.Millisecond,
+		"input stayed paused past the completion deadline")
+	err := fx.r.CompleteSourcePolicyTx(t.Context(), j.txID, false)
+	require.ErrorContains(t, err, "completion deadline")
+	require.ErrorContains(t, err, fx.peer.addrString)
+	fx.settled(t, true)
 }

@@ -641,8 +641,8 @@ When a config change adds or removes config roots, plugins must be loaded or
 stopped. This happens outside the transaction, not inside it.
 
 Optional plugin schemas retain the CLI selection used at startup. The loaded
-configuration owns that selector list, and the reactor's file-backed verifier
-passes it to the same loader for each candidate. Removing and restoring a config
+configuration owns that selector list, and both the hub's reload loader and
+the reactor's file-backed loader pass it to the same loader for each candidate. Removing and restoring a config
 root therefore does not make its selected schema disappear. Unselected optional
 schemas remain unavailable.
 <!-- source: internal/component/config/loader.go -- LoadConfigResult, LoadConfig -->
@@ -695,6 +695,10 @@ the existing exclusion before returning the removal error. An outer rejection
 also compensates its applied tree; it does not replay a candidate the hub already
 undid or replace a newer successful reload. A rejected child restores its
 predecessor's ownership; an already-rejected predecessor then unwinds too.
+The compensation applies the prior tree itself: ApplyConfigDiff loads the tree
+it is handed, never the configuration file, because the hub clears the rejected
+candidate only after the compensation, and a file read answers that candidate
+first.
 Failed compensation remains actionable. A subsequent reload retries it before
 checking for a diff, and completed participant or reactor phases are not
 replayed. The prior tree is published only after compensation succeeds.
@@ -707,9 +711,17 @@ tree that declared a created peer's address under another name took the peer
 over by replacing it: the reconcile removes the operator's peer, which the prior
 file does not declare, and the second restore rebuilds the created peer from its
 entry in the prior tree, through the builder `create bgp peer` uses, and marks
-it. The reconcile cannot rebuild it, because it reads the configuration file and
-a created peer is never in the file.
+it. The reconcile cannot rebuild it: the rejected tree declared its address, so
+the running tree recorded as the prior one never carried it (`ReloadRunning`).
+A prior tree that keeps a created peer's entry, because the rejected tree
+declared its name, has the reconcile compare that entry's pipeline-built
+settings with the running created peer. The two builders agree: `create bgp
+peer` applies the same YANG peer defaults the config pipeline applies, so a
+created peer the rejected reload never touched is neither swapped nor
+restarted by the restore.
 <!-- source: internal/component/plugin/server/reload_compensation.go -- restoreReload -->
+<!-- source: internal/component/bgp/reactor/reactor_peers.go -- createdPeerSchemaDefaults -->
+<!-- source: internal/component/bgp/reactor/reload_tree.go -- loadPeersFromConfig -->
 <!-- source: internal/component/bgp/reactor/reactor_api.go -- RestoreCreatedPeers -->
 
 A late callback completion waits for the outer scope to finish, then uses the same
@@ -736,7 +748,10 @@ then elects a rollback and restarts plugins the same shutdown is about to kill.
 Shutdown therefore cancels the transaction and waits for it. It also names the
 reason: the cancellation CAUSE is `transaction.ErrShutdown`. A transaction
 canceled with that cause emits no abort and no rollback, because there is no
-running system left to restore.
+running system left to restore. Its completion owners still get
+`config-complete(false)` for it (`completeShutdown`), bounded by the same
+3 seconds, so a participant holding state across the transaction, such as a
+paused BGP session, releases it rather than waiting for its own hold.
 
 The wait is bounded at 3 seconds. After that the connections close anyway: a
 shutdown that hangs on a stuck reload is worse than the log noise the wait
@@ -1279,7 +1294,7 @@ to break its config root into atomic operations registers a decomposer via
 | Component | Config root | Decomposer | What it emits | What it declares |
 |-----------|------------|------------|---------------|------------------|
 | iface | `interface` | `decomposeIfaceOperations` | `add-interface`, `remove-interface`, `add-address`, `remove-address` per managed interface and IP | an interface operation produces the interface; an address operation produces the address and consumes the interface |
-| bgp | `bgp` | `decomposeBGPOperations` | `add-peer`, `remove-peer`, `modify-peer` per changed peer, plus a remove and an add for each peer bound to a disturbed address | a peer operation produces the peer and consumes the local address it binds; a peer that lets the kernel pick its source consumes every disturbed address, and nothing where none is disturbed |
+| bgp | `bgp` | `decomposeBGPOperations` | `add-peer`, `remove-peer`, `modify-peer` per changed peer, plus a remove and an add for each peer bound to a disturbed address, plus one `reconcile-peers` for what those leave changed (peers, bgp-level leaves, group levels, dynamic groups) | a peer operation produces the peer and consumes the local address it binds; a peer that lets the kernel pick its source consumes every disturbed address, and nothing where none is disturbed; `reconcile-peers` consumes every peer the other operations produce and the local address of each peer it moves |
 
 A decomposer receives a `DecomposeRequest`. It carries the transaction ID, the
 config root name, the active and candidate root data (full JSON for that root),
@@ -1294,6 +1309,29 @@ unless the diff touches the peer section or this commit disturbs an address. A p
 operation for is carried by one coarse `section-apply` node, so it takes the
 ordered path with everything else and is applied through the `config-apply`
 callback it already implements.
+
+A participant that owns operations gets no `section-apply` node, so its
+decomposer covers the whole diff or a change is never applied. BGP's
+per-peer operations name only the peers whose own body changed, or whose
+import layer changed through a group or the bgp level. Another group's
+hold-time in the same commit names no peer of theirs, and a bgp-level leaf
+(`router-id`) or a dynamic group (a group-level template with no static peer)
+names no peer at all, so `bgpResidualOperation` appends one `reconcile-peers`
+operation whenever the bgp root with its static peer bodies taken out differs
+on the two sides (`bgpPeerlessSkeletonChanged`: the bgp level, each group's
+own leaves, the groups), however many peers the other operations cover, or
+whenever a peer no other operation names resolves to different settings
+(its bgp level, group name, group leaves and body, compared by
+`collectBGPEffectivePeers`). It carries the candidate bgp root and consumes
+every peer the other operations produce, so the graph runs it after them and
+the peers they already moved are left as they are. The reactor applies it as a
+full peer reconcile (globals, then dynamic groups, then peers) under the
+operation's own journal, so the executor's per-operation rollback undoes it
+with the rest of the commit. A diff whose only changes are peer bodies, each
+named by a per-peer operation, carries no `reconcile-peers`.
+<!-- source: internal/component/bgp/plugin/operation.go -- bgpResidualOperation, collectBGPEffectivePeers, bgpPeerlessSkeletonChanged -->
+<!-- source: internal/component/bgp/reactor/operation.go -- ApplyConfigOperation -->
+<!-- source: internal/core/bgp/configop/configop.go -- ReconcilePeers -->
 
 Components that do not register a decomposer (DNS, telemetry, DHCP) are each
 one coarse node. The node is placed after the addresses and interfaces the
@@ -1444,6 +1482,23 @@ retain their original per-operation journals through this reversible commit and
 the later whole-reload decision. The orchestrator then emits the standard
 `(config, committed)` broadcast. Matching accepted `config-complete`, not inner
 commit, permits journal release.
+
+BGP's operation commit can refuse: when a modify-peer operation removed an
+Established session's last accepting import policy, the commit checks that
+session's admission budget and refuses once it is spent, so the executor rolls
+the operation back. BGP's `config-complete` finalizes that import invalidation
+on the source-policy owners before it discards the journal, and on rejection
+settles any invalidation the journal did not undo. Either way the session's
+paused input resumes, and only then: an undone invalidation keeps input paused
+until this receipt. A transaction the orchestrator rolls back itself (an
+operation apply failure, a refused operation commit) also sends its completion
+owners `config-complete` with `accepted` false, once `Execute` has returned,
+which is after the operation undo and the section restore (`completeRolledBack`
+in `reload_tx.go`) (`docs/architecture/behavior/peer-lifecycle.md`,
+"In-place import invalidation").
+
+<!-- source: internal/component/bgp/plugin/register.go -- OnConfigOperationCommit, OnConfigComplete -->
+<!-- source: internal/component/bgp/plugin/operation.go -- bgpOperationJournal, checkBGPSourcePolicy, completeBGPSourcePolicy -->
 
 ### Operation event types
 

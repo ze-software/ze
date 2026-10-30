@@ -139,14 +139,80 @@ downstream completion receipt.
 One predicate, `sourcePolicyCurrent`, answers the question everywhere: a local
 origin (no source) is current, and received work is current only when its
 nonzero original epoch equals its owner Peer's live epoch. There is no fallback
-from zero to the live epoch. Where each writer applies it:
+from zero to the live epoch. A plugin's sent-owner re-send carries an epoch in
+the request, but the request never decides alone, since any plugin can learn
+the live epoch: `sentOwnerCurrent` admits it only when the reactor's own record
+of the exact receipt agrees (below), the request's epoch is the live one, and
+the source Peer still exists. Where each writer applies it:
 
 | Writer | Stale announcement | Still admitted |
 |--------|--------------------|----------------|
 | Forwarded (direct, cached, pool, stored replay) | Dropped before identifier binding, owing or election | Every withdrawal, stale or not |
-| Exact owner (`adjOutExpected`) | Dropped, judged on the entry's ORIGINAL owner after the revision check | The exact-owner removal; a local owner |
+| Exact owner (`adjOutExpected`: a plugin's sent-owner replay, resend or abort restore through `update-route`) | Dropped, judged after the revision check (`sentOwnerCurrent`): a live entry re-announces only while its own admission epoch is the live one and the request carries that epoch; a released receipt only as the abort restore of the invalidation that released it (below). An unrecorded or superseded request epoch, an entry admitted under a superseded policy, a record of a finalized or another invalidation, or a source Peer that a configuration change removed (stopping; its replacement is another Peer with its own epoch), is refused. An admitted write re-owns the entry under the request's epoch | The exact-owner removal; a local owner |
 | Initial replay | `checkInitialWrite` and the writer refuse it with an error, never a policy no-op | A local replay |
 | Recovery | Skipped at candidate selection like an export refusal: the next eligible survivor is written, else the owed withdrawal. A PATHS-LIMIT election runs without it and still stages its departure and demotion withdrawals. A stale survivor is never held as retained. A section that turns stale after staging is held back alone (`recoveryKeyPolicyStale`): it is never written or reported written, its key's other sections are written, and the key is re-owed with its epoch moved and the worker woken, never left owed with no round to decide it | Withdrawal decisions and sections; GR expiry |
+
+An aborted invalidation restores a receipt the destination no longer holds.
+At apply the owner's exact removal (or, where the RIB elects owner
+withdrawals, the recovery decision that settles it) deletes the entry, so the
+abort's re-announcement meets no entry. The coordinator opens a window on the
+source Peer when apply issues E1 (`Peer.sourcePolicyWindow`), and records in it
+the E2 its abort issues. A deletion by `adjOutExpected` or `adjOutRecovery`, of
+a source-owned entry whose session is current, made while the source's live
+epoch is the window's E1 and the entry's is older, keeps the receipt in the
+table's `released` set with its owner, revision, slot (identifier reservation
+and ingress binding) and the stamp E1. A sent-owner announcement that meets no
+entry is admitted only against that record: the same revision, the owner's
+session still current, the window recording that its abort issued the live
+epoch for that stamp, and the request carrying that live epoch
+(`sentOwnerCurrent`). A record of transaction T thus matches only T's abort
+restore. It re-installs the entry under the request's epoch and revision.
+
+Without ADD-PATH a recovery round can answer the owner's removal with a
+survivor from another source, which takes the key while the receipt is
+released. That write keeps the record of the receipt it replaced, under the
+same conditions as a deletion, and an install by another owner of a key whose
+receipt is released leaves the record too: neither holds the receipt's slot.
+The abort restore then meets the survivor's entry. When the record matches it
+(same revision, the same `sentOwnerCurrent` fence) the restore is owed to the
+recovery worker rather than written (`oweReleasedRestore`), so the RIB
+re-elects between the restored path and the survivor and the round writes the
+winner (RFC 4271 Section 9.1). A restore the fence refuses owes nothing.
+
+One reload can invalidate two sources that held the same key in turn: A's
+receipt is removed and the round elects B, then B's receipt is removed too. The
+`released` set therefore keeps one record per owner of a key, never one per
+key, and a record is found by its revision, so B's record never overwrites A's.
+Each abort restore matches its own record: the first one to arrive meets no
+entry and is written, and the next meets that entry and is owed to the
+election, which chooses among the restored paths. A key holds at most one
+record for each source whose open invalidation removed its receipt there, and
+each record lives only until that invalidation's release, the bound of the
+window itself.
+
+Under ADD-PATH a released record holds its slot: another source's announcement
+whose identifier would take it gets a reserved identifier instead, as one
+meeting a live entry does (`bindSourcePath`), so the restore and the other
+path both reach the recipient (RFC 7911 Section 2).
+
+The source's own withdrawal of the path, the owner's exact removal of it, an
+install of the key by its own owner (or by any writer under ADD-PATH), and every
+reset of the table drop the record. So does every moment no restore may name it any more
+(`Reactor.dropReleasedSource`, under each destination table's `mu`): the
+invalidation's release (finalize, the rejection receipt or the hold's expiry,
+after the window closes), the source session's departure, a targeted down's
+revocation, and the source Peer's stop. A deletion for any other reason keeps
+none, so a replay in flight after a purge or a source withdrawal still meets no
+entry and is refused.
+<!-- source: internal/component/bgp/reactor/adj_rib_out_released.go -- keepReleased, releasedReceipt, oweReleasedRestore, takeReleased, dropReleasedOwner, dropReleasedAt, dropReleasedSource -->
+<!-- source: internal/component/bgp/reactor/session_ownership.go -- bindSourcePath -->
+<!-- source: internal/component/bgp/reactor/source_policy_reload.go -- openSourcePolicyWindow, abortSourcePolicyWindow, release, dropReleasedSource -->
+<!-- test: internal/component/bgp/reactor/rfc8212_abort_restore_test.go TestRFC8212AbortRestore -->
+<!-- test: internal/component/bgp/reactor/rfc8212_abort_restore_test.go TestRFC8212AbortRestoreAfterSurvivor -->
+<!-- test: internal/component/bgp/reactor/rfc8212_released_receipt_test.go TestRFC8212ReleasedReceiptAuthority -->
+<!-- test: internal/component/bgp/reactor/rfc8212_released_receipt_test.go TestRFC8212ReleasedReceiptDropped -->
+<!-- test: internal/component/bgp/reactor/rfc8212_released_receipt_test.go TestRFC8212ReleasedSlotAddPath -->
+<!-- test: internal/component/bgp/reactor/rfc8212_released_two_source_test.go TestRFC8212AbortRestoresBothReleasedSources, TestRFC8212ReleasedReceiptDepartureDropped -->
 
 A policy change keeps the source's session, so it never becomes a
 session-generation exclusion or a receive-cut end. Departure ownership
@@ -164,7 +230,9 @@ transport provenance, not a user route `meta/*` key.
 <!-- source: internal/component/bgp/reactor/peer.go -- sourcePolicyEpoch, advanceSourcePolicyEpoch -->
 <!-- source: internal/component/bgp/reactor/reactor_notify.go -- notifyMessageReceiver -->
 <!-- source: internal/component/bgp/reactor/session_ownership.go -- allow, recordSection, checkInitialWrite -->
-<!-- source: internal/component/bgp/reactor/forward_pool.go -- sourcePolicyCurrent -->
+<!-- source: internal/component/bgp/reactor/forward_pool.go -- sourcePolicyCurrent, sentOwnerCurrent -->
+<!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- sendBatchUpdate, queueBehindForwards -->
+<!-- test: internal/component/bgp/reactor/rfc8212_sent_owner_epoch_test.go TestRFC8212SentOwnerEpochFence -->
 <!-- source: internal/component/bgp/reactor/relay_recovery.go -- queueRecoveryOutcome, recoverySurvivorPolicyStale, heldSurvivor, admit, writes, settle, adjOutHolds, departedOwner, adjOutOwnerSessionCurrent -->
 <!-- source: internal/component/bgp/reactor/session_paths_limit_elect.go -- queuePathsLimitElection -->
 <!-- source: internal/component/bgp/reactor/session_write.go -- writeUpdateBody -->

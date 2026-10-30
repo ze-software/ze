@@ -36,8 +36,10 @@ func TestLedgerStateMachine(t *testing.T) {
 	if done, err := owner.Reprepare(&l, ledgerInput(rpc.SourcePolicyPrepare, "tx", 0)); !done || !errors.Is(err, prepareErr) {
 		t.Fatalf("a duplicate prepare returns the recorded outcome: %t %v", done, err)
 	}
-	if done, err := owner.Reprepare(&l, ledgerInput(rpc.SourcePolicyPrepare, "other", 0)); !done || err == nil {
-		t.Fatal("a second transaction is refused while one is open")
+	// A Prepared ledger of another transaction was abandoned (Reprepare): the
+	// coordinator claims a source for one transaction at a time.
+	if done, err := owner.Reprepare(&l, ledgerInput(rpc.SourcePolicyPrepare, "other", 0)); done || err != nil {
+		t.Fatalf("a prepared ledger of another transaction is replaced: %t %v", done, err)
 	}
 	if _, err := owner.Admit(&l, ledgerInput(rpc.SourcePolicyFinalize, "tx", 0)); err == nil {
 		t.Fatal("finalize before apply is refused")
@@ -54,6 +56,9 @@ func TestLedgerStateMachine(t *testing.T) {
 		t.Fatalf("apply after prepare: %t %v", dup, err)
 	}
 	l.Record(ledgerInput(rpc.SourcePolicyApply, "tx", 6), StageApplied, nil) //nolint:errcheck // nil by construction
+	if done, err := owner.Reprepare(&l, ledgerInput(rpc.SourcePolicyPrepare, "other", 0)); !done || err == nil {
+		t.Fatal("a second transaction is refused while an applied one is open")
+	}
 	if dup, err := owner.Admit(&l, ledgerInput(rpc.SourcePolicyApply, "tx", 6)); !dup || err != nil {
 		t.Fatalf("a duplicate apply returns its outcome: %t %v", dup, err)
 	}

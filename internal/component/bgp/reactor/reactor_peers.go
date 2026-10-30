@@ -11,11 +11,13 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
+	"slices"
 	"strconv"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -565,8 +567,12 @@ func (r *Reactor) AddDynamicPeer(addr netip.Addr, tree map[string]any) error {
 // configuration recorded, so a restored peer is the peer that was created.
 // The caller MUST NOT hold r.mu: the defaults are read under it.
 func (r *Reactor) createdPeerSettings(addr netip.Addr, tree map[string]any) (*PeerSettings, error) {
+	withDefaults, err := createdPeerSchemaDefaults(tree)
+	if err != nil {
+		return nil, fmt.Errorf("dynamic peer %s: %w", addr, err)
+	}
 	globals := r.globals()
-	settings, err := parsePeerFromTree(addr.String(), tree, globals.LocalAS, globals.RouterID)
+	settings, err := parsePeerFromTree(addr.String(), withDefaults, globals.LocalAS, globals.RouterID)
 	if err != nil {
 		return nil, fmt.Errorf("dynamic peer %s: %w", addr, err)
 	}
@@ -595,6 +601,52 @@ func (r *Reactor) createdPeerSettings(addr netip.Addr, tree map[string]any) (*Pe
 		settings.Port = port
 	}
 	return settings, nil
+}
+
+// createdPeerSchemaDefaults answers a copy of a created peer's entry with the
+// YANG defaults the config pipeline gives every configured peer
+// (applyPeerSchemaDefaults, ../config/peers.go). Without them the two builders
+// disagree about one entry (CapabilityConfigJSON lacks the defaulted
+// `asn4 enable`), so a reload or a compensation that declares a created peer
+// restarted a session nothing changed. The entry itself is not written to: it
+// is what the running configuration records and `update bgp config` saves.
+func createdPeerSchemaDefaults(entry map[string]any) (map[string]any, error) {
+	schema, err := config.YANGSchema()
+	if err != nil {
+		return nil, fmt.Errorf("YANG schema: %w", err)
+	}
+	peerSchema, err := schema.Lookup("bgp/peer")
+	if err != nil {
+		return nil, fmt.Errorf("YANG schema bgp/peer: %w", err)
+	}
+	withDefaults := cloneConfigValue(entry).(map[string]any) //nolint:forcetypeassert // A map clones to a map.
+	config.ApplyDefaults(withDefaults, peerSchema)
+	return withDefaults, nil
+}
+
+// cloneConfigValue answers a deep copy of one config map value. The recursion
+// is bounded by the YANG schema's nesting depth: the entry is one the CLI
+// parser or the running configuration built, never peer input.
+func cloneConfigValue(value any) any {
+	switch v := value.(type) {
+	case map[string]any:
+		out := make(map[string]any, len(v))
+		for key, child := range v {
+			out[key] = cloneConfigValue(child)
+		}
+		return out
+	case []any:
+		out := make([]any, len(v))
+		for i, child := range v {
+			out[i] = cloneConfigValue(child)
+		}
+		return out
+	case []string:
+		return slices.Clone(v)
+	default:
+		// A scalar (string, float64, bool) is a value: the copy is itself.
+		return v
+	}
 }
 
 // PortOverrideFromEnv answers the BGP port every peer of this daemon dials,

@@ -266,6 +266,10 @@ type routeServer struct {
 	// Used to downgrade RPC errors from ERROR to DEBUG during teardown.
 	stopping atomic.Bool
 
+	// sourcePolicy holds each source's open source-policy transaction, keyed
+	// like withdrawals. Guarded by withdrawalMu (source_policy.go).
+	sourcePolicy map[string]*sourcePolicyTxn
+
 	// adjRibInMissingOnce gates the "bgp-adj-rib-in not loaded" WARN to at most
 	// one emission per RouteServer instance. Replay is attempted on every
 	// peer-up; without the gate, every new peer would produce a duplicate
@@ -374,6 +378,9 @@ func RunRouteServer(conn net.Conn) int {
 
 	rs.wireFlowControl()
 	defer rs.resumeAllPaused()
+
+	// RFC 8212 Section 3: the in-place import invalidation of a source.
+	p.OnSourcePolicy(rs.handleSourcePolicy)
 
 	// Claim peer-up replay ownership from bgp-adj-rib-in once everything is up.
 	// OnAllPluginsReady (not OnStarted) because this dispatches to ANOTHER
@@ -984,11 +991,10 @@ func routeServerRegistration() *sdk.Registration {
 		// small-peer workers haven't processed yet, causing ErrUpdateExpired.
 		CacheConsumerUnordered: true,
 		// SourcePolicyOwner: this plugin keeps per-source state for the peers
-		// whose UPDATEs it receives (forwarded routes and the withdrawal map),
-		// and registers no OnSourcePolicy handler, so it cannot drop that state
-		// when the source's import policy is removed. Declaring ownership makes
-		// the engine refuse such a change before publication rather than leave
-		// the forwarded routes in place (RFC 8212 Section 3).
+		// whose UPDATEs it receives (queued forwards and the withdrawal map),
+		// so the engine prepares, applies, aborts and finalizes it through
+		// handleSourcePolicy when the source's last accepting import policy is
+		// removed in place (RFC 8212 Section 3, source_policy.go).
 		SourcePolicyOwner: true,
 		// WantsConfig: the engine delivers only the roots a plugin declares
 		// here, so without it OnConfigure never sees bgp { route-server }

@@ -339,44 +339,68 @@ func createReloadFunc(store storage.Storage, cliPlugins []string) reactor.Reload
 		if err != nil {
 			return nil, reactor.Globals{}, nil, fmt.Errorf("parse config: %w", err)
 		}
-		tree := loaded.Tree
-		schema, err := config.YANGSchema()
-		if err != nil {
-			return nil, reactor.Globals{}, nil, fmt.Errorf("YANG schema: %w", err)
-		}
-
-		resolved, err := ResolveBGPTree(tree)
-		if err != nil {
-			return nil, reactor.Globals{}, nil, fmt.Errorf("resolve BGP config: %w", err)
-		}
-		// The global router-id and local AS the reload applies to the reactor
-		// (applyGlobalsJournaled, ../reactor/reload_globals.go).
-		globals, err := reactor.GlobalsFromTree(resolved)
-		if err != nil {
-			return nil, reactor.Globals{}, nil, err
-		}
-		if err := refuseIncompletePeers(schema, resolved); err != nil {
-			return nil, reactor.Globals{}, nil, err
-		}
-
-		// Update redistribute rules on reload. A reload that cannot build them
-		// refuses, for the reason the initial load refuses: a nil evaluator
-		// disables every rule in the file.
-		if err := initRedistribute(tree); err != nil {
-			return nil, reactor.Globals{}, nil, fmt.Errorf("redistribute config: %w", err)
-		}
-
-		// The builder prunes inactive nodes and resolves the tree, and it returns
-		// the dynamic groups from the same walk. The groups are returned even
-		// when the config declares none: an empty list is how a removed group's
-		// peers are torn down by the reload's dynamic step.
-		peers, dynGroups, err := peersAndDynamicGroups(tree)
-		if err != nil {
-			return nil, reactor.Globals{}, nil, err
-		}
-
-		return peers, globals, dynGroups, nil
+		return reloadPeersFromTree(loaded.Tree)
 	}
+}
+
+// createTreeReloadFunc creates the TreeReloadFunc that ApplyConfigDiff runs
+// over the tree the reload coordinator hands it. The
+// tree arrives in the ToPluginMap shape (diskConfigLoaders, cmd/ze/hub), so
+// it is rebuilt as a config tree and goes through reloadPeersFromTree, the
+// pipeline createReloadFunc runs over the file.
+//
+// It never reads the file: an outer compensation hands ApplyConfigDiff the
+// prior tree while the rejected candidate is still staged, and the file route
+// answers that candidate (storage.ReadReloadConfig).
+func createTreeReloadFunc() reactor.TreeReloadFunc {
+	return func(tree map[string]any) ([]*reactor.PeerSettings, reactor.Globals, []*reactor.DynamicGroupConfig, error) {
+		rebuilt, err := config.TreeFromPluginMap(tree)
+		if err != nil {
+			return nil, reactor.Globals{}, nil, fmt.Errorf("rebuild config tree: %w", err)
+		}
+		return reloadPeersFromTree(rebuilt)
+	}
+}
+
+// reloadPeersFromTree is the reload pipeline both loaders share: the peers,
+// the global defaults and the dynamic groups of one parsed config tree.
+func reloadPeersFromTree(tree *config.Tree) ([]*reactor.PeerSettings, reactor.Globals, []*reactor.DynamicGroupConfig, error) {
+	schema, err := config.YANGSchema()
+	if err != nil {
+		return nil, reactor.Globals{}, nil, fmt.Errorf("YANG schema: %w", err)
+	}
+
+	resolved, err := ResolveBGPTree(tree)
+	if err != nil {
+		return nil, reactor.Globals{}, nil, fmt.Errorf("resolve BGP config: %w", err)
+	}
+	// The global router-id and local AS the reload applies to the reactor
+	// (applyGlobalsJournaled, ../reactor/reload_globals.go).
+	globals, err := reactor.GlobalsFromTree(resolved)
+	if err != nil {
+		return nil, reactor.Globals{}, nil, err
+	}
+	if err := refuseIncompletePeers(schema, resolved); err != nil {
+		return nil, reactor.Globals{}, nil, err
+	}
+
+	// Update redistribute rules on reload. A reload that cannot build them
+	// refuses, for the reason the initial load refuses: a nil evaluator
+	// disables every rule in the file.
+	if err := initRedistribute(tree); err != nil {
+		return nil, reactor.Globals{}, nil, fmt.Errorf("redistribute config: %w", err)
+	}
+
+	// The builder prunes inactive nodes and resolves the tree, and it returns
+	// the dynamic groups from the same walk. The groups are returned even
+	// when the config declares none: an empty list is how a removed group's
+	// peers are torn down by the reload's dynamic step.
+	peers, dynGroups, err := peersAndDynamicGroups(tree)
+	if err != nil {
+		return nil, reactor.Globals{}, nil, err
+	}
+
+	return peers, globals, dynGroups, nil
 }
 
 // treeGlobals returns the global router-id and local AS the `bgp` container

@@ -341,9 +341,11 @@ acceptance returns. API withdrawal sections are not swallowed by final rejection
 Operational `PeerInfo` carries `ImportPolicy` and `ExportPolicy` as optional
 `PolicyInfo` values rather than bare reference lists. Each carries `filters`
 (canonical reference strings) and an optional `final` (`accept` or `reject`).
-No policy and no automatic references is absent. Automatic-only references have
-no configured final, so `final` is omitted. A configured empty policy is present
-and includes its final.
+A configured policy, empty or not, reports its configured final. A direction
+with no operator policy reports the final the session applies: `reject` with
+`final-source` `rfc8212` on EBGP (RFC 8212 Section 3), no `final` on IBGP, and
+`undetermined` on a dynamic peer whose remote AS is not resolved yet. An IBGP
+direction with no policy and no automatic references is omitted.
 
 `show policy chain peer <selector> [import|export]` nests `filters` (name/canonical objects) and `final` under
 `import` and `export`; peer detail nests canonical strings and final under
@@ -357,9 +359,11 @@ with no resulting text.
 An unresolved remote AS instead produces `action: "undetermined"` and a `reason`
 to wait for establishment and repeat `show policy test`. It executes no filters,
 even with an override, and returns no trace, input text or resulting route.
-Known-session results omit `reason`. Status policy objects still describe
-configured presence, not the session-derived absence default.
+Known-session results omit `reason`. Every dry-run result also carries `policy`,
+the direction's status object above, so the per-UPDATE action and the
+direction's final stay distinct.
 <!-- source: internal/component/bgp/reactor/policy_dryrun.go -- PolicyDryRun -->
+<!-- source: internal/component/bgp/reactor/reactor_api.go -- policyInfo, absentPolicyInfo -->
 
 <!-- source: internal/component/plugin/types_bgp.go -- PolicyInfo, PeerInfo -->
 <!-- source: internal/component/bgp/reactor/reactor_api.go -- policyInfo -->
@@ -939,10 +943,22 @@ a Go plugin with no handler sets `Registration.SourcePolicyOwner` itself. The
 refusal names the plugin, says it cannot remove the peer's routes when the
 import policy is withdrawn, and gives the remedy: disable the peer, commit,
 set the new policy, re-enable the peer and commit again.
-In tree, `bgp-rib` and `bgp-adj-rib-in` are owners with handlers, and `bgp-rs`
-and `bgp-rr` declare ownership without one; what each phase does to
-their stores is in `docs/architecture/plugin/rib-storage-design.md`,
-"Source-policy lifecycle owners".
+In tree, `bgp-rib`, `bgp-adj-rib-in`, `bgp-rs` and `bgp-rr` are owners;
+`bgp-rib` is the only one that writes to destinations, and the forwarders
+settle only their own pending work. What each phase does to their stores is in
+`docs/architecture/plugin/rib-storage-design.md`, "Source-policy lifecycle
+owners".
+
+The capture returns the owners in their registered dependency order
+(`Dependencies`, `OptionalDependencies` and `StartAfter`, the edges startup
+orders the same processes by), with ties broken by process name, and refuses a
+cycle. The coordinator calls them in that order for every phase, and after
+each owner's call drains the plugin-process subscribers of
+`bgp-rib/validation-change` before calling the next, so a dependent owner's
+settle covers the relays its prerequisites caused. The reactor coordinator
+also refuses, before publication, a source whose UPDATEs reach a forwarder
+while the process that answers the RIB recovery command, and holds the sent
+inventory, is not among the captured owners.
 
 Each immutable handle captures both `Process` and `PluginConn`. Its `Call` checks
 that lifetime before invocation and after the acknowledged result; a successor
@@ -957,18 +973,45 @@ caller has given up. The captured source contains `peer`, `peer-owner`,
 `session-generation`, `policy-epoch`, `receive-frontier` and
 `template-generation`. Every field is required and non-null, including explicit
 zero frontiers/template generations. Peer owner, session generation and original
-policy epoch are nonzero. Prepare and finalize use target zero; apply and abort
-require a newer target. The coordinator MUST allocate globally monotonic epochs
-and never reuse an apply epoch for abort. The transport validates the target
-against the captured original epoch, not the coordinator's transaction history.
+policy epoch are nonzero. Prepare and finalize use target zero, and apply
+requires a target newer than the captured epoch. Abort takes one of two
+targets. Zero aborts a transaction that was prepared and never applied: the
+coordinator did not advance the source's epoch, and the owner only releases its
+prepare pins, with no restamp, no eligibility change and no downstream write. A
+target newer than the captured epoch aborts after apply advanced the epoch, and
+the owner restamps the restored state to it. The coordinator MUST allocate
+globally monotonic epochs and never reuse an apply epoch for abort. The
+transport validates the target against the captured original epoch, not the
+coordinator's transaction history; the owner's ledger
+(`internal/core/bgp/sourcepolicy`) then refuses, before any change, a zero
+target after apply, a nonzero one not newer than the apply target, and any
+abort of a finalized or aborted transaction. A nonzero target is also admitted
+from prepare, because a coordinator whose apply fails part way has already
+advanced the epoch, and every prepared owner restamps to it.
 
 The SDK passes a deadline-bounded context to the handler and refuses malformed,
 unknown or already-expired requests before owner mutation. A successful receipt
 echoes every identity field and target exactly. The owner MUST fence asynchronous
 work and settle downstream writes before returning; enqueue is not completion.
 Prepare pins state, apply changes eligibility, abort restores pinned state under
-a fresh epoch, and finalize releases accepted pins. The coordinator MUST retain
-individual prepared handles so partial prepare aborts only prepared owners.
+a fresh epoch (or, with target zero before apply, only releases the pins), and
+finalize releases accepted pins. The coordinator MUST retain
+individual prepared handles so partial prepare aborts only prepared owners,
+plus the owner whose prepare failed: a prepare whose call timed out may still
+finish and pin. An owner MUST answer a target-zero abort of a transaction it
+never prepared (it holds no ledger, or another transaction's) as done, and a
+prepare handler that settles before pinning MUST re-check its deadline after
+settling and refuse without pinning once it has passed. A prepare finding a
+prepared, never applied ledger of another transaction replaces it at any
+identity, releasing its pins: it changes nothing but pins, and the coordinator
+claims a peer for one transaction at a time, so the ledger was left by a lost
+target-zero abort (an abort that expired in the SDK queue keeps the same
+identity). A prepare finding an applied ledger of another transaction replaces
+it only when the incoming identity is newer (a later session generation, or a
+later policy epoch of the same session); one as new or newer still holds the
+source (`sourcepolicy.Owner.Reprepare`). An owner whose write to a destination
+is refused during apply or abort fails that phase: `bgp-rib` names the
+destination, the engine's reason and the missing `send [ update ]` grant.
 Transport support alone does not implement route invalidation or reload admission.
 
 The SDK runs the handler off the callback loop, on one long-lived source-policy
@@ -1015,7 +1058,7 @@ with the source's current policy epoch.
 <!-- source: pkg/plugin/rpc/types.go -- SourcePolicyIdentity, SourcePolicyInput, SourcePolicyOutput, StoredRoute -->
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnSourcePolicy -->
 <!-- source: internal/component/plugin/ipc/rpc.go -- SendSourcePolicy -->
-<!-- source: internal/component/plugin/server/source_policy.go -- CaptureSourcePolicyOwners, SourcePolicyOwner.Call -->
+<!-- source: internal/component/plugin/server/source_policy.go -- CaptureSourcePolicyOwners, orderSourcePolicyOwners, SourcePolicyOwner.Call -->
 
 All methods are prefixed with `ze-plugin-callback:`.
 

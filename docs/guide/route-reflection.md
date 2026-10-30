@@ -389,6 +389,37 @@ running. The startup declaration still provides ordering for the first peer.
 <!-- source: internal/component/bgp/plugins/rr/rr.go -- runRouteReflector OnAllPluginsReady -->
 <!-- source: internal/component/bgp/server/events.go -- onPeerStateChange -->
 
+### Removing a Client's Last Import Policy
+
+When a commit removes the last accepting import policy of an established EBGP
+peer, RFC 8212 Section 3 makes that peer's routes ineligible, and Ze keeps the
+session up and invalidates them in place under a prepare, apply, abort and
+finalize transaction. The copies `bgp-rr` reflected to its clients are
+withdrawn and restored by `bgp-rib`, which `bgp-rr` depends on: its sent
+inventory holds every copy `bgp-rr` reflected, so it withdraws them on apply,
+elects what replaces them, and re-announces them on abort, for every family.
+`bgp-rr` is an owner too, and its part is its own work and its withdrawal map.
+It sends nothing to a client in any phase:
+
+| Phase | What `bgp-rr` does |
+|-------|--------------------|
+| Prepare | Settles its work for the source (below), then pins the routes the source announced. It refuses, naming the peer, a source whose session is down, a capture older than a route it already reflected, and a source another open transaction holds |
+| Apply | Marks the routes held at or below the captured epoch as denied, keeping them stored for an abort, then settles its work |
+| Abort | With no target (the apply never ran) it only releases the pins. With a target it restamps the pinned routes still held unchanged to that target, drops any other denied route, and settles its work |
+| Finalize | Drops the denied routes from its withdrawal map, so a later session down does not withdraw them again |
+
+Settling means each phase answers only once no departure recovery of the
+source is queued or running, no received UPDATE is still being reflected, and
+every revalidation relay `bgp-adj-rib-in` queued for `bgp-rr` when it changed
+the paths' eligibility has reached the engine. A phase whose work does not
+finish before the transaction's deadline fails, naming the peer, and the
+transaction rolls back.
+<!-- source: internal/component/bgp/plugins/rr/source_policy.go -- prepareSourcePolicy, applySourcePolicy, abortSourcePolicy, finalizeSourcePolicy, settleSource -->
+<!-- source: internal/component/bgp/plugins/rr/departure_wait.go -- awaitDepartures -->
+<!-- source: internal/component/bgp/plugins/rr/forward_gate.go -- forwardGate -->
+<!-- source: internal/component/bgp/plugins/rr/validation.go -- settleValidation -->
+<!-- source: internal/component/bgp/plugins/rib/source_policy.go -- applySourcePolicy, abortSourcePolicy, restoreSentLocked -->
+
 ## Plugin Bindings
 
 The `bgp-rs` plugin requires:

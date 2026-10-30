@@ -11,6 +11,7 @@ import (
 	"reflect"
 	"slices"
 	"strings"
+	"time"
 )
 
 // settingsCopier copies from src to dst the PeerSettings fields ONE swap decision
@@ -30,6 +31,10 @@ type peerSettingsSwap struct {
 	key   netip.AddrPort
 	next  *PeerSettings
 	apply settingsCopier
+	// policyUnresolved marks a next built from an operation's config leaves
+	// alone (resolveOperationCandidate): its ImportPolicy is not the peer's
+	// effective import policy, so importDecisionFalls refuses to judge it.
+	policyUnresolved bool
 }
 
 // hotSwappableSettings copies from src to dst every PeerSettings field a RUNNING
@@ -241,7 +246,18 @@ func (a *reactorAPIAdapter) swapPeerSettingsJournaled(swaps []peerSettingsSwap, 
 		next := swap.next
 		apply := swap.apply
 		previous := peer.hotSwappableSnapshot(apply)
-		err := j.Record(
+		// RFC 8212 Section 3
+		falls, err := peer.importDecisionFalls(next, apply, swap.policyUnresolved)
+		if err != nil {
+			return fmt.Errorf("swap peer settings %s: %w", swap.key, err)
+		}
+		if falls {
+			if err := a.swapImportFalling(peer, next, apply, previous, j); err != nil {
+				return fmt.Errorf("swap peer settings %s: %w", swap.key, err)
+			}
+			continue
+		}
+		err = j.Record(
 			func() error {
 				if err := peer.applyHotSwappableSettings(next, apply); err != nil {
 					// A failed apply is not journaled, so undo this attempted
@@ -260,6 +276,43 @@ func (a *reactorAPIAdapter) swapPeerSettingsJournaled(swaps []peerSettingsSwap, 
 	}
 
 	return nil
+}
+
+// swapImportInvalidating delivers a swap that removes the peer's last accepting
+// import policy (the D-2 transition). The journal's apply prepares and applies
+// the invalidation, and its undo aborts it and keeps input paused; the
+// transaction's receipt (Reactor.CompleteSourcePolicyTx) finalizes it on
+// acceptance or resumes input after the whole rollback. A journal that belongs to no config
+// transaction cannot carry that undo across acceptance, so the change is
+// refused there before anything is published.
+func (a *reactorAPIAdapter) swapImportInvalidating(peer *Peer, next *PeerSettings, apply settingsCopier, previous *PeerSettings, j configJournal) error {
+	tx, ok := j.(sourcePolicyTransaction)
+	if !ok {
+		return fmt.Errorf("peer %s: this change removes the session's last accepting import policy (RFC 8212 Section 3), "+
+			"which needs a config transaction operation to pause the session's input and withdraw its accepted routes in place; "+
+			"it reached BGP on a path that carries none, so nothing was changed. "+
+			"Commit the import policy change on its own from the config editor (`commit`): BGP applies a change to the "+
+			"`filter import` of the peer, its group or the bgp level as a per-peer operation. If that commit is refused "+
+			"with this message too, it is a defect: report it with the commit's diff", peer.addrString)
+	}
+	txID, deadline := tx.SourcePolicyTransaction()
+	if txID == "" {
+		return fmt.Errorf("peer %s: removing the last accepting import policy needs a transaction ID, and the operation carried none", peer.addrString)
+	}
+	if deadline.IsZero() {
+		deadline = time.Now().Add(sourcePolicyTxBudget)
+	}
+	inv, err := a.r.prepareImportInvalidation(txID, deadline, peer)
+	if err != nil {
+		return err
+	}
+	restore := func() error { return peer.restoreHotSwappableSettings(previous, apply) }
+	return j.Record(
+		func() error {
+			return inv.apply(func() error { return peer.applyHotSwappableSettings(next, apply) }, restore)
+		},
+		func() error { return inv.undo(restore) },
+	)
 }
 
 // hotSwappableSnapshot copies the peer's current values of the fields copy

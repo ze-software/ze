@@ -47,12 +47,16 @@ func rfc8212ReloadRollback(ctx context.Context, p *sdk.Plugin, wire *rfc8212Relo
 			if server == nil {
 				return errors.New("outer rejection fixture omitted looking-glass main")
 			}
-			server.Set("ip", "127.0.0.9")
+			// 127.0.0.2 is an address every runner host holds (the downstream
+			// peer binds it on $PORT); macOS aliases only 127.0.0.1-6 on lo0.
+			// The looking glass moves there on $PORT2, which this observer
+			// takes first, so the outer reload fails on a real bind collision.
+			server.Set("ip", "127.0.0.2")
 			port, present := server.Get("port")
 			if !present {
 				return errors.New("outer rejection fixture omitted looking-glass port")
 			}
-			occupied, err = (&net.ListenConfig{}).Listen(ctx, "tcp", net.JoinHostPort("127.0.0.9", port))
+			occupied, err = (&net.ListenConfig{}).Listen(ctx, "tcp", net.JoinHostPort("127.0.0.2", port))
 			if err != nil {
 				return fmt.Errorf("reserve real listener collision: %w", err)
 			}
@@ -130,11 +134,12 @@ func rfc8212ReloadPrepare(tree *config.Tree, mode string) error {
 	return nil
 }
 
-// The unsupported case deliberately has no fabricated ownership declaration:
-// today's SDK cannot name it. Its retained event state must make the missing
-// registered-owner preflight visible, not be mistaken for a passing observer.
-// The other modes reach existing callback transport failure boundaries; they
-// become source-lifecycle proof only after Phase 3 binds the real owner contract.
+// The unsupported case declares source-policy ownership with no handler
+// (rfc8212ReloadUnsupportedOwner), so the engine's preflight must refuse the
+// change before any apply: nothing is published, and an UPDATE the source sends
+// afterwards is still processed and forwarded. The other modes reach existing
+// callback transport failure boundaries; they become source-lifecycle proof
+// only after Phase 3 binds the real owner contract.
 func rfc8212ReloadOwner(ctx context.Context, p *sdk.Plugin, wire *rfc8212ReloadWire, tree *config.Tree, schema *config.Schema) error {
 	if err := rfc8212ReloadSeed(ctx, p, wire, true); err != nil {
 		return err
@@ -210,7 +215,21 @@ func rfc8212ReloadOwner(ctx context.Context, p *sdk.Plugin, wire *rfc8212ReloadW
 	if err := wire.wait(ctx, "10.72.1.0/24", "10.72.2.0/24", "10.72.3.0/24"); err != nil {
 		return err
 	}
-	return rfc8212ReloadSessions(ctx, p, before, 0)
+	if err := rfc8212ReloadSessions(ctx, p, before, 0); err != nil {
+		return err
+	}
+	if mode != "unsupported" {
+		return nil
+	}
+	// The refused change left admission open: the source's next UPDATE
+	// (10.72.5.0/24, its answer to this export) is counted once and forwarded.
+	if err := rfc8212ReloadTrigger(ctx, p, "127.0.0.1", "5"); err != nil {
+		return err
+	}
+	if err := rfc8212ReloadInputDelta(ctx, p, before, 1); err != nil {
+		return fmt.Errorf("UPDATE after refused change: %w", err)
+	}
+	return wire.wait(ctx, "10.72.1.0/24", "10.72.2.0/24", "10.72.3.0/24", "10.72.5.0/24")
 }
 
 func rfc8212ReloadActive() ([]byte, error) {

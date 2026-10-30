@@ -141,8 +141,9 @@ func (r *AdjRIBInManager) applySourcePolicy(peer netip.Addr, input rpc.SourcePol
 	return err
 }
 
-// abortSourcePolicy restores the pinned routes the store still holds as the
-// same route, restamped to the abort's fresh epoch so the engine's writers
+// abortSourcePolicy releases the pins of a transaction that was never applied
+// (target zero) and changes nothing else. With a target it restores the
+// pinned routes the store still holds as the same route, restamped to the abort's fresh epoch so the engine's writers
 // accept them again. After an apply it drops any other denied route rather
 // than keeping it, and puts back the denial bound the source held before.
 // It runs no import evaluation and asks for no Route Refresh.
@@ -159,6 +160,14 @@ func (r *AdjRIBInManager) abortSourcePolicy(peer netip.Addr, input rpc.SourcePol
 	if duplicate {
 		r.mu.Unlock()
 		return nil
+	}
+	if input.NextPolicyEpoch == 0 {
+		// The ledger admits a zero target only before apply: no denial bound
+		// was raised and the epoch did not move, so only the pins go.
+		txn.installed, txn.pending = nil, nil
+		err = txn.ledger.Record(input, sourcepolicy.StageAborted, nil)
+		r.mu.Unlock()
+		return err
 	}
 	bound := txn.ledger.Source().PolicyEpoch
 	routes := r.ribIn[peer]

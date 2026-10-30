@@ -167,7 +167,10 @@ func TestRFC8212SourcePolicyRIBRefusesBeforeMutation(t *testing.T) {
 	require.Error(t, runSourcePolicy(t, r, rpc.SourcePolicyApply, "tx1", f.source, 5, 6), "apply without prepare")
 	require.NoError(t, runSourcePolicy(t, r, rpc.SourcePolicyPrepare, "tx1", f.source, 5, 0))
 	require.Error(t, runSourcePolicy(t, r, rpc.SourcePolicyApply, "other", f.source, 5, 6), "a foreign transaction")
-	require.Error(t, runSourcePolicy(t, r, rpc.SourcePolicyPrepare, "other", f.source, 5, 0), "a second open transaction")
+	// A Prepared ledger only pins, so another transaction's prepare replaces
+	// it (a lost target-zero abort left it); tx1's later phases are foreign.
+	require.NoError(t, runSourcePolicy(t, r, rpc.SourcePolicyPrepare, "other", f.source, 5, 0), "a prepared, never applied ledger is replaced")
+	require.Error(t, runSourcePolicy(t, r, rpc.SourcePolicyApply, "tx1", f.source, 5, 6), "tx1's apply after its prepared ledger was replaced")
 	foreign := sourcePolicyRequest(t, rpc.SourcePolicyApply, "tx1", f.source, 5, 6)
 	foreign.Source.SessionGeneration = 4
 	require.Error(t, r.handleSourcePolicy(context.Background(), foreign), "a replacement-session token")

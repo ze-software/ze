@@ -1,0 +1,144 @@
+# Test: a process that receives the source's UPDATEs and declares
+#       source-policy ownership without a source-policy handler makes a reload
+#       removing the source's last accepting import fail preflight, naming that
+#       process, with nothing changed (RFC 8212 Section 3, spec D-2, AC-15).
+# Method (`reload/rfc8212-import-owner-failure`, rfc8212_reload_rollback.go):
+#   `reload/rfc8212-select-owner unsupported` runs before the daemon, so
+#   `reload/rfc8212-owner` registers SourcePolicyOwner with no handler
+#   (rfc8212ReloadUnsupportedOwner). After the seed, a reload to `final reject`
+#   must answer `failed` with the error naming rfc8212-owner; the participant's
+#   apply never ran (no fault.reached-unsupported), running and durable
+#   configuration are unchanged, the import still accepts, the downstream
+#   still holds 10.72.1-3.0/24, sessions are unchanged, and a following
+#   UPDATE from the source (10.72.5.0/24) is counted once and forwarded.
+# VALIDATES: AC-15 (unsupported owner preflight).
+option=timeout:value=150s
+option=storage:value=disk
+
+stdin=source:terminator=EOF_SOURCE
+option=tcp_connections:value=1
+option=linger:value=true
+option=asn:value=65001
+# Ze's local origin toward the source, then its EOR.
+expect=bgp:conn=1:seq=1:announced=18C0A800
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+# Seed: export 192.168.1.0/24 arrives; answer with 10.72.1.0/24 and the
+# preferred (shorter AS_PATH) 10.72.3.0/24. Origin IGP, AS_PATH 65001,
+# NEXT_HOP 192.0.2.1, MED 9, COMMUNITY 65001:99. The second also carries
+# ATOMIC_AGGREGATE: identical attributes would let the reader coalesce the two
+# into one dispatched UPDATE (session_coalesce.go), and the observer counts two.
+expect=bgp:conn=1:seq=2:announced=18C0A801
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003D02000000224001010040020602010000FDE9400304C000020180040400000009C00804FDE90063180A4801
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004002000000254001010040020602010000FDE9400304C000020180040400000009400600C00804FDE90063180A4803
+# Before the reload: a received frame ends the pre-reload exchange.
+expect=bgp:conn=1:seq=3:announced=18C0A809
+# After the refused reload: export 192.168.5.0/24 still reaches this socket;
+# answer with 10.72.5.0/24, which must be processed and forwarded.
+expect=bgp:conn=1:seq=4:announced=18C0A805
+action=send:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003D02000000224001010040020602010000FDE9400304C000020180040400000009C00804FDE90063180A4805
+action=rewrite:conn=1:seq=4:source=marker:dest=source.after
+# Export toward the source is not touched by import invalidation.
+reject=bgp:conn=1:scope=withdrawn:pattern=18C0A800
+reject=bgp:conn=1:scope=withdrawn:pattern=18C0A801
+EOF_SOURCE
+
+stdin=alternate:terminator=EOF_ALTERNATE
+option=tcp_connections:value=1
+option=linger:value=true
+option=asn:value=65003
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+# Seed: 10.72.2.0/24 and the longer alternate 10.72.3.0/24. AS_PATH 65003 x3,
+# NEXT_HOP 192.0.2.3, MED 9, COMMUNITY 65003:33.
+expect=bgp:conn=1:seq=2:announced=18C0A801
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0045020000002A4001010040020E02030000FDEB0000FDEB0000FDEB400304C000020380040400000009C00804FDEB0021180A4802
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0045020000002A4001010040020E02030000FDEB0000FDEB0000FDEB400304C000020380040400000009C00804FDEB0021180A4803
+expect=bgp:conn=1:seq=3:announced=18C0A809
+EOF_ALTERNATE
+
+stdin=sink:terminator=EOF_SINK
+option=tcp_connections:value=1
+option=linger:value=true
+option=asn:value=65000
+EOF_SINK
+
+tmpfs=marker:terminator=EOF_MARKER
+source answered on its original connection
+EOF_MARKER
+
+stdin=ze-bgp:terminator=EOF_CONF
+environment {
+    cli { format { default yaml; } }
+    looking-glass { enabled true; server main { ip 127.0.0.1; port $PORT2; } }
+}
+plugin {
+    internal adj-rib-in { use bgp-adj-rib-in; }
+    internal rs { use bgp-rs; }
+    internal rib { use bgp-rib; }
+    external rfc8212-owner { run "le test fixture reload/rfc8212-owner"; encoder json; }
+    external rfc8212-reload { run "le test fixture reload/rfc8212-import-owner-failure"; encoder json; }
+}
+bgp {
+    peer peer-1 {
+        connection { remote { ip 127.0.0.1; } local { ip 127.0.0.4; accept false; } }
+        session {
+            asn { local 65000; remote 65001; }
+            router-id 1.2.3.4;
+            family { ipv4/unicast { prefix { maximum 10000; } } }
+            capability { graceful-restart disable; route-refresh disable; }
+        }
+        behavior { group-updates disable; }
+        filter { import { final accept; } export { final accept; } }
+        update {
+            attribute { origin igp; next-hop 10.0.0.1; }
+            nlri { ipv4/unicast add 192.168.0.0/24; }
+        }
+        attach process rfc8212-reload { send [ update ]; }
+        attach process rfc8212-owner { receive [ update-received ]; send [ update ]; }
+        attach process adj-rib-in { receive [ update-received state ]; }
+        attach process rs { receive [ update-received state open-received refresh ]; }
+        attach process rib { receive [ update state refresh ]; }
+    }
+    peer peer-2 {
+        connection { remote { ip 127.0.0.2; } local { ip 127.0.0.5; accept false; } }
+        session {
+            asn { local 65000; remote 65000; }
+            aigp { enabled false; }
+            router-id 1.2.3.4;
+            family { ipv4/unicast { prefix { maximum 10000; } } }
+            capability { graceful-restart disable; }
+        }
+        behavior { group-updates disable; }
+        attach process rfc8212-reload { receive [ update-received state ]; send [ update ]; }
+        attach process rfc8212-owner { receive [ update-received ]; }
+        attach process rs { receive [ state open-received refresh ]; send [ update ]; }
+        attach process rib { receive [ update-sent state refresh ]; }
+    }
+    peer peer-3 {
+        connection { remote { ip 127.0.0.3; } local { ip 127.0.0.6; accept false; } }
+        session {
+            asn { local 65000; remote 65003; }
+            router-id 1.2.3.4;
+            family { ipv4/unicast { prefix { maximum 10000; } } }
+            capability { graceful-restart disable; route-refresh disable; }
+        }
+        behavior { group-updates disable; }
+        filter { import { final accept; } export { final accept; } }
+        attach process rfc8212-reload { send [ update ]; }
+        attach process adj-rib-in { receive [ update-received state ]; }
+        attach process rs { receive [ update-received state open-received refresh ]; }
+        attach process rib { receive [ update state refresh ]; }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=le test fixture reload/rfc8212-select-owner unsupported
+cmd=background:seq=2:exec=le test peer --port $PORT:stdin=source
+cmd=background:seq=3:exec=le test peer --bind 127.0.0.2 --port $PORT --mode echo:stdin=sink
+cmd=background:seq=4:exec=le test peer --bind 127.0.0.3 --port $PORT:stdin=alternate
+cmd=foreground:seq=5:exec=ze -:stdin=ze-bgp:timeout=150s
+
+expect=exit:code=0
+expect=stderr:contains=plugin rfc8212-owner holds routes received from this peer but cannot remove them
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=peer restart required
+reject=stderr:pattern=panic recovered

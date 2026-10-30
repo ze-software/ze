@@ -52,7 +52,9 @@ func TestSentCleanupKeepsReceiptAfterProjectionRemoval(t *testing.T) {
 			t.Errorf("cleanup lost old captured receipt: %v", meta)
 		}
 	}
-	r.dispatchSentLifecycle(writes)
+	if err := r.dispatchSentLifecycle(writes); err != nil {
+		t.Fatalf("cleanup dispatch: %v", err)
+	}
 	if calls != 1 {
 		t.Fatalf("cleanup dispatch count = %d", calls)
 	}

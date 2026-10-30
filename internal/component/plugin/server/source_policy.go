@@ -7,8 +7,10 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/ipc"
 	"github.com/ze-software/ze/internal/component/plugin/process"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -66,7 +68,42 @@ func (s *Server) CaptureSourcePolicyOwners(names []string) ([]*SourcePolicyOwner
 		}
 		owners = append(owners, owner)
 	}
-	return owners, nil
+	return orderSourcePolicyOwners(owners)
+}
+
+// orderSourcePolicyOwners puts every captured owner after the captured owners
+// it depends on, by the edges startup orders the same processes with
+// (selectedPluginGraph: Dependencies, OptionalDependencies, StartAfter), and
+// breaks ties by process name. A dependent owner (bgp-rs, which reads what
+// bgp-rib and bgp-adj-rib-in hold) is then called after them, so its own settle
+// barrier covers the work their callbacks published. Abort and finalize use the
+// same order: each owner restores or drops only its own state, and a
+// dependent's settle still has to follow the work its prerequisites publish.
+func orderSourcePolicyOwners(owners []*SourcePolicyOwner) ([]*SourcePolicyOwner, error) {
+	configs := make([]plugin.PluginConfig, 0, len(owners))
+	byName := make(map[string]*SourcePolicyOwner, len(owners))
+	for _, owner := range owners {
+		configs = append(configs, owner.proc.Config())
+		byName[owner.name] = owner
+	}
+	tiers, err := registry.TopologicalGraphTiers(selectedPluginGraph(configs))
+	if err != nil {
+		return nil, fmt.Errorf("source-policy owners cannot be ordered by their plugin dependencies: %w", err)
+	}
+	ordered := make([]*SourcePolicyOwner, 0, len(owners))
+	for _, tier := range tiers {
+		for _, name := range tier {
+			if owner, captured := byName[name]; captured {
+				ordered = append(ordered, owner)
+			}
+		}
+	}
+	if len(ordered) != len(owners) {
+		// A process whose config names another label would leave the order
+		// without its owner, and its state would never be invalidated.
+		return nil, fmt.Errorf("source-policy owners: ordered %d of %d captured owners; a process config name differs from its process name", len(ordered), len(owners))
+	}
+	return ordered, nil
 }
 
 // DrainEventSubscribers waits until every plugin process subscribed to the
@@ -82,7 +119,7 @@ func (s *Server) DrainEventSubscribers(ctx context.Context, namespace, eventType
 	if !events.IsValidEvent(namespace, eventType) {
 		return fmt.Errorf("drain subscribers of %s/%s: event is not registered", namespace, eventType)
 	}
-	// refuse-by-default: guards deliverEvent -- with no subscription manager deliverEvent queues the event to no process, so none has work to apply
+	// refuse-by-default: guards Server.subscriptions -- with no subscription manager deliverEvent queues the event to no process, so none has work to apply
 	if s.subscriptions == nil {
 		return nil
 	}

@@ -506,3 +506,21 @@ func TestPeerDetailShowsEmptyPolicyFinal(t *testing.T) {
 	require.Equal(t, map[string]any{"filters": nil, "final": "reject"}, row["import-policy"])
 	require.Equal(t, map[string]any{"filters": []any{"rfc:no-self-as"}}, row["export-policy"])
 }
+
+// TestPeerDetailShowsRFC8212DefaultFinal checks that peer detail keeps the
+// RFC 8212 marker on a default reject and an undetermined final, so an operator
+// can tell a reject nobody configured from one they did. Method: run the detail
+// handler over a peer carrying both and read its JSON.
+func TestPeerDetailShowsRFC8212DefaultFinal(t *testing.T) {
+	peer := fullyPopulatedPeer()
+	peer.ImportPolicy = &plugin.PolicyInfo{Final: plugin.PolicyFinalReject, FinalSource: plugin.PolicyFinalSourceRFC8212}
+	peer.ExportPolicy = &plugin.PolicyInfo{Filters: []string{"rfc:no-self-as"}, Final: plugin.PolicyFinalUndetermined}
+	ctx := newTestContext(&mockReactor{peers: []plugin.PeerInfo{peer}})
+	ctx.Peer = peer.Address.String()
+	resp, err := handleBgpPeerDetail(ctx, commandtest.Args())
+	require.NoError(t, err)
+	require.Equal(t, plugin.StatusDone, resp.Status)
+	row := keyedPeerRow(t, resp)
+	require.Equal(t, map[string]any{"filters": nil, "final": "reject", "final-source": "rfc8212"}, row["import-policy"])
+	require.Equal(t, map[string]any{"filters": []any{"rfc:no-self-as"}, "final": "undetermined"}, row["export-policy"])
+}

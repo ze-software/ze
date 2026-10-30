@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -117,7 +118,12 @@ type mockPluginResponder struct {
 	opRollbackInput  rpc.ConfigOperationRollbackInput
 	opCommitInput    rpc.ConfigOperationCommitInput
 	order            *orderRecorder // optional ordering trace
-	mu               sync.Mutex
+	// trace, when set, records each config-rollback and config-complete the
+	// plugin receives, in arrival order, as "rollback:<name>" and
+	// "complete:<name>:<accepted>".
+	trace          *orderRecorder
+	completeInputs []rpc.ConfigCompleteInput
+	mu             sync.Mutex
 }
 
 // orderRecorder tracks the sequence in which plugins receive config-apply
@@ -255,6 +261,9 @@ func (m *mockPluginResponder) start(ctx context.Context) {
 
 			case "ze-plugin-callback:config-rollback":
 				m.rollbackCalls++
+				if m.trace != nil {
+					m.trace.record("rollback:" + m.pluginName)
+				}
 				if m.rollbackErr != nil {
 					_ = m.pluginConn.SendError(ctx, req.ID, m.rollbackErr.Error())
 				} else {
@@ -266,6 +275,17 @@ func (m *mockPluginResponder) start(ctx context.Context) {
 				if !m.ignoreCommitted {
 					_ = m.pluginConn.SendResult(ctx, req.ID, nil)
 				}
+
+			case "ze-plugin-callback:config-complete":
+				var in rpc.ConfigCompleteInput
+				if len(req.Params) > 0 {
+					_ = json.Unmarshal(req.Params, &in)
+				}
+				m.completeInputs = append(m.completeInputs, in)
+				if m.trace != nil {
+					m.trace.record("complete:" + m.pluginName + ":" + strconv.FormatBool(in.Accepted))
+				}
+				_ = m.pluginConn.SendResult(ctx, req.ID, nil)
 
 			default:
 				_ = m.pluginConn.SendResult(ctx, req.ID, nil)
@@ -344,7 +364,12 @@ type pluginDef struct {
 	// ignoreCommitted makes the plugin leave config-committed unanswered.
 	ignoreCommitted bool
 	order           *orderRecorder // optional: shared across plugins to capture cross-plugin apply order
-	responder       *mockPluginResponder
+	// trace is optional: shared across plugins to capture the order of
+	// config-rollback and config-complete deliveries.
+	trace *orderRecorder
+	// configCompletion registers the plugin for config-complete receipts.
+	configCompletion bool
+	responder        *mockPluginResponder
 }
 
 func newTestReloadServer(t *testing.T, reactor *mockReloadReactor, plugins []pluginDef) *Server {
@@ -380,6 +405,7 @@ func newTestReloadServer(t *testing.T, reactor *mockReloadReactor, plugins []plu
 		proc.SetRegistration(&plugin.PluginRegistration{
 			WantsConfigRoots: pd.roots,
 			ConfigOperations: pd.configOps,
+			ConfigCompletion: pd.configCompletion,
 		})
 		proc.SetCapabilities(&plugin.PluginCapabilities{})
 		proc.SetConn(engineConn)
@@ -396,6 +422,7 @@ func newTestReloadServer(t *testing.T, reactor *mockReloadReactor, plugins []plu
 			rollbackErr:     pd.rollbackErr,
 			ignoreCommitted: pd.ignoreCommitted,
 			order:           pd.order,
+			trace:           pd.trace,
 		}
 		resp.start(s.ctx)
 		pd.responder = resp
