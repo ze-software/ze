@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"context"
 	"debug/buildinfo"
-	"go/build/constraint"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -19,6 +18,7 @@ import (
 	coreenv "github.com/ze-software/ze/internal/core/env"
 	_ "github.com/ze-software/ze/internal/le"
 	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
+	"github.com/ze-software/ze/internal/test/buildflavor"
 )
 
 const internalLeImport = "github.com/ze-software/ze/internal/le"
@@ -44,56 +44,19 @@ func TestNormalZeLinksNoInternalLe(t *testing.T) {
 }
 
 // shippedFlavors answers each cmd/ze/build_tag_<name>_test.go flavor and the
-// tags its //go:build expression requires true. A file with no constraint, an
-// expression this cannot read as a conjunction, or positive tags that do not
-// satisfy their own expression fail the test.
+// tags its //go:build expression requires true, as buildflavor.Shipped reads
+// them: a file with no constraint, an expression it cannot read as a
+// conjunction, or positive tags that do not satisfy their own expression fail
+// the test.
 func shippedFlavors(t *testing.T, root string) map[string][]string {
 	t.Helper()
-	files, err := filepath.Glob(filepath.Join(root, "cmd", "ze", "build_tag_*_test.go"))
+	shipped, err := buildflavor.Shipped(root)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(files) == 0 {
-		t.Fatal("no cmd/ze/build_tag_*_test.go flavor file")
-	}
-	flavors := make(map[string][]string, len(files))
-	for _, file := range files {
-		body, err := os.ReadFile(file) //nolint:gosec // a file of this repository
-		if err != nil {
-			t.Fatal(err)
-		}
-		var expr constraint.Expr
-		for line := range strings.SplitSeq(string(body), "\n") {
-			if constraint.IsGoBuild(line) {
-				if expr, err = constraint.Parse(line); err != nil {
-					t.Fatalf("%s: %v", file, err)
-				}
-				break
-			}
-		}
-		if expr == nil {
-			t.Fatalf("%s carries no //go:build constraint, so its flavor is unknown", file)
-		}
-		var tags []string
-		var positive func(constraint.Expr)
-		positive = func(e constraint.Expr) {
-			switch e := e.(type) {
-			case *constraint.AndExpr:
-				positive(e.X)
-				positive(e.Y)
-			case *constraint.TagExpr:
-				tags = append(tags, e.Tag)
-			case *constraint.NotExpr:
-			default:
-				t.Fatalf("%s: the constraint %s is not a conjunction of tags and negations", file, expr)
-			}
-		}
-		positive(expr)
-		if !expr.Eval(func(tag string) bool { return slices.Contains(tags, tag) }) {
-			t.Fatalf("%s: the tags %v do not satisfy its own constraint %s", file, tags, expr)
-		}
-		name := strings.TrimSuffix(strings.TrimPrefix(filepath.Base(file), "build_tag_"), "_test.go")
-		flavors[name] = tags
+	flavors := make(map[string][]string, len(shipped))
+	for _, flavor := range shipped {
+		flavors[flavor.Name] = flavor.Tags
 	}
 	return flavors
 }
