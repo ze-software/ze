@@ -98,6 +98,11 @@ plugin {
 	}
 }
 bgp {
+	# RFC 8212: an EBGP direction with no policy is refused; this test exchanges routes.
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
 	# The router's global local-as: the ASN the route server acts on. The
 	# receivers inherit it; the source overrides its own session's local-as.
 	session {

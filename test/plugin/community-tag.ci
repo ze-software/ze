@@ -38,6 +38,11 @@ plugin {
 	}
 }
 bgp {
+	# RFC 8212: an EBGP direction with no policy is refused; this test exchanges routes.
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
 	community {
 		standard mark-transit {
 			value 65000:100

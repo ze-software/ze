@@ -46,6 +46,11 @@ plugin {
 	}
 }
 bgp {
+	# RFC 8212: an EBGP direction with no policy is refused; this test exchanges routes.
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
 	# The router's globally configured ASN. Both peers below override it with
 	# the legacy local AS 65010, which RFC 7705 Section 3.3 calls the "Local AS".
 	session {
