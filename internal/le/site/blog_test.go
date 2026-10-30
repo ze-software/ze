@@ -269,7 +269,7 @@ func TestAnArticleRendersItsKeyPointsAndProseNumbers(t *testing.T) {
 		"key-points: Facts stay with the owner | Pages publish checked views",
 		"---",
 		"",
-		"Ze answers {{ze:cli-commands}} commands.",
+		"Ze answers {{ze:cli_commands}} commands.",
 		"",
 	}, "\n")})
 

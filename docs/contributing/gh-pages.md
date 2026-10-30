@@ -272,6 +272,14 @@ and `./le site check` against the canonical `../gh-pages` checkout beside main.
 Use the native builder to preserve `.git` and generated media.
 <!-- source: internal/le/site/build.go -- Build, snapshotArtifact, seedArtifact, cleanArtifact -->
 
+`./le site check` also refuses a page that shows a value of
+`data/site-facts.json` as plain text, outside its `data-ze-stat` element, and
+lists each one under `plain-figures` with the page, the figure and the key. Fix
+it in the page's source: write the value as `{{ze:<dotted.key>}}` in a
+hand-written page, or through `markedFact` in a producer. The matching rule is
+in `docs/architecture/site-facts.md`, "One published copy of each value".
+<!-- source: internal/le/site/plaintext.go -- checkPlainFigures -->
+
 Local regeneration does not authorize a push or deployment. Never push without
 owner instruction.
 

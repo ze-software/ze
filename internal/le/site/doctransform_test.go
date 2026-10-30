@@ -198,23 +198,26 @@ func TestAJourneyHeroWrapsTheTitleAndItsLead(t *testing.T) {
 
 // TestANumberTokenResolvesFromTheFactsSnapshot covers the {{ze:...}} prose
 // tokens: the plain value for a mirror, the marked span for the HTML, the
-// refusal of a token this site has no key for, and the build that has no
-// snapshot yet.
+// refusal of a token whose key the snapshot does not name, and the build that
+// has no snapshot yet.
 func TestANumberTokenResolvesFromTheFactsSnapshot(t *testing.T) {
-	tokens := numberTokens{"unit-tests": "23,700+"}
-	plain, err := tokens.substitute("Ze runs {{ze:unit-tests}} unit tests.", false)
+	tokens, err := parseSiteFactSnapshot([]byte(`{"tests":{"unit_display":"23,700+"}}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	plain, err := tokens.substitute("Ze runs {{ze:tests.unit_display}} unit tests.", false)
 	if err != nil || plain != "Ze runs 23,700+ unit tests." {
 		t.Errorf("the mirror takes the plain number: %q %v", plain, err)
 	}
-	marked, err := tokens.substitute("Ze runs {{ze:unit-tests}} unit tests.", true)
+	marked, err := tokens.substitute("Ze runs {{ze:tests.unit_display}} unit tests.", true)
 	if err != nil || marked != `Ze runs <span data-ze-stat="tests.unit_display">23,700+</span> unit tests.` {
 		t.Errorf("the page takes the marked number: %q %v", marked, err)
 	}
 	if _, err := tokens.substitute("Ze has {{ze:invented-count}} of them.", false); err == nil {
-		t.Error("a token this site has no key for can never resolve and must be refused")
+		t.Error("a token whose key the snapshot does not name can never resolve and must be refused")
 	}
-	nothing, err := numberTokens(nil).substitute("Ze runs {{ze:unit-tests}} tests.", false)
-	if err != nil || nothing != "Ze runs {{ze:unit-tests}} tests." {
+	nothing, err := siteFactSnapshot{}.substitute("Ze runs {{ze:tests.unit_display}} tests.", false)
+	if err != nil || nothing != "Ze runs {{ze:tests.unit_display}} tests." {
 		t.Errorf("a build with no snapshot leaves the token alone: %q %v", nothing, err)
 	}
 }

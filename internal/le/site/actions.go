@@ -86,15 +86,22 @@ type checkReport struct {
 	MissingArtifacts []string `json:"missing-artifacts,omitempty"`
 	SourceOnly       []string `json:"source-only,omitempty"`
 	MissingMirrors   []string `json:"missing-mirrors,omitempty"`
-	Coverage         Coverage `json:"coverage"`
+	// PlainFigures names each snapshot value a page shows outside its
+	// data-ze-stat or data-ze-rfc marker. Such a value is a second copy of
+	// data/site-facts.json that site.js cannot update, so it goes stale.
+	PlainFigures []plainFigure `json:"plain-figures,omitempty"`
+	Coverage     Coverage      `json:"coverage"`
 }
 
 // exit answers the status one check reports. An artifact is refused when it
 // carries a source-only input, when a public route has no Markdown mirror, when
-// a named non-route artifact is absent, and when a published route has no
-// producer or has two.
+// a named non-route artifact is absent, when a page shows a published value
+// outside its marker, and when a published route has no producer or has two.
 func (report checkReport) exit() int {
 	if len(report.SourceOnly) != 0 || len(report.MissingMirrors) != 0 {
+		return 1
+	}
+	if len(report.PlainFigures) != 0 {
 		return 1
 	}
 	if len(report.MissingArtifacts) != 0 || report.Coverage.Red() {
@@ -146,6 +153,11 @@ func runCheck(arguments leaction.Arguments) (any, int) {
 	}
 	report.MissingArtifacts = checkNamedArtifacts(paths.Output)
 	report.MissingMirrors, err = checkPageMirrors(paths.Output)
+	if err != nil {
+		leaction.ReportError(err)
+		return nil, 2
+	}
+	report.PlainFigures, err = checkPlainFigures(paths.Output)
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 2

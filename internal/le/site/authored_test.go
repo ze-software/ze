@@ -326,3 +326,57 @@ func TestEveryAuthoredPageIsClaimedExactlyOnce(t *testing.T) {
 		}
 	}
 }
+
+// VALIDATES: AC-4, the wiring row for hand-written HTML. A token in an authored
+// page's body publishes as a marked value, the same token in its head reaches
+// the title and description as the plain value, and the mirror carries the
+// plain value.
+//
+// The method is the production producer over one authored source, with the
+// snapshot a build writes first already in the artifact.
+func TestAHandWrittenPageResolvesATokenToAMarkedValue(t *testing.T) {
+	source, output := authoredFixture(t)
+	writeArtifactFile(t, output, factsFile, `{"cli_commands":490,"tests":{"unit_display":"23,700+"}}`)
+	writeFixtureFile(t, filepath.Join(source, "labs", "count", pageIndexFile), strings.Join([]string{
+		`<!doctype html><html><head>`,
+		`<title>Ze answers {{ze:cli_commands}} commands</title>`,
+		`<meta name="description" content="Ze runs {{ze:tests.unit_display}} unit tests.">`,
+		`</head><body><main id="top">`,
+		`<h1>Counted</h1>`,
+		`<p>Ze answers {{ze:cli_commands}} commands.</p>`,
+		`</main></body></html>`,
+	}, "\n"))
+	if _, err := renderAuthoredPages(Paths{Repository: filepath.Dir(source), Source: source, Output: output}); err != nil {
+		t.Fatalf("render the authored pages: %v", err)
+	}
+	page := readArtifact(t, output, "labs/count/"+pageIndexFile)
+	if !strings.Contains(page, `<p>Ze answers <span data-ze-stat="cli_commands">490</span> commands.</p>`) {
+		t.Errorf("the published body carries no marked value:\n%s", page)
+	}
+	head, _, found := strings.Cut(page, "</head>")
+	if !found {
+		t.Fatalf("the published page has no head:\n%s", page)
+	}
+	for _, want := range []string{"<title>Ze answers 490 commands", `name="description" content="Ze runs 23,700`} {
+		if !strings.Contains(head, want) {
+			t.Errorf("the published head carries no plain %s:\n%s", want, head)
+		}
+	}
+	if strings.Contains(head, "data-ze-stat") {
+		t.Errorf("a marked span reached the head:\n%s", head)
+	}
+	if strings.Contains(page, "{{ze:") {
+		t.Errorf("the published page kept a token:\n%s", page)
+	}
+	mirror := readArtifact(t, output, "labs/count/"+pageMirrorFile)
+	if !strings.Contains(mirror, "Ze answers 490 commands.") {
+		t.Errorf("the mirror carries no plain value:\n%s", mirror)
+	}
+
+	writeFixtureFile(t, filepath.Join(source, "labs", "count", pageIndexFile),
+		"<html><head><title>T</title><meta name=\"description\" content=\"D\"></head><body><main id=\"top\"><p>{{ze:cli-commands}}</p></main></body></html>")
+	_, err := renderAuthoredPages(Paths{Repository: filepath.Dir(source), Source: source, Output: output})
+	if err == nil || !strings.Contains(err.Error(), "{{ze:cli-commands}}") {
+		t.Errorf("an authored page naming a key the snapshot lacks was not refused by name: %v", err)
+	}
+}

@@ -170,12 +170,30 @@ a stale recorded run; `./le site build refresh` re-records those first
   HTTP cache validation (GitHub Pages serves an ETag with a short max-age).
   Never reintroduce a per-page version query: it rewrites every page on any
   asset change.
-- **Prose number tokens.** Website-owned Markdown may embed `{{ze:<name>}}`
-  tokens whose values come from `data/site-facts.json`. HTML output carries a
-  `data-ze-stat` marker, while Markdown mirrors receive plain text.
+- **Prose number tokens.** Website-owned Markdown and hand-written HTML pages
+  may embed `{{ze:<dotted.key>}}` tokens, where the key is a dotted path of
+  `data/site-facts.json`, such as `tests.unit_display` or
+  `interop.scenarios_display`. The token names are the snapshot's own JSON
+  keys, so a value the snapshot gains is a token with no edit anywhere. In HTML
+  the value lands in a `data-ze-stat` span (`markedFact`,
+  `internal/le/site/factmark.go`); in a hand-written page a token inside an
+  attribute, inside `<head>` or inside a script, style or textarea takes the
+  plain value instead. Markdown mirrors receive plain text. A key the snapshot
+  does not name stops the build, naming the token, a close key and the `jq`
+  command that lists every key. A first build into an empty tree has no
+  snapshot yet and leaves every token alone.
+- **The plain-text guard.** `./le site check` refuses a page that shows a
+  snapshot value outside a marker, `data-ze-stat="<key>"` or
+  `data-ze-rfc="<stem>:<field>"`, and names the page, the figure and the key
+  (`checkPlainFigures`, `internal/le/site/plaintext.go`). It matches a display
+  string carrying a thousands separator or a "+", and a whole number of 100 or
+  more beside its unit word (the last word of the key's name). It reads text
+  in `<head>` and the title, alt, aria-label and meta content attributes, and
+  skips code, pre, script and style.
 - **The facts snapshot.** `data/site-facts.json` is written by the build, not by
   hand, and it is written BEFORE any page producer runs: the prose tokens, the
-  homepage proof strip and `llms.txt` all read it back. Each number is derived
+  homepage proof strip and `llms.txt` all read it back, and `site.js` fills
+  every `data-ze-stat` element from it at page load. Each number is derived
   from one input and `_sources` names that input. Two of them are not derived
   from this tree: the star count reaches api.github.com and keeps the previously
   published number when it cannot, saying so in `_sources`, and the command and

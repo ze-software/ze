@@ -108,6 +108,28 @@ nothing in that file says where the number came from.
 7. Make the check judge a commit, and compare what a reader sees rather than
    what the tool counted.
 
+## One published copy of each value
+
+Every value the site shows that changes over time is published once, in the
+artifact's `data/site-facts.json`, and a page shows it only inside an element
+that names its key: `data-ze-stat="<dotted.key>"`, or `data-ze-rfc="<stem>:<field>"`
+for a value of `data/rfc/<stem>.json`. The text inside is the last build's value
+for readers without JavaScript, and `site.js` replaces it from the file at load.
+A value printed as plain text is a second copy the file cannot update.
+<!-- source: internal/le/site/factmark.go -- markedFact, siteFactSnapshot -->
+
+| Part | What it is |
+|------|-----------|
+| The one helper | `markedFact` writes the marked element; a hand-written source names a value with a `{{ze:<dotted.key>}}` token, resolved by `substitute` (Markdown) and `substituteHTML` (HTML) |
+| The key set | the snapshot's own dotted JSON keys, walked from the published file (`siteFactSnapshot.keys`), so a map-typed section's keys count too and no name table exists |
+| The guard | `./le site check` reports `plain-figures`: each display string (a thousands separator or a "+") and each whole number of 100 or more beside its unit word that a page shows outside a marker (`checkPlainFigures`) |
+<!-- source: internal/le/site/plaintext.go -- checkPlainFigures, publishedFigures, plainFigures -->
+
+The guard reads what a reader sees, the head and the text attributes included,
+and judges the published string, as the gate above does. A value under 100 with
+no separator is matched only through its marker, because bare small numbers are
+everywhere in prose.
+
 ## Release inventory
 
 The release roadmap derives directly from an immutable Git tree. On every full

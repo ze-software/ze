@@ -451,9 +451,9 @@ has no programmatic API, YANG model, or structured logging.
 
 **Ze is pre-release. Why trust it yet?**
 
-Do not take that on faith: it is backed by {{ze:unit-tests}} Go test functions,
-{{ze:e2e-tests}} end-to-end tests, {{ze:fuzz-targets}} fuzz targets, and
-{{ze:interop-targets}} interoperability test images covering routing and
+Do not take that on faith: it is backed by {{ze:tests.unit_display}} Go test functions,
+{{ze:tests.e2e_display}} end-to-end tests, {{ze:tests.fuzz_display}} fuzz targets, and
+{{ze:interop.target_display}} interoperability test images covering routing and
 network services. That evidence can be checked. It is not a promise. Ze
 does not have operational mileage yet: real deployments over real time,
 on real networks. Use it in labs first.

@@ -4,6 +4,7 @@ package site
 import (
 	"encoding/json"
 	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -428,31 +429,58 @@ func TestAStarCountNoBuildCanAnswerSaysUnknown(t *testing.T) {
 // VALIDATES: every prose token the site states resolves against the snapshot
 // this build writes.
 //
-// A {{ze:name}} token names a dotted path into this file. A key renamed here
-// and not there leaves the token unresolved, and substitute leaves an
-// unresolved token alone, so the braces reach the reader with nothing to notice.
+// A {{ze:<dotted.key>}} token names a path into this file. A key renamed here
+// and not in the source that names it would stop the build, so the method walks
+// every website source for its tokens and asks this build's snapshot for each.
 func TestEveryProseTokenResolvesAgainstTheSnapshotThisBuildWrites(t *testing.T) {
 	paths := factsFixture(t)
 	if err := publishSiteFacts(paths); err != nil {
 		t.Fatalf("publish the facts snapshot: %v", err)
 	}
-	tokens, err := loadNumberTokens(paths.Output)
+	tokens, err := loadSiteFactSnapshot(paths.Output)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for name := range numberTokenSpecs {
-		if _, resolved := tokens[name]; !resolved {
-			t.Errorf("{{ze:%s}} resolves to nothing in the snapshot this build wrote", name)
+	stated := 0
+	website := filepath.Join(repositoryRoot(t), "website")
+	err = filepath.WalkDir(website, func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
 		}
+		// AI.md is the agent guide, which spells the token syntax itself, and
+		// no producer publishes it.
+		if path == filepath.Join(website, "AI.md") {
+			return nil
+		}
+		if entry.IsDir() || (!strings.HasSuffix(path, ".md") && !strings.HasSuffix(path, ".html") && !strings.HasSuffix(path, ".json")) {
+			return nil
+		}
+		content, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		for _, match := range valueTokenPattern.FindAllStringSubmatch(string(content), -1) {
+			stated++
+			if _, resolved := tokens.value(match[1]); !resolved {
+				t.Errorf("%s states {{ze:%s}}, which the snapshot this build wrote does not name", path, match[1])
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
-	marked, err := tokens.substitute("Ze runs {{ze:unit-tests}} unit tests.", true)
+	if stated == 0 {
+		t.Fatal("no website source states a token, so this test proves nothing")
+	}
+	marked, err := tokens.substitute("Ze runs {{ze:tests.unit_display}} unit tests.", true)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if marked != `Ze runs <span data-ze-stat="tests.unit_display">23,700+</span> unit tests.` {
 		t.Errorf("the HTML form reads %q", marked)
 	}
-	plain, err := tokens.substitute("Ze runs {{ze:unit-tests}} unit tests.", false)
+	plain, err := tokens.substitute("Ze runs {{ze:tests.unit_display}} unit tests.", false)
 	if err != nil {
 		t.Fatal(err)
 	}

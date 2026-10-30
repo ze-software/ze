@@ -46,9 +46,13 @@ func renderAuthoredPages(paths Paths) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	facts, err := loadSiteFactSnapshot(paths.Output)
+	if err != nil {
+		return nil, err
+	}
 	routes := make([]string, 0, len(sources))
 	for _, name := range sources {
-		if err := publishAuthoredPage(paths, name, links); err != nil {
+		if err := publishAuthoredPage(paths, name, links, facts); err != nil {
 			return nil, fmt.Errorf("%s: %w", name, err)
 		}
 		routes = append(routes, "/"+strings.TrimSuffix(name, pageIndexFile))
@@ -95,7 +99,13 @@ func authoredSources(source string) ([]string, error) {
 
 // publishAuthoredPage writes one authored page into the artifact, with the
 // Markdown mirror every published route carries.
-func publishAuthoredPage(paths Paths, name string, links pageLinks) error {
+//
+// The page's {{ze:<dotted.key>}} tokens resolve against the facts snapshot this
+// build already published, before the shell reads the head: a value in the
+// body becomes a marked span, and one in the head or an attribute the plain
+// value (substituteHTML). The mirror is converted from that page, so it carries
+// the plain value too. A frozen talk deck is published as written.
+func publishAuthoredPage(paths Paths, name string, links pageLinks, facts siteFactSnapshot) error {
 	source, err := os.ReadFile(filepath.Join(paths.Source, filepath.FromSlash(name))) //nolint:gosec // a site build reads the checkout it was pointed at
 	if err != nil {
 		return err
@@ -103,7 +113,11 @@ func publishAuthoredPage(paths Paths, name string, links pageLinks) error {
 	if isFrozenTalkPath(name) {
 		return publishFrozenDeck(paths.Output, name, source)
 	}
-	page, err := authoredShellPage(string(source), name, links)
+	resolved, err := facts.substituteHTML(string(source))
+	if err != nil {
+		return err
+	}
+	page, err := authoredShellPage(resolved, name, links)
 	if err != nil {
 		return err
 	}

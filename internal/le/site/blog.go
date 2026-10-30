@@ -109,7 +109,7 @@ func renderBlog(paths Paths) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	tokens, err := loadNumberTokens(paths.Output)
+	tokens, err := loadSiteFactSnapshot(paths.Output)
 	if err != nil {
 		return nil, err
 	}
@@ -242,7 +242,7 @@ func splitFrontMatterList(value string) []string {
 }
 
 // renderBlogArticle publishes one article page and its Markdown mirror.
-func renderBlogArticle(output string, article *blogArticle, tokens numberTokens) error {
+func renderBlogArticle(output string, article *blogArticle, tokens siteFactSnapshot) error {
 	// The prose numbers resolve twice: as data-ze-stat spans for the page, so a
 	// build can check a published number against the snapshot it came from, and
 	// plain for the mirror.

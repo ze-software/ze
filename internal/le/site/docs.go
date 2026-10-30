@@ -147,7 +147,7 @@ type docsRenderer struct {
 	paths    Paths
 	links    pageLinks
 	manifest map[string]string
-	tokens   numberTokens
+	tokens   siteFactSnapshot
 	demos    *demoCatalog
 }
 
@@ -161,7 +161,7 @@ func newDocsRenderer(paths Paths) (*docsRenderer, error) {
 	if err != nil {
 		return nil, err
 	}
-	tokens, err := loadNumberTokens(paths.Output)
+	tokens, err := loadSiteFactSnapshot(paths.Output)
 	if err != nil {
 		return nil, err
 	}
