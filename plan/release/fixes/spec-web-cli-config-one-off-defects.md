@@ -160,6 +160,8 @@ The command registry, `DisplayValueAtPath` masking, the audit log, the editor co
 |------------|------|-----------------|
 | `parser-refuses-a-form-its-producer-emits` | 2026-10-27 | TestDiscardDeletesNewlyAddedValue unknown `bgp listen` |
 | `package-red-not-reproduced` | 2026-10-27 | cli multi-key rename and batched load session records |
+| `schema-constraint-not-enforced` | 2026-10-30 | leaf-list `range` ignored by `ParseTreeWithYANG` |
+| `per-request-state-on-a-shared-object` | 2026-10-30 | web completer shared across users, tree set per request |
 | `package-red-not-reproduced` | 2026-10-27 | TestEditorManagerRenameListEntry |
 | `command-waits-for-input-it-was-not-given` | 2026-09-07 | `cmdDecode` |
 | `dark-theme-cards-hide-their-text` | 2026-10-04 | generated BFD plugin page |
