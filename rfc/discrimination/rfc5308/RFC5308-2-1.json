@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC5308-2-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/isis/lsdb/rfc5308_origination_ipv6_test.go::TestISISOriginateTLV236",
+    "unit-sha": "0cfff5f3ea2e2b17",
+    "claim-sha": "f4b533f6b6d07cc8",
+    "route": "mutant",
+    "producer": "internal/plugins/isis/lsdb/origination_ipv6.go::NonLinkLocalV6Prefixes",
+    "producer-sha": "ba663530dbb66dbf",
+    "break": "line 30: \"if a.IsLinkLocalUnicast() {\" -\u003e \"if false {\""
+  },
+  {
+    "rid": "RFC5308-2-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/lsdb/rfc5308_origination_ipv6_test.go::TestISISOriginateTLV236",
+    "unit-sha": "0cfff5f3ea2e2b17",
+    "claim-sha": "0ab07fd3f8ca4c35",
+    "route": "revert",
+    "producer": "internal/plugins/isis/lsdb/origination.go::Originate",
+    "producer-sha": "c3ebd1aa4af2c24f",
+    "break": "body of Originate replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC5308-5-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/isis/spf/spf_test.go::TestISISMetricWidth",
+    "unit-sha": "366e983cf8fa6413",
+    "claim-sha": "ed3f0b2bd6f8e7de",
+    "route": "mutant",
+    "producer": "internal/plugins/isis/spf/spf.go::clampMetric",
+    "producer-sha": "f07138a9ef0c620c",
+    "break": "line 40: \"return MaxPathMetric\" -\u003e \"return sum\""
+  },
+  {
+    "rid": "RFC5308-5-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/spf/spf_test.go::TestISISMetricWidth",
+    "unit-sha": "366e983cf8fa6413",
+    "claim-sha": "c25e4641d05f2da9",
+    "route": "revert",
+    "producer": "internal/plugins/isis/spf/spf.go::clampMetric",
+    "producer-sha": "f07138a9ef0c620c",
+    "break": "body of clampMetric replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]
