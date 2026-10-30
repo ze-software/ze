@@ -122,8 +122,10 @@ func TestAFeatureDeclinedHeadingNamesTheFeatureItScopes(t *testing.T) {
 	}
 }
 
-// VALIDATES: the parser refuses a heading form whose words are too short or
-// only generic, whose words are not quoted, or whose producer is a test.
+// VALIDATES: the parser refuses a heading form whose words are only generic,
+// whose words are not quoted, or whose producer is a test. A short feature
+// word is judged against the summary's Meta table instead
+// (TestTheDeclinedFeaturesRowTiesAHeadingToAnOwnerDecision).
 func TestAFeatureDeclinedHeadingIsRefusedAtParse(t *testing.T) {
 	cases := []struct {
 		name, payload string
@@ -133,8 +135,6 @@ func TestAFeatureDeclinedHeadingIsRefusedAtParse(t *testing.T) {
 			says: []string{"only stopwords or words any heading uses"}},
 		{name: "a generic heading and a stopword", payload: `feature-declined: heading "Message Format of the Procedures"; ` + headingNever,
 			says: []string{"only stopwords or words any heading uses"}},
-		{name: "two characters", payload: `feature-declined: heading "ID"; ` + headingNever,
-			says: []string{"under 3 characters"}},
 		{name: "unquoted words", payload: `feature-declined: heading CHAP; ` + headingNever,
 			says: []string{"heading needs the feature words in double quotes"}},
 		{name: "a test producer", payload: `feature-declined: heading "CHAP"; ze never uses CHAP: internal/x/frame_test.go::TestSendFrame checks it`,
