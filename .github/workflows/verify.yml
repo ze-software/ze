@@ -99,6 +99,8 @@ jobs:
       # 6.17.0-1022-azure). From 7.0 Ubuntu publishes no extra package at all
       # (7.0.0-1017-azure, run 40945957231), so it is installed only where the
       # archive has one; the modprobe step below names any module still absent.
+      # zsh and fish are driven by test/ui le-completion-shells, which refuses
+      # rather than skips when a shell is missing.
       - name: Install system packages
         run: |
           sudo apt-get update
@@ -107,7 +109,7 @@ jobs:
             extra=""
           fi
           sudo apt-get install -y --no-install-recommends \
-            build-essential curl git iproute2 iptables nftables util-linux \
+            build-essential curl fish git iproute2 iptables nftables util-linux zsh \
             $extra
 
       # Ubuntu 24.04 lets AppArmor restrict unprivileged user namespaces, so
