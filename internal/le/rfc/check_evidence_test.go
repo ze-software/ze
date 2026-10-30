@@ -5,9 +5,11 @@ import (
 	"testing"
 )
 
-// backlogFile is an evidence backlog holding one count per kind.
-func backlogFile(declined, lower, notApplicable string) string {
-	return "# fixture\nfeature-declined " + declined + "\nlower-layer " + lower + "\nnot-applicable " + notApplicable + "\n"
+// backlogFile is an evidence backlog holding one count per kind. Every case
+// varies only the {not-applicable} count, the kind its fixture row carries;
+// the other two kinds are held at zero.
+func backlogFile(notApplicable string) string {
+	return "# fixture\nfeature-declined 0\nlower-layer 0\nnot-applicable " + notApplicable + "\n"
 }
 
 // VALIDATES: the exclusion evidence ratchet -- an untouched row lacking
@@ -32,22 +34,22 @@ func TestExclusionEvidenceRatchet(t *testing.T) {
 		known    bool
 		want     []string
 	}{
-		{"an untouched row the count carries", backlogFile("0", "0", "1"), []Requirement{legacy}, unchanged, true, nil},
-		{"a new row", backlogFile("0", "0", "1"), []Requirement{legacy}, map[string]string{}, true,
+		{"an untouched row the count carries", backlogFile("1"), []Requirement{legacy}, unchanged, true, nil},
+		{"a new row", backlogFile("1"), []Requirement{legacy}, map[string]string{}, true,
 			[]string{"RFC9999-2-1 is annotated {not-applicable} and lacks the evidence"}},
-		{"a changed row", backlogFile("0", "0", "1"), []Requirement{legacy}, changed, true,
+		{"a changed row", backlogFile("1"), []Requirement{legacy}, changed, true,
 			[]string{"RFC9999-2-1 is annotated {not-applicable} and lacks the evidence"}},
-		{"no HEAD^ to compare", backlogFile("0", "0", "1"), []Requirement{legacy}, nil, false, nil},
-		{"a count that fell", backlogFile("0", "0", "2"), []Requirement{legacy}, unchanged, true,
+		{"no HEAD^ to compare", backlogFile("1"), []Requirement{legacy}, nil, false, nil},
+		{"a count that fell", backlogFile("2"), []Requirement{legacy}, unchanged, true,
 			[]string{"set the line to `not-applicable 1`"}},
-		{"a count that rose", backlogFile("0", "0", "1"), []Requirement{legacy, second}, unchanged, true,
+		{"a count that rose", backlogFile("1"), []Requirement{legacy, second}, unchanged, true,
 			[]string{"2 {not-applicable} rows lack their evidence, and the committed count is 1. A row whose line this commit left alone lost its evidence"}},
-		{"a kind at zero", backlogFile("0", "0", "0"), []Requirement{legacy}, unchanged, true,
+		{"a kind at zero", backlogFile("0"), []Requirement{legacy}, unchanged, true,
 			[]string{"RFC9999-2-1 is annotated {not-applicable} and lacks the evidence"}},
 		{"no count file", "", []Requirement{legacy}, unchanged, true, []string{"cannot read the committed evidence counts"}},
 		{"a kind with no line", "feature-declined 0\nlower-layer 0\n", []Requirement{legacy}, unchanged, true,
 			[]string{"no line counts {not-applicable}"}},
-		{"an unknown kind", backlogFile("0", "0", "1") + "gap 3\n", []Requirement{legacy}, unchanged, true,
+		{"an unknown kind", backlogFile("1") + "gap 3\n", []Requirement{legacy}, unchanged, true,
 			[]string{"'gap' is not a kind this ratchet counts"}},
 	}
 	for _, one := range cases {
@@ -77,7 +79,7 @@ func TestExclusionEvidenceRatchet(t *testing.T) {
 // METHOD: the parser reads the path out of the layer, and layerPathGap judges
 // each form against a fixture checkout holding one vendored module.
 func TestLowerLayerNamesItsLayerPath(t *testing.T) {
-	parsed, err := parseAnnotation("lower-layer: Linux IPv6 neighbour discovery, linux:net/ipv6/ndisc.c; "+
+	parsed, err := parseAnnotation("lower-layer: Linux IPv6 neighbor discovery, linux:net/ipv6/ndisc.c; "+
 		"internal/x/nd.go::install installs the address, and the kernel answers", "fixture")
 	if err != nil {
 		t.Fatalf("a lower-layer payload naming its layer path did not parse: %v", err)

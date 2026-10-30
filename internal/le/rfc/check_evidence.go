@@ -132,20 +132,21 @@ func quoteGap(req *Requirement, source *quoteSource, what string) (string, bool)
 // kernel and the Go standard library are not in it, so their paths are held to
 // the shape of their source trees.
 func layerPathGap(tree, layerPath string) (string, bool) {
+	const vendorKind = "vendor"
 	var tb textbuf.Buffer
 	if layerPath == "" {
 		return "its layer names no component path a reader can open: add linux:<kernel source path>, go:<standard library package> or vendor/<module path> to the layer", true
 	}
 	kind, rel, found := strings.Cut(layerPath, ":")
 	if !found {
-		kind, rel = "vendor", layerPath
+		kind, rel = vendorKind, layerPath
 	}
 	if slices.Contains(strings.Split(rel, "/"), "..") {
 		return tb.Str("its layer path ").Str(layerPath).Str(" climbs out of its source tree with `..`").String(), true
 	}
 	top, _, _ := strings.Cut(rel, "/")
 	switch kind {
-	case "vendor":
+	case vendorKind:
 		if _, err := os.Stat(filepath.Join(tree, rel)); err != nil {
 			return tb.Str("its layer path ").Str(layerPath).
 				Str(" cannot be opened in this checkout (").Str(err.Error()).
@@ -309,7 +310,7 @@ func evidenceCountRefusal(kind string, count, committed int) (string, bool) {
 // refusal: a ratchet with no committed count judges nothing, and passing it
 // silently is how a guard stops guarding.
 func readEvidenceBacklog(tree string) (map[string]int, string) {
-	raw, err := os.ReadFile(filepath.Join(tree, evidenceBacklogRel))
+	raw, err := os.ReadFile(filepath.Join(tree, evidenceBacklogRel)) //nolint:gosec // the path is the checkout's own committed backlog file, not input
 	if err != nil {
 		return nil, evidenceBacklogRel + ": cannot read the committed evidence counts (" + err.Error() +
 			"). Restore the file from git: it holds one `<kind> <count>` line for each of " +
