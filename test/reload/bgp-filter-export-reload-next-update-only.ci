@@ -112,6 +112,11 @@ plugin {
 	}
 }
 bgp {
+	# RFC 8212: an EBGP direction with no policy is refused; this test exchanges routes.
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
 	community {
 		standard TAG {
 			value [ 65000:1 ]
@@ -189,6 +194,11 @@ plugin {
 	}
 }
 bgp {
+	# RFC 8212: an EBGP direction with no policy is refused; this test exchanges routes.
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
 	community {
 		standard TAG {
 			value [ 65000:2 ]
