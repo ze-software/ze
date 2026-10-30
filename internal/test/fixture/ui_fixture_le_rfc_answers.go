@@ -305,13 +305,23 @@ func leRFCAnswers(ctx context.Context) (err error) {
 			"rfc listing action %q has effect %q, want %q:\n%s",
 			action, listed[action], effect, listings.String())
 	}
-	for _, action := range []string{"extraction report", actionCheck, actionSelftest, "reseal", actionUpdate} {
+	for _, action := range []string{"extraction report", actionCheck, actionSelftest, actionUpdate} {
 		refused := runLE(root, append(append([]string{"rfc"}, strings.Fields(action)...), "rfc7606")...)
 		leRFCAnswersRequire(refused.code == 2,
 			"rfc %s accepted a stem argument or exited %d\nstdout:\n%s\nstderr:\n%s",
 			action, refused.code, refused.stdout, refused.stderr)
 		leRFCAnswersRequire(strings.Contains(refused.stderr, "takes no arguments"),
 			"rfc %s refusal omitted 'takes no arguments': %q", action, refused.stderr)
+	}
+	// reseal takes a `stem` keyword, so a bare stem is an unknown keyword, and
+	// the refusal names the one spelling it accepts.
+	resealBare := runLE(root, "rfc", "reseal", "rfc7606")
+	leRFCAnswersRequire(resealBare.code == 2,
+		"rfc reseal accepted a bare stem or exited %d\nstdout:\n%s\nstderr:\n%s",
+		resealBare.code, resealBare.stdout, resealBare.stderr)
+	for _, want := range []string{`takes no argument keyword "rfc7606"`, "rfc reseal stem <stem>"} {
+		leRFCAnswersRequire(strings.Contains(resealBare.stderr, want),
+			"rfc reseal refusal omitted %q: %q", want, resealBare.stderr)
 	}
 	for _, action := range []string{"extraction create", "extraction classify", "tagged-scope"} {
 		refused := runLE(root, append(append([]string{"rfc"}, strings.Fields(action)...), "rfc7606")...)
