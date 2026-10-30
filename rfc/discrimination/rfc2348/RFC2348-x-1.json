@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2348-x-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/tftpserver/rfc2348_blksize_test.go::TestRFC2348BlksizeAckNotAboveRequest",
+    "unit-sha": "d313af677737eaac",
+    "claim-sha": "0b2aeecddea01c78",
+    "route": "revert",
+    "producer": "internal/plugins/tftpserver/handler.go::handleRRQ",
+    "producer-sha": "cddf22c402fd4ea2",
+    "break": "body of handleRRQ replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2348-x-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/tftpserver/rfc2348_blksize_test.go::TestRFC2348BlksizeAckNotAboveRequest",
+    "unit-sha": "d313af677737eaac",
+    "claim-sha": "588c58bb78dde23d",
+    "route": "revert",
+    "producer": "internal/plugins/tftpserver/handler.go::handleRRQ",
+    "producer-sha": "cddf22c402fd4ea2",
+    "break": "body of handleRRQ replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

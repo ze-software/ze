@@ -13,7 +13,7 @@ import (
 // RFC requirement: RFC2348-x-1 positive -- the server's acknowledged blksize is <=
 // the client's requested value: a request for 1200 (within Ze's cap) is acknowledged
 // as 1200 (RFC 2348; producer handleRRQ negotiatedBlksize = min(opts.blksize,
-// blksizeEthernet), internal/plugins/tftpserver/handler.go:271-272).
+// blksizeEthernet), internal/plugins/tftpserver/handler.go).
 // RFC requirement: RFC2348-x-1 negative -- the acknowledged blksize NEVER exceeds the
 // request: a request for 60000 (above Ze's 1468 cap) is acknowledged as 1468, still
 // <= 60000, so Ze never returns a larger blocksize than asked.
@@ -45,6 +45,9 @@ func TestRFC2348BlksizeAckNotAboveRequest(t *testing.T) {
 		}
 		if acked > 60000 {
 			t.Errorf("acked blksize %d exceeds the requested 60000", acked)
+		}
+		if acked != blksizeEthernet {
+			t.Errorf("acked blksize %d, want Ze's cap %d for a request above it", acked, blksizeEthernet)
 		}
 	})
 }
