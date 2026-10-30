@@ -24,7 +24,7 @@ func TestAnnotationTraitsPreserveRowBehavior(t *testing.T) {
 		{AnnotationGap, "not implemented", true, false, true, true, RollupGap, true, false},
 		{AnnotationPartial, `tested "MUST send"; gap "MUST log"; internal/example.go::Send does not log`, true, false, true, false, RollupGap, false, false},
 		{AnnotationSinglePolarity, "positive; no negative input", true, true, false, false, RollupMet, false, false},
-		{AnnotationLowerLayer, "Linux; internal/example.go::Send installs the state", true, false, false, true, RollupMet, false, false},
+		{AnnotationLowerLayer, "Linux; internal/example.go::Send installs the state", true, false, false, false, RollupMet, false, false},
 		{AnnotationFeatureDeclined, `"An implementation MAY offer this optional feature"; internal/example.go::Send offers only the basic form`, true, false, false, true, RollupMet, false, true},
 		{AnnotationRollup, "RFC9999-2-2; the constituent owns the obligation", false, false, false, true, RollupUnproven, false, false},
 	} {

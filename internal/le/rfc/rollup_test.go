@@ -266,7 +266,7 @@ func TestRollupRefusesACycle(t *testing.T) {
 // TestRollupCannotStandBesideATag checks the arm of evaluate that {rollup}
 // joined (AC-8). A tagged test on a rollup row would claim more than its body
 // checks, which is the vacuity the kind exists to prevent, so the tag makes
-// the annotation stale exactly as it does beside {lower-layer}.
+// the annotation stale exactly as it does beside {gap} or {not-applicable}.
 func TestRollupCannotStandBesideATag(t *testing.T) {
 	requirements := []Requirement{
 		plainRow("rfc1", "RFC1-1-1"),

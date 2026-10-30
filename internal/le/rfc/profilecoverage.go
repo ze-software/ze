@@ -110,6 +110,13 @@ type StemFigures struct {
 	// auditVerdictUnmet names. It is listed whether or not the summary is
 	// walked, because it is the summary's own disclosure, not a measurement.
 	Unmet []string
+	// OSVerified and OSGap split the gated rows a layer under Ze performs
+	// (traits OSMet, `{lower-layer}`): OS verified when osVerified holds, an
+	// OS testing gap otherwise. They sum to Mandatory.Excluded[lower-layer]
+	// and change no other count, since Ze proves neither. One shipped kernel
+	// is the only OS a record speaks for, so neither has a per-version split.
+	OSVerified int
+	OSGap      int
 }
 
 // notWalked is the cell an unwalked RFC renders in place of a figure.
@@ -222,6 +229,8 @@ func (e figureEvidence) unmet(requirement *Requirement) bool {
 //   - `{not-applicable}`, `{lower-layer}`, `{feature-declined}` and
 //     `{linux-limit}` stay in the denominator and are never proven by Ze,
 //     whatever records their tags carry: annotating a row may not raise its figure.
+//     A gated `{lower-layer}` row's proving record makes it OS verified
+//     instead (countOS), a count apart from Ze's proven rows.
 //   - `{gap}` and `{partial}` stay in the denominator and are NEVER proven,
 //     whatever records their tags carry: the summary itself says the
 //     obligation is unmet. A test demonstrating a gap, or the half of a
@@ -251,6 +260,7 @@ func figuresByStem(requirements []Requirement, stems, walked, proven map[string]
 			figures.Unmet = append(figures.Unmet, requirement.RID)
 		}
 		if requirement.Gated() {
+			figures.countOS(requirement, proven)
 			figures.Mandatory.count(requirement, met)
 			if met {
 				figures.countKind(evidence.strongestKind(requirement.RID))
@@ -264,6 +274,38 @@ func figuresByStem(requirements []Requirement, stems, walked, proven map[string]
 		slices.Sort(out[stem].Unmet)
 	}
 	return out
+}
+
+// countOS adds one gated row a layer under Ze performs to OSVerified or
+// OSGap, and leaves every other row alone.
+func (s *StemFigures) countOS(requirement *Requirement, proven map[string]bool) {
+	if !osMet(requirement) {
+		return
+	}
+	if osVerified(requirement, proven) {
+		s.OSVerified++
+		return
+	}
+	s.OSGap++
+}
+
+// osMet answers whether a layer under Ze performs the row: its annotation is
+// a declared kind whose traits say OSMet. An unknown kind is not OS met.
+func osMet(requirement *Requirement) bool {
+	if requirement.Annotation == nil {
+		return false
+	}
+	traits, known := AnnotationTraitsOf(requirement.Annotation.Kind)
+	return known && traits.OSMet
+}
+
+// osVerified answers whether a row a layer under Ze performs is OS VERIFIED:
+// a tagged unit covering it carries a record that still verifies and proves.
+// proven is provenRequirements over the tree's verdicts, so the predicate is
+// DiscriminationVerdict.Proven, the one that proves a Ze row (spec R-4): a
+// tag alone, a stale record or the no-break escape leaves an OS testing gap.
+func osVerified(requirement *Requirement, proven map[string]bool) bool {
+	return osMet(requirement) && proven[requirement.RID]
 }
 
 // countKind adds one proven mandatory row under its evidence kind.

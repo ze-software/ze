@@ -248,6 +248,12 @@ func escapeReasonNames() []string { return sortedKeys(escapeReasons) }
 // added for (2026-09-03): Linux XFRM builds every AH packet, and no field of
 // the SA Ze installs decides that the RESERVED field is zero.
 //
+// A test of the OS behaviour on the state Ze installs is still owed (owner
+// rule, ai/META-DECISIONS.md "Goal and scope"), so the kind does not bar a
+// tagged test: its trait is OSMet, not BarsTests. A row whose tagged unit
+// carries a proving discrimination record is OS verified, every other one an
+// OS testing gap (osVerified, profilecoverage.go).
+//
 // It is not a softer {not-applicable}. That one says the obligation never bound
 // Ze; this one says it binds, is met, and is not proven BY ZE -- so it stays
 // inside the gated denominator and out of the proven numerator
@@ -331,6 +337,10 @@ type AnnotationTraits struct {
 	AuditNotApplicable bool
 	CeilingExcluded    bool
 	CeilingLabel       string
+	// OSMet says a layer under Ze performs the row's behavior, so a tagged
+	// test checks that layer on the state Ze installs and its proving record
+	// makes the row OS verified rather than proven by Ze (osVerified).
+	OSMet bool
 }
 
 // annotationKinds declares each kind once, including its specialized parser.
@@ -361,7 +371,7 @@ var annotationKinds = map[string]struct {
 		parse: parseSinglePolarity,
 	},
 	AnnotationLowerLayer: {
-		traits: AnnotationTraits{Counts: true, BarsTests: true,
+		traits: AnnotationTraits{Counts: true, OSMet: true,
 			RollupState: RollupMet, Bucket: "lower_layer",
 			CeilingExcluded: true, CeilingLabel: "Met by a lower layer"},
 		parse: parseLowerLayer,

@@ -98,6 +98,13 @@ func evaluate(requirements []Requirement, tags []Tag, enrolled map[string]bool) 
 			// (owner decision, 2026-09-15).
 			continue
 		}
+		// A layer under Ze performs an OSMet row, so a tagged test is the test
+		// of that layer on the state Ze installs, never a stale annotation, and
+		// an untested row is an OS testing gap the figures count rather than a
+		// refusal. Its discrimination record decides OS verified (osVerified).
+		if traits.OSMet {
+			continue
+		}
 		if traits.Partial {
 			for _, value := range []string{PolarityPositive, PolarityNegative} {
 				if !polarity[value] {

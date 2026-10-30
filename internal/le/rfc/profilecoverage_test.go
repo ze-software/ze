@@ -503,3 +503,89 @@ func TestStemFiguresListUnmetIDs(t *testing.T) {
 		t.Errorf("unwalked rfc2 Unmet = %v, want [RFC2-1-1]: a disclosure is listed walked or not", got)
 	}
 }
+
+// lowerLayerRow is one gated rfc1 row a layer under Ze performs.
+func lowerLayerRow(rid string) Requirement {
+	return Requirement{RFC: "rfc1", RID: rid, Level: levelMust, Annotation: &Annotation{
+		Kind: AnnotationLowerLayer, Layer: "Linux XFRM",
+		Producer: "internal/plugins/ospf/ipsec_install.go::buildIPsecSA",
+		Reason:   "the kernel performs it",
+	}}
+}
+
+// TestLowerLayerWithRecordIsOSVerified checks AC-3 on the figures. Goal: a
+// {lower-layer} row whose tagged unit carries a record that still verifies and
+// proves counts OS verified. Method: one such row through figuresByStem, with
+// the proof set provenRequirements derives from the verdicts, so the predicate
+// is the one that proves a Ze row (R-4). The row stays out of Ze's proven
+// count: a layer under Ze performs it.
+func TestLowerLayerWithRecordIsOSVerified(t *testing.T) {
+	requirements := []Requirement{lowerLayerRow("RFC1-1-1")}
+	verdicts := []DiscriminationVerdict{
+		{Record: DiscriminationRecord{RID: "RFC1-1-1", Route: RouteRevert}, State: ProofVerified},
+	}
+	stems := map[string]bool{"rfc1": true}
+	proven := provenRequirements(verdicts)
+	figures := figuresByStem(requirements, stems, stems, proven, figureEvidence{})["rfc1"]
+	if figures.OSVerified != 1 || figures.OSGap != 0 {
+		t.Errorf("OSVerified=%d OSGap=%d, want 1 and 0", figures.OSVerified, figures.OSGap)
+	}
+	if figures.Mandatory.Proven != 0 || figures.Mandatory.Total != 1 {
+		t.Errorf("mandatory = %+v, want 0 proven of 1: OS verified is not proven by Ze", figures.Mandatory)
+	}
+	if !osVerified(&requirements[0], proven) {
+		t.Error("osVerified refused a lower-layer row with a proving record")
+	}
+}
+
+// TestLowerLayerWithoutRecordIsOSGap checks AC-4. Goal: a {lower-layer} row
+// with no verifying record counts OS testing gap, whether or not a test is
+// tagged. Method: an untagged row with no verdict, and a row whose record
+// proves an UNANNOTATED row so the proof set is not empty.
+func TestLowerLayerWithoutRecordIsOSGap(t *testing.T) {
+	requirements := []Requirement{
+		lowerLayerRow("RFC1-1-1"),
+		{RFC: "rfc1", RID: "RFC1-1-2", Level: levelMust},
+	}
+	verdicts := []DiscriminationVerdict{
+		{Record: DiscriminationRecord{RID: "RFC1-1-2", Route: RouteRevert}, State: ProofVerified},
+	}
+	stems := map[string]bool{"rfc1": true}
+	proven := provenRequirements(verdicts)
+	figures := figuresByStem(requirements, stems, stems, proven, figureEvidence{})["rfc1"]
+	if figures.OSVerified != 0 || figures.OSGap != 1 {
+		t.Errorf("OSVerified=%d OSGap=%d, want 0 and 1", figures.OSVerified, figures.OSGap)
+	}
+	if osVerified(&requirements[1], proven) {
+		t.Error("osVerified answered true for a row no lower layer performs")
+	}
+}
+
+// TestLowerLayerWithANonVerifyingRecordIsNotOSVerified checks R-4. Goal: a
+// tagged {lower-layer} row is OS verified only through DiscriminationVerdict.Proven,
+// so a stale record, one whose unit is gone, an unfounded escape and the
+// verified no-break escape each leave it an OS testing gap. Method: one row per record shape through figuresByStem.
+func TestLowerLayerWithANonVerifyingRecordIsNotOSVerified(t *testing.T) {
+	for _, one := range []struct {
+		name  string
+		route string
+		state string
+	}{
+		{"stale producer", RouteRevert, ProofProducerChanged},
+		{"unit gone", RouteRevert, ProofUnitGone},
+		{"unfounded escape", RouteNoBreak, ProofEscapeUnfounded},
+		{"no-break escape", RouteNoBreak, ProofVerified},
+	} {
+		t.Run(one.name, func(t *testing.T) {
+			requirements := []Requirement{lowerLayerRow("RFC1-1-1")}
+			verdicts := []DiscriminationVerdict{
+				{Record: DiscriminationRecord{RID: "RFC1-1-1", Route: one.route}, State: one.state},
+			}
+			stems := map[string]bool{"rfc1": true}
+			figures := figuresByStem(requirements, stems, stems, provenRequirements(verdicts), figureEvidence{})["rfc1"]
+			if figures.OSVerified != 0 || figures.OSGap != 1 {
+				t.Errorf("OSVerified=%d OSGap=%d, want 0 and 1", figures.OSVerified, figures.OSGap)
+			}
+		})
+	}
+}

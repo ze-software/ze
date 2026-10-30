@@ -482,7 +482,9 @@ annotated row stays in the denominator. `{single-polarity}` is the one
 annotation a row can be proven under, and only by a verifying record on its
 one side. A `{not-applicable}`,
 `{lower-layer}`, `{feature-declined}` or `{linux-limit}` row is never proven by Ze,
-whatever records its tags carry, so annotating a row cannot raise its figure. A `{gap}`
+whatever records its tags carry, so annotating a row cannot raise its figure; a
+proving record on a gated `{lower-layer}` row counts it OS verified instead, a
+count apart (see "OS verified"). A `{gap}`
 or `{partial}` row stays in and is never proven either, because the summary
 itself says the obligation is unmet: that is what keeps a requirement only
 unreached code meets at 0%.
@@ -699,9 +701,11 @@ the demonstrated gaps beside the declared ones.
 installs into that layer. The owner ruling of 2026-08-31 counts such a
 requirement MET and asks for a test at the boundary Ze owns. This kind is for
 the requirements where that boundary carries nothing the behavior reads, so no
-value exists to assert. Sixteen RFC 4302 obligations are the case it was added
+value of Ze's exists to assert. Sixteen RFC 4302 obligations are the case it was added
 for: Linux XFRM builds every AH packet, and no field of the SA Ze installs
-decides that the RESERVED field is zero.
+decides that the RESERVED field is zero. The owner rule still asks for a test
+that checks the OS behaviour on the state Ze installs, and until one is proven
+the row is an OS testing gap, never a correctness gap (below, "OS verified").
 
 ```
 - [ ] [RFC4302-2.3-1] [MUST] The RESERVED field MUST be set to zero by the sender (§2.3) {lower-layer: Linux XFRM AH, linux:CONFIG_INET_AH; internal/plugins/ospf/ipsec_install.go::buildIPsecSA installs the AH SA and the kernel's AH output builds every header, so no value Ze writes decides this field}
@@ -728,9 +732,12 @@ Four rules decide whether it is the right kind:
   performs it, nothing is met and the honest kind is `{gap}`.
 - **Ze's own boundary carries nothing to assert.** Where Ze installs a value the
   behavior reads, the requirement owes a TEST over that value, at the boundary
-  Ze owns, and this annotation is refused beside it: a tagged test on a
-  `{lower-layer}` row makes the annotation stale, exactly as it does on a
-  `{gap}` or a `{not-applicable}` one.
+  Ze owns, and the row carries no annotation: Ze's own test proves it. A
+  tagged test on a `{lower-layer}` row is a different test, one of the layer
+  below acting on the state Ze installs, and the gate accepts it (the
+  annotation's `OSMet` trait, `evaluate` in `internal/le/rfc/check_core.go`),
+  where a tag on a `{gap}` or a `{not-applicable}` row makes that annotation
+  stale.
 - **It is not a conformance rollup.** A requirement whose content is "implement
   all of this document" is met by the other rows and not by a layer. That row
   takes `{rollup}` (below), which derives its state from those rows and asserts
@@ -748,6 +755,23 @@ line carries ONE disposition, so a line carrying both is refused rather than
 silently relabeled. That is the same reason `{superseded}` was kept out of the
 register: a way out of the gated population must not be creatable by writing a
 second marker beside the one already there.
+
+### OS verified
+
+A gated `{lower-layer}` row is OS VERIFIED when a tagged unit covering it
+carries a discrimination record that still verifies and is a proof rather than
+the `no-break` escape: the same `DiscriminationVerdict.Proven` predicate that
+proves a row of Ze's own (`osVerified`, `internal/le/rfc/profilecoverage.go`).
+A tag with no record, a stale record and the escape each leave it an OS
+TESTING GAP. The record is made by `./le rfc record` like any other: the break
+is to the state Ze installs, and the test that goes red is the one reading
+what the layer below did with it.
+
+`StemFigures` carries the two counts per RFC, `OSVerified` and `OSGap`, over
+the gated rows only. They sum to the `lower-layer` count in
+`Mandatory.Excluded`, and they change no other count: an OS-verified row is
+still not proven by Ze. One shipped kernel (`internal/appliance/kernel.version`)
+is the only OS a record speaks for, so neither count has a per-version split.
 
 ## Clause-scoped evidence
 
@@ -1305,7 +1329,7 @@ Five refusals hold the kind to the corpus. Each ends in the format sentence
 | A target that is neither a requirement id nor a summary stem, or one named twice | `parseRollup` |
 | The row's own id, an id no enrolled summary holds, or a stem that is not enrolled | `checkRollupTargets` (`internal/le/rfc/check_core.go`) |
 | A rollup whose targets lead back to the row, at any depth | `checkRollupTargets`, a walk bounded by the number of rollups in the corpus |
-| A tagged test on the row | `evaluate`, as a stale annotation, exactly as beside `{lower-layer}` |
+| A tagged test on the row | `evaluate`, as a stale annotation, exactly as beside `{gap}` or `{not-applicable}` |
 
 A target the corpus cannot show is refused rather than accepted as prose, for
 the reason `{lower-layer}` refuses a producer the tree cannot show. The kind's
