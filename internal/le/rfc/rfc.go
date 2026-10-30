@@ -334,6 +334,7 @@ var annotationKinds = map[string]struct {
 		traits: AnnotationTraits{Counts: true, BarsTests: true, RollupState: RollupMet,
 			Bucket: "not_applicable", AuditUnimplemented: true, AuditNotApplicable: true,
 			CeilingExcluded: true, CeilingLabel: "Not applicable (classification can be revisited)"},
+		parse: parseNotApplicable,
 	},
 	AnnotationGap: {
 		traits: AnnotationTraits{Counts: true, BarsTests: true, Unmet: true, Gap: true,
@@ -539,11 +540,23 @@ type Annotation struct {
 	// alone, and a layer claim nothing here can falsify is the blanket
 	// exemption that kind exists to avoid being.
 	Layer string `json:"layer,omitempty"`
-	// Quote is the RFC's own sentence that makes a feature optional. It is
-	// {feature-declined}'s alone, and checkFeatureDeclined holds it against
-	// rfc/full/<stem>.txt: the kind rests on the DOCUMENT making the feature
-	// optional, which is a fact rather than a judgement.
+	// Quote is the RFC's own sentence that removes the row from Ze's count, and
+	// two kinds carry one. On {feature-declined} it makes the feature optional;
+	// on {not-applicable} it scopes the obligation to a role. Both are held
+	// against the section the row cites in rfc/full/<stem>.txt
+	// (exclusionEvidenceGap): the kind rests on the DOCUMENT saying so, which
+	// is a fact rather than a judgement. Empty on a {not-applicable} row
+	// written before that kind carried evidence.
 	Quote string `json:"quote,omitempty"`
+	// Role is the role Ze fills, which the Quote shows the obligation does not
+	// bind. It is {not-applicable}'s alone.
+	Role string `json:"role,omitempty"`
+	// LayerPath is where a reader opens the component Layer names: a kernel
+	// source path (linux:net/ipv6/ndisc.c), a Go standard library package
+	// (go:crypto/x509) or a vendored module directory (vendor/<module>). It is
+	// {lower-layer}'s alone, and empty on a row written before that kind
+	// carried it (exclusionEvidenceGap).
+	LayerPath string `json:"layer-path,omitempty"`
 	// Tested and Gap locate distinct clauses inside the complete parent quote.
 	// Partial tags prove only Tested; every other obligation remains unproven.
 	Tested string `json:"tested,omitempty"`

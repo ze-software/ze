@@ -327,7 +327,10 @@ func baselineSummaryStems(tree string) (map[string]bool, bool) {
 }
 
 // baselineLevels answers the level of every requirement id at HEAD^, the
-// commit before the one under test. It keeps unreadable summaries separate from
+// commit before the one under test, and its evidence fingerprint
+// (evidenceFingerprint), which the exclusion evidence ratchet reads to tell a
+// row the commit added or changed from one it left alone. One parse of HEAD^
+// serves both. It keeps unreadable summaries separate from
 // known-empty history: a listed path without a readable checklist cannot
 // establish that an ID is new.
 //
@@ -337,19 +340,20 @@ func baselineSummaryStems(tree string) (map[string]bool, bool) {
 // ratchets built on it saw nothing at the one gate that runs. Against HEAD^ they
 // judge the tip commit and whatever the tree adds over it. A tree with no HEAD^
 // answers false, and both ratchets then judge nothing.
-func baselineLevels(tree string) (map[string]string, map[string]bool, bool) {
+func baselineLevels(tree string) (map[string]string, map[string]string, map[string]bool, bool) {
 	if !revisionExists(tree, priorRevision) {
-		return nil, nil, false
+		return nil, nil, nil, false
 	}
 	paths, ok := gitTreePaths(tree, priorRevision, summaryRel, ".md")
 	if !ok {
-		return nil, nil, false
+		return nil, nil, nil, false
 	}
 	blobs, ok := gitCatBlobs(tree, priorRevision, paths)
 	if !ok {
-		return nil, nil, false
+		return nil, nil, nil, false
 	}
 	out := map[string]string{}
+	evidence := map[string]string{}
 	unreadable := map[string]bool{}
 	for _, rel := range paths {
 		stem := strings.TrimSuffix(filepath.Base(rel), ".md")
@@ -366,9 +370,10 @@ func baselineLevels(tree string) (map[string]string, map[string]bool, bool) {
 		for i := range requirements {
 			req := &requirements[i]
 			out[req.RID] = req.Level
+			evidence[req.RID] = evidenceFingerprint(req)
 		}
 	}
-	return out, unreadable, true
+	return out, evidence, unreadable, true
 }
 
 func baselineIDs(levels map[string]string) map[string]bool {

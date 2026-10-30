@@ -374,7 +374,7 @@ func check(tree string, today time.Time, approvals map[string]string) (CheckRepo
 	if !enrolledKnown {
 		baseEnrolled = map[string]bool{}
 	}
-	levels, unreadableLevels, levelsKnown := baselineLevels(tree)
+	levels, evidencePrints, unreadableLevels, levelsKnown := baselineLevels(tree)
 	ids := baselineIDs(levels)
 	baselineStems, stemsKnown := baselineSummaryStems(tree)
 	if !stemsKnown {
@@ -503,6 +503,8 @@ func check(tree string, today time.Time, approvals map[string]string) (CheckRepo
 	findings = append(findings, inGroup(CheckAnnotations, notes(checkLowerLayerProducer(discriminationSources, collected.Requirements)))...)
 	findings = append(findings, inGroup(CheckAnnotations, notes(checkPartialScopes(discriminationSources, collected.Requirements)))...)
 	findings = append(findings, inGroup(CheckAnnotations, notes(checkFeatureDeclined(tree, discriminationSources, collected.Requirements)))...)
+	findings = append(findings, inGroup(CheckAnnotations, notes(checkExclusionEvidence(tree, collected.Requirements,
+		evidencePrints, unreadableLevels, levelsKnown)))...)
 	linuxLimitFindings, linuxLimitCandidates := checkLinuxLimit(tree, collected.Requirements)
 	findings = append(findings, inGroup(CheckAnnotations, linuxLimitFindings)...)
 	findings = append(findings, inGroup(CheckRequirementLists, notes(checkRowQuotes(tree, collected.Requirements)))...)

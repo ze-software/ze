@@ -65,9 +65,15 @@ const FixtureAggregateProfile = "# Profile: " + FixtureAggregate + "\n\n| Field 
 // FixtureAggregateRel is where FixtureAggregateProfile lives in a fixture tree.
 const FixtureAggregateRel = profileRel + "/" + FixtureAggregate + ".md"
 
+// fixtureEvidenceBacklog is the exclusion evidence count file of a fixture
+// whose rows carry every exclusion's evidence: zero for each kind, so a row
+// lacking it is refused by id (checkExclusionEvidence).
+const fixtureEvidenceBacklog = "feature-declined 0\nlower-layer 0\nnot-applicable 0\n"
+
 // FixtureFiles answers every file the three drivers write in common, keyed by
 // its path relative to the checkout root: the summary, the RFC text the
-// extraction walk reads, the drain budget the quota reads, and the workflow the
+// extraction walk reads, the drain budget the quota reads, the evidence counts
+// the exclusion ratchet reads, and the workflow the
 // carrier walk looks for.
 //
 // A caller adds what its own tree needs beside these -- a `feature-gates.txt`
@@ -79,6 +85,7 @@ func FixtureFiles() map[string]string {
 		FixtureAggregateRel:                FixtureAggregateProfile,
 		"rfc/full/" + FixtureStem + ".txt": "A speaker MUST send the widget.\n",
 		"rfc/drain-budget.txt":             "start 2026-07-29\nrate 0\n",
+		evidenceBacklogRel:                 fixtureEvidenceBacklog,
 		".github/workflows/nightly.yml":    "on:\n  schedule:\n    - cron: '0 3 * * *'\n",
 	}
 }

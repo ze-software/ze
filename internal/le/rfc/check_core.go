@@ -804,7 +804,7 @@ func rollupRowVerdict(rid string, state RollupState) rollupVerdict {
 // skipped. A quote nobody can check is the assertion this kind exists not to
 // be, and enrolment already requires the text (checkEnrolment).
 func checkFeatureDeclined(tree string, reader *sourceReader, requirements []Requirement) []string {
-	sources := map[string]string{}
+	sources := map[string]*quoteSource{}
 	var errs []string
 	for _, req := range requirements {
 		if req.Annotation == nil || req.Annotation.Kind != AnnotationFeatureDeclined {
@@ -844,31 +844,38 @@ func checkFeatureDeclined(tree string, reader *sourceReader, requirements []Requ
 }
 
 // featureDeclinedQuote holds one annotation's quote against the RFC's own text,
-// reading each document at most once.
-func featureDeclinedQuote(where string, req Requirement, sources map[string]string,
+// reading each document at most once through sources.
+//
+// The match is scoped to the section the row cites (placeQuote). A quote the
+// RFC does not carry at all, or an RFC whose text is absent, is refused here
+// for every row. A quote the RFC carries in another section is the evidence
+// ratchet's to judge (exclusionEvidenceGap, checkExclusionEvidence), so the
+// rows written before the narrowing drain rather than red the tree at once.
+func featureDeclinedQuote(where string, req Requirement, sources map[string]*quoteSource,
 	tree string,
 ) []string {
-	source, loaded := sources[req.RFC]
-	if !loaded {
-		source, _ = SourceText(tree, req.RFC)
-		sources[req.RFC] = source
-	}
-	if source == "" {
+	place, _ := placeQuote(loadQuoteSource(sources, tree, req.RFC), req.Section, req.Annotation.Quote)
+	switch place {
+	case quoteInSection, quoteOutsideSection, quoteSectionUnresolved:
+		// An unresolved cited section is the row quote rule's refusal
+		// (rowQuoteRefusal), and a quote outside it is the ratchet's.
+		return nil
+	case quoteNoText:
 		var tb textbuf.Buffer
 		return []string{tb.Str(where).Str(": ").Str(req.RID).
 			Str(" is annotated {feature-declined} and the RFC's own text is not in this repository, so its quote can be checked against nothing. Fetch it to ").
 			Str(fullRel).Byte('/').Str(req.RFC).Str(".txt or ").Str(draftsRel).Byte('/').
 			Str(req.RFC).Str(".txt").String()}
+	case quoteNotInRFC:
+		var tb textbuf.Buffer
+		return []string{tb.Str(where).Str(": ").Str(req.RID).
+			Str(" is annotated {feature-declined} and quotes ").
+			Str(pyRepr(truncateRunes(req.Annotation.Quote, 60))).
+			Str(", which is not in ").Str(fullRel).Byte('/').Str(req.RFC).
+			Str(".txt. The kind rests on the DOCUMENT making the feature optional, so the sentence has to be the RFC's own: quote it verbatim (line breaks and page breaks are ignored), or the obligation is unconditional and this is a {gap}").String()}
+	default:
+		panic("BUG: unexpected quote place")
 	}
-	if strings.Contains(quoteHaystack(source), quoteNeedle(req.Annotation.Quote)) {
-		return nil
-	}
-	var tb textbuf.Buffer
-	return []string{tb.Str(where).Str(": ").Str(req.RID).
-		Str(" is annotated {feature-declined} and quotes ").
-		Str(pyRepr(truncateRunes(req.Annotation.Quote, 60))).
-		Str(", which is not in ").Str(fullRel).Byte('/').Str(req.RFC).
-		Str(".txt. The kind rests on the DOCUMENT making the feature optional, so the sentence has to be the RFC's own: quote it verbatim (line breaks and page breaks are ignored), or the obligation is unconditional and this is a {gap}").String()}
 }
 
 // declaresFunction answers whether a Go file declares a top-level function of

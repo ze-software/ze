@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling |
 | Priority | P2 |
 | Release reason | Accurate support claims: the published RFC coverage figure divides by rows Ze's code does not owe, so it misstates what Ze has done |
 | RFC gaps | - |
 | Depends | - |
-| Phase | - |
+| Phase | 1/5 |
 | Handoff | - |
 | Updated | 2026-10-30 |
 

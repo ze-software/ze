@@ -28,6 +28,7 @@ func checkFixtureTree(t *testing.T, extra map[string]string) string {
 			"- [ ] [" + selftestRIDSend + "] [MUST] A speaker MUST send the widget (§2)\n",
 		"rfc/full/rfc9999.txt": checkFixtureSource,
 		"rfc/drain-budget.txt": "start 2026-07-29\nrate 0\n",
+		evidenceBacklogRel:     fixtureEvidenceBacklog,
 		// The tag scanner type-checks the packages carrying tags under every feature gate,
 		// so the manifest must name at least one. This fixture's one gated package holds
 		// nothing.
@@ -2180,6 +2181,7 @@ func TestRatchetsFireWhenEnrolmentMovesToMeta(t *testing.T) {
 		"rfc/enrolled.txt":     "# the retired shape\nrfc9999\tthe fixture RFC\n",
 		"rfc/full/rfc9999.txt": checkFixtureSource,
 		"rfc/drain-budget.txt": "start 2026-07-29\nrate 0\n",
+		evidenceBacklogRel:     fixtureEvidenceBacklog,
 		"feature-gates.txt":    "ze_widget  internal/widget\n",
 		carrier:                both,
 	})

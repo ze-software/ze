@@ -1022,6 +1022,7 @@ func selftestQuoteCheck(prefix, text string) (CheckReport, error) {
 		selftestSummaryRel:     summary,
 		selftestSourceRel:      selftestRFCSource,
 		"rfc/drain-budget.txt": "start 2026-07-29\nrate 0\n",
+		evidenceBacklogRel:     fixtureEvidenceBacklog,
 		"feature-gates.txt":    "ze_widget  internal/widget\n",
 	})
 	if err != nil {

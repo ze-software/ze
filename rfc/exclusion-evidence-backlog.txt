@@ -1,0 +1,11 @@
+# Committed counts for the exclusion evidence ratchet (checkExclusionEvidence,
+# internal/le/rfc/check_evidence.go; docs/contributing/rfc-conformance-gates.md,
+# "The exclusion evidence ratchet").
+#
+# One line per kind: the number of rows of that kind, across every summary in
+# rfc/short/, that still lack the evidence the kind owes. ./le rfc check refuses
+# a count that differs from the tree: a count may only fall, and the commit that
+# backfills a row lowers its line. A kind at 0 is refused row by row.
+feature-declined 22
+lower-layer 215
+not-applicable 833
