@@ -11,6 +11,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/redistevents"
 	"github.com/ze-software/ze/internal/core/rib/nexthop"
+	ribpolicy "github.com/ze-software/ze/internal/core/rib/policy"
 	"github.com/ze-software/ze/internal/core/rib/routetype"
 )
 
@@ -184,6 +185,44 @@ type Path struct {
 	// RFC 7999 Section 2 is the producer today: a BLACKHOLE-tagged prefix a peer
 	// is authorized for, on a session where the operator agreed to honor it.
 	RouteType routetype.Type
+
+	// Tag is the route's administrative tag: an OSPF external route tag, or a
+	// static route's `tag` leaf. It is meaningful only when HasTag is set,
+	// because 0 is a real tag. An import chain may read it and may replace it
+	// (internal/core/rib/policy).
+	//
+	// Carry-through metadata: EXCLUDED from key(), so a source re-advertising a
+	// prefix with a new tag updates its one path, and compared by Equal, so the
+	// change re-runs the import chains and reaches consumers.
+	Tag    uint32
+	HasTag bool
+
+	// Level is the IS-IS level of the route IS-IS already selected; zero means
+	// the path carries no level. IS-IS resolves level preference inside SPF and
+	// publishes one path per prefix, so an import chain that reads the level
+	// never changes which level IS-IS prefers.
+	// Excluded from key(), compared by Equal, on the Tag contract.
+	Level ribpolicy.ISISLevel
+
+	// OSPFRouteType is the OSPF path type (intra-area, inter-area, external 1
+	// or 2, NSSA 1 or 2) of the route OSPF already selected; zero means the
+	// path carries none. It is not RouteType, the forwarding action.
+	// Excluded from key(), compared by Equal, on the Tag contract.
+	OSPFRouteType ribpolicy.OSPFRouteType
+
+	// Hidden means an import chain rejected the path. The RIB OWNS it, as it
+	// owns AdminDistance: every insert, and every Reselect, overwrites it from
+	// the published policy (admit, policy.go), so a producer's value here is
+	// discarded. A hidden path is stored, so Lookup, Inspect and Iterate list
+	// it, but selectBest and siblingNextHops skip it, so Best, LPM and a Change
+	// never carry one. Compared by Equal, excluded from key().
+	Hidden bool
+
+	// original keeps the producer's own values of the fields an import chain
+	// may set, so every evaluation starts from them rather than from an earlier
+	// evaluation's result (admit, policy.go). Written only by admit; EXCLUDED
+	// from Equal, because consumers see only the values in effect.
+	original producerValues
 }
 
 // Valid reports whether p can be selected as a best path. An invalid Path is
@@ -193,8 +232,10 @@ func (p Path) Valid() bool {
 }
 
 // Equal reports whether two Paths are identical for change detection: every
-// selection field, the outgoing interface and weight, the MPLS label stack, and
-// the forwarding action. Required
+// selection field, the outgoing interface and weight, the MPLS label stack, the
+// forwarding action, the tag, level and OSPF route type the import chains read,
+// and the hidden flag. The producer's original values are not compared:
+// consumers see only the values in effect. Required
 // because Path has a slice field (Labels) and cannot be compared with ==/!=.
 // Without the label comparison a relabel is missed: same next hop, new label.
 // Without the RouteType comparison a prefix turning into a discard with an
@@ -219,6 +260,11 @@ func (p Path) Equal(q Path) bool {
 		p.BackupInterface == q.BackupInterface &&
 		p.BackupOnLink == q.BackupOnLink &&
 		p.RouteType == q.RouteType &&
+		p.Tag == q.Tag &&
+		p.HasTag == q.HasTag &&
+		p.Level == q.Level &&
+		p.OSPFRouteType == q.OSPFRouteType &&
+		p.Hidden == q.Hidden &&
 		slices.Equal(p.Labels, q.Labels) &&
 		slices.Equal(p.BackupRepairLabels, q.BackupRepairLabels)
 }

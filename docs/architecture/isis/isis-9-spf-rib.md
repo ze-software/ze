@@ -40,14 +40,17 @@ here is SPF correctness, not the install path.
 
 ## Decision: one admin distance, level preference resolved inside SPF
 
-`locrib.Path` has no protocol-type or level field, so per-level admin distance is
-not modelable. IS-IS resolves the up/down-aware preference internally and
-publishes exactly **one** path per prefix. The existing
-`rib.distance.isis` leaf is reused unchanged and no per-level leaves were
-added.
+IS-IS resolves the up/down-aware preference internally and publishes exactly
+**one** path per prefix. The existing `rib.distance.isis` leaf is reused
+unchanged and no per-level leaves were added.
 
-Per-level admin distance against **other** protocols would need a level field on
-the path and per-level YANG leaves. It is not implemented.
+`locrib.Path` carries a `Level` field for the Loc-RIB import gate
+(`docs/architecture/rib/unified-locrib.md`). It records the level of the route
+SPF already chose, so a filter that reads it never changes which level SPF
+prefers. A `set distance` on an import chain matching the level gives an
+operator a per-level distance for each route, with no per-level leaves. Per-level
+admin distance leaves are not implemented.
+<!-- source: internal/core/rib/locrib/candidate.go -- Path.Level -->
 
 ## Decision: metric type precedes cost
 

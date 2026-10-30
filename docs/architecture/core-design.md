@@ -1981,7 +1981,9 @@ process-global seam, is ranked by the declaration all the same.
 The one exception is a static route's own `distance` leaf. It travels as
 `Path.DistanceOverride` (over route-install, the optional `distance` field) and
 wins over the distance declared for `static`. No other producer sets an
-override.
+override. An import chain's `set distance` writes the same pair on the copy the
+Loc-RIB stores, never on the producer's own values
+(`docs/architecture/rib/unified-locrib.md`).
 <!-- source: internal/plugins/static/config.go -- parseRouteDistance -->
 <!-- source: internal/plugins/static/locrib.go -- DistanceOverride -->
 

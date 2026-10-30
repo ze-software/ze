@@ -49,6 +49,44 @@ so a reload re-ranks the routes already installed and the FIB follows.
 <!-- source: internal/core/rib/locrib/distance.go -- resolvedDistance, DistanceProtocol, Reselect -->
 <!-- source: internal/component/sysrib/register.go -- reselectLocRIB -->
 
+**An import gate judges every path before it is stored, and a rejected path
+is kept hidden.** Every write ends in `(*RIB).insert`, so the gate sits there
+and no source can skip it. `internal/core/rib/policy` carries one immutable
+`Snapshot` through an atomic pointer: a compiled chain per source and one
+central chain (`rib filter import`). `Snapshot.Evaluate` runs the source's chain,
+then the central chain, which sees the tag the first one set; an answer that
+is not an accept rejects, so a chain that cannot answer fails closed. Insert
+reads the snapshot before it takes the shard lock and judges the path in
+`admit`. When no chain is configured the snapshot is nil, so the gate is the
+pointer load and the nil check, with no allocation, on the BGP full-table path.
+Under the lock insert reloads the pointer and judges the path again if a newer
+snapshot was published in between, because that snapshot's re-selection pass
+may already have run over the shard.
+
+A rejected path is upserted with `Path.Hidden` set. The RIB owns that flag, as
+it owns `AdminDistance`, so a producer's value is discarded. `selectBest` and
+`siblingNextHops` skip hidden paths, so `Best`, `LPM` and every `Change` leave
+them out. A group whose paths are all hidden has no best, the same as an empty
+group, so its subscribers see `ChangeRemove` and sysrib withdraws the FIB entry.
+A hidden path stays stored, so `Lookup`, `Inspect` and `Iterate` still list it.
+An accepting chain may set `distance`, which writes the `DistanceOverride`
+pair, and `tag`. Those set actions are applied to a copy of the producer's
+own values. The path keeps those values unexported beside the values in
+effect, so each evaluation starts from what the producer offered and a reload
+never applies a set twice.
+
+`locrib.PublishPolicy` publishes a snapshot and calls `Reselect` on the
+process-wide RIB. `Reselect` judges every stored path again from the producer's
+values, hidden paths included. It then re-ranks and dispatches `ChangeAdd` for a
+prefix it re-admits, `ChangeRemove` for one it hides, and `ChangeUpdate` where
+the best or the equal-cost set moved. Relaxing a filter therefore installs the
+path with no producer event, and tightening one withdraws it.
+<!-- source: internal/core/rib/policy/policy.go -- Snapshot, NewSnapshot, Evaluate, Set, Current -->
+<!-- source: internal/core/rib/locrib/policy.go -- admit, producerPath, PublishPolicy -->
+<!-- source: internal/core/rib/locrib/manager.go -- insert, siblingNextHops -->
+<!-- source: internal/core/rib/locrib/entry.go -- selectBest -->
+<!-- source: internal/core/rib/locrib/distance.go -- reselectShard, dispatchReselected -->
+
 **A Path carries its whole next-hop set, not one address.** `NextHop` is the
 route's gateway, `Interface` names its outgoing device, and `Weight` gives
 that next-hop's share of the group. `OnLink` identifies a protocol-established
@@ -65,6 +103,13 @@ are excluded from `key()`: changing a source's forwarding target updates the
 same path. `Equal` compares them so the change reaches the FIB. `ECMP` stays out
 of both; a group change is detected through `Change.ECMP`. The Service SID
 survives local changes, forked route-install RPC and replay.
+
+The fields an import chain reads follow the same contract. `Tag` is meaningful
+only with `HasTag`, because 0 is a real tag. `Level` is the IS-IS level of the
+route SPF already chose. `OSPFRouteType` is the OSPF path type, which is not
+`RouteType`, the forwarding action. `Hidden` follows them too. All four are
+out of `key()` and in `Equal`, so a re-advertisement with a new tag updates the
+same path and reaches consumers.
 <!-- source: internal/core/rib/nexthop/nexthop.go -- the NextHop value type -->
 <!-- source: internal/core/rib/distance/distance.go -- the declaration seam the Loc-RIB reads -->
 

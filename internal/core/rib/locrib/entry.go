@@ -17,12 +17,13 @@ type PathGroup struct {
 	Paths []Path
 
 	// Best is the index into Paths of the currently selected best path,
-	// or -1 when no valid Path exists.
+	// or -1 when no valid Path that is not hidden exists.
 	Best int
 }
 
 // upsert inserts or replaces the Path at its (Source, Instance) key and
-// recomputes Best.
+// recomputes Best. p has already passed the import gate (admit), so its Hidden
+// flag and set actions are the RIB's own.
 func (g *PathGroup) upsert(p Path) {
 	p.AdminDistance = resolvedDistance(p)
 	k := p.key()
@@ -71,11 +72,16 @@ func (g *PathGroup) best() (Path, bool) {
 //
 // Ordering: lower AdminDistance wins; on tie, lower Metric wins; on further
 // tie, first seen wins (stable). Invalid Paths (Source == ProtocolUnspecified)
-// are skipped.
+// and hidden Paths (an import chain rejected them) are skipped, so a group
+// whose every path is hidden has no best, exactly like an empty one, and its
+// subscribers see ChangeRemove.
 func selectBest(paths []Path) int {
 	best := -1
 	for i := range paths {
 		if !paths[i].Valid() {
+			continue
+		}
+		if paths[i].Hidden {
 			continue
 		}
 		if best < 0 {

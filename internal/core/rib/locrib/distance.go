@@ -12,6 +12,7 @@ import (
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/redistevents"
 	ribdistance "github.com/ze-software/ze/internal/core/rib/distance"
+	ribpolicy "github.com/ze-software/ze/internal/core/rib/policy"
 )
 
 // UndeclaredDistance is the rank of a path whose protocol neither the
@@ -53,11 +54,15 @@ func DistanceProtocol(p Path) string {
 	return name
 }
 
-// Reselect re-resolves the distance of every stored Path and re-runs best-path
-// selection for every prefix, dispatching a ChangeUpdate for each prefix whose
-// best Path or equal-cost set moved. sysrib calls it after it publishes a new
-// declaration on the seam, so a reload that changes a distance re-ranks the
-// routes already installed and the FIB follows the new winners.
+// Reselect re-judges every stored Path, hidden ones included, against the
+// published import policy from the producer's own values, re-resolves its
+// distance, and re-runs best-path selection for every prefix. It dispatches a
+// ChangeUpdate for each prefix whose best Path or equal-cost set moved, a
+// ChangeRemove for one whose last selectable path the policy now hides, and a
+// ChangeAdd for one whose hidden path the policy now admits. sysrib calls it
+// after it publishes a new distance declaration, and PublishPolicy after a new
+// policy snapshot, so a reload re-ranks the routes already installed and the
+// FIB follows the new winners with no producer event.
 //
 // A prefix whose best is unchanged but whose resolved distance moved is
 // dispatched too: Equal compares AdminDistance, and a consumer that shows the
@@ -92,9 +97,14 @@ func (r *RIB) reselectShard(fam family.Family, sh *shard) {
 		prefixes = append(prefixes, prefix)
 		return true
 	})
+	// The snapshot is read under the shard lock, so of two publications racing
+	// each other the later one's pass over this shard judges with the later
+	// snapshot, and an insert that loaded an older one re-judges under the lock
+	// (insert, manager.go).
+	snap := ribpolicy.Current()
 	for _, prefix := range prefixes {
 		var prevBest, newBest Path
-		var hadBest bool
+		var hadBest, newHad bool
 		var prevECMP, ecmp []NextHop
 		sh.store.Modify(prefix, func(g *PathGroup) {
 			prevBest, hadBest = g.best()
@@ -102,20 +112,45 @@ func (r *RIB) reselectShard(fam family.Family, sh *shard) {
 				prevECMP = siblingNextHops(g, prevBest)
 			}
 			for j := range g.Paths {
+				g.Paths[j] = admit(snap, fam, prefix, producerPath(&g.Paths[j]))
 				g.Paths[j].AdminDistance = resolvedDistance(g.Paths[j])
 			}
 			g.Best = selectBest(g.Paths)
-			newBest, _ = g.best()
+			newBest, newHad = g.best()
 			ecmp = siblingNextHops(g, newBest)
 		})
-		if !hadBest {
-			// A group with no valid best has nothing installed to re-rank.
-			continue
-		}
-		if prevBest.Equal(newBest) && equalNextHopSets(prevECMP, ecmp) {
-			continue
-		}
+		r.dispatchReselected(sh, fam, prefix, reselected{
+			prevBest: prevBest, newBest: newBest, hadBest: hadBest, newHad: newHad,
+			prevECMP: prevECMP, ecmp: ecmp,
+		})
+	}
+}
+
+// reselected is one prefix's selection before and after a Reselect pass.
+type reselected struct {
+	prevBest, newBest Path
+	hadBest, newHad   bool
+	prevECMP, ecmp    []NextHop
+}
+
+// dispatchReselected tells the subscribers what a Reselect pass changed for one
+// prefix. A re-judged import policy can hide the last selectable path (Remove)
+// or re-admit one where none was selectable (Add); a distance change, or a set
+// action, moves the best or its equal-cost set (Update). Called under sh.mu.
+func (r *RIB) dispatchReselected(sh *shard, fam family.Family, prefix netip.Prefix, s reselected) { //nolint:gocritic // hugeParam: called once per prefix of a reload, never on the insert path
+	switch {
+	case !s.hadBest && !s.newHad:
+		// Nothing was installed and nothing is.
+	case !s.newHad:
 		r.revision.Add(1)
-		sh.subs.dispatch(&Change{Family: fam, Prefix: prefix, Kind: ChangeUpdate, Best: newBest, ECMP: ecmp})
+		sh.subs.dispatch(&Change{Family: fam, Prefix: prefix, Kind: ChangeRemove})
+	case !s.hadBest:
+		r.revision.Add(1)
+		sh.subs.dispatch(&Change{Family: fam, Prefix: prefix, Kind: ChangeAdd, Best: s.newBest, ECMP: s.ecmp})
+	case s.prevBest.Equal(s.newBest) && equalNextHopSets(s.prevECMP, s.ecmp):
+		// Nothing a consumer sees moved.
+	default:
+		r.revision.Add(1)
+		sh.subs.dispatch(&Change{Family: fam, Prefix: prefix, Kind: ChangeUpdate, Best: s.newBest, ECMP: s.ecmp})
 	}
 }

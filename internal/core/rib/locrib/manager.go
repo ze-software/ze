@@ -16,6 +16,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/redistevents"
+	ribpolicy "github.com/ze-software/ze/internal/core/rib/policy"
 )
 
 // RIB is the unified Loc-RIB. It holds one familyShards per address family;
@@ -133,7 +134,13 @@ func (r *RIB) familyShardsFor(fam family.Family) *familyShards {
 // Insert upserts p into (fam, prefix). Returns (best, changed) where best
 // is the newly-selected best Path after the insert, and changed reports
 // whether the best differs from the pre-insert best. When the prefix is new
-// or had no valid best, changed is true whenever the inserted Path is valid.
+// or had no valid best, changed is true whenever the inserted Path is valid
+// and an import chain admitted it.
+//
+// p passes the import gate first (admit, policy.go): a path a chain rejects is
+// stored hidden, and when that leaves the prefix with no selectable best the
+// insert dispatches ChangeRemove and returns (zero, true). p carries the
+// producer's own values: the gate keeps them and applies set actions to a copy.
 //
 // Insert dispatches Change events without a ForwardHandle. Producers that
 // have a wire buffer to share with subscribers call InsertForward instead.
@@ -171,10 +178,25 @@ func (r *RIB) insert(fam family.Family, prefix netip.Prefix, p Path, forward For
 	family := fam.String()
 	shardIdx := shardIndex(prefix, len(fs.shards))
 
+	// The import gate runs before the shard lock, so a chain's cost never
+	// lengthens the time a shard is held. With no chain configured the gate is
+	// the snapshot load and admit's nil check.
+	snap := ribpolicy.Current()
+	stored := admit(snap, fam, prefix, p)
+
 	sh.mu.Lock()
+	// A snapshot published between the load above and the lock may already
+	// have had its Reselect pass over this shard, which could not see the path
+	// not yet stored: judge it again under the new snapshot, or it would keep
+	// the old verdict until the next publication.
+	if latest := ribpolicy.Current(); latest != snap {
+		stored = admit(latest, fam, prefix, p)
+	}
 	var prevBest Path
 	var hadBest bool
 	var newBest Path
+	var newHad bool
+	var created bool
 	// prevECMP/new ECMP hold the intra-source equal-cost siblings of the old and
 	// new best paths, computed while the PathGroup is in hand under sh.mu so
 	// consumers (sysrib) never re-look-up the RIB to recover an ECMP group. Nil
@@ -183,39 +205,49 @@ func (r *RIB) insert(fam family.Family, prefix netip.Prefix, p Path, forward For
 	var prevECMP []NextHop
 	var ecmp []NextHop
 
-	if !sh.store.Modify(prefix, func(g *PathGroup) {
+	// Lookup then Insert, the two trie walks store.Modify makes, without its
+	// callback: Modify hands the callback a pointer to its local copy, which
+	// moves that copy to the heap on every call, and this is the BGP full-table
+	// hot path (AC-16 of the route policy spec pins zero allocations).
+	g, found := sh.store.Lookup(prefix)
+	if found {
 		prevBest, hadBest = g.best()
 		if hadBest {
-			prevECMP = siblingNextHops(g, prevBest)
+			prevECMP = siblingNextHops(&g, prevBest)
 		}
-		g.upsert(p)
-		newBest, _ = g.best()
-		ecmp = siblingNextHops(g, newBest)
-	}) {
-		g := PathGroup{Best: -1}
-		g.upsert(p)
-		sh.store.Insert(prefix, g)
-		newBest, _ = g.best()
-		ecmp = siblingNextHops(&g, newBest)
+	} else {
+		g = PathGroup{Best: -1}
+		created = true
 	}
+	g.upsert(stored)
+	sh.store.Insert(prefix, g)
+	newBest, newHad = g.best()
+	ecmp = siblingNextHops(&g, newBest)
 	depth := sh.store.Len()
 
-	// p is valid (checked at entry) and upsert placed it into the group, so
-	// selectBest must return a non-negative index -- newHad is guaranteed
-	// true here. Four outcomes remain: new prefix (Add), best identity changed
-	// (Update), ECMP membership changed while the best stayed stable (Update
-	// without Forward), or no dispatch. changed keeps its long-standing API
-	// meaning: true only when the selected best Path changed.
+	// The path is valid (checked at entry) and upsert placed it into the group,
+	// but an import chain may have hidden it, so the group can still have no
+	// best. Six outcomes: no best before or after (a hidden path stored, no
+	// dispatch), a best before and none after (Remove: every remaining path is
+	// hidden), a first best (Add), best identity changed (Update), ECMP
+	// membership changed while the best stayed stable (Update without Forward),
+	// or no dispatch. changed keeps its long-standing API meaning: true only
+	// when the selected best Path changed.
 	var (
 		retBest Path
 		changed bool
 	)
 	bestChanged := hadBest && !prevBest.Equal(newBest)
 	ecmpChanged := hadBest && !equalNextHopSets(prevECMP, ecmp)
-	if !hadBest || bestChanged || ecmpChanged {
+	if hadBest != newHad || bestChanged || ecmpChanged {
 		r.revision.Add(1)
 	}
 	switch {
+	case !hadBest && !newHad:
+		// Only hidden paths: nothing was installed and nothing is.
+	case !newHad:
+		sh.subs.dispatch(&Change{Family: fam, Prefix: prefix, Kind: ChangeRemove})
+		changed = true
 	case !hadBest:
 		sh.subs.dispatch(&Change{Family: fam, Prefix: prefix, Kind: ChangeAdd, Best: newBest, Forward: forward, ECMP: ecmp})
 		retBest, changed = newBest, true
@@ -230,9 +262,10 @@ func (r *RIB) insert(fam family.Family, prefix netip.Prefix, p Path, forward For
 	}
 	sh.mu.Unlock()
 	recordInsert(family, shardIdx)
-	// Depth only changes on the Add branch (new prefix entered the store).
-	// Update and no-op Inserts leave the prefix set size unchanged.
-	if changed && !hadBest {
+	// Depth only changes when a new prefix entered the store, whether or not
+	// its path is hidden. Update and no-op Inserts leave the prefix set size
+	// unchanged.
+	if created {
 		updateDepth(family, shardIdx, depth)
 	}
 	return retBest, changed
@@ -246,8 +279,8 @@ func (r *RIB) insert(fam family.Family, prefix netip.Prefix, p Path, forward For
 // case) and for any group whose best is not itself a multipath member.
 //
 // The filter mirrors what sysrib formerly recomputed by re-looking-up the
-// PathGroup: same Source as best, same AdminDistance, same Metric, valid
-// next-hop, different from best.NextHop. Runs under the shard lock with g in
+// PathGroup: same Source as best, not hidden, same AdminDistance, same Metric,
+// valid next-hop, different from best.NextHop. Runs under the shard lock with g in
 // hand; allocates nothing for single-path groups.
 func siblingNextHops(g *PathGroup, best Path) []NextHop {
 	if !best.Valid() {
@@ -267,6 +300,11 @@ func siblingNextHops(g *PathGroup, best Path) []NextHop {
 	for i := range g.Paths {
 		p := g.Paths[i]
 		if p.Source != best.Source {
+			continue
+		}
+		// A hidden path was rejected by an import chain: it is never selected,
+		// so it is never an equal-cost member either.
+		if p.Hidden {
 			continue
 		}
 		if !p.NextHop.IsValid() && p.Interface == "" {
