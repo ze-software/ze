@@ -576,21 +576,20 @@ func revertBreak(reader *sourceReader, index *scopeIndex,
 		return overlayFile{}, parseErr(tb.Str(rel).
 			Str(": the producer names a file this tree does not hold"))
 	}
-	texts := index.keyTexts(*content, symbol)
-	if len(texts) != 1 {
-		return overlayFile{}, parseErr(tb.Str(rel).Str(" declares ").Int(int64(len(texts))).
-			Str(" function(s) named ").Str(symbol).
-			Str(", and a revert disables exactly one. An unresolved producer is the ").
+	text, refusal := index.keyText(rel, *content, symbol)
+	if refusal != "" {
+		return overlayFile{}, parseErr(tb.Str(refusal).
+			Str(". A revert disables exactly one function, and an unresolved producer is the ").
 			Str("defect, never a proof of one"))
 	}
-	disabled, ok := disableBody(texts[0])
+	disabled, ok := disableBody(text)
 	if !ok {
 		return overlayFile{}, parseErr(tb.Str(record.Producer).
 			Str(": cannot find the body to disable. The declaration's opening brace is ").
 			Str("expected to end its line, which is what gofmt writes"))
 	}
 	record.Break = tb.Reset().Str("body of ").Str(symbol).Str(" replaced by ").Str(revertBody).String()
-	broken := strings.Replace(*content, texts[0], disabled, 1)
+	broken := strings.Replace(*content, text, disabled, 1)
 	return overlayFile{rel: rel, content: dropOrphanedImports(rel, broken)}, nil
 }
 

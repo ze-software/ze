@@ -398,7 +398,7 @@ func checkLowerLayerProducer(reader *sourceReader, requirements []Requirement) [
 			continue
 		}
 		where := requirementWhere(req)
-		state, path, symbol := resolveProducer(reader, req.Annotation.Producer)
+		state, unresolved := resolveProducer(reader, req.Annotation.Producer)
 		switch state {
 		case producerFound:
 		case producerUnnamed:
@@ -418,13 +418,13 @@ func checkLowerLayerProducer(reader *sourceReader, requirements []Requirement) [
 				Str("} and names the producer ").Str(req.Annotation.Producer).
 				Str(", whose file this checkout does not carry. The kind rests on a producer a reader can open: name the file that installs into ").
 				Str(req.Annotation.Layer).Str(", or the annotation claims what nothing here can show").String())
-		case producerSymbolAbsent:
+		case producerUnresolved:
 			var tb textbuf.Buffer
 			errs = append(errs, tb.Str(where).Str(": ").Str(req.RID).
 				Str(" is annotated {lower-layer: ").Str(req.Annotation.Layer).
 				Str("} and names the producer ").Str(req.Annotation.Producer).
-				Str(", but ").Str(path).Str(" declares no ").Str(symbol).
-				Str(". The producer was renamed or deleted under the annotation: name the function that installs into ").
+				Str(", but ").Str(unresolved).
+				Str(". Name the one function that installs into ").
 				Str(req.Annotation.Layer).Str(" today").String())
 		default:
 			panic("BUG: unexpected producer resolution state")
@@ -441,30 +441,40 @@ const (
 	producerFound producerState = iota
 	producerUnnamed
 	producerFileAbsent
-	producerSymbolAbsent
+	producerUnresolved
 )
 
-// resolveProducer answers what the tree shows for one producer key, and the
-// path and the symbol it read.
+// resolveProducer answers what the tree shows for one producer key, and for
+// producerUnresolved the sentence saying why the symbol names no one function.
 //
 // Two kinds name a producer and each owes its own sentence, so the RESOLUTION
 // is shared and the refusals are not. A second copy of "read the file, find the
 // function" would be one rule two checks could disagree about
-// (ai/rules/principles.md).
-func resolveProducer(reader *sourceReader, producer string) (producerState, string, string) {
+// (ai/rules/principles.md), so the symbol resolves through scopeIndex.keyText,
+// the resolver a fingerprint key takes: `Type.Method` names that receiver's
+// method, and a bare name several methods share is ambiguous, not found.
+func resolveProducer(reader *sourceReader, producer string) (producerState, string) {
 	parts := producerRE.FindStringSubmatch(producer)
 	if parts == nil {
-		return producerUnnamed, "", ""
+		return producerUnnamed, ""
 	}
-	path, symbol := parts[1], parts[3]
+	path, receiver, method := parts[1], parts[2], parts[3]
+	if strings.HasPrefix(receiver, "(") {
+		canonical := strings.Trim(receiver, "(*).") + "." + method
+		var tb textbuf.Buffer
+		return producerUnresolved, tb.Str(parts[0]).
+			Str(" is a Go method expression, and a producer names a method by its receiver ").
+			Str("type alone, pointer or value: write ").Str(path).Str("::").Str(canonical).String()
+	}
+	symbol := receiver + method
 	content := reader.read(path)
 	if content == nil {
-		return producerFileAbsent, path, symbol
+		return producerFileAbsent, ""
 	}
-	if !declaresFunction(*content, symbol) {
-		return producerSymbolAbsent, path, symbol
+	if _, refusal := newScopeIndex().keyText(path, *content, symbol); refusal != "" {
+		return producerUnresolved, refusal
 	}
-	return producerFound, path, symbol
+	return producerFound, ""
 }
 
 // checkRollupTargets holds every {rollup} annotation against the corpus: each
@@ -814,7 +824,7 @@ func checkFeatureDeclined(tree string, reader *sourceReader, requirements []Requ
 		}
 		where := requirementWhere(req)
 		errs = append(errs, featureDeclinedQuote(where, req, sources, tree)...)
-		state, path, symbol := resolveProducer(reader, req.Annotation.Producer)
+		state, unresolved := resolveProducer(reader, req.Annotation.Producer)
 		switch state {
 		case producerFound:
 		case producerUnnamed:
@@ -831,13 +841,12 @@ func checkFeatureDeclined(tree string, reader *sourceReader, requirements []Requ
 				Str(" is annotated {feature-declined} and names the producer ").
 				Str(req.Annotation.Producer).
 				Str(", whose file this checkout does not carry. The kind rests on code a reader can open: name the function that does the narrower thing ze chose, or the annotation claims what nothing here can show").String())
-		case producerSymbolAbsent:
+		case producerUnresolved:
 			var tb textbuf.Buffer
 			errs = append(errs, tb.Str(where).Str(": ").Str(req.RID).
 				Str(" is annotated {feature-declined} and names the producer ").
-				Str(req.Annotation.Producer).Str(", but ").Str(path).
-				Str(" declares no ").Str(symbol).
-				Str(". The producer was renamed or deleted under the annotation: name the function that does the narrower thing ze chose today").String())
+				Str(req.Annotation.Producer).Str(", but ").Str(unresolved).
+				Str(". Name the one function that does the narrower thing ze chose today").String())
 		default:
 			panic("BUG: unexpected producer resolution state")
 		}
@@ -895,18 +904,6 @@ func featureDeclinedQuote(where string, req Requirement, sources map[string]*quo
 	default:
 		panic("BUG: unexpected quote place")
 	}
-}
-
-// declaresFunction answers whether a Go file declares a top-level function of
-// this name. A method matches on its own name, because that is the name
-// funcNameIn reads and the receiver is not part of it.
-func declaresFunction(content, name string) bool {
-	for _, unit := range FunctionUnits(content) {
-		if unit.Name == name {
-			return true
-		}
-	}
-	return false
 }
 
 // checkPartialScopes validates the real production boundary even before an

@@ -259,18 +259,28 @@ func TestCheckLowerLayerProducerReadsTheTree(t *testing.T) {
 }
 
 // TestAMethodIsAProducerToo checks the receiver form, because the function that
-// installs into a layer is as often a method as a plain function and funcNameIn
-// reads the name without its receiver.
+// installs into a layer is as often a method as a plain function: `Type.Method`
+// resolves to that receiver's method, and the method expression
+// `(*Type).Method` is refused naming that spelling.
 func TestAMethodIsAProducerToo(t *testing.T) {
 	const file = "internal/component/ike/dataplane/xfrm_linux.go"
 	source := "package dataplane\n\nfunc (d *dataplane) InstallSA(p SAParams) error {\n\treturn nil\n}\n"
 	requirements := []Requirement{{RFC: "rfc1", RID: "RFC1-1-1", Level: levelMust,
 		Source: "rfc/short/rfc1.md", Line: 7, Annotation: &Annotation{
 			Kind: AnnotationLowerLayer, Layer: "Linux XFRM",
-			Producer: file + "::(*dataplane).InstallSA",
-			Reason:   file + "::(*dataplane).InstallSA writes the state",
+			Producer: file + "::dataplane.InstallSA",
+			Reason:   file + "::dataplane.InstallSA writes the state",
 		}}}
 	if errs := checkLowerLayerProducer(newTextReader(map[string]string{file: source}), requirements); len(errs) != 0 {
 		t.Errorf("a method producer was refused: %v", errs)
+	}
+
+	// The Go method expression is the one other spelling of the same method,
+	// and it is refused naming the key spelling, so one method has one key.
+	requirements[0].Annotation.Producer = file + "::(*dataplane).InstallSA"
+	requirements[0].Annotation.Reason = file + "::(*dataplane).InstallSA writes the state"
+	errs := checkLowerLayerProducer(newTextReader(map[string]string{file: source}), requirements)
+	if len(errs) != 1 || !strings.Contains(errs[0], "write "+file+"::dataplane.InstallSA") {
+		t.Errorf("the method expression was not refused naming the key spelling: %v", errs)
 	}
 }

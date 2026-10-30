@@ -222,21 +222,15 @@ func unitSHAs(keys []string, reader *sourceReader, index *scopeIndex, where stri
 		}
 		text := content
 		if symbol != "" {
-			found := index.keyTexts(content, symbol)
-			if len(found) != 1 {
-				var why textbuf.Buffer
-				if len(found) == 0 {
-					why.Str("no top-level function declares it")
-				} else {
-					why.Int(int64(len(found))).Str(" top-level functions declare it")
-				}
+			found, refusal := index.keyText(rel, content, symbol)
+			if refusal != "" {
 				return nil, parseErr(tb.Str(where).Str(": ").Str(key).Str(" names symbol ").
-					Str(pyRepr(symbol)).Str(" in ").Str(rel).Str(", where ").Str(why.String()).
+					Str(pyRepr(symbol)).Str(", and ").Str(refusal).
 					Str(". A verdict judged that function, so a rename or a removal is a ").
 					Str("change to what was judged: re-read it with the ze-rfc-audit skill ").
 					Str("(ai/skills/ze-rfc-audit.md) rather than re-pointing the key"))
 			}
-			text = found[0]
+			text = found
 		}
 		if text == "" {
 			return nil, parseErr(tb.Str(where).Str(": ").Str(key).

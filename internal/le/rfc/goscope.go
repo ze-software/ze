@@ -15,6 +15,8 @@ import (
 	"regexp/syntax"
 	"sort"
 	"strings"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // ScopeKind states how a tagged unit or path is resolved.
@@ -345,6 +347,55 @@ func (s *scopeIndex) keyTexts(content, symbol string) []string {
 		return plain
 	}
 	return found
+}
+
+// keyText answers the one function text a key symbol names in rel, or the
+// refusal that says why it names none.
+//
+// It is keyTexts with the refusal every caller owes spelled once: a symbol
+// naming no function says so and lists the same-named methods it could have
+// meant, and a bare name several methods share is refused as ambiguous with
+// the exact key of each, so the author writes the one they mean instead of the
+// resolver picking one for them.
+func (s *scopeIndex) keyText(rel, content, symbol string) (string, string) {
+	found := s.keyTexts(content, symbol)
+	if len(found) == 1 {
+		return found[0], ""
+	}
+	_, method, qualified := strings.Cut(symbol, ".")
+	if !qualified {
+		method = symbol
+	}
+	candidates := s.candidateKeys(rel, content, method)
+	var tb textbuf.Buffer
+	if len(found) > 1 {
+		return "", tb.Str(rel).Str("::").Str(symbol).Str(" is ambiguous: ").Str(rel).
+			Str(" declares ").Int(int64(len(found))).Str(" methods named ").Str(symbol).
+			Str(" (").Join(candidates, ", ").
+			Str("). Name the one you mean as <path>::<Type>.<Method>, one of those keys").String()
+	}
+	tb.Str(rel).Str(" declares no ").Str(symbol)
+	if len(candidates) == 0 {
+		return "", tb.Str(". The function was renamed or deleted, or the key names the wrong file").String()
+	}
+	return "", tb.Str(". It declares ").Join(candidates, ", ").
+		Str(": name one of those keys").String()
+}
+
+// candidateKeys answers the key of every top-level function in content whose
+// bare name is method, receiver-qualified for a method, in file order.
+func (s *scopeIndex) candidateKeys(rel, content, method string) []string {
+	texts := s.funcTexts(content, method)
+	out := make([]string, 0, len(texts))
+	for _, text := range texts {
+		var tb textbuf.Buffer
+		tb.Str(rel).Str("::")
+		if receiver := funcReceiverIn(text); receiver != "" {
+			tb.Str(receiver).Byte('.')
+		}
+		out = append(out, tb.Str(method).String())
+	}
+	return out
 }
 
 // funcReceiverIn answers the receiver type a span's declaration names, without

@@ -288,8 +288,10 @@ func (b B) Send() {}
 	if err == nil {
 		t.Fatal("a name two functions declare was fingerprinted anyway")
 	}
-	if !strings.Contains(err.Error(), "2 top-level functions declare it") {
-		t.Errorf("the refusal does not say how many declare it: %v", err)
+	for _, want := range []string{"declares 2 methods named Send", "a_test.go::A.Send", "a_test.go::B.Send"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("the refusal does not say how many declare it and name each key (%q): %v", want, err)
+		}
 	}
 }
 

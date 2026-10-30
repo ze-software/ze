@@ -124,6 +124,10 @@ var (
 	fingerprintKeyRE = regexp.MustCompile(
 		`^(?P<file>[^:#\x00]+)(?:::(?P<symbol>(?:[A-Za-z_][A-Za-z0-9_]*\.)?[A-Za-z_][A-Za-z0-9_]*))?(?:#(?:[2-9]|[1-9][0-9]+))?\n?$`)
 	retiredKeyRE = regexp.MustCompile(`^(?P<file>[^:\x00]+):(?P<line>\d+)\n?$`)
+	// receiverFormRE is the Go method expression `(*Type).Method` or
+	// `(Type).Method` in a key, refused by name so the author is shown the one
+	// spelling a key takes, `Type.Method`, whatever the receiver's kind.
+	receiverFormRE = regexp.MustCompile(`^([^:#\x00]+)::\(\*?([A-Za-z_][A-Za-z0-9_]*)\)\.([A-Za-z_][A-Za-z0-9_]*)`)
 )
 
 // shaRE matches the whole string, so a 17-character `<16 hex>\n` is refused by
@@ -131,7 +135,9 @@ var (
 var shaRE = regexp.MustCompile(`^[0-9a-f]{16}$`)
 
 // fingerprintKey splits `path::Symbol`, `path::Type.Method`, `path::Symbol#2`
-// or a bare `path`. A symbol resolves through scopeIndex.keyTexts.
+// or a bare `path`. A symbol resolves through scopeIndex.keyTexts. A method is
+// named `Type.Method` for a pointer and a value receiver alike, so one method
+// has one key; `(*Type).Method` is refused with that spelling.
 //
 // It answers (path, symbol) with an empty symbol for a file-scoped key. The
 // ordinal is validated and then dropped: it distinguishes two tags inside ONE
@@ -163,6 +169,12 @@ func fingerprintKey(key, where string) (string, string, error) {
 			Str("::<FuncName>', or '").Str(retired[1]).
 			Str("' alone when the whole file is the unit. A stored line is current ").
 			Str("only until the next edit above it"))
+	}
+	if receiver := receiverFormRE.FindStringSubmatch(key); receiver != nil {
+		return "", "", parseErr(tb.Str(where).Str(": fingerprint key ").Str(pyRepr(key)).
+			Str(" names a method by its Go method expression. A key names it by the receiver ").
+			Str("type alone, pointer or value: write '").Str(receiver[1]).Str("::").
+			Str(receiver[2]).Byte('.').Str(receiver[3]).Str("'"))
 	}
 	if match == nil {
 		return "", "", parseErr(tb.Str(where).Str(": fingerprint key ").Str(pyRepr(key)).

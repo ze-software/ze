@@ -145,12 +145,11 @@ func interopScenarioOf(tree string, reader *sourceReader, index *scopeIndex,
 		return "", parseErr(tb.Str(record.Unit).
 			Str(": an interop record names one checker FUNCTION, which is what declares the scenario"))
 	}
-	texts := index.keyTexts(*content, symbol)
-	if len(texts) != 1 {
-		return "", parseErr(tb.Str(rel).Str(" declares ").Int(int64(len(texts))).
-			Str(" function(s) named ").Str(symbol))
+	text, refusal := index.keyText(rel, *content, symbol)
+	if refusal != "" {
+		return "", parseErr(tb.Str(refusal))
 	}
-	match := interopScenarioRE.FindStringSubmatch(texts[0])
+	match := interopScenarioRE.FindStringSubmatch(text)
 	if match == nil {
 		return "", parseErr(tb.Str(record.Unit).Str(" declares no `const name = \"<scenario>\"`, ").
 			Str("so which scenario to run cannot be read off the checker"))
@@ -380,11 +379,11 @@ func (o *observationRunner) requireKeyReached(covered coverageSet, key string) e
 	if err != nil {
 		return err
 	}
-	lines, held := producerLineSpan(o.tree, rel, symbol)
-	if !held {
+	lines, refusal := producerLineSpan(o.tree, rel, symbol)
+	if refusal != "" {
 		var tb textbuf.Buffer
-		return parseErr(tb.Str(key).Str(" does not resolve in this tree. An ").
-			Str("unresolvable producer is the defect, never a proof of one"))
+		return parseErr(tb.Str(key).Str(" does not resolve in this tree: ").Str(refusal).
+			Str(". An unresolvable producer is the defect, never a proof of one"))
 	}
 	for line := lines.first; line <= lines.last; line++ {
 		if covered.covers(rel, line) {
@@ -817,23 +816,39 @@ func observationScratch(tree string) (string, error) {
 	return directory, nil
 }
 
-// producerLineSpan answers the first and last line of one function.
-func producerLineSpan(tree, rel, symbol string) (lineRange, bool) {
+// producerLineSpan answers the first and last line of one function, or the
+// refusal that says why the key names none.
+//
+// The symbol resolves through scopeIndex.keyText, the resolver the fingerprint
+// and the revert break use, so the function whose coverage is judged is the one
+// the break disabled: `Type.Method` names that receiver's method, and a bare
+// name several methods share is refused rather than read as the first of them.
+func producerLineSpan(tree, rel, symbol string) (lineRange, string) {
+	if symbol == "" {
+		return lineRange{}, "the key names the whole file, and coverage is judged over one function"
+	}
 	raw, err := os.ReadFile(treePath(tree, rel)) // #nosec G304 -- a repo-relative path fingerprintKey validated
 	if err != nil {
-		return lineRange{}, false
+		var tb textbuf.Buffer
+		return lineRange{}, tb.Str("cannot read ").Str(rel).Str(": ").Str(err.Error()).String()
 	}
 	content := string(raw)
 	index := newScopeIndex()
+	text, refusal := index.keyText(rel, content, symbol)
+	if refusal != "" {
+		return lineRange{}, refusal
+	}
 	for _, found := range index.of(content) {
-		if funcNameIn(content[found.begin:found.end]) != symbol {
+		if content[found.begin:found.end] != text {
 			continue
 		}
 		first := strings.Count(content[:found.begin], "\n") + 1
-		last := strings.Count(content[:found.end], "\n") + 1
-		return lineRange{first: first, last: last}, true
+		// The span runs past the closing brace's newline, which is not a line of
+		// the function.
+		last := strings.Count(strings.TrimSuffix(content[:found.end], "\n"), "\n") + 1
+		return lineRange{first: first, last: last}, ""
 	}
-	return lineRange{}, false
+	panic("BUG: keyText answered a text no span of the same content holds")
 }
 
 // excerptLines is how much of a run's output a refusal and a record carry.

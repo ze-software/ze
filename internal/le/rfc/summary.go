@@ -269,8 +269,12 @@ func partialWordRune(r rune) bool {
 
 // producerRE reads the `<path>.go::<Symbol>` a {lower-layer} reason must name.
 // The symbol half takes a method's receiver too, because the producer that
-// installs into a layer is as often `(*installer).apply` as a plain function.
-var producerRE = regexp.MustCompile(`([\w./-]+\.go)::(\(\*?[A-Za-z_]\w*\)\.)?([A-Za-z_]\w*)`)
+// installs into a layer is as often a method as a plain function. A method is
+// `installer.apply`, the fingerprint key's spelling for a pointer and a value
+// receiver alike; the method expression `(*installer).apply` is read too, so
+// resolveProducer can refuse it naming that spelling rather than the reason
+// reading as if it named no producer at all.
+var producerRE = regexp.MustCompile(`([\w./-]+\.go)::(\(\*?[A-Za-z_]\w*\)\.|[A-Za-z_]\w*\.)?([A-Za-z_]\w*)`)
 
 // lowerLayerFormat is the one format sentence every {lower-layer} refusal ends
 // with, so an author reading any of them is shown the same shape.

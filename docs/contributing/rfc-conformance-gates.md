@@ -1602,6 +1602,25 @@ machine. "This break makes this unit red" is decidable and replayable.
 | `ze-state-excluded` | on a `kernel-producer` escape, one entry per Ze producer the unit reaches through an import: `producer` (a key in a package the unit's file imports) and `reason`, at least eight words naming the producer's symbol (or file), never the same text as another entry's. Given on `./le rfc record` as `ze-state-excluded "<producer> <reason>"`, repeatable. Refused on every other record |
 | `later-route` | the route, not built yet, that could still prove a `kernel-producer` escape: `patched-kernel`, the only value. Required there, refused on every other record |
 
+A key names a method as `<path>::<Type>.<Method>`, by its receiver type
+alone, so a pointer receiver and a value receiver are spelled the same way:
+`text_append.go::LargeCommunity.AppendText`, `blackhole.go::ROACache.invalidByLengthOnly`.
+The Go method expression `<path>::(*Type).Method` is refused, naming the key to
+write instead. A bare `<path>::<Name>` names the one function or method of that
+name in the file. Where several methods share it, the bare name is refused as
+ambiguous, and the refusal lists the `<Type>.<Method>` key of each. One
+exception: where the file also declares a package-level function of that name,
+the bare name names that function, the one a Go caller reaches by the bare name
+(flowspec's `unmatchable.go::CheckMatchable`). Every reader of a key resolves it
+the same way: the fingerprint, the revert break, the coverage check that a
+revert producer is reached, the interop checker's scenario, and the producer an
+annotation's reason names (`{lower-layer}`, `{feature-declined}`, a never
+clause, `{partial}`).
+<!-- source: internal/le/rfc/goscope.go -- keyTexts, keyText, candidateKeys -->
+<!-- source: internal/le/rfc/audit.go -- fingerprintKey, receiverFormRE -->
+<!-- source: internal/le/rfc/discriminate_observe.go -- producerLineSpan, requireKeyReached -->
+<!-- source: internal/le/rfc/check_core.go -- resolveProducer -->
+
 The full artifact contract is `rfc/discrimination/README.md`.
 
 `loadDiscrimination` (`internal/le/rfc/discriminate.go`) reads the tree,

@@ -181,7 +181,7 @@ func neverClauseGap(req *Requirement, code *sourceReader, scope neverScope) (str
 		return tb.Str("its never clause names the test ").Str(producer).
 			Str(". A test decides nothing about what Ze does; name the code that shows Ze never ").Str(condition).String(), true
 	}
-	state, path, symbol := resolveProducer(code, producer)
+	state, unresolved := resolveProducer(code, producer)
 	switch state {
 	case producerFound:
 		return "", false
@@ -193,10 +193,10 @@ func neverClauseGap(req *Requirement, code *sourceReader, scope neverScope) (str
 	case producerFileAbsent:
 		return tb.Str("its never clause names the producer ").Str(producer).
 			Str(", whose file this checkout does not carry. Name the function that shows Ze never ").Str(condition).String(), true
-	case producerSymbolAbsent:
-		return tb.Str("its never clause names the producer ").Str(producer).Str(", but ").Str(path).
-			Str(" declares no ").Str(symbol).
-			Str(". Name the function that shows Ze never ").Str(condition).Str(" today").String(), true
+	case producerUnresolved:
+		return tb.Str("its never clause names the producer ").Str(producer).Str(", but ").
+			Str(unresolved).Str(". Name the one function that shows Ze never ").Str(condition).
+			Str(" today").String(), true
 	default:
 		panic("BUG: unexpected producer resolution state")
 	}

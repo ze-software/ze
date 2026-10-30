@@ -67,7 +67,7 @@ away.
 | `unit-sha` | derived | the unit's behavior hash when the red was observed |
 | `claim-sha` | derived | the hash of what the TAG claims: the comment paragraph its `<ID> <polarity>` opens |
 | `route` | authored | `mutant`, `revert`, or `no-break` |
-| `producer` | authored | the code the break was applied to, in the same key form. Required for a proof route. An escape names it too, unless its reason is `foreign-producer`, because the reason is a claim ABOUT that code |
+| `producer` | authored | the code the break was applied to, in the same key form; a method is `<path>::<Type>.<Method>` whatever its receiver, and a bare name several methods share is refused as ambiguous (`docs/contributing/rfc-conformance-gates.md`). Required for a proof route. An escape names it too, unless its reason is `foreign-producer`, because the reason is a claim ABOUT that code |
 | `producer-sha` | derived | that function's behavior hash when the break was applied |
 | `break` | derived | what was done to the producer: the mutant's substitution, or the disabled body. No gate parses it; a reviewer reads it |
 | `paired` | derived | the further breaks applied in the SAME broken run, each with its own `producer`, `producer-sha` and `break`, for a property two checks guard on one path so that neither break alone reddens the unit. Absent on a single-break record. Each paired producer is resolved, fingerprinted and judged for drift exactly as `producer` is |
