@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC8092-5-1",
+    "polarity": "positive",
+    "unit": "internal/core/bgp/attribute/rfc8092_text_append_test.go::TestAppendText_LargeCommunityElement",
+    "unit-sha": "a8b0aa6b102e7b9c",
+    "claim-sha": "4c250b390338c77d",
+    "route": "mutant",
+    "producer": "internal/core/bgp/attribute/text_append.go::LargeCommunity.AppendText",
+    "producer-sha": "e29c957a6e1303b9",
+    "break": "line 49: \"buf = strconv.AppendUint(buf, uint64(l.GlobalAdmin), 10)\" -\u003e \"buf = strconv.AppendUint(append(buf, '0'), uint64(l.GlobalAdmin), 10)\""
+  }
+]

@@ -41,6 +41,12 @@ The release-scope and spec-split rules in `ai/META-DECISIONS.md` approve this sc
 | Listed criteria: absent-capability or wider-corpus expansion only | `plan/post-release/engineering/spec-rfc-evidence-strength-2-revert-upgrade-burndown-corpus-expansion.md` | Every inherited remainder outside the release population; no automatic feature implementation |
 | Historical counts, full-programme milestones and pending owner decisions | `plan/release/validation/spec-rfc-evidence-strength-2-revert-upgrade-burndown.md and plan/post-release/engineering/spec-rfc-evidence-strength-2-revert-upgrade-burndown-corpus-expansion.md` | Account for the union without duplicate implementation; neither split alone closes the original full programme |
 
+## Owned journal rows
+
+| Class file | Date | Surface (short) |
+|------------|------|-----------------|
+| `two-owners-share-one-name.md` | 2026-10-30 | le rfc record `producerLineSpan` |
+
 ## Historical source record
 
 The original design, Task, criteria, implementation plan, decisions and dated evidence follow intact apart from heading depth. They are history and design detail, not a second current implementation owner. The current Task, Acceptance Criteria and ownership table above select which slice this file owns. Recorded completion stays recorded completion; outstanding work is not discharged by relocation.
