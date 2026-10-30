@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | blocked |
 | Scope | tooling |
 | Priority | P2 |
 | Release reason | Release validation: about 390 kernel-touching tests skip on every unprivileged run, so ordinary package runs and agents' scoped evidence never execute them. Running them in a namespace of their own turns those skips into executed proof of shipped behavior. |
@@ -11,7 +11,7 @@
 | Phase | - |
 | Handoff | - |
 | Approved | Thomas, 2026-10-28: "convert A and B". The group B mechanism (D-1) is the main thread's decision. The `/dev/ppp` scope addition (P2, P9) is Thomas's, relayed by the main thread on 2026-10-28 |
-| Updated | 2026-10-29 |
+| Updated | 2026-10-30 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -641,6 +641,42 @@ tests remain owed. Do not convert their ENOENT failures into namespace skips.
 ## Known Limitations
 - Group C stays privileged: a one-uid map cannot chown to another uid, and the freeRtr and FRR interop tests drive external daemons that QEMU and the interop labs run.
 - Performance of the re-exec per test is not measured on this host (perf runs happen on Thomas's Mac); R-5 tracks wall time only.
+
+## Blocker
+
+`/ze-close` (session e06e1b98, 2026-10-30) stopped at step 6 "RFC proof
+records are fresh" and handed the spec back. Steps 1 to 5 did not run to
+completion; nothing below is a review verdict.
+
+| What blocks | Producer | What clears it |
+|-------------|----------|----------------|
+| 68 STALE audit verdicts on tagged units this spec converted, across rfc792, rfc1195, rfc1350, rfc2131, rfc2205, rfc2328, rfc2385, rfc3768, rfc4302, rfc4659, rfc5082, rfc5798, rfc8955 and rfc9568. The `userns.Enter` guard changed each unit's body, so the check reads them as func-scoped changes that `./le rfc reseal` refuses | `./le rfc check`, audit stage; the full list is what it prints for the converted files (scratch `job-rfc-check-close-f2bb299a.log` of session 105ec564) | `/ze-implement` re-takes the audit verdicts with the `ze-rfc-audit` skill per stem, then `./le rfc check` shows no STALE audit line naming a file that calls `userns.Enter` |
+| `internal/plugins/vrrp/rfc9568_solicited_node_integration_linux_test.go` (added by 0dc36bd960) is named for RFC 9568 and carries no tag | `./le rfc check`, test file naming rule | tag the RFC 9568 requirement it covers (judge plus `./le rfc record`), or rename it with `./le rfc move`, or add an `RFC naming: untagged` line with its reason |
+
+Discrimination records are not blocked: `./le rfc check` lists no
+non-verifying or missing record for any file that calls `userns.Enter`.
+
+Not blockers: AC-10 and AC-11 whole-tree confirmation comes from GitHub CI's
+`verify` workflow on the push of the closing commits (owner rule, commit
+5c3bed867c). The stale `instance.go` line citations in the VRRP RFC tags of
+`internal/plugins/vrrp/instance_test.go` predate this spec (57812eae56 and
+earlier); they are a journal row in
+`plan/journal/claim-outlives-the-evidence-it-cites.md`, owned by
+`plan/release/fixes/spec-vrrp-owner-arp-rfc-defects.md`.
+
+Review notes already taken at closure, for the next run: `userns.Enter` is the
+first statement (after comments) of every top-level test in the 137 files that
+call it, none of those tests calls `t.Parallel`, no helper calls it; 127 files
+build `linux` and 10 keep `integration && linux`. The AC-9 grep matches only
+group C, the Reclassified table and the root-skip `rpf_linux_test.go`. No
+uncommitted file belongs to this spec.
+
+### Mistake Log
+
+| Mistake | Effect | Prevention |
+|---------|--------|------------|
+| The conversion batches re-took discrimination records but not audit verdicts of the units the `Enter` guard changed | 68 stale audit verdicts reached closure | each batch's step 5 re-takes audit verdicts with `ze-rfc-audit` alongside `./le rfc record` |
+| P7's ND-window commit added an RFC-named test file with no tag | `./le rfc check` naming refusal | run `./le rfc check` before committing a new `rfcNNNN_` test file |
 
 ## Checklist
 
