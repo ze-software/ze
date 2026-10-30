@@ -142,11 +142,6 @@ var citationExceptions = [...]citationException{
 		why:   citationSentenceWhy,
 	},
 	{file: "internal/le/verify/dispatch/dispatch.go", lines: []string{`"le does not own root "`}, why: citationSentenceWhy},
-	{
-		file:  "internal/le/interoplab/l2tp/l2tp.go",
-		lines: []string{`"internal", "le", "interoplab", "l2tp", `},
-		why:   "the words are the segments of a path under internal/le, joined by filepath.Join, not an argv",
-	},
 }
 
 // citationSentenceWhy is the reason of an error string that opens with le as
@@ -277,6 +272,9 @@ func citationsOf(rel, line string) [][]string {
 		opener := strings.IndexAny(line[span[0]:span[1]], "`\"'")
 		switch {
 		case line[span[1]-1] == '"':
+			if argvElementLater(line, span) {
+				continue
+			}
 			words = argvWords(line[span[1]-1:])
 		case opener >= 0:
 			words = spanWords(line[span[1]:], line[span[0]+opener])
@@ -292,6 +290,21 @@ func citationsOf(rel, line string) [][]string {
 		}
 	}
 	return cited
+}
+
+// argvElementLater reports whether the "le" a Go argv match found follows
+// another string element of its list: a string literal and a comma, after
+// blanks, come before it. A program is an argv's first string, so a later "le"
+// is a path segment, as in filepath.Join(root, "internal", "le", "test"), and
+// cites nothing. A context or other non-string argument before it, as in
+// exec.CommandContext(ctx, "le", ...), keeps it a program.
+func argvElementLater(line string, span []int) bool {
+	at := strings.Index(line[span[0]:span[1]], `"le"`)
+	if at < 0 {
+		return false
+	}
+	before := strings.TrimRight(line[:span[0]+at], " \t")
+	return strings.HasSuffix(before, `",`)
 }
 
 // citationThirdPartyPaths are the third-party sources Ze carries unmodified:
