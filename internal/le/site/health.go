@@ -38,10 +38,15 @@ var liveTestHealth = testhealth.Render
 
 // renderHealth publishes the testing-health page and its mirror.
 //
-// The numbers are read from the tree being built rather than from the committed
-// snapshot, because the volume counters move with every test added and the
-// committed snapshot is refreshed by hand. A page sourced from it would state
+// The record is read from the tree being built rather than from the committed
+// test/health/latest.json, because the volume counters move with every test
+// added and that file is refreshed by hand. A page sourced from it would state
 // yesterday's tree while claiming to describe today's.
+//
+// Every figure the page prints is read back from the facts snapshot this build
+// published (healthFacts derives it from the same producer), and printed as a
+// marked element, so the page and the snapshot state one copy of each figure.
+// The record supplies the words around them: labels, prose, row names.
 func renderHealth(paths Paths) ([]string, error) {
 	rendered, err := paths.readTestHealth()
 	if err != nil {
@@ -58,6 +63,15 @@ func renderHealth(paths Paths) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	snapshot, err := loadSiteFactSnapshot(paths.Output)
+	if err != nil {
+		return nil, err
+	}
+	lookup := &factLookup{snapshot: snapshot}
+	body := healthBody(record, lookup)
+	if err := lookup.failure(); err != nil {
+		return nil, fmt.Errorf("%s cannot state its figures: %w", healthDest, err)
+	}
 
 	const description = "Whether a regression would be caught: proof density, tests that cannot " +
 		"fail, tests nothing runs, and how they move over time."
@@ -69,7 +83,7 @@ func renderHealth(paths Paths) ([]string, error) {
 		Sidebar:     pageSidebar(healthRoot, healthDest, links),
 	}
 	if err := writePublishedPage(paths.Output, healthDest,
-		shell.render(healthBody(record)), rendered.Page); err != nil {
+		shell.render(body), rendered.Page); err != nil {
 		return nil, err
 	}
 	return []string{healthRoute}, nil
@@ -213,8 +227,8 @@ func byHealthStatus(metrics []healthMetric) []healthMetric {
 	return out
 }
 
-// healthBody renders the page under <main>.
-func healthBody(record healthRecord) string {
+// healthBody renders the page under <main>, every figure read through lookup.
+func healthBody(record healthRecord, lookup *factLookup) string {
 	var body textbuf.Buffer
 	body.Str("            <section aria-labelledby=\"test-health-title\" class=\"md-content reveal cat-observe\">\n")
 	body.Str(pageHero("Testing Health",
@@ -225,7 +239,7 @@ func healthBody(record healthRecord) string {
 			"none is volume, and is deliberately absent.",
 		"Observe", ` id="test-health-title"`, heroClasses)).Byte('\n')
 	body.Str(healthStyle)
-	body.Str(healthAttention(record.Metrics))
+	body.Str(healthAttention(record.Metrics, lookup))
 	for _, question := range testhealth.Questions() {
 		var group []healthMetric
 		for _, metric := range record.Metrics {
@@ -239,18 +253,18 @@ func healthBody(record healthRecord) string {
 		body.Str("<section><h2>").Str(html.EscapeString(question.Title)).Str("</h2><p><em>").
 			Str(html.EscapeString(question.Prompt)).Str("</em></p>\n")
 		for _, metric := range byHealthStatus(group) {
-			body.Str(healthCardHTML(metric))
+			body.Str(healthCardHTML(metric, lookup))
 		}
 		body.Str("</section>\n")
 	}
-	body.Str(healthTrends(record.History))
+	body.Str(healthTrends(record.History, lookup))
 	body.Str("            </section>\n")
 	return body.String()
 }
 
 // healthAttention renders the exceptions table, or the one line that says there
 // are none. Green is the absence of information, so the exceptions come first.
-func healthAttention(metrics []healthMetric) string {
+func healthAttention(metrics []healthMetric, lookup *factLookup) string {
 	var problems []healthMetric
 	calm := healthCalmStatus()
 	for _, metric := range metrics {
@@ -270,25 +284,49 @@ func healthAttention(metrics []healthMetric) string {
 	for _, metric := range byHealthStatus(problems) {
 		out.Str("<tr><td>").Str(html.EscapeString(metric.text("label"))).Str("</td><td>").
 			Str(html.EscapeString(metric.text("question"))).Str("</td><td><strong>").
-			Str(html.EscapeString(metric.text("value"))).Str("</strong></td><td>").
-			Str(html.EscapeString(metric.text("action"))).Str("</td></tr>")
+			Str(healthTextHTML(metric, "value", lookup)).Str("</strong></td><td>").
+			Str(healthTextHTML(metric, "action", lookup)).Str("</td></tr>")
 	}
 	out.Str("</tbody></table></section>\n")
 	return out.String()
 }
 
+// healthTextHTML renders one composed field of a metric (healthComposedFields):
+// the record's words, with each figure as its marked snapshot value.
+func healthTextHTML(metric healthMetric, field string, lookup *factLookup) string {
+	var out textbuf.Buffer
+	key := metric.text("key")
+	for _, part := range healthTextParts(metric.text(field)) {
+		if part.figure == 0 {
+			out.Str(html.EscapeString(part.text))
+			continue
+		}
+		out.Str(lookup.marked(healthFigureKey(healthSection, key, field, strconv.Itoa(part.figure))))
+	}
+	return out.String()
+}
+
+// healthCellHTML renders one table cell's content: a figure as its marked
+// snapshot value under segments, and a word as the record spells it.
+func healthCellHTML(value any, lookup *factLookup, segments ...string) string {
+	if _, isFigure := healthCellFigure(value); isFigure {
+		return lookup.marked(healthFigureKey(healthSection, segments...))
+	}
+	return html.EscapeString(healthValueText(value))
+}
+
 // healthCardHTML renders one metric.
-func healthCardHTML(metric healthMetric) string {
+func healthCardHTML(metric healthMetric, lookup *factLookup) string {
 	var out textbuf.Buffer
 	out.Str(`<article class="th-card th-`).Str(healthStatusName(metric.text("status"))).Str("\">\n")
 	out.Str("  <h3>").Str(html.EscapeString(metric.text("label"))).Str("</h3>\n")
-	out.Str(`  <p class="th-value">`).Str(html.EscapeString(metric.text("value"))).Str(` <span class="th-status">`).
+	out.Str(`  <p class="th-value">`).Str(healthTextHTML(metric, "value", lookup)).Str(` <span class="th-status">`).
 		Str(healthStatusLabel(metric.text("status"))).Str("</span></p>\n")
-	out.Str("  ").Str(healthMeter(metric)).Byte('\n')
-	out.Str("  <p>").Str(html.EscapeString(metric.text("detail"))).Str("</p>\n")
+	out.Str("  ").Str(healthMeter(metric, lookup)).Byte('\n')
+	out.Str("  <p>").Str(healthTextHTML(metric, "detail", lookup)).Str("</p>\n")
 	out.Str(`  <p class="th-action"><strong>If this degrades:</strong> `).
-		Str(html.EscapeString(metric.text("action"))).Str("</p>\n")
-	out.Str("  ").Str(healthDetailTable(metric)).Byte('\n')
+		Str(healthTextHTML(metric, "action", lookup)).Str("</p>\n")
+	out.Str("  ").Str(healthDetailTable(metric, lookup)).Byte('\n')
 	out.Str("</article>\n")
 	return out.String()
 }
@@ -297,41 +335,36 @@ func healthCardHTML(metric healthMetric) string {
 // nothing for one that does not.
 //
 // Both parts are printed beside the bar. A bar alone hides the case where a
-// ratio improves only because its denominator shrank.
-func healthMeter(metric healthMetric) string {
-	for _, key := range metric.payloadKeys() {
-		part, isObject := metric[key].(map[string]any)
-		if !isObject {
-			continue
-		}
-		spelled, isNumber := part["percent"].(json.Number)
-		if !isNumber {
-			continue
-		}
-		percent, err := spelled.Float64()
-		if err != nil {
-			continue
-		}
-		numerator := html.EscapeString(healthValueText(part["numerator"]))
-		denominator := html.EscapeString(healthValueText(part["denominator"]))
-		width := strconv.FormatFloat(percent, 'f', 1, 64)
-		return `<div class="th-meter" role="img" aria-label="` + numerator + " of " + denominator +
-			`"><span class="th-meter-fill" style="width:` + width + `%"></span></div>` +
-			`<p class="th-meter-note">` + numerator + " of " + denominator + " (" + width + "%)</p>"
+// ratio improves only because its denominator shrank. The attributes take the
+// plain values, because a marked element cannot stand inside one.
+func healthMeter(metric healthMetric, lookup *factLookup) string {
+	ratio, _, _, drawn := healthRatio(metric)
+	// refuse-by-default: guards healthCardHTML -- a metric that carries no ratio draws no meter, which is the empty fragment
+	if !drawn {
+		return ""
 	}
-	return ""
+	key := metric.text("key")
+	numeratorKey := healthFigureKey(healthSection, key, ratio, "numerator")
+	denominatorKey := healthFigureKey(healthSection, key, ratio, "denominator")
+	percentKey := healthFigureKey(healthSection, key, ratio, "percent")
+	label := html.EscapeString(lookup.plain(numeratorKey) + " of " + lookup.plain(denominatorKey))
+	width := html.EscapeString(lookup.plain(percentKey))
+	return `<div class="th-meter" role="img" aria-label="` + label +
+		`"><span class="th-meter-fill" style="width:` + width + `%"></span></div>` +
+		`<p class="th-meter-note">` + lookup.marked(numeratorKey) + " of " + lookup.marked(denominatorKey) +
+		" (" + lookup.marked(percentKey) + "%)</p>"
 }
 
 // healthDetailTable renders a metric's supporting table: its worst rows, then
 // its stranded files, then its package-age buckets.
-func healthDetailTable(metric healthMetric) string {
-	if table, ok := healthWorstTable(metric); ok {
+func healthDetailTable(metric healthMetric, lookup *factLookup) string {
+	if table, ok := healthWorstTable(metric, lookup); ok {
 		return table
 	}
-	if table, ok := healthOrphanTable(metric); ok {
+	if table, ok := healthOrphanTable(metric, lookup); ok {
 		return table
 	}
-	if table, ok := healthBucketTable(metric); ok {
+	if table, ok := healthBucketTable(metric, lookup); ok {
 		return table
 	}
 	return ""
@@ -342,19 +375,10 @@ func healthDetailTable(metric healthMetric) string {
 // The header is the UNION of the rows' keys, sorted. Taking them from the first
 // row alone raised an error the moment a later row carried a different shape,
 // and a malformed collector must not take the whole site build down.
-func healthWorstTable(metric healthMetric) (string, bool) {
-	rows, ok := metric["worst"].([]any)
-	if !ok || len(rows) == 0 {
-		return "", false
-	}
-	var entries []map[string]any
+func healthWorstTable(metric healthMetric, lookup *factLookup) (string, bool) {
+	entries := healthTableRows(metric, "worst")
 	keySet := map[string]bool{}
-	for _, raw := range rows {
-		entry, isObject := raw.(map[string]any)
-		if !isObject {
-			continue
-		}
-		entries = append(entries, entry)
+	for _, entry := range entries {
 		for key := range entry {
 			keySet[key] = true
 		}
@@ -374,10 +398,12 @@ func healthWorstTable(metric healthMetric) (string, bool) {
 		out.Str("<th>").Str(html.EscapeString(strings.ReplaceAll(key, "_", " "))).Str("</th>")
 	}
 	out.Str("</tr></thead><tbody>")
-	for _, entry := range entries {
+	name := metric.text("key")
+	for row, entry := range entries {
 		out.Str("<tr>")
 		for _, key := range keys {
-			out.Str("<td><code>").Str(html.EscapeString(healthValueText(entry[key]))).Str("</code></td>")
+			out.Str("<td><code>").Str(healthCellHTML(entry[key], lookup, name, "worst", strconv.Itoa(row+1), key)).
+				Str("</code></td>")
 		}
 		out.Str("</tr>")
 	}
@@ -386,37 +412,37 @@ func healthWorstTable(metric healthMetric) (string, bool) {
 }
 
 // healthOrphanTable renders the stranded test files and the tags they wanted.
-func healthOrphanTable(metric healthMetric) (string, bool) {
-	rows, ok := metric["orphans"].([]any)
-	if !ok || len(rows) == 0 {
+func healthOrphanTable(metric healthMetric, lookup *factLookup) (string, bool) {
+	entries := healthTableRows(metric, "orphans")
+	if len(entries) == 0 {
 		return "", false
 	}
+	name := metric.text("key")
 	var out textbuf.Buffer
 	out.Str("<table><thead><tr><th>File</th><th>Requires</th></tr></thead><tbody>")
-	for _, raw := range rows {
-		entry, isObject := raw.(map[string]any)
-		if !isObject {
-			continue
-		}
-		out.Str("<tr><td><code>").Str(html.EscapeString(healthField(entry, "file"))).Str("</code></td><td><code>").
-			Str(html.EscapeString(healthField(entry, "requires"))).Str("</code></td></tr>")
+	for row, entry := range entries {
+		position := strconv.Itoa(row + 1)
+		out.Str("<tr><td><code>").Str(healthFieldHTML(entry, lookup, name, "orphans", position, "file")).
+			Str("</code></td><td><code>").
+			Str(healthFieldHTML(entry, lookup, name, "orphans", position, "requires")).Str("</code></td></tr>")
 	}
 	out.Str("</tbody></table>")
 	return out.String(), true
 }
 
-// healthField answers one row's field, and the question mark the retired
-// renderer printed for a row that does not carry it.
-func healthField(entry map[string]any, key string) string {
-	value, held := entry[key]
+// healthFieldHTML renders one row's named field (healthCellHTML), and the
+// question mark the retired renderer printed for a row that does not carry it.
+// The field's name is the last of segments.
+func healthFieldHTML(entry map[string]any, lookup *factLookup, segments ...string) string {
+	value, held := entry[segments[len(segments)-1]]
 	if !held {
 		return "?"
 	}
-	return healthValueText(value)
+	return healthCellHTML(value, lookup, segments...)
 }
 
 // healthBucketTable renders the package-age table of the adoption metric.
-func healthBucketTable(metric healthMetric) (string, bool) {
+func healthBucketTable(metric healthMetric, lookup *factLookup) (string, bool) {
 	buckets, ok := metric["buckets"].(map[string]any)
 	if !ok || len(buckets) == 0 {
 		return "", false
@@ -438,7 +464,7 @@ func healthBucketTable(metric healthMetric) (string, bool) {
 		}
 		out.Str("<tr><td>").Str(html.EscapeString(year)).Str("</td>")
 		for _, key := range []string{"packages", "with_fuzz", "with_rfc_tag", "with_ci"} {
-			out.Str("<td>").Str(html.EscapeString(healthField(slot, key))).Str("</td>")
+			out.Str("<td>").Str(healthFieldHTML(slot, lookup, metric.text("key"), "buckets", year, key)).Str("</td>")
 		}
 		out.Str("</tr>")
 	}
@@ -448,7 +474,7 @@ func healthBucketTable(metric healthMetric) (string, bool) {
 
 // healthTrends renders the trend table, one row for each series the generator
 // states.
-func healthTrends(history []map[string]any) string {
+func healthTrends(history []map[string]any, lookup *factLookup) string {
 	var out textbuf.Buffer
 	out.Str(`<section class="th-trends"><h2>Evolution over time</h2>`).
 		Str("<p>Each row shows its sample count. A statistic without its <em>n</em> is ").
@@ -456,18 +482,12 @@ func healthTrends(history []map[string]any) string {
 		Str("noise with a direction.</p>").Str("<table><thead><tr><th>Series</th><th>Trend</th><th>Latest</th>").
 		Str("<th>Samples</th></tr></thead><tbody>")
 	for _, series := range testhealth.TrendSeries() {
-		var values []json.Number
-		for _, sample := range history {
-			number, isNumber := sample[series.Key].(json.Number)
-			if !isNumber {
-				continue
-			}
-			values = append(values, number)
-		}
+		values := healthSeriesValues(history, series.Key)
 		label := html.EscapeString(series.Label)
+		samples := lookup.marked(healthFigureKey(healthTrendsSection, series.Key, "samples"))
 		if len(values) < healthMinSamples {
 			out.Str("<tr><td>").Str(label).Str("</td><td><em>insufficient data</em></td><td>-</td><td>").
-				Int(int64(len(values))).Str("</td></tr>")
+				Str(samples).Str("</td></tr>")
 			continue
 		}
 		drawn := values
@@ -475,7 +495,8 @@ func healthTrends(history []map[string]any) string {
 			drawn = drawn[len(drawn)-healthSamplesDrawn:]
 		}
 		out.Str("<tr><td>").Str(label).Str("</td><td>").Str(healthSparkline(drawn)).Str("</td><td><code>").
-			Str(values[len(values)-1].String()).Str("</code></td><td>").Int(int64(len(values))).Str("</td></tr>")
+			Str(lookup.marked(healthFigureKey(healthTrendsSection, series.Key, "latest"))).
+			Str("</code></td><td>").Str(samples).Str("</td></tr>")
 	}
 	out.Str("</tbody></table></section>\n")
 	return out.String()

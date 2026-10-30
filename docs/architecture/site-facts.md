@@ -143,6 +143,10 @@ populations under one key:
 | `equivalents.groups.<group>.equivalent`, `.reviewed`, `.total` | `countEquivalentGroup` for each verb table `groupEquivalentRows` makes, keyed by the verb's slug (`equivalentGroupKey`) | each verb summary of the full catalog on `/reference/command-equivalents/` |
 | `features.categories.<category>` | `featureCategoryCounts`, a map with one key for each category the features page has | the homepage category buttons |
 | `plugin_registrations` | `factsFromSiteData`: the entries of `data/plugin-registry.json` | `llms.txt` |
+| `health.<metric>.value.<n>`, `.detail.<n>`, `.action.<n>` | `healthFacts`: the n-th figure of the composed field (`healthTextParts`), keyed by the metric's own `key` | `/quality/health/`: each card and the attention table compose the sentence from marked figures around the record's own words |
+| `health.<metric>.<ratio>.numerator`, `.denominator`, `.percent` | `healthFacts`: the payload object the meter is drawn from (`healthRatio`), the percentage as the page prints it | `/quality/health/`: the meter note; its attributes take the plain values |
+| `health.<metric>.worst.<row>.<column>`, `.orphans.<row>.<column>`, `.buckets.<bucket>.<field>` | `healthFacts`: every number a supporting table prints (`healthCellFigure`); a row's name stays a word | `/quality/health/`: the supporting tables |
+| `health_trends.<series>.samples`, `.latest` | `healthFacts`: each series `TrendSeries` names (`healthSeriesValues`); `latest` only once the series has `healthMinSamples` | `/quality/health/`: the trend table |
 A map-typed section takes its keys from the data, never from a name list: a
 vendor or a group the data gains reaches the snapshot and its page with no
 edit. A name that holds a dot cannot be a key segment, and `factKeySegment`
@@ -152,6 +156,17 @@ refuses it by name, as it refuses two groups whose slugs collide.
 <!-- source: internal/le/site/factmark.go -- factLookup, answer -->
 <!-- source: internal/le/site/equivalents.go -- countVendorCoverage, countEquivalentGroup, vendorCoverageKey, equivalentGroupKey -->
 <!-- source: internal/le/site/commands.go -- cliGroupKey -->
+<!-- source: internal/le/site/healthfacts.go -- healthFacts, healthTextParts, healthRatio, healthCellFigure, healthSeriesValues -->
+
+The health sections carry each figure as the string the page prints, because
+the record spells a score as `0.0` and a number would publish it as `0`. They
+carry no label, prose or row name, only figures, so the snapshot grows by about
+4 KB over this tree's record. A string that is not a display string is not
+matched by the plain-text guard, so the health figures are policed by
+`TestEveryHealthFigureIsAMarkedSnapshotValue`, which requires no number left
+on the page outside a marker. The Markdown mirror stays the generator's own
+`docs/features/test-health.md` (`renderHealth`), so it states the same reading
+in the generator's words.
 
 A page description (the meta, Open Graph and Twitter ones) carries no value at
 all: a link preview reads it without the page's script, so a figure there is a

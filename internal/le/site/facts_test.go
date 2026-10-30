@@ -813,3 +813,96 @@ func TestTheSnapshotCountsWhatThePagesShow(t *testing.T) {
 		}
 	}
 }
+
+// VALIDATES: AC-18, derived not enumerated. A metric the record gains, under a
+// key and with payload names no code here spells, reaches the snapshot with
+// every figure the page prints, and the page marks each one.
+//
+// Method: append an invented metric to the published record, derive the
+// snapshot through factsFromTestHealth, the path a build takes, and read each
+// figure back by the dotted key the page names it with. A metric key no
+// snapshot key can carry is refused by name rather than published under a key
+// that names something else.
+func TestANewHealthMetricReachesTheSnapshotUnnamed(t *testing.T) {
+	unnamed := map[string]any{
+		"key": "unnamed-metric", "question": testhealth.Questions()[0].Key, "label": "A metric no code names",
+		"status": "warn", "value": "7 / 9 (floor 3)", "detail": "Detail.", "action": "Action.",
+		"share": map[string]any{"numerator": 7, "denominator": 9, "percent": 77.8},
+		"worst": []any{map[string]any{"name": "first", "hits": 5}},
+	}
+	recordWith := func(metric map[string]any) string {
+		var document map[string]any
+		if err := json.Unmarshal([]byte(readFixture(t, "published-health-record.json")), &document); err != nil {
+			t.Fatal(err)
+		}
+		metrics, isList := document["metrics"].([]any)
+		if !isList {
+			t.Fatal("the fixture record states no metric list")
+		}
+		document["metrics"] = append(metrics, metric)
+		encoded, err := json.Marshal(document)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(encoded)
+	}
+
+	record := recordWith(unnamed)
+	paths := healthPathsFrom(t, record, "# Testing Health\n")
+	facts := siteFacts{Sources: map[string]string{}}
+	if err := factsFromTestHealth(paths, &facts); err != nil {
+		t.Fatal(err)
+	}
+	content, err := renderSiteFacts(&facts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	snapshot, err := parseSiteFactSnapshot([]byte(content))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]string{
+		"health.unnamed-metric.value.1":           "7",
+		"health.unnamed-metric.value.2":           "9",
+		"health.unnamed-metric.value.3":           "3",
+		"health.unnamed-metric.share.numerator":   "7",
+		"health.unnamed-metric.share.denominator": "9",
+		"health.unnamed-metric.share.percent":     "77.8",
+		"health.unnamed-metric.worst.1.hits":      "5",
+	}
+	for key, value := range want {
+		if got, found := snapshot.value(key); got != value {
+			t.Errorf("the snapshot states %s as %q (found %v), want %q", key, got, found, value)
+		}
+	}
+	if _, found := snapshot.value("health.unnamed-metric.worst.1.name"); found {
+		t.Error("the snapshot carries a row's name, which the page prints as a word, not a figure")
+	}
+
+	writeArtifactFile(t, paths.Output, factsFile, content)
+	if _, err := renderHealth(paths); err != nil {
+		t.Fatal(err)
+	}
+	page := readArtifact(t, paths.Output, healthDest)
+	for key, value := range want {
+		if !strings.Contains(page, markedFact(key, value)) {
+			t.Errorf("the page does not show %s as its marked value %q", key, value)
+		}
+	}
+
+	dotted := map[string]any{}
+	for name, value := range unnamed {
+		dotted[name] = value
+	}
+	dotted["key"] = "dotted.metric"
+	dottedPaths := healthPathsFrom(t, recordWith(map[string]any{
+		"key": "plain", "question": testhealth.Questions()[0].Key, "label": "L", "status": "ok", "value": "1",
+	}), "# Testing Health\n")
+	liveTestHealth = func(string) (testhealth.Rendered, error) {
+		return testhealth.Rendered{Record: recordWith(dotted), Page: "# Testing Health\n"}, nil
+	}
+	err = factsFromTestHealth(dottedPaths, &siteFacts{Sources: map[string]string{}})
+	if err == nil || !strings.Contains(err.Error(), "dotted.metric") {
+		t.Errorf("a metric keyed dotted.metric was not refused by name: %v", err)
+	}
+}

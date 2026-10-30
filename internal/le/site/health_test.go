@@ -4,6 +4,7 @@ package site
 import (
 	"encoding/json"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"testing"
@@ -34,7 +35,32 @@ func healthPathsFrom(t *testing.T, record, page string) Paths {
 	liveTestHealth = func(string) (testhealth.Rendered, error) {
 		return testhealth.Rendered{Record: record, Page: page}, nil
 	}
-	return Paths{Repository: root, Source: source, Output: t.TempDir()}
+	paths := Paths{Repository: root, Source: source, Output: t.TempDir()}
+	publishHealthFacts(t, paths.Output, record)
+	return paths
+}
+
+// publishHealthFacts writes the facts snapshot a build publishes before the
+// page producers run, holding the health sections derived from the stated
+// record, because the page reads every figure back from it.
+//
+// A record no page can be made from publishes no snapshot: renderHealth then
+// refuses the record itself, by the reason each refusal case names.
+func publishHealthFacts(t *testing.T, output, record string) {
+	t.Helper()
+	parsed, err := parseHealthRecord(record)
+	if err != nil {
+		return
+	}
+	health, trends, err := healthFacts(parsed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	encoded, err := json.Marshal(map[string]any{healthSection: health, healthTrendsSection: trends})
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeArtifactFile(t, output, factsFile, string(encoded))
 }
 
 // healthRecordWith answers the fixture record with its metrics replaced.
@@ -366,7 +392,98 @@ func TestALongHistoryDrawsABoundedLine(t *testing.T) {
 	if !strings.Contains(page, `aria-label="trend over `+strconv.Itoa(healthSamplesDrawn)+` samples`) {
 		t.Errorf("the line is drawn over more than the %d samples it is bounded to", healthSamplesDrawn)
 	}
-	if !strings.Contains(page, "<td>"+strconv.Itoa(len(history))+"</td>") {
+	samples := markedFact(healthFigureKey(healthTrendsSection, "rfc_proof_percent", "samples"), strconv.Itoa(len(history)))
+	if !strings.Contains(page, "<td>"+samples+"</td>") {
 		t.Errorf("the sample column does not state the whole history of %d", len(history))
+	}
+}
+
+// VALIDATES: AC-18. Every figure the testing-health page prints is a marked
+// element under health.<metric key> or health_trends.<series>, whose text is
+// the snapshot's value for that key, and the snapshot holds every such key.
+//
+// Method: render the published record with a history long enough to draw every
+// series. Forward, every key of the two health sections must appear on the
+// page as its marked element, and every metric whose value states a figure
+// must carry that figure's key. Reverse, with every marked element, code
+// element, style and drawing cut away, no number may be left in what a reader
+// sees: a figure the page prints from the record directly is red. The only
+// number the reverse half allows is a package-age bucket's name, which the
+// record states as a key, not as a figure.
+func TestEveryHealthFigureIsAMarkedSnapshotValue(t *testing.T) {
+	var document map[string]any
+	if err := json.Unmarshal([]byte(readFixture(t, "published-health-record.json")), &document); err != nil {
+		t.Fatal(err)
+	}
+	var history []any
+	for sample := range healthMinSamples + 1 {
+		history = append(history, map[string]any{
+			"assert_nothing": 140 - sample, "rfc_proof_percent": 35.6 + float64(sample), "tag_orphan": 12,
+		})
+	}
+	document["history"] = history
+	encoded, err := json.Marshal(document)
+	if err != nil {
+		t.Fatal(err)
+	}
+	paths := healthPathsFrom(t, string(encoded), "# Testing Health\n")
+	if _, err := renderHealth(paths); err != nil {
+		t.Fatal(err)
+	}
+	page := mainContent(t, readArtifact(t, paths.Output, healthDest))
+	snapshot, err := loadSiteFactSnapshot(paths.Output)
+	if err != nil {
+		t.Fatal(err)
+	}
+	record, err := parseHealthRecord(string(encoded))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	stated := map[string]bool{}
+	for _, key := range snapshot.keys() {
+		if !strings.HasPrefix(key, "health.") && !strings.HasPrefix(key, "health_trends.") {
+			continue
+		}
+		stated[key] = true
+		value, _ := snapshot.value(key)
+		if !strings.Contains(page, markedFact(key, value)) {
+			t.Errorf("the page does not show %s as its marked value %q", key, value)
+		}
+	}
+	figure := regexp.MustCompile(`\d+(?:\.\d+)?`)
+	bucketNames := map[string]bool{}
+	for _, metric := range record.Metrics {
+		if figure.MatchString(metric.text("value")) && !stated["health."+metric.text("key")+".value.1"] {
+			t.Errorf("the snapshot carries no figure of %s's value %q", metric.text("key"), metric.text("value"))
+		}
+		buckets, _ := metric["buckets"].(map[string]any)
+		for name := range buckets {
+			bucketNames[name] = true
+		}
+	}
+	for _, series := range testhealth.TrendSeries() {
+		for _, field := range []string{"latest", "samples"} {
+			if !stated["health_trends."+series.Key+"."+field] {
+				t.Errorf("the snapshot carries no %s of the %s series", field, series.Key)
+			}
+		}
+	}
+
+	unmarked := page
+	for _, cut := range []*regexp.Regexp{
+		regexp.MustCompile(`<span data-ze-stat="[^"]*">[^<]*</span>`),
+		regexp.MustCompile(`(?s)<code>.*?</code>`),
+		regexp.MustCompile(`(?s)<style>.*?</style>`),
+		regexp.MustCompile(`(?s)<svg.*?</svg>`),
+	} {
+		unmarked = cut.ReplaceAllString(unmarked, "")
+	}
+	standalone := regexp.MustCompile(`(^|[^\w.])(\d+(?:\.\d+)?)`)
+	for _, match := range standalone.FindAllStringSubmatch(visibleText(unmarked), -1) {
+		if bucketNames[match[2]] {
+			continue
+		}
+		t.Errorf("the page prints %q outside a marked element", match[2])
 	}
 }

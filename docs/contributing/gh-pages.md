@@ -626,7 +626,10 @@ numbers. Neither page computes a figure of its own.
 The testing-health page reads `internal/le/test/health.Render`, which answers the
 metric record and the Markdown mirror in one pass. The mirror it publishes is
 `docs/features/test-health.md`'s own bytes, so the site is never a second author
-of that document.
+of that document. Every figure the page itself prints is read back from the
+`health` and `health_trends` sections of `data/site-facts.json`, which
+`healthFacts` derives from the same record, and printed as a marked element
+(`docs/architecture/site-facts.md`, "One published copy of each value").
 
 `../gh-pages/reference/rfcs/` is rendered from the same tree, and it is the one
 page of the docs producer that is. Every other published Markdown source is

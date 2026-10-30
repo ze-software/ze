@@ -284,7 +284,12 @@ The native `./le site build` action renders the website health page from
 `internal/le/test/health.Render`, which answers the metric record and the page
 Markdown for the tree being built and writes neither file. The site builder
 computes no new test-health facts: it draws the same metrics, under the same
-three questions, in the same worst-first order.
+three questions, in the same worst-first order. It carries every figure the
+page prints into the `health` sections of the site's facts snapshot, keyed by
+each metric's own `key`, and the page prints each figure from there as a marked
+element, so a metric or a payload column the collectors gain reaches the
+snapshot and the page with no edit to the site
+(`docs/architecture/site-facts.md`).
 
 It reads the tree rather than the committed `test/health/latest.json`, because
 the volume counters are published rather than gated (above) and are refreshed by
@@ -294,6 +299,7 @@ trends still come from the committed `test/health/history.ndjson`, which is the
 only record of how the numbers moved.
 <!-- source: internal/le/test/health/modes.go -- Render -->
 <!-- source: internal/le/site/health.go -- renderHealth -->
+<!-- source: internal/le/site/healthfacts.go -- healthFacts -->
 <!-- source: internal/le/test/health/actions.go -- Actions -->
 
 ## Full operator reference

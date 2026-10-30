@@ -259,6 +259,26 @@ func TestEverySiteWideValueIsPublishedInsideItsMarker(t *testing.T) {
 		[]byte(publishedFactsSnapshot), append([]string{"tests.unit_display", "tests.e2e_display", "tests.fuzz_display",
 			"interop.target_display", "rfc.proven_display", "rfc.gated_implemented_display", "rfc.proven_percent",
 			"rfc.implemented_display"}, homeCategoryKeys()...))
+
+	health := healthPaths(t)
+	if _, err := renderHealth(health); err != nil {
+		t.Fatal(err)
+	}
+	healthSnapshot := readArtifact(t, health.Output, factsFile)
+	parsed, err := parseSiteFactSnapshot([]byte(healthSnapshot))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var healthKeys []string
+	for _, key := range parsed.keys() {
+		if strings.HasPrefix(key, healthSection+".") || strings.HasPrefix(key, healthTrendsSection+".") {
+			healthKeys = append(healthKeys, key)
+		}
+	}
+	if len(healthKeys) == 0 {
+		t.Fatal("the health snapshot names no figure, so the page check below would prove nothing")
+	}
+	assertMarkedValues(t, healthDest, readArtifact(t, health.Output, healthDest), []byte(healthSnapshot), healthKeys)
 }
 
 // homeCategoryKeys names the snapshot key of every category button the

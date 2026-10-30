@@ -101,7 +101,13 @@ type siteFacts struct {
 	Features         factsFeatures    `json:"features"`
 	GeneratedAt      string           `json:"generated_at"`
 	GitHubStars      int              `json:"github_stars"`
-	Interop          factsInterop     `json:"interop"`
+	// Health carries every figure the testing-health page prints, keyed by
+	// the metric's own key, and HealthTrends each trend series' figures
+	// (healthFacts). Maps, so a metric or a series the record gains reaches
+	// the snapshot, and the page, with no edit here.
+	Health       map[string]any `json:"health"`
+	HealthTrends map[string]any `json:"health_trends"`
+	Interop      factsInterop   `json:"interop"`
 	// Plugins counts the runtime plugin registrations data/plugin-registry.json
 	// holds, which llms.txt states.
 	Plugins     int        `json:"plugin_registrations"`
@@ -383,8 +389,9 @@ func factsFromRepositoryFile(source string, facts *siteFacts) error {
 	return nil
 }
 
-// factsFromTestHealth reads the four test counts from the SAME producer the
-// testing-health page reads.
+// factsFromTestHealth reads the four test counts, and every figure the
+// testing-health page prints (healthFacts), from the SAME producer that page
+// reads.
 //
 // One counter, so the two pages cannot disagree about how many tests ze has.
 // The retired build had two counters over one tree and they differed by 30 the
@@ -413,6 +420,12 @@ func factsFromTestHealth(paths Paths, facts *siteFacts) error {
 	facts.Tests.Editor = counts[countEditorTests]
 	facts.Tests.EditorDisplay = displayCount(facts.Tests.Editor)
 	facts.Sources["tests"] = "internal/le/test/health.Render, over the tree this build read"
+	facts.Health, facts.HealthTrends, err = healthFacts(record)
+	if err != nil {
+		return err
+	}
+	facts.Sources[healthSection] = "internal/le/test/health.Render, every figure /quality/health/ prints"
+	facts.Sources[healthTrendsSection] = "internal/le/test/health.Render, every trend figure /quality/health/ prints"
 	return nil
 }
 

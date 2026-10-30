@@ -197,8 +197,9 @@ a stale recorded run; `./le site build refresh` re-records those first
   hand, and it is written BEFORE any page producer runs: the prose tokens, the
   shared header, the homepage proof strip and category buttons, the CLI
   reference (its group counts included), the command-equivalents index (its
-  per-vendor coverage cards and per-verb counts included) and `llms.txt` all
-  read it back, and none of them counts a population the snapshot counts (a producer that writes a
+  per-vendor coverage cards and per-verb counts included), the testing-health
+  page (every figure its cards, tables and trends print, under `health.<metric
+  key>` and `health_trends.<series>`) and `llms.txt` all read it back, and none of them counts a population the snapshot counts (a producer that writes a
   value itself reads it through `factLookup`, `internal/le/site/factmark.go`), and `site.js` fills
   every `data-ze-stat` element from it at page load. Each number is derived
   from one input and `_sources` names that input. Two of them are not derived
