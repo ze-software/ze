@@ -1,17 +1,17 @@
 {
-  "note": "Independent judgment: RFC 4302 section 3.4.3 says, \"All AH implementations MUST support the anti-replay service, though its use may be enabled or disabled by the receiver on a per-SA basis.\" TestIPsecInstallerXFRMReplayWindow parses and validates the actual interface config, invokes the real installer/XFRM backend, and dumps installed kernel states. For replay-window 64, explicit 0, and omitted leaf it requires every expected AH destination (ff02::5, ff02::6, fe80::1) exactly once and its exact replay window 64/0/0; absent, extra, duplicate or non-AH states fail. The existing builder carrier additionally pins both directions for AH and ESP. This closes the earlier struct-only weakness at the boundary Ze owns; it does not claim to reimplement or independently prove Linux's per-packet sequence verification, nor multicast multi-sender anti-replay beyond section 3.4.3's stated boundary. Inspected native xfrmStateFromParams halt observations in runtime-kernel guest-56809/57490 and fresh discrimination entries; those prove producer reachability, while the exact state assertions establish field discrimination. No new judge test run.",
+  "note": "Re-judged 2026-10-30 by an independent auditor (authored none of the userns spec commits d8427e4380, b00e3c6710, 68b723ec4f, 7d11a51269). userns.Enter (internal/test/userns/userns_linux.go) re-executes the one test in a new user+net+mount namespace and returns false in the parent only after the child's own PASS line; a child failure, a zero-exit failure or a child that selected nothing fails the parent, and a child skip skips it, so the guard cannot turn a red into a green. Section 3.4.3: \"All AH implementations MUST support the anti-replay service, though its use may be enabled or disabled by the receiver on a per-SA basis.\" TestIPsecInstallerXFRMReplayWindow changed by the guard only (requireXFRM's CAP refusal now fails). It parses and validates the real config, runs the installer against kernel XFRM, and for replay-window 64, explicit 0 and the absent leaf requires each AH destination (ff02::5, ff02::6, fe80::1) exactly once with the exact window; extra, duplicate or non-AH states fail. Running in the child's own network namespace also means no foreign XFRM state can collide with the SPI. Proves Ze installs the per-SA anti-replay choice; Linux's per-packet sequence check is not claimed. Records (xfrmStateFromParams, buildIPsecSA reverts) current.",
   "requirement_sha": "04bd974bfd66c5a6",
   "tests": {
     "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAReplayWindow": "ef2210b72b5a1430",
     "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAReplayWindow#2": "ef2210b72b5a1430",
-    "internal/plugins/ospf/rfc4302_ipsec_integration_linux_test.go::TestIPsecInstallerXFRMReplayWindow": "5261aab46344e530",
-    "internal/plugins/ospf/rfc4302_ipsec_integration_linux_test.go::TestIPsecInstallerXFRMReplayWindow#2": "5261aab46344e530"
+    "internal/plugins/ospf/rfc4302_ipsec_integration_linux_test.go::TestIPsecInstallerXFRMReplayWindow": "70f5068fcad7b848",
+    "internal/plugins/ospf/rfc4302_ipsec_integration_linux_test.go::TestIPsecInstallerXFRMReplayWindow#2": "70f5068fcad7b848"
   },
   "units": {
     "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAReplayWindow": "d61dcce45d4b5c05",
     "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAReplayWindow#2": "d61dcce45d4b5c05",
-    "internal/plugins/ospf/rfc4302_ipsec_integration_linux_test.go::TestIPsecInstallerXFRMReplayWindow": "78e777c07d8e7e27",
-    "internal/plugins/ospf/rfc4302_ipsec_integration_linux_test.go::TestIPsecInstallerXFRMReplayWindow#2": "78e777c07d8e7e27"
+    "internal/plugins/ospf/rfc4302_ipsec_integration_linux_test.go::TestIPsecInstallerXFRMReplayWindow": "f642b915b0408734",
+    "internal/plugins/ospf/rfc4302_ipsec_integration_linux_test.go::TestIPsecInstallerXFRMReplayWindow#2": "f642b915b0408734"
   },
   "verdict": "enforced"
 }

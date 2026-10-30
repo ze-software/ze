@@ -1,19 +1,19 @@
 {
-  "note": "Every clause, both producer paths. Server: TestFlagsReservedBitsIgnored sends flags 0 (positive) and 0x7fff (negative) and asserts the reply is unicast to yiaddr:68 either way, so bits 1-15 are ignored; recorded against dhcpserver responseAddr (revert, both polarities). Client acquisition: TestRFC2131ClientSetsReservedFlagsBitsToZero (guest, real client over veth) reads the DISCOVER (positive) and, after an OFFER with flags 0xffff, the REQUEST (negative, bits 1-15 zero); recorded against clearReservedFlags. Client renewal: TestRFC2131ClientRenewalSetsReservedFlagsBitsToZero binds a lease from an ACK with flags 0xffff and a 2 s lease, reads the T1 renewing REQUEST (identified by ciaddr, since NewRenewFromAck copies the ACK xid) and asserts bits 1-15 zero; re-judged 2026-10-18 after renewV4 was replaced by the lease-maintenance loop: the renewing and rebinding REQUESTs are built by v4ExtendRequest, which applies v4RequestModifiers and so clearReservedFlags after NewRenewFromAck, and the record is against v4ExtendRequest (revert). v4ExtendRequest and the acquisition Request are the only client send paths (no release/decline/inform). Records are panic reverts.",
+  "note": "Re-judged 2026-10-30 by an independent auditor (authored none of the userns spec commits d8427e4380, b00e3c6710, 68b723ec4f, 7d11a51269). userns.Enter (internal/test/userns/userns_linux.go) re-executes the one test in a new user+net+mount namespace and returns false in the parent only after the child's own PASS line; a child failure, a zero-exit failure or a child that selected nothing fails the parent, and a child skip skips it, so the guard cannot turn a red into a green. Section 2: \"The remaining bits of the flags field are reserved for future use.  They MUST be set to zero by clients and ignored by servers and relay agents.\" Both client units changed only by the guard and the build tag (integration dropped); sfSetupLab and the assertions are unchanged. TestRFC2131ClientSetsReservedFlagsBitsToZero reads the real client's DISCOVER (positive, bits 1-15 zero) and, after an OFFER with flags 0xffff, the REQUEST with the same xid (negative, bits 1-15 zero). TestRFC2131ClientRenewalSetsReservedFlagsBitsToZero binds from an ACK with flags 0xffff, identifies the renewing REQUEST by ciaddr == the bound address, and asserts bits 1-15 zero. Server side unchanged: TestFlagsReservedBitsIgnored (flags 0 vs 0x7fff, reply unicast to yiaddr:68 either way). Every clause covered on both producer paths; records against clearReservedFlags, v4ExtendRequest and responseAddr are panic reverts, current per the gate.",
   "requirement_sha": "90a2137815d4181d",
   "tests": {
     "internal/plugins/dhcpserver/rfc2131_test.go::TestFlagsReservedBitsIgnored": "8365c04cdfc2a046",
     "internal/plugins/dhcpserver/rfc2131_test.go::TestFlagsReservedBitsIgnored#2": "8365c04cdfc2a046",
-    "internal/plugins/iface/dhcp/rfc2131_dhcp_flags_integration_linux_test.go::TestRFC2131ClientRenewalSetsReservedFlagsBitsToZero": "cc21e862c2ceac04",
-    "internal/plugins/iface/dhcp/rfc2131_dhcp_flags_integration_linux_test.go::TestRFC2131ClientSetsReservedFlagsBitsToZero": "cc21e862c2ceac04",
-    "internal/plugins/iface/dhcp/rfc2131_dhcp_flags_integration_linux_test.go::TestRFC2131ClientSetsReservedFlagsBitsToZero#2": "cc21e862c2ceac04"
+    "internal/plugins/iface/dhcp/rfc2131_dhcp_flags_integration_linux_test.go::TestRFC2131ClientRenewalSetsReservedFlagsBitsToZero": "9ace4511bbed8101",
+    "internal/plugins/iface/dhcp/rfc2131_dhcp_flags_integration_linux_test.go::TestRFC2131ClientSetsReservedFlagsBitsToZero": "9ace4511bbed8101",
+    "internal/plugins/iface/dhcp/rfc2131_dhcp_flags_integration_linux_test.go::TestRFC2131ClientSetsReservedFlagsBitsToZero#2": "9ace4511bbed8101"
   },
   "units": {
     "internal/plugins/dhcpserver/rfc2131_test.go::TestFlagsReservedBitsIgnored": "6b9a84fbf7912f1b",
     "internal/plugins/dhcpserver/rfc2131_test.go::TestFlagsReservedBitsIgnored#2": "6b9a84fbf7912f1b",
-    "internal/plugins/iface/dhcp/rfc2131_dhcp_flags_integration_linux_test.go::TestRFC2131ClientRenewalSetsReservedFlagsBitsToZero": "4b118ccf2fc4e9c7",
-    "internal/plugins/iface/dhcp/rfc2131_dhcp_flags_integration_linux_test.go::TestRFC2131ClientSetsReservedFlagsBitsToZero": "9734b5537609a4bf",
-    "internal/plugins/iface/dhcp/rfc2131_dhcp_flags_integration_linux_test.go::TestRFC2131ClientSetsReservedFlagsBitsToZero#2": "9734b5537609a4bf"
+    "internal/plugins/iface/dhcp/rfc2131_dhcp_flags_integration_linux_test.go::TestRFC2131ClientRenewalSetsReservedFlagsBitsToZero": "7dc10ea46e8e9905",
+    "internal/plugins/iface/dhcp/rfc2131_dhcp_flags_integration_linux_test.go::TestRFC2131ClientSetsReservedFlagsBitsToZero": "17c633136dabe93c",
+    "internal/plugins/iface/dhcp/rfc2131_dhcp_flags_integration_linux_test.go::TestRFC2131ClientSetsReservedFlagsBitsToZero#2": "17c633136dabe93c"
   },
   "verdict": "enforced"
 }

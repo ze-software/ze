@@ -1,13 +1,13 @@
 {
-  "note": "(a) forbidden: an AH native-host implementation that gives the local sender no PMTU signal for the AH overhead. (b) TestAHPathMTUIsSignaledToTheLocalSender (real XFRM): the IPV6_MTU of a raw OSPF socket must drop by at least ahHeaderOctets after the installer writes the AH state and policy (protected >= clear is red), and return to the clear value when the state is removed. Ze is transport-mode host only, so the internal-signalling alternative the sentence gives native hosts is the one owed; ICMP generation for forwarded traffic is not exercised.",
+  "note": "Re-judged 2026-10-30 by an independent auditor (authored none of the userns spec commits d8427e4380, b00e3c6710, 68b723ec4f, 7d11a51269). userns.Enter (internal/test/userns/userns_linux.go) re-executes the one test in a new user+net+mount namespace and returns false in the parent only after the child's own PASS line; a child failure, a zero-exit failure or a child that selected nothing fails the parent, and a child skip skips it, so the guard cannot turn a red into a green. Section 3.3.4: \"In any case, an AH implementation MUST support generation of ICMP PMTU messages (or equivalent internal signaling for native host implementations) to minimize the likelihood of fragmentation.\" TestAHPathMTUIsSignaledToTheLocalSender changed by the guard only; requireXFRM, pmtuLink and the raw-socket helper now fail on a refused capability instead of skipping (stronger). The unit still requires an unprotected IPV6_MTU larger than the AH header, a drop of at least ahHeaderOctets after the real installer writes the AH state and require-policy (protected >= clear is red), and a return to the clear value after onInterfaceDown. Ze is a transport-mode native host, so the internal-signalling alternative is the one owed; ICMP generation for forwarded traffic is not exercised. Records (buildIPsecPolicies, removeLocked reverts) current.",
   "requirement_sha": "cb85941d72f6e4c2",
   "tests": {
-    "internal/plugins/ospf/rfc4302_ipsec_pmtu_integration_linux_test.go::TestAHPathMTUIsSignaledToTheLocalSender": "402fac7c3f341aa8",
-    "internal/plugins/ospf/rfc4302_ipsec_pmtu_integration_linux_test.go::TestAHPathMTUIsSignaledToTheLocalSender#2": "402fac7c3f341aa8"
+    "internal/plugins/ospf/rfc4302_ipsec_pmtu_integration_linux_test.go::TestAHPathMTUIsSignaledToTheLocalSender": "98b8f3fecfef411a",
+    "internal/plugins/ospf/rfc4302_ipsec_pmtu_integration_linux_test.go::TestAHPathMTUIsSignaledToTheLocalSender#2": "98b8f3fecfef411a"
   },
   "units": {
-    "internal/plugins/ospf/rfc4302_ipsec_pmtu_integration_linux_test.go::TestAHPathMTUIsSignaledToTheLocalSender": "a8d02622804657f7",
-    "internal/plugins/ospf/rfc4302_ipsec_pmtu_integration_linux_test.go::TestAHPathMTUIsSignaledToTheLocalSender#2": "a8d02622804657f7"
+    "internal/plugins/ospf/rfc4302_ipsec_pmtu_integration_linux_test.go::TestAHPathMTUIsSignaledToTheLocalSender": "b9706b4cc2add4d9",
+    "internal/plugins/ospf/rfc4302_ipsec_pmtu_integration_linux_test.go::TestAHPathMTUIsSignaledToTheLocalSender#2": "b9706b4cc2add4d9"
   },
   "verdict": "enforced"
 }
