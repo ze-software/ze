@@ -488,17 +488,25 @@ func (r *Reactor) doRemovePeer(addr netip.Addr, subcode uint8) (*plugin.PeerInfo
 	// kept its routes.
 
 	// Build the removed peer's identity for the post-unlock plugin notification.
+	// SessionGeneration names the session this removal ends, as the FSM
+	// teardown's down does (endNegotiatedSession): a forwarding plugin stamps
+	// its departure with it, and the engine refuses a departure that names
+	// generation 0. This down reaches the processes first and the index then
+	// drops the peer, so the teardown's own down finds no receiver: without
+	// the generation here the route server's withdrawals were refused and the
+	// peer's routes stayed on every other peer.
 	removed := &plugin.PeerInfo{
-		Address:         settings.Address,
-		LocalAddress:    settings.LocalAddress,
-		AddressStr:      peer.addrString,
-		LocalAddressStr: peer.localAddrString,
-		Name:            settings.Name,
-		GroupName:       settings.GroupName,
-		LocalAS:         settings.LocalAS,
-		PeerAS:          rpc.RemoteASOf(peer.PeerAS()), // guarded: a dynamic peer may still be resolving its ASN
-		RouterID:        settings.RouterID,
-		State:           peer.State().PluginState(),
+		Address:           settings.Address,
+		LocalAddress:      settings.LocalAddress,
+		AddressStr:        peer.addrString,
+		LocalAddressStr:   peer.localAddrString,
+		Name:              settings.Name,
+		GroupName:         settings.GroupName,
+		LocalAS:           settings.LocalAS,
+		PeerAS:            rpc.RemoteASOf(peer.PeerAS()), // guarded: a dynamic peer may still be resolving its ASN
+		RouterID:          settings.RouterID,
+		State:             peer.State().PluginState(),
+		SessionGeneration: peer.forwardGeneration.Load(),
 	}
 
 	return removed, stop, nil
