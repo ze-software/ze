@@ -114,3 +114,50 @@ func TestTFTPFetchRefusesBadURLWithoutRetry(t *testing.T) {
 		t.Fatalf("netascii URL: %v", err)
 	}
 }
+
+// TestTFTPFetchRefusalRedactsPassword: a refused URL that carries a password
+// is named without it, as every fetch error names its URL (redact.URL). The
+// password is the operator's secret, and an installer console is read over a
+// serial line and photographed.
+func TestTFTPFetchRefusalRedactsPassword(t *testing.T) {
+	err := tftpToFile("tftp://admin:hunter2@host/f", filepath.Join(t.TempDir(), "out"), "")
+	if err == nil {
+		t.Fatal("a tftp URL with a password was accepted")
+	}
+	if strings.Contains(err.Error(), "hunter2") {
+		t.Fatalf("the refusal names the password: %v", err)
+	}
+	if !strings.Contains(err.Error(), "no user name or password") {
+		t.Fatalf("the refusal does not say why: %v", err)
+	}
+}
+
+// TestTFTPClientReacknowledgesDuplicateBlock: in the middle of a transfer the
+// server sends block 1 again, as it does when the ACK of block 1 was lost.
+// The client acknowledges block 1 once more, writes nothing twice, and the
+// transfer completes with the file intact (AC-16).
+func TestTFTPClientReacknowledgesDuplicateBlock(t *testing.T) {
+	shortenTFTP(t)
+
+	target, wait := startTFTPScript(t, func(p *tftpPeer) {
+		p.data(1, block(1, 512))
+		if !p.expectACK(1) {
+			return
+		}
+		p.data(1, block(1, 512))
+		if !p.expectACK(1) {
+			return
+		}
+		p.data(2, block(2, 5))
+		p.expectACK(2)
+	})
+	got, err := fetchTFTP(t, target)
+	wait()
+	if err != nil {
+		t.Fatalf("fetch: %v", err)
+	}
+	want := append(block(1, 512), block(2, 5)...)
+	if !bytes.Equal(got, want) {
+		t.Fatalf("fetched %d bytes, want %d: the duplicate block was written again or lost", len(got), len(want))
+	}
+}

@@ -17,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/redact"
 	"github.com/ze-software/ze/internal/core/tftp"
 )
 
@@ -71,7 +72,9 @@ type tftpTarget struct {
 func tftpToFile(source, dest, expectedSHA string) error {
 	target, err := parseTFTPURL(source)
 	if err != nil {
-		return fmt.Errorf("%s: %w", source, err)
+		// The URL is redacted as every fetch error is: a refused URL may still
+		// carry a password the operator typed before the "@".
+		return fmt.Errorf("%s: %w", redact.URL(source), err)
 	}
 	return fileFetch(func(string, string) error { return tftpGet(target, dest) }, source, dest, expectedSHA)
 }
@@ -82,7 +85,7 @@ func tftpToFile(source, dest, expectedSHA string) error {
 func parseTFTPURL(source string) (tftpTarget, error) {
 	parsed, err := url.Parse(source)
 	if err != nil {
-		return tftpTarget{}, errors.New("not a URL: " + err.Error())
+		return tftpTarget{}, fmt.Errorf("not a URL: %w", redact.URLError(err))
 	}
 	if !strings.EqualFold(parsed.Scheme, "tftp") {
 		return tftpTarget{}, errors.New("not a tftp URL")

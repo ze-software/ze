@@ -273,9 +273,15 @@ A device that already runs Ze can take the same seed without reinstalling:
 `ze init --from http://<server>/install/database.zefs --sha256 <hex>` fetches
 it with the installer's download helper, checks the digest and every entry
 before a key is written, imports it into `database/`, and removes the fetched
-copy. A local path (`ze init --from ./backup.zefs`) imports a file in place and
-retires it as `.replaced-<stamp>`, as the appliance does with its seed.
+copy. A TFTP server works too:
+`ze init --from tftp://<server>[:port]/install/database.zefs --sha256 <hex>`
+fetches the blob with Ze's own TFTP client, in octet mode, from port 69 unless
+you name another. TFTP authenticates nothing, so always give `--sha256` with a
+TFTP source. A local path (`ze init --from ./backup.zefs`) imports a file in
+place and retires it as `.replaced-<stamp>`, as the appliance does with its
+seed.
 <!-- source: internal/plugins/init/main.go -- runImport, runFetchImport -->
+<!-- source: internal/core/fetch/tftp.go -- tftpToFile, parseTFTPURL -->
 
 ### 5. Log in and configure
 

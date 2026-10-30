@@ -155,11 +155,11 @@ reaches 3 of 3 and rfc2348 reaches 5 of 5.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Moving the server's constants and encoders to core leaves its wire output byte-identical | The encoders are pure functions of their inputs | Server regression against PXE firmware | The existing tftpserver tests and `TestTFTPCurlDuplicateACKInterop` stay green, unchanged | unvalidated |
-| A-2 | Server discrimination records whose producer bodies change in the move go stale, and re-recording them is mechanical | `rfc/discrimination` records pin `producer-sha` | Lost proof on rfc1350/2347/2348 server rows until re-recorded | `./le rfc discriminate stem <stem>` lists stale records after the move. Each is re-recorded in the same phase | unvalidated |
-| A-3 | `labtest.Start` can run a dnsmasq TFTP server container that the host test reaches over UDP | `labtest.go` Start returns a netip.AddrPort | No interop run | First run of the interop test | unvalidated |
-| A-4 | Removing a `{not-applicable}` row that lacks the new evidence form lowers the `not-applicable` line of `rfc/exclusion-evidence-backlog.txt` by one each, and the ratchet requires the file to be edited to match | Gates page, "The exclusion evidence ratchet" | Commit refused | `./le rfc check` before commit | unvalidated |
-| A-5 | A fixture build-tagged `ze_pxe` may import tftpserver, as a `ze_bgp` fixture already exists | `internal/test/fixture` holds one `//go:build ze_bgp` file | The `.ci` cannot use Ze's server | `./le arch tier check` | unvalidated |
+| A-1 | Moving the server's constants and encoders to core leaves its wire output byte-identical | The encoders are pure functions of their inputs | Server regression against PXE firmware | The existing tftpserver tests and `TestTFTPCurlDuplicateACKInterop` stay green, unchanged | confirmed |
+| A-2 | Server discrimination records whose producer bodies change in the move go stale, and re-recording them is mechanical | `rfc/discrimination` records pin `producer-sha` | Lost proof on rfc1350/2347/2348 server rows until re-recorded | `./le rfc discriminate stem <stem>` lists stale records after the move. Each is re-recorded in the same phase | confirmed |
+| A-3 | `labtest.Start` can run a dnsmasq TFTP server container that the host test reaches over UDP | `labtest.go` Start returns a netip.AddrPort | No interop run | First run of the interop test | broken (runs inside the Colima VM on the Mac; Mistake Log) |
+| A-4 | Removing a `{not-applicable}` row that lacks the new evidence form lowers the `not-applicable` line of `rfc/exclusion-evidence-backlog.txt` by one each, and the ratchet requires the file to be edited to match | Gates page, "The exclusion evidence ratchet" | Commit refused | `./le rfc check` before commit | confirmed |
+| A-5 | A fixture build-tagged `ze_pxe` may import tftpserver, as a `ze_bgp` fixture already exists | `internal/test/fixture` holds one `//go:build ze_bgp` file | The `.ci` cannot use Ze's server | `./le arch tier check` | confirmed |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -393,7 +393,7 @@ The client tests drive a scripted UDP peer on loopback that plays the server rol
 | Interop against dnsmasq | tftp-hpa 5.2 (2011, no windowsize), or tftp-hpa from git | dnsmasq is current stable and widely deployed for PXE. tftp-hpa's release is old, and its git head would be built from source |
 
 ## Known Limitations
-- The server still does not implement the RFC 2349 timeout option or RFC 7440 windowsize as DSND. RFC2349-x-1, x-2 and RFC7440-4-1, 4-4, 4-5 stay capped. Their current `{not-applicable}` reasons say "ze does not implement", which the gates page calls a `{gap}`. That is a server-side spec of its own (not written here; named in the report to the owner)
+- The server still does not implement the RFC 2349 timeout option or RFC 7440 windowsize as DSND. RFC2349-x-1, x-2 and RFC7440-4-1, 4-4, 4-5 stay capped. Their current `{not-applicable}` reasons say "ze does not implement", which the gates page calls a `{gap}`. That is a server-side spec of its own, written at closure: `plan/post-release/features/spec-tftp-server-timeout-and-windowsize.md`, which also owns the missing discrimination records of the server-side RFC2349-x-3 tags
 - No TFTP upload (WRQ)
 
 ## Owner choices
@@ -454,3 +454,183 @@ constraints, message ordering, and every MUST/MUST NOT.
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove plan/post-release/features/spec-tftp-client.md` only, in the same `./le commit create` script
+
+## Implementation Summary
+
+### What Was Implemented
+- `internal/core/tftp`: the wire facts the server and the client share (opcodes, error codes, block sizes, option names, `BuildError`), the client's `BuildRRQ` and `WriteACK`, and `ParseOACK` with its refusal set
+- `internal/core/fetch/tftp.go`: `tftpToFile` (scheme `tftp`), `parseTFTPURL`, and `tftpTransfer` (first reply, OACK settle with ACK 0, lockstep and windowed receive, gap ACK, re-ACK, retransmit, dally, wrap, TID refusal)
+- `fileFetch` in `fetch.go`: the retry, bound and digest wrapper http and tftp share
+- `tftpserver.ServeConn` and the `ze_pxe` fixture `storage/init-from-tftp`, driven by `test/plugin/init-from-tftp.ci`
+- `TestTFTPClientDnsmasqInterop` against dnsmasq 2.91 (`test/interop-tftp/Dockerfile.dnsmasq`)
+- RFC ledger: six `{not-applicable}` client rows removed, client tags and records added, server records re-taken after the codec move
+
+### Bugs Found/Fixed
+- Closure review: a refused tftp URL was echoed unredacted, so `tftp://user:secret@host/f` printed the password (`tftpToFile`, `parseTFTPURL`). Now `redact.URL` and `redact.URLError`. Test `TestTFTPFetchRefusalRedactsPassword`
+- Closure review: the planned codec tests in `internal/core/tftp` did not exist, so most of `ParseOACK`'s refusals (unterminated field, empty name or value, non-decimal value, overflow, unrequested option with nothing requested, a non-OACK) and `BuildRRQ`'s range refusals and 512-octet bound had no test. Added `oack_test.go`, `request_test.go`
+- Closure review: AC-16's mid-transfer re-ACK of a duplicate block (`tftpTransfer.data`, `block == t.next-1`) had no test; only the dally re-ACK did. Added `TestTFTPClientReacknowledgesDuplicateBlock`, red under that branch disabled by overlay (no ACK 1, the fetch stops after three timeouts), green restored
+
+### Documentation Updates
+- Implementation commit fec7380fb1: `docs/architecture/appliance/on-device-installer.md` (the tftp scheme, anchored to `tftp.go` `tftpToFile` and the rest), `docs/architecture/provisioning/tftp-server.md` (codec in core, anchored to `internal/core/tftp/tftp.go`), `docs/architecture/storage-backends.md`, `docs/guide/command-reference.md`, `features/installation.md`, `ai/INDEX.md`
+- Closure: `docs/guide/ze-install.md`, the `ze init --from` paragraph gains the tftp form and the `--sha256` advice, anchored to `internal/core/fetch/tftp.go -- tftpToFile, parseTFTPURL`
+- `./le doc check all`: fails on reds owned elsewhere (`docs/DESIGN.md` policy plugin row, two missing command descriptions, two `test/draft/flow-export` paths, two rule-binding rows); none names a file this spec touched
+
+### Deviations from Plan
+- Only the shared facts moved to `internal/core/tftp`; the server keeps its own parser and DATA/OACK encoders (Design Insights)
+- `TestResolveTFTPScheme` was not created: the existing `TestFetchSchemeTable` (`internal/core/fetch/scheme_test.go`) gained the tftp case and the `http,https,tftp` list
+- The interop test runs inside the Colima VM on the Mac (Design Insights)
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The TDD plan's codec tests (`internal/core/tftp/*_test.go`) were dropped, the OACK refusals tested only through the client | Five of `ParseOACK`'s refusal branches had no test | Closure review, listing the package's files | Tests added at closure |
+| assumption | A-3: `labtest.Start` would let a host test on the Mac reach a dnsmasq container over UDP | Colima's port forwarder does not carry a fresh TFTP transfer port | First interop run | The test binary is cross-built for linux and run in a `docker:cli` container on the VM's host network (Deviations) |
+| approach | The Documentation checklist answered Yes for `docs/guide/ze-install.md` and the page was not edited | Its `ze init --from` paragraph named only http | Closure review grep of the page | Page edited at closure |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| `tftp` scheme in the fetch table | Done | `internal/core/fetch/scheme.go` `schemes` | |
+| `ze init --from tftp://host/path` downloads | Done | `tftpToFile`, reached by `runFetchImport` through `fetch.Resolve` | `.ci` green |
+| RFC 1350 read side | Done | `tftpTransfer.run`, `receive`, `data`, `accept`, `dally` | |
+| RFC 2347 negotiation | Done | `tftp.ParseOACK`, `tftpTransfer.settle` | |
+| RFC 2348 blksize | Done | `grantBlksize`, `accept` final-block test | |
+| RFC 2349 tsize | Done | `BuildRRQ`, `grantTsize`, `settle` bound | |
+| RFC 7440 windowsize as receiver | Done | `grantWindowsize`, `accept`, `data` gap branch | |
+| rfc2347 3 of 3, rfc2348 5 of 5 | Done | `./le rfc tree` | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestFetchSchemeTable` | |
+| AC-2 | Done | `test/plugin/init-from-tftp.ci` | |
+| AC-3 | Done | `TestTFTPURLParse`, `TestTFTPFetchRefusesBadURLWithoutRetry` | |
+| AC-4 | Done | `TestRFC7440ClientRequestFieldsAreNULTerminatedASCII`, `TestBuildRRQOctets` | |
+| AC-5 | Done | `TestRFC2347ClientUsesOnlyAcknowledgedOptions/blksize acknowledged alone` | |
+| AC-6 | Done | `TestRFC2347ClientUsesOnlyAcknowledgedOptions/no option acknowledged` | |
+| AC-7 | Done | `TestRFC2348ClientBlocksize/refused *`, `TestParseOACKRefusals` | |
+| AC-8 | Done | `TestRFC2348ClientBlocksize/granted *` | |
+| AC-9 | Done | `TestRFC7440ClientWindowsize/refused *`, `TestParseOACKRefusals` | |
+| AC-10 | Done | `TestRFC7440ClientWindowsize/window of two` | |
+| AC-11 | Done | `TestRFC7440ClientSequenceError` | |
+| AC-12 | Done | `TestRFC7440ClientWindowOneIsLockstep` | |
+| AC-13 | Done | `TestRFC2347ClientRejectsUnrequestedOption` | |
+| AC-14 | Done | `TestRFC2349ClientAbortsTooLargeFile` | |
+| AC-15 | Done | `TestRFC1350ClientRefusesStrangerTID` | |
+| AC-16 | Done | `TestTFTPClientReacknowledgesDuplicateBlock`, `TestRFC1350ClientDallies` | first half added at closure |
+| AC-17 | Done | `TestTFTPClientSilentServer`, `TestRFC1350ClientTimeouts/silent server` | |
+| AC-18 | Done | `TestTFTPClientBlockNumberWraps` | |
+| AC-19 | Done | `TestRFC1350ClientServerError` | |
+| AC-20 | Done | tftpserver package tests unchanged in assertions (11 judged renames), `TestTFTPCurlDuplicateACKInterop` | |
+| AC-21 | Done | `./le rfc tree`: rfc2347 3/3, rfc2348 5/5, rfc7440 5/9 with 3-2, 3-4, 4-2, 4-3 | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestResolveTFTPScheme` | Changed | `TestFetchSchemeTable` in `scheme_test.go` | Deviations |
+| `TestTFTPURLParse` | Done | `tftp_test.go` | |
+| `TestTFTPClientRequestOptions` | Changed | `TestRFC7440ClientRequestFieldsAreNULTerminatedASCII` | |
+| `TestRFC2347ClientUsesOnlyAcknowledgedOptions`, `TestRFC2347ClientRejectsUnrequestedOption` | Done | `rfc2347_client_test.go` | |
+| `TestRFC2348ClientBlocksize` | Done | `rfc2348_client_test.go` | |
+| `TestRFC2349ClientTsize` | Done | `rfc2349_client_test.go` | |
+| `TestRFC7440ClientWindowsize` | Done | `rfc7440_client_test.go` | |
+| `TestRFC1350ClientTransfer` | Changed | split into the `TestRFC1350Client*` and `TestTFTPClient*` tests of `rfc1350_client_test.go` | |
+| Codec tests | Done | `internal/core/tftp/oack_test.go`, `request_test.go` | added at closure |
+| `init-from-tftp` | Done | `test/plugin/init-from-tftp.ci` | |
+| `TestTFTPClientDnsmasqInterop` | Done | `tftp_dnsmasq_docker_test.go` | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/core/fetch/scheme.go`, `fetch.go`, `tftp.go` | Done | |
+| `internal/core/tftp/` | Done | |
+| `internal/plugins/tftpserver/handler.go` | Done | |
+| `rfc/short/*`, `rfc/extraction/rfc2347.json`, `rfc/audit/*`, `rfc/exclusion-evidence-backlog.txt` | Done | |
+| Docs listed | Done | ze-install.md at closure |
+| Fixture, registration, `.ci`, dnsmasq Dockerfile | Done | |
+
+### Audit Summary
+- **Total items:** 21 ACs, 8 task requirements
+- **Done:** all
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 3 test names (recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| `ze init --from tftp://host/path` downloads over TFTP | functional | `./le test bgp plugin --pattern init-from-tftp` pass 1/1 (session scratch `ci2.log`); stress-repro 80 iterations under load, no failure (`stress.log`) |
+| The client interoperates with a third-party server | interop | `TestTFTPClientDnsmasqInterop` PASS against dnsmasq 2.91 (`interop-green.log`, `interop-green2.log`); FAIL with `tftp.ParseOACK` granting nothing (`interop-red.log`: dnsmasq logs "DATA larger than the negotiated blksize") |
+| rfc2347 reaches 3 of 3, rfc2348 5 of 5 | ledger | `./le rfc tree`; `./le rfc check` prints no line for rfc1350, 2347, 2348, 2349, 7440 after the closure fixes |
+| The server's bytes are unchanged | unit and interop | tftpserver tests green with only constant renames (ze-test-judge approved, 11 `RFC-approved:` lines in fec7380fb1) |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| Server side of RFC 2349 timeout and RFC 7440 windowsize as DSND (RFC2349-x-1, x-2, RFC7440-4-1, 4-4, 4-5), whose `{not-applicable}` reasons describe a gap | Server work, a Known Limitation outside this client spec's ACs | `plan/post-release/features/spec-tftp-server-timeout-and-windowsize.md` |
+| Discrimination records for the server-side RFC2349-x-3 tags in `internal/plugins/tftpserver/rfc2349_tsize_test.go` | Pre-existing server tags this spec did not change | `plan/post-release/features/spec-tftp-server-timeout-and-windowsize.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/tftp-client-bc566aa5-3f69-415d-8c8b-c6f8cdf8adae.md` (36 files: every code and `.ci` file of fec7380fb1 and 0e344bd50f plus the closure files, verdict clean) |
+| `./le spec review check` | clean |
+| Rounds | 2 |
+| Reviewer lenses used | round 1: logic, wire and RFC text (every quote checked verbatim against `rfc/full`), security (redaction, bounds, spoofing), docs, test coverage against the TDD plan; round 2: the closure fixes only |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | A refused tftp URL is echoed with its password; the spec requires `redact.URL` at every site naming the URL | `internal/core/fetch/tftp.go` `tftpToFile`, `parseTFTPURL` | `redact.URL`, `redact.URLError`; `TestTFTPFetchRefusalRedactsPassword` |
+| 2 | ISSUE | Planned codec tests absent: `ParseOACK` refusal branches and `BuildRRQ` bounds untested | `internal/core/tftp/` | `oack_test.go`, `request_test.go` |
+| 3 | ISSUE | AC-16 mid-transfer duplicate re-ACK untested | `tftpTransfer.data` | `TestTFTPClientReacknowledgesDuplicateBlock`, red under the branch disabled |
+| 4 | ISSUE | `docs/guide/ze-install.md` checklist row Yes, page not edited | `docs/guide/ze-install.md` | tftp sentence with source anchor |
+
+### NOTEs (no block)
+- A duplicate of block next-1 arriving mid-window resets the client's window count, so its ACK points can drift from the sender's window ends. RFC 7440 Section 4 has the sender restart from any ACK it gets, so the transfer converges; it costs retransmissions only under packet duplication
+- An OACK carrying no option is accepted as granting nothing (512 octets, window 1)
+- `docs/guide/quickstart.md` line 59 calls the URL form "storage-2"; not this spec's text
+
+### Run 2
+Scope: the four fixes. `go test -race` of `internal/core/fetch` and `internal/core/tftp` ok; `./le rfc check` prints no line for the five stems; 0 BLOCKER, 0 ISSUE.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/core/tftp/{tftp,oack,request}.go`, `oack_test.go`, `request_test.go` | Yes | `ls internal/core/tftp/` at closure |
+| `internal/core/fetch/tftp.go`, the five `rfc*_client_test.go`, `tftp_test.go`, `tftp_peer_test.go`, `tftp_dnsmasq_docker_test.go` | Yes | `git show --stat fec7380fb1` |
+| `internal/plugins/tftpserver/client_e2e_test.go`, `serve_conn.go`, fixture pair, `test/plugin/init-from-tftp.ci`, `test/interop-tftp/Dockerfile.dnsmasq` | Yes | `git show --stat fec7380fb1 0e344bd50f` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-21 | as the audit table | `./le job run ... go test -race -count=1 ./internal/core/fetch/ ./internal/core/tftp/ ./internal/plugins/tftpserver/ ./internal/plugins/init/`: all ok at closure; fetch and tftp re-run ok after the last fix |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `ze init --from tftp://127.0.0.1:<port>/install/database.zefs --sha256` | `test/plugin/init-from-tftp.ci` | Read: runs fixture `storage/init-from-tftp`, which serves the blob with `tftpserver.ServeConn` and runs `ze init` through `storageInitFromRemote`; green in `ci2.log` |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | tftpserver tests green with renames only, judged |
+| A-2 | confirmed | 35 records re-taken, one with a hand-written break (Design Insights) |
+| A-3 | broken | The Mac reaches the container only from inside the Colima VM; the test runs there (Design Insights) |
+| A-4 | confirmed | `rfc/exclusion-evidence-backlog.txt` edited in fec7380fb1; `./le rfc check` clean for the stems |
+| A-5 | confirmed | `//go:build ze_pxe` fixture imports tftpserver; the `.ci` runs green |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| on-device-installer.md tftp paragraph | read against `tftp.go` (`tftpRequest` 1468/tsize/4, `tftpTimeout` 5 s, `tftpRetransmitMax` 3, `refuseStranger` ERROR 5, `settle` ERROR 8 and 3) | Yes |
+| ze-install.md tftp sentence | `parseTFTPURL` (port default 69, octet only) | Yes |
+| command-reference.md, features/installation.md, tftp-server.md | `fetch.Schemes()`, `internal/core/tftp/tftp.go` | Yes |
