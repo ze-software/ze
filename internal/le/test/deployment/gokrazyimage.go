@@ -369,7 +369,7 @@ func environmentHasKey(entries []any, key string) bool {
 // pinned version. The image build reads the same entry, so a refusal here names
 // the build's own kernel before the build starts.
 func checkRuntimeKernelCache(ctx context.Context, tree, arch string, progress io.Writer) error {
-	pinned, err := pinnedKernelVersion(tree)
+	pinned, err := PinnedKernelVersion(tree)
 	if err != nil {
 		return err
 	}

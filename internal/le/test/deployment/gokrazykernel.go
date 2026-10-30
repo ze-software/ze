@@ -71,8 +71,8 @@ const KernelVersionFile = "internal/appliance/kernel.version"
 // of the two an appliance is built for.
 var errUnsupportedArch = errors.New("unsupported appliance architecture (expected amd64 or arm64)")
 
-// pinnedKernelVersion answers the kernel release this repository pins.
-func pinnedKernelVersion(tree string) (string, error) {
+// PinnedKernelVersion answers the kernel release this repository pins.
+func PinnedKernelVersion(tree string) (string, error) {
 	body, err := os.ReadFile(filepath.Join(tree, KernelVersionFile)) //nolint:gosec // a path inside the checkout this command was run in
 	if err != nil {
 		return "", err

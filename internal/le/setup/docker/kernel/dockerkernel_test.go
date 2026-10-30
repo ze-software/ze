@@ -8,7 +8,19 @@ import (
 	"testing"
 
 	leaction "github.com/ze-software/ze/internal/le/le/action"
+	testdeployment "github.com/ze-software/ze/internal/le/test/deployment"
 )
+
+// pinnedVersion answers the kernel version this checkout pins, the one the
+// install derives every release from.
+func pinnedVersion(t *testing.T) string {
+	t.Helper()
+	version, err := testdeployment.PinnedKernelVersion(filepath.Join("..", "..", "..", "..", ".."))
+	if err != nil {
+		t.Fatalf("read %s: %v", testdeployment.KernelVersionFile, err)
+	}
+	return version
+}
 
 // cachedKernel writes a runtime-kernel cache entry holding the files the
 // install reads: vmlinuz, a config carrying CONFIG_LOCALVERSION=localVersion
@@ -58,24 +70,27 @@ func TestDockerKernelInstallRefusesOffLinux(t *testing.T) {
 // are removed before they are written again.
 // PREVENTS: an install that reboots the operator's host, a step that runs with
 // root without saying so, and `cp -a` nesting the new modules inside the old
-// tree (/lib/modules/<release>/<release>) while the old modules.dep stays.
+// tree (/lib/modules/<release>/<release>) while the old modules.dep stays,
+// and `cp -a` keeping the cache owner's uid on the installed modules, which
+// lets that unprivileged user swap a module root will load.
 func TestDockerKernelInstallSteps(t *testing.T) {
-	cache := cachedKernel(t, "7.2.9-ze", "-ze")
-	release, err := cachedKernelRelease(cache, "")
+	wantRelease := pinnedVersion(t) + "-ze"
+	cache := cachedKernel(t, wantRelease, "-ze")
+	release, err := cachedKernelRelease(cache, pinnedVersion(t), "")
 	if err != nil {
 		t.Fatalf("release: %v", err)
 	}
-	if release != "7.2.9-ze" {
-		t.Fatalf("release = %q, want 7.2.9-ze", release)
+	if release != wantRelease {
+		t.Fatalf("release = %q, want %s", release, wantRelease)
 	}
 	steps := dockerKernelInstallSteps(cache, release)
 	want := [][]string{
-		{"sudo", "install", "-m", "0644", filepath.Join(cache, "vmlinuz"), "/boot/vmlinuz-7.2.9-ze"},
-		{"sudo", "install", "-m", "0644", filepath.Join(cache, "config"), "/boot/config-7.2.9-ze"},
-		{"sudo", "rm", "-rf", "/lib/modules/7.2.9-ze"},
-		{"sudo", "cp", "-a", filepath.Join(cache, "lib", "modules", "7.2.9-ze"), "/lib/modules/7.2.9-ze"},
-		{"sudo", "rm", "-f", "/boot/initrd.img-7.2.9-ze"},
-		{"sudo", "update-initramfs", "-c", "-k", "7.2.9-ze"},
+		{"sudo", "install", "-m", "0644", filepath.Join(cache, "vmlinuz"), "/boot/vmlinuz-" + release},
+		{"sudo", "install", "-m", "0644", filepath.Join(cache, "config"), "/boot/config-" + release},
+		{"sudo", "rm", "-rf", "/lib/modules/" + release},
+		{"sudo", "cp", "-a", "--no-preserve=ownership", filepath.Join(cache, "lib", "modules", release), "/lib/modules/" + release},
+		{"sudo", "rm", "-f", "/boot/initrd.img-" + release},
+		{"sudo", "update-initramfs", "-c", "-k", release},
 		{"sudo", "update-grub"},
 	}
 	if len(steps) != len(want) {
@@ -100,7 +115,7 @@ func TestDockerKernelInstallSteps(t *testing.T) {
 // a removal can only reach a tree an earlier install of this build wrote.
 // PREVENTS: a removal step reaching another kernel's modules or initramfs.
 func TestDockerKernelInstallRemovesOnlyItsOwnRelease(t *testing.T) {
-	release := "7.2.9-ze"
+	release := pinnedVersion(t) + "-ze"
 	for _, step := range dockerKernelInstallSteps(cachedKernel(t, release, "-ze"), release) {
 		if step.Argv[1] != "rm" {
 			continue
@@ -117,13 +132,14 @@ func TestDockerKernelInstallRemovesOnlyItsOwnRelease(t *testing.T) {
 // PREVENTS: /boot/vmlinuz-7.2.0 and /lib/modules/7.2.0 overwriting, or being
 // removed as, another kernel built from the same upstream release.
 func TestDockerKernelReleaseNeedsTheZeSuffix(t *testing.T) {
+	version := pinnedVersion(t)
 	refused := map[string]*struct{ release, localVersion string }{
-		"bare release, no suffix":       {"7.2.0", ""},
-		"suffix declared, bare release": {"7.2.9", "-ze"},
-		"release ends otherwise":        {"7.2.9-generic", "-ze"},
+		"bare release, no suffix":       {version, ""},
+		"suffix declared, bare release": {version, "-ze"},
+		"release ends otherwise":        {version + "-generic", "-ze"},
 	}
 	for name, entry := range refused {
-		_, err := cachedKernelRelease(cachedKernel(t, entry.release, entry.localVersion), "")
+		_, err := cachedKernelRelease(cachedKernel(t, entry.release, entry.localVersion), version, "")
 		if err == nil {
 			t.Errorf("%s: release %q accepted", name, entry.release)
 			continue
@@ -160,7 +176,7 @@ func TestRuntimeKernelConfigDeclaresALocalVersion(t *testing.T) {
 // PREVENTS: one command running every root step on a host with passwordless
 // sudo, where sudo asks nothing.
 func TestDockerKernelInstallNeedsConfirmation(t *testing.T) {
-	release := "7.2.9-ze"
+	release := pinnedVersion(t) + "-ze"
 	for name, args := range map[string]leaction.Arguments{
 		"no confirm":    {},
 		"wrong release": {dockerKernelConfirmKeyword: {"7.2.0"}},
@@ -171,7 +187,7 @@ func TestDockerKernelInstallNeedsConfirmation(t *testing.T) {
 			t.Errorf("%s: accepted", name)
 			continue
 		}
-		if !slices.Contains(strings.Split(err.Error(), "\n"), "  ./le setup docker kernel install confirm 7.2.9-ze") {
+		if !slices.Contains(strings.Split(err.Error(), "\n"), "  ./le setup docker kernel install confirm "+release) {
 			t.Errorf("%s: refusal does not carry the confirming command on a line of its own: %v", name, err)
 		}
 	}
@@ -183,15 +199,33 @@ func TestDockerKernelInstallNeedsConfirmation(t *testing.T) {
 // VALIDATES: a cache entry with no modules tree, or with two, is refused: the
 // release is what every installed path is named for.
 func TestDockerKernelReleaseNeedsOneModulesTree(t *testing.T) {
-	if _, err := cachedKernelRelease(t.TempDir(), ""); err == nil {
+	version := pinnedVersion(t)
+	if _, err := cachedKernelRelease(t.TempDir(), version, ""); err == nil {
 		t.Error("an entry with no lib/modules answered a release")
 	}
-	cache := cachedKernel(t, "7.2.0-ze", "-ze")
+	cache := cachedKernel(t, version+"-ze", "-ze")
 	if err := os.MkdirAll(filepath.Join(cache, "lib", "modules", "7.2.1-ze"), 0o750); err != nil {
 		t.Fatalf("second modules tree: %v", err)
 	}
-	if _, err := cachedKernelRelease(cache, ""); err == nil {
+	if _, err := cachedKernelRelease(cache, version, ""); err == nil {
 		t.Error("an entry with two modules trees answered a release")
+	}
+}
+
+// VALIDATES: the release is the version kernel.version pins with Ze's suffix,
+// so a cache entry built for any other version is refused, naming the file
+// that pins it and the rebuild.
+// PREVENTS: an entry left from before a kernel.version bump installing a
+// kernel the checkout no longer pins.
+func TestDockerKernelReleaseIsThePinnedVersion(t *testing.T) {
+	_, err := cachedKernelRelease(cachedKernel(t, "0.0.1-ze", "-ze"), pinnedVersion(t), "")
+	if err == nil {
+		t.Fatal("an entry built for another kernel version answered a release")
+	}
+	for _, want := range []string{"0.0.1-ze", pinnedVersion(t) + "-ze", testdeployment.KernelVersionFile, "./ze-host appliance kernel --target runtime"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("refusal does not name %q: %v", want, err)
+		}
 	}
 }
 

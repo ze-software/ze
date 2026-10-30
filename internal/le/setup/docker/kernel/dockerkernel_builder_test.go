@@ -43,11 +43,12 @@ func TestDockerKernelInstallAsksForTheNamedBuilder(t *testing.T) {
 // operator named, keyword before value and before `confirm`.
 // PREVENTS: a confirm that drops the backend and resolves another cache entry.
 func TestDockerKernelInstallConfirmKeepsTheBuilder(t *testing.T) {
-	err := installConfirmed(leaction.Arguments{dockerKernelBuilderKeyword: {"qemu"}}, "7.2.9-ze")
+	release := pinnedVersion(t) + "-ze"
+	err := installConfirmed(leaction.Arguments{dockerKernelBuilderKeyword: {"qemu"}}, release)
 	if err == nil {
 		t.Fatal("no confirm was accepted")
 	}
-	if !slices.Contains(strings.Split(err.Error(), "\n"), "  ./le setup docker kernel install builder qemu confirm 7.2.9-ze") {
+	if !slices.Contains(strings.Split(err.Error(), "\n"), "  ./le setup docker kernel install builder qemu confirm "+release) {
 		t.Errorf("refusal does not carry the confirming command with its builder: %v", err)
 	}
 }
@@ -58,7 +59,7 @@ func TestDockerKernelInstallConfirmKeepsTheBuilder(t *testing.T) {
 // which fills an entry the install with `builder qemu` never reads.
 func TestDockerKernelRefusalsRebuildWithTheBuilder(t *testing.T) {
 	want := "appliance kernel --target runtime --arch " + runtime.GOARCH + " --builder qemu"
-	if _, err := cachedKernelRelease(cachedKernel(t, "7.2.9", "-ze"), "qemu"); err == nil || !strings.Contains(err.Error(), want) {
+	if _, err := cachedKernelRelease(cachedKernel(t, pinnedVersion(t), "-ze"), pinnedVersion(t), "qemu"); err == nil || !strings.Contains(err.Error(), want) {
 		t.Errorf("suffix refusal does not rebuild with qemu: %v", err)
 	}
 
@@ -72,7 +73,7 @@ func TestDockerKernelRefusalsRebuildWithTheBuilder(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, "proc", "modules"), nil, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	err := cachedKernelServesHost(cachedKernel(t, "7.2.9-ze", "-ze"), "7.2.9-ze", root, "qemu")
+	err := cachedKernelServesHost(cachedKernel(t, pinnedVersion(t)+"-ze", "-ze"), pinnedVersion(t)+"-ze", root, "qemu")
 	if err == nil {
 		t.Fatal("a kernel without PCI hotplug was accepted for a slot-named interface")
 	}

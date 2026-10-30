@@ -896,8 +896,10 @@ route: it installs the cached runtime kernel for the host's architecture under
 `/boot` and `/lib/modules`, rebuilds the initramfs and the GRUB menu with the
 Debian tools, and saves the new entry as GRUB's default by its title. It
 refuses before any step unless `GRUB_DEFAULT=saved`, and unless the cached
-release ends with the `CONFIG_LOCALVERSION` suffix its config declares (`-ze`,
-so never a bare upstream release another kernel could own), and unless the
+release is the version `internal/appliance/kernel.version` pins followed by the
+`CONFIG_LOCALVERSION` suffix its config declares (`-ze`, so never a bare
+upstream release another kernel could own, nor an entry built before a version
+bump), and unless the
 cached kernel's config builds in, or as a module, every option this host
 relies on its running kernel for: the PCI hotplug drivers when an interface in
 `/sys/class/net`, or one netplan's generated
@@ -919,7 +921,8 @@ QEMU on such a host is named with `builder qemu`
 run's confirming command and every rebuild it prints keep that backend. A
 reinstall replaces: it removes `/lib/modules/<release>` and
 `/boot/initrd.img-<release>` before writing them again, so `cp -a` never nests
-the new modules inside the old tree. It prints each `sudo` step before it runs
+the new modules inside the old tree. The copy drops the cache's ownership, so
+the installed modules belong to root, not to the user who built them. It prints each `sudo` step before it runs
 it, and never reboots. Off Linux it refuses: on macOS it names the `ze` Colima
 profile, `./le setup docker host start`; on any other system the guest route,
 `./le test qemu docker-lab` (`docs/architecture/testing/qemu-integration.md`).

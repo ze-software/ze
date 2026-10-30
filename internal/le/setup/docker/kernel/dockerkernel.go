@@ -285,10 +285,11 @@ type installStep struct {
 }
 
 // runDockerKernelInstall refuses off Linux, without GRUB_DEFAULT=saved, for a
-// cache entry whose release lacks Ze's suffix, for a kernel lacking what this
-// host relies on (hostdeps.go), and without the release confirmed, before any
-// step; then it places the kernel, rebuilds the boot
-// files, and selects the new GRUB entry by title. The reboot is the operator's.
+// cache entry whose release is not the pinned kernel.version with Ze's suffix,
+// for a kernel lacking what this host relies on (hostdeps.go), and without the
+// release confirmed, before any step; then it places the kernel, rebuilds the
+// boot files, and selects the new GRUB entry by title. The reboot is the
+// operator's.
 //
 // SIGINT and SIGTERM cancel the install's root. The ze-host compile behind the
 // cache query heads a process group of its own (buildcompile.BuildHost), so
@@ -327,7 +328,12 @@ func dockerKernelInstall(ctx context.Context, args leaction.Arguments) (any, int
 		leaction.ReportError(err)
 		return nil, 1
 	}
-	release, err := cachedKernelRelease(cache, builder)
+	version, err := testdeployment.PinnedKernelVersion(root)
+	if err != nil {
+		leaction.ReportError(err)
+		return nil, 1
+	}
+	release, err := cachedKernelRelease(cache, version, builder)
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 1
@@ -404,12 +410,14 @@ func runtimeKernelRebuild(builder string) string {
 	return buildhostdriver.RuntimeKernelBuild(runtime.GOARCH, builder)
 }
 
-// cachedKernelRelease answers the release a runtime-kernel cache entry holds:
-// the one directory under lib/modules, which every installed path is named for.
-// The release MUST end with the CONFIG_LOCALVERSION suffix the entry's own
-// config declares. A bare upstream release such as 7.2.0 names files another
-// kernel of that release owns, and a reinstall removes the trees it replaces.
-func cachedKernelRelease(cache, builder string) (string, error) {
+// cachedKernelRelease answers the release every installed path is named for:
+// version, the kernel this checkout pins (testdeployment.KernelVersionFile),
+// followed by the CONFIG_LOCALVERSION suffix the entry's own config declares.
+// The entry's one lib/modules directory MUST be that release. A bare upstream
+// release such as 7.2.0 names files another kernel of that release owns, and a
+// reinstall removes the trees it replaces; an entry built before a
+// kernel.version bump would install a kernel the checkout no longer pins.
+func cachedKernelRelease(cache, version, builder string) (string, error) {
 	modules := filepath.Join(cache, "lib", "modules")
 	entries, err := os.ReadDir(modules)
 	if err != nil {
@@ -438,6 +446,12 @@ func cachedKernelRelease(cache, builder string) (string, error) {
 		return "", errors.New(tb.Str("the runtime kernel in ").Str(cache).Str(" is release ").Str(release).
 			Str(", which does not end with its CONFIG_LOCALVERSION ").Str(suffix).
 			Str(" (gokrazy/kernel/runtime.config). Rebuild it with:\n").Str(runtimeKernelRebuild(builder)).String())
+	}
+	if want := version + suffix; release != want {
+		var tb textbuf.Buffer
+		return "", errors.New(tb.Str("the runtime kernel in ").Str(cache).Str(" is release ").Str(release).
+			Str(", not ").Str(want).Str(", the kernel ").Str(testdeployment.KernelVersionFile).
+			Str(" pins. Rebuild it with:\n").Str(runtimeKernelRebuild(builder)).String())
 	}
 	return release, nil
 }
@@ -499,8 +513,9 @@ func dockerKernelInstallSteps(cache, release string) []installStep {
 			filepath.Join(cache, "config"), "/boot/config-" + release}},
 		{Why: "remove the modules an earlier install of this release left, so the copy replaces them rather than nesting inside them",
 			Argv: []string{sudoBin, "rm", "-rf", "/lib/modules/" + release}},
-		{Why: "install its modules", Argv: []string{sudoBin, "cp", "-a",
-			filepath.Join(cache, "lib", "modules", release), "/lib/modules/" + release}},
+		{Why: "install its modules, owned by root rather than by the cache's builder, since root loads them",
+			Argv: []string{sudoBin, "cp", "-a", "--no-preserve=ownership",
+				filepath.Join(cache, "lib", "modules", release), "/lib/modules/" + release}},
 		{Why: "remove the initramfs an earlier install of this release built, which update-initramfs -c does not replace",
 			Argv: []string{sudoBin, "rm", "-f", "/boot/initrd.img-" + release}},
 		{Why: "build its initramfs", Argv: []string{sudoBin, "update-initramfs", "-c", "-k", release}},
