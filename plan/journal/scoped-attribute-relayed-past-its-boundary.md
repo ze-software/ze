@@ -1,0 +1,3 @@
+| Date | Spec | Surface | Symptom | Fix |
+|------|------|---------|---------|-----|
+| 2026-10-30 | rfc-figures-sectioned-presentation (found in review) | BGP extended-community relay, `ExtendedCommunity` (`internal/core/bgp/attribute/community.go`) | A type 0x43 origin validation state community from an EBGP peer is relayed unchanged to every IBGP peer: nothing reads 0x43 or strips it at the AS boundary, so an outside AS can mark routes Valid inside ours. RFC 8097 Section 2: "By default, implementations MUST drop the origin validation state extended community if received from an External BGP (EBGP) peer, without processing it further." | open: RFC8097-2-4 gap |
