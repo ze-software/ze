@@ -70,6 +70,13 @@ This path is Linux-only.
   installs the AH states, and reads every multicast and local-unicast state's
   replay window from Linux XFRM: 64 when enabled, zero when explicitly disabled
   or omitted. This tests the kernel boundary, not only the SA builder.
+- **ESP confidentiality accepts only AES-CBC and the null cipher.** This block is
+  Ze's only manually keyed SA, and a counter-mode cipher (AES-GCM, AES-CCM,
+  AES-CTR, ChaCha20-Poly1305) keyed by hand reuses its counter after a reboot,
+  because nothing rekeys the SA. Config validation refuses any other
+  `encryption-algorithm`, so no counter-mode SA reaches the installer.
+  <!-- source: internal/plugins/ospf/config_ipsec.go -- validateESPConfidentiality -->
+  `TestManualKeyingRefusesCounterModeCiphers` pins the refusal.
 - **The shared IKE dataplane gained additive, zero-valued fields** for the
   selector, the upper protocol, the ifindex, policy removal and the algorithm
   plan. IKE is byte-identical with them at their zero values.

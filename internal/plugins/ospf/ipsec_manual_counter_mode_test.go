@@ -1,4 +1,4 @@
-// Design: docs/architecture/ospf/ospfv3-ipsec.md -- RFC 4552 manually keyed SAs
+// Design: docs/architecture/ospf/ospf-ext-16-ipsec-auth.md -- RFC 4552 manually keyed SAs
 // Related: config_ipsec.go -- validateESPConfidentiality
 //
 // VALIDATES: the OSPFv3 RFC 4552 IPsec block is Ze's only manually keyed SA, and its
