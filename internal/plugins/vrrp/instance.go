@@ -145,6 +145,17 @@ type engineDeps struct {
 	// or the Virtual Router MAC stays a black hole.
 	clearBackupFilter func(instanceOwner string) error
 
+	// joinSolicitedNode makes the virtual-MAC device receive the
+	// Solicited-Node groups of the IPv6 virtual addresses before they are
+	// registered, because the iface reconcile installs them later and the
+	// kernel joins a group only with its address (solicitednode_linux.go). The
+	// caller MUST call leaveSolicitedNode when the instance stops being Active.
+	joinSolicitedNode func(instanceOwner, device string, vips []netip.Addr) error
+	// leaveSolicitedNode drops the memberships joinSolicitedNode took. It MUST
+	// be called after joinSolicitedNode once the instance gives its addresses
+	// up, or a Backup keeps receiving solicitations for them.
+	leaveSolicitedNode func(instanceOwner string) error
+
 	// parentReady reports whether the unit's device can host a virtual router:
 	// operationally up, with an address of this family to source advertisements
 	// from. Keyed on the PARENT, never on the macvlan: the kernel leaves a
@@ -489,7 +500,11 @@ func (in *instance) shutdown() {
 
 // dispatch runs one event through the FSM and executes the resulting actions in
 // order. Ordering matters: the FSM emits, for example, InstallVIPs before
-// AnnounceFailover so the address exists before it is advertised to the link.
+// AnnounceFailover, so the dataplane filters and the Solicited-Node memberships
+// are in place and the addresses are registered before the failover is
+// announced. Registering an address does not install it: the iface reconcile
+// does that later, on its own worker, so the announcement can leave before the
+// kernel holds the address.
 func (in *instance) dispatch(ev fsm.Event) {
 	in.mu.Lock()
 	defer in.mu.Unlock()
@@ -581,6 +596,12 @@ func (in *instance) doSendAdvert(priority uint8, intervalMs int) {
 // The filter goes in FIRST, so the kernel never holds the address ahead of the
 // rule that governs what it accepts.
 //
+// The Solicited-Node memberships go in before the addresses are registered.
+// RFC 9568 Section 6.4.3 requires the Active router to be a member of each
+// IPv6 address's Solicited-Node group, and the kernel joins one only when the
+// iface reconcile adds the address, after this returns; a host's first
+// solicitation would otherwise meet a filter that drops it.
+//
 // The owner filter goes in before the addresses too. For a virtual address the
 // parent also holds as a real address, the parent answers ARP and Neighbor
 // Solicitations with its physical MAC, which RFC 9568 Sections 8.1.2 and 8.2.2
@@ -605,6 +626,11 @@ func (in *instance) doInstallVIPs(vips []netip.Addr) {
 		logger().Error("vrrp: set address-owner dataplane filter failed",
 			"interface", in.spec.Interface, "group", in.spec.Name, "vrid", in.spec.VRID,
 			"device", in.dev, "parent", in.spec.ParentDevice, "error", err)
+	}
+	// RFC 9568 Section 6.4.2, Section 6.4.3
+	if err := in.deps.joinSolicitedNode(in.own, in.dev, vips); err != nil {
+		logger().Error("vrrp: join the Solicited-Node groups of the virtual addresses failed; hosts' first Neighbor Solicitations for them may be dropped until the kernel installs the addresses and joins the groups itself. Check the device stack with `ip -d link show <device>` and the groups each device holds with `cat /proc/net/dev_mcast`",
+			"interface", in.spec.Interface, "group", in.spec.Name, "vrid", in.spec.VRID, "device", in.dev, "error", err)
 	}
 	if err := in.deps.installVIPs(in.dev, in.own, in.spec.vipCIDRs(vips)); err != nil {
 		logger().Error("vrrp: install virtual addresses failed",
@@ -647,6 +673,9 @@ func (in *instance) clearBackupDiscard() {
 // It is withdrawn at all because a drop rule that outlives this instance would
 // silence an address the next Active router is allowed to answer on.
 //
+// The Solicited-Node memberships are dropped after the addresses are
+// deregistered, the reverse of doInstallVIPs.
+//
 // The owner filter is withdrawn after the addresses for the same reason: once
 // the virtual-MAC device no longer holds an owned address, the parent is its
 // only holder and has to answer for it again.
@@ -657,6 +686,10 @@ func (in *instance) clearBackupDiscard() {
 func (in *instance) doRemoveVIPs() {
 	in.setBackupDiscard()
 	in.deps.removeVIPs(in.own)
+	if err := in.deps.leaveSolicitedNode(in.own); err != nil {
+		logger().Error("vrrp: leave the Solicited-Node groups of the virtual addresses failed",
+			"interface", in.spec.Interface, "group", in.spec.Name, "vrid", in.spec.VRID, "device", in.dev, "error", err)
+	}
 	if err := in.deps.clearAcceptFilter(in.own); err != nil {
 		logger().Error("vrrp: withdraw accept-mode dataplane filter failed",
 			"interface", in.spec.Interface, "group", in.spec.Name, "vrid", in.spec.VRID,

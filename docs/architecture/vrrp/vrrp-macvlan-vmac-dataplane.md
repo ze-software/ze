@@ -189,6 +189,117 @@ the engine re-asserts the IPv6 knobs on every config apply as it does the IPv4
 recipe. `TestVRRPSolicitedNACarriesRouterFlag` captures the R flag set with host
 forwarding off, and clear once the macvlan's knob is cleared.
 
+### The Active macvlan joins its addresses' solicited-node groups before it holds them
+
+<!-- source: internal/plugins/vrrp/solicitednode_linux.go -- joinSolicitedNode, leaveSolicitedNode, syncReceiveFilter, linkIsPeer -->
+<!-- source: internal/plugins/vrrp/instance.go -- doInstallVIPs, doRemoveVIPs, reconfigure -->
+<!-- source: internal/plugins/vrrp/fsm/fsm.go -- masterConfigUpdated -->
+
+RFC 9568 Section 6.4.3 requires the Active router to be a member of the
+Solicited-Node multicast group of each IPv6 virtual address. The kernel joins
+that group itself only when the address is added, and the address is added
+late. A promotion registers the addresses with `iface.RegisterOwnedAddresses`,
+which records them and triggers a reconcile; the iface reconcile installs them
+later, on its own worker. Even then the kernel joins the group from the DAD work
+the add queues (`addrconf_dad_begin`, `net/ipv6/addrconf.c`), and the join's
+receive-filter update is deferred again: for a device with
+`ndo_change_rx_flags`, which a macvlan has, `__dev_set_rx_mode` queues it to the
+netdev work queue (`net/core/dev_addr_lists.c`). Until that work runs,
+`macvlan_handle_frame` finds the group in neither port filter and drops a
+host's Neighbor Solicitation before the macvlan sees it. These kernel
+statements were read in the Linux 7.2.9 source, the kernel.org stable tag
+`v7.2.9`, at the paths named. The VLAN step below was observed, not read:
+`TestSolicitedNodeJoinReachesTheBottomOfAVLANStack` finds the group on every
+device of a two-VLAN stack when the join returns.
+
+So `doInstallVIPs` joins the groups before it registers the addresses. For each
+IPv6 virtual address it adds `33:33:ff` followed by the address's low 24 bits
+to the macvlan with `PACKET_ADD_MEMBERSHIP` (`PACKET_MR_MULTICAST`) on a packet
+socket of protocol 0, which receives nothing. The membership is link-layer
+only: it sends no MLD report and creates no IPv6 state. `PACKET_ADD_MEMBERSHIP`
+adds the group to the macvlan's list but leaves the filter update queued, like
+the kernel's own join, so Ze then sends one `RTM_NEWLINK` that changes nothing
+to the macvlan and to each device under it. `do_setlink` ends in
+`netif_rx_mode_sync` (`net/core/rtnetlink.c`), which runs a queued update
+inline. The macvlan's update is `macvlan_set_mac_lists`, which recomputes the
+macvlan's and its port's filters and syncs the groups onto the parent, whose
+own update is queued in turn; a VLAN parent's update (`vlan_dev_set_rx_mode`)
+syncs them one device further down. So the walk follows each device's link
+(`IFLA_LINK`) to the bottom of the stack. It ends after a device that reports
+no link, and after a device whose link is its peer rather than a device under
+it: a veth or a netkit device reports its peer's index as its link
+(`veth_get_iflink`, `drivers/net/veth.c`; `netkit_get_iflink`,
+`drivers/net/netkit.c`), and nothing this end's groups reach is past it. That
+holds in whichever namespace the peer is, so a macvlan on a container's `eth0`,
+a veth whose peer is in the host namespace, is synced without error. It also
+ends after a device it already synced. A device under the stack that is in
+another namespace is reported as an error: a request from this namespace cannot
+reach it, so its filter catches up only when the kernel's queued update runs.
+The kernel stacks at most eight devices (`MAX_NEST_DEV`,
+`include/linux/netdevice.h`, enforced in `__netdev_upper_dev_link`), so the walk
+syncs up to eight and reports a ninth as an error. When the promotion returns,
+every filter down the stack admits the groups. A bond's members are not on the
+`IFLA_LINK` chain, so their filters follow the bond's on the kernel's schedule.
+
+The socket is the membership's whole lifetime: closing it drops every group it
+holds. `doRemoveVIPs` closes it after the addresses are deregistered, on
+demotion and on shutdown, so a Backup holds no membership of its own. Its
+macvlan still receives a group while the kernel holds the address, until the
+reconcile removes it. A join that fails is logged with its cause and the
+commands that show the device stack and its groups, and does not stop the
+addresses being registered.
+
+A commit that changes the virtual addresses of an Active router reaches
+`doInstallVIPs` again (`masterConfigUpdated`, `fsm/fsm.go`), and the join
+replaces the membership: it opens the new socket before it closes the old one,
+so a group both address sets hold never leaves the filter. A replace whose new
+socket cannot be opened, or whose device cannot be found, is logged and keeps
+the old socket, so the old address set's groups stay joined until the next
+leave closes it.
+
+One case is not covered. The membership is held by interface index, and the
+kernel drops it when the device goes away (`packet_dev_mclist_delete` on
+`NETDEV_UNREGISTER`, `net/packet/af_packet.c`). If the macvlan is deleted and
+created again while the router stays Active, nothing joins on the new device:
+the instance's link watch covers the parent and the tracked interfaces, not the
+macvlan, so no event reaches `doInstallVIPs`. The kernel still joins each
+group itself once the reconcile adds the address to the new device, so the
+loss is the same early window this section exists to close, not a lasting one.
+
+`TestVRRPActiveJoinsSolicitedNodeBeforeItsAddressIsInstalled` drives the
+promotion through the FSM and the real address-owner registry, which installs
+nothing, as in production when the promotion returns. It requires the group in
+the macvlan's multicast list and synced onto the parent's before the address
+exists. It then swaps one virtual address through `reconfigure`, the commit
+path, while a second goroutine samples the multicast list: the new group
+appears, the old one goes, and the group of `fe80::1`, held by both sets, is
+never missing. With the old membership closed before the new one opens, that
+check failed 20 of 20 runs. After a demotion the group is absent again. A
+second promotion then plays the
+reconcile with the product's netlink backend: once the address is usable, the
+host sends one solicitation with no retry, and the answer must carry the
+virtual MAC. On Linux 7.2.9, without the join the test failed 20 of 20 runs,
+and without the `RTM_NEWLINK` it failed 20 of 20 at the parent check; with
+both it passed 40 of 40. The same deferred update cost
+`TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly` its answer in 8 of 25 runs
+before its readiness helper gained the same no-op `RTM_NEWLINK`: that test adds
+the address itself and waits for the kernel's own join to reach the filter.
+
+`TestSolicitedNodeJoinReachesTheBottomOfAVLANStack` stacks the product's
+macvlan on a VLAN on a VLAN on a veth, joins, and requires the group in the
+list of every device down to the veth when the join returns. Without the stop
+at the veth's peer and the stop at a synced device it failed 5 of 5 runs, the
+walk running between the veth and its peer past its bound. Limiting the walk to
+the macvlan and its parent did not turn it red in 20 runs: the kernel's queued
+update of the lower VLAN ran before the test read the list, so that read cannot
+tell the walk's depth from the kernel's own catch-up. The walk itself is proven
+over a fake device chain, through the lookup and no-op functions
+`syncReceiveFilter` takes, by the `TestReceiveFilterWalk` unit tests: three
+devices get three no-ops, top down; a veth ends the walk whether its peer is
+here or in another namespace; a lower device in another namespace is an error;
+eight devices are walked whole and a ninth is an error. Each went red under the
+break of the step it covers.
+
 ### The macvlan derives no link-local from the virtual MAC
 
 <!-- source: internal/plugins/iface/netlink/macvlan_linux.go -- setMacvlanAddrGenNone -->

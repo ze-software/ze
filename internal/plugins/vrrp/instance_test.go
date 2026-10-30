@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"net/netip"
 	"slices"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -58,6 +59,11 @@ type fakeDeps struct {
 	// kernel would hold enters dataplane.
 	ownerFilters []ownerFilterCall
 	ownerHeld    map[string]bool
+	// solicited records every Solicited-Node membership call in order:
+	// "join:<device>:<addresses>:after-<n>-installs" and "leave:after-<n>-removes",
+	// so a test reads both what was joined and where it fell against the
+	// address install and remove calls.
+	solicited []string
 	// discards records every backup-filter call in order: "on:<device>" for
 	// setBackupFilter, "off" for clearBackupFilter.
 	discards []string
@@ -182,6 +188,18 @@ func (f *fakeDeps) deps() engineDeps {
 			f.mu.Lock()
 			defer f.mu.Unlock()
 			f.discards = append(f.discards, "off")
+			return nil
+		},
+		joinSolicitedNode: func(_, device string, vips []netip.Addr) error {
+			f.mu.Lock()
+			defer f.mu.Unlock()
+			f.solicited = append(f.solicited, "join:"+device+":"+fmtAddrs(vips)+":after-"+strconv.Itoa(len(f.installs))+"-installs")
+			return nil
+		},
+		leaveSolicitedNode: func(string) error {
+			f.mu.Lock()
+			defer f.mu.Unlock()
+			f.solicited = append(f.solicited, "leave:after-"+strconv.Itoa(len(f.removes))+"-removes")
 			return nil
 		},
 		recordRxError: func(_ transport.InstanceKey, reason string) {
