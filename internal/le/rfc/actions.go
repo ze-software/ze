@@ -188,7 +188,8 @@ var actions = leaction.New(area,
 			"profile <name> limits it to one use-case profile's required members, with a rollup whose " +
 			"percentage counts the required tier only, then the optional members under their own rollup, " +
 			"then the candidates: RFCs one builds-on or updates edge from a member that no tier lists, which " +
-			"are never owed or counted. For an aggregate it lists the members naming it",
+			"are never owed or counted. For an aggregate it lists the members naming it, then those whose " +
+			"`Aggregate tier` row is `optional` under their own rollup",
 		Parameters: []leaction.Parameter{
 			{Keyword: keyProfile, Kind: leaction.KindLabel, Help: "the rfc/profiles/ profile or aggregate to limit the tree to", Value: "name", Requirement: leaction.Optional, Source: profileCandidates},
 		},

@@ -120,6 +120,12 @@ const (
 	// metaAggregate names the aggregate of a summary whose `Support` is `-`:
 	// it renders no row and still joins its aggregate's rollup.
 	metaAggregate = "Aggregate"
+	// metaAggregateTier moves a summary into its aggregate's optional tier:
+	// its one value is aggregateTierOptional, and an absent row is the
+	// required tier. It qualifies the aggregate the `Support` or `Aggregate`
+	// cell names rather than naming one, so an aggregate is declared once.
+	metaAggregateTier     = "Aggregate tier"
+	aggregateTierOptional = "optional"
 	// metaUseCases names the use-case profiles that require this RFC: it is
 	// counted in each one's figures. metaOptionalUseCases names those that
 	// list it as optional: shown with its own figures, never counted.
@@ -308,6 +314,11 @@ type Meta struct {
 	// its `Aggregate` cell. The public row renders under the aggregate's
 	// heading, in the aggregate's table shape.
 	Aggregate string
+	// AggregateOptional is whether the summary sits in Aggregate's optional
+	// tier, declared by `Aggregate tier | optional`: its rows leave the
+	// aggregate's required figures and count in its optional ones. False is
+	// the required tier, which an absent row declares.
+	AggregateOptional bool
 	// UseCases is the use-case profiles that require this RFC, counted in
 	// each one's figures, and OptionalUseCases those that list it as
 	// optional, never counted. Both sorted, both empty for `-`, and no name
@@ -409,7 +420,8 @@ var knownMetaLabels = map[string]bool{
 	metaSupportName: true, metaSupportArea: true, metaSupportStatus: true,
 	metaSupportCoverage: true, metaSupportRemain: true,
 	metaImplementation: true, metaImplementationReason: true, metaAggregate: true,
-	metaUseCases: true, metaOptionalUseCases: true, metaZeRoles: true,
+	metaAggregateTier: true,
+	metaUseCases:      true, metaOptionalUseCases: true, metaZeRoles: true,
 	metaDeclinedFeatures: true,
 }
 
@@ -716,14 +728,18 @@ func namesAnImplementer(reason string) bool {
 	return namedComponentRE.MatchString(stripped)
 }
 
-// readSupport fills the public row and the aggregate, refusing an absent
-// declaration and a value that is not one aggregate name.
+// readSupport fills the public row, the aggregate and its tier, refusing an
+// absent declaration, a value that is not one aggregate name, and a tier that
+// is not `optional`.
 //
 // Whether the aggregate EXISTS, and whether the cells fit its table shape, is
 // not decided here: the aggregates are files beside the summaries, and this
 // reader sees one summary's text. checkAggregate decides both once the
 // profiles are loaded (summaryMetas).
 func readSupport(values map[string]string, out *Meta, where string) error {
+	if err := readAggregateTier(values, out, where); err != nil {
+		return err
+	}
 	declared, held := values[metaSupport]
 	if !held {
 		var tb textbuf.Buffer
@@ -761,6 +777,32 @@ func readSupport(values map[string]string, out *Meta, where string) error {
 	out.Coverage = values[metaSupportCoverage]
 	out.Remaining = values[metaSupportRemain]
 	return nil
+}
+
+// readAggregateTier sets AggregateOptional from the `Aggregate tier` row,
+// refusing `required`, which the absent row already declares, so the tier has
+// one spelling, and any other value, which a reader would otherwise count as
+// required while its author meant something else.
+func readAggregateTier(values map[string]string, out *Meta, where string) error {
+	tier, held := values[metaAggregateTier]
+	// refuse-by-default: guards metaAggregateTier -- an absent row declares the required tier, the counted one
+	if !held {
+		return nil
+	}
+	if tier == aggregateTierOptional {
+		out.AggregateOptional = true
+		return nil
+	}
+	var tb textbuf.Buffer
+	tb.Str(where).Str(": `").Str(metaAggregateTier).Str("` is ").Str(pyRepr(tier))
+	if tier == "required" {
+		return parseErr(tb.Str(", which a summary with no `").Str(metaAggregateTier).
+			Str("` row already declares. Delete the row, or write `").Str(aggregateTierOptional).
+			Str("` to move the RFC into its aggregate's optional tier"))
+	}
+	return parseErr(tb.Str(", which is not a tier. Write `| ").Str(metaAggregateTier).Str(" | ").
+		Str(aggregateTierOptional).Str(" |` to list the RFC in its aggregate's optional figures ").
+		Str("only, or delete the row to count it in the aggregate's required figures"))
 }
 
 // aggregateName refuses a cell that is not one lower-case hyphenated name,
@@ -886,7 +928,9 @@ func checkUseCases(meta *Meta, profiles Profiles, where string) error {
 			tb.Str(where).Str(": `").Str(row.label).Str("` names ").Str(pyRepr(name))
 			if _, aggregate := profiles.Aggregates[name]; aggregate {
 				tb.Str(", which is a technology aggregate, not a use-case profile: an aggregate is named in ").
-					Str("`").Str(metaSupport).Str("` or `").Str(metaAggregate).Str("`")
+					Str("`").Str(metaSupport).Str("` or `").Str(metaAggregate).Str("`, and `| ").
+					Str(metaAggregateTier).Str(" | ").Str(aggregateTierOptional).
+					Str(" |` lists the RFC in that aggregate's optional tier")
 			} else {
 				tb.Str(", but there is no ").Str(profileRel).Byte('/').Str(name).Str(".md")
 			}

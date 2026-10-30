@@ -699,7 +699,8 @@ the lowest nonempty mandatory and optional RFC ceilings. A page carries both cov
 count, then its RFCs grouped by DAG level, roots first, each with a bar for
 the mandatory and the optional figure. For a use case those are its required
 RFCs, the only tier its figures count. Its optional RFCs follow in a separate
-"Optional (not counted)" table with their own bars and their own rollup. An
+"Optional (not counted)" table with their own bars and their own rollup, and
+so do an aggregate's members whose summary writes `| Aggregate tier | optional |`. An
 RFC that is not walked keeps an empty dashed bar and says so in words. The
 figure cards name the keywords each figure counts from `rfc.MandatoryKeywords`
 and `rfc.OptionalKeywords`. A use case's rows also name the summary whose

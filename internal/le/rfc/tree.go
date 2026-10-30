@@ -68,8 +68,9 @@ type TreeReport struct {
 	// rule judges.
 	Rollup *ScopeRollup `json:"rollup"`
 	Rows   []*TreeRow   `json:"rows"`
-	// Optional is a use-case profile's optional tier with its own rollup;
-	// nil for the whole corpus and for an aggregate.
+	// Optional is a profile's optional tier with its own rollup: a use-case
+	// profile's `Optional use cases` members, or an aggregate's members whose
+	// `Aggregate tier` is optional. Nil for the whole corpus.
 	Optional *TreeTier `json:"optional"`
 	// Candidates is the RFCs one edge from a member of a use-case profile
 	// that neither tier lists: advisory, never owed and never counted. Empty
@@ -145,11 +146,11 @@ func (c *priorityCorpus) tree(profile string) (*TreeReport, error) {
 	rollup := c.rollupOfScopes([]profileScope{scope})
 	report.Rollup = &rollup
 	report.Rows = c.treeRows(useCases, &scope, false)
+	report.Optional = &TreeTier{Rollup: c.optionalRollupOfScopes([]profileScope{scope}),
+		Rows: c.treeRows(useCases, &scope, true)}
 	if scope.kind == profileKindTechnology {
 		return report, nil
 	}
-	report.Optional = &TreeTier{Rollup: c.optionalRollupOfScopes([]profileScope{scope}),
-		Rows: c.treeRows(useCases, &scope, true)}
 	report.Candidates = c.candidates(&scope)
 	return report, nil
 }

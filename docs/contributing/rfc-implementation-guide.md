@@ -677,7 +677,9 @@ never sums the two, because a nightly tier is not merge-gate proof.
   profiles that require the RFC, counted in their figures, and
   `| Optional use cases | lns |` those that list it as optional, never counted.
   No profile file lists a member and no citation adds one, so a forgotten row
-  is a parse error rather than an RFC quietly not owed.
+  is a parse error rather than an RFC quietly not owed. Within its aggregate a
+  summary is required unless it writes `| Aggregate tier | optional |`, which
+  counts it in the aggregate's optional figures only.
 
   Four related reds come from the same place. First, a public row that claims support
   over a summary with zero gated requirements. The escape is evidence that zero is

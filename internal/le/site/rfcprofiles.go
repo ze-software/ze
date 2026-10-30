@@ -364,14 +364,16 @@ func rfcProfileBody(report *rfc.TreeReport, display map[string]string, useCases 
 	body.Str("</section>\n")
 	if report.Optional != nil && len(report.Optional.Rows) != 0 {
 		body.Str("<section><h2>").Str(rfcProfileOptionalHeading).Str("</h2>\n<p>").
-			Str(html.EscapeString(rfcProfileOptionalProse(&report.Optional.Rollup))).Str("</p>\n")
+			Str(html.EscapeString(rfcProfileOptionalProse(report))).Str("</p>\n")
 		body.Str("<p>").Str(html.EscapeString(rfcCeilingStatement(report.Optional.Rows))).Str("</p>\n")
 		var rows textbuf.Buffer
 		for _, row := range report.Optional.Rows {
 			mandatory, optional := rfcFigureCells(row)
-			rows.Str(rfcRowCells(rfcProfileStemHTML(row, display), html.EscapeString(row.Title),
-				mandatory, optional,
-				html.EscapeString(row.Path)))
+			cells := []string{rfcProfileStemHTML(row, display), html.EscapeString(row.Title), mandatory, optional}
+			if !report.IsAggregate() {
+				cells = append(cells, html.EscapeString(row.Path))
+			}
+			rows.Str(rfcRowCells(cells...))
 		}
 		body.Str(rfcTableHTML(rfcHeadCells(rfcProfileColumns(report)...), rows.String())).Str("\n</section>\n")
 	}
@@ -379,14 +381,21 @@ func rfcProfileBody(report *rfc.TreeReport, display map[string]string, useCases 
 	return body.String()
 }
 
-// rfcProfileOptionalHeading heads a use case's optional tier.
+// rfcProfileOptionalHeading heads a profile's optional tier.
 const rfcProfileOptionalHeading = "Optional (not counted)"
 
-// rfcProfileOptionalProse says what the optional tier is, with its own rollup.
-func rfcProfileOptionalProse(rollup *rfc.ScopeRollup) string {
+// rfcProfileOptionalProse says what report's optional tier is and which
+// summary row declares it, with the tier's own rollup.
+func rfcProfileOptionalProse(report *rfc.TreeReport) string {
+	figures := " Their own figures: " + report.Optional.Rollup.String() + "."
+	if report.IsAggregate() {
+		return "RFCs of this aggregate listed as optional, each declared by the Aggregate tier row of its " +
+			"own summary. They count in none of the figures above until the owner brings one into scope " +
+			"by deleting that row." + figures
+	}
 	return "RFCs this use case lists as optional, each declared by the Optional use cases row of its " +
 		"own summary. They count in none of the figures above until the owner brings one into scope " +
-		"by moving it to the Use cases row. Their own figures: " + rollup.String() + "."
+		"by moving it to the Use cases row." + figures
 }
 
 // rfcProfileMirror states the same page in Markdown, in the page's order.
@@ -417,13 +426,16 @@ func rfcProfileMirror(report *rfc.TreeReport, display map[string]string, useCase
 	}
 	if report.Optional != nil && len(report.Optional.Rows) != 0 {
 		out.Str("\n## ").Str(rfcProfileOptionalHeading).Str("\n\n").
-			Str(rfcProfileOptionalProse(&report.Optional.Rollup)).Str("\n\n").
+			Str(rfcProfileOptionalProse(report)).Str("\n\n").
 			Str(rfcCeilingStatement(report.Optional.Rows)).Str("\n\n").
 			Str(rfcMirrorHead(rfcProfileColumns(report)...))
 		for _, row := range report.Optional.Rows {
 			mandatory, optional := rfcFigureMirrorCells(row)
-			out.Str(rfcMirrorRow(rfcProfileStemMirror(row, display), rfcMirrorCell(row.Title), mandatory,
-				optional, rfcMirrorCell(row.Path)))
+			cells := []string{rfcProfileStemMirror(row, display), rfcMirrorCell(row.Title), mandatory, optional}
+			if !report.IsAggregate() {
+				cells = append(cells, rfcMirrorCell(row.Path))
+			}
+			out.Str(rfcMirrorRow(cells...))
 		}
 	}
 	return out.String()

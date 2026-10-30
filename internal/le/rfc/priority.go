@@ -97,7 +97,8 @@ func priorityCorpusOf(in *RenderInput) (*priorityCorpus, error) {
 // the required tier, declared by each summary's `Use cases` row, and optional
 // the optional tier, declared by `Optional use cases`; the two are disjoint
 // because ParseMeta refuses a name in both rows. For an aggregate, members is
-// the summaries naming it and optional is empty.
+// the summaries naming it and optional those of them whose `Aggregate tier`
+// is optional; the two are disjoint because one flag places each summary.
 type profileScope struct {
 	name     string
 	kind     string
@@ -107,21 +108,24 @@ type profileScope struct {
 }
 
 // scope answers one named profile: a use-case profile's two declared tiers,
-// or a technology aggregate's members. A name with no rfc/profiles/ file is
-// refused naming every valid one, and its example names verb, the action the
-// user ran (`tree` or `next`).
+// or a technology aggregate's members split by their `Aggregate tier`. A
+// name with no rfc/profiles/ file is refused naming every valid one, and its
+// example names verb, the action the user ran (`tree` or `next`).
 func (c *priorityCorpus) scope(name, verb string) (profileScope, error) {
 	if useCase, held := c.profiles.UseCases[name]; held {
 		return c.useCaseScope(&useCase), nil
 	}
 	if _, held := c.profiles.Aggregates[name]; held {
-		members := map[string]bool{}
+		out := profileScope{name: name, kind: profileKindTechnology,
+			members: map[string]bool{}, optional: map[string]bool{}}
 		for stem := range c.metas {
-			if c.metas[stem].Aggregate == name {
-				members[stem] = true
+			meta := c.metas[stem]
+			if meta.Aggregate != name {
+				continue
 			}
+			out.tier(meta.AggregateOptional)[stem] = true
 		}
-		return profileScope{name: name, kind: profileKindTechnology, members: members, optional: map[string]bool{}}, nil
+		return out, nil
 	}
 	var tb textbuf.Buffer
 	tb.Str("no profile ").Str(pyRepr(name)).Str(" under ").Str(profileRel).

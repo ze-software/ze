@@ -415,6 +415,18 @@ with no row writes `| Support | - |` and names it in an `Aggregate` cell
 retired `<section> <rank>` form is refused, and so is an `Aggregate` cell
 beside a `Support` cell that already names one.
 
+A summary counts in its aggregate's required figures unless it also writes
+`| Aggregate tier | optional |`. That row moves it into the aggregate's
+optional tier: its rows leave the aggregate's required figures and count in
+the optional tier's own rollup, the way a use-case profile's optional members
+do. The row qualifies the aggregate the `Support` or `Aggregate` cell already
+names rather than naming one, so an aggregate is declared once. `optional` is
+its one value: `required` is refused because an absent row says it, and any
+other word is refused rather than read as required (`readAggregateTier`). The
+owner lists an RFC as optional this way when it is not a priority for the
+first release, and the summary's prose says why.
+<!-- source: internal/le/rfc/meta.go -- readAggregateTier -->
+
 The aggregates are files, `rfc/profiles/<name>.md`, one `| Field | Value |`
 table each, opening with `# Profile: <name>`. `./le rfc check` loads them
 before the summaries (`LoadProfiles`), and a summary naming an aggregate with
@@ -1413,7 +1425,8 @@ A use-case profile's members are the summaries that declare it, in two tiers:
 the required tier from each `Use cases` row and the optional tier from each
 `Optional use cases` row (`useCaseScope`, the one place membership is built).
 No edge adds a member. A technology aggregate's members are the summaries
-naming it. The graph still orders the rows, roots before leaves, and it
+naming it, split by their `Aggregate tier` row: required unless it says
+`optional` (`scope`). The graph still orders the rows, roots before leaves, and it
 answers the candidates.
 
 `./le rfc tree` prints one row per node, roots to leaves: level, cycle
@@ -1425,8 +1438,10 @@ profile requires first. `profile <name>` limits it to that profile's required
 members, each with the declaration that put it there (`route-server: required
 by rfc/short/rfc7947.md`), under the rollup the profile percentage is. Then
 comes the optional tier, `optional members, not counted`, with its own rollup
-and rows (`route-server: optional in rfc/short/rfc2918.md`). Last come the
-candidates: each `builds-on` target or updater of a member, in either tier,
+and rows (`route-server: optional in rfc/short/rfc2918.md`); an aggregate's
+optional tier is its members whose `Aggregate tier` is `optional`
+(`ospf: optional in rfc/short/rfc4577.md`). Last, for a use-case profile only,
+come the candidates: each `builds-on` target or updater of a member, in either tier,
 that neither tier lists, once, with the member and edge that name it
 (`rfc7454 builds-on rfc5082`), by level and then number. A candidate is
 advisory: it is never owed and never counted, and listing one is a summary

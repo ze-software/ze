@@ -224,3 +224,53 @@ func TestBaselineReadsSummariesWithoutUseCaseRows(t *testing.T) {
 		t.Error("the baseline rewrite changed a summary already carrying its use-case rows")
 	}
 }
+
+// TestAggregateTierOptional: a summary joins its aggregate's optional tier by
+// writing `| Aggregate tier | optional |` beside the `Support` or `Aggregate`
+// cell that names the aggregate, and its absence is the required tier.
+// Method: parse the rowed and the unrowed shape with and without the row,
+// then the refused values: `required`, which the absent row already says,
+// and a word that is no tier.
+// PREVENTS: a second way to name the aggregate, and a misspelled tier read as
+// the required one.
+func TestAggregateTierOptional(t *testing.T) {
+	where := "rfc/short/rfc9999.md"
+	support := "| Support | " + FixtureAggregate + " |"
+	required, err := ParseMeta(aggregateMeta(support), "rfc9999", where)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if required.AggregateOptional {
+		t.Errorf("a summary with no `Aggregate tier` row parsed as optional: %+v", required)
+	}
+	rowed, err := ParseMeta(aggregateMeta(support+"\n| Aggregate tier | optional |"), "rfc9999", where)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !rowed.AggregateOptional || rowed.Aggregate != FixtureAggregate || !rowed.HasRow() {
+		t.Errorf("a rowed optional summary parsed as %+v", rowed)
+	}
+	unrowed := strings.NewReplacer(support, "| Support | - |\n| Aggregate | tunnels |\n| Aggregate tier | optional |",
+		"| Support area | Widgets |\n", "", "| Support status | Partial |\n", "",
+		"| Support coverage | unit tests |\n", "", "| Support remaining | Zero MUST gaps. |\n", "").
+		Replace("# RFC 9999\n\n" + selftestMeta)
+	bare, err := ParseMeta(unrowed, "rfc9999", where)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bare.AggregateOptional || bare.Aggregate != "tunnels" || bare.HasRow() {
+		t.Errorf("an unrowed optional summary parsed as %+v", bare)
+	}
+	for value, want := range map[string]string{
+		"required": "Delete the row",
+		"Optional": "not a tier",
+		"":         "not a tier",
+	} {
+		t.Run("value "+value, func(t *testing.T) {
+			_, err := ParseMeta(aggregateMeta(support+"\n| Aggregate tier | "+value+" |"), "rfc9999", where)
+			if err == nil || !strings.Contains(err.Error(), want) || !strings.Contains(err.Error(), where) {
+				t.Fatalf("want a refusal naming %q and the file, got %v", want, err)
+			}
+		})
+	}
+}

@@ -305,3 +305,43 @@ func TestRFCProfileCountLinksToItsRFCs(t *testing.T) {
 		t.Errorf("index mirror does not link the route-server RFC count:\n%s", mirror)
 	}
 }
+
+// TestRFCProfileAggregateOptionalTier: an aggregate's optional tier, the
+// members whose `Aggregate tier` is optional, renders in its own table with
+// the aggregate's four columns and prose naming the row that declares it.
+// Method: render the page body and its mirror for an aggregate carrying one
+// optional member, and count the cells of that member's row.
+// PREVENTS: an optional table one cell wider than its head, and prose that
+// sends an aggregate's reader to the use-case row.
+func TestRFCProfileAggregateOptionalTier(t *testing.T) {
+	zero := 0
+	listed := &rfc.TreeRow{Stem: "rfc4577", Title: "OSPF as the PE/CE Protocol", Level: &zero,
+		Aggregate: "ospf", Summary: true, Walked: true, MandatoryTotal: 2, MandatoryAttainable: 2,
+		Component: []string{}, Path: "ospf: optional in rfc/short/rfc4577.md"}
+	report := &rfc.TreeReport{Profile: "ospf", Title: "OSPF", Heading: "OSPF", Kind: "technology",
+		Rollup: &rfc.ScopeRollup{}, Rows: []*rfc.TreeRow{},
+		Optional: &rfc.TreeTier{Rollup: rfc.ScopeRollup{RFCs: 1, Mandatory: rfc.Figure{Total: 2, Attainable: 2}},
+			Rows: []*rfc.TreeRow{listed}}}
+	display := map[string]string{"rfc4577": "RFC 4577"}
+	body := rfcProfileBody(report, display, nil)
+	mirror := rfcProfileMirror(report, display, nil)
+	for name, text := range map[string]string{"body": body, "mirror": mirror} {
+		if !strings.Contains(text, rfcProfileOptionalHeading) {
+			t.Errorf("%s lacks the optional heading:\n%s", name, text)
+		}
+		if !strings.Contains(text, "Aggregate tier row") || strings.Contains(text, "Optional use cases row") {
+			t.Errorf("%s does not send the reader to the Aggregate tier row:\n%s", name, text)
+		}
+		if strings.Contains(text, listed.Path) {
+			t.Errorf("%s renders a path cell the aggregate's head has no column for:\n%s", name, text)
+		}
+	}
+	for line := range strings.SplitSeq(mirror, "\n") {
+		if !strings.Contains(line, "RFC 4577") {
+			continue
+		}
+		if cells := strings.Count(line, "|") - 1; cells != len(rfcProfileColumns(report)) {
+			t.Errorf("mirror row %q has %d cells, the head %d", line, cells, len(rfcProfileColumns(report)))
+		}
+	}
+}

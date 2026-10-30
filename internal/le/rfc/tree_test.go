@@ -275,6 +275,44 @@ func TestTreeOptionalTierNotCounted(t *testing.T) {
 	}
 }
 
+// TestAggregateOptionalTier: a summary whose `Aggregate tier` is optional
+// leaves its aggregate's required tier and joins its optional one, so its rows
+// count in the optional figure alone. Method: tree base with every summary
+// required, then with rfc9 optional; the required rollup loses rfc9's one
+// mandatory row and the optional rollup carries it.
+func TestAggregateOptionalTier(t *testing.T) {
+	corpus := priorityFixture(t, map[string]bool{})
+	before, err := corpus.tree("base")
+	if err != nil {
+		t.Fatalf("tree base: %v", err)
+	}
+	meta := corpus.metas["rfc9"]
+	meta.AggregateOptional = true
+	corpus.metas["rfc9"] = meta
+	after, err := corpus.tree("base")
+	if err != nil {
+		t.Fatalf("tree base: %v", err)
+	}
+	if slices.Contains(rowStems(after.Rows), "rfc9") {
+		t.Errorf("required rows %v still hold the optional rfc9", rowStems(after.Rows))
+	}
+	if got := rowStems(after.Optional.Rows); !slices.Equal(got, []string{"rfc9"}) {
+		t.Fatalf("optional rows %v, want [rfc9]", got)
+	}
+	if want := "base: optional in rfc/short/rfc9.md"; after.Optional.Rows[0].Path != want {
+		t.Errorf("rfc9 optional path %q, want %q", after.Optional.Rows[0].Path, want)
+	}
+	if after.Rollup.RFCs != before.Rollup.RFCs-1 ||
+		after.Rollup.Mandatory.Total != before.Rollup.Mandatory.Total-1 {
+		t.Errorf("required rollup %+v after, %+v before: want rfc9's RFC and its one MUST row gone",
+			*after.Rollup, *before.Rollup)
+	}
+	optional := after.Optional.Rollup
+	if optional.RFCs != 1 || optional.Mandatory.Total != 1 {
+		t.Errorf("optional rollup %+v, want rfc9 alone with its one MUST row", optional)
+	}
+}
+
 // TestTreeProfileListsCandidates: AC-4's candidates. `tree profile` lists each
 // one-hop builds-on target and updater of a member that no tier lists, once,
 // with the member and edge that name it, by level then number, and counts
