@@ -528,7 +528,8 @@ func (s *pppSession) handleNCPPacket(
 		}
 	}
 
-	ev := codeToEvent(pkt.Code, optsBad)
+	// RFC 1332 Section 2.
+	ev := ncpCodeToEvent(pkt.Code, optsBad)
 	tr := LCPDoTransition(cur, ev)
 	if tr.NewState == cur && len(tr.Actions) == 0 {
 		s.logger.Debug("ppp: NCP no-op transition",
@@ -558,6 +559,26 @@ func (s *pppSession) handleNCPPacket(
 		return true
 	}
 	return false
+}
+
+// ncpCodeToEvent maps the Code of a received IPCP or IPv6CP packet to the
+// automaton event it raises.
+//
+// RFC 1332 Section 2: "Only Codes 1 through 7 (Configure-Request,
+// Configure-Ack, Configure-Nak, Configure-Reject, Terminate-Request,
+// Terminate-Ack and Code-Reject) are used.  Other Codes should be treated as
+// unrecognized and should result in Code-Rejects."
+//
+// RFC 5072 Section 3 says the same of IPv6CP. codeToEvent serves LCP, which
+// also owns Codes 8 to 11 (Protocol-Reject, Echo-Request, Echo-Reply and
+// Discard-Request), so an NCP packet carrying one of those Codes is RUC here
+// before codeToEvent can read it as an LCP maintenance packet. The RUC edge
+// is scj, which sendNCPCodeReject answers on the NCP's own protocol.
+func ncpCodeToEvent(code uint8, optsBad bool) lCPEvent {
+	if code > LCPCodeReject {
+		return LCPEventRUC
+	}
+	return codeToEvent(code, optsBad)
 }
 
 // evalIPCPRequest judges the peer's IPCP Configure-Request.
@@ -778,8 +799,9 @@ func (s *pppSession) performNCPAction(family AddressFamily, act LCPAction, curre
 	case LCPActSCJ:
 		return s.sendNCPCodeReject(family, current)
 	case LCPActSER:
-		// NCPs never emit Echo-Request (RFC 5072 §3 restricts Codes
-		// 8-11); SER should never fire, but stay defensive.
+		// ser is the Opened edge of RXR, and ncpCodeToEvent never raises
+		// RXR: an NCP Code 9 to 11 is RUC (RFC 1332 Section 2, RFC 5072
+		// Section 3). No NCP Echo-Reply exists to send.
 		return true
 	case LCPActIRC, LCPActZRC, LCPActTLU, LCPActTLD, LCPActTLS, LCPActTLF:
 		return true

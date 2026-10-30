@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC1332-4.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/rfc1332_codes_test.go::TestIPCPNeverOffersVanJacobsonCompression",
+    "unit-sha": "76d0c050507ce2ba",
+    "claim-sha": "d1a4230747a2c74d",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/ncp.go::absorbIPCPNak",
+    "producer-sha": "95ce7938cd6e23cd",
+    "break": "body of absorbIPCPNak replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1332-4.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/ppp/rfc1332_codes_test.go::TestIPCPRejectsVanJacobsonCompression",
+    "unit-sha": "6b184c687ba7d7c8",
+    "claim-sha": "c6048c1754e17c34",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/ipcp.go::isKnownIPCPOption",
+    "producer-sha": "291b853605e765e8",
+    "break": "body of isKnownIPCPOption replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1332-4.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/pppoeclient/rfc1332_ipcp_codes_test.go::TestClientIPCPRejectsVanJacobsonCompression",
+    "unit-sha": "6587c45a21058b48",
+    "claim-sha": "e905cb828ca76fb7",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/ipcp.go::ParseIPCPOptions",
+    "producer-sha": "1e8cc3fb4eebd69c",
+    "break": "body of ParseIPCPOptions replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

@@ -7,8 +7,8 @@
     "claim-sha": "ad8fb045d73d3c2f",
     "route": "revert",
     "producer": "internal/component/l2tp/ppp/ncp.go::handleNCPPacket",
-    "producer-sha": "40938caf0839dbb1",
-    "break": "body of handleNCPPacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "3fe8010d3ebf1998",
+    "break": "body of handleNCPPacket replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC1332-2.1-1",

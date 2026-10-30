@@ -37,6 +37,12 @@ func TestRFC1661CorrectedTransitionCells(t *testing.T) {
 // TestRFC1661AckRcvdControlPackets drives actual LCP frame and NCP packet
 // consumers. Reject codes currently classify as RXJ+, never RXJ-; this test
 // makes no claim that a catastrophic rejection is reachable from wire input.
+//
+// Protocol-Reject is an LCP Code only. RFC 1332 Section 2 and RFC 5072
+// Section 3: "Only Codes 1 through 7 (...) are used.  Other Codes should be
+// treated as unrecognized and should result in Code-Rejects." So on IPCP and
+// IPv6CP it is RUC, whose Ack-Rcvd edge is scj/7: one Code-Reject on the
+// NCP's own protocol, and the NCP stays in Ack-Rcvd.
 func TestRFC1661AckRcvdControlPackets(t *testing.T) {
 	for _, code := range []uint8{LCPTerminateAck, LCPCodeReject, LCPProtocolReject} {
 		t.Run(LCPCodeName(code), func(t *testing.T) {
@@ -59,12 +65,33 @@ func TestRFC1661AckRcvdControlPackets(t *testing.T) {
 				} else {
 					ended = s.handleIPv6CPPacket(pkt)
 				}
+				if code == LCPProtocolReject {
+					if ended || s.ncpState(family) != LCPStateAckRcvd {
+						t.Errorf("%v ended=%v state=%v, want ongoing AckRcvd", family, ended, s.ncpState(family))
+					}
+					continue
+				}
 				if ended || s.ncpState(family) != LCPStateReqSent {
 					t.Errorf("%v ended=%v state=%v, want ongoing ReqSent", family, ended, s.ncpState(family))
 				}
 			}
-			if rec.count() != 0 || len(events) != 0 {
-				t.Fatal("NCP transition emitted a frame or lifecycle event")
+			if len(events) != 0 {
+				t.Fatal("NCP transition emitted a lifecycle event")
+			}
+			if code != LCPProtocolReject {
+				if rec.count() != 0 {
+					t.Fatal("NCP transition emitted a frame")
+				}
+				return
+			}
+			frames := decodeFrames(t, rec)
+			if len(frames) != 2 {
+				t.Fatalf("NCP Protocol-Reject drew %d frames, want one Code-Reject per NCP", len(frames))
+			}
+			for i, proto := range []uint16{ProtoIPCP, ProtoIPv6CP} {
+				if frames[i].Proto != proto || frames[i].Pkt.Code != LCPCodeReject || frames[i].Pkt.Data[0] != LCPProtocolReject {
+					t.Fatalf("frame %d = %+v, want a Code-Reject of the Protocol-Reject on %#04x", i, frames[i], proto)
+				}
 			}
 		})
 	}
@@ -103,6 +130,10 @@ func TestRFC1661CatastrophicRejectConsumer(t *testing.T) {
 // TestRFC1661OpenedPermittedRejectIsQuiet checks the actual frame consumers
 // retain Opened with no wire or lifecycle output. The table test separately
 // proves the absence of SER, whose consumers also suppress reject replies.
+//
+// A Protocol-Reject on IPCP or IPv6CP is not a permitted reject but a Code
+// those NCPs do not use (RFC 1332 Section 2, RFC 5072 Section 3), so it
+// draws exactly one Code-Reject on that NCP's protocol and changes no state.
 func TestRFC1661OpenedPermittedRejectIsQuiet(t *testing.T) {
 	for _, proto := range []uint16{ProtoLCP, ProtoIPCP, ProtoIPv6CP} {
 		for _, code := range []uint8{LCPCodeReject, LCPProtocolReject} {
@@ -123,8 +154,18 @@ func TestRFC1661OpenedPermittedRejectIsQuiet(t *testing.T) {
 					t.Fatalf("permitted reject changed %v Opened", family)
 				}
 			}
-			if rec.count() != 0 || len(events) != 0 {
-				t.Fatalf("protocol %x code %d emitted frame or event", proto, code)
+			if len(events) != 0 {
+				t.Fatalf("protocol %x code %d emitted a lifecycle event", proto, code)
+			}
+			if proto == ProtoLCP || code != LCPProtocolReject {
+				if rec.count() != 0 {
+					t.Fatalf("protocol %x code %d emitted a frame", proto, code)
+				}
+				continue
+			}
+			frames := decodeFrames(t, rec)
+			if len(frames) != 1 || frames[0].Proto != proto || frames[0].Pkt.Code != LCPCodeReject || frames[0].Pkt.Data[0] != LCPProtocolReject {
+				t.Fatalf("protocol %x code %d drew %+v, want one Code-Reject of it on the same protocol", proto, code, frames)
 			}
 		}
 	}

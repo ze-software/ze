@@ -116,7 +116,7 @@ func negotiateSession(chanFile io.ReadWriteCloser, frames <-chan readFrame, unit
 	// phase, so a CHAP re-challenge is answered from here on, and the same
 	// state carries the pending Response into keepaliveLoop.
 	chap := networkPhaseCHAPFor(lcpResult.authProto, cfg)
-	ipcpResult, err := negotiateIPCP(chanFile, frames, frameBuf[:], magic, chap, stopCh, logger)
+	ipcpResult, err := negotiateIPCP(chanFile, frames, frameBuf[:], magic, lcpResult.peerMRU, chap, stopCh, logger)
 	if err != nil {
 		return sessionResult{}, err
 	}
@@ -596,10 +596,14 @@ type ipcpResult struct {
 // negotiateIPCP opens IPCP. chap is nil when LCP did not negotiate CHAP, and
 // a CHAP frame is then dropped; otherwise a Challenge is answered, because
 // IPCP negotiation is already the Network-Layer Protocol phase.
-func negotiateIPCP(w io.Writer, frames <-chan readFrame, buf []byte, magic uint32, chap *networkPhaseCHAP, stopCh <-chan struct{}, logger *slog.Logger) (ipcpResult, error) {
+// peerMRU is the MRU the server negotiated in LCP, zero when it sent none,
+// and bounds the Rejected-Packet of a Code-Reject.
+func negotiateIPCP(w io.Writer, frames <-chan readFrame, buf []byte, magic uint32, peerMRU uint16, chap *networkPhaseCHAP, stopCh <-chan struct{}, logger *slog.Logger) (ipcpResult, error) {
 	var result ipcpResult
 	requestedIP := netip.IPv4Unspecified()
 	ipcpID := uint8(1)
+	// codeRejectID is the Identifier of the last IPCP Code-Reject sent.
+	var codeRejectID uint8
 	state := ppp.LCPStateReqSent
 	var request [12]byte
 	requestLen, err := sendIPCPRequest(w, request[:], ipcpID, requestedIP)
@@ -665,6 +669,15 @@ func negotiateIPCP(w io.Writer, frames <-chan readFrame, buf []byte, magic uint3
 				continue
 			}
 			if proto != ppp.ProtoIPCP {
+				continue
+			}
+			// RFC 1332 Section 2: "Other Codes should be treated as
+			// unrecognized and should result in Code-Rejects."
+			if pkt.Code > ppp.LCPCodeReject {
+				codeRejectID++
+				if err := sendIPCPCodeReject(w, buf, pkt, codeRejectID, peerMRU); err != nil {
+					return ipcpResult{}, err
+				}
 				continue
 			}
 			switch pkt.Code {
@@ -935,6 +948,57 @@ func sendIPCPRequest(w io.Writer, buf []byte, id uint8, addr netip.Addr) (int, e
 		return 0, fmt.Errorf("pppoe-client: IPCP Configure-Request: %w", err)
 	}
 	return off, nil
+}
+
+// sendIPCPCodeReject answers an IPCP packet whose Code is not one IPCP uses.
+//
+// RFC 1332 Section 2: "Other Codes should be treated as unrecognized and
+// should result in Code-Rejects."
+//
+// Wire format (RFC 1661 Section 5.6), offsets from the start of the IPCP
+// packet, which itself starts 2 octets into the frame:
+//
+//	 0                   1                   2                   3
+//	 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|     Code = 7  |  Identifier   |            Length             |
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|    Rejected-Packet ...
+//	+-+-+-+-+-+-+-+-+-+-+-+-+
+//
+// Octet 0 Code, 1 Identifier, 2-3 Length, 4 onward the rejected packet's own
+// Code, Identifier, Length and Data.
+//
+// RFC 1661 Section 5.6: "The Rejected-Packet MUST be truncated to comply with
+// the peer's established MRU." The copy takes the smaller of that MRU (1500,
+// the RFC 1661 Section 6.1 default, when none was negotiated) and buf, less
+// the 2-octet Protocol field and the 4-octet Code-Reject header.
+//
+// RFC 1661 Section 5.6: "The Identifier field MUST be changed for each
+// Code-Reject sent." The caller owns the counter and passes the next value.
+func sendIPCPCodeReject(w io.Writer, buf []byte, rejected ppp.LCPPacket, id uint8, peerMRU uint16) error {
+	mru := int(peerMRU)
+	if mru == 0 {
+		mru = ppp.MaxFrameLen
+	}
+	room := min(mru+ppp.ProtoFieldLen, len(buf)) - ppp.ProtoFieldLen - 4
+	if room < 4 {
+		return errors.New("pppoe-client: IPCP Code-Reject: no room for the Rejected-Packet header")
+	}
+
+	off := ppp.WriteFrame(buf, 0, ppp.ProtoIPCP, nil)
+	// The Rejected-Packet is written where WriteLCPPacket needs its Data
+	// field, so the copy that call makes is onto itself.
+	data := buf[off+4:]
+	data[0] = rejected.Code
+	data[1] = rejected.Identifier
+	binary.BigEndian.PutUint16(data[2:4], uint16(4+len(rejected.Data))) //nolint:gosec // ParseLCPPacket bounded Data by a 16-bit Length
+	n := 4 + copy(data[4:room], rejected.Data)
+	off += ppp.WriteLCPPacket(buf, off, ppp.LCPCodeReject, id, data[:n])
+	if err := writeClientPacket(w, buf[:off]); err != nil {
+		return fmt.Errorf("pppoe-client: IPCP Code-Reject: %w", err)
+	}
+	return nil
 }
 
 func generateMagic() (uint32, error) {

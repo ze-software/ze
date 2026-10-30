@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC1332-2-2",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/rfc1332_codes_test.go::TestIPCPUnusedCodesAreCodeRejected",
+    "unit-sha": "9a4fd2f8f380ac27",
+    "claim-sha": "7b0d98d185c3ecd7",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/ncp.go::ncpCodeToEvent",
+    "producer-sha": "66c442e0577939de",
+    "break": "body of ncpCodeToEvent replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1332-2-2",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/ppp/rfc1332_codes_test.go::TestIPCPUsedCodesAreNotCodeRejected",
+    "unit-sha": "f06333d8724d9d32",
+    "claim-sha": "6551dafd5c602f06",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/ncp.go::ncpCodeToEvent",
+    "producer-sha": "66c442e0577939de",
+    "break": "body of ncpCodeToEvent replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1332-2-2",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/pppoeclient/rfc1332_ipcp_codes_test.go::TestClientIPCPUnusedCodesAreCodeRejected",
+    "unit-sha": "9c326a4ef8320df3",
+    "claim-sha": "d6ad453fe7d077f2",
+    "route": "revert",
+    "producer": "internal/component/l2tp/pppoeclient/session.go::sendIPCPCodeReject",
+    "producer-sha": "50e528e4e2f5eb0f",
+    "break": "body of sendIPCPCodeReject replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

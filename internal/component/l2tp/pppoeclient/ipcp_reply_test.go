@@ -50,7 +50,7 @@ func TestClientIPCPReplyCorrelation(t *testing.T) {
 		done := make(chan outcome, 1)
 		go func() {
 			var buf [ppp.MaxFrameBufLen]byte
-			result, err := negotiateIPCP(w, frames, buf[:], 1, nil, stop, slog.Default())
+			result, err := negotiateIPCP(w, frames, buf[:], 1, 0, nil, stop, slog.Default())
 			done <- outcome{result, err}
 		}()
 		synctest.Wait()
@@ -124,7 +124,7 @@ func TestClientIPCPRejectAndWriteFailure(t *testing.T) {
 	frames := make(chan readFrame, 1)
 	frames <- ipcpFrame(ppp.LCPConfigureReject, 1, buildIPCPRequest(1, netip.IPv4Unspecified())[4:])
 	var buf [ppp.MaxFrameBufLen]byte
-	if _, err := negotiateIPCP(io.Discard, frames, buf[:], 1, nil, make(chan struct{}), slog.Default()); err == nil {
+	if _, err := negotiateIPCP(io.Discard, frames, buf[:], 1, 0, nil, make(chan struct{}), slog.Default()); err == nil {
 		t.Fatal("valid IP-Address rejection opened IPCP")
 	}
 	for _, tc := range []struct{ writeErr, want error }{
@@ -132,7 +132,7 @@ func TestClientIPCPRejectAndWriteFailure(t *testing.T) {
 		{nil, io.ErrShortWrite},
 	} {
 		w := &failingAuthWriter{err: tc.writeErr}
-		_, err := negotiateIPCP(w, make(chan readFrame), buf[:], 1, nil, make(chan struct{}), slog.Default())
+		_, err := negotiateIPCP(w, make(chan readFrame), buf[:], 1, 0, nil, make(chan struct{}), slog.Default())
 		if !errors.Is(err, tc.want) {
 			t.Fatalf("request write error = %v, want %v", err, tc.want)
 		}
