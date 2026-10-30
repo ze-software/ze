@@ -137,32 +137,45 @@ var neverClauseRE = regexp.MustCompile(`(?:^|;)\s*ze never ([^:;]*[^:;\s])\s*:\s
 // it is a role word (genericRoleWords) or a determiner (roleDeterminers).
 const guardStopwords = "and are as at be been being by can do does for from had has have if in into is it its may no nor not of on or so such than then them they to was were which who will with would"
 
-// neverClauseGap judges a conditional's reason: the text after its quote must
-// carry a never clause (neverClauseRE), whose condition shares a content word
-// with the quote's guard clause (sharedContentWord), so the condition Ze
-// never meets is the one the quote guards its obligation on; and the producer
-// it names must be a function this tree declares outside a test
+// neverScope is what a never clause answers for: the shape of evidence that
+// owes it, opening the refusal of a reason with none ("its quote '...' is a
+// conditional obligation"); the words the never clause's condition must share
+// a content word with (the quote's guard clause, or a heading form's feature
+// words); and what those words are, for the refusal that names them.
+type neverScope struct {
+	opening, evidence, against string
+}
+
+// neverClauseGap judges the reason of a {feature-declined} conditional or
+// heading form: the text after its quote must carry a never clause
+// (neverClauseRE), whose condition shares a content word with scope.evidence
+// (sharedContentWord), so the condition Ze never meets is the one the quote
+// guards its obligation on, or the feature the heading names; and the
+// producer it names must be a function this tree declares outside a test
 // (resolveProducer, the resolution every producer check shares), so the claim
 // rests on code a reader can open.
-func neverClauseGap(req *Requirement, code *sourceReader, guard string) (string, bool) {
-	quote := req.Annotation.Quote
+func neverClauseGap(req *Requirement, code *sourceReader, scope neverScope) (string, bool) {
+	quoted := req.Annotation.Quote
+	if quoted == "" {
+		quoted = req.Annotation.Heading
+	}
 	why := req.Annotation.Reason
-	if at := strings.Index(why, quote); at >= 0 {
-		why = strings.TrimPrefix(why[at+len(quote):], `"`)
+	if at := strings.Index(why, `"`+quoted+`"`); at >= 0 {
+		why = why[at+len(quoted)+2:]
 	}
 	var tb textbuf.Buffer
 	parts := neverClauseRE.FindStringSubmatch(why)
 	if parts == nil {
-		return tb.Str("its quote ").Str(pyRepr(quote)).
-			Str(" is a conditional obligation, and its reason carries no never clause, so nothing shows that Ze never meets the condition. Write ").
+		return tb.Str(scope.opening).
+			Str(", and its reason carries no never clause, so nothing shows that Ze never meets the condition. Write ").
 			Str(neverClauseForm).Str(" in the reason, naming the function that shows it").String(), true
 	}
 	condition, producer := parts[1], parts[2]
-	if !sharedContentWord(condition, guard) {
+	if !sharedContentWord(condition, scope.evidence) {
 		return tb.Str("its never clause's condition ").Str(pyRepr(condition)).
-			Str(" shares no word with the quote's guard clause ").Str(pyRepr(guard)).
+			Str(" shares no word with ").Str(scope.against).Str(" ").Str(pyRepr(scope.evidence)).
 			Str(", so it names another condition than the one the obligation rests on. ").
-			Str("Write the condition in the guard clause's words: ").Str(neverClauseForm).String(), true
+			Str("Write the condition in those words: ").Str(neverClauseForm).String(), true
 	}
 	if strings.HasSuffix(producerFile(producer), "_test.go") {
 		return tb.Str("its never clause names the test ").Str(producer).

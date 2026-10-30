@@ -149,8 +149,12 @@ func placeQuote(source *quoteSource, cited, quote string) (quotePlace, string) {
 // featureQuoteGap judges a {feature-declined} quote: first where it lies
 // (featureQuoteSection), then what it says of the section it is held to
 // (featureShapeGap), reading a conditional's never-clause producer through
-// code.
+// code. A heading form, which carries feature words instead of a quote, is
+// featureHeadingGap's.
 func featureQuoteGap(req *Requirement, source *quoteSource, code *sourceReader) (string, bool) {
+	if req.Annotation.Heading != "" {
+		return featureHeadingGap(req, source, code)
+	}
 	held, missing, lacks := featureQuoteSection(req, source)
 	if lacks {
 		return missing, true
@@ -278,7 +282,7 @@ func featureShapeGap(req *Requirement, source *quoteSource, code *sourceReader, 
 	guard, conditional := conditionalGuard(quote)
 	if optional && !ownSentence {
 		if conditional {
-			return neverClauseGap(req, code, guard)
+			return neverClauseGap(req, code, conditionalScope(quote, guard))
 		}
 		return "", false
 	}
@@ -294,7 +298,7 @@ func featureShapeGap(req *Requirement, source *quoteSource, code *sourceReader, 
 				Str(", which the annotation names: the conditional must be the row's own sentence, in the section the row cites. ").
 				Str("Drop the §").Str(held).Str(" and cite the row's own section").String(), true
 		}
-		return neverClauseGap(req, code, guard)
+		return neverClauseGap(req, code, conditionalScope(quote, guard))
 	}
 	if optional {
 		return tb.Str("its optionality quote ").Str(pyRepr(quote)).
@@ -319,6 +323,13 @@ func featureShapeGap(req *Requirement, source *quoteSource, code *sourceReader, 
 	tb.Str("or a condition opened by ").Str(optionalityWords.condition).Str(" on ").
 		Str(strings.Join(optionalityWords.supported, " or ")).Str(". ").Str(featureDeclinedShapes)
 	return tb.String(), true
+}
+
+// conditionalScope is the neverScope of a conditional quote: its never
+// clause's condition shares a word with the quote's guard clause.
+func conditionalScope(quote, guard string) neverScope {
+	return neverScope{opening: "its quote " + pyRepr(quote) + " is a conditional obligation",
+		evidence: guard, against: "the quote's guard clause"}
 }
 
 // bcp14LevelsIn answers the advisory and the mandatory BCP 14 levels quote

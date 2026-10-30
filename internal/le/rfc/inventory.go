@@ -281,6 +281,12 @@ func stripPageFurniture(text string) string {
 type sectionBody struct {
 	id   string
 	body string
+	// title is the heading's own words, without its number, as the heading
+	// reader answers them from the heading's first line ("CHAP Login" for
+	// "5.4.2.3.  CHAP Login"). Empty for the front matter, and for a heading
+	// written as a bare number. A heading wrapped over two lines keeps its
+	// first line only.
+	title string
 }
 
 // sectionBodies answers every section, with a leading front entry. It is the
@@ -311,6 +317,7 @@ func sectionBodies(text string) []sectionBody {
 	}
 	order := []string{frontSection}
 	bodies := map[string][]string{frontSection: {}}
+	titles := map[string]string{}
 	current := frontSection
 	for at, line := range lines {
 		id, title, found := heading(lines, at)
@@ -322,6 +329,7 @@ func sectionBodies(text string) []sectionBody {
 		if _, seen := bodies[current]; !seen {
 			order = append(order, current)
 			bodies[current] = []string{}
+			titles[current] = strings.TrimSpace(title)
 		} else if len(bodies[current]) > 0 {
 			// A blank line, so the resumed run is a fresh paragraph rather
 			// than a continuation of a sentence written elsewhere.
@@ -331,7 +339,7 @@ func sectionBodies(text string) []sectionBody {
 	}
 	out := make([]sectionBody, 0, len(order))
 	for _, id := range order {
-		out = append(out, sectionBody{id: id, body: strings.Join(bodies[id], "\n")})
+		out = append(out, sectionBody{id: id, body: strings.Join(bodies[id], "\n"), title: titles[id]})
 	}
 	return out
 }
@@ -571,6 +579,11 @@ type quoteSource struct {
 	// number, false when the store holds none (errata.go). Nil when no store
 	// was given, and a row citing an erratum is then refused.
 	readErratum func(number string) (string, bool)
+	// documentTitle is the RFC's own title, read from its front matter
+	// (documentTitleOf). Empty when the front matter holds no paragraph
+	// before its Abstract or Status of This Memo, and a heading form is then
+	// judged on its section titles alone (featureHeadingGap).
+	documentTitle string
 }
 
 // wholeText answers whether the RFC has no heading under either reading
@@ -588,6 +601,7 @@ func (q *quoteSource) wholeText() bool {
 // it.
 func newQuoteSource(source string) *quoteSource {
 	bodies := sectionBodies(source)
+	title := documentTitleOf(bodies[0].body)
 	whole := make([][]string, len(bodies))
 	for i := range bodies {
 		for _, sentence := range quoteSentences(stripPageFurniture(bodies[i].body)) {
@@ -595,7 +609,59 @@ func newQuoteSource(source string) *quoteSource {
 		}
 		bodies[i].body = quoteHaystack(bodies[i].body)
 	}
-	return &quoteSource{sections: bodies, sentences: whole}
+	return &quoteSource{sections: bodies, sentences: whole, documentTitle: title}
+}
+
+// frontMatterOpenings are the lines that follow an RFC's title in its front
+// matter: the title is the last paragraph before the first of them.
+var frontMatterOpenings = []string{"abstract", "status of this memo"}
+
+// documentTitleOf answers the RFC's title from the raw text of its front
+// matter: the last paragraph before the first frontMatterOpenings line, its
+// lines joined by one blank. The header block (the stream, the RFC number,
+// the authors and the date) is the paragraph before it, so the title is the
+// one a blank line sets apart from both. Empty when no such line or no
+// paragraph before it is found. The loop is bounded by the lines of front.
+func documentTitleOf(front string) string {
+	var paragraph, last []string
+	for line := range strings.SplitSeq(front, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if slices.Contains(frontMatterOpenings, strings.ToLower(trimmed)) {
+			if len(paragraph) > 0 {
+				last = paragraph
+			}
+			return strings.Join(last, " ")
+		}
+		if trimmed == "" {
+			if len(paragraph) > 0 {
+				last = paragraph
+			}
+			paragraph = nil
+			continue
+		}
+		paragraph = append(paragraph, trimmed)
+	}
+	return ""
+}
+
+// headingTitles answers the titles of section id and of each of its heading
+// ancestors, nearest first ("5.4.2.3", then "5.4.2", "5.4" and "5"). An
+// ancestor the RFC holds no heading for is skipped. The loop is bounded by
+// the dots of id.
+func (q *quoteSource) headingTitles(id string) []string {
+	var titles []string
+	for at := id; ; {
+		for _, section := range q.sections {
+			if section.id == at && at != frontSection {
+				titles = append(titles, section.title)
+			}
+		}
+		cut := strings.LastIndexByte(at, '.')
+		if cut < 0 {
+			return titles
+		}
+		at = at[:cut]
+	}
 }
 
 // wholeSentence answers whether quote is one whole sentence of the section id

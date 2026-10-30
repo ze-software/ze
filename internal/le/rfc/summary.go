@@ -431,7 +431,7 @@ var featureDeclinedRE = regexp.MustCompile(`^"([^"]+)"\s*;\s*(\S.*)$`)
 
 // featureDeclinedFormat is the one format sentence every {feature-declined}
 // refusal ends with, so an author reading any of them is shown the same shape.
-const featureDeclinedFormat = `Format: {feature-declined: "<the RFC's own sentence making the feature optional>"; <path>.go::<Symbol> does <the narrower thing ze chose>}, or {feature-declined: §<section> "<that sentence>"; ...} when the sentence is in another section than the row's, or {feature-declined: "<the RFC's sentence making the obligation conditional on the feature's use>"; ze never <condition>: <path>.go::<Symbol> <how>}`
+const featureDeclinedFormat = `Format: {feature-declined: "<the RFC's own sentence making the feature optional>"; <path>.go::<Symbol> does <the narrower thing ze chose>}, or {feature-declined: §<section> "<that sentence>"; ...} when the sentence is in another section than the row's, or {feature-declined: "<the RFC's sentence making the obligation conditional on the feature's use>"; ze never <condition>: <path>.go::<Symbol> <how>}, or {feature-declined: heading "<the feature words the title of the row's section or of an ancestor names>"; ze never <uses the feature>: <path>.go::<Symbol> <how>}`
 
 // featureSectionRE reads the section a {feature-declined} payload may name for
 // its quote, `§<section>` and a blank, ahead of the quote. The section is a
@@ -447,6 +447,17 @@ var featureSectionRE = regexp.MustCompile(`^§([^\s"]+)\s+`)
 // featureQuoteGap holds the quote to the exact heading named.
 var featureSectionIDRE = regexp.MustCompile(`^(?:\d+|[A-Z]\d*)(?:\.\d+)*$`)
 
+// featureHeadingRE reads the keyword of a {feature-declined} heading form,
+// `heading` and a blank, ahead of the quoted feature words. It takes the
+// place `§<section>` takes in the sectioned form: a token before the quote
+// that says what the quote is held to.
+var featureHeadingRE = regexp.MustCompile(`^heading\s+`)
+
+// minHeadingWords is the fewest characters a heading form's feature words
+// hold. Two letters ("ID", "IP") name no feature a heading can be told apart
+// by, while RFC 8907's "CHAP" is four.
+const minHeadingWords = 3
+
 // minFeatureQuote is the shortest quoted span that identifies a sentence.
 //
 // It is minCorrectionQuote, and deliberately the same number: both are a quote
@@ -457,7 +468,9 @@ const minFeatureQuote = minCorrectionQuote
 
 // parseFeatureDeclined reads `{feature-declined: "<quote>"; why}`, or
 // `{feature-declined: §<section> "<quote>"; why}` naming the section the quote
-// comes from, and demands both facts the kind rests on.
+// comes from, or the heading form `{feature-declined: heading "<feature
+// words>"; why}` (parseFeatureHeading), and demands both facts the kind rests
+// on.
 //
 // The QUOTE is the RFC's own sentence that makes the feature optional or
 // conditional, and checkFeatureDeclined finds it in rfc/full/<stem>.txt. The
@@ -468,6 +481,9 @@ const minFeatureQuote = minCorrectionQuote
 // of 915 judgements no reader can check (owner ruling, 2026-08-31).
 func parseFeatureDeclined(rest, where string) (*Annotation, error) {
 	var tb textbuf.Buffer
+	if keyword := featureHeadingRE.FindString(rest); keyword != "" {
+		return parseFeatureHeading(rest, rest[len(keyword):], where)
+	}
 	body, section := rest, ""
 	if named := featureSectionRE.FindStringSubmatch(rest); named != nil {
 		body, section = rest[len(named[0]):], named[1]
@@ -513,6 +529,54 @@ func parseFeatureDeclined(rest, where string) (*Annotation, error) {
 	// {lower-layer} does: every renderer that prints `{kind} reason` publishes
 	// both facts with no knowledge of this kind.
 	return &Annotation{Kind: AnnotationFeatureDeclined, Quote: quote, QuoteSection: section,
+		Producer: producer, Reason: strings.TrimSpace(rest)}, nil
+}
+
+// parseFeatureHeading reads the heading form's body, `"<feature words>";
+// why`, after its `heading` keyword. The feature words must hold at least
+// minHeadingWords characters and a word no heading of any RFC is named by
+// (headingWordsGeneric), and the reason must name a producer outside a test,
+// as every {feature-declined} reason does. Whether a heading of the row's
+// section names the words, and whether the reason carries the never clause,
+// need the RFC and the tree, so the evidence ratchet judges them
+// (featureHeadingGap).
+func parseFeatureHeading(rest, body, where string) (*Annotation, error) {
+	var tb textbuf.Buffer
+	parts := featureDeclinedRE.FindStringSubmatch(body)
+	if parts == nil {
+		return nil, parseErr(tb.Str(where).
+			Str(": {feature-declined} heading needs the feature words in double quotes, then a reason. ").
+			Str(featureDeclinedFormat))
+	}
+	words, why := strings.TrimSpace(parts[1]), strings.TrimSpace(parts[2])
+	if len(words) < minHeadingWords {
+		return nil, parseErr(tb.Str(where).
+			Str(": {feature-declined} heading names ").Str(pyRepr(words)).
+			Str(", which is under ").Int(int64(minHeadingWords)).
+			Str(" characters and names no feature a heading can be told apart by. Write the feature's name as the heading spells it. ").
+			Str(featureDeclinedFormat))
+	}
+	if headingWordsGeneric(words) {
+		return nil, parseErr(tb.Str(where).
+			Str(": {feature-declined} heading names ").Str(pyRepr(words)).
+			Str(", whose words are only stopwords or words any heading uses (").Str(genericHeadingWords).
+			Str("), so they name no feature. Write the feature's own name as the heading spells it, such as \"CHAP\" or \"DUID-LLT\". ").
+			Str(featureDeclinedFormat))
+	}
+	producer := producerRE.FindString(why)
+	if producer == "" {
+		return nil, parseErr(tb.Str(where).
+			Str(": {feature-declined} heading names no producer, so nothing in this tree can falsify it. ").
+			Str("Name the function that shows ze never uses the feature, as <path>.go::<Symbol>. ").
+			Str(featureDeclinedFormat))
+	}
+	if strings.HasSuffix(producerFile(producer), "_test.go") {
+		return nil, parseErr(tb.Str(where).
+			Str(": {feature-declined} heading names the test ").Str(producer).
+			Str(" as its producer. A test decides nothing about what ze offers; name the code that does. ").
+			Str(featureDeclinedFormat))
+	}
+	return &Annotation{Kind: AnnotationFeatureDeclined, Heading: words,
 		Producer: producer, Reason: strings.TrimSpace(rest)}, nil
 }
 

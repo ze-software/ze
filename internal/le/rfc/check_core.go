@@ -846,7 +846,8 @@ func checkFeatureDeclined(tree string, reader *sourceReader, requirements []Requ
 }
 
 // featureDeclinedQuote holds one annotation's quote against the RFC's own text,
-// reading each document at most once through sources.
+// reading each document at most once through sources. A heading form owes
+// only the text here; its feature words are the ratchet's.
 //
 // The match is scoped to the section the row cites, or the section the payload
 // names (placeQuote). A quote the RFC does not carry at all, or an RFC whose
@@ -859,6 +860,19 @@ func checkFeatureDeclined(tree string, reader *sourceReader, requirements []Requ
 func featureDeclinedQuote(where string, req Requirement, sources map[string]*quoteSource,
 	tree string,
 ) []string {
+	if req.Annotation.Heading != "" {
+		// A heading form carries feature words, not a sentence, so there is
+		// no quote to place: the ratchet holds the words to the row's section
+		// titles (featureHeadingGap). The RFC's text is owed all the same.
+		if loadQuoteSource(sources, tree, req.RFC) != nil {
+			return nil
+		}
+		var tb textbuf.Buffer
+		return []string{tb.Str(where).Str(": ").Str(req.RID).
+			Str(" is annotated {feature-declined} and the RFC's own text is not in this repository, so its heading can be checked against nothing. Fetch it to ").
+			Str(fullRel).Byte('/').Str(req.RFC).Str(".txt or ").Str(draftsRel).Byte('/').
+			Str(req.RFC).Str(".txt").String()}
+	}
 	place, _ := placeQuote(loadQuoteSource(sources, tree, req.RFC), req.Section, req.Annotation.Quote)
 	switch place {
 	case quoteInSection, quoteOutsideSection, quoteSectionUnresolved:

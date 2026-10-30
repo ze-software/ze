@@ -184,7 +184,7 @@ func (q *quoteSource) corrected(errata []erratum) (*quoteSource, []erratum) {
 			unplaced = append(unplaced, *e)
 		}
 	}
-	return &quoteSource{sections: sections, readErratum: q.readErratum}, unplaced
+	return &quoteSource{sections: sections, readErratum: q.readErratum, documentTitle: q.documentTitle}, unplaced
 }
 
 // inSectionTree answers whether id is the section root or one of its
