@@ -1,5 +1,13 @@
+//go:build ze_bgp && ze_ssh && ze_telemetry
+
 // Design: docs/contributing/terminal-demos.md -- topics start from baseline plumbing
 // Related: validate_showcase.go -- the guard used before every live topic
+
+// The constraint names the gate of each block demos/terminal/showcase-lab/ze.conf
+// configures: bgp and its RIB plugins (ze_bgp), environment ssh (ze_ssh) and
+// telemetry (ze_telemetry). The recorder binary carries every gate (demoTags),
+// so the baseline is validated against the schema those gates register; a build
+// without one of them has no schema for its block and cannot judge the file.
 
 package siteterminaldemo
 
