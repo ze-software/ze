@@ -511,20 +511,40 @@ func (d *Docker) ReleaseImage(ctx context.Context, image ImageResult) error {
 	if image.retainedTag == "" {
 		return nil
 	}
-	_, err := d.command(ctx, dockerCommandTimeout, DockerExecutable, dockerImageObject, "rm", "--no-prune", image.retainedTag)
+	return d.removeImageTag(ctx, image.retainedTag)
+}
+
+// RemoveImageTagForTest removes tag and nothing else: `--no-prune` keeps the
+// image's layers and every other tag naming it, and an absent tag is not an
+// error. It exists for a test that built an image under a tag only that test
+// named and owes the tag's release. No production path removes a tag: Build
+// moves its tag onto the new image and ReleaseImage drops the run-owned one.
+// The caller MUST own tag, because another run may be using any tag it did not
+// create.
+func (d *Docker) RemoveImageTagForTest(ctx context.Context, tag string) error {
+	if tag == "" {
+		return errors.New("image tag is empty")
+	}
+	return d.removeImageTag(ctx, tag)
+}
+
+// removeImageTag runs `docker image rm --no-prune tag`. A daemon that answers
+// the tag is absent has nothing to remove, so that answer is success.
+func (d *Docker) removeImageTag(ctx context.Context, tag string) error {
+	_, err := d.command(ctx, dockerCommandTimeout, DockerExecutable, dockerImageObject, "rm", "--no-prune", tag)
 	if err == nil {
 		return nil
 	}
 	if commandErr, ok := errors.AsType[*commandError](err); ok {
 		var tb textbuf.Buffer
-		absent := tb.Str("No such image: ").Str(image.retainedTag).String()
+		absent := tb.Str("No such image: ").Str(tag).String()
 		for line := range strings.SplitSeq(commandErr.Stderr, "\n") {
 			if strings.HasSuffix(strings.TrimSpace(line), absent) {
 				return nil
 			}
 		}
 	}
-	return d.confirmRemoval(ctx, resourceImageTag, image.retainedTag, err)
+	return d.confirmRemoval(ctx, resourceImageTag, tag, err)
 }
 
 // Pull makes one external image available before the scenarios start.

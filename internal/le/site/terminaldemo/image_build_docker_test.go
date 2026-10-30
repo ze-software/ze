@@ -8,7 +8,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
-	"encoding/json"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -16,7 +16,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ze-software/ze/internal/le/dockerhost"
 	"github.com/ze-software/ze/internal/le/interoplab"
 )
 
@@ -30,14 +29,11 @@ func TestBuildImagePublishesManifestImageAndReleasesOwnedTag(t *testing.T) {
 		}
 		t.Skip("Docker is not installed")
 	}
-	environ, err := dockerhost.Inherited()
-	if err != nil {
-		t.Fatal(err)
-	}
 	fixture := newDemoFixture(t)
 	var output bytes.Buffer
 	engine := fixture.engine(&output)
-	engine.docker = interoplab.NewDocker()
+	docker := interoplab.NewDocker()
+	engine.docker = docker
 	engine.lookup = exec.LookPath
 	engine.ctx = t.Context()
 	manifest, _, err := engine.loadManifest()
@@ -56,12 +52,19 @@ func TestBuildImagePublishesManifestImageAndReleasesOwnedTag(t *testing.T) {
 	t.Cleanup(func() {
 		ctx, cancel := context.WithTimeout(context.WithoutCancel(t.Context()), 30*time.Second)
 		defer cancel()
-		command := exec.CommandContext(ctx, dockerProgram, "image", "rm", "--no-prune", manifest.Renderer.Image)
-		command.Env = environ
-		if data, err := command.CombinedOutput(); err != nil {
-			t.Errorf("release test's manifest tag: %v: %s", err, data)
+		if err := docker.RemoveImageTagForTest(ctx, manifest.Renderer.Image); err != nil {
+			t.Errorf("release test's manifest tag: %v", err)
+			return
+		}
+		if _, err := docker.InspectImage(ctx, manifest.Renderer.Image); !errors.Is(err, interoplab.ErrImageAbsent) {
+			t.Fatalf("released manifest tag still inspects: %v", err)
 		}
 	})
+	// The daemon's answer for a tag nobody built is absence, not a failure,
+	// which is what lets the render preflight name the build action.
+	if _, err := docker.InspectImage(t.Context(), manifest.Renderer.Image); !errors.Is(err, interoplab.ErrImageAbsent) {
+		t.Fatalf("unbuilt manifest tag inspected as %v, want ErrImageAbsent", err)
+	}
 	report, err := engine.BuildImage()
 	if err != nil {
 		t.Fatal(err)
@@ -71,39 +74,31 @@ func TestBuildImagePublishesManifestImageAndReleasesOwnedTag(t *testing.T) {
 	}
 	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
 	defer cancel()
-	command := exec.CommandContext(ctx, dockerProgram, "image", "inspect", manifest.Renderer.Image)
-	command.Env = environ
-	data, err := command.Output()
+	image, err := docker.InspectImage(ctx, manifest.Renderer.Image)
 	if err != nil {
 		t.Fatalf("manifest tag was not published: %v", err)
 	}
-	var images []struct {
-		ID       string `json:"Id"`
-		RepoTags []string
-		Config   struct{ Labels map[string]string }
-	}
-	if err := json.Unmarshal(data, &images); err != nil {
-		t.Fatal(err)
-	}
-	if len(images) != 1 {
-		t.Fatalf("manifest tag resolved to %d images", len(images))
-	}
-	image := images[0]
-	if image.Config.Labels["ze.renderer.marker"] != marker {
-		t.Fatalf("published image did not come from the demo Dockerfile: %+v", image.Config.Labels)
+	if image.Labels["ze.renderer.marker"] != marker {
+		t.Fatalf("published image did not come from the demo Dockerfile: %+v", image.Labels)
 	}
 	arguments, err := rendererPeerArguments(fixture.root)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for index, label := range []string{"ze.renderer.frr", "ze.renderer.keepalived", "ze.renderer.keepalived.sha256"} {
-		_, want, found := strings.Cut(arguments[index], "=")
+	for _, argument := range arguments {
+		name, want, found := strings.Cut(argument, "=")
 		if !found {
-			t.Fatalf("peer argument has no value: %q", arguments[index])
+			t.Fatalf("peer argument has no value: %q", argument)
 		}
-		if image.Config.Labels[label] != want {
-			t.Errorf("published image label %s = %q, want canonical pin %q", label, image.Config.Labels[label], want)
+		label := rendererPinLabels[name]
+		if image.Labels[label] != want {
+			t.Errorf("published image label %s = %q, want canonical pin %q", label, image.Labels[label], want)
 		}
+	}
+	// The render preflight reads the same labels: an image this build just
+	// published from the checkout's pins is accepted.
+	if err := engine.requireRendererImage(manifest); err != nil {
+		t.Fatalf("render preflight refused the image this build published: %v", err)
 	}
 	if !strings.HasPrefix(image.ID, "sha256:") {
 		t.Fatalf("published reference is not immutable: %q", image.ID)
@@ -115,7 +110,7 @@ func TestBuildImagePublishesManifestImageAndReleasesOwnedTag(t *testing.T) {
 	if len(image.RepoTags) != 1 || image.RepoTags[0] != manifest.Renderer.Image {
 		t.Fatalf("renderer did not release its owned tag or keep its manifest tag: %v", image.RepoTags)
 	}
-	if image.Config.Labels["ze.lab.kind"] != "image" {
-		t.Fatalf("renderer bypassed Docker owner labels: %+v", image.Config.Labels)
+	if image.Labels["ze.lab.kind"] != "image" {
+		t.Fatalf("renderer bypassed Docker owner labels: %+v", image.Labels)
 	}
 }

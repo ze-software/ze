@@ -107,6 +107,9 @@ type demoFixture struct {
 	// daemonDown makes `docker image inspect` fail the way a daemon that does
 	// not answer does, which is not the daemon saying the image is absent.
 	daemonDown bool
+	// staleLabels, when set, are the labels the renderer image answers with in
+	// place of the checkout's peer pins.
+	staleLabels map[string]string
 	// failImageBuild is the exit code `docker build` answers with.
 	failImageBuild int
 	// kernelChecked records the binary each Docker kernel check probed with.
@@ -228,10 +231,38 @@ func (f *demoFixture) Run(ctx context.Context, command interoplab.ProcessCommand
 		}
 		return interoplab.ProcessResult{Stdout: fixtureRendererImageID + "\n"}, nil
 	}
+	if code == 0 && len(args) >= 3 && args[1] == "image" && args[2] == "inspect" && slices.Contains(args, "{{json .}}") {
+		return f.imageRecord()
+	}
 	if code == 0 && len(args) >= 3 && args[1] == "image" && args[2] == "inspect" {
 		return interoplab.ProcessResult{Stdout: fixtureRendererImageID + "\n"}, nil
 	}
 	return interoplab.ProcessResult{ExitCode: code}, nil
+}
+
+// imageRecord answers `docker image inspect --format '{{json .}}'` for the
+// fixture renderer image. Its labels carry the checkout's peer pins, the way
+// a build from demos/terminal/Dockerfile records them, unless a case set
+// staleLabels to model an image built before a pin bump.
+func (f *demoFixture) imageRecord() (interoplab.ProcessResult, error) {
+	labels := f.staleLabels
+	if labels == nil {
+		arguments, err := rendererPeerArguments(f.root)
+		if err != nil {
+			return interoplab.ProcessResult{}, err
+		}
+		labels = make(map[string]string, len(arguments))
+		for _, argument := range arguments {
+			name, value, _ := strings.Cut(argument, "=")
+			labels[rendererPinLabels[name]] = value
+		}
+	}
+	record := map[string]any{"Id": fixtureRendererImageID, "RepoTags": []string{"fixture-renderer:3"}, "Config": map[string]any{"Labels": labels}}
+	data, err := json.Marshal(record)
+	if err != nil {
+		return interoplab.ProcessResult{}, err
+	}
+	return interoplab.ProcessResult{Stdout: string(data) + "\n"}, nil
 }
 
 func (f *demoFixture) execute(command Command) int {
@@ -727,6 +758,52 @@ func TestRenderRefusesAnUnbuiltRendererImage(t *testing.T) {
 	}
 	if len(fixture.commands) != 1 {
 		t.Errorf("commands = %d, want the image check alone: %#v", len(fixture.commands), fixture.commands)
+	}
+}
+
+// VALIDATES: a render whose renderer image carries a peer pin other than the
+// checkout's is refused before any validator, naming the stale label, the pin
+// the checkout declares, and the action that rebuilds the image; an image with
+// no pin labels at all is refused the same way.
+// PREVENTS: a pin bump that leaves the old image under the unchanged manifest
+// tag, so demos record against a peer release the labs no longer run.
+func TestRenderRefusesARendererImageBuiltFromOtherPins(t *testing.T) {
+	arguments, err := rendererPeerArguments(newDemoFixture(t).root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, frr, _ := strings.Cut(arguments[0], "=")
+	stale := map[string]string{}
+	for _, argument := range arguments {
+		name, value, _ := strings.Cut(argument, "=")
+		stale[rendererPinLabels[name]] = value
+	}
+	stale["ze.renderer.frr"] = "0.0.1"
+	for _, tc := range []struct {
+		name   string
+		labels map[string]string
+		want   string
+	}{
+		{name: "stale frr pin", labels: stale, want: `label ze.renderer.frr is "0.0.1", and the checkout pins FRR_VERSION=` + frr},
+		{name: "no labels", labels: map[string]string{}, want: "is missing, and the checkout pins"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			fixture := newDemoFixture(t)
+			fixture.staleLabels = tc.labels
+			_, err := fixture.engine(&bytes.Buffer{}).RenderAll("26.10.30")
+			if err == nil {
+				t.Fatal("a render with a stale renderer image was accepted")
+			}
+			if !strings.Contains(err.Error(), tc.want) {
+				t.Errorf("error = %v, want %q", err, tc.want)
+			}
+			if !strings.Contains(err.Error(), "le site terminal-demo build image") {
+				t.Errorf("error = %v, want the action that rebuilds the image", err)
+			}
+			if len(fixture.commands) != 1 {
+				t.Errorf("commands = %d, want the image check alone: %#v", len(fixture.commands), fixture.commands)
+			}
+		})
 	}
 }
 

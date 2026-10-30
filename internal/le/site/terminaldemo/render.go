@@ -114,28 +114,31 @@ func (e *Engine) BuildImage() (Report, error) {
 	return report, nil
 }
 
-// requireRendererImage refuses a run whose renderer image is not built yet, and
-// names the action that builds it.
+// requireRendererImage refuses a run whose renderer image is not built yet, or
+// was built from peer pins the checkout no longer declares, and names the
+// action that builds it.
 //
 // Docker's own answer to a missing image is to try a registry pull, and this
 // image is published to none, so the run dies on "pull access denied" after
 // every validator has already run. Nothing else builds the image: it comes from
-// demos/terminal/Dockerfile through `le site terminal-demo build image`.
+// demos/terminal/Dockerfile through `le site terminal-demo build image`. The
+// manifest tag does not change when a peer pin does, so an image built before a
+// pin bump still answers to it, and only its labels tell the two apart.
 func (e *Engine) requireRendererImage(manifest Manifest) error {
 	image := manifest.Renderer.Image
 	if _, err := e.lookup(dockerProgram); err != nil {
 		return errors.New("docker is required to record a terminal demo")
 	}
-	present, err := e.docker.ImagePresent(e.ctx, image)
-	if err != nil {
-		return fmt.Errorf("check the renderer image %s: %w", image, err)
-	}
-	if !present {
+	inspection, err := e.docker.InspectImage(e.ctx, image)
+	if errors.Is(err, interoplab.ErrImageAbsent) {
 		var buffer textbuf.Buffer
 		return errors.New(buffer.Str("the renderer image ").Str(image).
 			Str(" is not built on this host; run: le site terminal-demo build image").String())
 	}
-	return nil
+	if err != nil {
+		return fmt.Errorf("check the renderer image %s: %w", image, err)
+	}
+	return e.requireRendererPins(image, inspection.Labels)
 }
 
 // checkAll verifies all published artifacts. A non-empty release also verifies

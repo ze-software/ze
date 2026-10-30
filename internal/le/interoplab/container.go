@@ -6,6 +6,7 @@ package interoplab
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -265,6 +266,53 @@ func (d *Docker) ImagePresent(ctx context.Context, image string) (bool, error) {
 		return false, errors.New("image reference is empty")
 	}
 	return d.resourcePresent(ctx, resourceImageTag, image)
+}
+
+// ErrImageAbsent is InspectImage's answer when the daemon holds no image under
+// the reference, so a caller tells an image nobody built from a daemon that did
+// not answer.
+var ErrImageAbsent = errors.New("the daemon holds no such image")
+
+// ImageInspection is the daemon's record of one image: its immutable identity,
+// every tag that names it, and the labels its Dockerfile set.
+type ImageInspection struct {
+	ID       string
+	RepoTags []string
+	Labels   map[string]string
+}
+
+// InspectImage answers the daemon's record of image. An image the daemon does
+// not hold answers an error wrapping ErrImageAbsent; any other failed inspect is
+// an error of its own, never "absent", for the reason ImagePresent gives.
+func (d *Docker) InspectImage(ctx context.Context, image string) (ImageInspection, error) {
+	if image == "" {
+		return ImageInspection{}, errors.New("image reference is empty")
+	}
+	argv, err := inspectCommand(resourceImageTag, "{{json .}}", image)
+	if err != nil {
+		return ImageInspection{}, err
+	}
+	result, err := d.command(ctx, dockerCommandTimeout, argv...)
+	if err != nil {
+		if absentAnswer(err, image) {
+			return ImageInspection{}, fmt.Errorf("%s: %w", image, ErrImageAbsent)
+		}
+		return ImageInspection{}, err
+	}
+	var record struct {
+		ID       string   `json:"Id"`
+		RepoTags []string `json:"RepoTags"`
+		Config   struct {
+			Labels map[string]string `json:"Labels"`
+		} `json:"Config"`
+	}
+	if err := json.Unmarshal([]byte(result.Stdout), &record); err != nil {
+		return ImageInspection{}, fmt.Errorf("decode the daemon's record of image %s: %w", image, err)
+	}
+	if record.ID == "" {
+		return ImageInspection{}, fmt.Errorf("the daemon's record of image %s carries no image id", image)
+	}
+	return ImageInspection{ID: record.ID, RepoTags: record.RepoTags, Labels: record.Config.Labels}, nil
 }
 
 // ContainerRunning answers whether the named container's process is running.

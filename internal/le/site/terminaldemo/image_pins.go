@@ -4,12 +4,14 @@ package siteterminaldemo
 
 import (
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/interoplab"
 )
 
@@ -53,6 +55,48 @@ func rendererPeerArguments(root string) ([]string, error) {
 		return nil, fmt.Errorf("%s: KEEPALIVED_SHA256 must contain 32 bytes", rendererKeepalivedPin)
 	}
 	return []string{"FRR_VERSION=" + frr, "KEEPALIVED_VERSION=" + version, "KEEPALIVED_SHA256=" + checksum}, nil
+}
+
+// rendererPinLabels maps each build argument rendererPeerArguments answers to
+// the label demos/terminal/Dockerfile records its value under. The Docker
+// proof (image_build_docker_test.go) builds through that Dockerfile and reads
+// the labels back, so the two declarations cannot drift apart unseen.
+var rendererPinLabels = map[string]string{
+	"FRR_VERSION":        "ze.renderer.frr",
+	"KEEPALIVED_VERSION": "ze.renderer.keepalived",
+	"KEEPALIVED_SHA256":  "ze.renderer.keepalived.sha256",
+}
+
+// requireRendererPins refuses a renderer image whose labels do not carry the
+// peer pins the checkout declares now: an image built before a pin bump would
+// record demos against a peer release the labs no longer run.
+func (e *Engine) requireRendererPins(image string, labels map[string]string) error {
+	arguments, err := rendererPeerArguments(e.root)
+	if err != nil {
+		return err
+	}
+	for _, argument := range arguments {
+		name, want, _ := strings.Cut(argument, "=")
+		label, known := rendererPinLabels[name]
+		if !known {
+			return fmt.Errorf("BUG: renderer peer argument %s has no image label", name)
+		}
+		got, labeled := labels[label]
+		if labeled && got == want {
+			continue
+		}
+		var buffer textbuf.Buffer
+		buffer.Str("the renderer image ").Str(image).Str(" was built from other peer pins: its label ").Str(label)
+		if labeled {
+			buffer.Str(" is \"").Str(got).Str("\"")
+		} else {
+			buffer.Str(" is missing")
+		}
+		buffer.Str(", and the checkout pins ").Str(argument).
+			Str("; rebuild it with: le site terminal-demo build image")
+		return errors.New(buffer.String())
+	}
+	return nil
 }
 
 // rendererPinArgument accepts the literal ARG NAME=value declarations used by

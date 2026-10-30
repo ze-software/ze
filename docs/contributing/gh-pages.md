@@ -57,12 +57,19 @@ successful build, the wrapper reads the immutable image ID by inspecting its
 unique run-owned tag, never the shared manifest tag. The run-owned tag is
 released when the action ends, including a failed or canceled streamed build;
 the manifest tag and Docker's build cache stay. Other `Docker.Build` callers
-remain quiet unless they opt in. A render asks the daemon through
-`Docker.ImagePresent` and refuses to
-start when that image is absent, naming this action; an inspect the daemon
-does not answer is reported as that failure, never as an unbuilt image.
-Rebuild after a change to the renderer Dockerfile or either canonical peer pin.
+remain quiet unless they opt in. A render reads the image's record through
+`Docker.InspectImage` and refuses to start when that image is absent, naming
+this action; an inspect the daemon does not answer is reported as that
+failure, never as an unbuilt image. The Dockerfile records each peer pin it
+was built from as a label (`ze.renderer.frr`, `ze.renderer.keepalived`,
+`ze.renderer.keepalived.sha256`), and the render also refuses an image whose
+labels differ from the pins the checkout declares now, naming the label, the
+current pin and this action. A pin bump leaves the old image under the same
+manifest tag, so without that check the recorder would run a peer release the
+labs no longer use. Rebuild after a change to the renderer Dockerfile; a
+change to either canonical peer pin is refused until you do.
 <!-- source: internal/le/site/terminaldemo/render.go -- Engine.BuildImage, Engine.requireRendererImage -->
+<!-- source: internal/le/site/terminaldemo/image_pins.go -- rendererPinLabels, Engine.requireRendererPins -->
 
 The renderer takes the FRR release from `interoplab.FRRImage` and installs that
 release from FRRouting's signed `trixie` repository, not Debian's older package.
