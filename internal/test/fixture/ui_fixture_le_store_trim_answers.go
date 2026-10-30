@@ -113,6 +113,18 @@ func leStoreTrimAnswers(ctx context.Context) error {
 	if err := os.Symlink(filepath.Join(perUser, "ze"), filepath.Join(checkout, "cache")); err != nil {
 		return leStoreTrimFailf("link the checkout's cache/: %v", err)
 	}
+	// The trim judges only a root carrying the checkout markers
+	// (lepath.IsCheckout): elsewhere its rows would remove the repository's own
+	// files, so a bare directory answers SKIP and trims nothing. The markers are
+	// only tested for existence, and nothing in this run builds against them.
+	for marker, content := range map[string]string{
+		"go.mod":            "module github.com/ze-software/ze\n",
+		"feature-gates.txt": "",
+	} {
+		if err := os.WriteFile(filepath.Join(checkout, marker), []byte(content), 0o600); err != nil {
+			return leStoreTrimFailf("write the checkout marker %s: %v", marker, err)
+		}
+	}
 	checkoutCache := filepath.Join(checkout, "cache", "go-cache")
 	bootstrapCache := filepath.Join(checkout, "tmp", "go-cache")
 	entries, err := leStoreTrimSeed(checkoutCache, bootstrapCache)
