@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Scope | tooling |
 | Priority | P2 |
 | Release reason | Accurate support claims: the published RFC coverage figure divides by rows Ze's code does not owe, so it misstates what Ze has done |
@@ -10,7 +10,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-10-29 |
+| Updated | 2026-10-30 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
