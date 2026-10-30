@@ -29,7 +29,11 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   dependency graph only suggests candidates. An RFC for an optional
   transport or feature is listed for the profile as optional, and it counts
   toward the profile's percentage only once Thomas brings it into scope.
-  Every RFC a profile lists, required or optional, has a valid summary. A
+  Every RFC a profile lists, required or optional, has a valid summary.
+  A technology profile (OSPF, DNS, ...) lists an RFC as optional the same
+  way, when Thomas calls it not a priority for the first release. Its rows
+  stay honest gaps and count only in that profile's optional figure, never
+  as declined. A
   release profile needs every
   mandatory requirement (MUST, MUST NOT, SHALL, SHALL NOT, REQUIRED) of every
   declared RFC covered before release, except a requirement the operating
