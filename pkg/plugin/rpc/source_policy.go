@@ -53,7 +53,7 @@ func sourcePolicyFields(data []byte, names ...string) error {
 		if !ok {
 			return fmt.Errorf("source-policy requires %s", name)
 		}
-		if string(value) == "null" {
+		if string(value) == jsonNull {
 			return fmt.Errorf("source-policy requires non-null %s", name)
 		}
 	}

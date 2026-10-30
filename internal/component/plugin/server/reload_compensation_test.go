@@ -347,7 +347,7 @@ func startCompletionOwner(t *testing.T, s *Server, name string, wire bool) *comp
 					return nil, err
 				}
 				journals[input.TransactionID] = j
-				return nil, nil
+				return &sdk.ConfigOperationApplyOutput{Status: rpc.StatusOK}, nil
 			})
 			p.OnConfigOperationRollback(func(input sdk.ConfigOperationRollbackInput) error {
 				if input.DeadlineMS <= time.Now().UnixMilli() {
@@ -381,7 +381,7 @@ func startCompletionOwner(t *testing.T, s *Server, name string, wire bool) *comp
 				}
 				return ctx.Err()
 			})
-			defer p.Close()
+			defer func() { _ = p.Close() }() // Teardown: Run's result is what the fixture reports.
 			if err := p.Run(s.Context(), &sdk.Registration{
 				WantsConfig:      []string{name},
 				ConfigOperations: []sdk.ConfigOperationDecl{{Root: name, Decompose: true, Operations: []sdk.ConfigOperationType{testOpSetProperty}}},
@@ -535,7 +535,7 @@ func TestReloadOriginalJournalWithCoarseRestoration(t *testing.T) {
 						serviceValue.Store(staged)
 						return nil
 					})
-					defer p.Close()
+					defer func() { _ = p.Close() }() // Teardown: Run's result is what the fixture reports.
 					if err := p.Run(s.Context(), &sdk.Registration{WantsConfig: []string{serviceName}}); err != nil {
 						return 1
 					}
@@ -714,7 +714,7 @@ func TestReloadRecoversRemovedInfrastructureBeforeOriginalUndo(t *testing.T) {
 								return nil, err
 							}
 							journals[input.TransactionID] = j
-							return nil, nil
+							return &sdk.ConfigOperationApplyOutput{Status: rpc.StatusOK}, nil
 						})
 						p.OnConfigOperationRollback(func(input sdk.ConfigOperationRollbackInput) error {
 							j := journals[input.TransactionID]
@@ -747,7 +747,7 @@ func TestReloadRecoversRemovedInfrastructureBeforeOriginalUndo(t *testing.T) {
 							}
 							return nil
 						})
-						defer p.Close()
+						defer func() { _ = p.Close() }() // Teardown: Run's result is what the fixture reports.
 						if err := p.Run(s.Context(), &sdk.Registration{
 							WantsConfig:      []string{name},
 							ConfigOperations: []sdk.ConfigOperationDecl{{Root: name, Decompose: true, Operations: []sdk.ConfigOperationType{testOpSetProperty}}},
@@ -844,7 +844,7 @@ func TestReloadRecoversRemovedServiceAfterOriginalInfrastructureUndo(t *testing.
 						return tx.Configure(sections)
 					})
 					p.OnBye(func(string) error { serving.Store(false); return nil })
-					defer p.Close()
+					defer func() { _ = p.Close() }() // Teardown: Run's result is what the fixture reports.
 					if err := p.Run(s.Context(), &sdk.Registration{WantsConfig: []string{service}}); err != nil {
 						return 1
 					}

@@ -13,7 +13,7 @@ import (
 // fails while the daemon runs is reported at Warn, naming the plugin, the
 // cause and the command, and that the shutdown race alone stays at Debug.
 // Method: capture the package logger at Info, report one failure with a live
-// server context and one with a cancelled one, and read what reached Info.
+// server context and one with a canceled one, and read what reached Info.
 func TestPostStartupFailureWarnsWhileRunning(t *testing.T) {
 	orig := logger
 	t.Cleanup(func() { logger = orig })

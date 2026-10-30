@@ -46,7 +46,7 @@ func startSourcePolicyOwner(t *testing.T, wire bool, event sdk.EventHandler, han
 		p.OnConfigure(func([]sdk.ConfigSection) error { return nil })
 		p.OnEvent(event)
 		p.OnSourcePolicy(handler)
-		defer p.Close()
+		defer func() { _ = p.Close() }() // Teardown: Run's result is what the fixture reports.
 		if err := p.Run(s.Context(), &sdk.Registration{}); err != nil {
 			return 1
 		}

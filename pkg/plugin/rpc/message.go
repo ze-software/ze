@@ -16,6 +16,9 @@ import (
 	"strings"
 )
 
+// jsonNull is the JSON literal a peer sends for an absent value.
+const jsonNull = "null"
+
 // Request represents a parsed incoming RPC request line: #<id> <method> [<json>].
 type Request struct {
 	ID     uint64          // Correlation ID from the #<id> prefix
@@ -395,7 +398,7 @@ func ParseLine(line []byte) (id uint64, verb string, payload []byte, err error) 
 func AppendRequest(buf []byte, id uint64, method string, params json.RawMessage) []byte {
 	buf = appendID(buf, id)
 	buf = append(buf, method...)
-	if len(params) == 0 || string(params) == "null" {
+	if len(params) == 0 || string(params) == jsonNull {
 		return buf
 	}
 	buf = append(buf, ' ')
@@ -407,7 +410,7 @@ func AppendRequest(buf []byte, id uint64, method string, params json.RawMessage)
 // buf. Newline is NOT appended.
 func AppendResult(buf []byte, id uint64, result json.RawMessage) []byte {
 	buf = appendID(buf, id)
-	if len(result) == 0 || string(result) == "null" {
+	if len(result) == 0 || string(result) == jsonNull {
 		return append(buf, 'o', 'k')
 	}
 	buf = append(buf, 'o', 'k', ' ')

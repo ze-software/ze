@@ -67,7 +67,7 @@ func TestSourcePolicyRequiredFields(t *testing.T) {
 						params := request()
 						object := params
 						if nested {
-							object = params["source"].(map[string]any)
+							object = sourceOf(t, params)
 						}
 						if null {
 							object[field] = nil
@@ -93,9 +93,9 @@ func TestSourcePolicyRequiredFields(t *testing.T) {
 				case "transaction-id":
 					params[field] = ""
 				case "peer":
-					params["source"].(map[string]any)[field] = ""
+					sourceOf(t, params)[field] = ""
 				case "peer-owner", "session-generation", "policy-epoch":
-					params["source"].(map[string]any)[field] = 0
+					sourceOf(t, params)[field] = 0
 				case "deadline-ms":
 					params[field] = 0
 				case "expired":
@@ -124,4 +124,15 @@ func TestSourcePolicyRequiredFields(t *testing.T) {
 			}
 		})
 	}
+}
+
+// sourceOf answers the request's nested source object, and fails the test when
+// the fixture no longer carries one.
+func sourceOf(t *testing.T, params map[string]any) map[string]any {
+	t.Helper()
+	source, ok := params["source"].(map[string]any)
+	if !ok {
+		t.Fatalf("request source is %T, want an object", params["source"])
+	}
+	return source
 }

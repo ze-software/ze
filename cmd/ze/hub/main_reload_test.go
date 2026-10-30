@@ -832,7 +832,7 @@ func TestRunReloadOriginalUndoAndFinalizationFailure(t *testing.T) {
 							return nil, err
 						}
 						journals[input.TransactionID] = j
-						return nil, nil
+						return &sdk.ConfigOperationApplyOutput{Status: rpc.StatusOK}, nil
 					})
 					p.OnConfigOperationCommit(func(sdk.ConfigOperationCommitInput) error { return nil })
 					p.OnConfigOperationRollback(func(input sdk.ConfigOperationRollbackInput) error {
@@ -852,7 +852,7 @@ func TestRunReloadOriginalUndoAndFinalizationFailure(t *testing.T) {
 						}
 						return nil
 					})
-					defer p.Close()
+					defer func() { _ = p.Close() }() // Teardown: Run's result is what the fixture reports.
 					if err := p.Run(t.Context(), &sdk.Registration{
 						WantsConfig:      []string{name},
 						ConfigOperations: []sdk.ConfigOperationDecl{{Root: name, Decompose: true, Operations: []sdk.ConfigOperationType{operation}}},
@@ -882,7 +882,7 @@ func TestRunReloadOriginalUndoAndFinalizationFailure(t *testing.T) {
 			base := newTestStore(t, dir)
 			stamp, err := storage.WriteCandidateVersion(base, path, []byte("candidate"), mustParseReloadStamp(t, "20260817-100000.000"))
 			require.NoError(t, err)
-			var store storage.Storage = base
+			store := storage.Storage(base)
 			if publicationFails {
 				store = failAcquireStorage{Storage: base}
 			}

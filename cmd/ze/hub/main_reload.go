@@ -454,8 +454,8 @@ func runReloadContext(ctx context.Context, source reloadSource, s *pluginserver.
 		// plugin server's own ReloadFromDisk (which also errors if no
 		// loader is configured) so the error message stays familiar.
 		err := s.ReloadFromDisk(reloadCtx)
-		acceptReload(err == nil)
-		return err
+		acceptedDecision = true
+		return errors.Join(err, acceptReload(err == nil))
 	}
 
 	newTree, parsedTree, loadErr := load()

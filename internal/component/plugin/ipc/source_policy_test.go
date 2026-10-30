@@ -37,7 +37,11 @@ func TestSourcePolicyExactReceipt(t *testing.T) {
 				object := out
 				switch field {
 				case "peer", "peer-owner", "session-generation", "policy-epoch", "receive-frontier", "template-generation":
-					object = out["source"].(map[string]any)
+					source, ok := out["source"].(map[string]any)
+					if !ok {
+						t.Fatalf("fixture source is %T, want an object", out["source"])
+					}
+					object = source
 				}
 				if field != "success" {
 					switch fault {
