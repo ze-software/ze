@@ -488,7 +488,12 @@ Tab completion is driven by registered YANG schemas. The editor suggests:
   one peer on two links is offered once; the key leaf names follow it
 - Well-known values a plugin offers for one of its own leaves, such as the
   transit-free ASNs on `policy reject-asn ... via`
-<!-- source: internal/component/cli/completer.go -- valueCompletions, validateCompletions, listKeyCompletions -->
+- For a leaf that names another configured entry, the entries it may name at
+  that position: Tab on traffic-control `default-class` offers the classes of
+  that qdisc. These are exactly the values commit accepts, because completion
+  and commit run the same check; with none configured, Tab shows the type hint
+<!-- source: internal/component/cli/completer.go -- valueCompletions, referenceCompletions, validateCompletions, listKeyCompletions -->
+<!-- source: internal/component/config/yang/reference_instances.go -- ReferenceInstances -->
 
 List keys and every other value read from the config come from your own
 candidate configuration, uncommitted edits included. In the web CLI each user

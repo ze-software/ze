@@ -82,6 +82,7 @@ type referenceWalk struct {
 	targets   map[referenceKey]referenceTarget
 	instances map[instancesKey]map[string]string   // canonical value -> value as configured
 	lists     map[listIndexKey]map[string][]string // key value -> map keys of the entries holding it
+	sources   map[sourceKey][]string               // the names a ze:reference source lists, sorted
 	nodes     int                                  // the data nodes the walk has numbered
 }
 
@@ -93,6 +94,7 @@ func newReferenceWalk(v *Validator) *referenceWalk {
 		targets:   make(map[referenceKey]referenceTarget),
 		instances: make(map[instancesKey]map[string]string),
 		lists:     make(map[listIndexKey]map[string][]string),
+		sources:   make(map[sourceKey][]string),
 	}
 }
 
@@ -133,8 +135,9 @@ func (v *Validator) ValidateReferences(root map[string]any) []ValidationError {
 	return w.errs
 }
 
-// holdsReference reports whether the schema subtree at e holds a leafref or
-// an instance-identifier, so the walk enters no subtree that cannot refuse.
+// holdsReference reports whether the schema subtree at e holds a leafref, an
+// instance-identifier or a ze:reference leaf, so the walk enters no subtree
+// that cannot refuse.
 // The recursion is bounded by the schema depth, which Ze builds from its own
 // modules.
 func (w *referenceWalk) holdsReference(e *yang.Entry) bool {
@@ -143,7 +146,7 @@ func (w *referenceWalk) holdsReference(e *yang.Entry) bool {
 	}
 	held := false
 	if isLeafNode(e) {
-		held = typeHoldsReference(e.Type)
+		held = typeHoldsReference(e.Type) || GetReferenceExtension(e) != ""
 	} else {
 		for _, child := range e.Dir {
 			if w.holdsReference(child) {
@@ -219,10 +222,22 @@ func (w *referenceWalk) walkLeaf(path string, entry *yang.Entry, value any, fram
 		items = append(items, str)
 	}
 	for _, item := range items {
-		if err := w.checkInstance(path, entry, entry.Type, item, frames); err != nil {
+		if err := w.checkValue(path, entry, item, frames); err != nil {
 			w.appendError(path, err)
 		}
 	}
+}
+
+// checkValue checks one value of a reference leaf: against the names its
+// ze:reference source lists, when it carries one, and against the instance
+// rule of its type.
+func (w *referenceWalk) checkValue(path string, leaf *yang.Entry, value string, frames []dataNode) error {
+	if source := GetReferenceExtension(leaf); source != "" {
+		if err := w.checkSourceInstance(path, leaf, source, value, frames); err != nil {
+			return err
+		}
+	}
+	return w.checkInstance(path, leaf, leaf.Type, value, frames)
 }
 
 // checkMapKey checks the key of a single-key list entry that the tree keeps
@@ -235,7 +250,7 @@ func (w *referenceWalk) checkMapKey(path string, list *yang.Entry, keyName, key 
 	if keyLeaf == nil {
 		return
 	}
-	if err := w.checkInstance(path, keyLeaf, keyLeaf.Type, key, frames); err != nil {
+	if err := w.checkValue(path, keyLeaf, key, frames); err != nil {
 		w.appendError(path, err)
 	}
 }
@@ -379,12 +394,7 @@ func absentLeafrefMessage(target *yang.Entry, yangType *yang.YangType, value str
 		}
 		return tb.Str(" first, or correct the value").String()
 	}
-	names := slices.Sorted(maps.Values(instances))
-	shown := names[:min(len(names), referenceChoicesMax)]
-	tb.Str(": name one of ").Quoted(strings.Join(shown, " "))
-	if len(names) > len(shown) {
-		tb.Str(" (").Int(int64(len(names) - len(shown))).Str(" more configured)")
-	}
+	writeChoices(&tb, slices.Sorted(maps.Values(instances)))
 	return tb.String()
 }
 

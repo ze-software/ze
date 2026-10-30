@@ -110,6 +110,21 @@ module ze-extensions {
                      for CLI tab-completion of valid values.";
     }
 
+    // Extension: reference
+    // Declares that a leaf or leaf-list names a configured entry that no
+    // leafref path can express (for example a name that any of several lists
+    // may hold). The argument names a source a component registers with
+    // yang.RegisterReferenceSource. Editor completion offers exactly the names
+    // the source lists at the leaf's position, and commit refuses any other
+    // value, naming the leaf, the value and the configured choices. Use a
+    // standard leafref with require-instance wherever a path fits.
+    extension reference {
+        argument source;
+        description "Names the registered source whose names the leaf's value
+                     MUST be one of. Completion and commit validation both
+                     read it.";
+    }
+
     // Extension: command
     // Marks a config false container as an executable command and references
     // the handler's WireMethod for dispatch (e.g., "ze-bgp:peer-list").

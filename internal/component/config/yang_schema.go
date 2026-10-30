@@ -274,6 +274,11 @@ func validatorFromResolved(loader *yang.Resolved) (*yang.Validator, error) {
 	if err := yang.CheckAllValidatorsRegistered(loader, reg); err != nil {
 		slog.Error("YANG validator integrity check failed", "error", err)
 	}
+	// The same check for ze:reference: a leaf whose source no component
+	// registered refuses every value at commit (yang.ValidateReferences).
+	if err := yang.CheckAllReferenceSourcesRegistered(loader); err != nil {
+		slog.Error("YANG reference source integrity check failed", "error", err)
+	}
 
 	return v, nil
 }

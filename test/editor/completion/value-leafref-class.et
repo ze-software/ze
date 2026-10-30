@@ -1,0 +1,42 @@
+# Test: leafref value completion offers the configured instances
+# VALIDATES: Tab on traffic-control default-class, a YANG leafref to
+#            "../class/name", offers the classes this qdisc configures
+#            (completion.valueCompletions through Validator.ReferenceInstances).
+# PREVENTS: a reference leaf completing only a type hint, so the operator
+#           types a class name from memory and learns of a typo at commit.
+
+tmpfs=test.conf:terminator=EOF_CONF
+traffic {
+	control {
+		backend tc
+		interface eth0 {
+			qdisc {
+				type htb
+				class voice {
+					rate 10mbit
+					ceil 100mbit
+					priority 0
+				}
+				class data {
+					rate 90mbit
+					ceil 100mbit
+					priority 1
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Enter the qdisc context
+input=type:text=edit traffic control interface eth0 qdisc
+input=enter
+expect=context:path=traffic/control/interface/eth0/qdisc
+
+# default-class offers the two configured classes
+input=type:text=set default-class
+input=space
+expect=completion:contains=data,voice

@@ -211,7 +211,54 @@ refuses a `Register` call inside `init()` anywhere else.
 
 Worked example: `internal/component/bgp/plugins/filter_path_asn/register_completion.go`.
 
-<!-- source: internal/component/config/yang/validator_registry.go -- RegisterCompleteFn, RegisterDescribeFn, MergeGlobalCompletions -->
+<!-- source: internal/component/config/yang/validator_registry.go -- RegisterCompleteFn, RegisterSuggestion, MergeGlobalCompletions -->
+
+### Step 5c: A Leaf That Names Another Config Entry
+
+A leaf whose value is the name of an entry elsewhere in the config (a class,
+a profile, a key-chain) is a reference, and it gets no validator and no
+`CompleteFn`. Declare it once in YANG and that one declaration drives both
+editor completion and the commit refusal of a dangling name.
+
+Where a path reaches the names, use a standard leafref. `require-instance` is
+true by default, so commit refuses a name no entry carries:
+
+```yang
+leaf default-class {
+    type leafref {
+        path "../class/name";
+    }
+}
+```
+
+Where no path can express the set (the names live in several lists, or a
+component derives them), declare `ze:reference` with the name of a source, and
+register the source from the owning component's `register*.go`:
+
+```yang
+leaf my-ref {
+    type string;
+    ze:reference "my-source";
+}
+```
+
+```go
+func init() {
+    // root: the tree as Tree.ToPluginMap lowers it; at: the leaf's data path
+    configyang.RegisterReferenceSource("my-source", func(root map[string]any, at []string) []string {
+        return namesFrom(root, at)
+    })
+}
+```
+
+Completion offers exactly the names the leafref path reaches or the source
+lists at the leaf's position (`Validator.ReferenceInstances`), and commit refuses
+any other value (`Validator.ValidateReferences`) with a message naming the leaf,
+the value and the configured choices. No hand-written existence check is
+written in the component.
+
+<!-- source: internal/component/config/yang/reference_instances.go -- ReferenceInstances -->
+<!-- source: internal/component/config/yang/reference_source.go -- RegisterReferenceSource, ReferenceSource -->
 
 ## YANG Module Naming
 
@@ -365,6 +412,7 @@ Core types/extensions must be embedded. Plugin schemas are registered at import 
 [ ] If custom validation: validator in validators.go
 [ ] If custom validation: registered in validators_register.go
 [ ] If custom validation: ze:validate in YANG leaf
+[ ] If the leaf names another config entry: leafref (or ze:reference with a registered source), no Go existence check
 [ ] Config test (.ci) in test/parse/ verifying it parses
 [ ] Documentation updated (config guide or architecture doc)
 ```

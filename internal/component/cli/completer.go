@@ -92,6 +92,7 @@ type completion struct {
 	*Completer
 	tree     *config.Tree      // the caller's candidate tree; nil completes from the schema alone
 	backends map[string]string // component root -> active backend name, from tree
+	lowered  map[string]any    // tree as ToPluginMap lowers it, built by data on first use
 }
 
 // over starts one completion call over the caller's candidate tree.
@@ -982,7 +983,7 @@ func (c *completion) matchChildren(path []string, prefix string) []Completion {
 
 	// If this is a leaf, show value hints
 	if entry.Kind == gyang.LeafEntry {
-		return c.valueCompletions(entry, prefix)
+		return c.valueCompletions(path, entry, prefix)
 	}
 
 	// Get children, excluding list key when inside an entry (key already set as identifier).
@@ -1058,10 +1059,19 @@ func (c *completion) backendAllowed(entry *gyang.Entry) bool {
 	return false
 }
 
-// valueCompletions returns completions for a leaf value.
-func (c *Completer) valueCompletions(entry *gyang.Entry, prefix string) []Completion {
+// valueCompletions returns completions for the value of the leaf at path,
+// whose schema node is entry.
+func (c *completion) valueCompletions(path []string, entry *gyang.Entry, prefix string) []Completion {
 	if entry.Type == nil {
 		return []Completion{{Text: "<" + typeHintAny + ">", ShortHelp: typeHintAny, Type: completionHint}}
+	}
+
+	// A reference leaf (a leafref, or a ze:reference source) offers the
+	// entries the candidate tree configures that it may name, which are the
+	// values commit accepts. With none configured, it falls through to the
+	// type hint, so the operator still learns what the leaf takes.
+	if completions := c.referenceCompletions(path, entry, prefix); len(completions) > 0 {
+		return completions
 	}
 
 	// Check ze:validate extension for CompleteFn-based completions.
@@ -1107,6 +1117,81 @@ func (c *Completer) valueCompletions(entry *gyang.Entry, prefix string) []Comple
 	hint := c.TypeHint(entry.Type)
 	var tb textbuf.Buffer
 	return []Completion{{Text: tb.Byte('<').Str(hint).Byte('>').String(), ShortHelp: tb.Reset().Str(hint).Str(" value").String(), Type: completionHint}}
+}
+
+// referenceCompletions returns the configured entries the reference leaf at
+// path may name, matching prefix: the answer of Validator.ReferenceInstances,
+// the walk commit validation checks the value with, over this call's tree.
+// It answers nil for a leaf that is no reference.
+func (c *completion) referenceCompletions(path []string, entry *gyang.Entry, prefix string) []Completion {
+	if !yang.IsReferenceLeaf(entry) {
+		return nil
+	}
+	leafPath, ok := c.referenceDataPath(path)
+	// refuse-by-default: guards valueCompletions -- a path the schema does not describe names no instance, and the empty answer lets the type hint speak
+	if !ok {
+		return nil
+	}
+	var completions []Completion
+	for _, name := range yang.NewValidator(c.schema).ReferenceInstances(c.data(), leafPath) {
+		if prefix != "" && !strings.HasPrefix(name, prefix) {
+			continue
+		}
+		completions = append(completions, Completion{Text: name, ShortHelp: "configured " + entry.Name, Type: completionValue})
+	}
+	return completions
+}
+
+// data answers this call's tree as Tree.ToPluginMap lowers it, the form the
+// reference walk reads, lowered once per call. A call with no tree answers an
+// empty tree, in which a ze:reference source may still find names.
+func (c *completion) data() map[string]any {
+	if c.lowered != nil {
+		return c.lowered
+	}
+	c.lowered = map[string]any{}
+	if c.tree != nil {
+		c.lowered = c.tree.ToPluginMap()
+	}
+	return c.lowered
+}
+
+// referenceDataPath converts a completion path, whose multi-leaf list entry
+// address spans several tokens, to the data path ReferenceInstances takes,
+// where each list entry address is one element: the map key the tree stores
+// the entry under. It navigates as getEntry does, and answers false for a
+// path the schema does not describe.
+func (c *Completer) referenceDataPath(path []string) ([]string, bool) {
+	if len(path) == 0 {
+		return nil, false
+	}
+	entry := c.findModuleEntry(path[0])
+	if entry == nil {
+		return nil, false
+	}
+	out := []string{path[0]}
+	for i := 1; i < len(path); i++ {
+		child, ok := effectiveChildren(entry)[path[i]]
+		if !ok {
+			return nil, false
+		}
+		entry = child
+		out = append(out, path[i])
+		if !entry.IsList() {
+			continue
+		}
+		if i+1 >= len(path) {
+			continue // the list name is last: no entry address follows
+		}
+		_, hasChild := effectiveChildren(entry)[path[i+1]]
+		if hasChild && entry.Key != path[i+1] {
+			continue
+		}
+		span := config.ListAddressSpan(strings.Fields(entry.Key), path[i+1:], func(string) bool { return false })
+		out = append(out, strings.Join(path[i+1:i+1+span], " "))
+		i += span
+	}
+	return out, true
 }
 
 // validateCompletions returns completions from ze:validate CompleteFn if available.
