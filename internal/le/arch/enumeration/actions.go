@@ -110,9 +110,15 @@ func runReport() (any, int) {
 //
 // An empty selection is an error rather than a clean run for the reason this
 // whole gate exists: a scoped check that scopes to zero passes everything, and
-// it prints what a tree with no new copies prints. A change set is empty only
-// when the selector failed, because a checkout with nothing changed still
-// answers the packages it was asked about (internal/le/repo/changed, Scope.Resolve).
+// it prints what a tree with no new copies prints. A selector that failed
+// answers no package, and so does a clean checkout sitting at its anchor: the
+// change set is the working tree plus the commits HEAD holds that its upstream
+// does not (ResolveAnchor, internal/le/repo/changed/anchor.go), and a fresh
+// clone whose branch equals its upstream holds neither. The gate cannot tell
+// the two apart from the empty answer, so it refuses both, and a caller that
+// wants a judgement points the anchor at the base it means:
+// .github/workflows/verify.yml sets the branch's upstream to the tip before the
+// push, or the pull request's base.
 var ErrNoChangeSet = errors.New("the change set selected nothing")
 
 // inChangeSet answers the findings the change set covers, and says which route

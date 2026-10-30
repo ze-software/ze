@@ -35,6 +35,45 @@ jobs:
         with:
           fetch-depth: 0
 
+      # The change set is the working tree plus the commits HEAD holds that
+      # its upstream does not, counted from merge-base(HEAD, @{u}), or from
+      # refs/remotes/origin/HEAD when HEAD tracks no branch (ResolveAnchor,
+      # internal/le/repo/changed/anchor.go). A fresh checkout is clean and its
+      # branch equals its upstream, so every change-set gate (arch enumeration,
+      # compound-guard, refuse-by-default, the scoped race pass) would judge
+      # nothing. This points that same anchor at what the event brought: the
+      # tip before the push, or the pull request's base. A new branch or tag
+      # (before is all zeros), or a force push whose old tip this clone does not
+      # hold, has no previous tip: it is judged on what it adds to the default
+      # branch, and on its tip commit alone when it adds nothing.
+      - name: Anchor the change set at the push or pull request base
+        env:
+          EVENT: ${{ github.event_name }}
+          PUSH_BEFORE: ${{ github.event.before }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT" = pull_request ]; then
+            base="$PR_BASE"
+          else
+            base="$PUSH_BEFORE"
+          fi
+          if [ -z "${base//0/}" ] || ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+            base="$(git merge-base HEAD "refs/remotes/origin/$DEFAULT_BRANCH")"
+          fi
+          base="$(git rev-parse "$base^{commit}")"
+          if [ "$base" = "$(git rev-parse HEAD)" ]; then
+            base="$(git rev-parse HEAD^)"
+          fi
+          git branch -f ze-ci-change-base "$base"
+          if git symbolic-ref -q HEAD >/dev/null; then
+            git branch --set-upstream-to=ze-ci-change-base
+          else
+            git update-ref --no-deref refs/remotes/origin/HEAD "$base"
+          fi
+          echo "change set anchored at merge-base(HEAD, $base) = $(git merge-base HEAD "$base")"
+
       # A site build seeds itself from the last published artifact, the
       # gh-pages tree beside the main checkout (internal/le/site lastPublished),
       # and the recorded terminal demos live nowhere else: a render needs the
