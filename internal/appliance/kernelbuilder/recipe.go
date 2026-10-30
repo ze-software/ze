@@ -67,10 +67,13 @@ const (
 	buildVerb = "build"
 
 	// The QEMU guest's toolchain: the Alpine release whose packages build the
-	// kernel, and the packages installed into it.
+	// kernel, and the packages installed into it. python3 is a kernel build
+	// dependency, as in tools/kernel-builder/Dockerfile: the arm64 runtime build
+	// reaches drivers/gpu/drm/msm, whose Makefile runs gen_header.py, and without
+	// python3 the guest build dies at GENHDR with "python3: not found".
 	alpineVersion = "3.21"
 	alpineMinor   = "3"
-	buildPackages = "build-base bc bison flex elfutils-dev openssl-dev linux-headers perl wget xz diffutils findutils cpio patch kmod zstd"
+	buildPackages = "build-base bc bison flex elfutils-dev openssl-dev linux-headers perl python3 wget xz diffutils findutils cpio patch kmod zstd"
 
 	// The 9p mount options every guest share uses.
 	guestMount = " -t 9p -o trans=virtio,version=9p2000.L,msize=1048576"

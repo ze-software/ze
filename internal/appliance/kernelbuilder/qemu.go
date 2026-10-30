@@ -132,7 +132,7 @@ func ensureAlpineISO(ctx context.Context, arch string) (string, error) {
 		_ = os.Remove(part)
 		return "", fmt.Errorf("publish Alpine ISO: %w", err)
 	}
-	if err := os.WriteFile(sidecar, []byte(fmt.Sprintf("%s  %s\n", expected, name)), 0o600); err != nil {
+	if err := os.WriteFile(sidecar, fmt.Appendf(nil, "%s  %s\n", expected, name), 0o600); err != nil {
 		return "", fmt.Errorf("write Alpine ISO checksum: %w", err)
 	}
 	return iso, nil
