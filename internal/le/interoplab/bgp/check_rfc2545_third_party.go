@@ -25,6 +25,9 @@ const rfc2545ThirdPartyScenario = "bgp-rfc2545-third-party-linklocal-frr"
 // the speaker shares with FRR, and FRR must decode frr-sink's global then
 // frr-sink's own link-local, read from the speaker's neighbor table, and install
 // the route through that link-local.
+//
+// RFC requirement: RFC2545-3-3 positive -- the global next hop names another router (frr-sink, host 15) on the /64 the speaker shares with FRR, and FRR decodes that router's global then that router's own link-local, read from the speaker's neighbor table, and installs the route through that link-local.
+// RFC requirement: RFC2545-3-6 positive -- a route Ze announces through another router's global on the common subnet reaches FRR with that router's link-local as its second next hop, not Ze's own.
 func checkRFC2545ThirdPartyLinkLocal(ctx context.Context, check *interoplab.CheckContext) error {
 	const (
 		// The scenario literal, which the conformance recorder reads to pick

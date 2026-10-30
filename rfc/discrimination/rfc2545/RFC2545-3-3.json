@@ -212,6 +212,18 @@
   },
   {
     "rid": "RFC2545-3-3",
+    "polarity": "positive",
+    "unit": "internal/le/interoplab/bgp/check_rfc2545_third_party.go::checkRFC2545ThirdPartyLinkLocal",
+    "unit-sha": "ddbb2f9355e3a95a",
+    "claim-sha": "9e45d4543e43bc6b",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/link_scope.go::linkScope.thirdPartyLinkLocal",
+    "producer-sha": "51f87184ee1d05d7",
+    "break": "body of linkScope.thirdPartyLinkLocal replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
+    "citation": "4"
+  },
+  {
+    "rid": "RFC2545-3-3",
     "polarity": "negative",
     "unit": "test/exabgp-compat/encoding/conf-llnh-lla-only.ci",
     "unit-sha": "9a04d4979b62095d",

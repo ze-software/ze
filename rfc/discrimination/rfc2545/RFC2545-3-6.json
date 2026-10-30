@@ -42,5 +42,17 @@
     "producer": "internal/component/bgp/reactor/link_scope.go::linkScope.linkLocalNextHop",
     "producer-sha": "602df978457d6505",
     "break": "body of linkScope.linkLocalNextHop replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2545-3-6",
+    "polarity": "positive",
+    "unit": "internal/le/interoplab/bgp/check_rfc2545_third_party.go::checkRFC2545ThirdPartyLinkLocal",
+    "unit-sha": "ddbb2f9355e3a95a",
+    "claim-sha": "a8aeda65593ab613",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/link_scope.go::linkScope.thirdPartyLinkLocal",
+    "producer-sha": "51f87184ee1d05d7",
+    "break": "body of linkScope.thirdPartyLinkLocal replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
+    "citation": "4"
   }
 ]

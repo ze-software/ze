@@ -517,6 +517,12 @@ Defects land first, each in its own commit, so no defect waits on another.
 - Row 9: the type-13 SRv6 BSID form is declined by the owner and stays disclosed as an implementation gap, never counted conformant.
 - The ISD rows `DRAFT-IETF-BESS-MUP-SAFI-3.3.3-1/-3/-4` share row 1's mechanism and are this spec's rows 13 to 15 (AC-9) since 2026-10-21.
 
+## Owned journal rows
+
+| Class file | Date | Surface (short) |
+|------------|------|-----------------|
+| `subscriber-waits-on-an-event-another-feature-produces.md` | 2026-10-30 | AC-5 neighbor refresh needs the netlink monitor, which runs only with an `interface` block |
+
 ## RFC Documentation (Scope: protocol)
 
 Add `// RFC NNNN Section X.Y: "<quoted requirement>"` above enforcing code, using
