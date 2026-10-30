@@ -146,7 +146,7 @@ jobs:
   # keeps a container-lab failure distinct from kernel integration evidence.
   interop:
     runs-on: ubuntu-latest
-    timeout-minutes: 180
+    timeout-minutes: 210
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -193,7 +193,13 @@ jobs:
           ZE_QEMU_MEMORY: "12288"
           ZE_QEMU_CPUS: "3"
           ZE_QEMU_BOOT_TIMEOUT: "300"
-        run: ./le test qemu docker-lab lab "test integration interop" timeout 5400s
+        # The bound covers the guest boot, the peer image builds (22 to 33
+        # minutes cold) and every scenario of the suite (221, about 23 s each
+        # when green: 144 took 56 minutes on 2026-10-28). 5400s interrupted the
+        # suite after 144 and 87 scenarios on 2026-10-28 and 2026-10-30.
+        # 9000s leaves the job's 210 minutes room for a cold runtime-kernel
+        # build (19 minutes).
+        run: ./le test qemu docker-lab lab "test integration interop" timeout 9000s
       - name: The hosted runner's own Docker kernel, for information
         # The probe ze is built by the docker-lab step; a run that stopped
         # before building it leaves nothing to probe.
