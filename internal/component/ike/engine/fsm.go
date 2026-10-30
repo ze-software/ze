@@ -596,6 +596,13 @@ func handleSAInitResponse(
 			if p.NotifyMsgType == wire.NotifySignatureHashAlgorithms {
 				sa.RemoteHashAlgos = parseHashAlgoNotify(p.NotificationData)
 			}
+			// RFC 4739 Section 2.1: the responder announces support in its IKE_SA_INIT
+			// response, and buildAuthRequest asks for a second local round only when it
+			// did. Section 3.1's zero Protocol ID, SPI Size and data bind the sender, so
+			// the fields are not judged here, as strongSwan does not judge them.
+			if p.NotifyMsgType == wire.NotifyMultipleAuthSupported {
+				sa.peerMultipleAuth = true
+			}
 			// RFC 7296 Section 2.23: check NAT detection notify payloads.
 			// SOURCE_IP from responder: hash of responder's own address.
 			// Mismatch means responder is behind NAT.
@@ -771,10 +778,24 @@ func handleAuthResponse(sa *SA, msg *wire.Message, rawMsg []byte, _ *SATable, tr
 		log.Debug("ike: AUTH response has no SK payload, dropped", "peer", sa.PeerName)
 		return
 	}
+	// In the RFC 4739 second exchange only the answer to the request outstanding counts.
+	// A late copy of the first response, drawn by a retransmission of the first
+	// request, would otherwise be read as the answer to the second.
+	if sa.secondAuthExchange && msg.Header.MessageID != sa.NextMsgID {
+		log.Debug("ike: IKE_AUTH response at an unexpected message id, dropped",
+			"peer", sa.PeerName, "msgid", msg.Header.MessageID, "expected", sa.NextMsgID)
+		return
+	}
 
 	plaintext, err := decryptSKPayload(sa, rawMsg, skPayload)
 	if err != nil {
 		log.Warn("ike: AUTH response decryption failed", "peer", sa.PeerName, "error", err)
+		// The second exchange keeps the SA: RFC 7296 Section 2.21.4 lets no message that
+		// fails its integrity check change an SA's state, and the retransmission of the
+		// second request draws the real answer again.
+		if sa.secondAuthExchange {
+			return
+		}
 		sa.State = StateDead
 		return
 	}
@@ -828,6 +849,7 @@ func handleAuthResponse(sa *SA, msg *wire.Message, rawMsg []byte, _ *SATable, tr
 	var certPayloads []*wire.PayloadCERT
 	var setWindowSize *wire.PayloadNotify
 	var respTSi, respTSr *wire.PayloadTS
+	var idr *wire.PayloadID
 	transportAccepted := false
 	for _, pe := range innerPayloads {
 		switch p := pe.Payload.(type) {
@@ -851,7 +873,7 @@ func handleAuthResponse(sa *SA, msg *wire.Message, rawMsg []byte, _ *SATable, tr
 			}
 		case *wire.PayloadID:
 			if p.IDPayloadType == wire.PayloadTypeIDr {
-				sa.RemoteIDPayload = p
+				idr = p
 			}
 		case *wire.PayloadAUTH:
 			authPayload = p
@@ -896,15 +918,45 @@ func handleAuthResponse(sa *SA, msg *wire.Message, rawMsg []byte, _ *SATable, tr
 		return
 	}
 
-	if authPayload == nil {
-		log.Warn("ike: AUTH response missing AUTH payload", "peer", sa.PeerName)
-		sa.State = StateDead
-		return
-	}
-	if err := verifyRemoteAuth(sa, authPayload); err != nil {
-		log.Warn("ike: remote AUTH verification failed", "peer", sa.PeerName, "error", err)
-		sa.State = StateDead
-		return
+	announced := notifyOf(innerPayloads, wire.NotifyAnotherAuthFollows) != nil
+	if sa.secondAuthExchange {
+		// RFC 7296 Section 2.21.2: the responder's first round verified, so an error
+		// found now goes out in a separate INFORMATIONAL before the SA ends.
+		if err := verifySecondExchangeRound(sa, idr, authPayload, announced, log); err != nil {
+			log.Warn("ike: second IKE_AUTH response refused", "peer", sa.PeerName, "error", err)
+			sendIKESATeardown(sa, tr, wire.NotifyAuthenticationFailed, log)
+			sa.State = StateDead
+			return
+		}
+	} else {
+		if idr != nil {
+			sa.RemoteIDPayload = idr
+		}
+		if authPayload == nil {
+			log.Warn("ike: AUTH response missing AUTH payload", "peer", sa.PeerName)
+			sa.State = StateDead
+			return
+		}
+		if err := verifyRemoteAuth(sa, authPayload); err != nil {
+			log.Warn("ike: remote AUTH verification failed", "peer", sa.PeerName, "error", err)
+			sa.State = StateDead
+			return
+		}
+		// RFC 4739 Section 2.1: "The IKE_AUTH phase is considered successful only if
+		// all the individual authentication exchanges complete successfully." The
+		// responder's round verified, and the notification says whether it has another.
+		if err := sa.settleAnotherAuth(announced); err != nil {
+			log.Warn("ike: IKE_AUTH response refused", "peer", sa.PeerName, "error", err)
+			sendIKESATeardown(sa, tr, wire.NotifyAuthenticationFailed, log)
+			sa.State = StateDead
+			return
+		}
+		// A second exchange follows: the responder announced a round, or this side
+		// runs one. Its final response answers the Child SA, so nothing below runs yet.
+		if eapPayload == nil && sa.moreAuthRounds() {
+			continueInitiatorAuth(sa, tr, log)
+			return
+		}
 	}
 
 	// The AUTH verified, so the response is an authentication success even when it

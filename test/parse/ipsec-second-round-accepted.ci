@@ -1,0 +1,57 @@
+# Test: ze config validate ACCEPTS an RFC 4739 second authentication round in
+# both directions of a site-to-site peer: a local round by pre-shared secret
+# with its own identity, and a remote round by hex-encoded pre-shared secret
+# with an identity set and an ID type.
+# It is the acceptance half of the two refusal tests beside it, so the
+# second-round container and every leaf the operator writes here reach the
+# daemon's verify and commit.
+# Unit proof: TestParseAuthConfigSecondRound, TestValidateSecondRound
+# (internal/component/ike/ipsec/config_second_round_test.go).
+stdin=config:terminator=EOF_CONF
+vpn {
+	ipsec {
+		ike-group IKE-MA {
+			proposal 1 {
+				encryption aes256gcm
+				hash sha256
+				dh-group 14
+			}
+		}
+		esp-group ESP-MA {
+			proposal 1 {
+				encryption aes256gcm
+			}
+		}
+		site-to-site {
+			peer branch-1 {
+				ike-group IKE-MA
+				esp-group ESP-MA
+				local-address 127.0.0.1
+				remote-address 127.0.0.2
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret round-one-secret
+					second-round {
+						local {
+							mode pre-shared-secret
+							pre-shared-secret round-two-local-secret
+							id user.example.com
+						}
+						remote {
+							mode pre-shared-secret
+							pre-shared-secret 00ff410a1b2c
+							pre-shared-secret-encoding hex
+							id @example.com
+							id-type rfc822-address
+						}
+					}
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

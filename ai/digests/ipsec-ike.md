@@ -79,11 +79,16 @@ install/read-back therefore does not establish an operator-usable VPP tunnel.
    `fsm.go`, `proposal.go`, first remote proposal matching local policy),
    computes the DH shared secret (`fsm.go`, `dh.go`), and derives SKEYSEED +
    the SK_* key hierarchy (`fsm.go`, `crypto.DeriveSKEYSEED` `keys.go`,
-   `crypto.DeriveSKKeys` `keys.go`).
+   `crypto.DeriveSKKeys` `keys.go`). A MULTIPLE_AUTH_SUPPORTED notify sets
+   `sa.peerMultipleAuth` (RFC 4739).
 8. **IKE_AUTH request.** `buildAuthRequest` (`fsm.go`, `auth.go`) assembles
    IDi + (AUTH, or nothing if the auth mode is EAP) + optional CERT, plus the
    piggybacked Child SA proposal/TSi/TSr (`buildChildSAPayloads`,
-   `initiator.go`), then `buildEncryptedMessage` (`auth.go`) frames it as
+   `initiator.go`), and, for a peer with an RFC 4739 second round,
+   MULTIPLE_AUTH_SUPPORTED plus ANOTHER_AUTH_FOLLOWS when a local round is
+   configured and the responder announced support (`multipleAuthRequestNotifies`,
+   `multiple_auth.go`; the round's credential is read through `sa.localAuth()` /
+   `sa.remoteAuth()`), then `buildEncryptedMessage` (`auth.go`) frames it as
    AES-GCM (`buildSKMessageAEADWithMsgID`, `auth.go`) or AES-CBC+HMAC
    (`buildSKMessageCBCWithMsgID`, `auth.go`) depending on the negotiated cipher;
    `sa.State = StateAuthSent` (`fsm.go`).
@@ -95,7 +100,17 @@ install/read-back therefore does not establish an operator-usable VPP tunnel.
    ECDSA r || s via `verifyECDSAAuth` `auth_ecdsa.go`, or legacy RSA), and
    captures `ChildOutboundSPI` and narrowed `NegotiatedTSi`/`NegotiatedTSr`
    from the piggybacked SAr2/TS payloads (`fsm.go`). No EAP payload →
-   `sa.State = StateEstablished` (`fsm.go`).
+   `sa.State = StateEstablished` (`fsm.go`). RFC 4739: after the first AUTH
+   verifies, `settleAnotherAuth` (`multiple_auth.go`) judges ANOTHER_AUTH_FOLLOWS
+   (an unconfigured, missing or third round is refused with AUTHENTICATION_FAILED
+   in an INFORMATIONAL), and when a round follows `continueInitiatorAuth` sends
+   the second request (its round 2, or `SK {}`) and the SA stays `StateAuthSent`.
+   The second response goes through `verifySecondExchangeRound`, then the same
+   Child SA tail; only that final response establishes. The responder side:
+   `handleAuthRequest` answers a non-final first request with
+   `answerFirstAuthExchange` (round 1 + AAF, no SA/TS, offer held on the SA,
+   `StateAuthReceived`), and `handleResponderAuthRound` verifies the second
+   request and sends the final response through `buildFinalAuthResponse`.
 10. **EAP branch (RFC 7296 §2.16).** If the response carries an EAP payload,
     `startEAPExchange` (`fsm.go`, `fsm.go`) is entered only after the
     server's AUTH is already verified; it drives `eap.PeerSession` (MSCHAPv2 or

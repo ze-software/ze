@@ -33,10 +33,10 @@ func intermediatePeer(mode AuthMode, refs ...string) *IPsecConfig {
 	return &IPsecConfig{
 		Peers: map[string]SiteToSitePeer{
 			"branch": {Auth: AuthConfig{
-				Mode:                     mode,
-				Certificate:              "server",
-				CACertificate:            "corp-root",
-				IntermediateCertificates: &CertificateRefs{Names: refs},
+				Mode:          mode,
+				Certificate:   "server",
+				CACertificate: "corp-root",
+				Additions:     &AuthAdditions{IntermediateCertificates: &CertificateRefs{Names: refs}},
 			}},
 		},
 	}

@@ -86,11 +86,21 @@ func (ps *PeerSession) handleResponderInbound(sa *SA, msg *wire.Message, pkt tra
 			}
 			ps.handleResponderEAP(sa, msg, pkt.Data, tr, pkt.RemoteAddr, log)
 		}
+	case StateAuthReceived:
+		if msg.Header.ExchangeType == wire.ExchangeIKEAuth {
+			// RFC 4739 rounds: the first response is cached, and a retransmission of
+			// the first request draws it again rather than being read as a round
+			// (RFC 7296 Section 2.1).
+			if replayCachedResponse(sa, msg, pkt, tr, log) {
+				return
+			}
+			ps.handleResponderAuthRound(sa, msg, pkt.Data, tr, pkt.RemoteAddr, log)
+		}
 	case StateEstablished:
 		// Narrow window before runResponder adopts the SA into the owner loop: a
 		// retransmitted final IKE_AUTH is answered from the cached response.
 		replayCachedResponse(sa, msg, pkt, tr, log)
-	case StateAuthSent, StateAuthReceived, StateSAInitSent, StateDead:
+	case StateAuthSent, StateSAInitSent, StateDead:
 		log.Debug("ike: responder message in unexpected state", "peer", sa.PeerName, "state", sa.State)
 	default:
 		panic("BUG: unknown IKE SA state in responder dispatch")
@@ -333,7 +343,8 @@ func resendResponderSAInit(sa *SA, tr *transport.UDPTransport, remote *net.UDPAd
 }
 
 // buildSAInitResponse builds the plaintext IKE_SA_INIT response carrying the single
-// chosen proposal, our KE, our nonce, the signature-hash notify, and NAT detection.
+// chosen proposal, our KE, our nonce, the signature-hash notify, MULTIPLE_AUTH_SUPPORTED
+// for a peer with a second authentication round, and NAT detection.
 // It returns an error (without writing) if the encoded message would not fit the
 // fixed buffer, so the caller aborts rather than send a truncated IKE message.
 func buildSAInitResponse(sa *SA, chosen crypto.IKEProposal) ([]byte, error) {
@@ -348,6 +359,14 @@ func buildSAInitResponse(sa *SA, chosen crypto.IKEProposal) ([]byte, error) {
 	// carry a CERTREQ, and Section 3.7 puts one in the IKE_SA_INIT response.
 	if notify := hashAndURLNotify(sa); notify != nil {
 		payloads = append(payloads, wire.PayloadEntry{Payload: notify})
+	}
+
+	// RFC 4739 Section 2.1: "The peers announce support for this IKEv2 extension by
+	// including a MULTIPLE_AUTH_SUPPORTED notification in the IKE_SA_INIT response
+	// (responder) and the first IKE_AUTH request (initiator)." Ze announces it only for
+	// a peer that configures a second round, so every other peer's response is unchanged.
+	if sa.PeerCfg.Auth.HasSecondRound() {
+		payloads = append(payloads, wire.PayloadEntry{Payload: multipleAuthNotify()})
 	}
 
 	localIP := net.ParseIP(sa.PeerCfg.LocalAddress)
@@ -658,7 +677,7 @@ func (ps *PeerSession) handleAuthRequest(sa *SA, msg *wire.Message, rawMsg []byt
 
 	// RFC 7296 Section 2.16: no AUTH payload signals the initiator wants EAP.
 	if authPayload == nil {
-		if ipsec.IsEAPMode(sa.PeerCfg.Auth.Mode) {
+		if ipsec.IsEAPMode(sa.remoteAuth().Mode) {
 			ps.startResponderEAP(sa, msg.Header.MessageID, remoteSAi2, tsi, tsr, tr, remote, log)
 			return
 		}
@@ -671,6 +690,24 @@ func (ps *PeerSession) handleAuthRequest(sa *SA, msg *wire.Message, rawMsg []byt
 		log.Warn("ike: initiator AUTH verification failed", "peer", sa.PeerName, "error", err)
 		ps.sendAuthFailed(sa, msg.Header.MessageID, tr, remote, log)
 		sa.State = StateDead
+		return
+	}
+
+	// RFC 4739 Section 2.1: "The peers announce support for this IKEv2 extension by
+	// including a MULTIPLE_AUTH_SUPPORTED notification in the IKE_SA_INIT response
+	// (responder) and the first IKE_AUTH request (initiator)." This is that request.
+	sa.peerMultipleAuth = notifyOf(inner, wire.NotifyMultipleAuthSupported) != nil
+	if err := sa.settleAnotherAuth(notifyOf(inner, wire.NotifyAnotherAuthFollows) != nil); err != nil {
+		log.Warn("ike: IKE_AUTH request refused", "peer", sa.PeerName, "error", err)
+		ps.sendAuthFailed(sa, msg.Header.MessageID, tr, remote, log)
+		sa.State = StateDead
+		return
+	}
+	if sa.localSecondRoundConfigured() && !sa.peerMultipleAuth {
+		warnLocalRoundSkipped(sa)
+	}
+	if sa.moreAuthRounds() {
+		ps.answerFirstAuthExchange(sa, msg.Header.MessageID, remoteSAi2, tsi, tsr, tr, remote, log)
 		return
 	}
 
@@ -971,7 +1008,15 @@ func (ps *PeerSession) buildAuthResponse(sa *SA, msgID uint32, remoteSAi2 *wire.
 	if err != nil {
 		return nil, nil, err
 	}
+	return ps.buildFinalAuthResponse(sa, msgID, authInner, remoteSAi2, tsi, tsr, fromEAP, log)
+}
 
+// buildFinalAuthResponse builds the IKE_AUTH response that closes the exchange from
+// an authentication half the caller built, and the Child SA half answering the
+// initiator's offer. buildAuthResponse passes this side's only round. The RFC 4739
+// final response passes this side's second round, or nothing when it runs none
+// (handleResponderAuthRound). The contract on errors is buildAuthResponse's.
+func (ps *PeerSession) buildFinalAuthResponse(sa *SA, msgID uint32, authInner []wire.PayloadEntry, remoteSAi2 *wire.PayloadSA, tsi, tsr *wire.PayloadTS, fromEAP bool, log *slog.Logger) ([]byte, *ChildSA, error) {
 	childInner, ifID, err := selectAuthChildSA(sa, ps.virtualIP, remoteSAi2, tsi, tsr, fromEAP)
 	if err != nil {
 		return buildChildlessAuthResponse(sa, msgID, authInner, err, log)
@@ -1008,12 +1053,19 @@ func buildAuthIdentityPayloads(sa *SA, fromEAP bool) ([]wire.PayloadEntry, error
 	if err != nil {
 		return nil, err
 	}
+	return roundIdentityPayloads(sa, false, authPayload)
+}
+
+// roundIdentityPayloads builds the payloads of one authentication round of this side:
+// its identification payload (IDi when isInitiator, else IDr), its certificate chain
+// when the round is x509, and authPayload. The round is the one localAuth answers for.
+func roundIdentityPayloads(sa *SA, isInitiator bool, authPayload *wire.PayloadAUTH) ([]wire.PayloadEntry, error) {
 	inner := make([]wire.PayloadEntry, 0, 4)
-	inner = append(inner, wire.PayloadEntry{Payload: buildIDPayload(sa, false)})
-	if sa.PeerCfg.Auth.Mode == ipsec.AuthX509 {
-		certPayloads, cErr := buildCertPayloads(sa)
-		if cErr != nil {
-			return nil, cErr
+	inner = append(inner, wire.PayloadEntry{Payload: buildIDPayload(sa, isInitiator)})
+	if sa.localAuth().Mode == ipsec.AuthX509 {
+		certPayloads, err := buildCertPayloads(sa)
+		if err != nil {
+			return nil, err
 		}
 		inner = append(inner, certPayloads...)
 	}

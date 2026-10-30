@@ -164,6 +164,12 @@ func validateIPsecSections(sections []sdk.ConfigSection) error {
 	if err := cfg.ValidateGroupRefs(); err != nil {
 		return err
 	}
+	// RFC 4739 Section 2.1. Before ValidatePKIRefs, so a second round on an EAP
+	// peer is refused for what it is rather than for the EAP peer's missing
+	// certificate.
+	if err := cfg.ValidateSecondRounds(candidate.hasCA, candidate.hasCert, candidate.certCN); err != nil {
+		return err
+	}
 	if err := cfg.ValidatePKIRefs(candidate.hasCA, candidate.hasCert, candidate.certCN); err != nil {
 		return err
 	}

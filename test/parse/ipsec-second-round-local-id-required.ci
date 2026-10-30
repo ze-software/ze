@@ -1,0 +1,48 @@
+# Test: ze config validate REFUSES an RFC 4739 second local round that sets no
+# id. The round must assert an identity of its own: a peer such as strongSwan
+# selects the round's pre-shared key by that identity, and falling back to the
+# peer name would assert the first round's identity twice.
+# Unit proof: TestValidateSecondRound "local id not set"
+# (internal/component/ike/ipsec/config_second_round_test.go).
+stdin=config:terminator=EOF_CONF
+vpn {
+	ipsec {
+		ike-group IKE-MA {
+			proposal 1 {
+				encryption aes256gcm
+				hash sha256
+				dh-group 14
+			}
+		}
+		esp-group ESP-MA {
+			proposal 1 {
+				encryption aes256gcm
+			}
+		}
+		site-to-site {
+			peer branch-1 {
+				ike-group IKE-MA
+				esp-group ESP-MA
+				local-address 127.0.0.1
+				remote-address 127.0.0.2
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret round-one-secret
+					second-round {
+						local {
+							mode pre-shared-secret
+							pre-shared-secret round-two-secret
+						}
+					}
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stdout:contains=configuration invalid
+expect=stdout:contains=second-round local id is not set
+expect=stdout:contains=set authentication second-round local id

@@ -1,0 +1,47 @@
+# Test: ze config validate REFUSES an RFC 4739 second round of mode x509 that
+# names no certificate. Ze would have nothing to sign the round's AUTH with, so
+# the config is refused at commit with the leaf that fixes it.
+# Unit proof: TestValidateSecondRound "local x509 without certificate"
+# (internal/component/ike/ipsec/config_second_round_test.go).
+stdin=config:terminator=EOF_CONF
+vpn {
+	ipsec {
+		ike-group IKE-MA {
+			proposal 1 {
+				encryption aes256gcm
+				hash sha256
+				dh-group 14
+			}
+		}
+		esp-group ESP-MA {
+			proposal 1 {
+				encryption aes256gcm
+			}
+		}
+		site-to-site {
+			peer branch-1 {
+				ike-group IKE-MA
+				esp-group ESP-MA
+				local-address 127.0.0.1
+				remote-address 127.0.0.2
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret round-one-secret
+					second-round {
+						local {
+							mode x509
+							id user.example.com
+						}
+					}
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stdout:contains=configuration invalid
+expect=stdout:contains=second-round local mode is x509 and no certificate is set
+expect=stdout:contains=set authentication second-round local certificate

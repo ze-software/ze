@@ -16,6 +16,25 @@ those answers unknown rather than drift.
 
 ## Decisions
 
+**An RFC 4739 second round is a second IKE_AUTH exchange, read through two
+accessors.** Every AUTH builder and verifier reads the credential of the current
+round through `sa.localAuth()` and `sa.remoteAuth()` (`multiple_auth.go`), so
+round 2 runs the same code as round 1 over its own key, CA and identity, and
+`sa.PeerCfg` is never rewritten. Ze runs at most one extra round each way, so
+the phase is at most two exchanges. The initiator puts its round k in request k
+and an empty `SK {}` when it has none; the responder answers with its round k
+and, in the final response only, the Child SA. The first request carries
+MULTIPLE_AUTH_SUPPORTED, SA, TSi and TSr; ANOTHER_AUTH_FOLLOWS rides only on a
+message with AUTH. `settleAnotherAuth` refuses an unconfigured, a missing and a
+third round, so the IKE SA establishes once, on the final response, after every
+configured round verified. A second-exchange message that fails to decrypt is
+dropped and the SA kept. Hash-and-URL stays with round 1: the round-2 chain
+always goes out inline.
+
+<!-- source: internal/component/ike/engine/multiple_auth.go -- localAuth, remoteAuth, settleAnotherAuth, verifySecondExchangeRound, continueInitiatorAuth -->
+<!-- source: internal/component/ike/engine/fsm.go -- handleAuthResponse -->
+<!-- source: internal/component/ike/engine/cert_payload.go -- buildCertPayloads -->
+
 **An unnamed internal state is a programming error, not an unknown peer code.**
 The SA constructors and lifecycle handlers assign named `SAState` values;
 `classifyInbound` returns one of four local outcomes; the rekey constructors

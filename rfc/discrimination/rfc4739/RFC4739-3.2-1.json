@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4739-3.2-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc4739_rounds_test.go::TestRFC4739ResponderAnotherAuthFollows",
+    "unit-sha": "e64a207c54baf9b1",
+    "claim-sha": "944dd1e52aba41e9",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/multiple_auth.go::anotherAuthFollowsNotify",
+    "producer-sha": "fafdfbcf33651e5c",
+    "break": "line 149: \"NotifyMsgType: wire.NotifyAnotherAuthFollows}\" -\u003e \"NotifyMsgType: wire.NotifyAnotherAuthFollows, NotificationData: []byte{1}}\""
+  },
+  {
+    "rid": "RFC4739-3.2-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc4739_test.go::TestRFC4739InitiatorRequestCarriesBothNotifies",
+    "unit-sha": "5467ce84f988d886",
+    "claim-sha": "615a1ad1b64e090d",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/multiple_auth.go::anotherAuthFollowsNotify",
+    "producer-sha": "fafdfbcf33651e5c",
+    "break": "line 149: \"NotifyMsgType: wire.NotifyAnotherAuthFollows}\" -\u003e \"NotifyMsgType: wire.NotifyAnotherAuthFollows, NotificationData: []byte{1}}\""
+  }
+]

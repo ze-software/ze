@@ -395,7 +395,8 @@ func checkRemoteIdentity(sa *SA) error {
 	if err := refuseIDTerminators(sa.PeerName, sa.RemoteIDPayload); err != nil {
 		return err
 	}
-	want := sa.PeerCfg.Auth.RemoteID
+	remote := sa.remoteAuth()
+	want := remote.RemoteID
 	if want == "" {
 		return nil
 	}
@@ -419,7 +420,7 @@ func checkRemoteIdentity(sa *SA) error {
 	// remoteIDMatches compares all three as text once the class agrees. That widening is
 	// harmless when the operator only knows the value. And it is exactly what an operator
 	// who knows the value is a mail address wants to close.
-	if pinned := sa.PeerCfg.Auth.RemoteIDType; pinned != 0 && sa.RemoteIDPayload.IDType != pinned {
+	if pinned := remote.RemoteIDType; pinned != 0 && sa.RemoteIDPayload.IDType != pinned {
 		return fmt.Errorf(
 			"ike auth: peer %q asserted %s and remote-id-type pins %s. "+
 				"Configure the peer to assert %s, or change remote-id-type",

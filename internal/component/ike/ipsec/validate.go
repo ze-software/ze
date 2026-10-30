@@ -179,65 +179,81 @@ func IsAddressRange(value string) bool {
 func (c *IPsecConfig) ValidateIdentities() error {
 	for name := range c.Peers {
 		auth := c.Peers[name].Auth
-		// RFC 7296 Section 3.5, ID_FQDN: "The string MUST NOT contain any terminators
-		// (e.g., NULL, CR, etc.)." Section 3.5, ID_RFC822_ADDR: "The string MUST NOT
-		// contain any terminators."
-		//
-		// THE CHECK IS PER ID TYPE, because the prohibition is. Section 3.5 states it
-		// for ID_FQDN and repeats it for ID_RFC822_ADDR, and those two alone. ID_KEY_ID
-		// is "an opaque octet stream", and ID_DER_ASN1_DN is "the binary Distinguished
-		// Encoding Rules (DER) encoding" -- binary forms in which a control octet is
-		// ordinary content, not a terminator.
-		//
-		// Applying the string rule to every type refused at COMMIT a key-id the wire
-		// path accepts on receipt (refuseIDTerminators, engine/remote_id.go, gates on
-		// the same two types). Two gates over one obligation disagreeing means one of
-		// them is wrong, and Section 3.5 says which: the config gate was.
-		//
-		// local-id needs no type test. encodeIKEID (engine/auth.go) derives the type ze
-		// SENDS from the value's shape, and it has exactly two branches: an IP address,
-		// or ID_FQDN. So a local-id is always one of the two types the prohibition
-		// covers, or an address in which a terminator cannot appear.
-		//
-		// Both refusals land at COMMIT rather than at encode time. encodeIKEID would put
-		// local-id on the wire verbatim, and a silent repair there would send an identity
-		// the operator never wrote (ai/rules/protocol.md). remote-id is checked
-		// for the same reason from the other direction: a conformant peer can never
-		// assert an ID_FQDN or ID_RFC822_ADDR holding a terminator, so such a remote-id
-		// matches nothing and the tunnel would fail authentication with no stated cause.
-		checked := []struct{ leaf, value string }{{"local-id", auth.LocalID}}
-		if remoteIDIsTerminatorFree(auth.RemoteIDType) {
-			checked = append(checked, struct{ leaf, value string }{"remote-id", auth.RemoteID})
+		local := identityLeaf{leaf: "local-id", value: auth.LocalID}
+		remote := identityLeaf{leaf: "remote-id", value: auth.RemoteID}
+		if err := validateIdentityLeaves(name, local, remote, auth.RemoteIDType); err != nil {
+			return err
 		}
-		for _, id := range checked {
-			if c, found := IDTerminator(id.value); found {
-				return fmt.Errorf(
-					"ipsec peer %q: %s %q contains the terminator octet %#02x, and RFC 7296 "+
-						"Section 3.5 forbids a terminator in an ID_FQDN or ID_RFC822_ADDR "+
-						"string. Remove the control character",
-					name, id.leaf, id.value, c)
-			}
-		}
-		if distinguishedName(auth.LocalID) {
+	}
+	return nil
+}
+
+// identityLeaf is one identity value with the config path an error names for it.
+type identityLeaf struct{ leaf, value string }
+
+// validateIdentityLeaves applies the identity rules to the identity ze asserts
+// (local) and the identity the peer must assert (remote). ValidateIdentities runs
+// it over local-id and remote-id, and ValidateSecondRounds over the id leaves of
+// the RFC 4739 second round, so both rounds meet one set of rules.
+func validateIdentityLeaves(name string, local, remote identityLeaf, remoteIDType uint8) error {
+	// RFC 7296 Section 3.5, ID_FQDN: "The string MUST NOT contain any terminators
+	// (e.g., NULL, CR, etc.)." Section 3.5, ID_RFC822_ADDR: "The string MUST NOT
+	// contain any terminators."
+	//
+	// THE CHECK IS PER ID TYPE, because the prohibition is. Section 3.5 states it
+	// for ID_FQDN and repeats it for ID_RFC822_ADDR, and those two alone. ID_KEY_ID
+	// is "an opaque octet stream", and ID_DER_ASN1_DN is "the binary Distinguished
+	// Encoding Rules (DER) encoding" -- binary forms in which a control octet is
+	// ordinary content, not a terminator.
+	//
+	// Applying the string rule to every type refused at COMMIT a key-id the wire
+	// path accepts on receipt (refuseIDTerminators, engine/remote_id.go, gates on
+	// the same two types). Two gates over one obligation disagreeing means one of
+	// them is wrong, and Section 3.5 says which: the config gate was.
+	//
+	// local-id needs no type test. encodeIKEID (engine/auth.go) derives the type ze
+	// SENDS from the value's shape, and it has exactly two branches: an IP address,
+	// or ID_FQDN. So a local-id is always one of the two types the prohibition
+	// covers, or an address in which a terminator cannot appear.
+	//
+	// Both refusals land at COMMIT rather than at encode time. encodeIKEID would put
+	// local-id on the wire verbatim, and a silent repair there would send an identity
+	// the operator never wrote (ai/rules/protocol.md). remote-id is checked
+	// for the same reason from the other direction: a conformant peer can never
+	// assert an ID_FQDN or ID_RFC822_ADDR holding a terminator, so such a remote-id
+	// matches nothing and the tunnel would fail authentication with no stated cause.
+	checked := []identityLeaf{local}
+	if remoteIDIsTerminatorFree(remoteIDType) {
+		checked = append(checked, remote)
+	}
+	for _, id := range checked {
+		if c, found := IDTerminator(id.value); found {
 			return fmt.Errorf(
-				"ipsec peer %q: local-id %q is a distinguished name, and ze sends the identity "+
-					"type derived from the value's shape, which has no ID_DER_ASN1_DN form. "+
-					"Set it to an address, an FQDN, a mail address, or a key id",
-				name, auth.LocalID)
+				"ipsec peer %q: %s %q contains the terminator octet %#02x, and RFC 7296 "+
+					"Section 3.5 forbids a terminator in an ID_FQDN or ID_RFC822_ADDR "+
+					"string. Remove the control character",
+				name, id.leaf, id.value, c)
 		}
-		// A local-id names the ONE identity ze asserts, so a PAD pattern cannot stand
-		// there. remote-id takes a sub-tree or an address range to admit a SET of peers
-		// (RFC 4301 Section 4.4.3.1), and encodeIKEID (engine/auth.go) would put the
-		// pattern text on the wire verbatim as ID_FQDN. The peer would then compare a
-		// literal ".example.com" against its own expectation and refuse the tunnel with
-		// no stated cause, so the config does not commit (ai/rules/protocol.md).
-		if IdentitySubtree(auth.LocalID) || IsAddressRange(auth.LocalID) {
-			return fmt.Errorf(
-				"ipsec peer %q: local-id %q names a set of identities, and ze asserts exactly "+
-					"one. A sub-tree and an address range belong in remote-id. "+
-					"Set local-id to a single address, FQDN, mail address, or key id",
-				name, auth.LocalID)
-		}
+	}
+	if distinguishedName(local.value) {
+		return fmt.Errorf(
+			"ipsec peer %q: %s %q is a distinguished name, and ze sends the identity "+
+				"type derived from the value's shape, which has no ID_DER_ASN1_DN form. "+
+				"Set it to an address, an FQDN, a mail address, or a key id",
+			name, local.leaf, local.value)
+	}
+	// A local-id names the ONE identity ze asserts, so a PAD pattern cannot stand
+	// there. remote-id takes a sub-tree or an address range to admit a SET of peers
+	// (RFC 4301 Section 4.4.3.1), and encodeIKEID (engine/auth.go) would put the
+	// pattern text on the wire verbatim as ID_FQDN. The peer would then compare a
+	// literal ".example.com" against its own expectation and refuse the tunnel with
+	// no stated cause, so the config does not commit (ai/rules/protocol.md).
+	if IdentitySubtree(local.value) || IsAddressRange(local.value) {
+		return fmt.Errorf(
+			"ipsec peer %q: %s %q names a set of identities, and ze asserts exactly "+
+				"one. A sub-tree and an address range belong in %s. "+
+				"Set %s to a single address, FQDN, mail address, or key id",
+			name, local.leaf, local.value, remote.leaf, local.leaf)
 	}
 	return nil
 }
@@ -291,7 +307,7 @@ func (c *IPsecConfig) ValidatePolicyOrder() error {
 func (c *IPsecConfig) ValidateIntermediateRefs(caCert func(string) *x509.Certificate) error {
 	for name := range c.Peers {
 		peer := c.Peers[name]
-		if len(peer.Auth.IntermediateCertificates.List()) == 0 {
+		if len(peer.Auth.Intermediates()) == 0 {
 			continue
 		}
 		if peer.Auth.Mode != AuthEAPTLS {
@@ -300,7 +316,7 @@ func (c *IPsecConfig) ValidateIntermediateRefs(caCert func(string) *x509.Certifi
 					"and this peer uses %s; remove authentication intermediate-certificate or set authentication mode eap-tls",
 				name, peer.Auth.Mode)
 		}
-		for _, ref := range peer.Auth.IntermediateCertificates.List() {
+		for _, ref := range peer.Auth.Intermediates() {
 			cert := caCert(ref)
 			if cert == nil {
 				return fmt.Errorf(
@@ -426,19 +442,39 @@ func (c *IPsecConfig) ValidatePKIRefs(hasCA, hasCert func(string) bool, certCN f
 func (c *IPsecConfig) ValidateCertificateChains(certChainLen func(string) int) error {
 	for name := range c.Peers {
 		peer := c.Peers[name]
-		cert := peer.Auth.Certificate
-		if cert == "" {
+		limit := int(peer.Auth.CertificateChainLimit())
+		if err := validateCertificateChain(name, "certificate", peer.Auth.Certificate, limit, certChainLen); err != nil {
+			return err
+		}
+		// The RFC 4739 second round sends its own chain under the same bound.
+		rounds := peer.Auth.SecondRound()
+		if rounds == nil {
 			continue
 		}
-		held := certChainLen(cert)
-		limit := int(peer.Auth.CertificateChainLimit())
-		if held > limit {
-			return fmt.Errorf(
-				"ipsec peer %q: certificate %q holds a chain of %d and certificate-count allows %d, "+
-					"so ze would have to send a path the peer cannot complete. Raise "+
-					"certificate-count to %d, or name fewer intermediate certificates",
-				name, cert, held, limit, held)
+		if rounds.Local == nil {
+			continue
 		}
+		leaf := secondRoundLocalPath + " certificate"
+		if err := validateCertificateChain(name, leaf, rounds.Local.Certificate, limit, certChainLen); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// validateCertificateChain refuses one certificate whose PKI chain is longer
+// than the peer's certificate-count. An empty name is not configured and passes.
+func validateCertificateChain(name, leaf, cert string, limit int, certChainLen func(string) int) error {
+	if cert == "" {
+		return nil
+	}
+	held := certChainLen(cert)
+	if held > limit {
+		return fmt.Errorf(
+			"ipsec peer %q: %s %q holds a chain of %d and certificate-count allows %d, "+
+				"so ze would have to send a path the peer cannot complete. Raise "+
+				"certificate-count to %d, or name fewer intermediate certificates",
+			name, leaf, cert, held, limit, held)
 	}
 	return nil
 }

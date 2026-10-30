@@ -482,16 +482,15 @@ type AuthConfig struct {
 	LocalID       string
 	RemoteID      string
 	CACertificate string // PKI store name (x509 and EAP modes)
-	// IntermediateCertificates names PKI store CA entries that an EAP-TLS
-	// authenticator adds to path validation of the client chain, beside the
-	// intermediates the client sends (RFC 5216 Section 5.3). They are never
-	// trust anchors. ValidateIntermediateRefs refuses a name that is missing,
-	// that is not a CA certificate, or that is set on a peer not in eap-tls mode.
-	//
-	// It is a pointer rather than a slice so SiteToSitePeer stays under the
-	// hugeParam threshold (TestSiteToSitePeerStaysUnderTheHugeParamThreshold).
-	// Nil means the operator configured none.
-	IntermediateCertificates *CertificateRefs
+	// Additions holds the per-peer authentication additions most peers leave
+	// unset: the EAP-TLS intermediate certificates and the RFC 4739 second
+	// round. It is ONE pointer for both so SiteToSitePeer stays under the
+	// hugeParam threshold (TestSiteToSitePeerStaysUnderTheHugeParamThreshold):
+	// a pointer per addition pushed the peer to exactly 288 bytes. Nil means the
+	// operator configured neither, and parseAuthConfig leaves it nil then, so
+	// Equal still compares a bare peer with a bare peer. Read it through
+	// Intermediates and SecondRound, which answer for a nil Additions.
+	Additions *AuthAdditions
 	// Certificate is a PKI store name. X.509 mode uses it, and every EAP mode
 	// requires it, because RFC 7296 Section 2.16 makes the responder sign its
 	// AUTH with a public key. ValidatePKIRefs enforces that.
@@ -597,6 +596,71 @@ type AuthConfig struct {
 // the same reason.
 func (a AuthConfig) Equal(b AuthConfig) bool {
 	return reflect.DeepEqual(a, b)
+}
+
+// SecondRoundAuth is the RFC 4739 second authentication round of a site-to-site
+// peer, one AuthConfig per direction.
+//
+// RFC 4739 Section 2.1: "The IKE_AUTH phase is considered successful only if all
+// the individual authentication exchanges complete successfully."
+//
+// Local is the credential ze proves in its second round: Mode, PSK, LocalID and
+// Certificate. Remote is the credential the peer must prove: Mode, PSK, RemoteID,
+// RemoteIDType and CACertificate. Each is nil when its container is absent, and
+// a non-nil round always carries Mode pre-shared-secret or x509 (parseSecondRound
+// refuses every other mode). Each round's CertificateCount is the peer's own, so
+// one chain bound applies to the peer whichever round sends or receives a chain.
+type SecondRoundAuth struct {
+	Local  *AuthConfig
+	Remote *AuthConfig
+}
+
+// AuthAdditions is the part of AuthConfig most peers leave unset, behind the one
+// AuthConfig.Additions pointer.
+type AuthAdditions struct {
+	// IntermediateCertificates names PKI store CA entries that an EAP-TLS
+	// authenticator adds to path validation of the client chain, beside the
+	// intermediates the client sends (RFC 5216 Section 5.3). They are never
+	// trust anchors. ValidateIntermediateRefs refuses a name that is missing,
+	// that is not a CA certificate, or that is set on a peer not in eap-tls mode.
+	// Nil means the operator configured none.
+	IntermediateCertificates *CertificateRefs
+	// SecondRound holds the RFC 4739 second authentication round, one per
+	// direction. Nil means the operator configured no second-round container,
+	// which keeps the exchange to one authentication each way.
+	SecondRound *SecondRoundAuth
+}
+
+// Intermediates answers the configured EAP-TLS intermediate certificate names,
+// and nil when none are configured.
+func (a AuthConfig) Intermediates() []string {
+	if a.Additions == nil {
+		return nil
+	}
+	return a.Additions.IntermediateCertificates.List()
+}
+
+// SecondRound answers the RFC 4739 second round, and nil when none is
+// configured.
+func (a AuthConfig) SecondRound() *SecondRoundAuth {
+	if a.Additions == nil {
+		return nil
+	}
+	return a.Additions.SecondRound
+}
+
+// HasSecondRound reports whether the peer configures a second authentication
+// round in either direction. Ze announces MULTIPLE_AUTH_SUPPORTED only to a peer
+// for which this answers true.
+func (a AuthConfig) HasSecondRound() bool {
+	rounds := a.SecondRound()
+	if rounds == nil {
+		return false
+	}
+	if rounds.Local != nil {
+		return true
+	}
+	return rounds.Remote != nil
 }
 
 // DefaultCertificateCount is the X.509 certificate chain bound ze applies when the

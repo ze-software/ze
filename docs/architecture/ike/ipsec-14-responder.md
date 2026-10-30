@@ -124,6 +124,21 @@ assignment.
 
 ## Decisions
 
+**The responder holds the Child SA offer across RFC 4739 rounds.** When the
+first IKE_AUTH request verifies and a second exchange follows,
+`answerFirstAuthExchange` sends IDr, CERT and AUTH of round 1 (plus
+ANOTHER_AUTH_FOLLOWS when Ze has a round of its own), keeps SAi2, TSi and TSr
+on the SA and moves it to `StateAuthReceived`. `handleResponderInbound` replays
+the cached response for a retransmitted first request and hands the next one to
+`handleResponderAuthRound`, which verifies the initiator's round, adopts the
+endpoint, and answers through `buildFinalAuthResponse` with Ze's round 2 and the
+Child SA half. The half-open reaper covers the new state as it covers the EAP
+one. MULTIPLE_AUTH_SUPPORTED goes in the IKE_SA_INIT response only for a peer
+that configures a second round.
+
+<!-- source: internal/component/ike/engine/multiple_auth.go -- answerFirstAuthExchange, handleResponderAuthRound -->
+<!-- source: internal/component/ike/engine/responder.go -- handleResponderInbound, handleAuthRequest, buildFinalAuthResponse -->
+
 **The session-ticket key belongs to the PEERING, not to the EAP exchange.**
 `newTLSMethod` builds a fresh `tls.Config` per EAP session and Go keys ticket
 encryption on the Config instance, so a per-session key issues tickets nothing

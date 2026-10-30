@@ -96,6 +96,41 @@ each apply, and its responder leases from them (`ipsec-14-responder.md`).
 <!-- source: internal/component/ike/ipsec/types.go -- VirtualIPBinding, VirtualIPPoolName, VirtualIPPool, RemoteAccessConfig -->
 <!-- source: internal/component/ike/ipsec/validate.go -- validateVirtualIPPools, validateVirtualIPPool, ValidateVirtualIPPoolBindings -->
 
+**A second authentication round is one more `AuthConfig` per direction.**
+`authentication second-round` holds a `local` and a `remote` container for the
+RFC 4739 second round. `parseSecondRound` reads them into
+`AuthConfig.Additions.SecondRound`, a `*SecondRoundAuth` whose `Local` and
+`Remote` are each an `*AuthConfig`, nil when that container is absent. Readers go
+through the nil-safe accessor `SecondRound()`, which answers nil when neither is
+configured, and `HasSecondRound` answers whether either is. `Additions` is one
+pointer shared with the intermediate certificates, which keeps `SiteToSitePeer`
+under the 288-byte by-value threshold.
+A round reuses the first round's fields rather than a second struct: `Local`
+fills `Mode`, `PSK`, `LocalID` and `Certificate`, `Remote` fills `Mode`, `PSK`,
+`RemoteID`, `RemoteIDType` and `CACertificate`, and each takes the peer's
+`CertificateCount`. A round's mode is pre-shared-secret or x509, and the parser
+refuses any other. The secret goes through `parsePreSharedSecret` and the PKI
+name through `readCertificateRefs`, the first round's own readers.
+`AuthConfig.Equal` compares the pointer deeply, so a second-round edit restarts
+the peer as a first-round edit does.
+
+At commit, `ValidateSecondRounds` refuses a second round on a peer whose first
+round is an EAP mode, a pre-shared-secret round with no secret, a local x509
+round with no certificate, a remote x509 round with no ca-certificate, and a
+local round with no `id`: the round asserts an identity of its own, and a peer
+that picks the round's pre-shared key by identity would otherwise look up the
+first round's. It
+checks the round's PKI names against the store and the local certificate's CN
+against the round's `id`, as `ValidatePKIRefs` does for the first round. The
+round ids pass through `validateIdentityLeaves`, the helper `ValidateIdentities`
+runs over `local-id` and `remote-id`. `ValidateCertificateChains` holds the
+round's certificate chain to the peer's `certificate-count`. Every refusal names
+the peer and the leaf path, `authentication second-round local` or `remote`.
+
+<!-- source: internal/component/ike/ipsec/types.go -- SecondRoundAuth, AuthConfig.HasSecondRound -->
+<!-- source: internal/component/ike/ipsec/second_round.go -- parseSecondRound, ValidateSecondRounds -->
+<!-- source: internal/component/ike/ipsec/validate.go -- validateIdentityLeaves, validateCertificateChain -->
+
 ## Traps this code exists to avoid
 
 The linters in this repository push back on four shapes in this package. Each

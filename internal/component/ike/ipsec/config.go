@@ -796,7 +796,14 @@ func parseAuthConfig(peerName string, t *config.Tree) (AuthConfig, error) {
 	// peer whose mode never reads it, rather than accepting a config that does
 	// nothing.
 	if names := t.GetSlice("intermediate-certificate"); len(names) > 0 {
-		auth.IntermediateCertificates = &CertificateRefs{Names: names}
+		auth.Additions = &AuthAdditions{IntermediateCertificates: &CertificateRefs{Names: names}}
+	}
+
+	// Read after every first-round leaf, because each round takes the peer's
+	// certificate-count. ValidateSecondRounds refuses a second round on an EAP
+	// peer, so it is parsed in every mode for that refusal to see it.
+	if err := parseSecondRound(peerName, t, &auth); err != nil {
+		return auth, err
 	}
 
 	return auth, nil

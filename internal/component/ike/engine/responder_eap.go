@@ -112,7 +112,7 @@ func eapTLSServerConfig(sa *SA) (eap.MethodConfig, error) {
 	// (eap.MethodConfig.IntermediateCertPEM). Config verify refused a name that
 	// is missing or not a CA (ipsec.ValidateIntermediateRefs); a name the live
 	// store lost since is refused here rather than validated without.
-	for _, name := range sa.PeerCfg.Auth.IntermediateCertificates.List() {
+	for _, name := range sa.PeerCfg.Auth.Intermediates() {
 		inter := pki.GetCA(name)
 		if inter == nil {
 			return eap.MethodConfig{}, fmt.Errorf(
@@ -324,6 +324,16 @@ func (ps *PeerSession) handleResponderEAP(sa *SA, msg *wire.Message, rawMsg []by
 	if authPayload != nil {
 		if err := verifyRemoteAuth(sa, authPayload); err != nil {
 			log.Warn("ike: EAP AUTH-from-MSK verification failed", "peer", sa.PeerName, "error", err)
+			ps.sendAuthFailed(sa, msg.Header.MessageID, tr, remote, log)
+			sa.State = StateDead
+			return
+		}
+		// RFC 4739 Section 2.1: "The IKE_AUTH phase is considered successful only if
+		// all the individual authentication exchanges complete successfully." Commit
+		// refuses a second round on an EAP peer, so an initiator that announces one
+		// here asks for a round nobody configured, and is refused.
+		if err := sa.settleAnotherAuth(notifyOf(inner, wire.NotifyAnotherAuthFollows) != nil); err != nil {
+			log.Warn("ike: EAP AUTH-from-MSK request refused", "peer", sa.PeerName, "error", err)
 			ps.sendAuthFailed(sa, msg.Header.MessageID, tr, remote, log)
 			sa.State = StateDead
 			return

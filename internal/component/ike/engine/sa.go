@@ -26,7 +26,7 @@ const (
 	StateSAInitSent             // initiator sent IKE_SA_INIT, awaiting response
 	StateSAInitReceived         // responder received IKE_SA_INIT, sent response
 	StateAuthSent               // initiator sent IKE_AUTH, awaiting response
-	StateAuthReceived           // responder received IKE_AUTH, sent response
+	StateAuthReceived           // responder answered a non-final IKE_AUTH, awaits the next RFC 4739 round
 	StateEAPInProgress          // initiator EAP exchange in IKE_AUTH (RFC 7296 Section 2.16)
 	StateEstablished            // IKE SA fully established
 	StateDead                   // SA is being torn down
@@ -391,6 +391,28 @@ type SA struct {
 	// them with the lease it grants.
 	cpRequest      *cpRequest
 	eapTSi, eapTSr *wire.PayloadTS
+	// localRound and remoteRound are the RFC 4739 authentication round each direction
+	// is in. localAuth and remoteAuth (multiple_auth.go) read them to pick the round's
+	// credential, and only beginLocalSecondRound and beginRemoteSecondRound move them
+	// past the first round.
+	localRound, remoteRound authRound
+	// peerMultipleAuth records that the peer announced MULTIPLE_AUTH_SUPPORTED. An
+	// initiator SA learns it from the IKE_SA_INIT response (handleSAInitResponse,
+	// fsm.go), a responder SA from the first IKE_AUTH request (handleAuthRequest,
+	// responder.go). False means the notification did not arrive, which is the RFC's
+	// own "this peer does not support the extension".
+	peerMultipleAuth bool
+	// secondAuthExchange records that the IKE_AUTH phase went past its first exchange
+	// into the RFC 4739 second one (beginSecondAuthExchange, multiple_auth.go).
+	// peerRoundOwed records that the peer announced ANOTHER_AUTH_FOLLOWS and that the
+	// round it announced has not verified yet.
+	secondAuthExchange bool
+	peerRoundOwed      bool
+	// heldSAi2, heldTSi and heldTSr keep the Child SA offer of a responder's first
+	// IKE_AUTH request while RFC 4739 rounds follow. Only the final response answers
+	// it (handleResponderAuthRound, multiple_auth.go). Nil when nothing was offered.
+	heldSAi2         *wire.PayloadSA
+	heldTSi, heldTSr *wire.PayloadTS
 	// virtualIP is the lease set this IKE SA holds (assignVirtualIP), nil when it holds
 	// none. Released once by forgetKeys, moved to a rekeyed successor by moveVirtualIP,
 	// both on the owner goroutine, while `show vpn ipsec sa` ((*SA).VirtualIPs) reads it

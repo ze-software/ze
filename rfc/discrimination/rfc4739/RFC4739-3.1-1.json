@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4739-3.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc4739_test.go::TestRFC4739InitiatorRequestCarriesBothNotifies",
+    "unit-sha": "5467ce84f988d886",
+    "claim-sha": "f7f1541c5c00a619",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/multiple_auth.go::multipleAuthNotify",
+    "producer-sha": "d5c18cfff423dc11",
+    "break": "line 136: \"NotifyMsgType: wire.NotifyMultipleAuthSupported}\" -\u003e \"NotifyMsgType: wire.NotifyMultipleAuthSupported, NotificationData: []byte{1}}\""
+  },
+  {
+    "rid": "RFC4739-3.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc4739_test.go::TestRFC4739ResponderAnnouncesMultipleAuth",
+    "unit-sha": "f0b6aad087d086dc",
+    "claim-sha": "058908cc150c803d",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/multiple_auth.go::multipleAuthNotify",
+    "producer-sha": "d5c18cfff423dc11",
+    "break": "line 136: \"NotifyMsgType: wire.NotifyMultipleAuthSupported}\" -\u003e \"NotifyMsgType: wire.NotifyMultipleAuthSupported, NotificationData: []byte{1}}\""
+  }
+]

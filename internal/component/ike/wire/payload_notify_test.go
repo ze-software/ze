@@ -124,3 +124,37 @@ func TestPrivateNotifyTypesAreStatusTypes(t *testing.T) {
 		}
 	}
 }
+
+// TestNotifyTypeNamesMultipleAuth pins the two RFC 4739 status notifies in the
+// registry, so the engine can recognize them and log them by name.
+//
+// VALIDATES: 16404 and 16405 are recognized status types, RFC-defined rather
+// than private-use, and named MULTIPLE_AUTH_SUPPORTED and ANOTHER_AUTH_FOLLOWS.
+// PREVENTS: a peer's RFC 4739 notifies logged as UNRECOGNIZED and ignored.
+func TestNotifyTypeNamesMultipleAuth(t *testing.T) {
+	cases := []struct {
+		value uint16
+		want  string
+	}{
+		{NotifyMultipleAuthSupported, "MULTIPLE_AUTH_SUPPORTED"},
+		{NotifyAnotherAuthFollows, "ANOTHER_AUTH_FOLLOWS"},
+	}
+	wantValues := []uint16{16404, 16405}
+	for i, tc := range cases {
+		if tc.value != wantValues[i] {
+			t.Errorf("%s is %d, RFC 4739 Section 3 allocates %d", tc.want, tc.value, wantValues[i])
+		}
+		if !NotifyTypeRecognized(tc.value) {
+			t.Errorf("notify type %d is not in the registry", tc.value)
+		}
+		if got := NotifyTypeName(tc.value); got != tc.want {
+			t.Errorf("NotifyTypeName(%d) = %q, want %q", tc.value, got, tc.want)
+		}
+		if NotifyIsError(tc.value) {
+			t.Errorf("notify type %d answers error; RFC 4739 types are status types", tc.value)
+		}
+		if !notifyRFCDefined(tc.value) {
+			t.Errorf("notify type %d answers private-use; RFC 4739 defines it", tc.value)
+		}
+	}
+}

@@ -1,0 +1,49 @@
+# Test: ze config validate REFUSES an RFC 4739 second authentication round on a
+# peer whose first round is an EAP method. Ze runs a second round only after a
+# pre-shared-secret or x509 first round, so the config is refused at commit with
+# the leaf to delete or the mode to change, rather than committing a round the
+# engine would never run.
+# Unit proof: TestValidateSecondRound "eap first round"
+# (internal/component/ike/ipsec/config_second_round_test.go).
+stdin=config:terminator=EOF_CONF
+vpn {
+	ipsec {
+		ike-group IKE-MA {
+			proposal 1 {
+				encryption aes256gcm
+				hash sha256
+				dh-group 14
+			}
+		}
+		esp-group ESP-MA {
+			proposal 1 {
+				encryption aes256gcm
+			}
+		}
+		site-to-site {
+			peer branch-1 {
+				ike-group IKE-MA
+				esp-group ESP-MA
+				local-address 127.0.0.1
+				remote-address 127.0.0.2
+				authentication {
+					mode eap-mschapv2
+					pre-shared-secret eap-password
+					second-round {
+						remote {
+							mode pre-shared-secret
+							pre-shared-secret round-two-secret
+						}
+					}
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stdout:contains=configuration invalid
+expect=stdout:contains=authentication second-round needs a first round of pre-shared-secret or x509
+expect=stdout:contains=Delete authentication second-round

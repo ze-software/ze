@@ -619,6 +619,72 @@ DNS-name matching.
 <!-- source: internal/core/eap/peer.go -- startTLSClient -->
 <!-- source: internal/core/eap/peer_chain.go -- serverChainCheck.verifyPeerCertificate -->
 
+## A second authentication round (RFC 4739)
+
+A site-to-site peer can authenticate twice in each direction: for example a
+device certificate first, then a pre-shared key that belongs to a user or to a
+third party behind the gateway. The first round is the `authentication` block
+you already have. `second-round` adds one more round for each direction:
+
+```
+vpn ipsec site-to-site peer branch-1 authentication {
+    mode x509
+    local-id ze-device.example.com
+    remote-id 192.0.2.1
+    certificate ze-device
+    ca-certificate site-ca
+    second-round {
+        local {
+            mode pre-shared-secret
+            pre-shared-secret <secret>
+            id ze-user.example.com
+        }
+        remote {
+            mode pre-shared-secret
+            pre-shared-secret <secret>
+            id gateway-user.example.com
+        }
+    }
+}
+```
+
+`local` is the credential Ze proves in its second round, and `remote` the one
+it requires from the peer. Either can be left out. Each round runs in its own
+IKE_AUTH exchange and signs over its own identity, and the tunnel comes up only
+once every configured round has succeeded. A round is `mode pre-shared-secret`
+or `mode x509`; an x509 round names its own `certificate` (local) or
+`ca-certificate` (remote).
+
+| Situation | What Ze does |
+|-----------|--------------|
+| The peer asks for a round that `second-round remote` does not configure | Refuses with AUTHENTICATION_FAILED |
+| `second-round remote` is set and the peer finishes without that round | Refuses with AUTHENTICATION_FAILED, and the log names the leaf |
+| The peer asks for a third round | Refuses with AUTHENTICATION_FAILED. Ze runs at most one extra round each way |
+| `second-round local` is set and the peer does not announce RFC 4739 support | Completes with the first round alone, and logs one warning naming the leaf to remove |
+
+Commit refuses a second round on a peer whose first round is an EAP method, a
+round of mode pre-shared-secret with no secret, a local x509 round with no
+certificate, and a remote x509 round with no `ca-certificate`. It also refuses a
+`local` round with no `id`. The round asserts an identity of its own, and a peer
+such as strongSwan picks the round's pre-shared key by that identity, so falling
+back to the peer name would make it look up the first round's key.
+
+`hash-and-url` applies to the first round only. A second-round certificate
+always goes out inline, which every peer accepts.
+
+Ze announces MULTIPLE_AUTH_SUPPORTED only to a peer that configures a second
+round, so every other peer sees exactly what it saw before. When Ze verifies a
+peer's second round it logs `ike: second authentication round verified` with
+the peer and the identity that round proved.
+
+One property comes with the RFC, and Ze does not change it: when the initiator
+authenticates more than once, the responder reveals its identity before all of
+the initiator's rounds have completed (RFC 4739 Section 5).
+
+<!-- source: internal/component/ike/engine/multiple_auth.go -- settleAnotherAuth, verifySecondExchangeRound, answerFirstAuthExchange, handleResponderAuthRound, continueInitiatorAuth -->
+<!-- source: internal/component/ike/ipsec/second_round.go -- parseSecondRound, ValidateSecondRounds -->
+<!-- source: internal/component/ike/engine/cert_payload.go -- buildCertPayloads -->
+
 ## EAP method negotiation
 
 The far end chooses the EAP method, and `authentication { mode ... }` sets the one

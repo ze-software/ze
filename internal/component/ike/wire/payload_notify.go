@@ -63,13 +63,33 @@ const (
 	NotifyESPTFCPaddingNotSupported uint16 = 16394
 	NotifyNonFirstFragmentsAlso     uint16 = 16395
 	// RFC 4555 Section 4: Protocol ID and SPI Size are zero for these notifies.
-	NotifyMobikeSupported         uint16 = 16396
-	NotifyAdditionalIP4Address    uint16 = 16397
-	NotifyAdditionalIP6Address    uint16 = 16398
-	NotifyNoAdditionalAddresses   uint16 = 16399
-	NotifyUpdateSAAddresses       uint16 = 16400
-	NotifyCookie2                 uint16 = 16401
-	NotifyNoNATsAllowed           uint16 = 16402
+	NotifyMobikeSupported       uint16 = 16396
+	NotifyAdditionalIP4Address  uint16 = 16397
+	NotifyAdditionalIP6Address  uint16 = 16398
+	NotifyNoAdditionalAddresses uint16 = 16399
+	NotifyUpdateSAAddresses     uint16 = 16400
+	NotifyCookie2               uint16 = 16401
+	NotifyNoNATsAllowed         uint16 = 16402
+	// NotifyMultipleAuthSupported announces that the sender supports multiple
+	// authentication exchanges. It is a status notify with no data.
+	//
+	// RFC 4739 Section 3.1: "The MULTIPLE_AUTH_SUPPORTED notification is included in
+	// the IKE_SA_INIT response or the first IKE_AUTH request to indicate that the peer
+	// supports this specification."
+	//
+	// RFC 4739 Section 3.1: "The Protocol ID and SPI Size fields MUST be set to zero,
+	// and there is no data associated with this Notify type."
+	NotifyMultipleAuthSupported uint16 = 16404
+	// NotifyAnotherAuthFollows announces that the sender starts another
+	// authentication exchange in its next IKE_AUTH message.
+	//
+	// RFC 4739 Section 3.2: "The ANOTHER_AUTH_FOLLOWS notification payload is included
+	// in an IKE_AUTH message containing an AUTH payload to indicate that the peer wants
+	// to continue with another authentication exchange."
+	//
+	// RFC 4739 Section 3.2: "The Protocol ID and SPI Size fields MUST be set to zero,
+	// and there is no data associated with this Notify type."
+	NotifyAnotherAuthFollows      uint16 = 16405
 	NotifyFragmentationSupported  uint16 = 16430
 	NotifySignatureHashAlgorithms uint16 = 16431
 
@@ -138,6 +158,8 @@ var notifyTypeNames = map[uint16]string{
 	NotifyUpdateSAAddresses:         "UPDATE_SA_ADDRESSES",
 	NotifyCookie2:                   "COOKIE2",
 	NotifyNoNATsAllowed:             "NO_NATS_ALLOWED",
+	NotifyMultipleAuthSupported:     "MULTIPLE_AUTH_SUPPORTED",
+	NotifyAnotherAuthFollows:        "ANOTHER_AUTH_FOLLOWS",
 	NotifyFragmentationSupported:    "IKEV2_FRAGMENTATION_SUPPORTED",
 	NotifySignatureHashAlgorithms:   "SIGNATURE_HASH_ALGORITHMS",
 	NotifyZePathProbePadding:        "ZE_PATH_PROBE_PADDING",

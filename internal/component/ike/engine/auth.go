@@ -127,7 +127,7 @@ func buildAuthRequest(sa *SA) ([]byte, error) {
 	// A private copy here goes stale the day a third mode arrives. This side then
 	// sends an AUTH payload where the EAP signal belongs.
 	// See ai/rules/evidence.md.
-	isEAP := ipsec.IsEAPMode(sa.PeerCfg.Auth.Mode)
+	isEAP := ipsec.IsEAPMode(sa.localAuth().Mode)
 
 	idPayload := buildIDPayload(sa, true)
 
@@ -147,7 +147,7 @@ func buildAuthRequest(sa *SA) ([]byte, error) {
 			{Payload: idPayload},
 			{Payload: authPayload},
 		}
-		if sa.PeerCfg.Auth.Mode == ipsec.AuthX509 {
+		if sa.localAuth().Mode == ipsec.AuthX509 {
 			certPayloads, err := buildCertPayloads(sa)
 			if err != nil {
 				return nil, err
@@ -176,6 +176,14 @@ func buildAuthRequest(sa *SA) ([]byte, error) {
 	if notify := hashAndURLNotify(sa); notify != nil {
 		innerPayloads = append(innerPayloads, wire.PayloadEntry{Payload: notify})
 	}
+
+	// RFC 4739 Section 2.1 and Section 3.2: MULTIPLE_AUTH_SUPPORTED in the first
+	// IKE_AUTH request, and ANOTHER_AUTH_FOLLOWS only beside an AUTH payload.
+	multipleAuth, err := multipleAuthRequestNotifies(sa, !isEAP)
+	if err != nil {
+		return nil, err
+	}
+	innerPayloads = append(innerPayloads, multipleAuth...)
 
 	// The IKE_AUTH request carries no KE payload for its Child SA (RFC 7296
 	// Section 1.2), and Section 2.17 keys that SA from the IKE_SA_INIT nonces. The offer
@@ -296,7 +304,7 @@ func buildEncryptedMessageEx(sa *SA, innerPayloads []wire.PayloadEntry, messageI
 
 // computeLocalAuth computes the local AUTH payload.
 func computeLocalAuth(sa *SA) (*wire.PayloadAUTH, error) {
-	switch sa.PeerCfg.Auth.Mode {
+	switch sa.localAuth().Mode {
 	case ipsec.AuthPreSharedSecret:
 		return computePSKAuth(sa)
 	case ipsec.AuthX509:
@@ -309,7 +317,7 @@ func computeLocalAuth(sa *SA) (*wire.PayloadAUTH, error) {
 	case ipsec.AuthEAPTLS, ipsec.AuthEAPMSCHAPv2, ipsec.AuthEAPMD5:
 		return computeEAPAuth(sa)
 	case ipsec.AuthUnknown:
-		return nil, fmt.Errorf("ike auth: unsupported auth mode %s", sa.PeerCfg.Auth.Mode)
+		return nil, fmt.Errorf("ike auth: unsupported auth mode %s", sa.localAuth().Mode)
 	default:
 		panic("BUG: unknown local authentication mode")
 	}
@@ -322,7 +330,7 @@ func computeLocalAuth(sa *SA) (*wire.PayloadAUTH, error) {
 // the pad string, the PRF order and the operand order are declared. This
 // function supplies the secret and refuses an absent one.
 func computePSKAuth(sa *SA) (*wire.PayloadAUTH, error) {
-	psk := sa.PeerCfg.Auth.PSK
+	psk := sa.localAuth().PSK
 	if psk == "" {
 		return nil, errNoPSK
 	}
@@ -357,7 +365,7 @@ func computeX509Auth(sa *SA) (*wire.PayloadAUTH, error) {
 		return nil, fmt.Errorf("%w: peer %q", errNoSignatureHashAlgos, sa.PeerName)
 	}
 
-	certName := sa.PeerCfg.Auth.Certificate
+	certName := sa.localAuth().Certificate
 	if certName == "" {
 		return nil, errNoCertificate
 	}
@@ -421,7 +429,7 @@ func verifyRemoteAuth(sa *SA, authPayload *wire.PayloadAUTH) error {
 	// falls through to verifyPSKAuth. The shared-key AUTH that RFC 7296
 	// Section 2.16 forbids on an EAP peer then verifies again.
 	// See ai/rules/evidence.md and ai/rules/evidence.md.
-	isEAP := ipsec.IsEAPMode(sa.PeerCfg.Auth.Mode)
+	isEAP := ipsec.IsEAPMode(sa.remoteAuth().Mode)
 
 	switch authPayload.AuthMethod {
 	case wire.AuthMethodPSK:
@@ -478,7 +486,7 @@ func verifyRemoteAuth(sa *SA, authPayload *wire.PayloadAUTH) error {
 // apart: a change to the pad string or the PRF order moves the sender and the
 // receiver together.
 func verifyPSKAuth(sa *SA, authData, signedOctets []byte) error {
-	psk := sa.PeerCfg.Auth.PSK
+	psk := sa.remoteAuth().PSK
 	if psk == "" {
 		return errNoPSK
 	}
@@ -538,6 +546,9 @@ func verifyLegacyRSAAuth(sa *SA, authData, signedOctets []byte) error {
 
 // buildCertRequest builds a CERTREQ payload with the SHA-1 hash of the configured CA's public key.
 // RFC 7296 Section 3.7: CertAuthority is SHA-1(SubjectPublicKeyInfo DER).
+//
+// It reads the first round's CA on purpose. Ze sends CERTREQ in its first IKE_AUTH
+// message only, before any further round has been announced.
 func buildCertRequest(sa *SA) *wire.PayloadCERTREQ {
 	caName := sa.PeerCfg.Auth.CACertificate
 	if caName == "" {
@@ -560,8 +571,8 @@ func buildIDPayload(sa *SA, isInitiator bool) *wire.PayloadID {
 		ptype = wire.PayloadTypeIDr
 	}
 	idStr := sa.PeerName
-	if sa.PeerCfg.Auth.LocalID != "" {
-		idStr = sa.PeerCfg.Auth.LocalID
+	if localID := sa.localAuth().LocalID; localID != "" {
+		idStr = localID
 	}
 	idType, idData := encodeIKEID(idStr)
 	return &wire.PayloadID{

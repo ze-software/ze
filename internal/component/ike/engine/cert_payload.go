@@ -91,7 +91,7 @@ func storeRemoteCerts(sa *SA, certs []*wire.PayloadCERT, log *slog.Logger) error
 	if len(certs) == 0 {
 		return nil
 	}
-	limit := int(sa.PeerCfg.Auth.CertificateChainLimit())
+	limit := int(sa.remoteAuth().CertificateChainLimit())
 	if len(certs) > limit {
 		return fmt.Errorf(
 			"ike auth: peer %q sent %d certificate payloads and certificate-count allows %d. "+
@@ -218,7 +218,7 @@ func getRemoteCert(sa *SA) (*x509.Certificate, error) {
 	// identity (ai/rules/evidence.md). ValidatePKIRefs refuses the same
 	// config at verify time. A peer that reaches this error changed its mode on the
 	// wire, or was never meant to send one.
-	caName := sa.PeerCfg.Auth.CACertificate
+	caName := sa.remoteAuth().CACertificate
 	if caName == "" {
 		return nil, fmt.Errorf(
 			"ike auth: peer %q sent a certificate and no ca-certificate is configured, "+
@@ -277,7 +277,8 @@ func getRemoteCert(sa *SA) (*x509.Certificate, error) {
 	// chooses the identity its signature covers. remote-id closes that, and this is the
 	// certificate half of it (ai/rules/evidence.md).
 	asserted, _ := assertedIdentity(sa.RemoteIDPayload)
-	want := sa.PeerCfg.Auth.RemoteID
+	remote := sa.remoteAuth()
+	want := remote.RemoteID
 	if want == "" {
 		// The guard cannot deny, because the operator stated no expectation. It says so
 		// instead. Silence here reads as a check that passed.
@@ -288,7 +289,7 @@ func getRemoteCert(sa *SA) (*x509.Certificate, error) {
 			"asserted-identity", asserted)
 		return cert, nil
 	}
-	if !certificateCarriesIdentity(cert, sa.RemoteIDPayload, want, sa.PeerCfg.Auth.RemoteIDType) {
+	if !certificateCarriesIdentity(cert, sa.RemoteIDPayload, want, remote.RemoteIDType) {
 		return nil, fmt.Errorf(
 			"ike auth: peer %q asserted identity %q, and its certificate carries no such identity. "+
 				"Issue a certificate whose subject alternative name, common name or subject is %q, "+
@@ -323,7 +324,7 @@ func localCertChain(entry *pki.CertificateEntry) [][]byte {
 }
 
 func buildCertPayloads(sa *SA) ([]wire.PayloadEntry, error) {
-	certName := sa.PeerCfg.Auth.Certificate
+	certName := sa.localAuth().Certificate
 	if certName == "" {
 		return nil, nil
 	}
@@ -333,7 +334,9 @@ func buildCertPayloads(sa *SA) ([]wire.PayloadEntry, error) {
 	}
 	chain := localCertChain(entry)
 
-	if sa.PeerCfg.Auth.HashAndURL {
+	// certificate-url publishes the first round's certificate, so only that round can
+	// name its chain by URL. A second-round certificate goes out inline.
+	if sa.PeerCfg.Auth.HashAndURL && sa.localRound == authRoundFirst {
 		return buildHashAndURLPayloads(sa, chain)
 	}
 
