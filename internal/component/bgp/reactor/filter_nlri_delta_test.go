@@ -70,7 +70,7 @@ func runImportDrop(t *testing.T, body []byte, drop ...string) ingressStepResult 
 		policyFilterSeam: dropPrefixFilter(drop...),
 		attrModHandlers:  attrModHandlersWithDefaults(),
 	}
-	return r.runIngressPolicyChain(peer, addr, 65001, testWireUpdate(body), body)
+	return r.runIngressPolicyChain(peer, addr, testWireUpdate(body), body)
 }
 
 func nlriHex(t *testing.T, s string) []byte {
@@ -282,7 +282,7 @@ func TestFilterModifyRefusesReorderedMPAnswer(t *testing.T) {
 		policyFilterSeam: answerFilter("mp ipv6/unicast add 2001:db8:2::/48 2001:db8:1::/48"),
 		attrModHandlers:  attrModHandlersWithDefaults(),
 	}
-	res := r.runIngressPolicyChain(peer, addr, 65001, testWireUpdate(body), body)
+	res := r.runIngressPolicyChain(peer, addr, testWireUpdate(body), body)
 	assert.False(t, res.accept, "a reordered answer must drop the route")
 	assert.Nil(t, res.modifiedPayload)
 }

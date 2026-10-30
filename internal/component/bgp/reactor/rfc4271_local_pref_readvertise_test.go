@@ -35,7 +35,7 @@ func rfc4271ImportPolicyPayload(t *testing.T, policy bool) []byte {
 	}
 
 	body := a2InlinePayload()
-	res := r.runIngressPolicyChain(NewPeer(settings), addr, 65001, testWireUpdate(body), body)
+	res := r.runIngressPolicyChain(NewPeer(settings), addr, testWireUpdate(body), body)
 	require.True(t, res.accept, "the import policy accepts the route")
 	if !policy {
 		require.Nil(t, res.modifiedPayload, "no import policy leaves the received payload in place")

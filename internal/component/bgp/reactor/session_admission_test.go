@@ -342,6 +342,8 @@ func TestAdmissionDoesNotExtendHoldTimer(t *testing.T) {
 			keepalives++
 		case msgtype.TypeNOTIFICATION:
 			notifications++
+		case msgtype.TypeOPEN, msgtype.TypeUPDATE, msgtype.TypeROUTEREFRESH:
+			t.Fatal("unexpected wire message")
 		default:
 			t.Fatal("unexpected wire message")
 		}

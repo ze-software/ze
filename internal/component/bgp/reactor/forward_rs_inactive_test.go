@@ -142,7 +142,7 @@ func TestRunIngressPolicyChainDeactivatedChainAcceptsWithoutAPIServer(t *testing
 
 	r := &Reactor{}
 
-	res := r.runIngressPolicyChain(peer, netip.MustParseAddr("10.0.0.1"), 65001, wu, payload)
+	res := r.runIngressPolicyChain(peer, netip.MustParseAddr("10.0.0.1"), wu, payload)
 	assert.True(t, res.accept, "a deactivated ref applies no policy, so the route is accepted")
 	assert.False(t, res.teardown, "no filter ran, so no filter asked for a teardown")
 }

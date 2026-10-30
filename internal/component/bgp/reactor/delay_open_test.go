@@ -50,8 +50,16 @@ func startDelayOpenPeer(t *testing.T, passive bool, delay time.Duration, configu
 			t.Fatal(err)
 		}
 		t.Cleanup(func() { closeConnQuietlyListener(listener) })
-		settings.Port = uint16(listener.Addr().(*net.TCPAddr).Port)
-		if err := listener.(*net.TCPListener).SetDeadline(time.Now().Add(5 * time.Second)); err != nil {
+		tcpAddr, isTCPAddr := listener.Addr().(*net.TCPAddr)
+		if !isTCPAddr {
+			t.Fatal("listener address is not a TCP address")
+		}
+		settings.Port = uint16(tcpAddr.Port)
+		tcpListener, isTCPListener := listener.(*net.TCPListener)
+		if !isTCPListener {
+			t.Fatal("listener is not a TCP listener")
+		}
+		if err := tcpListener.SetDeadline(time.Now().Add(5 * time.Second)); err != nil {
 			t.Fatal(err)
 		}
 	}

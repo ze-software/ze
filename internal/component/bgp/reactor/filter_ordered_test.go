@@ -116,7 +116,7 @@ func TestRunIngressPolicyChainNilAPIWithImportFiltersFailsClosed(t *testing.T) {
 		ImportPolicy: mustPolicy(t, []routepolicy.Ref{{Name: "block-bogons"}}, routepolicy.FinalAccept),
 	})
 
-	res := r.runIngressPolicyChain(peer, addr, 65001, testWireUpdate([]byte{0, 0, 0, 0}), []byte{0, 0, 0, 0})
+	res := r.runIngressPolicyChain(peer, addr, testWireUpdate([]byte{0, 0, 0, 0}), []byte{0, 0, 0, 0})
 
 	require.False(t, res.accept,
 		"ingress: nil API server with import filters must drop the route (fail closed), not accept unfiltered")
@@ -140,7 +140,7 @@ func TestRunIngressPolicyChainNoImportFiltersAccepts(t *testing.T) {
 		PeerAS:  65001,
 	})
 
-	res := r.runIngressPolicyChain(peer, addr, 65001, testWireUpdate([]byte{0, 0, 0, 0}), []byte{0, 0, 0, 0})
+	res := r.runIngressPolicyChain(peer, addr, testWireUpdate([]byte{0, 0, 0, 0}), []byte{0, 0, 0, 0})
 
 	require.True(t, res.accept,
 		"no import policy configured is a legitimate accept, not a guard miss")
@@ -218,7 +218,7 @@ func TestRunIngressPolicyChainModifyFailureFailsClosed(t *testing.T) {
 	}
 
 	body := policyChainAdvertisingBody()
-	res := r.runIngressPolicyChain(peer, addr, 65001, testWireUpdate(body), body)
+	res := r.runIngressPolicyChain(peer, addr, testWireUpdate(body), body)
 
 	require.False(t, res.accept,
 		"an import modification that could not be applied must DROP the route, never accept it unmodified")
@@ -344,7 +344,7 @@ func TestRunIngressPolicyChainShortRawOverrideFailsClosed(t *testing.T) {
 	}
 
 	body := []byte{0, 0, 0, 0}
-	res := r.runIngressPolicyChain(peer, addr, 65001, testWireUpdate(body), body)
+	res := r.runIngressPolicyChain(peer, addr, testWireUpdate(body), body)
 
 	require.False(t, res.accept,
 		"an import raw override that cannot be decoded must DROP the route, never accept it unmodified")
@@ -421,7 +421,7 @@ func TestPolicyChainAppliedModificationStillModifies(t *testing.T) {
 			attrModHandlers:  handlers,
 		}
 
-		res := r.runIngressPolicyChain(peer, addr, 65001, testWireUpdate(body), body)
+		res := r.runIngressPolicyChain(peer, addr, testWireUpdate(body), body)
 
 		require.True(t, res.accept, "an applicable modification must not be refused")
 		require.NotNil(t, res.modifiedPayload, "the modified payload must reach the caller")
@@ -479,7 +479,7 @@ func TestPolicyChainCreatesNoAttributeOnAWithdrawal(t *testing.T) {
 			ImportPolicy: mustPolicy(t, []routepolicy.Ref{{Name: "set-local-pref"}}, routepolicy.FinalAccept),
 		})
 
-		res := newReactor().runIngressPolicyChain(peer, addr, 65001, testWireUpdate(withdrawal), withdrawal)
+		res := newReactor().runIngressPolicyChain(peer, addr, testWireUpdate(withdrawal), withdrawal)
 
 		require.True(t, res.accept, "a withdrawal the chain cannot decorate is still accepted")
 		assert.Nil(t, res.modifiedPayload,
@@ -566,7 +566,7 @@ func TestImportChainPassesTheSourceContextWidthToThePrepend(t *testing.T) {
 			}
 
 			body := asPathBodyAtWidth(asn4)
-			res := r.runIngressPolicyChain(peer, addr, 65001, wireu.NewWireUpdate(body, ctxID), body)
+			res := r.runIngressPolicyChain(peer, addr, wireu.NewWireUpdate(body, ctxID), body)
 
 			require.True(t, res.accept, "the import chain accepted the modified route")
 			require.NotNil(t, res.modifiedPayload, "the import chain rebuilt the payload")

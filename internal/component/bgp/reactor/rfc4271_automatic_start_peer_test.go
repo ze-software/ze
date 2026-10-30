@@ -446,7 +446,7 @@ func automaticStartTeardown(t *testing.T, peer *Peer, session *Session, remote n
 	require.Len(t, frame, message.HeaderLen+2)
 	require.Equal(t, byte(3), frame[18], "automatic teardown sends NOTIFICATION")
 	require.Equal(t, byte(message.NotifyCease), frame[19])
-	require.Equal(t, byte(message.NotifyCeaseOutOfResources), frame[20])
+	require.Equal(t, message.NotifyCeaseOutOfResources, frame[20])
 	reason := session.closeReason.Load()
 	require.NotNil(t, reason, "the teardown must record its cause")
 	require.ErrorIs(t, *reason, ErrTeardown, "the next cycle must follow ErrTeardown, not an unrelated close")

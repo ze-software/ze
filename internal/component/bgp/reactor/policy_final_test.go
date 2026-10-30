@@ -83,7 +83,7 @@ func TestPolicyFinalNilAPIRails(t *testing.T) {
 			peer.settings.ImportPolicy = policy
 			r := &Reactor{}
 			want := final == routepolicy.FinalAccept
-			in := r.runIngressPolicyChain(peer, peer.Settings().Address, 65001, testWireUpdate(body), body)
+			in := r.runIngressPolicyChain(peer, peer.Settings().Address, testWireUpdate(body), body)
 			if in.accept != want {
 				t.Fatalf("ingress final=%v accept=%v", final, in.accept)
 			}
@@ -270,7 +270,7 @@ func TestPolicyFinalOnlyDecisionDoesNotAllocate(t *testing.T) {
 	peer.settings.ImportPolicy = policy
 	r := &Reactor{}
 	allocations := testing.AllocsPerRun(100, func() {
-		in := r.runIngressPolicyChain(peer, peer.Settings().Address, 65001, update, body)
+		in := r.runIngressPolicyChain(peer, peer.Settings().Address, update, body)
 		out := r.runEgressPolicyChain(policy, "192.0.2.1", 65001, 65000, false, update)
 		suppressed, _ := r.exportFilterForBody(peer, body)
 		if in.accept || out.accept || out.failed || !suppressed {

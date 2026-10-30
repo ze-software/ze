@@ -91,7 +91,7 @@ func TestReloadWhileReceivingNoRace(t *testing.T) {
 			// r.api is nil in this fixture, so the step reads the chain and then
 			// takes the fail-closed branch without touching the wire arguments.
 			// The read at filter_ordered.go is what this test is here for.
-			r.runIngressPolicyChain(peer, addr, initial.PeerAS, nil, nil)
+			r.runIngressPolicyChain(peer, addr, nil, nil)
 			// The egress side reads its chain from the facts snapshot the swap
 			// rebuilds, which is the other cross-goroutine handoff.
 			_ = peer.forwardFacts()

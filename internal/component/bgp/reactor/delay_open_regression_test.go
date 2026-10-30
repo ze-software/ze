@@ -35,7 +35,14 @@ func TestDelayOpenExpiryWriteFailureDeliversOneEvent18(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("Session reader did not enter TCP read")
 	}
-	conn := session.Conn().(*delayOpenReadConn).Conn.(*net.TCPConn)
+	readConn, isReadConn := session.Conn().(*delayOpenReadConn)
+	if !isReadConn {
+		t.Fatal("session connection is not the delayOpenReadConn the fixture installed")
+	}
+	conn, isTCP := readConn.Conn.(*net.TCPConn)
+	if !isTCP {
+		t.Fatal("delayOpenReadConn does not wrap a TCP connection")
+	}
 	if err := conn.CloseWrite(); err != nil {
 		t.Fatal(err)
 	}

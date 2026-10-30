@@ -2112,7 +2112,10 @@ func (p *Peer) Teardown(subcode uint8, shutdownMsg string) error {
 // Event 2 zeroes it, and a peer torn down because BFD went down or the forward
 // pool ran out of room has just failed an attempt, not been told to forget the
 // ones before it. Everything else matches Teardown, queuing included.
-func (p *Peer) teardownAutomatic(subcode uint8, shutdownMsg string) error {
+//
+// The subcode stays a parameter because it is the RFC 4486 Cease subcode the
+// NOTIFICATION carries, the contract Teardown and Session.teardownAutomatic share.
+func (p *Peer) teardownAutomatic(subcode uint8, shutdownMsg string) error { //nolint:unparam // the only automatic stop today is forward-pool exhaustion; the subcode is the Cease contract, not a constant
 	return p.teardown(subcode, shutdownMsg, true)
 }
 

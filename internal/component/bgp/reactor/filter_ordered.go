@@ -141,14 +141,14 @@ func buildOrderedEgressSteps() []orderedEgressStep {
 // It renders text only for active external filters, then applies the final using
 // the same resolved peer generation. Rejection retains explicit withdrawals.
 // peer may be nil (peer disconnected) -- then the step is a no-op accept.
-func (r *Reactor) runIngressPolicyChain(peer *Peer, peerAddr netip.Addr, peerAS uint32, wireUpdate *wireu.WireUpdate, payload []byte) ingressStepResult {
+func (r *Reactor) runIngressPolicyChain(peer *Peer, peerAddr netip.Addr, wireUpdate *wireu.WireUpdate, payload []byte) ingressStepResult {
 	if peer == nil {
 		return ingressStepResult{accept: true}
 	}
 	// Dynamic resolution publishes policy and session classification together.
 	peer.mu.RLock()
 	policy := peer.settings.ImportPolicy
-	peerAS = peer.settings.PeerAS
+	peerAS := peer.settings.PeerAS
 	external := peer.settings.IsEBGP()
 	localAS := peer.settings.LocalAS
 	peer.mu.RUnlock()

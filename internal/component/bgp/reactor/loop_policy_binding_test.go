@@ -224,12 +224,12 @@ func TestLoopPolicyUnknownGuardFailsClosed(t *testing.T) {
 	peer := NewPeer(&PeerSettings{Address: addr, LocalAS: 65000, PeerAS: 65001, ImportPolicy: policy})
 	r := &Reactor{}
 	body := policyChainAdvertisingBody()
-	result := r.runIngressPolicyChain(peer, addr, 65001, testWireUpdate(body), body)
+	result := r.runIngressPolicyChain(peer, addr, testWireUpdate(body), body)
 	if result.accept {
 		t.Fatal("unknown external guard accepted without a filter server")
 	}
 	r.api = liveFilterServer(t)
-	result = r.runIngressPolicyChain(peer, addr, 65001, testWireUpdate(body), body)
+	result = r.runIngressPolicyChain(peer, addr, testWireUpdate(body), body)
 	if result.accept {
 		t.Fatal("unknown external plugin accepted through the real RPC transport")
 	}

@@ -295,7 +295,7 @@ func TestRFC8212AbsentPolicyAcceptsOnIBGP(t *testing.T) {
 		r := &Reactor{}
 		body := policyChainAdvertisingBody()
 		update := testWireUpdate(body)
-		if got := r.runIngressPolicyChain(peer, settings.Address, remote, update, body); !got.accept || got.modifiedPayload != nil {
+		if got := r.runIngressPolicyChain(peer, settings.Address, update, body); !got.accept || got.modifiedPayload != nil {
 			t.Fatalf("IBGP ingress migration=%d changed: %+v", migration, got)
 		}
 		for _, snapshot := range []bool{false, true} {

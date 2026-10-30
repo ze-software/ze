@@ -725,7 +725,7 @@ func NewSession(settings *PeerSettings) *Session {
 		// OpenSent, OpenConfirm and Established. Negotiated nonzero HoldTime
 		// also bounds the strict DelayOpen Connect/Active substates; those
 		// parents apply Event 10's catchall counter/Idle action. Session.Run
-		// retires the socket and timers on the signalled error in every state.
+		// retires the socket and timers on the signaled error in every state.
 		//
 		//   "sends a NOTIFICATION message with the error code Hold Timer
 		//   Expired"    -> sendNotificationWithin below (RFC4271-8.2.2-1)
