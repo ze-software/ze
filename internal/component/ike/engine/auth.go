@@ -503,6 +503,10 @@ func verifyX509Auth(sa *SA, authData, signedOctets []byte) error {
 	h.Write(signedOctets)
 	digest := h.Sum(nil)
 
+	// RFC 7427 Section 3: "For hash truncation, the method specified in ANSI
+	// X9.62:2005 [X9.62] MUST be used." The digest goes on whole: for an ECDSA key
+	// whose order is shorter than the hash (P-256 with ecdsa-with-SHA384),
+	// ecdsa.VerifyASN1 keeps its leftmost bits, which is that method.
 	return verifySignature(cert.PublicKey, digest, signature, hashFunc)
 }
 
@@ -922,6 +926,9 @@ func signDigest(key crypto.PrivateKey, digest []byte, hashFunc crypto.Hash) ([]b
 	case *rsa.PrivateKey:
 		return rsa.SignPKCS1v15(crand.Reader, k, hashFunc, digest)
 	case *ecdsa.PrivateKey:
+		// RFC 7427 Section 3: "For hash truncation, the method specified in ANSI
+		// X9.62:2005 [X9.62] MUST be used." ecdsa.SignASN1 applies it to the whole
+		// digest, so the digest is never cut here.
 		return ecdsa.SignASN1(crand.Reader, k, digest)
 	}
 	return nil, errUnsupportedKey

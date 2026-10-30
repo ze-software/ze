@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7427-3-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7427_truncation_test.go::TestRFC7427ECDSAHashTruncationIsX962",
+    "unit-sha": "39d5e68ec411e119",
+    "claim-sha": "d569712e5d33cb71",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/auth.go::verifyX509Auth",
+    "producer-sha": "3f5dbcf87ebfdda6",
+    "break": "body of verifyX509Auth replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7427-3-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7427_truncation_test.go::TestRFC7427ECDSAHashTruncationIsX962",
+    "unit-sha": "39d5e68ec411e119",
+    "claim-sha": "a9b5524239ea43c1",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/auth.go::verifyX509Auth",
+    "producer-sha": "3f5dbcf87ebfdda6",
+    "break": "body of verifyX509Auth replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]
