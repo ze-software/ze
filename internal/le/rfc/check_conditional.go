@@ -155,13 +155,16 @@ type neverScope struct {
 // (resolveProducer, the resolution every producer check shares), so the claim
 // rests on code a reader can open.
 func neverClauseGap(req *Requirement, code *sourceReader, scope neverScope) (string, bool) {
-	quoted := req.Annotation.Quote
-	if quoted == "" {
-		quoted = req.Annotation.Heading
-	}
+	// The reason is the whole payload, and its first quoted segment is the
+	// quote or the feature words, which hold no quotation mark
+	// (featureDeclinedRE): the never clause is read after that segment's
+	// closing mark, so a never clause inside the quotation marks proves
+	// nothing, however the parser trimmed the words.
 	why := req.Annotation.Reason
-	if at := strings.Index(why, `"`+quoted+`"`); at >= 0 {
-		why = why[at+len(quoted)+2:]
+	if open := strings.IndexByte(why, '"'); open >= 0 {
+		if closing := strings.IndexByte(why[open+1:], '"'); closing >= 0 {
+			why = why[open+1+closing+1:]
+		}
 	}
 	var tb textbuf.Buffer
 	parts := neverClauseRE.FindStringSubmatch(why)

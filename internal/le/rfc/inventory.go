@@ -581,8 +581,8 @@ type quoteSource struct {
 	readErratum func(number string) (string, bool)
 	// documentTitle is the RFC's own title, read from its front matter
 	// (documentTitleOf). Empty when the front matter holds no paragraph
-	// before its Abstract or Status of This Memo, and a heading form is then
-	// judged on its section titles alone (featureHeadingGap).
+	// before its Abstract, its Status of This Memo or its first heading, and
+	// a heading form is then refused (featureHeadingGap).
 	documentTitle string
 }
 
@@ -613,20 +613,27 @@ func newQuoteSource(source string) *quoteSource {
 }
 
 // frontMatterOpenings are the lines that follow an RFC's title in its front
-// matter: the title is the last paragraph before the first of them.
-var frontMatterOpenings = []string{"abstract", "status of this memo"}
+// matter, compared lower case with a trailing colon cut (RFC 905 writes
+// "Status of this Memo:"): the title is the last paragraph before the first
+// of them. "DARPA INTERNET PROGRAM" is the series line the 1981 RFCs (791,
+// 792) set under their title, before any Abstract existed.
+var frontMatterOpenings = []string{"abstract", "status of this memo", "darpa internet program"}
 
 // documentTitleOf answers the RFC's title from the raw text of its front
 // matter: the last paragraph before the first frontMatterOpenings line, its
 // lines joined by one blank. The header block (the stream, the RFC number,
 // the authors and the date) is the paragraph before it, so the title is the
-// one a blank line sets apart from both. Empty when no such line or no
-// paragraph before it is found. The loop is bounded by the lines of front.
+// one a blank line sets apart from both. A front matter with no such line
+// ends at the RFC's first heading, which then opens the document (RFC 1034's
+// "1. STATUS OF THIS MEMO"), so its last paragraph is the title. Empty when
+// the front matter holds no paragraph before it, and a heading form is then
+// refused (featureHeadingGap). The loop is bounded by the lines of front.
 func documentTitleOf(front string) string {
 	var paragraph, last []string
 	for line := range strings.SplitSeq(front, "\n") {
 		trimmed := strings.TrimSpace(line)
-		if slices.Contains(frontMatterOpenings, strings.ToLower(trimmed)) {
+		opening := strings.TrimSpace(strings.TrimSuffix(strings.ToLower(trimmed), ":"))
+		if slices.Contains(frontMatterOpenings, opening) {
 			if len(paragraph) > 0 {
 				last = paragraph
 			}
@@ -641,7 +648,10 @@ func documentTitleOf(front string) string {
 		}
 		paragraph = append(paragraph, trimmed)
 	}
-	return ""
+	if len(paragraph) > 0 {
+		last = paragraph
+	}
+	return strings.Join(last, " ")
 }
 
 // headingTitles answers the titles of section id and of each of its heading

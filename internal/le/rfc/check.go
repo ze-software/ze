@@ -522,6 +522,7 @@ func check(tree string, today time.Time, approvals map[string]string) (CheckRepo
 		priorEvidence(tree, evidencePrints, unreadableLevels, levelsKnown))
 	findings = append(findings, inGroup(CheckAnnotations, notes(evidenceRefusals))...)
 	findings = append(findings, inGroup(CheckAnnotations, notes(checkZeRolesInText(tree, collected.Metas, collected.Requirements)))...)
+	findings = append(findings, inGroup(CheckAnnotations, notes(checkDeclinedFeaturesInText(tree, collected.Metas, collected.Requirements)))...)
 	linuxLimitFindings, linuxLimitCandidates := checkLinuxLimit(tree, collected.Requirements)
 	findings = append(findings, inGroup(CheckAnnotations, linuxLimitFindings)...)
 	findings = append(findings, inGroup(CheckRequirementLists, notes(checkRowQuotes(tree, collected.Requirements)))...)

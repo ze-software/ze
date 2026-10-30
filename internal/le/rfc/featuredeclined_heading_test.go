@@ -27,12 +27,12 @@ const (
 	headingNever   = "ze never uses CHAP: internal/x/frame.go::sendFrame sends PAP only"
 )
 
-// headingFixtureTree copies the real texts of RFC 8907 and RFC 9915 into a
+// headingFixtureTree copies the real texts of RFC 4271, 8907 and 9915 into a
 // temporary checkout beside the producer file every case names.
 func headingFixtureTree(t *testing.T) string {
 	t.Helper()
 	files := map[string]string{conditionalProducerFile: "package x\n\nfunc sendFrame() {}\n"}
-	for _, stem := range []string{"rfc8907", "rfc9915"} {
+	for _, stem := range []string{"rfc4271", "rfc8907", "rfc9915"} {
 		text, err := os.ReadFile(filepath.Join("..", "..", "..", "rfc", "full", stem+".txt"))
 		if err != nil {
 			t.Fatalf("read the %s text: %v", stem, err)
@@ -74,6 +74,15 @@ func TestAFeatureDeclinedHeadingNamesTheFeatureItScopes(t *testing.T) {
 		{name: "words of the RFC's own title", stem: "rfc8907", cites: "5.4.2.3", rowText: headingChapRow,
 			words: "TACACS+", reason: "ze never uses TACACS+: internal/x/frame.go::sendFrame sends frames",
 			says: []string{"is in the RFC's own title", "the whole document is not one feature"}},
+		{name: "the RFC's own title in the row's own heading", stem: "rfc8907", cites: "4.1", rowText: headingChapRow,
+			words: "TACACS+", reason: "ze never uses TACACS+: internal/x/frame.go::sendFrame sends frames",
+			says: []string{"its heading 'TACACS+' is in the RFC's own title", "the whole document is not one feature"}},
+		{name: "a title word and a generic word", stem: "rfc8907", cites: "4.1", rowText: headingChapRow,
+			words: "TACACS+ Packet", reason: "ze never uses TACACS+ packets: internal/x/frame.go::sendFrame sends frames",
+			says: []string{"its heading 'TACACS+ Packet' holds no word that names a feature", "genericHeadingWords"}},
+		{name: "a title word joined by a hyphen", stem: "rfc4271", cites: "6.1", rowText: headingChapRow,
+			words: "BGP", reason: "ze never uses BGP: internal/x/frame.go::sendFrame sends frames",
+			says: []string{"its heading 'BGP' is in the RFC's own title 'A Border Gateway Protocol 4 (BGP-4)'"}},
 		{name: "no never clause", stem: "rfc8907", cites: "5.4.2.3", rowText: headingChapRow,
 			words: "CHAP", reason: "internal/x/frame.go::sendFrame sends PAP only",
 			says: []string{"its heading form declines the feature 'CHAP'", "no never clause", neverClauseForm}},
@@ -178,5 +187,21 @@ func TestCheckFeatureDeclinedOwesAHeadingItsText(t *testing.T) {
 	}
 	if !strings.Contains(errs[0], "its heading can be checked against nothing") || !strings.Contains(errs[0], "rfc8906") {
 		t.Errorf("the refusal %q does not name the absent text", errs[0])
+	}
+}
+
+// VALIDATES: a heading form is refused when the RFC's own title cannot be
+// read, since the feature words cannot then be told from the document's name.
+// METHOD: featureHeadingGap over a text whose first line is a heading, so its
+// front matter holds no title.
+func TestAHeadingFormNeedsTheRFCTitle(t *testing.T) {
+	source := newQuoteSource("1.  CHAP Login\n\n   " + headingChapRow + "\n")
+	if source.documentTitle != "" {
+		t.Fatalf("the fixture text has the title %q, want none", source.documentTitle)
+	}
+	row := conditionalRow(t, "rfc8907", "1", headingChapRow, `feature-declined: heading "CHAP"; `+headingNever)
+	missing, lacks := featureHeadingGap(&row, source, newSourceReader(headingFixtureTree(t)))
+	if !lacks || !strings.Contains(missing, "the RFC's own title cannot be read") {
+		t.Fatalf("a heading form under a text with no title answered %q, %v", missing, lacks)
 	}
 }

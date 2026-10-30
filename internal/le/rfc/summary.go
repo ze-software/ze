@@ -457,9 +457,12 @@ var featureSectionIDRE = regexp.MustCompile(`^(?:\d+|[A-Z]\d*)(?:\.\d+)*$`)
 // that says what the quote is held to.
 var featureHeadingRE = regexp.MustCompile(`^heading\s+`)
 
-// minHeadingWords is the fewest characters a heading form's feature words
-// hold. Two letters ("ID", "IP") name no feature a heading can be told apart
-// by, while RFC 8907's "CHAP" is four.
+// minHeadingWords is the fewest characters a heading form's feature word, a
+// content word no generic heading uses (featureWords), holds unless the owner
+// named it. Two letters ("ID", "IP") name no feature a heading can be told
+// apart by, while RFC 8907's "CHAP" is four; a two-letter word passes only as
+// the whole words of a `Declined features` entry, as RFC 4577's "PE" does
+// (checkDeclinedFeatureHeadings).
 const minHeadingWords = 3
 
 // minFeatureQuote is the shortest quoted span that identifies a sentence.
@@ -537,12 +540,13 @@ func parseFeatureDeclined(rest, where string) (*Annotation, error) {
 }
 
 // parseFeatureHeading reads the heading form's body, `"<feature words>";
-// why`, after its `heading` keyword. The feature words must hold at least
-// minHeadingWords characters and a word no heading of any RFC is named by
-// (headingWordsGeneric), and the reason must name a producer outside a test,
-// as every {feature-declined} reason does. Whether a heading of the row's
-// section names the words, and whether the reason carries the never clause,
-// need the RFC and the tree, so the evidence ratchet judges them
+// why`, after its `heading` keyword. The feature words must hold a word no
+// heading of any RFC is named by (headingWordsGeneric), and the reason must
+// name a producer outside a test, as every {feature-declined} reason does.
+// Whether the summary's Meta table declares the feature and the word is long
+// enough need the summary (checkDeclinedFeatureHeadings); whether a heading of
+// the row's section names the words, and whether the reason carries the never
+// clause, need the RFC and the tree, so the evidence ratchet judges them
 // (featureHeadingGap).
 func parseFeatureHeading(rest, body, where string) (*Annotation, error) {
 	var tb textbuf.Buffer
@@ -553,13 +557,6 @@ func parseFeatureHeading(rest, body, where string) (*Annotation, error) {
 			Str(featureDeclinedFormat))
 	}
 	words, why := strings.TrimSpace(parts[1]), strings.TrimSpace(parts[2])
-	if len(words) < minHeadingWords {
-		return nil, parseErr(tb.Str(where).
-			Str(": {feature-declined} heading names ").Str(pyRepr(words)).
-			Str(", which is under ").Int(int64(minHeadingWords)).
-			Str(" characters and names no feature a heading can be told apart by. Write the feature's name as the heading spells it. ").
-			Str(featureDeclinedFormat))
-	}
 	if headingWordsGeneric(words) {
 		return nil, parseErr(tb.Str(where).
 			Str(": {feature-declined} heading names ").Str(pyRepr(words)).
@@ -981,6 +978,9 @@ func ParseSummaryText(text, stem, source string) ([]Requirement, error) {
 		out = append(out, *req)
 	}
 	if err := checkNotApplicableRoles(text, stem, source, out); err != nil {
+		return nil, err
+	}
+	if err := checkDeclinedFeatureHeadings(text, stem, source, out); err != nil {
 		return nil, err
 	}
 	return out, nil

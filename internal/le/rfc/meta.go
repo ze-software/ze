@@ -129,6 +129,11 @@ const (
 	// one declaration every quoted {not-applicable} row of the summary is
 	// held against (checkNotApplicableRoles).
 	metaZeRoles = "Ze roles"
+	// metaDeclinedFeatures names the features the owner declined for this
+	// RFC, comma-separated, each `<feature words> (<owner-decision source>)`:
+	// the one declaration every {feature-declined} heading form of the
+	// summary is held against (checkDeclinedFeatureHeadings).
+	metaDeclinedFeatures = "Declined features"
 )
 
 // supportNone is the `Support` value of a summary that makes no public claim.
@@ -328,6 +333,19 @@ type Meta struct {
 	// in the order written. Empty when the summary declares none, which only
 	// a summary with no quoted {not-applicable} row may do.
 	ZeRoles []string
+	// DeclinedFeatures is the features the owner declined for this RFC, from
+	// the `Declined features` row, in the order written. Empty when the
+	// summary declares none, which only a summary with no {feature-declined}
+	// heading form may do.
+	DeclinedFeatures []DeclinedFeature
+}
+
+// DeclinedFeature is one entry of a summary's `Declined features` row: the
+// feature's words as the RFC spells them, and where the owner decided to
+// decline it.
+type DeclinedFeature struct {
+	Words  string
+	Source string
 }
 
 // Enrolled answers whether this summary's MUST-level requirements are gated.
@@ -392,6 +410,7 @@ var knownMetaLabels = map[string]bool{
 	metaSupportCoverage: true, metaSupportRemain: true,
 	metaImplementation: true, metaImplementationReason: true, metaAggregate: true,
 	metaUseCases: true, metaOptionalUseCases: true, metaZeRoles: true,
+	metaDeclinedFeatures: true,
 }
 
 // knownObsolescenceLabel is the pair of lineage labels that carry a qualifier,
@@ -443,6 +462,9 @@ func ParseMeta(text, stem, where string) (Meta, error) {
 	if out.ZeRoles, err = zeRolesFrom(values, where); err != nil {
 		return Meta{}, err
 	}
+	if out.DeclinedFeatures, err = declinedFeaturesFrom(values, where); err != nil {
+		return Meta{}, err
+	}
 	return out, nil
 }
 
@@ -478,6 +500,91 @@ func zeRolesFrom(values map[string]string, where string) ([]string, error) {
 		roles = append(roles, role)
 	}
 	return roles, nil
+}
+
+// declinedFeatureExample is the row every `Declined features` refusal shows.
+const declinedFeatureExample = "`| " + metaDeclinedFeatures + " | CHAP (owner 2026-09-21 tacacs_methods) |`"
+
+// declinedFeaturesFrom reads the `Declined features` row: nil when the table
+// has none, and a refusal for an empty entry, an entry whose parentheses do
+// not balance, an entry with no feature words before its source, and an
+// entry whose source is missing, empty or a placeholder (zeRolePlaceholders),
+// since a feature declined on no decision a reader can find is declined by
+// nobody. That each entry's words are in the RFC is
+// checkDeclinedFeaturesInText's to judge, because only it reads the RFC text.
+func declinedFeaturesFrom(values map[string]string, where string) ([]DeclinedFeature, error) {
+	cell, held := values[metaDeclinedFeatures]
+	if !held {
+		return nil, nil
+	}
+	entries, balanced := splitOutsideParens(cell)
+	var tb textbuf.Buffer
+	if !balanced {
+		return nil, parseErr(tb.Str(where).Str(": the Meta `").Str(metaDeclinedFeatures).Str("` row ").
+			Str(pyRepr(cell)).Str(" has unbalanced parentheses; write each entry as <feature words> (<owner-decision source>), as ").
+			Str(declinedFeatureExample))
+	}
+	var features []DeclinedFeature
+	for _, entry := range entries {
+		entry = strings.TrimSpace(entry)
+		if entry == "" {
+			return nil, parseErr(tb.Str(where).Str(": the Meta `").Str(metaDeclinedFeatures).Str("` row ").
+				Str(pyRepr(cell)).Str(" holds an empty entry; write each declined feature, comma-separated, as ").
+				Str(declinedFeatureExample))
+		}
+		if strings.Count(entry, "(") > 1 || (strings.Contains(entry, "(") && !strings.HasSuffix(entry, ")")) {
+			return nil, parseErr(tb.Str(where).Str(": the Meta `").Str(metaDeclinedFeatures).Str("` row holds ").
+				Str(pyRepr(entry)).Str(", which is not <feature words> (<owner-decision source>) with the source last; write it as ").
+				Str(declinedFeatureExample))
+		}
+		words, source, sourced := strings.Cut(entry, "(")
+		words = strings.TrimSpace(words)
+		source = strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(source), ")"))
+		if !strings.ContainsFunc(words, unicode.IsLetter) {
+			return nil, parseErr(tb.Str(where).Str(": the Meta `").Str(metaDeclinedFeatures).Str("` row holds ").
+				Str(pyRepr(entry)).Str(", which names no feature before its source; write the feature's words as the RFC spells them, as ").
+				Str(declinedFeatureExample))
+		}
+		if !sourced || !strings.ContainsFunc(source, unicode.IsLetter) ||
+			slices.Contains(strings.Fields(zeRolePlaceholders), strings.ToLower(source)) {
+			return nil, parseErr(tb.Str(where).Str(": the Meta `").Str(metaDeclinedFeatures).Str("` row holds ").
+				Str(pyRepr(entry)).Str(", which names no owner decision; write where the owner declined the feature in parentheses after it, as ").
+				Str(declinedFeatureExample))
+		}
+		features = append(features, DeclinedFeature{Words: words, Source: source})
+	}
+	return features, nil
+}
+
+// splitOutsideParens splits cell at each comma outside parentheses, so a
+// source may hold a comma. False when a parenthesis closes unopened, opens
+// inside another or stays open. The loop is bounded by the bytes of cell.
+func splitOutsideParens(cell string) ([]string, bool) {
+	var entries []string
+	depth, start := 0, 0
+	for at := range len(cell) {
+		switch cell[at] {
+		case '(':
+			depth++
+			if depth > 1 {
+				return nil, false
+			}
+		case ')':
+			depth--
+			if depth < 0 {
+				return nil, false
+			}
+		case ',':
+			if depth == 0 {
+				entries = append(entries, cell[start:at])
+				start = at + 1
+			}
+		}
+	}
+	if depth != 0 {
+		return nil, false
+	}
+	return append(entries, cell[start:]), true
 }
 
 // refuseNearMiss reds a label that names one of this reader's facts in a

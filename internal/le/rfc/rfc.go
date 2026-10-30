@@ -570,11 +570,12 @@ type Annotation struct {
 	// section. It is {feature-declined}'s alone.
 	QuoteSection string `json:"quote-section,omitempty"`
 	// Heading is the feature words of a {feature-declined} heading form
-	// (`heading "<feature words>"; ze never ...`), which name the declined
-	// feature as the title of the row's own section, or of one of its
-	// ancestors, names it: a heading that names the feature scopes every
-	// obligation under it the way a conditional does, and the never clause
-	// shows Ze never uses that feature (featureHeadingGap). Quote is empty
+	// (`heading "<feature words>"; ze never ...`): the declined feature as the
+	// title of the row's own section, or of one of its ancestors, names it. A
+	// heading that names the feature scopes every obligation under it the way
+	// a conditional does, the never clause shows Ze never uses that feature
+	// (featureHeadingGap), and the summary's `Declined features` row names the
+	// owner decision behind it (checkDeclinedFeatureHeadings). Quote is empty
 	// when it is set. It is {feature-declined}'s alone.
 	Heading string `json:"heading,omitempty"`
 	// BoundRole is the role the Quote binds, which the quoted sentence names
