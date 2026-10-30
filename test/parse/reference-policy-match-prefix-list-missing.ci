@@ -1,0 +1,43 @@
+# Test: a policy match instance naming a prefix-list no instance declares is refused
+#
+# VALIDATES: the match prefix-list leaf declares
+#            `ze:reference "policy-prefix-list"` (ze-policy-conf.yang), whose
+#            source is policy.prefixListReference, so `ze config validate`
+#            refuses an undeclared prefix-list, naming the value, the declared
+#            prefix-lists and the leaf, and accepts a declared one.
+# PREVENTS: a match instance whose prefix-list is a typo passing validation
+#           and failing only when a chain compiles it.
+
+stdin=missing:terminator=EOF_MISSING
+policy {
+	prefix-list ALL {
+		entry 0.0.0.0/0 { le 32; action accept; }
+	}
+	prefix-list LOOPBACKS {
+		entry 10.255.0.0/16 { le 32; action accept; }
+	}
+	match CUSTOMER {
+		prefix-list CUSTOMERS
+	}
+}
+EOF_MISSING
+
+stdin=present:terminator=EOF_PRESENT
+policy {
+	prefix-list ALL {
+		entry 0.0.0.0/0 { le 32; action accept; }
+	}
+	match CUSTOMER {
+		prefix-list ALL
+	}
+}
+EOF_PRESENT
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=missing
+expect=exit:code=1
+expect=stdout:contains=no prefix-list "CUSTOMERS" is configured
+expect=stdout:contains=name one of "ALL LOOPBACKS"
+expect=stdout:contains=match[CUSTOMER]/prefix-list
+cmd=foreground:seq=2:exec=ze config validate -:stdin=present
+expect=exit:code=0
+expect=stdout:contains=configuration valid

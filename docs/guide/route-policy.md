@@ -42,7 +42,7 @@ an untagged route fails `tag [ 0 ]`.
 
 | Condition | Met when |
 |-----------|----------|
-| `prefix-list <name>` | The named `prefix-list` instance accepts the prefix |
+| `prefix-list <name>` | The named `prefix-list` instance accepts the prefix. The editor completes the configured prefix-lists, and a commit naming any other is refused |
 | `family [ ... ]` | The route's address family is listed, such as `ipv4/unicast` |
 | `protocol [ ... ]` | The route's source is listed: a registered source such as `static`, or `ebgp` or `ibgp` for a BGP path |
 | `next-hop [ ... ]` | The next hop lies in a listed prefix. A connected route has no next hop |

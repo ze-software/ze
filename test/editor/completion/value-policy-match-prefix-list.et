@@ -1,0 +1,27 @@
+# Test: policy-match-prefix-list reference completion offers the configured names
+# VALIDATES: Tab on the policy-match-prefix-list reference leaf offers exactly the entries the
+#            candidate declares (leafref or ze:reference source).
+# PREVENTS: the leaf completing only a type hint, so a typo surfaces at commit.
+
+tmpfs=test.conf:terminator=EOF_CONF
+policy {
+	prefix-list ALL {
+		entry 0.0.0.0/0 { le 32; action accept; }
+	}
+	prefix-list LOOPBACKS {
+		entry 10.255.0.0/16 { le 32; action accept; }
+	}
+	match CUSTOMER {
+	}
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+input=type:text=edit policy match CUSTOMER
+input=enter
+expect=context:path=policy/match/CUSTOMER
+input=type:text=set prefix-list
+input=space
+expect=completion:contains=ALL,LOOPBACKS

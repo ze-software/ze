@@ -123,9 +123,12 @@ module ze-policy-conf {
             }
             leaf prefix-list {
                 type string { length "1..max"; }
+                ze:reference "policy-prefix-list";
                 description "The route passes this condition when the named prefix-list accepts its prefix.
-                             The prefix-list is a policy prefix-list instance; a name that is not one is
-                             refused at load.";
+                             The prefix-list is a policy prefix-list instance: the editor completes the
+                             configured ones, and a commit naming any other is refused. The prefix-list
+                             list belongs to the prefix filter, which a build without BGP leaves out, so
+                             this is a ze:reference, not a leafref.";
                 ze:help "Match routes the named prefix-list accepts";
             }
             leaf-list family {
