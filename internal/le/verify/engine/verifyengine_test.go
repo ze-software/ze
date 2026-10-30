@@ -32,7 +32,7 @@ func TestFullStagesMatchesNativeActionPopulation(t *testing.T) {
 		"arch compound-guard/check", "arch refuse-by-default/check",
 		"yang glue/check", "repo feature-tags/check",
 		"doc check/templ-output", "web vendor/check", "web assets/check",
-		"doc index/check", "ai rules/check/render", "ai rules/check/index",
+		"doc index/check", "ai rules/check/render",
 		"ai rules/check/condensed", "ai rules/check/metadata", "repo arch-map/check",
 		"test health/check", "site facts/check",
 		"web htmx/check", "verify deps/evidence-vet", "ai hooks/unit",

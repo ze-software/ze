@@ -247,7 +247,6 @@ func fullStages() []Stage {
 		stage("web assets", "check"),
 		stage("doc index", "check"),
 		stage("ai rules", "check", "render"),
-		stage("ai rules", "check", "index"),
 		stage("ai rules", "check", "condensed"),
 		stage("ai rules", "check", "metadata"),
 		stage("repo arch-map", "check"),
