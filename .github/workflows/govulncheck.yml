@@ -25,7 +25,7 @@ jobs:
           cache-dependency-path: go.sum
       - name: Install govulncheck
         run: |
-          CGO_ENABLED=0 go install golang.org/x/vuln/cmd/govulncheck@v1.4.0
+          CGO_ENABLED=0 go install -mod=vendor golang.org/x/vuln/cmd/govulncheck
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
       - name: Scan reachable dependencies
         run: ./le verify deps vulnerability

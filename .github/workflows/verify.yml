@@ -54,14 +54,21 @@ jobs:
           go-version-file: go.mod
           cache-dependency-path: go.sum
 
-      # linux-modules-extra carries the L2TP and PPPoL2TP modules: the hosted
-      # azure kernel image does not (run 39047813355, 6.17.0-1022-azure).
+      # Up to the 6.17 azure kernel, linux-modules-extra carries the L2TP and
+      # PPPoL2TP modules and the hosted image does not (run 39047813355,
+      # 6.17.0-1022-azure). From 7.0 Ubuntu publishes no extra package at all
+      # (7.0.0-1017-azure, run 40945957231), so it is installed only where the
+      # archive has one; the modprobe step below names any module still absent.
       - name: Install system packages
         run: |
           sudo apt-get update
+          extra="linux-modules-extra-$(uname -r)"
+          if ! apt-cache show "$extra" >/dev/null 2>&1; then
+            extra=""
+          fi
           sudo apt-get install -y --no-install-recommends \
             build-essential curl git iproute2 iptables nftables util-linux \
-            "linux-modules-extra-$(uname -r)"
+            $extra
 
       # Ubuntu 24.04 lets AppArmor restrict unprivileged user namespaces, so
       # every unit test that builds its own network namespace (bfd, bfd/engine,
@@ -76,15 +83,16 @@ jobs:
       # The l2tp kernel capability (internal/component/l2tp/kernelcap_linux.go)
       # probes the l2tp generic netlink family (CONFIG_L2TP: l2tp_core,
       # l2tp_netlink) and the PPPoL2TP socket (CONFIG_PPPOL2TP: pppox, l2tp_ppp).
-      # The hosted kernel ships l2tp_core, l2tp_netlink and l2tp_ppp in
-      # linux-modules-extra (pppox is in the base modules package), unloaded, and without
+      # The hosted kernel ships l2tp_core, l2tp_netlink and l2tp_ppp unloaded, in
+      # linux-modules-extra where the kernel has one (pppox is in the base modules
+      # package), and without
       # them every L2TP functional group and the RADIUS late-bind unit test are
       # refused. A module the image lacks stops the job here, by name.
       - name: Load the L2TP and PPPoL2TP kernel modules
         run: |
           for module in l2tp_core l2tp_netlink pppox l2tp_ppp; do
             if ! sudo modprobe "$module"; then
-              echo "::error::kernel module $module is missing from this runner's kernel $(uname -r), so ze's l2tp capability (CONFIG_L2TP and CONFIG_PPPOL2TP) cannot be met and every L2TP test would be refused. Fix: install linux-modules-extra-$(uname -r) in the system packages step of .github/workflows/verify.yml." >&2
+              echo "::error::kernel module $module is missing from this runner's kernel $(uname -r), so ze's l2tp capability (CONFIG_L2TP and CONFIG_PPPOL2TP) cannot be met and every L2TP test would be refused. Fix: find the Ubuntu package that carries $module for kernel $(uname -r) (apt-file search $module.ko) and install it in the system packages step of .github/workflows/verify.yml." >&2
               exit 1
             fi
           done
@@ -111,7 +119,7 @@ jobs:
         run: |
           CGO_ENABLED=0 go install -mod=vendor github.com/golangci/golangci-lint/v2/cmd/golangci-lint
           CGO_ENABLED=0 go install -mod=vendor honnef.co/go/tools/cmd/staticcheck
-          CGO_ENABLED=0 go install golang.org/x/vuln/cmd/govulncheck@v1.4.0
+          CGO_ENABLED=0 go install -mod=vendor golang.org/x/vuln/cmd/govulncheck
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
 
       # functional/exabgp runs the compatibility suite through
