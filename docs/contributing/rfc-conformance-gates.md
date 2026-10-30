@@ -1426,6 +1426,52 @@ The marker changes no count. The row stays gated, tagged and counted in its own
 RFC exactly as before: it says where the row is ordered, never that Ze stops
 owing it (`TestAnUpdatedByMarkerChangesNoCount`).
 
+## The intent marker
+
+An optional row (SHOULD, SHOULD NOT, RECOMMENDED, NOT RECOMMENDED, MAY,
+OPTIONAL) that Ze has not proven is in one of three states, and the summary
+declares two of them with a marker of its own, beside the coverage annotation:
+
+| State | Marker | Who sets it |
+|-------|--------|-------------|
+| not yet | `{intent: not-yet}` | Anyone during RFC work: Ze means to support the row |
+| not ever | `{intent: not-ever; "<the RFC sentence making the row optional>"; <why>}` | Thomas only: Ze will not support the row. An agent may propose it in a report, never write it |
+| not decided | no marker | The default |
+
+```
+- [ ] [RFC9999-2-4] [SHOULD] <text> (§2) {intent: not-yet}
+- [ ] [RFC9999-2-5] [MAY] <text> (§2) {intent: not-ever; "A speaker MAY log every widget it discards."; Ze keeps no discard log}
+```
+
+Proven is never declared. It is computed from the discrimination records, so a
+proven row counts as proven whatever marker it still carries, and
+`{intent: proven}` is refused as an unknown state.
+
+`parseIntent` (`internal/le/rfc/intent.go`) refuses, naming the format:
+
+| Refusal | Fix |
+|---------|-----|
+| An empty body, or a state other than `not-yet` and `not-ever` | Write one of the two states, or remove the marker: an unmarked row is not decided |
+| `not-yet` with a reason | Remove the reason: not yet records only that the work is owed |
+| `not-ever` with no reason, no quoted sentence, or no `; <why>` after the quote | Quote the RFC sentence that makes the row optional, then say why |
+| `not-ever` whose quote states no optionality | Quote a sentence carrying an advisory keyword, or `optional`, `optionally` or `if ... supports` (the optionality shape of a `{feature-declined}` quote) |
+| Two `{intent}` markers on one line | Keep one: a row has one intent |
+| `{intent}` on a gated (MUST, MUST NOT, REQUIRED, SHALL, SHALL NOT) row | Remove it. A mandatory obligation is owed whatever Ze intends; record an unmet one with `{gap}` (`TestIntentMarkerRefusedOnMust`) |
+
+The marker composes with a coverage annotation, `{superseded}` and
+`{updated-by}` on the same line, one of each kind (`stripMarkers`). The parser
+cannot see who wrote a `not-ever`, so review enforces that only Thomas sets
+it: the review gate flags every `not-ever` a diff adds. Whether the quote is the
+RFC's own words is checked by that review too, not by the parser.
+<!-- source: internal/le/rfc/intent.go -- parseIntent, parseNotEver, intentOnGatedRow -->
+
+`StemFigures` carries three counts per RFC, `NotYet`, `NotEver` and
+`NotDecided`, over the optional rows that are owed, not proven and not
+excluded (the attainable optional rows less the proven ones). Each such row
+lands in exactly one, by its marker, and no other count changes
+(`countIntent`, `internal/le/rfc/profilecoverage.go`, `TestIntentCounts`).
+<!-- source: internal/le/rfc/profilecoverage.go -- countIntent, ceilingExcluded -->
+
 ## The dependency graph
 
 `internal/le/rfc/graph` reads every text under `rfc/full/` and `rfc/drafts/`

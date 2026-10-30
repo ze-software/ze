@@ -103,6 +103,35 @@ func evidenceRow(t *testing.T, rid, section, annotation string) Requirement {
 // not carry, a bound role made only of words for any party (singular or
 // plural), or no reason. The roles ze fills are the Meta table's
 // (TestNotApplicableRolesAreWholeWordsAndDistinct).
+// TestIntentMarkerRefusedOnMust checks AC-6. Goal: an intent marker on a gated
+// row is refused, because a MUST-level obligation is owed whatever anyone
+// intends, and the refusal names the row's level and the fix. Method: each
+// intent form on a MUST row, and on a MUST NOT row, through ParseSummaryText,
+// which parseSummaryFile and so `./le rfc check` call.
+func TestIntentMarkerRefusedOnMust(t *testing.T) {
+	markers := []string{
+		"{intent: not-yet}",
+		`{intent: not-ever; "` + intentOptionality + `"; Ze keeps no discard log}`,
+	}
+	for _, level := range []string{levelMust, "MUST NOT"} {
+		for _, marker := range markers {
+			line := "- [ ] [RFC9999-2-1] [" + level + "] A speaker " + level + " log every widget it discards (§2) " + marker
+			_, err := ParseSummaryText(line, "rfc9999", "rfc/short/rfc9999.md")
+			if err == nil {
+				t.Errorf("%s on a %s row was accepted", marker, level)
+				continue
+			}
+			if !strings.Contains(err.Error(), "{intent} on a "+level+" row") {
+				t.Errorf("the refusal %q does not name the %s level", err, level)
+			}
+		}
+	}
+	if _, err := ParseSummaryText("- [ ] [RFC9999-2-1] [MUST] A speaker MUST log every widget it discards (§2)",
+		"rfc9999", "rfc/short/rfc9999.md"); err != nil {
+		t.Errorf("a MUST row with no intent marker was refused: %v", err)
+	}
+}
+
 func TestNotApplicableNeedsSectionRoleQuote(t *testing.T) {
 	tree := t.TempDir()
 	writeFixtureFiles(t, tree, map[string]string{"rfc/full/rfc9999.txt": quoteFixtureSource,

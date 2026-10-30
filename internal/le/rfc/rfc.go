@@ -666,6 +666,11 @@ type Requirement struct {
 	// UpdatedBy is the updating RFC's requirement that rewrites this row, and
 	// nil when no updater touches it. Its OWN field, like Superseded.
 	UpdatedBy *UpdatedBy `json:"updated-by,omitempty"`
+	// Intent is what Ze declares it means to do about an optional row it has
+	// not proven, and nil when the row carries no {intent} marker: not
+	// decided. Its OWN field, like Superseded; never set on a gated row
+	// (intentOnGatedRow).
+	Intent *Intent `json:"intent,omitempty"`
 	// DerivedCause is the sentence naming the first target that decided a
 	// derived gap or unproven state, and empty on a met rollup and on every
 	// other row. The gate raises no finding for a rollup, so this is the one

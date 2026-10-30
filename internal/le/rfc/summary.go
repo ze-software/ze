@@ -128,7 +128,7 @@ func parseAnnotation(body, where string) (*Annotation, error) {
 			Str("} has no reason. Every annotation must justify itself: {kind: why}"))
 	}
 	if !known {
-		known := append(AnnotationKinds(), SupersededKind, UpdatedByKind)
+		known := append(AnnotationKinds(), SupersededKind, UpdatedByKind, IntentKind)
 		slices.Sort(known)
 		return nil, parseErr(tb.Str(where).Str(": unknown annotation kind ").Str(pyRepr(kind)).
 			Str("; expected one of ").Str(pyRepr(known)))
@@ -776,14 +776,16 @@ type rowMarkers struct {
 	annotation *Annotation
 	successor  *Successor
 	updatedBy  *UpdatedBy
+	intent     *Intent
 }
 
 // stripMarkers peels every trailing `{...}` group off a requirement line.
 //
 // A line carries at most one coverage annotation, at most one {superseded}
-// marker AND at most one {updated-by} marker, in any order, and they COMPOSE:
-// a row can be un-testable here, restated by a successor and rewritten by an
-// updater at once, and each says a different thing. The loop is what makes that
+// marker, at most one {updated-by} marker AND at most one {intent} marker, in
+// any order, and they COMPOSE: a row can be un-testable here, restated by a
+// successor, rewritten by an updater and not yet supported at once, and each
+// says a different thing. The loop is what makes that
 // possible: the pattern anchors at end of line and matches ONE group, so a
 // single search would leave the second group inside the requirement TEXT,
 // unparsed and dragged into extractSection as if it were prose.
@@ -826,6 +828,15 @@ func (m *rowMarkers) add(kind, body, where string) error {
 		}
 		parsed, err := parseUpdatedBy(body, where)
 		m.updatedBy = parsed
+		return err
+	}
+	if kind == IntentKind {
+		if m.intent != nil {
+			return parseErr(tb.Str(where).Str(": two {").Str(IntentKind).
+				Str("} markers on one line. A row has one intent: ").Str(intentFormat))
+		}
+		parsed, err := parseIntent(body, where)
+		m.intent = parsed
 		return err
 	}
 	if m.annotation != nil {
@@ -943,6 +954,10 @@ func parseChecklistLine(line, stem, source string, lineno int) (*Requirement, er
 		RFC: stem, RID: rid, Level: found[3], Text: rest, Section: section,
 		Annotation: markers.annotation, Source: source, Line: lineno,
 		Ticked: ticked, Superseded: markers.successor, UpdatedBy: markers.updatedBy,
+		Intent: markers.intent,
+	}
+	if err := intentOnGatedRow(req, where); err != nil {
+		return nil, err
 	}
 	if refusal := partialScopeRefusal(req); refusal != "" {
 		return nil, &ParseError{msg: where + ": {partial} " + refusal}

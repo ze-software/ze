@@ -117,6 +117,14 @@ type StemFigures struct {
 	// is the only OS a record speaks for, so neither has a per-version split.
 	OSVerified int
 	OSGap      int
+	// NotYet, NotEver and NotDecided split the optional rows that are owed,
+	// not proven and not excluded (Optional.Attainable less Optional.Proven)
+	// by their {intent} marker: not yet, not ever, or no marker at all. They
+	// change no other count. Proven is never declared, so a proven row lands
+	// in none of them whatever marker it carries.
+	NotYet     int
+	NotEver    int
+	NotDecided int
 }
 
 // notWalked is the cell an unwalked RFC renders in place of a figure.
@@ -266,6 +274,7 @@ func figuresByStem(requirements []Requirement, stems, walked, proven map[string]
 				figures.countKind(evidence.strongestKind(requirement.RID))
 			}
 		} else {
+			figures.countIntent(requirement, met)
 			figures.Optional.count(requirement, met)
 		}
 		out[requirement.RFC] = figures
@@ -287,6 +296,32 @@ func (s *StemFigures) countOS(requirement *Requirement, proven map[string]bool) 
 		return
 	}
 	s.OSGap++
+}
+
+// countIntent adds one owed optional row that is not proven and not excluded
+// to NotYet, NotEver or NotDecided by its {intent} marker, and leaves every
+// other row alone.
+func (s *StemFigures) countIntent(requirement *Requirement, met bool) {
+	if met {
+		return
+	}
+	if ceilingExcluded(requirement) {
+		return
+	}
+	if requirement.Intent == nil {
+		s.NotDecided++
+		return
+	}
+	switch requirement.Intent.State {
+	case IntentNotYet:
+		s.NotYet++
+	case IntentNotEver:
+		s.NotEver++
+	case IntentUnspecified:
+		panic("BUG: an intent marker parsed to no state")
+	default:
+		panic("BUG: unexpected intent state")
+	}
 }
 
 // osMet answers whether a layer under Ze performs the row: its annotation is
@@ -323,17 +358,24 @@ func (f *Figure) count(requirement *Requirement, proven bool) {
 	if proven {
 		f.Proven++
 	}
-	if requirement.Annotation != nil {
-		traits, known := AnnotationTraitsOf(requirement.Annotation.Kind)
-		if known && traits.CeilingExcluded {
-			if f.Excluded == nil {
-				f.Excluded = make(map[string]int)
-			}
-			f.Excluded[requirement.Annotation.Kind]++
-			return
+	if ceilingExcluded(requirement) {
+		if f.Excluded == nil {
+			f.Excluded = make(map[string]int)
 		}
+		f.Excluded[requirement.Annotation.Kind]++
+		return
 	}
 	f.Attainable++
+}
+
+// ceilingExcluded answers whether a row's annotation is a declared kind whose
+// traits leave it out of the attainable rows. An unknown kind is not excluded.
+func ceilingExcluded(requirement *Requirement) bool {
+	if requirement.Annotation == nil {
+		return false
+	}
+	traits, known := AnnotationTraitsOf(requirement.Annotation.Kind)
+	return known && traits.CeilingExcluded
 }
 
 // rowCounts answers whether a row is owed (in the denominator) and whether it
