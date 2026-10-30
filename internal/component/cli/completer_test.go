@@ -16,7 +16,7 @@ func TestCompleterCommands(t *testing.T) {
 	c := newTestCompleter(t)
 
 	// Empty input should show commands
-	completions := c.Complete("", nil)
+	completions := c.Complete(nil, "", nil)
 	require.NotEmpty(t, completions)
 
 	// Should include set, delete, edit, show, etc.
@@ -31,7 +31,7 @@ func TestCompleterSetKeywords(t *testing.T) {
 	c := newTestCompleter(t)
 
 	// "set " at bgp context should show bgp children from YANG
-	completions := c.Complete("set ", []string{"bgp"})
+	completions := c.Complete(nil, "set ", []string{"bgp"})
 	require.NotEmpty(t, completions)
 
 	texts := completionTexts(completions)
@@ -44,7 +44,7 @@ func TestCompleterSetPartialKeyword(t *testing.T) {
 	c := newTestCompleter(t)
 
 	// "set session" should complete to "session" in bgp context
-	completions := c.Complete("set session", []string{"bgp"})
+	completions := c.Complete(nil, "set session", []string{"bgp"})
 	require.NotEmpty(t, completions)
 
 	texts := completionTexts(completions)
@@ -55,7 +55,7 @@ func TestCompleterNestedPath(t *testing.T) {
 	c := newTestCompleter(t)
 
 	// At bgp.peer list level (no key selected), should show all children including key
-	completions := c.Complete("set ", []string{"bgp", "peer"})
+	completions := c.Complete(nil, "set ", []string{"bgp", "peer"})
 	require.NotEmpty(t, completions)
 
 	texts := completionTexts(completions)
@@ -67,7 +67,7 @@ func TestCompleterValueTypeHints(t *testing.T) {
 	c := newTestCompleter(t)
 
 	// After "set router-id " inside bgp context should hint value
-	completions := c.Complete("set router-id ", []string{"bgp"})
+	completions := c.Complete(nil, "set router-id ", []string{"bgp"})
 	require.NotEmpty(t, completions)
 	assert.Equal(t, "hint", completions[0].Type)
 }
@@ -76,7 +76,7 @@ func TestCompleterGhostTextSingleMatch(t *testing.T) {
 	c := newTestCompleter(t)
 
 	// "set router" should ghost "-id" (single match) inside bgp context
-	ghost := c.GhostText("set router", []string{"bgp"})
+	ghost := c.GhostText(nil, "set router", []string{"bgp"})
 	assert.Equal(t, "-id", ghost)
 }
 
@@ -84,7 +84,7 @@ func TestCompleterGhostTextNoMatch(t *testing.T) {
 	c := newTestCompleter(t)
 
 	// "set xyz" has no matches
-	ghost := c.GhostText("set xyz", []string{"bgp"})
+	ghost := c.GhostText(nil, "set xyz", []string{"bgp"})
 	assert.Empty(t, ghost)
 }
 
@@ -92,7 +92,7 @@ func TestCompleterEditPath(t *testing.T) {
 	c := newTestCompleter(t)
 
 	// "edit " inside bgp should show peer (a list)
-	completions := c.Complete("edit ", []string{"bgp"})
+	completions := c.Complete(nil, "edit ", []string{"bgp"})
 	require.NotEmpty(t, completions)
 
 	texts := completionTexts(completions)
@@ -103,7 +103,7 @@ func TestCompleterYANGDescription(t *testing.T) {
 	c := newTestCompleter(t)
 
 	// Descriptions should come from YANG model
-	completions := c.Complete("set ", []string{"bgp"})
+	completions := c.Complete(nil, "set ", []string{"bgp"})
 	require.NotEmpty(t, completions)
 
 	// Find session completion
@@ -122,7 +122,7 @@ func TestCompleterYANGMandatory(t *testing.T) {
 	c := newTestCompleter(t)
 
 	// Mandatory fields should be marked in description
-	completions := c.Complete("set ", []string{"bgp"})
+	completions := c.Complete(nil, "set ", []string{"bgp"})
 
 	// Find session (container) and peer (not mandatory - it's a list)
 	var sessionComp, peer *Completion
@@ -148,7 +148,7 @@ func TestCompleterEnumValues(t *testing.T) {
 	c := newTestCompleter(t)
 
 	// In session/capability/add-path context, should show direction/family/limit children
-	completions := c.Complete("set ", []string{"bgp", "peer", "session", "capability", "add-path"})
+	completions := c.Complete(nil, "set ", []string{"bgp", "peer", "session", "capability", "add-path"})
 	require.NotEmpty(t, completions)
 
 	texts := completionTexts(completions)
@@ -166,7 +166,7 @@ func TestCompleterSetListKeys(t *testing.T) {
 
 	// "set bgp peer " should show list key hints (* for template, <value> for new)
 	// NOT schema children like peer-as, address, etc.
-	completions := c.Complete("set bgp peer ", nil)
+	completions := c.Complete(nil, "set bgp peer ", nil)
 	require.NotEmpty(t, completions)
 
 	texts := completionTexts(completions)
@@ -186,11 +186,11 @@ func TestCompleterKeyLeafAsValue(t *testing.T) {
 	c := newTestCompleter(t)
 
 	// "peer name " should show list children ("name" is the key value)
-	peerComps := c.Complete("set bgp peer name ", nil)
+	peerComps := c.Complete(nil, "set bgp peer name ", nil)
 	require.NotEmpty(t, peerComps, "should show children inside peer 'name'")
 
 	// "route prefix " should show list children ("prefix" is the key value)
-	routeComps := c.Complete("set static table default route prefix ", nil)
+	routeComps := c.Complete(nil, "set static table default route prefix ", nil)
 	require.NotEmpty(t, routeComps, "should show children inside route 'prefix'")
 	texts := completionTexts(routeComps)
 	assert.Contains(t, texts, "description", "prefix is the key value, should show children")
@@ -266,11 +266,9 @@ func TestCompleterListKeysInContext(t *testing.T) {
 	update2 := config.NewTree()
 	peer.AddListEntry("update", "named", update2)
 
-	c.SetTree(tree)
-
 	// "edit update " inside peer context should show #N for unnamed, actual key for named
 	contextPath := []string{"bgp", "peer", "1.1.1.1"}
-	completions := c.Complete("edit update ", contextPath)
+	completions := c.Complete(tree, "edit update ", contextPath)
 	require.NotEmpty(t, completions)
 
 	texts := completionTexts(completions)
@@ -300,11 +298,9 @@ func TestCompleterListKeySingleEntry(t *testing.T) {
 	update := config.NewTree()
 	peer.AddListEntry("update", config.KeyDefault, update)
 
-	c.SetTree(tree)
-
 	// "edit update " with only one entry should return empty — no key needed
 	contextPath := []string{"bgp", "peer", "1.1.1.1"}
-	completions := c.Complete("edit update ", contextPath)
+	completions := c.Complete(tree, "edit update ", contextPath)
 	assert.Empty(t, completions, "single entry should not show key completions")
 }
 
@@ -320,10 +316,9 @@ func TestCompleterListKeyTypedValueAccepted(t *testing.T) {
 	tree := config.NewTree()
 	bgp := config.NewTree()
 	tree.SetContainer("bgp", bgp)
-	c.SetTree(tree)
 
 	// User has typed a new peer IP without trailing space
-	completions := c.Complete("set bgp peer 10.0.0.1", nil)
+	completions := c.Complete(tree, "set bgp peer 10.0.0.1", nil)
 
 	texts := completionTexts(completions)
 	// Should offer the typed value as a completion (Tab accepts it, adds space)
@@ -348,10 +343,9 @@ func TestCompleterListKeyAcceptedThenShowsChildren(t *testing.T) {
 	tree.SetContainer("bgp", bgp)
 	peer := config.NewTree()
 	bgp.AddListEntry("peer", "10.0.0.1", peer)
-	c.SetTree(tree)
 
 	// After Tab accepted the key, input now has trailing space
-	completions := c.Complete("set bgp peer 10.0.0.1 ", nil)
+	completions := c.Complete(tree, "set bgp peer 10.0.0.1 ", nil)
 
 	texts := completionTexts(completions)
 	// Should show peer children, not key completions
@@ -373,10 +367,9 @@ func TestCompleterListKeyEmptyShowsHint(t *testing.T) {
 	tree := config.NewTree()
 	bgp := config.NewTree()
 	tree.SetContainer("bgp", bgp)
-	c.SetTree(tree)
 
 	// Trailing space — user is at the key position but hasn't typed anything
-	completions := c.Complete("set bgp peer ", nil)
+	completions := c.Complete(tree, "set bgp peer ", nil)
 
 	texts := completionTexts(completions)
 	assert.Contains(t, texts, "<value>",
@@ -400,10 +393,9 @@ func TestCompleterListKeySingleEntryWithPrefix(t *testing.T) {
 	remote.Set("as", "65001")
 	peer.SetContainer("remote", remote)
 	bgp.AddListEntry("peer", "1.1.1.1", peer)
-	c.SetTree(tree)
 
 	// "set bgp peer 1.1.1.1" (no trailing space) should offer the typed value
-	completions := c.Complete("set bgp peer 1.1.1.1", nil)
+	completions := c.Complete(tree, "set bgp peer 1.1.1.1", nil)
 	require.NotEmpty(t, completions, "single entry with matching prefix should still offer completion")
 
 	texts := completionTexts(completions)
@@ -422,16 +414,15 @@ func TestCompleterListKeyStringAccepted(t *testing.T) {
 	tree := config.NewTree()
 	bgp := config.NewTree()
 	tree.SetContainer("bgp", bgp)
-	c.SetTree(tree)
 
 	// Valid name starting with letter: should be offered
-	completions := c.Complete("set bgp peer transit1", nil)
+	completions := c.Complete(tree, "set bgp peer transit1", nil)
 	texts := completionTexts(completions)
 	assert.Contains(t, texts, "transit1",
 		"valid peer name should be offered as peer key completion")
 
 	// Valid name with underscore prefix: should be offered
-	completions = c.Complete("set bgp peer _internal", nil)
+	completions = c.Complete(tree, "set bgp peer _internal", nil)
 	texts = completionTexts(completions)
 	assert.Contains(t, texts, "_internal",
 		"underscore-prefixed name should be offered as peer key completion")
@@ -448,10 +439,9 @@ func TestCompleterInvalidKeyWithSpaceNoChildren(t *testing.T) {
 	tree := config.NewTree()
 	bgp := config.NewTree()
 	tree.SetContainer("bgp", bgp)
-	c.SetTree(tree)
 
 	// Any string value with trailing space — should show children (string-typed key)
-	completions := c.Complete("set bgp peer transit1 ", nil)
+	completions := c.Complete(tree, "set bgp peer transit1 ", nil)
 	texts := completionTexts(completions)
 	assert.Contains(t, texts, "connection",
 		"valid key with trailing space should show children")
@@ -498,7 +488,7 @@ func TestCompleterHintTypeNotApplicable(t *testing.T) {
 	c := newTestCompleter(t)
 
 	// "set bgp peer " with no tree entries → shows <value> hint
-	completions := c.Complete("set bgp peer ", nil)
+	completions := c.Complete(nil, "set bgp peer ", nil)
 	require.NotEmpty(t, completions)
 
 	// Find the <value> completion
@@ -510,7 +500,7 @@ func TestCompleterHintTypeNotApplicable(t *testing.T) {
 	}
 
 	// Value type hints (e.g., "set router-id " → <value>) should also be hints
-	completions = c.Complete("set router-id ", []string{"bgp"})
+	completions = c.Complete(nil, "set router-id ", []string{"bgp"})
 	require.NotEmpty(t, completions)
 	assert.Equal(t, "hint", completions[0].Type,
 		"type hint should use hint type")
@@ -557,7 +547,7 @@ func TestCompleterValidateExtensionCompletion(t *testing.T) {
 
 	// receive leaf-list has ze:validate "receive-event-type" with CompleteFn
 	// -- should show actionable values, not hints.
-	recvComps := c.Complete("set receive ", []string{"bgp", "peer", "attach", "process"})
+	recvComps := c.Complete(nil, "set receive ", []string{"bgp", "peer", "attach", "process"})
 	require.NotEmpty(t, recvComps, "expected completions from CompleteFn for ze:validate leaf")
 	for _, comp := range recvComps {
 		if comp.Text == "<string>" || comp.Text == "<value>" {
@@ -570,7 +560,7 @@ func TestCompleterValidateExtensionCompletion(t *testing.T) {
 	assert.Contains(t, texts, "update", "should show event types from CompleteFn")
 
 	// send leaf-list also has ze:validate with CompleteFn -- verify separately
-	sendComps := c.Complete("set send ", []string{"bgp", "peer", "attach", "process"})
+	sendComps := c.Complete(nil, "set send ", []string{"bgp", "peer", "attach", "process"})
 	require.NotEmpty(t, sendComps, "expected completions from CompleteFn for send")
 	for _, comp := range sendComps {
 		assert.Equal(t, "value", comp.Type, "send completions should be actionable")
@@ -585,7 +575,7 @@ func TestCompleterValidateExtensionCompletion(t *testing.T) {
 func TestCompleterReceiveEventCompletion(t *testing.T) {
 	c := newTestCompleter(t)
 
-	completions := c.Complete("set receive ", []string{"bgp", "peer", "attach", "process"})
+	completions := c.Complete(nil, "set receive ", []string{"bgp", "peer", "attach", "process"})
 	require.NotEmpty(t, completions, "expected completions from CompleteFn for receive leaf-list")
 
 	texts := completionTexts(completions)
@@ -606,7 +596,7 @@ func TestCompleterSendMessageCompletion(t *testing.T) {
 	c := newTestCompleter(t)
 
 	// Navigate to bgp > peer > attach > process > send
-	completions := c.Complete("set send ", []string{"bgp", "peer", "attach", "process"})
+	completions := c.Complete(nil, "set send ", []string{"bgp", "peer", "attach", "process"})
 
 	require.NotEmpty(t, completions, "expected completions from CompleteFn for send leaf-list")
 
@@ -624,7 +614,7 @@ func TestCompleterNoValidateRegression(t *testing.T) {
 	c := newTestCompleter(t)
 
 	// receive-hold-time is a uint16 with no ze:validate
-	completions := c.Complete("set receive-hold-time ", []string{"bgp", "peer", "timer"})
+	completions := c.Complete(nil, "set receive-hold-time ", []string{"bgp", "peer", "timer"})
 	require.NotEmpty(t, completions)
 	assert.Equal(t, "hint", completions[0].Type, "non-validated leaf should show hint")
 	assert.Contains(t, completions[0].Text, "0-65535", "should show numeric range hint")
@@ -639,7 +629,7 @@ func TestCompleterValidatePrefixFilter(t *testing.T) {
 	c := newTestCompleter(t)
 
 	// Type "up" prefix at receive leaf-list position
-	completions := c.Complete("set receive up", []string{"bgp", "peer", "attach", "process"})
+	completions := c.Complete(nil, "set receive up", []string{"bgp", "peer", "attach", "process"})
 
 	require.NotEmpty(t, completions, "prefix filter should return matching completions")
 	for _, comp := range completions {
@@ -700,11 +690,8 @@ func TestCompleterBackendFiltersChildren(t *testing.T) {
 	c := newTestCompleter(t)
 	require.NotNil(t, c.schema)
 
-	// Set backends to "vpp" for interface
-	c.backends = map[string]string{"interface": "vpp"}
-
 	// "set " in interface context — "tunnel" has ze:backend "netlink", should be excluded
-	completions := c.Complete("set ", []string{"interface"})
+	completions := c.Complete(interfaceBackendTree("vpp"), "set ", []string{"interface"})
 	texts := completionTexts(completions)
 	assert.NotContains(t, texts, "tunnel", "tunnel (ze:backend netlink) should be hidden with vpp backend")
 }
@@ -717,9 +704,7 @@ func TestCompleterBackendIncludesMatching(t *testing.T) {
 	c := newTestCompleter(t)
 	require.NotNil(t, c.schema)
 
-	c.backends = map[string]string{"interface": "netlink"}
-
-	completions := c.Complete("set ", []string{"interface"})
+	completions := c.Complete(interfaceBackendTree("netlink"), "set ", []string{"interface"})
 	texts := completionTexts(completions)
 	assert.Contains(t, texts, "tunnel", "tunnel (ze:backend netlink) should be shown with netlink backend")
 }
@@ -732,10 +717,8 @@ func TestCompleterBackendUnrestricted(t *testing.T) {
 	c := newTestCompleter(t)
 	require.NotNil(t, c.schema)
 
-	c.backends = map[string]string{"interface": "vpp"}
-
 	// "set " in interface context — "backend" leaf has no ze:backend, should be shown
-	completions := c.Complete("set ", []string{"interface"})
+	completions := c.Complete(interfaceBackendTree("vpp"), "set ", []string{"interface"})
 	texts := completionTexts(completions)
 	assert.Contains(t, texts, "backend", "backend leaf (no ze:backend) should always be shown")
 }
@@ -748,11 +731,9 @@ func TestCompleterBackendFiltersSetShortcut(t *testing.T) {
 	c := newTestCompleter(t)
 	require.NotNil(t, c.schema)
 
-	c.backends = map[string]string{"interface": "vpp"}
-
 	// Typing "tun" in interface context triggers shortcut suggestions.
 	// "tunnel" has ze:backend "netlink", should not appear.
-	completions := c.Complete("tun", []string{"interface"})
+	completions := c.Complete(interfaceBackendTree("vpp"), "tun", []string{"interface"})
 	texts := completionTexts(completions)
 	for _, text := range texts {
 		assert.NotContains(t, text, "tunnel", "tunnel should not appear in shortcut completions with vpp backend")
@@ -767,10 +748,8 @@ func TestCompleterBackendFiltersEditTargets(t *testing.T) {
 	c := newTestCompleter(t)
 	require.NotNil(t, c.schema)
 
-	c.backends = map[string]string{"interface": "vpp"}
-
 	// "edit " in interface context — tunnel should be hidden for vpp
-	completions := c.Complete("edit ", []string{"interface"})
+	completions := c.Complete(interfaceBackendTree("vpp"), "edit ", []string{"interface"})
 	texts := completionTexts(completions)
 	assert.NotContains(t, texts, "tunnel", "tunnel should be hidden in edit mode with vpp backend")
 }
@@ -785,21 +764,19 @@ func TestCompleterBackendMulti(t *testing.T) {
 
 	// Find a child annotated with ze:backend "netlink" and verify it works.
 	// Then test with vpp — tunnel should be excluded since it's netlink-only.
-	c.backends = map[string]string{"interface": "netlink"}
-	completions := c.Complete("set ", []string{"interface"})
+	completions := c.Complete(interfaceBackendTree("netlink"), "set ", []string{"interface"})
 	texts := completionTexts(completions)
 	assert.Contains(t, texts, "tunnel", "tunnel shown for netlink")
 
 	// With vpp, tunnel excluded
-	c.backends = map[string]string{"interface": "vpp"}
-	completions = c.Complete("set ", []string{"interface"})
+	completions = c.Complete(interfaceBackendTree("vpp"), "set ", []string{"interface"})
 	texts = completionTexts(completions)
 	assert.NotContains(t, texts, "tunnel", "tunnel excluded for vpp")
 }
 
 // TestCompleterBackendDefaultFromTree verifies backends derived from config tree.
 //
-// VALIDATES: AC-5 — backend read from config tree at SetTree time.
+// VALIDATES: AC-5 — backend read from the config tree the call is given.
 // PREVENTS: backend map not updated when config changes.
 func TestCompleterBackendDefaultFromTree(t *testing.T) {
 	c := newTestCompleter(t)
@@ -810,14 +787,24 @@ func TestCompleterBackendDefaultFromTree(t *testing.T) {
 	ifaceContainer.Set("backend", "vpp")
 	tree.SetContainer("interface", ifaceContainer)
 
-	c.setTreeInternal(tree)
-	require.NotNil(t, c.backends)
-	assert.Equal(t, "vpp", c.backends["interface"])
+	backends := c.Backends(tree)
+	require.NotNil(t, backends)
+	assert.Equal(t, "vpp", backends["interface"])
 
 	// Tunnel should be filtered with vpp backend
-	completions := c.Complete("set ", []string{"interface"})
+	completions := c.Complete(tree, "set ", []string{"interface"})
 	texts := completionTexts(completions)
-	assert.NotContains(t, texts, "tunnel", "tunnel excluded after SetTree with vpp backend")
+	assert.NotContains(t, texts, "tunnel", "tunnel excluded from a tree with the vpp backend")
+}
+
+// interfaceBackendTree is a candidate tree that selects backend for the
+// interface component, as `interface { backend <backend>; }` does.
+func interfaceBackendTree(backend string) *config.Tree {
+	tree := config.NewTree()
+	iface := config.NewTree()
+	iface.Set("backend", backend)
+	tree.SetContainer("interface", iface)
+	return tree
 }
 
 func completionTexts(completions []Completion) []string {
@@ -839,7 +826,7 @@ func completionTexts(completions []Completion) []string {
 func TestConfigCompletionCarriesBothTexts(t *testing.T) {
 	c := newTestCompleter(t)
 
-	comp := completionNamed(t, c.Complete("set router-id", []string{"bgp"}), "router-id")
+	comp := completionNamed(t, c.Complete(nil, "set router-id", []string{"bgp"}), "router-id")
 
 	assert.NotEmpty(t, comp.ShortHelp, "the menu row reads the summary")
 	assert.Contains(t, comp.Description, "RFC 6286",
@@ -860,7 +847,7 @@ func TestConfigCompletionRowIsNotTheParagraph(t *testing.T) {
 
 	c := newTestCompleter(t)
 
-	comp := completionNamed(t, c.Complete("set router-id", []string{"bgp"}), "router-id")
+	comp := completionNamed(t, c.Complete(nil, "set router-id", []string{"bgp"}), "router-id")
 
 	assert.LessOrEqual(t, len(comp.ShortHelp), rowWidthMax,
 		"the row holds the summary, and the summary fits one row")
@@ -880,4 +867,44 @@ func completionNamed(t *testing.T, completions []Completion, text string) Comple
 	}
 	t.Fatalf("no completion named %q in %v", text, completionTexts(completions))
 	return Completion{}
+}
+
+// TestCompleterTreePerCall proves the completer holds no tree between calls.
+//
+// Method: one Completer completes `set bgp peer ` over tree A, then tree B,
+// then a nil tree, then A again. Each call must offer exactly the peers of the
+// tree it was given: a completer that kept the last tree would offer B's peers
+// to the nil call, or to the second A call.
+//
+// VALIDATES: the candidate tree is an argument of each call, never state.
+// PREVENTS: one session's config leaking into another session's completion.
+func TestCompleterTreePerCall(t *testing.T) {
+	c := newTestCompleter(t)
+
+	peersTree := func(names ...string) *config.Tree {
+		tree := config.NewTree()
+		bgp := config.NewTree()
+		for _, name := range names {
+			bgp.AddListEntry("peer", name, config.NewTree())
+		}
+		tree.SetContainer("bgp", bgp)
+		return tree
+	}
+	treeA := peersTree("alpha-1", "alpha-2")
+	treeB := peersTree("beta-1", "beta-2")
+
+	keys := func(tree *config.Tree) []string {
+		var found []string
+		for _, completion := range c.Complete(tree, "set bgp peer ", nil) {
+			if completion.Type == completionListKey && completion.Text != "*" {
+				found = append(found, completion.Text)
+			}
+		}
+		return found
+	}
+
+	assert.Equal(t, []string{"alpha-1", "alpha-2"}, keys(treeA), "tree A")
+	assert.Equal(t, []string{"beta-1", "beta-2"}, keys(treeB), "tree B")
+	assert.Empty(t, keys(nil), "a nil tree offers no configured peer")
+	assert.Equal(t, []string{"alpha-1", "alpha-2"}, keys(treeA), "tree A again, after B")
 }

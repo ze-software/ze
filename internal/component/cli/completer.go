@@ -42,11 +42,15 @@ const typeHintAny = "value"
 const leafBackend = "backend"
 
 // Completer provides YANG-driven completions.
+//
+// It holds only what every session shares and never changes after
+// NewCompleter: the schema, the validator registry and the enum summary cache.
+// The candidate tree a completion reads is an argument of each call, never a
+// field, so one Completer serves many sessions at once (the web server shares
+// one between every logged-in user). Safe for concurrent use.
 type Completer struct {
 	schema   *yang.Resolved
-	tree     *config.Tree            // Config data for list key completion
 	registry *yang.ValidatorRegistry // Validator registry for ze:validate completions
-	backends map[string]string       // component root -> active backend name
 
 	// enumSummaries caches, per enumeration leaf, the ze:help summary each of
 	// its values declares (enumValueSummaries). Completion runs on every
@@ -80,22 +84,27 @@ func NewCompleter() (*Completer, error) {
 	return &Completer{schema: schema, registry: reg}, nil
 }
 
-// SetTree sets the config tree for data-aware completion.
-func (c *Completer) SetTree(tree any) {
-	t, _ := tree.(*config.Tree)
-	c.setTreeInternal(t)
+// completion is one completion call: the Completer's shared schema plus the
+// candidate tree of the session that asked, and the backends that tree
+// selects. It is built by Completer.over for one call and dropped when the
+// call returns, so nothing one session's tree holds outlives its own request.
+type completion struct {
+	*Completer
+	tree     *config.Tree      // the caller's candidate tree; nil completes from the schema alone
+	backends map[string]string // component root -> active backend name, from tree
 }
 
-func (c *Completer) setTreeInternal(tree *config.Tree) {
-	c.tree = tree
-	c.backends = c.deriveBackends(tree)
+// over starts one completion call over the caller's candidate tree.
+func (c *Completer) over(tree *config.Tree) *completion {
+	return &completion{Completer: c, tree: tree, backends: c.Backends(tree)}
 }
 
-// deriveBackends reads each component's active backend value from the config
-// tree. The containers it reads come from the schema rather than from a list
-// here, so a component that gains a backend leaf is completed with no edit to
-// this file.
-func (c *Completer) deriveBackends(tree *config.Tree) map[string]string {
+// Backends reads each component's active backend value from the config tree,
+// keyed by the component's container path. The containers it reads come from
+// the schema rather than from a list here, so a component that gains a
+// backend leaf is completed with no edit to this file. A nil tree, or one that
+// selects no backend, answers nil: every backend-annotated node is then shown.
+func (c *Completer) Backends(tree *config.Tree) map[string]string {
 	if tree == nil {
 		return nil
 	}
@@ -208,11 +217,18 @@ var commands = []Completion{
 }
 
 // Complete returns completions for the given input at cursor position.
-// contextPath is the current edit context (e.g., ["bgp", "peer", "192.168.1.1"]).
-func (c *Completer) Complete(input string, contextPath []string) []Completion {
+// tree is the caller's candidate config, which list keys and backend
+// filtering read; nil completes from the schema alone. contextPath is the
+// current edit context (e.g., ["bgp", "peer", "192.168.1.1"]).
+func (c *Completer) Complete(tree *config.Tree, input string, contextPath []string) []Completion {
 	if c.schema == nil {
 		return commands
 	}
+	return c.over(tree).complete(input, contextPath)
+}
+
+// complete is Complete over this call's tree.
+func (c *completion) complete(input string, contextPath []string) []Completion {
 
 	input = strings.TrimLeft(input, " ")
 	tokens := tokenize(input)
@@ -271,8 +287,9 @@ func (c *Completer) Complete(input string, contextPath []string) []Completion {
 	}
 }
 
-// GhostText returns the best single completion for inline ghost text.
-func (c *Completer) GhostText(input string, contextPath []string) string {
+// GhostText returns the best single completion for inline ghost text, over
+// the caller's candidate tree as Complete reads it.
+func (c *Completer) GhostText(tree *config.Tree, input string, contextPath []string) string {
 	if input == "" {
 		return ""
 	}
@@ -291,7 +308,7 @@ func (c *Completer) GhostText(input string, contextPath []string) string {
 	}
 
 	lastWord := tokens[len(tokens)-1]
-	completions := c.Complete(input, contextPath)
+	completions := c.Complete(tree, input, contextPath)
 
 	if len(completions) == 0 {
 		return ""
@@ -325,7 +342,7 @@ func (c *Completer) GhostText(input string, contextPath []string) string {
 // completeRenamePath completes paths for the rename command.
 // Before "to": delegates to completeSetPath for list entry navigation.
 // After "to": no completions (user types the new name).
-func (c *Completer) completeRenamePath(tokens, contextPath []string, endsWithSpace bool) []Completion {
+func (c *completion) completeRenamePath(tokens, contextPath []string, endsWithSpace bool) []Completion {
 	// Check if "to" is already present
 	if slices.Contains(tokens, "to") {
 		return nil
@@ -335,7 +352,7 @@ func (c *Completer) completeRenamePath(tokens, contextPath []string, endsWithSpa
 }
 
 // completeSetPath completes paths for set/delete commands.
-func (c *Completer) completeSetPath(tokens, contextPath []string, endsWithSpace bool) []Completion {
+func (c *completion) completeSetPath(tokens, contextPath []string, endsWithSpace bool) []Completion {
 	currentPath := append([]string{}, contextPath...)
 	// Track how many path elements came from tokens (vs context)
 	tokensAdded := 0
@@ -418,7 +435,7 @@ func (c *Completer) isListNeedingKey(path []string) bool {
 }
 
 // completeEditPath completes paths for edit command.
-func (c *Completer) completeEditPath(tokens, contextPath []string, endsWithSpace bool) []Completion {
+func (c *completion) completeEditPath(tokens, contextPath []string, endsWithSpace bool) []Completion {
 	// For edit, we're looking for lists and containers
 	if len(tokens) == 0 || (len(tokens) == 1 && !endsWithSpace) {
 		prefix := ""
@@ -494,7 +511,7 @@ func keyLeafNameCompletions(otherKeyLeaves, pairs []string, endsWithSpace bool) 
 }
 
 // completeShowPath completes paths for show command (content display).
-func (c *Completer) completeShowPath(tokens, contextPath []string, endsWithSpace bool) []Completion {
+func (c *completion) completeShowPath(tokens, contextPath []string, endsWithSpace bool) []Completion {
 	// Check for pipe: find the last "|" and complete pipe filters after it.
 	pipeIdx := -1
 	for i, t := range tokens {
@@ -645,7 +662,7 @@ func completePipeFilter(available []Completion, tokens []string, endsWithSpace b
 
 // completeDiscardPath completes paths for the discard command.
 // Offers "all" alongside YANG path completions in session mode.
-func (c *Completer) completeDiscardPath(tokens, contextPath []string, endsWithSpace bool) []Completion {
+func (c *completion) completeDiscardPath(tokens, contextPath []string, endsWithSpace bool) []Completion {
 	if len(tokens) == 0 || (len(tokens) == 1 && !endsWithSpace) {
 		prefix := ""
 		if len(tokens) == 1 {
@@ -709,7 +726,7 @@ func completeCommit(tokens []string, endsWithSpace bool) []Completion {
 // Multi-entry lists show positional IDs (#1, #2, ...) instead of raw keys.
 // A list keyed by an enumeration also offers the keys the operator has not
 // created yet, because for that list the schema knows every key there can be.
-func (c *Completer) listKeyCompletions(listName, prefix string, contextPath []string) []Completion {
+func (c *completion) listKeyCompletions(listName, prefix string, contextPath []string) []Completion {
 	// Count existing entries to decide behavior
 	var entryCount int
 	var orderedEntries []struct {
@@ -889,7 +906,7 @@ func isDefaultKey(key string) bool {
 // navigateTreeToPath walks the config tree along a context path,
 // handling both containers and list entries using the YANG schema
 // to distinguish list keys from child names.
-func (c *Completer) navigateTreeToPath(contextPath []string) *config.Tree {
+func (c *completion) navigateTreeToPath(contextPath []string) *config.Tree {
 	tree := c.tree
 	if tree == nil {
 		return nil
@@ -957,7 +974,7 @@ func (c *Completer) navigateTreeToPath(contextPath []string) *config.Tree {
 }
 
 // matchChildren returns completions for children at path matching prefix.
-func (c *Completer) matchChildren(path []string, prefix string) []Completion {
+func (c *completion) matchChildren(path []string, prefix string) []Completion {
 	entry := c.getEntry(path)
 	if entry == nil {
 		return nil
@@ -997,7 +1014,7 @@ func (c *Completer) matchChildren(path []string, prefix string) []Completion {
 
 // matchEditTargets returns completions for show/edit targets.
 // Includes containers, lists, and leaves — anything that can be shown or navigated.
-func (c *Completer) matchEditTargets(path []string, prefix string) []Completion {
+func (c *completion) matchEditTargets(path []string, prefix string) []Completion {
 	entry := c.getEntry(path)
 	if entry == nil {
 		return nil
@@ -1024,14 +1041,9 @@ func (c *Completer) matchEditTargets(path []string, prefix string) []Completion 
 	return completions
 }
 
-// Backends returns the current per-component backend map.
-func (c *Completer) Backends() map[string]string {
-	return c.backends
-}
-
 // backendAllowed returns true if the YANG entry should be shown given active backends.
 // No ze:backend annotation means unrestricted (always shown).
-func (c *Completer) backendAllowed(entry *gyang.Entry) bool {
+func (c *completion) backendAllowed(entry *gyang.Entry) bool {
 	be := yang.GetBackendExtension(entry)
 	if be == nil || c.backends == nil {
 		return true

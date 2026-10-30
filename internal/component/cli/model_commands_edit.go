@@ -80,7 +80,7 @@ func (m *Model) cmdSet(args []string) (commandResult, error) {
 	}
 
 	// Update completer with mutated tree
-	m.refreshCompleter()
+	m.refreshActiveBackends()
 
 	var tb textbuf.Buffer
 	if isListKey {
@@ -111,7 +111,7 @@ func (m *Model) createListEntry(entry config.ListEntryTarget, address []string) 
 	if err := m.editor.ensureListEntry(entry.ParentPath, entry.ListName, address); err != nil {
 		return commandResult{}, fmt.Errorf("set failed: %w", err)
 	}
-	m.refreshCompleter()
+	m.refreshActiveBackends()
 	var tb textbuf.Buffer
 	tb.Str("created ").Str(entry.ListName).Byte(' ').Join(address, " ")
 	m.editor.appendConflictStatus(&tb)
@@ -138,7 +138,7 @@ func (m *Model) cmdDelete(args []string) (commandResult, error) {
 	}
 
 	// Update completer with mutated tree
-	m.refreshCompleter()
+	m.refreshActiveBackends()
 
 	var tb textbuf.Buffer
 	tb.Str("Deleted ").Join(fullPath, " ")
@@ -191,7 +191,7 @@ func (m *Model) runActivation(args []string, activate bool) (commandResult, erro
 	if err != nil {
 		return commandResult{}, err
 	}
-	m.refreshCompleter()
+	m.refreshActiveBackends()
 	var tb textbuf.Buffer
 	tb.Str(msg)
 	m.editor.appendConflictStatus(&tb)
@@ -274,7 +274,7 @@ func (m *Model) cmdInsert(args []string) (commandResult, error) {
 		return commandResult{}, fmt.Errorf("insert failed: %w", err)
 	}
 
-	m.refreshCompleter()
+	m.refreshActiveBackends()
 	m.searchCache = ""
 
 	var tb textbuf.Buffer
@@ -364,7 +364,7 @@ func (m *Model) listEntryMove(args []string, verb listEntryMoveVerb) (commandRes
 		return commandResult{}, fmt.Errorf("%s failed: %w", verb.name, err)
 	}
 
-	m.refreshCompleter()
+	m.refreshActiveBackends()
 	m.searchCache = "" // tree changed, invalidate cached set-view
 
 	var tb textbuf.Buffer

@@ -119,7 +119,7 @@ func TestCommitCompletion(t *testing.T) {
 	completer := newTestCompleter(t)
 	texts := func(input string) []string {
 		var out []string
-		for _, c := range completer.Complete(input, nil) {
+		for _, c := range completer.Complete(nil, input, nil) {
 			out = append(out, c.Text)
 		}
 		return out

@@ -646,6 +646,29 @@ func (m *EditorManager) Tree(username string) *config.Tree {
 	return t
 }
 
+// ReadTree calls read with the user's working tree while holding that
+// session's lock, so no edit of the same session changes the tree during the
+// read. read MUST NOT keep the tree or anything inside it after it returns,
+// and MUST NOT call back into the EditorManager for the same user: the lock is
+// not reentrant. ReadTree answers false, without calling read, when the user
+// has no editing session.
+func (m *EditorManager) ReadTree(username string, read func(tree *config.Tree)) bool {
+	m.mu.RLock()
+	us, ok := m.sessions[username]
+	m.mu.RUnlock()
+
+	if !ok {
+		return false
+	}
+
+	us.mu.Lock()
+	defer us.mu.Unlock()
+
+	tree, _ := us.editor.Tree().(*config.Tree)
+	read(tree)
+	return true
+}
+
 // ContentAtPath returns the serialized config content at the given context path
 // for the user's working tree, with every secret leaf masked for display.
 // Returns an empty string if no session exists.

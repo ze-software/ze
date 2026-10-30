@@ -320,20 +320,19 @@ func TestCompleterOffersEachFirstValueOfAMultiLeafKeyListOnce(t *testing.T) {
 		require.NoError(t, err, line)
 	}
 	c := newTestCompleter(t)
-	c.SetTree(m.editor.Tree())
 
-	texts := completionTexts(c.Complete("set bfd single-hop-session ", nil))
+	texts := completionTexts(c.Complete(m.editor.Tree(), "set bfd single-hop-session ", nil))
 	assert.Equal(t, 1, countOf(texts, "fe80::b"), "one peer on two links is offered once: %v", texts)
 	assert.Equal(t, 1, countOf(texts, "fe80::c"), "%v", texts)
 	for _, text := range texts {
 		assert.NotContains(t, text, " ", "a completion is one token: %v", texts)
 	}
 
-	texts = completionTexts(c.Complete("set bfd single-hop-session fe80::c", nil))
+	texts = completionTexts(c.Complete(m.editor.Tree(), "set bfd single-hop-session fe80::c", nil))
 	assert.Contains(t, texts, "fe80::c")
 	assert.NotContains(t, texts, "fe80::b", "a typed first value narrows the offer")
 
-	texts = completionTexts(c.Complete("set bfd single-hop-session fe80::b ", nil))
+	texts = completionTexts(c.Complete(m.editor.Tree(), "set bfd single-hop-session fe80::b ", nil))
 	assert.Contains(t, texts, "interface", "the key leaf names follow the first value: %v", texts)
 }
 
@@ -363,16 +362,16 @@ func countOf(texts []string, want string) int {
 func TestCompleterEditOffersTheKeyLeavesOfAMultiLeafKeyAddress(t *testing.T) {
 	c := newTestCompleter(t)
 
-	texts := completionTexts(c.Complete("edit single-hop-session fe80::b ", []string{"bfd"}))
+	texts := completionTexts(c.Complete(nil, "edit single-hop-session fe80::b ", []string{"bfd"}))
 	assert.ElementsMatch(t, []string{"vrf", "interface"}, texts)
 
-	texts = completionTexts(c.Complete("edit single-hop-session fe80::b interface zbl1 ", []string{"bfd"}))
+	texts = completionTexts(c.Complete(nil, "edit single-hop-session fe80::b interface zbl1 ", []string{"bfd"}))
 	assert.Equal(t, []string{"vrf"}, texts, "a key leaf given is not offered again")
 
-	texts = completionTexts(c.Complete("edit single-hop-session fe80::b int", []string{"bfd"}))
+	texts = completionTexts(c.Complete(nil, "edit single-hop-session fe80::b int", []string{"bfd"}))
 	assert.Equal(t, []string{"interface"}, texts)
 
-	assert.Empty(t, c.Complete("edit single-hop-session fe80::b interface ", []string{"bfd"}), "the value is due")
+	assert.Empty(t, c.Complete(nil, "edit single-hop-session fe80::b interface ", []string{"bfd"}), "the value is due")
 }
 
 // TestEditorMultiLeafKeyAbsentLeafComparesAsItsDefault is the CLI editor

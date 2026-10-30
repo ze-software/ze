@@ -111,7 +111,7 @@ func TestBackendRootsRefuseAClosedEnumeration(t *testing.T) {
 }
 
 // TestEveryBackendRootCarriesAnOpenBackendLeaf proves the derivation answers
-// only roots deriveBackends can actually read, and answers something rather
+// only roots Backends can actually read, and answers something rather
 // than nothing.
 //
 // VALIDATES: each derived root resolves in the model and carries an
@@ -142,7 +142,7 @@ func TestEveryBackendRootCarriesAnOpenBackendLeaf(t *testing.T) {
 // TestDeriveBackendsReadsADerivedRoot proves the whole path: a value written at
 // a derived root reaches the map backendAllowed reads.
 //
-// VALIDATES: deriveBackends reads the backend value of a container the schema
+// VALIDATES: Backends reads the backend value of a container the schema
 // named, not of a container completer.go named.
 // PREVENTS: a derivation that finds the right containers and never reads them.
 func TestDeriveBackendsReadsADerivedRoot(t *testing.T) {
@@ -156,7 +156,7 @@ func TestDeriveBackendsReadsADerivedRoot(t *testing.T) {
 	tree := config.NewTree()
 	tree.GetOrCreateContainer("test-backend-open").GetOrCreateContainer("component").Set(leafBackend, "probe-backend")
 
-	backends := completer.deriveBackends(tree)
+	backends := completer.Backends(tree)
 	if backends[root] != "probe-backend" {
 		t.Errorf("want backend %q at %q, got %q from %v", "probe-backend", root, backends[root], backends)
 	}

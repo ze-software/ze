@@ -76,35 +76,34 @@ func splitContextPath(context string) []string {
 	return strings.Split(context, "/")
 }
 
-// completerFor loads a configuration and answers a completer that knows its
-// tree, so completion is data-aware.
-func completerFor(configPath string) (*cli.Completer, int) {
+// completerFor loads a configuration and answers a completer with the parsed
+// tree, which each completion call is given, so completion is data-aware.
+func completerFor(configPath string) (*cli.Completer, *config.Tree, int) {
 	data, err := cliio.ReadFile(configPath)
 	if err != nil {
 		helpfmt.WriteError(os.Stderr, false, "reading config: %v", err)
-		return nil, exitError
+		return nil, nil, exitError
 	}
 
 	schema, err := config.YANGSchema()
 	if err != nil {
 		helpfmt.WriteError(os.Stderr, false, "%v", err)
-		return nil, exitError
+		return nil, nil, exitError
 	}
 
 	p := config.NewParser(schema)
 	tree, err := p.Parse(string(data))
 	if err != nil {
 		helpfmt.WriteError(os.Stderr, false, "parsing config: %v", err)
-		return nil, exitError
+		return nil, nil, exitError
 	}
 
 	completer, err := cli.NewCompleter()
 	if err != nil {
 		helpfmt.WriteError(os.Stderr, false, "completion: %v", err)
-		return nil, exitError
+		return nil, nil, exitError
 	}
-	completer.SetTree(tree)
-	return completer, exitOK
+	return completer, tree, exitOK
 }
 
 func cmdCompletion(args []string) int {
@@ -113,16 +112,16 @@ func cmdCompletion(args []string) int {
 		return code
 	}
 
-	completer, code := completerFor(request.configPath)
+	completer, tree, code := completerFor(request.configPath)
 	if code != exitOK {
 		return code
 	}
 
 	if request.ghost {
-		fmt.Println(completer.GhostText(request.input, request.context))
+		fmt.Println(completer.GhostText(tree, request.input, request.context))
 		return exitOK
 	}
-	return printCompletions(completer.Complete(request.input, request.context))
+	return printCompletions(completer.Complete(tree, request.input, request.context))
 }
 
 func completionUsage() {

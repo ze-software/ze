@@ -19,6 +19,7 @@ import (
 	"charm.land/lipgloss/v2"
 
 	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/core/audit"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -413,7 +414,6 @@ func NewModel(ed *Editor, filesystemAuthority FilesystemAuthority) (Model, error
 	if err != nil {
 		return Model{}, fmt.Errorf("failed to create completer: %w", err)
 	}
-	comp.SetTree(ed.Tree())
 
 	val, err := NewConfigValidator()
 	if err != nil {
@@ -821,8 +821,8 @@ func (m *Model) updateCompletions() {
 
 	case m.mode == ModeOperational && completesFromYANG(input) && m.completer != nil:
 		// Operational mode with a full config command followed by args: YANG completions.
-		m.completions = m.completer.Complete(input, m.contextPath)
-		m.ghostText = m.completer.GhostText(input, m.contextPath)
+		m.completions = m.completer.Complete(m.completionTree(), input, m.contextPath)
+		m.ghostText = m.completer.GhostText(m.completionTree(), input, m.contextPath)
 
 	case m.mode == ModeOperational:
 		// Operational mode top-level: merge operational + config command completions.
@@ -840,18 +840,18 @@ func (m *Model) updateCompletions() {
 			}
 		}
 		if m.completer != nil {
-			configComps := m.completer.Complete(input, m.contextPath)
+			configComps := m.completer.Complete(m.completionTree(), input, m.contextPath)
 			m.completions = appendNewCompletions(m.completions, configComps)
 			if m.ghostText == "" {
-				m.ghostText = m.completer.GhostText(input, m.contextPath)
+				m.ghostText = m.completer.GhostText(m.completionTree(), input, m.contextPath)
 			}
 		}
 
 	case m.mode == ModeConfig:
 		// Config mode: YANG completions.
 		if m.completer != nil {
-			m.completions = m.completer.Complete(input, m.contextPath)
-			m.ghostText = m.completer.GhostText(input, m.contextPath)
+			m.completions = m.completer.Complete(m.completionTree(), input, m.contextPath)
+			m.ghostText = m.completer.GhostText(m.completionTree(), input, m.contextPath)
 		}
 	}
 
@@ -1022,15 +1022,26 @@ func (m Model) ViewportContent() string {
 	return m.viewportContent
 }
 
-// refreshCompleter updates the config completer tree and propagates
-// derived backend names to the command completer.
-func (m *Model) refreshCompleter() {
+// completionTree is the candidate tree a config completion reads: the
+// editor's working tree, or nil when the model has no editor. It is read at
+// each completion call, so a completion always sees the edits made so far.
+func (m *Model) completionTree() *config.Tree {
+	if m.editor == nil {
+		return nil
+	}
+	return m.editor.Tree()
+}
+
+// refreshActiveBackends propagates the backend names the working tree selects
+// to the command completer. It MUST be called after every edit that can change
+// a component's backend leaf: the command completer keeps the names it was
+// last given.
+func (m *Model) refreshActiveBackends() {
 	if m.completer == nil {
 		return
 	}
-	m.completer.SetTree(m.editor.Tree())
 	if cc, ok := m.commandCompleter.(*CommandCompleter); ok {
-		cc.SetActiveBackends(m.completer.Backends())
+		cc.SetActiveBackends(m.completer.Backends(m.completionTree()))
 	}
 }
 
@@ -1049,7 +1060,7 @@ func (m *Model) SetCommandCompleter(cc CommandModeCompleter) {
 		return
 	}
 	if tc, ok := cc.(*CommandCompleter); ok {
-		tc.SetActiveBackends(m.completer.Backends())
+		tc.SetActiveBackends(m.completer.Backends(m.completionTree()))
 	}
 }
 

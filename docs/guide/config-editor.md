@@ -490,6 +490,13 @@ Tab completion is driven by registered YANG schemas. The editor suggests:
   transit-free ASNs on `policy reject-asn ... via`
 <!-- source: internal/component/cli/completer.go -- valueCompletions, validateCompletions, listKeyCompletions -->
 
+List keys and every other value read from the config come from your own
+candidate configuration, uncommitted edits included. In the web CLI each user
+completes from their own session, so another user's uncommitted entries never
+appear in your suggestions.
+<!-- source: internal/component/cli/completer.go -- Complete -->
+<!-- source: internal/component/web/cli.go -- completeCLIInput -->
+
 **A suggestion is never a constraint.** A leaf that offers well-known values
 still accepts every value its YANG type admits, so an ASN outside the offered
 set is entered and committed with no warning.

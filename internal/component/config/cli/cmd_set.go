@@ -107,7 +107,6 @@ func cmdSetImpl(store storage.Storage, args []string) int {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return exitError
 	}
-	completer.SetTree(ed.Tree())
 	if err := completer.ValidateValueAtPath(path, value); err != nil {
 		// A refusal names what it refused, so the message carries the value.
 		// The operator still reads which rule the value broke.

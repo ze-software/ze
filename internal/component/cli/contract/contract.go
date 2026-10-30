@@ -225,10 +225,3 @@ type EditorFactory func(store any, configPath string) (Editor, error)
 
 // EditSessionFactory creates a new EditSession for the given user and origin.
 type EditSessionFactory func(username, origin string) EditSession
-
-// Completer provides config path completion for the web CLI bar.
-type Completer interface {
-	// SetTree sets the config tree for data-aware completion (any = *config.Tree).
-	SetTree(tree any)
-	Complete(input string, contextPath []string) []Completion
-}

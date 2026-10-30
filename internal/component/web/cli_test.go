@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -1210,4 +1211,69 @@ func newCompleter(t testing.TB) *cli.Completer {
 		t.Fatalf("cli.NewCompleter: %v", err)
 	}
 	return completer
+}
+
+// TestWebCompletionPerUserTree proves AC-1 of the config-reference-completion
+// spec: two web users whose candidate configs differ complete at the same time
+// through ONE handler and ONE completer, the way the hub wires them, and each
+// sees only the list keys of their own tree.
+//
+// Method: alice and bob each create different peers in their own session.
+// Goroutines for both users then request `set bgp peer ` completion
+// concurrently. Run under -race, a completer that stores the tree between calls
+// is a data race; without -race, it hands one user the other's keys.
+//
+// PREVENTS: per-request state stored on the completer every user shares.
+func TestWebCompletionPerUserTree(t *testing.T) {
+	mgr, _ := setupCLITest(t)
+	schema, _ := buildTestSchemaAndTree()
+	handler := HandleCLICompleteWithCommandCompleter(newCompleter(t), nil, mgr, schema)
+
+	// Each user creates two peers of their own: a list holding a single entry
+	// completes nothing (listKeyCompletions auto-selects it), whichever tree
+	// the file seeded the session with.
+	own := map[string]string{"alice": "alice-peer", "bob": "bob-peer"}
+	for user, peer := range own {
+		require.NoError(t, mgr.CreateEntry(user, []string{"bgp", "peer", peer}))
+		require.NoError(t, mgr.CreateEntry(user, []string{"bgp", "peer", peer + "-2"}))
+	}
+
+	complete := func(user string) string {
+		r := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/cli/complete?input=set+bgp+peer+", http.NoBody)
+		r = r.WithContext(context.WithValue(r.Context(), ctxKeyUsername, user))
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, r)
+		if w.Code != http.StatusOK {
+			return "status " + http.StatusText(w.Code)
+		}
+		return w.Body.String()
+	}
+
+	const rounds = 50
+	var wg sync.WaitGroup
+	failures := make(chan string, 2*rounds)
+	for user, peer := range own {
+		other := own["alice"]
+		if user == "alice" {
+			other = own["bob"]
+		}
+		wg.Go(func() {
+			for range rounds {
+				body := complete(user)
+				if !strings.Contains(body, `"`+peer+`"`) {
+					failures <- user + " missing own peer " + peer + ": " + body
+					return
+				}
+				if strings.Contains(body, `"`+other+`"`) {
+					failures <- user + " sees the other user's peer " + other + ": " + body
+					return
+				}
+			}
+		})
+	}
+	wg.Wait()
+	close(failures)
+	for failure := range failures {
+		t.Error(failure)
+	}
 }

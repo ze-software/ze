@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/aaa"
+	"github.com/ze-software/ze/internal/component/cli"
 	"github.com/ze-software/ze/internal/component/cli/contract"
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config"
@@ -562,13 +563,13 @@ func adjustListContext(schema *config.Schema, path []string) []string {
 
 // HandleCLIComplete returns a GET handler for /cli/complete that provides
 // tab-completion candidates for the CLI bar input.
-func HandleCLIComplete(completer contract.Completer, mgr *EditorManager, schema *config.Schema) http.HandlerFunc {
+func HandleCLIComplete(completer *cli.Completer, mgr *EditorManager, schema *config.Schema) http.HandlerFunc {
 	return HandleCLICompleteWithCommandCompleter(completer, nil, mgr, schema)
 }
 
 // HandleCLICompleteWithCommandCompleter returns a completion handler that can
 // complete config-mode paths and operational-mode command trees.
-func HandleCLICompleteWithCommandCompleter(completer contract.Completer, commandCompleter CommandCompleter, mgr *EditorManager, schema *config.Schema) http.HandlerFunc {
+func HandleCLICompleteWithCommandCompleter(completer *cli.Completer, commandCompleter CommandCompleter, mgr *EditorManager, schema *config.Schema) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -625,7 +626,11 @@ func HandleCLICompleteWithCommandCompleter(completer contract.Completer, command
 	}
 }
 
-func completeCLIInput(completer contract.Completer, commandCompleter CommandCompleter, mgr *EditorManager, schema *config.Schema, username, input string, contextPath []string, mode string) []contract.Completion {
+// completeCLIInput answers one completion request. The completer is shared by
+// every logged-in user, so the user's candidate tree is passed into the call,
+// read under that user's session lock (EditorManager.ReadTree): no other
+// user's request and no edit of the same session can change it mid-walk.
+func completeCLIInput(completer *cli.Completer, commandCompleter CommandCompleter, mgr *EditorManager, schema *config.Schema, username, input string, contextPath []string, mode string) []contract.Completion {
 	if commandCompleter != nil {
 		if mode == terminalModeOperational {
 			return commandCompleter.Complete(input)
@@ -636,10 +641,17 @@ func completeCLIInput(completer contract.Completer, commandCompleter CommandComp
 	}
 
 	contextPath = adjustListContext(schema, contextPath)
-	if mgr != nil {
-		if userTree := mgr.Tree(username); userTree != nil {
-			completer.SetTree(userTree)
-		}
+	if mgr == nil {
+		return completer.Complete(nil, input, contextPath)
 	}
-	return completer.Complete(input, contextPath)
+	var completions []contract.Completion
+	inSession := mgr.ReadTree(username, func(tree *config.Tree) {
+		completions = completer.Complete(tree, input, contextPath)
+	})
+	if !inSession {
+		// No editing session yet: there is no candidate config to read, so
+		// the answer comes from the schema alone.
+		return completer.Complete(nil, input, contextPath)
+	}
+	return completions
 }

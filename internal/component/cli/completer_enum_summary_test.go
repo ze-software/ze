@@ -67,7 +67,7 @@ func enumSummaryCompleter(t *testing.T) *Completer {
 func TestEnumValueCompletionShowsDeclaredSummary(t *testing.T) {
 	c := enumSummaryCompleter(t)
 
-	mixed := c.Complete("set test-enum-summary mixed ", nil)
+	mixed := c.Complete(nil, "set test-enum-summary mixed ", nil)
 	byText := make(map[string]Completion, len(mixed))
 	for _, completion := range mixed {
 		byText[completion.Text] = completion
@@ -80,7 +80,7 @@ func TestEnumValueCompletionShowsDeclaredSummary(t *testing.T) {
 		assert.NotEqual(t, "enum value", completion.ShortHelp, "%s carries the placeholder", completion.Text)
 	}
 
-	either := c.Complete("set test-enum-summary either ", nil)
+	either := c.Complete(nil, "set test-enum-summary either ", nil)
 	require.NotEmpty(t, either)
 	assert.Equal(t, "auto", either[0].Text)
 	assert.Equal(t, "Ze picks the value", either[0].ShortHelp)

@@ -33,7 +33,7 @@ func completionsFor(t *testing.T, input string) []cli.Completion {
 	t.Helper()
 	completer := newCompleter(t)
 	require.NotNil(t, completer)
-	return completer.Complete(input, nil)
+	return completer.Complete(nil, input, nil)
 }
 
 // TestCompletionOffersKnownTransitASNs proves the curated table reaches the

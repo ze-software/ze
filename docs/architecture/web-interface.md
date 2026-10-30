@@ -118,12 +118,27 @@ The `EditorManager` creates independent `cli.Editor` instances per authenticated
 
 <!-- source: internal/component/web/editor.go -- EditorManager, GetOrCreate -->
 
-Each session has an isolated working tree, change tracking, and serialized access via per-user mutex. Operations: `SetValue`, `DeleteValue`, `ApplyFormEdits`, `Commit`, `Discard`, `Diff`, `ChangeCount`, `Tree`.
+Each session has an isolated working tree, change tracking, and serialized access via per-user mutex. Operations: `SetValue`, `DeleteValue`, `ApplyFormEdits`, `Commit`, `Discard`, `Diff`, `ChangeCount`, `Tree`, `ReadTree`.
 
 A workbench form save (`/config/form/`) is one edit: `ApplyFormEdits` holds the per-user mutex across every field the form posts, so the review diff and a commit see the whole save or none of it, and two overlapping saves never leave one save's value beside the other's. The fields apply in path order (`parseConfigFormFields` sorts them). A field the editor refuses stops the save there, and the fields sorted before it stay applied, because the editor holds no rollback.
 
 <!-- source: internal/component/web/editor.go -- ApplyFormEdits -->
 <!-- source: internal/component/web/handler_config_form.go -- HandleConfigFormWithAuthorizer, parseConfigFormFields -->
+
+**Nothing a request reads is stored on an object other users share.** The
+server answers every logged-in user from one process, so one value built at
+start and shared by every request (the config completer the hub creates once)
+holds only what never changes per user: the schema and the validator registry.
+Each request passes its own input into the call. CLI bar completion
+(`/cli/complete`) reads the user's candidate tree through `ReadTree`, which runs
+the completion under that user's session mutex, and hands the tree to
+`Completer.Complete` as an argument; the completer keeps no tree between calls.
+Two users completing at once therefore each see only their own uncommitted
+entries.
+
+<!-- source: internal/component/web/cli.go -- completeCLIInput -->
+<!-- source: internal/component/web/editor.go -- ReadTree -->
+<!-- source: internal/component/cli/completer.go -- Completer, Complete, completion -->
 
 `Commit` detects conflicts when two users modify the same leaf and returns `CommitResult` with conflict details. Limits: 50 concurrent sessions, 1 hour idle timeout.
 

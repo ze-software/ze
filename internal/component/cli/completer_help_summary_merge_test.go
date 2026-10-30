@@ -73,7 +73,7 @@ func mergeProbeCompleter(t *testing.T) *Completer {
 func summaryOf(t *testing.T, c *Completer, node string) string {
 	t.Helper()
 
-	for _, completion := range c.Complete("set ", nil) {
+	for _, completion := range c.Complete(nil, "set ", nil) {
 		if completion.Text == node {
 			return completion.ShortHelp
 		}
