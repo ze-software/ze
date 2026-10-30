@@ -86,17 +86,19 @@ func evidenceRow(t *testing.T, rid, section, annotation string) Requirement {
 }
 
 // VALIDATES: AC-1 -- a {not-applicable} row carries a role-condition quote from
-// the section it cites, the role that sentence binds and the role ze fills, or
-// the evidence ratchet refuses it by id, naming the missing quote.
+// the section it cites and the specific role that sentence binds, or the
+// evidence ratchet refuses it by id, naming the missing quote.
 // METHOD: four rows of one fixture RFC through the parser and
 // (*evidenceReader).gap: a bare reason, a quote from another section, a quote
 // from the cited section, and a quote from a subsection of it. The parser
 // refuses a quoted payload naming no bound role, a bound role the quote does
-// not carry, a bound role equal to ze's, no ze role, or no reason.
+// not carry, a bound role made only of words for any party (singular or
+// plural), or no reason. The roles ze fills are the Meta table's
+// (TestNotApplicableRolesAreWholeWordsAndDistinct).
 func TestNotApplicableNeedsSectionRoleQuote(t *testing.T) {
 	tree := t.TempDir()
 	writeFixtureFiles(t, tree, map[string]string{"rfc/full/rfc9999.txt": quoteFixtureSource,
-		evidenceBacklogRel: "feature-declined 0\nlower-layer 0\nnot-applicable 1\n"})
+		evidenceBacklogRel: "lower-layer 0\nnot-applicable 1\n"})
 	const inTwo = "A speaker MUST send the widget before it sends any frame that depends on it."
 	const inThree = "A receiver MUST NOT reorder the frames of one widget."
 	const inTwoOne = "The Length field (in octets) MUST be set to 32 for a widget."
@@ -104,10 +106,10 @@ func TestNotApplicableNeedsSectionRoleQuote(t *testing.T) {
 		name, annotation, missing string
 	}{
 		{"a bare reason", "not-applicable: ze sends no widget", "carries no role-condition quote from section 2"},
-		{"a quote from another section", `not-applicable: "` + inThree + `"; binds a receiver; ze is a speaker; it reorders nothing`,
+		{"a quote from another section", `not-applicable: "` + inThree + `"; binds frames; it reorders nothing`,
 			"its role-condition quote is in section 3, and the row cites section 2"},
-		{"a quote from the cited section", `not-applicable: "` + inTwo + `"; binds a speaker; ze is a receiver; it sends no widget`, ""},
-		{"a quote from a subsection", `not-applicable: "` + inTwoOne + `"; binds a widget; ze is a receiver; it sends no widget`, ""},
+		{"a quote from the cited section", `not-applicable: "` + inTwo + `"; binds the widget; it sends no widget`, ""},
+		{"a quote from a subsection", `not-applicable: "` + inTwoOne + `"; binds a widget; it sends no widget`, ""},
 	}
 	for _, one := range cases {
 		t.Run(one.name, func(t *testing.T) {
@@ -131,24 +133,22 @@ func TestNotApplicableNeedsSectionRoleQuote(t *testing.T) {
 			}
 		})
 	}
-	req := evidenceRow(t, "RFC9999-2-1", "2", `not-applicable: "`+inTwo+`"; binds a speaker; ze is a receiver; it sends no widget`)
-	if req.Annotation.Quote != inTwo || req.Annotation.BoundRole != "a speaker" || req.Annotation.Role != "a receiver" {
-		t.Errorf("the evidence form parsed to quote %q, bound role %q, role %q",
-			req.Annotation.Quote, req.Annotation.BoundRole, req.Annotation.Role)
+	req := evidenceRow(t, "RFC9999-2-1", "2", `not-applicable: "`+inTwo+`"; binds the widget; it sends no widget`)
+	if req.Annotation.Quote != inTwo || req.Annotation.BoundRole != "the widget" {
+		t.Errorf("the evidence form parsed to quote %q, bound role %q", req.Annotation.Quote, req.Annotation.BoundRole)
 	}
 	refusals := []struct{ payload, says string }{
-		{`"` + inTwo + `"; ze is a receiver; it sends no widget`, "names no role the quoted sentence binds"},
-		{`"` + inTwo + `"; binds a gateway; ze is a receiver; it sends no widget`, "is not in the quoted sentence"},
-		{`"` + inTwo + `"; binds a speaker; ze is a speaker; it sends no widget`, "is the role ze fills"},
-		{`"` + inTwo + `"; binds a speaker; ze is The Speaker; it sends no widget`, "is the role ze fills"},
-		{`"` + inTwo + `"; binds a speaker; it sends no widget`, "names no role ze fills"},
-		{`"` + inTwo + `"; binds a speaker; ze is a receiver`, "gives no reason"},
-		{`"short"; binds a speaker; ze is a receiver; why`, "under 24 characters"},
+		{`"` + inTwo + `"; it sends no widget`, "names no role the quoted sentence binds"},
+		{`"` + inTwo + `"; binds a gateway; it sends no widget`, "is not in the quoted sentence"},
+		{`"` + inTwo + `"; binds a speaker; it sends no widget`, "a word for any party to a protocol"},
+		{`"` + inTwo + `"; binds The Speakers; it sends no widget`, "a word for any party to a protocol"},
+		{`"` + inTwo + `"; binds the widget`, "gives no reason"},
+		{`"short"; binds a widget; why`, "under 24 characters"},
 	}
 	for _, one := range refusals {
 		_, err := parseAnnotation("not-applicable: "+one.payload, "fixture")
 		if err == nil {
-			t.Errorf("{not-applicable: %s} parsed; a quoted payload owes a quote, the bound role, the role ze fills and a reason", one.payload)
+			t.Errorf("{not-applicable: %s} parsed; a quoted payload owes a quote, a specific bound role the quote names and a reason", one.payload)
 			continue
 		}
 		if !strings.Contains(err.Error(), one.says) || !strings.Contains(err.Error(), notApplicableFormat) {

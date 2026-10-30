@@ -59,7 +59,11 @@ const selftestMeta = "## Meta\n\n| Field | Value |\n|-------|-------|\n" +
 	"| Implementation reason | the fixture's own Go answers it |\n" +
 	"| Support | " + FixtureAggregate + " |\n| Support area | Widgets |\n" +
 	"| Support status | Partial |\n| Support coverage | unit tests |\n" +
-	"| Support remaining | Zero MUST gaps. |\n" + selftestUseCaseRows
+	"| Support remaining | Zero MUST gaps. |\n" + selftestUseCaseRows + selftestZeRolesRow
+
+// selftestZeRolesRow declares the roles Ze fills for the fixture RFC, which
+// every quoted {not-applicable} row of its summary is held against.
+const selftestZeRolesRow = "| Ze roles | speaker, receiver |\n"
 
 // selftestUseCaseRows are the fixture summary's two use-case rows: no use-case
 // profile requires it or lists it, which is the declaration most summaries

@@ -58,9 +58,9 @@ type evidenceBaseline struct {
 	// fetched or never held the file.
 	pushed   map[string]int
 	pushedAt string
-	// malformed is the refusal for a committed backlog file that does not
-	// parse, empty when every committed copy read parsed.
-	malformed string
+	// pushedNotice says the pushed branch is absent, so rows and counts are
+	// judged against HEAD^ alone. Empty when it was read.
+	pushedNotice string
 }
 
 // repairGitSuffix closes a refusal naming a git command that failed.
@@ -173,9 +173,14 @@ func priorEvidence(tree string, prints map[string]string, unreadable map[string]
 	if failure != "" {
 		return evidenceBaseline{state: priorUnreadable, reason: failure}
 	}
-	base.backlog, base.backlogAt, base.malformed = prior.counts, prior.at, prior.malformed
-	// refuse-by-default: guards evidenceBaseline -- a clone with no pushed branch has no pushed count, as the tag backlog reads it (revisionExists)
-	if !revisionExists(tree, backlogRevision) {
+	base.backlog, base.backlogAt = prior.counts, prior.at
+	present, failure := pushedBranchPresent(tree)
+	if failure != "" {
+		return evidenceBaseline{state: priorUnreadable, reason: failure}
+	}
+	if !present {
+		base.pushedNotice = "exclusion evidence: no " + backlogRevision + " (" + pushedBranchRef +
+			" is absent), so rows and committed counts are judged against HEAD^ alone; run `git fetch origin` to judge against the pushed branch too"
 		return base
 	}
 	pushed, failure := committedBacklogAt(tree, backlogRevision)
@@ -183,9 +188,6 @@ func priorEvidence(tree string, prints map[string]string, unreadable map[string]
 		return evidenceBaseline{state: priorUnreadable, reason: failure}
 	}
 	base.pushed, base.pushedAt = pushed.counts, pushed.at
-	if base.malformed == "" {
-		base.malformed = pushed.malformed
-	}
 	base.pushedPrints, failure = pushedFingerprints(tree)
 	if failure != "" {
 		return evidenceBaseline{state: priorUnreadable, reason: failure}
@@ -196,30 +198,52 @@ func priorEvidence(tree string, prints map[string]string, unreadable map[string]
 
 // committedBacklog is the committed counts as one revision's history holds
 // them: counts and at from the newest commit whose copy parses, nil when none
-// does, and malformed the refusal for the newest copy that does not.
+// does.
 type committedBacklog struct {
-	counts    map[string]int
-	at        string
-	malformed string
+	counts map[string]int
+	at     string
+}
+
+// pushedBranchRef is the ref backlogRevision names.
+const pushedBranchRef = "refs/remotes/" + backlogRevision
+
+// pushedBranchPresent answers whether the pushed branch exists, telling a
+// clone that never fetched it from one whose ref git cannot resolve. An
+// absent ref (`git show-ref --verify --quiet` exits 1) is absence; a ref that
+// exists and names no readable commit, or git failing otherwise, is the
+// failure answer, since the branch the ratchet must judge against is then
+// unknown rather than missing.
+func pushedBranchPresent(tree string) (bool, string) {
+	_, code, failure := gitExit(tree, "show-ref", "--verify", "--quiet", pushedBranchRef)
+	if code == 1 {
+		return false, ""
+	}
+	if failure != "" {
+		return false, failure + repairGitSuffix
+	}
+	var tb textbuf.Buffer
+	if _, failure := gitAnswer(tree, "rev-parse", "--verify", "--quiet", tb.Str(pushedBranchRef).Str("^{commit}").String()); failure != "" {
+		return false, pushedBranchRef + " exists but names no commit git can read (" + failure +
+			"); run `git fetch origin` to restore it, then rerun `./le rfc check`"
+	}
+	return true, ""
 }
 
 // committedBacklogAt answers the committed counts at revision, or at the
 // newest commit before it whose copy of the file parses. A copy that does not
-// parse is refused through malformed, and the walk goes on to an older one,
-// so a commit that breaks the file cannot let the next raise it. The second
-// answer is a git failure.
+// parse is skipped, and the walk goes on to an older one, so a commit that
+// breaks the file cannot let the next raise it; the commit that broke it was
+// refused when it was checked (readEvidenceBacklog). The second answer is a
+// git failure.
 func committedBacklogAt(tree, revision string) (committedBacklog, string) {
 	blobs, ok := gitCatBlobs(tree, revision, []string{evidenceBacklogRel})
 	if !ok {
 		return committedBacklog{}, "`git cat-file` could not read " + revision + ":" + evidenceBacklogRel + repairGitSuffix
 	}
-	var read committedBacklog
 	if text, held := blobs[evidenceBacklogRel]; held {
-		counts, refusal := parseEvidenceBacklog(text, revision+":"+evidenceBacklogRel)
-		if refusal == "" {
+		if counts, refusal := parseEvidenceBacklog(text, revision+":"+evidenceBacklogRel); refusal == "" {
 			return committedBacklog{counts: counts, at: revision}, ""
 		}
-		read.malformed = malformedBacklog(revision, refusal)
 	}
 	// A deletion is not a commit that holds the file, so --diff-filter=d
 	// skips it and the commits that still held it answer, newest first.
@@ -240,21 +264,11 @@ func committedBacklogAt(tree, revision string) (committedBacklog, string) {
 		at := holder + " (the newest commit at or before " + revision + " whose copy parses)"
 		counts, refusal := parseEvidenceBacklog(text, holder+":"+evidenceBacklogRel)
 		if refusal != "" {
-			if read.malformed == "" {
-				read.malformed = malformedBacklog(holder, refusal)
-			}
 			continue
 		}
-		read.counts, read.at = counts, at
-		return read, ""
+		return committedBacklog{counts: counts, at: at}, ""
 	}
-	return read, ""
-}
-
-// malformedBacklog is the refusal for a committed copy at that does not parse.
-func malformedBacklog(at, refusal string) string {
-	return "the committed " + evidenceBacklogRel + " at " + at + " is malformed: " + refusal +
-		". Commit a valid file; until then the counts compare with the newest earlier commit whose copy parses"
+	return committedBacklog{}, ""
 }
 
 // pushedFingerprints answers the evidenceFingerprint backlogRevision records

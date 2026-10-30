@@ -40,7 +40,28 @@ func validateKernelProfileName(profile string) error {
 	return nil
 }
 
+// RuntimeKernelLayers answers the config fragments and require manifests
+// Ze's shipped runtime kernel is built from, in the order the builder layers
+// them, read under tree: kernel.config, a `# ze-base:` profile when one is
+// declared, runtime.config, then every `# ze-include:` fragment. It is the
+// builder's own resolution (resolveKernelProfile), so a reader that judges
+// what the shipped kernel carries cannot drift from what the build reads.
+func RuntimeKernelLayers(tree string) (fragments, manifests []string, err error) {
+	resolved, err := resolveKernelProfileFrom(filepath.Join(tree, runtimeKernelConfigDir),
+		filepath.Join(tree, kernelCommonDir), runtimeKernelProfile)
+	if err != nil {
+		return nil, nil, err
+	}
+	return resolved.Fragments, resolved.Manifests, nil
+}
+
 func resolveKernelProfile(srcDir, profile string) (kernelProfileResolution, error) {
+	return resolveKernelProfileFrom(srcDir, kernelCommonDir, profile)
+}
+
+// resolveKernelProfileFrom is resolveKernelProfile with the shared include
+// directory named, so a caller judging another checkout reads its includes.
+func resolveKernelProfileFrom(srcDir, commonDir, profile string) (kernelProfileResolution, error) {
 	if err := validateKernelProfileName(profile); err != nil {
 		return kernelProfileResolution{}, err
 	}
@@ -102,8 +123,8 @@ func resolveKernelProfile(srcDir, profile string) (kernelProfileResolution, erro
 		if err := validateKernelProfileName(inc); err != nil {
 			return kernelProfileResolution{}, fmt.Errorf("kernel profile %q include %q: %w", profile, inc, err)
 		}
-		incConfig := filepath.Join(kernelCommonDir, inc+".config")
-		incRequire := filepath.Join(kernelCommonDir, inc+".require")
+		incConfig := filepath.Join(commonDir, inc+".config")
+		incRequire := filepath.Join(commonDir, inc+".require")
 		if err := requireFile(incConfig, "shared include config fragment"); err != nil {
 			return kernelProfileResolution{}, fmt.Errorf("kernel profile %q include %q: missing shared fragment %s: %w", profile, inc, incConfig, err)
 		}

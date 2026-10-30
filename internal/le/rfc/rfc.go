@@ -549,12 +549,10 @@ type Annotation struct {
 	// written before that kind carried evidence.
 	Quote string `json:"quote,omitempty"`
 	// BoundRole is the role the Quote binds, which the quoted sentence names
-	// and which differs from Role (parseNotApplicable). It is
+	// and which is none of the roles the summary's Meta table declares Ze
+	// fills (parseNotApplicable, checkNotApplicableRoles). It is
 	// {not-applicable}'s alone.
 	BoundRole string `json:"bound-role,omitempty"`
-	// Role is the role Ze fills, which the Quote shows the obligation does not
-	// bind. It is {not-applicable}'s alone.
-	Role string `json:"role,omitempty"`
 	// LayerPath is where a reader checks the component Layer names: a kernel
 	// CONFIG_ option Ze's kernel config enables (linux:CONFIG_IPV6), a Go
 	// standard library package (go:crypto/x509) or a vendored module directory

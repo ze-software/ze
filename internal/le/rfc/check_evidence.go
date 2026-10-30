@@ -1,13 +1,13 @@
 // Design: docs/contributing/rfc-conformance-gates.md -- the exclusion evidence ratchet
 // Related: summary.go -- parseNotApplicable, parseLowerLayer, parseFeatureDeclined: the payloads it judges
-// Related: gokrazy/kernel/kernel.config -- the kernel options a linux: layer path is held to
+// Related: check_evidence_linked.go -- linkedPackages, what a go: or vendor/ layer path is held to
+// Related: internal/appliance/kernelreg.go -- RuntimeKernelLayers, the kernel config a linux: layer path is held to
 // Related: check_quote.go -- the row quote rule, whose section matcher it shares
 // Related: check_baseline.go -- baselineLevels, the HEAD^ fingerprints it compares
 package rfc
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -16,19 +16,23 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/ze-software/ze/internal/appliance/kernelbuilder"
+	"github.com/ze-software/ze/internal/appliance"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// evidenceBacklogRel is the committed count of rows, per kind, that still
-// lack the evidence their exclusion kind owes. The count may only fall, and a
-// kind whose count is zero is refused row by row.
+// evidenceBacklogRel is the committed count of rows, per counted kind, that
+// still lack the evidence their exclusion kind owes. The count may only fall,
+// and a kind whose count is zero is refused row by row.
 const evidenceBacklogRel = "rfc/exclusion-evidence-backlog.txt"
 
-// evidenceKinds are the exclusion kinds whose evidence this ratchet judges, in
-// the order a refusal lists them. {linux-limit} is not one: checkLinuxLimit
-// already holds its register entry, which is its whole evidence.
-var evidenceKinds = []string{AnnotationFeatureDeclined, AnnotationLowerLayer, AnnotationNotApplicable}
+// evidenceKinds are the exclusion kinds whose rows lacking evidence the
+// backlog may count, in the order a refusal lists them. {feature-declined} is
+// judged ((*evidenceReader).gap) but never counted: parseFeatureDeclined
+// refuses a row with no quote, so every such row carries its evidence form,
+// and a row whose form fails is refused by id. {linux-limit} is neither:
+// checkLinuxLimit already holds its register entry, which is its whole
+// evidence.
+var evidenceKinds = []string{AnnotationLowerLayer, AnnotationNotApplicable}
 
 // evidenceFingerprint is what a row's exclusion evidence depends on in its own
 // summary line: the section it cites, its kind and its whole reason. A row
@@ -154,16 +158,21 @@ func quoteGap(req *Requirement, source *quoteSource, what string) (string, bool)
 }
 
 // evidenceReader judges the evidence of one corpus's exclusion rows. It reads
-// each RFC text, the Go standard library root and Ze's kernel config at most
-// once, so a corpus of a thousand rows pays for each source once. Not safe for
+// each RFC text, this checkout's vendor/modules.txt, the package set the
+// shipped ze links (one `go list -deps` per shipped flavour, linkedPackages)
+// and Ze's runtime kernel config with its require manifests at most once, so
+// a corpus of a thousand rows pays for each source once. Not safe for
 // concurrent use.
 type evidenceReader struct {
 	tree    string
 	sources map[string]*quoteSource
 
-	goRead    bool
-	goSource  string // $(go env GOROOT)/src
-	goRefusal string
+	// listLinked answers what the shipped ze links; goListLinked, except in
+	// a test that judges a fixture checkout holding no Go module.
+	listLinked    func(tree string) (linkedPackages, string)
+	linkedRead    bool
+	linked        linkedPackages
+	linkedRefusal string
 
 	kernelRead      bool
 	kernelOptions   map[string]bool // option name to built in (=y)
@@ -177,26 +186,7 @@ type evidenceReader struct {
 }
 
 func newEvidenceReader(tree string) *evidenceReader {
-	return &evidenceReader{tree: tree, sources: map[string]*quoteSource{}}
-}
-
-// kernelConfigRels are the profile fragments Ze's runtime kernel is built
-// from, in the order the builder layers them: runtime.config sets options
-// over kernel.config, whose entries it names as already carried (its own
-// comments on XFRM_USER and NF_TABLES_INET). The `# ze-include:` fragments
-// either names come after both, as resolveKernelProfile
-// (internal/appliance/kernelreg.go) appends every include after every
-// profile fragment. Each fragment has a `.require` manifest beside it
-// (kernelRequireRel), an include's too.
-var kernelConfigRels = []string{"gokrazy/kernel/kernel.config", "gokrazy/kernel/runtime.config"}
-
-// kernelRequireRel is the manifest beside one fragment, named the way
-// kernelbuilder's enforceRequiredSymbols names it. A fragment line is a
-// request kconfig may answer differently (kernel.require says so); the build
-// verifies each option a manifest lists against the final .config, so only a
-// listed option is one the shipped kernel is known to carry.
-func kernelRequireRel(fragment string) string {
-	return strings.TrimSuffix(fragment, filepath.Ext(fragment)) + ".require"
+	return &evidenceReader{tree: tree, sources: map[string]*quoteSource{}, listLinked: goListLinked}
 }
 
 // vendorDir is the directory a vendored module path opens under, in this
@@ -208,22 +198,14 @@ const vendorDir = "vendor"
 // <version>` line per vendored module.
 const vendorModulesRel = vendorDir + "/modules.txt"
 
-// kernelIncludePrefix opens a fragment's `# ze-include: <name>` directive,
-// which pulls <name>.config from kernelbuilder.DefaultCommonDir.
-const kernelIncludePrefix = "# ze-include:"
-
 // kernelOptionRE is the CONFIG_ option a `linux:` layer path names.
 var kernelOptionRE = regexp.MustCompile(`^CONFIG_[A-Z0-9_]+$`)
 
-// goPackageRE is a standard library import path: lower case segments, the
-// first a plain name. It refuses `.`, `/`, an empty path and a case variant,
-// which a case-insensitive file system would otherwise open as the package.
-var goPackageRE = regexp.MustCompile(`^[a-z0-9]+(/[a-z0-9_.-]+)*$`)
-
 // layerPathGap answers what is wrong with a {lower-layer} layer path, false
 // when a reader can check it. A vendored module is held to this tree's
-// vendor/modules.txt, a kernel option to Ze's kernel config and its require
-// manifests, and a Go package to the toolchain's standard library source.
+// vendor/modules.txt and to the modules the shipped ze links, a kernel
+// option to Ze's runtime kernel config and its require manifests, and a Go
+// package to the standard library packages the shipped ze links.
 func (reader *evidenceReader) layerPathGap(layerPath string) (string, bool) {
 	var tb textbuf.Buffer
 	if layerPath == "" {
@@ -253,9 +235,11 @@ func (reader *evidenceReader) layerPathGap(layerPath string) (string, bool) {
 }
 
 // vendorModuleGap answers what is wrong with a `vendor/` layer path: it must
-// name a module exactly as vendor/modules.txt lists it, and the module's
-// directory must be in this checkout. A package inside a module, the vendor
-// directory itself or a file under it is no module.
+// name a module exactly as vendor/modules.txt lists it, the module's
+// directory must be in this checkout, and some shipped flavour of ze must
+// link a package of it. A package inside a module, the vendor directory
+// itself or a file under it is no module, and a module only the tooling uses
+// (most of vendor/ serves golangci-lint) performs nothing for Ze.
 func (reader *evidenceReader) vendorModuleGap(layerPath, module string) (string, bool) {
 	modules, refusal := reader.vendoredModules()
 	if refusal != "" {
@@ -270,6 +254,15 @@ func (reader *evidenceReader) vendorModuleGap(layerPath, module string) (string,
 		return tb.Str("its layer path ").Str(layerPath).
 			Str(" cannot be opened in this checkout (").Str(err.Error()).
 			Str("); run `go mod vendor`, or name a module whose code is vendored").String(), true
+	}
+	linked, refusal := reader.linkedPackages()
+	if refusal != "" {
+		return refusal, true
+	}
+	if !linked.modules[module] {
+		return tb.Str("its layer path ").Str(layerPath).Str(" names a module ").Str(vendorModulesRel).
+			Str(" lists that no shipped flavour of ze links (no package of it is in `go list -deps` over ").Str(shippedMain).
+			Str("), so it performs nothing for Ze; name the vendored module whose code the shipped ze runs").String(), true
 	}
 	return "", false
 }
@@ -300,6 +293,15 @@ func (reader *evidenceReader) vendoredModules() (map[string]bool, string) {
 	return modules, ""
 }
 
+// linkedPackages answers what the shipped ze links, asking listLinked once.
+func (reader *evidenceReader) linkedPackages() (linkedPackages, string) {
+	if !reader.linkedRead {
+		reader.linkedRead = true
+		reader.linked, reader.linkedRefusal = reader.listLinked(reader.tree)
+	}
+	return reader.linked, reader.linkedRefusal
+}
+
 // kernelOptionGap answers what is wrong with a `linux:` layer path: it must
 // name a CONFIG_ option that Ze's kernel config builds in (=y) and that a
 // require manifest lists, so the build has verified the final .config
@@ -309,8 +311,7 @@ func (reader *evidenceReader) kernelOptionGap(layerPath, option string) (string,
 	var tb textbuf.Buffer
 	if !kernelOptionRE.MatchString(option) {
 		return tb.Str("its layer path ").Str(layerPath).
-			Str(" names no CONFIG_ option; write linux:CONFIG_<option>, as linux:CONFIG_IPV6, naming the option of ").
-			Str(strings.Join(kernelConfigRels, " or ")).Str(" that builds the layer").String(), true
+			Str(" names no CONFIG_ option; write linux:CONFIG_<option>, as linux:CONFIG_IPV6, naming the option of Ze's runtime kernel config (gokrazy/kernel) that builds the layer").String(), true
 	}
 	options, refusal := reader.enabledKernelOptions()
 	if refusal != "" {
@@ -318,8 +319,8 @@ func (reader *evidenceReader) kernelOptionGap(layerPath, option string) (string,
 	}
 	if !options[option] {
 		return tb.Str("its layer path ").Str(layerPath).Str(" is not enabled in Ze's kernel (").
-			Str(strings.Join(kernelConfigRels, ", ")).
-			Str(" and their includes do not set it to y, the only value the build verifies a required option at), so no kernel Ze ships performs it; name the option that builds the layer, or build it in with =y").String(), true
+			Str(strings.Join(reader.kernelFragments(), ", ")).
+			Str(" do not set it to y, the only value the build verifies a required option at), so no kernel Ze ships performs it; name the option that builds the layer, or build it in with =y").String(), true
 	}
 	if !reader.kernelRequired[option] {
 		return tb.Str("its layer path ").Str(layerPath).Str(" is asked for in Ze's kernel config but listed in none of ").
@@ -330,12 +331,22 @@ func (reader *evidenceReader) kernelOptionGap(layerPath, option string) (string,
 	return "", false
 }
 
-// goPackageGap answers what is wrong with a `go:` layer path: it must be a
-// lower-case import path naming a package directory under the toolchain's
-// standard library source that holds a non-test Go file. cmd/ and vendor/
+// kernelFragments names the fragments a refusal cites: the manifests read,
+// each with its .config name.
+func (reader *evidenceReader) kernelFragments() []string {
+	fragments := make([]string, 0, len(reader.kernelManifests))
+	for _, manifest := range reader.kernelManifests {
+		fragments = append(fragments, strings.TrimSuffix(manifest, ".require")+".config")
+	}
+	return fragments
+}
+
+// goPackageGap answers what is wrong with a `go:` layer path: it must name a
+// standard library package some shipped flavour of ze links. cmd/ and vendor/
 // hold the toolchain's own programs and modules, not the standard library,
 // and the go tool ignores a directory named testdata or opening with `_` or
-// `.`, so no package lives under one.
+// `.`, so no package lives under one. A package the binary does not link
+// performs nothing for Ze, however real it is.
 func (reader *evidenceReader) goPackageGap(layerPath, pkg string) (string, bool) {
 	var tb textbuf.Buffer
 	for segment := range strings.SplitSeq(pkg, "/") {
@@ -344,19 +355,17 @@ func (reader *evidenceReader) goPackageGap(layerPath, pkg string) (string, bool)
 				Str(", which the go tool ignores (testdata, or a name opening with `_` or `.`), so it names no package; name the standard library package itself as go:<import path>").String(), true
 		}
 	}
-	source, refusal := reader.goStandardSource()
+	linked, refusal := reader.linkedPackages()
 	if refusal != "" {
 		return refusal, true
 	}
 	top, _, _ := strings.Cut(pkg, "/")
-	standard := goPackageRE.MatchString(pkg) && top != "cmd" && top != vendorDir &&
-		holdsGoSource(filepath.Join(source, filepath.FromSlash(pkg)))
-	if standard {
+	if top != "cmd" && top != vendorDir && linked.standard[pkg] {
 		return "", false
 	}
-	return tb.Str("its layer path ").Str(layerPath).Str(" is not a package of the Go standard library (no lower-case import path whose directory ").
-		Str(filepath.Join(source, pkg)).
-		Str(" holds a non-test .go file); name the package as go:<import path>, and a module from outside the standard library as vendor/<module path>").String(), true
+	return tb.Str("its layer path ").Str(layerPath).
+		Str(" is not a package of the Go standard library that the shipped ze links (`go list -deps` over ").Str(shippedMain).
+		Str(" in every shipped flavour lists no such standard package); name a package the binary links as go:<import path>, and a module from outside the standard library as vendor/<module path>").String(), true
 }
 
 // goTestdataDir is the directory name the go tool never reads a package from.
@@ -368,86 +377,39 @@ func goToolIgnores(segment string) bool {
 	return segment == goTestdataDir || strings.HasPrefix(segment, "_") || strings.HasPrefix(segment, ".")
 }
 
-// holdsGoSource answers whether dir holds a .go file that is not a test.
-func holdsGoSource(dir string) bool {
-	entries, err := os.ReadDir(dir)
-	// refuse-by-default: guards goPackageGap -- a directory that cannot be read holds no package, and goPackageGap refuses the path naming that directory
-	if err != nil {
-		return false
-	}
-	for _, entry := range entries {
-		name := entry.Name()
-		if entry.IsDir() {
-			continue
-		}
-		if strings.HasSuffix(name, ".go") && !strings.HasSuffix(name, "_test.go") {
-			return true
-		}
-	}
-	return false
-}
-
-// goStandardSource answers $(go env GOROOT)/src, asking the toolchain once.
-func (reader *evidenceReader) goStandardSource() (string, string) {
-	if reader.goRead {
-		return reader.goSource, reader.goRefusal
-	}
-	reader.goRead = true
-	cmd := exec.Command("go", "env", "GOROOT") //nolint:gosec,noctx // this developer tool asks its own toolchain where the standard library is
-	cmd.Dir = reader.tree
-	out, err := cmd.Output()
-	root := strings.TrimSpace(string(out))
-	if err != nil {
-		reader.goRefusal = "cannot ask the Go toolchain for its standard library (`go env GOROOT`: " + err.Error() +
-			"), so no go: layer path can be checked; put go on PATH and rerun `./le rfc check`"
-		return "", reader.goRefusal
-	}
-	if root == "" {
-		reader.goRefusal = "`go env GOROOT` answered nothing, so no go: layer path can be checked; set GOROOT and rerun `./le rfc check`"
-		return "", reader.goRefusal
-	}
-	reader.goSource = filepath.Join(root, "src")
-	return reader.goSource, ""
-}
-
-// enabledKernelOptions answers every option Ze's kernel config sets, mapped
-// to whether it is built in, and records the options the require manifests
-// list. It reads the profile fragments, then each include they name once in
-// first-named order, as resolveKernelProfile layers them, so a later fragment
-// overrides an earlier one and an include overrides both. A fragment or
-// manifest that cannot be read is a refusal: the option cannot be told
-// absent from unreadable.
+// enabledKernelOptions answers every option Ze's runtime kernel config sets,
+// mapped to whether it is built in, and records the options the require
+// manifests list. The fragments and manifests, and their order, are the
+// builder's own (appliance.RuntimeKernelLayers): a later fragment overrides
+// an earlier one, an include overrides both, and a `# ze-base:` profile is
+// read where the builder reads it. A fragment or manifest that cannot be
+// read is a refusal: the option cannot be told absent from unreadable.
 func (reader *evidenceReader) enabledKernelOptions() (map[string]bool, string) {
 	if reader.kernelRead {
 		return reader.kernelOptions, reader.kernelRefusal
 	}
 	reader.kernelRead = true
+	fragments, manifests, err := appliance.RuntimeKernelLayers(reader.tree)
+	if err != nil {
+		reader.kernelRefusal = "cannot resolve Ze's runtime kernel config (" + err.Error() +
+			"), so no linux: layer path can be checked against it; restore the fragments under gokrazy/kernel from git"
+		return nil, reader.kernelRefusal
+	}
 	options := map[string]bool{}
-	fragments := slices.Clone(kernelConfigRels)
-	for i := 0; i < len(fragments); i++ {
-		includes, refusal := readKernelFragment(reader.tree, fragments[i], options)
-		if refusal != "" {
+	for _, fragment := range fragments {
+		if refusal := readKernelFragment(reader.tree, fragment, options); refusal != "" {
 			reader.kernelRefusal = refusal
 			return nil, refusal
-		}
-		// One level only, as the builder refuses a nested include.
-		if i >= len(kernelConfigRels) {
-			continue
-		}
-		for _, name := range includes {
-			if included := kernelbuilder.DefaultCommonDir + "/" + name + ".config"; !slices.Contains(fragments, included) {
-				fragments = append(fragments, included)
-			}
 		}
 	}
 	required := map[string]bool{}
-	for _, fragment := range fragments {
-		manifest := kernelRequireRel(fragment)
-		if refusal := readKernelRequire(reader.tree, manifest, required); refusal != "" {
+	for _, manifest := range manifests {
+		rel := relTo(reader.tree, manifest)
+		if refusal := readKernelRequire(manifest, rel, required); refusal != "" {
 			reader.kernelRefusal = refusal
 			return nil, refusal
 		}
-		reader.kernelManifests = append(reader.kernelManifests, manifest)
+		reader.kernelManifests = append(reader.kernelManifests, rel)
 	}
 	reader.kernelOptions = options
 	reader.kernelRequired = required
@@ -460,21 +422,15 @@ const kernelUnsetSuffix = " is not set"
 
 // readKernelFragment records each `CONFIG_<name>=<value>` line of one config
 // fragment into options, and each `# CONFIG_<name> is not set` line as
-// disabled, and answers the names its include directives pull in, or a
-// refusal naming the file when it cannot be read.
-func readKernelFragment(tree, rel string, options map[string]bool) ([]string, string) {
-	raw, err := os.ReadFile(filepath.Join(tree, filepath.FromSlash(rel))) //nolint:gosec // the path is the checkout's own kernel config fragment, not input
+// disabled, or answers a refusal naming the file when it cannot be read.
+func readKernelFragment(tree, path string, options map[string]bool) string {
+	raw, err := os.ReadFile(path) //nolint:gosec // the path is the builder's resolution of the checkout's own kernel config, not input
 	if err != nil {
-		return nil, "cannot read " + rel + " (" + err.Error() +
+		return "cannot read " + relTo(tree, path) + " (" + err.Error() +
 			"), so no linux: layer path can be checked against Ze's kernel config; restore the file from git"
 	}
-	var includes []string
 	for line := range strings.SplitSeq(string(raw), "\n") {
 		line = strings.TrimSpace(line)
-		if name, include := strings.CutPrefix(line, kernelIncludePrefix); include {
-			includes = append(includes, strings.TrimSpace(name))
-			continue
-		}
 		if unset, disabled := strings.CutSuffix(line, kernelUnsetSuffix); disabled {
 			if name, commented := strings.CutPrefix(unset, "# "); commented && kernelOptionRE.MatchString(name) {
 				options[name] = false
@@ -487,15 +443,15 @@ func readKernelFragment(tree, rel string, options map[string]bool) ([]string, st
 		}
 		options[name] = value == "y"
 	}
-	return includes, ""
+	return ""
 }
 
 // readKernelRequire records each option one require manifest lists, written
 // `CONFIG_<name>` or `CONFIG_<name>=y` as enforceRequiredSymbols reads it.
 // A line of any other shape is a refusal naming the file and line, as the
 // build refuses it.
-func readKernelRequire(tree, rel string, required map[string]bool) string {
-	raw, err := os.ReadFile(filepath.Join(tree, filepath.FromSlash(rel))) //nolint:gosec // the path is the checkout's own kernel require manifest, not input
+func readKernelRequire(path, rel string, required map[string]bool) string {
+	raw, err := os.ReadFile(path) //nolint:gosec // the path is the builder's resolution of the checkout's own kernel require manifest, not input
 	if err != nil {
 		return "cannot read " + rel + " (" + err.Error() +
 			"), so no linux: layer path can be checked against the options the kernel build verifies; restore the file from git"
@@ -522,7 +478,8 @@ func readKernelRequire(tree, rel string, required map[string]bool) string {
 // The row's own text is already the RFC's sentence (checkRowQuotes); what each
 // kind adds is the fact that removes the row from Ze's count (owner ruling,
 // 2026-10-29): for {not-applicable} a role-condition quote from the cited
-// section, the role it binds and the role Ze fills, for {feature-declined}
+// section and the specific role it binds, which checkNotApplicableRoles holds
+// against the roles the summary's Meta table declares Ze fills, for {feature-declined}
 // its optionality quote within the cited section, for {lower-layer} a layer
 // path a reader can check beside the producer checkLowerLayerProducer already
 // holds.
@@ -535,13 +492,12 @@ func (reader *evidenceReader) gap(req *Requirement) (string, bool) {
 		if req.Annotation.Quote == "" {
 			var tb textbuf.Buffer
 			return tb.Str("it carries no role-condition quote from section ").Str(req.Section).
-				Str(", names no role that quote binds and no role ze fills").String(), true
+				Str(" and names no role that quote binds").String(), true
 		}
-		if req.Annotation.BoundRole == "" || req.Annotation.Role == "" {
+		if req.Annotation.BoundRole == "" {
 			// Unreachable through the parser, which refuses a quote with no
-			// bound role or no ze role. The check still refuses it: the roles
-			// are half the fact.
-			return "it names no role the quote binds or no role ze fills", true
+			// bound role. The check still refuses it: the role is half the fact.
+			return "it names no role the quote binds", true
 		}
 		return quoteGap(req, loadQuoteSource(reader.sources, reader.tree, req.RFC), "role-condition quote")
 	case AnnotationFeatureDeclined:
@@ -582,9 +538,13 @@ const countedRowsNamedMax = 10
 // lowered in the same commit; above it, the line was set below the rows it
 // counts. The committed count itself may rise neither above HEAD^'s nor above
 // the pushed branch's. A kind whose committed count is zero is refused row by
-// row, which is full refusal. A malformed committed copy is refused beside
-// the rows. A HEAD^ git cannot read is refused; only an absent HEAD^ judges
-// every row as untouched, and the notice says so.
+// row, which is full refusal, and a judged kind the backlog never counts
+// ({feature-declined}) is refused row by row too. A committed copy that does
+// not parse is not refused here: the commit that wrote it was refused by
+// readEvidenceBacklog, and the commit repairing it must be able to pass, so
+// the counts compare with the newest copy that parses. A HEAD^ git cannot
+// read is refused; only an absent HEAD^ judges every row as untouched, and
+// the notice says so, as it says when the pushed branch is absent.
 func checkExclusionEvidence(tree string, requirements []Requirement, base evidenceBaseline) ([]string, string) {
 	backlog, refusal := readEvidenceBacklog(tree)
 	if refusal != "" {
@@ -593,6 +553,7 @@ func checkExclusionEvidence(tree string, requirements []Requirement, base eviden
 	var notice string
 	switch base.state {
 	case priorRead:
+		notice = base.pushedNotice
 	case priorAbsent:
 		notice = "exclusion evidence: no HEAD^ (" + base.reason + "), so no row is known to be new: every row lacking evidence is counted against " +
 			evidenceBacklogRel + " and no committed count is compared with HEAD^"
@@ -607,9 +568,6 @@ func checkExclusionEvidence(tree string, requirements []Requirement, base eviden
 		panic("BUG: unknown HEAD^ state")
 	}
 	var errs []string
-	if base.malformed != "" {
-		errs = append(errs, base.malformed)
-	}
 	reader := newEvidenceReader(tree)
 	counted := map[string][]string{}
 	for i := range requirements {
@@ -621,6 +579,11 @@ func checkExclusionEvidence(tree string, requirements []Requirement, base eviden
 		kind := req.Annotation.Kind
 		var tb textbuf.Buffer
 		tb.Str(requirementWhere(*req)).Str(": ").Str(req.RID).Str(" is annotated {").Str(kind).Str("} and ")
+		if !slices.Contains(evidenceKinds, kind) {
+			errs = append(errs, tb.Str("lacks the evidence that kind owes: ").
+				Str(missing).Str(". Rewrite the annotation on that line to carry it. ").Str(evidenceFormat(kind)).String())
+			continue
+		}
 		touched := evidenceRowIsNew(req, base)
 		// An untouched row that carries an evidence form and fails its check
 		// is never backlog: counting it would let a commit break one row's

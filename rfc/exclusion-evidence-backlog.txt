@@ -6,6 +6,9 @@
 # rfc/short/, that still lack the evidence the kind owes. ./le rfc check refuses
 # a count that differs from the tree: a count may only fall, and the commit that
 # backfills a row lowers its line. A kind at 0 is refused row by row.
-feature-declined 22
+#
+# {feature-declined} has no line: its rows always carry their evidence form
+# (a quote, which the parser requires), so each one whose quote is not in its
+# cited section is refused by id rather than counted.
 lower-layer 215
 not-applicable 833

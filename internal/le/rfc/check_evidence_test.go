@@ -8,16 +8,16 @@ import (
 	"testing"
 )
 
-// backlogFile is an evidence backlog holding one count per kind. Every case
-// varies only the {not-applicable} count, the kind its fixture row carries;
-// the other two kinds are held at zero.
+// backlogFile is an evidence backlog holding one count per counted kind.
+// Every case varies only the {not-applicable} count, the kind its fixture row
+// carries; {lower-layer} is held at zero.
 func backlogFile(notApplicable string) string {
-	return "# fixture\nfeature-declined 0\nlower-layer 0\nnot-applicable " + notApplicable + "\n"
+	return "# fixture\nlower-layer 0\nnot-applicable " + notApplicable + "\n"
 }
 
 // backlogCounts is backlogFile as the parsed HEAD^ counts.
 func backlogCounts(notApplicable int) map[string]int {
-	return map[string]int{AnnotationFeatureDeclined: 0, AnnotationLowerLayer: 0, AnnotationNotApplicable: notApplicable}
+	return map[string]int{AnnotationLowerLayer: 0, AnnotationNotApplicable: notApplicable}
 }
 
 // VALIDATES: the exclusion evidence ratchet -- an untouched row lacking
@@ -26,9 +26,10 @@ func backlogCounts(notApplicable int) map[string]int {
 // lowered in the file; a count that rose names the rows, tells the author to
 // give rows their evidence and never to raise the line; a committed line that
 // rose against HEAD^ or the pushed branch is refused naming the kind and both
-// counts; a malformed committed file and a kind counted twice are refused; a kind at zero is refused row by row; git that cannot be read
-// refuses; only an absent HEAD^ passes, and says so; a missing or partial
-// count file is refused.
+// counts; a kind counted twice is refused; a kind at zero is refused row by
+// row; {feature-declined}, which is never counted, has no line and its row is
+// refused by id; git that cannot be read refuses; only an absent HEAD^
+// passes, and says so; a missing or partial count file is refused.
 // METHOD: legacy {not-applicable} rows of the fixture RFC, judged against
 // HEAD^ baselines and count files varied per case.
 func TestExclusionEvidenceRatchet(t *testing.T) {
@@ -39,6 +40,9 @@ func TestExclusionEvidenceRatchet(t *testing.T) {
 	prints := map[string]string{legacy.RID: evidenceFingerprint(&legacy), second.RID: evidenceFingerprint(&second)}
 	changed := map[string]string{legacy.RID: "2\x00not-applicable\x00an older reason", second.RID: evidenceFingerprint(&second)}
 	onlySecond := map[string]string{second.RID: evidenceFingerprint(&second)}
+	declined := evidenceRow(t, "RFC9999-2-3", "2",
+		`feature-declined: "A receiver MUST NOT reorder the frames of one widget."; internal/x/frame.go::sendFrame sends one frame`)
+	declinedPrints := map[string]string{legacy.RID: prints[legacy.RID], declined.RID: evidenceFingerprint(&declined)}
 	read := func(prints map[string]string, committed int) evidenceBaseline {
 		return evidenceBaseline{state: priorRead, prints: prints, backlog: backlogCounts(committed), backlogAt: priorRevision}
 	}
@@ -76,15 +80,16 @@ func TestExclusionEvidenceRatchet(t *testing.T) {
 		{"a committed line HEAD^ raised above the pushed branch", backlogFile("2"), []Requirement{legacy, second}, pushedAt(read(prints, 2), 1),
 			[]string{"the {not-applicable} count rose from 1 at origin/main to 2", "`not-applicable 1`"}, ""},
 		{"a committed line at the pushed count", backlogFile("1"), []Requirement{legacy}, pushedAt(read(prints, 2), 1), nil, ""},
-		{"a committed file that does not parse", backlogFile("1"), []Requirement{legacy},
-			evidenceBaseline{state: priorRead, prints: prints, malformed: "the committed rfc/exclusion-evidence-backlog.txt at HEAD^ is malformed"},
-			[]string{"at HEAD^ is malformed"}, ""},
+		{"a feature-declined line", backlogFile("1") + "feature-declined 0\n", []Requirement{legacy}, read(prints, 1),
+			[]string{"'feature-declined' is not a kind this ratchet counts"}, ""},
+		{"an untouched feature-declined row outside its section", backlogFile("1"), []Requirement{legacy, declined}, read(declinedPrints, 1),
+			[]string{"RFC9999-2-3 is annotated {feature-declined} and lacks the evidence", "is in section 3"}, ""},
 		{"a kind counted twice", backlogFile("1") + "not-applicable 1\n", []Requirement{legacy}, read(prints, 1),
 			[]string{"a second line counts {not-applicable}"}, ""},
 		{"a kind at zero", backlogFile("0"), []Requirement{legacy}, read(prints, 0),
 			[]string{"RFC9999-2-1 is annotated {not-applicable} and lacks the evidence"}, ""},
 		{"no count file", "", []Requirement{legacy}, read(prints, 1), []string{"cannot read the committed evidence counts"}, ""},
-		{"a kind with no line", "feature-declined 0\nlower-layer 0\n", []Requirement{legacy}, read(prints, 1),
+		{"a kind with no line", "lower-layer 0\n", []Requirement{legacy}, read(prints, 1),
 			[]string{"no line counts {not-applicable}"}, ""},
 		{"an unknown kind", backlogFile("1") + "gap 3\n", []Requirement{legacy}, read(prints, 1),
 			[]string{"'gap' is not a kind this ratchet counts"}, ""},
@@ -130,7 +135,7 @@ func TestExclusionEvidenceRefusalsNameTheFix(t *testing.T) {
 	writeFixtureFiles(t, tree, map[string]string{"rfc/full/rfc9999.txt": quoteFixtureSource,
 		evidenceBacklogRel: backlogFile("0")})
 	broken := evidenceRow(t, "RFC9999-2-1", "2",
-		`not-applicable: "A receiver MUST NOT reorder the frames of one widget."; binds a receiver; ze is a speaker; it reorders nothing`)
+		`not-applicable: "A receiver MUST NOT reorder the frames of one widget."; binds frames; it reorders nothing`)
 	errs, _ := checkExclusionEvidence(tree, []Requirement{broken},
 		evidenceBaseline{state: priorRead, prints: map[string]string{broken.RID: evidenceFingerprint(&broken)}, backlog: backlogCounts(0)})
 	if len(errs) != 1 {
@@ -157,17 +162,20 @@ func TestExclusionEvidenceRefusalsNameTheFix(t *testing.T) {
 }
 
 // VALIDATES: a {lower-layer} layer names a component a reader can check: a
-// vendored module vendor/modules.txt lists and this checkout carries, a kernel
-// CONFIG_ option Ze's kernel config builds in (=y, as the build verifies a
-// required option, and no later `is not set`, an include counting after every
-// profile fragment as the builder layers it) and a require manifest lists, an
-// include's own included, or a lower-case package of the Go standard library
-// whose directory under $(go env GOROOT)/src holds a non-test .go file;
-// cmd/, vendor/, a testdata, `_` or `.` segment, `.` and `..` are refused.
+// vendored module vendor/modules.txt lists, this checkout carries and the
+// shipped ze links, a kernel CONFIG_ option Ze's runtime kernel config builds
+// in (=y, as the build verifies a required option, and no later `is not set`,
+// layered as the builder's own resolution layers it: a `# ze-base:` profile
+// between kernel.config and runtime.config, every include after every profile
+// fragment) and a require manifest lists, or a standard library package the
+// shipped ze links; cmd/, vendor/, a testdata, `_` or `.` segment, `.` and
+// `..` are refused, and a linked set nobody could list refuses every go: and
+// vendor/ path rather than passing it.
 // METHOD: the parser reads the path out of the layer, and the evidence reader
-// judges each form against a fixture checkout holding one vendored module,
-// the two kernel config fragments and one included fragment; a checkout
-// holding no kernel config refuses every linux: path.
+// judges each form against a fixture checkout holding two vendored modules,
+// the kernel config fragments, a base profile and one included fragment, with
+// the linked set given in place of `go list` (the fixture holds no Go
+// module); a checkout holding no kernel config refuses every linux: path.
 func TestLowerLayerNamesItsLayerPath(t *testing.T) {
 	parsed, err := parseAnnotation("lower-layer: Linux IPv6 neighbor discovery, linux:CONFIG_IPV6; "+
 		"internal/x/nd.go::install installs the address, and the kernel answers", "fixture")
@@ -180,27 +188,43 @@ func TestLowerLayerNamesItsLayerPath(t *testing.T) {
 	tree := t.TempDir()
 	writeFixtureFiles(t, tree, map[string]string{
 		"vendor/github.com/insomniacslk/dhcp/dhcpv6/doc.go": "package dhcpv6\n",
+		"vendor/github.com/tool/only/doc.go":                "package only\n",
 		vendorModulesRel: "# github.com/insomniacslk/dhcp v0.0.0-20240829085014-a3a4c1f04475\n## explicit; go 1.20\n" +
-			"github.com/insomniacslk/dhcp/dhcpv6\n# github.com/gone/module v1.0.0\n## explicit\n",
-		kernelConfigRels[0]: "# ze-include: inc\nCONFIG_IPV6=y\n# CONFIG_WIDGET is not set\nCONFIG_LOCALVERSION=\"-ze\"\n" +
-			"CONFIG_LATER=y\nCONFIG_UNREQUIRED=y\n",
-		kernelConfigRels[1]: "# runtime\nCONFIG_XFRM_USER=y\nCONFIG_NF_TABLES=n\n# CONFIG_LATER is not set\n" +
+			"github.com/insomniacslk/dhcp/dhcpv6\n# github.com/gone/module v1.0.0\n## explicit\n" +
+			"# github.com/tool/only v1.0.0\n## explicit\ngithub.com/tool/only\n",
+		"gokrazy/kernel/kernel.config": "# ze-include: inc\nCONFIG_IPV6=y\n# CONFIG_WIDGET is not set\nCONFIG_LOCALVERSION=\"-ze\"\n" +
+			"CONFIG_LATER=y\nCONFIG_UNREQUIRED=y\nCONFIG_BASED=y\n",
+		"gokrazy/kernel/runtime.config": "# ze-base: basep\n# runtime\nCONFIG_XFRM_USER=y\nCONFIG_NF_TABLES=n\n# CONFIG_LATER is not set\n" +
 			"CONFIG_MODULAR=m\n# CONFIG_INC is not set\n",
-		kernelRequireRel(kernelConfigRels[0]): "# fixture\nCONFIG_IPV6\nCONFIG_LATER\n",
-		kernelRequireRel(kernelConfigRels[1]): "CONFIG_XFRM_USER=y\nCONFIG_MODULAR\n",
+		"gokrazy/kernel/kernel.require":  "# fixture\nCONFIG_IPV6\nCONFIG_LATER\nCONFIG_BASED\n",
+		"gokrazy/kernel/runtime.require": "CONFIG_XFRM_USER=y\nCONFIG_MODULAR\n",
+		// The base profile sits between kernel.config and runtime.config.
+		"gokrazy/kernel/basep.config":  "CONFIG_BASEONLY=y\n# CONFIG_BASED is not set\n",
+		"gokrazy/kernel/basep.require": "CONFIG_BASEONLY\n",
 		// The builder (resolveKernelProfile) layers every include after
 		// every profile fragment, and verifies the include's own manifest.
 		"tools/kernel-builder/common/inc.config":  "CONFIG_INC=y\nCONFIG_INCONLY=y\n",
 		"tools/kernel-builder/common/inc.require": "CONFIG_INC\nCONFIG_INCONLY\n",
 	})
+	linked := linkedPackages{
+		// cmd/go and the standard library's vendored chacha20 stand in the set
+		// so that the cmd/ and vendor/ refusals, not their absence, refuse them.
+		standard: map[string]bool{"crypto/x509": true, "net/http": true, "cmd/go": true, "vendor/golang.org/x/crypto/chacha20": true},
+		modules:  map[string]bool{"github.com/insomniacslk/dhcp": true, "github.com/ze-software/ze": true},
+	}
 	cases := []struct{ path, refused string }{
 		{"linux:CONFIG_IPV6", ""},
 		{"linux:CONFIG_XFRM_USER", ""},
 		{"linux:CONFIG_INC", ""},
 		{"linux:CONFIG_INCONLY", ""},
+		{"linux:CONFIG_BASEONLY", ""},
+		{"linux:CONFIG_BASED", "is not enabled"},
 		{"linux:CONFIG_MODULAR", "is not enabled"},
 		{"go:crypto/x509", ""},
+		{"go:net/http", ""},
+		{"go:crypto/sha3", "is not a package of the Go standard library that the shipped ze links"},
 		{"vendor/github.com/insomniacslk/dhcp", ""},
+		{"vendor/github.com/tool/only", "that no shipped flavour of ze links"},
 		{"vendor/github.com/insomniacslk/dhcp/dhcpv6", "names no module vendor/modules.txt lists"},
 		{"", "names no component a reader can check"},
 		{"vendor/github.com/gone/module", "cannot be opened in this checkout"},
@@ -211,7 +235,7 @@ func TestLowerLayerNamesItsLayerPath(t *testing.T) {
 		{"vendor/GITHUB.com/insomniacslk/dhcp", "names no module vendor/modules.txt lists"},
 		{"vendor/../go.mod", "climbs out of its source tree"},
 		{"linux:CONFIG_LATER", "is not enabled"},
-		{"linux:CONFIG_UNREQUIRED", "listed in none of gokrazy/kernel/kernel.require, gokrazy/kernel/runtime.require, tools/kernel-builder/common/inc.require"},
+		{"linux:CONFIG_UNREQUIRED", "listed in none of gokrazy/kernel/kernel.require, gokrazy/kernel/basep.require, gokrazy/kernel/runtime.require, tools/kernel-builder/common/inc.require"},
 		{"linux:CONFIG_WIDGET", "is not enabled"},
 		{"linux:CONFIG_NF_TABLES", "is not enabled"},
 		{"linux:CONFIG_LOCALVERSION", "is not enabled"},
@@ -231,6 +255,11 @@ func TestLowerLayerNamesItsLayerPath(t *testing.T) {
 		{"go:../src/net", "climbs out of its source tree"},
 	}
 	reader := newEvidenceReader(tree)
+	listed := 0
+	reader.listLinked = func(string) (linkedPackages, string) {
+		listed++
+		return linked, ""
+	}
 	for _, one := range cases {
 		missing, lacks := reader.layerPathGap(one.path)
 		if one.refused == "" {
@@ -243,10 +272,41 @@ func TestLowerLayerNamesItsLayerPath(t *testing.T) {
 			t.Errorf("%q answered (%q, %v), want a refusal saying %q", one.path, missing, lacks, one.refused)
 		}
 	}
+	if listed != 1 {
+		t.Errorf("the linked set was listed %d times, want once per check", listed)
+	}
+	unlisted := newEvidenceReader(tree)
+	unlisted.listLinked = func(string) (linkedPackages, string) { return linkedPackages{}, "`go list` failed: fixture" }
+	for _, path := range []string{"go:crypto/x509", "vendor/github.com/insomniacslk/dhcp"} {
+		if missing, lacks := unlisted.layerPathGap(path); !lacks || !strings.Contains(missing, "`go list` failed: fixture") {
+			t.Errorf("%q with no linked set answered (%q, %v), want the listing's refusal", path, missing, lacks)
+		}
+	}
 	bare := t.TempDir()
 	missing, lacks := newEvidenceReader(bare).layerPathGap("linux:CONFIG_IPV6")
-	if !lacks || !strings.Contains(missing, "cannot read") {
+	if !lacks || !strings.Contains(missing, "cannot resolve Ze's runtime kernel config") {
 		t.Errorf("a checkout with no kernel config answered (%q, %v), want a refusal", missing, lacks)
+	}
+}
+
+// VALIDATES: goListLinked lists what the shipped ze links over this checkout:
+// a standard package cmd/ze imports is in the set and one no flavour imports
+// is not, and a tree with no shipped flavour file refuses.
+// METHOD: the real repository root, one listing; a bare directory.
+func TestGoListLinkedListsTheShippedBinary(t *testing.T) {
+	root, err := filepath.Abs("../../..")
+	if err != nil {
+		t.Fatal(err)
+	}
+	linked, refusal := goListLinked(root)
+	if refusal != "" {
+		t.Fatalf("listing what ze links refused: %s", refusal)
+	}
+	if !linked.standard["net/netip"] || linked.standard["net/rpc/jsonrpc"] {
+		t.Errorf("net/netip linked %v, net/rpc/jsonrpc linked %v; want true, false", linked.standard["net/netip"], linked.standard["net/rpc/jsonrpc"])
+	}
+	if _, refusal := goListLinked(t.TempDir()); !strings.Contains(refusal, "declares a shipped flavour") {
+		t.Errorf("a tree with no flavour file answered %q, want a refusal", refusal)
 	}
 }
 
@@ -326,7 +386,7 @@ func TestCheckRefusesABacklogRiseAgainstPrior(t *testing.T) {
 	const sentence = "A speaker MUST send the widget."
 	legacy := "- [ ] [RFC9999-2-3] [SHOULD] " + sentence + " (§2) {not-applicable: ze sends no widget}"
 	backfilled := "- [ ] [RFC9999-2-3] [SHOULD] " + sentence + ` (§2) {not-applicable: "` + sentence +
-		`"; binds a speaker; ze is a receiver; ze sends no widget}`
+		`"; binds the widget; ze sends no widget}`
 	base := fixtureCorpus()
 	base[selftestSummaryRel] = quoteFixtureSummary(legacy)
 	base[evidenceBacklogRel] = backlogFile("1")
@@ -353,10 +413,10 @@ func TestCheckRefusesABacklogRiseAgainstPrior(t *testing.T) {
 // that holds the backlog file, at HEAD^ and at the pushed branch: a file
 // deleted in HEAD^ still compares the counts it held before, so deleting it in
 // one commit and restoring it raised in the next is refused; a history that
-// never held it compares nothing; a malformed committed file refuses, telling
-// the author to commit a valid one, while its counts compare from the newest
-// ancestor whose copy parses and the rows are still judged; summaries HEAD^
-// could not read refuse.
+// never held it compares nothing; a malformed committed copy is not refused
+// once the working tree's copy parses, so the commit repairing it can pass,
+// while its counts compare from the newest ancestor whose copy parses and the
+// rows are still judged; summaries HEAD^ could not read refuse.
 // METHOD: fixture repositories of three commits, the pushed branch set with
 // `git update-ref refs/remotes/origin/main`, judged through priorEvidence and
 // checkExclusionEvidence.
@@ -400,21 +460,21 @@ func TestPriorEvidenceReadsTheNewestCommitHoldingTheBacklog(t *testing.T) {
 	}
 
 	never := commits(t, "", "")
-	if base := priorEvidence(never, map[string]string{}, map[string]bool{}, true); base.state != priorRead || base.backlog != nil || base.malformed != "" {
-		t.Errorf("a history that never held the file answered %v, counts %v, malformed %q; want read with nothing to compare",
-			base.state, base.backlog, base.malformed)
+	if base := priorEvidence(never, map[string]string{}, map[string]bool{}, true); base.state != priorRead || base.backlog != nil {
+		t.Errorf("a history that never held the file answered %v, counts %v; want read with nothing to compare",
+			base.state, base.backlog)
 	}
 
+	// The commit that repairs a malformed HEAD^ copy: the working tree's copy
+	// parses, so nothing refuses it.
 	malformed := commits(t, "not-applicable many\n", "")
 	base = priorEvidence(malformed, map[string]string{}, map[string]bool{}, true)
-	for _, want := range []string{"is malformed", "Commit a valid file", "not a whole number"} {
-		if !strings.Contains(base.malformed, want) {
-			t.Errorf("a malformed committed file answered %q, want it to say %q", base.malformed, want)
-		}
+	if base.state != priorRead || base.backlog != nil {
+		t.Errorf("a history holding only a malformed copy answered %v, counts %v; want read with nothing to compare", base.state, base.backlog)
 	}
 	writeFixtureFiles(t, malformed, map[string]string{evidenceBacklogRel: backlogFile("0")})
-	if errs, _ := checkExclusionEvidence(malformed, nil, base); len(errs) != 1 || errs[0] != base.malformed {
-		t.Errorf("a malformed committed file was refused as %q, want the malformed refusal alone", errs)
+	if errs, _ := checkExclusionEvidence(malformed, nil, base); len(errs) != 0 {
+		t.Errorf("the commit repairing a malformed committed file was refused as %q, want no refusal", errs)
 	}
 
 	// A malformed HEAD^ copy over a valid ancestor: the counts compare from
@@ -426,16 +486,16 @@ func TestPriorEvidenceReadsTheNewestCommitHoldingTheBacklog(t *testing.T) {
 		t.Fatalf("name the commit holding the valid file: %s", failure)
 	}
 	base = priorEvidence(fallback, map[string]string{}, map[string]bool{}, true)
-	if base.backlog[AnnotationNotApplicable] != 1 || !strings.Contains(base.backlogAt, valid) || base.malformed == "" {
-		t.Errorf("a malformed HEAD^ over a valid ancestor answered counts %v at %q, malformed %q; want 1 at %s and the malformed refusal",
-			base.backlog, base.backlogAt, base.malformed, valid)
+	if base.backlog[AnnotationNotApplicable] != 1 || !strings.Contains(base.backlogAt, valid) {
+		t.Errorf("a malformed HEAD^ over a valid ancestor answered counts %v at %q; want 1 at %s",
+			base.backlog, base.backlogAt, valid)
 	}
 	writeFixtureFiles(t, fallback, map[string]string{evidenceBacklogRel: backlogFile("3")})
 	added := Requirement{RFC: selftestStem, RID: "RFC9999-2-1", Level: levelMust, Section: "2",
 		Source: selftestSummaryRel, Line: 7, Annotation: &Annotation{Kind: AnnotationNotApplicable, Reason: "ze sends no widget"}}
 	errs, _ = checkExclusionEvidence(fallback, []Requirement{added}, base)
 	joined := strings.Join(errs, "\n")
-	for _, want := range []string{"is malformed", "rose from 1 at " + valid, "RFC9999-2-1 is annotated {not-applicable}"} {
+	for _, want := range []string{"rose from 1 at " + valid, "RFC9999-2-1 is annotated {not-applicable}"} {
 		if !strings.Contains(joined, want) {
 			t.Errorf("a malformed HEAD^ over a valid ancestor was refused as %q, want it to say %q", errs, want)
 		}
@@ -473,35 +533,101 @@ func TestEvidenceRowOfAnUnreadableSummary(t *testing.T) {
 	}
 }
 
-// VALIDATES: the role a {not-applicable} quote binds is found in the quote at
-// word boundaries, and a role that holds the other as whole words is refused
-// either way, so `binds s` and `binds speaker; ze is BGP speaker` no longer
-// pass while `binds a server; ze is an observer` does.
-// METHOD: parseAnnotation over payloads quoting one sentence.
+// VALIDATES: the role a quoted {not-applicable} row binds is found in its
+// quote at word boundaries, is not made only of words for any party, and is
+// held against the roles the summary's Meta `Ze roles` row declares: a bound
+// role equal to, holding or held by a declared role is refused after case, a
+// leading article and a plural are set aside; a summary with such a row and
+// no `Ze roles` row is refused, naming the row to add; a legacy row needs none.
+// METHOD: ParseSummaryText over the fixture summary with its Ze roles row
+// replaced per case, one row quoting one sentence.
 func TestNotApplicableRolesAreWholeWordsAndDistinct(t *testing.T) {
-	const quote = `"A BGP speaker MUST send the widget before any frame."`
-	cases := []struct{ payload, refused string }{
-		{quote + "; binds a speaker; ze is a receiver; it sends no widget", ""},
-		{quote + "; binds a BGP speaker; ze is a receiver; it sends no widget", ""},
-		{quote + "; binds s; ze is a receiver; it sends no widget", "is not in the quoted sentence"},
-		{quote + "; binds speak; ze is a receiver; it sends no widget", "is not in the quoted sentence"},
-		{quote + "; binds speaker; ze is BGP speaker; it sends no widget", "is the role ze fills or a part of it"},
-		{quote + "; binds BGP speaker; ze is speaker; it sends no widget", "holds the role ze fills"},
-		// "server" is inside "observer" as letters, not as a word.
-		{`"A server MUST send the widget before any frame."; binds a server; ze is an observer; it sends no widget`, ""},
-		{`"An observer MUST send the widget before any frame."; binds an observer; ze is a server; it sends no widget`, ""},
+	const sentence = "A BGP speaker MUST send the widget before any frame."
+	cases := []struct{ roles, bound, refused string }{
+		{"speaker, receiver", "the widget", ""},
+		{"route reflector", "a BGP speaker", ""},
+		{"BGP speaker", "BGP speakers", "one role holds the other"},
+		{"speaker", "a BGP speaker", "one role holds the other"},
+		{"route reflector, BGP speakers", "The BGP Speaker", "one role holds the other"},
+		{"widget sender", "widgets", "one role holds the other"},
+		{"route reflector", "s", "is not in the quoted sentence"},
+		{"route reflector", "speak", "is not in the quoted sentence"},
+		{"route reflector", "speakers", "a word for any party to a protocol"},
+		{"route reflector", "the speaker", "a word for any party to a protocol"},
+		{"", "a BGP speaker", "Add the row `| Ze roles | <role>, <role> |`"},
+		{"speaker, ", "a BGP speaker", "holds an empty role"},
 	}
 	for _, one := range cases {
-		_, err := parseAnnotation("not-applicable: "+one.payload, "fixture")
+		row := "- [ ] [RFC9999-2-3] [SHOULD] " + sentence + ` (§2) {not-applicable: "` + sentence + `"; binds ` + one.bound + `; it sends no widget}`
+		_, err := ParseSummaryText(fixtureWithZeRoles(t, one.roles, row), selftestStem, selftestSummaryRel)
 		if one.refused == "" {
 			if err != nil {
-				t.Errorf("{not-applicable: %s} was refused: %v", one.payload, err)
+				t.Errorf("binds %q with ze roles %q was refused: %v", one.bound, one.roles, err)
 			}
 			continue
 		}
 		if err == nil || !strings.Contains(err.Error(), one.refused) {
-			t.Errorf("{not-applicable: %s} answered %v, want a refusal saying %q", one.payload, err, one.refused)
+			t.Errorf("binds %q with ze roles %q answered %v, want a refusal saying %q", one.bound, one.roles, err, one.refused)
 		}
+	}
+	// "server" is inside "observer" as letters, not as a word.
+	observer := `- [ ] [RFC9999-2-3] [SHOULD] A server MUST send it. (§2) {not-applicable: "A server MUST send the widget before any frame."; binds a server; it sends no widget}`
+	if _, err := ParseSummaryText(fixtureWithZeRoles(t, "observer", observer), selftestStem, selftestSummaryRel); err != nil {
+		t.Errorf("binds a server with ze an observer was refused: %v", err)
+	}
+	legacy := "- [ ] [RFC9999-2-3] [SHOULD] " + sentence + " (§2) {not-applicable: ze sends no widget}"
+	if _, err := ParseSummaryText(fixtureWithZeRoles(t, "", legacy), selftestStem, selftestSummaryRel); err != nil {
+		t.Errorf("a legacy row in a summary declaring no ze roles was refused: %v", err)
+	}
+}
+
+// fixtureWithZeRoles is the fixture summary holding rows, its `Ze roles` row
+// set to roles, or removed when roles is empty.
+func fixtureWithZeRoles(t *testing.T, roles string, rows ...string) string {
+	t.Helper()
+	summary := quoteFixtureSummary(rows...)
+	if !strings.Contains(summary, selftestZeRolesRow) {
+		t.Fatal("the fixture summary holds no Ze roles row to replace")
+	}
+	replacement := ""
+	if roles != "" {
+		replacement = "| Ze roles | " + roles + " |\n"
+	}
+	return strings.Replace(summary, selftestZeRolesRow, replacement, 1)
+}
+
+// VALIDATES: the pushed branch is told apart three ways: absent (no
+// refs/remotes/origin/main) judges against HEAD^ alone and says so in the
+// notice; a ref that names no commit is unreadable, with its fix; a ref that
+// names a commit is read.
+// METHOD: a two-commit fixture repository judged through priorEvidence and
+// checkExclusionEvidence with no ref, the ref pointed at a blob, and the ref
+// pointed at HEAD.
+func TestPushedBranchAbsentOrUnreadable(t *testing.T) {
+	tree := t.TempDir()
+	gitFixture(t, tree, []string{"init", "-q"})
+	writeFixtureFiles(t, tree, map[string]string{evidenceBacklogRel: backlogFile("0")})
+	commitFixture(t, tree, "first")
+	commitFixtureEmptyTip(t, tree)
+	base := priorEvidence(tree, map[string]string{}, map[string]bool{}, true)
+	if base.state != priorRead || base.pushedRead {
+		t.Fatalf("no pushed branch answered %v, pushed read %v; want read against HEAD^ alone", base.state, base.pushedRead)
+	}
+	if errs, notice := checkExclusionEvidence(tree, nil, base); len(errs) != 0 || !strings.Contains(notice, "no origin/main") {
+		t.Errorf("no pushed branch answered %q with notice %q, want no refusal and a notice", errs, notice)
+	}
+	blob, failure := gitAnswer(tree, "rev-parse", "HEAD:"+evidenceBacklogRel)
+	if failure != "" {
+		t.Fatal(failure)
+	}
+	gitFixture(t, tree, []string{"update-ref", pushedBranchRef, blob})
+	base = priorEvidence(tree, map[string]string{}, map[string]bool{}, true)
+	if base.state != priorUnreadable || !strings.Contains(base.reason, "names no commit") || !strings.Contains(base.reason, "git fetch origin") {
+		t.Errorf("a pushed ref naming a blob answered %v %q, want unreadable with its fix", base.state, base.reason)
+	}
+	gitFixture(t, tree, []string{"update-ref", pushedBranchRef, "HEAD"})
+	if base = priorEvidence(tree, map[string]string{}, map[string]bool{}, true); base.state != priorRead || !base.pushedRead || base.pushedNotice != "" {
+		t.Errorf("a pushed ref naming HEAD answered %v, pushed read %v, notice %q; want read", base.state, base.pushedRead, base.pushedNotice)
 	}
 }
 
@@ -546,7 +672,7 @@ func TestCheckRefusesARowAddedSinceThePushedBranch(t *testing.T) {
 	const sentence = "A speaker MUST send the widget."
 	legacy := "- [ ] [RFC9999-2-3] [SHOULD] " + sentence + " (§2) {not-applicable: ze sends no widget}"
 	backfilled := "- [ ] [RFC9999-2-3] [SHOULD] " + sentence + ` (§2) {not-applicable: "` + sentence +
-		`"; binds a speaker; ze is a receiver; ze sends no widget}`
+		`"; binds the widget; ze sends no widget}`
 	added := "- [ ] [RFC9999-2-4] [SHOULD] " + sentence + " (§2) {not-applicable: ze sends none}"
 	base := fixtureCorpus()
 	base[selftestSummaryRel] = quoteFixtureSummary(legacy)

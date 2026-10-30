@@ -68,7 +68,7 @@ const FixtureAggregateRel = profileRel + "/" + FixtureAggregate + ".md"
 // fixtureEvidenceBacklog is the exclusion evidence count file of a fixture
 // whose rows carry every exclusion's evidence: zero for each kind, so a row
 // lacking it is refused by id (checkExclusionEvidence).
-const fixtureEvidenceBacklog = "feature-declined 0\nlower-layer 0\nnot-applicable 0\n"
+const fixtureEvidenceBacklog = "lower-layer 0\nnot-applicable 0\n"
 
 // FixtureFiles answers every file the three drivers write in common, keyed by
 // its path relative to the checkout root: the summary, the RFC text the

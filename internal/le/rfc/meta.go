@@ -124,6 +124,10 @@ const (
 	// list it as optional: shown with its own figures, never counted.
 	metaUseCases         = "Use cases"
 	metaOptionalUseCases = "Optional use cases"
+	// metaZeRoles names the roles Ze fills for this RFC, comma-separated: the
+	// one declaration every quoted {not-applicable} row of the summary is
+	// held against (checkNotApplicableRoles).
+	metaZeRoles = "Ze roles"
 )
 
 // supportNone is the `Support` value of a summary that makes no public claim.
@@ -319,6 +323,10 @@ type Meta struct {
 	Status    string
 	Coverage  string
 	Remaining string
+	// ZeRoles is the roles Ze fills for this RFC, from the `Ze roles` row,
+	// in the order written. Empty when the summary declares none, which only
+	// a summary with no quoted {not-applicable} row may do.
+	ZeRoles []string
 }
 
 // Enrolled answers whether this summary's MUST-level requirements are gated.
@@ -382,7 +390,7 @@ var knownMetaLabels = map[string]bool{
 	metaSupportName: true, metaSupportArea: true, metaSupportStatus: true,
 	metaSupportCoverage: true, metaSupportRemain: true,
 	metaImplementation: true, metaImplementationReason: true, metaAggregate: true,
-	metaUseCases: true, metaOptionalUseCases: true,
+	metaUseCases: true, metaOptionalUseCases: true, metaZeRoles: true,
 }
 
 // knownObsolescenceLabel is the pair of lineage labels that carry a qualifier,
@@ -431,7 +439,32 @@ func ParseMeta(text, stem, where string) (Meta, error) {
 	if err := readUseCases(values, &out, where); err != nil {
 		return Meta{}, err
 	}
+	if out.ZeRoles, err = zeRolesFrom(values, where); err != nil {
+		return Meta{}, err
+	}
 	return out, nil
+}
+
+// zeRolesFrom reads the `Ze roles` row: nil when the table has none, and a
+// refusal for a row that is empty or holds an empty entry, since a role
+// nobody can read excludes nothing.
+func zeRolesFrom(values map[string]string, where string) ([]string, error) {
+	cell, held := values[metaZeRoles]
+	if !held {
+		return nil, nil
+	}
+	var roles []string
+	for role := range strings.SplitSeq(cell, ",") {
+		role = strings.TrimSpace(role)
+		if role == "" {
+			var tb textbuf.Buffer
+			return nil, parseErr(tb.Str(where).Str(": the Meta `").Str(metaZeRoles).Str("` row ").
+				Str(pyRepr(cell)).Str(" holds an empty role; write each role ze fills, comma-separated, as `| ").
+				Str(metaZeRoles).Str(" | BGP speaker, route reflector |`"))
+		}
+		roles = append(roles, role)
+	}
+	return roles, nil
 }
 
 // refuseNearMiss reds a label that names one of this reader's facts in a
