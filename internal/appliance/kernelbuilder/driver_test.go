@@ -593,6 +593,9 @@ func TestCopyRuntimeOutputs(t *testing.T) {
 	output := filepath.Join(root, "out")
 	writeFixture(t, root, "build/arch/x86/boot/bzImage", "kernel")
 	writeFixture(t, root, "build/overlays/console.dtbo", "overlay")
+	// An earlier release's tree left in a reused output directory: the image
+	// assembled from this output must not carry it.
+	writeFixture(t, root, "out/lib/modules/7.0.0-ze/kernel/stale.ko", "stale")
 	old := runWorkerCommand
 	t.Cleanup(func() { runWorkerCommand = old })
 	runWorkerCommand = func(_ context.Context, _ WorkerRequest, _ string, name string, args ...string) error {
@@ -621,6 +624,9 @@ func TestCopyRuntimeOutputs(t *testing.T) {
 		if _, err := os.Lstat(filepath.Join(output, "lib", "modules", "7.1.1", name)); !os.IsNotExist(err) {
 			t.Fatalf("module link %s survived: %v", name, err)
 		}
+	}
+	if _, err := os.Lstat(filepath.Join(output, "lib", "modules", "7.0.0-ze")); !os.IsNotExist(err) {
+		t.Fatalf("an earlier release's module tree survived: %v", err)
 	}
 }
 

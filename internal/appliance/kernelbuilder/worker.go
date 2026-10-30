@@ -492,10 +492,16 @@ func copyRuntimeOutputs(ctx context.Context, req WorkerRequest, buildTree, kerne
 	if err := copyFile(filepath.Join(buildTree, filepath.FromSlash(imagePath)), filepath.Join(req.OutputDir, "vmlinuz")); err != nil {
 		return err
 	}
+	// The output directory is reused across builds (tmp/kernel/build), and
+	// modules_install adds lib/modules/<release> beside whatever is there, so an
+	// earlier release's tree would ride into the cache entry and the image.
+	modules := filepath.Join(req.OutputDir, "lib", "modules")
+	if err := os.RemoveAll(modules); err != nil {
+		return fmt.Errorf("clear earlier module trees: %w", err)
+	}
 	if err := runWorkerCommand(ctx, req, buildTree, "make", "ARCH="+kernelArch, "INSTALL_MOD_PATH="+req.OutputDir, "modules_install"); err != nil {
 		return err
 	}
-	modules := filepath.Join(req.OutputDir, "lib", "modules")
 	if info, err := os.Stat(modules); err == nil && info.IsDir() {
 		err = filepath.WalkDir(modules, func(path string, entry os.DirEntry, walkErr error) error {
 			if walkErr != nil {
