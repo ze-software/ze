@@ -8,10 +8,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/reactor"
 	"github.com/ze-software/ze/internal/component/cli"
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/policy"
 )
 
 // TestLoopPolicyExportRemedy applies the command from the real config refusal
@@ -78,10 +78,10 @@ func TestLoopPolicyExportRemedy(t *testing.T) {
 					}
 					inactive := 0
 					for i, settings := range after {
-						policy := settings.ExportPolicy
-						var external []filterapi.FilterRef
-						for _, ref := range policy.Filters() {
-							if !ref.InProcess() {
+						exportPolicy := settings.ExportPolicy
+						var external []policy.Ref
+						for j, ref := range exportPolicy.Filters() {
+							if !exportPolicy.InProcess(j) {
 								external = append(external, ref)
 								continue
 							}
@@ -90,8 +90,8 @@ func TestLoopPolicyExportRemedy(t *testing.T) {
 							}
 							inactive++
 						}
-						if !reflect.DeepEqual(policy.WithFilters(external), before[i].ExportPolicy) {
-							t.Fatalf("remediation changed unrelated export refs or final: %+v -> %+v", before[i].ExportPolicy, policy)
+						if !reflect.DeepEqual(exportPolicy.WithFilters(external), before[i].ExportPolicy) {
+							t.Fatalf("remediation changed unrelated export refs or final: %+v -> %+v", before[i].ExportPolicy, exportPolicy)
 						}
 						if !reflect.DeepEqual(settings.ImportPolicy, before[i].ImportPolicy) {
 							t.Fatal("export remediation changed the import policy")

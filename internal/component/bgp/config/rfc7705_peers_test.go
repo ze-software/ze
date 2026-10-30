@@ -401,7 +401,7 @@ func TestLoopDetectionDefaultAutoPopulation(t *testing.T) {
 }
 
 // TestLoopDetectionInactiveDisables verifies a deactivated loop-detection filter
-// sets LoopDisabled on PeerSettings via the structural FilterRef.Inactive flag
+// sets LoopDisabled on PeerSettings via the structural policy.Ref.Inactive flag
 // (AC-3) -- no "inactive:" string prefix is involved on the value path.
 //
 // VALIDATES: deactivating a loop-detection filter sets LoopDisabled on PeerSettings.

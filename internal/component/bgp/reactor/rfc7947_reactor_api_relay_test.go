@@ -13,6 +13,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/plugin"
+	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/clock"
 	"github.com/ze-software/ze/internal/core/family"
@@ -407,7 +408,7 @@ func TestRelayStoredRouteCountsFailedPolicyChainAsIncomplete(t *testing.T) {
 	require.Nil(t, api.r.api, "fixture must have no API server for this case")
 	dst := api.r.peers[netip.MustParseAddrPort("10.0.0.2:179")]
 	require.NotNil(t, dst, "fixture must expose the destination peer")
-	dst.settings.ExportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "someplugin:scrub"}}, filterapi.FinalAccept)
+	dst.settings.ExportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "someplugin:scrub"}}, routepolicy.FinalAccept)
 	dst.refreshForwardFacts()
 
 	api.r.orderedEgressSteps = []orderedEgressStep{{name: "peer-chain", policyChain: true}}

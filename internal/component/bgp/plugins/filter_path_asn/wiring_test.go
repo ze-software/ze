@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	bgpconfig "github.com/ze-software/ze/internal/component/bgp/config"
-	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	_ "github.com/ze-software/ze/internal/component/bgp/yang"
 	"github.com/ze-software/ze/internal/component/config"
 	_ "github.com/ze-software/ze/internal/component/hub/yang"
@@ -90,7 +89,7 @@ func deliverConfig(t *testing.T, chain string) string {
 	if chain == "export" {
 		got = peers[0].ExportPolicy.Filters()
 	}
-	require.Equal(t, []filterapi.FilterRef{{Name: canonicalRef}}, got,
+	require.Equal(t, []policy.Ref{{Name: canonicalRef}}, got,
 		"the bare list name must canonicalize to this plugin: that resolution is the whole reachability chain")
 
 	require.NoError(t, configure(treeSections(t, tree)))

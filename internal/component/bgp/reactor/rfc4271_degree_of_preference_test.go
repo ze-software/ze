@@ -21,11 +21,11 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -47,7 +47,7 @@ func receiveExternalRoute(t *testing.T, policy bool) []byte {
 		RouterID:      0xcb007109,
 	}
 	if policy {
-		settings.ImportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "set-local-pref"}}, filterapi.FinalAccept)
+		settings.ImportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "set-local-pref"}}, routepolicy.FinalAccept)
 	}
 	source := NewPeer(settings)
 	source.state.Store(int32(PeerStateEstablished))

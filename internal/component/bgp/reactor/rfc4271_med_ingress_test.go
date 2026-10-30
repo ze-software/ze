@@ -10,11 +10,11 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -50,7 +50,7 @@ func TestRFC4271ReceivedMEDAlteredBeforeTheDecisionProcess(t *testing.T) {
 		GlobalLocalAS: 65000,
 		PeerAS:        65001,
 		RouterID:      0xcb007109,
-		ImportPolicy:  mustPolicy(t, []filterapi.FilterRef{{Name: "alter-med"}}, filterapi.FinalAccept),
+		ImportPolicy:  mustPolicy(t, []routepolicy.Ref{{Name: "alter-med"}}, routepolicy.FinalAccept),
 	})
 	source.state.Store(int32(PeerStateEstablished))
 

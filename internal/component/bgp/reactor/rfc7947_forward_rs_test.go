@@ -17,6 +17,7 @@ import (
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/component/plugin"
+	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -269,7 +270,7 @@ func TestReactorForwardRSFallback(t *testing.T) {
 	dst1 := makeRSPeer(t, "10.0.0.2", 65002, ctx, ctxID)
 	// dst2 has export filters -- should be skipped.
 	dst2 := makeRSPeer(t, "10.0.0.3", 65003, ctx, ctxID)
-	dst2.settings.ExportPolicy = mustPolicy(t, frefs("bgp-rs:test-filter"), filterapi.FinalAccept)
+	dst2.settings.ExportPolicy = mustPolicy(t, frefs("bgp-rs:test-filter"), routepolicy.FinalAccept)
 	dst2.refreshForwardFacts()
 
 	var dispatched []fwdItem

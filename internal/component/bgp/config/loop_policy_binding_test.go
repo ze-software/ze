@@ -61,7 +61,7 @@ func TestLoopPolicyBinding(t *testing.T) {
 						t.Fatalf("references = %+v, want exactly one", policy.Filters())
 					}
 					ref := policy.Filters()[0]
-					if ref.Name != "loop:AUTO" || !ref.InProcess() || ref.ActiveExternal() || ref.Inactive != inactive {
+					if ref.Name != "loop:AUTO" || !policy.InProcess(0) || policy.ActiveExternal(0) || ref.Inactive != inactive {
 						t.Fatalf("bound reference = %+v", ref)
 					}
 					if policy.Configured() != (final != "") {
@@ -99,8 +99,9 @@ func TestLoopPolicyBinding(t *testing.T) {
 func TestLoopPolicyExternalCollision(t *testing.T) {
 	reg := mustPolicyRegistry(t, policy.Instance{Name: "AUTO", Type: "loop-detection"}, policy.Instance{Name: "OTHER", Type: "prefix-list"})
 	for _, name := range []string{"external:AUTO", "loop:MISSING", "loop-detection:MISSING", "loop:OTHER", "loop-detection:OTHER"} {
-		refs := canonicalizeFilterRefs([]filterapi.FilterRef{{Name: name}}, reg)
-		if refs[0].InProcess() || !refs[0].ActiveExternal() {
+		refs, bound := canonicalizeFilterRefs([]policy.Ref{{Name: name}}, reg)
+		compiled := filterapi.InternalPolicy(nil).WithBoundFilters(refs, bound)
+		if compiled.InProcess(0) || !compiled.ActiveExternal(0) {
 			t.Fatalf("unresolved reference bypassed external dispatch: %+v", refs[0])
 		}
 		calls := 0
@@ -141,13 +142,13 @@ func TestLoopPolicyDynamicParity(t *testing.T) {
 				t.Fatalf("static/dynamic population = %d/%d, want 1/1", len(peers), len(groups))
 			}
 			for _, settings := range []*reactor.PeerSettings{peers[0], groups[0].Settings} {
-				policy := settings.ImportPolicy
-				if !policy.Configured() || policy.Final() != filterapi.FinalReject {
-					t.Fatalf("%s lost explicit final: %+v", spelling, policy)
+				importPolicy := settings.ImportPolicy
+				if !importPolicy.Configured() || importPolicy.Final() != policy.FinalReject {
+					t.Fatalf("%s lost explicit final: %+v", spelling, importPolicy)
 				}
 				loops := 0
-				for _, ref := range policy.Filters() {
-					if ref.InProcess() {
+				for i, ref := range importPolicy.Filters() {
+					if importPolicy.InProcess(i) {
 						loops++
 						if ref.Name != "loop:LOOPS" || ref.Inactive != inactive {
 							t.Fatalf("%s bound reference = %+v", spelling, ref)
@@ -202,9 +203,9 @@ func TestLoopPolicyUnsupportedDirection(t *testing.T) {
 			if len(peers) != 1 {
 				t.Fatalf("peers = %d, want one", len(peers))
 			}
-			policy := peers[0].ExportPolicy
-			if policy.Final() != filterapi.FinalReject || len(policy.Filters()) != 1 || !policy.Filters()[0].Inactive {
-				t.Fatalf("inactive export decision lost: %+v", policy)
+			exportPolicy := peers[0].ExportPolicy
+			if exportPolicy.Final() != policy.FinalReject || len(exportPolicy.Filters()) != 1 || !exportPolicy.Filters()[0].Inactive {
+				t.Fatalf("inactive export decision lost: %+v", exportPolicy)
 			}
 			if peers[0].ImportPolicy.Configured() || len(peers[0].ImportPolicy.Filters()) != 1 {
 				t.Fatalf("export reference changed automatic import: %+v", peers[0].ImportPolicy)

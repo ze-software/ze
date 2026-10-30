@@ -15,6 +15,7 @@ import (
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/component/plugin"
+	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -32,31 +33,31 @@ func TestLoopPolicyRegisteredStage(t *testing.T) {
 		inactive   bool
 		cluster    uint32
 		originator uint32
-		final      filterapi.FinalDisposition
+		final      routepolicy.Final
 		want       int
 	}{
 		{name: "clean-automatic"},
 		{name: "loop-rejected", own: true},
 		{name: "loop-allowed", own: true, allow: 1},
 		{name: "loop-inactive", own: true, inactive: true},
-		{name: "loop-rejected-explicit-accept", own: true, final: filterapi.FinalAccept},
-		{name: "loop-allowed-explicit-accept", own: true, allow: 1, final: filterapi.FinalAccept, want: 1},
-		{name: "loop-inactive-explicit-accept", own: true, inactive: true, final: filterapi.FinalAccept, want: 1},
+		{name: "loop-rejected-explicit-accept", own: true, final: routepolicy.FinalAccept},
+		{name: "loop-allowed-explicit-accept", own: true, allow: 1, final: routepolicy.FinalAccept, want: 1},
+		{name: "loop-inactive-explicit-accept", own: true, inactive: true, final: routepolicy.FinalAccept, want: 1},
 		{name: "cluster-loop-rejected", cluster: 0x09090909},
 		{name: "cluster-other-accepted", cluster: 0x08080808, want: 1},
 		{name: "originator-loop-rejected", originator: 0xcb007109},
 		{name: "originator-other-accepted", originator: 0xcb007108, want: 1},
-		{name: "explicit-accept", final: filterapi.FinalAccept, want: 1},
-		{name: "explicit-reject", final: filterapi.FinalReject},
+		{name: "explicit-accept", final: routepolicy.FinalAccept, want: 1},
+		{name: "explicit-reject", final: routepolicy.FinalReject},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			ref := filterapi.BindInProcess(filterapi.FilterRef{Name: "AUTO", Inactive: tc.inactive}, "loop-detection")
-			if !ref.InProcess() {
+			ref, bound := filterapi.BindInProcess(routepolicy.Ref{Name: "AUTO", Inactive: tc.inactive}, "loop-detection")
+			if !bound {
 				t.Fatal("real loop registration did not bind AUTO")
 			}
-			policy := filterapi.InternalPolicy([]filterapi.FilterRef{ref})
+			policy := bindRefs(filterapi.InternalPolicy([]routepolicy.Ref{ref}), ref)
 			if tc.final != 0 {
-				policy = mustPolicy(t, policy.Filters(), tc.final)
+				policy = bindRefs(mustPolicy(t, policy.Filters(), tc.final), ref)
 			}
 			addr := netip.MustParseAddr("203.0.113.9")
 			peerAS := uint32(65001)
@@ -135,13 +136,17 @@ func TestLoopPolicyRegisteredStage(t *testing.T) {
 // TestLoopPolicyDynamicOwnership proves substitution and snapshot publication
 // retain execution ownership, while reload equality distinguishes an unbound ref.
 func TestLoopPolicyDynamicOwnership(t *testing.T) {
-	ref := filterapi.BindInProcess(filterapi.FilterRef{Name: "loop:AUTO-$remote_as"}, "loop-detection")
-	resolved := resolveFilterVars([]filterapi.FilterRef{ref}, 65000, 65001, "192.0.2.1")
-	policy := filterapi.InternalPolicy([]filterapi.FilterRef{ref}).WithFilters(resolved)
+	ref, bound := filterapi.BindInProcess(routepolicy.Ref{Name: "loop:AUTO-$remote_as"}, "loop-detection")
+	if !bound {
+		t.Fatalf("templated loop ref %q did not bind to its registered stage", ref.Name)
+	}
+	template := bindRefs(filterapi.InternalPolicy([]routepolicy.Ref{ref}), ref)
+	resolved := resolveFilterVars(template.Filters(), 65000, 65001, "192.0.2.1")
+	policy := template.WithBoundFilters(resolved, template.Bindings())
 	if policy.Configured() || policy.Final() != 0 || len(policy.Filters()) != 1 {
 		t.Fatalf("automatic policy changed: %+v", policy)
 	}
-	if policy.Filters()[0].Name != "loop:AUTO-65001" || !policy.Filters()[0].InProcess() || hasActiveFilter(policy.Filters(), directionImport) {
+	if policy.Filters()[0].Name != "loop:AUTO-65001" || !policy.InProcess(0) || hasActiveFilter(policy, directionImport) {
 		t.Fatalf("dynamic dispatch ownership lost: %+v", policy.Filters())
 	}
 	settings := NewPeerSettings(netip.MustParseAddr("192.0.2.1"), 65000, 65001, 0x01020304)
@@ -152,8 +157,14 @@ func TestLoopPolicyDynamicOwnership(t *testing.T) {
 	if !slices.Equal(peer.ImportPolicy().Filters(), policy.Filters()) || !slices.Equal(peer.forwardFacts().exportPolicy.Filters(), policy.Filters()) {
 		t.Fatal("peer or forwarding snapshot lost the bound reference")
 	}
+	if !slices.Equal(peer.ImportPolicy().Bindings(), policy.Bindings()) || !peer.ImportPolicy().InProcess(0) {
+		t.Fatalf("peer import snapshot lost the stage binding: %v", peer.ImportPolicy().Bindings())
+	}
+	if !slices.Equal(peer.forwardFacts().exportPolicy.Bindings(), policy.Bindings()) || !peer.forwardFacts().exportPolicy.InProcess(0) {
+		t.Fatalf("forwarding export snapshot lost the stage binding: %v", peer.forwardFacts().exportPolicy.Bindings())
+	}
 	unbound := *settings
-	unbound.ImportPolicy = policy.WithFilters([]filterapi.FilterRef{{Name: policy.Filters()[0].Name}})
+	unbound.ImportPolicy = policy.WithFilters([]routepolicy.Ref{{Name: policy.Filters()[0].Name}})
 	if peerSettingsEqual(settings, &unbound) {
 		t.Fatal("reload equality ignored changed execution ownership")
 	}
@@ -164,8 +175,8 @@ func TestLoopPolicyDynamicOwnership(t *testing.T) {
 func TestLoopPolicyDryRunScope(t *testing.T) {
 	r := New(&Config{})
 	settings := NewPeerSettings(netip.MustParseAddr("192.0.2.1"), 65000, 65001, 0x01020304)
-	ref := filterapi.BindInProcess(filterapi.FilterRef{Name: "AUTO"}, "loop-detection")
-	settings.ImportPolicy = filterapi.InternalPolicy([]filterapi.FilterRef{ref})
+	ref, _ := filterapi.BindInProcess(routepolicy.Ref{Name: "AUTO"}, "loop-detection")
+	settings.ImportPolicy = bindRefs(filterapi.InternalPolicy([]routepolicy.Ref{ref}), ref)
 	peer := NewPeer(settings)
 	r.peers[settings.PeerKey()] = peer
 	adapter := &reactorAPIAdapter{r: r}
@@ -190,7 +201,7 @@ func TestLoopPolicyDryRunScope(t *testing.T) {
 		}
 	}
 	ref.Inactive = true
-	settings.ImportPolicy = settings.ImportPolicy.WithFilters([]filterapi.FilterRef{ref})
+	settings.ImportPolicy = bindRefs(settings.ImportPolicy.WithFilters([]routepolicy.Ref{ref}), ref)
 	result, err = adapter.PolicyDryRun(settings.Address.String(), directionImport, "", body, true)
 	if err != nil {
 		t.Fatal(err)
@@ -203,11 +214,12 @@ func TestLoopPolicyDryRunScope(t *testing.T) {
 // TestLoopPolicyUnknownGuardFailsClosed proves a configured internal ref does
 // not make the remaining unresolved external guard optional at the live entry.
 func TestLoopPolicyUnknownGuardFailsClosed(t *testing.T) {
-	refs := []filterapi.FilterRef{
-		filterapi.BindInProcess(filterapi.FilterRef{Name: "AUTO"}, "loop-detection"),
+	automatic, _ := filterapi.BindInProcess(routepolicy.Ref{Name: "AUTO"}, "loop-detection")
+	refs := []routepolicy.Ref{
+		automatic,
 		{Name: "missing:guard"},
 	}
-	policy := filterapi.InternalPolicy(refs)
+	policy := bindRefs(filterapi.InternalPolicy(refs), automatic)
 	addr := netip.MustParseAddr("192.0.2.1")
 	peer := NewPeer(&PeerSettings{Address: addr, LocalAS: 65000, PeerAS: 65001, ImportPolicy: policy})
 	r := &Reactor{}
@@ -227,8 +239,8 @@ func TestLoopPolicyUnknownGuardFailsClosed(t *testing.T) {
 // direction validation. Neither a direct chain nor either export origin rail
 // may interpret ingress ownership as proof of an executed export check.
 func TestLoopPolicyManualExportRefusal(t *testing.T) {
-	ref := filterapi.BindInProcess(filterapi.FilterRef{Name: "AUTO"}, "loop-detection")
-	policy := filterapi.InternalPolicy([]filterapi.FilterRef{ref})
+	ref, _ := filterapi.BindInProcess(routepolicy.Ref{Name: "AUTO"}, "loop-detection")
+	policy := bindRefs(filterapi.InternalPolicy([]routepolicy.Ref{ref}), ref)
 	for _, direction := range []string{directionExport, "invalid-direction"} {
 		result := PolicyFilterChain(policy, true, direction, "192.0.2.1", 65001, "origin igp", func(string, string, string, string, uint32, string) PolicyResponse {
 			t.Fatal("unsupported internal direction attempted an RPC")
@@ -242,7 +254,7 @@ func TestLoopPolicyManualExportRefusal(t *testing.T) {
 			t.Fatalf("manual %s dry-run accepted or claimed execution: result=%+v trace=%+v", direction, result, trace)
 		}
 	}
-	if !hasActiveFilter(policy.Filters(), directionExport) {
+	if !hasActiveFilter(policy, directionExport) {
 		t.Fatal("native export fast path would bypass an unsupported internal ref")
 	}
 	settings := NewPeerSettings(netip.MustParseAddr("192.0.2.1"), 65000, 65001, 0x01020304)
@@ -262,8 +274,8 @@ func TestLoopPolicyManualExportRefusal(t *testing.T) {
 		t.Fatalf("forwarded export bypassed the unsupported internal ref: %+v", result)
 	}
 	ref.Inactive = true
-	policy = policy.WithFilters([]filterapi.FilterRef{ref})
-	if hasActiveFilter(policy.Filters(), directionExport) {
+	policy = bindRefs(policy.WithFilters([]routepolicy.Ref{ref}), ref)
+	if hasActiveFilter(policy, directionExport) {
 		t.Fatal("intentionally inactive internal ref needs export execution")
 	}
 	if result := PolicyFilterChain(policy, true, directionExport, "192.0.2.1", 65001, "origin igp", nil); result.Action != PolicyReject || result.Failed {
@@ -281,8 +293,8 @@ func TestLoopPolicyManualExportLeavesNativeRS(t *testing.T) {
 	}
 	source := makeRSPeer(t, "10.0.0.1", 65001, ctx, ctxID)
 	destination := makeRSPeer(t, "10.0.0.2", 65002, ctx, ctxID)
-	ref := filterapi.BindInProcess(filterapi.FilterRef{Name: "AUTO"}, "loop-detection")
-	destination.settings.ExportPolicy = filterapi.InternalPolicy([]filterapi.FilterRef{ref})
+	ref, _ := filterapi.BindInProcess(routepolicy.Ref{Name: "AUTO"}, "loop-detection")
+	destination.settings.ExportPolicy = bindRefs(filterapi.InternalPolicy([]routepolicy.Ref{ref}), ref)
 	destination.refreshForwardFacts()
 	update := &ReceivedUpdate{
 		WireUpdate:   wireu.NewWireUpdate(policyChainAdvertisingBody(), ctxID),
@@ -303,20 +315,20 @@ func TestLoopPolicyManualExportLeavesNativeRS(t *testing.T) {
 // First ownership tests the existing boundary; middle and last expose early
 // terminal escape and side effects before a later unsupported reference.
 func TestLoopPolicyExportOwnershipPreflight(t *testing.T) {
-	ref := filterapi.BindInProcess(filterapi.FilterRef{Name: "AUTO"}, "loop-detection")
-	if !ref.InProcess() {
+	ref, bound := filterapi.BindInProcess(routepolicy.Ref{Name: "AUTO"}, "loop-detection")
+	if !bound {
 		t.Fatal("real loop registration did not bind AUTO")
 	}
 	for _, tc := range []struct {
 		name string
-		refs []filterapi.FilterRef
+		refs []routepolicy.Ref
 	}{
-		{name: "first", refs: []filterapi.FilterRef{ref, {Name: "external:raw"}}},
-		{name: "middle", refs: []filterapi.FilterRef{{Name: "external:raw"}, ref, {Name: "external:later"}}},
-		{name: "last", refs: []filterapi.FilterRef{{Name: "external:pass"}, {Name: "external:raw"}, ref}},
+		{name: "first", refs: []routepolicy.Ref{ref, {Name: "external:raw"}}},
+		{name: "middle", refs: []routepolicy.Ref{{Name: "external:raw"}, ref, {Name: "external:later"}}},
+		{name: "last", refs: []routepolicy.Ref{{Name: "external:pass"}, {Name: "external:raw"}, ref}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			policy := mustPolicy(t, tc.refs, filterapi.FinalAccept)
+			policy := bindRefs(mustPolicy(t, tc.refs, routepolicy.FinalAccept), ref)
 			for _, direction := range []string{directionExport, "invalid-direction"} {
 				t.Run(direction, func(t *testing.T) {
 					calls := 0
@@ -348,11 +360,11 @@ func TestLoopPolicyExportOwnershipPreflight(t *testing.T) {
 // TestLoopPolicyExportOwnershipConsumers drives forwarded and originated export
 // gates with a valid raw response preceding a real bound internal reference.
 func TestLoopPolicyExportOwnershipConsumers(t *testing.T) {
-	ref := filterapi.BindInProcess(filterapi.FilterRef{Name: "AUTO"}, "loop-detection")
-	if !ref.InProcess() {
+	ref, bound := filterapi.BindInProcess(routepolicy.Ref{Name: "AUTO"}, "loop-detection")
+	if !bound {
 		t.Fatal("real loop registration did not bind AUTO")
 	}
-	policy := mustPolicy(t, []filterapi.FilterRef{{Name: "external:raw"}, ref}, filterapi.FinalAccept)
+	policy := bindRefs(mustPolicy(t, []routepolicy.Ref{{Name: "external:raw"}, ref}, routepolicy.FinalAccept), ref)
 	settings := NewPeerSettings(netip.MustParseAddr("192.0.2.1"), 65000, 65001, 0x01020304)
 	settings.ExportPolicy = policy
 	peer := NewPeer(settings)
@@ -384,19 +396,19 @@ func TestLoopPolicyExportOwnershipConsumers(t *testing.T) {
 // both explicit finals when WithFilters replaces active ownership with inactive
 // or external references, then restores the unsupported ownership.
 func TestLoopPolicyOwnershipReplacement(t *testing.T) {
-	ref := filterapi.BindInProcess(filterapi.FilterRef{Name: "AUTO"}, "loop-detection")
-	if !ref.InProcess() {
+	ref, bound := filterapi.BindInProcess(routepolicy.Ref{Name: "AUTO"}, "loop-detection")
+	if !bound {
 		t.Fatal("real loop registration did not bind AUTO")
 	}
 	inactive := ref
 	inactive.Inactive = true
-	for _, final := range []filterapi.FinalDisposition{filterapi.FinalAccept, filterapi.FinalReject} {
-		original := mustPolicy(t, []filterapi.FilterRef{ref}, final)
-		for _, refs := range [][]filterapi.FilterRef{
+	for _, final := range []routepolicy.Final{routepolicy.FinalAccept, routepolicy.FinalReject} {
+		original := bindRefs(mustPolicy(t, []routepolicy.Ref{ref}, final), ref)
+		for _, refs := range [][]routepolicy.Ref{
 			{{Name: "external:raw"}, inactive, {Name: "external:later"}},
 			{{Name: "external:raw"}, {Name: "external:later"}},
 		} {
-			policy := original.WithFilters(refs)
+			policy := bindRefs(original.WithFilters(refs), ref)
 			if policy.Final() != final || !policy.Configured() {
 				t.Fatalf("replacement changed final: %+v", policy)
 			}
@@ -420,14 +432,14 @@ func TestLoopPolicyOwnershipReplacement(t *testing.T) {
 					result = PolicyFilterChain(policy, true, directionExport, "192.0.2.1", 65001, "origin igp", call)
 				}
 				want := PolicyModify
-				if final == filterapi.FinalReject {
+				if final == routepolicy.FinalReject {
 					want = PolicyReject
 				}
 				if result.Action != want || result.Failed || calls != 1 {
 					t.Errorf("supported raw policy: result=%+v calls=%d want=%v", result, calls, want)
 				}
 			}
-			restored := policy.WithFilters([]filterapi.FilterRef{{Name: "external:raw"}, ref})
+			restored := bindRefs(policy.WithFilters([]routepolicy.Ref{{Name: "external:raw"}, ref}), ref)
 			result := PolicyFilterChain(restored, true, directionExport, "192.0.2.1", 65001, "origin igp", func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
 				t.Error("restored unsupported ownership executed an external filter")
 				return PolicyResponse{Action: PolicyModify, Raw: policyChainAdvertisingBody()}

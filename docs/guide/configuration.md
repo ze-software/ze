@@ -170,7 +170,7 @@ Its peers inherit those explicit policies. Without an import or export policy
 at any level, EBGP rejects routes in that direction, but the session can still
 establish. The internal peer needs no policy to preserve its existing behavior.
 <!-- source: internal/component/bgp/filterapi/policy.go -- Policy.AcceptsAtEnd -->
-<!-- source: internal/component/bgp/config/redistribution.go -- concatPolicies -->
+<!-- source: internal/component/policy/chain.go -- ConcatChains -->
 
 The global `router-id` is the BGP Identifier every peer sends by default. A peer
 or group can override it with `session { router-id ... }`, and that peer's OPEN
@@ -984,7 +984,7 @@ bgp {
 
 The route-server group explicitly permits both directions. Its blackhole
 agreement and policy are inherited by each member.
-<!-- source: internal/component/bgp/config/redistribution.go -- concatPolicies -->
+<!-- source: internal/component/policy/chain.go -- ConcatChains -->
 
 ### Announcing a blackhole to a peer
 
@@ -1660,10 +1660,11 @@ that the routing agreement requires. Loop-detection entries are prepended unless
 the chain already names them. `inactive: filters NAME;` retains a reference but
 disables its execution without changing an explicitly configured final.
 <!-- source: internal/component/bgp/config/peers.go -- prependDefaultFilters -->
-<!-- source: internal/component/bgp/config/redistribution.go -- extractFilterPolicy, concatPolicies -->
+<!-- source: internal/component/policy/chain.go -- ExtractChain, ConcatChains -->
 
 See [Route Filters](redistribution.md) for details.
-<!-- source: internal/component/bgp/config/redistribution.go -- extractFilterPolicy, concatPolicies, canonicalizeFilterRefs -->
+<!-- source: internal/component/policy/chain.go -- ExtractChain, ConcatChains, CanonicalName -->
+<!-- source: internal/component/bgp/config/redistribution.go -- canonicalizeFilterRefs -->
 
 ## Cross-Protocol Redistribute
 

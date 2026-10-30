@@ -11,6 +11,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/plugin"
+	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
 
@@ -184,10 +185,10 @@ func TestTracePolicyFilterChain(t *testing.T) {
 // TestTracePolicyFinal compares dry-run and runtime results for exhaustion,
 // terminal raw rewrites, and failures that must short-circuit either final.
 func TestTracePolicyFinal(t *testing.T) {
-	for _, final := range []filterapi.FinalDisposition{filterapi.FinalAccept, filterapi.FinalReject} {
+	for _, final := range []routepolicy.Final{routepolicy.FinalAccept, routepolicy.FinalReject} {
 		for _, tc := range []struct {
 			name     string
-			refs     []filterapi.FilterRef
+			refs     []routepolicy.Ref
 			response PolicyResponse
 			calls    int
 		}{
@@ -213,7 +214,7 @@ func TestTracePolicyFinal(t *testing.T) {
 				require.Len(t, trace, tc.calls)
 				runtime := PolicyFilterChain(policy, true, directionExport, "192.0.2.1", 65001, "origin igp", call)
 				require.Equal(t, runtime, result)
-				if final == filterapi.FinalReject {
+				if final == routepolicy.FinalReject {
 					require.Equal(t, PolicyReject, result.Action)
 					require.Empty(t, result.Text)
 				}
@@ -517,7 +518,7 @@ func TestPolicyDryRunPrependReportsAtTheSessionWidth(t *testing.T) {
 // operational adapter without a filter server; empty policies still decide.
 func TestPolicyDryRunEmptyFinal(t *testing.T) {
 	for _, direction := range []string{directionImport, directionExport} {
-		for _, final := range []filterapi.FinalDisposition{filterapi.FinalAccept, filterapi.FinalReject} {
+		for _, final := range []routepolicy.Final{routepolicy.FinalAccept, routepolicy.FinalReject} {
 			t.Run(direction, func(t *testing.T) {
 				r := New(&Config{})
 				settings := NewPeerSettings(mustParseAddr("192.0.2.1"), 65000, 65001, 0x01010101)
@@ -533,7 +534,7 @@ func TestPolicyDryRunEmptyFinal(t *testing.T) {
 					"192.0.2.1", direction, "", dryRunUpdateBody(t), true)
 				require.NoError(t, err)
 				require.Empty(t, result.Trace)
-				if final == filterapi.FinalReject {
+				if final == routepolicy.FinalReject {
 					require.Equal(t, dryRunActionReject, result.Action)
 					require.Empty(t, result.TextAfter)
 				} else {
@@ -550,7 +551,7 @@ func TestPolicyDryRunEmptyFinal(t *testing.T) {
 func TestPolicyDryRunOverrideKeepsFinal(t *testing.T) {
 	r := New(&Config{})
 	settings := NewPeerSettings(mustParseAddr("192.0.2.1"), 65000, 65001, 0x01010101)
-	policy, err := filterapi.NewPolicy(frefs("plug:FIRST", "plug:LAST"), filterapi.FinalReject)
+	policy, err := filterapi.NewPolicy(frefs("plug:FIRST", "plug:LAST"), routepolicy.FinalReject)
 	require.NoError(t, err)
 	settings.ExportPolicy = policy
 	r.peers[settings.PeerKey()] = NewPeer(settings)
@@ -588,7 +589,7 @@ func TestPolicyDryRunFinalRejectPreservesWithdrawals(t *testing.T) {
 		} {
 			for _, chain := range []struct {
 				name     string
-				refs     []filterapi.FilterRef
+				refs     []routepolicy.Ref
 				response PolicyResponse
 				blocked  bool
 			}{
@@ -603,7 +604,7 @@ func TestPolicyDryRunFinalRejectPreservesWithdrawals(t *testing.T) {
 				t.Run(direction+"/"+body.name+"/"+chain.name, func(t *testing.T) {
 					r := New(&Config{})
 					settings := NewPeerSettings(mustParseAddr("192.0.2.1"), 65000, 65001, 0x01010101)
-					policy, err := filterapi.NewPolicy(chain.refs, filterapi.FinalReject)
+					policy, err := filterapi.NewPolicy(chain.refs, routepolicy.FinalReject)
 					if err != nil {
 						t.Fatal(err)
 					}

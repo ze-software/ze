@@ -12,6 +12,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/family"
 )
 
@@ -62,7 +63,7 @@ func runImportDrop(t *testing.T, body []byte, drop ...string) ingressStepResult 
 		Address:      addr,
 		LocalAS:      65000,
 		PeerAS:       65001,
-		ImportPolicy: mustPolicy(t, []filterapi.FilterRef{{Name: "prefix-list"}}, filterapi.FinalAccept),
+		ImportPolicy: mustPolicy(t, []routepolicy.Ref{{Name: "prefix-list"}}, routepolicy.FinalAccept),
 	})
 	r := &Reactor{
 		api:              &pluginserver.Server{}, // non-nil: past the r.api guard
@@ -275,7 +276,7 @@ func TestFilterModifyRefusesReorderedMPAnswer(t *testing.T) {
 		" 800E23 0002 01 10 20010db8000000000000000000000001 00 3020010db80001 3020010db80002")
 	family.RegisterTestFamilies()
 	addr := netip.MustParseAddr("10.0.0.9")
-	peer := NewPeer(&PeerSettings{Address: addr, LocalAS: 65000, PeerAS: 65001, ImportPolicy: mustPolicy(t, []filterapi.FilterRef{{Name: "prefix-list"}}, filterapi.FinalAccept)})
+	peer := NewPeer(&PeerSettings{Address: addr, LocalAS: 65000, PeerAS: 65001, ImportPolicy: mustPolicy(t, []routepolicy.Ref{{Name: "prefix-list"}}, routepolicy.FinalAccept)})
 	r := &Reactor{
 		api:              &pluginserver.Server{},
 		policyFilterSeam: answerFilter("mp ipv6/unicast add 2001:db8:2::/48 2001:db8:1::/48"),
@@ -302,8 +303,8 @@ func TestExportFilterModifyRefusalSuppresses(t *testing.T) {
 		policyFilterSeam: answerFilter("nlri add 10.0.0.0/24 172.16.0.0/24"),
 		attrModHandlers:  attrModHandlersWithDefaults(),
 	}
-	refs := []filterapi.FilterRef{{Name: "prefix-list"}}
-	got := r.runEgressPolicyChainASN4(mustPolicy(t, refs, filterapi.FinalAccept), "10.0.0.2", 65002, 65000, false, testWireUpdate(body), true)
+	refs := []routepolicy.Ref{{Name: "prefix-list"}}
+	got := r.runEgressPolicyChainASN4(mustPolicy(t, refs, routepolicy.FinalAccept), "10.0.0.2", 65002, 65000, false, testWireUpdate(body), true)
 	assert.False(t, got.accept, "fail-closed: the route is withheld")
 	assert.True(t, got.failed, "the step must report that it could not apply the answer")
 }

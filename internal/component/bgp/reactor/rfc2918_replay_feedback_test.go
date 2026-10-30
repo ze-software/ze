@@ -5,11 +5,11 @@ import (
 	"net/netip"
 	"testing"
 
-	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
@@ -71,7 +71,7 @@ func TestRefreshSentFeedbackRetainsReplayOrigin(t *testing.T) {
 func TestRFC2918RefreshRunsCurrentExportPolicy(t *testing.T) {
 	peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast)
 	peer.sendInitialRoutes()
-	peer.settings.ExportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "refresh-policy"}}, filterapi.FinalAccept)
+	peer.settings.ExportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "refresh-policy"}}, routepolicy.FinalAccept)
 	peer.refreshForwardFacts()
 	api := newSendPermissionReactor(peer)
 	api.r.api = &pluginserver.Server{}

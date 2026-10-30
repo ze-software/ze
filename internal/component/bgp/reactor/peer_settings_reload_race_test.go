@@ -9,7 +9,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	routepolicy "github.com/ze-software/ze/internal/component/policy"
 )
 
 // TestReloadWhileReceivingNoRace runs config reloads that swap a peer's filter
@@ -34,12 +34,12 @@ import (
 // read makes the detector report a read there against the write in
 // hotSwappableSettings from applyHotSwappableSettings.
 func TestReloadWhileReceivingNoRace(t *testing.T) {
-	chainA := []filterapi.FilterRef{{Name: "policy:chain-a"}}
-	chainB := []filterapi.FilterRef{{Name: "policy:chain-b"}}
+	chainA := []routepolicy.Ref{{Name: "policy:chain-a"}}
+	chainB := []routepolicy.Ref{{Name: "policy:chain-b"}}
 
 	initial := swapTestPeerSettings(t)
-	initial.ImportPolicy = mustPolicy(t, chainA, filterapi.FinalAccept)
-	initial.ExportPolicy = mustPolicy(t, chainA, filterapi.FinalAccept)
+	initial.ImportPolicy = mustPolicy(t, chainA, routepolicy.FinalAccept)
+	initial.ExportPolicy = mustPolicy(t, chainA, routepolicy.FinalAccept)
 
 	// Every reload alternates the chains, so each one is a real swap rather than a
 	// no-change reload the reconcile would skip.
@@ -47,11 +47,11 @@ func TestReloadWhileReceivingNoRace(t *testing.T) {
 	nextSettings := func() *PeerSettings {
 		ps := swapTestPeerSettings(t)
 		if reloads.Add(1)%2 == 0 {
-			ps.ImportPolicy = mustPolicy(t, chainA, filterapi.FinalAccept)
-			ps.ExportPolicy = mustPolicy(t, chainA, filterapi.FinalAccept)
+			ps.ImportPolicy = mustPolicy(t, chainA, routepolicy.FinalAccept)
+			ps.ExportPolicy = mustPolicy(t, chainA, routepolicy.FinalAccept)
 		} else {
-			ps.ImportPolicy = mustPolicy(t, chainB, filterapi.FinalAccept)
-			ps.ExportPolicy = mustPolicy(t, chainB, filterapi.FinalAccept)
+			ps.ImportPolicy = mustPolicy(t, chainB, routepolicy.FinalAccept)
+			ps.ExportPolicy = mustPolicy(t, chainB, routepolicy.FinalAccept)
 		}
 		return ps
 	}

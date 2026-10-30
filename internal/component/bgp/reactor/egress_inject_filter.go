@@ -90,7 +90,7 @@ func (r *Reactor) exportFilterForBody(peer *Peer, body []byte) (suppress bool, o
 	}
 	// Final-only decisions run without transport or text formatting. Withdrawals
 	// survive rejection so an already advertised route can leave the peer.
-	if hasActiveFilter(facts.exportPolicy.Filters(), directionExport) {
+	if hasActiveFilter(facts.exportPolicy, directionExport) {
 		var update wireu.WireUpdate
 		wireu.InitWireUpdate(&update, body, facts.sendCtxID)
 		res := r.runEgressPolicyChainASN4(facts.exportPolicy, facts.addrStr, facts.peerAS, facts.localAS, !facts.isEBGP, &update, facts.sendASN4)

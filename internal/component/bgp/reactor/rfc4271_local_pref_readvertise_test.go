@@ -11,8 +11,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	routepolicy "github.com/ze-software/ze/internal/component/policy"
 )
 
 // rfc4271ImportPolicyPayload runs a2InlinePayload, received from the external
@@ -26,7 +26,7 @@ func rfc4271ImportPolicyPayload(t *testing.T, policy bool) []byte {
 	addr := netip.MustParseAddr("203.0.113.9")
 	settings := &PeerSettings{Address: addr, LocalAS: 65000, PeerAS: 65001}
 	if policy {
-		settings.ImportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "set-local-pref"}}, filterapi.FinalAccept)
+		settings.ImportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "set-local-pref"}}, routepolicy.FinalAccept)
 	}
 	r := &Reactor{
 		api:              &pluginserver.Server{}, // non-nil: past the fail-closed r.api guard

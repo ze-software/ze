@@ -9,6 +9,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/env"
 )
 
@@ -99,11 +100,11 @@ func TestPolicyInheritance(t *testing.T) {
 	if len(peers) != 1 {
 		t.Fatalf("peers = %d, want 1", len(peers))
 	}
-	want := []filterapi.FilterRef{{Name: "ext:global"}, {Name: "ext:group", Inactive: true}}
-	if !slices.Equal(peers[0].ImportPolicy.Filters(), want) || peers[0].ImportPolicy.Final() != filterapi.FinalReject {
+	want := []policy.Ref{{Name: "ext:global"}, {Name: "ext:group", Inactive: true}}
+	if !slices.Equal(peers[0].ImportPolicy.Filters(), want) || peers[0].ImportPolicy.Final() != policy.FinalReject {
 		t.Fatalf("import inheritance = %+v", peers[0].ImportPolicy)
 	}
-	if !peers[0].ExportPolicy.Configured() || peers[0].ExportPolicy.Final() != filterapi.FinalReject {
+	if !peers[0].ExportPolicy.Configured() || peers[0].ExportPolicy.Final() != policy.FinalReject {
 		t.Fatalf("absent child failed to inherit export: %+v", peers[0].ExportPolicy)
 	}
 }
@@ -174,13 +175,14 @@ func TestPolicyDynamicTemplateFinal(t *testing.T) {
 		if len(groups) != 1 {
 			t.Fatalf("dynamic groups = %d, want 1", len(groups))
 		}
-		policy := groups[0].Settings.ImportPolicy
-		if !policy.Configured() || policy.AcceptsAtEnd(false) != (final == "accept") || policy.AcceptsAtEnd(true) != (final == "accept") {
-			t.Fatalf("dynamic final %s lost: %+v", final, policy)
+		importPolicy := groups[0].Settings.ImportPolicy
+		if !importPolicy.Configured() || importPolicy.AcceptsAtEnd(false) != (final == "accept") || importPolicy.AcceptsAtEnd(true) != (final == "accept") {
+			t.Fatalf("dynamic final %s lost: %+v", final, importPolicy)
 		}
-		want := []filterapi.FilterRef{filterapi.BindInProcess(filterapi.FilterRef{Name: "LOOPS"}, "loop-detection"), {Name: "bgp-filter-prefix:MEMBERS"}, {Name: "bgp-filter-prefix:MEMBERS"}}
-		if !slices.Equal(policy.Filters(), want) {
-			t.Fatalf("dynamic filters = %+v, want %+v", policy.Filters(), want)
+		loops, bound := filterapi.BindInProcess(policy.Ref{Name: "LOOPS"}, "loop-detection")
+		want := []policy.Ref{loops, {Name: "bgp-filter-prefix:MEMBERS"}, {Name: "bgp-filter-prefix:MEMBERS"}}
+		if !slices.Equal(importPolicy.Filters(), want) || !bound || !importPolicy.InProcess(0) || importPolicy.InProcess(1) || importPolicy.InProcess(2) {
+			t.Fatalf("dynamic filters = %+v, want %+v", importPolicy.Filters(), want)
 		}
 	}
 }

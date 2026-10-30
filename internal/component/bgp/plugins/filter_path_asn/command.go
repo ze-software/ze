@@ -55,7 +55,7 @@ type attachment struct {
 // A chain reference reaches this plugin as the bare list name, as
 // reject-asn:NAME or as bgp-filter-path-asn:NAME, and the engine concatenates
 // the bgp-level, group-level and peer-level chains into the peer's effective one
-// (concatPolicies, internal/component/bgp/config/redistribution.go). So a peer counts when
+// (policy.ConcatChains, internal/component/policy/chain.go). So a peer counts when
 // the name appears at any of the three levels, and the instance name is read
 // after the prefix rather than compared whole.
 //

@@ -14,9 +14,9 @@ import (
 
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 
-	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
+	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/family"
 )
@@ -1151,7 +1151,7 @@ func (p *Peer) defaultOriginateFilterAccepts(filterName string, fam family.Famil
 
 	// RFC 8212 Section 3.
 	res := PolicyFilterChain(
-		policy.WithFilters([]filterapi.FilterRef{{Name: filterName}}),
+		policy.WithFilters([]routepolicy.Ref{{Name: filterName}}),
 		external,
 		"export",
 		p.settings.Address.String(),

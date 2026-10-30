@@ -11,6 +11,7 @@ import (
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/component/plugin"
+	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
@@ -23,10 +24,10 @@ import (
 // TestPolicyFilterChainFinalDisposition exercises exhaustion and raw terminal
 // outcomes without allowing a filter's accept or modification to grant acceptance.
 func TestPolicyFilterChainFinalDisposition(t *testing.T) {
-	for _, final := range []filterapi.FinalDisposition{filterapi.FinalAccept, filterapi.FinalReject} {
+	for _, final := range []routepolicy.Final{routepolicy.FinalAccept, routepolicy.FinalReject} {
 		for _, action := range []PolicyAction{PolicyAccept, PolicyReject, PolicyModify} {
 			for _, raw := range []bool{false, true} {
-				policy, err := filterapi.NewPolicy([]filterapi.FilterRef{{Name: "test:first"}, {Name: "test:last"}}, final)
+				policy, err := filterapi.NewPolicy([]routepolicy.Ref{{Name: "test:first"}, {Name: "test:last"}}, final)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -38,7 +39,7 @@ func TestPolicyFilterChainFinalDisposition(t *testing.T) {
 					}
 					return PolicyResponse{Action: action, Delta: "local-preference 200"}
 				})
-				wantReject := final == filterapi.FinalReject || action == PolicyReject
+				wantReject := final == routepolicy.FinalReject || action == PolicyReject
 				if (result.Action == PolicyReject) != wantReject || result.Failed || result.Teardown {
 					t.Fatalf("final=%v action=%v raw=%v: result=%+v", final, action, raw, result)
 				}
@@ -57,8 +58,8 @@ func TestPolicyFilterChainFinalDisposition(t *testing.T) {
 // TestPolicyFinalWithoutActiveFilters proves nil transport is irrelevant to a
 // terminal decision, including a direction whose only reference is inactive.
 func TestPolicyFinalWithoutActiveFilters(t *testing.T) {
-	for _, refs := range [][]filterapi.FilterRef{nil, {{Name: "test:inactive", Inactive: true}}} {
-		for _, final := range []filterapi.FinalDisposition{filterapi.FinalAccept, filterapi.FinalReject} {
+	for _, refs := range [][]routepolicy.Ref{nil, {{Name: "test:inactive", Inactive: true}}} {
+		for _, final := range []routepolicy.Final{routepolicy.FinalAccept, routepolicy.FinalReject} {
 			policy, err := filterapi.NewPolicy(refs, final)
 			if err != nil {
 				t.Fatal(err)
@@ -75,13 +76,13 @@ func TestPolicyFinalWithoutActiveFilters(t *testing.T) {
 // forwarded export and originated export; no filter transport is installed.
 func TestPolicyFinalNilAPIRails(t *testing.T) {
 	body := policyChainAdvertisingBody()
-	for _, refs := range [][]filterapi.FilterRef{nil, {{Name: "test:off", Inactive: true}}} {
-		for _, final := range []filterapi.FinalDisposition{filterapi.FinalAccept, filterapi.FinalReject} {
+	for _, refs := range [][]routepolicy.Ref{nil, {{Name: "test:off", Inactive: true}}} {
+		for _, final := range []routepolicy.Final{routepolicy.FinalAccept, routepolicy.FinalReject} {
 			policy := mustPolicy(t, refs, final)
 			peer := peerWithExportPolicy(t, "192.0.2.1", policy)
 			peer.settings.ImportPolicy = policy
 			r := &Reactor{}
-			want := final == filterapi.FinalAccept
+			want := final == routepolicy.FinalAccept
 			in := r.runIngressPolicyChain(peer, peer.Settings().Address, 65001, testWireUpdate(body), body)
 			if in.accept != want {
 				t.Fatalf("ingress final=%v accept=%v", final, in.accept)
@@ -113,7 +114,7 @@ func TestPolicyFinalIngressPreservesWithdrawals(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			addr := netip.MustParseAddr("203.0.113.9")
 			source := NewPeer(&PeerSettings{Address: addr, LocalAS: 65000, PeerAS: 65001,
-				ImportPolicy: mustPolicy(t, nil, filterapi.FinalReject)})
+				ImportPolicy: mustPolicy(t, nil, routepolicy.FinalReject)})
 			source.state.Store(int32(PeerStateEstablished))
 			var delivered [][]byte
 			r := &Reactor{clock: source.clock, config: &Config{LocalAS: 65000},
@@ -130,7 +131,7 @@ func TestPolicyFinalIngressPreservesWithdrawals(t *testing.T) {
 			if len(delivered) != 1 || !bytes.Equal(delivered[0], mustHex(t, tc.want)) {
 				t.Fatalf("consumer received %x, want %s", delivered, tc.want)
 			}
-			destination := peerWithExportPolicy(t, "203.0.113.10", mustPolicy(t, nil, filterapi.FinalReject))
+			destination := peerWithExportPolicy(t, "203.0.113.10", mustPolicy(t, nil, routepolicy.FinalReject))
 			suppress, withdrawals := r.exportFilterForBody(destination, body)
 			if suppress || !bytes.Equal(withdrawals, mustHex(t, tc.want)) {
 				t.Fatalf("API withdrawal suppressed=%v body=%x want=%s", suppress, withdrawals, tc.want)
@@ -147,7 +148,7 @@ func TestPolicyFinalReloadRetainedRoutes(t *testing.T) {
 	for _, setting := range settings {
 		setting.RSClient = true
 	}
-	settings[1].ExportPolicy = mustPolicy(t, nil, filterapi.FinalAccept)
+	settings[1].ExportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
 	peers := rsLiveRouter(t, settings...)
 	source, target := peers[0], peers[1]
 	session := target.peer.currentSession()
@@ -157,7 +158,7 @@ func TestPolicyFinalReloadRetainedRoutes(t *testing.T) {
 	ownershipLiveThrough(t, target, prefix, attrs)
 	previous := target.peer.hotSwappableSnapshot(hotSwappableSettings)
 	next := target.peer.settingsSnapshot()
-	next.ExportPolicy = mustPolicy(t, nil, filterapi.FinalReject)
+	next.ExportPolicy = mustPolicy(t, nil, routepolicy.FinalReject)
 	mustApplyHotSwappableSettings(t, target.peer, next, hotSwappableSettings)
 	lowEventually(t, func() bool { _, held := ownershipLiveRead(t, target).routes[prefix]; return !held }, "final reject withdraws prior advertisement")
 	absent := target.peer.settingsSnapshot()
@@ -181,7 +182,7 @@ func TestPolicyFinalReloadStaticRoutes(t *testing.T) {
 	peer.settings.LocalAddress = netip.MustParseAddr("10.9.9.9")
 	peer.settings.StaticRoutes = []StaticRoute{staticRouteAt("10.17.1.0/24", "10.9.9.9")}
 	peer.settings.DefaultOriginate = map[string]bool{"ipv4/unicast": true}
-	peer.settings.ExportPolicy = mustPolicy(t, nil, filterapi.FinalAccept)
+	peer.settings.ExportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
 	peer.reactor = &Reactor{clock: clock.RealClock{},
 		peers: map[netip.AddrPort]*Peer{peer.Settings().PeerKey(): peer}}
 	session := peer.currentSession()
@@ -207,7 +208,7 @@ func TestPolicyFinalReloadStaticRoutes(t *testing.T) {
 	}
 	assertHeld(true)
 	next := peer.settingsSnapshot()
-	next.ExportPolicy = mustPolicy(t, nil, filterapi.FinalReject)
+	next.ExportPolicy = mustPolicy(t, nil, routepolicy.FinalReject)
 	mustApplyHotSwappableSettings(t, peer, next, hotSwappableSettings)
 	assertHeld(false)
 	next = peer.settingsSnapshot()
@@ -222,12 +223,12 @@ func TestPolicyFinalReloadStaticRoutes(t *testing.T) {
 // TestPolicyFinalRejectLeavesNativeRSForPolicy requires the fast path to hand
 // empty and inactive rejecting policies to the ordered policy-aware rail.
 func TestPolicyFinalRejectLeavesNativeRSForPolicy(t *testing.T) {
-	for _, refs := range [][]filterapi.FilterRef{nil, {{Name: "test:off", Inactive: true}}} {
+	for _, refs := range [][]routepolicy.Ref{nil, {{Name: "test:off", Inactive: true}}} {
 		ctx := bgpctx.EncodingContextForASN4(true)
 		ctxID, _ := bgpctx.Registry.Register(ctx)
 		source := makeRSPeer(t, "10.0.0.1", 65001, ctx, ctxID)
 		destination := makeRSPeer(t, "10.0.0.2", 65002, ctx, ctxID)
-		destination.settings.ExportPolicy = mustPolicy(t, refs, filterapi.FinalReject)
+		destination.settings.ExportPolicy = mustPolicy(t, refs, routepolicy.FinalReject)
 		destination.refreshForwardFacts()
 		update := &ReceivedUpdate{WireUpdate: wireu.NewWireUpdate(policyChainAdvertisingBody(), ctxID), SourcePeerIP: source.Settings().Address}
 		r := &Reactor{peers: map[netip.AddrPort]*Peer{source.Settings().PeerKey(): source, destination.Settings().PeerKey(): destination}}
@@ -242,7 +243,7 @@ func TestPolicyFinalRejectLeavesNativeRSForPolicy(t *testing.T) {
 func TestPolicyFinalOnlyDecisionDoesNotAllocate(t *testing.T) {
 	body := policyChainAdvertisingBody()
 	update := testWireUpdate(body)
-	policy := mustPolicy(t, nil, filterapi.FinalReject)
+	policy := mustPolicy(t, nil, routepolicy.FinalReject)
 	peer := peerWithExportPolicy(t, "192.0.2.1", policy)
 	peer.settings.ImportPolicy = policy
 	r := &Reactor{}
@@ -278,7 +279,7 @@ func TestPolicyFinalWriterRejectsOldPrefilteredAnnouncement(t *testing.T) {
 		t.Fatal(err)
 	}
 	before := len(conn.written())
-	destination.settings.ExportPolicy = mustPolicy(t, nil, filterapi.FinalReject)
+	destination.settings.ExportPolicy = mustPolicy(t, nil, routepolicy.FinalReject)
 	if err := session.writeUpdatePreFiltered(update); err != nil {
 		t.Fatal(err)
 	}
@@ -301,7 +302,7 @@ func TestPolicyFinalWriterRejectsOldPrefilteredAnnouncement(t *testing.T) {
 // recovery writer: final rejection is a candidate rejection, not a failed guard
 // that leaves the old source's advertisement in place.
 func TestPolicyFinalRecoveryWithdrawsAfterDeniedSurvivor(t *testing.T) {
-	for _, refs := range [][]filterapi.FilterRef{nil, {{Name: "test:off", Inactive: true}}} {
+	for _, refs := range [][]routepolicy.Ref{nil, {{Name: "test:off", Inactive: true}}} {
 		r, source, destination, conn, ctxID := newSyncOrderRail(t)
 		r.clock = clock.RealClock{}
 		source.recvCtxID = ctxID
@@ -313,7 +314,7 @@ func TestPolicyFinalRecoveryWithdrawsAfterDeniedSurvivor(t *testing.T) {
 		failed := recoveryAdvertiseFailed(t, r, destination, syncOrderAnnounceBody)
 		before := len(conn.written())
 		recoveryOwnerStart(t, r, destination)
-		destination.settings.ExportPolicy = mustPolicy(t, refs, filterapi.FinalReject)
+		destination.settings.ExportPolicy = mustPolicy(t, refs, routepolicy.FinalReject)
 		destination.refreshForwardFacts()
 		r.orderedEgressSteps = []orderedEgressStep{{name: policyChainStepName, policyChain: true}}
 		stored := storedIPv4Route(source.Settings().Address.String())
@@ -339,12 +340,12 @@ func TestPolicyFinalRecoveryWithdrawsAfterDeniedSurvivor(t *testing.T) {
 // TestPolicyFinalDoesNotReplaceTerminalFailure preserves transport and teardown
 // distinctions even though a final reject is itself a genuine policy decision.
 func TestPolicyFinalDoesNotReplaceTerminalFailure(t *testing.T) {
-	for _, final := range []filterapi.FinalDisposition{filterapi.FinalAccept, filterapi.FinalReject} {
+	for _, final := range []routepolicy.Final{routepolicy.FinalAccept, routepolicy.FinalReject} {
 		for _, terminal := range []PolicyResponse{
 			{Action: PolicyReject, Failed: true},
 			{Action: PolicyReject, Teardown: true, NotifyCode: 6, NotifySubcode: 2},
 		} {
-			policy := mustPolicy(t, []filterapi.FilterRef{{Name: "test:first"}, {Name: "test:unreachable"}}, final)
+			policy := mustPolicy(t, []routepolicy.Ref{{Name: "test:first"}, {Name: "test:unreachable"}}, final)
 			calls := 0
 			result := PolicyFilterChain(policy, true, directionImport, "192.0.2.1", 65001, "origin igp", func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
 				calls++
@@ -365,7 +366,7 @@ func TestPolicyFinalReloadStoreSelfReplay(t *testing.T) {
 	for _, setting := range settings {
 		setting.RSClient = true
 	}
-	settings[1].ExportPolicy = mustPolicy(t, nil, filterapi.FinalAccept)
+	settings[1].ExportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
 	peers := rsLiveRouter(t, settings...)
 	source, destination := peers[0], peers[1]
 	prefix := netip.MustParsePrefix("10.17.2.0/24")
@@ -373,7 +374,7 @@ func TestPolicyFinalReloadStoreSelfReplay(t *testing.T) {
 	ownershipLiveSend(t, source, nil, attrs, prefix)
 	ownershipLiveThrough(t, destination, prefix, attrs)
 	next := destination.peer.settingsSnapshot()
-	next.ExportPolicy = mustPolicy(t, nil, filterapi.FinalReject)
+	next.ExportPolicy = mustPolicy(t, nil, routepolicy.FinalReject)
 	mustApplyHotSwappableSettings(t, destination.peer, next, hotSwappableSettings)
 	lowEventually(t, func() bool { _, held := ownershipLiveRead(t, destination).routes[prefix]; return !held }, "self-replay setup withdrawal")
 	next = destination.peer.settingsSnapshot()

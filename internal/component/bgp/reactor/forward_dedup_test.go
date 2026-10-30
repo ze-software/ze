@@ -16,6 +16,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/family"
 )
@@ -640,7 +641,7 @@ func TestDifferentBaseSameEditSetNeverShares(t *testing.T) {
 	// override. The second runs the same chain step, finds no filters, and keeps
 	// the original payload as its base.
 	overridden := h.dests[0]
-	overridden.settings.ExportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "someplugin:rewrite"}}, filterapi.FinalAccept)
+	overridden.settings.ExportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "someplugin:rewrite"}}, routepolicy.FinalAccept)
 	overridden.refreshForwardFacts()
 	require.Empty(t, h.dests[1].forwardFacts().exportPolicy.Filters(),
 		"the second destination must reach the chain with no filters, so its base stays the original")

@@ -741,7 +741,8 @@ A single plugin can offer multiple named filters. Config references them as
 Filters can declare `overrides` to remove default filters from the chain
 (e.g., `allow-own-as:relaxed` overrides `rfc:no-self-as` for a specific peer).
 
-<!-- source: internal/component/bgp/config/redistribution.go -- extractFilterPolicy, canonicalizeFilterRefs -->
+<!-- source: internal/component/policy/chain.go -- ExtractChain -->
+<!-- source: internal/component/bgp/config/redistribution.go -- canonicalizeFilterRefs -->
 
 ### Cross-Protocol Redistribute (`redistribute-orchestrator`)
 

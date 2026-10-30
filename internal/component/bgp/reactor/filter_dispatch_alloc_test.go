@@ -4,7 +4,7 @@ import (
 	"testing"
 	"unsafe"
 
-	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	routepolicy "github.com/ze-software/ze/internal/component/policy"
 )
 
 // BenchmarkFilterDispatch_ZeroAlloc measures the full filter-dispatch path from
@@ -23,7 +23,7 @@ func BenchmarkFilterDispatch_ZeroAlloc(b *testing.B) {
 		return PolicyResponse{Action: PolicyAccept}
 	}
 
-	policy := mustPolicy(b, frefs("test:accept"), filterapi.FinalAccept)
+	policy := mustPolicy(b, frefs("test:accept"), routepolicy.FinalAccept)
 
 	b.ReportAllocs()
 	b.ResetTimer()

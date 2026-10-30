@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/report"
 )
 
@@ -22,8 +23,8 @@ func swapTestPeerSettings(t testing.TB) *PeerSettings {
 	t.Helper()
 	ps := NewPeerSettings(mustParseAddr("10.0.0.1"), 65001, 65002, 0x01020304)
 	ps.Connection = ConnectionPassive
-	ps.ImportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "policy:old-import"}}, filterapi.FinalAccept)
-	ps.ExportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "policy:old-export"}}, filterapi.FinalAccept)
+	ps.ImportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "policy:old-import"}}, routepolicy.FinalAccept)
+	ps.ExportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "policy:old-export"}}, routepolicy.FinalAccept)
 	return ps
 }
 
@@ -67,7 +68,7 @@ func newSwapTestReactor(t *testing.T, initial, next *PeerSettings) (*Reactor, *P
 func TestReloadImportPolicyKeepsTheSamePeer(t *testing.T) {
 	initial := swapTestPeerSettings(t)
 	next := swapTestPeerSettings(t)
-	next.ImportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "policy:new-import"}}, filterapi.FinalAccept)
+	next.ImportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "policy:new-import"}}, routepolicy.FinalAccept)
 
 	r, peer := newSwapTestReactor(t, initial, next)
 	peer.state.Store(int32(PeerStateEstablished))
@@ -103,7 +104,7 @@ func TestReloadImportPolicyKeepsTheSamePeer(t *testing.T) {
 func TestReloadExportPolicyRefreshesForwardFacts(t *testing.T) {
 	initial := swapTestPeerSettings(t)
 	next := swapTestPeerSettings(t)
-	next.ExportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "policy:new-export"}}, filterapi.FinalAccept)
+	next.ExportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "policy:new-export"}}, routepolicy.FinalAccept)
 
 	r, peer := newSwapTestReactor(t, initial, next)
 	peer.state.Store(int32(PeerStateEstablished))
@@ -123,8 +124,8 @@ func TestReloadExportPolicyRefreshesForwardFacts(t *testing.T) {
 // TestPolicyFinalSwapRollbackPreservesSession checks final-only edits and policy
 // removal through the journaled reload, including both published snapshots.
 func TestPolicyFinalSwapRollbackPreservesSession(t *testing.T) {
-	accept := mustPolicy(t, nil, filterapi.FinalAccept)
-	reject := mustPolicy(t, nil, filterapi.FinalReject)
+	accept := mustPolicy(t, nil, routepolicy.FinalAccept)
+	reject := mustPolicy(t, nil, routepolicy.FinalReject)
 	for _, tc := range []struct {
 		name string
 		from filterapi.Policy
@@ -194,7 +195,7 @@ func TestPolicyFinalSwapRollbackPreservesSession(t *testing.T) {
 func TestReloadSwapDoesNotResurrectForwardFacts(t *testing.T) {
 	initial := swapTestPeerSettings(t)
 	next := swapTestPeerSettings(t)
-	next.ExportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "policy:new-export"}}, filterapi.FinalAccept)
+	next.ExportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "policy:new-export"}}, routepolicy.FinalAccept)
 
 	r, peer := newSwapTestReactor(t, initial, next)
 	require.Nil(t, peer.forwardFacts(), "a peer that never established has no facts")
@@ -281,8 +282,8 @@ func TestPeerSettingsRestartReasonNamesTheChangedFields(t *testing.T) {
 func TestPeerSettingsRestartReasonEmptyForHotSwappableFields(t *testing.T) {
 	current := swapTestPeerSettings(t)
 	next := swapTestPeerSettings(t)
-	next.ImportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "policy:new-import"}}, filterapi.FinalAccept)
-	next.ExportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "policy:new-export"}}, filterapi.FinalAccept)
+	next.ImportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "policy:new-import"}}, routepolicy.FinalAccept)
+	next.ExportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "policy:new-export"}}, routepolicy.FinalAccept)
 	next.StaticRoutes = []StaticRoute{{Origin: 1}}
 
 	require.False(t, peerSettingsEqual(current, next), "the fixture must be a real change")
@@ -546,7 +547,7 @@ func TestReloadStalePrefixDatesRaiseStaleAlarm(t *testing.T) {
 func TestPeerDiffCountCountsSwapAsOneChange(t *testing.T) {
 	initial := swapTestPeerSettings(t)
 	next := swapTestPeerSettings(t)
-	next.ImportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "policy:new-import"}}, filterapi.FinalAccept)
+	next.ImportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "policy:new-import"}}, routepolicy.FinalAccept)
 
 	r, _ := newSwapTestReactor(t, initial, next)
 	adapter := &reactorAPIAdapter{r: r}
@@ -647,7 +648,7 @@ func TestReloadRouteReflectorClientReachesForwarding(t *testing.T) {
 func TestReloadImportPolicyDisplayMatchesDatapath(t *testing.T) {
 	initial := swapTestPeerSettings(t)
 	next := swapTestPeerSettings(t)
-	next.ImportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "policy:new-import"}}, filterapi.FinalAccept)
+	next.ImportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "policy:new-import"}}, routepolicy.FinalAccept)
 
 	r, peer := newSwapTestReactor(t, initial, next)
 	peer.state.Store(int32(PeerStateEstablished))

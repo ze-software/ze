@@ -11,30 +11,48 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
+	routepolicy "github.com/ze-software/ze/internal/component/policy"
 )
 
 // mustPolicy constructs an explicit test policy and reports invalid fixture input.
-func mustPolicy(t testing.TB, refs []filterapi.FilterRef, final filterapi.FinalDisposition) filterapi.Policy {
+func mustPolicy(t testing.TB, refs []routepolicy.Ref, final routepolicy.Final) filterapi.Policy {
 	t.Helper()
 	policy, err := filterapi.NewPolicy(refs, final)
 	require.NoError(t, err)
 	return policy
 }
 
-// frefs builds a FilterRef chain from canonical strings, treating an
+// bindRefs marks every ref of p named like one of owned as bound to its
+// registered stage: the ownership config resolution (bgpconfig
+// canonicalizeFilterRefs) grants through filterapi.BindInProcess, which
+// these tests call to obtain owned.
+func bindRefs(p filterapi.Policy, owned ...routepolicy.Ref) filterapi.Policy {
+	refs := p.Filters()
+	bound := make([]bool, len(refs))
+	for i, ref := range refs {
+		for _, o := range owned {
+			if ref.Name == o.Name {
+				bound[i] = true
+			}
+		}
+	}
+	return p.WithBoundFilters(refs, bound)
+}
+
+// frefs builds a policy.Ref chain from canonical strings, treating an
 // "inactive:" prefix as the structural deactivation flag. It lets these tests
 // keep expressing chains in the compact string form they were written against
-// while exercising the post-refactor []FilterRef API.
-func frefs(names ...string) []filterapi.FilterRef {
+// while exercising the []policy.Ref API.
+func frefs(names ...string) []routepolicy.Ref {
 	if len(names) == 0 {
 		return nil
 	}
-	out := make([]filterapi.FilterRef, len(names))
+	out := make([]routepolicy.Ref, len(names))
 	for i, n := range names {
 		if rest, ok := strings.CutPrefix(n, "inactive:"); ok {
-			out[i] = filterapi.FilterRef{Name: rest, Inactive: true}
+			out[i] = routepolicy.Ref{Name: rest, Inactive: true}
 		} else {
-			out[i] = filterapi.FilterRef{Name: n}
+			out[i] = routepolicy.Ref{Name: n}
 		}
 	}
 	return out
@@ -50,7 +68,7 @@ func TestPolicyFilterChainAccept(t *testing.T) {
 		calls++
 		return PolicyResponse{Action: PolicyAccept}
 	}
-	res := PolicyFilterChain(mustPolicy(t, frefs("test:accept"), filterapi.FinalAccept), true, "import", "10.0.0.1", 65001,
+	res := PolicyFilterChain(mustPolicy(t, frefs("test:accept"), routepolicy.FinalAccept), true, "import", "10.0.0.1", 65001,
 		"origin igp as-path 65001 65002", fn)
 	assert.Equal(t, PolicyAccept, res.Action)
 	assert.Equal(t, "origin igp as-path 65001 65002", res.Text)
@@ -67,7 +85,7 @@ func TestPolicyFilterChainReject(t *testing.T) {
 		calls++
 		return PolicyResponse{Action: PolicyReject}
 	}
-	res := PolicyFilterChain(mustPolicy(t, frefs("test:reject", "test:never"), filterapi.FinalAccept), true, "import", "10.0.0.1", 65001,
+	res := PolicyFilterChain(mustPolicy(t, frefs("test:reject", "test:never"), routepolicy.FinalAccept), true, "import", "10.0.0.1", 65001,
 		"origin igp", fn)
 	assert.Equal(t, PolicyReject, res.Action)
 	assert.Empty(t, res.Text)
@@ -82,7 +100,7 @@ func TestPolicyFilterChainModify(t *testing.T) {
 	fn := func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
 		return PolicyResponse{Action: PolicyModify, Delta: "local-preference 200"}
 	}
-	res := PolicyFilterChain(mustPolicy(t, frefs("test:modify"), filterapi.FinalAccept), true, "import", "10.0.0.1", 65001,
+	res := PolicyFilterChain(mustPolicy(t, frefs("test:modify"), routepolicy.FinalAccept), true, "import", "10.0.0.1", 65001,
 		"origin igp local-preference 100", fn)
 	assert.Equal(t, PolicyAccept, res.Action)
 	assert.Contains(t, res.Text, "local-preference 200")
@@ -109,7 +127,7 @@ func TestPolicyFilterChainPipedTransform(t *testing.T) {
 		}
 		return PolicyResponse{Action: PolicyAccept}
 	}
-	res := PolicyFilterChain(mustPolicy(t, frefs("a:set200", "b:set300", "c:accept"), filterapi.FinalAccept), true, "import", "10.0.0.1", 65001,
+	res := PolicyFilterChain(mustPolicy(t, frefs("a:set200", "b:set300", "c:accept"), routepolicy.FinalAccept), true, "import", "10.0.0.1", 65001,
 		"origin igp local-preference 100", fn)
 	assert.Equal(t, PolicyAccept, res.Action)
 	assert.Contains(t, res.Text, "local-preference 300")
@@ -128,7 +146,7 @@ func TestPolicyFilterChainShortCircuit(t *testing.T) {
 		}
 		return PolicyResponse{Action: PolicyAccept}
 	}
-	res := PolicyFilterChain(mustPolicy(t, frefs("a:accept", "b:reject", "c:never"), filterapi.FinalAccept), true, "import", "10.0.0.1", 65001,
+	res := PolicyFilterChain(mustPolicy(t, frefs("a:accept", "b:reject", "c:never"), routepolicy.FinalAccept), true, "import", "10.0.0.1", 65001,
 		"origin igp", fn)
 	assert.Equal(t, PolicyReject, res.Action)
 	assert.Equal(t, 2, calls) // c:never never called
@@ -161,7 +179,7 @@ func TestPolicyFilterChainInactiveSkipped(t *testing.T) {
 		called = append(called, plugin+":"+filter)
 		return PolicyResponse{Action: PolicyAccept}
 	}
-	PolicyFilterChain(mustPolicy(t, frefs("inactive:rpki:validate", "community:scrub"), filterapi.FinalAccept), true, "import", "10.0.0.1", 65001, "origin igp", fn)
+	PolicyFilterChain(mustPolicy(t, frefs("inactive:rpki:validate", "community:scrub"), routepolicy.FinalAccept), true, "import", "10.0.0.1", 65001, "origin igp", fn)
 	assert.Equal(t, []string{"community:scrub"}, called, "inactive filter should not be called")
 }
 
@@ -177,7 +195,7 @@ func TestPolicyFilterChainDispatch(t *testing.T) {
 		gotDir = dir
 		return PolicyResponse{Action: PolicyAccept}
 	}
-	PolicyFilterChain(mustPolicy(t, frefs("rpki:validate"), filterapi.FinalAccept), true, "import", "10.0.0.1", 65001, "origin igp", fn)
+	PolicyFilterChain(mustPolicy(t, frefs("rpki:validate"), routepolicy.FinalAccept), true, "import", "10.0.0.1", 65001, "origin igp", fn)
 	assert.Equal(t, "rpki", gotPlugin)
 	assert.Equal(t, "validate", gotFilter)
 	assert.Equal(t, "import", gotDir)
@@ -197,7 +215,7 @@ func TestPolicyFilterChainTeardown(t *testing.T) {
 		}
 		return PolicyResponse{Action: PolicyAccept}
 	}
-	res := PolicyFilterChain(mustPolicy(t, frefs("fam:kill", "test:never"), filterapi.FinalAccept), true, "import", "10.0.0.1", 65001,
+	res := PolicyFilterChain(mustPolicy(t, frefs("fam:kill", "test:never"), routepolicy.FinalAccept), true, "import", "10.0.0.1", 65001,
 		"origin igp", fn)
 	assert.Equal(t, PolicyReject, res.Action)
 	assert.True(t, res.Teardown)
@@ -220,7 +238,7 @@ func TestPolicyFilterChainRawTerminal(t *testing.T) {
 		}
 		return PolicyResponse{Action: PolicyAccept}
 	}
-	res := PolicyFilterChain(mustPolicy(t, frefs("fam:strip", "test:never"), filterapi.FinalAccept), true, "import", "10.0.0.1", 65001,
+	res := PolicyFilterChain(mustPolicy(t, frefs("fam:strip", "test:never"), routepolicy.FinalAccept), true, "import", "10.0.0.1", 65001,
 		"origin igp", fn)
 	assert.Equal(t, PolicyModify, res.Action)
 	assert.Equal(t, []byte{0, 0, 0, 0}, res.Raw)
@@ -385,7 +403,7 @@ func TestValidateModifyDelta(t *testing.T) {
 // without carrying Failed -- the teardown exit shipped that way and was caught
 // only by review.
 func TestPolicyFilterChainPropagatesFailed(t *testing.T) {
-	refs := []filterapi.FilterRef{{Name: "p:f"}}
+	refs := []routepolicy.Ref{{Name: "p:f"}}
 
 	cases := []struct {
 		name string
@@ -399,7 +417,7 @@ func TestPolicyFilterChainPropagatesFailed(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := PolicyFilterChain(mustPolicy(t, refs, filterapi.FinalAccept), true, "export", "10.0.0.2", 65002, "origin igp",
+			got := PolicyFilterChain(mustPolicy(t, refs, routepolicy.FinalAccept), true, "export", "10.0.0.2", 65002, "origin igp",
 				func(_, _, _, _ string, _ uint32, _ string) PolicyResponse { return tc.resp })
 			assert.Equal(t, PolicyReject, got.Action, "every case here rejects")
 			assert.Equal(t, tc.want, got.Failed, "Failed must survive the chain unchanged")

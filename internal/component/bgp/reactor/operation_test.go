@@ -10,8 +10,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
+	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -280,7 +280,7 @@ func TestApplyConfigOperationModifyPeerSwapsInPlaceAndKeepsTheSession(t *testing
 	settings := NewPeerSettings(mustParseAddr("203.0.113.1"), 65000, 65001, 0)
 	settings.Name = "edge"
 	settings.LocalAddress = mustParseAddr("192.0.2.1")
-	settings.ImportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "bgp-filter-prefix:CUSTOMERS"}}, filterapi.FinalAccept)
+	settings.ImportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "bgp-filter-prefix:CUSTOMERS"}}, routepolicy.FinalAccept)
 	require.NoError(t, r.AddPeer(settings))
 	require.Len(t, r.Peers(), 1)
 	running := r.Peers()[0]
@@ -289,7 +289,7 @@ func TestApplyConfigOperationModifyPeerSwapsInPlaceAndKeepsTheSession(t *testing
 	// Reading it from the running peer is what makes that true of every OTHER
 	// field, which is what the swap decision is taken over.
 	candidate := *running.settingsSnapshot()
-	candidate.ImportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "bgp-filter-community:UPSTREAM"}}, filterapi.FinalAccept)
+	candidate.ImportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "bgp-filter-community:UPSTREAM"}}, routepolicy.FinalAccept)
 	r.SetReloadFunc(func(string) ([]*PeerSettings, Globals, []*DynamicGroupConfig, error) {
 		return []*PeerSettings{&candidate}, Globals{}, nil, nil
 	})
@@ -315,7 +315,7 @@ func TestApplyConfigOperationModifyPeerSwapsInPlaceAndKeepsTheSession(t *testing
 		t.Fatal("the apply rebuilt the peer, so the session was torn down for a change the running one could take")
 	}
 	assert.Equal(t, 1, j.recordCount, "a swap journals one entry; a remove plus an add journals two")
-	assert.Equal(t, []filterapi.FilterRef{{Name: "bgp-filter-community:UPSTREAM"}},
+	assert.Equal(t, []routepolicy.Ref{{Name: "bgp-filter-community:UPSTREAM"}},
 		r.Peers()[0].settingsSnapshot().ImportPolicy.Filters())
 
 	require.Empty(t, j.Rollback())
@@ -323,7 +323,7 @@ func TestApplyConfigOperationModifyPeerSwapsInPlaceAndKeepsTheSession(t *testing
 	if r.Peers()[0] != running {
 		t.Fatal("the rollback rebuilt the peer")
 	}
-	assert.Equal(t, []filterapi.FilterRef{{Name: "bgp-filter-prefix:CUSTOMERS"}},
+	assert.Equal(t, []routepolicy.Ref{{Name: "bgp-filter-prefix:CUSTOMERS"}},
 		r.Peers()[0].settingsSnapshot().ImportPolicy.Filters())
 }
 
@@ -398,8 +398,8 @@ func TestApplyConfigOperationRemovePeerRollbackRestoresAnnouncedState(t *testing
 		NextHop: bgptypes.NewNextHopExplicit(mustParseAddr("10.0.0.1")),
 	}}
 	settings.PluginRoutes = []PluginRoute{{Family: "ipv4/flow"}}
-	settings.ImportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "bgp-filter-prefix:CUSTOMERS"}}, filterapi.FinalAccept)
-	settings.ExportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "bgp-filter-community:UPSTREAM"}}, filterapi.FinalAccept)
+	settings.ImportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "bgp-filter-prefix:CUSTOMERS"}}, routepolicy.FinalAccept)
+	settings.ExportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "bgp-filter-community:UPSTREAM"}}, routepolicy.FinalAccept)
 	settings.LoopAllowOwnAS = 2
 	require.NoError(t, r.AddPeer(settings))
 	require.Len(t, r.Peers(), 1)

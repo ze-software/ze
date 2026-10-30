@@ -7,7 +7,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	_ "github.com/ze-software/ze/internal/component/bgp/plugins/filter_remove_private_as"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 )
@@ -18,11 +17,11 @@ func TestCanonicalizeRemovePrivateASRef(t *testing.T) {
 	reg := mustPolicyRegistry(t, policy.Instance{Name: "STRIP", Type: "remove-private-as"})
 	typesMap := registry.FilterTypesMap()
 
-	assert.Equal(t, "bgp-filter-remove-private-as:STRIP", canonicalizeOne("STRIP", reg, typesMap))
-	assert.Equal(t, "bgp-filter-remove-private-as:STRIP", canonicalizeOne("remove-private-as:STRIP", reg, typesMap))
-	assert.Equal(t, "bgp-filter-remove-private-as:STRIP", canonicalizeOne("bgp-filter-remove-private-as:STRIP", reg, typesMap))
+	assert.Equal(t, "bgp-filter-remove-private-as:STRIP", policy.CanonicalName("STRIP", reg, typesMap))
+	assert.Equal(t, "bgp-filter-remove-private-as:STRIP", policy.CanonicalName("remove-private-as:STRIP", reg, typesMap))
+	assert.Equal(t, "bgp-filter-remove-private-as:STRIP", policy.CanonicalName("bgp-filter-remove-private-as:STRIP", reg, typesMap))
 	// A deactivated ref keeps its structural flag while the name canonicalizes.
-	assert.Equal(t,
-		[]filterapi.FilterRef{{Name: "bgp-filter-remove-private-as:STRIP", Inactive: true}},
-		canonicalizeFilterRefs([]filterapi.FilterRef{{Name: "remove-private-as:STRIP", Inactive: true}}, reg))
+	got, bound := canonicalizeFilterRefs([]policy.Ref{{Name: "remove-private-as:STRIP", Inactive: true}}, reg)
+	assert.Equal(t, []policy.Ref{{Name: "bgp-filter-remove-private-as:STRIP", Inactive: true}}, got)
+	assert.Nil(t, bound)
 }

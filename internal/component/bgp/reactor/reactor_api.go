@@ -24,6 +24,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/rib"
 	"github.com/ze-software/ze/internal/component/plugin"
+	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/asn"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 	"github.com/ze-software/ze/internal/core/configorder"
@@ -281,7 +282,7 @@ func policyInfo(policy filterapi.Policy) *plugin.PolicyInfo {
 	}
 	info := &plugin.PolicyInfo{Filters: filterapi.FilterRefStrings(policy.Filters())}
 	if policy.Configured() {
-		if policy.Final() == filterapi.FinalAccept {
+		if policy.Final() == routepolicy.FinalAccept {
 			info.Final = "accept"
 		} else {
 			info.Final = "reject"

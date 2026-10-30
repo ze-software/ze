@@ -15,6 +15,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -560,8 +561,8 @@ func (p *Peer) resolveDynamicPeerSettings(session *Session) {
 	// operator issues during one establishment.
 	for {
 		read := p.readDynamicTemplate()
-		newImport := read.importTemplate.WithFilters(resolveFilterVars(read.importTemplate.Filters(), localAS, remoteAS, remoteIP))
-		newExport := read.exportTemplate.WithFilters(resolveFilterVars(read.exportTemplate.Filters(), localAS, remoteAS, remoteIP))
+		newImport := read.importTemplate.WithBoundFilters(resolveFilterVars(read.importTemplate.Filters(), localAS, remoteAS, remoteIP), read.importTemplate.Bindings())
+		newExport := read.exportTemplate.WithBoundFilters(resolveFilterVars(read.exportTemplate.Filters(), localAS, remoteAS, remoteIP), read.exportTemplate.Bindings())
 		if p.publishDynamicResolution(read, remoteAS, newImport, newExport) {
 			break
 		}
@@ -641,8 +642,8 @@ func (p *Peer) writeDynamicTemplateLocked(next *PeerSettings) {
 	}
 	localAS := p.settings.LocalAS
 	remoteIP := p.settings.Address.String()
-	p.settings.ImportPolicy = next.ImportPolicy.WithFilters(resolveFilterVars(next.ImportPolicy.Filters(), localAS, remoteAS, remoteIP))
-	p.settings.ExportPolicy = next.ExportPolicy.WithFilters(resolveFilterVars(next.ExportPolicy.Filters(), localAS, remoteAS, remoteIP))
+	p.settings.ImportPolicy = next.ImportPolicy.WithBoundFilters(resolveFilterVars(next.ImportPolicy.Filters(), localAS, remoteAS, remoteIP), next.ImportPolicy.Bindings())
+	p.settings.ExportPolicy = next.ExportPolicy.WithBoundFilters(resolveFilterVars(next.ExportPolicy.Filters(), localAS, remoteAS, remoteIP), next.ExportPolicy.Bindings())
 }
 
 // scheduleDynamicPeerCleanup starts a timer that removes a dynamic peer after
@@ -677,7 +678,7 @@ func (r *Reactor) scheduleDynamicPeerCleanup(peer *Peer) {
 
 // resolveFilterVars replaces $remote_as, $local_as, $remote_ip in filter names.
 // Inline in reactor to avoid an import cycle with bgp/config.
-func resolveFilterVars(filters []filterapi.FilterRef, localAS, remoteAS uint32, remoteIP string) []filterapi.FilterRef {
+func resolveFilterVars(filters []routepolicy.Ref, localAS, remoteAS uint32, remoteIP string) []routepolicy.Ref {
 	if len(filters) == 0 {
 		return filters
 	}
@@ -693,7 +694,7 @@ func resolveFilterVars(filters []filterapi.FilterRef, localAS, remoteAS uint32, 
 	}
 	las := textbuf.StringUint32(localAS)
 	ras := textbuf.StringUint32(remoteAS)
-	resolved := make([]filterapi.FilterRef, len(filters))
+	resolved := make([]routepolicy.Ref, len(filters))
 	for i, f := range filters {
 		if !strings.ContainsRune(f.Name, '$') {
 			resolved[i] = f

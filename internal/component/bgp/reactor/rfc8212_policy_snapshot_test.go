@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	routepolicy "github.com/ze-software/ze/internal/component/policy"
 )
 
 // TestRFC8212PolicyBeforeSnapshot drives the real originated-route gate before
@@ -17,13 +18,13 @@ func TestRFC8212PolicyBeforeSnapshot(t *testing.T) {
 	for _, policyCase := range []struct {
 		name   string
 		remote uint32
-		final  filterapi.FinalDisposition
+		final  routepolicy.Final
 		deny   bool
 	}{
 		{name: "absent-ebgp", remote: 65001, deny: true},
 		{name: "absent-ibgp", remote: 65000},
-		{name: "explicit-accept", remote: 65001, final: filterapi.FinalAccept},
-		{name: "explicit-reject", remote: 65001, final: filterapi.FinalReject, deny: true},
+		{name: "explicit-accept", remote: 65001, final: routepolicy.FinalAccept},
+		{name: "explicit-reject", remote: 65001, final: routepolicy.FinalReject, deny: true},
 	} {
 		t.Run(policyCase.name, func(t *testing.T) {
 			var policy filterapi.Policy

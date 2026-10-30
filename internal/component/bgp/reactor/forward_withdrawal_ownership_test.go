@@ -15,10 +15,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
@@ -440,7 +440,7 @@ func (f *ownershipRailFixture) send(t *testing.T, rail string, source *Peer, ctx
 			return PolicyResponse{Action: PolicyAccept}
 		}
 		f.r.orderedEgressSteps = []orderedEgressStep{{name: policyChainStepName, policyChain: true}}
-		f.destination.settings.ExportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "policy:ownership-rail"}}, filterapi.FinalAccept)
+		f.destination.settings.ExportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "policy:ownership-rail"}}, routepolicy.FinalAccept)
 		f.destination.refreshForwardFacts()
 		skipped, _ := reactorForwardRS(f.r, update, f.id, source.Settings().Address, source)
 		if !reflect.DeepEqual(skipped, []netip.AddrPort{f.destination.Settings().PeerKey()}) {

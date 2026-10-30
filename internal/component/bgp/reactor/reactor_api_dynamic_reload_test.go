@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	routepolicy "github.com/ze-software/ze/internal/component/policy"
 )
 
 // newDynamicReloadReactor builds a reactor holding ONE established dynamic peer
@@ -49,7 +49,7 @@ func dynamicReloadGroup(t testing.TB) *DynamicGroupConfig {
 	t.Helper()
 	dg := newTestDynamicGroup("ix", []string{"185.1.69.0/24"}, 100)
 	dg.Settings.Connection = ConnectionPassive
-	dg.Settings.ImportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "policy:in-$remote_as"}}, filterapi.FinalAccept)
+	dg.Settings.ImportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "policy:in-$remote_as"}}, routepolicy.FinalAccept)
 	return dg
 }
 
@@ -84,7 +84,7 @@ func TestReloadKeepsAnEstablishedDynamicPeer(t *testing.T) {
 	peer.mu.Lock()
 	peer.session = session
 	peer.settings.PeerAS = 65010
-	peer.settings.ImportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "policy:in-65010"}}, filterapi.FinalAccept)
+	peer.settings.ImportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "policy:in-65010"}}, routepolicy.FinalAccept)
 	peer.mu.Unlock()
 
 	adapter := &reactorAPIAdapter{r: r}
@@ -110,7 +110,7 @@ func TestReloadKeepsAnEstablishedDynamicPeer(t *testing.T) {
 	// The resolved chain is still the running one. A swap would have written the
 	// template over it, which is the write plan/deferrals/
 	// fixit-dynamic-peer-settings-unlocked-read.md races against.
-	assert.Equal(t, []filterapi.FilterRef{{Name: "policy:in-65010"}}, after.ImportPolicy().Filters(),
+	assert.Equal(t, []routepolicy.Ref{{Name: "policy:in-65010"}}, after.ImportPolicy().Filters(),
 		"the resolved filter chain must not be overwritten by a reload")
 	assert.Equal(t, uint32(65010), after.PeerAS(),
 		"the AS learned from the OPEN must not be reset by a reload")
@@ -208,7 +208,7 @@ func TestReloadNeverSwapsSettingsOntoADynamicPeer(t *testing.T) {
 
 	r, peer := newDynamicReloadReactor(t, group, addr, nil)
 	swappableOnly := *peer.Settings()
-	swappableOnly.ImportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "policy:in-strict"}}, filterapi.FinalAccept)
+	swappableOnly.ImportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "policy:in-strict"}}, routepolicy.FinalAccept)
 	require.NotEmpty(t, peer.Settings().ImportPolicy.Filters(), "the fixture needs a chain to change")
 
 	// The plan agrees this entry is swappable: without the dynamic branch the
@@ -229,7 +229,7 @@ func TestReloadNeverSwapsSettingsOntoADynamicPeer(t *testing.T) {
 
 	require.NotNil(t, after)
 	assert.False(t, after == peer, "a configured entry must restart the dynamic peer, never swap onto it")
-	assert.Equal(t, []filterapi.FilterRef{{Name: "policy:in-$remote_as"}}, peer.ImportPolicy().Filters(),
+	assert.Equal(t, []routepolicy.Ref{{Name: "policy:in-$remote_as"}}, peer.ImportPolicy().Filters(),
 		"the outgoing dynamic peer must not have been written to by the reload goroutine")
 }
 
@@ -308,7 +308,7 @@ func TestSetDynamicGroupsIgnoresChangesThePeerDoesNotHold(t *testing.T) {
 
 	wider := newTestDynamicGroup("ix", []string{"185.1.0.0/16"}, 500)
 	wider.Settings.Connection = ConnectionPassive
-	wider.Settings.ImportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "policy:in-$remote_as"}}, filterapi.FinalAccept)
+	wider.Settings.ImportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "policy:in-$remote_as"}}, routepolicy.FinalAccept)
 	reloadDynamicGroups(t, r, wider)
 
 	r.mu.RLock()
@@ -330,7 +330,7 @@ func TestSetDynamicGroupsRemovesThePeerWhenTheRangeNoLongerCoversIt(t *testing.T
 
 	narrowed := newTestDynamicGroup("ix", []string{"185.1.69.0/28"}, 100)
 	narrowed.Settings.Connection = ConnectionPassive
-	narrowed.Settings.ImportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "policy:in-$remote_as"}}, filterapi.FinalAccept)
+	narrowed.Settings.ImportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "policy:in-$remote_as"}}, routepolicy.FinalAccept)
 	reloadDynamicGroups(t, r, narrowed)
 
 	r.mu.RLock()

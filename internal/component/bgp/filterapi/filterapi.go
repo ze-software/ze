@@ -10,8 +10,10 @@
 // chains and attribute-modification handlers. It also carries plugin-owned
 // reactor capabilities that follow the same init()-time registration model,
 // such as route-server (RS) fast-path forwarding (EnableRSForwarding). It is
-// a near-leaf package (stdlib plus the core textbuf string builder) so filter
-// plugins, the reactor, and protocol filters can all import it without cycles.
+// a near-leaf package (stdlib, core leaves, and the protocol-neutral policy
+// library whose chain types Policy compiles; that library imports nothing
+// under internal/component/bgp) so filter plugins, the reactor, and protocol
+// filters can all import it without cycles.
 //
 // These types are BGP-owned: other protocols (OSPF, IS-IS) would define
 // their own filter seam packages following the same registration pattern.
@@ -29,6 +31,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -63,7 +66,7 @@ type PeerFilterInfo struct {
 	GroupName    string     // Group name (empty if standalone peer)
 	AllowOwnAS   uint8      // Loop detection: number of own-AS occurrences to tolerate (0 = reject on first)
 	ClusterID    uint32     // Loop detection: explicit cluster-id (0 = use RouterID)
-	LoopDisabled bool       // Loop detection deactivated for this peer (FilterRef.Inactive)
+	LoopDisabled bool       // Loop detection deactivated for this peer (policy.Ref.Inactive)
 	RSClient     bool       // Configured route-server client; policy belongs to the plugin.
 	// RouteServerAS is the ASN the route server reads and strips its control
 	// communities by when this session is a route-server client: the router's
@@ -88,31 +91,14 @@ type PeerFilterInfo struct {
 	LLGRAdvertised bool
 }
 
-// FilterRef is one entry in a peer's import/export filter chain: the canonical
-// name, deactivation state and execution ownership resolved at config time.
-// Deactivated refs stay in the chain so loop detection can suppress its default
-// via LoopDisabled. A literal or zero ref is unbound: only BindInProcess grants
-// stage ownership; all other active refs retain fail-closed external dispatch.
-type FilterRef struct {
-	Name     string
-	Inactive bool
-	// inProcess binds a configured instance to an already registered ingress
-	// stage. Zero leaves the reference on the external, fail-closed path.
-	inProcess bool
-}
-
-// InProcess reports ownership by the registered ingress stage. Named internal
-// refs are not supported on export, even when the owner has an egress hook.
-func (r FilterRef) InProcess() bool { return r.inProcess }
-
-// ActiveExternal reports whether the per-peer RPC chain must execute this ref.
-func (r FilterRef) ActiveExternal() bool { return !r.Inactive && !r.InProcess() }
-
 // BindInProcess resolves a configured policy instance through the existing
-// stage registry. The caller MUST obtain policyType from that instance's config
-// definition, not from the reference prefix. Unknown owners remain external.
+// stage registry, answering the ref under its stage-qualified name and whether
+// a registered ingress stage owns it. The caller MUST obtain policyType from
+// that instance's config definition, not from the reference prefix. Unknown
+// owners remain external: the ref comes back unchanged and unbound, on the
+// fail-closed RPC path. Only this function grants stage ownership.
 // Called during config resolution, never on the UPDATE path.
-func BindInProcess(ref FilterRef, policyType string) FilterRef {
+func BindInProcess(ref policy.Ref, policyType string) (policy.Ref, bool) {
 	prefix, instance, qualified := strings.Cut(ref.Name, ":")
 	if !qualified {
 		instance = ref.Name
@@ -136,10 +122,9 @@ func BindInProcess(ref FilterRef, policyType string) FilterRef {
 			var name textbuf.Buffer
 			ref.Name = name.Str(f.Name).Byte(':').Str(instance).String()
 		}
-		ref.inProcess = true
-		return ref
+		return ref, true
 	}
-	return ref
+	return ref, false
 }
 
 // FilterRefStrings renders a filter chain to the canonical string form used at
@@ -147,7 +132,7 @@ func BindInProcess(ref FilterRef, policyType string) FilterRef {
 // plugin protocol), re-attaching the "inactive:" prefix for deactivated refs so
 // that user-facing and plugin-facing output stays byte-identical. This is the
 // one presentation seam that reconstructs the prefix; no logic path does.
-func FilterRefStrings(refs []FilterRef) []string {
+func FilterRefStrings(refs []policy.Ref) []string {
 	if len(refs) == 0 {
 		return nil
 	}

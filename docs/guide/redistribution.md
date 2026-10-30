@@ -91,7 +91,7 @@ Example: `rpki:validate`, `community:scrub`.
 5. On each forwarded UPDATE, the engine runs the export chain per destination peer.
 6. Each filter responds accept, reject, or modify (delta-only).
 
-<!-- source: internal/component/bgp/config/redistribution.go -- extractFilterPolicy, concatPolicies -->
+<!-- source: internal/component/policy/chain.go -- ExtractChain, ConcatChains -->
 <!-- source: internal/component/bgp/config/peers.go -- prependDefaultFilters -->
 
 ### Deactivating Filters
@@ -131,8 +131,8 @@ activate bgp peer special filter import filters no-self-as
 ```
 
 <!-- source: internal/component/config/parser_list.go -- stripInactiveMemberPrefix (inline inactive: normalization) -->
-<!-- source: internal/component/bgp/config/redistribution.go -- memberStatesToFilterRefs retains Inactive -->
-<!-- source: internal/component/bgp/reactor/filter_chain.go -- PolicyFilterChain skips FilterRef.Inactive -->
+<!-- source: internal/component/policy/chain.go -- RefsFromMembers retains Inactive -->
+<!-- source: internal/component/bgp/reactor/filter_chain.go -- PolicyFilterChain skips policy.Ref.Inactive -->
 
 ### Chain Order
 
@@ -151,7 +151,7 @@ An absent direction inherits its parent's policy without creating a new policy.
 With no configured policy at any level, operator policy stays absent: EBGP
 rejects at exhaustion under RFC 8212 Section 3, while IBGP accepts. Automatic
 and inactive references do not supply an operator policy.
-<!-- source: internal/component/bgp/config/redistribution.go -- extractFilterPolicy, concatPolicies -->
+<!-- source: internal/component/policy/chain.go -- ExtractChain, ConcatChains -->
 <!-- source: internal/component/bgp/filterapi/policy.go -- Policy.Configured, Policy.AcceptsAtEnd -->
 
 Use the `insert` command in the CLI editor to control position:

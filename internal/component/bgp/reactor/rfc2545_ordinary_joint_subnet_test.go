@@ -8,13 +8,13 @@ import (
 	"net/netip"
 	"testing"
 
-	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/rib"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
@@ -280,7 +280,7 @@ func newOrdinaryJointPeer(t *testing.T, recipient netip.Addr, source ordinaryJoi
 		RouterID:     0x01020301,
 	}
 	if source == ordinaryJointPolicyPair {
-		settings.ExportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "ordinary-joint:replace-next-hop"}}, filterapi.FinalAccept)
+		settings.ExportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "ordinary-joint:replace-next-hop"}}, routepolicy.FinalAccept)
 	}
 	r := New(&Config{ListenAddr: "127.0.0.1:0", LocalAS: 65000})
 	if err := r.AddPeer(settings); err != nil {

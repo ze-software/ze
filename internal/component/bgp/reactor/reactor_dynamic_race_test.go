@@ -10,8 +10,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	routepolicy "github.com/ze-software/ze/internal/component/policy"
 )
 
 // TestDynamicPeerSettingsRace reproduces the unlocked mutation of a dynamic peer's
@@ -31,8 +31,8 @@ import (
 func TestDynamicPeerSettingsRace(t *testing.T) {
 	settings := NewPeerSettings(netip.MustParseAddr("185.1.69.10"), 65000, 0, 0x01020304)
 	settings.IsDynamic = true
-	settings.ImportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "in-$remote_as"}}, filterapi.FinalAccept)
-	settings.ExportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "out-$remote_as"}}, filterapi.FinalAccept)
+	settings.ImportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "in-$remote_as"}}, routepolicy.FinalAccept)
+	settings.ExportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "out-$remote_as"}}, routepolicy.FinalAccept)
 
 	peer := NewPeer(settings)
 	session := NewSession(settings)
@@ -109,8 +109,8 @@ func TestDynamicPeerSettingsRace(t *testing.T) {
 func TestDynamicPeerSettingsFilterReadRacesTheReload(t *testing.T) {
 	settings := NewPeerSettings(netip.MustParseAddr("185.1.69.11"), 65000, 0, 0x01020304)
 	settings.IsDynamic = true
-	settings.ImportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "in-$remote_as"}}, filterapi.FinalAccept)
-	settings.ExportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "out-$remote_as"}}, filterapi.FinalAccept)
+	settings.ImportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "in-$remote_as"}}, routepolicy.FinalAccept)
+	settings.ExportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "out-$remote_as"}}, routepolicy.FinalAccept)
 
 	peer := NewPeer(settings)
 	session := NewSession(settings)
@@ -146,8 +146,8 @@ func TestDynamicPeerSettingsFilterReadRacesTheReload(t *testing.T) {
 	// -count=20, so a syscall per iteration is paid 20 times over.
 	for i := range 1000 {
 		next := NewPeerSettings(settings.Address, 65000, 0, 0x01020304)
-		next.ImportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "in-$remote_as"}, {Name: "reload-in"}}, filterapi.FinalAccept)
-		next.ExportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "out-$remote_as"}}, filterapi.FinalAccept)
+		next.ImportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "in-$remote_as"}, {Name: "reload-in"}}, routepolicy.FinalAccept)
+		next.ExportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "out-$remote_as"}}, routepolicy.FinalAccept)
 		if i%2 == 0 {
 			next.ImportPolicy = next.ImportPolicy.WithFilters(next.ImportPolicy.Filters()[:1])
 		}

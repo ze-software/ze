@@ -229,8 +229,8 @@ func peersAndDynamicGroups(tree *config.Tree) ([]*reactor.PeerSettings, []*react
 		// import and export policy an IXP route server's members are subject to:
 		// they have no peer layer to add to it.
 		if ds, ok := dynByGroup[groupEntry.Key]; ok {
-			ds.ImportPolicy = concatPolicies(bgpImport, groupImport)
-			ds.ExportPolicy = concatPolicies(bgpExport, groupExport)
+			ds.ImportPolicy = filterapi.CompilePolicy(policy.ConcatChains(bgpImport, groupImport))
+			ds.ExportPolicy = filterapi.CompilePolicy(policy.ConcatChains(bgpExport, groupExport))
 		}
 
 		for _, peerEntry := range groupPeers {
@@ -245,8 +245,8 @@ func peersAndDynamicGroups(tree *config.Tree) ([]*reactor.PeerSettings, []*react
 			if err := validateExportPolicyReferences(peerExport, filterReg, "bgp", "group", groupEntry.Key, "peer", peerEntry.Key); err != nil {
 				return nil, nil, err
 			}
-			ps.ImportPolicy = concatPolicies(bgpImport, groupImport, peerImport)
-			ps.ExportPolicy = concatPolicies(bgpExport, groupExport, peerExport)
+			ps.ImportPolicy = filterapi.CompilePolicy(policy.ConcatChains(bgpImport, groupImport, peerImport))
+			ps.ExportPolicy = filterapi.CompilePolicy(policy.ConcatChains(bgpExport, groupExport, peerExport))
 		}
 	}
 
@@ -262,8 +262,8 @@ func peersAndDynamicGroups(tree *config.Tree) ([]*reactor.PeerSettings, []*react
 		if err := validateExportPolicyReferences(peerExport, filterReg, "bgp", "peer", peerEntry.Key); err != nil {
 			return nil, nil, err
 		}
-		ps.ImportPolicy = concatPolicies(bgpImport, peerImport)
-		ps.ExportPolicy = concatPolicies(bgpExport, peerExport)
+		ps.ImportPolicy = filterapi.CompilePolicy(policy.ConcatChains(bgpImport, peerImport))
+		ps.ExportPolicy = filterapi.CompilePolicy(policy.ConcatChains(bgpExport, peerExport))
 	}
 
 	// Step 3b2: Validate policy filter names in peer filter chains.
@@ -289,8 +289,8 @@ func peersAndDynamicGroups(tree *config.Tree) ([]*reactor.PeerSettings, []*react
 	// All three resolve to the same dispatch target at runtime; this step
 	// rewrites them into the canonical form before peer settings are frozen.
 	for _, ps := range settings {
-		ps.ImportPolicy = ps.ImportPolicy.WithFilters(canonicalizeFilterRefs(ps.ImportPolicy.Filters(), filterReg))
-		ps.ExportPolicy = ps.ExportPolicy.WithFilters(canonicalizeFilterRefs(ps.ExportPolicy.Filters(), filterReg))
+		ps.ImportPolicy = ps.ImportPolicy.WithBoundFilters(canonicalizeFilterRefs(ps.ImportPolicy.Filters(), filterReg))
+		ps.ExportPolicy = ps.ExportPolicy.WithBoundFilters(canonicalizeFilterRefs(ps.ExportPolicy.Filters(), filterReg))
 	}
 
 	// Step 3b3: Prepend default filter names to each peer's import chain.
@@ -372,8 +372,8 @@ func policyRegistryOf(tree *config.Tree, schema *config.Schema) (*policy.Registr
 
 // validateChainNames refuses a chain naming no filter instance under the
 // policy root. A deactivated reference is checked like an active one, because
-// deactivation is a flag on FilterRef and not part of its name.
-func validateChainNames(reg *policy.Registry, refs []filterapi.FilterRef, context string) error {
+// deactivation is a flag on policy.Ref and not part of its name.
+func validateChainNames(reg *policy.Registry, refs []policy.Ref, context string) error {
 	for _, ref := range refs {
 		if err := reg.ValidateName(ref.Name, context); err != nil {
 			return err
@@ -385,8 +385,8 @@ func validateChainNames(reg *policy.Registry, refs []filterapi.FilterRef, contex
 // validateExportPolicyReferences checks an original active layer before merging
 // or canonicalizing loses the location and spelling the editor must deactivate.
 // Only layers inherited by a static peer or dynamic template reach this check.
-func validateExportPolicyReferences(chain filterapi.Policy, reg *policy.Registry, path ...string) error {
-	for _, ref := range chain.Filters() {
+func validateExportPolicyReferences(chain policy.Chain, reg *policy.Registry, path ...string) error {
+	for _, ref := range chain.Refs() {
 		if ref.Inactive {
 			continue
 		}
@@ -394,8 +394,8 @@ func validateExportPolicyReferences(chain filterapi.Policy, reg *policy.Registry
 		if !ok {
 			continue
 		}
-		bound := filterapi.BindInProcess(ref, entry.Type)
-		if !bound.InProcess() {
+		bound, inProcess := filterapi.BindInProcess(ref, entry.Type)
+		if !inProcess {
 			continue
 		}
 		location := config.FormatEditPath(append(path, "filter", "export", "filters", ref.Name))
@@ -853,7 +853,7 @@ func leakFilterRefusal(pair peerRole, missingImport, missingExport bool, declari
 // A DEACTIVATED ref counts. `inactive:` records a decision the operator made
 // about this session, which is what the obligation asks for, and it is the
 // reading filterChainContains already takes for a default filter.
-func chainNamesFilterType(chain []filterapi.FilterRef, reg *policy.Registry, types map[string]bool) bool {
+func chainNamesFilterType(chain []policy.Ref, reg *policy.Registry, types map[string]bool) bool {
 	for _, ref := range chain {
 		entry, ok := reg.Lookup(filterInstanceName(ref.Name))
 		if !ok {
@@ -995,8 +995,8 @@ func applyLoopDetectionConfig(policyTree *config.Tree, peers []*reactor.PeerSett
 	}
 
 	for _, ps := range peers {
-		for _, ref := range ps.ImportPolicy.Filters() {
-			if !ref.InProcess() {
+		for i, ref := range ps.ImportPolicy.Filters() {
+			if !ps.ImportPolicy.InProcess(i) {
 				continue
 			}
 			entry, ok := ldEntries[filterInstanceName(ref.Name)]
@@ -1053,25 +1053,25 @@ func prependDefaultFilters(policyTree *config.Tree, peers []*reactor.PeerSetting
 		defaults = append(defaults, name)
 	}
 	slices.Sort(defaults)
-	refs := make([]filterapi.FilterRef, len(defaults))
+	refs := make([]policy.Ref, len(defaults))
 	for i, name := range defaults {
-		refs[i] = filterapi.FilterRef{Name: name}
+		refs[i] = policy.Ref{Name: name}
 	}
-	refs = canonicalizeFilterRefs(refs, reg)
+	refs, bound := canonicalizeFilterRefs(refs, reg)
 
 	for _, ps := range peers {
-		for _, dflt := range refs {
+		for i, dflt := range refs {
 			if filterChainContains(ps.ImportPolicy.Filters(), dflt.Name) {
 				continue
 			}
-			ps.ImportPolicy = ps.ImportPolicy.WithFilters(append([]filterapi.FilterRef{dflt}, ps.ImportPolicy.Filters()...))
+			ps.ImportPolicy = ps.ImportPolicy.Prepend(dflt, bound != nil && bound[i])
 		}
 	}
 }
 
 // filterChainContains checks a canonical reference, or a plain instance name,
 // regardless of its deactivation state.
-func filterChainContains(chain []filterapi.FilterRef, name string) bool {
+func filterChainContains(chain []policy.Ref, name string) bool {
 	for _, entry := range chain {
 		if entry.Name == name {
 			return true

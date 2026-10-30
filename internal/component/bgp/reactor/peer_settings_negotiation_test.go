@@ -10,8 +10,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 )
 
@@ -417,14 +417,14 @@ func TestOpenHeaderEqualCoversEveryOpenField(t *testing.T) {
 func TestReloadDecisionReadsPeerSettingsUnderLock(t *testing.T) {
 	current := negotiationSettings(capIPv4())
 	next := negotiationSettings(capIPv4())
-	next.ImportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "reloaded"}}, filterapi.FinalAccept)
+	next.ImportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "reloaded"}}, routepolicy.FinalAccept)
 
 	r, peer := newSwapTestReactor(t, current, next)
 	establishNegotiatedSession(t, peer, capIPv4())
 	peer.state.Store(int32(PeerStateEstablished))
 
 	other := negotiationSettings(capIPv4())
-	other.ImportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "concurrent"}}, filterapi.FinalAccept)
+	other.ImportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "concurrent"}}, routepolicy.FinalAccept)
 	other.PrefixUpdated = map[string]string{"ipv4/unicast": "2026-08-08"}
 
 	adapter := &reactorAPIAdapter{r: r}

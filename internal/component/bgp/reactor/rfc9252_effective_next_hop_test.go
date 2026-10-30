@@ -10,6 +10,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 	"github.com/ze-software/ze/internal/core/family"
@@ -253,7 +254,7 @@ func rfc9252EffectiveNextHopCase(t *testing.T, rail, carrier string, tc rfc9252N
 				policyCalls++
 				return PolicyResponse{Action: PolicyModify, Raw: override}
 			}
-			f.destination.settings.ExportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "srv6:effective-next-hop"}}, filterapi.FinalAccept)
+			f.destination.settings.ExportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "srv6:effective-next-hop"}}, routepolicy.FinalAccept)
 			f.r.orderedEgressSteps = []orderedEgressStep{{name: policyChainStepName, policyChain: true}}
 			if rail == "rs" {
 				dispatch = "rs-export"
@@ -367,7 +368,7 @@ func rfc9252MixedNextHopCase(t *testing.T, rail, change string, rawPolicy bool, 
 			calls++
 			return PolicyResponse{Action: PolicyModify, Raw: override}
 		}
-		f.destination.settings.ExportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "srv6:mixed-next-hop"}}, filterapi.FinalAccept)
+		f.destination.settings.ExportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "srv6:mixed-next-hop"}}, routepolicy.FinalAccept)
 		f.r.orderedEgressSteps = []orderedEgressStep{{name: policyChainStepName, policyChain: true}}
 		if rail == "rs" {
 			dispatch = "rs-export"

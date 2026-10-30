@@ -5,10 +5,10 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/selector"
 )
@@ -100,7 +100,7 @@ func TestRFC7947ClientPolicyControlsWire(t *testing.T) {
 	for _, p := range []*Peer{f.destination, other} {
 		p.settings.RSClient = true
 		p.settings.NextHopMode = NextHopUnchanged
-		p.settings.ExportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "client-policy"}}, filterapi.FinalAccept)
+		p.settings.ExportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "client-policy"}}, routepolicy.FinalAccept)
 		p.refreshForwardFacts()
 	}
 	f.r.api = &pluginserver.Server{}

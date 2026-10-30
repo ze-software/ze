@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	routepolicy "github.com/ze-software/ze/internal/component/policy"
 )
 
 // basePeerSettingsForReload returns the "before reload" baseline. Each test
@@ -42,7 +42,7 @@ func TestPeerSettingsEqualIdenticalIsEqual(t *testing.T) {
 func TestPeerSettingsEqualDetectsImportFilterChange(t *testing.T) {
 	a := basePeerSettingsForReload()
 	b := basePeerSettingsForReload()
-	b.ImportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "block-bogons"}}, filterapi.FinalAccept)
+	b.ImportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "block-bogons"}}, routepolicy.FinalAccept)
 
 	assert.False(t, peerSettingsEqual(a, b), "an import filter chain change must mark the peer changed")
 }
@@ -65,14 +65,14 @@ func TestPeerSettingsEqualDetectsEachSignificantField(t *testing.T) {
 		{
 			name: "ImportPolicy",
 			mutate: func(s *PeerSettings) {
-				s.ImportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "deny-all"}}, filterapi.FinalAccept)
+				s.ImportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "deny-all"}}, routepolicy.FinalAccept)
 			},
 			why: "governs inbound policy at filter_ordered.go:138",
 		},
 		{
 			name: "ExportPolicy",
 			mutate: func(s *PeerSettings) {
-				s.ExportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "deny-all"}}, filterapi.FinalAccept)
+				s.ExportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "deny-all"}}, routepolicy.FinalAccept)
 			},
 			why: "governs outbound policy",
 		},

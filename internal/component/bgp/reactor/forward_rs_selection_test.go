@@ -10,10 +10,10 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
+	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/slogutil"
@@ -144,7 +144,7 @@ func TestReactorForwardRSRetrySelection(t *testing.T) {
 	r.peers[replacement.Settings().PeerKey()] = replacement
 	h.dests[3].fwdFacts.Store(nil)
 	for _, i := range []int{4, 6} {
-		h.dests[i].settings.ExportPolicy = mustPolicy(t, frefs("bgp-rs:active"), filterapi.FinalAccept)
+		h.dests[i].settings.ExportPolicy = mustPolicy(t, frefs("bgp-rs:active"), routepolicy.FinalAccept)
 		h.dests[i].refreshForwardFacts()
 	}
 	skipped, dispatched, retry := reactorForwardRSSection(r, h.update, h.update.WireUpdate, selected, 1, h.update.SourcePeerIP, source)

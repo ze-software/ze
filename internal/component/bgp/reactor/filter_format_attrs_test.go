@@ -17,12 +17,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
@@ -226,7 +226,7 @@ func TestFilterSubjectReadsUnmodifiableAttributes(t *testing.T) {
 	filterSubjectPlugin(t, r)
 
 	for _, mode := range []string{"text", "raw"} {
-		policy := mustPolicy(t, frefs("subject-policy:"+mode), filterapi.FinalAccept)
+		policy := mustPolicy(t, frefs("subject-policy:"+mode), routepolicy.FinalAccept)
 		source.settings.ImportPolicy = policy
 		source.settings.ExportPolicy = policy
 		for _, metric := range []struct {
@@ -340,7 +340,7 @@ func TestFilterSubjectDryRunWithdrawalFallback(t *testing.T) {
 	filterSubjectPlugin(t, r)
 	withdrawal := []byte{24, 198, 51, 100}
 	for _, mode := range []string{"text", "raw"} {
-		policy := mustPolicy(t, frefs("subject-policy:"+mode), filterapi.FinalReject)
+		policy := mustPolicy(t, frefs("subject-policy:"+mode), routepolicy.FinalReject)
 		peer.settings.ImportPolicy = policy
 		peer.settings.ExportPolicy = policy
 		for _, direction := range []string{directionImport, directionExport} {

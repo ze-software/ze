@@ -256,11 +256,11 @@ func PolicyFilterChain(policy filterapi.Policy, external bool, direction, peer s
 		}
 	}
 	current := updateText
-	for _, ref := range policy.Filters() {
+	for i, ref := range policy.Filters() {
 		if ref.Inactive {
 			continue
 		}
-		if ref.InProcess() {
+		if policy.InProcess(i) {
 			continue
 		}
 		pluginName, filterName, _ := strings.Cut(ref.Name, ":")

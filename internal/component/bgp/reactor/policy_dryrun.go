@@ -16,6 +16,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/component/plugin"
+	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 )
@@ -28,11 +29,11 @@ func tracePolicyFilterChain(policy filterapi.Policy, external bool, direction, p
 		if policy.RequiresIngress() {
 			// Only the refused dry-run scans for its diagnostic reference.
 			// No external filter has executed, regardless of reference order.
-			for _, ref := range policy.Filters() {
+			for i, ref := range policy.Filters() {
 				if ref.Inactive {
 					continue
 				}
-				if ref.InProcess() {
+				if policy.InProcess(i) {
 					_, filterName, _ := strings.Cut(ref.Name, ":")
 					trace = append(trace, plugin.PolicyTraceEntry{
 						Filter:    filterName,
@@ -47,11 +48,11 @@ func tracePolicyFilterChain(policy filterapi.Policy, external bool, direction, p
 	}
 	current := updateText
 
-	for _, ref := range policy.Filters() {
+	for i, ref := range policy.Filters() {
 		if ref.Inactive {
 			continue
 		}
-		if ref.InProcess() {
+		if policy.InProcess(i) {
 			_, filterName, _ := strings.Cut(ref.Name, ":")
 			trace = append(trace, plugin.PolicyTraceEntry{
 				Filter:    filterName,
@@ -191,14 +192,14 @@ func (a *reactorAPIAdapter) PolicyDryRun(peerAddr, direction, filterOverride str
 		if ref == "" {
 			return nil, errFilterNotFound
 		}
-		for _, configured := range policy.Filters() {
+		for i, configured := range policy.Filters() {
 			if configured.Name == ref {
-				if configured.InProcess() {
+				if policy.InProcess(i) {
 					return nil, errInProcessDryRun
 				}
 			}
 		}
-		policy = policy.WithFilters([]filterapi.FilterRef{{Name: ref}})
+		policy = policy.WithFilters([]routepolicy.Ref{{Name: ref}})
 	}
 
 	// Validate the UPDATE body parses correctly before proceeding.
@@ -370,7 +371,7 @@ func wireModVerb(action uint8) string {
 // with an empty trace, misleading the operator into thinking the filter is
 // permissive. Returning "" makes the handler report "filter not found"
 // instead.
-func resolveFilterOverride(name string, chain []filterapi.FilterRef) string {
+func resolveFilterOverride(name string, chain []routepolicy.Ref) string {
 	for _, ref := range chain {
 		if ref.Inactive {
 			continue

@@ -10,10 +10,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	_ "github.com/ze-software/ze/internal/component/bgp/plugins/filter_prefix"
 	"github.com/ze-software/ze/internal/component/config"
-	"github.com/ze-software/ze/internal/component/plugin/registry"
 )
 
 // TestFilterConfigParse verifies parsing explicit filter policies.
@@ -375,33 +373,18 @@ bgp {
 	assert.True(t, filterChainContains(peers[0].ImportPolicy.Filters(), "rpki:validate"))
 }
 
-// TestCanonicalizePlainPrefixRef verifies plain filter names resolve through
-// the filter registry and FilterTypesMap for prefix-list filters.
-//
-// VALIDATES: AC-1, AC-2 -- plain unique name resolves to canonical plugin ref.
-// PREVENTS: Plain name left unresolved, reaching runtime as bare string.
-func TestCanonicalizePlainPrefixRef(t *testing.T) {
-	reg := mustPolicyRegistry(t, policy.Instance{Name: "CUSTOMERS", Type: "prefix-list"})
-	typesMap := registry.FilterTypesMap()
-
-	got := canonicalizeOne("CUSTOMERS", reg, typesMap)
-	assert.Equal(t, "bgp-filter-prefix:CUSTOMERS", got)
-
-	got = canonicalizeOne("prefix-list:CUSTOMERS", reg, typesMap)
-	assert.Equal(t, "bgp-filter-prefix:CUSTOMERS", got)
-}
-
 // TestCanonicalizeInactivePlainRef verifies the structural deactivation flag is
 // preserved around plain name canonicalization while the name is rewritten.
 //
 // VALIDATES: inactive state survives plain-name resolution.
-// PREVENTS: FilterRef.Inactive dropped or an inactive filter reactivated by
+// PREVENTS: policy.Ref.Inactive dropped or an inactive filter reactivated by
 // canonicalization.
 func TestCanonicalizeInactivePlainRef(t *testing.T) {
 	reg := mustPolicyRegistry(t, policy.Instance{Name: "CUSTOMERS", Type: "prefix-list"})
 
-	got := canonicalizeFilterRefs([]filterapi.FilterRef{{Name: "CUSTOMERS", Inactive: true}}, reg)
-	assert.Equal(t, []filterapi.FilterRef{{Name: "bgp-filter-prefix:CUSTOMERS", Inactive: true}}, got)
+	got, bound := canonicalizeFilterRefs([]policy.Ref{{Name: "CUSTOMERS", Inactive: true}}, reg)
+	assert.Equal(t, []policy.Ref{{Name: "bgp-filter-prefix:CUSTOMERS", Inactive: true}}, got)
+	assert.Nil(t, bound)
 }
 
 // mustPolicyRegistry builds a filter namespace holding exactly instances.
@@ -414,19 +397,19 @@ func mustPolicyRegistry(t *testing.T, instances ...policy.Instance) *policy.Regi
 	return reg
 }
 
-// refs builds a FilterRef chain from canonical strings, mapping an "inactive:"
+// refs builds a policy.Ref chain from canonical strings, mapping an "inactive:"
 // prefix to the structural deactivation flag. Shared by bgpconfig tests to keep
-// filter chains expressed compactly against the post-refactor []FilterRef API.
-func refs(names ...string) []filterapi.FilterRef {
+// filter chains expressed compactly against the []policy.Ref API.
+func refs(names ...string) []policy.Ref {
 	if len(names) == 0 {
 		return nil
 	}
-	out := make([]filterapi.FilterRef, len(names))
+	out := make([]policy.Ref, len(names))
 	for i, n := range names {
 		if rest, ok := strings.CutPrefix(n, "inactive:"); ok {
-			out[i] = filterapi.FilterRef{Name: rest, Inactive: true}
+			out[i] = policy.Ref{Name: rest, Inactive: true}
 		} else {
-			out[i] = filterapi.FilterRef{Name: n}
+			out[i] = policy.Ref{Name: n}
 		}
 	}
 	return out

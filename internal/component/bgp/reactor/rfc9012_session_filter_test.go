@@ -19,6 +19,7 @@ import (
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/component/plugin"
+	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
@@ -99,7 +100,7 @@ func teSessionFilterRoundTrip(t *testing.T, filtered int) {
 		if i == filtered {
 			filter = teSessionFilterRemove
 		}
-		destination.settings.ExportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: teSessionFilterPlugin + ":" + filter}}, filterapi.FinalAccept)
+		destination.settings.ExportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: teSessionFilterPlugin + ":" + filter}}, routepolicy.FinalAccept)
 		destination.refreshForwardFacts()
 		r.fwdPool.registerOutgoingPool(fwdKey{peerAddr: destination.Settings().PeerKey()}, 4096)
 	}

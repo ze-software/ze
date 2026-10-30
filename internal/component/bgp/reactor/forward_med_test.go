@@ -11,6 +11,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/wire"
@@ -90,7 +91,7 @@ func TestRFC4271IBGPReadvertisementRejectsRawMEDRemoval(t *testing.T) {
 	r.orderedEgressSteps = []orderedEgressStep{{name: policyChainStepName, policyChain: true}}
 
 	dest := h.dests[0]
-	dest.settings.ExportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "someplugin:remove-med"}}, filterapi.FinalAccept)
+	dest.settings.ExportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "someplugin:remove-med"}}, routepolicy.FinalAccept)
 	dest.refreshForwardFacts()
 
 	require.NoError(t, h.forward())

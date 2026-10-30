@@ -112,9 +112,9 @@ func tryDirectWriteNoFlush(item *fwdItem) (handled, delivered bool, dst *Session
 // hasActiveFilter reports whether the per-peer chain must execute or refuse a
 // reference. In-process ownership is proved only for import; a manually built
 // export policy containing an active internal ref must not take a bypass.
-func hasActiveFilter(chain []filterapi.FilterRef, direction string) bool {
-	for _, ref := range chain {
-		if ref.ActiveExternal() {
+func hasActiveFilter(policy filterapi.Policy, direction string) bool {
+	for i, ref := range policy.Filters() {
+		if policy.ActiveExternal(i) {
 			return true
 		}
 		if ref.Inactive {
@@ -262,7 +262,7 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 			skipped = append(skipped, pf.peerKey)
 			continue
 		}
-		if hasActiveFilter(pf.exportPolicy.Filters(), directionExport) {
+		if hasActiveFilter(pf.exportPolicy, directionExport) {
 			skipped = append(skipped, pf.peerKey)
 			continue
 		}
@@ -288,7 +288,7 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 		if !pf.rsRelaySend {
 			continue
 		}
-		if hasActiveFilter(pf.exportPolicy.Filters(), directionExport) {
+		if hasActiveFilter(pf.exportPolicy, directionExport) {
 			continue
 		}
 		// RFC 8212 Section 3: retry uses the current coherent destination facts.

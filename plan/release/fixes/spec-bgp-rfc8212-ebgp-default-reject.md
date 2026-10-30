@@ -368,6 +368,7 @@ over the closing commits.
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
 | `zero-value-as-valid-answer.md` | 2026-10-26 | `Policy.AcceptsAtEnd` accepts an absent policy on EBGP |
+| `test-asserts-superseded-behaviour.md` | 2026-10-30 | reactor tests expect accept for EBGP with no export policy |
 | `unwired-feature.md` | 2026-09-02 | Named automatic loop-filter references dispatch to a nonexistent external plugin |
 | `unwired-feature.md` | 2026-10-28 | Startup subscriptions discard every peer selector after the first |
 

@@ -155,7 +155,7 @@ func (r *Reactor) runIngressPolicyChain(peer *Peer, peerAddr netip.Addr, peerAS 
 	if peerAS == 0 {
 		return ingressPolicyWithdrawals(payload)
 	}
-	if !hasActiveFilter(policy.Filters(), directionImport) {
+	if !hasActiveFilter(policy, directionImport) {
 		// RFC 8212 Section 3.
 		if policy.AcceptsAtEnd(external) {
 			return ingressStepResult{accept: true}
@@ -280,7 +280,7 @@ func (r *Reactor) runIngressPolicyChain(peer *Peer, peerAddr netip.Addr, peerAS 
 // original payload: egress in-process filters defer their edits into the shared
 // ModAccumulator, so the payload is never rewritten in the egress pass.
 func (r *Reactor) runEgressPolicyChain(exportPolicy filterapi.Policy, destAddrStr string, destPeerAS, destLocalAS uint32, destInternal bool, wireUpdate *wireu.WireUpdate) egressStepResult {
-	if !hasActiveFilter(exportPolicy.Filters(), directionExport) {
+	if !hasActiveFilter(exportPolicy, directionExport) {
 		// RFC 8212 Section 3: classify the destination, not the source encoding.
 		return egressStepResult{accept: exportPolicy.AcceptsAtEnd(!destInternal)}
 	}
@@ -313,7 +313,7 @@ func (r *Reactor) runEgressPolicyChain(exportPolicy filterapi.Policy, destAddrSt
 // callers take from the peer's forwarding facts (!isEBGP). It decides whether
 // the AS_PATH edits of the filter's answer apply (RFC 4271 Section 5.1.2).
 func (r *Reactor) runEgressPolicyChainASN4(exportPolicy filterapi.Policy, destAddrStr string, destPeerAS, destLocalAS uint32, destInternal bool, wireUpdate *wireu.WireUpdate, asn4 bool) egressStepResult {
-	if !hasActiveFilter(exportPolicy.Filters(), directionExport) {
+	if !hasActiveFilter(exportPolicy, directionExport) {
 		// RFC 8212 Section 3.
 		return egressStepResult{accept: exportPolicy.AcceptsAtEnd(!destInternal)}
 	}

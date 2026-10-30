@@ -20,9 +20,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -142,7 +142,7 @@ func TestPolicyFilterFailedFlagMarksANonDecision(t *testing.T) {
 			out:     &rpc.FilterUpdateOutput{Action: rpc.FilterAction(255)},
 		}}
 
-		got := PolicyFilterChain(mustPolicy(t, []filterapi.FilterRef{{Name: plug + ":" + filter}}, filterapi.FinalAccept), true, directionExport, "10.0.0.2", 65002, "origin igp", r.policyFilterFunc(nil))
+		got := PolicyFilterChain(mustPolicy(t, []routepolicy.Ref{{Name: plug + ":" + filter}}, routepolicy.FinalAccept), true, directionExport, "10.0.0.2", 65002, "origin igp", r.policyFilterFunc(nil))
 
 		assert.Equal(t, PolicyReject, got.Action, "unknown plugin actions are rejected even under on-error accept")
 		assert.True(t, got.Failed, "an invalid action is not a policy decision")
@@ -163,12 +163,12 @@ func TestEgressChainCarriesTheFailedFlagToTheStep(t *testing.T) {
 	ctxID, err := bgpctx.Registry.Register(ctx)
 	require.NoError(t, err)
 	wire := wireu.NewWireUpdate(modBufTestPayload(), ctxID)
-	refs := []filterapi.FilterRef{{Name: "policy-plugin:export-policy"}}
+	refs := []routepolicy.Ref{{Name: "policy-plugin:export-policy"}}
 
 	t.Run("a filter that could not run", func(t *testing.T) {
 		r := &Reactor{api: liveFilterServer(t)}
 
-		got := r.runEgressPolicyChainASN4(mustPolicy(t, refs, filterapi.FinalAccept), "10.0.0.2", 65002, 65000, false, wire, true)
+		got := r.runEgressPolicyChainASN4(mustPolicy(t, refs, routepolicy.FinalAccept), "10.0.0.2", 65002, 65000, false, wire, true)
 
 		assert.False(t, got.accept, "fail-closed: the route is withheld")
 		assert.True(t, got.failed, "the step must report that it could not decide")
@@ -183,7 +183,7 @@ func TestEgressChainCarriesTheFailedFlagToTheStep(t *testing.T) {
 			},
 		}
 
-		got := r.runEgressPolicyChainASN4(mustPolicy(t, refs, filterapi.FinalAccept), "10.0.0.2", 65002, 65000, false, wire, true)
+		got := r.runEgressPolicyChainASN4(mustPolicy(t, refs, routepolicy.FinalAccept), "10.0.0.2", 65002, 65000, false, wire, true)
 
 		assert.False(t, got.accept, "the filter said no")
 		assert.False(t, got.failed, "this IS a policy decision, and the caller may count it as one")

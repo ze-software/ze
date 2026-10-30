@@ -12,6 +12,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
+	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -209,7 +210,7 @@ func fillDistinctValue(field reflect.Value, seed int) error {
 		field.Set(reflect.ValueOf([]capability.Code{capability.CodeRouteRefresh}))
 		return nil
 	case reflect.TypeFor[filterapi.Policy]():
-		policy, err := filterapi.NewPolicy([]filterapi.FilterRef{{Name: "bgp-filter-prefix:MEMBERS"}}, filterapi.FinalAccept)
+		policy, err := filterapi.NewPolicy([]routepolicy.Ref{{Name: "bgp-filter-prefix:MEMBERS"}}, routepolicy.FinalAccept)
 		if err != nil {
 			return err
 		}

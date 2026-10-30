@@ -7,9 +7,9 @@ import (
 	"net/netip"
 	"testing"
 
-	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/family"
@@ -192,7 +192,7 @@ func TestStaticOriginateContinuesAfterUnusablePolicyNextHop(t *testing.T) {
 				}
 				routes = append(routes, good)
 				initial.settings.StaticRoutes = routes
-				initial.settings.ExportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "static:replace-first-next-hop"}}, filterapi.FinalAccept)
+				initial.settings.ExportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "static:replace-first-next-hop"}}, routepolicy.FinalAccept)
 				r := New(&Config{ListenAddr: "127.0.0.1:0", LocalAS: 65000})
 				if err := r.AddPeer(initial.settings); err != nil {
 					t.Fatal(err)

@@ -16,6 +16,7 @@ import (
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/component/plugin"
+	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/internal/core/bgp/wire"
@@ -31,15 +32,15 @@ func TestRFC8212PolicyDryRunWiring(t *testing.T) {
 		name       string
 		remoteAS   uint32
 		dynamic    bool
-		final      filterapi.FinalDisposition
+		final      routepolicy.Final
 		wantAction string
 		wantFinal  string
 		wantSource string
 	}{
 		{name: "absent-ebgp", remoteAS: 65001, wantAction: "reject", wantFinal: "reject", wantSource: "rfc8212"},
 		{name: "absent-ibgp", remoteAS: 65000, wantAction: "accept"},
-		{name: "explicit-accept", remoteAS: 65001, final: filterapi.FinalAccept, wantAction: "accept", wantFinal: "accept"},
-		{name: "explicit-reject", remoteAS: 65001, final: filterapi.FinalReject, wantAction: "reject", wantFinal: "reject"},
+		{name: "explicit-accept", remoteAS: 65001, final: routepolicy.FinalAccept, wantAction: "accept", wantFinal: "accept"},
+		{name: "explicit-reject", remoteAS: 65001, final: routepolicy.FinalReject, wantAction: "reject", wantFinal: "reject"},
 		{name: "unresolved-dynamic", dynamic: true, wantAction: "undetermined", wantFinal: "undetermined"},
 	}
 	for _, tc := range cases {
@@ -110,22 +111,22 @@ func TestRFC8212PolicyDryRunWiring(t *testing.T) {
 // session types. Neither an automatic reference nor a terminal raw rewrite can
 // grant an absent EBGP policy acceptance, and failure/teardown remain terminal.
 func TestRFC8212ChainBoundaries(t *testing.T) {
-	automatic := filterapi.BindInProcess(filterapi.FilterRef{Name: "AUTO"}, "loop-detection")
-	if !automatic.InProcess() {
+	automatic, bound := filterapi.BindInProcess(routepolicy.Ref{Name: "AUTO"}, "loop-detection")
+	if !bound {
 		t.Fatal("loop registration did not bind the automatic reference")
 	}
 	for _, external := range []bool{false, true} {
-		for _, final := range []filterapi.FinalDisposition{0, filterapi.FinalAccept, filterapi.FinalReject} {
+		for _, final := range []routepolicy.Final{0, routepolicy.FinalAccept, routepolicy.FinalReject} {
 			for _, tc := range []struct {
 				name     string
-				refs     []filterapi.FilterRef
+				refs     []routepolicy.Ref
 				response PolicyResponse
 				calls    int
 				text     string
 			}{
 				{name: "empty", text: "origin igp"},
 				{name: "inactive", refs: frefs("inactive:plug:SKIP"), text: "origin igp"},
-				{name: "automatic", refs: []filterapi.FilterRef{automatic}, text: "origin igp"},
+				{name: "automatic", refs: []routepolicy.Ref{automatic}, text: "origin igp"},
 				{name: "accept", refs: frefs("plug:FIRST", "plug:LAST"), response: PolicyResponse{Action: PolicyAccept}, calls: 2, text: "origin igp"},
 				{name: "modify", refs: frefs("plug:FIRST", "plug:LAST"), response: PolicyResponse{Action: PolicyModify, Delta: "med 200"}, calls: 2, text: "origin igp med 200"},
 				{name: "inactive-external", refs: frefs("inactive:plug:SKIP", "plug:KEEP"), response: PolicyResponse{Action: PolicyAccept}, calls: 1, text: "origin igp"},
@@ -135,9 +136,9 @@ func TestRFC8212ChainBoundaries(t *testing.T) {
 				{name: "teardown", refs: frefs("plug:FIRST", "plug:LAST"), response: PolicyResponse{Action: PolicyAccept, Teardown: true, NotifyCode: 6, NotifySubcode: 2}, calls: 1},
 			} {
 				t.Run(tc.name, func(t *testing.T) {
-					policy := filterapi.InternalPolicy(tc.refs)
+					policy := bindRefs(filterapi.InternalPolicy(tc.refs), automatic)
 					if final != 0 {
-						policy = mustPolicy(t, tc.refs, final)
+						policy = bindRefs(mustPolicy(t, tc.refs, final), automatic)
 					}
 					calls := 0
 					call := func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
@@ -163,7 +164,7 @@ func TestRFC8212ChainBoundaries(t *testing.T) {
 					if len(trace) != wantTrace {
 						t.Fatalf("trace=%+v want %d entries", trace, wantTrace)
 					}
-					accept := final == filterapi.FinalAccept || final == 0 && !external
+					accept := final == routepolicy.FinalAccept || final == 0 && !external
 					reject := !accept || tc.response.Action == PolicyReject || tc.response.Teardown
 					if (got.Action == PolicyReject) != reject || got.Failed != tc.response.Failed || got.Teardown != tc.response.Teardown {
 						t.Fatalf("external=%v final=%d result=%+v", external, final, got)
@@ -187,11 +188,11 @@ func TestRFC8212ChainBoundaries(t *testing.T) {
 // boundary: denied announcements never reach consumers, while explicit IPv4/MP
 // withdrawals and EOR survive. Automatic references do not supply presence.
 func TestRFC8212Section3AbsentImportRejectsOnEBGP(t *testing.T) {
-	automatic := filterapi.BindInProcess(filterapi.FilterRef{Name: "AUTO"}, "loop-detection")
-	if !automatic.InProcess() {
+	automatic, bound := filterapi.BindInProcess(routepolicy.Ref{Name: "AUTO"}, "loop-detection")
+	if !bound {
 		t.Fatal("loop registration missing")
 	}
-	for _, refs := range [][]filterapi.FilterRef{nil, {automatic}, {{Name: "off", Inactive: true}}} {
+	for _, refs := range [][]routepolicy.Ref{nil, {automatic}, {{Name: "off", Inactive: true}}} {
 		for _, tc := range []struct{ name, body, want string }{
 			{"announcement", "0000000018c00003", ""},
 			{"mp-announcement", "0000001f800e1c0002011020010db8000000000000000000000001003020010db80001", ""},
@@ -205,7 +206,7 @@ func TestRFC8212Section3AbsentImportRejectsOnEBGP(t *testing.T) {
 			t.Run(tc.name, func(t *testing.T) {
 				addr := netip.MustParseAddr("203.0.113.9")
 				source := NewPeer(&PeerSettings{Address: addr, LocalAS: 65000, PeerAS: 65001,
-					ImportPolicy: filterapi.InternalPolicy(refs)})
+					ImportPolicy: bindRefs(filterapi.InternalPolicy(refs), automatic)})
 				source.state.Store(int32(PeerStateEstablished))
 				var delivered [][]byte
 				r := &Reactor{clock: source.clock, config: &Config{LocalAS: 65000},
@@ -236,7 +237,7 @@ func TestRFC8212Section3AbsentImportRejectsOnEBGP(t *testing.T) {
 // TestRFC8212Section3AbsentExportRejectsOnEBGP exercises originated admission
 // before and after snapshot publication, and the general forwarding policy step.
 func TestRFC8212Section3AbsentExportRejectsOnEBGP(t *testing.T) {
-	for _, refs := range [][]filterapi.FilterRef{nil, {{Name: "off", Inactive: true}}} {
+	for _, refs := range [][]routepolicy.Ref{nil, {{Name: "off", Inactive: true}}} {
 		for _, snapshot := range []bool{false, true} {
 			settings := NewPeerSettings(netip.MustParseAddr("192.0.2.2"), 65000, 65001, 1)
 			settings.ExportPolicy = filterapi.InternalPolicy(refs)
@@ -329,7 +330,7 @@ func TestRFC8212NativeRSSkipsAbsentExport(t *testing.T) {
 // TestRFC8212DefaultOriginateGuard keeps the synthetic condition separate from
 // operator presence, using a real external destination and filter callback.
 func TestRFC8212DefaultOriginateGuard(t *testing.T) {
-	for _, final := range []filterapi.FinalDisposition{0, filterapi.FinalAccept, filterapi.FinalReject} {
+	for _, final := range []routepolicy.Final{0, routepolicy.FinalAccept, routepolicy.FinalReject} {
 		for _, action := range []PolicyAction{PolicyAccept, PolicyReject} {
 			settings := NewPeerSettings(netip.MustParseAddr("192.0.2.2"), 65000, 65001, 1)
 			if final != 0 {
@@ -345,18 +346,18 @@ func TestRFC8212DefaultOriginateGuard(t *testing.T) {
 				return PolicyResponse{Action: action}
 			}}
 			got := peer.defaultOriginateFilterAccepts("test:guard", family.IPv4Unicast, netip.MustParsePrefix("0.0.0.0/0"), netip.MustParseAddr("192.0.2.254"))
-			if got != (final == filterapi.FinalAccept && action == PolicyAccept) || calls != 1 {
+			if got != (final == routepolicy.FinalAccept && action == PolicyAccept) || calls != 1 {
 				t.Fatalf("final=%d action=%d accepts=%v calls=%d", final, action, got, calls)
 			}
 		}
 	}
 	t.Run("unsupported-export-ownership", func(t *testing.T) {
-		ref := filterapi.BindInProcess(filterapi.FilterRef{Name: "AUTO"}, "loop-detection")
-		if !ref.InProcess() {
+		ref, bound := filterapi.BindInProcess(routepolicy.Ref{Name: "AUTO"}, "loop-detection")
+		if !bound {
 			t.Fatal("loop registration did not bind")
 		}
 		settings := NewPeerSettings(netip.MustParseAddr("192.0.2.2"), 65000, 65001, 1)
-		settings.ExportPolicy = mustPolicy(t, []filterapi.FilterRef{ref}, filterapi.FinalAccept)
+		settings.ExportPolicy = bindRefs(mustPolicy(t, []routepolicy.Ref{ref}, routepolicy.FinalAccept), ref)
 		peer := NewPeer(settings)
 		peer.reactor = &Reactor{api: liveFilterServer(t), policyFilterSeam: func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
 			t.Fatal("synthetic guard hid unsupported export ownership before its callback")
@@ -372,7 +373,7 @@ func TestRFC8212DefaultOriginateGuard(t *testing.T) {
 // even with explicit policy or a single-filter override.
 func TestRFC8212UnknownDryRunNeverExecutes(t *testing.T) {
 	addr := netip.MustParseAddr("192.0.2.2")
-	policy := mustPolicy(t, frefs("test:guard"), filterapi.FinalAccept)
+	policy := mustPolicy(t, frefs("test:guard"), routepolicy.FinalAccept)
 	peer := NewPeer(&PeerSettings{Address: addr, LocalAS: 65000, IsDynamic: true, ImportPolicy: policy, ExportPolicy: policy})
 	r := &Reactor{peers: map[netip.AddrPort]*Peer{peer.Settings().PeerKey(): peer}, policyFilterSeam: func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
 		t.Fatal("unresolved session called a filter")
@@ -401,7 +402,7 @@ func TestRFC8212GeneralForwardOwnedRejection(t *testing.T) {
 			f := ownershipRailNew(t, nil)
 			f.r.orderedEgressSteps = []orderedEgressStep{{name: policyChainStepName, policyChain: true}}
 			f.destination.mu.Lock()
-			f.destination.settings.ExportPolicy = mustPolicy(t, nil, filterapi.FinalAccept)
+			f.destination.settings.ExportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
 			f.destination.settings.PeerAS = 65002
 			f.destination.settings.RSClient = true
 			f.destination.mu.Unlock()
@@ -461,12 +462,12 @@ func TestRFC8212RawAPIAdmission(t *testing.T) {
 		for _, policyCase := range []struct {
 			name     string
 			internal bool
-			final    filterapi.FinalDisposition
+			final    routepolicy.Final
 			accept   bool
 		}{
 			{name: "absent-ebgp"},
-			{name: "explicit-reject", final: filterapi.FinalReject},
-			{name: "explicit-accept", final: filterapi.FinalAccept, accept: true},
+			{name: "explicit-reject", final: routepolicy.FinalReject},
+			{name: "explicit-accept", final: routepolicy.FinalAccept, accept: true},
 			{name: "absent-ibgp", internal: true, accept: true},
 		} {
 			for _, tc := range []struct {
@@ -561,7 +562,7 @@ func TestRFC8212RawControlUnaffected(t *testing.T) {
 			t.Run(tc.name, func(t *testing.T) {
 				peer, conn := rawOwnershipPeer(t)
 				if accept {
-					peer.settings.ExportPolicy = mustPolicy(t, nil, filterapi.FinalAccept)
+					peer.settings.ExportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
 				}
 				peer.refreshForwardFacts()
 				peer.session.egressFinalAccepts = func() bool {

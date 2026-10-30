@@ -1451,12 +1451,24 @@ Three categories of filters:
 | User | When configured | N/A | `rpki:validate` |
 
 Filter references are cumulative (bgp > group > peer); the most-specific
-configured direction supplies the final decision. `filterapi.Policy` carries
-both together through `PeerSettings`, dynamic resolution, forwarding snapshots
-and reload. An absent operator policy rejects at exhaustion on EBGP (RFC 8212
-Section 3), but preserves acceptance on IBGP, including migration-AS sessions.
-Automatic and inactive references do not establish operator policy presence.
-<!-- source: internal/component/bgp/filterapi/policy.go -- Policy.AcceptsAtEnd -->
+configured direction supplies the final decision. The chain itself is
+protocol-neutral and lives in the policy library: `policy.Ref` (name and
+deactivation), `policy.Final`, `policy.Chain`, `policy.ExtractChain` for a
+`filter { import|export { ... } }` block, `policy.ConcatChains` for the
+inheritance rule, and `policy.CanonicalName` for the plugin, filter-type and
+plain reference forms. BGP compiles the chain into `filterapi.Policy`, which
+adds what only BGP has: the stage binding of each ref to a registered
+in-process ingress filter (`filterapi.BindInProcess`, kept as a slice parallel
+to the refs and set once at config time, so the UPDATE path reads an index and
+allocates nothing), whether the policy therefore requires ingress, and the RFC
+8212 default. `filterapi.Policy` carries both together through
+`PeerSettings`, dynamic resolution, forwarding snapshots and reload. An absent
+operator policy rejects at exhaustion on EBGP (RFC 8212 Section 3), but
+preserves acceptance on IBGP, including migration-AS sessions. Automatic and
+inactive references do not establish operator policy presence.
+<!-- source: internal/component/policy/chain.go -- Ref, Final, Chain, ExtractChain, ConcatChains, CanonicalName -->
+<!-- source: internal/component/bgp/filterapi/policy.go -- Policy.AcceptsAtEnd, Policy.InProcess, Policy.WithBoundFilters -->
+<!-- source: internal/component/bgp/filterapi/filterapi.go -- BindInProcess -->
 
 Filters respond accept/reject/modify with delta-only output. Accept continues;
 reject, fail-closed error and teardown short-circuit. Exhaustion, including

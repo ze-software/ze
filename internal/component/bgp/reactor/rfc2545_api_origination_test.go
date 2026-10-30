@@ -9,12 +9,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/rib"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
@@ -186,7 +186,7 @@ func testAPIOriginateIPv6NextHop(t *testing.T, rail string, postPolicy bool) {
 				attrs := append([]byte{0x80, 0x0e, byte(len(mp))}, mp...)
 				attrs = append(attrs, mustHex(t, "4001010040020602010000fde8")...)
 				body := append([]byte{0, 0, byte(len(attrs) >> 8), byte(len(attrs))}, attrs...)
-				peer.settings.ExportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "origination:replace-next-hop"}}, filterapi.FinalAccept)
+				peer.settings.ExportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "origination:replace-next-hop"}}, routepolicy.FinalAccept)
 				peer.refreshForwardFacts()
 				r.api = &pluginserver.Server{}
 				var ipv6Policy bool
@@ -405,7 +405,7 @@ func testOriginatedPolicyForwardQueue(t *testing.T) {
 				hop = "00000000000000000000000000000001"
 			}
 			override := mustHex(t, "0000002e800e1e00020110"+hop+"004020010db8000700004001010040020602010000fde8")
-			peer.settings.ExportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "queued:replace-first-next-hop"}}, filterapi.FinalAccept)
+			peer.settings.ExportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "queued:replace-first-next-hop"}}, routepolicy.FinalAccept)
 			peer.refreshForwardFacts()
 			r.api = &pluginserver.Server{}
 			var ipv6Policy bool

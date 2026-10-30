@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	routepolicy "github.com/ze-software/ze/internal/component/policy"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -63,7 +64,7 @@ func TestExportFilterForBodyNilAPIWithExportFiltersSuppressesAndWarns(t *testing
 	rec := captureWarnPeers(t)
 
 	r := &Reactor{} // r.api is nil: the whole subject
-	peer := peerWithExportPolicy(t, "10.0.0.1", mustPolicy(t, []filterapi.FilterRef{{Name: "reject-private-asn"}}, filterapi.FinalAccept))
+	peer := peerWithExportPolicy(t, "10.0.0.1", mustPolicy(t, []routepolicy.Ref{{Name: "reject-private-asn"}}, routepolicy.FinalAccept))
 
 	suppress, override := r.exportFilterForBody(peer, []byte{0x00})
 

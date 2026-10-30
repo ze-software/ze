@@ -10,6 +10,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/family"
 )
@@ -37,7 +38,7 @@ func testRawExportMixedSectionsPreservePolicy(t *testing.T, aigp bool) {
 	h := newFanoutHarnessWith(t, 1, 1, fanoutOpts{groups: true})
 	peer := h.dests[0]
 	peer.settings.NextHopMode = NextHopUnchanged
-	peer.settings.ExportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "policy:mixed-raw"}}, filterapi.FinalAccept)
+	peer.settings.ExportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "policy:mixed-raw"}}, routepolicy.FinalAccept)
 	peer.negotiated.Load().families[family.IPv6Unicast] = true
 	peer.settings.AIGPSession = &aigp
 	peer.refreshForwardFacts()
@@ -144,7 +145,7 @@ func TestRawExportMixedBadASPathStillWithdraws(t *testing.T) {
 	peer := h.dests[0]
 	peer.settings.PeerAS = 65002
 	peer.settings.NextHopMode = NextHopUnchanged
-	peer.settings.ExportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "policy:bad-path"}}, filterapi.FinalAccept)
+	peer.settings.ExportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "policy:bad-path"}}, routepolicy.FinalAccept)
 	peer.negotiated.Load().families[family.IPv6Unicast] = true
 	peer.refreshForwardFacts()
 	mpBody, wantMPWithdrawal := llnhLinkLocalOnlyPayload(t)

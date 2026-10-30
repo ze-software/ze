@@ -11,6 +11,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
@@ -820,7 +821,7 @@ func TestRFC2545EffectivePairPolicyAndMixedSibling(t *testing.T) {
 								}
 								return PolicyResponse{Action: PolicyAccept}
 							}
-							f.destination.settings.ExportPolicy = mustPolicy(t, []filterapi.FilterRef{{Name: "ipv6:raw-next-hop"}}, filterapi.FinalAccept)
+							f.destination.settings.ExportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "ipv6:raw-next-hop"}}, routepolicy.FinalAccept)
 							// Publish the policy without replacing this fixture's
 							// explicit connected-prefix scope with host interfaces.
 							f.destination.fwdFacts.Store(f.destination.buildForwardFacts())

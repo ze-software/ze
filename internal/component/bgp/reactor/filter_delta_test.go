@@ -15,6 +15,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
+	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
 
@@ -1454,7 +1455,7 @@ func TestTextDeltaRecordsNothingForAnUnchangedSubject(t *testing.T) {
 	}
 
 	t.Run("every filter accepts", func(t *testing.T) {
-		res := PolicyFilterChain(mustPolicy(t, frefs("a:accept", "b:accept"), filterapi.FinalAccept), true, "import", "10.0.0.1", 65000, subject,
+		res := PolicyFilterChain(mustPolicy(t, frefs("a:accept", "b:accept"), routepolicy.FinalAccept), true, "import", "10.0.0.1", 65000, subject,
 			func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
 				return PolicyResponse{Action: PolicyAccept}
 			})
@@ -1474,7 +1475,7 @@ func TestTextDeltaRecordsNothingForAnUnchangedSubject(t *testing.T) {
 		"cluster-list 1.1.1.1 2.2.2.2",
 	} {
 		t.Run("a filter sets "+delta, func(t *testing.T) {
-			res := PolicyFilterChain(mustPolicy(t, frefs("a:set"), filterapi.FinalAccept), true, "import", "10.0.0.1", 65000, subject,
+			res := PolicyFilterChain(mustPolicy(t, frefs("a:set"), routepolicy.FinalAccept), true, "import", "10.0.0.1", 65000, subject,
 				func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
 					return PolicyResponse{Action: PolicyModify, Delta: delta}
 				})

@@ -21,6 +21,7 @@ import (
 	pluginmgr "github.com/ze-software/ze/internal/component/plugin/manager"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
@@ -153,7 +154,7 @@ func policyStopReplayStore(t *testing.T, server *pluginserver.Server, destinatio
 func TestPolicyFinalAcceptRemovalWithdrawsRemovedStatic(t *testing.T) {
 	peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast)
 	peer.reactor = &Reactor{clock: clock.RealClock{}}
-	peer.settings.ExportPolicy = mustPolicy(t, nil, filterapi.FinalAccept)
+	peer.settings.ExportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
 	peer.settings.StaticRoutes = []StaticRoute{staticRouteAt("10.17.2.0/24", "10.9.9.9")}
 	peer.sendInitialRoutes()
 	initial := len(conn.written())
@@ -197,14 +198,14 @@ func TestPolicyFinalPureWithdrawalConsumerAllocations(t *testing.T) {
 					}
 					delivered++
 				}}}
-			measure := func(final filterapi.FinalDisposition) float64 {
+			measure := func(final routepolicy.Final) float64 {
 				source.settings.ImportPolicy = mustPolicy(t, nil, final)
 				return testing.AllocsPerRun(100, func() {
 					r.notifyMessageReceiver(addr, msgtype.TypeUPDATE, body, update, 0, rpc.DirectionReceived, BufHandle{ID: noPoolBufID, Buf: body}, nil, "", 0)
 				})
 			}
-			accept := measure(filterapi.FinalAccept)
-			reject := measure(filterapi.FinalReject)
+			accept := measure(routepolicy.FinalAccept)
+			reject := measure(routepolicy.FinalReject)
 			if delivered != 202 {
 				t.Fatalf("withdrawal delivery count %d, want 202", delivered)
 			}
@@ -252,7 +253,7 @@ func TestPolicyFinalPausedWriterCannotEscapeReject(t *testing.T) {
 	}()
 	<-entered
 	destination.mu.Lock()
-	destination.settings.ExportPolicy = mustPolicy(t, nil, filterapi.FinalReject)
+	destination.settings.ExportPolicy = mustPolicy(t, nil, routepolicy.FinalReject)
 	destination.mu.Unlock()
 	destination.refreshForwardFacts()
 	reconciled := make(chan error, 1)
@@ -311,11 +312,11 @@ func TestPolicyFinalRestoreFailureRollsBack(t *testing.T) {
 	destination.settings.ProcessBindings = []ProcessBinding{
 		operatorBinding(t, "bgp-rs", "state", "update"),
 	}
-	destination.settings.ExportPolicy = mustPolicy(t, nil, filterapi.FinalReject)
+	destination.settings.ExportPolicy = mustPolicy(t, nil, routepolicy.FinalReject)
 	destination.refreshForwardFacts()
 	policyStopReplayStore(t, r.api, destination.Settings().Address)
 	next := destination.settingsSnapshot()
-	next.ExportPolicy = mustPolicy(t, nil, filterapi.FinalAccept)
+	next.ExportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
 	journal := &internalJournal{}
 	err := api.swapPeerSettingsJournaled([]peerSettingsSwap{{
 		key: destination.Settings().PeerKey(), next: next, apply: hotSwappableSettings,
@@ -430,7 +431,7 @@ func assertPolicyFinalFlowSpecRestoration(t *testing.T, peers []*lowLivePeer) {
 	}
 	initial := destination.peer.currentSession()
 	next := destination.peer.settingsSnapshot()
-	next.ExportPolicy = mustPolicy(t, nil, filterapi.FinalReject)
+	next.ExportPolicy = mustPolicy(t, nil, routepolicy.FinalReject)
 	mustApplyHotSwappableSettings(t, destination.peer, next, hotSwappableSettings)
 	lowEventually(t, func() bool {
 		destination.mu.Lock()
@@ -454,7 +455,7 @@ func assertPolicyFinalFlowSpecRestoration(t *testing.T, peers []*lowLivePeer) {
 	destination.frames = nil
 	destination.mu.Unlock()
 	next = destination.peer.settingsSnapshot()
-	next.ExportPolicy = mustPolicy(t, nil, filterapi.FinalAccept)
+	next.ExportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
 	mustApplyHotSwappableSettings(t, destination.peer, next, hotSwappableSettings)
 	lowEventually(t, func() bool { return flowForwardReceived(destination, fam) != nil }, "retained authorized FlowSpec restoration")
 	assertFlowForwardWire(t, flowForwardReceived(destination, fam), fam, raw)
@@ -687,7 +688,7 @@ func TestPolicyFinalReplayPreservesPreAdmittedBatchOrder(t *testing.T) {
 // restores both its template and running peer when retained-source replay fails.
 func TestPolicyFinalDynamicRestoreFailureRollsBack(t *testing.T) {
 	group := dynamicReloadGroup(t)
-	group.Settings.ExportPolicy = mustPolicy(t, nil, filterapi.FinalReject)
+	group.Settings.ExportPolicy = mustPolicy(t, nil, routepolicy.FinalReject)
 	group.Settings.ProcessBindings = []ProcessBinding{operatorBinding(t, "bgp-rs", "state", "update")}
 	r, destination := newDynamicReloadReactor(t, group, netip.MustParseAddr("185.1.69.42"), nil)
 	establishDynamicPeer(t, r, destination)
@@ -695,7 +696,7 @@ func TestPolicyFinalDynamicRestoreFailureRollsBack(t *testing.T) {
 	r.api = api.server
 	policyStopReplayStore(t, r.api, destination.Settings().Address)
 	next := dynamicReloadGroup(t)
-	next.Settings.ExportPolicy = mustPolicy(t, nil, filterapi.FinalAccept)
+	next.Settings.ExportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
 	next.Settings.ProcessBindings = group.Settings.ProcessBindings
 	err := api.reconcileDynamicGroupsJournaled([]*DynamicGroupConfig{next}, "test", &internalJournal{})
 	if err == nil {
