@@ -351,11 +351,13 @@ func (c *IPsecConfig) ValidatePKIRefs(hasCA, hasCert func(string) bool, certCN f
 					"set authentication certificate to a PKI store name (RFC 7296 Section 2.16)",
 				name, peer.Auth.Mode)
 		}
-		// RFC 5216 Section 5.3: "Both sides MUST perform certificate path
-		// validation." An EAP-TLS peer validates the authenticator against its
-		// configured trust anchor and has no other way to do so, because EAP
-		// carries no server hostname to check. Without one the session
-		// authenticates nothing, so the config is refused here rather than at
+		// RFC 5216 Section 5.3: "The EAP-TLS peer SHOULD support validating
+		// the server certificate using RFC 3280 [RFC3280] compliant path
+		// validation." Ze makes that validation mandatory. An EAP-TLS peer
+		// validates the authenticator against its configured trust anchor and
+		// has no other way to do so, because EAP carries no server hostname to
+		// check. Without one the session authenticates nothing, so the config
+		// is refused here rather than at
 		// session setup (ai/rules/protocol.md). The runtime refuses it too,
 		// in eap.PeerSession.startTLSClient and engine.buildPeerTLSConfig.
 		if peer.Auth.Mode == AuthEAPTLS && peer.Auth.CACertificate == "" {

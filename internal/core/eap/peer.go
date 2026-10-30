@@ -1255,11 +1255,12 @@ func (ps *PeerSession) startTLSClient() error {
 		return fmt.Errorf("eap-tls: load client cert: %w", err)
 	}
 
-	// RFC 5216 Section 5.3: "Both sides MUST perform certificate path validation."
-	// The configured trust anchor is the peer's only means of doing so, so a
-	// session with none is refused rather than started: there is no weaker but
-	// still conformant mode to fall back to, and a peer that skips validation
-	// authenticates nothing.
+	// RFC 5216 Section 5.3: "The EAP-TLS peer SHOULD support validating the
+	// server certificate using RFC 3280 [RFC3280] compliant path validation."
+	// The RFC recommends the support; Ze makes the validation mandatory, because
+	// a peer that skips it authenticates nothing. The configured trust anchor is
+	// the peer's only means of doing so, so a session with none is refused
+	// rather than started unauthenticated.
 	if len(ps.tlsCfg.CACertPEM) == 0 {
 		return errNoPeerTrustAnchor
 	}

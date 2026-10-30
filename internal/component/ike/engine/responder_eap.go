@@ -74,7 +74,14 @@ func eapTLSServerConfig(sa *SA) (eap.MethodConfig, error) {
 		// this certificate to gets the same one.
 		OCSPStaple: entry.RawOCSPResponse,
 	}
-	// RFC 5216 Section 5.3: "Both sides MUST perform certificate path validation."
+	// RFC 5216 Section 5.3: "Since the EAP-TLS server is typically connected to
+	// the Internet, it SHOULD support validating the peer certificate using
+	// RFC 3280 [RFC3280] compliant path validation, including the ability to
+	// retrieve intermediate certificates that may be necessary to validate the
+	// peer certificate."
+	// Ze makes the path validation mandatory. It does not retrieve intermediates
+	// (RFC5216-5.3-5 is a gap); it completes the chain from the configured
+	// intermediate list instead, the fallback the same section names.
 	// The authenticator validates the client chain against this trust anchor and has
 	// no other means to do so. Refuse rather than proceed without one: newTLSMethod
 	// validates every client chain against whatever pool it is given (through
