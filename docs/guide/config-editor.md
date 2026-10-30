@@ -491,7 +491,10 @@ Tab completion is driven by registered YANG schemas. The editor suggests:
 - For a leaf that names another configured entry, the entries it may name at
   that position: Tab on traffic-control `default-class` offers the classes of
   that qdisc, and Tab on a filter chain's `filters [ ` offers the policy
-  filters that chain's protocol accepts. Completion and commit run the same
+  filters that chain's protocol accepts. The other references completed this
+  way: a bfd session, BGP peer or static next-hop bfd profile; an OSPF or IS-IS
+  key-chain; a user's or tacacs-profile's authorization profile; and an IPsec
+  peer's or remote-access gateway's `ike-group` and `esp-group`. Completion and commit run the same
   check, so commit accepts every value offered; with none configured, Tab
   shows the type hint
 - Inside a leaf-list's brackets, the next value: `set filters [ P ` completes
