@@ -146,56 +146,169 @@ func placeQuote(source *quoteSource, cited, quote string) (quotePlace, string) {
 	return quoteOutsideSection, found
 }
 
-// featureQuoteGap judges a {feature-declined} optionality quote. With no
-// section named it is held to the row's cited section (quoteGap). With one
-// named (Annotation.QuoteSection) it is held to that section the same way,
-// through placeQuote, and the named section must resolve to a heading and must
-// not be the row's own section or one of its subsections: a quote from there
-// needs no section named, so a second spelling of that case is refused.
+// featureQuoteGap judges a {feature-declined} optionality quote: first where
+// it lies (featureQuoteSection), then what it says (optionalityQuoteGap) of
+// the section it is held to.
 func featureQuoteGap(req *Requirement, source *quoteSource) (string, bool) {
+	held, missing, lacks := featureQuoteSection(req, source)
+	if lacks {
+		return missing, true
+	}
+	return optionalityQuoteGap(req, source, held)
+}
+
+// featureQuoteSection answers the section a {feature-declined} quote is held
+// to, or the refusal of where it lies. With no section named it is the row's
+// cited section, resolved as every row quote's is (quoteGap). With one named
+// (Annotation.QuoteSection) it is that section exactly: the named section
+// must be a heading of the RFC (quoteSource.has), never an ancestor reached
+// by resolve's fallback, so `§2.99` cannot stand for §2. A named section is
+// redundant whenever the quote lies in the row's own section, whatever section
+// it names, so a quote from the row's own section has one spelling.
+func featureQuoteSection(req *Requirement, source *quoteSource) (string, string, bool) {
 	named := req.Annotation.QuoteSection
 	if named == "" {
-		return quoteGap(req, source, "optionality quote")
+		if missing, lacks := quoteGap(req, source, "optionality quote"); lacks {
+			return "", missing, true
+		}
+		// quoteGap answered in-section, so the source is present and the
+		// cited section resolved.
+		held, _ := source.resolve(req.Section)
+		return held, "", false
 	}
 	if source == nil {
-		return quoteGap(req, source, "optionality quote")
+		missing, _ := quoteGap(req, source, "optionality quote")
+		return "", missing, true
 	}
 	var tb textbuf.Buffer
-	resolved, ok := source.resolve(named)
-	if !ok {
-		return tb.Str("its optionality quote names section ").Str(named).
+	if !source.has(named) {
+		return "", tb.Str("its optionality quote names section ").Str(named).
 			Str(", which names no heading of the RFC, so no section holds the quote ").
-			Str(pyRepr(req.Annotation.Quote)).String(), true
+			Str(pyRepr(req.Annotation.Quote)).Str(". Name the exact heading the sentence is under").String(), true
 	}
-	if own, cited := source.resolve(req.Section); cited {
-		if resolved == own || strings.HasPrefix(resolved, own+".") {
-			return tb.Str("its optionality quote names section ").Str(named).
-				Str(", which is the section the row cites or one of its subsections, so naming it is redundant: drop the §").
-				Str(named).Str(", since a quote from the row's own section needs no section named").String(), true
-		}
+	if own, cited := source.resolve(req.Section); cited && source.inSection(own, req.Annotation.Quote) {
+		return "", tb.Str("its optionality quote names section ").Str(named).
+			Str(", but the quote is in section ").Str(own).
+			Str(", the section the row cites, so naming a section is redundant: drop the §").
+			Str(named).Str(", since a quote from the row's own section needs no section named").String(), true
 	}
 	place, section := placeQuote(source, named, req.Annotation.Quote)
 	switch place {
 	case quoteInSection:
-		return "", false
+		return named, "", false
 	case quoteOutsideSection:
-		return tb.Str("its optionality quote ").Str(pyRepr(req.Annotation.Quote)).
+		return "", tb.Str("its optionality quote ").Str(pyRepr(req.Annotation.Quote)).
 			Str(" is not in section ").Str(named).Str(", the section the annotation names: it is in section ").
 			Str(section).Str(". Quote the sentence from section ").Str(named).
 			Str(", or name section ").Str(section).String(), true
 	case quoteNotInRFC:
-		return tb.Str("its optionality quote ").Str(pyRepr(req.Annotation.Quote)).
+		return "", tb.Str("its optionality quote ").Str(pyRepr(req.Annotation.Quote)).
 			Str(", named as from section ").Str(named).Str(", is in no section of ").Str(fullRel).Byte('/').
 			Str(req.RFC).Str(".txt; quote the RFC's sentence verbatim, from section ").Str(named).String(), true
 	case quoteNoText, quoteSectionUnresolved:
-		// Unreachable: the source is present and the named section resolved
-		// above. Refused rather than passed, because a guard that skips a
+		// Unreachable: the source is present and the named section is a
+		// heading. Refused rather than passed, because a guard that skips a
 		// state it cannot place is no guard.
-		return tb.Str("its optionality quote, named as from section ").Str(named).
+		return "", tb.Str("its optionality quote, named as from section ").Str(named).
 			Str(", could not be placed in ").Str(fullRel).Byte('/').Str(req.RFC).Str(".txt").String(), true
 	default:
 		panic("BUG: unexpected quote place")
 	}
+}
+
+// optionalityWords are the lower-case words that state a feature optional
+// without a BCP 14 keyword: an `optional` or `optionally`, or a conditional
+// opened by `if` that turns on an implementation's `support` or `supports`.
+// The upper-case markers are rfc.go's advisory levels (advisoryLevelNames),
+// never a copy of them. Matched as whole words, case folded, so a sentence
+// opening "Optionally," or "If" counts.
+var optionalityWords = struct {
+	plain     []string
+	condition string
+	supported []string
+}{plain: []string{"optional", "optionally"}, condition: "if", supported: []string{"support", "supports"}}
+
+// optionalityQuoteGap judges what a {feature-declined} quote says, held to
+// section held. It must be a whole sentence of that section
+// (quoteSource.wholeSentence), so a fragment cannot cut the optionality away
+// from the words that scope it. It must carry an optionality marker
+// (optionalityMarked), and a sentence whose only BCP 14 keywords are mandatory
+// levels is refused by name, because it states an obligation rather than an
+// option. It must not hold the row's own sentence (Requirement.Quote): the
+// obligation the row declines is no evidence that it is optional.
+func optionalityQuoteGap(req *Requirement, source *quoteSource, held string) (string, bool) {
+	quote := req.Annotation.Quote
+	var tb textbuf.Buffer
+	if !source.wholeSentence(held, quote) {
+		return tb.Str("its optionality quote ").Str(pyRepr(quote)).
+			Str(" is not a whole sentence of section ").Str(held).
+			Str(": quote the sentence that makes the feature optional, from its first word to its full stop").String(), true
+	}
+	advisory, mandatory := bcp14LevelsIn(quote)
+	if len(advisory) == 0 && len(mandatory) > 0 {
+		return tb.Str("its optionality quote ").Str(pyRepr(quote)).
+			Str(" states an obligation: its only BCP 14 keywords are mandatory (").
+			Str(strings.Join(mandatory, ", ")).
+			Str("), so it makes nothing optional. Quote the sentence that makes the feature optional").String(), true
+	}
+	if len(advisory) == 0 && !optionalityMarked(quote) {
+		tb.Str("its optionality quote ").Str(pyRepr(quote)).
+			Str(" carries no optionality marker. Quote a sentence holding one of ")
+		for _, level := range advisoryLevelNames() {
+			tb.Str(level).Str(", ")
+		}
+		for _, word := range optionalityWords.plain {
+			tb.Str(word).Str(", ")
+		}
+		tb.Str("or a condition opened by ").Str(optionalityWords.condition).Str(" on ").
+			Str(strings.Join(optionalityWords.supported, " or "))
+		return tb.String(), true
+	}
+	if own := req.Quote(); own != "" && strings.Contains(quoteNeedle(quote), quoteNeedle(own)) {
+		return tb.Str("its optionality quote ").Str(pyRepr(quote)).
+			Str(" holds the row's own sentence, the obligation the row declines, which is no evidence that it is optional. ").
+			Str("Quote the RFC's sentence that makes the feature optional").String(), true
+	}
+	return "", false
+}
+
+// bcp14LevelsIn answers the advisory and the mandatory BCP 14 levels quote
+// holds as whole words, each in rfc.go's sorted order.
+func bcp14LevelsIn(quote string) ([]string, []string) {
+	var advisory, mandatory []string
+	for _, level := range advisoryLevelNames() {
+		if containsWords(quote, level) {
+			advisory = append(advisory, level)
+		}
+	}
+	for _, level := range gatedLevelNames() {
+		if containsWords(quote, level) {
+			mandatory = append(mandatory, level)
+		}
+	}
+	return advisory, mandatory
+}
+
+// optionalityMarked answers whether quote states a feature optional in lower
+// case (optionalityWords): a plain word, or the condition word followed by a
+// word of support.
+func optionalityMarked(quote string) bool {
+	folded := strings.ToLower(quote)
+	for _, word := range optionalityWords.plain {
+		if containsWords(folded, word) {
+			return true
+		}
+	}
+	at := wordIndex(folded, optionalityWords.condition)
+	if at < 0 {
+		return false
+	}
+	for _, word := range optionalityWords.supported {
+		if containsWords(folded[at:], word) {
+			return true
+		}
+	}
+	return false
 }
 
 // quoteGap phrases a quote that is not in the row's cited section as the
@@ -548,8 +661,9 @@ func readKernelRequire(path, rel string, required map[string]bool) string {
 // 2026-10-29): for {not-applicable} a role-condition quote from the cited
 // section and the specific role it binds, which checkNotApplicableRoles holds
 // against the roles the summary's Meta table declares Ze fills, for {feature-declined}
-// its optionality quote within the cited section or the section its payload
-// names (featureQuoteGap), for {lower-layer} a layer
+// its optionality quote, a whole sentence carrying an optionality marker,
+// within the cited section or the section its payload names (featureQuoteGap),
+// for {lower-layer} a layer
 // path a reader can check beside the producer checkLowerLayerProducer already
 // holds.
 func (reader *evidenceReader) gap(req *Requirement) (string, bool) {

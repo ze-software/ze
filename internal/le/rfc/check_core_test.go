@@ -185,20 +185,18 @@ func TestNotApplicableNeedsSectionRoleQuote(t *testing.T) {
 // another. checkFeatureDeclined keeps refusing a quote the RFC does not carry
 // at all, and leaves the section to the ratchet.
 func TestFeatureDeclinedQuoteIsSectionScoped(t *testing.T) {
-	tree := t.TempDir()
-	writeFixtureFiles(t, tree, map[string]string{"rfc/full/rfc9999.txt": quoteFixtureSource})
-	const quote = "A receiver MUST NOT reorder the frames of one widget."
-	const annotation = `feature-declined: "` + quote + `"; internal/x/frame.go::sendFrame sends one frame`
-	own := evidenceRow(t, "RFC9999-3-1", "3", annotation)
+	tree := featureFixtureTree(t)
+	const quote = fixtureOptionalSentence
+	own := sectionedRow(t, "4", "", quote)
 	if missing, lacks := newEvidenceReader(tree).gap(&own); lacks {
 		t.Fatalf("a quote from the row's own section was refused: %s", missing)
 	}
-	other := evidenceRow(t, "RFC9999-2-1", "2", annotation)
+	other := sectionedRow(t, "2", "", quote)
 	missing, lacks := newEvidenceReader(tree).gap(&other)
 	if !lacks {
 		t.Fatal("a quote from another section was accepted for a row citing section 2")
 	}
-	for _, want := range []string{"optionality quote is in section 3", "cites section 2"} {
+	for _, want := range []string{"optionality quote is in section 4", "cites section 2"} {
 		if !strings.Contains(missing, want) {
 			t.Errorf("the refusal %q does not say %q", missing, want)
 		}

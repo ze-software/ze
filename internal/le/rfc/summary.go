@@ -437,8 +437,15 @@ const featureDeclinedFormat = `Format: {feature-declined: "<the RFC's own senten
 // its quote, `§<section>` and a blank, ahead of the quote. The section is a
 // token holding neither a blank nor a quotation mark, so `§ "..."` and
 // `§3"..."` leave the payload unmatched and featureDeclinedRE refuses it with
-// the format.
+// the format. The token is then held to featureSectionIDRE.
 var featureSectionRE = regexp.MustCompile(`^§([^\s"]+)\s+`)
+
+// featureSectionIDRE is the shape of a section id an RFC heading carries, as
+// sectionHeadingRE reads one: a number or an appendix letter, then dot-joined
+// numbers (2, 2.2, 4.1.3, A, A.1). A token of any other shape (`2.2;`,
+// `2.foo`, `2.`) is refused at parse time, because no heading carries it and
+// featureQuoteGap holds the quote to the exact heading named.
+var featureSectionIDRE = regexp.MustCompile(`^(?:\d+|[A-Z]\d*)(?:\.\d+)*$`)
 
 // minFeatureQuote is the shortest quoted span that identifies a sentence.
 //
@@ -464,6 +471,13 @@ func parseFeatureDeclined(rest, where string) (*Annotation, error) {
 	body, section := rest, ""
 	if named := featureSectionRE.FindStringSubmatch(rest); named != nil {
 		body, section = rest[len(named[0]):], named[1]
+	}
+	if section != "" && !featureSectionIDRE.MatchString(section) {
+		return nil, parseErr(tb.Str(where).
+			Str(": {feature-declined} names section ").Str(pyRepr(section)).
+			Str(", which is not a section id. Write the RFC heading's own number: digits joined by dots ").
+			Str("(2, 2.2, 4.1.3), or an appendix letter and its numbers (A, A.1), with a blank before the quote. ").
+			Str(featureDeclinedFormat))
 	}
 	parts := featureDeclinedRE.FindStringSubmatch(body)
 	if parts == nil {

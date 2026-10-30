@@ -563,9 +563,11 @@ type Annotation struct {
 	// Quote (`§<section> "<quote>"; <reason>`), when the RFC makes the feature
 	// optional in a section other than the one holding the conditional
 	// obligation. The Quote is then held against that section rather than the
-	// row's (featureQuoteGap). Empty means the row's own section or its
-	// subsections, and a named section that is one of those is refused as
-	// redundant. It is {feature-declined}'s alone.
+	// row's (featureQuoteGap). It is a section id (featureSectionIDRE) and
+	// must be an exact heading of the RFC, never resolved to an ancestor.
+	// Empty means the row's own section or its subsections, and a named
+	// section is refused as redundant whenever the quote lies in the row's own
+	// section. It is {feature-declined}'s alone.
 	QuoteSection string `json:"quote-section,omitempty"`
 	// BoundRole is the role the Quote binds, which the quoted sentence names
 	// and which is none of the roles the summary's Meta table declares Ze
