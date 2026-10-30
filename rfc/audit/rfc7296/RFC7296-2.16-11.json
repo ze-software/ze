@@ -1,17 +1,17 @@
 {
-  "note": "EAP responder AUTH is an RFC 7427 signature verified under the cert key; no-cert EAP refused at setup and config; initiator refuses PSK AUTH from EAP responder; PSK peers unaffected",
+  "note": "Re-judged 2026-10-30 by an independent auditor after 05646d85eb dropped the always-true hasCA/hasCert stubs from ValidatePKIRefs (existence now a ze:reference at config load). RFC 7296 Section 2.16 re-read in rfc/full/rfc7296.txt: \"For this reason, these protocols are typically used to authenticate the initiator to the responder and MUST be used in conjunction with a public-key-signature-based authentication of the responder to the initiator.\" The two changed units keep their inputs and assertions: TestEapAuthConfigRejectsEAPWithoutCertificate requires ValidatePKIRefs to refuse an eap-mschapv2 and an eap-tls peer with no certificate, naming the peer, 'certificate' and 'RFC 7296 Section 2.16', and to accept the same peer once a certificate is named; TestEapAuthConfigAcceptsPreSharedKeyPeer requires a pre-shared-secret peer to pass. Read at the producer: ipsec/validate.go ValidatePKIRefs still refuses IsEAPMode with an empty Auth.Certificate before any lookup, so the stubs never decided the outcome. The unchanged units still cover the wire: the EAP responder AUTH is an RFC 7427 signature verified under the certificate key, computeServerAuth refuses no-cert EAP at setup, and the initiator refuses a PSK AUTH from an EAP responder. Q1-Q4 unchanged from the earlier judgement: EAP responder AUTH is a public-key signature, no-cert EAP refused at setup and config, PSK peers unaffected.",
   "requirement_sha": "59559f7deb3530b9",
   "tests": {
-    "internal/component/ike/engine/rfc7296_eap_auth_test.go::TestEapAuthConfigAcceptsPreSharedKeyPeer": "293652cabae2214c",
-    "internal/component/ike/engine/rfc7296_eap_auth_test.go::TestEapAuthConfigRejectsEAPWithoutCertificate": "293652cabae2214c",
-    "internal/component/ike/engine/rfc7296_eap_auth_test.go::TestEapAuthInitiatorRefusesPreSharedKeyResponder": "293652cabae2214c",
-    "internal/component/ike/engine/rfc7296_eap_auth_test.go::TestEapAuthNonEAPPreSharedKeyStillAuthenticates": "293652cabae2214c",
-    "internal/component/ike/engine/rfc7296_eap_auth_test.go::TestEapAuthResponderRefusesWithoutCertificate": "293652cabae2214c",
-    "internal/component/ike/engine/rfc7296_eap_auth_test.go::TestEapAuthResponderSignsWithPublicKey": "293652cabae2214c"
+    "internal/component/ike/engine/rfc7296_eap_auth_test.go::TestEapAuthConfigAcceptsPreSharedKeyPeer": "eeed0a3d03408eaa",
+    "internal/component/ike/engine/rfc7296_eap_auth_test.go::TestEapAuthConfigRejectsEAPWithoutCertificate": "eeed0a3d03408eaa",
+    "internal/component/ike/engine/rfc7296_eap_auth_test.go::TestEapAuthInitiatorRefusesPreSharedKeyResponder": "eeed0a3d03408eaa",
+    "internal/component/ike/engine/rfc7296_eap_auth_test.go::TestEapAuthNonEAPPreSharedKeyStillAuthenticates": "eeed0a3d03408eaa",
+    "internal/component/ike/engine/rfc7296_eap_auth_test.go::TestEapAuthResponderRefusesWithoutCertificate": "eeed0a3d03408eaa",
+    "internal/component/ike/engine/rfc7296_eap_auth_test.go::TestEapAuthResponderSignsWithPublicKey": "eeed0a3d03408eaa"
   },
   "units": {
-    "internal/component/ike/engine/rfc7296_eap_auth_test.go::TestEapAuthConfigAcceptsPreSharedKeyPeer": "27e507c05aa40f85",
-    "internal/component/ike/engine/rfc7296_eap_auth_test.go::TestEapAuthConfigRejectsEAPWithoutCertificate": "74a9db148d59158a",
+    "internal/component/ike/engine/rfc7296_eap_auth_test.go::TestEapAuthConfigAcceptsPreSharedKeyPeer": "cffaba270926bc44",
+    "internal/component/ike/engine/rfc7296_eap_auth_test.go::TestEapAuthConfigRejectsEAPWithoutCertificate": "9dc8a9c25cac9d34",
     "internal/component/ike/engine/rfc7296_eap_auth_test.go::TestEapAuthInitiatorRefusesPreSharedKeyResponder": "2757f536d01769d0",
     "internal/component/ike/engine/rfc7296_eap_auth_test.go::TestEapAuthNonEAPPreSharedKeyStillAuthenticates": "ce3c75018fd924e6",
     "internal/component/ike/engine/rfc7296_eap_auth_test.go::TestEapAuthResponderRefusesWithoutCertificate": "045bf2938df9f96e",

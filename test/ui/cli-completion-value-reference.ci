@@ -1,0 +1,56 @@
+# Test: ze config completion -- a reference leaf offers the configured entries
+# VALIDATES: `ze config completion` (cmdCompletion, completerFor) passes the
+#            loaded tree to Complete, so a leafref (traffic-control
+#            default-class, "../class/name") and a ze:reference source
+#            (environment web certificate, "pki-certificate") complete the
+#            names that file configures, and nothing the leaf may not name.
+# PREVENTS: the non-interactive completion door answering only a type hint
+#           for a reference leaf while the editor completes its values.
+
+tmpfs=test.conf:terminator=EOF_CONF
+pki {
+	ca web-ca {
+	}
+	certificate lan {
+	}
+	certificate wan {
+	}
+}
+environment {
+	web {
+	}
+}
+traffic {
+	control {
+		backend tc
+		interface eth0 {
+			qdisc {
+				type htb
+				class voice {
+					rate 10mbit
+					ceil 100mbit
+					priority 0
+				}
+				class data {
+					rate 90mbit
+					ceil 100mbit
+					priority 1
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+# A leafref completes the classes this qdisc configures.
+cmd=foreground:seq=1:exec=ze config completion --context traffic/control/interface/eth0/qdisc --input set+default-class+ test.conf
+expect=exit:code=0
+expect=stdout:pattern=voice +configured default-class
+expect=stdout:pattern=data +configured default-class
+
+# A ze:reference source completes the certificates pki defines, not its CA.
+cmd=foreground:seq=2:exec=ze config completion --context environment/web --input set+certificate+ test.conf
+expect=exit:code=0
+expect=stdout:pattern=lan +configured certificate
+expect=stdout:pattern=wan +configured certificate
+reject=stdout:contains=web-ca
