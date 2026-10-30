@@ -502,7 +502,7 @@ func scenarioPeers(producer, scenario, suffix string, network interoplab.Network
 		name   string
 		config string
 		host   uint8
-	}{{peerFRR, frrConfigFile, frrHostNumber}, {peerFRRTransit, virtualLinkTransitConfig, 14}, {peerFRRSink, "frr-sink.conf", extendedSinkHost}} {
+	}{{peerFRR, frrConfigFile, frrHostNumber}, {peerFRRTransit, virtualLinkTransitConfig, 14}, {peerFRRSink, frrSinkConfigFile, extendedSinkHost}} {
 		path := filepath.Join(scenario, frr.config)
 		if !regularFile(path) {
 			continue
@@ -529,7 +529,7 @@ func scenarioPeers(producer, scenario, suffix string, network interoplab.Network
 		// NET_BIND_SERVICE, which they also ask for, are in Docker's default set.
 		peers = append(peers, interoplab.PeerConfig{Name: frr.name, Container: containerName(frr.name, suffix), Image: image, Host: frr.host,
 			Mounts:       []interoplab.Mount{mount(path, "/etc/frr/frr.conf"), mount(daemons, "/etc/frr/daemons"), mount(filepath.Join(producer, "vtysh.conf"), "/etc/frr/vtysh.conf")},
-			Capabilities: []string{capabilityNetAdmin, "SYS_ADMIN"}, Arguments: ipv6Sysctls(), Ready: ready(cmdVtysh, "-c", "show version")})
+			Capabilities: []string{capabilityNetAdmin, "SYS_ADMIN"}, Arguments: ipv6Sysctls(), Ready: ready(cmdVtysh, "-c", frrShowVersion)})
 	}
 	if path := filepath.Join(scenario, "bird.conf"); regularFile(path) {
 		// A bird.conf naming a lab IPv6 address runs a session over IPv6, so
@@ -592,7 +592,7 @@ func scenarioPeers(producer, scenario, suffix string, network interoplab.Network
 			interoplab.PeerConfig{Name: peerKnot, Container: containerName(peerKnot, suffix), Image: peerKnot, Host: knotHostNumber,
 				Mounts: []interoplab.Mount{mount(path, "/etc/knot/knot.conf"), mount(filepath.Join(scenario, knotZoneFile), "/etc/knot/"+knotZoneFile)}, Ready: ready("ip", ipObjectLink)},
 			interoplab.PeerConfig{Name: peerDNSClient, Container: containerName(peerDNSClient, suffix), Image: peerKnot, Host: dnsClientHostNumber,
-				Capabilities: []string{capabilityNetAdmin}, Arguments: []string{"--sysctl", "net.ipv4.conf.default.promote_secondaries=1"},
+				Capabilities: []string{capabilityNetAdmin}, Arguments: []string{dockerSysctlFlag, "net.ipv4.conf.default.promote_secondaries=1"},
 				Command: []string{"sleep", "infinity"}, Ready: ready("ip", ipObjectLink)})
 	}
 	if path := filepath.Join(scenario, unboundConfigFile); regularFile(path) {
@@ -615,7 +615,7 @@ func scenarioPeers(producer, scenario, suffix string, network interoplab.Network
 }
 
 func ipv6Sysctls() []string {
-	return []string{"--sysctl", "net.ipv6.conf.all.disable_ipv6=0", "--sysctl", "net.ipv6.conf.default.disable_ipv6=0"}
+	return []string{dockerSysctlFlag, "net.ipv6.conf.all.disable_ipv6=0", dockerSysctlFlag, "net.ipv6.conf.default.disable_ipv6=0"}
 }
 
 func regularFile(path string) bool {

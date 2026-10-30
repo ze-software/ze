@@ -52,7 +52,7 @@ const (
 	// policyModifyMPRouter, policyModifyMPFamilyV6 and policyModifyMPSentinel
 	// are the vtysh path to FRR's second sentinel, the announcement the
 	// injector waits for before it sends the withdrawal of case (b).
-	policyModifyMPRouter   = "router bgp 65002"
+	policyModifyMPRouter   = frrRouterBGP65002
 	policyModifyMPFamilyV6 = "address-family ipv6 unicast"
 	policyModifyMPSentinel = "network 2001:db8:f01::/48"
 

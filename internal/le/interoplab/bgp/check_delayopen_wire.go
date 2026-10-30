@@ -388,7 +388,7 @@ func judgeDelayOpen(history []*delayOpenConnection, peer netip.Addr, zeDelay, fr
 
 func delayOpenCaptureComplete(log string) (int, error) {
 	captured, dropped := -1, -1
-	for _, line := range strings.Split(log, "\n") {
+	for line := range strings.SplitSeq(log, "\n") {
 		fields := strings.Fields(line)
 		if len(fields) < 3 {
 			continue

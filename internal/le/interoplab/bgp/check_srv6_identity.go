@@ -63,7 +63,7 @@ func checkSRv6Identity(ctx context.Context, check *interoplab.CheckContext) (res
 			evidence["policy-final-error"] = queryErr.Error()
 		}
 		for _, peer := range []string{peerFRR, peerFRRSink} {
-			for _, query := range []string{"show version", "show ipv6 route json"} {
+			for _, query := range []string{frrShowVersion, "show ipv6 route json"} {
 				output, queryErr := check.Lab.Query(diagnosticCtx, peer, []string{cmdVtysh, "-c", query}, nil)
 				evidence[peer+"-"+query] = output
 				if queryErr != nil {
@@ -71,7 +71,7 @@ func checkSRv6Identity(ctx context.Context, check *interoplab.CheckContext) (res
 				}
 			}
 		}
-		for _, name := range []string{zeConfigFile, frrConfigFile, "frr-sink.conf", "frr-image", "daemons", "inject.msg", "inject-args", speakerArgsFile, speaker2ArgsFile} {
+		for _, name := range []string{zeConfigFile, frrConfigFile, frrSinkConfigFile, "frr-image", "daemons", "inject.msg", "inject-args", speakerArgsFile, speaker2ArgsFile} {
 			content, readErr := os.ReadFile(filepath.Join(check.Source.Directory, name)) //nolint:gosec // a fixed fixture name inside the tracked scenario directory
 			if readErr != nil {
 				resultErr = errors.Join(resultErr, readErr)
@@ -79,13 +79,13 @@ func checkSRv6Identity(ctx context.Context, check *interoplab.CheckContext) (res
 			}
 			evidence["fixture-"+name] = string(content)
 		}
-		verdict := "passed"
+		verdict := verdictPassed
 		if resultErr != nil {
 			verdict = resultErr.Error()
 		}
 		data, marshalErr := json.MarshalIndent(map[string]any{
-			"scenario": check.Source.Name, "network": check.Network, "verdict": verdict,
-			"evidence": evidence,
+			"scenario": check.Source.Name, evidenceKeyNetwork: check.Network, "verdict": verdict,
+			evidenceKeyEvidence: evidence,
 		}, "", "  ")
 		resultErr = errors.Join(resultErr, marshalErr)
 		if marshalErr == nil {

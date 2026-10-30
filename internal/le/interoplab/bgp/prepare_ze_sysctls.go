@@ -39,7 +39,7 @@ func zeSysctlArguments(scenario string) ([]string, error) {
 		if !strings.HasPrefix(key, zeSysctlPrefix) {
 			return nil, fmt.Errorf("%s: %q is outside net.*, and only a network-namespace sysctl stays inside the container: set it on the Docker host instead", zeSysctlsFile, assignment)
 		}
-		arguments = append(arguments, "--sysctl", assignment)
+		arguments = append(arguments, dockerSysctlFlag, assignment)
 	}
 	return arguments, nil
 }

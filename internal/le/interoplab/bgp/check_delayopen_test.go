@@ -159,7 +159,7 @@ func TestDelayOpenTCPReassembly(t *testing.T) {
 			var record pcap.Record
 			for {
 				err := reader.Next(&record)
-				if err == io.EOF {
+				if errors.Is(err, io.EOF) {
 					break
 				}
 				if err != nil {
@@ -399,7 +399,7 @@ func delayOpenTestRecords(t *testing.T, raw []byte) []pcap.Record {
 	for {
 		var record pcap.Record
 		err := reader.Next(&record)
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			return records
 		}
 		if err != nil {
@@ -470,8 +470,8 @@ func TestDelayOpenSequenceWrapAndFIN(t *testing.T) {
 	}
 }
 
-// VALIDATES: successful silent signalling is Exec, followed by a measured
-// capture-exit barrier; nonzero signalling exits never pass that barrier.
+// VALIDATES: successful silent signaling is Exec, followed by a measured
+// capture-exit barrier; nonzero signaling exits never pass that barrier.
 // PREVENTS: Query's nonempty-output contract rejecting a successful pkill or
 // reading the pcap before the capture process has flushed it.
 func TestDelayOpenCaptureStopAcceptsSilentExec(t *testing.T) {

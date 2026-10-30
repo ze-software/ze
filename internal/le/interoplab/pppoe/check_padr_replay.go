@@ -33,7 +33,7 @@ const replayRoundTripBound = 5 * time.Second
 
 // replayInterface is the interface inside the client container's own network
 // namespace that the replay is sent on -- the same one pppd dials through.
-const replayInterface = "eth0"
+const replayInterface = accessInterface
 
 // overCapDialMarker is the ipparam the over-cap dial's pppd carries, and the
 // pattern that stops it. The original dial's pppd is still running then and
@@ -239,7 +239,7 @@ func checkSecondDialAtCapIsRefused(ctx context.Context, lab interoplab.CheckerLa
 	// to it, so a dial that has already given up on its own leaves pkill
 	// nothing to signal. The original dial's pppd keeps running, and with it
 	// the session the cap is counting (overCapDialMarker).
-	_, _ = exec(ctx, lab, clientImageName, []string{commandPkill, "-TERM", "-f", overCapDialMarker})
+	_, _ = exec(ctx, lab, clientImageName, []string{commandPkill, signalTERM, "-f", overCapDialMarker})
 
 	capture, err := stopDiscoveryCapture(ctx, lab)
 	if err != nil {

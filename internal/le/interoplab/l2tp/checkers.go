@@ -39,6 +39,9 @@ type labOperations interface {
 
 type scenarioCheck func(context.Context, labOperations, time.Duration) error
 
+// logSessionIPAssigned is the line Ze logs once a session has its address.
+const logSessionIPAssigned = "session IP assigned"
+
 func checker(check scenarioCheck, timeout time.Duration, diagnosticPeers ...string) interoplab.Checker {
 	return func(ctx context.Context, state *interoplab.CheckContext) error {
 		if state == nil || state.Lab == nil {
@@ -56,7 +59,7 @@ func checkPPPIPv4(ctx context.Context, lab labOperations, _ time.Duration) error
 	if err := waitPeerLog(ctx, lab, peerZe, "L2TP listener bound", 10*time.Second); err != nil {
 		return err
 	}
-	for _, state := range []string{"session established", "PPP session up", "session IP assigned"} {
+	for _, state := range []string{"session established", "PPP session up", logSessionIPAssigned} {
 		if err := waitPeerLog(ctx, lab, peerZe, state, 60*time.Second); err != nil {
 			return err
 		}
@@ -108,7 +111,7 @@ func checkBGPRedistribute(ctx context.Context, lab labOperations, timeout time.D
 		{"L2TP listener bound", 10 * time.Second},
 		{"session established", 60 * time.Second},
 		{"PPP session up", 60 * time.Second},
-		{"session IP assigned", 60 * time.Second},
+		{logSessionIPAssigned, 60 * time.Second},
 	} {
 		if err := waitPeerLog(ctx, lab, peerZe, state.needle, state.timeout); err != nil {
 			return err
@@ -187,7 +190,7 @@ func checkRadiusAttributes(ctx context.Context, lab labOperations, timeout time.
 	if err := waitPeerLog(ctx, lab, peerZe, "session established", timeout); err != nil {
 		return err
 	}
-	if err := waitPeerLog(ctx, lab, peerZe, "session IP assigned", timeout); err != nil {
+	if err := waitPeerLog(ctx, lab, peerZe, logSessionIPAssigned, timeout); err != nil {
 		return err
 	}
 	if err := waitPeerLog(ctx, lab, peerLAC, "Connection established", timeout); err != nil {

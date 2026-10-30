@@ -857,6 +857,27 @@ const virtualLinkTransitArea = "0.0.0.1"
 // at its first failing command.
 const shellErrexitCommand = "-ec"
 
+// FRR and Docker spellings several checks share.
+const (
+	// frrShowVersion is the vtysh query every FRR readiness probe runs.
+	frrShowVersion = "show version"
+	// frrBGPDPIDFile is where FRR's bgpd writes its process id.
+	frrBGPDPIDFile = "/var/run/frr/bgpd.pid"
+	// frrSinkConfigFile is the config file of the FRR sink peer.
+	frrSinkConfigFile = "frr-sink.conf"
+	// frrRouterBGP65002 enters the BGP instance of the FRR peer, AS 65002.
+	frrRouterBGP65002 = "router bgp 65002"
+	// dockerSysctlFlag sets one kernel tunable in a container.
+	dockerSysctlFlag = "--sysctl"
+)
+
+// The verdict and the keys of a check's evidence record.
+const (
+	verdictPassed       = "passed"
+	evidenceKeyNetwork  = "network"
+	evidenceKeyEvidence = "evidence"
+)
+
 // transitAreaLabel is the metric label that carries a virtual link's transit
 // area on the OSPF virtual-link metrics the scenario reads.
 const transitAreaLabel = "transit_area"

@@ -43,7 +43,7 @@ func configureFramedServerPeer(source interoplab.ScenarioSource, peer *interopla
 // MUTATION: remove doRADIUS's AcceptedFramedProtocol guard; pppd then receives
 // CHAP Success and the refusal/state assertions fail.
 func checkFramedReject(ctx context.Context, lab *scenarioLab) error {
-	first, err := lab.waitRecord(ctx, "Start", "")
+	first, err := lab.waitStart(ctx, "")
 	if err != nil {
 		return err
 	}
@@ -53,7 +53,7 @@ func checkFramedReject(ctx context.Context, lab *scenarioLab) error {
 	if err := lab.clearSessions(ctx); err != nil {
 		return err
 	}
-	if _, err := lab.waitStop(ctx, first.sessionID); err != nil {
+	if err := lab.waitStop(ctx, first.sessionID); err != nil {
 		return err
 	}
 	if err := lab.setFramedProtocol(ctx, framedSLIPUsers, "SLIP"); err != nil {
@@ -91,7 +91,7 @@ func checkFramedReject(ctx context.Context, lab *scenarioLab) error {
 	if err := lab.redial(ctx); err != nil {
 		return err
 	}
-	if _, err := lab.waitRecord(ctx, "Start", first.sessionID); err != nil {
+	if _, err := lab.waitStart(ctx, first.sessionID); err != nil {
 		return err
 	}
 	return lab.subscriberPing(ctx)

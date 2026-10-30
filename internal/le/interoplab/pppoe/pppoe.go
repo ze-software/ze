@@ -43,7 +43,16 @@ const (
 
 	commandShow  = "show"
 	commandPkill = "pkill"
-	zeConfigPath = "/etc/ze/ze.conf"
+	commandAdd   = "add"
+	commandDev   = "dev"
+	commandLink  = "link"
+	// signalTERM asks pkill for a graceful stop.
+	signalTERM = "-TERM"
+	// procNetPPPoE is the kernel's table of PPPoE sessions.
+	procNetPPPoE = "/proc/net/pppoe"
+	// accessInterface is the lab interface PPPoE runs over in every container.
+	accessInterface = "eth0"
+	zeConfigPath    = "/etc/ze/ze.conf"
 
 	// netAdminCapability is what a PPPoE daemon needs beyond Docker's default
 	// grants besides the PPP device (interoplab.PPPDeviceArguments): NET_ADMIN

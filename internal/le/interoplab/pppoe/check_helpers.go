@@ -53,7 +53,7 @@ func pppLinks(
 	lab interoplab.CheckerLab,
 	peer string,
 ) ([]string, error) {
-	result, err := exec(ctx, lab, peer, []string{"ip", "-o", "link", commandShow, "type", "ppp"})
+	result, err := exec(ctx, lab, peer, []string{"ip", "-o", commandLink, commandShow, "type", "ppp"})
 	if err != nil {
 		return nil, err
 	}
@@ -82,7 +82,7 @@ func pppAddress(
 		ctx,
 		lab,
 		peer,
-		[]string{"ip", "-o", "addr", commandShow, "dev", iface},
+		[]string{"ip", "-o", "addr", commandShow, commandDev, iface},
 	)
 	return result.Stdout, err
 }

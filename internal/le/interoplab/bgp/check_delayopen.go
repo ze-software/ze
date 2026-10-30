@@ -94,10 +94,10 @@ func checkDelayOpenFRR(ctx context.Context, check *interoplab.CheckContext) (res
 			{"ze", "tcp-sockets", []string{"ss", "-tnp"}},
 			{peerFRR, "rendered-frr.conf", []string{cmdCat, "/etc/frr/frr.conf"}},
 			{peerFRRSink, "rendered-frr-sink.conf", []string{cmdCat, "/etc/frr/frr.conf"}},
-			{peerFRR, "frr-version", []string{cmdVtysh, "-c", "show version"}},
-			{peerFRRSink, "frr-sink-version", []string{cmdVtysh, "-c", "show version"}},
-			{peerFRR, "frr-bgpd-pid", []string{cmdCat, "/var/run/frr/bgpd.pid"}},
-			{peerFRRSink, "frr-sink-bgpd-pid", []string{cmdCat, "/var/run/frr/bgpd.pid"}},
+			{peerFRR, "frr-version", []string{cmdVtysh, "-c", frrShowVersion}},
+			{peerFRRSink, "frr-sink-version", []string{cmdVtysh, "-c", frrShowVersion}},
+			{peerFRR, "frr-bgpd-pid", []string{cmdCat, frrBGPDPIDFile}},
+			{peerFRRSink, "frr-sink-bgpd-pid", []string{cmdCat, frrBGPDPIDFile}},
 		} {
 			text, queryErr := check.Lab.Query(diagnostic, query.peer, query.command, nil)
 			evidence[query.key] = text
@@ -111,19 +111,19 @@ func checkDelayOpenFRR(ctx context.Context, check *interoplab.CheckContext) (res
 			evidence[peer+" logs"] = logs.Text
 			resultErr = errors.Join(resultErr, logErr)
 		}
-		for _, name := range []string{zeConfigFile, frrConfigFile, "frr-sink.conf"} {
+		for _, name := range []string{zeConfigFile, frrConfigFile, frrSinkConfigFile} {
 			data, readErr := os.ReadFile(filepath.Join(check.Source.Directory, name)) //nolint:gosec // fixed fixture names inside the selected scenario
 			evidence["fixture-"+name] = string(data)
 			resultErr = errors.Join(resultErr, readErr)
 		}
-		verdict := "passed"
+		verdict := verdictPassed
 		if resultErr != nil {
 			verdict = resultErr.Error()
 		}
 		data, marshalErr := json.MarshalIndent(map[string]any{
-			"scenario": check.Source.Name, "network": check.Network, "verdict": verdict,
+			"scenario": check.Source.Name, evidenceKeyNetwork: check.Network, "verdict": verdict,
 			"frr-image":   interoplab.FRRImage,
-			"connections": history, "evidence": evidence,
+			"connections": history, evidenceKeyEvidence: evidence,
 		}, "", "  ")
 		resultErr = errors.Join(resultErr, marshalErr)
 		if marshalErr == nil {
@@ -172,7 +172,7 @@ func checkDelayOpenFRR(ctx context.Context, check *interoplab.CheckContext) (res
 		if err != nil {
 			return err
 		}
-		release, err := check.Lab.Exec(ctx, test.peer, []string{cmdVtysh, "-c", "configure terminal", "-c", "router bgp 65002", "-c", "no neighbor " + zeAddress + " shutdown"}, nil)
+		release, err := check.Lab.Exec(ctx, test.peer, []string{cmdVtysh, "-c", "configure terminal", "-c", frrRouterBGP65002, "-c", "no neighbor " + zeAddress + " shutdown"}, nil)
 		evidence[test.peer+" FRR enable"] = fmt.Sprintf("exit=%d stdout=%q stderr=%q", release.ExitCode, release.Stdout, release.Stderr)
 		if err != nil {
 			return err

@@ -6,7 +6,7 @@
 // draft-ietf-radext-deprecating-radius-10 Section 4.6: "Response packets
 // which do not contain Message-Authenticator MUST be silently discarded."
 //
-// This is the BlastRADIUS (CVE-2024-3596) defence on the PAP path, where no
+// This is the BlastRADIUS (CVE-2024-3596) defense on the PAP path, where no
 // EAP-Message is present and RFC 3579 asks nothing. FreeRADIUS signs every
 // Access-Accept it sends, so the relay supplies the unsigned answer an
 // attacker would forge: it removes the Message-Authenticator and recomputes
@@ -75,7 +75,7 @@ func checkPAPUnsigned(ctx context.Context, lab *scenarioLab) error {
 	if strings.Contains(text, blastRADIUSDiscard) {
 		return fmt.Errorf("assertion 5: ze logged %q while every answer was signed", blastRADIUSDiscard)
 	}
-	radiusLogins := radiusSuccesses(text, radiusUser)
+	radiusLogins := radiusSuccesses(text)
 
 	// The forgery: the relay removes the Message-Authenticator and nothing
 	// else, so the only difference from the login above is the attribute.
@@ -103,7 +103,7 @@ func checkPAPUnsigned(ctx context.Context, lab *scenarioLab) error {
 	if err != nil {
 		return fmt.Errorf("assertion 10: %w", err)
 	}
-	if after := radiusSuccesses(text, radiusUser); after != radiusLogins {
+	if after := radiusSuccesses(text); after != radiusLogins {
 		return fmt.Errorf("assertion 10: ze logged %d RADIUS logins for %s after the unsigned Access-Accept, want %d", after, radiusUser, radiusLogins)
 	}
 	return nil
@@ -191,13 +191,13 @@ func labeledCounterSum(text, series string) (float64, error) {
 		if !ok {
 			continue
 		}
-		end := strings.LastIndexByte(rest, '}')
-		if end < 0 {
+		_, valueText, cut := strings.CutLast(rest, "}")
+		if !cut {
 			return 0, fmt.Errorf("%s carries an unterminated label set: %q", series, line)
 		}
-		value, err := strconv.ParseFloat(strings.TrimSpace(rest[end+1:]), 64)
+		value, err := strconv.ParseFloat(strings.TrimSpace(valueText), 64)
 		if err != nil {
-			return 0, fmt.Errorf("%s carries %q, not a number", series, rest[end+1:])
+			return 0, fmt.Errorf("%s carries %q, not a number", series, valueText)
 		}
 		sum += value
 		found = true

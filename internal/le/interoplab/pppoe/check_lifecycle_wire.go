@@ -253,16 +253,16 @@ func terminateEvidence(frames []lifecycleFrame, local [6]byte, sid uint16) error
 				return errors.New("client PADT reached Ze: tlf was not isolated")
 			}
 			if request == nil {
-				return errors.New("Ze PADT preceded peer Terminate-Request")
+				return errors.New("the PADT from Ze preceded the peer's Terminate-Request")
 			}
 			if frame.target != request.source {
-				return errors.New("Ze PADT addressed a different peer")
+				return errors.New("the PADT from Ze addressed a different peer")
 			}
 			if acknowledged.IsZero() {
-				return errors.New("Ze PADT preceded Terminate-Ack")
+				return errors.New("the PADT from Ze preceded the Terminate-Ack")
 			}
 			if frame.at.Sub(request.at) < 3*time.Second {
-				return errors.New("Ze PADT preceded the three-second Restart timer")
+				return errors.New("the PADT from Ze preceded the three-second Restart timer")
 			}
 			padts++
 			continue

@@ -18,6 +18,9 @@ import (
 	"github.com/ze-software/ze/internal/le/interoplab"
 )
 
+// relayFromLAC is the relay's direction label for a packet the LAC sent.
+const relayFromLAC = "lac"
+
 func avpRelayPeer(suffix string, network interoplab.Network) (interoplab.PeerConfig, error) {
 	ze, err := addressAtHost(network.IPv4, 2)
 	if err != nil {
@@ -47,7 +50,7 @@ const peerAVPRelay = "avp-relay"
 // a message associated with the overall tunnel, the entire tunnel (and all
 // sessions within) MUST be terminated." With M=0 it "MUST be ignored."
 func checkUnknownMandatoryAVP(ctx context.Context, lab labOperations, _ time.Duration) error {
-	for _, message := range []string{"session IP assigned", "subscriber route inject"} {
+	for _, message := range []string{logSessionIPAssigned, "subscriber route inject"} {
 		if err := waitPeerLog(ctx, lab, peerZe, message, 60*time.Second); err != nil {
 			return err
 		}
@@ -79,7 +82,7 @@ func checkUnknownMandatoryAVP(ctx context.Context, lab labOperations, _ time.Dur
 		if readErr != nil {
 			return "", readErr
 		}
-		if _, parseErr := mandatoryAVPRefusal(result.Text); parseErr != nil {
+		if parseErr := mandatoryAVPRefusal(result.Text); parseErr != nil {
 			return result.Text, parseErr
 		}
 		return result.Text, nil
@@ -117,7 +120,7 @@ func optionalAVPEvidence(text string) error {
 		if err := json.Unmarshal([]byte(line), &event); err != nil {
 			return fmt.Errorf("decode relay observation: %w", err)
 		}
-		if event.Direction != "lac" {
+		if event.Direction != relayFromLAC {
 			continue
 		}
 		if _, err := injectedControl(event, 3, false); err == nil {
@@ -127,7 +130,7 @@ func optionalAVPEvidence(text string) error {
 	return errors.New("no real xl2tpd SCCCN with only an appended unknown optional AVP")
 }
 
-func mandatoryAVPRefusal(text string) (uint16, error) {
+func mandatoryAVPRefusal(text string) error {
 	var hello []byte
 	for line := range strings.SplitSeq(text, "\n") {
 		if strings.TrimSpace(line) == "" {
@@ -135,9 +138,9 @@ func mandatoryAVPRefusal(text string) (uint16, error) {
 		}
 		var event avpWireObservation
 		if err := json.Unmarshal([]byte(line), &event); err != nil {
-			return 0, fmt.Errorf("decode relay observation: %w", err)
+			return fmt.Errorf("decode relay observation: %w", err)
 		}
-		if event.Direction == "lac" {
+		if event.Direction == relayFromLAC {
 			packet, err := injectedControl(event, 6, true)
 			if err == nil {
 				hello = packet
@@ -152,16 +155,16 @@ func mandatoryAVPRefusal(text string) (uint16, error) {
 		}
 		packet, err := hex.DecodeString(event.Forwarded)
 		if err != nil {
-			return 0, fmt.Errorf("decode forwarded packet: %w", err)
+			return fmt.Errorf("decode forwarded packet: %w", err)
 		}
 		if event.Original != event.Forwarded {
-			return 0, errors.New("relay modified Ze's answer")
+			return errors.New("relay modified Ze's answer")
 		}
 		if err := requireStopCCN(packet, hello); err == nil {
-			return binary.BigEndian.Uint16(hello[4:6]), nil
+			return nil
 		}
 	}
-	return 0, errors.New("missing matching StopCCN result=2 error=8 acknowledging the injected M=1 HELLO")
+	return errors.New("missing matching StopCCN result=2 error=8 acknowledging the injected M=1 HELLO")
 }
 
 // injectedControl proves all original bytes except the length survive, including

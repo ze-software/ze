@@ -117,7 +117,7 @@ func waitOSPFSRAnycastOriginator(ctx context.Context, lab interoplab.CheckerLab)
 }
 
 func waitOSPFSRAnycastPop(ctx context.Context, lab interoplab.CheckerLab, nextHop netip.Addr) error {
-	command := []string{"ip", "-f", ipFamilyMPLS, "route", "show"}
+	command := []string{"ip", "-f", ipFamilyMPLS, ipObjectRoute, "show"}
 	var last string
 	var verdict error
 	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{

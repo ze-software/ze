@@ -116,7 +116,7 @@ func checkEAPUnsigned(ctx context.Context, lab *scenarioLab) error {
 	if err != nil {
 		return fmt.Errorf("assertion 6: %w", err)
 	}
-	radiusLogins := radiusSuccesses(text, radiusUser)
+	radiusLogins := radiusSuccesses(text)
 
 	// The refusal: the relay now removes the Message-Authenticator and nothing
 	// else, so the only difference from the login above is the attribute.
@@ -144,7 +144,7 @@ func checkEAPUnsigned(ctx context.Context, lab *scenarioLab) error {
 	if err != nil {
 		return fmt.Errorf("assertion 10: %w", err)
 	}
-	if after := radiusSuccesses(text, radiusUser); after != radiusLogins {
+	if after := radiusSuccesses(text); after != radiusLogins {
 		return fmt.Errorf("assertion 10: ze logged %d RADIUS logins for %s after the unsigned answers, want %d", after, radiusUser, radiusLogins)
 	}
 	return nil
@@ -286,11 +286,11 @@ func unsignedDiscardCount(text string) (int64, error) {
 	return 0, errors.New("ze's metrics carry no " + series + " series")
 }
 
-// radiusSuccesses counts ze's successful logins for username that the RADIUS
+// radiusSuccesses counts ze's successful logins for radiusUser that the RADIUS
 // backend satisfied.
-func radiusSuccesses(text, username string) int {
+func radiusSuccesses(text string) int {
 	count := 0
-	for _, source := range authSuccessSources(text, username) {
+	for _, source := range authSuccessSources(text, radiusUser) {
 		if source == sourceRADIUS {
 			count++
 		}

@@ -35,13 +35,13 @@ func checkParsedEmptyMPFRR(ctx context.Context, check *interoplab.CheckContext) 
 				evidence["fixture-"+name] = string(content)
 			}
 		}
-		verdict := "passed"
+		verdict := verdictPassed
 		if resultErr != nil {
 			verdict = resultErr.Error()
 		}
 		data, marshalErr := json.MarshalIndent(map[string]any{
-			"scenario": check.Source.Name, "network": check.Network, "verdict": verdict,
-			"evidence": evidence,
+			"scenario": check.Source.Name, evidenceKeyNetwork: check.Network, "verdict": verdict,
+			evidenceKeyEvidence: evidence,
 		}, "", "  ")
 		resultErr = errors.Join(resultErr, marshalErr)
 		if marshalErr == nil {
@@ -136,7 +136,7 @@ type parsedEmptyMPIdentity struct {
 }
 
 func parsedEmptyMPRecipientIdentity(ctx context.Context, check *interoplab.CheckContext) (parsedEmptyMPIdentity, error) {
-	pidText, err := check.Lab.Query(ctx, peerFRR, []string{cmdCat, "/var/run/frr/bgpd.pid"}, nil)
+	pidText, err := check.Lab.Query(ctx, peerFRR, []string{cmdCat, frrBGPDPIDFile}, nil)
 	if err != nil {
 		return parsedEmptyMPIdentity{}, err
 	}
@@ -245,7 +245,7 @@ func parsedEmptyMPDiagnostics(ctx context.Context, check *interoplab.CheckContex
 		{peerSpeaker, parsedEmptyMPSourceCapture},
 		{peerSpeaker2, extendedCaptureBase + "-ze.jsonl"},
 		{peerSpeaker2, extendedCaptureBase + "-frr.jsonl"},
-		{peerFRR, "/var/run/frr/bgpd.pid"},
+		{peerFRR, frrBGPDPIDFile},
 	} {
 		text, err := check.Lab.Query(ctx, file.peer, []string{cmdCat, file.path}, nil)
 		key := file.peer + " " + file.path
@@ -255,7 +255,7 @@ func parsedEmptyMPDiagnostics(ctx context.Context, check *interoplab.CheckContex
 			captureErr = errors.Join(captureErr, err)
 		}
 	}
-	for _, query := range []string{"show version", "show bgp ipv4 unicast json"} {
+	for _, query := range []string{frrShowVersion, "show bgp ipv4 unicast json"} {
 		text, err := check.Lab.Query(ctx, peerFRR, []string{cmdVtysh, "-c", query}, nil)
 		evidence[query] = text
 		if err != nil {

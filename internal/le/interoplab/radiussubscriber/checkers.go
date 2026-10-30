@@ -94,7 +94,7 @@ type coaDatagram struct {
 // session being gone, answers Disconnect-NAK. Under a key that ignores the
 // port it would get the first one's cached Disconnect-ACK.
 func checkCoADuplicate(ctx context.Context, lab *scenarioLab) error {
-	first, err := lab.waitRecord(ctx, "Start", "")
+	first, err := lab.waitStart(ctx, "")
 	if err != nil {
 		return err
 	}
@@ -112,7 +112,7 @@ func checkCoADuplicate(ctx context.Context, lab *scenarioLab) error {
 	if err := lab.redial(ctx); err != nil {
 		return err
 	}
-	second, err := lab.waitRecord(ctx, "Start", first.sessionID)
+	second, err := lab.waitStart(ctx, first.sessionID)
 	if err != nil {
 		return err
 	}
@@ -260,14 +260,14 @@ func checkAcctRestart(ctx context.Context, lab *scenarioLab) error {
 // the session through ze's REST surface, and waits for the Stop carrying the
 // same id. It answers that id.
 func (s *scenarioLab) closedSession(ctx context.Context, previous string) (string, error) {
-	start, err := s.waitRecord(ctx, "Start", previous)
+	start, err := s.waitStart(ctx, previous)
 	if err != nil {
 		return "", err
 	}
 	if err := s.clearSessions(ctx); err != nil {
 		return "", err
 	}
-	if _, err := s.waitStop(ctx, start.sessionID); err != nil {
+	if err := s.waitStop(ctx, start.sessionID); err != nil {
 		return "", err
 	}
 	return start.sessionID, nil
@@ -363,9 +363,10 @@ func (s *scenarioLab) replay(ctx context.Context, octets []byte) (byte, error) {
 	return replyCode(result.Stdout)
 }
 
-// waitRecord waits for an accounting record of status whose id is not
-// previous, and answers the first such record.
-func (s *scenarioLab) waitRecord(ctx context.Context, status, previous string) (accountingRecord, error) {
+// waitStart waits for an Accounting-Start record whose id is not previous,
+// and answers the first such record.
+func (s *scenarioLab) waitStart(ctx context.Context, previous string) (accountingRecord, error) {
+	const status = "Start"
 	var found accountingRecord
 	description := "an Accounting-" + status + " in the server's detail file"
 	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{Timeout: s.timeout, Interval: time.Second, Description: description},
@@ -386,7 +387,7 @@ func (s *scenarioLab) waitRecord(ctx context.Context, status, previous string) (
 }
 
 // waitStop waits for the Accounting-Stop carrying sessionID.
-func (s *scenarioLab) waitStop(ctx context.Context, sessionID string) (accountingRecord, error) {
+func (s *scenarioLab) waitStop(ctx context.Context, sessionID string) error {
 	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{Timeout: s.timeout, Interval: time.Second, Description: "the Accounting-Stop of " + sessionID},
 		func(probeCtx context.Context) ([]accountingRecord, error) { return s.records(probeCtx) },
 		func(records []accountingRecord) bool {
@@ -398,9 +399,9 @@ func (s *scenarioLab) waitStop(ctx context.Context, sessionID string) (accountin
 			return false
 		})
 	if err != nil {
-		return accountingRecord{}, fmt.Errorf("server detail file: no Accounting-Stop carrying its Start's id %q: %w", sessionID, err)
+		return fmt.Errorf("server detail file: no Accounting-Stop carrying its Start's id %q: %w", sessionID, err)
 	}
-	return accountingRecord{status: "Stop", sessionID: sessionID}, nil
+	return nil
 }
 
 // records reads the server's detail file. A record is a block of

@@ -21,7 +21,7 @@ import (
 // MUTATION: readCoAChange ignores the second unsupported Filter-Id; the mixed
 // request then ACKs instead of NAKing, and this scenario refuses it.
 func checkCoADisconnect(ctx context.Context, lab *scenarioLab) error {
-	start, err := lab.waitRecord(ctx, "Start", "")
+	start, err := lab.waitStart(ctx, "")
 	if err != nil {
 		return err
 	}
@@ -74,7 +74,7 @@ func checkCoADisconnect(ctx context.Context, lab *scenarioLab) error {
 	if err := lab.dynamicRequest(ctx, start.sessionID, "disconnect", "", "Disconnect-ACK", ""); err != nil {
 		return err
 	}
-	if _, err := lab.waitStop(ctx, start.sessionID); err != nil {
+	if err := lab.waitStop(ctx, start.sessionID); err != nil {
 		return err
 	}
 	if err := lab.waitDisconnects(ctx, 1); err != nil {

@@ -45,6 +45,9 @@ const (
 	netAdminCapability = "NET_ADMIN"
 )
 
+// imageLAC is the lab image the xl2tpd LAC runs from.
+const imageLAC = "lac"
+
 func scenarioCheckerMap(timeout time.Duration) map[string]interoplab.Checker {
 	return map[string]interoplab.Checker{
 		scenarioPPPIPv4:             checker(checkPPPIPv4, timeout, peerZe, peerLAC),
@@ -279,7 +282,7 @@ func lacPeer(suffix, directory string) interoplab.PeerConfig {
 	return interoplab.PeerConfig{
 		Name:         peerLAC,
 		Container:    tb.Str("ze-l2tp-lac-").Str(suffix).String(),
-		Image:        "lac",
+		Image:        imageLAC,
 		Host:         3,
 		Mounts:       mounts,
 		Capabilities: []string{netAdminCapability},
@@ -382,7 +385,7 @@ func imageBuilds(root string, plans []interoplab.ScenarioPlan, frrImage string) 
 	labRoot := filepath.Join(root, "test", "interop-l2tp")
 	builds := []interoplab.ImageBuild{
 		{Name: "ze", Tag: "ze-l2tp-interop", Dockerfile: filepath.Join(labRoot, "Dockerfile.ze"), Context: root, Required: true},
-		{Name: "lac", Tag: "ze-l2tp-lac", Dockerfile: filepath.Join(labRoot, "Dockerfile.lac"), Context: labRoot, Required: true},
+		{Name: imageLAC, Tag: "ze-l2tp-lac", Dockerfile: filepath.Join(labRoot, "Dockerfile.lac"), Context: labRoot, Required: true},
 	}
 	if needFRR {
 		builds = append(builds, interoplab.ImageBuild{Name: "frr", Tag: frrImage, Pull: true, Required: true})

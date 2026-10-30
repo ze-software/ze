@@ -271,7 +271,9 @@ func (s Suite) Run(ctx context.Context) (report SuiteReport) {
 			}
 		}
 	}()
-	if !s.ImagesOnDemand {
+	if s.ImagesOnDemand {
+		references = make(map[string]string, len(s.Images))
+	} else {
 		line.Reset()
 		s.progress(line.Str("interop: preparing ").Int(int64(len(s.Images))).Str(" image(s)"))
 		preparing := time.Now()
@@ -283,8 +285,6 @@ func (s Suite) Run(ctx context.Context) (report SuiteReport) {
 		}
 		line.Reset()
 		s.progress(line.Str("interop: images ready (").Str(time.Since(preparing).Round(time.Second).String()).Byte(')'))
-	} else {
-		references = make(map[string]string, len(s.Images))
 	}
 	for index, plan := range s.Scenarios {
 		line.Reset()

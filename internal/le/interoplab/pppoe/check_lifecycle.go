@@ -56,7 +56,7 @@ func checkCHAPRechallenge(ctx context.Context, check *interoplab.CheckContext) (
 	if err := lifecyclePing(ctx, lab, zeImageName, iface, accelGateway); err != nil {
 		return err
 	}
-	before, err := query(ctx, lab, zeImageName, []string{"cat", "/proc/net/pppoe"})
+	before, err := query(ctx, lab, zeImageName, []string{"cat", procNetPPPoE})
 	if err != nil {
 		return err
 	}
@@ -82,7 +82,7 @@ func checkCHAPRechallenge(ctx context.Context, check *interoplab.CheckContext) (
 	if err := rechallengeEvidence(frames, local); err != nil {
 		return err
 	}
-	after, err := query(ctx, lab, zeImageName, []string{"cat", "/proc/net/pppoe"})
+	after, err := query(ctx, lab, zeImageName, []string{"cat", procNetPPPoE})
 	if err != nil {
 		return err
 	}
@@ -166,10 +166,10 @@ func checkPeerTerminate(ctx context.Context, check *interoplab.CheckContext) (er
 	// The sink belongs to this client namespace and dies with its container.
 	const padtSink = "padt-sink"
 	for _, argv := range [][]string{
-		{"ip", "link", "add", padtSink, "type", "dummy"},
-		{"ip", "link", "set", "dev", padtSink, "up"},
-		{"tc", "qdisc", "add", "dev", "eth0", "clsact"},
-		{"tc", "filter", "add", "dev", "eth0", "egress", "protocol", "0x8863", "pref", "1", "u32", "match", "u8", "0xa7", "0xff", "at", "1", "action", "mirred", "egress", "redirect", "dev", padtSink},
+		{"ip", commandLink, commandAdd, padtSink, "type", "dummy"},
+		{"ip", commandLink, "set", commandDev, padtSink, "up"},
+		{"tc", "qdisc", commandAdd, commandDev, accessInterface, "clsact"},
+		{"tc", "filter", commandAdd, commandDev, accessInterface, "egress", "protocol", "0x8863", "pref", "1", "u32", "match", "u8", "0xa7", "0xff", "at", "1", "action", "mirred", "egress", "redirect", commandDev, padtSink},
 	} {
 		if _, err := query(ctx, lab, clientImageName, append([]string{"sh", "-c"}, strings.Join(argv, " ")+" && echo installed")); err != nil {
 			return fmt.Errorf("isolate peer termination from client PADT: %w", err)
@@ -179,7 +179,7 @@ func checkPeerTerminate(ctx context.Context, check *interoplab.CheckContext) (er
 	if err != nil {
 		return err
 	}
-	if _, err := exec(ctx, lab, clientImageName, []string{"pkill", "-TERM", "-x", pppdExecutable}); err != nil {
+	if _, err := exec(ctx, lab, clientImageName, []string{"pkill", signalTERM, "-x", pppdExecutable}); err != nil {
 		return err
 	}
 	if err := waitLifecycleEvidence(ctx, lab, 15*time.Second, func(frames []lifecycleFrame) error {
@@ -248,7 +248,7 @@ func waitZeKernelRelease(ctx context.Context, lab interoplab.CheckerLab, iface s
 		if err != nil {
 			return kernelState{}, err
 		}
-		table, err := query(probeCtx, lab, zeImageName, []string{"cat", "/proc/net/pppoe"})
+		table, err := query(probeCtx, lab, zeImageName, []string{"cat", procNetPPPoE})
 		if err != nil {
 			return kernelState{}, err
 		}
@@ -278,7 +278,7 @@ func startLifecycleCapture(ctx context.Context, lab interoplab.CheckerLab) ([6]b
 		return local, err
 	}
 	if len(mac) != len(local) {
-		return local, errors.New("Ze access interface is not Ethernet")
+		return local, errors.New("the access interface of Ze is not Ethernet")
 	}
 	copy(local[:], mac)
 	shell := "exec tcpdump -n -U -s 1600 -c 512 -i eth0 -w " + lifecycleCapture + " 'ether proto 0x8863 or ether proto 0x8864' 2>/tmp/pppoe-lifecycle.log"

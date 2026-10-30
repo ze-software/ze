@@ -1201,7 +1201,7 @@ func setFRRRedistribution(ctx context.Context, lab interoplab.CheckerLab, enable
 		verb = "redistribute static"
 	}
 	_, err := lab.Exec(ctx, peerFRR, []string{
-		cmdVtysh, "-c", frrConfigureTerminal, "-c", "router bgp 65002",
+		cmdVtysh, "-c", frrConfigureTerminal, "-c", frrRouterBGP65002,
 		"-c", frrAddressFamilyIPv4Unicast, "-c", verb,
 	}, nil)
 	return err

@@ -266,7 +266,7 @@ func waitExtendedFRRRoute(ctx context.Context, check *interoplab.CheckContext, p
 
 func originateExtendedFRRRoute(ctx context.Context, lab interoplab.CheckerLab, network string) error {
 	result, err := lab.Exec(ctx, peerFRR, []string{
-		cmdVtysh, "-c", frrConfigureTerminal, "-c", "router bgp 65002",
+		cmdVtysh, "-c", frrConfigureTerminal, "-c", frrRouterBGP65002,
 		"-c", "address-family ipv4 unicast", "-c", "network " + network,
 	}, nil)
 	if err != nil {

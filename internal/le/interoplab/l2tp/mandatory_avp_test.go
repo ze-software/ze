@@ -17,8 +17,9 @@ func TestMandatoryAVPEvidence(t *testing.T) {
 	mutated = append(mutated, 0x80, 6, 0, 0, 0xff, 0xfe)
 	binary.BigEndian.PutUint16(mutated[2:4], uint16(len(mutated)))
 	stop := controlPacket(4, 23, 2, 4)
-	stop = append(stop, 0x80, 10, 0, 0, 0, 1, 0, 2, 0, 8)
-	stop = append(stop, 0x80, 8, 0, 0, 0, 9, 0, 19)
+	stop = append(stop,
+		0x80, 10, 0, 0, 0, 1, 0, 2, 0, 8,
+		0x80, 8, 0, 0, 0, 9, 0, 19)
 	binary.BigEndian.PutUint16(stop[2:4], uint16(len(stop)))
 	for _, tc := range []struct {
 		name      string
@@ -39,16 +40,16 @@ func TestMandatoryAVPEvidence(t *testing.T) {
 				tc.change(h, s)
 			}
 			text := wireLine(t, "lac", hello, h) + wireLine(t, "ze", s, s)
-			_, err := mandatoryAVPRefusal(text)
+			err := mandatoryAVPRefusal(text)
 			if (err != nil) != tc.wantError {
 				t.Fatalf("refusal error = %v, want error %v", err, tc.wantError)
 			}
 		})
 	}
-	if _, err := mandatoryAVPRefusal(wireLine(t, "lac", hello, mutated)); err == nil {
+	if err := mandatoryAVPRefusal(wireLine(t, "lac", hello, mutated)); err == nil {
 		t.Fatal("missing StopCCN accepted")
 	}
-	if _, err := mandatoryAVPRefusal("{}"); err == nil {
+	if err := mandatoryAVPRefusal("{}"); err == nil {
 		t.Fatal("absent wire evidence accepted")
 	}
 }

@@ -121,7 +121,7 @@ func checkDiscoverySession(sessions []zeSession) error {
 	if session.ServiceName != pppoeService {
 		return fmt.Errorf("ze recorded Service-Name %q, expected %q", session.ServiceName, pppoeService)
 	}
-	if session.Interface != "eth0" {
+	if session.Interface != accessInterface {
 		return fmt.Errorf("ze bound the session to %q, expected eth0", session.Interface)
 	}
 	return nil
@@ -245,7 +245,7 @@ func checkTeardown(ctx context.Context, lab interoplab.CheckerLab) error {
 		ctx,
 		lab,
 		clientImageName,
-		[]string{"pkill", "-TERM", "-x", pppdExecutable},
+		[]string{"pkill", signalTERM, "-x", pppdExecutable},
 	); err != nil {
 		return fmt.Errorf("teardown: signal pppd: %w", err)
 	}
