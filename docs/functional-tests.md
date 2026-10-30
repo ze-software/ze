@@ -611,6 +611,7 @@ which kills leaked `ze` daemons and mock servers with it.
 | `ZE_SUITE_TIMEOUT` | `600s` | The budget a suite gets when it has no budget of its own. `timeout` accepts a bare number of seconds or an `s`, `m`, `h`, or `d` suffix |
 | `ZE_SUITE_TIMEOUT_PLUGIN` | `1500s` | The `plugin` suite's own budget |
 | `ZE_SUITE_TIMEOUT_APPLIANCE` | `840s` | The `appliance` suite's own budget |
+| `ZE_SUITE_TIMEOUT_UI` | `1080s` | The `ui` suite's own budget |
 | `ZE_SUITE_KILL_AFTER` | `10s` | How long after SIGTERM the group gets SIGKILL |
 | `ZE_SUITE_WARN_PERCENT` | `80` | The percentage of the budget that makes a green suite print a warning |
 | `ZE_COVER` | unset | Builds the subjects with `-cover` and gives each suite its own `GOCOVERDIR`, then reduces it to the packages the suite reached once the suite ends. It applies to a single suite and to `gating` alike, because both take the directory from one producer (`suiteCoverage`, `internal/le/test/functional/run.go`). Only a whole `gating` run publishes `tmp/ze-suite-map.json` |
@@ -630,7 +631,7 @@ it for all of them. A suite that needs more wall clock gets a
 that budget everywhere: the `timeout` that kills the suite, the runtime line,
 the warning arithmetic, and the variable name the reports tell you to raise.
 
-Two suites have such a budget today, `plugin` and `appliance`. `plugin` holds 663
+Three suites have such a budget today, `plugin`, `appliance` and `ui`. `plugin` holds 663
 `.ci` tests, and it measured 855s on 2026-08-19 against the 600s shared cap that
 had been killing it. The budget is derived from that measurement: the warning
 point (80% of the budget) must sit 40% above 855s, or a busy box warns on every
@@ -641,6 +642,15 @@ which is a wedged suite and not a busy box.
 The `appliance` suite's four QEMU proofs build and boot a real image. The suite
 measured 469s alone on 2026-10-16, after the 600s shared cap had killed it. The
 same derivation gives 469 * 1.40 / 0.80 = 821s, rounded up to 840s.
+
+The `ui` suite's four `le-rfc-partial-proof` tests each run `le rfc check` over
+a private export of HEAD and declare a 900s timeout, which the shared 600s cap
+never let them reach. In verify run 41071626530 on GitHub's 4-vCPU runner they
+were still running at 510s, after every other `ui` test had finished, when the
+cap killed the suite. That makes 600s a lower bound, and the same derivation
+over it gives 600 * 1.40 / 0.80 = 1050s, rounded up to 1080s. It also admits a
+test that starts 85s in and runs to its declared 900s. A complete measured run
+replaces the lower bound when one exists.
 
 Adding a suite to that family is one line: a `budgetDefaults` entry in
 `internal/le/test/functional/budget.go`. Setting `ZE_SUITE_TIMEOUT_<SUITE>` in

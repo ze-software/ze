@@ -140,6 +140,17 @@ func TestBudgetAnswersOneNumberToThreeQuestions(t *testing.T) {
 		t.Errorf("plugin budget variable = %q, want its own", plugin.BudgetVar())
 	}
 
+	ui, ok := SuiteNamed("ui")
+	if !ok {
+		t.Fatal("the ui suite is not declared")
+	}
+	if ui.Budget() != "1080s" {
+		t.Errorf("ui budget = %q, want its own 1080s", ui.Budget())
+	}
+	if ui.BudgetVar() != "ZE_SUITE_TIMEOUT_UI" {
+		t.Errorf("ui budget variable = %q, want its own", ui.BudgetVar())
+	}
+
 	appliance, ok := SuiteNamed("appliance")
 	if !ok {
 		t.Fatal("the appliance suite is not declared")

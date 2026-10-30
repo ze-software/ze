@@ -27,6 +27,17 @@
 // The suite measured 469s alone on 2026-10-16, and the 600s shared budget had killed it.
 // The calculation is 469 * 1.40 / 0.80 = 821s, rounded up to a whole minute.
 //
+// The `ui` suite has a 1080s budget. Its four le-rfc-partial-proof tests each
+// declare a 900s timeout, because each runs `le rfc check` over a private HEAD
+// export, so the shared 600s cap could never let them reach their own bound.
+// In verify run 41071626530 on GitHub's 4-vCPU runner they started 85s in, the
+// suite's other 304 tests had finished by 590s, and the four were still
+// running at 510s when the 600s cap killed them. 600s is therefore a lower
+// bound on the suite, and the derivation over it gives 600 * 1.40 / 0.80 =
+// 1050s, rounded up to 1080s, which also admits a test that starts at 85s and
+// runs to its declared 900s. Replace it with the derivation over a complete
+// measured run once one exists.
+//
 // A report and `timeout` that use different budgets are worse than no budget.
 // A mismatched report says 1500s while the kill occurs at 600s.
 // Suite.Budget supplies the `timeout` argument, runtime line, and warning calculation.
@@ -89,7 +100,7 @@ const sharedBudgetVar = "ZE_SUITE_TIMEOUT"
 // Each name uses its own variable for the timeout, runtime, warning, and suggested adjustment.
 // Lower a value after its suite becomes faster or is split.
 // First, read the derivation in this file's header.
-var budgetDefaults = map[string]string{suitePlugin: "1500s", suiteAppliance: "840s"}
+var budgetDefaults = map[string]string{suitePlugin: "1500s", suiteAppliance: "840s", suiteUi: "1080s"}
 
 var (
 	_ = env.MustRegister(env.EnvEntry{
