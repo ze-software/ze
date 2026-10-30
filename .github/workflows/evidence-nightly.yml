@@ -46,6 +46,14 @@ jobs:
         with:
           go-version-file: go.mod
           cache-dependency-path: go.sum
+      # The hosted runner's Docker applies AppArmor, and the kernel probe a lab
+      # runs before its scenarios asks for Ze's profile ze-kernel-probe, which
+      # the runner has not loaded: runc then fails to apply it, and
+      # TestDockerBuildRetainsImageAcrossRetag failed on that setup error
+      # (evidence-nightly run 41038783931). Loading it is the fix the error
+      # names; the action runs its own sudo steps.
+      - name: Load Ze's AppArmor profile for the kernel probe
+        run: ./le setup docker kernel apparmor confirm ze-kernel-probe
       - name: Package tests against real servers in Docker
         run: ./le test integration docker-peers
 
