@@ -150,8 +150,9 @@ func runLEChecksAnswers(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if counted.code != 1 {
-		return leChecksFailf("`le config claims | count` exited %d, want a refusal", counted.code)
+	// A pipe refusal is a usage error (D-Q8): 2.
+	if counted.code != 2 {
+		return leChecksFailf("`le config claims | count` exited %d, want the usage refusal 2", counted.code)
 	}
 	if !strings.Contains(counted.stderr, "count") {
 		return leChecksFailf("the refusal does not name the operator: %q", counted.stderr)
@@ -277,8 +278,9 @@ func runLEChecksAnswers(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if grammarCount.code != 1 {
-		return leChecksFailf("`le cli grammar | count` exited %d, want a refusal", grammarCount.code)
+	// A pipe refusal is a usage error (D-Q8): 2.
+	if grammarCount.code != 2 {
+		return leChecksFailf("`le cli grammar | count` exited %d, want the usage refusal 2", grammarCount.code)
 	}
 	if !strings.Contains(grammarCount.stderr, "count") {
 		return leChecksFailf("the refusal does not name the operator: %q", grammarCount.stderr)
