@@ -47,6 +47,17 @@ and most other runs exceeded it, which reported a slow gate as an unjudgeable
 one. `ZE_STATICCHECK_DEADLINE` still names an absolute bound for a run of any
 size.
 
+The per-row bound holds only over a cache that already answers the packages
+every row shares. A run that starts from an empty cache (`CacheCold`) analyses
+that shared closure once, whatever its row count: the 38-row measurement
+amortized it, and a 6-row CI piece pays it alone, so every piece of verify run
+41071626530 exceeded its 9m0s or 10m30s bound on a fresh runner. A cold run is
+therefore bounded at no less than `deadlineCold`, two and a half times that
+23m36s whole-matrix measurement (59m). A piece judges a subset of the matrix,
+so the whole matrix's cold cost bounds it. CI restores the cache between runs
+(`.github/workflows/verify.yml`), so the floor applies to the first run after a
+key change.
+
 The deadline measures the type check, not the cache. Staticcheck trims its
 cache when it closes, after the verdict exists, at most once a day, and it
 records the trim only when the trim ends. Over the shared `~/.cache/staticcheck`

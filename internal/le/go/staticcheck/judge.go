@@ -16,6 +16,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -51,22 +52,41 @@ const DeadlineKey = "ze.staticcheck.deadline"
 // to be slow and still calls a stuck Staticcheck stuck.
 const deadlinePerRow = 90 * time.Second
 
+// coldMatrixMeasured is the widest cold run measured in CI: the whole 38-row
+// matrix from an empty Staticcheck cache, CI run 33450825487.
+const coldMatrixMeasured = 23*time.Minute + 36*time.Second
+
+// deadlineCold is the floor a run gets when it starts from an empty
+// Staticcheck cache: two and a half times coldMatrixMeasured, the same margin
+// deadlinePerRow keeps over its measurement.
+//
+// deadlinePerRow holds only for a cache that already answers the packages
+// every row shares. Each row loads the same dependency closure under other
+// tags, so a cold run pays for analysing that closure once, whatever its row
+// count: the 38-row measurement amortized it, and a 6-row CI piece pays it
+// alone. Verify run 41071626530 started every piece on a runner with an empty
+// cache, and each one exceeded its 9m0s or 10m30s bound. A piece judges a
+// subset of the matrix, so the whole matrix's cold cost bounds it, and a run
+// past that bound is still hung.
+const deadlineCold = coldMatrixMeasured * 5 / 2
+
 var deadlineEntry = env.MustRegister(env.EnvEntry{
 	Key:  DeadlineKey,
 	Type: "duration",
 	// No default value: an unset key derives the bound from the number of rows
 	// the run judges, which a fixed string cannot state.
 	Default:     "",
-	Description: "an absolute bound on one Staticcheck run over the feature matrix; unset allows 90s per judged row before the matrix is declared unjudgeable",
+	Description: "an absolute bound on one Staticcheck run over the feature matrix; unset allows 90s per judged row, and at least 59m from an empty cache, before the matrix is declared unjudgeable",
 	// Private keeps the key out of `ze env list`. It bounds a build-host tool
 	// and an operator has nothing to do with it.
 	Private: true,
 })
 
 // Deadline answers the bound one Staticcheck run over rows may take, and the
-// reason a declared value could not be used.
-func Deadline(rows int) (time.Duration, error) {
-	return DeadlineFrom(env.Get(deadlineEntry.Key), rows)
+// reason a declared value could not be used. cold is whether the run starts
+// from an empty Staticcheck cache (CacheCold).
+func Deadline(rows int, cold bool) (time.Duration, error) {
+	return DeadlineFrom(env.Get(deadlineEntry.Key), rows, cold)
 }
 
 // DeadlineFrom is the parse, apart from where the value came from.
@@ -77,7 +97,9 @@ func Deadline(rows int) (time.Duration, error) {
 //
 // A declared value is ABSOLUTE and bounds the run whatever its size, because a
 // person who names a duration is bounding the wall clock they are waiting on.
-func DeadlineFrom(declared string, rows int) (time.Duration, error) {
+// An unset value scales with rows, and a cold run is never bounded below
+// deadlineCold.
+func DeadlineFrom(declared string, rows int, cold bool) (time.Duration, error) {
 	if rows < 1 {
 		var tb textbuf.Buffer
 		return 0, errors.New(tb.Str("a deadline needs at least one row to judge, got ").
@@ -85,7 +107,11 @@ func DeadlineFrom(declared string, rows int) (time.Duration, error) {
 	}
 	raw := strings.TrimSpace(declared)
 	if raw == "" {
-		return time.Duration(rows) * deadlinePerRow, nil
+		scaled := time.Duration(rows) * deadlinePerRow
+		if cold {
+			return max(scaled, deadlineCold), nil
+		}
+		return scaled, nil
 	}
 	parsed, err := time.ParseDuration(raw)
 	if err != nil || parsed <= 0 {
@@ -132,6 +158,59 @@ const cacheKey = "STATICCHECK_CACHE"
 // three hours.
 func CacheDir(tree string) string {
 	return filepath.Join(tree, "cache", "staticcheck-matrix")
+}
+
+// CacheCold answers whether the Staticcheck cache at dir holds no entry, so a
+// run over it analyses the whole dependency closure from nothing. An absent
+// directory is cold. The cache keeps each entry in a two-character
+// subdirectory, as Go's build cache does, and creates all of them when it
+// opens, so an empty subdirectory proves nothing and only a file inside one is
+// an entry. The walk reads at most one name from each subdirectory.
+func CacheCold(dir string) (bool, error) {
+	subdirs, err := os.ReadDir(dir)
+	if errors.Is(err, os.ErrNotExist) {
+		return true, nil
+	}
+	if err != nil {
+		var tb textbuf.Buffer
+		return false, errors.New(tb.Str("could not read the Staticcheck cache: ").Err(err).
+			Str("; matrix could not be judged").String())
+	}
+	for _, subdir := range subdirs {
+		if !subdir.IsDir() {
+			continue
+		}
+		held, err := holdsAnEntry(filepath.Join(dir, subdir.Name()))
+		if err != nil {
+			return false, err
+		}
+		if held {
+			return false, nil
+		}
+	}
+	return true, nil
+}
+
+// holdsAnEntry answers whether the cache subdirectory dir holds any name.
+func holdsAnEntry(dir string) (bool, error) {
+	f, err := os.Open(dir) //nolint:gosec // dir is a subdirectory of the gate's own cache, read by CacheCold
+	if err != nil {
+		var tb textbuf.Buffer
+		return false, errors.New(tb.Str("could not read the Staticcheck cache: ").Err(err).
+			Str("; matrix could not be judged").String())
+	}
+	defer f.Close() //nolint:errcheck // a read-only directory handle
+
+	names, err := f.Readdirnames(1)
+	if len(names) > 0 {
+		return true, nil
+	}
+	if errors.Is(err, io.EOF) {
+		return false, nil
+	}
+	var tb textbuf.Buffer
+	return false, errors.New(tb.Str("could not read the Staticcheck cache: ").Err(err).
+		Str("; matrix could not be judged").String())
 }
 
 // Judge runs Staticcheck over the rendered matrix in tree and answers what it

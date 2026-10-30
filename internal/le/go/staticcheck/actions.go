@@ -102,7 +102,12 @@ func runCheck(args leaction.Arguments) (any, int) {
 		return Verdict{Part: index, Parts: count, Passed: true}, 0
 	}
 
-	deadline, err := Deadline(len(rows))
+	cold, err := CacheCold(CacheDir(tree))
+	if err != nil {
+		reportFailure(err)
+		return nil, 2
+	}
+	deadline, err := Deadline(len(rows), cold)
 	if err != nil {
 		reportFailure(err)
 		return nil, 2

@@ -591,7 +591,9 @@ all. A CI red names the piece it came from, and that command reproduces it:
 
 A piece dealt no row says so and passes: its rows are judged by a sibling piece
 of the same run. One run is bounded at 90 seconds for each row it judges, so the
-bound follows the size of the piece.
+bound follows the size of the piece. A run that starts from an empty
+Staticcheck cache is bounded at no less than 59 minutes, because it analyses
+the whole dependency closure once, whatever its row count.
 
 Suite selection narrows only where the recorded suite map answers.
 `selectSuites` (`internal/le/test/functional/suitemap.go`) runs every suite

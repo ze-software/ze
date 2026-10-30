@@ -341,24 +341,33 @@ func TestTheRenderingIsCheckedAgainstItsRows(t *testing.T) {
 func TestABadDeadlineIsRefused(t *testing.T) {
 	// An unset key scales with the work: the bound a 38-row run gets is not the
 	// bound a 7-row piece of it gets.
-	if got, err := DeadlineFrom("", 38); err != nil || got != 38*deadlinePerRow {
+	if got, err := DeadlineFrom("", 38, false); err != nil || got != 38*deadlinePerRow {
 		t.Errorf("an unset deadline over 38 rows answers (%v, %v), want %v", got, err, 38*deadlinePerRow)
 	}
-	if got, err := DeadlineFrom("", 7); err != nil || got != 7*deadlinePerRow {
+	if got, err := DeadlineFrom("", 7, false); err != nil || got != 7*deadlinePerRow {
 		t.Errorf("an unset deadline over 7 rows answers (%v, %v), want %v", got, err, 7*deadlinePerRow)
 	}
-	// A declared value is absolute, so the same string bounds both sizes.
-	if got, err := DeadlineFrom("  90s ", 38); err != nil || got != 90*time.Second {
+	// A cold run pays for the shared dependency closure once, so a small piece
+	// is never bounded below the floor, and a wide one keeps its scaled bound.
+	if got, err := DeadlineFrom("", 6, true); err != nil || got != deadlineCold {
+		t.Errorf("a cold deadline over 6 rows answers (%v, %v), want %v", got, err, deadlineCold)
+	}
+	if got, err := DeadlineFrom("", 60, true); err != nil || got != 60*deadlinePerRow {
+		t.Errorf("a cold deadline over 60 rows answers (%v, %v), want %v", got, err, 60*deadlinePerRow)
+	}
+	// A declared value is absolute, so the same string bounds both sizes, warm
+	// or cold.
+	if got, err := DeadlineFrom("  90s ", 38, true); err != nil || got != 90*time.Second {
 		t.Errorf("a declared deadline answers (%v, %v), want 90s", got, err)
 	}
 	// A run with no row to judge is refused rather than bounded at zero, which
 	// would end at once and report no verdict.
-	if _, err := DeadlineFrom("", 0); err == nil {
+	if _, err := DeadlineFrom("", 0, true); err == nil {
 		t.Error("a deadline over zero rows was accepted")
 	}
 
 	for _, bad := range []string{"nope", "-1s", "0"} {
-		if _, err := DeadlineFrom(bad, 38); err == nil {
+		if _, err := DeadlineFrom(bad, 38, false); err == nil {
 			t.Errorf("the deadline %q was accepted", bad)
 			continue
 		} else if !strings.Contains(err.Error(), "matrix could not be judged") {
@@ -368,7 +377,7 @@ func TestABadDeadlineIsRefused(t *testing.T) {
 
 	// The env route reads the same parse, so an unset variable answers the
 	// default rather than a refusal.
-	if got, err := Deadline(38); err != nil || got <= 0 {
+	if got, err := Deadline(38, false); err != nil || got <= 0 {
 		t.Errorf("the env route answers (%v, %v), want a positive duration", got, err)
 	}
 }
@@ -637,5 +646,32 @@ func TestMatrixRowFilterCatchesAGatedBreak(t *testing.T) {
 	}
 	if entries, err := os.ReadDir(CacheDir(root)); err != nil || len(entries) == 0 {
 		t.Errorf("Judge left its own cache %s empty (err %v)", CacheDir(root), err)
+	}
+}
+
+// VALIDATES: CacheCold calls a cache cold until a file sits in one of its
+// subdirectories. METHOD: build an absent, an opened-but-empty and a filled
+// cache in a temporary directory and ask each.
+// PREVENTS: a piece starting from an empty cache bounded as if warm, which
+// declared every CI piece unjudgeable in verify run 41071626530.
+func TestCacheColdNeedsAnEntry(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "staticcheck-matrix")
+	if cold, err := CacheCold(dir); err != nil || !cold {
+		t.Fatalf("an absent cache answers (%v, %v), want cold", cold, err)
+	}
+	if err := os.MkdirAll(filepath.Join(dir, "00"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "README"), []byte("cache"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if cold, err := CacheCold(dir); err != nil || !cold {
+		t.Fatalf("a cache with only empty subdirectories answers (%v, %v), want cold", cold, err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "00", "abc-a"), []byte("entry"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if cold, err := CacheCold(dir); err != nil || cold {
+		t.Fatalf("a cache holding an entry answers (%v, %v), want warm", cold, err)
 	}
 }
