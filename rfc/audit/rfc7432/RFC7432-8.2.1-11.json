@@ -1,6 +1,10 @@
 {
-  "no_code_path": "Neither Ze nor its delegated system-FIB boundary fills this conditional ingress-replicating EVPN PE role. parseConfigRoute and l2vpnRouteToEVPNParams construct supplied advertisements; rib_bestchange excludes non-CIDR routes from Loc-RIB mirroring and sysrib.processEvent skips NLRI-only events rather than installing an EVPN forwarding service. Byte carriage proves no downstream label assignment.",
-  "note": "RFC 7432 Section 8.2.1 states: \"This label MUST be a downstream assigned MPLS label if the advertising PE is using ingress replication for receiving multicast, broadcast, or unknown unicast traffic from other PEs.\" Its antecedent is the ESI label, not the NLRI label. The condition binds a PE receiving BUM using ingress replication, not every speaker carrying an explicitly configured ESI Label. The selected role in docs/architecture/wire/nlri-evpn.md is BGP origination/propagation without Ethernet/BUM forwarding or service-label allocation. Route producers carry supplied bytes without instantiating that PE procedure.",
+  "code": {
+    "internal/component/bgp/message/update_build_evpn.go::ValidateEVPNOriginationMode": "0e02032c661f7e2e",
+    "internal/component/bgp/plugins/nlri/evpn/config.go::parseConfigRoute": "7bdbf6f973e36b11",
+    "internal/component/bgp/plugins/nlri/evpn/encode.go::l2vpnRouteToEVPNParams": "517c4e0718f36232"
+  },
+  "note": "Re-judged 2026-10-30 (independent judge) after the row's annotation moved from {not-applicable} to {gap}. RFC 7432 Section 8.2.1 reads: \"This label MUST be a downstream assigned MPLS label if the advertising PE is using ingress replication for receiving multicast, broadcast, or unknown unicast traffic from other PEs.\" The label is the ESI label of the preceding sentence. Ze fills the PE role on the control plane and no owner decision declines BUM handling, so an absent label assignment is a conformance gap, not an exclusion. Ze assigns no ESI label: internal/component/bgp/plugins/nlri/evpn/config.go::parseConfigRoute merges the operator-supplied extended community bytes, encode.go::l2vpnRouteToEVPNParams carries them unchanged into EVPNParams.ExtCommunityBytes, and internal/component/bgp/message/update_build_evpn.go::ValidateEVPNOriginationMode checks only that an ESI Label community is present and, through checkESILabelRedundancy, its Single-Active flag against redundancy-mode. No code selects ingress replication or P2MP LSPs for BUM traffic, allocates a label from any label space, or checks that the embedded label is downstream assigned.",
   "requirement_sha": "f76801defb87be3b",
-  "verdict": "not-applicable"
+  "verdict": "unimplemented"
 }
