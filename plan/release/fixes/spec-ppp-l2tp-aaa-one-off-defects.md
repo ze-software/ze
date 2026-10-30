@@ -173,6 +173,7 @@ The subscriber auth registry, the metrics registry, session teardown events.
 | `unwired-feature` | 2026-09-03 | `activateRadiusConfig` accounting needs authentication |
 | `validated-value-discarded-by-its-caller` | 2026-09-05 | l2tp `parseSCCRQ` Protocol Version |
 | `declared-format-contradicts-payload` | 2026-08-30 | MS-CHAPv2 Authenticator-Response raw vs `S=` hex from RADIUS |
+| `reply-copies-a-field-the-sender-must-choose` | 2026-10-30 | LCP and NCP Code-Reject Identifier |
 | `false-synchronization-claim` | 2026-10-14 | l2tp and pppoe `LoadBackend` fallback called idempotent |
 | `green-that-could-not-have-been-red` | 2026-09-04 | `TestClientRetransmit` asserts neither Identifier nor Authenticator |
 | `green-that-could-not-have-been-red` | 2026-09-04 | `TestRadiusAdminEapAcceptWithEapFailureStillAuthorizes` comment overclaims |
