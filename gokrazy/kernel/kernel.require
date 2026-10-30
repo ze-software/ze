@@ -3,6 +3,14 @@ CONFIG_EXT4_FS
 CONFIG_BLK_DEV_INITRD
 CONFIG_DEVTMPFS_MOUNT
 
+# The IPv4 stack, whose input path (net/ipv4) consumes a datagram addressed to
+# a link-local scope group rather than forwarding it, which performs RFC 5798's
+# MUST NOT on the VRRP group ze joins. defconfig already sets it and IP_PNP and
+# IPV6 depend on it, so pinning it changes no built config. The rfc/short
+# {lower-layer} rows name it as `linux:CONFIG_INET`, a token the evidence
+# ratchet accepts only for a symbol the build verifies here.
+CONFIG_INET
+
 # The IPv6 stack, whose Neighbor Discovery (net/ipv6/ndisc.c) performs the RFC
 # 4861 obligations ze leaves to the kernel on the addresses it installs. The
 # rfc/short {lower-layer} rows name it as `linux:CONFIG_IPV6`, and that token is
