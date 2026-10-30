@@ -1,0 +1,90 @@
+[
+  {
+    "rid": "RFC792-Format-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPDFDiscard",
+    "unit-sha": "5c0598e257d7c417",
+    "claim-sha": "290f4521c7429c3f",
+    "route": "no-break",
+    "citation": "Fragmentation Needed leaves the reserved octet zero",
+    "reason": "kernel-producer",
+    "kernel-functions": [
+      "net/ipv4/icmp.c::__icmp_send"
+    ],
+    "ze-state-excluded": [
+      {
+        "producer": "internal/plugins/iface/netlink/manage_linux.go::netlinkBackend.AddRoute",
+        "reason": "AddRoute installs the 203.0.113.0/24 route that brings the DF datagram to the forwarding path; broken, the unit goes red because no Fragmentation Needed arrives, never because __icmp_send writes a nonzero reserved octet, which is what this claim names"
+      },
+      {
+        "producer": "internal/plugins/iface/netlink/manage_linux.go::netlinkBackend.SetMTU",
+        "reason": "SetMTU sets the 576-byte gw1 MTU that makes the DF datagram need fragmentation; it decides whether Fragmentation Needed is sent at all, not the reserved octet __icmp_send fills in it"
+      },
+      {
+        "producer": "internal/component/iface/backend.go::LoadBackend",
+        "reason": "LoadBackend only selects the registered netlink backend by name and installs no kernel state of its own, so nothing it does reaches the datagram's path"
+      },
+      {
+        "producer": "internal/core/rtproto/rtproto.go",
+        "reason": "rtproto.go only supplies the Static protocol number stamped on the route, and no forwarding, TTL, option or ICMP decision in the kernel reads a route's protocol"
+      }
+    ],
+    "later-route": "patched-kernel"
+  },
+  {
+    "rid": "RFC792-Format-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPHeaderDiscard",
+    "unit-sha": "b83a8619941edc75",
+    "claim-sha": "3bfaf4727dfd5248",
+    "route": "no-break",
+    "citation": "the remaining unused bytes are zero",
+    "reason": "kernel-producer",
+    "kernel-functions": [
+      "net/ipv4/icmp.c::__icmp_send"
+    ],
+    "ze-state-excluded": [
+      {
+        "producer": "internal/plugins/iface/netlink/manage_linux.go::netlinkBackend.AddRoute",
+        "reason": "AddRoute installs the 203.0.113.0/24 route the option datagrams are routed over; broken, the unit goes red because the valid datagrams are not forwarded, never because __icmp_send writes nonzero unused bytes after the Parameter Problem pointer, which is what this claim names"
+      },
+      {
+        "producer": "internal/component/iface/backend.go::LoadBackend",
+        "reason": "LoadBackend only selects the registered netlink backend by name and installs no kernel state of its own, so nothing it does reaches the datagram's path"
+      },
+      {
+        "producer": "internal/core/rtproto/rtproto.go",
+        "reason": "rtproto.go only supplies the Static protocol number stamped on the route, and no forwarding, TTL, option or ICMP decision in the kernel reads a route's protocol"
+      }
+    ],
+    "later-route": "patched-kernel"
+  },
+  {
+    "rid": "RFC792-Format-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPTTLDiscard",
+    "unit-sha": "b162d0c6b59927d4",
+    "claim-sha": "03662b220547c459",
+    "route": "no-break",
+    "citation": "emitted Time Exceeded reserved fields are zero",
+    "reason": "kernel-producer",
+    "kernel-functions": [
+      "net/ipv4/icmp.c::__icmp_send"
+    ],
+    "ze-state-excluded": [
+      {
+        "producer": "internal/plugins/iface/netlink/manage_linux.go::netlinkBackend.AddRoute",
+        "reason": "AddRoute installs the 203.0.113.0/24 route the expiring datagrams are routed over; broken, the unit goes red because TTL two is not forwarded or no Time Exceeded arrives, never because __icmp_send writes nonzero unused fields, which is what this claim names"
+      },
+      {
+        "producer": "internal/component/iface/backend.go::LoadBackend",
+        "reason": "LoadBackend only selects the registered netlink backend by name and installs no kernel state of its own, so nothing it does reaches the datagram's path"
+      },
+      {
+        "producer": "internal/core/rtproto/rtproto.go",
+        "reason": "rtproto.go only supplies the Static protocol number stamped on the route, and no forwarding, TTL, option or ICMP decision in the kernel reads a route's protocol"
+      }
+    ],
+    "later-route": "patched-kernel"
+  }
+]

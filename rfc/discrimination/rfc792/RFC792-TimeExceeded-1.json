@@ -1,0 +1,58 @@
+[
+  {
+    "rid": "RFC792-TimeExceeded-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPTTLDiscard",
+    "unit-sha": "b162d0c6b59927d4",
+    "claim-sha": "31f983b95e36384f",
+    "route": "no-break",
+    "citation": "TTL zero and TTL one are discarded and answered with Time Exceeded",
+    "reason": "kernel-producer",
+    "kernel-functions": [
+      "net/ipv4/ip_forward.c::ip_forward"
+    ],
+    "ze-state-excluded": [
+      {
+        "producer": "internal/plugins/iface/netlink/manage_linux.go::netlinkBackend.AddRoute",
+        "reason": "AddRoute installs the 203.0.113.0/24 route that hands the datagram to ip_forward; broken, the unit goes red first because TTL two is not forwarded, the negative claim's assertion, never because ip_forward forwards a datagram whose TTL is zero or one"
+      },
+      {
+        "producer": "internal/component/iface/backend.go::LoadBackend",
+        "reason": "LoadBackend only selects the registered netlink backend by name and installs no kernel state of its own, so nothing it does reaches the datagram's path"
+      },
+      {
+        "producer": "internal/core/rtproto/rtproto.go",
+        "reason": "rtproto.go only supplies the Static protocol number stamped on the route, and no forwarding, TTL, option or ICMP decision in the kernel reads a route's protocol"
+      }
+    ],
+    "later-route": "patched-kernel"
+  },
+  {
+    "rid": "RFC792-TimeExceeded-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPTTLDiscard",
+    "unit-sha": "b162d0c6b59927d4",
+    "claim-sha": "53102bc14b3931b3",
+    "route": "no-break",
+    "citation": "TTL two traverses the same route with TTL one and unchanged payload.",
+    "reason": "kernel-producer",
+    "kernel-functions": [
+      "net/ipv4/ip_forward.c::ip_forward"
+    ],
+    "ze-state-excluded": [
+      {
+        "producer": "internal/plugins/iface/netlink/manage_linux.go::netlinkBackend.AddRoute",
+        "reason": "AddRoute installs the 203.0.113.0/24 route the claim holds constant, the same route with TTL one; it is the control both datagrams share, never the operand of the TTL decision ip_forward makes, so breaking it fails the unit without falsifying that TTL two is forwarded where TTL one is discarded"
+      },
+      {
+        "producer": "internal/component/iface/backend.go::LoadBackend",
+        "reason": "LoadBackend only selects the registered netlink backend by name and installs no kernel state of its own, so nothing it does reaches the datagram's path"
+      },
+      {
+        "producer": "internal/core/rtproto/rtproto.go",
+        "reason": "rtproto.go only supplies the Static protocol number stamped on the route, and no forwarding, TTL, option or ICMP decision in the kernel reads a route's protocol"
+      }
+    ],
+    "later-route": "patched-kernel"
+  }
+]

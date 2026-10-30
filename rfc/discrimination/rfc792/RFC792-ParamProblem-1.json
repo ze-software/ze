@@ -1,0 +1,60 @@
+[
+  {
+    "rid": "RFC792-ParamProblem-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPHeaderDiscard",
+    "unit-sha": "b83a8619941edc75",
+    "claim-sha": "3a19c6189d84c677",
+    "route": "no-break",
+    "citation": "an invalid Record Route pointer and a corrupt IPv4 checksum are absent on egress",
+    "reason": "kernel-producer",
+    "kernel-functions": [
+      "net/ipv4/ip_options.c::__ip_options_compile",
+      "net/ipv4/ip_input.c::ip_rcv_core"
+    ],
+    "ze-state-excluded": [
+      {
+        "producer": "internal/plugins/iface/netlink/manage_linux.go::netlinkBackend.AddRoute",
+        "reason": "AddRoute installs the only route to egress on gw1; broken, no invalid datagram can appear on egress either, so the unit goes red at the valid datagrams' forwarding assertions, the negative claim's, never by forwarding the invalid ones"
+      },
+      {
+        "producer": "internal/component/iface/backend.go::LoadBackend",
+        "reason": "LoadBackend only selects the registered netlink backend by name and installs no kernel state of its own, so nothing it does reaches the datagram's path"
+      },
+      {
+        "producer": "internal/core/rtproto/rtproto.go",
+        "reason": "rtproto.go only supplies the Static protocol number stamped on the route, and no forwarding, TTL, option or ICMP decision in the kernel reads a route's protocol"
+      }
+    ],
+    "later-route": "patched-kernel"
+  },
+  {
+    "rid": "RFC792-ParamProblem-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPHeaderDiscard",
+    "unit-sha": "b83a8619941edc75",
+    "claim-sha": "b3068219fe394b3e",
+    "route": "no-break",
+    "citation": "the otherwise identical Record Route option with a valid pointer forwards, as does the uncorrupted fixed header.",
+    "reason": "kernel-producer",
+    "kernel-functions": [
+      "net/ipv4/ip_options.c::__ip_options_compile",
+      "net/ipv4/ip_input.c::ip_rcv_core"
+    ],
+    "ze-state-excluded": [
+      {
+        "producer": "internal/plugins/iface/netlink/manage_linux.go::netlinkBackend.AddRoute",
+        "reason": "AddRoute installs the 203.0.113.0/24 route the claim holds constant for the valid and the invalid datagrams alike; it is the control they share, never the operand of the option or checksum decision, so breaking it fails the unit without falsifying that the valid option and the uncorrupted header forward"
+      },
+      {
+        "producer": "internal/component/iface/backend.go::LoadBackend",
+        "reason": "LoadBackend only selects the registered netlink backend by name and installs no kernel state of its own, so nothing it does reaches the datagram's path"
+      },
+      {
+        "producer": "internal/core/rtproto/rtproto.go",
+        "reason": "rtproto.go only supplies the Static protocol number stamped on the route, and no forwarding, TTL, option or ICMP decision in the kernel reads a route's protocol"
+      }
+    ],
+    "later-route": "patched-kernel"
+  }
+]
