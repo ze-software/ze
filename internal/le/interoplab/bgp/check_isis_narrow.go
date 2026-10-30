@@ -14,8 +14,6 @@ import (
 )
 
 const (
-	// isisNarrowScenario is the scenario directory under test/interop/scenarios.
-	isisNarrowScenario = "isis-narrow-metric-frr"
 	// isisNarrowZePrefix is the static prefix isis-narrow-metric-frr/ze.conf
 	// redistributes into IS-IS, and isisNarrowFRRPrefix the loopback only FRR
 	// advertises.
@@ -52,8 +50,11 @@ func isisNarrowReachabilityLine(database string) bool {
 // passes only when Ze's own LSP carries TLV 2 back to FRR and TLV 128 for the
 // prefix.
 func checkISISNarrowMetric(ctx context.Context, check *interoplab.CheckContext) error {
+	// The scenario directory under test/interop/scenarios. `./le rfc record`
+	// reads which scenario a checker drives off this declaration.
+	const name = "isis-narrow-metric-frr"
 	fail := func(assertion int, cause error) error {
-		return checkerFailure(ctx, check.Lab, isisNarrowScenario, assertion, cause)
+		return checkerFailure(ctx, check.Lab, name, assertion, cause)
 	}
 	frr := func(command string) func(context.Context) (string, error) {
 		return func(probeCtx context.Context) (string, error) {

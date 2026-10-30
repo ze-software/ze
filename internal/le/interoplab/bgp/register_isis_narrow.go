@@ -2,5 +2,5 @@
 package bgp
 
 func init() {
-	specialCheckers[isisNarrowScenario] = checkISISNarrowMetric
+	specialCheckers["isis-narrow-metric-frr"] = checkISISNarrowMetric
 }
