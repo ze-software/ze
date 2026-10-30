@@ -72,6 +72,7 @@ it into a D-row and an AC with a test that goes red first.
 |------------|------|---------|--------|
 | `message-for-a-peer-never-announced` | 2026-10-13 | `handleSenderUpdate` (`bmp_events.go`) | A bmp binding without `open` caches no OPEN, so `recordPeerUp` records nothing and no Peer Up is sent, yet UPDATEs still stream as Route Monitoring for that peer. RFC 7854 Section 3.3: "If any BGP peers for which Peer Up messages were sent transition out of the Established state, corresponding Peer Down messages are sent." The RFC states no MUST ordering Peer Up before Route Monitoring, so the design round reads how pmacct `pmbmpd` treats an unannounced peer and fixes ze to interoperate |
 | `declared-format-contradicts-payload` | 2026-08-31 | `handleSenderState` (`bmp_events.go`), BMP Peer Down for a BGP peer | A peer-down event is answered with `writePeerDown(peer, reason, nil)`, and `peerDownReasonFromString` returns reason codes that declare a NOTIFICATION or FSM data field the message does not carry (RFC 7854 Section 4.9) |
+| `claim-outlives-the-evidence-it-cites` | 2026-10-30 | sFlow agent address, `docs/architecture/flowexport/flow-export-1-counter-export.md` | The routed multi-homed agent-address warning (sFlow v5 Section 4.3) has no daemon-level test: the two draft `.ci` cases 69aaf63f58 described were never committed. This spec's sFlow export work writes them |
 
 ## Required Reading
 
