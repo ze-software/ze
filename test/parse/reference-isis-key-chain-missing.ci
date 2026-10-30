@@ -1,0 +1,184 @@
+# Test: an IS-IS auth-key-chain naming no key-chains entry is refused
+#
+# VALIDATES: all four auth-key-chain leaves (instance level-1 and level-2,
+#            interface level-1 and level-2) are YANG leafrefs
+#            to "../../key-chains/name" and "../../../../key-chains/name"
+#            (ze-isis-conf.yang), so `ze config validate` refuses a name no
+#            chain declares, naming the value, the chains that exist and the
+#            leaf, and accepts declared names.
+# PREVENTS: a dangling chain reaching the IS-IS key store, which treats it as
+#           unset and signs and accepts every PDU unauthenticated.
+
+stdin=level:terminator=EOF_LEVEL
+isis {
+	net 49.0001.0000.0000.0001.00
+	level l1-l2
+	key-chains area-key {
+		key 1 {
+			algorithm hmac-sha-256
+			secret areasecret
+		}
+	}
+	key-chains domain-key {
+		key 1 {
+			algorithm hmac-md5
+			secret backbonepass
+		}
+	}
+	level-1 {
+		auth-key-chain aera-key
+	}
+	interfaces {
+		interface eth0 {
+			circuit-type point-to-point
+			level-2 {
+				auth-key-chain domain-key
+			}
+		}
+	}
+}
+EOF_LEVEL
+
+stdin=interface:terminator=EOF_INTERFACE
+isis {
+	net 49.0001.0000.0000.0001.00
+	level l1-l2
+	key-chains area-key {
+		key 1 {
+			algorithm hmac-sha-256
+			secret areasecret
+		}
+	}
+	key-chains domain-key {
+		key 1 {
+			algorithm hmac-md5
+			secret backbonepass
+		}
+	}
+	level-1 {
+		auth-key-chain area-key
+	}
+	interfaces {
+		interface eth0 {
+			circuit-type point-to-point
+			level-2 {
+				auth-key-chain no-such-chain
+			}
+		}
+	}
+}
+EOF_INTERFACE
+
+stdin=interface-level-1:terminator=EOF_INTERFACE_L1
+isis {
+	net 49.0001.0000.0000.0001.00
+	level l1-l2
+	key-chains area-key {
+		key 1 {
+			algorithm hmac-sha-256
+			secret areasecret
+		}
+	}
+	key-chains domain-key {
+		key 1 {
+			algorithm hmac-md5
+			secret backbonepass
+		}
+	}
+	level-1 {
+		auth-key-chain area-key
+	}
+	interfaces {
+		interface eth0 {
+			circuit-type point-to-point
+			level-1 {
+				auth-key-chain missing-l1-chain
+			}
+		}
+	}
+}
+EOF_INTERFACE_L1
+
+stdin=level-2:terminator=EOF_LEVEL2
+isis {
+	net 49.0001.0000.0000.0001.00
+	level l1-l2
+	key-chains area-key {
+		key 1 {
+			algorithm hmac-sha-256
+			secret areasecret
+		}
+	}
+	key-chains domain-key {
+		key 1 {
+			algorithm hmac-md5
+			secret backbonepass
+		}
+	}
+	level-2 {
+		auth-key-chain domian-key
+	}
+	interfaces {
+		interface eth0 {
+			circuit-type point-to-point
+			level-2 {
+				auth-key-chain domain-key
+			}
+		}
+	}
+}
+EOF_LEVEL2
+
+stdin=present:terminator=EOF_PRESENT
+isis {
+	net 49.0001.0000.0000.0001.00
+	level l1-l2
+	key-chains area-key {
+		key 1 {
+			algorithm hmac-sha-256
+			secret areasecret
+		}
+	}
+	key-chains domain-key {
+		key 1 {
+			algorithm hmac-md5
+			secret backbonepass
+		}
+	}
+	level-1 {
+		auth-key-chain area-key
+	}
+	interfaces {
+		interface eth0 {
+			circuit-type point-to-point
+			level-2 {
+				auth-key-chain domain-key
+			}
+		}
+	}
+}
+EOF_PRESENT
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=level
+expect=exit:code=1
+expect=stdout:contains=no name "aera-key" exists at "../../key-chains/name"
+expect=stdout:contains=name one of "area-key domain-key"
+expect=stdout:contains=isis/level-1/auth-key-chain
+cmd=foreground:seq=2:exec=ze config validate -:stdin=interface
+expect=exit:code=1
+expect=stdout:contains=no name "no-such-chain" exists at "../../../../key-chains/name"
+expect=stdout:contains=name one of "area-key domain-key"
+expect=stdout:contains=isis/interfaces/interface[eth0]/level-2/auth-key-chain
+cmd=foreground:seq=3:exec=ze config validate -:stdin=interface-level-1
+expect=exit:code=1
+expect=stdout:contains=no name "missing-l1-chain" exists at "../../../../key-chains/name"
+expect=stdout:contains=name one of "area-key domain-key"
+expect=stdout:contains=isis/interfaces/interface[eth0]/level-1/auth-key-chain
+cmd=foreground:seq=4:exec=ze config validate -:stdin=level-2
+expect=exit:code=1
+expect=stdout:contains=no name "domian-key" exists at "../../key-chains/name"
+expect=stdout:contains=name one of "area-key domain-key"
+expect=stdout:contains=isis/level-2/auth-key-chain
+cmd=foreground:seq=5:exec=ze config validate -:stdin=present
+expect=exit:code=0
+expect=stdout:contains=configuration valid

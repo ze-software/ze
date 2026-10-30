@@ -1,0 +1,39 @@
+# Test: IS-IS key-chain reference completion offers the configured chains
+# VALIDATES: Tab on an IS-IS interface's level-1 auth-key-chain leaf, a YANG
+#            leafref to "../../../../key-chains/name", offers the chains the
+#            key-chains list declares.
+# PREVENTS: a key-chain leaf completing only a type hint, so the operator
+#           types a chain name from memory and learns of a typo at commit.
+
+tmpfs=test.conf:terminator=EOF_CONF
+isis {
+	net 49.0001.0000.0000.0001.00
+	key-chains area-key {
+		key 1 {
+			algorithm hmac-sha-256
+			secret areasecret
+		}
+	}
+	key-chains domain-key {
+		key 1 {
+			algorithm hmac-md5
+			secret backbonepass
+		}
+	}
+	interfaces {
+		interface eth0 {
+			circuit-type point-to-point
+		}
+	}
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+input=type:text=edit isis interfaces interface eth0
+input=enter
+expect=context:path=isis/interfaces/interface/eth0
+input=type:text=set level-1 auth-key-chain
+input=space
+expect=completion:contains=area-key,domain-key

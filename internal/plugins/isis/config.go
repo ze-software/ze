@@ -231,8 +231,6 @@ var (
 	// ErrSystemIDMismatch reports an explicit system-id that does not match the
 	// System ID derivable from the first NET.
 	ErrSystemIDMismatch = errors.New("isis: system-id does not match the system id derived from net")
-	// ErrUnknownKeyChain reports an auth-key-chain leaf naming no key-chains entry.
-	ErrUnknownKeyChain = errors.New("isis: auth-key-chain names no key-chains entry")
 )
 
 // configUint8, configUint16 and configUint32 read a config-tree scalar and
@@ -581,10 +579,10 @@ func validateConfig(cfg Config) error {
 			return ErrSystemIDMismatch
 		}
 	}
-	if err := validateMetricStyle(cfg); err != nil {
-		return err
-	}
-	return validateKeyChainRefs(cfg)
+	// An auth-key-chain leaf naming no key-chains entry needs no check here: the
+	// leaf is a YANG leafref (ze-isis-conf.yang), so config validation refuses
+	// the dangling name before this plugin is handed the section.
+	return validateMetricStyle(cfg)
 }
 
 // validateMetricStyle refuses a circuit metric a narrow-metric TLV cannot carry.
@@ -627,47 +625,6 @@ func narrowMetricFits(style lsdb.MetricStyle, name, leaf string, metric uint32) 
 		"(RFC 3787 section 5): set \"isis interfaces interface %s %s %d\" or lower, or set "+
 		"\"isis metric-style wide\" once every router in the domain supports wide metrics",
 		name, leaf, metric, style, MaxNarrowMetric, name, leaf, MaxNarrowMetric)
-}
-
-// validateKeyChainRefs refuses an auth-key-chain leaf that names no declared chain. A
-// dangling name and an unset one reach the same branch in newKeyStore: ks.chains[name]
-// is nil for both, the `if c != nil` guard drops the circuit, and it then signs and
-// accepts every PDU UNAUTHENTICATED. The two cases are told apart here, at commit, where
-// the operator is still holding the typo. A leaf that is unset stays legitimate, because
-// that is how an operator asks for no authentication.
-//
-// The OSPF sibling is validateKeyChainRefs in internal/plugins/ospf/config.go. The two
-// plugins share no config type, no key-chain type and no validator entry point, so the
-// shape is written once in each rather than lifted into a helper that would take the
-// flattened references both plugins would have had to build anyway.
-func validateKeyChainRefs(cfg Config) error {
-	declared := make(map[string]struct{}, len(cfg.KeyChains))
-	for _, kc := range cfg.KeyChains {
-		declared[kc.Name] = struct{}{}
-	}
-	// An empty name is "no authentication on this level or circuit", which resolves.
-	resolves := func(name string) bool {
-		if name == "" {
-			return true
-		}
-		_, ok := declared[name]
-		return ok
-	}
-	if !resolves(cfg.Level1AuthKeyChain) {
-		return fmt.Errorf("%w: level-1 names key-chain %q", ErrUnknownKeyChain, cfg.Level1AuthKeyChain)
-	}
-	if !resolves(cfg.Level2AuthKeyChain) {
-		return fmt.Errorf("%w: level-2 names key-chain %q", ErrUnknownKeyChain, cfg.Level2AuthKeyChain)
-	}
-	for _, ic := range cfg.Interfaces {
-		if !resolves(ic.Level1.AuthKeyChain) {
-			return fmt.Errorf("%w: interface %q level-1 names key-chain %q", ErrUnknownKeyChain, ic.Name, ic.Level1.AuthKeyChain)
-		}
-		if !resolves(ic.Level2.AuthKeyChain) {
-			return fmt.Errorf("%w: interface %q level-2 names key-chain %q", ErrUnknownKeyChain, ic.Name, ic.Level2.AuthKeyChain)
-		}
-	}
-	return nil
 }
 
 // configSection mirrors sdk.ConfigSection without importing the SDK into the

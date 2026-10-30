@@ -308,7 +308,9 @@ accepted before it becomes the signing key, the old key accepted for a while aft
 lets you roll a key without dropping adjacencies.
 
 **A name that does not resolve is refused.** An `auth-key-chain` leaf naming no
-`key-chains` entry is rejected at commit, and the error names the chain. A
+`key-chains` entry is rejected by commit, a SIGHUP reload and `ze config
+validate`, and the error names the chain and the chains that exist: the leaf is a
+leafref to `isis key-chains`, so the editor also completes the chain names. A
 misspelled name would otherwise leave the circuit or the level running unsigned,
 which reads exactly like asking for no authentication. Naming no chain at all
 stays legitimate: that is how you run a circuit unauthenticated.

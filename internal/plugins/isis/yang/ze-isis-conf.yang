@@ -277,7 +277,9 @@ module ze-isis-conf {
                         ze:help "L1 DIS priority override.";
                     }
                     leaf auth-key-chain {
-                        type string;
+                        type leafref {
+                            path "../../../../key-chains/name";
+                        }
                         description "The value names a `key-chains` entry. Ze then signs and verifies the Level-1 IIH on
                             this circuit with that chain. RFC 5304 section 2 states that 'IS-IS Hello PDUs SHALL use
                             the Link Level Authentication String'. This leaf covers the hello only. The LSP, CSNP and
@@ -326,7 +328,9 @@ module ze-isis-conf {
                         ze:help "L2 DIS priority override.";
                     }
                     leaf auth-key-chain {
-                        type string;
+                        type leafref {
+                            path "../../../../key-chains/name";
+                        }
                         description "The value names a `key-chains` entry. Ze then signs and verifies the Level-2 IIH on
                             this circuit with that chain. RFC 5304 section 2 states that 'IS-IS Hello PDUs SHALL use
                             the Link Level Authentication String'. This leaf covers the hello only. The LSP, CSNP and
@@ -362,8 +366,8 @@ module ze-isis-conf {
         list key-chains {
             key "name";
             description "A chain holds the keys that sign and verify IS-IS PDUs. Ze authenticates nothing until an
-                `auth-key-chain` leaf names the chain. Ze refuses the configuration when an `auth-key-chain` leaf
-                names no entry of this list, because a circuit whose chain does not resolve sends and accepts every
+                `auth-key-chain` leaf names the chain. Commit refuses an `auth-key-chain` leaf that
+                names no entry of this list, naming the chains that exist, because a circuit whose chain does not resolve sends and accepts every
                 PDU unsigned. A key whose algorithm token Ze does not know, or whose secret does not decode, is
                 dropped from the chain and signs nothing.";
             ze:help "Named authentication key chains for hitless key rotation.";
@@ -462,7 +466,9 @@ module ze-isis-conf {
                 section 2 calls the key they select the Area Authentication string.";
             ze:help "Level-1 (area) per-level configuration.";
             leaf auth-key-chain {
-                type string;
+                type leafref {
+                    path "../../key-chains/name";
+                }
                 description "The value names a `key-chains` entry. Ze then signs and verifies every Level-1 LSP, CSNP and
                     PSNP with that chain. RFC 5304 section 2 states that 'Level 1 Sequence Number PDUs SHALL use the
                     Area Authentication string as in Level 1 Link State PDUs'. The IIH is separate and takes the
@@ -475,7 +481,9 @@ module ze-isis-conf {
                 section 2 calls the key they select the domain authentication string.";
             ze:help "Level-2 (domain) per-level configuration.";
             leaf auth-key-chain {
-                type string;
+                type leafref {
+                    path "../../key-chains/name";
+                }
                 description "The value names a `key-chains` entry. Ze then signs and verifies every Level-2 LSP, CSNP and
                     PSNP with that chain. RFC 5304 section 2 states that 'Level 2 Sequence Number PDUs SHALL use the
                     domain authentication string as in Level 2 Link State PDUs'. The IIH is separate and takes the
