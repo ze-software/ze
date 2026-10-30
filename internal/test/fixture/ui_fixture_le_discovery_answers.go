@@ -73,7 +73,7 @@ func leDiscoveryAnswers(ctx context.Context) error {
 		unit    string
 	}{
 		{command: "repo package-map", verb: actionUpdate, outputs: []string{"ai/PACKAGE-MAP.md"}, unit: "(3 packages)"},
-		{command: cmdDocIndex, verb: "write", outputs: []string{"ai/DOCS-TO-CODE.md", "ai/CODE-TO-DOCS.md"}, unit: "(3 design docs)"},
+		{command: cmdDocIndex, verb: actionUpdate, outputs: []string{"ai/DOCS-TO-CODE.md", "ai/CODE-TO-DOCS.md"}, unit: "(3 design docs)"},
 	} {
 		treeName := strings.ReplaceAll(tc.command, " ", "-") + "-command"
 		tree := filepath.Join(here, treeName)

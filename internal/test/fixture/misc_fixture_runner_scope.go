@@ -41,8 +41,8 @@ func verifyScopeFreshnessDriver(ctx context.Context, args []string) error {
 	}
 	env := envRootedAt(repo)
 	run := func(arguments ...string) (string, int, error) { return rawCommand(ctx, repo, env, le, arguments...) }
-	if out, code, err := run("verify status", "write", "exit-code", "0", "mode", "full"); err != nil || code != 0 {
-		return fmt.Errorf("write status exit=%d: %w %s", code, err, out)
+	if out, code, err := run("verify status", "record", "exit-code", "0", "mode", "full"); err != nil || code != 0 {
+		return fmt.Errorf("record status exit=%d: %w %s", code, err, out)
 	}
 	fmt.Fprintln(os.Stdout, "scratch-repo-ready") //nolint:errcheck // progress output
 	if err := os.WriteFile(filepath.Join(repo, "theirs.txt"), []byte("theirs\ntheir edit\n"), 0o600); err != nil {
@@ -97,8 +97,8 @@ func verifyScopeFreshnessDriver(ctx context.Context, args []string) error {
 		return fmt.Errorf("moved check exit=%d: %w %s", code, err, out)
 	}
 	fmt.Fprintln(os.Stdout, "moved-path-stays-stale") //nolint:errcheck // progress output
-	if out, code, err := run("verify status", "write", "exit-code", "1", "mode", "full"); err != nil || code != 0 {
-		return fmt.Errorf("write red status exit=%d: %w %s", code, err, out)
+	if out, code, err := run("verify status", "record", "exit-code", "1", "mode", "full"); err != nil || code != 0 {
+		return fmt.Errorf("record red status exit=%d: %w %s", code, err, out)
 	}
 	if _, code, err := run("verify status", "check", "path", "mine.txt"); err != nil || code == 0 {
 		return fmt.Errorf("red run scoped check exit=%d: %w", code, err)
