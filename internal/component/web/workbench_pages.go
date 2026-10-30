@@ -66,7 +66,7 @@ func renderPageContent(renderer *Renderer, r *http.Request, path []string, viewT
 			return handleDNSPage(renderer, display()), true
 		}
 	case segBGP:
-		return renderBGPPageContent(renderer, r, path[1:], display(), schema, dispatch)
+		return renderBGPPageContent(renderer, r, path[1:], display(), dispatch)
 	case segPolicy:
 		// /show/policy/ shows the filters table; deeper paths (a filter type, a
 		// filter instance, policy routing's route list) fall through to the
@@ -103,7 +103,7 @@ func renderPageContent(renderer *Renderer, r *http.Request, path []string, viewT
 // renderBGPPageContent dispatches BGP sub-pages. The path slice has the
 // leading "bgp" segment already stripped. Returns (content, true) if a
 // page handler matched, or ("", false) to fall through to generic YANG.
-func renderBGPPageContent(renderer *Renderer, r *http.Request, path []string, viewTree *config.Tree, schema *config.Schema, dispatch CommandDispatcher) (template.HTML, bool) {
+func renderBGPPageContent(renderer *Renderer, r *http.Request, path []string, viewTree *config.Tree, dispatch CommandDispatcher) (template.HTML, bool) {
 	if len(path) == 0 {
 		// /show/bgp/ itself falls through to generic YANG detail.
 		return "", false

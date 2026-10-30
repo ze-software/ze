@@ -740,15 +740,16 @@ func (e *Editor) entryStaleConflicts(committedTree *config.Tree, ops []config.St
 // committedPathOf maps a session-view address back through its renames, keeping
 // quoted keys and complete multi-leaf entry identities intact.
 func committedPathOf(schema *config.Schema, ops []config.StructuralOp, path []string) ([]string, error) {
-	for _, op := range slices.Backward(ops) {
+	for i := range slices.Backward(ops) {
+		op := &ops[i]
 		if op.Type != config.StructuralOpRename {
 			continue
 		}
-		target, err := structuralEntryTokens(schema, op, op.NewKey)
+		target, err := structuralEntryTokens(schema, *op, op.NewKey)
 		if err != nil {
 			return nil, err
 		}
-		source, err := structuralEntryTokens(schema, op, op.OldKey)
+		source, err := structuralEntryTokens(schema, *op, op.OldKey)
 		if err != nil {
 			return nil, err
 		}

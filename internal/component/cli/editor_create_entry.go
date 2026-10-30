@@ -47,16 +47,17 @@ func planCreations(schema *config.Schema, ops []config.StructuralOp) (creationPl
 		return creationPlan{ops: ops}, nil
 	}
 	plan := creationPlan{ops: make([]config.StructuralOp, 0, len(ops))}
-	for index, op := range ops {
+	for index := range ops {
+		op := &ops[index]
 		if op.Type != config.StructuralOpRename && op.Type != config.StructuralOpCopyEntry {
-			plan.ops = append(plan.ops, op)
+			plan.ops = append(plan.ops, *op)
 			continue
 		}
-		source, err := structuralEntryPath(schema, op, op.OldKey)
+		source, err := structuralEntryPath(schema, *op, op.OldKey)
 		if err != nil {
 			return creationPlan{}, err
 		}
-		destination, err := structuralEntryPath(schema, op, op.NewKey)
+		destination, err := structuralEntryPath(schema, *op, op.NewKey)
 		if err != nil {
 			return creationPlan{}, err
 		}
@@ -69,7 +70,8 @@ func planCreations(schema *config.Schema, ops []config.StructuralOp) (creationPl
 			}
 		}
 		creation := -1
-		for i, previous := range plan.ops {
+		for i := range plan.ops {
+			previous := &plan.ops[i]
 			if previous.Type == config.StructuralOpCreateEntry && previous.SourcePath(schema) == source {
 				creation = i
 			}
@@ -81,15 +83,13 @@ func planCreations(schema *config.Schema, ops []config.StructuralOp) (creationPl
 			// Replay the complete copied program at copy time, after any
 			// earlier deletion of the destination. Positioning is separate.
 			// A deleted and recreated source retains only its latest program.
-			start := 0
-			if creation >= 0 {
-				start = creation
-			}
+			start := max(creation, 0)
 			var copied []config.StructuralOp
-			for _, previous := range plan.ops[start:] {
+			for i := start; i < len(plan.ops); i++ {
+				previous := &plan.ops[i]
 				// Member operations are snapshotted when the copy is recorded;
 				// later source edits may rebase or remove their original records.
-				if isMemberOp(previous) {
+				if isMemberOp(*previous) {
 					continue
 				}
 				within, err := config.EditPathHasPrefix(schema, previous.SourcePath(schema), source)
@@ -99,7 +99,7 @@ func planCreations(schema *config.Schema, ops []config.StructuralOp) (creationPl
 				if !within {
 					continue
 				}
-				rebased, err := rebaseCreationOperation(schema, previous, source, destination)
+				rebased, err := rebaseCreationOperation(schema, *previous, source, destination)
 				if err != nil {
 					return creationPlan{}, err
 				}
@@ -108,7 +108,7 @@ func planCreations(schema *config.Schema, ops []config.StructuralOp) (creationPl
 			if creation >= 0 {
 				plan.positions = append(plan.positions, destination)
 			} else {
-				copyOp, before, err := copyBeforeRenames(schema, plan.ops, op)
+				copyOp, before, err := copyBeforeRenames(schema, plan.ops, *op)
 				if err != nil {
 					return creationPlan{}, err
 				}
@@ -122,24 +122,25 @@ func planCreations(schema *config.Schema, ops []config.StructuralOp) (creationPl
 		// the destination's position is restored only after replay finishes.
 		var moved []config.StructuralOp
 		kept := plan.ops[:0]
-		for _, previous := range plan.ops {
+		for i := range plan.ops {
+			previous := &plan.ops[i]
 			within, err := config.EditPathHasPrefix(schema, previous.SourcePath(schema), source)
 			if err != nil {
 				return creationPlan{}, err
 			}
 			if within {
-				rebased, err := rebaseCreationOperation(schema, previous, source, destination)
+				rebased, err := rebaseCreationOperation(schema, *previous, source, destination)
 				if err != nil {
 					return creationPlan{}, err
 				}
 				moved = append(moved, rebased)
 			} else {
-				kept = append(kept, previous)
+				kept = append(kept, *previous)
 			}
 		}
 		plan.ops = kept
 		if creation >= 0 {
-			plan.createdRenames = append(plan.createdRenames, createdRename{index: index, op: op})
+			plan.createdRenames = append(plan.createdRenames, createdRename{index: index, op: *op})
 			plan.positions = append(plan.positions, destination)
 		} else {
 			// Recorded history remains intact, but replay and stale checks
@@ -162,7 +163,7 @@ func planCreations(schema *config.Schema, ops []config.StructuralOp) (creationPl
 				}
 			}
 			if !merged {
-				plan.ops = append(plan.ops, op)
+				plan.ops = append(plan.ops, *op)
 			}
 		}
 		plan.ops = append(plan.ops, moved...)
@@ -184,9 +185,10 @@ func creationReplayPlan(schema *config.Schema, ops []config.StructuralOp) (creat
 	}
 	replay := make([]config.StructuralOp, 0, len(plan.ops)-1)
 	replay = append(replay, plan.ops[:first]...)
-	for _, op := range plan.ops[first+1:] {
-		if !identity(op) {
-			replay = append(replay, op)
+	for i := first + 1; i < len(plan.ops); i++ {
+		op := &plan.ops[i]
+		if !identity(*op) {
+			replay = append(replay, *op)
 		}
 	}
 	plan.ops = replay
@@ -206,7 +208,7 @@ func copyBeforeRenames(schema *config.Schema, ops []config.StructuralOp, op conf
 		return op, 0, err
 	}
 	before := len(ops)
-	for i := len(ops) - 1; i >= 0; i-- {
+	for i := range slices.Backward(ops) {
 		if ops[i].Type != config.StructuralOpRename {
 			continue
 		}
@@ -272,7 +274,8 @@ func (e *Editor) prepareDraftReplay(guard storage.WriteGuard, tree *config.Tree,
 	}
 	var history []entryMove
 	nextCreated := 0
-	for i, op := range ops {
+	for i := range ops {
+		op := &ops[i]
 		if nextCreated < len(plan.createdRenames) && plan.createdRenames[nextCreated].index == i {
 			nextCreated++
 			continue
@@ -280,11 +283,11 @@ func (e *Editor) prepareDraftReplay(guard storage.WriteGuard, tree *config.Tree,
 		if op.Type != config.StructuralOpRename {
 			continue
 		}
-		source, err := structuralEntryTokens(e.schema, op, op.OldKey)
+		source, err := structuralEntryTokens(e.schema, *op, op.OldKey)
 		if err != nil {
 			return draftReplay{}, err
 		}
-		destination, err := structuralEntryTokens(e.schema, op, op.NewKey)
+		destination, err := structuralEntryTokens(e.schema, *op, op.NewKey)
 		if err != nil {
 			return draftReplay{}, err
 		}
@@ -309,13 +312,15 @@ func (e *Editor) prepareDraftReplay(guard storage.WriteGuard, tree *config.Tree,
 			return draftReplay{}, err
 		}
 		appendOwners(pending)
-		for _, op := range pendingOps {
+		for i := range pendingOps {
+			op := &pendingOps[i]
 			owners = append(owners, op.PendingChange(e.schema))
 		}
 	}
 	replay := make([]config.StructuralOp, 0, len(plan.ops))
 	var applied []entryMove
-	for _, op := range plan.ops {
+	for i := range plan.ops {
+		op := plan.ops[i] // A working copy: the body rewrites its addresses before replay.
 		if op.Type != config.StructuralOpRename && op.Type != config.StructuralOpCopyEntry {
 			replay = append(replay, op)
 			continue
@@ -392,7 +397,8 @@ func (e *Editor) prepareDraftReplay(guard storage.WriteGuard, tree *config.Tree,
 	// moves. Creator-only metadata follows its recorded moves at those
 	// final ancestor addresses, without moving another owner's old entry.
 	var movedSessions map[string]bool
-	for _, rename := range plan.createdRenames {
+	for i := range plan.createdRenames {
+		rename := &plan.createdRenames[i]
 		op := rename.op
 		for _, move := range history {
 			op.ParentPath, err = config.RebaseEditTokens(e.schema, op.ParentPath, move.source, move.destination)
@@ -589,10 +595,12 @@ func structuralOpConflicts(tree *config.Tree, schema *config.Schema, ops []confi
 		return nil, err
 	}
 	var conflicts []Conflict
-	for _, op := range plan.ops {
-		conflicts = appendStructuralOpConflict(conflicts, tree, schema, op)
+	for i := range plan.ops {
+		op := &plan.ops[i]
+		conflicts = appendStructuralOpConflict(conflicts, tree, schema, *op)
 	}
-	for _, rename := range plan.createdRenames {
+	for i := range plan.createdRenames {
+		rename := &plan.createdRenames[i]
 		op := rename.op
 		path, err := structuralEntryPath(schema, op, op.NewKey)
 		if err != nil {
@@ -649,7 +657,7 @@ func creationFootprint(schema *config.Schema, ops []config.StructuralOp, histori
 	if !slices.ContainsFunc(ops, func(op config.StructuralOp) bool {
 		return op.Type == config.StructuralOpCreateEntry
 	}) {
-		return nil, nil // A program without creations has no creation footprint.
+		return map[string]bool{}, nil // A program without creations has no creation footprint.
 	}
 	plan, err := planCreations(schema, ops)
 	if err != nil {
@@ -677,7 +685,8 @@ func creationFootprint(schema *config.Schema, ops []config.StructuralOp, histori
 		}
 	}
 	if historical {
-		for _, rename := range plan.createdRenames {
+		for i := range plan.createdRenames {
+			rename := &plan.createdRenames[i]
 			if err := addCreationAncestors(schema, paths, rename.op.SourcePath(schema)); err != nil {
 				return nil, err
 			}
@@ -793,17 +802,17 @@ func (e *Editor) pruneCreationMaterializations(guard storage.WriteGuard, changeP
 	replacedUser := changeUser(e.originalPath, changePath)
 	for _, path := range e.listChangeFiles(guard) {
 		pending, ops := afterMeta, after
-		if changeUser(e.originalPath, path) != replacedUser {
-			_, pending, ops, err = e.readChangeFile(guard, path)
-			if err != nil {
-				return false, err
-			}
-		} else {
+		if changeUser(e.originalPath, path) == replacedUser {
 			plan, err := creationReplayPlan(e.schema, ops)
 			if err != nil {
 				return false, err
 			}
 			ops = plan.ops
+		} else {
+			_, pending, ops, err = e.readChangeFile(guard, path)
+			if err != nil {
+				return false, err
+			}
 		}
 		appendMeta(pending)
 		for _, op := range ops {
@@ -911,15 +920,16 @@ func creationChangesConflict(schema *config.Schema, created, other config.Pendin
 		if err != nil {
 			return false, err
 		}
-		if isEntryMove(other.Kind) {
+		switch {
+		case isEntryMove(other.Kind):
 			if entry.HasPrefix(target) || target.HasPrefix(entry) {
 				return true, nil
 			}
-		} else if other.Kind == config.PendingChangeDelete {
+		case other.Kind == config.PendingChangeDelete:
 			if entry.HasPrefix(target) {
 				return true, nil
 			}
-		} else if entry.Equal(target) && (other.Kind != created.Kind || other.Value != created.Value || other.Member != "") {
+		case entry.Equal(target) && (other.Kind != created.Kind || other.Value != created.Value || other.Member != ""):
 			return true, nil
 		}
 	}

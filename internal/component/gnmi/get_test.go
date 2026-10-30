@@ -1,6 +1,7 @@
 package gnmi
 
 import (
+	"bytes"
 	"context"
 	"strings"
 	"testing"
@@ -163,7 +164,7 @@ func TestGetAnswersEachJSONEncoding(t *testing.T) {
 		if val.GetJsonVal() == nil || val.GetJsonIetfVal() != nil {
 			t.Fatalf("%s answered %v, want a JsonVal", name, val)
 		}
-		if string(val.GetJsonVal()) != string(ietf.GetJsonIetfVal()) {
+		if !bytes.Equal(val.GetJsonVal(), ietf.GetJsonIetfVal()) {
 			t.Errorf("%s answered %s, JSON_IETF %s: the serialization differs", name, val.GetJsonVal(), ietf.GetJsonIetfVal())
 		}
 	}

@@ -485,9 +485,9 @@ func (mt *MetaTree) collectSession(provider ChildProvider, list *ListNode, sessi
 func (mt *MetaTree) collectSessionEntry(provider ChildProvider, list *ListNode, sessionID string, prefix []string, result *[]SessionEntry, key string, tree *Tree) {
 	var childPrefix []string
 	if list != nil && list.HasMultiLeafKey() {
-		childPrefix = append(prefix, ListKeyTokens(list, key)...)
+		childPrefix = slices.Concat(prefix, ListKeyTokens(list, key))
 	} else {
-		childPrefix = append(prefix, key)
+		childPrefix = slices.Concat(prefix, []string{key})
 	}
 	mt.collectSession(provider, nil, sessionID, childPrefix, result, tree, "")
 }

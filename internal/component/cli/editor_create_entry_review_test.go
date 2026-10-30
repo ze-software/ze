@@ -294,12 +294,12 @@ func TestSessionCreationReviewQuotedMetadataOwner(t *testing.T) {
 				require.NoError(t, err, "valid quoted metadata must resolve without blocking an independent creation")
 				require.Empty(t, result.Conflicts)
 				require.Empty(t, result.Warnings)
-				if content != "" {
+				if content == "" {
+					tree = committedLoadTree(t, ed, configPath)
+				} else {
 					tree, _, err = parseConfigWithFormat(content, ed.schema)
 					require.NoError(t, err)
 					assert.Nil(t, walkPath(committedLoadTree(t, ed, configPath), ed.schema, path))
-				} else {
-					tree = committedLoadTree(t, ed, configPath)
 				}
 				assert.NotNil(t, walkPath(tree, ed.schema, path))
 			}
