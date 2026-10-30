@@ -602,7 +602,9 @@ module ze-ipsec-conf {
                 ze:help "Remote access VPN for road warrior clients (EAP).";
 
                 leaf ike-group {
-                    type string;
+                    type leafref {
+                        path "../../ike-group/name";
+                    }
                     mandatory true;
                     description "The group MUST be declared under vpn ipsec ike-group, and commit refuses a
                         name no group carries. No other code reads the reference, because no remote
@@ -611,7 +613,9 @@ module ze-ipsec-conf {
                 }
 
                 leaf esp-group {
-                    type string;
+                    type leafref {
+                        path "../../esp-group/name";
+                    }
                     mandatory true;
                     description "The group MUST be declared under vpn ipsec esp-group, and commit refuses a
                         name no group carries. No other code reads the reference, because no remote
@@ -797,7 +801,9 @@ module ze-ipsec-conf {
                     }
 
                     leaf ike-group {
-                        type string;
+                        type leafref {
+                            path "../../../ike-group/name";
+                        }
                         mandatory true;
                         description "The group MUST be declared under vpn ipsec ike-group, and commit refuses a
                             name no group carries. It supplies the IKE proposals, the IKE SA lifetime
@@ -806,7 +812,9 @@ module ze-ipsec-conf {
                     }
 
                     leaf esp-group {
-                        type string;
+                        type leafref {
+                            path "../../../esp-group/name";
+                        }
                         mandatory true;
                         description "The group MUST be declared under vpn ipsec esp-group, and commit refuses a
                             name no group carries. It supplies the ESP proposals Ze offers for this

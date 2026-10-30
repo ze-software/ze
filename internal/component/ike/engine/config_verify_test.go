@@ -24,7 +24,7 @@ func vpnSection(body string) []sdk.ConfigSection {
 // VALIDATES: AC-8 -- validateIPsecSections, the plugin's OnConfigVerify body,
 // rejects an EAP-TLS peer that names no ca-certificate.
 // PREVENTS: The check existing in ipsec.ValidatePKIRefs but never running. Before
-// this wiring, ValidatePKIRefs, ValidateGroupRefs and ValidateRemoteAccess had no
+// this wiring, ValidatePKIRefs and ValidateRemoteAccess had no
 // non-test caller anywhere in the repo, so every cross-reference they describe
 // was unenforced (ai/rules/completion.md).
 func TestValidateIPsecSectionsRejectsEAPTLSWithoutCA(t *testing.T) {
@@ -49,34 +49,6 @@ func TestValidateIPsecSectionsRejectsEAPTLSWithoutCA(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "ca-certificate") {
 		t.Errorf("error %q does not explain the missing ca-certificate", err)
-	}
-}
-
-// VALIDATES: AC-8 -- the group-reference validator now runs too.
-// PREVENTS: Wiring only the PKI validator and leaving the other two orphaned.
-func TestValidateIPsecSectionsRejectsUnknownGroupRef(t *testing.T) {
-	sections := vpnSection(`{
-	  "vpn": {
-	  "ipsec": {
-	    "site-to-site": {
-	      "peer": {
-	        "branch": {
-	          "ike-group": "no-such-group",
-	          "authentication": {"mode": "pre-shared-secret", "pre-shared-secret": "s3cret"}
-	        }
-	      }
-	    }
-	  }
-	  }
-	}`)
-
-	err := validateIPsecSections(sections)
-
-	if err == nil {
-		t.Fatal("a peer naming an undefined ike-group passed config verification")
-	}
-	if !strings.Contains(err.Error(), "no-such-group") {
-		t.Errorf("error %q does not name the undefined group", err)
 	}
 }
 

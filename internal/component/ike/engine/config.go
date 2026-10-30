@@ -129,9 +129,11 @@ func (c *candidatePKISet) caCert(name string) *x509.Certificate {
 }
 
 // validateIPsecSections parses the delivered config sections and runs the
-// site-to-site cross-reference checks: group references, peer PKI references
-// (including the RFC 5216 Section 5.3 trust-anchor requirement for EAP-TLS
-// peers), and the remote-access pool and user credentials. It does NOT check
+// site-to-site cross-reference checks: peer PKI references (including the
+// RFC 5216 Section 5.3 trust-anchor requirement for EAP-TLS peers), and the
+// remote-access pool and user credentials. The ike-group and esp-group names
+// are YANG leafrefs, so config validation refuses a dangling one before this
+// runs, and no Go check repeats it. It does NOT check
 // the remote-access gateway's own certificate references -- that whole config
 // surface is inert today and is owned by plan/spec-ipsec-remote-access.md.
 //
@@ -143,8 +145,7 @@ func (c *candidatePKISet) caCert(name string) *x509.Certificate {
 //
 // This is the plugin's OnConfigVerify body. Before it existed, none of the
 // IPsecConfig validators had a non-test caller anywhere in the repo, so a config
-// naming a missing ike-group, a missing certificate, or an EAP-TLS peer with no
-// CA was accepted and only failed later, at session setup, or not at all.
+// naming a missing certificate, or an EAP-TLS peer with no CA, was accepted and only failed later, at session setup, or not at all.
 //
 // It is SIDE-EFFECT FREE, which the InProcessConfigVerifier contract requires
 // (internal/component/plugin/registry/registry.go) and which correctness requires
@@ -159,9 +160,6 @@ func validateIPsecSections(sections []sdk.ConfigSection) error {
 	}
 	candidate, err := candidatePKI(sections)
 	if err != nil {
-		return err
-	}
-	if err := cfg.ValidateGroupRefs(); err != nil {
 		return err
 	}
 	// RFC 4739 Section 2.1. Before ValidatePKIRefs, so a second round on an EAP

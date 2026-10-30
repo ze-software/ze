@@ -15,25 +15,6 @@ import (
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 )
 
-// ValidateGroupRefs checks that every peer's ike-group and esp-group
-// references point to defined groups within the config.
-func (c *IPsecConfig) ValidateGroupRefs() error {
-	for name := range c.Peers {
-		peer := c.Peers[name]
-		if peer.IKEGroup != "" {
-			if _, ok := c.IKEGroups[peer.IKEGroup]; !ok {
-				return fmt.Errorf("ipsec peer %q: ike-group %q not defined", name, peer.IKEGroup)
-			}
-		}
-		if peer.ESPGroup != "" {
-			if _, ok := c.ESPGroups[peer.ESPGroup]; !ok {
-				return fmt.Errorf("ipsec peer %q: esp-group %q not defined", name, peer.ESPGroup)
-			}
-		}
-	}
-	return nil
-}
-
 // IsEAPMode reports whether an auth mode runs the EAP exchange. RFC 7296
 // Section 2.16 puts an extra obligation on these modes, so several layers need
 // to ask the question.
@@ -500,17 +481,6 @@ func (c *IPsecConfig) ValidateRemoteAccess() error {
 
 	if err := validateVirtualIPPools(ra.Pools); err != nil {
 		return err
-	}
-
-	if ra.IKEGroup != "" {
-		if _, ok := c.IKEGroups[ra.IKEGroup]; !ok {
-			return fmt.Errorf("ipsec remote-access: ike-group %q not defined", ra.IKEGroup)
-		}
-	}
-	if ra.ESPGroup != "" {
-		if _, ok := c.ESPGroups[ra.ESPGroup]; !ok {
-			return fmt.Errorf("ipsec remote-access: esp-group %q not defined", ra.ESPGroup)
-		}
 	}
 
 	for name := range ra.Users {

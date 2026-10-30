@@ -1,0 +1,152 @@
+# Test: remote-access naming an ike-group or esp-group no group declares is refused
+#
+# VALIDATES: the remote-access ike-group and esp-group leaves are YANG leafrefs
+#            to "../../ike-group/name" and "../../esp-group/name"
+#            (ze-ipsec-conf.yang), so `ze config validate` refuses a name no
+#            group declares, naming the value, the groups that exist and the
+#            leaf, and accepts declared names.
+# PREVENTS: a remote-access gateway committed against a group that does not
+#           exist, which its YANG description says commit refuses.
+
+stdin=ike:terminator=EOF_IKE
+vpn {
+	ipsec {
+		ike-group IKE-A {
+			proposal 1 {
+				encryption aes256gcm
+				hash sha256
+				dh-group 14
+			}
+		}
+		ike-group IKE-B {
+			proposal 1 {
+				encryption aes256gcm
+				hash sha256
+				dh-group 14
+			}
+		}
+		esp-group ESP-A {
+			proposal 1 {
+				encryption aes256gcm
+			}
+		}
+		remote-access {
+			ike-group IKE-NONE
+			esp-group ESP-A
+			authentication {
+				mode eap-mschapv2
+				x509 {
+					ca-certificate vpn-ca
+					certificate server1
+				}
+			}
+			pool roadwarrior {
+				range 10.10.0.0/24
+			}
+			eap-user thomas {
+				password s3cret
+			}
+		}
+	}
+}
+EOF_IKE
+
+stdin=esp:terminator=EOF_ESP
+vpn {
+	ipsec {
+		ike-group IKE-A {
+			proposal 1 {
+				encryption aes256gcm
+				hash sha256
+				dh-group 14
+			}
+		}
+		ike-group IKE-B {
+			proposal 1 {
+				encryption aes256gcm
+				hash sha256
+				dh-group 14
+			}
+		}
+		esp-group ESP-A {
+			proposal 1 {
+				encryption aes256gcm
+			}
+		}
+		remote-access {
+			ike-group IKE-A
+			esp-group ESP-NONE
+			authentication {
+				mode eap-mschapv2
+				x509 {
+					ca-certificate vpn-ca
+					certificate server1
+				}
+			}
+			pool roadwarrior {
+				range 10.10.0.0/24
+			}
+			eap-user thomas {
+				password s3cret
+			}
+		}
+	}
+}
+EOF_ESP
+
+stdin=present:terminator=EOF_PRESENT
+vpn {
+	ipsec {
+		ike-group IKE-A {
+			proposal 1 {
+				encryption aes256gcm
+				hash sha256
+				dh-group 14
+			}
+		}
+		ike-group IKE-B {
+			proposal 1 {
+				encryption aes256gcm
+				hash sha256
+				dh-group 14
+			}
+		}
+		esp-group ESP-A {
+			proposal 1 {
+				encryption aes256gcm
+			}
+		}
+		remote-access {
+			ike-group IKE-B
+			esp-group ESP-A
+			authentication {
+				mode eap-mschapv2
+				x509 {
+					ca-certificate vpn-ca
+					certificate server1
+				}
+			}
+			pool roadwarrior {
+				range 10.10.0.0/24
+			}
+			eap-user thomas {
+				password s3cret
+			}
+		}
+	}
+}
+EOF_PRESENT
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=ike
+expect=exit:code=1
+expect=stdout:contains=no name "IKE-NONE" exists at "../../ike-group/name"
+expect=stdout:contains=name one of "IKE-A IKE-B"
+expect=stdout:contains=vpn/ipsec/remote-access/ike-group
+cmd=foreground:seq=2:exec=ze config validate -:stdin=esp
+expect=exit:code=1
+expect=stdout:contains=no name "ESP-NONE" exists at "../../esp-group/name"
+expect=stdout:contains=name one of "ESP-A"
+expect=stdout:contains=vpn/ipsec/remote-access/esp-group
+cmd=foreground:seq=3:exec=ze config validate -:stdin=present
+expect=exit:code=0
+expect=stdout:contains=configuration valid

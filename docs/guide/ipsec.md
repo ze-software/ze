@@ -51,7 +51,7 @@ The IPsec stack is split across several packages:
 
 ## Configuration
 
-IPsec is configured under `vpn { ipsec { } }`. Named `ike-group` and `esp-group` blocks hold the IKE and ESP proposals and lifetimes. Each `site-to-site` peer references a group pair, sets its authentication, and binds to an XFRM interface for route-based forwarding.
+IPsec is configured under `vpn { ipsec { } }`. Named `ike-group` and `esp-group` blocks hold the IKE and ESP proposals and lifetimes. Each `site-to-site` peer references a group pair, sets its authentication, and binds to an XFRM interface for route-based forwarding. A peer's and `remote-access`'s `ike-group` and `esp-group` are leafrefs: commit, a SIGHUP reload and `ze config validate` refuse a name no group declares, naming the groups that exist, and the editor completes the names.
 
 ```text
 pki {

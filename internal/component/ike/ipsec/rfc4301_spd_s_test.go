@@ -1,5 +1,5 @@
 // Design: docs/architecture/ike/ipsec-3-data-model.md -- IPsec data model
-// Related: config.go -- parseSiteToSitePeer and parseESPGroup, validate.go -- ValidateGroupRefs, the producers
+// Related: config.go -- parseSiteToSitePeer and parseESPGroup, the producers; ze-ipsec-conf.yang -- the esp-group leafref
 // RFC: rfc/short/rfc4301.md -- SPD management (Section 4.4.1), the SPD-S entry
 package ipsec
 
@@ -52,16 +52,17 @@ func rfc4301SPDSPeerLeaves() map[string]string {
 // can write the SPD-S entry RFC 4301 Section 4.4.1 describes: the selectors of the traffic
 // to protect, the controls on how SAs are created for it, and the parameters that effect
 // the protection. In Ze that entry is a site-to-site peer. Method: parse one peer through
-// ParseIPsecConfig and the engine's cross-reference check (ValidateGroupRefs), then read
-// back each of the three parts as written.
+// ParseIPsecConfig and the YANG reference check the commit path runs (the esp-group
+// leaf is a leafref), then read back each of the three parts as written.
 func TestRFC4301SPDSEntryCarriesSelectorsSAControlsAndProtection(t *testing.T) {
 	// RFC requirement: RFC4301-4.4.1-6 positive -- an SPD-S entry (a site-to-site peer) is written with its selectors (local and remote prefix of the traffic selector), its SA creation controls (connection-type respond, remote address, the esp-group it negotiates from) and its protection parameters (mode transport, proposal aes256 with sha256), and each reaches the parsed model as written.
-	cfg, err := ParseIPsecConfig(rfc4301SPDSTree(rfc4301SPDSPeerLeaves(), "10.0.0.0/24", "10.1.0.0/24"))
+	tree := rfc4301SPDSTree(rfc4301SPDSPeerLeaves(), "10.0.0.0/24", "10.1.0.0/24")
+	cfg, err := ParseIPsecConfig(tree)
 	if err != nil {
 		t.Fatalf("ParseIPsecConfig: %v", err)
 	}
-	if err := cfg.ValidateGroupRefs(); err != nil {
-		t.Fatalf("ValidateGroupRefs: %v", err)
+	if refusals := referenceRefusals(t, tree); strings.Contains(refusals, "esp-group/name") {
+		t.Fatalf("the esp-group reference was refused: %s", refusals)
 	}
 	peer, ok := cfg.Peers["branch"]
 	if !ok {
@@ -104,8 +105,8 @@ func TestRFC4301SPDSEntryCarriesSelectorsSAControlsAndProtection(t *testing.T) {
 // TestRFC4301SPDSEntryRefusesAMissingOrUnusablePart proves an SPD-S entry whose
 // protection parameters, SA controls or selectors cannot be honored is refused rather
 // than installed with a part missing or replaced. Method: start from the complete entry
-// and break one part per case, then require the parse or the cross-reference check to
-// refuse it naming the part.
+// and break one part per case, then require the parse or the YANG reference check the
+// commit path runs to refuse it naming the part.
 func TestRFC4301SPDSEntryRefusesAMissingOrUnusablePart(t *testing.T) {
 	// RFC requirement: RFC4301-4.4.1-6 negative -- an SPD-S entry naming an esp-group that is not defined, a mode Ze cannot install, an unknown connection type, or a malformed selector prefix is refused, naming the part.
 	for _, tc := range []struct {
@@ -116,7 +117,7 @@ func TestRFC4301SPDSEntryRefusesAMissingOrUnusablePart(t *testing.T) {
 		remote string
 		want   string
 	}{
-		{"undefined esp-group", "esp-group", "absent", "10.0.0.0/24", "10.1.0.0/24", `esp-group "absent" not defined`},
+		{"undefined esp-group", "esp-group", "absent", "10.0.0.0/24", "10.1.0.0/24", `no name "absent" exists at "../../../esp-group/name"`},
 		{"unknown mode", "mode", "beet", "10.0.0.0/24", "10.1.0.0/24", "mode: unsupported value"},
 		{"unknown connection type", "connection-type", "sometimes", "10.0.0.0/24", "10.1.0.0/24", "connection-type: unsupported value"},
 		{"malformed selector", "", "", "10.0.0.0/33", "10.1.0.0/24", "10.0.0.0/33"},
@@ -126,15 +127,18 @@ func TestRFC4301SPDSEntryRefusesAMissingOrUnusablePart(t *testing.T) {
 			if tc.leaf != "" {
 				leaves[tc.leaf] = tc.value
 			}
-			cfg, err := ParseIPsecConfig(rfc4301SPDSTree(leaves, tc.local, tc.remote))
-			if err == nil {
-				err = cfg.ValidateGroupRefs()
+			tree := rfc4301SPDSTree(leaves, tc.local, tc.remote)
+			var refusal string
+			if _, err := ParseIPsecConfig(tree); err != nil {
+				refusal = err.Error()
+			} else {
+				refusal = referenceRefusals(t, tree)
 			}
-			if err == nil {
+			if refusal == "" {
 				t.Fatalf("the entry was accepted, want a refusal containing %q", tc.want)
 			}
-			if !strings.Contains(err.Error(), tc.want) {
-				t.Errorf("refusal = %v, want it to contain %q", err, tc.want)
+			if !strings.Contains(refusal, tc.want) {
+				t.Errorf("refusal = %v, want it to contain %q", refusal, tc.want)
 			}
 		})
 	}

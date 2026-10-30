@@ -8,8 +8,9 @@
 #
 # AC-8 wiring test. ze config validate does NOT invoke plugin OnConfigVerify, so
 # the check only fires at daemon reload time; this is the canonical way to
-# exercise it. It is also the wiring proof for the three IPsecConfig validators
-# (ValidateGroupRefs, ValidatePKIRefs, ValidateRemoteAccess), which until this
+# exercise it. It is also the wiring proof for the two IPsecConfig validators
+# (ValidatePKIRefs, ValidateRemoteAccess; the group references are YANG
+# leafrefs now), which until this
 # change had no non-test caller anywhere in the repo.
 #
 # // replaced the peer-driven `action=sigterm:conn=1:seq=2` with the

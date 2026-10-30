@@ -436,6 +436,11 @@ func TestParseInvalidDHGroup(t *testing.T) {
 	}
 }
 
+// TestParseMissingGroupRef proves a site-to-site peer naming an ike-group and an
+// esp-group that no group declares is refused for each name. Method: build the
+// peer with both names dangling and run the config validator the commit path
+// runs; the two group leaves are YANG leafrefs, so each dangling name must come
+// back as its own refusal.
 func TestParseMissingGroupRef(t *testing.T) {
 	tree := makePeerTree("bad-ref", peerOpts{
 		ikeGroup: "NONEXISTENT",
@@ -443,18 +448,35 @@ func TestParseMissingGroupRef(t *testing.T) {
 		authMode: "x509",
 	})
 
-	cfg, err := ParseIPsecConfig(tree)
-	if err != nil {
+	if _, err := ParseIPsecConfig(tree); err != nil {
 		t.Fatalf("ParseIPsecConfig: %v", err)
 	}
 
-	err = cfg.ValidateGroupRefs()
-	if err == nil {
-		t.Fatal("expected error for missing group reference")
+	refusals := referenceRefusals(t, tree)
+	for _, want := range []string{
+		`no name "NONEXISTENT" exists at "../../../ike-group/name"`,
+		`no name "ALSO-MISSING" exists at "../../../esp-group/name"`,
+	} {
+		if !strings.Contains(refusals, want) {
+			t.Errorf("refusals = %q, want to contain %q", refusals, want)
+		}
 	}
-	if !strings.Contains(err.Error(), "not defined") {
-		t.Errorf("error = %q, want to contain 'not defined'", err)
+}
+
+// referenceRefusals runs the YANG validation the commit path runs over tree and
+// returns every refusal as "path: message", one per line. An empty answer means
+// the validator refused nothing.
+func referenceRefusals(t *testing.T, tree *config.Tree) string {
+	t.Helper()
+	found, err := config.ValidateCustomSections(tree)
+	if err != nil {
+		t.Fatalf("ValidateCustomSections: %v", err)
 	}
+	var lines []string
+	for _, f := range found {
+		lines = append(lines, f.Err.Path+": "+f.Err.Message)
+	}
+	return strings.Join(lines, "\n")
 }
 
 func TestParseInvalidInterfaceRef(t *testing.T) {
