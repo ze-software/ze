@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7999-3.3-4",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rpki/rfc7999_blackhole_decision_test.go::TestBlackholeDoesNotSurviveAWrongOrigin",
+    "unit-sha": "6b6b6946d5b56739",
+    "claim-sha": "530aa5796cacf63b",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rpki/blackhole.go::invalidByLengthOnly",
+    "producer-sha": "85bd3b67a05bb4cc",
+    "break": "body of invalidByLengthOnly replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7999-3.3-4",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rpki/rfc7999_blackhole_decision_test.go::TestBlackholeSurvivesLengthOnlyInvalid",
+    "unit-sha": "e095cb3e0ad3b7ae",
+    "claim-sha": "495fe9d6debebfa2",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rpki/blackhole.go::invalidByLengthOnly",
+    "producer-sha": "85bd3b67a05bb4cc",
+    "break": "body of invalidByLengthOnly replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]
