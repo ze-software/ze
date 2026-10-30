@@ -744,6 +744,22 @@ Filters can declare `overrides` to remove default filters from the chain
 <!-- source: internal/component/policy/chain.go -- ExtractChain -->
 <!-- source: internal/component/bgp/config/redistribution.go -- canonicalizeFilterRefs -->
 
+### Route Evaluators at the Loc-RIB
+
+The Loc-RIB import chains (`isis`, `ospf`, `static`, `connected` and `rib`
+`filter { import { ... } }`) run in the engine on every route insert, so they
+never call a plugin process. A filter type works there only when its package
+registers an in-process route evaluator with `policy.MustRegisterRouteEvaluator`
+from its `init()`. `prefix-list` and `family-filter` register one, so their
+instances under `policy {}` can be named in those chains. A chain that names
+a type with no evaluator is refused at load, and the message lists the types
+that have one. A plugin whose config holds a Loc-RIB attachment declares it
+with `policy.MustRegisterRIBImport`. See [Route Policy at the Loc-RIB](route-policy.md).
+<!-- source: internal/component/policy/rib.go -- MustRegisterRouteEvaluator, MustRegisterRIBImport -->
+<!-- source: internal/component/bgp/plugins/filter_prefix/register.go -- MustRegisterRouteEvaluator -->
+<!-- source: internal/component/bgp/plugins/filter_family/register.go -- MustRegisterRouteEvaluator -->
+<!-- source: internal/component/policy/rib_compile.go -- compileRIBChain -->
+
 ### Cross-Protocol Redistribute (`redistribute-orchestrator`)
 
 `redistribute-orchestrator` is the single subscriber that dispatches non-consumer
@@ -826,6 +842,12 @@ Filter chain references use the standard `<plugin>:<filter>` form:
 `bgp-filter-prefix:CUSTOMERS`. The shorter form `prefix-list:CUSTOMERS` also
 resolves to the same plugin via the filter-type registration, and a bare
 `CUSTOMERS` resolves if no other filter plugin claims a filter of that name.
+
+A prefix-list can also run in a Loc-RIB import chain, named there by its bare
+instance name. It judges one route at a time with the same entry matching: the
+first matching entry decides and no match rejects the route
+([Route Policy at the Loc-RIB](route-policy.md)).
+<!-- source: internal/component/bgp/plugins/filter_prefix/rib_evaluator.go -- compileRouteEvaluator -->
 
 | UPDATE content | Filter action |
 |----------------|---------------|

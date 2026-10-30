@@ -3,6 +3,7 @@ module ze-connected-conf {
     prefix connected;
 
     import ze-extensions { prefix ze; }
+    import ze-policy-conf { prefix policy; }
 
     description
         "Connected route redistribution for Ze.
@@ -14,6 +15,7 @@ module ze-connected-conf {
     }
 
     container connected {
+        uses policy:rib-import-filter;
         description "The container carries no leaf, so writing it is the whole configuration.
                      The plugin watches each interface address event and emits the network
                      prefix of that address on the redistribute event bus. It counts the

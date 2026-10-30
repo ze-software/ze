@@ -225,7 +225,7 @@ attaching a second filter type.
 
 **The plugin declares ZERO filters at Stage 1.** Filter names come from config,
 so the registration declares the filter TYPE through `FilterTypes`, and
-`BuildFilterRegistry` (`internal/component/bgp/config/filter_registry.go`)
+`policy.BuildRegistry` (`internal/component/policy/registry.go`)
 discovers each instance from the `ze:filter` marker on the YANG list. This is
 the route `filter_aspath` takes, and it is not the `filterapi.Register` route,
 which is for a filter whose name is known at compile time.

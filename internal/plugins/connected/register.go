@@ -21,6 +21,8 @@ func init() {
 	policy.MustRegisterAttachment(pluginName, "connected import",
 		[]policy.Field{policy.FieldPrefix, policy.FieldFamily, policy.FieldProtocol, policy.FieldInterface},
 		[]policy.Field{policy.FieldDistance, policy.FieldTag})
+	// The import chain is compiled into the Loc-RIB gate by the policy plugin.
+	policy.MustRegisterRIBImport(policy.RIBImport{Attachment: "connected import", Root: pluginName, Scope: policy.RIBScopeSource, Protocol: pluginName})
 
 	// Register the redistribute source at init (not only in runConnectedPlugin)
 	// so `import connected` resolves during `ze config validate`, which imports

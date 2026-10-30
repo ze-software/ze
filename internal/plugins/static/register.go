@@ -105,6 +105,8 @@ func init() {
 	policy.MustRegisterAttachment(pluginName, "static import",
 		[]policy.Field{policy.FieldPrefix, policy.FieldFamily, policy.FieldProtocol, policy.FieldNextHop, policy.FieldInterface, policy.FieldMetric, policy.FieldTag},
 		[]policy.Field{policy.FieldDistance, policy.FieldTag})
+	// The import chain is compiled into the Loc-RIB gate by the policy plugin.
+	policy.MustRegisterRIBImport(policy.RIBImport{Attachment: "static import", Root: pluginName, Scope: policy.RIBScopeSource, Protocol: pluginName})
 
 	registerStaticSources()
 

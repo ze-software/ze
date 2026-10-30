@@ -979,6 +979,26 @@ func YANGSchemas() map[string]string {
 	return m
 }
 
+// AddConfigRead adds root to the ConfigReads of the registered plugin name,
+// from the init() of the package whose config holds that root. It exists for
+// a reader whose roots are themselves registered later than the reader: the
+// policy plugin reads every root that declares a Loc-RIB import attachment,
+// and each of those packages imports policy, so policy registers first.
+// Adding a root already read is a no-op. An unregistered name is an error.
+func AddConfigRead(name, root string) error {
+	mu.Lock()
+	defer mu.Unlock()
+	reg, ok := plugins[name]
+	if !ok {
+		return fmt.Errorf("plugin %q is not registered, so it cannot read config root %q", name, root)
+	}
+	if slices.Contains(reg.ConfigReads, root) {
+		return nil
+	}
+	reg.ConfigReads = append(slices.Clone(reg.ConfigReads), root)
+	return nil
+}
+
 // ConfigSectionRoots returns every root the plugin receives config for: the
 // roots it owns, then the roots it only reads. Auto-loading uses ConfigRoots
 // alone, because a root the plugin only reads says nothing about whether the

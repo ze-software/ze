@@ -783,6 +783,49 @@ verifier so an interface cannot reference an undeclared area.
 <!-- source: internal/plugins/ospf/yang/ze-ospf-conf.yang -- ospf container, area and interface lists -->
 <!-- source: internal/plugins/ospf/register.go -- InProcessConfigVerifier -->
 
+### filter import (Loc-RIB attachments)
+
+`isis`, `ospf`, `static`, `connected` and `rib` each carry the same
+`filter { import { ... } }` block, declared once as the `rib-import-filter`
+grouping in `ze-policy-conf`. `filters` is an ordered list of names of filter
+instances defined under the top-level `policy {}` root. `final` is mandatory.
+
+```
+policy {
+    prefix-list ISIS-IN {
+        entry 10.0.0.0/24 { action accept; }
+    }
+}
+isis {
+    filter {
+        import {
+            filters [ ISIS-IN ];
+            final accept;
+        }
+    }
+}
+```
+
+| Keyword | Type | Description |
+|---------|------|-------------|
+| filters | ordered leaf-list of string | Filter instance names, run in order. A filter that rejects stops the chain. A filter that does not reject passes the route on |
+| final | `accept` or `reject` | Decides a route that passed every filter. Required, even with no filters |
+<!-- source: internal/component/policy/yang/ze-policy-conf.yang -- grouping rib-import-filter -->
+<!-- source: internal/component/policy/rib_compile.go -- ribChain.Evaluate -->
+
+The protocol's chain runs first, then the `rib` chain. A rejected route stays
+in the Loc-RIB as a hidden path that is never selected. A commit that changes
+a chain judges every stored path again. Load refuses these chains
+([Route Policy at the Loc-RIB](../../guide/route-policy.md)):
+
+- a chain with no `final`
+- a `<plugin>:<filter>` reference
+- a name that is not a `policy` instance
+- a filter that reads a field the routes do not carry
+- a filter type with no Loc-RIB route evaluator
+<!-- source: internal/core/rib/policy/policy.go -- Snapshot.Evaluate -->
+<!-- source: internal/component/policy/rib_compile.go -- readRIBChain, compileRIBChain, installRIBImports -->
+
 ### Peer Groups
 
 Peers are organized into named groups under `bgp`. Groups provide shared defaults inherited by all member peers.
@@ -1402,7 +1445,7 @@ on the selected plugin.
 <!-- source: internal/component/policy/yang/ze-policy-conf.yang -- policy container -->
 <!-- source: internal/component/bgp/config/peers.go -- policyRegistryOf, validateChainNames -->
 <!-- source: internal/component/bgp/config/redistribution.go -- redistribution config parsing -->
-<!-- source: internal/component/bgp/config/filter_registry.go -- local policy filter validation -->
+<!-- source: internal/component/policy/registry.go -- BuildRegistry, ValidateName -->
 <!-- source: internal/component/plugin/registry/registry.go -- FilterTypes registry -->
 <!-- source: internal/component/bgp/config/peers.go -- validateLeakFilterObligations -->
 

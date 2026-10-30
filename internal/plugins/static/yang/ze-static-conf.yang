@@ -3,6 +3,7 @@ module ze-static-conf {
     prefix static;
 
     import ze-extensions { prefix ze; }
+    import ze-policy-conf { prefix policy; }
 
     description
         "Static route configuration for Ze.
@@ -22,6 +23,7 @@ module ze-static-conf {
     }
 
     container static {
+        uses policy:rib-import-filter;
         description "Ze programs each route into the kernel through netlink, or into the VPP dataplane, and
             marks it with the static protocol number. A route the backend cannot program is skipped and
             logged, and the rest of the section still applies. Only a forward route in the default table

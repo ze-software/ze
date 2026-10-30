@@ -213,6 +213,27 @@ binds it exactly as it binds a peer in the same AS.
 
 <!-- source: internal/component/bgp/reactor/session_open_validation.go — validateOpenIdentifier; internal/component/bgp/reactor/peer.go — sessionPeerAS; internal/component/bgp/reactor/session_as_migration.go — isIBGPWith; internal/component/bgp/message/open.go — ValidateBGPIdentifier; internal/component/bgp/reactor/session.go — detectCollision; internal/component/bgp/reactor/config.go — parseRouterID -->
 
+## Loc-RIB Import Filters
+
+`isis`, `ospf`, `static` and `connected` each accept a
+`filter { import { filters [ ... ]; final accept|reject; } }` block that judges
+the routes the protocol offers to the Loc-RIB. The same block under `rib`
+judges routes from every source, after the protocol's own chain. The names in
+`filters` are filter instances defined under `policy {}`, such as a
+`prefix-list`.
+<!-- source: internal/component/policy/yang/ze-policy-conf.yang -- grouping rib-import-filter -->
+<!-- source: internal/core/rib/policy/policy.go -- Snapshot.Evaluate -->
+
+A filter's accept passes the route to the next filter, and `final` decides a
+route that passed them all. A rejected route is kept as a hidden path: it is
+not selected and does not reach the FIB, while the protocol's LSDB keeps it. A
+commit that relaxes the chain installs it again with no protocol event. A chain
+with no `final`, a `<plugin>:<filter>` reference, or a filter type that cannot
+run at the Loc-RIB is refused at load. See
+[Route Policy at the Loc-RIB](route-policy.md).
+<!-- source: internal/component/policy/rib_compile.go -- ribChain.Evaluate, readRIBChain, compileRIBChain, installRIBImports -->
+<!-- source: internal/core/rib/locrib/policy.go -- admit, PublishPolicy -->
+
 ## OSPF
 
 The top-level `ospf` block enables Ze's native OSPF engine. The root container

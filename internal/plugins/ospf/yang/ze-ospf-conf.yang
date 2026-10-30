@@ -2,6 +2,7 @@ module ze-ospf-conf {
     namespace "urn:ze:ospf:conf";
     prefix ospfconf;
     import ze-extensions { prefix ze; }
+    import ze-policy-conf { prefix policy; }
     import ze-types { prefix zt; }
 
     description
@@ -492,6 +493,7 @@ section 3.4). An unset leaf advertises no TLV.";
     }
 
     container ospf {
+        uses policy:rib-import-filter;
         description "The presence of this container starts the OSPFv2 engine, which RFC 2328
 defines. The address-family container adds the OSPFv3 families of RFC 5340, and each one
 runs as a separate engine instance.";

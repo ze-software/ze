@@ -16,6 +16,8 @@ func init() {
 	policy.MustRegisterFilterType(filterTypeName,
 		[]policy.Field{policy.FieldPrefix, policy.FieldFamily},
 		nil)
+	// The in-process evaluator the Loc-RIB import gate runs (rib_evaluator.go).
+	policy.MustRegisterRouteEvaluator(filterTypeName, compileRouteEvaluator)
 
 	_ = registry.Register(registry.Registration{
 		Name:         "bgp-filter-prefix",

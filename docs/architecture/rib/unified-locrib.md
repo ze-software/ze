@@ -87,6 +87,38 @@ path with no producer event, and tightening one withdraws it.
 <!-- source: internal/core/rib/locrib/entry.go -- selectBest -->
 <!-- source: internal/core/rib/locrib/distance.go -- reselectShard, dispatchReselected -->
 
+**The policy plugin is the only publisher of the snapshot.** A plugin whose
+config holds an attachment declares it from its own `init()` with
+`policy.MustRegisterRIBImport`. `isis`, `ospf`, `static` and `connected` fill
+a source chain. `sysrib` fills the central chain from `rib`. The registration
+adds the attachment's root to the config reads of the policy plugin, which
+runs in the engine.
+
+Its config transaction parses every chain at verify (`parseRIBImports`), so a
+wrong chain fails the commit before anything changes. At apply,
+`installRIBImports` compiles the chains into one snapshot and calls
+`locrib.PublishPolicy`. A config with no chain publishes nil. An apply that
+finds nil already published publishes nothing.
+<!-- source: internal/component/policy/rib.go -- MustRegisterRIBImport, RIBImport -->
+<!-- source: internal/component/policy/rib_compile.go -- parseRIBImports, installRIBImports, compileRIBSnapshot -->
+<!-- source: internal/component/policy/register.go -- addPolicyConfigRead -->
+
+**A filter type runs at the gate through an in-process route evaluator.** The
+gate runs on every insert, from several shards at once, so it never calls a
+plugin process. A filter type that a Loc-RIB attachment can use registers a
+compiler with `policy.MustRegisterRouteEvaluator` from its own package. The
+compiler turns the config of one instance into a function that judges a route
+by value. `prefix-list` and `family-filter` register one.
+
+Verify refuses a chain that names a type with no evaluator, and a
+`<plugin>:<filter>` reference. A compiled chain applies Ze chain semantics. A
+reject stops the chain. A filter that does not reject passes the route on with
+its sets. `final` decides after the last filter.
+<!-- source: internal/component/policy/rib.go -- RouteEvaluator, RouteEvaluatorCompiler, MustRegisterRouteEvaluator -->
+<!-- source: internal/component/policy/rib_compile.go -- readRIBChain, compileRIBChain, ribChain.Evaluate -->
+<!-- source: internal/component/bgp/plugins/filter_prefix/rib_evaluator.go -- compileRouteEvaluator -->
+<!-- source: internal/component/bgp/plugins/filter_family/rib_evaluator.go -- compileRouteEvaluator -->
+
 **A Path carries its whole next-hop set, not one address.** `NextHop` is the
 route's gateway, `Interface` names its outgoing device, and `Weight` gives
 that next-hop's share of the group. `OnLink` identifies a protocol-established

@@ -51,6 +51,8 @@ func init() {
 	policy.MustRegisterAttachment(componentName, "isis import",
 		[]policy.Field{policy.FieldPrefix, policy.FieldFamily, policy.FieldProtocol, policy.FieldNextHop, policy.FieldInterface, policy.FieldMetric, policy.FieldLevel},
 		[]policy.Field{policy.FieldDistance, policy.FieldTag})
+	// The import chain is compiled into the Loc-RIB gate by the policy plugin.
+	policy.MustRegisterRIBImport(policy.RIBImport{Attachment: "isis import", Root: configRoot, Scope: policy.RIBScopeSource, Protocol: componentName})
 	policy.MustRegisterAttachment(componentName, "isis export",
 		[]policy.Field{policy.FieldPrefix, policy.FieldFamily, policy.FieldProtocol, policy.FieldNextHop, policy.FieldMetric, policy.FieldLevel, policy.FieldOriginAS},
 		[]policy.Field{policy.FieldMetric, policy.FieldLevel})

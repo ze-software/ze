@@ -29,6 +29,8 @@ func init() {
 	policy.MustRegisterAttachment(configRootRIB, "rib import",
 		[]policy.Field{policy.FieldPrefix, policy.FieldFamily, policy.FieldProtocol, policy.FieldNextHop, policy.FieldInterface, policy.FieldMetric, policy.FieldTag, policy.FieldLevel, policy.FieldRouteType},
 		[]policy.Field{policy.FieldDistance, policy.FieldTag})
+	// The import chain is compiled into the Loc-RIB gate by the policy plugin.
+	policy.MustRegisterRIBImport(policy.RIBImport{Attachment: "rib import", Root: configRootRIB, Scope: policy.RIBScopeCentral})
 
 	_ = events.RegisterNamespace(sysribevents.Namespace,
 		sysribevents.EventBestChange, sysribevents.EventReplayRequest,

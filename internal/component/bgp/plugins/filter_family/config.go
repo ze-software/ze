@@ -37,27 +37,37 @@ func parseFamilyFilters(policyCfg, bgpCfg map[string]any) (map[string]*familyFil
 		if !ok {
 			continue
 		}
-		famStr, _ := m["family"].(string)
-		if famStr == "" {
-			return nil, fmt.Errorf("family-filter %q: missing family", name)
+		instance, err := parseFamilyFilter(name, m)
+		if err != nil {
+			return nil, err
 		}
-		fam, ok := family.LookupFamily(famStr)
-		if !ok {
-			return nil, fmt.Errorf("family-filter %q: unknown address family %q", name, famStr)
-		}
-		actStr, _ := m["action"].(string)
-		switch actStr {
-		case actionRemove, actionTearDown:
-		default:
-			return nil, fmt.Errorf("family-filter %q: invalid action %q (want remove or tear-down)", name, actStr)
-		}
-		instances[name] = &familyFilter{name: name, family: fam, action: actStr}
+		instances[name] = instance
 	}
 
 	if err := validateNoTearDownInExport(bgpCfg, instances); err != nil {
 		return nil, err
 	}
 	return instances, nil
+}
+
+// parseFamilyFilter reads one family-filter instance. The BGP path and the
+// Loc-RIB route evaluator (rib_evaluator.go) both parse an instance here.
+func parseFamilyFilter(name string, m map[string]any) (*familyFilter, error) {
+	famStr, _ := m["family"].(string)
+	if famStr == "" {
+		return nil, fmt.Errorf("family-filter %q: missing family", name)
+	}
+	fam, ok := family.LookupFamily(famStr)
+	if !ok {
+		return nil, fmt.Errorf("family-filter %q: unknown address family %q", name, famStr)
+	}
+	actStr, _ := m["action"].(string)
+	switch actStr {
+	case actionRemove, actionTearDown:
+	default:
+		return nil, fmt.Errorf("family-filter %q: invalid action %q (want remove or tear-down)", name, actStr)
+	}
+	return &familyFilter{name: name, family: fam, action: actStr}, nil
 }
 
 // validateNoTearDownInExport reports an error if any export chain (global, group,

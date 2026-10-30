@@ -5,7 +5,6 @@
 package policy
 
 import (
-	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -22,8 +21,6 @@ import (
 const PluginName = "policy"
 
 var logger = slogutil.LazyLogger("policy")
-
-var errPolicyRootNotObject = errors.New("policy: the policy section is not a JSON object")
 
 // The route field vocabulary: one registration per field, declared once here
 // (spec "Route Field Vocabulary"). Filter types and attachment points name
@@ -73,15 +70,17 @@ func init() {
 }
 
 // runPolicy is the policy plugin's engine entry. It answers the config
-// transaction for the policy root, so a commit touching it is never refused
-// for want of a participant; the instance namespace and the field checks run
-// where each attachment's config is loaded (BuildRegistry, CheckChain).
+// transaction for the policy root and the roots it reads: it compiles every
+// Loc-RIB import chain and publishes the snapshot the gate reads
+// (rib_compile.go). The BGP chains are checked where bgp loads its config
+// (BuildRegistry, CheckChain).
 func runPolicy(conn net.Conn) int {
 	p := sdk.NewWithConn(PluginName, conn)
 	defer p.Close() //nolint:errcheck // best-effort cleanup
 
-	parse := SectionParser(PluginName, errPolicyRootNotObject, func(map[string]any) (bool, error) { return true, nil })
-	sdk.NewConfigTx(false, parse, installPolicySection).Register(p)
+	// The transaction compiles the Loc-RIB import chains of every root that
+	// declared one (MustRegisterRIBImport) and publishes them to the gate.
+	sdk.NewConfigTx(ribImportConfig{}, parseRIBImports, installRIBImports).Register(p)
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
@@ -92,7 +91,12 @@ func runPolicy(conn net.Conn) int {
 	return 0
 }
 
-func installPolicySection(configured bool) error {
-	logger().Debug("configured", "policy-root", configured)
-	return nil
+// addPolicyConfigRead makes the policy plugin read root, a root holding a
+// Loc-RIB import attachment. The policy plugin registered in this package's
+// init(), which runs before the init() of any package importing policy, so
+// the registration exists. A failure is a Ze defect.
+func addPolicyConfigRead(root string) {
+	if err := registry.AddConfigRead(PluginName, root); err != nil {
+		panic("BUG: policy: " + err.Error())
+	}
 }

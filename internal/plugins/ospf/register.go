@@ -103,6 +103,8 @@ func registerOSPF() {
 	policy.MustRegisterAttachment(Namespace, "ospf import",
 		[]policy.Field{policy.FieldPrefix, policy.FieldFamily, policy.FieldProtocol, policy.FieldNextHop, policy.FieldInterface, policy.FieldMetric, policy.FieldTag, policy.FieldRouteType},
 		[]policy.Field{policy.FieldDistance, policy.FieldTag})
+	// The import chain is compiled into the Loc-RIB gate by the policy plugin.
+	policy.MustRegisterRIBImport(policy.RIBImport{Attachment: "ospf import", Root: Namespace, Scope: policy.RIBScopeSource, Protocol: Namespace})
 	policy.MustRegisterAttachment(Namespace, "ospf export",
 		[]policy.Field{policy.FieldPrefix, policy.FieldFamily, policy.FieldProtocol, policy.FieldNextHop, policy.FieldMetric, policy.FieldTag, policy.FieldRouteType, policy.FieldOriginAS},
 		[]policy.Field{policy.FieldTag, policy.FieldMetric, policy.FieldMetricType})

@@ -2,6 +2,7 @@ module ze-isis-conf {
     namespace "urn:ze:isis:conf";
     prefix isisconf;
     import ze-extensions { prefix ze; }
+    import ze-policy-conf { prefix policy; }
     description
         "Native IS-IS link-state IGP configuration (ISO/IEC 10589, RFC 1195,
          RFC 5305 wide metrics, RFC 5301 dynamic hostname, RFC 5304/5310
@@ -10,6 +11,7 @@ module ze-isis-conf {
     revision 2026-08-10 { description "hostname: enforce RFC 5301 section 3 7-bit ASCII and the RFC 2181 section 11 label lengths (spec-fixit-isis-hostname-ascii)."; }
 
     container isis {
+        uses policy:rib-import-filter;
         description "The presence of this container starts the IS-IS component. At least one `net` leaf MUST be set for
             the engine to run. A commit with no net is accepted, and the engine then stays idle, opens no circuit and
             originates no LSP.";
