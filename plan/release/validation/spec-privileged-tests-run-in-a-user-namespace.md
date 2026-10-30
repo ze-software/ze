@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | blocked |
+| Status | in-progress |
 | Scope | tooling |
 | Priority | P2 |
 | Release reason | Release validation: about 390 kernel-touching tests skip on every unprivileged run, so ordinary package runs and agents' scoped evidence never execute them. Running them in a namespace of their own turns those skips into executed proof of shipped behavior. |
@@ -147,8 +147,8 @@ named-namespace create/lookup identity, and deletion.
 | A-2 | A tmpfs mounted in the child never reaches the host | the child's mount namespace is private and owned by the child's user namespace | host `/run/netns` polluted | `TestEnterGivesAPrivateNetnsDirectory` compares the child's device against the parent's, current namespace smoke | validated |
 | A-3 | Supplementary groups survive `Enter` with `setgroups` denied | `/etc/chatscripts` experiment above | D stays in C | P9 run of the D tests | validated: in P9 (8cf23c5998) both D tests opened `/dev/ppp` in the child through `dip` |
 | A-4 | Inside the namespace `/dev/ppp` opens and `PPPIOCNEWUNIT`, `PPPIOCGCHAN`, `PPPIOCUNBRIDGECHAN` behave as for root | `ppp_open` and `ppp_unattached_ioctl` capability checks quoted above | D stays in C, recorded with the errno | P9 `TestPADTRetainsUnitUntilOwnerCleanup` and `TestLACChannelBridge`: old session scratch `userns-P9/pppoeclient.log` and `l2tp.log`, both PASS | Open and unit reservation/reuse validated. The P9 experiment in `unshare -rn` as uid 1000 with `/dev/ppp` `root:dip 0660`: the open succeeds, `PPPIOCNEWUNIT` returns unit 0 and creates `ppp0` in the child netns, and `PPPIOCGCHAN` and `PPPIOCUNBRIDGECHAN` on an unattached fd answer `ENOTTY` as for root. The bridge test checks a channel-number error but does not assert the exact ioctl errnos |
-| A-5 | Each inventory test needs nothing a user namespace cannot give beyond `Enter` | read of every skip in the inventory | that test moves to the Reclassified table with its reason | its batch's run-once PASS | Broken for the observed cases in Reclassified during implementation; remaining batches still owe their runs |
-| A-6 | A kernel feature built as a module autoloads from inside the namespace on a stock distribution kernel (hosted CI) | rtnetlink and nf_tables request modules on demand | the test meets its existing feature-absence skip, or fails naming the module | hosted CI unit job after P10 | unvalidated |
+| A-5 | Each inventory test needs nothing a user namespace cannot give beyond `Enter` | read of every skip in the inventory | that test moves to the Reclassified table with its reason | its batch's run-once PASS | broken: eight tests need initial-user-namespace authority (Reclassified table); every batch has run |
+| A-6 | A kernel feature built as a module autoloads from inside the namespace on a stock distribution kernel (hosted CI) | rtnetlink and nf_tables request modules on demand | the test meets its existing feature-absence skip, or fails naming the module | hosted CI unit job after P10 | out of scope by owner rule: tests needing a kernel feature run on Ze's kernel; see Assumptions Resolved |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -642,41 +642,170 @@ tests remain owed. Do not convert their ENOENT failures into namespace skips.
 - Group C stays privileged: a one-uid map cannot chown to another uid, and the freeRtr and FRR interop tests drive external daemons that QEMU and the interop labs run.
 - Performance of the re-exec per test is not measured on this host (perf runs happen on Thomas's Mac); R-5 tracks wall time only.
 
-## Blocker
+## Implementation Summary
 
-`/ze-close` (session e06e1b98, 2026-10-30) stopped at step 6 "RFC proof
-records are fresh" and handed the spec back. Steps 1 to 5 did not run to
-completion; nothing below is a review verdict.
+### What Was Implemented
+- `userns.Enter` (`internal/test/userns/userns_linux.go`) re-executes one top-level test in new user, network and mount namespaces (`childCommand`), gives the child a private tmpfs `/run/netns` (`childSetup`, `mountNetnsDir`) on a device the parent's `/run/netns` is not (`netnsDevice`), and fails the parent on every child-process error (`childFailure`, D-9). `userns_other.go` runs the test in place off Linux (D-4).
+- `./le setup` `ppp-access` (`internal/le/setup/ppp.go`: `pppProbe`, `pppState`, `pppSteps`, `visitPpp`) judges `/dev/ppp` with `access(2)` and grants it to `dip` through a udev rule with `static_node=ppp` (D-10), landed 55cb1821dd.
+- 147 test files call `Enter` as the first statement of each top-level test that reached a privilege skip (382 tests); 133 build `linux`, 12 keep `integration && linux` (the BFD pair predating this spec, the D files, and the files the Reclassified table names), and the two traceroute files carry no tag. Batches P3 to P9 and P11, pages P10 (e32e1868f3).
+- Closure: six shifted rfc3768 audit verdicts that 0dc36bd960 moved re-stamped with `./le rfc reseal` (7e41a17326).
 
-| What blocks | Producer | What clears it |
-|-------------|----------|----------------|
-| 68 STALE audit verdicts on tagged units this spec converted, across rfc792, rfc1195, rfc1350, rfc2131, rfc2205, rfc2328, rfc2385, rfc3768, rfc4302, rfc4659, rfc5082, rfc5798, rfc8955 and rfc9568. The `userns.Enter` guard changed each unit's body, so the check reads them as func-scoped changes that `./le rfc reseal` refuses | `./le rfc check`, audit stage; the full list is what it prints for the converted files (scratch `job-rfc-check-close-f2bb299a.log` of session 105ec564) | `/ze-implement` re-takes the audit verdicts with the `ze-rfc-audit` skill per stem, then `./le rfc check` shows no STALE audit line naming a file that calls `userns.Enter` |
-| `internal/plugins/vrrp/rfc9568_solicited_node_integration_linux_test.go` (added by 0dc36bd960) is named for RFC 9568 and carries no tag | `./le rfc check`, test file naming rule | tag the RFC 9568 requirement it covers (judge plus `./le rfc record`), or rename it with `./le rfc move`, or add an `RFC naming: untagged` line with its reason |
+### Bugs Found/Fixed
+- `probe.DrainErrorQueue` lost the router offender to `MSG_CTRUNC` (409b985e1e); `TestDrainErrorQueueRefusesTruncatedControlMessages`.
+- Plugins SIGKILLed when the forking thread exited (`StartChild`, c3eb71d64e); `TestStartChildSurvivesForkingThreadExit`.
+- VRRP Active joins its VIPs' solicited-node groups before holding them (0dc36bd960); `rfc9568_solicited_node_integration_linux_test.go`, tagged RFC9568-6.4.3-2 (f1b637444b).
+- Runtime kernel floor lacked `NET_ACT_GACT` (`internal/appliance/kernelreq.go`); `TestRuntimeFloorRequiresBuiltInGenericAction`. Journal row in `plan/journal/unwired-feature.md` now `fixed:`.
+- Harness races fixed at their cause: 227ecf2200 (macvlan rx filter), c3112d00f6 (RSVP stores on tmpfs). Design Insights holds the table.
 
-Discrimination records are not blocked: `./le rfc check` lists no
-non-verifying or missing record for any file that calls `userns.Enter`.
+### Documentation Updates
+- `docs/contributing/testing.md` (`userns.Enter` first, no `t.Parallel`, refusals fail), `docs/architecture/testing/qemu-integration.md` (mount namespace, private `/run/netns`, Build Tags rows), `docs/architecture/testing/ci-workflows.md` (the userns tunable), `docs/guide/developer-setup.md` (`ppp-access`): e32e1868f3 and 55cb1821dd.
+- `./le doc check all`: see Pre-Commit Verification.
 
-Not blockers: AC-10 and AC-11 whole-tree confirmation comes from GitHub CI's
-`verify` workflow on the push of the closing commits (owner rule, commit
-5c3bed867c). The stale `instance.go` line citations in the VRRP RFC tags of
-`internal/plugins/vrrp/instance_test.go` predate this spec (57812eae56 and
-earlier); they are a journal row in
-`plan/journal/claim-outlives-the-evidence-it-cites.md`, owned by
-`plan/release/fixes/spec-vrrp-owner-arp-rfc-defects.md`.
+### Deviations from Plan
+- D-9 (every startup error fails), D-10 (`ppp-access` as landed), D-11 (traceroute trace tests skip off Linux), D-12 (RFC 792 kernel-producer rows, recorded as escapes in 54fb01a2e6 and 7f1a79f1cc).
+- Eight tests needed more than `Enter` (Reclassified table): initial-userns `SO_RCVBUFFORCE`, `nft_payload_set_init`, BPF memlock, and the MPLS probe's `/proc/sys` bind keep the privileged path.
+- P11 added four files the inventory's search missed (rows 135 to 137, 136a).
 
-Review notes already taken at closure, for the next run: `userns.Enter` is the
-first statement (after comments) of every top-level test in the 137 files that
-call it, none of those tests calls `t.Parallel`, no helper calls it; 127 files
-build `linux` and 10 keep `integration && linux`. The AC-9 grep matches only
-group C, the Reclassified table and the root-skip `rpf_linux_test.go`. No
-uncommitted file belongs to this spec.
+## Mistake Log
 
-### Mistake Log
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The conversion batches re-took discrimination records but not the audit verdicts of the units the `Enter` guard changed | the guard changes each unit's body, so its audit verdict goes STALE and `./le rfc reseal` refuses it | first `/ze-close` run (fe987ba56c) | 68 verdicts re-judged (6578440ade, b5830858ee, f16b1a8d6c, 4bbaf1fb36); a batch re-takes audit verdicts with `ze-rfc-audit` alongside `./le rfc record` |
+| approach | 0dc36bd960 added an RFC-named test file with no tag, and moved `instance_test.go` units without resealing rfc3768 | `./le rfc check` refuses both | first and second `/ze-close` runs | tagged in f1b637444b; rfc3768 resealed in 7e41a17326 |
+| assumption | A-5: every inventory test needs nothing beyond `Enter` | eight tests need initial-user-namespace authority | the batches' run-once | Reclassified table, Deviations |
 
-| Mistake | Effect | Prevention |
-|---------|--------|------------|
-| The conversion batches re-took discrimination records but not audit verdicts of the units the `Enter` guard changed | 68 stale audit verdicts reached closure | each batch's step 5 re-takes audit verdicts with `ze-rfc-audit` alongside `./le rfc record` |
-| P7's ND-window commit added an RFC-named test file with no tag | `./le rfc check` naming refusal | run `./le rfc check` before committing a new `rfcNNNN_` test file |
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Every group A, B and D test reports PASS unprivileged | Done | batch logs; AC-8 | the Reclassified eight excepted, with reasons |
+| Only group C privilege skips remain | Done | AC-9 grep below | plus the Reclassified table and the root-skip in `rpf_linux_test.go` |
+| `Enter` serves named netns | Done | `internal/test/userns/userns_linux.go` `childSetup` | |
+| `ppp-access` | Done | `internal/le/setup/ppp.go` `visitPpp` | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestEnterGivesAPrivateNetnsDirectory` | session 644a4e78 scratch `job-userns-smoke-b033df33.log` |
+| AC-2 | Done | `TestEnterGivesAPrivateNetnsDirectory` (tmpfs magic, device check) | same log |
+| AC-3 | Done | `TestEnterServesIPNetns` | same log |
+| AC-4 | Done | `TestEnterCreatesAMissingNetnsDirectory` | same log |
+| AC-5 | Done | `TestEnterRefusalNamesTheFix`, `TestEnterRejectsAnInvalidExecutableName` | `childFailure`; red then green logs in 644a4e78 scratch |
+| AC-6 | Done | `TestEnterMountFailureNamesTheStep` | `mountTmpfs` wraps the errno |
+| AC-7 | Done | `TestEnterRunsInPlaceOffLinux`, traceroute/cmd tests on darwin | `job-unit-pkg-close-b4a900ae.log` |
+| AC-8 | Done | each batch's run-once log; the three kernel-option tests PASS on 7.2.9-ze | Linux host, session d95083c0 scratch `job-ac8-pol-6c64859e.log`, `job-ac8-ft-9f1a236c.log` |
+| AC-9 | Done | `git grep` below | |
+| AC-10 | Done | 133 files build `linux` | whole-tree run is GitHub CI `verify` on the push (owner rule, 5c3bed867c) |
+| AC-11 | Done | `RFC-approved:` lines in each batch commit; `./le rfc check` names no file that calls `Enter` | whole-tree confirmation on the push, as AC-10 |
+| AC-12 | Done | `TestPppTellsApartUsablePendingAndNotGranted`, `TestAStaleLoginNamesTheGroupCommand`, `TestPppIsLinuxOnly` | `pppState`, `pppLacking` |
+| AC-13 | Done | `TestGrantingPppRunsEveryStepForABareHost`, `TestTheRuleIsWrittenWithItsContent` | `pppSteps` |
+| AC-14 | Done | `TestPppWithNoRouteToRootPrintsEveryCommand` | `notePppFix` |
+| AC-15 | Done | `TestGrantingPppRunsEveryStepForABareHost` (modprobe, no drop-in) | D-10 |
+| AC-16 | N-A | A-4 held | D files converted in 8cf23c5998 |
+| AC-17 | Done | Reclassified table, eight rows | each file committed whole |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| userns package tests (11 Linux, 1 off Linux) | Done | `internal/test/userns/userns_linux_test.go`, `userns_other_test.go` | |
+| ppp setup tests (7) | Done | `internal/le/setup/ppp_test.go` | |
+| every inventory test | Done | inventory files | batch logs |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/test/userns/userns_linux.go`, `userns_other.go`, tests | Done | |
+| `internal/le/setup/ppp.go`, `ppp_test.go` | Changed | P2 put the check in its own file rather than `system.go` |
+| inventory files | Done | |
+| four P10 pages | Done | e32e1868f3 |
+
+### Audit Summary
+- **Total items:** 4 requirements, 17 ACs, 3 test groups, 4 file groups
+- **Done:** all but AC-16 (N-A)
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** `ppp.go` placement; D-9 to D-12 (Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Every group A, B and D test reports PASS under `go test -v` as an unprivileged user on Linux | functional run as uid 1000 | batch logs per phase; AC-8's three kernel-option tests PASS on 7.2.9-ze as uid 1000 (`job-ac8-pol-6c64859e.log`, `job-ac8-ft-9f1a236c.log`) |
+| The only privilege skips left are group C's | grep | AC-9 grep: group C, the Reclassified eight with their reasons, and the root-skip in `rpf_linux_test.go` |
+| Named namespaces never reach the host | unit test against the kernel | `TestEnterGivesAPrivateNetnsDirectory` compares the child's `/run/netns` device with the parent's |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| `CONFIG_NF_TABLES_NETDEV` for the VLAN QoS lab tests (journal row in `plan/journal/unwired-feature.md`) | kernel config, not a namespace conversion | `plan/release/validation/spec-kernel-capability-gate.md` |
+| Ze loading kernel modules on vendor kernels | product feature, outside this tooling spec | `plan/release/delivery/spec-ze-loads-kernel-modules-on-vendor-kernels.md` |
+| A patched-kernel proof for the RFC 792 kernel-producer rows | separate proof route (D-12) | `plan/post-release/kernel/spec-rfc-kernel-patch-discrimination-route.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/privileged-tests-run-in-a-user-namespace-105ec564-b63f-4d37-8f4c-87229450eb11.md` |
+| `./le spec review check` | clean |
+| Rounds | 1 |
+| Reviewer lenses used | wiring and placement of `Enter` (all 147 files), `Enter` startup and mount logic, `ppp-access` privileged steps, RFC record freshness, citers |
+
+Run 1 (2026-10-30, session e06e1b98 closure): 0 BLOCKER, 0 ISSUE.
+- Pre-checks: `./le repo check` 5 issues, none in this spec's files (flow-export draft anchors, three unwired exports in reactor, policy, le/rfc). `./le test weakened check base origin/main`: two findings, both `internal/le/rfc/featuredeclined_section_test.go` from 2c1251e292 (`Spec-work: rfc-figures-sectioned-presentation`), not this spec's.
+- Placement: every `userns.Enter` call is the first statement of a `func TestX(t *testing.T)` (382); the other matches are 93 comment lines and one error string in `counterSendFrames`; no file that calls it uses `t.Parallel`.
+- `Enter`: every process error fails (`childFailure`); a child that matched no test fails (`childRanNothing`); `childSetup` fails, never skips, a mount error. NOTE: a child test that fails exits 1, so the parent's message carries the conditional `./le setup install` hint beside the child's own FAIL output; D-9 accepted that wording.
+- `ppp-access`: every step runs as an argv through `runPrivileged`, no shell; the printed `printf | sudo tee` line is display only. R-6 holds.
+- The other code under this spec's `Spec-work` (42 files the commit gate names), read as they stand: `joinSolicitedNode`, `leaveSolicitedNode`, `syncReceiveFilter` (`internal/plugins/vrrp/solicitednode_linux.go`, 0dc36bd960) open the new membership before closing the old, hold no receive queue (protocol-0 packet socket), stop the walk at a peer, a visited index or depth 8, and refuse a lower device in another namespace (`NetNsID` defaults to -1 in the vendored netlink); `doInstallVIPs` joins before `installVIPs`, `doRemoveVIPs` leaves after `removeVIPs`, and the function quotes RFC 9568 Section 6.4.2. `escapeCheck.kernel` (`internal/le/rfc/discriminate_escape_kernel.go`, 54fb01a2e6) refuses a carrier that builds off Linux and every imported Ze package without a named exclusion. `cachedKernelRelease` (`internal/le/setup/docker/kernel/dockerkernel.go`, eea3494bdc) refuses a cached release that is not the pinned one, and the module copy no longer keeps the builder's ownership. `kernelfeature.Read` (`internal/test/kernelfeature/kernelfeature.go`, 323bb6fd26) is test-only. NOTE: `solicitednode_other.go` answers nil off Linux, as `dataplane_other.go` does, where no VRRP dataplane exists.
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| - | - | none | - | - |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/test/userns/userns_linux_test.go`, `userns_other.go`, `userns_other_test.go` | Yes | `go test ./internal/test/userns/` ok on darwin; `GOOS=linux go vet ./internal/test/userns/` clean |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-7, AC-12..AC-15 | darwin build and setup tests | `job-unit-pkg-close-b4a900ae.log`: `ok internal/test/userns`, `ok internal/le/setup`, `ok internal/component/traceroute/cmd` |
+| AC-8 | three kernel-option tests | Linux host 7.2.9-ze, uid 1000: `--- PASS` for `TestNetlinkIntegration_IngressPolicerReachesTheKernel`, `TestNetlinkIntegration_IngressPolicerLeavesOtherHookOwnersAlone`, `TestApplyAcceptsAFlowOffloadToATableFlowtable`; `/proc/config.gz` has all five options `=y` |
+| AC-9 | grep | matches only `config/storage/open_test.go`, `pkg/zefs/check_tree_unix_test.go`, `udp_df_integration_linux_test.go` (2), `mplsmtu_integration_linux_test.go`, `rfc8955_selected_integration_linux_test.go`, `trafficusage/attach_integration_linux_test.go` (2), `rpf_linux_test.go` |
+| AC-10 | build tags | of 147 files calling `Enter`: 133 `linux`, 12 `integration && linux`, 2 untagged |
+| AC-11 | records fresh | `./le rfc check` (`job-rfc-check-close3-f2bb299a.log`) names no file that calls `userns.Enter`. Stale lines left are not this spec's: RFC5798-7.2-1 and RFC9568-7.2-5 (`openV6`, changed in 0b9e085901 and 7682a5dc93), RFC2131-4.1-12 (`replyDestination`, ba4f1bc60a), rfc4301/rfc3948 (`installChildSA`, 5935713168), and the stems this spec never touched; none of those commits carries this spec's `Spec-work` |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `go test` of a top-level test | none: developer tooling, `go test` is the entry | `TestEnterGivesAPrivateNetnsDirectory` |
+| `go test` of a group B test | none | `TestNetlinkIntegration_AddRoute` calls `Enter` first (`fib/kernel/integration_linux_test.go`) |
+| `go test` of a group D test | none | `TestPADTRetainsUnitUntilOwnerCleanup`, P9 log |
+| `./le setup check` | none | `visitPpp`, `TestPppTellsApartUsablePendingAndNotGranted` |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `TestEnterGivesAPrivateNetnsDirectory` |
+| A-2 | confirmed | the same test's device comparison |
+| A-3 | confirmed | P9 (8cf23c5998) |
+| A-4 | confirmed | P9 logs; Risks row A-4 |
+| A-5 | broken | eight tests reclassified (Mistake Log, Deviations) |
+| A-6 | confirmed out of scope | owner rule: a test that needs a kernel feature runs on Ze's kernel (`ai/META-DECISIONS.md`, "Test systems and labs"), so a module missing on the hosted runner's stock kernel is a guest-system red under R-2, and the hosted run itself is the push's `verify` (5c3bed867c). The last hosted run (cc21d6fd18) stopped at the apt step, which 0616129c22 fixes, before any test |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `qemu-integration.md` private `/run/netns` (lines 865 to 868) | `childSetup`, `mountNetnsDir` | Yes |
+| `testing.md` `Enter` first (line 119) | `Enter` doc comment | Yes |
+| `ci-workflows.md` userns tunable (line 40) | `.github/workflows/verify.yml` | Yes |
+| `developer-setup.md` `ppp-access` | `visitPpp` | Yes |
+| `./le doc check all` | exit 1 with two drift issues, neither in a page this spec changed: `docs/DESIGN.md` lacks the `policy` plugin row, and `../wiki/command-catalog.md` disagrees with the live catalog (scratch `job-doc-check-close-506ada98.log` of session 105ec564) | Yes |
 
 ## Checklist
 

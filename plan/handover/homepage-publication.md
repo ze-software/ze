@@ -11,7 +11,7 @@
 - Done: the repository snapshot captured at 2026-10-28T23:18:39Z was committed through immutable per-file hunk selections. The final groups are `a0589dd1d1` (104 protocol/source-policy files), `d8427e4380` (76 namespace-carrier files), and `5d752735a0` (the pre-existing deletion of `todo`). Earlier logical preservation commits precede them. These commits preserve other sessions' unfinished work and do not certify those implementations.
 - In progress: other sessions continued editing after that snapshot. Their later edits remain in the shared working tree; do not discard them or treat them as an incomplete homepage change.
 - Remaining: the main-branch push. The native push command refused because `./le verify changed` has not passed in this checkout and no commit is covered by its scoped record. No main push script was produced or run.
-- Not done here: the ongoing BGP policy work belongs to `plan/release/fixes/spec-bgp-rfc8212-ebgp-default-reject.md`; the kernel-carrier conversion and its outstanding runtime/discrimination work belong to `plan/release/validation/spec-privileged-tests-run-in-a-user-namespace.md`. Neither spec was closed by these preservation commits.
+- Not done here: the ongoing BGP policy work belongs to `plan/release/fixes/spec-bgp-rfc8212-ebgp-default-reject.md`; the kernel-carrier conversion and its outstanding runtime/discrimination work belonged to `spec-privileged-tests-run-in-a-user-namespace`, since closed. Neither spec was closed by these preservation commits.
 
 ## Why verification needs the owner
 

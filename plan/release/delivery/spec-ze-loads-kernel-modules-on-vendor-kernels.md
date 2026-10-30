@@ -464,7 +464,7 @@ Consequences the design carries: `CONFIG_MPLS_IP_MTU` is Ze-kernel-only (AC-20);
 
 **Defects walked into** (journal row in `plan/journal/silent-fall-through.md`, owned below): the conntrack helper load is a silent no-op on Ze's appliance and fails under the shipped unit; `nfs` and `sqlnet` name helpers Linux does not have; the helper comment claims they are built in on gokrazy.
 
-**Out of scope here, already homed.** le's own module loading for development hosts and labs: `plan/post-release/engineering/spec-lab-kernel-features-in-setup.md` and `plan/release/validation/spec-privileged-tests-run-in-a-user-namespace.md`. `le` never carries this product feature.
+**Out of scope here, already homed.** le's own module loading for development hosts and labs: `plan/post-release/engineering/spec-lab-kernel-features-in-setup.md` and `spec-privileged-tests-run-in-a-user-namespace` (closed; its `ppp-access` setup check in `internal/le/setup/ppp.go` runs `modprobe ppp_generic`). `le` never carries this product feature.
 
 ## Owned journal rows
 
