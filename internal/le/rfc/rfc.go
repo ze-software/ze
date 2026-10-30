@@ -553,11 +553,20 @@ type Annotation struct {
 	// Quote is the RFC's own sentence that removes the row from Ze's count, and
 	// two kinds carry one. On {feature-declined} it makes the feature optional;
 	// on {not-applicable} it scopes the obligation to a role. Both are held
-	// against the section the row cites in rfc/full/<stem>.txt
+	// against the section the row cites in rfc/full/<stem>.txt, or for
+	// {feature-declined} the section QuoteSection names
 	// ((*evidenceReader).gap): the kind rests on the DOCUMENT saying so, which
 	// is a fact rather than a judgement. Empty on a {not-applicable} row
 	// written before that kind carried evidence.
 	Quote string `json:"quote,omitempty"`
+	// QuoteSection is the section a {feature-declined} payload names for its
+	// Quote (`§<section> "<quote>"; <reason>`), when the RFC makes the feature
+	// optional in a section other than the one holding the conditional
+	// obligation. The Quote is then held against that section rather than the
+	// row's (featureQuoteGap). Empty means the row's own section or its
+	// subsections, and a named section that is one of those is refused as
+	// redundant. It is {feature-declined}'s alone.
+	QuoteSection string `json:"quote-section,omitempty"`
 	// BoundRole is the role the Quote binds, which the quoted sentence names
 	// and which is none of the roles the summary's Meta table declares Ze
 	// fills (parseNotApplicable, checkNotApplicableRoles). It is

@@ -146,6 +146,58 @@ func placeQuote(source *quoteSource, cited, quote string) (quotePlace, string) {
 	return quoteOutsideSection, found
 }
 
+// featureQuoteGap judges a {feature-declined} optionality quote. With no
+// section named it is held to the row's cited section (quoteGap). With one
+// named (Annotation.QuoteSection) it is held to that section the same way,
+// through placeQuote, and the named section must resolve to a heading and must
+// not be the row's own section or one of its subsections: a quote from there
+// needs no section named, so a second spelling of that case is refused.
+func featureQuoteGap(req *Requirement, source *quoteSource) (string, bool) {
+	named := req.Annotation.QuoteSection
+	if named == "" {
+		return quoteGap(req, source, "optionality quote")
+	}
+	if source == nil {
+		return quoteGap(req, source, "optionality quote")
+	}
+	var tb textbuf.Buffer
+	resolved, ok := source.resolve(named)
+	if !ok {
+		return tb.Str("its optionality quote names section ").Str(named).
+			Str(", which names no heading of the RFC, so no section holds the quote ").
+			Str(pyRepr(req.Annotation.Quote)).String(), true
+	}
+	if own, cited := source.resolve(req.Section); cited {
+		if resolved == own || strings.HasPrefix(resolved, own+".") {
+			return tb.Str("its optionality quote names section ").Str(named).
+				Str(", which is the section the row cites or one of its subsections, so naming it is redundant: drop the §").
+				Str(named).Str(", since a quote from the row's own section needs no section named").String(), true
+		}
+	}
+	place, section := placeQuote(source, named, req.Annotation.Quote)
+	switch place {
+	case quoteInSection:
+		return "", false
+	case quoteOutsideSection:
+		return tb.Str("its optionality quote ").Str(pyRepr(req.Annotation.Quote)).
+			Str(" is not in section ").Str(named).Str(", the section the annotation names: it is in section ").
+			Str(section).Str(". Quote the sentence from section ").Str(named).
+			Str(", or name section ").Str(section).String(), true
+	case quoteNotInRFC:
+		return tb.Str("its optionality quote ").Str(pyRepr(req.Annotation.Quote)).
+			Str(", named as from section ").Str(named).Str(", is in no section of ").Str(fullRel).Byte('/').
+			Str(req.RFC).Str(".txt; quote the RFC's sentence verbatim, from section ").Str(named).String(), true
+	case quoteNoText, quoteSectionUnresolved:
+		// Unreachable: the source is present and the named section resolved
+		// above. Refused rather than passed, because a guard that skips a
+		// state it cannot place is no guard.
+		return tb.Str("its optionality quote, named as from section ").Str(named).
+			Str(", could not be placed in ").Str(fullRel).Byte('/').Str(req.RFC).Str(".txt").String(), true
+	default:
+		panic("BUG: unexpected quote place")
+	}
+}
+
 // quoteGap phrases a quote that is not in the row's cited section as the
 // evidence the row lacks. False when the quote is in the section.
 func quoteGap(req *Requirement, source *quoteSource, what string) (string, bool) {
@@ -496,7 +548,8 @@ func readKernelRequire(path, rel string, required map[string]bool) string {
 // 2026-10-29): for {not-applicable} a role-condition quote from the cited
 // section and the specific role it binds, which checkNotApplicableRoles holds
 // against the roles the summary's Meta table declares Ze fills, for {feature-declined}
-// its optionality quote within the cited section, for {lower-layer} a layer
+// its optionality quote within the cited section or the section its payload
+// names (featureQuoteGap), for {lower-layer} a layer
 // path a reader can check beside the producer checkLowerLayerProducer already
 // holds.
 func (reader *evidenceReader) gap(req *Requirement) (string, bool) {
@@ -517,7 +570,7 @@ func (reader *evidenceReader) gap(req *Requirement) (string, bool) {
 		}
 		return reader.roleQuoteGap(req)
 	case AnnotationFeatureDeclined:
-		return quoteGap(req, loadQuoteSource(reader.sources, reader.tree, req.RFC), "optionality quote")
+		return featureQuoteGap(req, loadQuoteSource(reader.sources, reader.tree, req.RFC))
 	case AnnotationLowerLayer:
 		return reader.layerPathGap(req.Annotation.LayerPath)
 	default:

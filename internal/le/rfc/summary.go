@@ -431,7 +431,14 @@ var featureDeclinedRE = regexp.MustCompile(`^"([^"]+)"\s*;\s*(\S.*)$`)
 
 // featureDeclinedFormat is the one format sentence every {feature-declined}
 // refusal ends with, so an author reading any of them is shown the same shape.
-const featureDeclinedFormat = `Format: {feature-declined: "<the RFC's own sentence making the feature optional>"; <path>.go::<Symbol> does <the narrower thing ze chose>}`
+const featureDeclinedFormat = `Format: {feature-declined: "<the RFC's own sentence making the feature optional>"; <path>.go::<Symbol> does <the narrower thing ze chose>}, or {feature-declined: §<section> "<that sentence>"; ...} when the sentence is in another section than the row's`
+
+// featureSectionRE reads the section a {feature-declined} payload may name for
+// its quote, `§<section>` and a blank, ahead of the quote. The section is a
+// token holding neither a blank nor a quotation mark, so `§ "..."` and
+// `§3"..."` leave the payload unmatched and featureDeclinedRE refuses it with
+// the format.
+var featureSectionRE = regexp.MustCompile(`^§([^\s"]+)\s+`)
 
 // minFeatureQuote is the shortest quoted span that identifies a sentence.
 //
@@ -441,8 +448,9 @@ const featureDeclinedFormat = `Format: {feature-declined: "<the RFC's own senten
 // about.
 const minFeatureQuote = minCorrectionQuote
 
-// parseFeatureDeclined reads `{feature-declined: "<quote>"; why}` and demands
-// both facts the kind rests on.
+// parseFeatureDeclined reads `{feature-declined: "<quote>"; why}`, or
+// `{feature-declined: §<section> "<quote>"; why}` naming the section the quote
+// comes from, and demands both facts the kind rests on.
 //
 // The QUOTE is the RFC's own sentence that makes the feature optional or
 // conditional, and checkFeatureDeclined finds it in rfc/full/<stem>.txt. The
@@ -453,7 +461,11 @@ const minFeatureQuote = minCorrectionQuote
 // of 915 judgements no reader can check (owner ruling, 2026-08-31).
 func parseFeatureDeclined(rest, where string) (*Annotation, error) {
 	var tb textbuf.Buffer
-	parts := featureDeclinedRE.FindStringSubmatch(rest)
+	body, section := rest, ""
+	if named := featureSectionRE.FindStringSubmatch(rest); named != nil {
+		body, section = rest[len(named[0]):], named[1]
+	}
+	parts := featureDeclinedRE.FindStringSubmatch(body)
 	if parts == nil {
 		return nil, parseErr(tb.Str(where).
 			Str(": {feature-declined} needs the RFC's own sentence in double quotes, then a reason. ").
@@ -486,8 +498,8 @@ func parseFeatureDeclined(rest, where string) (*Annotation, error) {
 	// Reason keeps the WHOLE body, quote included, for the same reason
 	// {lower-layer} does: every renderer that prints `{kind} reason` publishes
 	// both facts with no knowledge of this kind.
-	return &Annotation{Kind: AnnotationFeatureDeclined, Quote: quote, Producer: producer,
-		Reason: strings.TrimSpace(rest)}, nil
+	return &Annotation{Kind: AnnotationFeatureDeclined, Quote: quote, QuoteSection: section,
+		Producer: producer, Reason: strings.TrimSpace(rest)}, nil
 }
 
 // rollupFormat is the one format sentence every {rollup} refusal ends with, so
