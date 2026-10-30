@@ -2,10 +2,10 @@
   "note": "Forbidden: keeping the session after a fatal Error Report. TestRTRFatalErrorReportDropsTheSession drives codes 0,1,3,5,6,7,8 over TCP: each fails syncOnce and the cache's Read returns io.EOF (red if the router keeps reading). Negative: a fatal code 0 followed by a full load on the same connection publishes nothing (VRP NotFound, Synced false), red for a router that logs and continues. Code 4 is dispatched by handlePDU's downgrade branch, which also closes the transport; its EOF is asserted under TestRTRUnknownVersionErrorReportIsNotAnswered (code 4) and the downgrade tests, not in this unit.",
   "requirement_sha": "d8dc4e038ef44ea3",
   "tests": {
-    "internal/component/bgp/plugins/rpki/rtr_pdu_test.go::TestIsFatalError": "c5beca1060fa5391",
-    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRFatalErrorReportDropsTheSession": "f4affe67e61b8df8",
-    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRFatalErrorReportDropsTheSession#2": "f4affe67e61b8df8",
-    "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestHandlePDUVersionDowngrade": "9de8363060757013"
+    "internal/component/bgp/plugins/rpki/rtr_pdu_test.go::TestIsFatalError": "c2034632b78db26e",
+    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRFatalErrorReportDropsTheSession": "4e10ae83c412be49",
+    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRFatalErrorReportDropsTheSession#2": "4e10ae83c412be49",
+    "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestHandlePDUVersionDowngrade": "31df11c2e8885c70"
   },
   "units": {
     "internal/component/bgp/plugins/rpki/rtr_pdu_test.go::TestIsFatalError": "2e5f67639117e4d9",

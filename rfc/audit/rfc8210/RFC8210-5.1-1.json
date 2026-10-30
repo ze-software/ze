@@ -2,9 +2,9 @@
   "note": "Forbidden on receipt: letting reserved Flags bits affect acceptance or the announce/withdraw decision. TestParsePrefixPDUFlagsHighBitsIgnored (rtr_pdu_test.go) asserts 0xFF is accepted (require.NoError) and read as announce, and 0xFE is accepted and read as withdraw (assert.False announce), so a parser that validated or read the high bits goes red; negative TestReservedPrefixFieldsPreserveValidation repeats the withdrawal case through handlePDU for IPv4 and IPv6. Transmit clause: Ze writes only Reset Query, Serial Query and Error Report PDUs (rtr_pdu.go), none of which carries a Flags field, so there is no producer that could violate it.",
   "requirement_sha": "ab7941f1a8ec6c11",
   "tests": {
-    "internal/component/bgp/plugins/rpki/rtr_pdu_reserved_test.go::TestReservedPrefixFieldsPreserveValidation": "d7a1a5261ccc5a89",
-    "internal/component/bgp/plugins/rpki/rtr_pdu_test.go::TestParsePrefixPDUFlagsHighBitsIgnored": "c5beca1060fa5391",
-    "internal/component/bgp/plugins/rpki/rtr_pdu_test.go::TestParsePrefixPDUFlagsHighBitsIgnored#2": "c5beca1060fa5391"
+    "internal/component/bgp/plugins/rpki/rtr_pdu_reserved_test.go::TestReservedPrefixFieldsPreserveValidation": "6b6c9def9d15289a",
+    "internal/component/bgp/plugins/rpki/rtr_pdu_test.go::TestParsePrefixPDUFlagsHighBitsIgnored": "c2034632b78db26e",
+    "internal/component/bgp/plugins/rpki/rtr_pdu_test.go::TestParsePrefixPDUFlagsHighBitsIgnored#2": "c2034632b78db26e"
   },
   "units": {
     "internal/component/bgp/plugins/rpki/rtr_pdu_reserved_test.go::TestReservedPrefixFieldsPreserveValidation": "72798b2cc2c5cc7d",

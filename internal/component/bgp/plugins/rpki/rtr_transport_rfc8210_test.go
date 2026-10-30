@@ -23,7 +23,6 @@ import (
 func TestRTRUnprotectedTCPFromConfig(t *testing.T) {
 	t.Run("a trusted-network cache is served over plain TCP", func(t *testing.T) {
 		// RFC requirement: RFC8210-9-1 positive -- a cache-server declared trusted-network with no port parses to rpki-rtr port 323, and the session the plugin starts from that entry speaks RTR over plain TCP: the cache reads a clear-text version 2 Reset Query and the plugin syncs.
-		// RFC requirement: RFC6810-7-1 positive -- the same config-driven session implements the unprotected TCP transport, with rpki-rtr port 323 as the parsed default.
 		// RFC requirement: RFC8210-3-1 positive -- the unprotected TCP session starts toward a cache the operator declared trusted-network, the trusted channel that transport relies on, and the data it supplies is used.
 		cfg, err := parseRPKIConfig(`{"rpki":{"cache-server":{"127.0.0.1":{"trusted-network":"true"}}}}`)
 		require.NoError(t, err)

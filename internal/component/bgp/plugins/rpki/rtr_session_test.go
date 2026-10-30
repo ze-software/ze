@@ -287,7 +287,7 @@ func TestRTRUnknownNegotiationVersion(t *testing.T) {
 // TestCacheResetTriggersResetQuery verifies a Cache Reset PDU puts the session back into full-reset
 // mode.
 //
-// VALIDATES: RFC 6810 Section 6.3 -- on Cache Reset (the cache cannot serve the requested
+// VALIDATES: RFC 8210 Section 8.3 -- on Cache Reset (the cache cannot serve the requested
 // incremental) the router issues a Reset Query. handlePDU clears the serial to 0, which is exactly
 // the condition connectAndSync uses to send a Reset Query on the next connection.
 // PREVENTS: A Cache Reset being ignored, leaving the router stuck sending Serial Queries the cache
@@ -299,8 +299,6 @@ func TestCacheResetTriggersResetQuery(t *testing.T) {
 	}
 
 	t.Run("cache reset clears serial for a reset query", func(t *testing.T) {
-		// RFC requirement: RFC6810-6.3-1 positive -- a Cache Reset PDU ends the current sync and
-		// clears the serial to 0, so the next connectAndSync sends a Reset Query.
 		// RFC requirement: RFC8210-8.3-1 positive -- on one session, outside any cache group, a Cache
 		// Reset ends the sync with errRtrCacheResetReceivedWillDo and clears the serial to 0, the state
 		// in which the session's next query is a Reset Query.
@@ -315,8 +313,6 @@ func TestCacheResetTriggersResetQuery(t *testing.T) {
 	})
 
 	t.Run("serial notify does not force a reset query", func(t *testing.T) {
-		// RFC requirement: RFC6810-6.3-1 negative -- an ordinary Serial Notify does NOT clear the
-		// serial, so the reset-query fallback is specific to Cache Reset, not to any received PDU.
 		// RFC requirement: RFC8210-8.3-1 negative -- a PDU that is not a Cache Reset leaves the serial
 		// intact, so the full reload is triggered only by the Cache Reset the RFC names and never by an
 		// arbitrary cache-to-router PDU.

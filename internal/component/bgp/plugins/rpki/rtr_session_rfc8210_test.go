@@ -322,7 +322,6 @@ func TestRTRCacheResetReloadsTheWholeSet(t *testing.T) {
 
 	t.Run("cache reset with no more-preferred cache", func(t *testing.T) {
 		// RFC requirement: RFC8210-8.3-1 positive -- with one configured cache, so none is more preferred, a Cache Reset in answer to the Serial Query makes the next query on the wire a Reset Query, and its load replaces the old set: the earlier VRP stops validating and the new one validates.
-		// RFC requirement: RFC6810-6.3-1 positive -- the same exchange: after the Cache Reset the router issues a Reset Query and takes an entire new load in place of the old set.
 		port, queries := scriptRTRCache(t, first, cacheResetPDU(0), later)
 		roas := newROACache()
 		startCacheGroup(t, port, roas)
@@ -335,7 +334,6 @@ func TestRTRCacheResetReloadsTheWholeSet(t *testing.T) {
 
 	t.Run("a serial query answered with data", func(t *testing.T) {
 		// RFC requirement: RFC8210-8.3-1 negative -- when the cache answers the Serial Query with data instead of Cache Reset, the router keeps querying by serial and merges the delta into the set it holds, so the Reset Query and the replacement follow only a Cache Reset.
-		// RFC requirement: RFC6810-6.3-1 negative -- likewise, without a Cache Reset no Reset Query is issued and the held set is kept.
 		port, queries := scriptRTRCache(t, first, later)
 		roas := newROACache()
 		startCacheGroup(t, port, roas)
@@ -469,7 +467,6 @@ func TestRTRResetQueryWithoutFastResyncData(t *testing.T) {
 func TestRTRReservedOctetsIgnoredOnReceipt(t *testing.T) {
 	t.Run("a Cache Reset with reserved octets set", func(t *testing.T) {
 		// RFC requirement: RFC8210-5-1 positive -- a Cache Reset whose reserved octets 2-3 are 0xFFFF is still a Cache Reset: the sync ends with the reset and the serial is cleared for a Reset Query.
-		// RFC requirement: RFC6810-5.1-3 positive -- the same Cache Reset, whose field of unspecified content is all ones, is acted on as a Cache Reset.
 		port, queries := scriptRTRCache(t, cacheResetPDU(0xFFFF))
 		s := newTestRTRSession(t, "127.0.0.1", port, 100, "", newROACache(), newASPACache(), make(chan struct{}))
 		s.serial = 42
@@ -479,7 +476,6 @@ func TestRTRReservedOctetsIgnoredOnReceipt(t *testing.T) {
 	})
 
 	t.Run("an IPv6 Prefix with reserved fields set", func(t *testing.T) {
-		// RFC requirement: RFC6810-5.1-3 positive -- an IPv6 Prefix PDU whose header zero field, reserved flag bits and zero octet are all ones still authorizes its route.
 		roas := newROACache()
 		s := newTestRTRSession(t, "127.0.0.1", 3323, 100, "", roas, newASPACache(), make(chan struct{}))
 		prefix := []byte{rtrVersionMax, pduIPv6Prefix, 0xFF, 0xFF, 0, 0, 0, 32, 0xFF, 32, 48, 0xFF,
@@ -492,7 +488,6 @@ func TestRTRReservedOctetsIgnoredOnReceipt(t *testing.T) {
 
 	t.Run("octets 2-3 of a Cache Response are its Session ID", func(t *testing.T) {
 		// RFC requirement: RFC8210-5-1 negative -- only reserved fields are ignored: the same 0xFFFF in octets 2-3 of a Cache Response is its Session ID, and the router adopts it.
-		// RFC requirement: RFC6810-5.1-3 negative -- a field of specified content in the same position is read, not ignored.
 		s := newTestRTRSession(t, "127.0.0.1", 3323, 100, "", newROACache(), newASPACache(), make(chan struct{}))
 		response := cacheResponsePDU()
 		binary.BigEndian.PutUint16(response[2:4], 0xFFFF)
@@ -503,13 +498,12 @@ func TestRTRReservedOctetsIgnoredOnReceipt(t *testing.T) {
 
 // TestRTRPollsAtLeastHourly checks the poll cadence a router keeps when its cache sends no timing.
 //
-// VALIDATES: RFC 6810 Section 6.1, "a router MUST send either a Serial Query or a Reset Query no
-// less frequently than once an hour": an End of Data with no intervals leaves both waits at or
-// under one hour, and the group does query again once the wait ends.
+// VALIDATES: in a version 1 session, an End of Data whose interval fields are zero leaves the wait
+// after a sync and the wait after a failed query at or under one hour, and the group does query
+// again once the wait ends.
 // PREVENTS: a poll loop that stops after the first sync, or a default wait above one hour.
 func TestRTRPollsAtLeastHourly(t *testing.T) {
 	t.Run("an End of Data without intervals keeps the hourly wait", func(t *testing.T) {
-		// RFC requirement: RFC6810-6.1-1 positive -- after an End of Data whose interval fields are zero, as a version 0 cache sends none, the wait after a sync and the wait after a failed query are both at most one hour.
 		s := newTestRTRSession(t, "127.0.0.1", 3323, 100, "", newROACache(), newASPACache(), make(chan struct{}))
 		applyPDU(t, s, cacheResponsePDU(), false)
 		applyPDU(t, s, endOfDataTimed(5, 0, 0), true)
@@ -518,7 +512,6 @@ func TestRTRPollsAtLeastHourly(t *testing.T) {
 	})
 
 	t.Run("the group queries again when the wait ends", func(t *testing.T) {
-		// RFC requirement: RFC6810-6.1-1 positive -- the running cache group sends its next query when the wait after a sync ends: with a one-second wait the cache sees a Reset Query and then a Serial Query.
 		sync := slices.Concat(cacheResponsePDU(), endOfDataTimed(5, 1, 1))
 		port, queries := scriptRTRCache(t, sync, sync)
 		startCacheGroup(t, port, newROACache())

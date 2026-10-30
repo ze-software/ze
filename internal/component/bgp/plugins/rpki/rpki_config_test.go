@@ -85,8 +85,6 @@ func TestParseRPKIConfigDefaults(t *testing.T) {
 
 	cs := cfg.CacheServers[0]
 	assert.Equal(t, "10.0.0.1", cs.Address)
-	// RFC requirement: RFC6810-7-1 positive -- a trusted-network TCP cache with no explicit
-	// port defaults to rpki-rtr port 323, the mandatory-to-implement RTR transport.
 	// RFC requirement: RFC8210-9-1 positive -- RFC 8210 Section 9 keeps port 323 unprotected
 	// TCP as the mandatory-to-implement transport, selected here by explicit network trust.
 	assert.Equal(t, uint16(323), cs.Port)             // RTR default

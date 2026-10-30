@@ -1,3 +1,4 @@
+// RFC naming: untagged -- these tests run RTR version 1 sessions, so they prove shared router behavior that RFC 8210 rows already carry; ze speaks no RTR version 0, and every RFC 6810 row they once carried is a gap (owner ruling 2026-10-30).
 package rpki
 
 import (
@@ -15,12 +16,11 @@ import (
 // TestRFC6810DefaultPollCadenceIsHourly checks the cadence a session uses
 // before any cache has supplied timing parameters.
 //
-// VALIDATES: RFC 6810 Section 6.1 -- the router sends a Serial Query or a Reset
-// Query no less frequently than once an hour. Both waits that Run takes between
-// queries start at or below one hour.
+// VALIDATES: before any End of Data has set intervals, both waits a version 1
+// session takes between queries (after a sync and after a failed query) start at
+// or below one hour.
 // PREVENTS: a default that lets an idle router go quiet for more than an hour.
 func TestRFC6810DefaultPollCadenceIsHourly(t *testing.T) {
-	// RFC requirement: RFC6810-6.1-1 positive -- a fresh session waits at most one hour after a completed sync and at most one hour after a failed query.
 	s := newTestRTRSession(t, "192.0.2.1", 3323, 100, "", newROACache(), newASPACache(), make(chan struct{}))
 
 	assert.LessOrEqual(t, s.pollDelay(true), time.Hour, "the refresh wait exceeds one hour")
@@ -30,12 +30,11 @@ func TestRFC6810DefaultPollCadenceIsHourly(t *testing.T) {
 // TestRFC6810ReservedPrefixOctetsIgnored drives a Prefix PDU whose reserved
 // octets are all ones through the session into the cache used for validation.
 //
-// VALIDATES: RFC 6810 Section 5.1 -- "The value of such a field MUST be ignored
-// on receipt." The Prefix PDU layout is shared by v0 and v1.
+// VALIDATES: in a version 1 session, a Prefix PDU whose header zero field,
+// reserved flag bits and zero octet are all ones still authorizes its route, and
+// the same PDU with only the announce bit cleared withdraws it.
 // PREVENTS: a receiver that rejects or misreads a PDU because of reserved bits.
 func TestRFC6810ReservedPrefixOctetsIgnored(t *testing.T) {
-	// RFC requirement: RFC6810-5.1-3 positive -- a Prefix PDU whose header zero field, reserved flag bits and zero octet are all ones still authorizes its route.
-	// RFC requirement: RFC6810-5.1-3 negative -- the same PDU with only the announce bit cleared is not ignored: it withdraws the authorization.
 	cache := newROACache()
 	s := newTestRTRSession(t, "127.0.0.1", 3323, 100, "", cache, newASPACache(), make(chan struct{}))
 	s.version = rtrVersionMin
@@ -62,14 +61,12 @@ func TestRFC6810ReservedPrefixOctetsIgnored(t *testing.T) {
 // TestRFC6810NoDataAvailableRepeatsResetQuery runs one cache that answers
 // twice with No Data Available and then supplies a load.
 //
-// VALIDATES: RFC 6810 Section 6.4 -- "If no other caches are available, the
-// router MUST issue periodic Reset Queries until it gets a new usable load from
-// the cache."
+// VALIDATES: in version 1 sessions with one cache that reports No Data
+// Available, the router sends a Reset Query on each of three consecutive polls,
+// and once that cache supplies a usable load the next query is a Serial Query.
 // PREVENTS: a router that gives up after No Data Available, or one that keeps
 // resetting after the usable load arrived.
 func TestRFC6810NoDataAvailableRepeatsResetQuery(t *testing.T) {
-	// RFC requirement: RFC6810-6.4-1 positive -- with one cache that reports No Data Available, the router sends a Reset Query on each of three consecutive polls.
-	// RFC requirement: RFC6810-6.4-1 negative -- once that cache supplies a usable load, the next query is a Serial Query, not another Reset Query.
 	queries := make(chan uint8, 4)
 	attempt := 0
 	port, _ := serveRTR(t, func(conn net.Conn) {

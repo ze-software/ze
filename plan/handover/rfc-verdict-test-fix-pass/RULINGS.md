@@ -382,3 +382,11 @@ therefore remains the implementation and evidence owner for the overlapping
 BGP producers above. The verification session keeps its separate enum,
 message-length, AS_PATH, tooling and test-health repairs. Delivery of this
 boundary to that session is not yet confirmed.
+
+## OWNER RULING 2026-10-30 (Thomas): RTR protocol version 0 is owed work
+
+RTR protocol version 0 (RFC 6810) is owed work. Ze speaks only versions 1 and
+2 (RFC 8210), so every RFC 6810 row that is met only through version-1 tests
+is a {gap}. Cite it as `owner ruling 2026-10-30`, in the row's {gap}
+annotation and in the `./le rfc approve` reason for every unit that loses an
+RFC6810 tag.

@@ -2,7 +2,7 @@
   "note": "Forbidden: a nonzero Length of Error Text on a report carrying no diagnostic text. TestASPAProviderListErrorOnWire reads the transmitted Error Report and asserts the uint32 after the encapsulated PDU is 0 (assert.Equal uint32(0)). Row carries {single-polarity: positive}: writeErrorReport takes no text, so no input produces a report with text to contrast.",
   "requirement_sha": "56bfe768964079f7",
   "tests": {
-    "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestASPAProviderListErrorOnWire": "9de8363060757013"
+    "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestASPAProviderListErrorOnWire": "31df11c2e8885c70"
   },
   "units": {
     "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestASPAProviderListErrorOnWire": "d36b3d3dab633423"

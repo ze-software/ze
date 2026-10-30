@@ -2,8 +2,8 @@
   "note": "TestRTRRetriesAtTheDefaultRetryIntervalBeforeAnySuccess: a cacheGroup whose only cache refuses every connection returns 600s (rtrIntervalRetryDefault) from poll; negative: after one successful sync whose EOD sets Retry 30, a failed poll waits 30s, so the default governs only before the first success. Run repeats poll, which is the periodic retry.",
   "requirement_sha": "6551cca3bf2d226a",
   "tests": {
-    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRRetriesAtTheDefaultRetryIntervalBeforeAnySuccess": "f4affe67e61b8df8",
-    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRRetriesAtTheDefaultRetryIntervalBeforeAnySuccess#2": "f4affe67e61b8df8"
+    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRRetriesAtTheDefaultRetryIntervalBeforeAnySuccess": "4e10ae83c412be49",
+    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRRetriesAtTheDefaultRetryIntervalBeforeAnySuccess#2": "4e10ae83c412be49"
   },
   "units": {
     "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRRetriesAtTheDefaultRetryIntervalBeforeAnySuccess": "a2aacfe791e1720b",

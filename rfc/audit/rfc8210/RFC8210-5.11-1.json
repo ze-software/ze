@@ -2,8 +2,8 @@
   "note": "Forbidden: answering an Error Report with an Error Report. TestRTRErrorReportIsNotAnswered writes an Error Report with version 99 (which would otherwise draw Unsupported Protocol Version) into readLoop and asserts the cache side's one-byte io.ReadFull ends in io.EOF, so any reply byte goes red. Negative TestASPAProviderListErrorOnWire: a malformed ASPA PDU does draw an Error Report (report[1] == pduErrorRpt, code 9, the encapsulated PDU echoed), so a router that never sent Error Reports goes red.",
   "requirement_sha": "99375afb02930375",
   "tests": {
-    "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestASPAProviderListErrorOnWire": "9de8363060757013",
-    "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestRTRErrorReportIsNotAnswered": "9de8363060757013"
+    "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestASPAProviderListErrorOnWire": "31df11c2e8885c70",
+    "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestRTRErrorReportIsNotAnswered": "31df11c2e8885c70"
   },
   "units": {
     "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestASPAProviderListErrorOnWire": "d36b3d3dab633423",

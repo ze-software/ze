@@ -137,7 +137,7 @@ func TestROACacheFindCoveringIPv6(t *testing.T) {
 // TestValidationDoesNotDistinguishCacheSource verifies that origin validation is driven purely by
 // VRP content, never by which cache session supplied a VRP.
 //
-// VALIDATES: RFC 6810 Section 8 -- when VRPs from multiple caches are held together, validation must
+// VALIDATES: RFC 8210 Section 10 -- when VRPs from multiple caches are held together, validation must
 // not distinguish between their sources. ze holds a single merged ROACache (no per-source field), so
 // ApplyDelta calls standing in for two distinct caches contribute VRPs that validate identically.
 // PREVENTS: A per-source code path leaking into validation and making a route's state depend on which
@@ -149,16 +149,11 @@ func TestValidationDoesNotDistinguishCacheSource(t *testing.T) {
 	c.ApplyDelta(nil, []VRP{makeVRP("10.0.0.0/8", 24, 65001)})     // "cache A"
 	c.ApplyDelta(nil, []VRP{makeVRP("192.168.0.0/16", 24, 65002)}) // "cache B"
 
-	// RFC requirement: RFC6810-8-2 positive -- a route covered by either source's VRP is Valid; the
-	// verdict comes from the merged cache content, with no source discriminator consulted.
 	// RFC requirement: RFC8210-10-1 positive -- RFC 8210 Section 10 restates the rule for v1: data from
 	// multiple caches is not distinguished when performing BGP validation.
 	assert.Equal(t, ValidationValid, c.Validate("10.0.0.0/8", 65001), "cache A's VRP validates its origin")
 	assert.Equal(t, ValidationValid, c.Validate("192.168.0.0/16", 65002), "cache B's VRP validates its origin")
 
-	// RFC requirement: RFC6810-8-2 negative -- a route whose origin AS does not match the covering
-	// VRP is Invalid regardless of source: the state is determined by VRP content, not by which cache
-	// supplied it. A source-aware path could not produce this content-only verdict.
 	// RFC requirement: RFC8210-10-1 negative -- an origin that matches no covering VRP is Invalid no
 	// matter which cache contributed the covering VRP, so no source-dependent verdict exists.
 	assert.Equal(t, ValidationInvalid, c.Validate("10.0.0.0/8", 65099), "origin mismatch is Invalid on content alone")

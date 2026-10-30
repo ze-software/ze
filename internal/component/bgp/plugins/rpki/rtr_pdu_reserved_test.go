@@ -49,9 +49,6 @@ func dirtyBuf(size int) []byte {
 // `buf[off+3] = 0` from writeResetQuery leaves that test green; it turns this one
 // red (mutation-tested, 2026-08-30).
 //
-// RFC requirement: RFC6810-5-1 positive -- the Session ID field is unspecified
-// content in a Reset Query, and writeResetQuery emits it as zero on transmission
-// over a buffer that held 0xFF, so the zero is written rather than inherited.
 // RFC requirement: RFC8210-5-1 positive -- v1 keeps the rule for reserved fields
 // marked zero in the PDU diagrams, and the same dirty-buffer write satisfies it.
 func TestWriteResetQueryZeroesReservedOverGarbage(t *testing.T) {

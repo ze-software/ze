@@ -2,9 +2,9 @@
   "note": "Forbidden: accepting an unrecognized-version PDU, terminating without a report, or answering an unknown-version Error Report. TestRTRUnknownNegotiationVersion: v99 PDU yields errRtrUnsupportedProtocol plus Error Report code 4 then EOF; v2 completes. New negative TestRTRUnknownVersionErrorReportIsNotAnswered: a v99 Error Report with code 0 and code 4 fails the sync and the cache's io.ReadFull of one byte ends in io.EOF, so any reply byte goes red (the exception clause, guarded by handlePDU's Error Report exemption and readLoop's hdr.Type != pduErrorRpt).",
   "requirement_sha": "c2e34e481c7b7121",
   "tests": {
-    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRUnknownVersionErrorReportIsNotAnswered": "f4affe67e61b8df8",
-    "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestRTRUnknownNegotiationVersion": "9de8363060757013",
-    "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestRTRUnknownNegotiationVersion#2": "9de8363060757013"
+    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRUnknownVersionErrorReportIsNotAnswered": "4e10ae83c412be49",
+    "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestRTRUnknownNegotiationVersion": "31df11c2e8885c70",
+    "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestRTRUnknownNegotiationVersion#2": "31df11c2e8885c70"
   },
   "units": {
     "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRUnknownVersionErrorReportIsNotAnswered": "58dfbd9e888614e9",

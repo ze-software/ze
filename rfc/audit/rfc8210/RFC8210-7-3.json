@@ -3,7 +3,7 @@
   "requirement_sha": "bd37b0024d009d19",
   "tests": {
     "internal/component/bgp/plugins/rpki/rfc8210_rtr_version_test.go::TestRFC8210V1CacheResponseIsNotTerminated": "ee77a712b1e28351",
-    "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestRTRUnknownNegotiationVersion": "9de8363060757013"
+    "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestRTRUnknownNegotiationVersion": "31df11c2e8885c70"
   },
   "units": {
     "internal/component/bgp/plugins/rpki/rfc8210_rtr_version_test.go::TestRFC8210V1CacheResponseIsNotTerminated": "1f8f77433dc4fae3",
