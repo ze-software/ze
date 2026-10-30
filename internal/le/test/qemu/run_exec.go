@@ -341,7 +341,8 @@ func (r *Run) assertRuntimeKernel(ctx context.Context, plan *RunPlan) (string, e
 	want := strings.TrimSpace(string(versionRaw))
 	var b textbuf.Buffer
 	// The pinned release, a longer version of it, or either with the
-	// CONFIG_LOCALVERSION suffix gokrazy/kernel/runtime.config sets (7.2.9-ze).
+	// CONFIG_LOCALVERSION suffix gokrazy/kernel/runtime.config sets
+	// (<version>-ze).
 	probe := b.Str("actual=$(uname -r); case \"$actual\" in ").Str(want).Byte('|').Str(want).
 		Str(".*|").Str(want).Str("-*) exit 0 ;; esac; echo \"the VM booted $actual, not the ").Str(want).
 		Str(" kernel ze ships -- --kernel was passed but QEMU is running another kernel, so every verdict from this run would be about a kernel no operator gets\" >&2; exit 1").String()

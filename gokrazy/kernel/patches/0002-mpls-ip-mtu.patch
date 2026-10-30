@@ -12,9 +12,9 @@ headroom exactly once. Do not advertise a clamped 1280 instead of the actual
 MPLS payload MTU. CONFIG_MPLS_IP_MTU identifies this capability to the runtime
 kernel manifest; it has no alternate datapath or disable switch.
 
-Based on Linux v7.2.9. The ip_do_fragment guard against an MTU below
-one fragment quantum (mtu < hlen + 8) is upstream in v7.2.9, so this
-patch no longer carries it.
+Based on Linux v7.3. The ip_do_fragment guard against an MTU below
+one fragment quantum (mtu < hlen + 8) is upstream since v7.2.9, so this
+patch does not carry it.
 
 --- a/net/mpls/af_mpls.c
 +++ b/net/mpls/af_mpls.c
@@ -369,7 +369,7 @@ patch no longer carries it.
 +	depends on INET
 +	depends on IPV6 || IPV6=n
  	depends on NET_IP_TUNNEL || NET_IP_TUNNEL=n
- 	depends on PROC_SYSCTL
+ 	depends on SYSCTL
  	help
  	 Add support for forwarding of mpls packets.
  

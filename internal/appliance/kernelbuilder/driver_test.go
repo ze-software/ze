@@ -219,7 +219,10 @@ func TestRunDockerRepairsOwnershipAfterFailure(t *testing.T) {
 
 func TestWriteProvenanceBytes(t *testing.T) {
 	root := t.TempDir()
-	req := Request{Root: root, Version: "7.2.9", Arch: "arm64", Profile: "hardware", Target: "runtime", Modules: "yes"}
+	// The expected bytes are literal, digest included, so this golden does not
+	// read the pin: deriving the digest from SourceDigest would check
+	// writeProvenance against the map it reads. A pin bump updates it.
+	req := Request{Root: root, Version: "7.3", Arch: "arm64", Profile: "hardware", Target: "runtime", Modules: "yes"}
 	if err := writeProvenance("out", req, "qemu"); err != nil {
 		t.Fatal(err)
 	}
@@ -227,9 +230,9 @@ func TestWriteProvenanceBytes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := "version=7.2.9\ntarget=runtime\nprofile=hardware\narch=arm64\nmodules=yes\nbuilder=qemu\n" +
-		"source-url=https://cdn.kernel.org/pub/linux/kernel/v7.x/linux-7.2.9.tar.xz\n" +
-		"source-sha256=b4c5dfbe51a364a6c7f03869200f88c8e1f77403539005f14b7fc6bc91b8d8ba\n"
+	want := "version=7.3\ntarget=runtime\nprofile=hardware\narch=arm64\nmodules=yes\nbuilder=qemu\n" +
+		"source-url=https://cdn.kernel.org/pub/linux/kernel/v7.x/linux-7.3.tar.xz\n" +
+		"source-sha256=87363c24f10e06321eb362765521094e94471f6bff8bce2d6b3e40f39f004953\n"
 	if string(data) != want {
 		t.Fatalf("provenance = %q, want %q", data, want)
 	}
@@ -241,7 +244,7 @@ func TestWriteProvenanceBytes(t *testing.T) {
 // declaration the build uses.
 func TestWriteProvenanceSourceIsTheVerifiedOne(t *testing.T) {
 	root := t.TempDir()
-	req := Request{Root: root, Version: "7.2.9", Arch: "amd64", Profile: "runtime", Target: "runtime", Modules: "yes"}
+	req := Request{Root: root, Version: pinnedKernelVersion(t), Arch: "amd64", Profile: "runtime", Target: "runtime", Modules: "yes"}
 	if err := writeProvenance("out", req, "docker"); err != nil {
 		t.Fatal(err)
 	}
@@ -251,7 +254,7 @@ func TestWriteProvenanceSourceIsTheVerifiedOne(t *testing.T) {
 	}
 	digest, tracked := SourceDigest(req.Version)
 	if !tracked {
-		t.Fatalf("7.2.9 has no tracked digest")
+		t.Fatalf("%s has no tracked digest", req.Version)
 	}
 	for _, line := range []string{"source-url=" + kernelTarballURL(req.Version) + "\n", "source-sha256=" + digest + "\n"} {
 		if !strings.Contains(string(data), line) {

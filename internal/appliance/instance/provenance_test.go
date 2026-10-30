@@ -17,13 +17,15 @@ import (
 // PREVENTS: a notice typed by hand that names a kernel or a source the image
 // does not carry.
 func TestLinuxNoticeMatchesTheBuiltKernel(t *testing.T) {
-	digest, tracked := kernelbuilder.SourceDigest("7.2.9")
+	version := pinnedKernelVersion(t)
+	digest, tracked := kernelbuilder.SourceDigest(version)
 	if !tracked {
-		t.Fatal("7.2.9 has no tracked digest")
+		t.Fatalf("%s has no tracked digest", version)
 	}
-	const sourceURL = "https://cdn.kernel.org/pub/linux/kernel/v7.x/linux-7.2.9.tar.xz"
+	major, _, _ := strings.Cut(version, ".")
+	sourceURL := "https://cdn.kernel.org/pub/linux/kernel/v" + major + ".x/linux-" + version + ".tar.xz"
 	path := filepath.Join(t.TempDir(), kernelbuilder.ProvenanceName)
-	written := "version=7.2.9\ntarget=runtime\nprofile=runtime\narch=arm64\nmodules=yes\nbuilder=docker\n" +
+	written := "version=" + version + "\ntarget=runtime\nprofile=runtime\narch=arm64\nmodules=yes\nbuilder=docker\n" +
 		"source-url=" + sourceURL + "\nsource-sha256=" + digest + "\n"
 	if err := os.WriteFile(path, []byte(written), 0o600); err != nil {
 		t.Fatal(err)
@@ -32,14 +34,14 @@ func TestLinuxNoticeMatchesTheBuiltKernel(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read the provenance the build wrote: %v", err)
 	}
-	if record.Version != "7.2.9" {
-		t.Errorf("provenance version = %q, want the built 7.2.9", record.Version)
+	if record.Version != version {
+		t.Errorf("provenance version = %q, want the built %s", record.Version, version)
 	}
 	notice := record.LinuxNotice()
 	for _, want := range []string{
 		"Linux kernel",
 		"GNU General Public License version 2",
-		"Version: 7.2.9\n",
+		"Version: " + version + "\n",
 		"Source: " + sourceURL + "\n",
 		"SHA-256: " + digest + "\n",
 		"https://github.com/ze-software/ze",
@@ -69,4 +71,17 @@ func TestReadProvenanceRefusesARecordWithoutItsSource(t *testing.T) {
 			t.Errorf("refusal %q does not name %q", err, want)
 		}
 	}
+}
+
+// pinnedKernelVersion answers the release internal/appliance/kernel.version
+// pins, the one version TestKernelVersionHasDigestPin proves has a tracked
+// digest. It reads the file because this package can neither embed a file
+// outside its directory nor import internal/appliance, which imports it.
+func pinnedKernelVersion(t *testing.T) string {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join("..", "kernel.version"))
+	if err != nil {
+		t.Fatalf("read the kernel pin: %v", err)
+	}
+	return strings.TrimSpace(string(data))
 }

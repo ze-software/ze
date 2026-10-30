@@ -42,7 +42,7 @@ var (
 //
 // PACKET_ADD_MEMBERSHIP adds the group to dev's multicast list at once, but the
 // filter update is deferred: a macvlan has ndo_change_rx_flags, so
-// __dev_set_rx_mode queues it to the netdev work queue (Linux 7.2,
+// __dev_set_rx_mode queues it to the netdev work queue (Linux 7.3,
 // net/core/dev_addr_lists.c). syncReceiveFilter runs it before this returns.
 //
 // A second call for the same owner replaces the first membership, opening the
@@ -156,7 +156,7 @@ func closeSolicitedNodeSocket(fd int) error {
 // stack. The kernel refuses to stack a device on another when the stack would
 // grow past MAX_NEST_DEV devices (`dev->lower_level + upper_dev->upper_level >
 // MAX_NEST_DEV` in __netdev_upper_dev_link, net/core/dev.c), and MAX_NEST_DEV is
-// 8 in include/linux/netdevice.h of the kernel.org stable tag v7.2.9. The
+// 8 in include/linux/netdevice.h of the kernel.org tag v7.3. The
 // macvlan and VLAN devices the walk follows register as upper devices, so the
 // deepest stack the kernel builds of them is eight devices: the walk syncs all
 // eight, and the eighth ends it, because it reports no link, its peer, or a
@@ -167,7 +167,7 @@ const receiveFilterDepthMax = 8
 // syncReceiveFilter makes the receive filters of link and of every device under
 // it current before it returns, by sending each one RTM_NEWLINK that changes
 // nothing. do_setlink ends in netif_rx_mode_sync, which runs a queued filter
-// update inline under rtnl_lock (Linux 7.2, net/core/rtnetlink.c). The walk
+// update inline under rtnl_lock (Linux 7.3, net/core/rtnetlink.c). The walk
 // goes top down, following IFLA_LINK: each device's update syncs its groups
 // onto the device below (macvlan_set_mac_lists for the macvlan,
 // vlan_dev_set_rx_mode for a VLAN), whose own update is then queued in turn, so
@@ -218,7 +218,7 @@ func syncReceiveFilter(link netlink.Link, lookup func(index int) (netlink.Link, 
 // linkIsPeer reports whether link is one end of an Ethernet device pair, whose
 // IFLA_LINK names the other end rather than a device under it: veth_get_iflink
 // (drivers/net/veth.c) and netkit_get_iflink (drivers/net/netkit.c) both return
-// the peer's index in the kernel.org stable tag v7.2.9. The peer receives what
+// the peer's index in the kernel.org tag v7.3. The peer receives what
 // this end sends and keeps a receive filter of its own, which this end's groups
 // never reach, so the walk has nothing to sync past this end.
 func linkIsPeer(link netlink.Link) bool {

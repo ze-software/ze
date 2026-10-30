@@ -37,6 +37,11 @@ var kernelVersionFile string
 // defaultKernelVersion is the trimmed contents of kernel.version.
 var defaultKernelVersion = strings.TrimSpace(kernelVersionFile)
 
+// KernelVersion answers the Linux release Ze ships, as kernel.version names
+// it, for a package outside this one that must name the pinned release rather
+// than copy it.
+func KernelVersion() string { return defaultKernelVersion }
+
 const (
 	kernelURLKey             = "ze.appliance.kernel.url"
 	kernelBuilderDir         = kernelbuilder.DefaultBuilderDir
@@ -144,7 +149,7 @@ func kernelTargetFor(target string) (kernelTargetDesc, error) {
 // would panic every `ze` invocation) so a malformed version fails before work.
 func validateKernelVersionString(version string) error {
 	if version == "" || strings.HasPrefix(version, ".") || strings.HasSuffix(version, ".") {
-		return fmt.Errorf("kernel version %q must be a non-empty N.N.N string", version)
+		return fmt.Errorf("kernel version %q must be a non-empty dotted release such as 7.3 or 7.3.1", version)
 	}
 	for _, ch := range version {
 		if (ch < '0' || ch > '9') && ch != '.' {

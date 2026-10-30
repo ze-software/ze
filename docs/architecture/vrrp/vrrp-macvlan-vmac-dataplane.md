@@ -207,8 +207,8 @@ receive-filter update is deferred again: for a device with
 netdev work queue (`net/core/dev_addr_lists.c`). Until that work runs,
 `macvlan_handle_frame` finds the group in neither port filter and drops a
 host's Neighbor Solicitation before the macvlan sees it. These kernel
-statements were read in the Linux 7.2.9 source, the kernel.org stable tag
-`v7.2.9`, at the paths named. The VLAN step below was observed, not read:
+statements were read in the Linux 7.3 source, the kernel.org stable tag
+`v7.3`, at the paths named. The VLAN step below was observed, not read:
 `TestSolicitedNodeJoinReachesTheBottomOfAVLANStack` finds the group on every
 device of a two-VLAN stack when the join returns.
 

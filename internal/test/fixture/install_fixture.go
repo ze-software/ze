@@ -21,6 +21,12 @@ import (
 	"github.com/ze-software/ze/internal/appliance/kernelbuilder"
 )
 
+// versionKernelPinned is the release internal/appliance/kernel.version pins,
+// the version kernelbuilder holds a tracked SHA-256 for
+// (TestKernelVersionHasDigestPin). A driver build writes provenance only for
+// such a version, so every fixture that runs the driver to completion names it.
+var versionKernelPinned = appliance.KernelVersion()
+
 func init() {
 	switch filepath.Base(os.Args[0]) {
 	case builderDocker:

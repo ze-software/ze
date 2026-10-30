@@ -190,7 +190,7 @@ func (b *backend) applyTable(tbl *firewall.Table) error {
 	// below: a flow_offload expression names its flowtable, and the kernel
 	// resolves that name when it adds the rule (nft_flow_offload_init calls
 	// nft_flowtable_lookup on the rule's table, net/netfilter/nft_flow_offload.c
-	// in 7.2.9). A flowtable that follows the rule in the batch is not yet in
+	// in 7.3). A flowtable that follows the rule in the batch is not yet in
 	// the table, so the rule, and with it the whole batch, fails with ENOENT.
 	for i := range tbl.Flowtables {
 		if err := b.applyFlowtable(t, &tbl.Flowtables[i]); err != nil {

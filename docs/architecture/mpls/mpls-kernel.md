@@ -189,7 +189,7 @@ bytes and, because that is less than what remains, rounds it down to a multiple
 of eight: zero. The remaining length never shrinks, and the loop sends empty
 fragments through `mpls_xmit` forever, in the softirq that the sending thread
 runs. That thread never returns to user space to take a signal, and the host
-needs a reboot. Linux 7.2.9 refuses that case: `ip_do_fragment` returns
+needs a reboot. Linux 7.3 refuses that case: `ip_do_fragment` returns
 `EMSGSIZE` when the MTU cannot hold the header and one fragment
 (`docs/architecture/linux-limitations.md`, "Considered and left out"). A host
 kernel without that check still loops, so the floor below stays.

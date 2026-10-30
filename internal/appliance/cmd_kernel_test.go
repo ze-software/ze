@@ -1100,8 +1100,18 @@ func TestRuntimeKernelFloorRejectsMissing(t *testing.T) {
 // PREVENTS: a kernel.version bump that forgets the digest, which the worker
 // would only refuse after the builder image is built.
 func TestKernelVersionHasDigestPin(t *testing.T) {
-	if strings.Count(defaultKernelVersion, ".") != 2 {
-		t.Errorf("kernel.version %q is not an exact major.minor.patch release", defaultKernelVersion)
+	// kernel.org names an initial release major.minor (linux-7.3.tar.xz, there
+	// is no 7.3.0 or 7.3.1 before the first stable) and a stable release
+	// major.minor.patch, so an exact release has two or three components, each
+	// a non-empty run of digits.
+	components := strings.Split(defaultKernelVersion, ".")
+	if len(components) < 2 || len(components) > 3 {
+		t.Errorf("kernel.version %q is not an exact major.minor or major.minor.patch release", defaultKernelVersion)
+	}
+	for _, component := range components {
+		if component == "" || strings.Trim(component, "0123456789") != "" {
+			t.Errorf("kernel.version %q has component %q, which is not a run of digits", defaultKernelVersion, component)
+		}
 	}
 	digest, tracked := kernelbuilder.SourceDigest(defaultKernelVersion)
 	if !tracked {

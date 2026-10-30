@@ -33,7 +33,7 @@ const (
 // the tarball is the kernel source Ze compiles and distributes, so it is the one
 // that was reviewed, never whatever the network served.
 var kernelSourceSHA256 = map[string]string{
-	"7.2.9": "b4c5dfbe51a364a6c7f03869200f88c8e1f77403539005f14b7fc6bc91b8d8ba",
+	"7.3": "87363c24f10e06321eb362765521094e94471f6bff8bce2d6b3e40f39f004953",
 }
 
 // SourceDigest returns the tracked SHA-256 of linux-<version>.tar.xz, and false

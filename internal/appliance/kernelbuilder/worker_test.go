@@ -55,3 +55,16 @@ func TestRunWorkerRefusesUntrackedVersion(t *testing.T) {
 		t.Fatalf("untracked version error = %v", err)
 	}
 }
+
+// pinnedKernelVersion answers the release internal/appliance/kernel.version
+// pins, the one version TestKernelVersionHasDigestPin proves has a tracked
+// digest. It reads the file because this package can neither embed a file
+// outside its directory nor import internal/appliance, which imports it.
+func pinnedKernelVersion(t *testing.T) string {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join("..", "kernel.version"))
+	if err != nil {
+		t.Fatalf("read the kernel pin: %v", err)
+	}
+	return strings.TrimSpace(string(data))
+}

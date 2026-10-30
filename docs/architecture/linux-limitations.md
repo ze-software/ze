@@ -93,7 +93,7 @@ For a `library` entry, read the module in the module cache:
 - **Kind:** kernel
 - **Effect:** constrains design
 - **Status:** verified
-- **Checked:** Linux 7.2.9, 2026-10-20
+- **Checked:** Linux 7.3, 2026-10-30
 - **Limitation:** A proxy ARP reply carries the hardware address of the
   device that received the request (`dev->dev_addr`), with no setting that
   names another MAC. A broadcast request that arrives on a macvlan's parent is
@@ -139,7 +139,7 @@ For a `library` entry, read the module in the module cache:
 - **Kind:** kernel
 - **Effect:** constrains design
 - **Status:** verified
-- **Checked:** Linux 7.2.9, 2026-10-20
+- **Checked:** Linux 7.3, 2026-10-30
 - **Limitation:** A Neighbor Solicitation the kernel sends carries, in its
   source link-layer address option, the MAC of the device that holds the
   neighbor entry. That is the device the route to the host resolves through.
@@ -163,7 +163,7 @@ For a `library` entry, read the module in the module cache:
 - **Kind:** kernel
 - **Effect:** constrains design
 - **Status:** verified
-- **Checked:** Linux 7.2.9, 2026-10-20
+- **Checked:** Linux 7.3, 2026-10-30
 - **Limitation:** On link-up, a device whose `addr_gen_mode` is `eui64` (the
   default) gets a link-local address built from its MAC (Modified EUI-64). A
   macvlan carrying the Virtual Router MAC would get a link-local derived from
@@ -191,7 +191,7 @@ For a `library` entry, read the module in the module cache:
 - **Kind:** kernel
 - **Effect:** constrains design
 - **Status:** verified
-- **Checked:** Linux 7.2.9, 2026-10-20
+- **Checked:** Linux 7.3, 2026-10-30
 - **Limitation:** For `rp_filter`, `arp_ignore` and `arp_announce` the
   effective value is the larger of `conf.all` and the device's own, so a
   device cannot go below `all`. `proxy_arp` is the OR of the two, so
@@ -217,7 +217,7 @@ For a `library` entry, read the module in the module cache:
 - **Kind:** kernel
 - **Effect:** blocks
 - **Status:** verified
-- **Checked:** Linux 7.2.9, 2026-10-20
+- **Checked:** Linux 7.3, 2026-10-30
 - **Limitation:** An XFRM state holds one selector, and inbound processing
   drops a packet that does not match the selector of the state that
   decrypted it. A transport-mode Child SA therefore carries one selector pair:
@@ -257,7 +257,7 @@ For a `library` entry, read the module in the module cache:
 - **Kind:** kernel
 - **Effect:** constrains design
 - **Status:** verified
-- **Checked:** Linux 7.2.9, 2026-10-20
+- **Checked:** Linux 7.3, 2026-10-30
 - **Limitation:** An XFRM state receives one ESP form: UDP-encapsulated or
   bare, as its encapsulation template says. A second state for the other form
   cannot be added, because the state is keyed by destination, SPI and
@@ -292,7 +292,7 @@ For a `library` entry, read the module in the module cache:
   3.13.1 (RFC7296-3.13.1-3).
 - **Evidence:** library, `xfrm_policy_linux.go` `selFromPolicy`:
   `if sel.Dport != 0 {` `sel.DportMask = ^uint16(0)`, and the same for
-  `Sport`. Kernel (Linux 7.2.9), `net/xfrm/xfrm_user.c`
+  `Sport`. Kernel (Linux 7.3), `net/xfrm/xfrm_user.c`
   `copy_from_user_policy`: `memcpy(&xp->selector, &p->sel, sizeof(xp->selector));`;
   `net/xfrm/xfrm_policy.c` `__xfrm4_selector_match`:
   `!((xfrm_flowi_dport(fl, &fl4->uli) ^ sel->dport) & sel->dport_mask) &&`.
@@ -310,7 +310,7 @@ For a `library` entry, read the module in the module cache:
 - **Kind:** kernel
 - **Effect:** constrains design
 - **Status:** verified
-- **Checked:** Linux 7.2.9, 2026-10-20
+- **Checked:** Linux 7.3, 2026-10-30
 - **Limitation:** An `RTM_NEWLINK` that creates a device ignores
   `IFLA_IFALIAS`. Only a later change to an existing device sets the alias,
   so a device cannot be created already carrying Ze's ownership alias.
@@ -332,7 +332,7 @@ For a `library` entry, read the module in the module cache:
 - **Kind:** kernel
 - **Effect:** blocks
 - **Status:** unverified
-- **Checked:** Linux 7.2.9, 2026-10-20
+- **Checked:** Linux 7.3, 2026-10-30
 - **Limitation:** Possibly none. The question is whether the kernel maps an
   outbound ICMP error that no SA or SPD entry carries to the SA that carries
   the return traffic of the packet that triggered it. The IPv4 source suggests
@@ -358,7 +358,7 @@ For a `library` entry, read the module in the module cache:
 - **Kind:** kernel
 - **Effect:** constrains design
 - **Status:** verified
-- **Checked:** Linux 7.2.9, 2026-10-20
+- **Checked:** Linux 7.3, 2026-10-30
 - **Limitation:** Upstream `mpls_forward` drops a labeled frame too big for
   the outgoing device without reading the inner IP header, so it neither
   fragments a DF-clear IPv4 datagram nor sends ICMP Fragmentation Needed or
@@ -390,7 +390,7 @@ For a `library` entry, read the module in the module cache:
 - **Kind:** kernel
 - **Effect:** constrains design
 - **Status:** verified
-- **Checked:** Linux 7.2.9, 2026-10-20
+- **Checked:** Linux 7.3, 2026-10-30
 - **Limitation:** IPv6 has no per-device reverse-path filter sysctl; IPv4's
   `rp_filter` has no IPv6 counterpart.
 - **Blocks:** a sysctl-only IPv6 reverse-path check (the `rpf-check` leaf
@@ -462,6 +462,6 @@ For a `library` entry, read the module in the module cache:
 
 | Candidate | Why it is not an entry |
 |-----------|------------------------|
-| IPv4 fragmentation on an MPLS push route looping on empty fragments | The kernel Ze ships no longer has it. `net/ipv4/ip_output.c` `ip_do_fragment` at Linux 7.2.9 refuses an MTU below one fragment: `if (mtu < hlen + 8) {` then `err = -EMSGSIZE;`. Older kernels without that check loop in `ip_frag_next`; `mplsfib.PathMTUMinimum` keeps Ze off that path on any host kernel |
+| IPv4 fragmentation on an MPLS push route looping on empty fragments | The kernel Ze ships no longer has it. `net/ipv4/ip_output.c` `ip_do_fragment` at Linux 7.3 refuses an MTU below one fragment: `if (mtu < hlen + 8) {` then `err = -EMSGSIZE;`. Older kernels without that check loop in `ip_frag_next`; `mplsfib.PathMTUMinimum` keeps Ze off that path on any host kernel |
 | Conntrack runs after IP defragmentation, so it never sees a fragment | The defined order of netfilter, and no feature is blocked: the fragment-flood classifier is planned on packet sampling, which sees fragments (`docs/architecture/ddos/cp-survival-5-detect-5-characterization.md`) |
 | Linux has no route tag attribute | No Ze feature needs the tag in the kernel: Ze carries it in its own RIB into redistribution and the OSPF External Route Tag |

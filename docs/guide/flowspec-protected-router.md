@@ -226,8 +226,8 @@ evidence; acceptance requires an observed non-skipped run on the runtime kernel.
 
 The separate `TestSelectedFlowSpecKernelPacketSemantics` retains its privileged
 network-namespace setup and `integration` tag. Its DSCP marking uses nftables
-payload writes. Linux 7.2.9's
-[`nft_payload_set_init`](https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/plain/net/netfilter/nft_payload.c?h=v7.2.9)
+payload writes. Linux 7.3's
+[`nft_payload_set_init`](https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/plain/net/netfilter/nft_payload.c?h=v7.3)
 rejects those writes with `EPERM` unless the network namespace belongs to the
 initial user namespace. Capabilities inside a new user namespace cannot satisfy
 that check; the zero-rate test does not perform a payload write.

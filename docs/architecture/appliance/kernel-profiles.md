@@ -96,7 +96,7 @@ result against the registry, and uses the shared builder in
 `internal/appliance/kernelbuilder`.
 
 The kernel source is pinned by exact release and digest.
-`internal/appliance/kernel.version` names the release (7.2.9), and
+`internal/appliance/kernel.version` names the release, and
 `kernelSourceSHA256` in the worker holds the SHA-256 kernel.org publishes for
 that tarball in `sha256sums.asc`. The worker refuses a version with no tracked
 digest before downloading, and refuses a tarball, downloaded or found in the
@@ -166,7 +166,7 @@ manifest and compiled floor require each one. The transform-to-symbol map is
 fails when a transform's symbol is not `=y` in the fragments or not in
 `runtime.require`, so a cipher added to a table alone fails a test. The AES,
 AUTHENC, ECHAINIV, SEQIV, HMAC and SHA256 templates the transforms also use are
-selected by `INET_ESP` through `XFRM_ESP` in Linux 7.2.
+selected by `INET_ESP` through `XFRM_ESP` in Linux 7.3.
 <!-- source: internal/component/ike/dataplane/kernelcap_linux.go -- xfrmTransformKernel -->
 <!-- source: internal/appliance/kernelreq.go -- runtimeKernelRequirements -->
 
@@ -194,7 +194,7 @@ TCP-MD5 sessions require built-in `CONFIG_TCP_MD5SIG`. The runtime fragment
 requests it and the runtime manifest verifies the emitted value. Ze configures
 the socket through `setTCPMD5Sig`; a kernel without this feature refuses that
 socket option with `ENOPROTOOPT`, before a signed connection can start. Linux
-7.2 selects its built-in `CRYPTO_LIB_MD5` and `CRYPTO_LIB_UTILS` dependencies
+7.3 selects its built-in `CRYPTO_LIB_MD5` and `CRYPTO_LIB_UTILS` dependencies
 from `TCP_MD5SIG`; enabling the separate `CRYPTO_MD5` module is not the fix.
 <!-- source: internal/core/network/md5_linux.go -- setTCPMD5Sig -->
 <!-- source: gokrazy/kernel/runtime.config -- CONFIG_TCP_MD5SIG -->
@@ -221,8 +221,8 @@ option this fragment does not set (`docs/architecture/testing/interop.md`).
 <!-- source: internal/le/setup/docker/kernel/hostdeps.go -- netfilterModuleOptions, ufwModules, slotNameOptions -->
 
 The runtime fragment sets `CONFIG_LOCALVERSION="-ze"`, so the runtime kernel's
-release is the pinned version with that suffix (`7.2.9-ze`) and its `/boot`
-and `/lib/modules` entries never share a name with another kernel built from
+release is the version `internal/appliance/kernel.version` pins, with that
+suffix (`<version>-ze`), and its `/boot` and `/lib/modules` entries never share a name with another kernel built from
 the same upstream release. `le setup docker kernel install` reads the suffix
 from the cache entry's emitted `config` and refuses a release that does not end
 with it, because a reinstall removes the trees it replaces. The QEMU guest

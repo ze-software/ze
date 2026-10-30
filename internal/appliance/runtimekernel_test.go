@@ -159,7 +159,7 @@ func TestColdOfflineCacheNamesRemedy(t *testing.T) {
 	writeRuntimeKernelRegistry(t)
 	t.Setenv("XDG_CACHE_HOME", t.TempDir())
 	setTestKernelBuild(t, func(kernelBuildSpec) error {
-		return errors.New("download linux-7.2.9.tar.xz: dial tcp: lookup cdn.kernel.org: no such host")
+		return errors.New("download linux-" + defaultKernelVersion + ".tar.xz: dial tcp: lookup cdn.kernel.org: no such host")
 	})
 	cached, err := kernelCachePathFor(defaultKernelVersion, runtime.GOARCH, runtimeKernelProfile, "", kernelTargetRuntime)
 	if err != nil {
