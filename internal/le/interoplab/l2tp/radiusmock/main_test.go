@@ -3,8 +3,13 @@ package main
 import (
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
+	"net"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/ze-software/ze/internal/component/radius"
 )
 
 // VALIDATES: the Go peer decodes the same Access-Request fields and emits a valid Access-Accept shape.
@@ -24,12 +29,88 @@ func TestHandleAccessRequest(t *testing.T) {
 	if !ok {
 		t.Fatal("Access-Request was not handled")
 	}
-	if got := hex.EncodeToString(response); got != "0207001442e691424943f17320626011bd24bf47" {
-		t.Fatalf("Access-Accept bytes = %s", got)
+	if got := hex.EncodeToString(response[:4]); got != "02070026" {
+		t.Fatalf("Access-Accept header = %s, want code 2, identifier 7, length 38", got)
+	}
+	if response[20] != attributeMessageAuthenticator || response[21] != messageAuthenticatorAttributeOctets {
+		t.Fatalf("first attribute = type %d length %d, want Message-Authenticator (80, 18)", response[20], response[21])
+	}
+	var requestAuthenticator [radius.AuthenticatorLen]byte
+	copy(requestAuthenticator[:], packet[4:20])
+	if !radius.VerifyResponseAuth(response, requestAuthenticator, []byte("testing123")) {
+		t.Fatalf("Ze rejects the Response Authenticator of %s", hex.EncodeToString(response))
 	}
 	if !strings.Contains(description, "User-Name=alice") || !strings.Contains(description, "NAS-Port-Id=lns1:12.34") {
 		t.Fatalf("description = %q", description)
 	}
+}
+
+// VALIDATES: Ze's RADIUS client at its defaults, which discard an unsigned
+// answer to an Access-Request (BlastRADIUS), accepts the mock's Access-Accept.
+// PREVENTS: scenario 04 failing every subscriber login with "the answer
+// carried no Message-Authenticator", as the mock did before it signed.
+// Method: one Exchange through radius.Client against a loopback socket served
+// by handlePacket, so both authenticators are judged by Ze's own verifier.
+func TestAccessAcceptSatisfiesZesDefaultClient(t *testing.T) {
+	secret := []byte("testing123")
+	connection, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	defer func() {
+		if closeErr := connection.Close(); closeErr != nil {
+			t.Logf("close: %v", closeErr)
+		}
+	}()
+	served := make(chan error, 1)
+	go serveOne(connection, secret, served)
+
+	client, err := radius.NewClient(radius.ClientConfig{Timeout: 2 * time.Second, Retries: 1})
+	if err != nil {
+		t.Fatalf("NewClient: %v", err)
+	}
+	defer func() {
+		if closeErr := client.Close(); closeErr != nil {
+			t.Logf("client close: %v", closeErr)
+		}
+	}()
+	authenticator, err := radius.RandomAuthenticator()
+	if err != nil {
+		t.Fatalf("RandomAuthenticator: %v", err)
+	}
+	request := &radius.Packet{
+		Code:          radius.CodeAccessRequest,
+		Identifier:    client.NextID(),
+		Authenticator: authenticator,
+		Attrs:         []radius.Attr{{Type: radius.AttrUserName, Value: []byte("alice")}},
+	}
+	answer, err := client.Exchange(t.Context(), request, radius.Server{Address: connection.LocalAddr().String(), SharedKey: secret})
+	if err != nil {
+		t.Fatalf("Exchange: %v", err)
+	}
+	if answer.Code != radius.CodeAccessAccept {
+		t.Fatalf("answer code %d, want Access-Accept %d", answer.Code, radius.CodeAccessAccept)
+	}
+	if err := <-served; err != nil {
+		t.Fatalf("serve: %v", err)
+	}
+}
+
+// serveOne answers one datagram through handlePacket and reports the outcome.
+func serveOne(connection *net.UDPConn, secret []byte, served chan<- error) {
+	packet := make([]byte, packetOctetsMax)
+	octets, peer, err := connection.ReadFromUDP(packet)
+	if err != nil {
+		served <- err
+		return
+	}
+	response, _, ok := handlePacket(packet[:octets], secret)
+	if !ok {
+		served <- errors.New("handlePacket declined the Access-Request")
+		return
+	}
+	_, err = connection.WriteToUDP(response, peer)
+	served <- err
 }
 
 // VALIDATES: Accounting-Start reports the negotiated IPv4 address and stable port identity.

@@ -1,9 +1,11 @@
 // Design: docs/architecture/testing/interop.md -- independent RADIUS wire peer for the L2TP accounting scenario.
 // Related: RFC 2865 section 3 -- packet framing and response authenticator.
 // Related: RFC 2866 section 3 -- Accounting-Response packet framing.
+// Related: RFC 2869 section 5.14 -- Message-Authenticator on an Access-Accept.
 package main
 
 import (
+	"crypto/hmac"
 	"crypto/md5" //nolint:gosec // RADIUS response authenticators require MD5 in RFC 2865 section 3.
 	"encoding/binary"
 	"errors"
@@ -22,19 +24,24 @@ const (
 	codeAccountingRequest  = 4
 	codeAccountingResponse = 5
 
-	attributeUserName         = 1
-	attributeNASIPAddress     = 4
-	attributeFramedIPAddress  = 8
-	attributeCallingStationID = 31
-	attributeAccountingStatus = 40
-	attributeAccountingDelay  = 41
-	attributeAccountingID     = 44
-	attributeTerminateCause   = 49
-	attributeEventTimestamp   = 55
-	attributeNASPortID        = 87
+	attributeUserName             = 1
+	attributeNASIPAddress         = 4
+	attributeFramedIPAddress      = 8
+	attributeCallingStationID     = 31
+	attributeAccountingStatus     = 40
+	attributeAccountingDelay      = 41
+	attributeAccountingID         = 44
+	attributeTerminateCause       = 49
+	attributeEventTimestamp       = 55
+	attributeMessageAuthenticator = 80
+	attributeNASPortID            = 87
 
 	packetHeaderOctets = 20
 	packetOctetsMax    = 4096
+
+	// messageAuthenticatorAttributeOctets is the Type, Length and 16-octet
+	// HMAC-MD5 of a Message-Authenticator (RFC 2869 section 5.14).
+	messageAuthenticatorAttributeOctets = 18
 )
 
 type attribute struct {
@@ -122,13 +129,50 @@ func handlePacket(packet, secret []byte) ([]byte, string, bool) {
 		return nil, "", false
 	}
 	attributes := parseAttributes(packet[packetHeaderOctets:length])
-	response := make([]byte, packetHeaderOctets)
+	response := make([]byte, packetHeaderOctets, packetHeaderOctets+messageAuthenticatorAttributeOctets)
 	response[0] = responseCode
 	response[1] = packet[1]
 	binary.BigEndian.PutUint16(response[2:4], packetHeaderOctets)
-	authenticator := responseAuthenticator(responseCode, packet[1], packet[4:20], secret)
+	// Both authenticators of a response are computed with the Request
+	// Authenticator in the authenticator field, so it holds the request's
+	// value until the response is complete.
+	copy(response[4:20], packet[4:20])
+	if responseCode == codeAccessAccept {
+		response = appendMessageAuthenticator(response, secret)
+	}
+	authenticator := responseAuthenticator(response, secret)
 	copy(response[4:20], authenticator[:])
 	return response, describe(code, attributes), true
+}
+
+// appendMessageAuthenticator signs an Access-Accept whose authenticator field
+// still holds the Request Authenticator. Ze discards an unsigned answer to an
+// Access-Request unless the operator accepts a legacy server (BlastRADIUS,
+// CVE-2024-3596), so this peer answers as a server updated for it does.
+//
+// RFC 2869 Section 5.14: "For Access-Challenge, Access-Accept, and
+// Access-Reject packets, the Message-Authenticator is calculated as follows,
+// using the Request-Authenticator from the Access-Request this packet is in
+// reply to:"
+//
+// RFC 2869 Section 5.14: "When the checksum is calculated the signature string
+// should be considered to be sixteen octets of zero."
+//
+//	 0                   1                   2
+//	 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|  Type (80)    |  Length (18)  |  HMAC-MD5 (16 octets) ...
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	offset 20 (after the header): Type, 21: Length, 22..37: String
+func appendMessageAuthenticator(response, secret []byte) []byte {
+	valueOffset := len(response) + 2
+	response = append(response, attributeMessageAuthenticator, messageAuthenticatorAttributeOctets)
+	response = append(response, make([]byte, md5.Size)...)
+	binary.BigEndian.PutUint16(response[2:4], packetHeaderOctets+messageAuthenticatorAttributeOctets)
+	mac := hmac.New(md5.New, secret)
+	mac.Write(response)
+	copy(response[valueOffset:], mac.Sum(nil))
+	return response
 }
 
 // RFC 2865 section 5: Type(1), Length(1), Value(Length-2), repeated.
@@ -145,12 +189,18 @@ func parseAttributes(data []byte) []attribute {
 	return attributes
 }
 
-func responseAuthenticator(code, identifier byte, requestAuthenticator, secret []byte) [md5.Size]byte {
-	material := make([]byte, 0, packetHeaderOctets+len(secret))
-	material = append(material, code, identifier, 0, packetHeaderOctets)
-	material = append(material, requestAuthenticator...)
-	material = append(material, secret...)
-	return md5.Sum(material) //nolint:gosec // RFC 2865 section 3 fixes this algorithm.
+// responseAuthenticator computes the Response Authenticator of a response
+// whose authenticator field holds the Request Authenticator.
+//
+// RFC 2865 Section 3: "ResponseAuth =
+// MD5(Code+ID+Length+RequestAuth+Attributes+Secret)"
+func responseAuthenticator(response, secret []byte) [md5.Size]byte {
+	digest := md5.New() //nolint:gosec // RFC 2865 section 3 fixes this algorithm.
+	digest.Write(response)
+	digest.Write(secret)
+	var sum [md5.Size]byte
+	digest.Sum(sum[:0])
+	return sum
 }
 
 func describe(code byte, attributes []attribute) string {
