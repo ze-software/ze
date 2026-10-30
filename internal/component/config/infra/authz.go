@@ -114,7 +114,10 @@ func leafListValues(raw any) []string {
 }
 
 // ValidateAuthzConfig validates authorization config in the parsed tree.
-// Checks: profile entry regex syntax (hard error), user→profile references (AC-8).
+// Checks: profile entry regex syntax (hard error), and that no user or
+// tacacs-profile names a reserved profile. A name that no profile defines is
+// refused by the YANG leafref on each profile leaf-list
+// (Validator.ValidateReferences), which names the profiles that exist.
 // Exported so ze config validate can also call it.
 func ValidateAuthzConfig(tree *config.Tree) error {
 	sys := tree.GetContainer("system")
@@ -151,7 +154,8 @@ func ValidateAuthzConfig(tree *config.Tree) error {
 		}
 	}
 
-	// Check user→profile references (AC-8).
+	// Check user→profile references for reserved names (AC-8). A name no
+	// profile defines is refused by the leafref on user profile.
 	auth := sys.GetContainer("authentication")
 	if auth == nil {
 		return nil
@@ -165,29 +169,18 @@ func ValidateAuthzConfig(tree *config.Tree) error {
 			if aaa.IsReservedName(pn) {
 				return fmt.Errorf("user %q references reserved profile %q", username, pn)
 			}
-			if _, ok := profiles[pn]; !ok {
-				return fmt.Errorf("user %q references undefined profile %q", username, pn)
-			}
 		}
 	}
 
-	// Check tacacs-profile priv-lvl -> profile references, on the same footing as
-	// the user references above. These names decide what a TACACS+-authenticated
-	// session may run (the authenticator resolves them at login and authorization
-	// applies them), so an undefined one is the same operator error as an
-	// undefined user profile -- it just arrives through a different door.
-	//
-	// Catching it here matters because the runtime cannot report it: authorization
-	// receives profile names, not the mapping, so it can only ignore a name it
-	// cannot resolve. A typo would otherwise load quietly and surface as a session
-	// whose profile silently does not apply.
+	// Check tacacs-profile priv-lvl -> profile references for reserved names, on
+	// the same footing as the user references above. A name no profile defines is
+	// refused by the leafref on tacacs-profile profile, which matters because the
+	// runtime cannot report it: authorization receives profile names, not the
+	// mapping, so it can only ignore a name it cannot resolve.
 	for level, entry := range auth.GetList("tacacs-profile") {
 		for _, pn := range entry.GetSlice("profile") {
 			if aaa.IsReservedName(pn) {
 				return fmt.Errorf("tacacs-profile %q references reserved profile %q", level, pn)
-			}
-			if _, ok := profiles[pn]; !ok {
-				return fmt.Errorf("tacacs-profile %q references undefined profile %q", level, pn)
 			}
 		}
 	}

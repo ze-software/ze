@@ -1,6 +1,7 @@
 package infra_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/config/infra"
@@ -469,7 +470,8 @@ system {
 }
 
 // TestValidateAuthzConfig_UndefinedProfileReference verifies that referencing
-// a non-existent profile in user config produces an error.
+// a non-existent profile in user config produces an error, from the leafref on
+// user profile through config.ValidateCustomSections, naming the choices.
 //
 // VALIDATES: AC-8 — config referencing non-existent profile returns error.
 // PREVENTS: User silently assigned non-existent profile → falls to admin default.
@@ -516,10 +518,11 @@ system {
 	tree, err := config.ParseTreeWithYANG(input, nil)
 	require.NoError(t, err)
 
-	err = infra.ValidateAuthzConfig(tree)
-	require.Error(t, err, "referencing undefined profile should produce error")
-	assert.Contains(t, err.Error(), "nonexistent")
-	assert.Contains(t, err.Error(), "operator")
+	// The leafref on user profile refuses the name, under the user's path.
+	msg := referenceRefusals(t, tree)
+	assert.Contains(t, msg, `no name "nonexistent" exists`)
+	assert.Contains(t, msg, "user[operator]/profile")
+	assert.Contains(t, msg, `name one of "restricted"`)
 }
 
 // TestValidateAuthzConfig_ValidReferences verifies no error for valid profile references.
@@ -627,7 +630,8 @@ system {
 
 // TestValidateAuthzConfigRejectsUndefinedTacacsProfile verifies that a
 // tacacs-profile priv-lvl mapping naming a profile that does not exist is
-// rejected at config load, on the same footing as a user[*].profile reference.
+// rejected at config load, on the same footing as a user[*].profile reference:
+// the leafref on tacacs-profile profile, through config.ValidateCustomSections.
 //
 // VALIDATES: AC-8 extended -- tacacs-profile references are checked too.
 // PREVENTS: a typo loading quietly and then silently not applying to the session
@@ -652,9 +656,11 @@ system {
 	tree, err := config.ParseTreeWithYANG(input, nil)
 	require.NoError(t, err)
 
-	err = infra.ValidateAuthzConfig(tree)
-	require.Error(t, err, "a tacacs-profile naming an undefined profile must not load")
-	assert.Contains(t, err.Error(), "raed-only")
+	// The leafref on tacacs-profile profile refuses the name.
+	msg := referenceRefusals(t, tree)
+	assert.Contains(t, msg, `no name "raed-only" exists`)
+	assert.Contains(t, msg, "tacacs-profile[1]/profile")
+	assert.Contains(t, msg, `name one of "read-only"`)
 }
 
 // TestValidateAuthzConfigAcceptsDefinedTacacsProfile guards the check above from
@@ -794,4 +800,19 @@ func TestExtractAuthUsersMissingSections(t *testing.T) {
 			assert.Empty(t, users, "a subtree that describes no users must authenticate nobody")
 		})
 	}
+}
+
+// referenceRefusals answers the messages config.ValidateCustomSections, the
+// check `ze config validate` and commit run, gives for tree, joined, and fails
+// the test when it gives none.
+func referenceRefusals(t *testing.T, tree *config.Tree) string {
+	t.Helper()
+	found, err := config.ValidateCustomSections(tree)
+	require.NoError(t, err)
+	require.NotEmpty(t, found, "the dangling profile must be refused")
+	var msgs []string
+	for _, f := range found {
+		msgs = append(msgs, f.Err.Path+": "+f.Err.Message)
+	}
+	return strings.Join(msgs, "\n")
 }

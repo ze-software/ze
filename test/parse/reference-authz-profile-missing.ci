@@ -1,0 +1,77 @@
+# Test: a user naming an authorization profile no profile defines is refused
+#
+# VALIDATES: the user profile leaf-list is a YANG leafref to
+#            "../../../authorization/profile/name" (ze-authz-conf.yang), so
+#            `ze config validate` refuses a name no profile defines, naming the
+#            value and the profiles that exist (Validator.ValidateReferences),
+#            and accepts defined names.
+# PREVENTS: a user carrying a dangling profile, which authorization ignores,
+#           so the account is denied every command with nothing said why.
+
+stdin=missing:terminator=EOF_MISSING
+system {
+	authentication {
+		user operator {
+			password "$2a$10$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ012"
+			profile [ ops raed-only ]
+		}
+	}
+	authorization {
+		profile ops {
+			run {
+				default-action allow
+			}
+			edit {
+				default-action deny
+			}
+		}
+		profile read-only {
+			run {
+				default-action allow
+			}
+			edit {
+				default-action deny
+			}
+		}
+	}
+}
+EOF_MISSING
+
+stdin=present:terminator=EOF_PRESENT
+system {
+	authentication {
+		user operator {
+			password "$2a$10$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ012"
+			profile [ ops read-only ]
+		}
+	}
+	authorization {
+		profile ops {
+			run {
+				default-action allow
+			}
+			edit {
+				default-action deny
+			}
+		}
+		profile read-only {
+			run {
+				default-action allow
+			}
+			edit {
+				default-action deny
+			}
+		}
+	}
+}
+EOF_PRESENT
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=missing
+expect=exit:code=1
+expect=stdout:contains=system/authentication/user[operator]/profile
+expect=stdout:contains=no name "raed-only" exists at "../../../authorization/profile/name"
+expect=stdout:contains=name one of "ops read-only"
+reject=stdout:contains=undefined profile
+cmd=foreground:seq=2:exec=ze config validate -:stdin=present
+expect=exit:code=0
+expect=stdout:contains=configuration valid

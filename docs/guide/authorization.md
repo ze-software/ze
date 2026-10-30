@@ -462,7 +462,7 @@ profile "test" run: entry 10: invalid regex "[broken": error parsing regexp: mis
 | Matching on IP addresses with prefix mode | Prefix matches the command stem, not individual tokens in the middle | Use `regex true` with a pattern like `"^show bgp peer list 10\\.0\\.0\\.1$"` |
 | Using `match "show"` to allow all show commands and denying specific ones with higher entry numbers | The first match wins; entry 10 `allow "show"` matches before entry 20 `deny "show bgp secret"` | Put the more specific `deny` entry at a lower number than the broader `allow` |
 | Expecting regex to be anchored by default | Go regex `MatchString` matches anywhere in the string; `"restart"` matches `"show restart status"` | Anchor explicitly: `"^restart( \|$)"` |
-| Referencing a profile name that does not exist | The profile is skipped silently; if all assigned profiles are missing, the user gets admin defaults | Define the profile, or use one of the built-in names (`admin`, `read-only`) |
+| Referencing a profile name that does not exist | Commit and `ze config validate` refuse it, naming the profiles that exist: a user's `profile` and a `tacacs-profile`'s `profile` are leafrefs to `system authorization profile` | Define the profile in the same commit, or name one that exists |
 
 ## Reference
 

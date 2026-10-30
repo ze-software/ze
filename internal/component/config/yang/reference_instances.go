@@ -65,10 +65,8 @@ func (w *referenceWalk) leafFrames(root map[string]any, leafPath []string) (*yan
 		name := leafPath[i]
 		if i == 0 {
 			entries = w.v.topLevel(nil, name)
-		} else if child := childOf(entries, name); child != nil {
-			entries = []*yang.Entry{child}
 		} else {
-			return nil, nil
+			entries = childrenOf(entries, name)
 		}
 		if len(entries) == 0 {
 			return nil, nil
@@ -98,6 +96,20 @@ func (w *referenceWalk) leafFrames(root map[string]any, leafPath []string) (*yan
 		return nil, nil
 	}
 	return leaf, frames
+}
+
+// childrenOf answers the child called name of every parent that has one.
+// Several modules declare one top-level container (system), each attaching
+// its own children, so a node below it is looked up under every module's
+// copy: the first copy alone may not hold the child the path names.
+func childrenOf(parents []*yang.Entry, name string) []*yang.Entry {
+	var children []*yang.Entry
+	for _, parent := range parents {
+		if child := schemaChild(parent, name); child != nil {
+			children = append(children, child)
+		}
+	}
+	return children
 }
 
 // typeInstances adds to found, keyed by canonical value, the instances the

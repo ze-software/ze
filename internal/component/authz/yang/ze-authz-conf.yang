@@ -62,9 +62,12 @@ module ze-authz-conf {
                 }
 
                 leaf-list profile {
-                    type string;
+                    type leafref {
+                        path "../../../authorization/profile/name";
+                        require-instance true;
+                    }
                     description "Authorization profile names assigned to this user. A commit rejects a name that no profile
-                        under system authorization defines, and it rejects a reserved name. Once one profile
+                        under system authorization defines, naming the profiles that exist, and it rejects a reserved name. Once one profile
                         exists, a user with no name here authenticates and is then denied every command.";
                     ze:help "Authorization profile name(s) assigned to this user";
                 }

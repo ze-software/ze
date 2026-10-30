@@ -1,0 +1,75 @@
+# Test: a TACACS+ privilege mapping naming a profile no profile defines is refused
+#
+# VALIDATES: the tacacs-profile profile leaf-list is a YANG leafref to
+#            "/authz:system/authz:authorization/authz:profile/authz:name"
+#            (ze-tacacs-conf.yang), so `ze config validate` refuses a name no
+#            authorization profile defines, naming the value and the profiles
+#            that exist (Validator.ValidateReferences), and accepts defined names.
+# PREVENTS: a TACACS+ session mapped to a dangling profile, which
+#           authorization cannot resolve and so silently does not apply.
+
+stdin=missing:terminator=EOF_MISSING
+system {
+	authentication {
+		tacacs-profile 1 {
+			profile [ raed-only ]
+		}
+	}
+	authorization {
+		profile ops {
+			run {
+				default-action allow
+			}
+			edit {
+				default-action deny
+			}
+		}
+		profile read-only {
+			run {
+				default-action allow
+			}
+			edit {
+				default-action deny
+			}
+		}
+	}
+}
+EOF_MISSING
+
+stdin=present:terminator=EOF_PRESENT
+system {
+	authentication {
+		tacacs-profile 1 {
+			profile [ read-only ops ]
+		}
+	}
+	authorization {
+		profile ops {
+			run {
+				default-action allow
+			}
+			edit {
+				default-action deny
+			}
+		}
+		profile read-only {
+			run {
+				default-action allow
+			}
+			edit {
+				default-action deny
+			}
+		}
+	}
+}
+EOF_PRESENT
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=missing
+expect=exit:code=1
+expect=stdout:contains=system/authentication/tacacs-profile[1]/profile
+expect=stdout:contains=no name "raed-only" exists
+expect=stdout:contains=name one of "ops read-only"
+reject=stdout:contains=undefined profile
+cmd=foreground:seq=2:exec=ze config validate -:stdin=present
+expect=exit:code=0
+expect=stdout:contains=configuration valid

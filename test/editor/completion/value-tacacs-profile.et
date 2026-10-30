@@ -1,0 +1,44 @@
+# Test: tacacs-profile completion offers the configured authorization profiles
+# VALIDATES: Tab on a TACACS+ privilege mapping's profile leaf-list, a YANG
+#            leafref to "/authz:system/authz:authorization/authz:profile/authz:name",
+#            offers the profiles system authorization defines.
+# PREVENTS: the mapping completing only a type hint, so the operator types
+#           a profile name from memory and learns of a typo at commit.
+
+tmpfs=test.conf:terminator=EOF_CONF
+system {
+	authentication {
+		tacacs-profile 1 {
+			profile [ ops ]
+		}
+	}
+	authorization {
+		profile ops {
+			run {
+				default-action allow
+			}
+			edit {
+				default-action deny
+			}
+		}
+		profile read-only {
+			run {
+				default-action allow
+			}
+			edit {
+				default-action deny
+			}
+		}
+	}
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+input=type:text=edit system authentication tacacs-profile 1
+input=enter
+expect=context:path=system/authentication/tacacs-profile/1
+input=type:text=set profile
+input=space
+expect=completion:contains=ops,read-only

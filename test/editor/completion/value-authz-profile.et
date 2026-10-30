@@ -1,0 +1,44 @@
+# Test: user profile completion offers the configured authorization profiles
+# VALIDATES: Tab on a user's profile leaf-list, a YANG leafref to
+#            "../../../authorization/profile/name", offers the profiles
+#            system authorization defines.
+# PREVENTS: the profile leaf completing only a type hint, so the operator
+#           types a profile name from memory and learns of a typo at commit.
+
+tmpfs=test.conf:terminator=EOF_CONF
+system {
+	authentication {
+		user operator {
+			password "$2a$10$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ012"
+		}
+	}
+	authorization {
+		profile ops {
+			run {
+				default-action allow
+			}
+			edit {
+				default-action deny
+			}
+		}
+		profile read-only {
+			run {
+				default-action allow
+			}
+			edit {
+				default-action deny
+			}
+		}
+	}
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+input=type:text=edit system authentication user operator
+input=enter
+expect=context:path=system/authentication/user/operator
+input=type:text=set profile
+input=space
+expect=completion:contains=ops,read-only
