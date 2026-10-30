@@ -22,6 +22,12 @@ updates:
     # while v0.0.28 had made it lazy).
     allow:
       - dependency-type: all
+    # golang.org/x/crypto/x509roots/fallback is a module of its own nested
+    # inside the x/crypto repository, and Dependabot resolves it as part of
+    # golang.org/x/crypto, so the whole update run failed on it. It is bumped by
+    # hand with `go get golang.org/x/crypto/x509roots/fallback@latest`.
+    ignore:
+      - dependency-name: golang.org/x/crypto/x509roots/fallback
     groups:
       go-modules:
         patterns:
