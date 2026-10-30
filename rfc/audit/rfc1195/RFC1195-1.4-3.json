@@ -1,6 +1,8 @@
 {
-  "no_code_path": "The sentence constrains the composition of a dual area within a dual routing domain (which routers an operator may place in it), not an implementation's behavior. Ze runs pure-IP Integrated IS-IS and routes no OSI/CLNP traffic, so it is never a dual router and has no code path that could admit or refuse area membership on that basis; mirrors RFC1195-1.4-1.",
-  "note": "Judged 2026-09-30. Level MUST over 'only dual routers may be used' kept under D-3; {not-applicable} accepted (binds the network design, same as 1.4-1).",
+  "code": {
+    "internal/plugins/isis/lsdb/encode.go::protocolNLPIDs": "2d7ce315b5476d79"
+  },
+  "note": "Re-judged 2026-10-30 (independent judge) after the row's annotation moved from {not-applicable} to {gap}. RFC 1195 Section 1.4 reads 'In a dual area within a dual routing domain only dual routers may be used.' The sentence names no role a not-applicable quote could bind (it carries a lower-case 'may', has the dual area as its subject, and no owner decision declines dual operation), so the earlier not-applicable verdict, which rested on 'binds the network design', no longer stands and the absent dual capability is a conformance gap. Ze is an IP-only Integrated IS-IS router: internal/plugins/isis/lsdb/encode.go::protocolNLPIDs advertises only NLPID 0xCC (IPv4) and 0x8E (IPv6) in the Protocols Supported TLV and never 0x81 (CLNP), and no CLNP forwarding path exists in internal/plugins/isis, so Ze can never be the dual router the sentence requires, and nothing refuses or warns when it is placed in a dual area. No test is tagged to the row.",
   "requirement_sha": "948eed7b2137df9e",
-  "verdict": "not-applicable"
+  "verdict": "unimplemented"
 }

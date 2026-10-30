@@ -1,6 +1,8 @@
 {
-  "no_code_path": "Conditional on implementing IS-IS traffic engineering. Ze originates no TE sub-TLV: lsdb/encode.go writes a zero sub-TLV length on every TLV 22 entry, so there is no TE producer on which the p2p neighbor-address inclusion could be met or violated. Mirrors RFC5305-3.2-2 and 4.3-1.",
-  "note": "Judged 2026-09-30. Accepted as mirroring the HEAD siblings; under ruling R23 the stricter form for all three TE-conditional rows is an extraction exclusion feature-out-of-scope quoting the 'If a router implements traffic engineering' condition.",
+  "code": {
+    "internal/plugins/isis/lsdb/encode.go::extISReachEntryBytes": "8a08dc40c5bde268"
+  },
+  "note": "Re-judged 2026-10-30 (independent judge) after the row's annotation moved from {not-applicable} to {gap}. RFC 5305 Section 3.3 reads 'If a router implements traffic engineering, it MUST include this sub-TLV on point-to-point adjacencies.' The earlier verdict read the condition as 'implements IS-IS TE', but the sentence's condition is traffic engineering, and Ze implements it: the RSVP-TE plugin (internal/plugins/rsvpte) signals TE LSPs with per-interface bandwidth admission (admissionController in internal/plugins/rsvpte/admission.go). The condition therefore holds for Ze and the obligation binds. Ze's IS-IS sends no sub-TLV 8: internal/plugins/isis/lsdb/encode.go::extISReachEntryBytes writes a zero sub-TLV length on every TLV 22 entry, point-to-point adjacencies included, so no neighbor IP address sub-TLV is ever originated. The old note's appeal to a later extraction exclusion and to an unsourced 'owner decision' is withdrawn; no owner decision declines IS-IS TE advertisement. No test is tagged to the row.",
   "requirement_sha": "0c9fd677d786eb68",
-  "verdict": "not-applicable"
+  "verdict": "unimplemented"
 }

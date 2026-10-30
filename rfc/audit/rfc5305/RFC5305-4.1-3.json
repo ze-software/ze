@@ -1,6 +1,8 @@
 {
-  "no_code_path": "internal/plugins/isis/spf/leak.go LeakPrefixes builds IntoL1 only from the Level 2 result and IntoL2 only from the Level 1 result (leakInto with setDownBit true or false); no other producer re-advertises a prefix between areas at one level, so no same-level inter-area advertisement reaches TLV 135.",
-  "note": "The condition, a prefix advertised from one area to another at the same level, never arises in Ze.",
+  "code": {
+    "internal/plugins/isis/spf/leak.go::LeakPrefixes": "c3e9bb60da6ec403"
+  },
+  "note": "Re-judged 2026-10-30 (independent judge) after the row's annotation moved from {not-applicable} to {gap}. RFC 5305 Section 4.1 reads 'If a prefix is advertised from one area to another at the same level, then the up/down bit SHALL be set to 1.' The condition is an advertisement path Ze does not build, which is an absence in Ze rather than a role Ze never fills, so it is no not-applicable exclusion, and no test shows the path cannot arise. internal/plugins/isis/spf/leak.go::LeakPrefixes leaks only between levels, building the Level 1 set from the Level 2 result and the Level 2 set from the Level 1 result, and a Ze IS-IS instance belongs to one Level 1 area, so no same-level inter-area advertisement reaches TLV 135 and the bit is never owed today. The rule holds by construction, but no code path sets the bit for that case and no test is tagged to the row, so the requirement stays unmet.",
   "requirement_sha": "36a8070bcad73fbe",
-  "verdict": "not-applicable"
+  "verdict": "unimplemented"
 }
