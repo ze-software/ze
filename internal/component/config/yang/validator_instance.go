@@ -82,7 +82,7 @@ type referenceWalk struct {
 	targets   map[referenceKey]referenceTarget
 	instances map[instancesKey]map[string]string   // canonical value -> value as configured
 	lists     map[listIndexKey]map[string][]string // key value -> map keys of the entries holding it
-	sources   map[sourceKey][]string               // the names a ze:reference source lists, sorted
+	sources   map[sourceKey]ReferenceAnswer        // what a ze:reference source accepts, its names sorted
 	nodes     int                                  // the data nodes the walk has numbered
 }
 
@@ -94,7 +94,7 @@ func newReferenceWalk(v *Validator) *referenceWalk {
 		targets:   make(map[referenceKey]referenceTarget),
 		instances: make(map[instancesKey]map[string]string),
 		lists:     make(map[listIndexKey]map[string][]string),
-		sources:   make(map[sourceKey][]string),
+		sources:   make(map[sourceKey]ReferenceAnswer),
 	}
 }
 

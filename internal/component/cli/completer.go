@@ -358,9 +358,28 @@ func (c *completion) completeSetPath(tokens, contextPath []string, endsWithSpace
 	// Track how many path elements came from tokens (vs context)
 	tokensAdded := 0
 
+	// inBracket is set once a leaf-list's `[` opens: every later token is one
+	// of its values, so the path stays at the leaf-list and its next value
+	// completes (`set filters [ A B `), until `]` closes it.
+	inBracket := false
+
 	// Navigate through tokens, handling list keys
 	for i, token := range tokens {
 		isLast := i == len(tokens)-1
+
+		if inBracket {
+			if token == "]" {
+				return nil
+			}
+			if isLast && !endsWithSpace {
+				return c.matchChildren(currentPath, token)
+			}
+			continue
+		}
+		if token == "[" && tokensAdded > 0 && c.isLeafList(currentPath) {
+			inBracket = true
+			continue
+		}
 
 		if isLast && !endsWithSpace {
 			// Partial match on this token.
@@ -404,6 +423,12 @@ func (c *completion) completeSetPath(tokens, contextPath []string, endsWithSpace
 		return c.listKeyCompletions(listName, "", parentPath)
 	}
 	return c.matchChildren(currentPath, "")
+}
+
+// isLeafList reports whether path names a leaf-list.
+func (c *Completer) isLeafList(path []string) bool {
+	entry := c.getEntry(path)
+	return entry != nil && entry.IsLeafList()
 }
 
 // isListNeedingKey returns true if the path ends at a list element (not a key value).

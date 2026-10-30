@@ -47,11 +47,11 @@ var (
 )
 
 func init() {
-	yang.RegisterReferenceSource("cli-probe-tint", func(_ map[string]any, at []string) []string {
+	yang.RegisterReferenceSource("cli-probe-tint", func(_ map[string]any, at []string) yang.ReferenceAnswer {
 		tintMu.Lock()
 		tintAsked = append(tintAsked, slices.Clone(at))
 		tintMu.Unlock()
-		return []string{"teal", "amber"}
+		return yang.ReferenceAnswer{Names: []string{"teal", "amber"}}
 	})
 }
 

@@ -5,6 +5,7 @@ package bgpconfig
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/bgp/grmarker"
@@ -34,8 +35,16 @@ func init() {
 	// every binary that links the check links the declaration too.
 	carries := []policy.Field{policy.FieldPrefix, policy.FieldFamily, policy.FieldProtocol, policy.FieldNextHop, policy.FieldMetric, policy.FieldOriginAS, policy.FieldCommunity, policy.FieldLargeCommunity, policy.FieldExtendedCommunity, policy.FieldASPath, policy.FieldLocalPreference, policy.FieldOrigin, policy.FieldAIGP, policy.FieldMED}
 	settable := []policy.Field{policy.FieldASPath, policy.FieldLocalPreference, policy.FieldCommunity, policy.FieldLargeCommunity, policy.FieldExtendedCommunity, policy.FieldMED, policy.FieldOrigin, policy.FieldNextHop, policy.FieldAIGP}
-	policy.MustRegisterAttachment(attachmentOwnerBGP, "bgp import", carries, settable)
-	policy.MustRegisterAttachment(attachmentOwnerBGP, "bgp export", carries, settable)
+	// Each attachment's chains sit at `bgp ... filter <direction> filters`,
+	// global, group and peer alike. The editor completes a chain, and commit
+	// judges it, with the check a peer's chain passes at load.
+	for _, attachment := range []string{"bgp import", "bgp export"} {
+		policy.MustRegisterAttachment(attachmentOwnerBGP, attachment, carries, settable)
+		direction := strings.TrimPrefix(attachment, attachmentOwnerBGP+" ")
+		policy.MustRegisterChainLeaf(attachmentOwnerBGP, direction, attachment, func(reg *policy.Registry, member, context string) error {
+			return validateChainNames(reg, []policy.Ref{{Name: member}}, attachment, context)
+		})
+	}
 
 	zeconfig.RegisterPluginExtractor(string(zeconfig.ConfigTypeBGP), extractBGPInlinePlugins)
 	if err := zeconfig.RegisterTreeValidator("bgp-filter-policy", validateFilterPolicies); err != nil {

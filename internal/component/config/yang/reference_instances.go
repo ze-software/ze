@@ -37,9 +37,9 @@ func (v *Validator) ReferenceInstances(root map[string]any, leafPath []string) [
 	w.typeInstances(leaf, leaf.Type, frames, found)
 	values := slices.Collect(maps.Values(found))
 	if source := GetReferenceExtension(leaf); source != "" {
-		names, err := w.sourceInstances(leaf, source, frames)
+		answer, err := w.sourceInstances(leaf, source, frames)
 		if err == nil {
-			values = append(values, names...)
+			values = append(values, answer.Names...)
 		}
 	}
 	if len(values) == 0 {

@@ -33,6 +33,7 @@ module ze-policy-conf {
                     description "Run these filter instances in order. Each one passes the route on or
                                  rejects it; a filter type with no Loc-RIB route evaluator is refused.";
                     ze:help "Ordered filter instance references";
+                    ze:reference "policy-filter";
                 }
                 leaf final {
                     type enumeration {

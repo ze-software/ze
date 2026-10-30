@@ -356,6 +356,7 @@ module ze-bgp-conf {
             ordered-by user;
             description "Run these filter references in order after inherited filters. Deactivate a member with inactive: filters NAME.";
             ze:help "Ordered filter instance references";
+            ze:reference "policy-filter";
         }
         leaf final {
             type enumeration {

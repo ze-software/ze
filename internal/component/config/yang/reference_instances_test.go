@@ -86,7 +86,7 @@ var (
 )
 
 func init() {
-	RegisterReferenceSource("probe-paint", func(root map[string]any, at []string) []string {
+	RegisterReferenceSource("probe-paint", func(root map[string]any, at []string) ReferenceAnswer {
 		probePaintMu.Lock()
 		probePaintAsked = append(probePaintAsked, slices.Clone(at))
 		probePaintMu.Unlock()
@@ -96,7 +96,7 @@ func init() {
 		for name := range paint {
 			names = append(names, name)
 		}
-		return names
+		return ReferenceAnswer{Names: names}
 	})
 }
 

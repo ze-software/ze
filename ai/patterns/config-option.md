@@ -245,8 +245,8 @@ leaf my-ref {
 ```go
 func init() {
     // root: the tree as Tree.ToPluginMap lowers it; at: the leaf's data path
-    configyang.RegisterReferenceSource("my-source", func(root map[string]any, at []string) []string {
-        return namesFrom(root, at)
+    configyang.RegisterReferenceSource("my-source", func(root map[string]any, at []string) configyang.ReferenceAnswer {
+        return configyang.ReferenceAnswer{Names: namesFrom(root, at)}
     })
 }
 ```
@@ -255,7 +255,9 @@ Completion offers exactly the names the leafref path reaches or the source
 lists at the leaf's position (`Validator.ReferenceInstances`), and commit refuses
 any other value (`Validator.ValidateReferences`) with a message naming the leaf,
 the value and the configured choices. No hand-written existence check is
-written in the component.
+written in the component. A source whose owner also accepts spellings it does
+not offer sets `ReferenceAnswer.Check`, which then judges each value at commit
+and MUST accept every name offered (`policy.filterReference`).
 
 <!-- source: internal/component/config/yang/reference_instances.go -- ReferenceInstances -->
 <!-- source: internal/component/config/yang/reference_source.go -- RegisterReferenceSource, ReferenceSource -->

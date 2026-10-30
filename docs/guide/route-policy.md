@@ -200,6 +200,14 @@ message names the chain and the fix:
 <!-- source: internal/component/policy/fields.go -- CheckChain -->
 <!-- source: internal/component/bgp/plugins/filter_family/rib_evaluator.go -- compileRouteEvaluator -->
 
-The editor does not offer instance names when you complete `filters`. The check
-at verify is what refuses a wrong name.
-<!-- source: internal/component/cli/completer.go -- valueCompletions -->
+Tab on `filters` offers the filter instances this chain accepts, and only
+those: every entry of a filter type list under `policy` whose fields fit the
+attachment, so `isis filter import filters [ ` offers a `prefix-list` and not a
+`community-match`, and a BGP chain offers no `match`. A `policy route` entry is
+never offered. Commit asks the same question of every name, member by member,
+with the refusals in the table above, so a name the editor did not offer still
+commits when the attachment accepts it: a qualified `prefix-list:NAME`, or an
+external plugin's `<plugin>:<filter>` on a BGP chain.
+<!-- source: internal/component/policy/reference_source.go -- filterReference, chainLeafAt, MustRegisterChainLeaf -->
+<!-- source: internal/component/bgp/config/register.go -- MustRegisterChainLeaf -->
+<!-- source: internal/component/cli/completer.go -- referenceCompletions -->

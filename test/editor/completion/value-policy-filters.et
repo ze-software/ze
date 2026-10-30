@@ -1,0 +1,70 @@
+# Test: a filter chain completes the policy filters its attachment accepts
+# VALIDATES: AC-3 -- Tab on `isis filter import filters [ ` offers the
+#            prefix-list P, whose fields IS-IS routes carry, and not the
+#            community-match C, which reads a community IS-IS routes never
+#            carry (ze:reference "policy-filter", policy filterReference).
+# VALIDATES: AC-4 -- Tab on a BGP peer's `filters [ ` offers every instance
+#            the bgp import attachment accepts: P and C, not the match
+#            TAGGED, because no BGP filter serves the match type.
+# PREVENTS: completion offering a filter that commit then refuses, or a
+#           chain completing only a type hint.
+
+tmpfs=test.conf:terminator=EOF_CONF
+policy {
+	prefix-list P {
+		entry 192.0.2.0/24 {
+			action accept
+		}
+	}
+	community-match C {
+		entry no-export {
+			type standard
+			action reject
+		}
+	}
+	match TAGGED {
+		tag [ 100 ]
+	}
+}
+isis {
+	filter {
+		import {
+			final accept
+		}
+	}
+}
+bgp {
+	peer peer1 {
+		filter {
+			import {
+				final accept
+			}
+		}
+	}
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# AC-3: the IS-IS import chain offers P only
+input=type:text=edit isis filter import
+input=enter
+expect=context:path=isis/filter/import
+input=type:text=set filters [
+input=space
+expect=completion:contains=P
+expect=completion:excludes=C
+expect=completion:excludes=TAGGED
+input=ctrl:key=u
+
+# AC-4: a BGP peer's import chain offers every instance that fits BGP
+input=type:text=top
+input=enter
+input=type:text=edit bgp peer peer1 filter import
+input=enter
+expect=context:path=bgp/peer/peer1/filter/import
+input=type:text=set filters [
+input=space
+expect=completion:contains=C,P
+expect=completion:excludes=TAGGED

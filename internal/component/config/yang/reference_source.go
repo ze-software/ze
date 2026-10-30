@@ -13,16 +13,31 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// ReferenceSource answers the names a ze:reference leaf may hold at one
-// position of the config data tree. root is the whole data tree as
-// Tree.ToPluginMap lowers it, and at is the data path of the referring leaf
+// ReferenceSource answers what a ze:reference leaf may hold at one position
+// of the config data tree. root is the whole data tree as Tree.ToPluginMap
+// lowers it, and at is the data path of the referring leaf
 // (referenceDataPath): section, container and list names, each list entry's
 // map key after the name of its list, and the leaf's own name last.
 //
 // A source MUST NOT modify root, and MUST be safe for concurrent use: editor
-// completion of several sessions and a commit can ask it at once. The order of
-// the names it answers does not matter, and duplicates are dropped.
-type ReferenceSource func(root map[string]any, at []string) []string
+// completion of several sessions and a commit can ask it at once. The walk
+// asks it once per parent data node, so a source that builds an index of the
+// tree builds it once for every value under that node.
+type ReferenceSource func(root map[string]any, at []string) ReferenceAnswer
+
+// ReferenceAnswer is a source's answer for one leaf position.
+type ReferenceAnswer struct {
+	// Names are the values completion offers. Their order does not matter,
+	// and duplicates are dropped. With no Check, commit accepts exactly these.
+	Names []string
+	// Check, when set, is commit's judge of one value in place of membership
+	// in Names, and its error is the refusal the operator reads. It is for an
+	// owner that accepts spellings it does not offer (a qualified alias of a
+	// listed name) or names it resolves only after the config loads (an
+	// external plugin's filter). It MUST accept every name in Names, so
+	// completion never offers a value commit refuses.
+	Check func(value string) error
+}
 
 // referenceSources holds the sources RegisterReferenceSource added, by name.
 // Written during init(), read-only after -- no mutex needed.
@@ -31,8 +46,8 @@ var referenceSources = map[string]ReferenceSource{}
 // RegisterReferenceSource adds the source a `ze:reference "<name>"` leaf
 // reads. Called during init() by the component that owns the names, so the
 // config package imports no component. Completion offers exactly the names the
-// source answers, and commit refuses any other value
-// (Validator.ValidateReferences), so the source is both lists.
+// source answers, and commit (Validator.ValidateReferences) refuses any value
+// the answer does not accept, so one source decides both.
 func RegisterReferenceSource(name string, source ReferenceSource) {
 	if name == "" {
 		panic("BUG: a ze:reference source was registered with an empty name")
@@ -103,35 +118,43 @@ type sourceKey struct {
 	leaf   *gyang.Entry
 }
 
-// sourceInstances answers the sorted names the ze:reference source called
-// name lists for leaf, whose parent closes frames, asked once per parent.
-func (w *referenceWalk) sourceInstances(leaf *gyang.Entry, name string, frames []dataNode) ([]string, error) {
+// sourceInstances answers what the ze:reference source called name accepts
+// for leaf, whose parent closes frames, asked once per parent. Its Names are
+// sorted and hold each name once.
+func (w *referenceWalk) sourceInstances(leaf *gyang.Entry, name string, frames []dataNode) (ReferenceAnswer, error) {
 	key := sourceKey{parent: frames[len(frames)-1].id, leaf: leaf}
-	if names, ok := w.sources[key]; ok {
-		return names, nil
+	if answer, ok := w.sources[key]; ok {
+		return answer, nil
 	}
 	source, ok := referenceSources[name]
 	if !ok {
-		return nil, fmt.Errorf("%s names the reference source %q, which no component in this build registers, "+
+		return ReferenceAnswer{}, fmt.Errorf("%s names the reference source %q, which no component in this build registers, "+
 			"so no value can be accepted: build ze with the component that owns those names, or remove the leaf",
 			leaf.Name, name)
 	}
-	names := slices.Compact(slices.Sorted(slices.Values(source(frames[0].data, referenceDataPath(frames, leaf)))))
-	w.sources[key] = names
-	return names, nil
+	answer := source(frames[0].data, referenceDataPath(frames, leaf))
+	answer.Names = slices.Compact(slices.Sorted(slices.Values(answer.Names)))
+	w.sources[key] = answer
+	return answer, nil
 }
 
-// checkSourceInstance checks that value is one of the names the ze:reference
-// source of leaf lists.
+// checkSourceInstance checks that the ze:reference source of leaf accepts
+// value: its Check when it has one, else membership in its Names.
 func (w *referenceWalk) checkSourceInstance(path string, leaf *gyang.Entry, name, value string, frames []dataNode) error {
-	names, err := w.sourceInstances(leaf, name, frames)
+	answer, err := w.sourceInstances(leaf, name, frames)
 	if err != nil {
 		return &ValidationError{Path: path, Type: ErrTypeReference, Message: err.Error(), Expected: name, Got: value}
 	}
-	if slices.Contains(names, value) {
+	if answer.Check != nil {
+		if err := answer.Check(value); err != nil {
+			return &ValidationError{Path: path, Type: ErrTypeReference, Message: err.Error(), Expected: name, Got: value}
+		}
 		return nil
 	}
-	return &ValidationError{Path: path, Type: ErrTypeReference, Message: absentSourceMessage(leaf, value, names), Expected: name, Got: value}
+	if slices.Contains(answer.Names, value) {
+		return nil
+	}
+	return &ValidationError{Path: path, Type: ErrTypeReference, Message: absentSourceMessage(leaf, value, answer.Names), Expected: name, Got: value}
 }
 
 // absentSourceMessage says which value names nothing, and what it may name:
