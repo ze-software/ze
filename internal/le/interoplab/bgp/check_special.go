@@ -817,7 +817,7 @@ func checkOSPFFastReroute(ctx context.Context, check *interoplab.CheckContext, t
 }
 func waitPingSuccess(ctx context.Context, lab interoplab.CheckerLab, address string, timeout time.Duration) error {
 	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{Timeout: timeout, Interval: time.Second, Description: "LFA forwarding"}, func(probeCtx context.Context) (string, error) {
-		return lab.Query(probeCtx, "ze", []string{"ping", "-c", "1", "-W", "1", address}, nil)
+		return lab.Query(probeCtx, "ze", []string{cmdPing, "-c", "1", "-W", "1", address}, nil)
 	}, func(output string) bool {
 		return strings.Contains(output, "1 received") || strings.Contains(output, "1 packets received")
 	})

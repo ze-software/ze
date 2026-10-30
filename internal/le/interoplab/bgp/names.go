@@ -40,6 +40,7 @@ const (
 	cmdBirdc = "birdc"
 	cmdGoBGP = "gobgp"
 	cmdCat   = "cat"
+	cmdPing  = "ping"
 	// leBinary is the entrypoint of a harness peer, and leTestWord the first
 	// word of its command: every harness command answers as `le test <name>`.
 	leBinary   = linuxle.Name
@@ -876,6 +877,7 @@ const (
 	verdictPassed       = "passed"
 	evidenceKeyNetwork  = "network"
 	evidenceKeyEvidence = "evidence"
+	evidenceKeyScenario = "scenario"
 )
 
 // transitAreaLabel is the metric label that carries a virtual link's transit
@@ -937,3 +939,7 @@ const (
 	keaHostNumber       = uint8(22)
 	keaLeasedHostNumber = uint8(0x50)
 )
+
+// descFRRISISAdjacencyUp describes the wait for FRR's IS-IS adjacency to
+// reach Up, which every IS-IS scenario performs.
+const descFRRISISAdjacencyUp = "FRR IS-IS adjacency Up"

@@ -61,7 +61,7 @@ const (
 // place. The subnet is the one the run selected: a concurrent run moves the
 // lab off 172.30.0.0/24, and the scenario config is rewritten to match.
 func ldpTransportAddressAdd(network interoplab.Network) []string {
-	return []string{"ip", "address", "add", networkHostAddress(network, ldpTransportHost) + "/32", "dev", "eth0"}
+	return []string{"ip", "address", "add", networkHostAddress(network, ldpTransportHost) + "/32", ipOptionDevice, "eth0"}
 }
 
 // checkLDPInitUnknownTLV rewrites one TLV type in FRR's real Initialization on

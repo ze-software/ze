@@ -121,7 +121,7 @@ func checkDelayOpenFRR(ctx context.Context, check *interoplab.CheckContext) (res
 			verdict = resultErr.Error()
 		}
 		data, marshalErr := json.MarshalIndent(map[string]any{
-			"scenario": check.Source.Name, evidenceKeyNetwork: check.Network, "verdict": verdict,
+			evidenceKeyScenario: check.Source.Name, evidenceKeyNetwork: check.Network, "verdict": verdict,
 			"frr-image":   interoplab.FRRImage,
 			"connections": history, evidenceKeyEvidence: evidence,
 		}, "", "  ")

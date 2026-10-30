@@ -51,7 +51,7 @@ func checkISISMaxLinkMetric(ctx context.Context, check *interoplab.CheckContext)
 	if _, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
 		Timeout:     90 * time.Second,
 		Interval:    2 * time.Second,
-		Description: "FRR IS-IS adjacency Up",
+		Description: descFRRISISAdjacencyUp,
 	}, func(probeCtx context.Context) (string, error) {
 		return check.Lab.Query(probeCtx, peerFRR, []string{cmdVtysh, "-c", frrShowISISNeighbor}, nil)
 	}, isisAdjacencyUp); err != nil {

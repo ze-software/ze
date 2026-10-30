@@ -84,7 +84,7 @@ func checkSRv6Identity(ctx context.Context, check *interoplab.CheckContext) (res
 			verdict = resultErr.Error()
 		}
 		data, marshalErr := json.MarshalIndent(map[string]any{
-			"scenario": check.Source.Name, evidenceKeyNetwork: check.Network, "verdict": verdict,
+			evidenceKeyScenario: check.Source.Name, evidenceKeyNetwork: check.Network, "verdict": verdict,
 			evidenceKeyEvidence: evidence,
 		}, "", "  ")
 		resultErr = errors.Join(resultErr, marshalErr)
@@ -234,7 +234,7 @@ func checkSRv6Identity(ctx context.Context, check *interoplab.CheckContext) (res
 	}
 	var semanticErrors []error
 	for index, peer := range []string{peerSpeaker, peerSpeaker2} {
-		capture, err := check.Lab.Query(ctx, peer, []string{"cat", "/tmp/srv6-identity-ze.jsonl"}, nil)
+		capture, err := check.Lab.Query(ctx, peer, []string{cmdCat, "/tmp/srv6-identity-ze.jsonl"}, nil)
 		evidence[peer+"-wire-verdict-input"] = capture
 		if err != nil {
 			return err

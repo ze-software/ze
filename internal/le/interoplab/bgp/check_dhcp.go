@@ -204,5 +204,5 @@ func waitZeAddress(ctx context.Context, check *interoplab.CheckContext, address 
 }
 
 func zeAddressCommand() []string {
-	return []string{"ip", "-o", "-f", ipFamilyInet, ipObjectAddr, ipActionShow, "dev", containerInterface}
+	return []string{"ip", "-o", "-f", ipFamilyInet, ipObjectAddr, ipActionShow, ipOptionDevice, containerInterface}
 }
