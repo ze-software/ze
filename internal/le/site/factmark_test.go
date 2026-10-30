@@ -27,14 +27,14 @@ func modelFactKeys(model reflect.Type, prefix string) []string {
 		if section.Kind() == reflect.Pointer {
 			section = section.Elem()
 		}
-		switch section.Kind() {
-		case reflect.Struct:
-			keys = append(keys, modelFactKeys(section, key+".")...)
-		case reflect.Map:
+		if section.Kind() == reflect.Map {
 			continue
-		default:
-			keys = append(keys, key)
 		}
+		if section.Kind() == reflect.Struct {
+			keys = append(keys, modelFactKeys(section, key+".")...)
+			continue
+		}
+		keys = append(keys, key)
 	}
 	return keys
 }

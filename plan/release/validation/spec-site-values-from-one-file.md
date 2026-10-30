@@ -8,7 +8,7 @@
 | Release reason | Public site figures are baked into pages by separate counters, so the site can contradict itself and a changed value needs every page rewritten; accurate public claims are release validation |
 | RFC gaps | - |
 | Depends | - |
-| Phase | 1/7 |
+| Phase | 7/7 |
 | Handoff | - |
 | Updated | 2026-10-30 |
 

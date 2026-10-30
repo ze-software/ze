@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io/fs"
+	"maps"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -895,10 +896,7 @@ func TestANewHealthMetricReachesTheSnapshotUnnamed(t *testing.T) {
 		}
 	}
 
-	dotted := map[string]any{}
-	for name, value := range unnamed {
-		dotted[name] = value
-	}
+	dotted := maps.Clone(unnamed)
 	dotted["key"] = "dotted.metric"
 	dottedPaths := healthPathsFrom(t, recordWith(map[string]any{
 		"key": "plain", "question": testhealth.Questions()[0].Key, "label": "L", "status": "ok", "value": "1",

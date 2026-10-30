@@ -50,7 +50,7 @@ const rawFigureMin = 100
 
 // displayFigurePattern matches a display string: a grouped number, a number
 // with a "+", or both.
-var displayFigurePattern = regexp.MustCompile(`^(?:[0-9]{1,3}(?:,[0-9]{3})+\+?|[0-9]+\+)$`)
+var displayFigurePattern = regexp.MustCompile(`^(?:\d{1,3}(?:,\d{3})+\+?|\d+\+)$`)
 
 // publishedFigures answers every figure the snapshot publishes, sorted by key,
 // so a value two keys share is reported under the first.
