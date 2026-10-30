@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC1334-2.3-2",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRejectWritesNak",
+    "unit-sha": "6e1b6bd0c3527d74",
+    "claim-sha": "577ec0cbb399399e",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/pap.go::WritePAPNak",
+    "producer-sha": "6af4676dc236558a",
+    "break": "body of WritePAPNak replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1334-2.3-2",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRequestEmitsEvent",
+    "unit-sha": "5a51a44030917c54",
+    "claim-sha": "80f9bc670875a16d",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/pap.go::runPAPAuthPhase",
+    "producer-sha": "9ddd1a2f803b541b",
+    "break": "body of runPAPAuthPhase replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

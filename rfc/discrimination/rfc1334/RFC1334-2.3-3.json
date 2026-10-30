@@ -20,5 +20,27 @@
     "producer": "internal/component/l2tp/ppp/pap.go::reanswerPAP",
     "producer-sha": "cee20f0f665b211a",
     "break": "body of reanswerPAP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1334-2.3-3",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRejectWritesNak",
+    "unit-sha": "6e1b6bd0c3527d74",
+    "claim-sha": "eb3b6b9bd5beae31",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/pap.go::writePAPReply",
+    "producer-sha": "d79b0e34d0ad09cc",
+    "break": "body of writePAPReply replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1334-2.3-3",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRequestEmitsEvent",
+    "unit-sha": "5a51a44030917c54",
+    "claim-sha": "5046beb5462b2290",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/pap.go::writePAPReply",
+    "producer-sha": "d79b0e34d0ad09cc",
+    "break": "body of writePAPReply replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]
