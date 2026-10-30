@@ -1196,7 +1196,12 @@ The guest has no Docker, so a package test that starts a real server container
 through `labtest.Start` carries the build tag `docker` and never `integration`.
 `./le test integration docker-peers` runs that population on the host: it
 derives every package under `internal/` and `cmd/` holding a test file that needs
-the `docker` tag from the tree, so a package added later runs with no edit, and it sets
+the `docker` tag from the tree, so a package added later runs with no edit. It
+compiles them with the checkout's feature tags plus `docker` (`live` for
+live-rpki), the set `./le test unit` gives the same packages
+(`Toolchain.TestTags`): such a package also holds untagged tests, and under
+`docker` alone the gated schemas never register, so a test parsing product
+config fails on a block it cannot name. It sets
 `ZE_REQUIRE_DOCKER=1`, under which an absent `docker` binary fails the test
 instead of skipping it. A file needs a tag when its `//go:build` constraint
 holds with the tag set and cannot hold without it, whatever the other tags:

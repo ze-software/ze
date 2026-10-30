@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/le/gaterun"
+	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
 	"github.com/ze-software/ze/internal/le/interoplab"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
@@ -49,7 +50,7 @@ func TestDockerChildStopsOnSignal(t *testing.T) {
 				}
 			})
 			defer timer.Stop()
-			return runRequiringDocker(ctx, dockerPeersVerb, sleeperArgv, root, cleaner)
+			return runRequiringDocker(ctx, dockerPeersVerb, fixedArgv(sleeperArgv), root, cleaner)
 		})
 		began := time.Now()
 		_, code := run()
@@ -76,7 +77,7 @@ func TestDockerChildExitRunsNoSweep(t *testing.T) {
 		t.Fatalf("checkout root: %v", err)
 	}
 	cleaner := &fakeCleaner{}
-	if _, code := runRequiringDocker(t.Context(), dockerPeersVerb, []string{"true"}, root, cleaner); code != 0 {
+	if _, code := runRequiringDocker(t.Context(), dockerPeersVerb, fixedArgv([]string{"true"}), root, cleaner); code != 0 {
 		t.Fatalf("code %d, want 0 for a child that exits 0", code)
 	}
 	if len(cleaner.dry) != 0 {
@@ -178,4 +179,10 @@ func TestSignalSweepNamesMembersLeft(t *testing.T) {
 			t.Errorf("summary %q lacks %q", text, want)
 		}
 	}
+}
+
+// fixedArgv answers an argv builder that ignores the toolchain, for a test whose
+// child is a stand-in rather than `go test`.
+func fixedArgv(argv []string) func(gotoolchain.Toolchain) ([]string, error) {
+	return func(gotoolchain.Toolchain) ([]string, error) { return argv, nil }
 }

@@ -24,6 +24,8 @@ const (
 	// dockerTag is the build tag of a package test that needs a Docker daemon
 	// and no Ze kernel: it never joins `integration`, whose guest has no Docker.
 	dockerTag = "docker"
+	// liveTag is the build tag of a test that needs Docker and the internet.
+	liveTag = "live"
 	// requireDockerVariable turns a missing docker binary from a skip into a
 	// failure, so a gating run cannot pass because Docker was absent.
 	requireDockerVariable = "ZE_REQUIRE_DOCKER"
@@ -44,19 +46,22 @@ const (
 )
 
 func runDockerPeers(ctx context.Context, root string) (any, int) {
-	argv, err := dockerPeersArgv(root)
-	if err != nil {
-		leaction.ReportError(err)
-		return nil, 1
-	}
-	return runRequiringDocker(ctx, dockerPeersVerb, argv, root, interoplab.NewDocker())
+	return runRequiringDocker(ctx, dockerPeersVerb, func(tc gotoolchain.Toolchain) ([]string, error) {
+		return dockerPeersArgv(root, tc.TestTags())
+	}, root, interoplab.NewDocker())
 }
 
 func runLiveRPKI(ctx context.Context, root string) (any, int) {
-	return runRequiringDocker(ctx, liveRPKIVerb, liveRPKIArgv(), root, interoplab.NewDocker())
+	return runRequiringDocker(ctx, liveRPKIVerb, func(tc gotoolchain.Toolchain) ([]string, error) {
+		return liveRPKIArgv(tc.TestTags()), nil
+	}, root, interoplab.NewDocker())
 }
 
-// runRequiringDocker runs argv under the checkout's test toolchain with
+// runRequiringDocker runs the argv argvOf builds from the checkout's test
+// toolchain, so the package tests compile with the feature tags `./le test
+// unit` gives them (Toolchain.TestTags): a reduced set leaves gated schemas
+// unregistered, and an untagged test in a docker package then fails on a
+// config the product parses. It runs with
 // ZE_REQUIRE_DOCKER=1, so labtest fails rather than skips when Docker, or a
 // live test's image, is absent. The child runs under ctx, the verb's signal
 // root, so a SIGINT or SIGTERM kills its process group and the verb answers
@@ -71,8 +76,13 @@ func runLiveRPKI(ctx context.Context, root string) (any, int) {
 // The sweep waits for the child's process group to empty first: reaping `go
 // test` does not reap the test binaries it started, and a binary still exiting
 // reads as a live owner, whose containers the sweep would leave.
-func runRequiringDocker(ctx context.Context, verb string, argv []string, root string, cleaner labCleaner) (any, int) {
+func runRequiringDocker(ctx context.Context, verb string, argvOf func(gotoolchain.Toolchain) ([]string, error), root string, cleaner labCleaner) (any, int) {
 	tc, err := gotoolchain.New(root)
+	if err != nil {
+		leaction.ReportError(err)
+		return nil, 1
+	}
+	argv, err := argvOf(tc)
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 1
@@ -113,9 +123,10 @@ func sweepAfterSignal(ctx context.Context, verb string, cleaner labCleaner, grou
 		Str(report.Text()).String()
 }
 
-// liveRPKIArgv runs the three live tests of the RPKI plugin.
-func liveRPKIArgv() []string {
-	return []string{goTool, "test", "-v", "-tags", "live", "-timeout", "180s", "-count=1",
+// liveRPKIArgv runs the three live tests of the RPKI plugin, under the
+// checkout's feature tags (testTags) plus `live`.
+func liveRPKIArgv(testTags string) []string {
+	return []string{goTool, "test", "-v", "-tags", testTags + " " + liveTag, "-timeout", "180s", "-count=1",
 		"./internal/component/bgp/plugins/rpki/...", "-run", "TestLive"}
 }
 
@@ -124,7 +135,11 @@ func liveRPKIArgv() []string {
 // (buildtag.TestFile.Needs), so a `!docker` file never joins it.
 // An empty population is refused, because a verb that runs nothing proves
 // nothing.
-func dockerPeersArgv(root string) ([]string, error) {
+//
+// testTags is the checkout's feature tag set (Toolchain.TestTags), which the
+// docker tag joins: these packages also hold untagged tests, and the composition
+// they link must be the one `./le test unit` builds them under.
+func dockerPeersArgv(root, testTags string) ([]string, error) {
 	packages, err := buildtag.Packages(root, dockerTag)
 	if err != nil {
 		return nil, err
@@ -136,7 +151,7 @@ func dockerPeersArgv(root string) ([]string, error) {
 			" that removed them")
 	}
 	argv := make([]string, 0, 7+len(packages))
-	argv = append(argv, goTool, "test", "-tags", dockerTag, "-count=1", "-timeout", dockerPeersTimeout)
+	argv = append(argv, goTool, "test", "-tags", testTags+" "+dockerTag, "-count=1", "-timeout", dockerPeersTimeout)
 	for _, dir := range packages {
 		argv = append(argv, "./"+dir)
 	}

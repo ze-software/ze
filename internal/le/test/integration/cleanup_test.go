@@ -141,7 +141,8 @@ func TestDockerPeersVerbRunsEveryDockerPackage(t *testing.T) {
 		}
 	}
 
-	if _, err := dockerPeersArgv(root); err == nil {
+	const testTags = "ze_core ze_ssh"
+	if _, err := dockerPeersArgv(root, testTags); err == nil {
 		t.Fatal("docker-peers accepted a tree with no docker-tagged package")
 	}
 
@@ -150,11 +151,15 @@ func TestDockerPeersVerbRunsEveryDockerPackage(t *testing.T) {
 	write("cmd/c/c_test.go", "//go:build docker && linux")
 	write("internal/d/testdata/d_test.go", "//go:build docker")
 	write("internal/f/f_test.go", "//go:build dockerish")
-	argv, err := dockerPeersArgv(root)
+	argv, err := dockerPeersArgv(root, testTags)
 	if err != nil {
 		t.Fatalf("dockerPeersArgv: %v", err)
 	}
-	wantPrefix := []string{goTool, "test", "-tags", dockerTag, "-count=1"}
+	// The feature tags lead and docker joins them: an untagged test in a docker
+	// package parses product config, whose schemas register only under the
+	// feature tags (evidence-nightly run 41038783931: "unknown field in
+	// environment: ssh").
+	wantPrefix := []string{goTool, "test", "-tags", testTags + " " + dockerTag, "-count=1"}
 	if !slices.Equal(argv[:len(wantPrefix)], wantPrefix) {
 		t.Errorf("argv = %v, want it to open with %v", argv, wantPrefix)
 	}
@@ -164,7 +169,7 @@ func TestDockerPeersVerbRunsEveryDockerPackage(t *testing.T) {
 	}
 
 	write("internal/e/e_test.go", "//go:build docker")
-	argv, err = dockerPeersArgv(root)
+	argv, err = dockerPeersArgv(root, testTags)
 	if err != nil {
 		t.Fatalf("dockerPeersArgv: %v", err)
 	}
@@ -200,8 +205,8 @@ func TestLiveRPKIRequiresDocker(t *testing.T) {
 	if row.Native == nil {
 		t.Fatalf("%s has no native runner", liveRPKIVerb)
 	}
-	argv := liveRPKIArgv()
-	for _, want := range []string{"live", "./internal/component/bgp/plugins/rpki/...", "TestLive"} {
+	argv := liveRPKIArgv("ze_core ze_bgp")
+	for _, want := range []string{"ze_core ze_bgp live", "./internal/component/bgp/plugins/rpki/...", "TestLive"} {
 		if !slices.Contains(argv, want) {
 			t.Errorf("argv %v lacks %q", argv, want)
 		}
