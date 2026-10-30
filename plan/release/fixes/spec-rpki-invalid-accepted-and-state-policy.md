@@ -309,9 +309,9 @@ Two entry points, and both must reach the same policy evaluation.
 | `TestBuildDecisionsRevalidationIsIdempotent` | `internal/component/bgp/plugins/rpki/rpki_batch_test.go` | AC-14, R-5: two consecutive evaluations of one request answer identically | |
 | `TestParseRPKIStatePolicyDefinitions` | `internal/component/bgp/plugins/rpki/state_policy_test.go` | The named objects parse, including all three states and both clause kinds | |
 | `TestParseRPKIStatePolicyRejectsSetOnReject` | `internal/component/bgp/plugins/rpki/state_policy_test.go` | AC-7 | |
-| `TestParseRPKIConfigResolvesPolicyName` | `internal/component/bgp/plugins/rpki/rpki_config_test.go` | The global reference resolves to a definition | |
-| `TestParseRPKIConfigRefusesUnknownPolicyName` | `internal/component/bgp/plugins/rpki/rpki_config_test.go` | AC-9 | |
-| `TestPeerPolicyOverridesGroupThenGlobal` | `internal/component/bgp/plugins/rpki/rpki_config_test.go` | AC-8, including the listen-range group template | |
+| `TestParseRPKIConfigResolvesPolicyName` | `internal/component/bgp/plugins/rpki/rfc8210_rpki_config_test.go` | The global reference resolves to a definition | |
+| `TestParseRPKIConfigRefusesUnknownPolicyName` | `internal/component/bgp/plugins/rpki/rfc8210_rpki_config_test.go` | AC-9 | |
+| `TestPeerPolicyOverridesGroupThenGlobal` | `internal/component/bgp/plugins/rpki/rfc8210_rpki_config_test.go` | AC-8, including the listen-range group template | |
 | `TestBlackholeExemptSurvivesStatedPolicy` | `internal/component/bgp/plugins/rpki/blackhole_decision_test.go` | AC-18 | |
 | `TestASPAOverrideSurvivesStatedPolicy` | `internal/component/bgp/plugins/rpki/rpki_action_test.go` | AC-19 | |
 | `TestStatusCommandReportsResolvedPolicy` | `internal/component/bgp/plugins/rpki/rpki_status_test.go` | AC-15 | |

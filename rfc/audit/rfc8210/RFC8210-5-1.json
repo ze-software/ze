@@ -2,16 +2,16 @@
   "note": "Re-read 2026-10-30 (independent judge) after commit 60e9406387 changed only comments in these units (RFC6810 tags removed, VALIDATES prose rewritten; no assertion line changed). RFC 8210 Section 5 reads 'Reserved fields (marked \"zero\" in PDU diagrams) MUST be zero on transmission and MUST be ignored on receipt.' Transmit: TestWriteResetQueryZeroesReservedOverGarbage writes a Reset Query over a 0xFF buffer and asserts octets 2-3 are zero, the specified fields are real and octet 8 is untouched, so a writer that inherits residue goes red (TestWriteResetQuery alone writes over a zero buffer and could not); TestWriteSerialQuery is the negative, octets 2-3 of a Serial Query carry the Session ID 0x1234 and are not zeroed. writeResetQuery takes the version as a parameter and zeroes regardless of it, so the rtrVersionMax buffers prove the same write a version 1 session makes. Receipt: TestReservedPrefixFieldsPreserveValidation runs a version 1 session whose IPv4 and IPv6 Prefix PDUs carry 0xFF in every reserved octet and asserts the route validates Valid; TestRTRReservedOctetsIgnoredOnReceipt sends a Cache Reset with 0xFFFF in its reserved octets 2-3 over TCP and asserts the sync still ends with errRtrCacheResetReceivedWillDo and serial 0, while its negative shows the same 0xFFFF in a Cache Response is adopted as the Session ID, so the receiver ignores only reserved fields. Both clauses and both polarities hold.",
   "requirement_sha": "143c7094ef946fee",
   "tests": {
-    "internal/component/bgp/plugins/rpki/rtr_pdu_reserved_test.go::TestReservedPrefixFieldsPreserveValidation": "6b6c9def9d15289a",
-    "internal/component/bgp/plugins/rpki/rtr_pdu_reserved_test.go::TestWriteResetQueryZeroesReservedOverGarbage": "6b6c9def9d15289a",
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_pdu_reserved_test.go::TestReservedPrefixFieldsPreserveValidation": "6b6c9def9d15289a",
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_pdu_reserved_test.go::TestWriteResetQueryZeroesReservedOverGarbage": "6b6c9def9d15289a",
     "internal/component/bgp/plugins/rpki/rtr_pdu_test.go::TestWriteResetQuery": "c2034632b78db26e",
     "internal/component/bgp/plugins/rpki/rtr_pdu_test.go::TestWriteSerialQuery": "c2034632b78db26e",
     "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRReservedOctetsIgnoredOnReceipt": "4e10ae83c412be49",
     "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRReservedOctetsIgnoredOnReceipt#2": "4e10ae83c412be49"
   },
   "units": {
-    "internal/component/bgp/plugins/rpki/rtr_pdu_reserved_test.go::TestReservedPrefixFieldsPreserveValidation": "72798b2cc2c5cc7d",
-    "internal/component/bgp/plugins/rpki/rtr_pdu_reserved_test.go::TestWriteResetQueryZeroesReservedOverGarbage": "eb72c434ea414091",
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_pdu_reserved_test.go::TestReservedPrefixFieldsPreserveValidation": "72798b2cc2c5cc7d",
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_pdu_reserved_test.go::TestWriteResetQueryZeroesReservedOverGarbage": "eb72c434ea414091",
     "internal/component/bgp/plugins/rpki/rtr_pdu_test.go::TestWriteResetQuery": "8fb70c256513dae1",
     "internal/component/bgp/plugins/rpki/rtr_pdu_test.go::TestWriteSerialQuery": "19bc659656a33203",
     "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRReservedOctetsIgnoredOnReceipt": "7257ae58e9aa3521",

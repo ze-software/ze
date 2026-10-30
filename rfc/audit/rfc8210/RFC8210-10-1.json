@@ -2,14 +2,14 @@
   "note": "Re-read 2026-10-30 (independent judge) after commit 60e9406387 removed the RFC6810-8-2 tags and rewrote the VALIDATES line of TestValidationDoesNotDistinguishCacheSource; no assertion line changed. RFC 8210 Section 10 reads 'If data from multiple caches are held, implementations MUST NOT distinguish between data sources when performing validation of BGP announcements.' Ze holds one cache's set at a time (the group's End of Data replaces it), so the reachable form of the rule is that validation is blind to which configured cache supplied the data. TestRTRValidationIgnoresWhichCacheSupplied starts the plugin's sessions twice, the VRP served by the preferred cache and then by the standby with the preferred refused, and asserts the Valid, Invalid and NotFound triple is identical and pins each member, so weighting, marking or wildcarding by source goes red. TestValidationDoesNotDistinguishCacheSource adds the held-together case on the shared ROACache: two batches standing for two caches each validate Valid and an origin mismatch is Invalid on content alone.",
   "requirement_sha": "8254049d2f18a190",
   "tests": {
-    "internal/component/bgp/plugins/rpki/roa_cache_test.go::TestValidationDoesNotDistinguishCacheSource": "484aeab3bb29bf78",
-    "internal/component/bgp/plugins/rpki/roa_cache_test.go::TestValidationDoesNotDistinguishCacheSource#2": "484aeab3bb29bf78",
+    "internal/component/bgp/plugins/rpki/rfc8210_roa_cache_test.go::TestValidationDoesNotDistinguishCacheSource": "484aeab3bb29bf78",
+    "internal/component/bgp/plugins/rpki/rfc8210_roa_cache_test.go::TestValidationDoesNotDistinguishCacheSource#2": "484aeab3bb29bf78",
     "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRValidationIgnoresWhichCacheSupplied": "4e10ae83c412be49",
     "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRValidationIgnoresWhichCacheSupplied#2": "4e10ae83c412be49"
   },
   "units": {
-    "internal/component/bgp/plugins/rpki/roa_cache_test.go::TestValidationDoesNotDistinguishCacheSource": "83417a4c14434387",
-    "internal/component/bgp/plugins/rpki/roa_cache_test.go::TestValidationDoesNotDistinguishCacheSource#2": "83417a4c14434387",
+    "internal/component/bgp/plugins/rpki/rfc8210_roa_cache_test.go::TestValidationDoesNotDistinguishCacheSource": "83417a4c14434387",
+    "internal/component/bgp/plugins/rpki/rfc8210_roa_cache_test.go::TestValidationDoesNotDistinguishCacheSource#2": "83417a4c14434387",
     "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRValidationIgnoresWhichCacheSupplied": "66c43a6aac13f8f3",
     "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRValidationIgnoresWhichCacheSupplied#2": "66c43a6aac13f8f3"
   },

@@ -4,14 +4,14 @@
   "tests": {
     "internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go::TestRTRTLSAuthenticatedCache": "cc96e0e57341d7a8",
     "internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go::TestRTRTLSRejectsUnauthenticatedCaches": "cc96e0e57341d7a8",
-    "internal/component/bgp/plugins/rpki/rtr_transport_rfc8210_test.go::TestRTRUnprotectedTCPFromConfig": "e06bab82da0b7c87",
-    "internal/component/bgp/plugins/rpki/rtr_transport_rfc8210_test.go::TestRTRUnprotectedTCPFromConfig#2": "e06bab82da0b7c87"
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_transport_test.go::TestRTRUnprotectedTCPFromConfig": "e06bab82da0b7c87",
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_transport_test.go::TestRTRUnprotectedTCPFromConfig#2": "e06bab82da0b7c87"
   },
   "units": {
     "internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go::TestRTRTLSAuthenticatedCache": "46740446577221b8",
     "internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go::TestRTRTLSRejectsUnauthenticatedCaches": "5079e5e699076586",
-    "internal/component/bgp/plugins/rpki/rtr_transport_rfc8210_test.go::TestRTRUnprotectedTCPFromConfig": "8143c4abff24a8df",
-    "internal/component/bgp/plugins/rpki/rtr_transport_rfc8210_test.go::TestRTRUnprotectedTCPFromConfig#2": "8143c4abff24a8df"
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_transport_test.go::TestRTRUnprotectedTCPFromConfig": "8143c4abff24a8df",
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_transport_test.go::TestRTRUnprotectedTCPFromConfig#2": "8143c4abff24a8df"
   },
   "verdict": "enforced"
 }

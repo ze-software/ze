@@ -2,7 +2,7 @@
   {
     "rid": "RFC8210-9-1",
     "polarity": "positive",
-    "unit": "internal/component/bgp/plugins/rpki/rtr_transport_rfc8210_test.go::TestRTRUnprotectedTCPFromConfig",
+    "unit": "internal/component/bgp/plugins/rpki/rfc8210_rtr_transport_test.go::TestRTRUnprotectedTCPFromConfig",
     "unit-sha": "2b6b60cfaa07e625",
     "claim-sha": "d64b6e2103766c06",
     "route": "revert",

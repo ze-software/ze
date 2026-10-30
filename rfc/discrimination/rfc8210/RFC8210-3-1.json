@@ -2,7 +2,7 @@
   {
     "rid": "RFC8210-3-1",
     "polarity": "positive",
-    "unit": "internal/component/bgp/plugins/rpki/rtr_transport_rfc8210_test.go::TestRTRUnprotectedTCPFromConfig",
+    "unit": "internal/component/bgp/plugins/rpki/rfc8210_rtr_transport_test.go::TestRTRUnprotectedTCPFromConfig",
     "unit-sha": "2b6b60cfaa07e625",
     "claim-sha": "593bf442bd0a8da9",
     "route": "revert",
@@ -13,7 +13,7 @@
   {
     "rid": "RFC8210-3-1",
     "polarity": "negative",
-    "unit": "internal/component/bgp/plugins/rpki/rtr_transport_rfc8210_test.go::TestRTRUnprotectedTCPFromConfig",
+    "unit": "internal/component/bgp/plugins/rpki/rfc8210_rtr_transport_test.go::TestRTRUnprotectedTCPFromConfig",
     "unit-sha": "2b6b60cfaa07e625",
     "claim-sha": "e23e8c13af182c10",
     "route": "revert",
