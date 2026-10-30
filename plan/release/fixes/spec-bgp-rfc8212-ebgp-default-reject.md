@@ -1180,6 +1180,32 @@ Checkpoint 2026-10-30, late (continuation agent):
   as described above (the `filter_ordered_test.go` one changes an expectation
   and goes to the judge).
 
+Checkpoint 2026-10-30, night (reactor class A/D agent):
+
+- Landed: d56664ed56 (judge-approved `TestRunEgressPolicyChainNoExportFiltersAccepts`;
+  its name no longer fits the EBGP case, and a rename owes a fresh judgement)
+  and bebc0d9cf2 (non-RFC reactor fixtures state accepting policies at their
+  callers; `newSessionEndCase` and `addPathLiveRouter` keep the absent
+  policy). `./le repo compiles check` OK.
+- Full reactor package, `-race -timeout 20m`, over the working tree with the
+  uncommitted RFC-file fixtures, skipping the hanging
+  `TestRFC8669UnknownTLVPropagatedAcrossANextHopChange`: 2 failures, no data
+  race (session `5f56b642` scratch `rxrace.log`). Class A is otherwise green.
+- Uncommitted, waiting for `ze-test-judge`, then `./le rfc approve` and
+  `./le rfc record`: the RFC-tagged files' fixture edits listed in the session
+  state handoff of this date.
+- Red, `TestBFDNegotiatedPublicationJoinsSessionEnd`: traced, not this spec.
+  `Session.handleBFDEvent` holds `openMu` across `s.fsm.Event`, whose
+  OpenConfirm callback publishes `announceNegotiated`; the read goroutine's
+  `handleConnectionClose` waits on `openMu`, so the read loop cannot end while
+  the publication is paused. The locking came with c987777bb8 (strict BFD
+  DelayOpen). The fix is owed in the session lock design.
+- Red, `TestOwedKeyGRPurgeRecoversSurvivor` (release/no-survivor): green
+  alone, red under package load (withdrawal history 0, want 1). Untraced.
+- `TestPeerReadyRRReplayErrorCompletion` passed in the race run.
+- Scoped lint owed: `./le go lint run scope ./internal/component/bgp/reactor/...`
+  refused twice to plan because other sessions' edits changed its inputs.
+
 What remains:
 
 - Phase 4: D-1 (import relaxation when Route Refresh is unavailable), AC-6 and
