@@ -528,10 +528,11 @@ func (reader *evidenceReader) gap(req *Requirement) (string, bool) {
 // roleQuoteGap judges a {not-applicable} row's quote against its RFC and its
 // row: it must be in the cited section or its subsections (quoteGap), a whole
 // sentence there (wholeSentence), and, when it holds a BCP 14 keyword, the
-// row's own obligation sentence (rowOwnSentence), so a row cannot borrow
-// another obligation's subject to exclude Ze from its own. A quote with no
-// keyword is a scoping sentence, judged for its marker and role by the parser
-// (scopingRefusal).
+// row's own obligation (ownObligationRefusal), so a row cannot borrow another
+// obligation's subject to exclude Ze from its own. The row side is the row's
+// quote, its text without the trailing (§N) (Requirement.Quote). A quote with
+// no keyword is a scoping sentence, judged for its marker and role by the
+// parser (scopingRefusal).
 func (reader *evidenceReader) roleQuoteGap(req *Requirement) (string, bool) {
 	source := loadQuoteSource(reader.sources, reader.tree, req.RFC)
 	if missing, lacks := quoteGap(req, source, "role-condition quote"); lacks {
@@ -543,26 +544,46 @@ func (reader *evidenceReader) roleQuoteGap(req *Requirement) (string, bool) {
 		return tb.Str("its role-condition quote is not a whole sentence of section ").Str(section).
 			Str(": quote it from the word that opens the sentence to the full stop that ends it, so no condition of the sentence is cut away").String(), true
 	}
-	if at, _ := firstKeyword(req.Annotation.Quote); at >= 0 && !rowOwnSentence(req.Text, req.Annotation.Quote) {
-		return tb.Str("its role-condition quote holds a BCP 14 keyword and is not the row's own obligation sentence, so the role it binds may not be the row's. ").
-			Str(strings.TrimSpace(notApplicableShapes)).String(), true
+	if at, _ := firstKeyword(req.Annotation.Quote); at < 0 {
+		return "", false
 	}
-	return "", false
+	return ownObligationRefusal(req.Quote(), req.Level, req.Annotation.Quote)
 }
 
-// rowOwnSentence answers whether quote is the obligation the row states: the
-// row text holds the quote, or the quote holds the row text, compared in
-// quoteNeedle's form as a row quote is matched. An empty row text holds
-// nothing.
-func rowOwnSentence(text, quote string) bool {
-	row, held := quoteNeedle(strings.TrimSpace(text)), quoteNeedle(strings.TrimSpace(quote))
-	if row == "" {
-		return false
+// ownObligationRefusal judges a role-condition quote holding a BCP 14 keyword
+// against the row's quote, both in quoteNeedle's form as a row quote is
+// matched. One must hold the other; the span the row's quote occupies in the
+// quoted sentence (all of it, when the row holds the quote) must hold the
+// quote's first keyword, whose subject the parser held to the bound role
+// (subjectRefusal); and that keyword must be the row's level. Otherwise the
+// subject binds another clause's obligation, and the refusal names which of
+// the three failed.
+func ownObligationRefusal(rowQuote, level, quote string) (string, bool) {
+	var tb textbuf.Buffer
+	row, held := quoteNeedle(strings.TrimSpace(rowQuote)), quoteNeedle(strings.TrimSpace(quote))
+	start, end := 0, len(held)
+	if !strings.Contains(row, held) {
+		start = strings.Index(held, row)
+		if row == "" || start < 0 {
+			return tb.Str("its role-condition quote holds a BCP 14 keyword and is not the row's own obligation sentence: the row's quote, its text without the (§N), is ").
+				Str(pyRepr(row)).Str(", and neither holds the other, so the role the quote binds may not be the row's. ").
+				Str(strings.TrimSpace(notApplicableShapes)).String(), true
+		}
+		end = start + len(row)
 	}
-	if strings.Contains(held, row) {
-		return true
+	at, keyword := firstKeyword(held)
+	if at < start || at >= end {
+		return tb.Str("its role-condition quote's first BCP 14 keyword ").Str(keyword).
+			Str(" lies outside the row's clause ").Str(pyRepr(row)).
+			Str(", so the subject held to the bound role is another clause's, and it binds that clause's obligation, not the row's. Quote a sentence whose first keyword is the row's own, or one with no keyword that scopes the section to the role, or annotate the row {gap: ...}").String(), true
 	}
-	return strings.Contains(row, held)
+	if keyword != level {
+		return tb.Str("its role-condition quote's first BCP 14 keyword ").Str(keyword).
+			Str(" is not the row's: the row's level is ").Str(level).
+			Str(", so the subject held to the bound role binds an obligation other than the row's. Quote the sentence whose first keyword is the row's ").Str(level).
+			Str(", or annotate the row {gap: ...}").String(), true
+	}
+	return "", false
 }
 
 // evidenceFormat answers the format sentence a refusal for this kind ends with.

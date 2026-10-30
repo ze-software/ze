@@ -560,9 +560,10 @@ func endsWrappedWord(text string, at int) bool {
 type quoteSource struct {
 	sections []sectionBody
 	// sentences holds, for each entry of sections, its whole sentences in
-	// quoteNeedle's form: cut by sentences(), the inventory's own splitter,
-	// over the body with its page furniture gone, so a sentence never runs
-	// across a paragraph or out of a heading. Nil for a source built by
+	// quoteNeedle's form: cut by quoteSentences, the inventory's own splitter
+	// refined for lower-case openings and list markers, over the body with its
+	// page furniture gone, so a sentence never runs across a paragraph or out
+	// of a heading. Nil for a source built by
 	// corrected, and wholeSentence then answers false: a corrected source is
 	// never asked for a role-condition quote, and if it were, it would refuse.
 	sentences [][]string
@@ -589,7 +590,7 @@ func newQuoteSource(source string) *quoteSource {
 	bodies := sectionBodies(source)
 	whole := make([][]string, len(bodies))
 	for i := range bodies {
-		for _, sentence := range sentences(stripPageFurniture(bodies[i].body)) {
+		for _, sentence := range quoteSentences(stripPageFurniture(bodies[i].body)) {
 			whole[i] = append(whole[i], quoteNeedle(sentence))
 		}
 		bodies[i].body = quoteHaystack(bodies[i].body)
@@ -600,11 +601,12 @@ func newQuoteSource(source string) *quoteSource {
 // wholeSentence answers whether quote is one whole sentence of the section id
 // or of one of its subsections, compared in quoteNeedle's form: it starts
 // where a sentence starts (the paragraph's start, or after `.`, `!` or `?` and
-// a blank) and ends at that sentence's terminator. A fragment of a sentence
-// passes inSection and fails here, so a quote cannot cut "MUST" away from the
-// condition that scopes it.
+// a blank, or a lower-case word after a full stop that ends a sentence) and
+// ends at that sentence's terminator, a leading list marker cut on both sides
+// (quoteSentences). A fragment of a sentence passes inSection and fails here,
+// so a quote cannot cut "MUST" away from the condition that scopes it.
 func (q *quoteSource) wholeSentence(id, quote string) bool {
-	quote = quoteNeedle(strings.TrimSpace(quote))
+	quote = quoteNeedle(stripListMarker(strings.Join(strings.Fields(quote), " ")))
 	prefix := id + "."
 	for i, section := range q.sections {
 		if section.id != id && !strings.HasPrefix(section.id, prefix) {

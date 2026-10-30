@@ -218,3 +218,202 @@ func TestRoleKeyCutsPunctuationAsASubjectDoes(t *testing.T) {
 		t.Errorf("binds a route reflector (RR) against its own subject was refused: %v", err)
 	}
 }
+
+// VALIDATES: B1 -- a parsed row is judged by its quote, the text before its
+// trailing (§N): a row stating the quoted obligation passes whether or not it
+// keeps the sentence's full stop, and a row stating another obligation is
+// refused naming the row's quote, never its (§N).
+// METHOD: real summary lines through ParseSummaryText, then
+// (*evidenceReader).gap on the parsed row.
+func TestNotApplicableParsedRowIsJudgedByItsQuote(t *testing.T) {
+	tree := t.TempDir()
+	writeFixtureFiles(t, tree, map[string]string{"rfc/full/rfc9999.txt": quoteFixtureSource})
+	annotation := ` (§2) {not-applicable: "` + fixtureReflectorSentence + `"; binds a route reflector; ze reflects nothing}`
+	other := "A speaker MUST NOT send the widget before it sends any frame that depends on it"
+	cases := []struct{ name, text, says string }{
+		{"with its full stop", fixtureReflectorSentence, ""},
+		{"without its full stop", strings.TrimSuffix(fixtureReflectorSentence, "."), ""},
+		{"another obligation", other, "'" + other + "'"},
+	}
+	for _, one := range cases {
+		row := "- [ ] [RFC9999-2-9] [MUST NOT] " + one.text + annotation
+		rows, err := ParseSummaryText(fixtureWithZeRoles(t, "speaker", row), selftestStem, selftestSummaryRel)
+		if err != nil {
+			t.Fatalf("%s: the summary did not parse: %v", one.name, err)
+		}
+		found := false
+		for i := range rows {
+			if rows[i].RID != "RFC9999-2-9" {
+				continue
+			}
+			found = true
+			missing, lacks := newEvidenceReader(tree).gap(&rows[i])
+			if one.says == "" {
+				if lacks {
+					t.Errorf("%s: a parsed row stating the quoted obligation was refused: %s", one.name, missing)
+				}
+				continue
+			}
+			if !lacks || !strings.Contains(missing, one.says) || strings.Contains(missing, "(§2)") {
+				t.Errorf("%s: answered %q, want a refusal naming the row's quote %s without its (§2)", one.name, missing, one.says)
+			}
+		}
+		if !found {
+			t.Fatalf("%s: the parsed summary holds no RFC9999-2-9", one.name)
+		}
+	}
+}
+
+// compoundFixtureSource is an RFC whose section 2 holds one sentence of two
+// clauses with different subjects, a negated scoping sentence, a bulleted
+// obligation, an obligation opening in lower case after a full stop, and a
+// sentence holding an abbreviation before a lower-case word.
+const compoundFixtureSource = "Test RFC 9999\n\n1.  Introduction\n\n   This document describes widgets.\n\n" +
+	"2.  Widgets\n\n" +
+	"   " + compoundSentence + "\n\n" +
+	"   " + compoundOneLevelSentence + "\n\n" +
+	"   This section does not apply to route reflectors.\n\n" +
+	"   o  A speaker MUST NOT drop the widget it received.\n\n" +
+	"   The widget MUST be sent. " + lowerCaseSentence + "\n\n" +
+	"   " + abbreviationSentence + "\n"
+
+const (
+	compoundSentence = "A route reflector MAY keep the widget, and a speaker MUST send the widget to every peer."
+	// compoundOneLevelSentence has one keyword level in both clauses, so only
+	// the span check tells its second clause from its first.
+	compoundOneLevelSentence = "A route reflector MUST keep the widget, and a speaker MUST send the widget to every peer."
+	lowerCaseSentence        = "iBGP speakers MUST forward the widget unchanged."
+	// abbreviationSentence holds "etc." before a lower-case word, which
+	// quoteAbbreviations alone keeps from ending the sentence.
+	abbreviationSentence = "A speaker MAY drop widgets, frames, etc. and keep the rest."
+)
+
+// VALIDATES: I1 -- a quoted obligation binds the row only through the row's
+// own clause: the quote's first BCP 14 keyword must lie inside the span the
+// row's quote occupies, and must be the row's level. A compound sentence
+// whose first clause names a route reflector cannot exclude ze from its
+// second clause's speaker obligation.
+// METHOD: rows over compoundFixtureSource through (*evidenceReader).gap.
+func TestNotApplicableKeywordIsTheRowsClause(t *testing.T) {
+	tree := t.TempDir()
+	writeFixtureFiles(t, tree, map[string]string{"rfc/full/rfc9999.txt": compoundFixtureSource})
+	compound := evidenceRow(t, "RFC9999-2-1", "2", `not-applicable: "`+compoundSentence+`"; binds a route reflector; ze reflects nothing`)
+	cases := []struct {
+		name, text, level string
+		says              []string
+	}{
+		{"the first clause, at its level", "A route reflector MAY keep the widget (§2)", levelMay, nil},
+		{"the second clause", "a speaker MUST send the widget to every peer (§2)", levelMust,
+			[]string{"first BCP 14 keyword MAY", "outside the row's clause 'a speaker MUST send the widget to every peer'"}},
+		{"the first clause at another level", "A route reflector MAY keep the widget (§2)", levelMust,
+			[]string{"first BCP 14 keyword MAY", "the row's level is MUST"}},
+		{"the whole sentence at another level", compoundSentence + " (§2)", levelMust,
+			[]string{"first BCP 14 keyword MAY", "the row's level is MUST"}},
+	}
+	for _, one := range cases {
+		req := compound
+		req.Text, req.Level = one.text, one.level
+		missing, lacks := newEvidenceReader(tree).gap(&req)
+		if one.says == nil {
+			if lacks {
+				t.Errorf("%s: refused: %s", one.name, missing)
+			}
+			continue
+		}
+		if !lacks {
+			t.Errorf("%s: passed, want a refusal", one.name)
+			continue
+		}
+		for _, says := range one.says {
+			if !strings.Contains(missing, says) {
+				t.Errorf("%s: answered %q, want it to say %q", one.name, missing, says)
+			}
+		}
+	}
+	oneLevel := evidenceRow(t, "RFC9999-2-2", "2", `not-applicable: "`+compoundOneLevelSentence+`"; binds a route reflector; ze reflects nothing`)
+	oneLevel.Text = "a speaker MUST send the widget to every peer (§2)"
+	missing, lacks := newEvidenceReader(tree).gap(&oneLevel)
+	if !lacks || !strings.Contains(missing, "first BCP 14 keyword MUST lies outside the row's clause") {
+		t.Errorf("the second clause of a one-level compound answered %q, want the span refusal", missing)
+	}
+}
+
+// VALIDATES: I2 -- a scoping sentence that negates or excepts its scope
+// cannot bind the role it names: "does not apply to route reflectors" scopes
+// the section away from them. Every word of scopingNegations is refused as a
+// whole word, and a word holding one ("another", "nothing") is not.
+// METHOD: parseAnnotation over scoping quotes holding each negation.
+func TestNotApplicableScopingSentenceIsNotNegated(t *testing.T) {
+	cases := []struct{ quote, says string }{
+		{"This section does not apply to route reflectors.", "'not'"},
+		{"No part of this section applies to route reflectors.", "'no'"},
+		{"This section applies to every party except route reflectors.", "'except'"},
+		{"This section applies to route reflectors unless they are clients.", "'unless'"},
+		{"This section applies to parties other than route reflectors.", "'other than'"},
+		{"This section applies to neither clients nor route reflectors.", "'neither'"},
+		{"This section applies only to route reflectors and another widget.", ""},
+	}
+	for _, one := range cases {
+		_, err := parseAnnotation(`not-applicable: "`+one.quote+`"; binds route reflectors; ze reflects nothing`, "fixture")
+		if one.says == "" {
+			if err != nil {
+				t.Errorf("%q: refused: %v", one.quote, err)
+			}
+			continue
+		}
+		if err == nil || !strings.Contains(err.Error(), one.says) || !strings.Contains(err.Error(), "{gap: ...}") {
+			t.Errorf("%q: answered %v, want a refusal naming %s and the {gap} outlet", one.quote, err, one.says)
+		}
+	}
+}
+
+// VALIDATES: I3 -- a bulleted obligation and one opening in lower case after a
+// full stop are whole sentences, while an abbreviation ("e.g.", "i.e.")
+// followed by a lower-case word does not end one.
+// METHOD: wholeSentence over compoundFixtureSource and real RFC 1812 text.
+func TestNotApplicableQuoteSentenceSplitsListsAndLowerCase(t *testing.T) {
+	fixture := newQuoteSource(compoundFixtureSource)
+	rfc1812 := newQuoteSource(realRFCText(t, "rfc1812"))
+	cases := []struct {
+		source  *quoteSource
+		section string
+		quote   string
+		whole   bool
+	}{
+		{fixture, "2", "A speaker MUST NOT drop the widget it received.", true},
+		{fixture, "2", lowerCaseSentence, true},
+		{fixture, "2", "The widget MUST be sent.", true},
+		{fixture, "2", "The widget MUST be sent. " + lowerCaseSentence, false},
+		{fixture, "2", abbreviationSentence, true},
+		{rfc1812, "4.2.2.11", "A router MUST receive and process normally any packets with a broadcast destination address.", true},
+		{rfc1812, "F.1.2", "An implementation MUST NOT send a network back to the autonomous system from which it is learned, i.e. it MUST do split-horizon on an autonomous system level.", true},
+		{rfc1812, "F.1.2", "it MUST do split-horizon on an autonomous system level.", false},
+		{rfc1812, "5.3.13.2", "It is commonly but not always the case that the two limits are the same (e.g. a single-level interface).", true},
+	}
+	for _, one := range cases {
+		if got := one.source.wholeSentence(one.section, one.quote); got != one.whole {
+			t.Errorf("wholeSentence(%s, %q) = %v, want %v", one.section, one.quote, got, one.whole)
+		}
+	}
+}
+
+// VALIDATES: N1, N2 -- a bound role made only of determiners is generic, and
+// one made only of pronouns, scoping markers or negations names no role.
+// METHOD: parseAnnotation over a scoping quote that holds each bound word.
+func TestNotApplicableBoundRoleNamesAParty(t *testing.T) {
+	quote := "This section applies only to these relay agents and not all of them."
+	cases := []struct{ bound, says string }{
+		{"all", "a word for any party"},
+		{"these", "a word for any party"},
+		{"this only", "names no party"},
+		{"them", "names no party"},
+		{"not", "names no party"},
+		{"relay agents", "'not'"},
+	}
+	for _, one := range cases {
+		_, err := parseAnnotation(`not-applicable: "`+quote+`"; binds `+one.bound+`; ze relays nothing`, "fixture")
+		if err == nil || !strings.Contains(err.Error(), one.says) {
+			t.Errorf("binds %s: answered %v, want a refusal saying %q", one.bound, err, one.says)
+		}
+	}
+}

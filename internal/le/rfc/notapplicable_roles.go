@@ -56,6 +56,14 @@ const subjectBreakers = "and or nor that which who of from to by with not"
 // of them scopes nothing, so it is not role-condition evidence.
 var scopingMarkers = []string{"apply", "applies", "applicable", "only", "solely", "limited to", "restricted to"}
 
+// scopingNegations are the words, each matched as whole words without case,
+// that turn a scoping sentence against the role it names: "This section does
+// not apply to route reflectors." scopes the section away from them, and
+// "except", "unless" and "other than" carve them out. A scoping quote holding
+// one is refused rather than parsed, since no reader can tell from the words
+// alone whether the role is the one scoped in or the one scoped out.
+var scopingNegations = []string{"not", "no", "except", "unless", "other than", "neither"}
+
 // bcp14Keywords are the BCP 14 keywords as an RFC writes them, upper case:
 // every level rfc.go declares, gated and advisory, read from those two sets
 // so the vocabulary is declared once. A quote holding one is an obligation,
@@ -100,8 +108,8 @@ func boundRoleRefusal(quote, bound string) (string, bool) {
 }
 
 // scopingRefusal judges a quote with no BCP 14 keyword: it must carry a
-// scoping marker (scopingMarkers), and the bound role must be in it as whole
-// words after roleKey.
+// scoping marker (scopingMarkers) and no negation (scopingNegations), and the
+// bound role must be in it as whole words after roleKey.
 func scopingRefusal(quote, bound string) (string, bool) {
 	var tb textbuf.Buffer
 	lower := strings.ToLower(quote)
@@ -109,6 +117,13 @@ func scopingRefusal(quote, bound string) (string, bool) {
 		return tb.Str(": {not-applicable} quotes ").Str(pyRepr(quote)).
 			Str(", which holds no BCP 14 keyword and scopes nothing to a role. ").Str(notApplicableShapes).
 			Str("Otherwise annotate the row {gap: ...}. ").String(), true
+	}
+	for _, negation := range scopingNegations {
+		if containsWords(lower, negation) {
+			return tb.Str(": {not-applicable} quotes the scoping sentence ").Str(pyRepr(quote)).
+				Str(", which holds ").Str(pyRepr(negation)).
+				Str(", so it may scope the section away from the role it names rather than to it. Quote a sentence of the cited section that scopes it to the bound role with no negation or exception, or annotate the row {gap: ...}. ").String(), true
+		}
 	}
 	if containsWords(roleKey(quote), roleKey(bound)) {
 		return "", false
@@ -191,8 +206,13 @@ func roleTokens(text string) []string {
 // genericRole answers whether every word of role, once nonRoleAdjectives are
 // set aside, is one of genericRoleWords, so the role names no party a reader
 // could tell from ze. A role of adjectives alone ("a compliant") names no
-// party either, and is generic too.
+// party either, and is generic too, and so is a role of determiners or
+// quantifiers alone ("all", "these"), which roleKey keeps when nothing
+// follows them.
 func genericRole(role string) bool {
+	if tokens := roleTokens(role); len(tokens) > 0 && allIn(tokens, strings.Fields(roleDeterminers)) {
+		return true
+	}
 	words := roleCore(role)
 	if len(words) == 0 {
 		return strings.TrimSpace(role) != ""
@@ -200,6 +220,34 @@ func genericRole(role string) bool {
 	generic := strings.Fields(roleKey(genericRoleWords))
 	for _, word := range words {
 		if !slices.Contains(generic, word) {
+			return false
+		}
+	}
+	return true
+}
+
+// roleNamesNoParty answers whether every word of role is a pronoun
+// (rolePronouns), a determiner (roleDeterminers), or a word of a scoping
+// marker (scopingMarkers) or a negation (scopingNegations): "this only" or
+// "them" stands for a party named elsewhere, or for none, so it binds nothing
+// a reader could check. An empty role is answered false: the parser refuses
+// it first, naming the missing `binds`.
+func roleNamesNoParty(role string) bool {
+	tokens := roleTokens(role)
+	if len(tokens) == 0 {
+		return false
+	}
+	words := slices.Concat(strings.Fields(rolePronouns), strings.Fields(roleDeterminers))
+	for _, phrase := range slices.Concat(scopingMarkers, scopingNegations) {
+		words = append(words, strings.Fields(phrase)...)
+	}
+	return allIn(tokens, words)
+}
+
+// allIn answers whether every one of words is in set.
+func allIn(words, set []string) bool {
+	for _, word := range words {
+		if !slices.Contains(set, word) {
 			return false
 		}
 	}

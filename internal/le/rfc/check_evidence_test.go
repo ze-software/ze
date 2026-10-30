@@ -788,9 +788,11 @@ func TestPushedFingerprintsJudgeASummaryHEADParentCannotParse(t *testing.T) {
 // and checkReflectorSource the check fixture RFC text carrying it at the end of
 // section 2, so a check-level row can carry a quoted {not-applicable} that
 // passes. It names a receiver too, because the fixture summary declares ze
-// is a speaker and a receiver, and each declared role must be in the RFC.
+// is a speaker and a receiver, and each declared role must be in the RFC. Its
+// keyword is SHOULD, the level of the check fixture rows that quote it, since a
+// quoted obligation's first keyword must be its row's level.
 const (
-	checkReflectorSentence = "A route reflector MUST reflect the widget to every receiver."
+	checkReflectorSentence = "A route reflector SHOULD reflect the widget to every receiver."
 	checkReflectorSource   = checkFixtureSource + "\n    " + checkReflectorSentence + "\n"
 )
 

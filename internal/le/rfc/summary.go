@@ -396,6 +396,12 @@ func parseNotApplicable(body, where string) (*Annotation, error) {
 			Str(", a word for any party to a protocol, so nothing shows the sentence leaves ze out. Name the specific role the RFC defines (a route reflector, a DHCP relay agent), or quote the sentence that names one. ").
 			Str(notApplicableFormat))
 	}
+	if roleNamesNoParty(bound) {
+		return nil, parseErr(tb.Str(where).
+			Str(": {not-applicable} binds ").Str(pyRepr(bound)).
+			Str(", which names no party: its words are pronouns, determiners, scoping words or negations, so it stands for a party named elsewhere or for none. Name the specific role the quoted sentence names (a route reflector, a DHCP relay agent). ").
+			Str(notApplicableFormat))
+	}
 	// The bound role is the subject the quoted obligation binds, or the role
 	// a scoping sentence with no keyword names (boundRoleRefusal). Whether the
 	// obligation is the row's own sentence, and whether the quote is a whole
