@@ -90,18 +90,25 @@ type checkReport struct {
 	// data-ze-stat or data-ze-rfc marker. Such a value is a second copy of
 	// data/site-facts.json that site.js cannot update, so it goes stale.
 	PlainFigures []plainFigure `json:"plain-figures,omitempty"`
-	Coverage     Coverage      `json:"coverage"`
+	// StaleRatchet names each page website/data/plain-figure-ratchet.json
+	// lists that no longer shows a plain figure, so its entry is owed removal.
+	StaleRatchet []string `json:"stale-ratchet,omitempty"`
+	Coverage     Coverage `json:"coverage"`
 }
 
 // exit answers the status one check reports. An artifact is refused when it
 // carries a source-only input, when a public route has no Markdown mirror, when
 // a named non-route artifact is absent, when a page shows a published value
-// outside its marker, and when a published route has no producer or has two.
+// outside its marker, when the plain-figure ratchet lists a page that shows
+// none, and when a published route has no producer or has two.
 func (report checkReport) exit() int {
 	if len(report.SourceOnly) != 0 || len(report.MissingMirrors) != 0 {
 		return 1
 	}
 	if len(report.PlainFigures) != 0 {
+		return 1
+	}
+	if len(report.StaleRatchet) != 0 {
 		return 1
 	}
 	if len(report.MissingArtifacts) != 0 || report.Coverage.Red() {
@@ -157,11 +164,13 @@ func runCheck(arguments leaction.Arguments) (any, int) {
 		leaction.ReportError(err)
 		return nil, 2
 	}
-	report.PlainFigures, err = checkPlainFigures(paths.Output)
+	plain, err := checkPlainFigures(paths.Source, paths.Output)
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 2
 	}
+	report.PlainFigures = plain.Figures
+	report.StaleRatchet = plain.StaleRatchet
 	report.Coverage, err = checkCoverage(paths)
 	if err != nil {
 		leaction.ReportError(err)

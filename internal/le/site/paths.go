@@ -93,7 +93,7 @@ var sourceOnlyFiles = map[string]bool{
 	".gitignore": true, "AI.md": true, "assets/vendor/README.md": true,
 	"assets/vendor/fonts/README.md": true, "CACHEDIR.TAG": true,
 	"compare/bgp.md": true, "compare/comparison.md": true, "compare/nos.md": true,
-	"contribute/contribute.md": true, "contribute/guide.md": true,
+	"contribute/contribute.md": true, "contribute/guide.md": true, "data/plain-figure-ratchet.json": true,
 	"docs/docs.md": true, "faq/faq.md": true, "legal/legal.md": true, "license/license.md": true,
 	"quality/browser-editor.md": true, "quality/functional-ci.md": true,
 	"quality/qemu-interop-release.md": true, "quality/quality.md": true,

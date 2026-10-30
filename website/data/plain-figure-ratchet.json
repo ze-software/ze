@@ -1,0 +1,8 @@
+{
+  "pages": [
+    {
+      "page": "quality/rfc-compliance/index.html",
+      "reason": "server-written RFC figures until spec-rfc-figures-sectioned-presentation's website phase"
+    }
+  ]
+}

@@ -1,13 +1,17 @@
 // Design: docs/architecture/site-facts.md -- the plain-text guard over a built artifact
 // Related: factmark.go -- markedFact, the one element a published value may stand in
 // Related: actions.go -- runCheck reports what this file finds
+// Related: rfccompliance.go -- rfcComplianceDirectory, the RFC section the ratchet may list
 
 package site
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"io/fs"
 	"os"
+	pathpkg "path"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -89,13 +93,117 @@ func factUnit(key string) string {
 	return name[strings.LastIndex(name, "_")+1:]
 }
 
+// plainFigureRatchetFile is the committed list, relative to the website
+// sources, of the RFC pages that may still show server-written figures. The
+// RFC section's own spec (spec-rfc-figures-sectioned-presentation) empties it
+// as each page moves to data-ze-rfc markers; the check only ever shrinks it.
+const plainFigureRatchetFile = "data/plain-figure-ratchet.json"
+
+// plainFigureCheck is what the guard answers for one artifact: the figures
+// pages show outside a marker, and the ratchet entries owed removal because
+// their page shows none.
+type plainFigureCheck struct {
+	Figures      []plainFigure
+	StaleRatchet []string
+}
+
+// plainFigureRatchet is the committed ratchet file.
+type plainFigureRatchet struct {
+	Pages []plainFigureRatchetPage `json:"pages"`
+}
+
+// plainFigureRatchetPage is one listed page and why it still shows plain
+// figures.
+type plainFigureRatchetPage struct {
+	Page   string `json:"page"`
+	Reason string `json:"reason"`
+}
+
 // checkPlainFigures walks every HTML page of one artifact and answers each
-// snapshot value it shows outside a marker.
+// snapshot value it shows outside a marker, less the pages the ratchet lists,
+// and each listed page that shows none.
 //
 // The snapshot is the artifact's own data/site-facts.json, which is the file a
 // reader's browser fills the marked values from. An artifact without one is
-// refused, because no value could be told from plain text.
-func checkPlainFigures(output string) ([]plainFigure, error) {
+// refused, because no value could be told from plain text. The ratchet is read
+// from the website sources, never from the artifact, and never written.
+func checkPlainFigures(source, output string) (plainFigureCheck, error) {
+	ratcheted, err := loadPlainFigureRatchet(source)
+	if err != nil {
+		return plainFigureCheck{}, err
+	}
+	findings, err := plainFiguresOfArtifact(output)
+	if err != nil {
+		return plainFigureCheck{}, err
+	}
+	var check plainFigureCheck
+	carried := map[string]bool{}
+	for _, finding := range findings {
+		if ratcheted[finding.Page] {
+			carried[finding.Page] = true
+			continue
+		}
+		check.Figures = append(check.Figures, finding)
+	}
+	for page := range ratcheted {
+		if !carried[page] {
+			check.StaleRatchet = append(check.StaleRatchet, page)
+		}
+	}
+	slices.Sort(check.StaleRatchet)
+	return check, nil
+}
+
+// loadPlainFigureRatchet reads the committed ratchet file and answers the set
+// of pages it lists.
+//
+// A missing file, a field it does not hold, a page outside the RFC section, a
+// path that is not clean, a page listed twice and a page with no reason are
+// each refused by name: the list exists only for the RFC section's
+// server-written figures, so an entry anywhere else would be an exemption.
+func loadPlainFigureRatchet(source string) (map[string]bool, error) {
+	path := filepath.Join(source, filepath.FromSlash(plainFigureRatchetFile))
+	content, err := os.ReadFile(path) //nolint:gosec // the check reads the committed list of the checkout it serves
+	if err != nil {
+		return nil, fmt.Errorf("read the plain-figure ratchet %s: %w; the file is committed with the website sources, "+
+			"so restore it from git: git show HEAD:website/%s", path, err, plainFigureRatchetFile)
+	}
+	decoder := json.NewDecoder(bytes.NewReader(content))
+	decoder.DisallowUnknownFields()
+	var ratchet plainFigureRatchet
+	if err := decoder.Decode(&ratchet); err != nil {
+		return nil, fmt.Errorf("parse the plain-figure ratchet %s: %w; it holds only {\"pages\": [{\"page\", \"reason\"}]}", path, err)
+	}
+	if ratchet.Pages == nil {
+		return nil, fmt.Errorf("the plain-figure ratchet %s states no \"pages\" list; an empty list is written []", path)
+	}
+	section := rfcComplianceDirectory + "/"
+	listed := make(map[string]bool, len(ratchet.Pages))
+	for _, entry := range ratchet.Pages {
+		if !strings.HasPrefix(entry.Page, section) {
+			return nil, fmt.Errorf("the plain-figure ratchet %s lists %q, which is outside the RFC section %s; "+
+				"only an RFC page may be listed, so mark the page's figures with data-ze-stat and remove the entry",
+				path, entry.Page, section)
+		}
+		if pathpkg.Clean(entry.Page) != entry.Page {
+			return nil, fmt.Errorf("the plain-figure ratchet %s lists %q, which is not a clean artifact path; write it as %q",
+				path, entry.Page, pathpkg.Clean(entry.Page))
+		}
+		if listed[entry.Page] {
+			return nil, fmt.Errorf("the plain-figure ratchet %s lists %q twice; remove the second entry", path, entry.Page)
+		}
+		if strings.TrimSpace(entry.Reason) == "" {
+			return nil, fmt.Errorf("the plain-figure ratchet %s lists %q with no reason; state why its figures are still server-written",
+				path, entry.Page)
+		}
+		listed[entry.Page] = true
+	}
+	return listed, nil
+}
+
+// plainFiguresOfArtifact walks every HTML page of one artifact and answers each
+// snapshot value it shows outside a marker.
+func plainFiguresOfArtifact(output string) ([]plainFigure, error) {
 	snapshot, err := loadSiteFactSnapshot(output)
 	if err != nil {
 		return nil, err

@@ -200,7 +200,13 @@ a stale recorded run; `./le site build refresh` re-records those first
   string carrying a thousands separator or a "+", and a whole number of 100 or
   more beside its unit word (the last word of the key's name). It reads text
   in `<head>` and the title, alt, aria-label and meta content attributes, and
-  skips code, pre, script and style.
+  skips code, pre, script and style. The RFC pages whose figures are still
+  server-written are listed, each with a reason, in
+  `website/data/plain-figure-ratchet.json` (source-only, never deployed): a
+  listed page is not refused, a listed page that shows no plain figure fails
+  the check as `stale-ratchet` so the entry is removed, and only a page under
+  `quality/rfc-compliance/` may be listed (`loadPlainFigureRatchet`). Never add
+  a page to it: mark the figure instead.
 - **The facts snapshot.** `data/site-facts.json` is written by the build, not by
   hand, and it is written BEFORE any page producer runs: the prose tokens, the
   shared header, the homepage proof strip and category buttons, the CLI

@@ -273,14 +273,23 @@ Use the native builder to preserve `.git` and generated media.
 <!-- source: internal/le/site/build.go -- Build, snapshotArtifact, seedArtifact, cleanArtifact -->
 
 `./le site check` also refuses a page that shows a value of
-`data/site-facts.json` as plain text, outside its `data-ze-stat` element, and
-lists each one under `plain-figures` with the page, the figure and the key. Fix
-it in the page's source: write the value as `{{ze:<dotted.key>}}` in a
-hand-written page or a `data/nav.json` description, or through `factLookup.marked`
-(`markedFact`) in a producer, reading the value from the snapshot rather than
-counting it again. The matching rule is
+`data/site-facts.json` as plain text, outside its `data-ze-stat` or
+`data-ze-rfc` element, and lists each one under `plain-figures` with the page,
+the figure and the key. Fix it in the page's source: write the value as
+`{{ze:<dotted.key>}}` in a hand-written page or a `data/nav.json` description,
+or through `factLookup.marked` (`markedFact`) in a producer, reading the value
+from the snapshot rather than counting it again. The matching rule is
 in `docs/architecture/site-facts.md`, "One published copy of each value".
 <!-- source: internal/le/site/plaintext.go -- checkPlainFigures -->
+
+The RFC pages that still carry server-written figures are listed in
+`website/data/plain-figure-ratchet.json`, which the check reads from the
+sources and never deploys. A listed page is not refused for its figures. When
+a listed page no longer shows one, the check lists it under `stale-ratchet`
+and fails: delete its entry from the file. Only a page under
+`quality/rfc-compliance/` may be listed, so the file is not a way to excuse
+any other page.
+<!-- source: internal/le/site/plaintext.go -- loadPlainFigureRatchet -->
 
 The release data the site shows (the newest release, and the appliance lab's
 ISO size) is read from the committed `website/data/github-releases.json`, and
