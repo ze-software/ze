@@ -4,7 +4,7 @@
   "tests": {
     "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "52489f84876bdb6f",
     "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "52489f84876bdb6f",
-    "internal/plugins/vrrp/instance_test.go::TestInstanceShutdownAsMasterSendsPriorityZero": "90d279832a92de75",
+    "internal/plugins/vrrp/instance_test.go::TestInstanceShutdownAsMasterSendsPriorityZero": "52298a1ed170e60a",
     "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2MasterShutdown": "8b5d8c7a41e8e18e",
     "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2MasterShutdown#2": "8b5d8c7a41e8e18e"
   },
