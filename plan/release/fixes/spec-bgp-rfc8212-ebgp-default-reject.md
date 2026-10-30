@@ -1160,6 +1160,26 @@ fixtures `wkPeer`, `newAIGPReplayFixture`, `prefixSIDPeer` and
 `llnhExternalPeer`. After class A: the full reactor run with `-race -timeout
 20m`, then the scoped lint.
 
+Checkpoint 2026-10-30, late (continuation agent):
+
+- Landed: f8f7628bdf, the 30 judge-approved RFC-tagged plugin fixtures (30 of
+  31 pass; paths-limit-live is red for an unrelated reason, journal row in
+  `fixture-encodes-an-impossible-state` owned by
+  `spec-config-reference-completion`, landed with it). 5ce4b7b043: a peer
+  `create bgp peer` adds is built through the TreeReloadFunc over the running
+  configuration, so it inherits the bgp-level policy
+  (`TestCreatedPeerInheritsTheBGPLevelPolicy`).
+- Owed on those fixtures: `./le rfc check` reports 22 stale discrimination
+  records and the matching stale audit verdicts for the changed fixtures (list
+  in the session scratch `stale-discrim-30.txt`): re-record each with
+  `./le rfc record`, re-audit with `ze-rfc-audit`.
+- Red: `api-peer-create-delete-rib` now passes create, RIB, forward, commit and
+  reload, and fails at delete: `show bgp rib` still answers 192.0.2.0/24 after
+  `delete bgp peer`. Cause not traced.
+- Class A and D not started in this pass; the uncommitted triage edits stand
+  as described above (the `filter_ordered_test.go` one changes an expectation
+  and goes to the judge).
+
 What remains:
 
 - Phase 4: D-1 (import relaxation when Route Refresh is unavailable), AC-6 and
