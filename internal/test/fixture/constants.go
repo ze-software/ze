@@ -279,7 +279,6 @@ const (
 	actionSelftest                = "selftest"
 	actionStart                   = "start"
 	actionUpdate                  = "update" // The le action verb.
-	actionWrite                   = "write"
 	actionVPPHugepagesTest        = "vpp-hugepages"
 	actionVPPIfaceTest            = "vpp-iface"
 	actionVPPTest                 = "vpp"

@@ -156,18 +156,18 @@ func leVendorWebAnswers(parent context.Context) error {
 			return fmt.Errorf("FAIL: the listing does not name %q:\n%s", wanted, listing.stdout)
 		}
 	}
-	foundSync := false
+	foundUpdate := false
 	for line := range strings.SplitSeq(listing.stdout, "\n") {
 		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, "sync ") {
-			foundSync = true
+		if strings.HasPrefix(trimmed, "update ") {
+			foundUpdate = true
 			if !strings.Contains(line, "writes") {
-				return fmt.Errorf("FAIL: the sync action is not marked as writing: %q", line)
+				return fmt.Errorf("FAIL: the update action is not marked as writing: %q", line)
 			}
 		}
 	}
-	if !foundSync {
-		return fmt.Errorf("FAIL: the listing has no sync action line:\n%s", listing.stdout)
+	if !foundUpdate {
+		return fmt.Errorf("FAIL: the listing has no update action line:\n%s", listing.stdout)
 	}
 
 	// Exercise the writing gate over two independent copies. Both start with

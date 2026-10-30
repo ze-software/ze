@@ -72,7 +72,7 @@ func runLEDevAnswers(ctx context.Context) error {
 			return uiLeDevGatesAnswersFailf("%s: the command wrote to stderr: %s", page.name, answer.stderr)
 		}
 		if page.name == "rfc skeletons report" {
-			if !bytes.Contains(answer.stdout, []byte("| json for detail")) {
+			if !bytes.Contains(answer.stdout, []byte("'|' json for detail")) {
 				return uiLeDevGatesAnswersFailf("%s: the page does not advertise its data rendering:\n%s", page.name, answer.stdout)
 			}
 			if bytes.Contains(answer.stdout, []byte("--verbose for detail")) {

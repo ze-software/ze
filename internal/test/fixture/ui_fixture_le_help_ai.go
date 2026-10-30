@@ -106,7 +106,7 @@ func leHelpAiText(run leHelpPagesRun, lePath string) error {
 	if summary.stderr != "" {
 		return fmt.Errorf("le help ai answered %d, stderr %q", summary.exitCode, summary.stderr)
 	}
-	for _, want := range append([]string{"le help ai | json"}, leHelpAiSections...) {
+	for _, want := range append([]string{"le help ai '|' json"}, leHelpAiSections...) {
 		if !strings.Contains(summary.stdout, want) {
 			return fmt.Errorf("le help ai does not name %q:\n%s", want, summary.stdout)
 		}
@@ -212,7 +212,7 @@ func leHelpAiRefusals(run leHelpPagesRun, lePath string) error {
 		if refused.exitCode != 2 {
 			return fmt.Errorf("le help ai %s answered %d, stderr %q", flag, refused.exitCode, refused.stderr)
 		}
-		if !strings.Contains(refused.stderr, "le help ai | json") {
+		if !strings.Contains(refused.stderr, "le help ai '|' json") {
 			return fmt.Errorf("le help ai %s answered %d, stderr %q", flag, refused.exitCode, refused.stderr)
 		}
 	}

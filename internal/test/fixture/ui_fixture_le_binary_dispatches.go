@@ -154,7 +154,7 @@ func leBinaryDispatches(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	for _, verb := range []string{actionCheck, actionWrite} {
+	for _, verb := range []string{actionCheck, actionUpdate} {
 		if _, ok := docVerbs[verb]; !ok {
 			return uiLeBinaryDispatchesFailf("the doc index area lost %q: %v", verb, sortedSet(docVerbs))
 		}
