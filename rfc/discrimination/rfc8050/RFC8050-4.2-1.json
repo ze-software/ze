@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8050-4.2-1",
+    "polarity": "positive",
+    "unit": "internal/mrt/mrt_test.go::TestRIBGenericAddPathRoundTrip",
+    "unit-sha": "5b483cd50dfbc9b9",
+    "claim-sha": "a80bb5fa72dff1b2",
+    "route": "revert",
+    "producer": "internal/mrt/decode.go::DecodeRIBGenericRecord",
+    "producer-sha": "2eda6a9196728261",
+    "break": "body of DecodeRIBGenericRecord replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8050-4.2-1",
+    "polarity": "negative",
+    "unit": "internal/mrt/mrt_test.go::TestRIBGenericRoundTrip",
+    "unit-sha": "0fbc75833a58683f",
+    "claim-sha": "7a73f61f1cdf91c3",
+    "route": "revert",
+    "producer": "internal/mrt/decode.go::DecodeRIBGenericRecord",
+    "producer-sha": "2eda6a9196728261",
+    "break": "body of DecodeRIBGenericRecord replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]
