@@ -271,6 +271,7 @@ Owner decisions (2026-10-30):
 ## Owned journal rows
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
+| `fixture-encodes-an-impossible-state` | 2026-10-30 | paths-limit-live names an undeclared admin profile |
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
