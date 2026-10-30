@@ -37,7 +37,11 @@ func init() {
 		Name:        "loop",
 		Description: "Route loop detection (RFC 4271 S9, RFC 4456 S8)",
 		RFCs:        []string{"4271", "4456"},
-		RunEngine:   func(_ net.Conn) int { return 0 },
-		CLIHandler:  func(_ []string) int { return 0 },
+		// Loop detection registers the loop-detection filter type into the
+		// policy library above, so it names policy the way every filter type
+		// plugin does (policy.PluginName).
+		Dependencies: []string{policy.PluginName},
+		RunEngine:    func(_ net.Conn) int { return 0 },
+		CLIHandler:   func(_ []string) int { return 0 },
 	})
 }
