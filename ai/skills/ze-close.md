@@ -197,8 +197,8 @@ The main thread sets the spec back to `in-progress` when the blocker clears.
      **Dropping the item instead of homing it is the owner's decision, never
      yours** (`ai/rules/completion.md`).
    Running the commit script finishes the closure. There is no step 7. Every
-   change below MUST be in that single script; the only thing after it is the
-   scoped verify over the commits it made (6f).
+   change below MUST be in that single script; the only things after it are
+   releasing the claim (6e) and the scoped verify over the commits it made (6f).
 
    a. **Route any lesson to its governing surface.** Follow the lesson-routing
       rule in `ai/rules/planning.md`. Update an existing rule, architecture page,
@@ -211,7 +211,12 @@ The main thread sets the spec back to `in-progress` when the blocker clears.
       validates journal row shape; removal of a spec identifies closure.
       <!-- source: internal/le/commit/review.go -- closureStem, closedSpecStem -->
       If there is no lesson, create no lesson record.
-   b. Release this session's spec claim: `./le spec release`. This also frees a slot against the WIP cap (`./le spec wip`).
+   b. **Keep the claim until the script has run.** `./le commit create` writes
+      `Spec-work: <stem>` from the session's claim, and the push discharge of a
+      `Review-owed:` finds commit A only through that line
+      (`specWorkPopulation`, `internal/le/commit/review.go`). A claim released
+      before step d leaves commits A and B untagged, so the discharge judges
+      fewer files than the closure gate did. Step e releases it.
    c. List all changes made (files modified/created, tests added, docs updated, issues found and fixed).
    d. Prepare ONE commit script with `./le commit create` that produces TWO commits:
       - **Clear the citers first (BLOCKING).** Commit B removes the spec, and
@@ -259,7 +264,7 @@ The main thread sets the spec back to `in-progress` when the blocker clears.
       - **Sweep EVERY journal row this session wrote, not only step 6a's.** Run `git status --porcelain plan/journal/` and add `file <path>` for each row whose text this session added: a defect met while implementing is written the moment it is found, and it then waits, uncommitted, for a commit that names it. Rows belonging to another session stay out. An uncommitted row lives in one working tree and dies at the next clean or checkout, so a closure that leaves them behind loses the knowledge the closure exists to preserve (`ai/rules/completion.md`, "Recording").
       - **Commit B (spec closure):** run `./le commit create append remove <spec-path>` using the same actual path with the spec closure commit message. Leave the spec file on disk: once commit B succeeds, the script deletes it, because commit A's `file <spec-path>` committed exactly that content. A copy edited after `create` ran is kept and named on stderr (`NOTE: kept <path>`); decide about that copy, never delete it blind.
       - The native command owns the session ID, message files, executable script, ignored-path rejection, the commit itself, and journal-row checks.
-   e. Run the generated script yourself, with `bash` and the path from its `script=` line. Then report the resulting commit SHA(s), the script path, message files, commit subjects, and included files.
+   e. Run the generated script yourself, with `bash` and the path from its `script=` line. Then release this session's spec claim, `./le spec release`, which also frees a slot against the WIP cap (`./le spec wip`). Report the resulting commit SHA(s), the script path, message files, commit subjects, and included files.
    f. **The scoped verify, once, over the closing commits.** `./le verify
       changed` judges what the spec changed since the upstream, and is the
       evidence a push owes. The agent running this skill has done other work, so
