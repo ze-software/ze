@@ -46,7 +46,7 @@ type DHCPClient struct {
 	config    dHCPConfig
 	stop      chan struct{}
 	done      chan struct{}
-	// life is cancelled by Stop together with closing stop. Each exchange
+	// life is canceled by Stop together with closing stop. Each exchange
 	// derives its context from it (stoppableContext), so an exchange stops
 	// with the client and no goroutine per exchange watches stop.
 	life       context.Context
@@ -203,7 +203,7 @@ func (c *DHCPClient) safeRunV6() {
 	c.runV6()
 }
 
-// stoppableContext is the context of one exchange: cancelled by Stop, or by
+// stoppableContext is the context of one exchange: canceled by Stop, or by
 // the returned cancel, which the caller MUST call when the exchange returns.
 //
 // It is a child of the client's life context, so the cancellation propagates

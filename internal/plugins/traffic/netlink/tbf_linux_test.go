@@ -21,7 +21,10 @@ func TestTBFRateNormalization(t *testing.T) {
 		if err != nil {
 			t.Fatalf("rate %d: %v", rate, err)
 		}
-		tbf := qdisc.(*netlink.Tbf)
+		tbf, ok := qdisc.(*netlink.Tbf)
+		if !ok {
+			t.Fatalf("got %T, want *netlink.Tbf", qdisc)
+		}
 		if tbf.Rate != rate/8 {
 			t.Fatalf("rate %d: kernel rate = %d bytes/s", rate, tbf.Rate)
 		}
@@ -46,7 +49,10 @@ func TestHTBRateNormalization(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	htb := class.(*netlink.HtbClass)
+	htb, ok := class.(*netlink.HtbClass)
+	if !ok {
+		t.Fatalf("got %T, want *netlink.HtbClass", class)
+	}
 	if htb.Rate != 1_250_000 || htb.Ceil != 2_500_000 {
 		t.Fatalf("HTB rate/ceil = %d/%d bytes/s, want 1250000/2500000", htb.Rate, htb.Ceil)
 	}
@@ -69,14 +75,20 @@ func TestTBFApplyReachesBothDirectionsAndReadback(t *testing.T) {
 		if err := b.Apply(context.Background(), map[string]traffic.InterfaceQoS{"ppp0": qos}); err != nil {
 			t.Fatal(err)
 		}
-		root := ops.replaced[len(ops.replaced)-1].(*netlink.Tbf)
+		root, ok := ops.replaced[len(ops.replaced)-1].(*netlink.Tbf)
+		if !ok {
+			t.Fatalf("got %T, want *netlink.Tbf", ops.replaced[len(ops.replaced)-1])
+		}
 		if root.Rate != rates[0]/8 {
 			t.Fatalf("installed download = %d bytes/s, want %d", root.Rate, rates[0]/8)
 		}
 		if len(ops.added) == 0 {
 			t.Fatal("classless root prevented ingress policing")
 		}
-		filter := ops.added[len(ops.added)-1].(*netlink.MatchAll)
+		filter, ok := ops.added[len(ops.added)-1].(*netlink.MatchAll)
+		if !ok {
+			t.Fatalf("got %T, want *netlink.MatchAll", ops.added[len(ops.added)-1])
+		}
 		police := filter.Actions[0].(*netlink.PoliceAction)
 		if uint64(police.Rate) != rates[1]/8 || filter.Parent != netlink.HANDLE_MIN_INGRESS || police.ExceedAction != netlink.TC_POLICE_SHOT {
 			t.Fatalf("installed upload filter = %+v, action = %+v", filter, police)

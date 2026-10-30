@@ -51,9 +51,9 @@ func TestVPPHealthCheckComponentNotRunning(t *testing.T) {
 // listener so the file stays and connections are refused.
 func TestVPPHealthCheckSocketRefuses(t *testing.T) {
 	path := filepath.Join(shortSocketDir(t), "api.sock")
-	ln, err := net.Listen("unix", path)
+	ln, err := (&net.ListenConfig{}).Listen(t.Context(), "unix", path)
 	require.NoError(t, err)
-	ln.(*net.UnixListener).SetUnlinkOnClose(false) //nolint:forcetypeassert // net.Listen("unix") returns *net.UnixListener
+	ln.(*net.UnixListener).SetUnlinkOnClose(false) //nolint:forcetypeassert // Listen("unix") returns *net.UnixListener
 	require.NoError(t, ln.Close())
 	withActiveVPPSocket(t, path, true)
 
@@ -68,7 +68,7 @@ func TestVPPHealthCheckSocketRefuses(t *testing.T) {
 // live unix listener at the configured path.
 func TestVPPHealthCheckSocketAccepts(t *testing.T) {
 	path := filepath.Join(shortSocketDir(t), "api.sock")
-	ln, err := net.Listen("unix", path)
+	ln, err := (&net.ListenConfig{}).Listen(t.Context(), "unix", path)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = ln.Close() })
 	withActiveVPPSocket(t, path, true)

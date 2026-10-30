@@ -658,8 +658,7 @@ func (b *netlinkBackend) GetStats(ifaceName string) (*iface.InterfaceStats, erro
 		return nil, fmt.Errorf("iface: get stats on %q: %w", ifaceName, err)
 	}
 	link, err := netlink.LinkByName(ifaceName)
-	var notFound netlink.LinkNotFoundError
-	if errors.As(err, &notFound) {
+	if _, notFound := errors.AsType[netlink.LinkNotFoundError](err); notFound {
 		// No such link is absence and only absence, as in readLink: every
 		// other error is a read that did not answer.
 		return nil, fmt.Errorf("iface: get stats on %q: %w (%w)", ifaceName, iface.ErrInterfaceNotFound, err)

@@ -19,6 +19,10 @@ const (
 
 	progIngress = "tu_ingress"
 	progEgress  = "tu_egress"
+
+	// bpfLicense is the license every trafficusage program declares: the
+	// kernel refuses GPL-only helpers to a program that declares another.
+	bpfLicense = "GPL"
 )
 
 // Header layout constants (IPv4 over Ethernet II).
@@ -87,12 +91,12 @@ func buildCollectionSpec(maxEntries uint32, trackIP bool) *ebpf.CollectionSpec {
 		Programs: map[string]*ebpf.ProgramSpec{
 			progIngress: {
 				Type:         ebpf.SchedCLS,
-				License:      "GPL",
+				License:      bpfLicense,
 				Instructions: directionInsns(ipSrcOff, l4DstOffset, mapIPIngress, mapPortIngress, trackIP),
 			},
 			progEgress: {
 				Type:         ebpf.SchedCLS,
-				License:      "GPL",
+				License:      bpfLicense,
 				Instructions: directionInsns(ipDstOff, l4SrcOffset, mapIPEgress, mapPortEgress, trackIP),
 			},
 		},

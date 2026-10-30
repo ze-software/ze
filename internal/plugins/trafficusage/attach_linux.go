@@ -30,7 +30,7 @@ func newAttacher() attacher { return tcxAttacher{} }
 func probeTCX() tcxReadinessResult {
 	prog, err := ebpf.NewProgram(&ebpf.ProgramSpec{
 		Type:    ebpf.SchedCLS,
-		License: "GPL",
+		License: bpfLicense,
 		Instructions: asm.Instructions{
 			asm.Mov.Imm(asm.R0, 0),
 			asm.Return(),
