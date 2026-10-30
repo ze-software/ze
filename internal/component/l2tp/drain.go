@@ -32,7 +32,7 @@ type poolDrainResponse struct {
 
 // drainAuth reads EventAuthRequests from the channel and calls the
 // handler, sending results on out. Used by tests. Exits when ch closes.
-func drainAuth(logger *slog.Logger, ch <-chan ppp.AuthEvent, handler AuthHandler, out chan<- authDrainResponse) {
+func drainAuth(ch <-chan ppp.AuthEvent, handler AuthHandler, out chan<- authDrainResponse) {
 	for ev := range ch {
 		req, ok := ev.(ppp.EventAuthRequest)
 		if !ok {
@@ -131,7 +131,7 @@ func callAuthHandler(handler AuthHandler, req ppp.EventAuthRequest, respond Auth
 
 // drainPool reads EventIPRequests from the channel and calls the
 // handler, sending results on out. Used by tests. Exits when ch closes.
-func drainPool(logger *slog.Logger, ch <-chan ppp.IPEvent, handler PoolHandler, out chan<- poolDrainResponse) {
+func drainPool(ch <-chan ppp.IPEvent, handler PoolHandler, out chan<- poolDrainResponse) {
 	for ev := range ch {
 		req, ok := ev.(ppp.EventIPRequest)
 		if !ok {

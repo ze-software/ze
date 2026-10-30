@@ -105,7 +105,7 @@ func TestESPFixedCipherKeyMaterial(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				defer keys.Clear()
+				t.Cleanup(keys.Clear)
 				stream, err := PRFPlus(PRF_HMAC_SHA2_256, skD, seed, 2*(tc.encLen+tc.authLen))
 				if err != nil {
 					t.Fatal(err)

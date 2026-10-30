@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"syscall"
@@ -211,7 +212,7 @@ type ChildSA struct {
 	// It does not erase initial-install ownership. The independent metrics reader
 	// combines it with ESPInstalled; a successful replacement publishes a new Child.
 	// A published Child must not be copied while this field can be updated.
-	policyRestoreFailed uint32
+	policyRestoreFailed uint32 //nolint:modernize // Tests build ChildSA variants by value copy; atomic.Uint32 would make each copy a go vet copylocks finding.
 
 	// forwardPolicy records the installed backend's separate transit-policy requirement.
 	// It is set before the selector claim and install, and remains fixed until teardown.
@@ -677,8 +678,7 @@ func rollbackChildPolicies(previous *ChildSA, installed []dataplane.SPParams, dp
 	}
 	var left []dataplane.SPParams
 	var rollbackErr error
-	for i := len(installed) - 1; i >= 0; i-- {
-		policy := installed[i]
+	for _, policy := range slices.Backward(installed) {
 		shared := false
 		for _, old := range oldPolicies {
 			if old.Dir != policy.Dir || old.Owner != policy.Owner || !samePolicyEntry(old, policy) {

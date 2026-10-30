@@ -70,21 +70,6 @@ var newSubsystemKernelWorkerFn = newSubsystemKernelWorker
 // ze.l2tp.disable-kernel-dataplane knob leaves.
 var errKernelDataPlaneDisabled = errors.New("disabled by ze.l2tp.disable-kernel-dataplane")
 
-// kernelDataPlane answers why sessions are not programmed into the kernel, or
-// nil when every listener has a kernel worker. Safe for concurrent use.
-func (s *Subsystem) kernelDataPlane() error {
-	if fault := s.dataPlaneFault.Load(); fault != nil {
-		return *fault
-	}
-	return nil
-}
-
-// recordDataPlaneFault keeps the first reason a listener came up with no
-// kernel worker.
-func (s *Subsystem) recordDataPlaneFault(fault error) {
-	s.dataPlaneFault.CompareAndSwap(nil, &fault)
-}
-
 // Subsystem is the ze.Subsystem implementation for L2TPv2.
 //
 // Phase 3 scope: UDP listener + reactor skeleton are wired. Tunnel state
@@ -125,6 +110,21 @@ type Subsystem struct {
 	// subBridge translates L2TP session events into subscriber namespace
 	// events and maintains the subscriber registry.
 	subBridge *subscriberBridge
+}
+
+// kernelDataPlane answers why sessions are not programmed into the kernel, or
+// nil when every listener has a kernel worker. Safe for concurrent use.
+func (s *Subsystem) kernelDataPlane() error {
+	if fault := s.dataPlaneFault.Load(); fault != nil {
+		return *fault
+	}
+	return nil
+}
+
+// recordDataPlaneFault keeps the first reason a listener came up with no
+// kernel worker.
+func (s *Subsystem) recordDataPlaneFault(fault error) {
+	s.dataPlaneFault.CompareAndSwap(nil, &fault)
 }
 
 // NewSubsystem constructs an L2TP subsystem from parsed Parameters. The returned

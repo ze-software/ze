@@ -236,7 +236,10 @@ func (s *shaperPlugin) applyTC(ifaceName string, qdiscType traffic.QdiscType, do
 		}
 	case traffic.QdiscTBF:
 		qos.Qdisc.RateBps = downloadBps
-	default:
+	case traffic.QdiscHFSC, traffic.QdiscFQ, traffic.QdiscFQCodel, traffic.QdiscSFQ,
+		traffic.QdiscNetem, traffic.QdiscPrio, traffic.QdiscClsact, traffic.QdiscIngress:
+		return fmt.Errorf("subscriber shaper requires tbf or htb, got %s", qdiscType)
+	default: // The set is open: the qdisc type comes from config.
 		return fmt.Errorf("subscriber shaper requires tbf or htb, got %s", qdiscType)
 	}
 

@@ -4,7 +4,6 @@
 package l2tp
 
 import (
-	"log/slog"
 	"testing"
 	"time"
 
@@ -24,7 +23,7 @@ func TestAuthDrainCallsHandler(t *testing.T) {
 		return AuthResult{Accept: true, Message: "ok"}
 	})
 
-	go drainAuth(slog.Default(), authCh, handler, responded)
+	go drainAuth(authCh, handler, responded)
 
 	authCh <- ppp.EventAuthRequest{TunnelID: 1, SessionID: 2, Username: "alice"}
 	close(authCh)
@@ -45,7 +44,7 @@ func TestAuthDrainNilHandlerRejects(t *testing.T) {
 	authCh := make(chan ppp.AuthEvent, 1)
 	responded := make(chan authDrainResponse, 1)
 
-	go drainAuth(slog.Default(), authCh, nil, responded)
+	go drainAuth(authCh, nil, responded)
 
 	authCh <- ppp.EventAuthRequest{TunnelID: 1, SessionID: 1}
 	close(authCh)
@@ -69,7 +68,7 @@ func TestAuthDrainPanicRecovery(t *testing.T) {
 		return AuthResult{Accept: true}
 	})
 
-	go drainAuth(slog.Default(), authCh, handler, responded)
+	go drainAuth(authCh, handler, responded)
 
 	authCh <- ppp.EventAuthRequest{TunnelID: 1, SessionID: 1}
 	authCh <- ppp.EventAuthRequest{TunnelID: 1, SessionID: 2}
@@ -99,7 +98,7 @@ func TestAuthDrainHandledSentinel(t *testing.T) {
 		return AuthResult{Handled: true}
 	})
 
-	go drainAuth(slog.Default(), authCh, handler, responded)
+	go drainAuth(authCh, handler, responded)
 
 	authCh <- ppp.EventAuthRequest{TunnelID: 1, SessionID: 2, Username: "bob"}
 	close(authCh)
@@ -123,7 +122,7 @@ func TestPoolDrainCallsHandler(t *testing.T) {
 		return ppp.IPResponseArgs{Accept: true, Family: req.Family}
 	})
 
-	go drainPool(slog.Default(), ipCh, handler, responded)
+	go drainPool(ipCh, handler, responded)
 
 	ipCh <- ppp.EventIPRequest{TunnelID: 1, SessionID: 2, Family: ppp.AddressFamilyIPv4}
 	close(ipCh)
@@ -144,7 +143,7 @@ func TestPoolDrainDefaultReject(t *testing.T) {
 	ipCh := make(chan ppp.IPEvent, 1)
 	responded := make(chan poolDrainResponse, 1)
 
-	go drainPool(slog.Default(), ipCh, nil, responded)
+	go drainPool(ipCh, nil, responded)
 
 	ipCh <- ppp.EventIPRequest{TunnelID: 1, SessionID: 1}
 	close(ipCh)
@@ -172,7 +171,7 @@ func TestPoolDrainPanicRecovery(t *testing.T) {
 		return ppp.IPResponseArgs{Accept: true}
 	})
 
-	go drainPool(slog.Default(), ipCh, handler, responded)
+	go drainPool(ipCh, handler, responded)
 
 	ipCh <- ppp.EventIPRequest{TunnelID: 1, SessionID: 1}
 	ipCh <- ppp.EventIPRequest{TunnelID: 1, SessionID: 2}

@@ -14,6 +14,7 @@ import (
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/component/radius"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -57,7 +58,7 @@ func checkRADIUSServers(ctx registry.DoctorCheckContext) []rpc.DoctorCheckDiagno
 			row := "l2tp auth radius server " + s.Key
 			return []rpc.DoctorCheckDiagnostic{{
 				Code:     "doctor-radius-invalid",
-				Severity: "warning",
+				Severity: string(diagnostic.SeverityWarning),
 				Message: "RADIUS server " + s.Key + " was not probed: " + err.Error() +
 					"; set it with 'set " + row + " require-message-authenticator true', " +
 					"or false only for a server that cannot sign its answers",
@@ -77,7 +78,7 @@ func checkRADIUSServers(ctx registry.DoctorCheckContext) []rpc.DoctorCheckDiagno
 		if errors.Is(probeErr, radius.ErrUnsignedResponse) {
 			unsigned = append(unsigned, rpc.DoctorCheckDiagnostic{
 				Code:     "doctor-radius-unsigned-response",
-				Severity: "warning",
+				Severity: string(diagnostic.SeverityWarning),
 				Message: "RADIUS server " + srv.Address + " answers without a Message-Authenticator, " +
 					"which Ze discards (BlastRADIUS, CVE-2024-3596); configure it to sign its answers, " +
 					"or accept it with 'set " + srv.ConfigPath + " require-message-authenticator false'",
@@ -92,7 +93,7 @@ func checkRADIUSServers(ctx registry.DoctorCheckContext) []rpc.DoctorCheckDiagno
 	}
 	return []rpc.DoctorCheckDiagnostic{{
 		Code:     "doctor-radius-unreachable",
-		Severity: "warning",
+		Severity: string(diagnostic.SeverityWarning),
 		Message:  "none of the configured RADIUS servers are reachable",
 	}}
 }

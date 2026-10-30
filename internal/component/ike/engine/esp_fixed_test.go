@@ -86,12 +86,12 @@ func TestESPFixedChildRekeyBothRoles(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				defer first.Clear()
+				t.Cleanup(first.Clear)
 				other, err := createFirstChildSA(r.resp, group, r.resp.PeerCfg.LocalAddress, r.resp.PeerCfg.RemoteAddress, 1, respDP, log)
 				if err != nil {
 					t.Fatal(err)
 				}
-				defer other.Clear()
+				t.Cleanup(other.Clear)
 				local, peer := r.ini, r.resp
 				if reverse {
 					local, peer, first, other = peer, local, other, first
@@ -100,7 +100,7 @@ func TestESPFixedChildRekeyBothRoles(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				defer pending.clear()
+				t.Cleanup(pending.clear)
 				request := mbDecrypt(t, peer, raw)
 				offered := false
 				for _, entry := range request {
@@ -134,12 +134,12 @@ func TestESPFixedChildRekeyBothRoles(t *testing.T) {
 				if err != nil {
 					t.Fatalf("%s reverse=%v pfs=%v: %v", p.Encryption, reverse, pfs, err)
 				}
-				defer replacementPeer.Clear()
+				t.Cleanup(replacementPeer.Clear)
 				replacement, err := applyChildRekeyResponse(local, pending, mbDecrypt(t, local, answer), iniDP, log)
 				if err != nil {
 					t.Fatal(err)
 				}
-				defer replacement.Clear()
+				t.Cleanup(replacement.Clear)
 				if replacement.ESPGroup.Proposals[0].Encryption != p.Encryption || replacementPeer.ESPGroup.Proposals[0].Encryption != p.Encryption {
 					t.Fatal("rekey changed selected cipher")
 				}
