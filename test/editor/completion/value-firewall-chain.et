@@ -1,0 +1,31 @@
+# Test: firewall-chain reference completion offers the configured names
+# VALIDATES: Tab on the firewall-chain reference leaf offers exactly the entries the
+#            candidate declares (leafref or ze:reference source).
+# PREVENTS: the leaf completing only a type hint, so a typo surfaces at commit.
+
+tmpfs=test.conf:terminator=EOF_CONF
+firewall {
+	backend nft
+	table wan {
+		family inet
+		chain input {
+			term ssh {
+				then {
+				}
+			}
+		}
+		chain helper {
+		}
+	}
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+input=type:text=edit firewall table wan chain input term ssh then
+input=enter
+expect=context:path=firewall/table/wan/chain/input/term/ssh/then
+input=type:text=set jump
+input=space
+expect=completion:contains=helper,input

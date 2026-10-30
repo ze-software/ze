@@ -302,16 +302,22 @@ module ze-firewall-conf {
             ze:help "In a NAT chain term, skip NAT for the matching traffic.";
         }
         leaf jump {
-            type string;
-            description "The target chain MUST be declared in the same table, and verify refuses a name the table
-                does not hold. Evaluation comes back to the term after this one when the target chain
+            type leafref {
+                path "../../../../chain/name";
+                require-instance true;
+            }
+            description "The target chain MUST be declared in the same table. The editor completes the chains the
+                table holds, and a commit naming any other chain is refused. Evaluation comes back to the term after this one when the target chain
                 ends or returns.";
             ze:help "Jump to target chain";
         }
         leaf goto {
-            type string;
-            description "The target chain MUST be declared in the same table, and verify refuses a name the table
-                does not hold. Evaluation does not come back, so the terms after this one never run for
+            type leafref {
+                path "../../../../chain/name";
+                require-instance true;
+            }
+            description "The target chain MUST be declared in the same table. The editor completes the chains the
+                table holds, and a commit naming any other chain is refused. Evaluation does not come back, so the terms after this one never run for
                 that packet.";
             ze:help "Goto target chain (no return)";
         }
@@ -744,8 +750,8 @@ module ze-firewall-conf {
                         pattern '[a-zA-Z0-9][a-zA-Z0-9_-]*';
                     }
                     description "The name holds 1 to 255 characters and starts with a letter or a digit. A jump
-                        or a goto names this chain, and verify refuses a term whose target chain the
-                        table does not hold.";
+                        or a goto of the same table names this chain, and a commit refuses a term whose
+                        target chain the table does not hold.";
                     ze:help "Chain name";
                 }
 

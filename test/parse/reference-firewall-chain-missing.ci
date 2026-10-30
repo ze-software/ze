@@ -1,0 +1,101 @@
+# Test: a firewall jump or goto naming a chain the table does not hold is refused
+#
+# VALIDATES: the then-block jump and goto leaves are YANG leafrefs to
+#            "../../../../chain/name" (ze-firewall-conf.yang), so
+#            `ze config validate` refuses a chain the same table does not
+#            declare, naming the value, the table's chains and the leaf, and
+#            accepts declared names.
+# PREVENTS: a dangling jump target reaching the backend, and a chain of
+#           another table being accepted as a target.
+
+stdin=jump:terminator=EOF_JUMP
+firewall {
+	backend nft
+	table wan {
+		family inet
+		chain input {
+			type filter
+			hook input
+			priority 0
+			policy drop
+			term ssh {
+				from {
+					destination-port 22
+				}
+				then {
+					jump audit-ssh
+				}
+			}
+		}
+		chain helper {
+		}
+	}
+	table lan {
+		family inet
+		chain audit-ssh {
+		}
+	}
+}
+EOF_JUMP
+
+stdin=goto:terminator=EOF_GOTO
+firewall {
+	backend nft
+	table wan {
+		family inet
+		chain input {
+			type filter
+			hook input
+			priority 0
+			policy drop
+			term ssh {
+				then {
+					goto cleanup
+				}
+			}
+		}
+		chain helper {
+		}
+	}
+}
+EOF_GOTO
+
+stdin=present:terminator=EOF_PRESENT
+firewall {
+	backend nft
+	table wan {
+		family inet
+		chain input {
+			type filter
+			hook input
+			priority 0
+			policy drop
+			term ssh {
+				then {
+					jump helper
+				}
+			}
+			term rest {
+				then {
+					goto helper
+				}
+			}
+		}
+		chain helper {
+		}
+	}
+}
+EOF_PRESENT
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=jump
+expect=exit:code=1
+expect=stdout:contains=no name "audit-ssh" exists at "../../../../chain/name"
+expect=stdout:contains=name one of "helper input"
+expect=stdout:contains=then/jump
+cmd=foreground:seq=2:exec=ze config validate -:stdin=goto
+expect=exit:code=1
+expect=stdout:contains=no name "cleanup" exists at "../../../../chain/name"
+expect=stdout:contains=then/goto
+cmd=foreground:seq=3:exec=ze config validate -:stdin=present
+expect=exit:code=0
+expect=stdout:contains=configuration valid
