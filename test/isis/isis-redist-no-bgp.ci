@@ -1,0 +1,64 @@
+# Test: redistribute into IS-IS with no bgp block.
+#
+# VALIDATES: a config holding `redistribute { destination isis { import ... } }`
+#            and no `bgp { }` block boots, and a redistributed route reaches
+#            this node's own LSP. The redistribute orchestrator is a
+#            protocol-neutral plugin (internal/plugins/redistribute) with no
+#            hard dependency on BGP, and it installs the import rules itself, so
+#            a router that runs IS-IS without BGP redistributes. The synthetic
+#            fakeredist producer announces 10.78.2.0/24 through the same
+#            redistevents bus static uses; the fixture reads the LSDB through
+#            `show isis database detail` and looks for the prefix in a TLV 135
+#            entry of the own LSP.
+# PREVENTS:  the boot failure "plugin bgp failed during startup at stage Config:
+#            ... missing required bgp { } block", which a hard `bgp` dependency
+#            of the orchestrator caused, and a boot that succeeds while the
+#            import rules stay uninstalled and every batch is dropped.
+#
+# A passive interface opens no raw circuit, so IS-IS starts without CAP_NET_RAW
+# and still originates its own LSP (as test/isis/isis-show.ci relies on). The
+# synthetic producer stands in for `import static`, whose plugin needs an
+# interface backend this host may lack; the interop scenario
+# isis-narrow-metric-frr runs the static source against FRR.
+
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+	external isis-redist-no-bgp {
+		run "le test fixture isis/isis-redist-no-bgp"
+		encoder json
+	}
+	internal fakeredist {
+		use fakeredist
+	}
+}
+
+isis {
+	net 49.0001.0000.0000.0002.00
+	level l1-l2
+	hostname ze-redist
+	interfaces {
+		interface lo {
+			passive true
+		}
+	}
+}
+
+redistribute {
+	destination isis {
+		import fakeredist {
+			family [ ipv4/unicast ];
+		}
+	}
+}
+EOF_CONF
+
+option=env:var=ze.log.isis:value=info
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=20s
+expect=exit:code=0
+expect=stderr:contains=OK: own LSP advertises the redistributed 10.78.2.0/24
+reject=stderr:pattern=missing required bgp
+reject=stderr:pattern=no evaluator configured
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error
