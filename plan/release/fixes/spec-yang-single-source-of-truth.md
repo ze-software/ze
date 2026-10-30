@@ -235,6 +235,7 @@ The 52 open rows this root cause owns. Each is re-pointed to this spec when it l
 | `schema-omits-a-leaf-the-backend-supports.md` | 2026-09-14 | `diag` capture `protocol` enum omits `bfd` |
 | `validated-value-discarded-by-its-caller.md` | 2026-09-03 | `argDefFor` drops a command argument's `description` |
 | `declared-default-applied-by-each-consumer.md` | 2026-09-04 | YANG `default` applied only where a consumer calls `ApplyDefaults` |
+| `declared-default-applied-by-each-consumer.md` | 2026-10-30 | interface `ipv6 accept-ra` `default 0` never applied; the device runs the kernel's 1 |
 | `command-takes-an-untyped-positional-value.md` | 2026-08-24 | five `show bgp` commands read an untyped positional |
 | `command-takes-an-untyped-positional-value.md` | 2026-08-30 | `announce` handler reads args beyond the declared `selector` |
 | `command-takes-an-untyped-positional-value.md` | 2026-09-04 | `peer raw`, `peer update` and siblings read undeclared positionals |
