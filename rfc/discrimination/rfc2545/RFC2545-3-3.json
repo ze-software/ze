@@ -123,6 +123,28 @@
   {
     "rid": "RFC2545-3-3",
     "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc2545_third_party_link_local_test.go::TestRFC2545ThirdPartyLinkLocalAnnounce",
+    "unit-sha": "88400bfac7bd928a",
+    "claim-sha": "6bc214eb0b57a548",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/link_scope.go::linkScope.thirdPartyLinkLocal",
+    "producer-sha": "51f87184ee1d05d7",
+    "break": "body of linkScope.thirdPartyLinkLocal replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2545-3-3",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc2545_third_party_link_local_test.go::TestRFC2545ThirdPartyLinkLocalAnnounce",
+    "unit-sha": "88400bfac7bd928a",
+    "claim-sha": "9b73d5234f9c93e2",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/link_scope.go::linkScope.linkLocalNextHop",
+    "producer-sha": "602df978457d6505",
+    "break": "body of linkScope.linkLocalNextHop replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2545-3-3",
+    "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc4659_vpn_next_hop_rewrite_test.go::TestRFC2545StaticLabeledIPv6LinkLocalCommonSubnet",
     "unit-sha": "971e162b5cc998cc",
     "claim-sha": "fbb91097dad7c962",

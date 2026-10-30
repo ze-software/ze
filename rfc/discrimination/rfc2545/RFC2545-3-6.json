@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2545-3-6",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc2545_third_party_link_local_test.go::TestRFC2545ThirdPartyLinkLocalAnnounce",
+    "unit-sha": "88400bfac7bd928a",
+    "claim-sha": "c137288f01b55e50",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/link_scope.go::linkScope.thirdPartyLinkLocal",
+    "producer-sha": "51f87184ee1d05d7",
+    "break": "body of linkScope.thirdPartyLinkLocal replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2545-3-6",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc2545_third_party_link_local_test.go::TestRFC2545ThirdPartyLinkLocalAnnounce",
+    "unit-sha": "88400bfac7bd928a",
+    "claim-sha": "4522bf1a63e31204",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/link_scope.go::linkScope.linkLocalNextHop",
+    "producer-sha": "602df978457d6505",
+    "break": "body of linkScope.linkLocalNextHop replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]
