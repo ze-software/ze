@@ -1,6 +1,7 @@
 // Design: docs/architecture/isis/isis-4-component-config.md -- IS-IS config resolution
 // Related: config.go -- Level.String, the one place the level words are spelled
 // Related: auth_keystore.go -- algoFromString, the key-chain algorithm words
+// Related: config.go -- parseMetricStyle, the metric-style words
 //
 // Two vocabularies cross the configuration boundary here: the routing level of an IS or
 // a circuit, and the digest algorithm of a key-chain key. ze-isis-conf.yang decides which
@@ -19,6 +20,7 @@ import (
 	gyang "github.com/openconfig/goyang/pkg/yang"
 
 	configyang "github.com/ze-software/ze/internal/component/config/yang"
+	"github.com/ze-software/ze/internal/plugins/isis/lsdb"
 	"github.com/ze-software/ze/internal/plugins/isis/packet"
 
 	// The blank import registers ze-isis-conf with the loader. It imports only the
@@ -130,4 +132,25 @@ func childEntry(entry *gyang.Entry, name string) *gyang.Entry {
 		return nil
 	}
 	return entry.Dir[name]
+}
+
+// TestMetricStyleVocabularyMatchesModel checks both directions of the
+// metric-style binding: every word the module admits parses to a style, and the
+// three styles lsdb builds LSPs with each spell a word the module admits.
+func TestMetricStyleVocabularyMatchesModel(t *testing.T) {
+	loader, err := configyang.DefaultLoader()
+	if err != nil {
+		t.Fatalf("load the YANG model: %v", err)
+	}
+	model := modelEnum(t, loader, []string{"isis", "metric-style"})
+	for _, word := range model {
+		if _, err := parseMetricStyle(word); err != nil {
+			t.Errorf("the module admits metric-style %q and parseMetricStyle refuses it: %v", word, err)
+		}
+	}
+	spelled := []string{lsdb.MetricStyleNarrow.String(), lsdb.MetricStyleTransition.String(), lsdb.MetricStyleWide.String()}
+	slices.Sort(spelled)
+	if !slices.Equal(model, spelled) {
+		t.Errorf("the metric styles disagree: the model holds %v and lsdb.MetricStyle spells %v", model, spelled)
+	}
 }

@@ -12,8 +12,9 @@ const (
 	//
 	// RFC 5305 section 3 (Extended IS Reachability, TLV 22): the default metric
 	// is a 24-bit unsigned value, range 0..16777215. The default link metric is
-	// 10. Only wide metrics are originated by Ze (umbrella decision); the narrow
-	// 6-bit metric (TLV 2) is decode-only and not modeled as a type here.
+	// 10. The narrow 6-bit metric (TLV 2, TLV 128), which Ze originates under a
+	// narrow or transition metric style, is not modeled as a type here: the
+	// lsdb encoders bound it to 63.
 	MaxMetric = 1<<24 - 1 // 16777215
 
 	// PrefixMetricLen is the IP/IPv6 prefix metric width on the wire (4 octets).

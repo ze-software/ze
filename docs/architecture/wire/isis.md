@@ -69,7 +69,7 @@ separate codepath).
 | Checksum | `checksum.go` | `Checksum`, `VerifyChecksum` (ISO 8473 Fletcher, two-step) |
 | TLV framing | `tlv.go`, `tlv_opaque.go` | `TLVIterator`, `TLV`, `SubTLV`, `DecodeTLVs`, `AuthTLVIndex`, TLV type constants |
 | Core TLVs | `tlv_core.go` | TLV 1, 8 (`WritePaddingTLV`), 9 (`LSPEntry`), 22 (`ExtISReachEntry`), 129, 137, 240 (`P2PThreeWayTLV`) |
-| Neighbor TLVs | `tlv_neighbours.go` | TLV 6 (`ISNeighborsTLV`), TLV 2 (`NarrowISReachTLV`, decode-only) |
+| Neighbor TLVs | `tlv_neighbours.go` | TLV 6 (`ISNeighborsTLV`), TLV 2 (`NarrowISReachTLV`, decode; the entry encoder is `narrowISReachEntryBytes` in `lsdb/encode.go`) |
 | IPv4 TLVs | `tlv_ipv4.go` | TLV 132, 135 (`ExtIPReachEntry`, `ExtendedIPReachTLV`) |
 | Narrow IPv4 TLVs | `tlv_narrow_ipv4.go` | `NarrowIPReachTLV`, `NarrowIPReachEntry`, `DecodeNarrowIPReachTLV` (128/130) |
 | IPv6 TLVs | `tlv_ipv6.go` | TLV 232, 236 (`IPv6ReachEntry`, `IPv6ReachabilityTLV`) |
@@ -184,7 +184,7 @@ carrying TLVs Ze does not understand.
 | TLV | Name | Codec notes |
 |-----|------|-------------|
 | 1 | Area Addresses | length-prefixed list of 1..13-octet area addresses |
-| 2 | IS Reachability (narrow) | **decode-only** (AC-14): parsed for interop; Ze originates TLV 22 instead |
+| 2 | IS Reachability (narrow) | Virtual Flag octet, then 11-octet entries: four metric octets (6-bit default metric; delay, expense and error written `0x80`, unsupported) and the 7-octet neighbor ID. Decoded always; originated under the narrow and transition `metric-style` |
 | 6 | IS Neighbors | list of 6-octet SNPAs (MACs); basis for LAN three-way adjacency |
 | 8 | Padding | zero octets to the MTU; written by `WritePaddingTLV` (originated in isis-5) |
 | 9 | LSP Entries | 16-octet records (lifetime, LSP ID, sequence, checksum) for CSNP/PSNP |
@@ -285,15 +285,28 @@ non-fragmentable TLVs and the overload bit:
 | 132 (IP Interface Address, RFC 1195) | the node's own IPv4 interface addresses (SPF next-hop source) |
 | 232 (IPv6 Interface Address, RFC 5308) | the node's own **non-link-local** IPv6 interface addresses (LSP scope); IPv6 enabled only |
 | 137 (Dynamic Hostname, RFC 5301) | configured hostname |
-| 22 (Extended IS Reachability, RFC 5305) | each Up adjacency, 24-bit wide metric |
-| 128 / 130 (Narrow IPv4 reachability) | specific narrow prefixes learned at the other level, with route and metric type retained |
-| 135 (Extended IP Reachability, RFC 5305) | connected/redistributed IPv4 prefixes, 32-bit metric |
+| 2 (IS Reachability, ISO/IEC 10589) | each Up adjacency, 6-bit narrow metric; narrow and transition `metric-style` only |
+| 22 (Extended IS Reachability, RFC 5305) | each Up adjacency, 24-bit wide metric; wide and transition `metric-style` only |
+| 128 / 130 (Narrow IPv4 reachability) | specific narrow prefixes learned at the other level, with route and metric type retained; under narrow and transition also every connected/redistributed IPv4 prefix in TLV 128, metric capped at 63 |
+| 135 (Extended IP Reachability, RFC 5305) | connected/redistributed IPv4 prefixes, 32-bit metric; wide and transition `metric-style` only |
 | 236 (IPv6 Reachability, RFC 5308) | connected/redistributed IPv6 prefixes, 32-bit metric; IPv6 enabled only |
 
-Locally originated links and prefixes use wide metrics (RFC 5305 / RFC 5308):
-TLV 22 is 24-bit and TLV 135 / 236 is 32-bit. Inter-level leaks preserve a
-received narrow IPv4 format. The overload bit (RFC 3787 section 4) is set only
+The `metric-style` leaf decides the metric of locally originated links and
+IPv4 prefixes. `wide`, the default, writes TLV 22 (24-bit) and TLV 135
+(32-bit). `narrow` writes TLV 2 and TLV 128, whose default metric is 6 bits,
+because RFC 3787 section 5 states that "If not all devices in the IS-IS domain
+support wide metrics, narrow metrics MUST continue to be used." `transition`
+writes both, at the same metric, which is step 2 of the RFC 3787 section 5.1
+migration. Config verify refuses a circuit metric above 63 under narrow and
+transition. A prefix metric above 63, such as the fixed redistribution metric
+of 100, is written as 63 in TLV 128, as FRR does for an old-metric area. The
+pseudo-node LSP lists its members in the same family. IPv6 prefixes stay in TLV
+236 (32-bit) in every style. Inter-level leaks preserve a received narrow IPv4
+format. The overload bit (RFC 3787 section 4) is set only
 in non-pseudonode fragment 0.
+<!-- source: internal/plugins/isis/lsdb/origination.go -- fragmentTLVs -->
+<!-- source: internal/plugins/isis/lsdb/encode.go -- narrowISReachEntryBytes, fragmentPacker.addLedEntry -->
+<!-- source: internal/plugins/isis/config.go -- validateMetricStyle -->
 
 **IPv6 address scope (RFC 5308 origination, isis-12).** The IPv6 interface-address
 TLV (232) is scoped by PDU: the **Hello (IIH)** carries **only** the

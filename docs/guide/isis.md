@@ -35,7 +35,9 @@ forms its adjacency through the Hello exchange.
 
 Ze accepts narrow IPv4 reachability in TLV 128 and TLV 130 and preserves its
 internal or external metric type through SPF and inter-level leaking. Local
-connected and redistributed IPv4 prefixes use wide TLV 135. An adjacent
+connected and redistributed IPv4 prefixes use wide TLV 135 under the default
+`metric-style wide`, and narrow TLV 128 under `narrow` or `transition` (see
+"Narrow and wide metrics" below). An adjacent
 router's next-hop address can be on another logical subnet; forwarding retains
 the outgoing interface and marks the gateway on-link. Equal-cost originators
 contribute their capable next hops to the same route. If none of those selected
@@ -59,6 +61,59 @@ any advertised TE information unchanged.
 <!-- source: internal/plugins/isis/spf_wiring.go -- ResolveNextHop, ResolveNextHopV6 -->
 <!-- source: internal/plugins/isis/lsdb/origination.go -- maxFragments, fragmentTLVs -->
 <!-- source: internal/plugins/isis/redistribute/source.go -- addEntry -->
+
+## Narrow and wide metrics
+
+`metric-style` picks the TLVs every LSP this router originates, its pseudo-node
+LSPs included, uses for its links and IPv4 prefixes:
+
+| Style | Links | IPv4 prefixes | Metric range |
+|-------|-------|---------------|--------------|
+| `wide` (default) | TLV 22 | TLV 135 | circuit 1 to 16777215 |
+| `narrow` | TLV 2 | TLV 128 | circuit 1 to 63 |
+| `transition` | TLV 2 and TLV 22 | TLV 128 and TLV 135 | circuit 1 to 63 |
+
+A router that only understands narrow metrics cannot read TLV 22 or TLV 135, so
+it never computes a path through a wide-only Ze. RFC 3787 section 5 states that
+"If not all devices in the IS-IS domain support wide metrics, narrow metrics
+MUST continue to be used." Set `narrow` while any router in the domain is
+narrow-only:
+
+```
+isis {
+  net 49.0001.0000.0000.0001.00
+  metric-style narrow
+  interfaces {
+    interface eth0 {
+      metric 20
+    }
+  }
+}
+```
+
+To migrate, RFC 3787 section 5.1 moves every router to `transition` one by one,
+then to `wide` once every router advertises wide metrics. Ze's SPF already reads
+both families from every LSP and keeps the lower cost of a link described twice.
+
+Under `narrow` and `transition` a circuit `metric`, or a `level-1` / `level-2`
+`metric`, above 63 is refused at commit, because the 6-bit narrow metric cannot
+carry it:
+
+```
+isis: interface "eth0" metric 100 does not fit metric-style narrow, whose narrow
+metric is 1 to 63 (RFC 3787 section 5): set "isis interfaces interface eth0 metric 63"
+or lower, or set "isis metric-style wide" once every router in the domain supports wide metrics
+```
+
+A prefix metric Ze did not take from a circuit, such as the fixed redistribution
+metric of 100 or an inter-level leak's sum, is advertised as 63 in TLV 128. IPv6
+prefixes stay in TLV 236 in every style. A commit that changes only
+`metric-style` re-originates every own LSP at once.
+
+<!-- source: internal/plugins/isis/lsdb/origination.go -- fragmentTLVs -->
+<!-- source: internal/plugins/isis/lsdb/pseudonode.go -- pseudonodeFragments -->
+<!-- source: internal/plugins/isis/config.go -- validateMetricStyle, narrowMetricFits -->
+<!-- source: internal/plugins/isis/server.go -- applyMetricStyle -->
 
 ## The dynamic hostname
 

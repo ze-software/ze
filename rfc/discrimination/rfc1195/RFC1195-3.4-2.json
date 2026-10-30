@@ -7,7 +7,7 @@
     "claim-sha": "d45e71aedb1f060b",
     "route": "revert",
     "producer": "internal/plugins/isis/lsdb/pseudonode.go::OriginatePseudonode",
-    "producer-sha": "3b51febba96bf840",
-    "break": "body of OriginatePseudonode replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "2771b4f76051e112",
+    "break": "body of OriginatePseudonode replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

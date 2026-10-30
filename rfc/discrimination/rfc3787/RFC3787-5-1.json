@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC3787-5-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/lsdb/rfc3787_metric_style_test.go::TestRFC3787NarrowMetricStylePseudonodeListsMembersInTLV2",
+    "unit-sha": "379d494388e570c1",
+    "claim-sha": "4727025d5d66e1ae",
+    "route": "revert",
+    "producer": "internal/plugins/isis/lsdb/pseudonode.go::pseudonodeFragments",
+    "producer-sha": "8889aa0c21385916",
+    "break": "body of pseudonodeFragments replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3787-5-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/rfc3787_metric_style_test.go::TestRFC3787NarrowMetricStyleOriginatesNarrowTLVs",
+    "unit-sha": "af1baa55e71eb557",
+    "claim-sha": "145ade3f257f04c0",
+    "route": "revert",
+    "producer": "internal/plugins/isis/lsdb/encode.go::narrowISReachEntryBytes",
+    "producer-sha": "675913e29c75410e",
+    "break": "body of narrowISReachEntryBytes replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3787-5-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/isis/rfc3787_metric_style_test.go::TestRFC3787NarrowMetricStyleRefusesUnrepresentableMetric",
+    "unit-sha": "2705e297aeccd34d",
+    "claim-sha": "1b68ef3014222de5",
+    "route": "revert",
+    "producer": "internal/plugins/isis/config.go::validateMetricStyle",
+    "producer-sha": "f8d2c476a17ef3a1",
+    "break": "body of validateMetricStyle replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

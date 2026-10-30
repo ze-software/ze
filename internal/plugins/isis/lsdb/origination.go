@@ -1,19 +1,21 @@
 // Design: docs/architecture/isis/isis-6-lsdb.md -- own-LSP origination from live state.
 // ISO/IEC 10589 clause 7.3.12 (origination triggers), 7.3.16.1 (sequence numbers
 // / wraparound / raising an own sequence above another system's claim), 7.3.16.4
-// (a received purge of an own LSP), 9.8 (LSP type block / overload). Wide metrics
-// only (RFC 5305).
+// (a received purge of an own LSP), 9.8 (LSP type block / overload). The metric
+// style picks wide metrics (RFC 5305), narrow metrics (ISO/IEC 10589, RFC 1195)
+// or both (RFC 3787 section 5).
 //
 // RFC: rfc/short/rfc1195.md -- TLV 129 (Protocols Supported), TLV 132 (IP Interface Address)
 // RFC: rfc/short/rfc5305.md -- TLV 22 (Extended IS Reach, 24-bit metric), TLV 135 (Extended IP Reach, 32-bit metric)
 // RFC: rfc/short/rfc5301.md -- TLV 137 (Dynamic Hostname)
-// RFC: rfc/short/rfc3787.md -- overload bit in the non-pseudonode LSP fragment 0 only
+// RFC: rfc/short/rfc3787.md -- overload bit in the non-pseudonode LSP fragment 0 only; narrow metrics (sec 5)
 // RFC: rfc/short/rfc3786.md -- the 256-fragment model (LSP number 0..255; fragment 0 special)
 //
 // Origination builds the node's own L1 and/or L2 LSP set by full regeneration
 // (not incremental, matching bio-rd): TLV 1/129/132/137 + the overload bit in
-// fragment 0, then TLV 22 (neighbors) and TLV 135 (connected/redistributed
-// prefixes) packed across fragments 0..255 without splitting a single TLV value.
+// fragment 0, then the neighbors (TLV 22, TLV 2 or both by the metric style)
+// and the connected/redistributed prefixes (TLV 135, TLV 128 or both) packed
+// across fragments 0..255 without splitting a single TLV value.
 // Each fragment is a distinct LSP with its own sequence number and Fletcher
 // checksum (computed by the isis-2 codec on WriteTo). The Originator assigns and
 // increments sequence numbers, handles wraparound (purge then suspend the LSP ID
@@ -23,6 +25,7 @@
 package lsdb
 
 import (
+	"fmt"
 	"net/netip"
 	"sync"
 	"time"
@@ -97,13 +100,15 @@ type AdjacencyInfo struct {
 	// or LAN router adjacency the pseudonode is 0; the DIS pseudonode (isis-8)
 	// uses a non-zero pseudonode.
 	Neighbor types.SourceID
-	// Metric is the wide IS-reachability metric to the neighbor (24-bit,
-	// RFC 5305 sec 3).
+	// Metric is the IS-reachability metric to the neighbor (24-bit, RFC 5305
+	// sec 3). A narrow or transition style also writes it in TLV 2, bounded to
+	// the 6-bit 63.
 	Metric types.Metric
 }
 
-// PrefixInfo is one IPv4 prefix advertised by the router. New local prefixes use
-// TLV 135; leaked narrow prefixes retain their TLV 128/130 route and metric type.
+// PrefixInfo is one IPv4 prefix advertised by the router. Local prefixes use
+// TLV 135, TLV 128 or both, as the metric style says; leaked narrow prefixes
+// retain their TLV 128/130 route and metric type.
 type PrefixInfo struct {
 	// Prefix is the IPv4 prefix.
 	Prefix netip.Prefix
@@ -194,6 +199,24 @@ type Originator struct {
 	// advances lastSeq. Keyed only for IDs lastSeq already holds, so a remote
 	// party can never grow it.
 	answeredClaim map[types.LSPID]types.SequenceNumber
+	// metricStyle selects the reachability TLVs every own and pseudo-node LSP
+	// carries (narrow, transition or wide). NewOriginator sets wide, the YANG
+	// default, and SetMetricStyle replaces it. It is never Unspecified.
+	metricStyle MetricStyle
+}
+
+// SetMetricStyle selects the reachability TLVs the next originations carry. It
+// refuses Unspecified and any value outside the three styles, and keeps the
+// current style then. Already-stored LSPs keep their bytes until the caller
+// re-originates them. Safe for concurrent use with Originate.
+func (o *Originator) SetMetricStyle(style MetricStyle) error {
+	if !style.valid() {
+		return fmt.Errorf("%w: %s", ErrMetricStyle, style)
+	}
+	o.mu.Lock()
+	o.metricStyle = style
+	o.mu.Unlock()
+	return nil
 }
 
 // RaiseSequenceFloor records that some OTHER system claimed sequence seq for one
@@ -312,7 +335,8 @@ func (o *Originator) encodeAndSign(lsp *packet.LSP) []byte {
 }
 
 // NewOriginator constructs an Originator writing into lsdb. now may be nil
-// (defaults to time.Now).
+// (defaults to time.Now). It starts at the wide metric style, the YANG default
+// of `metric-style`, until SetMetricStyle replaces it.
 func NewOriginator(lsdb *LSDB, now func() time.Time) *Originator {
 	if now == nil {
 		now = time.Now
@@ -323,6 +347,7 @@ func NewOriginator(lsdb *LSDB, now func() time.Time) *Originator {
 		lastSeq:       make(map[types.LSPID]types.SequenceNumber),
 		suspendUntil:  make(map[types.LSPID]time.Time),
 		answeredClaim: make(map[types.LSPID]types.SequenceNumber),
+		metricStyle:   MetricStyleWide,
 	}
 }
 
@@ -539,9 +564,10 @@ func (o *Originator) fixedTLVs(node NodeInfo, _ Level) []packet.TLV {
 	return out
 }
 
-// fragmentTLVs packs the fixed (fragment-0) TLVs and the fragmentable TLV 22 /
-// TLV 135 entry streams into per-fragment TLV lists so no fragment exceeds
-// maxSize and no single TLV entry is split (spec AC-5, R-3). Fragment 0 always
+// fragmentTLVs packs the fixed (fragment-0) TLVs and the fragmentable
+// reachability entry streams (TLV 2 / 128 under a narrow style, TLV 22 / 135
+// under a wide one, both under transition) into per-fragment TLV lists so no
+// fragment exceeds maxSize and no single TLV entry is split (spec AC-5, R-3). Fragment 0 always
 // exists (it carries the fixed fields and is valid, RFC 3786). Returns one TLV
 // slice per fragment, indexed by LSP number.
 func (o *Originator) fragmentTLVs(maxSize int, fixed []packet.TLV, state LevelState) [][]packet.TLV {
@@ -570,10 +596,26 @@ func (o *Originator) fragmentTLVs(maxSize int, fixed []packet.TLV, state LevelSt
 		frags.addWholeTLV(t)
 	}
 
+	// RFC 3787 Section 5: "If not all devices in the IS-IS domain support wide
+	// metrics, narrow metrics MUST continue to be used." The metric style says
+	// which of the two TLV families every neighbor and prefix is written in;
+	// transition writes both. Each family is packed as its own run, so the
+	// packer extends one open TLV rather than alternating between two types.
+	style := o.metricStyle
+
+	// TLV 2 neighbor entries (ISO/IEC 10589 clause 9.3): the 6-bit metric form,
+	// each TLV led by its Virtual Flag octet.
+	if style.OriginatesNarrow() {
+		for _, n := range state.Neighbors {
+			frags.addLedEntry(packet.TLVISReachabilityNarrow, narrowISReachLead[:], narrowISReachEntryBytes(n.Neighbor, n.Metric.Value()))
+		}
+	}
 	// TLV 22 neighbor entries (RFC 5305 sec 3): pack entries into TLV 22s,
 	// starting a new TLV (and fragment if needed) so no entry is split.
-	for _, n := range state.Neighbors {
-		frags.addEntry(packet.TLVExtendedISReach, extISReachEntryBytes(n))
+	if style.OriginatesWide() {
+		for _, n := range state.Neighbors {
+			frags.addEntry(packet.TLVExtendedISReach, extISReachEntryBytes(n))
+		}
 	}
 	// Keep the wire metric type when leaking narrow reachability. Converting an
 	// external metric to TLV 135 would change its route preference.
@@ -586,7 +628,21 @@ func (o *Originator) fragmentTLVs(maxSize int, fixed []packet.TLV, state LevelSt
 			frags.addEntry(typ, narrowIPReachEntryBytes(p))
 			continue
 		}
-		frags.addEntry(packet.TLVExtendedIPReach, extIPReachEntryBytes(p))
+		if style.OriginatesWide() {
+			frags.addEntry(packet.TLVExtendedIPReach, extIPReachEntryBytes(p))
+		}
+	}
+	// TLV 128 entries (RFC 1195 sec 5.3.4) for every prefix not already written
+	// in its narrow form above. The metric is the 6-bit default metric, so a
+	// prefix metric above 63 is written as 63, as FRR's lsp_build_ext_reach_ipv4
+	// does for an old-metric area.
+	if style.OriginatesNarrow() {
+		for _, p := range state.Prefixes {
+			if p.Narrow {
+				continue
+			}
+			frags.addEntry(packet.TLVIPInternalReachability, narrowIPReachEntryBytes(p))
+		}
 	}
 	// TLV 236 IPv6 prefix entries (RFC 5308 sec 2): packed exactly like TLV 135
 	// (no entry split). Only present when the node advertises IPv6 (isis-12).

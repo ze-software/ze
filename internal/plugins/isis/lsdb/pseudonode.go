@@ -44,8 +44,9 @@ type PseudonodeInfo struct {
 	// OriginatePseudonode rejects 0.
 	PseudonodeID uint8
 	// Members are the System IDs of every router on the segment (the DIS included),
-	// each advertised as a TLV 22 neighbor at metric 0. The engine de-duplicates
-	// and orders them (so the originated bytes are deterministic).
+	// each advertised as a neighbor at metric 0 (TLV 22, TLV 2 or both, by the
+	// metric style). The engine de-duplicates and orders them (so the
+	// originated bytes are deterministic).
 	Members []types.SystemID
 	// MaxLifetime is the Remaining Lifetime stamped on the fresh pseudo-node LSP
 	// (MaxAge). Zero defaults to DefaultMaxAge in seconds, like an own LSP.
@@ -71,8 +72,8 @@ const pseudonodeMetricZero = 0
 //
 // The pseudo-node Source ID is <info.SystemID>.<info.PseudonodeID> with a NON-ZERO
 // pseudonode octet; a zero PseudonodeID is rejected (it would collide with the
-// node's own router LSP). Each member is a TLV 22 entry at metric 0, the DIS
-// included. TLV 1 (area addresses) is intentionally NOT carried on the pseudo-node
+// node's own router LSP). Each member is a reachability entry at metric 0, the
+// DIS included: TLV 22, TLV 2 or both, as the Originator's metric style says. TLV 1 (area addresses) is intentionally NOT carried on the pseudo-node
 // LSP: areas are advertised by each real router's own LSP, and a pseudo-node has
 // no area of its own (FRR/IOS originate an area-less pseudo-node LSP); this keeps
 // the pseudo-node a pure topology hub.
@@ -101,7 +102,7 @@ func (o *Originator) OriginatePseudonode(level Level, info PseudonodeInfo) Origi
 	pt := lspPDUType(level)
 	src := types.NewSourceID(info.SystemID, info.PseudonodeID)
 
-	fragments := pseudonodeFragments(maxSize, info.Members)
+	fragments := pseudonodeFragments(maxSize, info.Members, o.metricStyle)
 
 	var res OriginateResult
 	now := o.now()
@@ -182,12 +183,25 @@ func (o *Originator) PurgePseudonode(level Level, sys types.SystemID, pnid uint8
 // Fragment 0 always exists (RFC 3786), even with no members (an empty pseudo-node
 // LSP is valid -- a DIS on a segment where it is the only router still originates
 // the pseudo-node listing just itself). The pseudo-node carries no fixed TLV 1 /
-// 129 / 132 (see OriginatePseudonode): only the member TLV 22 entries.
-func pseudonodeFragments(maxSize int, members []types.SystemID) [][]packet.TLV {
+// 129 / 132 (see OriginatePseudonode): only the member reachability entries.
+//
+// The metric style decides the member TLV the same way it does for the own LSP:
+// a narrow-only router reaches the LAN's members only through TLV 2 entries, so
+// a narrow or transition style lists every member in TLV 2 at metric 0 too
+// (RFC 3787 Section 5: "If not all devices in the IS-IS domain support wide
+// metrics, narrow metrics MUST continue to be used.").
+func pseudonodeFragments(maxSize int, members []types.SystemID, style MetricStyle) [][]packet.TLV {
 	budget := maxSize - packet.CommonHeaderLen - lspBodyFixedLen
 	frags := newFragmentPacker(budget)
-	for _, m := range members {
-		frags.addEntry(packet.TLVExtendedISReach, pseudonodeMemberEntry(m))
+	if style.OriginatesNarrow() {
+		for _, m := range members {
+			frags.addLedEntry(packet.TLVISReachabilityNarrow, narrowISReachLead[:], narrowISReachEntryBytes(types.NewSourceID(m, 0), pseudonodeMetricZero))
+		}
+	}
+	if style.OriginatesWide() {
+		for _, m := range members {
+			frags.addEntry(packet.TLVExtendedISReach, pseudonodeMemberEntry(m))
+		}
 	}
 	return frags.fragments()
 }

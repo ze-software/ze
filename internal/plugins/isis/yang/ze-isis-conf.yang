@@ -89,6 +89,28 @@ module ze-isis-conf {
             ze:help "Set the overload bit (RFC 3787).";
         }
 
+        // RFC 3787 section 5: "If not all devices in the IS-IS domain support
+        // wide metrics, narrow metrics MUST continue to be used." The parser
+        // maps the token (parseMetricStyle), and validateMetricStyle refuses a
+        // circuit metric above 63 under narrow or transition.
+        leaf metric-style {
+            type enumeration {
+                enum narrow { ze:help "Narrow 6-bit metrics only (TLV 2, TLV 128)."; }
+                enum transition { ze:help "Both narrow and wide metrics, for the migration."; }
+                enum wide { ze:help "Wide metrics only (TLV 22, TLV 135)."; }
+            }
+            default "wide";
+            description "The style picks the reachability TLVs of every LSP this IS originates, its pseudo-node LSPs
+                included. wide, the default, writes the RFC 5305 TLV 22 and TLV 135 with their 24-bit and 32-bit
+                metrics. narrow writes the TLV 2 and TLV 128 of ISO 10589 and RFC 1195, whose metric is 6 bits.
+                transition writes both. RFC 3787 section 5 states that 'If not all devices in the IS-IS domain
+                support wide metrics, narrow metrics MUST continue to be used', so set narrow while any router in
+                the domain is narrow-only, and transition while the domain migrates. Under narrow and transition a
+                circuit `metric` above 63 is refused. A prefix metric above 63, such as a redistributed route's, is
+                advertised as 63 in TLV 128. IPv6 reachability stays in TLV 236 in every style.";
+            ze:help "Metric style of the originated LSPs (RFC 3787 section 5).";
+        }
+
         // RFC 5301 section 3: the dynamic hostname (TLV 137) advertised by this
         // IS. "The Value field is encoded in 7-bit ASCII" and "The content of
         // this value is a domain name, see [RFC2181]". The isis-hostname
@@ -169,16 +191,19 @@ module ze-isis-conf {
                     ze:help "Per-interface level override.";
                 }
                 // RFC 5305: wide metric, 24-bit (TLV 22) / 32-bit (TLV 135). The
-                // per-interface circuit metric is bounded to the 24-bit wide range.
+                // per-interface circuit metric is bounded to the 24-bit wide range;
+                // under a narrow or transition metric-style validateMetricStyle
+                // bounds it to the 6-bit narrow range (1..63).
                 leaf metric {
                     type uint32 { range "1..16777215"; }
                     default 10;
                     description "The circuit advertises this cost in TLV 22, and its connected prefixes advertise it in
                         TLV 135 and TLV 236. RFC 5305 section 3 states that 'The metric octets are encoded as a
-                        24-bit unsigned integer', which is the 1 to 16777215 range here. SPF adds the value once for
-                        each hop, so a lower value makes the circuit preferred. `level-1/metric` and `level-2/metric`
-                        replace it at one level.";
-                    ze:help "Wide metric (RFC 5305).";
+                        24-bit unsigned integer', which is the 1 to 16777215 range here. Under the narrow and
+                        transition `metric-style` the cost also goes into TLV 2 and TLV 128, whose metric is 6 bits,
+                        so a value above 63 is refused there. SPF adds the value once for each hop, so a lower value
+                        makes the circuit preferred. `level-1/metric` and `level-2/metric` replace it at one level.";
+                    ze:help "Circuit metric (RFC 5305 wide, 1 to 63 when narrow).";
                 }
                 leaf hello-interval {
                     type uint16 { range "1..65535"; }
@@ -221,8 +246,9 @@ module ze-isis-conf {
                         type uint32 { range "1..16777215"; }
                         description "Ze advertises this cost for the circuit in the Level-1 LSP, in place of `metric`. An
                             unset leaf keeps the circuit-wide metric. The value also becomes the metric of the
-                            connected prefixes the circuit contributes at Level-1.";
-                        ze:help "L1 wide metric override.";
+                            connected prefixes the circuit contributes at Level-1. Under the narrow and
+                            transition `metric-style` a value above 63 is refused.";
+                        ze:help "L1 metric override.";
                     }
                     leaf hello-interval {
                         type uint16 { range "1..65535"; }
@@ -269,8 +295,9 @@ module ze-isis-conf {
                         type uint32 { range "1..16777215"; }
                         description "Ze advertises this cost for the circuit in the Level-2 LSP, in place of `metric`. An
                             unset leaf keeps the circuit-wide metric. The value also becomes the metric of the
-                            connected prefixes the circuit contributes at Level-2.";
-                        ze:help "L2 wide metric override.";
+                            connected prefixes the circuit contributes at Level-2. Under the narrow and
+                            transition `metric-style` a value above 63 is refused.";
+                        ze:help "L2 metric override.";
                     }
                     leaf hello-interval {
                         type uint16 { range "1..65535"; }

@@ -87,6 +87,20 @@ change always falls through. This is the flooding-amplification fix.
 
 <!-- source: internal/plugins/isis/lsdb/origination.go -- the Originator, full regeneration, the fragment packer -->
 
+The metric style is the one origination input the Originator holds itself
+(`SetMetricStyle`, wide from `NewOriginator`): narrow, transition or wide
+decides whether neighbors and IPv4 prefixes are packed as TLV 2 / TLV 128, as
+TLV 22 / TLV 135, or as both, each family as its own run so the packer extends
+one open TLV. A style change leaves the `(node info, level state)` input equal,
+so the engine drops the own and pseudo-node coalescing records when it applies
+one (`applyMetricStyle`), and the next pass re-originates instead of skipping.
+The TLV 2 value opens with a Virtual Flag octet; `addLedEntry` writes it at the
+start of every TLV 2 it opens, so a run that overflows one TLV stays decodable.
+
+<!-- source: internal/plugins/isis/lsdb/metric_style.go -- MetricStyle -->
+<!-- source: internal/plugins/isis/lsdb/encode.go -- fragmentPacker.addLedEntry, narrowISReachEntryBytes -->
+<!-- source: internal/plugins/isis/server.go -- applyMetricStyle -->
+
 ## Decision: sequence wraparound is purge, suspend, then restart at 1
 
 At the 32-bit maximum the originator purges the LSP ID at that sequence, records

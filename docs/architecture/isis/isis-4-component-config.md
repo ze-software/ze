@@ -131,6 +131,14 @@ that resolves to no chain is refused at commit with the name in the error:
 `newKeyStore` cannot tell a dangling name from an unset one, and both would leave
 the circuit signing and accepting nothing.
 
+One cross-leaf bound sits in Go too: under `metric-style narrow` or `transition`
+a circuit `metric`, or its `level-1` / `level-2` override, above 63 is refused
+at verify (`validateMetricStyle`), because the 6-bit narrow metric of TLV 2 and
+TLV 128 cannot carry it and Ze advertises a configured metric exactly or not at
+all. The leaf's YANG range stays the wide 1 to 16777215.
+
+<!-- source: internal/plugins/isis/config.go -- validateMetricStyle, parseMetricStyle -->
+
 Defaults are mirrored as Go constants **and** asserted equal to the YANG defaults
 by a test that reads the YANG file from disk, so the two cannot drift silently.
 

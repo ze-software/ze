@@ -14,7 +14,7 @@ package packet
 // extension RFCs). TLV 2 is decoded for narrow-metric interoperability.
 const (
 	TLVAreaAddresses          = 1   // ISO/IEC 10589 clause 9.2
-	TLVISReachabilityNarrow   = 2   // ISO/IEC 10589 clause 9.3 (decode-only)
+	TLVISReachabilityNarrow   = 2   // ISO/IEC 10589 clause 9.3 (originated under a narrow metric style)
 	TLVISNeighbors            = 6   // ISO/IEC 10589 clause 9.4 (LAN SNPA list)
 	TLVPadding                = 8   // ISO/IEC 10589 clause 9.10
 	TLVLSPEntries             = 9   // ISO/IEC 10589 clause 9.14

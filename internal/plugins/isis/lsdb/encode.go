@@ -3,13 +3,14 @@
 //
 // RFC: rfc/short/rfc5305.md -- TLV 22 / TLV 135 entry layout (sec 3/4)
 // RFC: rfc/short/rfc1195.md -- TLV 129 (Protocols Supported), TLV 132 (IP Interface Address)
+// RFC: rfc/short/rfc3787.md -- TLV 2 / TLV 128 narrow-metric origination (sec 5)
 // RFC: rfc/short/rfc5301.md -- TLV 137 (Dynamic Hostname)
 //
 // These helpers turn the origination inputs into the entry-value bytes the
 // fragment packer places, and implement the packer that splits TLV entries
 // across LSP fragments without splitting a single entry (spec AC-5, R-3). They
 // build the raw VALUE bytes (not full type+length+value) because the packer owns
-// the TLV header: it must repeat the TLV 22 / TLV 135 header whenever a run of
+// the TLV header: it must repeat the TLV 2 / 22 / 128 / 135 header whenever a run of
 // entries crosses a fragment or the 255-octet TLV value limit.
 
 package lsdb
@@ -121,6 +122,47 @@ func extISReachEntryBytes(n AdjacencyInfo) []byte {
 	b[off] = 0 // sub-TLV length: none
 	return b
 }
+
+// narrowISReachLead is the octet that opens every TLV 2 value ahead of its
+// entries: the Virtual Flag, 0 for an IS that does not repair a partitioned
+// Level-1 area (ISO/IEC 10589 clause 9.3, the same 0 FRR writes in pack_items_).
+// The packer repeats it at the start of each TLV 2 it opens.
+var narrowISReachLead = [1]byte{0}
+
+// narrowISReachEntryBytes builds one TLV 2 (IS Reachability, ISO/IEC 10589
+// clause 9.3) ENTRY value: default, delay, expense and error metric octets, then
+// the 7-octet neighbor ID. Fixed 11 octets.
+//
+//	0     | 0 | I/E=0 | default metric (6 bits) |
+//	1     | S=1 | 0 | delay metric   (unsupported) |
+//	2     | S=1 | 0 | expense metric (unsupported) |
+//	3     | S=1 | 0 | error metric   (unsupported) |
+//	4..10 | neighbor System ID + pseudonode octet |
+//
+// RFC 3787 Section 5: "If not all devices in the IS-IS domain support wide
+// metrics, narrow metrics MUST continue to be used." The default metric is six
+// bits: a value above 63 is written as 63. Config verify refuses a circuit
+// metric above 63 under a narrow style (validateMetricStyle), so only a value
+// built in Go can reach the bound. The three optional metrics carry the S bit
+// (0x80, not supported), as FRR's pack_item_oldstyle_reach writes them.
+func narrowISReachEntryBytes(neighbor types.SourceID, metric uint32) []byte {
+	const entryLen = 4 + types.SourceIDLen
+	b := make([]byte, entryLen)
+	b[0] = byte(min(metric, narrowMetricMax))
+	b[1] = narrowMetricUnsupported
+	b[2] = narrowMetricUnsupported
+	b[3] = narrowMetricUnsupported
+	neighbor.WriteTo(b, 4)
+	return b
+}
+
+// narrowMetricMax is the largest 6-bit narrow default metric (RFC 1195 sec 5.3.4,
+// ISO/IEC 10589 clause 9.3).
+const narrowMetricMax = 63
+
+// narrowMetricUnsupported is a narrow optional-metric octet with only the S bit
+// set: the metric is not supported.
+const narrowMetricUnsupported = 0x80
 
 // extIPReachEntryBytes builds one TLV 135 (Extended IP Reachability) ENTRY value
 // (RFC 5305 sec 4, umbrella canonical layout): 4-octet metric + 1-octet control
@@ -270,12 +312,21 @@ func (p *fragmentPacker) addWholeTLV(t packet.TLV) {
 	p.openType = -1 // a whole TLV breaks the accumulating run
 }
 
-// addEntry places one TLV entry (a TLV 22 or TLV 135 record) of the given type.
-// It appends to the open TLV of that type in the current fragment when the entry
-// fits within the 255-octet TLV value limit and the fragment budget; otherwise
-// it starts a new TLV of that type (in a new fragment if the current one cannot
-// hold even a fresh TLV header + this entry). A single entry is never split.
+// addEntry places one TLV entry (a TLV 22, 128, 130 or 135 record) of the
+// given type. It appends to the open TLV of that type in the current fragment
+// when the entry fits within the 255-octet TLV value limit and the fragment
+// budget; otherwise it starts a new TLV of that type (in a new fragment if the
+// current one cannot hold even a fresh TLV header + this entry). A single entry
+// is never split.
 func (p *fragmentPacker) addEntry(tlvType int, entry []byte) {
+	p.addLedEntry(tlvType, nil, entry)
+}
+
+// addLedEntry is addEntry for a TLV whose value opens with fixed octets ahead of
+// its entries, such as the Virtual Flag of TLV 2. lead is written at the start
+// of every TLV of tlvType the packer opens, and counts toward that TLV's
+// 255-octet value and the fragment budget. A nil lead is addEntry.
+func (p *fragmentPacker) addLedEntry(tlvType int, lead, entry []byte) {
 	entryLen := len(entry)
 
 	// Can we extend the currently-open TLV of this type?
@@ -290,8 +341,8 @@ func (p *fragmentPacker) addEntry(tlvType int, entry []byte) {
 		}
 	}
 
-	// Need a new TLV of this type: header (2) + this entry.
-	cost := packet.TLVHeaderLen + entryLen
+	// Need a new TLV of this type: header (2) + lead + this entry.
+	cost := packet.TLVHeaderLen + len(lead) + entryLen
 	if p.used[p.last()]+cost > p.budget {
 		// Not even a fresh TLV fits this fragment: start a new fragment (unless the
 		// current one is empty, in which case the entry is larger than a whole
@@ -304,9 +355,11 @@ func (p *fragmentPacker) addEntry(tlvType int, entry []byte) {
 		}
 	}
 	idx := len(p.frags[p.last()])
+	value := make([]byte, 0, len(lead)+entryLen)
+	value = append(value, lead...)
 	p.frags[p.last()] = append(p.frags[p.last()], packet.TLV{
 		Type:  uint8(tlvType),
-		Value: append([]byte(nil), entry...),
+		Value: append(value, entry...),
 	})
 	p.used[p.last()] += cost
 	p.openType = tlvType

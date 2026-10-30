@@ -1,4 +1,4 @@
-// Design: docs/architecture/wire/isis.md -- TLV 6 (IS Neighbors, SNPA list) + TLV 2 (narrow IS Reachability, decode-only)
+// Design: docs/architecture/wire/isis.md -- TLV 6 (IS Neighbors, SNPA list) + TLV 2 (narrow IS Reachability, decode; the lsdb packer encodes)
 // ISO/IEC 10589 clause 9.4 (TLV 6 IS Neighbors), clause 9.3 (TLV 2 IS Reachability).
 
 package packet
@@ -56,9 +56,10 @@ func writeISNeighborsTLV(buf []byte, off int, t ISNeighborsTLV) int {
 
 // ---- TLV 2: IS Reachability, narrow metric (ISO/IEC 10589 clause 9.3) ----
 //
-// DECODE-ONLY (spec AC-14): Ze never originates TLV 2 (it originates the wide
-// TLV 22 instead), but it must parse a peer's TLV 2 without panicking for
-// interop. The value begins with one octet of "virtual flag" + reserved, then
+// Ze parses a peer's TLV 2 here without panicking (spec AC-14), and originates
+// TLV 2 itself under a narrow or transition metric style: the entry encoder is
+// narrowISReachEntryBytes in internal/plugins/isis/lsdb/encode.go, whose
+// packer writes the leading octet. The value begins with one octet of "virtual flag" + reserved, then
 // per-neighbor entries of: default metric (1 octet: I/E bit + 6-bit value),
 // delay metric (1), expense metric (1), error metric (1), neighbor ID (7) = 11
 // octets per entry. Only the default metric's low 6 bits and the I/E
@@ -82,7 +83,7 @@ type NarrowISReachEntry struct {
 	Neighbor              types.SourceID
 }
 
-// NarrowISReachTLV is the decoded TLV 2 (decode-only). VirtualFlag is the
+// NarrowISReachTLV is the decoded TLV 2. VirtualFlag is the
 // leading octet preceding the entries (ISO/IEC 10589 clause 9.3).
 type NarrowISReachTLV struct {
 	VirtualFlag uint8
@@ -97,7 +98,7 @@ const (
 	narrowMetricExternalIE = 0x40 // I/E bit of the default metric octet
 )
 
-// DecodeNarrowISReachTLV parses a TLV 2 value (decode-only, AC-14). The value
+// DecodeNarrowISReachTLV parses a TLV 2 value (AC-14). The value
 // must be at least 1 octet (the virtual flag) and the remainder a whole number
 // of 11-octet entries; anything else is rejected with ErrLength rather than
 // reading past the buffer. This never panics on arbitrary input (R-3).

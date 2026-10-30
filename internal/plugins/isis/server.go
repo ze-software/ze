@@ -514,8 +514,12 @@ func (e *engine) setConfig(cfg Config) {
 	e.origMu.Lock()
 	defer e.origMu.Unlock()
 	e.mu.Lock()
+	styleChanged := e.cfg.MetricStyle != cfg.MetricStyle
 	e.cfg = cfg
 	e.mu.Unlock()
+	if styleChanged {
+		e.applyMetricStyle(cfg.MetricStyle)
+	}
 	if e.flooder != nil {
 		e.flooder.SetSystemID(cfg.SystemID)
 	}
@@ -529,6 +533,33 @@ func (e *engine) setConfig(cfg Config) {
 		e.spf.SetRoot(cfg.SystemID)
 		e.spf.SetLevels(spfLevelsFor(cfg.Level))
 	}
+}
+
+// applyMetricStyle hands the configured metric style to the Originator and
+// drops the own and pseudo-node coalescing records, because a style change
+// re-encodes every LSP this node originates while leaving each origination input
+// equal. Without the drop the next originate() would skip the change as
+// unchanged until the refresh interval elapsed. The caller holds electMu and
+// origMu.
+//
+// RFC 3787 Section 5
+func (e *engine) applyMetricStyle(style lsdb.MetricStyle) {
+	if e.originator == nil {
+		return
+	}
+	if err := e.originator.SetMetricStyle(style); err != nil {
+		// Only a Config built in Go without parseISISConfig carries no style; the
+		// Originator then keeps the style it holds.
+		e.log.Error("isis: metric style not applied, the originated LSPs keep their previous style", "err", err)
+		return
+	}
+	e.mu.Lock()
+	clear(e.lastOrigInput)
+	e.mu.Unlock()
+	e.disMu.Lock()
+	clear(e.pnLastInput)
+	clear(e.pnLastOrigAt)
+	e.disMu.Unlock()
 }
 
 // spfLevelsFor maps the node's configured level to the SPF levels it computes.

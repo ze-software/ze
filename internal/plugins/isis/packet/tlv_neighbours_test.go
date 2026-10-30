@@ -1,4 +1,4 @@
-// Design: docs/architecture/wire/isis.md -- TLV 6 SNPA round-trip + TLV 2 decode-only tests
+// Design: docs/architecture/wire/isis.md -- TLV 6 SNPA round-trip + TLV 2 decode tests
 package packet
 
 import (
@@ -47,7 +47,8 @@ func TestISISTLV6BadLength(t *testing.T) {
 
 // VALIDATES: AC-14 -- a peer-originated TLV 2 (narrow IS Reachability) is
 // decoded without panic: the codec parses each narrow-metric + neighbor-ID
-// entry. Ze never originates TLV 2 (no encoder exists), so this is decode-only.
+// entry. Ze's own TLV 2 encoder lives in lsdb (narrowISReachEntryBytes) and is
+// tested there; this test covers the decoder.
 // PREVENTS: a panic or silent corruption when meshing with an old router that
 // still emits TLV 2.
 func TestISISTLV2NarrowDecode(t *testing.T) {

@@ -38,7 +38,9 @@ while `NewMetric` can because a caller can pass a larger `uint32`.
 
 Narrow IPv4 metrics are retained as six-bit values by the packet codec and
 marked separately in SPF and origination. Connected and redistributed routes
-use wide metrics; a received narrow route keeps its format when leaked.
+use wide metrics under the default `metric-style wide`, and narrow TLV 2 / TLV
+128 metrics (bounded to 63 by the lsdb encoders) under `narrow` or
+`transition`; a received narrow route keeps its format when leaked.
 
 <!-- source: internal/plugins/isis/types/metric.go -- Metric, PrefixMetric, NewMetric, MetricFromBytes -->
 

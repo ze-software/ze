@@ -24,6 +24,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/configvalue"
 	"github.com/ze-software/ze/internal/plugins/isis/adjacency"
+	"github.com/ze-software/ze/internal/plugins/isis/lsdb"
 	"github.com/ze-software/ze/internal/plugins/isis/transport"
 	"github.com/ze-software/ze/internal/plugins/isis/types"
 )
@@ -113,7 +114,12 @@ const (
 	DefaultHoldMultiplier     = 3
 	DefaultPriority           = 64
 	DefaultCircuitType        = CircuitBroadcast
+	DefaultMetricStyle        = lsdb.MetricStyleWide
 )
+
+// MaxNarrowMetric is the narrow-metric bound: the default metric of TLV 2 and
+// TLV 128 is a 6-bit value (RFC 1195 section 5.3.4, ISO/IEC 10589 clause 9.3).
+const MaxNarrowMetric = 63
 
 // MaxWideMetric is the wide-metric bound (RFC 5305 section 3.0: the metric is a
 // 24-bit unsigned value 0..16777215; the per-interface circuit metric leaf is
@@ -176,6 +182,7 @@ type Config struct {
 	LSPLifetime        uint16
 	LSPRefreshInterval uint16
 	Overload           bool
+	MetricStyle        lsdb.MetricStyle
 	Hostname           string
 	Interfaces         []InterfaceConfig
 	KeyChains          []KeyChainConfig
@@ -359,6 +366,19 @@ func parseLevel(v any) Level {
 	}
 }
 
+// parseMetricStyle maps the `metric-style` YANG enum token to an
+// lsdb.MetricStyle. A token the model does not admit is refused, never read as
+// the default.
+func parseMetricStyle(token string) (lsdb.MetricStyle, error) {
+	for _, style := range []lsdb.MetricStyle{lsdb.MetricStyleNarrow, lsdb.MetricStyleTransition, lsdb.MetricStyleWide} {
+		if style.String() == token {
+			return style, nil
+		}
+	}
+	return lsdb.MetricStyleUnspecified, fmt.Errorf("isis: metric-style %q is not narrow, transition or wide: "+
+		"set \"isis metric-style wide\" (or narrow, or transition)", token)
+}
+
 // parseISISConfig parses the delivered `isis` ConfigSection JSON into a typed
 // Config, applying YANG defaults. It does NOT enforce required-field policy
 // (ErrNoNET); that is validateConfig's job, so OnConfigure can stage a partial
@@ -368,6 +388,7 @@ func parseISISConfig(sections []configSection) (Config, error) {
 		Level:              DefaultLevel,
 		LSPLifetime:        DefaultLSPLifetime,
 		LSPRefreshInterval: DefaultLSPRefreshInterval,
+		MetricStyle:        DefaultMetricStyle,
 	}
 	for _, s := range sections {
 		if s.Root != configRoot || s.Data == "" {
@@ -419,6 +440,13 @@ func applyTree(cfg *Config, tree map[string]any) error {
 		cfg.LSPRefreshInterval = v
 	}
 	cfg.Overload = configBool(tree["overload"], false)
+	if v, present := tree["metric-style"]; present {
+		style, err := parseMetricStyle(configString(v))
+		if err != nil {
+			return err
+		}
+		cfg.MetricStyle = style
+	}
 	cfg.Hostname = configString(tree["hostname"])
 
 	if interfaces, ok := tree["interfaces"].(map[string]any); ok {
@@ -553,7 +581,52 @@ func validateConfig(cfg Config) error {
 			return ErrSystemIDMismatch
 		}
 	}
+	if err := validateMetricStyle(cfg); err != nil {
+		return err
+	}
 	return validateKeyChainRefs(cfg)
+}
+
+// validateMetricStyle refuses a circuit metric a narrow-metric TLV cannot carry.
+// Under the narrow and transition styles every circuit is advertised in TLV 2
+// and its connected prefixes in TLV 128, whose default metric is six bits. A
+// metric above 63 would be advertised as a different value than the one
+// configured, so the commit is refused instead (exact-or-reject). FRR refuses
+// the same value ("metric %d too large for narrow metric",
+// isis_circuit_metric_set).
+//
+// RFC 3787 Section 5: "If not all devices in the IS-IS domain support wide
+// metrics, narrow metrics MUST continue to be used."
+func validateMetricStyle(cfg Config) error {
+	if !cfg.MetricStyle.OriginatesNarrow() {
+		return nil
+	}
+	for _, ic := range cfg.Interfaces {
+		if err := narrowMetricFits(cfg.MetricStyle, ic.Name, "metric", ic.Metric); err != nil {
+			return err
+		}
+		if err := narrowMetricFits(cfg.MetricStyle, ic.Name, "level-1 metric", ic.Level1.Metric); err != nil {
+			return err
+		}
+		if err := narrowMetricFits(cfg.MetricStyle, ic.Name, "level-2 metric", ic.Level2.Metric); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// narrowMetricFits refuses one configured circuit metric above MaxNarrowMetric.
+// leaf names the metric leaf as its config path words ("metric",
+// "level-1 metric"), so the message names the exact command. A
+// zero per-level override is unset, which inherits the checked circuit metric.
+func narrowMetricFits(style lsdb.MetricStyle, name, leaf string, metric uint32) error {
+	if metric <= MaxNarrowMetric {
+		return nil
+	}
+	return fmt.Errorf("isis: interface %q %s %d does not fit metric-style %s, whose narrow metric is 1 to %d "+
+		"(RFC 3787 section 5): set \"isis interfaces interface %s %s %d\" or lower, or set "+
+		"\"isis metric-style wide\" once every router in the domain supports wide metrics",
+		name, leaf, metric, style, MaxNarrowMetric, name, leaf, MaxNarrowMetric)
 }
 
 // validateKeyChainRefs refuses an auth-key-chain leaf that names no declared chain. A
