@@ -78,23 +78,43 @@ func TestRunEgressPolicyChainNilAPIWithExportFiltersFailsClosed(t *testing.T) {
 		"the guard miss must be logged at Warn naming the peer")
 }
 
-// TestRunEgressPolicyChainNoExportFiltersAccepts pins the legitimate accept.
+// TestRunEgressPolicyChainNoExportFiltersAccepts pins the legitimate accept, and
+// the RFC 8212 default that an absent export policy gives an EBGP destination.
 //
-// VALIDATES: AC-2. No export policy configured is not a guard miss: accept, no
-// warn, even with a nil api.
+// VALIDATES: AC-2. A policy with no export filters is not a guard miss: an
+// explicit accepting final accepts with no warn, even with a nil api, and so
+// does an absent policy toward an internal destination. An absent policy toward
+// an EBGP destination is a policy outcome, not a failure: it rejects, unfailed,
+// with no warn. RFC 8212 Section 3: "Routes SHALL NOT be added to an
+// Adj-RIB-Out associated with an EBGP peer if no explicit Export Policy has
+// been applied."
 // PREVENTS: the fail-closed split over-firing and denying peers that simply have
-// no export policy.
+// no export filters, and an absent policy advertising to an EBGP peer.
 func TestRunEgressPolicyChainNoExportFiltersAccepts(t *testing.T) {
 	rec := captureWarnPeers(t)
 
 	r := &Reactor{}
 
-	res := r.runEgressPolicyChain(filterapi.Policy{}, "10.0.0.3", 65001, 65000, false, testWireUpdate([]byte{0, 0, 0, 0}))
+	res := r.runEgressPolicyChain(mustPolicy(t, nil, routepolicy.FinalAccept), "10.0.0.3", 65001, 65000, false, testWireUpdate([]byte{0, 0, 0, 0}))
 
 	require.True(t, res.accept,
-		"no export policy configured is a legitimate accept, not a guard miss")
-	assert.NotContains(t, rec.warnedPeers(), "10.0.0.3",
-		"no filters is not a miss -- it must not warn")
+		"an accepting export policy with no filters is a legitimate accept, not a guard miss")
+
+	res = r.runEgressPolicyChain(filterapi.Policy{}, "10.0.0.6", 65000, 65000, true, testWireUpdate([]byte{0, 0, 0, 0}))
+
+	require.True(t, res.accept,
+		"no export policy configured toward an internal destination is a legitimate accept")
+
+	res = r.runEgressPolicyChain(filterapi.Policy{}, "10.0.0.7", 65001, 65000, false, testWireUpdate([]byte{0, 0, 0, 0}))
+
+	require.False(t, res.accept,
+		"RFC 8212 Section 3: no export policy toward an EBGP destination rejects")
+	require.False(t, res.failed,
+		"the RFC 8212 default is a policy outcome, not a step that could not run")
+	for _, addr := range []string{"10.0.0.3", "10.0.0.6", "10.0.0.7"} {
+		assert.NotContains(t, rec.warnedPeers(), addr,
+			"no filters is not a miss -- it must not warn")
+	}
 }
 
 // TestRunIngressPolicyChainNilAPIWithImportFiltersFailsClosed gives the ingress
