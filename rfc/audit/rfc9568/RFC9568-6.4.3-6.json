@@ -5,8 +5,8 @@
     "internal/plugins/vrrp/acceptfilter_test.go::TestActiveAddressOwnerAcceptsWhateverAcceptModeSays": "ac94e88781e5c08d",
     "internal/plugins/vrrp/acceptfilter_test.go::TestActiveNonOwnerWithAcceptModeFalseSuppressesLocalDelivery": "ac94e88781e5c08d",
     "internal/plugins/vrrp/acceptfilter_test.go::TestActiveNonOwnerWithAcceptModeTrueAcceptsLocalDelivery": "ac94e88781e5c08d",
-    "internal/plugins/vrrp/instance_test.go::TestInstanceOwnerStartupGoesMaster": "90d279832a92de75",
-    "internal/plugins/vrrp/instance_test.go::TestInstanceStartupNonOwnerGoesBackup": "90d279832a92de75"
+    "internal/plugins/vrrp/instance_test.go::TestInstanceOwnerStartupGoesMaster": "52298a1ed170e60a",
+    "internal/plugins/vrrp/instance_test.go::TestInstanceStartupNonOwnerGoesBackup": "52298a1ed170e60a"
   },
   "units": {
     "internal/plugins/vrrp/acceptfilter_test.go::TestActiveAddressOwnerAcceptsWhateverAcceptModeSays": "ae0d8891a374b6cf",

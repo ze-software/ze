@@ -2,8 +2,8 @@
   "note": "vrrp judge 2026-09-29 (independent, continuations 1-2): Re-read: the unit's body is unchanged; only the 6.4.2 and 6.4.3 Virtual Router MAC proxy tags left it for TestVRRPBackupDoesNotForwardVirtualMACFrames, so the verdict stands. Prior note: Backup installs no VIP (parent carries arp_ignore=1, so nothing answers ARP for it); Master contrast installs it on the vMAC device",
   "requirement_sha": "1306530dd2a643bd",
   "tests": {
-    "internal/plugins/vrrp/instance_test.go::TestInstanceOwnerStartupGoesMaster": "90d279832a92de75",
-    "internal/plugins/vrrp/instance_test.go::TestInstanceStartupNonOwnerGoesBackup": "90d279832a92de75"
+    "internal/plugins/vrrp/instance_test.go::TestInstanceOwnerStartupGoesMaster": "52298a1ed170e60a",
+    "internal/plugins/vrrp/instance_test.go::TestInstanceStartupNonOwnerGoesBackup": "52298a1ed170e60a"
   },
   "units": {
     "internal/plugins/vrrp/instance_test.go::TestInstanceOwnerStartupGoesMaster": "e1a785d3aeb30340",

@@ -2,8 +2,8 @@
   "note": "Master installs the IPv6 VIP on the vMAC macvlan (kernel joins its solicited-node group); Backup installs nothing",
   "requirement_sha": "fed998151ecde027",
   "tests": {
-    "internal/plugins/vrrp/instance_test.go::TestInstanceIPv6VIPLivesOnVirtualMACDevice": "90d279832a92de75",
-    "internal/plugins/vrrp/instance_test.go::TestInstanceIPv6VIPLivesOnVirtualMACDevice#2": "90d279832a92de75"
+    "internal/plugins/vrrp/instance_test.go::TestInstanceIPv6VIPLivesOnVirtualMACDevice": "52298a1ed170e60a",
+    "internal/plugins/vrrp/instance_test.go::TestInstanceIPv6VIPLivesOnVirtualMACDevice#2": "52298a1ed170e60a"
   },
   "units": {
     "internal/plugins/vrrp/instance_test.go::TestInstanceIPv6VIPLivesOnVirtualMACDevice": "bb1f308ff09eb61c",

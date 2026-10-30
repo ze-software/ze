@@ -6,8 +6,8 @@
     "internal/plugins/vrrp/boot_late_device_test.go::TestEngineWaitsForALateVirtualMACDevice#2": "f5e911ac6de85b6f",
     "internal/plugins/vrrp/boot_order_test.go::TestEngineAnnouncesNothingBeforeTheVirtualMACDevice": "ed30f38ef8942327",
     "internal/plugins/vrrp/boot_order_test.go::TestEngineAnnouncesNothingBeforeTheVirtualMACDevice#2": "ed30f38ef8942327",
-    "internal/plugins/vrrp/instance_test.go::TestInstanceDelaysAnnounceUntilParentUsable": "90d279832a92de75",
-    "internal/plugins/vrrp/instance_test.go::TestInstanceDelaysAnnounceUntilParentUsable#2": "90d279832a92de75"
+    "internal/plugins/vrrp/instance_test.go::TestInstanceDelaysAnnounceUntilParentUsable": "52298a1ed170e60a",
+    "internal/plugins/vrrp/instance_test.go::TestInstanceDelaysAnnounceUntilParentUsable#2": "52298a1ed170e60a"
   },
   "units": {
     "internal/plugins/vrrp/boot_late_device_test.go::TestEngineWaitsForALateVirtualMACDevice": "efe0afaccbd4e14e",
