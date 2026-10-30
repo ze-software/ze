@@ -254,10 +254,15 @@ const neverClauseForm = "`ze never <condition>: <path>.go::<Symbol> <how>`"
 // that it is optional.
 //
 // The conditional shape holds a mandatory level guarded by a clause on the
-// feature's use (conditionalOpening). It may be the row's own sentence,
-// because that is where the condition lives, and its reason owes the evidence
-// that Ze never meets the condition (neverClauseGap). A mandatory sentence
-// with no such clause states an obligation, and is refused by name.
+// feature's use (conditionalGuard), and is the row's own sentence in the
+// row's own section: the condition must guard the obligation the row
+// declines, since any other sentence's condition says nothing of it. Its
+// reason owes the evidence that Ze never meets the condition (neverClauseGap).
+// A sentence from elsewhere is judged as the optionality shape only, and an
+// optionality sentence whose mandatory level is guarded owes the never clause
+// too, so an advisory keyword beside a conditional MUST does not skip it. A
+// mandatory sentence with no such clause states an obligation, and is refused
+// by name.
 func featureShapeGap(req *Requirement, source *quoteSource, code *sourceReader, held string) (string, bool) {
 	quote := req.Annotation.Quote
 	var tb textbuf.Buffer
@@ -270,11 +275,26 @@ func featureShapeGap(req *Requirement, source *quoteSource, code *sourceReader, 
 	optional := len(advisory) > 0 || (len(mandatory) == 0 && optionalityMarked(quote))
 	own := req.Quote()
 	ownSentence := own != "" && strings.Contains(quoteNeedle(quote), quoteNeedle(own))
+	guard, conditional := conditionalGuard(quote)
 	if optional && !ownSentence {
+		if conditional {
+			return neverClauseGap(req, code, guard)
+		}
 		return "", false
 	}
-	if len(mandatory) > 0 && conditionalOpening(quote) {
-		return neverClauseGap(req, code)
+	if conditional {
+		if !ownSentence {
+			return tb.Str("its quote ").Str(pyRepr(quote)).
+				Str(" is a conditional obligation, but not the row's own sentence: the conditional must be the row's own sentence, ").
+				Str("since another obligation's condition says nothing of the one the row declines. ").
+				Str("Quote the row's sentence if its obligation is conditional, or the RFC's sentence that makes the feature optional").String(), true
+		}
+		if req.Annotation.QuoteSection != "" {
+			return tb.Str("its quote ").Str(pyRepr(quote)).Str(" is a conditional obligation from section ").Str(held).
+				Str(", which the annotation names: the conditional must be the row's own sentence, in the section the row cites. ").
+				Str("Drop the §").Str(held).Str(" and cite the row's own section").String(), true
+		}
+		return neverClauseGap(req, code, guard)
 	}
 	if optional {
 		return tb.Str("its optionality quote ").Str(pyRepr(quote)).
@@ -299,121 +319,6 @@ func featureShapeGap(req *Requirement, source *quoteSource, code *sourceReader, 
 	tb.Str("or a condition opened by ").Str(optionalityWords.condition).Str(" on ").
 		Str(strings.Join(optionalityWords.supported, " or ")).Str(". ").Str(featureDeclinedShapes)
 	return tb.String(), true
-}
-
-// conditionalLeads are the lower-case words that open a clause guarding an
-// obligation on a condition ("If the client uses a delegated prefix ...").
-var conditionalLeads = []string{"if", "when", "where", "once", "unless"}
-
-// relativeSubjectRE reads a subject held by a restrictive relative clause, in
-// lower case: an optional article, then up to four words, the last before
-// `that` ("a client that", "the client that holds a lease", "receivers
-// that"). The article is group 1 and the word before `that` group 2.
-var relativeSubjectRE = regexp.MustCompile(`^(?:(a|an|the)\s+)?(?:[\w-]+\s+){0,3}([\w-]+)\s+that\s`)
-
-// reportingVerbs are words that, before `that`, open a content clause rather
-// than a relative one: "this means that", "the document requires that". A
-// clause whose word before `that` is one of them holds no subject.
-var reportingVerbs = []string{
-	"assumes", "ensures", "expects", "follows", "guarantees", "implies", "indicates", "mandates",
-	"means", "notes", "recommends", "requires", "says", "shows", "specifies", "states", "suggests",
-}
-
-// conditionalOpening answers whether quote's obligation is guarded by a clause
-// on a condition: before its first BCP 14 keyword, at the sentence's start or
-// after a comma ("As a counterexample, a client that ..."; "In particular, if
-// ..."), a clause opens with a conditionalLeads word or is a subject held by a
-// relative clause (conditionalClause). The loop is bounded by the commas of
-// the text before the keyword: each pass moves start past one.
-func conditionalOpening(quote string) bool {
-	at, _ := firstKeyword(quote)
-	if at < 0 {
-		return false
-	}
-	prefix := strings.ToLower(quote[:at])
-	for start := 0; ; {
-		if conditionalClause(strings.TrimLeft(prefix[start:], " ")) {
-			return true
-		}
-		comma := strings.IndexByte(prefix[start:], ',')
-		if comma < 0 {
-			return false
-		}
-		start += comma + 1
-	}
-}
-
-// conditionalClause answers whether one lower-case clause opens a condition:
-// a conditionalLeads word, or a relative-clause subject (relativeSubjectRE)
-// whose word before `that` is no reporting verb and, with no article, is
-// plural, so "receivers that" counts and "notify the receiver that" does not.
-func conditionalClause(clause string) bool {
-	first, _, _ := strings.Cut(clause, " ")
-	if slices.Contains(conditionalLeads, strings.TrimRight(first, ",")) {
-		return true
-	}
-	parts := relativeSubjectRE.FindStringSubmatch(clause)
-	if parts == nil {
-		return false
-	}
-	head := parts[2]
-	if slices.Contains(reportingVerbs, head) {
-		return false
-	}
-	if parts[1] == "" {
-		return strings.HasSuffix(head, "s")
-	}
-	return true
-}
-
-// neverClauseRE reads the never clause of a conditional's reason, `ze never
-// <condition>: <producer> <how>`, opening the reason or after a `;`. The
-// condition is group 1, the producer group 2 (producerRE's whole match), and
-// how Ze avoids the condition the last group.
-var neverClauseRE = regexp.MustCompile(`(?:^|;)\s*ze never ([^:;]*[^:;\s])\s*:\s*(` + producerRE.String() + `)\s+([^;\s][^;]*)`)
-
-// neverClauseGap judges a conditional's reason: the text after its quote must
-// carry a never clause (neverClauseRE), and the producer it names must be a
-// function this tree declares outside a test (resolveProducer, the resolution
-// every producer check shares), so the claim that Ze never meets the
-// condition rests on code a reader can open.
-func neverClauseGap(req *Requirement, code *sourceReader) (string, bool) {
-	quote := req.Annotation.Quote
-	why := req.Annotation.Reason
-	if at := strings.Index(why, quote); at >= 0 {
-		why = strings.TrimPrefix(why[at+len(quote):], `"`)
-	}
-	var tb textbuf.Buffer
-	parts := neverClauseRE.FindStringSubmatch(why)
-	if parts == nil {
-		return tb.Str("its quote ").Str(pyRepr(quote)).
-			Str(" is a conditional obligation, and its reason carries no never clause, so nothing shows that Ze never meets the condition. Write ").
-			Str(neverClauseForm).Str(" in the reason, naming the function that shows it").String(), true
-	}
-	condition, producer := parts[1], parts[2]
-	if strings.HasSuffix(producerFile(producer), "_test.go") {
-		return tb.Str("its never clause names the test ").Str(producer).
-			Str(". A test decides nothing about what Ze does; name the code that shows Ze never ").Str(condition).String(), true
-	}
-	state, path, symbol := resolveProducer(code, producer)
-	switch state {
-	case producerFound:
-		return "", false
-	case producerUnnamed:
-		// Unreachable: neverClauseRE embeds producerRE. Refused rather than
-		// passed, because a guard that skips a state it cannot read is no guard.
-		return tb.Str("its never clause names ").Str(pyRepr(producer)).
-			Str(", which is not <path>.go::<Symbol>. Write ").Str(neverClauseForm).String(), true
-	case producerFileAbsent:
-		return tb.Str("its never clause names the producer ").Str(producer).
-			Str(", whose file this checkout does not carry. Name the function that shows Ze never ").Str(condition).String(), true
-	case producerSymbolAbsent:
-		return tb.Str("its never clause names the producer ").Str(producer).Str(", but ").Str(path).
-			Str(" declares no ").Str(symbol).
-			Str(". Name the function that shows Ze never ").Str(condition).Str(" today").String(), true
-	default:
-		panic("BUG: unexpected producer resolution state")
-	}
 }
 
 // bcp14LevelsIn answers the advisory and the mandatory BCP 14 levels quote

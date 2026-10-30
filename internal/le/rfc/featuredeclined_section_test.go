@@ -235,7 +235,7 @@ func TestAFeatureDeclinedQuoteIsAnOptionalitySentence(t *testing.T) {
 		{name: "a sentence whose only keyword is MUST, guarded by no condition", cites: "4", quote: fixtureRowObligation,
 			says: []string{"only BCP 14 keywords are mandatory", "MUST", featureDeclinedShapes}},
 		{name: "a conditional MUST sentence with no never clause", cites: "4", quote: fixtureCompressedSentence,
-			says: []string{"conditional obligation", "no never clause"}},
+			rowText: fixtureCompressedSentence, says: []string{"conditional obligation", "no never clause"}},
 		{name: "a MUST sentence, from the section named", cites: "2", named: "3",
 			quote: "A receiver MUST NOT reorder the frames of one widget.",
 			says:  []string{"only BCP 14 keywords are mandatory", "MUST NOT"}},
