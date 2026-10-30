@@ -181,6 +181,42 @@ and judges the published string, as the gate above does. A value under 100 with
 no separator is matched only through its marker, because bare small numbers are
 everywhere in prose.
 
+## RFC completion data
+
+RFC completion figures are not in `data/site-facts.json`. The build publishes
+them under `data/rfc/`, one file per RFC, so a change to one RFC republishes
+that file and no page. Every count is read from `rfc.StemFiguresOf`
+(`internal/le/rfc/profilecoverage.go`); `rfcStemDataOf` only splits its fields
+into the two bars' segments, and refuses by stem any figures whose split does
+not add back to the model's own totals. The directory is removed and written
+whole on every build, so no file outlives the index that names it.
+<!-- source: internal/le/site/rfcdata.go -- rfcStemDataOf, rfcProfileDataOf, rfcBars, writeRFCData -->
+
+| File | Holds |
+|------|-------|
+| `data/rfc/index.json` | `bars`: both bars' segments left to right, each with its class name (`segment`), its words (`label`) and the dotted `fields` whose sum is its count, and the fields each bar's segments must add up to (`must-total`, `overview-total`). Then `rfcs` (stem, file, title, walked, enrolment) and `profiles` (name, file, kind, title) |
+| `data/rfc/<stem>.json` | `stem`, `title`, `walked`; `must` (`total`, `kept`, `ze-proven`, `os-verified`, `os-gap`, `ze-gap`, `not-owed`, `not-owed-by-kind`); `should` (`total`, `proven`, `not-owed`, `not-ever`, `not-yet`, `not-decided`, `not-owed-by-kind`); `proven-by-kind`; `unmet`. `must`, `should` and `proven-by-kind` are `null` for an RFC no walk bounded |
+| `data/rfc/profiles/<name>.json` | `name`, `kind` (`use-case` or `technology`), `title`, `release`, and the two tiers `required` and `optional`, never merged. An aggregate's optional tier is the summaries whose `Aggregate tier` Meta row says `optional` |
+
+`must.kept` is the MUST bar: `ze-proven + os-verified + os-gap + ze-gap`.
+`must.not-owed` is the rest of `must.total` (not applicable, declined, OS
+blocked). A SHOULD row a lower layer performs is `should.not-owed`: the OS split
+is kept for MUST rows only.
+
+A page marks a value with `data-ze-rfc="<subject>:<field>"` and a bar with
+`data-ze-rfc-bar="<subject>:<bar>"`, where the subject is a stem or a profile
+tier (`profile/<name>/required`, `profile/<name>/optional`) and the bar is
+`must` or `overview`. `assets/rfc-figures.js` reads the index, sums a set's
+walked members count by count (the rest are `not-walked`), writes each value,
+and draws each bar's segments in the index's order, each carrying its words and
+count as text and a width of its count over the bar's total. The text inside a
+marked element is the last build's value. A file the index names that cannot
+be read is named in the element, never dropped from a sum. The segment colours
+are the `.rfc-seg-<segment>` rules of `website/assets/css/30-components.css`;
+OS verified has its own token, `--green-soft`.
+<!-- source: website/assets/js/rfc-figures.js -- sumStems, drawBar -->
+<!-- source: internal/le/site/browsertest/rfcfigures_test.go -- TestTheBrowserDrawsRFCFiguresFromTheirFiles -->
+
 ## Release data
 
 The newest published release is a network fact, but it changes only when the

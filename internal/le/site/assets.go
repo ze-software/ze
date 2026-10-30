@@ -91,9 +91,31 @@ func minifyCSS(content []byte) []byte {
 	return []byte(strings.TrimSpace(text))
 }
 
-// renderJS writes the authored script without source-only trailing whitespace.
+// renderJS writes every authored script under website/assets/js/ to
+// assets/<name>, without source-only trailing whitespace. site.js is required:
+// every page loads it, so a checkout without it is refused rather than
+// published scriptless. Other scripts (rfc-figures.js) are published beside it
+// by being there, with no list to edit.
 func renderJS(source, output string) error {
-	content, err := os.ReadFile(filepath.Join(source, "assets", "js", "site.js")) //nolint:gosec // a site build reads the checkout it was pointed at
+	directory := filepath.Join(source, "assets", "js")
+	if _, err := os.Stat(filepath.Join(directory, "site.js")); err != nil {
+		return err
+	}
+	scripts, err := filepath.Glob(filepath.Join(directory, "*.js"))
+	if err != nil {
+		return err
+	}
+	for _, script := range scripts {
+		if err := renderScript(script, filepath.Join(output, "assets", filepath.Base(script))); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// renderScript writes one authored script without trailing whitespace.
+func renderScript(source, path string) error {
+	content, err := os.ReadFile(source) //nolint:gosec // a site build reads the checkout it was pointed at
 	if err != nil {
 		return err
 	}
@@ -102,7 +124,6 @@ func renderJS(source, output string) error {
 		lines[index] = strings.TrimRight(lines[index], " \t")
 	}
 	content = []byte(strings.TrimSpace(strings.Join(lines, "\n")) + "\n")
-	path := filepath.Join(output, "assets", "site.js")
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil { //nolint:gosec // published web content: a web server, often another account, serves these bytes
 		return err
 	}

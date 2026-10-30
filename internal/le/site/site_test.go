@@ -286,6 +286,7 @@ func stubLiveInputs(t *testing.T, catalog string) {
 	previousTree := liveYANGConfigTree
 	previousFacts := liveSiteFacts
 	previousLedger := liveRequirementLedger
+	previousRFCData := liveRFCData
 	t.Cleanup(func() {
 		liveDaemon = previousDaemon
 		liveCommandCatalog = previousCatalog
@@ -293,6 +294,7 @@ func stubLiveInputs(t *testing.T, catalog string) {
 		liveYANGConfigTree = previousTree
 		liveSiteFacts = previousFacts
 		liveRequirementLedger = previousLedger
+		liveRFCData = previousRFCData
 	})
 	// The stated catalog and tree run no daemon, so the build compiles none.
 	liveDaemon = func(_, dir string) (string, error) { return filepath.Join(dir, "ze"), nil }
@@ -314,6 +316,8 @@ func stubLiveInputs(t *testing.T, catalog string) {
 	// checkout, and derives the evidence tier from .github/workflows. A synthetic tree has none of them, so a build over one
 	// states the ledger the way it states the other four inputs.
 	liveRequirementLedger = func(string) (rfcLedger, error) { return twoStemLedger(), nil }
+	// The RFC data reads the same corpus, so a synthetic tree states it empty.
+	liveRFCData = func(string) (rfcData, error) { return rfcData{index: rfcDataIndex{Bars: rfcBars}}, nil }
 }
 
 // VALIDATES: a normal full build snapshots the current Pages checkout before

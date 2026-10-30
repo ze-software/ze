@@ -104,12 +104,14 @@ func shareCheckoutDerivations(t *testing.T) {
 	previousCompliance, previousHealth := liveRFCCompliance, liveTestHealth
 	previousCollection, previousLedger := liveRFCLedger, liveRequirementLedger
 	previousStatus := liveDocSources[rfcStatusSource]
+	previousRFCData := liveRFCData
 	t.Cleanup(func() {
 		liveRFCCompliance = previousCompliance
 		liveTestHealth = previousHealth
 		liveRFCLedger = previousCollection
 		liveRequirementLedger = previousLedger
 		liveDocSources[rfcStatusSource] = previousStatus
+		liveRFCData = previousRFCData
 	})
 	liveRFCCompliance = sharedCompliance
 	liveTestHealth = sharedTestHealth
@@ -125,5 +127,14 @@ func shareCheckoutDerivations(t *testing.T) {
 			return collectRequirementLedger(tree)
 		}
 		return publishedLedgerOfThisCheckout(t), nil
+	}
+	// The RFC data reads the input the shared ledger snapshot derived, so a
+	// build over this checkout walks the corpus once.
+	liveRFCData = func(tree string) (rfcData, error) {
+		if tree != root {
+			return collectRFCData(tree)
+		}
+		publishedLedgerOfThisCheckout(t)
+		return rfcDataOf(&checkoutLedgerSnapshot.input)
 	}
 }

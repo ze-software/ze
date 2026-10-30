@@ -451,6 +451,9 @@ func refreshNativeSurfaces(paths Paths) (err error) {
 	if err := publishRFCLedger(paths); err != nil {
 		return err
 	}
+	if err := publishRFCData(paths); err != nil {
+		return err
+	}
 	if err := publishYANGConfigTree(paths, daemon); err != nil {
 		return err
 	}

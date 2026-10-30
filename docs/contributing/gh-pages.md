@@ -419,6 +419,13 @@ the other site tests run without a browser (`website/AI.md`, "The browser
 fill").
 <!-- source: internal/le/site/browsertest/fill_test.go -- TestTheBrowserFillsEveryMarkedValueFromTheSnapshot -->
 
+The RFC figure renderer, `assets/rfc-figures.js`, is proven the same way over
+fixture `data/rfc/` files: the values and both bars of an RFC and of a profile
+tier, the segment order and text, a republished file read with no page
+changed, and a missing file named on the page
+(`docs/architecture/site-facts.md`, "RFC completion data").
+<!-- source: internal/le/site/browsertest/rfcfigures_test.go -- TestTheBrowserDrawsRFCFiguresFromTheirFiles -->
+
 The corpus tests materialize all registered derived artifacts once per process.
 This setup requires the checkout's real Git history, including a resolvable
 `HEAD` for the roadmap; a source-only mount is not a substitute. A failed

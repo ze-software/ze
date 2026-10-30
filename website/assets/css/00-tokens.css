@@ -60,6 +60,8 @@
     --teal: #1fc9c0;
     --blue: #0069b4;
     --green: #23734d;
+    /* OS verified: a good outcome a lower layer delivers, a lighter green than Ze's own. */
+    --green-soft: #8fd0ad;
     --amber: #856213;
     --coral: #b63b20;
     --lavender: #7554a7;
@@ -232,6 +234,7 @@
     --teal: #75ddd7;
     --blue: #73c1f0;
     --green: #73ddb0;
+    --green-soft: #3d9a72;
     --amber: #ffe087;
     --coral: #ff9f7d;
     --lavender: #c0a7e6;
@@ -361,6 +364,7 @@
         --teal: #75ddd7;
         --blue: #73c1f0;
         --green: #73ddb0;
+        --green-soft: #3d9a72;
         --amber: #ffe087;
         --coral: #ff9f7d;
         --lavender: #c0a7e6;

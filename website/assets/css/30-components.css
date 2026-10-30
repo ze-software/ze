@@ -1485,3 +1485,38 @@ body:has(.site-home) .footer-bottom { border-top: 0; }
 .blog-reading-body :is(p, li) > a:not(.hl, .concept-software, .concept-evidence) {
     color: var(--blue);
 }
+
+/* RFC completion bars, drawn by assets/rfc-figures.js from data/rfc/. A colour
+   names what a segment MEANS (rfcToneRule, internal/le/site/rfccompliance.go):
+   green kept by Ze, light green kept by the OS and verified, teal an optional
+   row proven, greys rows not owed or not taken up, amber an OS row nobody has
+   tested, red a MUST Ze's code owes and does not prove. Each segment also
+   carries its name and count as text, so the split reads without colour. */
+.rfc-seg-bar {
+    display: flex;
+    width: 100%;
+    min-height: 1.4rem;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    background: var(--bg-soft);
+    font-size: 0.72rem;
+    line-height: 1.4rem;
+}
+.rfc-seg {
+    overflow: hidden;
+    padding: 0 0.25rem;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    color: var(--text);
+}
+.rfc-seg-ze-proven { background: var(--green); color: var(--panel); }
+.rfc-seg-os-verified { background: var(--green-soft); }
+.rfc-seg-should-proven { background: var(--teal); }
+.rfc-seg-not-owed { background: var(--mint-base); color: var(--panel); }
+.rfc-seg-not-ever { background: var(--mint-chip); }
+.rfc-seg-not-yet { background: repeating-linear-gradient(135deg, var(--mint-chip), var(--mint-chip) 4px, var(--line) 4px, var(--line) 8px); }
+.rfc-seg-not-decided { background: var(--bg-soft); }
+.rfc-seg-os-gap { background: var(--amber); color: var(--panel); }
+.rfc-seg-ze-gap { background: var(--danger-deep); color: var(--panel); }
+.rfc-figure-error { color: var(--danger-deep); font-weight: 600; }
