@@ -1,0 +1,4 @@
+# Observation, not stimulus. The checker waits for Ze's "ike: second
+# authentication round verified", which the engine logs at INFO, and the ike
+# subsystem runs at WARN by default (see childless-ike-sa-ze-initiator/ze-env).
+ZE_LOG_IKE=info

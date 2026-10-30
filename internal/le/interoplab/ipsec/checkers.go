@@ -64,6 +64,8 @@ var scenarioCheckers = map[string]scenarioCheck{
 	"mtu-nat-installed-endpoint":                            {run: checkMTUNATInstalledEndpoint},
 	"mtu-negotiated-transform":                              {run: checkMTUNegotiatedTransform},
 	"mtu-tunnel-sizing-strongswan":                          {run: checkMTUTunnelSizingStrongSwan},
+	"multiple-auth-ze-initiator":                            {run: checkMultipleAuthZeInitiator},
+	"multiple-auth-ze-responder":                            {run: checkMultipleAuthZeResponder},
 	"natt-transport-inner-checksum":                         {run: checkNATTTransportInnerChecksum},
 	"natt-tunnel-inner-checksum":                            {run: checkNATTTunnelInnerChecksum},
 	"out-of-sa-request-notified-over-sa":                    {run: checkOutOfSARequestNotifiedOverSA},

@@ -402,17 +402,17 @@ func checkRemoteIdentity(sa *SA) error {
 	}
 	if sa.RemoteIDPayload == nil {
 		return fmt.Errorf(
-			"ike auth: peer %q sent no identification payload, and remote-id expects %q. "+
-				"Configure the peer to send its identity, or clear remote-id",
-			sa.PeerName, want)
+			"ike auth: peer %q sent no identification payload, and %s expects %q. "+
+				"Configure the peer to send its identity, or clear %s",
+			sa.PeerName, sa.remoteLeafName(remoteLeafID), want, sa.remoteLeafName(remoteLeafID))
 	}
 	asserted, comparable := assertedIdentity(sa.RemoteIDPayload)
 	if !comparable {
 		return fmt.Errorf(
-			"ike auth: peer %q asserted %s, which ze cannot compare with the configured remote-id %q. "+
+			"ike auth: peer %q asserted %s, which ze cannot compare with the configured %s %q. "+
 				"Configure the peer to send ID_IPV4_ADDR, ID_IPV6_ADDR, ID_FQDN, ID_RFC822_ADDR, "+
 				"ID_KEY_ID, or ID_DER_ASN1_DN",
-			sa.PeerName, asserted, want)
+			sa.PeerName, asserted, sa.remoteLeafName(remoteLeafID), want)
 	}
 
 	// remote-id-type pins the ONE type this peer can assert. Without it a text-valued
@@ -422,9 +422,10 @@ func checkRemoteIdentity(sa *SA) error {
 	// who knows the value is a mail address wants to close.
 	if pinned := remote.RemoteIDType; pinned != 0 && sa.RemoteIDPayload.IDType != pinned {
 		return fmt.Errorf(
-			"ike auth: peer %q asserted %s and remote-id-type pins %s. "+
-				"Configure the peer to assert %s, or change remote-id-type",
-			sa.PeerName, idTypeName(sa.RemoteIDPayload.IDType), idTypeName(pinned), idTypeName(pinned))
+			"ike auth: peer %q asserted %s and %s pins %s. "+
+				"Configure the peer to assert %s, or change %s",
+			sa.PeerName, idTypeName(sa.RemoteIDPayload.IDType), sa.remoteLeafName(remoteLeafIDType),
+			idTypeName(pinned), idTypeName(pinned), sa.remoteLeafName(remoteLeafIDType))
 	}
 
 	if !remoteIDMatches(want, sa.RemoteIDPayload) {
@@ -446,9 +447,9 @@ func checkRemoteIdentity(sa *SA) error {
 			hint = classMismatchHint(want, sa.RemoteIDPayload)
 		}
 		return fmt.Errorf(
-			"ike auth: peer %q asserted identity %q, and remote-id expects %q.%s "+
-				"Correct remote-id, or configure the peer to assert the expected identity",
-			sa.PeerName, asserted, want, hint)
+			"ike auth: peer %q asserted identity %q, and %s expects %q.%s "+
+				"Correct %s, or configure the peer to assert the expected identity",
+			sa.PeerName, asserted, sa.remoteLeafName(remoteLeafID), want, hint, sa.remoteLeafName(remoteLeafID))
 	}
 	return nil
 }

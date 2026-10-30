@@ -74,6 +74,45 @@ func (sa *SA) remoteAuth() *ipsec.AuthConfig {
 	panic("BUG: unknown remote authentication round")
 }
 
+// remoteLeaf is one leaf of the remote credential a refusal can name. The zero value
+// is no leaf, and remoteLeafName refuses it.
+type remoteLeaf uint8
+
+const (
+	remoteLeafUnspecified remoteLeaf = iota
+	remoteLeafID
+	remoteLeafIDType
+	remoteLeafCACertificate
+)
+
+// remoteLeafName answers the config path of one remote credential leaf in the peer's
+// current round, so a refusal of a round-2 credential names the second-round leaf the
+// operator must edit rather than the first round's (ai/rules/user-facing-errors.md).
+// Its sole input is a constant of this package, so an unknown leaf is a Ze defect.
+func (sa *SA) remoteLeafName(leaf remoteLeaf) string {
+	second := sa.remoteRound == authRoundSecond
+	switch leaf {
+	case remoteLeafID:
+		if second {
+			return "authentication second-round remote id"
+		}
+		return "remote-id"
+	case remoteLeafIDType:
+		if second {
+			return "authentication second-round remote id-type"
+		}
+		return "remote-id-type"
+	case remoteLeafCACertificate:
+		if second {
+			return "authentication second-round remote ca-certificate"
+		}
+		return "ca-certificate"
+	case remoteLeafUnspecified:
+		panic("BUG: remote credential leaf not named")
+	}
+	panic("BUG: unknown remote credential leaf")
+}
+
 // beginLocalSecondRound moves this side to its second authentication round. It
 // refuses a peer with no `authentication second-round local`, which keeps the
 // non-nil promise of localAuth.
@@ -282,6 +321,12 @@ func (sa *SA) beginSecondAuthExchange() error {
 // not announce, and a third round are each refused, so no partial authentication
 // ever establishes. strongSwan's responder refuses the same three
 // (ike_auth.c update_cfg_candidates and its strict check).
+//
+// A notification from a peer that never sent MULTIPLE_AUTH_SUPPORTED is read all the
+// same. Section 2.1 makes the announcement a condition on the SENDER ("If both peers
+// support this extension"), and the round it announces runs only when the operator
+// configured it here, so acting on it accepts nothing the configuration did not ask
+// for. Refusing it would fail a peer that forgot only its announcement.
 func (sa *SA) settleAnotherAuth(announced bool) error {
 	switch sa.remoteRound {
 	case authRoundFirst:
@@ -382,6 +427,10 @@ func continueInitiatorAuth(sa *SA, tr *transport.UDPTransport, log *slog.Logger)
 	req, err := buildAuthRoundRequest(sa)
 	if err != nil {
 		log.Warn("ike: build the second IKE_AUTH request failed", "peer", sa.PeerName, "error", err)
+		// RFC 7296 Section 2.21.2: the responder's first round already verified, so
+		// the failure is reported in an INFORMATIONAL before the SA ends, as
+		// handleAuthResponse reports every other failure found after that point.
+		sendIKESATeardown(sa, tr, wire.NotifyAuthenticationFailed, log)
 		sa.State = StateDead
 		return
 	}

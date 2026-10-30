@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Scope | protocol |
 | Priority | P3 |
 | Release reason | - (RFC 4739 is reached only by the vpn-concentrator profile, which is not a release profile; Thomas brought it into scope on 2026-10-30) |
@@ -34,6 +34,16 @@ pre-shared secret, for each direction of a site-to-site peer, in both the
 initiator and responder roles. It must interoperate with strongSwan 6.1.0
 (the interop lab's pinned release). Both rows then carry tagged tests whose
 recorded breaks go red.
+
+**Approval:** Thomas approved this design on 2026-10-30 (relayed by the
+coordinating session), including four decisions: (1) the design as written;
+(2) one extra round per direction; (3) a local round configured when the peer
+never sent MULTIPLE_AUTH_SUPPORTED is skipped with a warning (AC-9);
+(4) ANOTHER_AUTH_FOLLOWS with no remote round configured is refused with
+AUTHENTICATION_FAILED (AC-7). The spec was not claimed through
+`./le spec claim`: the session marker is held by another spec. The owning
+agent is recorded in the per-spec state file under
+`tmp/session/2026-10-30-bc566aa5-3f69-415d-8c8b-c6f8cdf8adae/state/`.
 
 ## Required Reading
 
@@ -148,11 +158,11 @@ recorded breaks go red.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | strongSwan 6.1.0 enables RFC 4739 by default | `ike_auth.c:multiple_auth_enabled()` reads the option with default TRUE (read 2026-10-30) | Scenarios need a `strongswan.conf` setting | Interop scenarios pass with no charon setting | validated (source) |
-| A-2 | strongSwan's final response carries SA/TSi/TSr only after its last round, and its initiator sends an empty IKE_AUTH when it has no rounds left | `child_create.c` `build_r` COND_AUTHENTICATED wait; `ike_auth.c` `build_i` early return | Ze's round handler would misplace the Child SA | `multiple-auth-ze-responder` scenario (strongSwan has one remote round, Ze two local) | unvalidated |
-| A-3 | strongSwan selects a round-2 PSK by the round-2 identities in `secrets` (`id-*`) | `psk_authenticator.c` `get_shared(SHARED_IKE, my_id, other_id)` | Scenario config needs another secrets shape | Interop scenario establishes | unvalidated |
-| A-4 | The existing responder cached-response replay (`replayCachedResponse`) and the initiator retransmission loop serve a multi-round exchange without change, apart from the new state | EAP rounds already use both (`responder.go` `StateEAPInProgress`, `fsm.go` `runInitiator` retransmit) | A lost round-2 datagram kills the handshake | Unit test retransmitting a round-2 request answers it from the cache | unvalidated |
-| A-5 | Every reader of a credential in the AUTH path can be routed through two accessors (local round, remote round) without changing round-1 results | Readers counted: `auth.go` 11, `cert_payload.go` 11, `remote_id.go` 2 reads of `sa.PeerCfg.Auth` | A round-2 AUTH signs with the round-1 key or checks the round-1 CA | Unit tests where round 1 and round 2 use different keys and CAs, each refused when crossed | unvalidated |
-| A-6 | Thomas's design brief (per-peer opt-in, cert or PSK rounds first, announce only when configured, refuse an unconfigured remote round with AUTHENTICATION_FAILED, strongSwan interop) is the agreed starting design | Coordinator message relaying Thomas's 2026-10-30 decision | Design changes after approval | Approval gate (Step 4) | unvalidated |
+| A-2 | strongSwan's final response carries SA/TSi/TSr only after its last round, and its initiator sends an empty IKE_AUTH when it has no rounds left | `child_create.c` `build_r` COND_AUTHENTICATED wait; `ike_auth.c` `build_i` early return | Ze's round handler would misplace the Child SA | Both interop scenarios (two rounds each way; the empty-request half is proven Ze to Ze by `TestRFC4739NonFinalResponseDoesNotEstablish`) | validated: charon's final response carried SA/TSi/TSr after its last round in `multiple-auth-ze-initiator` (pass, 14s) |
+| A-3 | strongSwan selects a round-2 PSK by the round-2 identities in `secrets` (`id-*`) | `psk_authenticator.c` `get_shared(SHARED_IKE, my_id, other_id)` | Scenario config needs another secrets shape | Interop scenario establishes | validated: both scenarios pass with one round-2 secret owned by both round-2 identities |
+| A-4 | The existing responder cached-response replay (`replayCachedResponse`) and the initiator retransmission loop serve a multi-round exchange without change, apart from the new state | EAP rounds already use both (`responder.go` `StateEAPInProgress`, `fsm.go` `runInitiator` retransmit) | A lost round-2 datagram kills the handshake | Unit test retransmitting a round-2 request answers it from the cache | validated: `TestRFC4739RoundTwoRetransmitReplayed` (both requests replayed byte for byte, never reprocessed) |
+| A-5 | Every reader of a credential in the AUTH path can be routed through two accessors (local round, remote round) without changing round-1 results | Readers counted: `auth.go` 11, `cert_payload.go` 11, `remote_id.go` 2 reads of `sa.PeerCfg.Auth` | A round-2 AUTH signs with the round-1 key or checks the round-1 CA | Unit tests where round 1 and round 2 use different keys and CAs, each refused when crossed | validated: `TestRFC4739RoundTwoCredentialNotCrossed`, `TestRFC4739RoundTwoAuthUsesLatestID`, x509 subtest of `TestRFC4739ZeToZeTwoRoundsEachWay` |
+| A-6 | Thomas's design brief (per-peer opt-in, cert or PSK rounds first, announce only when configured, refuse an unconfigured remote round with AUTHENTICATION_FAILED, strongSwan interop) is the agreed starting design | Coordinator message relaying Thomas's 2026-10-30 decision | Design changes after approval | Approval gate (Step 4) | validated: Thomas approved 2026-10-30 |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -250,8 +260,8 @@ recorded breaks go red.
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `multiple-auth-ze-initiator` | `test/interop-ipsec/scenarios/` | strongSwan 6.1.0 | AC-14: Ze initiator, round 1 x509 (Ze `client.pem`, strongSwan `server.pem`), round 2 PSK each way with distinct round-2 identities; strongSwan `remote-2` and `local-2` | |
-| `multiple-auth-ze-responder` | `test/interop-ipsec/scenarios/` | strongSwan 6.1.0 | AC-13: strongSwan initiator, round 1 PSK, round 2 strongSwan `local-2 pubkey` (`server.pem`) verified by Ze's `second-round remote x509`; Ze `second-round local` PSK checked by strongSwan `remote-2` | |
+| `multiple-auth-ze-initiator` | `test/interop-ipsec/scenarios/` | strongSwan 6.1.0 | AC-14: Ze initiator, round 1 x509 (Ze `client.pem`, strongSwan `server.pem`), round 2 PSK each way with distinct round-2 identities; strongSwan `remote-2` and `local-2` | pass |
+| `multiple-auth-ze-responder` | `test/interop-ipsec/scenarios/` | strongSwan 6.1.0 | AC-13: strongSwan initiator, round 1 X.509 both ways (strongSwan `server.pem`, Ze `client.pem`), round 2 PSK both ways (`swan-user.example.com`, `ze-user.example.com`); see Key Design Decisions for why strongSwan's round 1 cannot be a PSK | pass |
 
 Each checker asserts the XFRM state on both sides, charon's log of the
 round-2 authentication of Ze's round-2 identity, Ze's log of the
@@ -406,6 +416,11 @@ the scenario goes red.
 | Liberal on receive: accept either notify whatever its Protocol ID, SPI size or data | Refuse a non-zero field | §3.1/§3.2 bind the sender; strongSwan does not check either; refusing would break interop for no protection |
 | Round 1 must not be EAP when a second round is configured | Support EAP rounds now | Thomas's brief ("certificate or PSK second rounds first"); EAP rounds are the follow-up spec |
 | vpn-concentrator becomes a required use case of RFC 4739 | Keep it optional but in scope | `docs/contributing/rfc-conformance-gates.md`: bringing an optional RFC into scope is moving its name to `Use cases` |
+| An empty `second-round local id` is refused at commit | Fall back to the peer name, as round 1 does | Main-thread decision 2026-10-30: strongSwan selects a round's PSK by identity (`psk_authenticator.c`), so the fallback would assert the round-1 identity twice and look up the round-1 key; `validateSecondRoundLocal` refuses it and names the leaf |
+| Hash-and-URL stays round 1; a round-2 chain always goes inline | Publish a second certificate URL per round | Main-thread decision 2026-10-30: `certificate-url` publishes the round-1 certificate, and inline is valid with every peer (`buildCertPayloads`) |
+| The Notify encoder is the second producer of the zero Protocol ID and SPI Size | Rely on the builder literal alone | `wire.PayloadNotify.WriteTo` writes both as zero whenever no SPI follows (RFC 7296 Section 3.10), so a break of the builder's literal stays green; the discrimination records break the builder's "no data" half instead |
+| `multiple-auth-ze-responder` uses X.509 round 1 and PSK round 2 both ways | strongSwan PSK round 1 with a `local-2 pubkey` round | Observed 2026-10-30: charon's initiator runs its strict all-rounds check when its current local round is a PSK (`ike_auth.c` `require_strict`) and refused Ze's first response ("insufficient authentication rounds"); and a `local-2` that complies with `local` is never sent (`do_another_auth`), with no third key pair in the lab. Ze's x509 second round is proven Ze to Ze |
+| A second-exchange message that fails to decrypt is dropped and the SA kept | Kill the SA as the first exchange does | RFC 7296 Section 2.21.4; does not widen the open trap "a datagram that fails to decrypt kills a live SA" |
 
 ## Known Limitations
 - EAP authentication rounds (RFC 4739 Examples 1 and 2) and more than one additional round per direction are not built here. They are the follow-up spec `plan/post-release/features/spec-ike-multiple-authentication-eap-rounds.md`.
@@ -460,3 +475,147 @@ all-rounds-succeed rule.
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove <the spec's path in its bucket>` only, in the same `./le commit create` script (commit A preserves the spec in history)
+
+## Implementation Summary
+
+### What Was Implemented
+- Wire: `NotifyMultipleAuthSupported` (16404) and `NotifyAnotherAuthFollows` (16405) in `notifyTypeNames` (`internal/component/ike/wire/payload_notify.go`).
+- Config: `authentication second-round { local remote }` (YANG), `AuthConfig.Additions.SecondRound` read through `SecondRound()`, parse in `parseSecondRound`, commit refusals in `ValidateSecondRounds` (`internal/component/ike/ipsec/second_round.go`), including an empty round-2 local `id`.
+- Engine (`internal/component/ike/engine/multiple_auth.go`): round accessors `localAuth`/`remoteAuth`, the two notify builders, `settleAnotherAuth`, `verifySecondExchangeRound`, `buildAuthRoundRequest`, `continueInitiatorAuth`, `answerFirstAuthExchange`, `handleResponderAuthRound`; `handleAuthResponse` (`fsm.go`) and `handleAuthRequest`/`handleResponderInbound`/`buildFinalAuthResponse` (`responder.go`) route the second exchange; `handleResponderEAP` refuses ANOTHER_AUTH_FOLLOWS.
+- Interop: `multiple-auth-ze-initiator`, `multiple-auth-ze-responder` with `checkMultipleAuthZeInitiator`/`checkMultipleAuthZeResponder` (`internal/le/interoplab/ipsec/multiauth.go`).
+
+### Bugs Found/Fixed
+- The hand mutant on the builders' Protocol ID stayed green: `wire.PayloadNotify.WriteTo` already writes Protocol ID and SPI Size as zero for an empty SPI. Not a product bug; the records break the builders' "no data" half (`rfc/discrimination/rfc4739/`).
+
+### Documentation Updates
+- `docs/guide/ipsec.md` "A second authentication round (RFC 4739)"; `docs/architecture/ike/ipsec-3-data-model.md`, `ipsec-7-ikev2-engine.md`, `ipsec-14-responder.md` decision paragraphs; `ai/digests/ipsec-ike.md` items 7-9; `docs/architecture/testing/interop.md` RFC 4739 section; `features/ikev2-engine.md` (RFCs, description, Interop); `features/ipsec-interop-testing.md`; `rfc/short/rfc4739.md` Meta rows. Each carries `<!-- source: -->` anchors to the producing symbols. Six existing claims re-read and recorded in `plan/doc-reviewed/bc7daf12.md`.
+
+### Deviations from Plan
+- `multiple-auth-ze-responder` runs X.509 round 1 and PSK round 2 both ways, not PSK round 1 with a strongSwan certificate round 2: charon's `require_strict` and `do_another_auth` make the planned shape unrunnable (Key Design Decisions). Ze's x509 second round is proven Ze to Ze.
+- `StateAuthReceived`, an existing state never set before, carries the responder's pending second exchange instead of a new state.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | Responder scenario round 1 was a PSK on strongSwan's side | charon's initiator runs its strict all-rounds check while its local round is a PSK and refuses the responder's first response | first interop run: "insufficient authentication rounds" | scenario redesigned; reason in `swanctl.conf` and `interop.md` |
+| approach | strongSwan round 2 reused `server.pem` | charon treats a round that complies with a completed one as done (`do_another_auth`) and never sends it | second interop run: no ANOTHER_AUTH_FOLLOWS in request 1 | round 2 made a PSK under its own identity |
+| approach | Discrimination break on the builders' Protocol ID | the encoder zeroes both fields for an empty SPI, so the break stays green | `./le rfc record` refused: "stayed GREEN" | break the "no data" half; comment names both producers |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Per-peer opt-in second round, PSK or x509, each direction | Done | `ipsec/second_round.go` `parseSecondRound`; YANG `second-round` | |
+| Both roles | Done | `engine/multiple_auth.go` `continueInitiatorAuth`, `handleResponderAuthRound` | |
+| strongSwan 6.1.0 interop | Done | `test/interop-ipsec/scenarios/multiple-auth-ze-*` | both pass, both walked red |
+| Both MUST rows proven | Done | `rfc/discrimination/rfc4739/` | `./le rfc tree`: mandatory 2 of 2 |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestRFC4739ResponderAnnouncesMultipleAuth` | `buildSAInitResponse` |
+| AC-2 | Done | `TestRFC4739InitiatorRequestCarriesBothNotifies`, `TestRFC4739ZeToZeTwoRoundsEachWay` (no MAS in request 2) | |
+| AC-3 | Done | `TestRFC4739NoSecondRoundNoNotifies` | |
+| AC-4 | Done | `TestRFC4739ZeToZeTwoRoundsEachWay` | request 2: IDi round 2, AUTH, no SA/TS |
+| AC-5 | Done | `TestRFC4739ResponderAnotherAuthFollows`, `TestRFC4739ZeToZeTwoRoundsEachWay` | |
+| AC-6 | Done | `TestRFC4739RoundTwoAuthUsesLatestID`, `TestRFC4739RoundTwoCredentialNotCrossed` | |
+| AC-7 | Done | `TestRFC4739UnconfiguredRemoteRoundRefused` | both roles, AUTHENTICATION_FAILED read off the wire |
+| AC-8 | Done | `TestRFC4739MissingRemoteRoundRefused` | both roles, log names the leaf |
+| AC-9 | Done | `TestRFC4739PeerWithoutSupportSkipsLocalRound`, `TestRFC4739LocalRoundSkippedWithoutPeerSupport` | |
+| AC-10 | Done | `TestRFC4739ThirdRoundRefused` | both roles |
+| AC-11 | Done | `TestValidateSecondRound`; `test/parse/ipsec-second-round-*.ci` | |
+| AC-12 | Done | `TestRFC4739RoundTwoRetransmitReplayed` | |
+| AC-13 | Done | interop `multiple-auth-ze-responder` | pass 13s |
+| AC-14 | Done | interop `multiple-auth-ze-initiator` | pass 14s |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| All 16 unit tests of the TDD plan | Done | `engine/rfc4739_test.go`, `engine/rfc4739_rounds_test.go`, `ipsec/config_second_round_test.go`, `wire/payload_notify_test.go` | plus `ipsec-second-round-local-id-required.ci` |
+| Interop scenarios | Done | `test/interop-ipsec/scenarios/` | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Files to Modify / Create | Done | `internal/le/interoplab/ipsec/multiauth.go` holds the checkers instead of `checkers.go` (2988 lines); `checkers.go` carries the two registry entries |
+
+### Audit Summary
+- **Total items:** 14 AC, 4 requirements
+- **Done:** all
+- **Partial:** none
+- **Skipped:** none
+- **Changed:** responder scenario shape (Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Second round, Ze initiator, strongSwan 6.1.0 | interop | `multiple-auth-ze-initiator`: pass (14s); with `multipleAuthRequestNotifies`/`settleAnotherAuth`/`moreAuthRounds` reverted by overlay and the image rebuilt: FAIL, charon "insufficient authentication rounds" |
+| Second round, Ze responder, strongSwan 6.1.0 | interop | `multiple-auth-ze-responder`: pass (13s); reverted: FAIL, Ze "responder established SA" after one round while charon sent `IKE_AUTH request 2 [ IDi IDr AUTH ]` |
+| Fail-closed on a partial authentication | unit, negative | `TestRFC4739UnconfiguredRemoteRoundRefused`, `TestRFC4739MissingRemoteRoundRefused`, `TestRFC4739ThirdRoundRefused`: AUTHENTICATION_FAILED decrypted off the wire, SA dead |
+| Both MUST rows proven | discrimination | 4 records; `./le rfc tree`: rfc4739 mandatory 2 of 2 (100.0%) |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| EAP authentication rounds, remote-access peers, more than one extra round per direction | Out of this spec's approved scope (Known Limitations) | `plan/post-release/features/spec-ike-multiple-authentication-eap-rounds.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/ike-multiple-authentication-bc566aa5-3f69-415d-8c8b-c6f8cdf8adae.md` (20 files, verdict clean) |
+| `./le spec review check` | clean: "review_gate: OK (7 code files, clean, hashes match)" |
+| Rounds | 3: round 1 found 2 ISSUE (round-2 leaf names, untested second-exchange guards); round 2 found 0 BLOCKER, 0 ISSUE; round 3 re-read a lint-only rename in the lab checker (unparam), 0 findings |
+| Reviewer lenses used | independent ze-read reviewer running /ze-review: RFC 4739 conformance, fail-closed auth, replay and message ids, concurrency, style pass, docs |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | Round-2 refusals named round-1 leaves (`remote-id`, `remote-id-type`, `ca-certificate`) | `engine/remote_id.go` `checkRemoteIdentity`, `engine/cert_payload.go` `getRemoteCert` | `(*SA).remoteLeafName` (`multiple_auth.go`); `TestRFC4739RoundTwoRefusalNamesTheRoundLeaf` |
+| 2 | ISSUE | Second-exchange guards (decrypt drop both roles, initiator message id, responder message id) had no test | `engine/fsm.go` `handleAuthResponse`, `engine/multiple_auth.go` `handleResponderAuthRound` | `TestRFC4739SecondExchangeGuards`; three mutants dropping the guards turn it red |
+
+NOTEs recorded, not blocking: round-1 NOTE 4 (leniency stated in `settleAnotherAuth`) and NOTE 5 (`continueInitiatorAuth` now sends the INFORMATIONAL) were applied; NOTE 3 and the A-2 row corrected; NOTE 6 (round state spread over five SA fields) accepted as a peer-driven state machine. Round 2 NOTEs: the sub-tree and class-mismatch hints in `checkRemoteIdentity`/`classMismatchHint` still say "remote-id" in round 2 while the main sentence names the right leaf; no test drives the `continueInitiatorAuth` build-failure INFORMATIONAL.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `engine/multiple_auth.go`, `engine/rfc4739_test.go`, `engine/rfc4739_rounds_test.go`, `ipsec/second_round.go`, `ipsec/config_second_round_test.go` | yes | committed in 9e3ed47790 (`git show --stat 9e3ed47790`) |
+| `test/parse/ipsec-second-round-{accepted,eap-refused,x509-no-certificate,local-id-required}.ci` | yes | `./le test bgp parse --pattern ipsec-second-round`: pass 4/4 |
+| `test/interop-ipsec/scenarios/multiple-auth-ze-{initiator,responder}/` | yes | ze.conf, swanctl.conf, strongswan.conf, ze-env in each |
+| `rfc/discrimination/rfc4739/RFC4739-3.1-1.json`, `RFC4739-3.2-1.json` | yes | `./le rfc discriminate stem rfc4739`: 4 records, none stale or unproven |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-12 | engine and config tests pass | `go test -v -run RFC4739` engine: 15 top-level tests PASS (26 with subtests); ipsec `ok` |
+| AC-13, AC-14 | interop | both scenarios pass; both red under the revert overlay; after the review fixes, both pass again on HEAD plus the closing files (initiator 7s, responder 8s), built through an overlay that maps other sessions' in-flight edits back to HEAD |
+| Review fixes | guards and leaf names | `TestRFC4739SecondExchangeGuards` and `TestRFC4739RoundTwoRefusalNamesTheRoundLeaf` pass under `-race`; mutants dropping each guard, and one making `remoteLeafName` ignore the round, turn them red |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| Config `authentication second-round` at commit | `test/parse/ipsec-second-round-eap-refused.ci`, `-local-id-required.ci` | runs `ze config validate -` on the config; expects the leaf named in stdout |
+| strongSwan initiator / responder, full stack | interop scenarios | checkers read charon's per-round lines and Ze's `ike: second authentication round verified` line |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | both scenarios ran with no charon setting |
+| A-2 | confirmed | `multiple-auth-ze-initiator` pass: charon answered SA/TS in its final response |
+| A-3 | confirmed | both scenarios pass with one round-2 secret owned by both round-2 identities |
+| A-4 | confirmed | `TestRFC4739RoundTwoRetransmitReplayed` |
+| A-5 | confirmed | `TestRFC4739RoundTwoCredentialNotCrossed`, x509 subtest of `TestRFC4739ZeToZeTwoRoundsEachWay` |
+| A-6 | confirmed | approved by Thomas 2026-10-30 |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Guide section: refusals, id required, hash-and-url round 1 only | `settleAnotherAuth`, `validateSecondRoundLocal`, `buildCertPayloads` | yes |
+| `docs/architecture/testing/interop.md` scenario table and charon policies | both swanctl.conf files; charon `require_strict`, `do_another_auth` | yes |
+| `./le doc wiring` | no IKE finding after `plan/doc-reviewed/bc7daf12.md` | yes |

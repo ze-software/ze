@@ -10,7 +10,7 @@
 | Level | experimental |
 | Components | internal/component/ike/engine, internal/component/ike/dataplane |
 | Real-path tests | test/ipsec/ipsec-child-rekey.ci, test/ipsec/ipsec-dpd-timeout.ci, test/ipsec/ipsec-clear-reestablish.ci, test/ipsec/ipsec-cookie-challenge.ci, test/ipsec/ipsec-peer-reload-applies-selectors.ci, test/ipsec/ipsec-teardown-leaves-nothing.ci |
-| Interop | ipsec/psk-site-to-site, ipsec/responder-psk, ipsec/responder-ike-rekey, ipsec/child-rekey, ipsec/clear-reestablish |
+| Interop | ipsec/psk-site-to-site, ipsec/responder-psk, ipsec/responder-ike-rekey, ipsec/child-rekey, ipsec/clear-reestablish, ipsec/multiple-auth-ze-initiator, ipsec/multiple-auth-ze-responder |
 | RFCs | rfc7296, rfc4301, rfc4303, rfc4739 |
 | Docs | docs/guide/ipsec.md |
 | Doc review | 2026-10-26: re-read after the IKE virtual-IP commits changed docs/guide/ipsec.md; every source anchor resolves (engine/, engine/create_child.go, engine/responder.go, engine/cp.go, feature-gates.txt ze_ike); added the virtual-IP lease the engine now answers in IKE_AUTH, checked against assignVirtualIP and substituteVirtualIP in cp.go |

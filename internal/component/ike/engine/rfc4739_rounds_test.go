@@ -668,3 +668,114 @@ func TestRFC4739RoundTwoRetransmitReplayed(t *testing.T) {
 		t.Fatalf("a retransmitted second request moved the responder to %v", p.resp.State)
 	}
 }
+
+// maTampered returns a copy of raw with its last octet flipped, which breaks the
+// integrity check of the SK payload while every header field stays valid.
+func maTampered(raw []byte) []byte {
+	out := append([]byte(nil), raw...)
+	out[len(out)-1] ^= 0xff
+	return out
+}
+
+// TestRFC4739SecondExchangeGuards proves the three guards of the second IKE_AUTH
+// exchange that keep an unauthenticated or stale message from changing the SA. Goal:
+// a second-exchange message that fails its integrity check, a responder request at a
+// message id other than the expected one, and a late copy of the first response at
+// the initiator are each dropped: the SA keeps its state, sends nothing, and the
+// genuine message still completes the exchange. Method: each forged or stale
+// datagram goes through the production handler over the wire, then a sentinel shows
+// nothing was written, then the genuine message is delivered.
+func TestRFC4739SecondExchangeGuards(t *testing.T) {
+	t.Run("responder drops a request that fails its integrity check", func(t *testing.T) {
+		p := maSAInitPair(t, maAuth(maIniLocal(), nil), maAuth(nil, maRespRemote()))
+		p.respondWith(p.ini.LastSentMsg, false)
+		p.answerWith(p.resp.LastSentMsg, false)
+		req2 := p.ini.LastSentMsg
+		p.respondWith(maTampered(req2), true)
+		if p.resp.State != StateAuthReceived {
+			t.Fatalf("a tampered second request moved the responder to %v", p.resp.State)
+		}
+		rtxExpectSilence(t, p.peerTr, p.myTr, p.peerAddr, "tampered second request")
+		p.respondWith(req2, false)
+		if p.resp.State != StateEstablished {
+			t.Fatalf("the genuine second request after a tampered one left the responder %v", p.resp.State)
+		}
+	})
+	t.Run("responder drops a request at an unexpected message id", func(t *testing.T) {
+		p := maSAInitPair(t, maAuth(maIniLocal(), nil), maAuth(nil, maRespRemote()))
+		p.respondWith(p.ini.LastSentMsg, false)
+		p.answerWith(p.resp.LastSentMsg, false)
+		inner := maDecrypt(t, p.resp, p.ini.LastSentMsg)
+		stray, err := buildEncryptedMessage(p.ini, inner, p.ini.NextMsgID+5)
+		if err != nil {
+			t.Fatalf("build the stray request: %v", err)
+		}
+		p.respondWith(stray, true)
+		if p.resp.State != StateAuthReceived {
+			t.Fatalf("a request at message id %d moved the responder to %v", p.ini.NextMsgID+5, p.resp.State)
+		}
+		rtxExpectSilence(t, p.peerTr, p.myTr, p.peerAddr, "request at an unexpected message id")
+		p.respondWith(p.ini.LastSentMsg, false)
+		if p.resp.State != StateEstablished {
+			t.Fatalf("the genuine second request after a stray one left the responder %v", p.resp.State)
+		}
+	})
+	t.Run("initiator drops a late copy of the first response", func(t *testing.T) {
+		p := maSAInitPair(t, maAuth(nil, maIniRemote()), maAuth(maRespLocal(), nil))
+		p.respondWith(p.ini.LastSentMsg, false)
+		resp1 := p.resp.LastSentMsg
+		p.answerWith(resp1, false)
+		req2 := p.ini.LastSentMsg
+		p.answerWith(resp1, true)
+		if p.ini.State != StateAuthSent || !bytes.Equal(p.ini.LastSentMsg, req2) {
+			t.Fatalf("a late first response moved the initiator to %v or replaced its second request", p.ini.State)
+		}
+		rtxExpectSilence(t, p.peerTr, p.myTr, p.peerAddr, "late first response")
+		p.respondWith(req2, false)
+		p.answerWith(p.resp.LastSentMsg, false)
+		if p.ini.State != StateEstablished {
+			t.Fatalf("the genuine final response after a late first one left the initiator %v", p.ini.State)
+		}
+	})
+	t.Run("initiator drops a response that fails its integrity check", func(t *testing.T) {
+		p := maSAInitPair(t, maAuth(nil, maIniRemote()), maAuth(maRespLocal(), nil))
+		p.respondWith(p.ini.LastSentMsg, false)
+		p.answerWith(p.resp.LastSentMsg, false)
+		p.respondWith(p.ini.LastSentMsg, false)
+		resp2 := p.resp.LastSentMsg
+		p.answerWith(maTampered(resp2), true)
+		if p.ini.State != StateAuthSent {
+			t.Fatalf("a tampered final response moved the initiator to %v", p.ini.State)
+		}
+		rtxExpectSilence(t, p.peerTr, p.myTr, p.peerAddr, "tampered final response")
+		p.answerWith(resp2, false)
+		if p.ini.State != StateEstablished {
+			t.Fatalf("the genuine final response after a tampered one left the initiator %v", p.ini.State)
+		}
+	})
+}
+
+// TestRFC4739RoundTwoRefusalNamesTheRoundLeaf proves that a refusal of the peer's
+// second round names the second-round leaf, never the first round's. Goal: the
+// operator is pointed at `authentication second-round remote id`. Method: the
+// initiator's round-2 identity differs from the one the responder's second round
+// requires, and the logged refusal is read.
+func TestRFC4739RoundTwoRefusalNamesTheRoundLeaf(t *testing.T) {
+	wrong := maIniLocal()
+	wrong.LocalID = "someone-else.example.com"
+	p := maSAInitPair(t, maAuth(wrong, nil), maAuth(nil, maRespRemote()))
+	p.respondWith(p.ini.LastSentMsg, false)
+	p.answerWith(p.resp.LastSentMsg, false)
+	p.respondWith(p.ini.LastSentMsg, true)
+	if p.resp.State != StateDead {
+		t.Fatalf("a round-2 identity the second round does not require was accepted (state %v)", p.resp.State)
+	}
+	p.sentAuthFailed(p.ini)
+	logs := p.logs.String()
+	if !maLogLine(logs, "second IKE_AUTH request refused", "authentication second-round remote id expects") {
+		t.Fatalf("the refusal does not name the second-round leaf:\n%s", logs)
+	}
+	if maLogLine(logs, "second IKE_AUTH request refused", "and remote-id expects") {
+		t.Fatalf("the refusal names the first round's remote-id:\n%s", logs)
+	}
+}

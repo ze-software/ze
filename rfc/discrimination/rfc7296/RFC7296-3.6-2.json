@@ -7,8 +7,8 @@
     "claim-sha": "dfd6fde5c5267556",
     "route": "revert",
     "producer": "internal/component/ike/engine/cert_payload.go::buildCertPayloads",
-    "producer-sha": "4b56ac243a3808dd",
-    "break": "body of buildCertPayloads replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "8ebc8197efa35b83",
+    "break": "body of buildCertPayloads replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC7296-3.6-2",
@@ -18,8 +18,8 @@
     "claim-sha": "c75c90553eb18495",
     "route": "revert",
     "producer": "internal/component/ike/engine/cert_payload.go::buildCertPayloads",
-    "producer-sha": "4b56ac243a3808dd",
-    "break": "body of buildCertPayloads replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "8ebc8197efa35b83",
+    "break": "body of buildCertPayloads replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC7296-3.6-2",

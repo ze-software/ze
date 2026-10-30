@@ -221,8 +221,9 @@ func getRemoteCert(sa *SA) (*x509.Certificate, error) {
 	caName := sa.remoteAuth().CACertificate
 	if caName == "" {
 		return nil, fmt.Errorf(
-			"ike auth: peer %q sent a certificate and no ca-certificate is configured, "+
-				"so nothing can validate it", sa.PeerName)
+			"ike auth: peer %q sent a certificate and no %s is configured, "+
+				"so nothing can validate it. Set %s to the CA that issues the peer's certificate",
+			sa.PeerName, sa.remoteLeafName(remoteLeafCACertificate), sa.remoteLeafName(remoteLeafCACertificate))
 	}
 	ca := pki.GetCA(caName)
 	if ca == nil {
@@ -266,9 +267,9 @@ func getRemoteCert(sa *SA) (*x509.Certificate, error) {
 		// intermediates offered means the chain does not reach ca-certificate
 		// (ai/rules/cli.md).
 		return nil, fmt.Errorf(
-			"ike auth: remote certificate validation against ca-certificate %q, "+
+			"ike auth: remote certificate validation against %s %q, "+
 				"with %d intermediate certificate(s) supplied by peer %q: %w",
-			caName, supplied, sa.PeerName, err)
+			sa.remoteLeafName(remoteLeafCACertificate), caName, supplied, sa.PeerName, err)
 	}
 
 	// The chain proves the authority issued this certificate. It does not prove the
@@ -283,19 +284,21 @@ func getRemoteCert(sa *SA) (*x509.Certificate, error) {
 		// The guard cannot deny, because the operator stated no expectation. It says so
 		// instead. Silence here reads as a check that passed.
 		getLogger().Warn(
-			"ike: remote-id is not set, so every certificate this authority issued authenticates as this peer",
+			"ike: no remote identity is set, so every certificate this authority issued authenticates as this peer",
 			"peer", sa.PeerName,
+			"leaf", sa.remoteLeafName(remoteLeafID),
 			"ca-certificate", caName,
-			"asserted-identity", asserted)
+			"asserted-identity", asserted,
+			"fix", "set "+sa.remoteLeafName(remoteLeafID)+" to the identity this peer must assert")
 		return cert, nil
 	}
 	if !certificateCarriesIdentity(cert, sa.RemoteIDPayload, want, remote.RemoteIDType) {
 		return nil, fmt.Errorf(
 			"ike auth: peer %q asserted identity %q, and its certificate carries no such identity. "+
 				"Issue a certificate whose subject alternative name, common name or subject is %q, "+
-				"or correct remote-id. An opaque ID_KEY_ID corresponds to no certificate field, so "+
-				"accepting one needs remote-id-type key-id set for this peer",
-			sa.PeerName, asserted, want)
+				"or correct %s. An opaque ID_KEY_ID corresponds to no certificate field, so "+
+				"accepting one needs %s key-id set for this peer",
+			sa.PeerName, asserted, want, sa.remoteLeafName(remoteLeafID), sa.remoteLeafName(remoteLeafIDType))
 	}
 
 	return cert, nil

@@ -7,7 +7,7 @@
 | Priority | P3 |
 | Release reason | - (RFC 4739 is reached only by the vpn-concentrator profile, which is not a release profile) |
 | RFC gaps | - |
-| Depends | spec-ike-multiple-authentication |
+| Depends | - |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-10-30 |
@@ -16,7 +16,9 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-`plan/post-release/features/spec-ike-multiple-authentication.md` gives a
+The closed spec `spec-ike-multiple-authentication` (commit 9e3ed47790; design in
+`docs/architecture/ike/ipsec-7-ikev2-engine.md` and
+`docs/architecture/ike/ipsec-14-responder.md`) gives a
 site-to-site peer one additional authentication round per direction, by
 certificate or pre-shared secret, and refuses a second round on a peer whose
 first round is EAP. Three parts of RFC 4739 stay unbuilt after it:
@@ -38,7 +40,7 @@ and Thomas decides whether it runs.
   → Constraint: to be written at research
 
 **Key insights:** (minimal context to resume after compaction)
-- The round model, accessors and state come from `plan/post-release/features/spec-ike-multiple-authentication.md`.
+- The round model, accessors and state are in `internal/component/ike/engine/multiple_auth.go` (`localAuth`, `remoteAuth`, `settleAnotherAuth`, `handleResponderAuthRound`, `continueInitiatorAuth`), described in `docs/architecture/ike/ipsec-7-ikev2-engine.md`.
 - strongSwan 6.1.0 `src/libcharon/sa/ikev2/tasks/ike_auth.c` chains an EAP round after a pubkey round; read it at research.
 
 ## Current Behavior (MANDATORY)

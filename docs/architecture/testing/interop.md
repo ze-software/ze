@@ -2066,7 +2066,7 @@ extension by default (`ike_auth.c` `multiple_auth_enabled`). Ze takes them from
 | Scenario | Ze role | Round 1 | Round 2 |
 |----------|---------|---------|---------|
 | `multiple-auth-ze-initiator` | initiator | X.509 both ways (`client.pem`, `server.pem`) | pre-shared key both ways, `ze-user.example.com` and `swan-user.example.com` |
-| `multiple-auth-ze-responder` | responder | pre-shared key both ways, address identities | strongSwan signs with `server.pem`, which Ze checks against `test-ca`; Ze proves `ze-user.example.com` with a second key |
+| `multiple-auth-ze-responder` | responder | X.509 both ways (`server.pem`, `client.pem`) | pre-shared key both ways, `swan-user.example.com` and `ze-user.example.com` |
 
 A tunnel coming up does not show that a second round ran, so each checker also
 reads both sides' logs. charon logs `authentication of '<id>' with pre-shared
@@ -2079,9 +2079,25 @@ The round-2 identities are FQDNs. Ze sends any identity that is not an address
 literal as ID_FQDN (`encodeIKEID`), while charon reads `user@domain` as
 ID_RFC822_ADDR, and the two types never match. charon matches a pre-shared key
 against an unordered list of owner identities (`mem_cred.c`), so the
-initiator scenario uses one round-2 secret for both directions. In the
-responder scenario each secret names only the Ze identity of its own round,
-so the round-1 key cannot verify round 2. Both scenarios set
+scenarios use one round-2 secret for both directions.
+
+Two charon policies shape the responder scenario. charon's initiator runs the
+strict check of every configured remote round as soon as its current local
+round is a pre-shared key (`ike_auth.c` `require_strict`), so a strongSwan
+initiator whose round 1 is a PSK refuses a responder's first IKE_AUTH response
+with "insufficient authentication rounds" before the responder's second round
+can come; strongSwan's round 1 is therefore a certificate. And charon counts a
+configured round as done when a completed round complies with it
+(`do_another_auth`), so a `local-2` identical to `local` is never sent, which
+is why strongSwan's second round is a pre-shared key rather than `server.pem`
+again. Ze's x509 second round is proven Ze to Ze
+(`TestRFC4739ZeToZeTwoRoundsEachWay`).
+
+Each scenario was walked red: with `multipleAuthRequestNotifies`,
+`settleAnotherAuth` and `moreAuthRounds` reverted through an overlay, charon
+refuses the Ze initiator's single round ("insufficient authentication rounds"),
+and the Ze responder establishes after one round while charon still owes its
+second, so the strongSwan SA never comes up. Both scenarios set
 `send_cert = always`, and both flush charon's log to stderr the way
 `esp-integrity-only-null` does.
 <!-- source: test/interop-ipsec/scenarios/multiple-auth-ze-initiator/ -- the Ze-initiator fixtures -->
