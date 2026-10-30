@@ -1,6 +1,11 @@
 # tmpfs-based encoding test - embeds config directly in .ci file
 tmpfs=tmpfs-ebgp.conf:terminator=EOF_CONF
 bgp {
+	# RFC 8212: an EBGP direction with no policy is refused; this test exchanges routes.
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
 	peer peer1 {
 		connection {
 			remote {
