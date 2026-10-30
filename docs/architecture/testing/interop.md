@@ -1060,6 +1060,7 @@ what it holds, a socket included, reaches the container unread.
 | StayRTR | 172.30.0.12 | `ze-iop-stayrtr-<pid>` |
 | pmacct `pmbmpd` | 172.30.0.13 | `ze-iop-pmacct-<pid>` |
 | StayRTR standby cache | 172.30.0.14 | `ze-iop-stayrtr-standby-<pid>` |
+| Second FRR (`frr-sink.conf`) | 172.30.0.15 | `ze-iop-frr-sink-<pid>` |
 
 Container names include the runner PID, which prevents name collisions.
 Runs that share a fixed subnet or staged binary paths must run serially.
@@ -1078,6 +1079,7 @@ that owns it:
 |-------------|-------|------|
 | `@ZE_LINK_LOCAL@` | `ze` | 2 |
 | `@FRR_LINK_LOCAL@` | `frr` | 3 |
+| `@FRR_SINK_LINK_LOCAL@` | `frr-sink` | 15 |
 
 When any file of the scenario carries a placeholder, its owner's start is
 wrapped: `/bin/sh` assigns the address to `eth0` with `nodad`, then execs the
@@ -1195,6 +1197,56 @@ subscriber routes must disappear before the proof stops the rejected peer.
 The control tunnel and its validated zero-ID management context may remain
 until that peer exits; they cannot stand in for a surviving PPP data session.
 <!-- source: internal/le/test/deployment/l2tppppauth.go -- assertWrongSecret, l2tpPPPCHAPRejected, l2tpPPPRejectedState -->
+
+### Separate links between daemons
+
+Every container sits on the lab bridge's untagged `eth0`, so a protocol that
+finds its neighbors by multicast (IS-IS, OSPF) meets every daemon of the
+scenario there. A scenario that must keep two peers apart, so that one can
+learn the other's routes only through Ze, declares links: one VLAN over the
+bridge per link, joined only by its members. Its register file adds a
+`scenarioLinks` entry under the scenario's name, one `labLink` per link with
+its VLAN, its IPv4 /24 and its members (owners from the link-local table
+above: `ze`, `frr`, `frr-sink`). A member reaches its Nth link as `eth<N>`, in
+declaration order, at its host number on the link's subnet, and the scenario's
+files name those devices and addresses.
+
+The links are built in the member's start wrapper, after any eth0 link-local
+and before its prestart and its daemon, so the daemon's first hello already
+goes out on them. A container on a link and with no link-local is wrapped too,
+with no eth0 address. Preparation refuses a link it cannot build as declared:
+a VLAN outside 1 to 4094 or used twice, a subnet that is not an IPv4 network
+of at most /24, fewer than two members, a member named twice, or a member whose
+config file the scenario does not carry, because that link would carry nothing
+and the checker would read a silent lab as the daemon's fault. A scenario with
+no entry runs every daemon on `eth0` alone, as before.
+<!-- source: internal/le/interoplab/bgp/prepare_links.go -- labLink, scenarioLinks, renderLinks, validateLink -->
+<!-- source: internal/le/interoplab/bgp/prepare.go -- prepareScenario, wrapStart -->
+
+`isis-import-policy-frr` is the one user: FRR-A (`frr`) meets Ze on VLAN 101
+(`10.101.0.0/24`, Ze's `eth1`) and FRR-B (`frr-sink`) on VLAN 102
+(`10.102.0.0/24`, Ze's `eth2`). FRR-A originates the hidden prefix
+10.77.1.0/24 and the control 10.77.2.0/24; Ze's `isis filter import` rejects
+the first. The checker requires both adjacencies; the control in Ze's
+`show rib` and kernel FIB and the hidden prefix absent from both, read beside
+the control; both prefixes in Ze's LSDB; the JSON of
+`show rib candidates prefix <p>` with the hidden prefix's one IS-IS path
+`hidden`, `hidden-by` `source`, `chain` `isis import`, and the control's one
+path selected and not hidden; and last, FRR-B's `show ip route <p> json` with
+a selected IS-IS route for BOTH prefixes through Ze's `10.102.0.2`. FRR-B's
+only neighbor is Ze, so that last assertion is the proof that Ze still floods
+the LSP whose prefix its own import chain hid.
+<!-- source: internal/le/interoplab/bgp/check_import_policy.go -- checkISISImportPolicy, waitRIBCandidates, waitFRRISISRoute -->
+<!-- source: internal/le/interoplab/bgp/check_rib_candidates_predicate.go -- ribCandidatesVerdict, frrISISRouteVerdict -->
+<!-- source: internal/le/interoplab/bgp/register_import_policy.go -- scenarioLinks entry -->
+
+`ospf-import-policy-bird` reads the same JSON per path: the tagged external
+10.88.1.0/24 holds exactly an OSPF path at the distance 200 the modify set,
+not selected, and a selected static path at 150; the untagged 10.88.2.0/24 a
+selected OSPF path at 110 and a static path at 150. Every field is judged on
+its own path, so the static path's 150 cannot stand for the OSPF path's
+distance.
+<!-- source: internal/le/interoplab/bgp/check_import_policy.go -- checkOSPFImportPolicy -->
 
 ### Scenario Structure
 
@@ -1978,6 +2030,39 @@ without changing the negotiation, kernel-state or received-traffic assertions.
 <!-- source: test/interop-ipsec/scenarios/esp-integrity-only-null/ -- the integrity-only ESP fixtures -->
 <!-- source: internal/le/interoplab/ipsec/checkers.go -- checkESPIntegrityOnlyNull -->
 
+### RFC 4739 multiple authentication on the strongSwan peer
+
+`multiple-auth-ze-initiator` and `multiple-auth-ze-responder` run a second
+authentication round in each direction inside one IKE_AUTH phase. strongSwan
+takes its rounds from `local-2` and `remote-2`, and charon announces the
+extension by default (`ike_auth.c` `multiple_auth_enabled`). Ze takes them from
+`authentication second-round local` and `remote`.
+
+| Scenario | Ze role | Round 1 | Round 2 |
+|----------|---------|---------|---------|
+| `multiple-auth-ze-initiator` | initiator | X.509 both ways (`client.pem`, `server.pem`) | pre-shared key both ways, `ze-user.example.com` and `swan-user.example.com` |
+| `multiple-auth-ze-responder` | responder | pre-shared key both ways, address identities | strongSwan signs with `server.pem`, which Ze checks against `test-ca`; Ze proves `ze-user.example.com` with a second key |
+
+A tunnel coming up does not show that a second round ran, so each checker also
+reads both sides' logs. charon logs `authentication of '<id>' with pre-shared
+key successful` (`psk_authenticator.c`) for each of Ze's rounds it verifies,
+and Ze logs `ike: second authentication round verified` with the `peer` and
+`id` attributes on one line. Every round-2 identity is one that round 1 does
+not use, so the identity says which round a line belongs to.
+
+The round-2 identities are FQDNs. Ze sends any identity that is not an address
+literal as ID_FQDN (`encodeIKEID`), while charon reads `user@domain` as
+ID_RFC822_ADDR, and the two types never match. charon matches a pre-shared key
+against an unordered list of owner identities (`mem_cred.c`), so the
+initiator scenario uses one round-2 secret for both directions. In the
+responder scenario each secret names only the Ze identity of its own round,
+so the round-1 key cannot verify round 2. Both scenarios set
+`send_cert = always`, and both flush charon's log to stderr the way
+`esp-integrity-only-null` does.
+<!-- source: test/interop-ipsec/scenarios/multiple-auth-ze-initiator/ -- the Ze-initiator fixtures -->
+<!-- source: test/interop-ipsec/scenarios/multiple-auth-ze-responder/ -- the Ze-responder fixtures -->
+<!-- source: internal/le/interoplab/ipsec/multiauth.go -- checkMultipleAuthZeInitiator, checkMultipleAuthZeResponder -->
+
 ### ESP transform kernel proof
 
 `esp-aes-cbc-sha256`, `esp-chacha20poly1305` and `esp-3des-sha1` offer one
@@ -2225,6 +2310,23 @@ outside the fault window refuse the run. The relay neither constructs client
 requests nor generates acknowledgments.
 The new carrier still owes green and forced-red execution evidence.
 <!-- source: internal/plugins/tftpserver/tftp_curl_docker_test.go -- TestTFTPCurlDuplicateACKInterop, curlTFTPRelay.transfer -->
+
+### Ze's TFTP client against dnsmasq
+
+The Linux, Docker-tagged `TestTFTPClientDnsmasqInterop` builds dnsmasq 2.91
+from `test/interop-tftp/Dockerfile.dnsmasq` through `labtest.Start` and runs it
+on the host network, because dnsmasq answers each transfer from a fresh port
+(its TID) that a published port does not carry. Ze's client fetches a
+116-block file, a file of exactly three 1468-octet blocks and an empty file,
+and must negotiate blksize 1468 and tsize equal to the file size, fall back to
+a window of one block (dnsmasq acknowledges no windowsize), and deliver the
+exact bytes; the last fetch runs through the scheme table with a SHA-256. With
+`tftp.ParseOACK` broken to grant nothing, the client refuses dnsmasq's
+1468-octet block 1 with ERROR 4 and the test goes red. On a Mac, where Colima's
+port forwarder does not reach the container's transfer port, the test binary is
+cross-built for linux/arm64 with `go test -c -tags docker` and run in a
+`docker:cli` container on the VM's host network with the Docker socket mounted.
+<!-- source: internal/core/fetch/tftp_dnsmasq_docker_test.go -- TestTFTPClientDnsmasqInterop -->
 
 
 ### The freeRouter RSVP-TE suite
@@ -2986,6 +3088,8 @@ is not packet-forwarding evidence.
 | 58 | bgp-session-protection-frr | Ze (GTSM `ttl { max 1; }`, `control-plane-protection bgp`), FRR 10.7.1 | RFC 5082 Section 2.2 and Section 3, and RFC 7454 Section 4, read at the sender: FRR runs `ttl-security hops 1`, and the checker opens python3 connects to Ze's port 179 inside FRR's container, because FRR's image has no other tool that sets a socket's TTL. A SYN from FRR's address at TTL 254 must time out (only the `ze_gtsm` listen-port term can drop it: FRR is a CoPP neighbor); the same address at TTL 255 must complete the handshake, the control that proves the probe can see a SYN-ACK; a SYN at TTL 255 from 172.30.0.40, an address the checker adds to FRR's interface and Ze does not know, must time out, never reset (only CoPP's `unknown-source-drop` can drop it: GTSM leaves an unknown source alone), and that term's counter in `nft list table inet ze_copp` must rise. FRR's session must keep its established and dropped counts and both ports across the probes. Red on 2026-10-27, each producer broken by a `GOFLAGS=-overlay` build with the image rebuilt by the harness: `peerTerms` without the listen-port term, assertion 4, "a SYN from 172.30.0.3 at TTL 254 got a completed handshake from ze"; `translatePolicy` without `unknown-source-drop`, assertion 6, "a SYN from the unconfigured 172.30.0.40 got a completed handshake from ze" |
 | 59 | rtr-stayrtr-preference | Ze (two RTR caches, preference 10 and 20), StayRTR v0.6.4 twice, FRR 10.7.1, BIRD 3.4.0 | RFC 8210 Section 10, cache preference, failover and fail-back observed at BIRD's export: the preferred cache's set is in use first, the standby's after the checker stops the preferred container, the preferred cache's again after it starts it ("RTR cache preference, failover and fail-back" above). Red on 2026-10-27 in phase 1 with the preference sort reversed, and in phase 3 with fail-back disabled. Green in 10 of 10 runs once the StayRTR image carried its Error Report patch and a readiness probe that waits for RTR |
 | 60 | bgp-panic-cease | Ze (the ze_le daemon), FRR 10.7.1, BIRD 3.4.0 | RFC 4271 Section 6.7 and Section 4.5, a panic on one session's read path contained to that session: the scenario's `ze-le-daemon` file starts the ze_le build, the checker creates `/run/ze-inject/bgp-read-panic-<FRR address>` in ze's container and makes FRR redistribute 10.49.1.0/24, and the injected panic on that UPDATE must reach FRR as a received NOTIFICATION Cease / Unspecific (`lastResetDueTo` naming a received notification, `lastNotificationReason` a Cease with no named subcode). FRR's session must come back (two establishments, one drop), while ze counts one establishment and no drop toward BIRD and BIRD stays Established. Green on 2026-10-27, twice. Red on 2026-10-27, `ceaseAfterPanic` without its `tryNotificationWithin` send (a `GOFLAGS=-overlay` build, image rebuilt by the harness): assertion 5, FRR's `lastResetDueTo` "Peer closed the session" after ze logged the contained panic. The shipped `ze-linux` holds neither `injectReadPanic` nor the trigger path; only `ze-le-linux` does |
+| 61 | isis-import-policy-frr | Ze, FRR 10.7.1 twice (FRR-A, FRR-B on separate links) | `isis filter import` decides what Ze installs and nothing else: the hidden prefix is out of Ze's RIB and FIB, listed by `show rib candidates` as hidden by the `isis import` chain, and still flooded on, so FRR-B learns it through Ze ("Separate links between daemons") |
+| 62 | ospf-import-policy-bird | Ze, BIRD 3.4.0 | `ospf filter import` sets distance 200 on BIRD's tagged external, which then loses to a static path at 150, while the untagged one keeps 110 and wins, judged per path in `show rib candidates` |
 <!-- source: internal/le/interoplab/bgp/check_session_protection.go -- checkSessionProtection, sessionProbeScript -->
 <!-- source: internal/le/interoplab/bgp/check_session_protection_predicate.go -- parseSessionProbe, coppUnknownSourceDrops -->
 <!-- source: internal/le/interoplab/bgp/check_paths_limit_receive.go -- checkPathsLimitReceive, decodePathsLimitReceive, requirePathsLimitReceive -->

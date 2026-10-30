@@ -92,6 +92,7 @@ func TestLocRIBPolicyFieldsInEqualNotKey(t *testing.T) {
 		"level":      func(p *Path) { p.Level = ribpolicy.ISISLevel2 },
 		"route-type": func(p *Path) { p.OSPFRouteType = ribpolicy.OSPFExternal2 },
 		"hidden":     func(p *Path) { p.Hidden = true },
+		"hidden-by":  func(p *Path) { p.HiddenBy = ribpolicy.ChainRoleCentral },
 	}
 	for name, change := range variants {
 		changed := base

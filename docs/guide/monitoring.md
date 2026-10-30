@@ -384,6 +384,20 @@ at zero from the moment the component has a metrics registry.
 | `config-confirm` | `write` | One config write on the commit-confirm worker (a gNMI Set, an SSH, web or API commit, an accept, an abort, a managed push): its caller gets an error saying the write may be partly applied and naming the `ze show crashes` command; the worker serves the next write and the open window's deadline |
 <!-- source: internal/component/config/confirm/panic_guard.go -- writeTask, writeEndedByPanic -->
 
+### Loc-RIB Import Policy Metrics
+
+An import chain (`<protocol> filter import`, `rib filter import`) can hide a
+path: the Loc-RIB keeps it but never selects it. These two series count what
+the chains hid, labelled by the protocol that offered the path. What each
+hidden path is and which chain hid it: `show rib candidates prefix <prefix>`
+([route policy](route-policy.md)).
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `ze_rib_policy_hidden_paths` | gauge | `source` | Paths of that source the Loc-RIB holds hidden now |
+| `ze_rib_policy_rejected_total` | counter | `source`, `chain` (`source` or `central`) | Rejections. Every route a protocol offers that a chain rejects counts once; a reload counts a stored path again only when its verdict changes |
+<!-- source: internal/core/rib/locrib/policy_metrics.go -- SetPolicyMetricsRegistry, accountStored, accountRemoved -->
+
 ### BGP Metrics
 <!-- source: internal/component/bgp/reactor/reactor_metrics.go -- initReactorMetrics -->
 

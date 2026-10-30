@@ -32,7 +32,7 @@ type producerValues struct {
 // The nil check is the whole cost of the gate when no chain is configured: the
 // BGP full-table insert path. admit allocates nothing.
 func admit(snap *ribpolicy.Snapshot, fam family.Family, prefix netip.Prefix, p Path) Path { //nolint:gocritic // hugeParam: the Path is the value the caller stores, returned modified
-	p.Hidden = false
+	p.Hidden, p.HiddenBy = false, ribpolicy.ChainRoleUnspecified
 	p.original = producerValues{
 		tag:         p.Tag,
 		hasTag:      p.HasTag,
@@ -46,7 +46,7 @@ func admit(snap *ribpolicy.Snapshot, fam family.Family, prefix netip.Prefix, p P
 	}
 	v := snap.Evaluate(routeView(fam, prefix, &p))
 	if v.Action != ribpolicy.ActionAccept {
-		p.Hidden = true
+		p.Hidden, p.HiddenBy = true, rejectingChain(v)
 		return p
 	}
 	if v.Sets.HasDistance {
@@ -64,8 +64,20 @@ func producerPath(p *Path) Path {
 	q := *p
 	q.Tag, q.HasTag = p.original.tag, p.original.hasTag
 	q.DistanceOverride, q.HasDistanceOverride = p.original.distance, p.original.hasDistance
-	q.Hidden = false
+	q.Hidden, q.HiddenBy = false, ribpolicy.ChainRoleUnspecified
 	return q
+}
+
+// rejectingChain names the chain behind a reject verdict. Snapshot.Evaluate
+// names it on every reject it returns; a verdict that names none is a defect in
+// the snapshot, so it panics rather than report a hidden path no chain owns.
+func rejectingChain(v ribpolicy.Verdict) ribpolicy.ChainRole {
+	switch v.RejectedBy {
+	case ribpolicy.ChainRoleSource, ribpolicy.ChainRoleCentral:
+		return v.RejectedBy
+	case ribpolicy.ChainRoleUnspecified:
+	}
+	panic("BUG: locrib: a rejecting verdict names no chain")
 }
 
 // routeView builds the read-only view a chain judges p through.

@@ -29,11 +29,13 @@ func (g *PathGroup) upsert(p Path) {
 	k := p.key()
 	for i := range g.Paths {
 		if g.Paths[i].key() == k {
+			accountStored(&g.Paths[i], &p, false)
 			g.Paths[i] = p
 			g.Best = selectBest(g.Paths)
 			return
 		}
 	}
+	accountStored(nil, &p, false)
 	g.Paths = append(g.Paths, p)
 	g.Best = selectBest(g.Paths)
 }
@@ -45,6 +47,7 @@ func (g *PathGroup) remove(k pathKey) bool {
 		if g.Paths[i].key() != k {
 			continue
 		}
+		accountRemoved(&g.Paths[i])
 		last := len(g.Paths) - 1
 		g.Paths[i] = g.Paths[last]
 		g.Paths = g.Paths[:last]

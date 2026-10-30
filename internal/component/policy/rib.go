@@ -70,6 +70,11 @@ type RIBImport struct {
 	// Protocol is the redistevents protocol whose paths a source chain
 	// judges; empty for the central chain.
 	Protocol string
+	// Floods is true for a link-state IGP, which keeps flooding a prefix its
+	// import chain hid: neighbors still route that prefix through this
+	// router. The doctor check doctor-policy-igp-import-hides-nexthop judges
+	// the paths of these sources (doctor.go).
+	Floods bool
 }
 
 // ribImport is a registered RIBImport with its protocol resolved.
@@ -164,6 +169,28 @@ func RIBImportRoots() []string {
 		roots = append(roots, imp.Root)
 	}
 	return roots
+}
+
+// ImportAttachment names the attachment whose chain role names for a path
+// source offered: the source's own import attachment, or the central one. The
+// bool is false when no such attachment is registered, which a hidden path
+// cannot meet, because a chain hid it.
+func ImportAttachment(source redistevents.ProtocolID, role ribpolicy.ChainRole) (string, bool) {
+	for _, imp := range ribReg.importList() {
+		switch role {
+		case ribpolicy.ChainRoleSource:
+			if imp.Scope == RIBScopeSource && imp.protocolID == source {
+				return imp.Attachment, true
+			}
+		case ribpolicy.ChainRoleCentral:
+			if imp.Scope == RIBScopeCentral {
+				return imp.Attachment, true
+			}
+		case ribpolicy.ChainRoleUnspecified:
+			return "", false
+		}
+	}
+	return "", false
 }
 
 func (r *ribRegistry) compiler(filterType string) (RouteEvaluatorCompiler, bool) {

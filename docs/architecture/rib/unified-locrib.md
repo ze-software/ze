@@ -69,6 +69,23 @@ it owns `AdminDistance`, so a producer's value is discarded. `selectBest` and
 them out. A group whose paths are all hidden has no best, the same as an empty
 group, so its subscribers see `ChangeRemove` and sysrib withdraws the FIB entry.
 A hidden path stays stored, so `Lookup`, `Inspect` and `Iterate` still list it.
+`Path.HiddenBy` names the chain that hid it (`ChainRoleSource` or
+`ChainRoleCentral`), copied from the `RejectedBy` field of the verdict
+`Snapshot.Evaluate` returned. It is one byte, in `Equal` and out of `key()`, so
+`show rib candidates` reports the verdict the RIB acted on rather than a fresh
+evaluation. A path no chain rejected carries `ChainRoleUnspecified`.
+
+The policy metrics are kept in the same shard lock as the upsert, with no
+allocation: `ze_rib_policy_hidden_paths{source}` moves when a stored path
+changes between hidden and selectable or a hidden path is removed, and
+`ze_rib_policy_rejected_total{source,chain}` counts every producer offer a
+chain rejects. A `Reselect` re-judgement counts a rejection only when the
+verdict changes, so recommitting an unchanged chain adds nothing. The series
+are pre-bound per source and chain when the policy plugin hands the registry
+to `locrib.SetPolicyMetricsRegistry`; the hidden counts are kept whether or not
+a registry is bound.
+<!-- source: internal/core/rib/locrib/policy_metrics.go -- accountStored, accountRemoved, SetPolicyMetricsRegistry -->
+<!-- source: internal/core/rib/policy/policy.go -- ChainRole, Verdict.RejectedBy -->
 An accepting chain may set `distance`, which writes the `DistanceOverride`
 pair, and `tag`. Those set actions are applied to a copy of the producer's
 own values. The path keeps those values unexported beside the values in

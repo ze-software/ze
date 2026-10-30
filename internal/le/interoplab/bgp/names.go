@@ -233,6 +233,16 @@ const zeTestCommandSpeaker = "speaker"
 // under Path Identifiers 11 and 12.
 const addPathDeparturePrefix = "10.0.0.0/8"
 
+// The import-policy scenarios' prefixes. The IS-IS pair is FRR's loopback, one
+// hidden by Ze's `isis filter import` and one the control it is read against;
+// the OSPF pair is BIRD's externals, one tagged 100 and one untagged.
+const (
+	isisImportHiddenPrefix   = "10.77.1.0/24"
+	isisImportControlPrefix  = "10.77.2.0/24"
+	ospfImportTaggedPrefix   = "10.88.1.0/24"
+	ospfImportUntaggedPrefix = "10.88.2.0/24"
+)
+
 // Lab addresses. networkHostAddress gives each peer a host number on the
 // scenario's own /24, and these are the spellings on the default network.
 const (

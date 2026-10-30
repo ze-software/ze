@@ -218,6 +218,13 @@ type Path struct {
 	// never carry one. Compared by Equal, excluded from key().
 	Hidden bool
 
+	// HiddenBy names the chain that hid the path, the source's own chain or
+	// the central one, so `show rib candidates` and the rejection counter say
+	// which chain to relax. ChainRoleUnspecified exactly when Hidden is false.
+	// Owned by the RIB like Hidden (admit). Compared by Equal, excluded from
+	// key().
+	HiddenBy ribpolicy.ChainRole
+
 	// original keeps the producer's own values of the fields an import chain
 	// may set, so every evaluation starts from them rather than from an earlier
 	// evaluation's result (admit, policy.go). Written only by admit; EXCLUDED
@@ -265,6 +272,7 @@ func (p Path) Equal(q Path) bool {
 		p.Level == q.Level &&
 		p.OSPFRouteType == q.OSPFRouteType &&
 		p.Hidden == q.Hidden &&
+		p.HiddenBy == q.HiddenBy &&
 		slices.Equal(p.Labels, q.Labels) &&
 		slices.Equal(p.BackupRepairLabels, q.BackupRepairLabels)
 }

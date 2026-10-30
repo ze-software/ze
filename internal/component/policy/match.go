@@ -88,6 +88,18 @@ var routeTypeNames = map[string]ribpolicy.OSPFRouteType{
 	"nssa-2":     ribpolicy.OSPFNSSA2,
 }
 
+// RouteTypeName returns the name the `route-type` match condition spells t
+// with, derived from routeTypeNames so a display and the condition never
+// disagree, and false for a type the map does not name (the unspecified one).
+func RouteTypeName(t ribpolicy.OSPFRouteType) (string, bool) {
+	for name, v := range routeTypeNames {
+		if v == t {
+			return name, true
+		}
+	}
+	return "", false
+}
+
 // RouteMatch is a compiled set of conditions. A route matches when every
 // condition the instance names holds; within one condition the values are
 // alternatives. A route that does not carry a field a condition reads (no tag,

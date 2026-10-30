@@ -112,7 +112,9 @@ func (r *RIB) reselectShard(fam family.Family, sh *shard) {
 				prevECMP = siblingNextHops(g, prevBest)
 			}
 			for j := range g.Paths {
-				g.Paths[j] = admit(snap, fam, prefix, producerPath(&g.Paths[j]))
+				stored := admit(snap, fam, prefix, producerPath(&g.Paths[j]))
+				accountStored(&g.Paths[j], &stored, true)
+				g.Paths[j] = stored
 				g.Paths[j].AdminDistance = resolvedDistance(g.Paths[j])
 			}
 			g.Best = selectBest(g.Paths)

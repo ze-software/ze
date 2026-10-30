@@ -217,22 +217,34 @@ func prepareScenario(root, producer, suffix string, prepare interoplab.PrepareCo
 	if prestartErr != nil {
 		return interoplab.PreparedScenario{Cleanup: cleanup}, prestartErr
 	}
+	if err != nil {
+		return interoplab.PreparedScenario{Peers: peers, Cleanup: cleanup}, err
+	}
+	links, linksErr := renderLinks(prepare.Source.Name, scenarioLinks[prepare.Source.Name], peers)
+	if linksErr != nil {
+		return interoplab.PreparedScenario{Cleanup: cleanup}, linksErr
+	}
 	// A container owns the link-local its placeholder names because some file
 	// of the scenario uses that address, never because of the scenario's name.
 	// It is assigned before the daemon starts, so the daemon's first interface
-	// snapshot already holds it, and the owner's prestart runs after it.
+	// snapshot already holds it. The owner's links (scenarioLinks) are built
+	// after it, and its prestart runs last. A container with links and no
+	// link-local is wrapped too, with no eth0 address.
 	for owner := range linkLocalOwners {
-		if !linkLocals[owner] {
+		var address netip.Addr
+		if linkLocals[owner] {
+			address = linkLocalAt(prepare.Network, linkLocalOwners[owner].host)
+		}
+		if !address.IsValid() && links[owner] == "" {
 			continue
 		}
 		for i := range peers {
 			if peers[i].Name == linkLocalOwners[owner].peer {
-				assignLinkLocal(&peers[i], linkLocalOwners[owner], linkLocalAt(prepare.Network, linkLocalOwners[owner].host),
-					prestarts[owner])
+				wrapStart(&peers[i], linkLocalOwners[owner], address, links[owner]+prestarts[owner])
 			}
 		}
 	}
-	return interoplab.PreparedScenario{Peers: peers, Cleanup: cleanup}, err
+	return interoplab.PreparedScenario{Peers: peers, Cleanup: cleanup}, nil
 }
 
 // renderScenario copies a scenario's files to target with the lab's addresses
@@ -707,8 +719,9 @@ const (
 // The link-local placeholders a scenario file may carry. Each renders to the
 // address of one container, which prepareScenario assigns to that container.
 const (
-	zeLinkLocalPlaceholder  = "@ZE_LINK_LOCAL@"
-	frrLinkLocalPlaceholder = "@FRR_LINK_LOCAL@"
+	zeLinkLocalPlaceholder      = "@ZE_LINK_LOCAL@"
+	frrLinkLocalPlaceholder     = "@FRR_LINK_LOCAL@"
+	frrSinkLinkLocalPlaceholder = "@FRR_SINK_LINK_LOCAL@"
 )
 
 // linkLocalOwner is the container a link-local placeholder names: its peer,
@@ -723,11 +736,13 @@ type linkLocalOwner struct {
 	imageCommand []string
 }
 
-// zeLinkLocalOwner and frrLinkLocalOwner name each owner's index, so a table
-// indexed by owner (ownerPrestarts) is written by name, never by position.
+// zeLinkLocalOwner, frrLinkLocalOwner and frrSinkLinkLocalOwner name each
+// owner's index, so a table indexed by owner (ownerPrestarts, a labLink's
+// members) is written by name, never by position.
 const (
 	zeLinkLocalOwner = iota
 	frrLinkLocalOwner
+	frrSinkLinkLocalOwner
 )
 
 // linkLocalOwners is every link-local placeholder and its owner. Ze's image
@@ -735,10 +750,13 @@ const (
 // scenario always has. FRR's pinned image (interoplab.FRRImage, read at 10.3.1
 // on 2026-10-15 and at 10.7.1 on 2026-10-22 with `docker image inspect`) has Entrypoint ["/sbin/tini","--"]
 // and Cmd ["/usr/lib/frr/docker-start"]; Docker drops that Cmd once
-// --entrypoint replaces the entrypoint, so the wrapper passes it back.
+// --entrypoint replaces the entrypoint, so the wrapper passes it back. The
+// second FRR, frr-sink, runs the same image, so its start is FRR's.
 var linkLocalOwners = [...]linkLocalOwner{
 	zeLinkLocalOwner: {placeholder: zeLinkLocalPlaceholder, peer: "ze", host: zeHostNumber, entrypoint: "ze"},
 	frrLinkLocalOwner: {placeholder: frrLinkLocalPlaceholder, peer: peerFRR, host: frrHostNumber, entrypoint: "/sbin/tini",
+		imageCommand: []string{"--", "/usr/lib/frr/docker-start"}},
+	frrSinkLinkLocalOwner: {placeholder: frrSinkLinkLocalPlaceholder, peer: peerFRRSink, host: extendedSinkHost, entrypoint: "/sbin/tini",
 		imageCommand: []string{"--", "/usr/lib/frr/docker-start"}},
 }
 
@@ -762,7 +780,7 @@ func linkLocalAt(network interoplab.Network, host uint8) netip.Addr {
 // ownerPrestarts holds, by index into linkLocalOwners, the shell one scenario
 // runs in each owner's container before its daemon starts, empty for an owner
 // that runs none. It runs inside the wrapper that assigns that container's
-// link-local (assignLinkLocal), after the eth0 assignment and before the exec
+// link-local (wrapStart), after the eth0 assignment and the links and before the exec
 // of the daemon, with errexit on. It is what a scenario needs in place before
 // the first packet goes there (a second link, an nft table). It is Go, not a
 // scenario file, because the interop tree carries no interpreted helper
@@ -800,12 +818,13 @@ func renderPrestarts(scenario string, prestarts ownerPrestarts, linkLocals rende
 	return rendered, nil
 }
 
-// assignLinkLocal wraps peer's start in a shell that assigns address to eth0,
-// runs prestart (the owner's rendered ownerPrestarts entry, empty when it
-// has none) and then execs the start it replaced: the peer's own --entrypoint
-// when it passes one, the image's otherwise, with the peer's command or the
-// image's.
-func assignLinkLocal(peer *interoplab.PeerConfig, owner linkLocalOwner, address netip.Addr, prestart string) {
+// wrapStart wraps peer's start in a shell that assigns address to eth0 (none
+// when address is the zero Addr, for a container that owns no link-local),
+// runs prestart (the owner's rendered links and ownerPrestarts entry, empty
+// when it has neither) and then execs the start it replaced: the peer's own
+// --entrypoint when it passes one, the image's otherwise, with the peer's
+// command or the image's.
+func wrapStart(peer *interoplab.PeerConfig, owner linkLocalOwner, address netip.Addr, prestart string) {
 	entrypoint := owner.entrypoint
 	arguments := make([]string, 0, len(peer.Arguments)+2)
 	for i := 0; i < len(peer.Arguments); i++ {
@@ -821,7 +840,9 @@ func assignLinkLocal(peer *interoplab.PeerConfig, owner linkLocalOwner, address 
 		command = owner.imageCommand
 	}
 	var script textbuf.Buffer
-	script.Str("ip -6 address add ").Addr(address).Str("/64 dev eth0 nodad\n")
+	if address.IsValid() {
+		script.Str("ip -6 address add ").Addr(address).Str("/64 dev eth0 nodad\n")
+	}
 	if prestart != "" {
 		script.Str(strings.TrimRight(prestart, "\n")).Byte('\n')
 	}

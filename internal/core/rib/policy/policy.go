@@ -115,11 +115,40 @@ type Sets struct {
 	HasTag bool
 }
 
+// ChainRole names which of a snapshot's two chains judged a route: the chain of
+// the route's own source, or the central chain every source passes. The zero
+// value is ChainRoleUnspecified: no chain rejected the route.
+type ChainRole uint8
+
+const (
+	ChainRoleUnspecified ChainRole = 0
+	ChainRoleSource      ChainRole = 1
+	ChainRoleCentral     ChainRole = 2
+	// ChainRoleCount sizes an array indexed by ChainRole.
+	ChainRoleCount = 3
+)
+
+// String names the role as `show rib candidates` and the
+// ze_rib_policy_rejected_total chain label spell it.
+func (c ChainRole) String() string {
+	switch c {
+	case ChainRoleSource:
+		return "source"
+	case ChainRoleCentral:
+		return "central"
+	case ChainRoleUnspecified:
+		return "none"
+	}
+	return "unknown"
+}
+
 // Verdict is what a chain answers for one route. Sets are read only when
-// Action is ActionAccept.
+// Action is ActionAccept. RejectedBy is set by Snapshot.Evaluate on a reject
+// and names the chain that rejected; a single Chain leaves it unspecified.
 type Verdict struct {
-	Action Action
-	Sets   Sets
+	Action     Action
+	Sets       Sets
+	RejectedBy ChainRole
 }
 
 // Chain is one compiled import chain: the filters of one attachment, in order,
@@ -207,7 +236,7 @@ func (s *Snapshot) Evaluate(r Route) Verdict {
 		if chain := s.bySource[r.Source]; chain != nil {
 			v := chain.Evaluate(r)
 			if v.Action != ActionAccept {
-				return Verdict{Action: ActionReject}
+				return Verdict{Action: ActionReject, RejectedBy: ChainRoleSource}
 			}
 			sets = v.Sets
 			if sets.HasTag {
@@ -218,7 +247,7 @@ func (s *Snapshot) Evaluate(r Route) Verdict {
 	if s.central != nil {
 		v := s.central.Evaluate(r)
 		if v.Action != ActionAccept {
-			return Verdict{Action: ActionReject}
+			return Verdict{Action: ActionReject, RejectedBy: ChainRoleCentral}
 		}
 		sets = mergeSets(sets, v.Sets)
 	}

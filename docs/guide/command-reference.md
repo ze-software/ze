@@ -2913,6 +2913,7 @@ unicast; `mp <family> add <prefixes>`, `mp <family> del <prefixes>` and
 | `request bgp rib inject <peer> <family> <prefix> [attrs...]` | write | Insert route into Adj-RIB-In as if received from peer |
 | `request bgp rib withdraw <peer> <family> <prefix>` | write | Remove route from Adj-RIB-In |
 | `show bgp rib rpf <family> <source-addr>` | read | RPF lookup: longest-prefix-match against Loc-RIB for CIDR families <!-- source: internal/component/bgp/plugins/cmd/rib/ -- RIB proxy RPCs; internal/component/bgp/plugins/rib/ -- RIB plugin --> |
+| `show rib candidates [prefix <prefix>]` | read-only | Every Loc-RIB path each protocol offered, selected, standing by or hidden by an import chain, with `hidden-by` and `chain` on a hidden path (`docs/guide/route-policy.md`, "Seeing the hidden paths") <!-- source: internal/component/sysrib/candidates.go -- showRIBCandidates --> |
 
 ### IRR Filter Commands
 

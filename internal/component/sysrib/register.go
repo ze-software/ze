@@ -349,10 +349,16 @@ func runSysRIBPlugin(conn net.Conn) int {
 	const cmdDone = "done"
 	const cmdError = "error"
 
-	p.OnExecuteCommand(func(_, command string, _ []string, _ string) (string, any, error) {
+	p.OnExecuteCommand(func(_, command string, args []string, _ string) (string, any, error) {
 		switch command {
 		case "show rib":
 			data, err := s.showRIB()
+			if err != nil {
+				return cmdError, "", err
+			}
+			return cmdDone, data, nil
+		case "show rib candidates":
+			data, err := showRIBCandidates(getLocRIB(), args)
 			if err != nil {
 				return cmdError, "", err
 			}
@@ -402,6 +408,16 @@ func commandDecls() []sdk.CommandDecl {
 		{
 			Name:      "show rib",
 			ShortHelp: "Show each route the system RIB holds, with its family, next hop, protocol and equal-cost paths.",
+		},
+		{
+			Name:      "show rib candidates",
+			ShortHelp: "Show every path each protocol offered the Loc-RIB, hidden ones included, with the import chain that hid each.",
+			Description: "Lists, per prefix, every path a protocol offered: the selected one, the ones standing by, and the ones an import chain " +
+				"hid. Each path shows its source, next hop, distance and metric, its tag, IS-IS level or OSPF route type when it carries " +
+				"one, and for a hidden path the chain that hid it: `source` (the protocol's own `filter import`) or `central` " +
+				"(`rib filter import`). `prefix <prefix>` limits the answer to one prefix.",
+			// The selector is optional: with no argument every prefix is listed.
+			Args: []string{candidatesSelectorPrefix, "<prefix>"},
 		},
 		{
 			Name:      "show nexthop-table",

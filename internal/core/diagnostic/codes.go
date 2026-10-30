@@ -82,6 +82,7 @@ const (
 	CodeDoctorWireGuardUnknown                     = "doctor-wireguard-unknown"
 	CodeDoctorXFRMInterfaceUnavailable             = "doctor-xfrm-interface-unavailable"
 	CodeDoctorXFRMInterfaceUnknown                 = "doctor-xfrm-interface-unknown"
+	CodeDoctorPolicyIGPImportHidesNextHop          = "doctor-policy-igp-import-hides-nexthop"
 	CodeDoctorPKICARootExpiry                      = "doctor-pki-ca-root-expiry"
 	CodeDoctorPKICARootMissing                     = "doctor-pki-ca-root-missing"
 	CodeDoctorPKICert                              = "doctor-pki-cert"
@@ -668,6 +669,12 @@ var builtinCodes = []CodeMeta{
 		Title:       "AS112 redistribute knob set but not imported into BGP",
 		Description: "service as112 is enabled and sets a redistribute-only knob (an explicit asn or a community) but no redistribute { destination bgp { import as112 } } is configured. Those knobs only affect the BGP-originated covering prefixes and are ignored without the import, so the covering prefixes are never originated into BGP -- the common wiring mistake where an operator expects the routes but forgot the import. Add the import, or remove the knob if the node serves DNS only.",
 		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-as112-redistribute-not-imported"},
+	},
+	{
+		Code:        CodeDoctorPolicyIGPImportHidesNextHop,
+		Title:       "IGP import filter hides the route a next hop resolves through",
+		Description: "An IS-IS or OSPF import chain (or the central `rib filter import` chain) hid a prefix the IGP learned, and that prefix is the most specific cover of the next hop of a route this router selected. The IGP still floods the prefix, so routers downstream keep sending its traffic here, while this router resolves the next hop through a shorter prefix or not at all: transit traffic is blackholed or loops. The check reads the running daemon's Loc-RIB, so only `show doctor` inside the daemon reports it; `ze doctor` before a start has no RIB to read. Run `show rib candidates prefix <prefix>` to see the hidden path and the chain that hid it, then let the chain accept that prefix, or stop originating it in the IGP instead of filtering it locally.",
+		Examples:    []string{"ze show doctor", "ze show rib candidates prefix 10.1.0.0/24", "ze show diagnostic doctor-policy-igp-import-hides-nexthop"},
 	},
 	{
 		Code:        "doctor-iface-macvlan",

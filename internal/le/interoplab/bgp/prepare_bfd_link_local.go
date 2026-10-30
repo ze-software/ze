@@ -1,5 +1,5 @@
 // Design: docs/architecture/testing/interop.md -- BFD over link-local against FRR.
-// Related: prepare.go -- scenarioPrestarts, renderPrestarts, assignLinkLocal, which run these.
+// Related: prepare.go -- scenarioPrestarts, renderPrestarts, wrapStart, which run these.
 // Related: check_bfd_link_local.go -- checkBFDLinkLocalTwoLinks, the checker these make discriminating.
 package bgp
 

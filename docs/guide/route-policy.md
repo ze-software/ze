@@ -181,6 +181,53 @@ OSPF event and no SPF run. Tighten it and the path is withdrawn.
 <!-- source: internal/component/policy/rib_compile.go -- installRIBImports -->
 <!-- source: internal/core/rib/locrib/policy.go -- PublishPolicy -->
 
+## Seeing the hidden paths
+
+`show rib` lists only selected paths, so a hidden path never appears there.
+`show rib candidates` lists every path each protocol offered, hidden ones
+included. Add `prefix <prefix>` to see one prefix:
+
+```
+show rib candidates prefix 192.0.2.0/24
+```
+
+Each path carries its source, next hop, interface, distance, metric, and the
+tag, IS-IS level or OSPF route type its protocol states. `selected` marks the
+path the Loc-RIB chose. A hidden path has `hidden` true, `hidden-by` set to
+`source` (its own protocol's chain) or `central` (the `rib` chain), and
+`chain` naming the attachment, such as `isis import` or `rib import`. The
+chain shown is the one whose verdict the Loc-RIB acted on, not a fresh
+evaluation, so a reload in flight cannot make the answer disagree with what
+was installed. The answer is structured, so `| json`, `| table` and `| match`
+apply. Anything after `candidates` other than `prefix <prefix>` is refused with
+the correct form.
+<!-- source: internal/component/sysrib/candidates.go -- showRIBCandidates, candidatesPrefix -->
+<!-- source: internal/core/rib/locrib/policy.go -- admit, rejectingChain -->
+
+## When an IGP filter blackholes transit traffic
+
+Filtering an IS-IS or OSPF prefix locally does not stop the IGP from flooding
+it, so the routers around you keep sending its traffic here. When the hidden
+prefix is the route a selected next hop resolves through, this router resolves
+that next hop through a shorter prefix, or not at all, and the traffic is
+blackholed or loops. `show doctor` warns with
+`doctor-policy-igp-import-hides-nexthop` when a hidden IS-IS or OSPF path is
+longer than the cover a selected route's next hop resolves through now. The
+warning names the chain, the hidden prefix, the next hop and the route, and
+points at `show rib candidates prefix <prefix>`. Let the chain accept that
+prefix, or stop originating it in the IGP. The check reads the running
+daemon's Loc-RIB, so `ze doctor` before a start does not report it.
+<!-- source: internal/component/policy/doctor.go -- igpImportDoctorCheck, igpImportHidesNextHop -->
+<!-- source: internal/component/policy/rib.go -- RIBImport.Floods -->
+
+## Metrics
+
+| Metric | Labels | Counts |
+|--------|--------|--------|
+| `ze_rib_policy_hidden_paths` | `source` | Paths of that source the Loc-RIB holds hidden now |
+| `ze_rib_policy_rejected_total` | `source`, `chain` (`source` or `central`) | Rejections. Every route a protocol offers that a chain rejects counts once. A reload counts a stored path again only when its verdict changes, so recommitting the same chain adds nothing |
+<!-- source: internal/core/rib/locrib/policy_metrics.go -- SetPolicyMetricsRegistry, accountStored, accountRemoved -->
+
 ## What Ze refuses
 
 Ze checks every chain when it verifies the config. These are refused, and the

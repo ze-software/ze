@@ -12,6 +12,8 @@ import (
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	policyyang "github.com/ze-software/ze/internal/component/policy/yang"
+	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/rib/locrib"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -65,6 +67,10 @@ func init() {
 	MustRegisterInstanceFields(MatchFilterType, matchInstanceFields)
 	MustRegisterRouteEvaluator(MatchFilterType, compileMatchEvaluator)
 
+	if err := diagnostic.RegisterDoctorCheck(igpImportDoctorCheck); err != nil {
+		panic("BUG: policy: doctor check registration refused: " + err.Error())
+	}
+
 	if err := registry.Register(registry.Registration{
 		Name:        PluginName,
 		Description: "Route policy library: the policy root, named filter instances and the route field vocabulary",
@@ -72,6 +78,9 @@ func init() {
 		ConfigRoots: []string{RootName},
 		RunEngine:   runPolicy,
 		CLIHandler:  func(_ []string) int { return 0 },
+		// The policy plugin publishes the Loc-RIB import chains, so it owns
+		// the metrics of what they hide (locrib/policy_metrics.go).
+		ConfigureMetrics: locrib.SetPolicyMetricsRegistry,
 	}); err != nil {
 		fmt.Fprintf(os.Stderr, "policy: registration failed: %v\n", err)
 		os.Exit(1)
