@@ -186,7 +186,7 @@ module ze-bgp-conf {
             ze:help "Values ze supplies when a route carries no such attribute.";
 
             container attribute {
-                description "The leaves govern the arithmetic in bgp { policy { modify NAME { increment } } } and its
+                description "The leaves govern the arithmetic in policy { modify NAME { increment } } and its
                     decrement sibling alone. They do NOT move the Decision Process: RFC 4271 Section 9.1.2.2 compares
                     an absent MULTI_EXIT_DISC as 0 whatever med says here.
 
@@ -224,20 +224,10 @@ module ze-bgp-conf {
             }
         }
 
-        // Named filter policy definitions. Filter type plugins augment this
-        // container with their own lists marked ze:filter. Each list entry
-        // is a named filter instance referenced in peer filter { import/export }
-        // chains by its unique name.
-        container policy {
-            description "Each filter type is a list that its plugin adds through an augment. A peer filter chain references a
-                filter instance by name.";
-            ze:help "Named filter definitions for the route policy framework.";
-        }
-
         // Global filter chains (apply to all peers as base chain)
         container filter {
             description "The group level and the peer level append to this base chain. A name references a filter instance
-                defined in bgp/policy.";
+                defined under the top-level policy root.";
             ze:help "Global route filter chains for import and export.";
             container import {
                 presence "Configure the global import policy.";
@@ -1432,7 +1422,7 @@ module ze-bgp-conf {
 
         // Filter chains
         container filter {
-            description "A name references a filter instance defined in bgp/policy.";
+            description "A name references a filter instance defined under the top-level policy root.";
             ze:help "Route filter chains for import and export.";
             container import {
                 presence "Configure an import policy.";
