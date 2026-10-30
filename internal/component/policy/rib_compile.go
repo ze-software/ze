@@ -29,6 +29,10 @@ import (
 // chain and no instance a chain names. Its zero value configures no chain.
 type ribImportConfig struct {
 	chains []ribChainConfig
+	// policy is the policy root a chain's instances resolve their references
+	// in (a match naming a prefix-list), so a change to a referenced instance
+	// also re-applies the chains.
+	policy map[string]any
 }
 
 // ribChainConfig is one attachment's chain: its refs in order, the config of
@@ -74,7 +78,7 @@ func parseRIBImports(sections []sdk.ConfigSection) (ribImportConfig, bool, error
 	if err != nil {
 		return ribImportConfig{}, false, err
 	}
-	var cfg ribImportConfig
+	cfg := ribImportConfig{policy: policyCfg}
 	for _, imp := range imports {
 		chain, configured, err := readRIBChain(imp, subtrees[imp.Root], reg, policyCfg)
 		if err != nil {
@@ -83,7 +87,7 @@ func parseRIBImports(sections []sdk.ConfigSection) (ribImportConfig, bool, error
 		if !configured {
 			continue
 		}
-		if _, err := compileRIBChain(&chain); err != nil {
+		if _, err := compileRIBChain(&chain, policyCfg); err != nil {
 			return ribImportConfig{}, false, err
 		}
 		cfg.chains = append(cfg.chains, chain)
@@ -118,7 +122,7 @@ func compileRIBSnapshot(cfg ribImportConfig) (*ribpolicy.Snapshot, error) {
 	var central ribpolicy.Chain
 	for i := range cfg.chains {
 		chain := &cfg.chains[i]
-		compiled, err := compileRIBChain(chain)
+		compiled, err := compileRIBChain(chain, cfg.policy)
 		if err != nil {
 			return nil, err
 		}
@@ -161,7 +165,8 @@ func registryFromPolicy(policyCfg map[string]any) (*Registry, error) {
 			continue
 		}
 		for _, name := range slices.Sorted(maps.Keys(block)) {
-			instances = append(instances, Instance{Name: name, Type: filterType})
+			instanceCfg, _ := block[name].(map[string]any) // an entry with no leaves is an empty instance
+			instances = append(instances, Instance{Name: name, Type: filterType, Config: instanceCfg})
 		}
 	}
 	return NewRegistry(instances...)
@@ -216,23 +221,43 @@ func readRIBChain(imp ribImport, rootCfg map[string]any, reg *Registry, policyCf
 
 // compileRIBChain compiles one verified chain. A filter type with no route
 // evaluator is refused here, naming the types that have one.
-func compileRIBChain(chain *ribChainConfig) (*ribChain, error) {
+func compileRIBChain(chain *ribChainConfig, policyCfg map[string]any) (*ribChain, error) {
 	compiled := &ribChain{evaluators: make([]RouteEvaluator, len(chain.refs)), final: chain.final}
+	resolve := func(name, filterType string) (RouteEvaluator, error) {
+		instanceCfg, ok := policyCfg[filterType].(map[string]any)[name].(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("%q is not a %s defined under the %s root; define policy %s %s, or name an existing one",
+				name, filterType, RootName, filterType, name)
+		}
+		return compileRIBEvaluator(filterType, name, instanceCfg, refuseNestedReference)
+	}
 	for i, name := range chain.refs {
 		filterType := chain.instances[i].filterType
-		compile, ok := ribReg.compiler(filterType)
-		if !ok {
-			return nil, fmt.Errorf("%s filter %q (%s): a %s filter cannot run at the Loc-RIB gate, which judges every route in the engine "+
-				"and never calls a plugin process; remove it from this chain or use a filter of type %s",
-				chain.imp.Attachment, name, filterType, filterType, strings.Join(ribReg.evaluatorTypes(), ", "))
-		}
-		evaluator, err := compile(name, chain.instances[i].config)
+		evaluator, err := compileRIBEvaluator(filterType, name, chain.instances[i].config, resolve)
 		if err != nil {
 			return nil, fmt.Errorf("%s filter %q (%s): %w", chain.imp.Attachment, name, filterType, err)
 		}
 		compiled.evaluators[i] = evaluator
 	}
 	return compiled, nil
+}
+
+// compileRIBEvaluator compiles one instance with its type's route evaluator.
+// A filter type with none is refused, naming the types that have one.
+func compileRIBEvaluator(filterType, name string, instanceCfg map[string]any, resolve InstanceResolver) (RouteEvaluator, error) {
+	compile, ok := ribReg.compiler(filterType)
+	if !ok {
+		return nil, fmt.Errorf("a %s filter cannot run at the Loc-RIB gate, which judges every route in the engine "+
+			"and never calls a plugin process; remove it from this chain or use a filter of type %s",
+			filterType, strings.Join(ribReg.evaluatorTypes(), ", "))
+	}
+	return compile(name, instanceCfg, resolve)
+}
+
+// refuseNestedReference is the resolver a referenced instance compiles with:
+// references are one level deep (InstanceResolver).
+func refuseNestedReference(name, filterType string) (RouteEvaluator, error) {
+	return nil, fmt.Errorf("a referenced filter cannot reference another filter (%s %q); name it from the chain directly", filterType, name)
 }
 
 // ribChain is one compiled Loc-RIB import chain. Immutable after compile, so

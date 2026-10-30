@@ -8,7 +8,28 @@ import (
 )
 
 func routesEqual(a, b staticRoute) bool {
-	if a.Table != b.Table || a.Action != b.Action || a.Metric != b.Metric || a.Distance != b.Distance || a.HasDistance != b.HasDistance || a.Tag != b.Tag || a.Description != b.Description {
+	if a.Table != b.Table {
+		return false
+	}
+	if a.Action != b.Action {
+		return false
+	}
+	if a.Metric != b.Metric {
+		return false
+	}
+	if a.Distance != b.Distance {
+		return false
+	}
+	if a.HasDistance != b.HasDistance {
+		return false
+	}
+	if a.Tag != b.Tag {
+		return false
+	}
+	if a.HasTag != b.HasTag {
+		return false
+	}
+	if a.Description != b.Description {
 		return false
 	}
 	if len(a.NextHops) != len(b.NextHops) {

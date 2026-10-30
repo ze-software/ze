@@ -37,7 +37,10 @@ type staticRoute struct {
 	Table       uint32
 	Description string
 	Metric      uint32
-	Tag         uint32
+	// Tag is meaningful only when HasTag is set: 0 is a real tag, and a route
+	// with no tag leaf carries none (a Loc-RIB filter reading tag fails it).
+	Tag    uint32
+	HasTag bool
 	// Distance is this route's own administrative distance, which wins over
 	// `rib { distance { static } }` for this route alone. It is meaningful only
 	// when HasDistance is set: 0 is a real distance, the best one.

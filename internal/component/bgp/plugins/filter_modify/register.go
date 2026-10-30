@@ -14,8 +14,15 @@ func init() {
 	// at an attachment point is checked (spec "Fields each filter type reads
 	// and sets").
 	policy.MustRegisterFilterType(filterTypeName,
-		[]policy.Field{policy.FieldCommunity, policy.FieldLargeCommunity, policy.FieldExtendedCommunity},
-		[]policy.Field{policy.FieldLocalPreference, policy.FieldMED, policy.FieldOrigin, policy.FieldNextHop, policy.FieldASPath, policy.FieldCommunity, policy.FieldLargeCommunity, policy.FieldExtendedCommunity, policy.FieldAIGP})
+		[]policy.Field{policy.FieldCommunity, policy.FieldLargeCommunity, policy.FieldExtendedCommunity,
+			policy.FieldProtocol, policy.FieldTag, policy.FieldLevel, policy.FieldRouteType},
+		[]policy.Field{policy.FieldLocalPreference, policy.FieldMED, policy.FieldOrigin, policy.FieldNextHop, policy.FieldASPath,
+			policy.FieldCommunity, policy.FieldLargeCommunity, policy.FieldExtendedCommunity, policy.FieldAIGP,
+			policy.FieldDistance, policy.FieldTag})
+	// Each instance is checked against only what it names, so a BGP-only
+	// modifier and a Loc-RIB one share the type (rib_evaluator.go).
+	policy.MustRegisterInstanceFields(filterTypeName, modifyInstanceFields)
+	policy.MustRegisterRouteEvaluator(filterTypeName, compileRouteEvaluator)
 
 	_ = registry.Register(registry.Registration{
 		Name:         "bgp-filter-modify",

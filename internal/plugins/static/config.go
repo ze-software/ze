@@ -126,6 +126,14 @@ func parseRoute(prefixStr string, entry map[string]any) (staticRoute, error) {
 		return r, fmt.Errorf("route %s: %w", prefixStr, err)
 	}
 	r.Tag = tag
+	if value, named := entry["tag"]; named {
+		// mapUint32 answers 0 for a value it cannot read; a tag that is not a
+		// number must not reach a Loc-RIB filter as tag 0.
+		if _, parsed := cfgFloat(value); !parsed {
+			return r, fmt.Errorf("route %s: tag %v is not a number from 0 to 4294967295", prefixStr, value)
+		}
+		r.HasTag = true
+	}
 
 	if err := parseRouteDistance(entry, &r); err != nil {
 		return r, fmt.Errorf("route %s: %w", prefixStr, err)

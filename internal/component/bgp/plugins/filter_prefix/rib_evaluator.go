@@ -19,7 +19,7 @@ import (
 // route evaluator: the first matching entry decides, accept passes the route
 // on and reject stops the chain; a route no entry matches is rejected (the
 // implicit deny of evaluatePrefix).
-func compileRouteEvaluator(name string, instance map[string]any) (policy.RouteEvaluator, error) {
+func compileRouteEvaluator(name string, instance map[string]any, _ policy.InstanceResolver) (policy.RouteEvaluator, error) {
 	if instance == nil {
 		return nil, errors.New("the prefix-list has no entries to judge a route with")
 	}

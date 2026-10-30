@@ -56,6 +56,9 @@ type externalCand struct {
 	fa       netip.Addr
 	pref     uint8        // RFC 3101 sec 2.5 source preference (Type7 P=1 < Type5 < Type7 P=0)
 	area     types.AreaID // origin area (backbone for Type 5, the NSSA for Type 7)
+	// tag and hasTag are the selected LSA's external route tag (ExternalRecord).
+	tag    uint32
+	hasTag bool
 }
 
 // ComputeExternal computes RFC 2328 sec 16.4 external routes from Type 5
@@ -74,7 +77,12 @@ type ExternalRecord struct {
 	Type2          bool
 	ForwardingAddr netip.Addr // invalid/zero => forward via the advertising ASBR
 	Pref           uint8
-	Origin         types.RouterID
+	// Tag is the LSA's external route tag, meaningful only when HasTag is
+	// set: an OSPFv2 AS-external or NSSA LSA always carries one, an OSPFv3
+	// one only with its T-bit.
+	Tag    uint32
+	HasTag bool
+	Origin types.RouterID
 }
 
 // ExternalReader decodes the external LSA at h (in area) into an ExternalRecord, returning
@@ -178,7 +186,8 @@ func ComputeExternalWith(in ExternalInput, read ExternalReader) []RouteEntry {
 
 	out := make([]RouteEntry, 0, len(best))
 	for _, c := range best {
-		out = append(out, RouteEntry{AreaID: c.area, Prefix: c.prefix, Metric: c.metric, Type: c.rtype, Origin: c.origin, NextHops: c.nextHops})
+		out = append(out, RouteEntry{AreaID: c.area, Prefix: c.prefix, Metric: c.metric, Type: c.rtype, Origin: c.origin, NextHops: c.nextHops,
+			Tag: c.tag, HasTag: c.hasTag, NSSA: c.pref != prefType5})
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Prefix.Compare(out[j].Prefix) < 0 })
 	return out
@@ -216,7 +225,10 @@ func v4ExternalReader(src Source) ExternalReader {
 		if body.ForwardingAddr != ([4]byte{}) {
 			fa = netip.AddrFrom4(body.ForwardingAddr)
 		}
-		return ExternalRecord{Prefix: pfx, Metric: uint64(body.Metric), Type2: body.ExternalType2, ForwardingAddr: fa, Pref: pref, Origin: h.AdvertisingRouter}, true
+		// RFC 2328 Section A.4.5: "A 32-bit field attached to each external route."
+		// The OSPFv2 body always holds it, so the tag is always carried.
+		return ExternalRecord{Prefix: pfx, Metric: uint64(body.Metric), Type2: body.ExternalType2, ForwardingAddr: fa, Pref: pref, Origin: h.AdvertisingRouter,
+			Tag: body.ExternalRouteTag, HasTag: true}, true
 	}
 }
 
@@ -237,7 +249,8 @@ func (in ExternalInput) externalCandidateFrom(area types.AreaID, rec ExternalRec
 	if !ok {
 		return externalCand{}, false // ASBR or forwarding address unreachable
 	}
-	cand := externalCand{prefix: rec.Prefix, origin: rec.Origin, nextHops: nextHops, fwdDist: baseCost, pref: rec.Pref, area: area, fa: rec.ForwardingAddr}
+	cand := externalCand{prefix: rec.Prefix, origin: rec.Origin, nextHops: nextHops, fwdDist: baseCost, pref: rec.Pref, area: area, fa: rec.ForwardingAddr,
+		tag: rec.Tag, hasTag: rec.HasTag}
 	if rec.Type2 {
 		cand.metric = rec.Metric
 		cand.rtype = RouteExternalType2

@@ -25,6 +25,20 @@ MinLSInterval still limits publication, and the maintenance timer retries it.
 <!-- source: internal/plugins/ospf/instance.go -- nsmAdapter, originateSelfLSAsDeferred, startNeighborRetransmitLoop -->
 <!-- source: internal/plugins/ospf/bfd_client.go -- neighborEventSinkValue -->
 
+### Filtering what OSPF installs
+
+`ospf filter import` judges each route SPF installs before the Loc-RIB selects
+it; the LSDB is never filtered. Each installed path carries its OSPF path type
+(`intra-area`, `inter-area`, `external-1`, `external-2`, and `nssa-1` or
+`nssa-2` for a route from a Type-7 LSA) and, for an external route, its tag.
+An OSPFv2 external route always carries the External Route Tag of its LSA. An
+OSPFv3 one carries a tag only when its LSA sets the T bit (RFC 5340 Appendix
+A.4.7). A `match` on `route-type` or `tag`, or a `modify` that sets the
+distance, then applies; [Route Policy at the Loc-RIB](route-policy.md) covers
+the chains.
+<!-- source: internal/plugins/ospf/spf/install.go -- ribRouteType -->
+<!-- source: internal/plugins/ospf/spf/external.go -- ExternalRecord -->
+
 ## Interface network types
 
 Each interface selects an RFC 2328 / RFC 5340 network type with `network-type`, in

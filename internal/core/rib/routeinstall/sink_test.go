@@ -16,6 +16,7 @@ import (
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/redistevents"
 	"github.com/ze-software/ze/internal/core/rib/locrib"
+	ribpolicy "github.com/ze-software/ze/internal/core/rib/policy"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -206,5 +207,47 @@ func TestSinkRemoveFailureClosesClient(t *testing.T) {
 	sink.Flush()
 	if !cc.closed {
 		t.Fatal("failed withdrawal left stale routes on a live connection")
+	}
+}
+
+// TestSinkInsertForwardCarriesFilterFields checks that the four fields a
+// Loc-RIB import filter reads (tag, has-tag, level, ospf-route-type) survive
+// the route-install RPC encoding. Method: one route sets each field to a
+// non-zero value, and a second sets a zero tag with has-tag, so a sink that
+// dropped has-tag or derived it from the tag value fails.
+func TestSinkInsertForwardCarriesFilterFields(t *testing.T) {
+	cc := &captureClient{}
+	sink := New(context.Background(), cc)
+	src := redistevents.RegisterProtocol("routeinstall-test-filter-fields")
+	sink.InsertForward(v4u(), netip.MustParsePrefix("10.8.0.0/24"), locrib.Path{
+		Source: src, NextHop: netip.MustParseAddr("192.0.2.8"),
+		Tag: 4242, HasTag: true, Level: ribpolicy.ISISLevel2, OSPFRouteType: ribpolicy.OSPFNSSA2,
+	})
+	sink.InsertForward(v4u(), netip.MustParsePrefix("10.8.1.0/24"), locrib.Path{
+		Source: src, NextHop: netip.MustParseAddr("192.0.2.8"), HasTag: true,
+	})
+	sink.Flush()
+	if len(cc.installed) != 2 {
+		t.Fatalf("installed entries = %d, want 2", len(cc.installed))
+	}
+	wire, err := json.Marshal(cc.installed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []rpc.RouteInstallEntry
+	if err := json.Unmarshal(wire, &got); err != nil {
+		t.Fatal(err)
+	}
+	if got[0].Tag != 4242 || !got[0].HasTag {
+		t.Errorf("tag = %d (has-tag %v), want 4242", got[0].Tag, got[0].HasTag)
+	}
+	if got[0].Level != uint8(ribpolicy.ISISLevel2) {
+		t.Errorf("level = %d, want %d", got[0].Level, ribpolicy.ISISLevel2)
+	}
+	if got[0].OSPFRouteType != uint8(ribpolicy.OSPFNSSA2) {
+		t.Errorf("ospf route type = %d, want %d", got[0].OSPFRouteType, ribpolicy.OSPFNSSA2)
+	}
+	if got[1].Tag != 0 || !got[1].HasTag {
+		t.Errorf("zero tag = %d (has-tag %v), want tag 0 carried", got[1].Tag, got[1].HasTag)
 	}
 }

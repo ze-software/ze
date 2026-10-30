@@ -92,6 +92,10 @@ func (s *Sink) InsertForward(fam family.Family, prefix netip.Prefix, p locrib.Pa
 		BackupRepairLabels: p.BackupRepairLabels,
 		BackupInterface:    p.BackupInterface,
 		BackupOnLink:       p.BackupOnLink,
+		Tag:                p.Tag,
+		HasTag:             p.HasTag,
+		Level:              uint8(p.Level),
+		OSPFRouteType:      uint8(p.OSPFRouteType),
 	}
 	s.mu.Lock()
 	s.installs = append(s.installs, entry)

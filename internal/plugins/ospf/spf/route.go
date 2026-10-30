@@ -161,6 +161,13 @@ type RouteEntry struct {
 	Origin   types.RouterID
 	NextHops []NextHop
 	Backups  []Backup
+	// Tag is an external route's tag from its LSA, meaningful only when
+	// HasTag is set; an intra-area or inter-area route carries none.
+	Tag    uint32
+	HasTag bool
+	// NSSA marks an external route learned from an NSSA (Type 7) LSA, which
+	// the Loc-RIB names as route type nssa-1 or nssa-2 (RFC 3101).
+	NSSA bool
 }
 
 // BuildRoutes performs RFC 2328 Section 16.1 stage 2: attach stub-network links
@@ -378,6 +385,17 @@ func DiffRoutes(prev, cur map[netip.Prefix]RouteEntry) RouteDelta {
 
 func routeEqual(a, b RouteEntry) bool {
 	if a.AreaID != b.AreaID || a.Prefix != b.Prefix || a.Metric != b.Metric || a.Type != b.Type || a.Origin != b.Origin {
+		return false
+	}
+	// A changed tag or NSSA origin re-installs the route, so a Loc-RIB
+	// filter reading them judges the current LSA.
+	if a.Tag != b.Tag {
+		return false
+	}
+	if a.HasTag != b.HasTag {
+		return false
+	}
+	if a.NSSA != b.NSSA {
 		return false
 	}
 	if len(a.NextHops) != len(b.NextHops) {

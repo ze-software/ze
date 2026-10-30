@@ -35,7 +35,16 @@ type RouteEvaluator func(r ribpolicy.Route) RouteResult
 // It MUST NOT change any state: a refused verify and a CLI validate run it.
 // An instance whose config cannot be judged at a Loc-RIB attachment (a BGP
 // session action, say) is refused with an error naming the fix.
-type RouteEvaluatorCompiler func(name string, instance map[string]any) (RouteEvaluator, error)
+//
+// resolve compiles another instance the instance names (a match's prefix-list
+// reference) and refuses one that is not of the filter type asked for.
+type RouteEvaluatorCompiler func(name string, instance map[string]any, resolve InstanceResolver) (RouteEvaluator, error)
+
+// InstanceResolver compiles the filter instance name, which MUST be of
+// filterType, into its route evaluator. A reference resolved through it
+// cannot itself resolve another one, so references are one level deep and a
+// cycle cannot be written.
+type InstanceResolver func(name, filterType string) (RouteEvaluator, error)
 
 // RIBScope says which chain of the Loc-RIB snapshot an attachment fills.
 // Zero names no scope, so an unset scope is refused at registration.

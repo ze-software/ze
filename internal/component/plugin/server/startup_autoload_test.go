@@ -176,9 +176,11 @@ func TestGetUnclaimedEventTypePlugins(t *testing.T) {
 			name:         "known_event_type_auto_loads_plugin_and_deps",
 			customEvents: []string{"update-rpki"},
 			// bgp-rpki-decorator produces update-rpki, depends on bgp-rpki,
-			// which depends on bgp-adj-rib-in. ResolveDependencies returns
-			// all transitive dependencies in dependency-first order.
-			wantPluginNames: []string{"bgp-rpki-decorator", "bgp", "bgp-rpki", "bgp-adj-rib-in"},
+			// which depends on bgp-adj-rib-in. bgp depends on policy, the
+			// route policy plugin every protocol with a filter attachment
+			// requires. ResolveDependencies returns all transitive
+			// dependencies in dependency-first order.
+			wantPluginNames: []string{"bgp-rpki-decorator", "bgp", "bgp-rpki", "policy", "bgp-adj-rib-in"},
 		},
 		{
 			name:         "already_configured_plugin_skipped",

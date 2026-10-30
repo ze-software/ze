@@ -971,6 +971,16 @@ type RouteInstallEntry struct {
 	// on-link flag, as Interface and OnLink are NextHop's.
 	BackupInterface string `json:"backup-interface,omitempty"`
 	BackupOnLink    bool   `json:"backup-on-link,omitempty"`
+	// Tag, Level and OSPFRouteType are the fields a Loc-RIB import filter may
+	// read. Tag is meaningful only when HasTag is set, because 0 is a real tag.
+	// Level is the IS-IS level (1 or 2) and OSPFRouteType the OSPF path type
+	// as internal/core/rib/policy numbers it (1 intra-area, 2 inter-area,
+	// 3 external-1, 4 external-2, 5 nssa-1, 6 nssa-2). Zero, or an older
+	// plugin that omits the field, means the route does not carry it.
+	Tag           uint32 `json:"tag,omitempty"`
+	HasTag        bool   `json:"has-tag,omitempty"`
+	Level         uint8  `json:"level,omitempty"`
+	OSPFRouteType uint8  `json:"ospf-route-type,omitempty"`
 }
 
 // RouteNextHop is one member of a RouteInstallEntry's equal-cost next-hop set:

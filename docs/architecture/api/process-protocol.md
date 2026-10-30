@@ -1287,6 +1287,23 @@ addresses reject the batch before any route is installed. These fields let
 recursive resolution and the FIB use the same path properties for a forked
 producer as for an in-process producer.
 
+Four optional fields carry what a Loc-RIB import filter reads, so the gate
+judges a forked producer's route on the same values as an in-process one's:
+
+| Field | Meaning |
+|-------|---------|
+| `tag` | The route tag. Meaningful only with `has-tag`, because 0 is a real tag |
+| `has-tag` | The route carries a tag. Absent, the route carries none, never tag 0 |
+| `level` | The IS-IS level, 1 or 2. Absent or 0, the route carries no level |
+| `ospf-route-type` | The OSPF path type: 1 intra-area, 2 inter-area, 3 external-1, 4 external-2, 5 nssa-1, 6 nssa-2. Absent or 0, the route carries none |
+
+A plugin that omits them sends a route that carries none of them. A `level`
+above 2 or an `ospf-route-type` above 6 rejects the batch before any route is
+installed.
+<!-- source: pkg/plugin/rpc/types.go -- RouteInstallEntry -->
+<!-- source: internal/core/rib/routeinstall/sink.go -- Sink.InsertForward -->
+<!-- source: internal/component/plugin/server/dispatch_route.go -- parseFilterFields -->
+
 `route-metrics` returns one distance per requested address, in request order.
 Each distance distinguishes unresolved reachability from a resolved zero cost
 and reports whether a recursive BGP hop lacked AIGP. The revision is sampled

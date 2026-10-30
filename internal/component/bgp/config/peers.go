@@ -272,11 +272,11 @@ func peersAndDynamicGroups(tree *config.Tree) ([]*reactor.PeerSettings, []*react
 	var tb textbuf.Buffer
 	for _, ps := range settings {
 		tb.Reset()
-		if err := validateChainNames(filterReg, ps.ImportPolicy.Filters(), tb.Str("peer ").Str(ps.Name).Str(" import filters").String()); err != nil {
+		if err := validateChainNames(filterReg, ps.ImportPolicy.Filters(), "bgp import", tb.Str("peer ").Str(ps.Name).Str(" import filters").String()); err != nil {
 			return nil, nil, err
 		}
 		tb.Reset()
-		if err := validateChainNames(filterReg, ps.ExportPolicy.Filters(), tb.Str("peer ").Str(ps.Name).Str(" export filters").String()); err != nil {
+		if err := validateChainNames(filterReg, ps.ExportPolicy.Filters(), "bgp export", tb.Str("peer ").Str(ps.Name).Str(" export filters").String()); err != nil {
 			return nil, nil, err
 		}
 	}
@@ -371,15 +371,73 @@ func policyRegistryOf(tree *config.Tree, schema *config.Schema) (*policy.Registr
 }
 
 // validateChainNames refuses a chain naming no filter instance under the
-// policy root. A deactivated reference is checked like an active one, because
-// deactivation is a flag on policy.Ref and not part of its name.
-func validateChainNames(reg *policy.Registry, refs []policy.Ref, context string) error {
+// policy root, an instance whose filter type no BGP filter serves, and an
+// instance that reads or sets a route field the BGP attachment does not carry
+// or allow (policy.CheckChain at attachment, "bgp import" or "bgp export").
+// A deactivated reference is checked like an active one, because deactivation
+// is a flag on policy.Ref and not part of its name.
+func validateChainNames(reg *policy.Registry, refs []policy.Ref, attachment, context string) error {
+	typesMap := registry.FilterTypesMap()
+	names := make([]string, 0, len(refs))
 	for _, ref := range refs {
 		if err := reg.ValidateName(ref.Name, context); err != nil {
 			return err
 		}
+		entry, ok := policyChainInstance(reg, ref, typesMap)
+		if !ok {
+			continue // an external plugin's filter, validated by that plugin at runtime
+		}
+		if err := bgpServesFilterType(ref, entry, typesMap, attachment, context); err != nil {
+			return err
+		}
+		names = append(names, entry.Name)
+	}
+	if err := policy.CheckChain(attachment, reg, names); err != nil {
+		return fmt.Errorf("%s: %w", context, err)
 	}
 	return nil
+}
+
+// policyChainInstance answers the policy instance a BGP chain reference names:
+// a plain name, or one qualified by its filter type or by the plugin serving
+// that type. A reference qualified by any other prefix is an external
+// plugin's filter, so it answers false.
+func policyChainInstance(reg *policy.Registry, ref policy.Ref, typesMap map[string]string) (policy.Instance, bool) {
+	entry, ok := reg.Lookup(filterInstanceName(ref.Name))
+	if !ok {
+		return policy.Instance{}, false
+	}
+	prefix, _, qualified := strings.Cut(ref.Name, ":")
+	if qualified && !namesFilterType(prefix, entry.Type, typesMap) {
+		return policy.Instance{}, false
+	}
+	return entry, true
+}
+
+// namesFilterType reports whether a chain reference prefix names filterType
+// itself or the plugin that registered it.
+func namesFilterType(prefix, filterType string, typesMap map[string]string) bool {
+	if prefix == filterType {
+		return true
+	}
+	plugin, served := typesMap[filterType]
+	return served && plugin == prefix
+}
+
+// bgpServesFilterType refuses an instance whose filter type no BGP filter
+// serves: neither a compiled-in filter (filterapi.BindInProcess) nor a plugin
+// that registered the type. Canonicalization would otherwise pass the bare
+// name through to a plugin that does not exist, and the filter would never run.
+func bgpServesFilterType(ref policy.Ref, entry policy.Instance, typesMap map[string]string, attachment, context string) error {
+	if _, inProcess := filterapi.BindInProcess(ref, entry.Type); inProcess {
+		return nil
+	}
+	if _, served := typesMap[entry.Type]; served {
+		return nil
+	}
+	return fmt.Errorf("%s: filter %q is a %s instance, and no BGP filter serves the %s type, so it cannot run at %s; "+
+		"attach it to a Loc-RIB chain (rib, static, ospf, isis or connected filter import) and remove it from this chain",
+		context, entry.Name, entry.Type, entry.Type, attachment)
 }
 
 // validateExportPolicyReferences checks an original active layer before merging
@@ -1064,7 +1122,8 @@ func prependDefaultFilters(policyTree *config.Tree, peers []*reactor.PeerSetting
 			if filterChainContains(ps.ImportPolicy.Filters(), dflt.Name) {
 				continue
 			}
-			ps.ImportPolicy = ps.ImportPolicy.Prepend(dflt, bound != nil && bound[i])
+			// bound is nil when no reference bound in process, else parallel to refs.
+			ps.ImportPolicy = ps.ImportPolicy.Prepend(dflt, i < len(bound) && bound[i])
 		}
 	}
 }

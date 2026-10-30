@@ -27,7 +27,7 @@ func init() {
 		[]Field{FieldPrefix, FieldFamily, FieldTag}, []Field{FieldDistance, FieldTag})
 	MustRegisterRIBImport(RIBImport{Attachment: testAttach, Root: testRoot, Scope: RIBScopeSource, Protocol: testProtocol})
 	MustRegisterFilterType("test-bogon", []Field{FieldPrefix}, []Field{FieldTag})
-	MustRegisterRouteEvaluator("test-bogon", func(_ string, _ map[string]any) (RouteEvaluator, error) {
+	MustRegisterRouteEvaluator("test-bogon", func(_ string, _ map[string]any, _ InstanceResolver) (RouteEvaluator, error) {
 		return func(r ribpolicy.Route) RouteResult {
 			if r.Prefix == testBogon {
 				return RouteResult{Reject: true}
@@ -132,7 +132,7 @@ func TestRIBChainEvaluateNoAlloc(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	chain, err := compileRIBChain(&cfg.chains[0])
+	chain, err := compileRIBChain(&cfg.chains[0], cfg.policy)
 	if err != nil {
 		t.Fatal(err)
 	}

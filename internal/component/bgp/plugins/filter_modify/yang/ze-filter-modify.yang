@@ -14,6 +14,12 @@ module ze-filter-modify {
                  through unchanged.
                  Referenced from peer filter chains as modify:NAME.";
 
+    revision 2026-10-30 {
+        description
+          "Add the route source conditions (protocol, tag, level, route-type) to
+           match and the Loc-RIB sets distance and tag to set, so one modifier
+           type serves the Loc-RIB import chains beside the BGP chains.";
+    }
     revision 2026-08-15 {
         description
           "Add del med. RFC 4271 Section 5.1.4 requires a speaker to
@@ -88,6 +94,12 @@ value takes the form target:ASN:NN or origin:ASN:NN, or it is a hex string. Ze
 validates the value at configure time and compares its eight-octet value, so named
 and hex spellings of the same value select the same routes.";
                     ze:help "Apply only to a route whose EXTENDED COMMUNITIES attribute carries this value.";
+                }
+                uses policy:route-source-conditions {
+                    description "These conditions read where a route came from, which only a Loc-RIB
+route carries: an instance naming one runs on a Loc-RIB import chain (isis, ospf,
+static, connected, rib filter import) and is refused on a BGP chain. Each one named
+must hold, beside the community alternatives.";
                 }
             }
 
@@ -191,6 +203,20 @@ holds. The range 1 to 32 stops the path from growing without a limit.";
                     description "Ze removes only the values named here, and leaves the standard and large communities of
                         the route untouched. A value the route does not carry costs nothing.";
                     ze:help "Extended community values to remove (target:ASN:NN or hex).";
+                }
+                leaf distance {
+                    type uint8;
+                    description "Ze ranks a matching route at this administrative distance in the Loc-RIB,
+in place of the distance declared for its protocol. A Loc-RIB import chain only: the
+instance is refused on a BGP chain. Removing the filter returns the route to the
+declared distance.";
+                    ze:help "Set the administrative distance of a Loc-RIB route (0-255).";
+                }
+                leaf tag {
+                    type uint32;
+                    description "Ze replaces the route's tag in the Loc-RIB with this value. A Loc-RIB
+import chain only: the instance is refused on a BGP chain.";
+                    ze:help "Set the tag of a Loc-RIB route.";
                 }
             }
 

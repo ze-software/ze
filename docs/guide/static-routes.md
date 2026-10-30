@@ -263,6 +263,15 @@ configured for the whole source under `ospf { redistribute { static { ... } } }`
 a route with no tag takes that configured value.
 
 <!-- source: internal/plugins/static/inject.go -- emitRouteChangeID -->
+
+The tag also rides on the path the route installs in the Loc-RIB, so a
+`static filter import` or `rib filter import` chain can match it: a `match`
+instance with `action reject; tag [ 4242 ];` hides every static route tagged
+4242 and leaves the others selected. A route with no `tag` leaf carries no
+tag, so it never meets a `tag` condition; `tag 0` is a real tag.
+[Route Policy at the Loc-RIB](route-policy.md) covers the chains.
+<!-- source: internal/plugins/static/locrib.go -- staticPath -->
+<!-- source: internal/plugins/static/config.go -- parseRoute -->
 <!-- source: internal/plugins/ospf/redist_wiring.go -- externalRouteTag -->
 
 ## CLI

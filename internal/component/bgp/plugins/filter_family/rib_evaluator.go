@@ -18,7 +18,7 @@ import (
 // and passes every other route on, as it removes that family's NLRI from a
 // BGP UPDATE. `action tear-down` closes a BGP session, which a Loc-RIB route
 // has none of, so that instance is refused here.
-func compileRouteEvaluator(name string, instance map[string]any) (policy.RouteEvaluator, error) {
+func compileRouteEvaluator(name string, instance map[string]any, _ policy.InstanceResolver) (policy.RouteEvaluator, error) {
 	if instance == nil {
 		return nil, errors.New("the family-filter has no family to judge a route with")
 	}

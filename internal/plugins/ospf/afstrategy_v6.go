@@ -413,6 +413,10 @@ func v6ExternalReader(src ospfspf.Source, af addressFamily) ospfspf.ExternalRead
 			ForwardingAddr: fa,
 			Pref:           pref,
 			Origin:         h.AdvertisingRouter,
+			// RFC 5340 Section A.4.7: "If set, an External Route Tag has been included in the LSA."
+			// Without bit T the route carries no tag.
+			Tag:    body.ExternalRouteTag,
+			HasTag: body.HasRouteTag,
 		}, true
 	}
 }

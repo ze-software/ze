@@ -13,19 +13,96 @@ instance. A chain names instances. One name belongs to one filter type only.
 <!-- source: internal/component/policy/yang/ze-policy-conf.yang -- container policy -->
 <!-- source: internal/component/policy/rib_compile.go -- registryFromPolicy -->
 
-Two filter types can run at a Loc-RIB attachment today:
+Four filter types can run at a Loc-RIB attachment today:
 
 | Filter type | What it does to a route |
 |-------------|-------------------------|
+| `match` | Tests the route against the conditions the instance names. With `action accept`, the default, a route that meets every condition passes on and any other is rejected. With `action reject`, a route that meets them is rejected and any other passes on |
+| `modify` | A route that meets its `match` block gets the values its `set` block names. At a Loc-RIB attachment, `set` takes `distance` and `tag`. The route always passes on |
 | `prefix-list` | The first entry that matches decides: `accept` passes the route on, `reject` stops the chain. A route that matches no entry is rejected |
 | `family-filter` | `action remove` rejects a route of the instance's family and passes every other route on. `action tear-down` closes a BGP session, so it is refused at a Loc-RIB attachment |
+<!-- source: internal/component/policy/match.go -- compileMatchEvaluator, RouteMatch.Rejects -->
+<!-- source: internal/component/bgp/plugins/filter_modify/rib_evaluator.go -- compileRouteEvaluator -->
 <!-- source: internal/component/bgp/plugins/filter_prefix/rib_evaluator.go -- compileRouteEvaluator -->
 <!-- source: internal/component/bgp/plugins/filter_family/rib_evaluator.go -- compileRouteEvaluator -->
 
-Both types come from BGP plugins. A build without the `ze_bgp` tag has neither,
-so it refuses every Loc-RIB chain that names one.
+`match` belongs to the policy component and is in every build. The other three
+come from BGP plugins, so a build without the `ze_bgp` tag refuses a Loc-RIB
+chain that names one of them.
 <!-- source: feature-gates.txt -- ze_bgp -->
+<!-- source: internal/component/policy/register.go -- MatchFilterType -->
 <!-- source: internal/component/policy/rib_compile.go -- compileRIBChain -->
+
+### The `match` conditions
+
+A `match` instance names one or more conditions. A route must meet every
+condition it names, and a condition with several values is met by any one of
+them. A route that does not carry the field a condition reads never meets it:
+an untagged route fails `tag [ 0 ]`.
+
+| Condition | Met when |
+|-----------|----------|
+| `prefix-list <name>` | The named `prefix-list` instance accepts the prefix |
+| `family [ ... ]` | The route's address family is listed, such as `ipv4/unicast` |
+| `protocol [ ... ]` | The route's source is listed: a registered source such as `static`, or `ebgp` or `ibgp` for a BGP path |
+| `next-hop [ ... ]` | The next hop lies in a listed prefix. A connected route has no next hop |
+| `interface [ ... ]` | The outgoing interface is listed |
+| `metric { minimum; maximum; }` | The metric lies in the range. Either bound may be left out |
+| `tag [ ... ]` | The route carries one of the tags |
+| `level [ ... ]` | The IS-IS level is listed, 1 or 2 |
+| `route-type [ ... ]` | The OSPF path type is listed: `intra-area`, `inter-area`, `external-1`, `external-2`, `nssa-1`, `nssa-2` |
+<!-- source: internal/component/policy/match.go -- matchConditions, RouteMatch.Matches -->
+<!-- source: internal/component/policy/yang/ze-policy-conf.yang -- list match -->
+
+This hides every static route tagged 4242 and keeps the others:
+
+```
+policy {
+    match NO-4242 {
+        action reject;
+        tag [ 4242 ];
+    }
+}
+rib {
+    filter {
+        import {
+            filters [ NO-4242 ];
+            final accept;
+        }
+    }
+}
+```
+
+`modify` takes the source conditions in its `match` block: `protocol`, `tag`,
+`level` and `route-type`. A `modify` with `match { tag [ 100 ]; }` and
+`set { distance 90; }` on `ospf filter import` ranks OSPF routes tagged 100 at
+distance 90 and leaves the others at the OSPF distance.
+<!-- source: internal/component/policy/match.go -- IsSourceConditionKey -->
+<!-- source: internal/component/bgp/plugins/filter_modify/rib_evaluator.go -- parseRIBSets -->
+
+### The fields each attachment carries
+
+Ze checks each instance against the fields it reads and sets. A route carries
+only what its source knows, so a filter reading a field the source never sets
+is refused rather than matching nothing.
+
+| Attachment | Routes carry | A filter may set |
+|------------|--------------|------------------|
+| `connected filter import` | prefix, family, protocol, interface | distance, tag |
+| `static filter import` | prefix, family, protocol, next-hop, interface, metric, tag | distance, tag |
+| `ospf filter import` | prefix, family, protocol, next-hop, interface, metric, tag, route-type | distance, tag |
+| `isis filter import` | prefix, family, protocol, next-hop, interface, metric, level | distance, tag |
+| `rib filter import` | prefix, family, protocol, next-hop, interface, metric, tag, level, route-type | distance, tag |
+<!-- source: internal/plugins/connected/register.go -- MustRegisterAttachment -->
+<!-- source: internal/plugins/static/register.go -- MustRegisterAttachment -->
+<!-- source: internal/plugins/ospf/register.go -- MustRegisterAttachment -->
+<!-- source: internal/plugins/isis/register.go -- MustRegisterAttachment -->
+<!-- source: internal/component/sysrib/register.go -- MustRegisterAttachment -->
+
+IS-IS routes carry no tag, because Ze does not implement the IS-IS
+administrative tag (RFC 5130). A static route carries a tag only when its `tag`
+leaf is set, and `tag 0` is a real tag. An OSPF external route carries the tag
+of its LSA.
 
 ## Where you attach a chain
 
@@ -117,6 +194,8 @@ message names the chain and the fix:
 | A filter that reads a field the routes do not carry | For example, a community match on IS-IS routes |
 | A filter type with no Loc-RIB route evaluator | The message lists the filter types that have one |
 | A `family-filter` with `action tear-down` | A Loc-RIB route has no session to close |
+| A `match` instance on a BGP peer chain | No BGP filter serves `match`, so it could never run there. A `modify` that sets `distance` or `tag` on a BGP chain is refused the same way, naming the field |
+<!-- source: internal/component/bgp/config/peers.go -- validateChainNames, bgpServesFilterType -->
 <!-- source: internal/component/policy/rib_compile.go -- readRIBChain, compileRIBChain -->
 <!-- source: internal/component/policy/fields.go -- CheckChain -->
 <!-- source: internal/component/bgp/plugins/filter_family/rib_evaluator.go -- compileRouteEvaluator -->

@@ -31,6 +31,7 @@ import (
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/redistevents"
 	"github.com/ze-software/ze/internal/core/rib/locrib"
+	ribpolicy "github.com/ze-software/ze/internal/core/rib/policy"
 	"github.com/ze-software/ze/internal/core/rib/routetype"
 )
 
@@ -255,6 +256,10 @@ func (in *Installer) insert(r RouteEntry) {
 			// No distance: the Loc-RIB ranks the path at the distance
 			// `rib { distance { isis N } }` declares, and re-ranks on a reload.
 			Metric: metric,
+			// The level SPF selected the route at, which a Loc-RIB import
+			// filter may read. IS-IS carries no tag (Ze has no RFC 5130
+			// administrative tag), so Tag stays unset.
+			Level: ribLevel(r.Level),
 		})
 	}
 
@@ -335,4 +340,17 @@ func metricToUint32(m uint64) uint32 {
 		return ^uint32(0)
 	}
 	return uint32(m)
+}
+
+// ribLevel converts an SPF level into the level a Loc-RIB path carries.
+// The switch is closed: SPF produces only Level1 and Level2.
+func ribLevel(level Level) ribpolicy.ISISLevel {
+	switch level {
+	case Level1:
+		return ribpolicy.ISISLevel1
+	case Level2:
+		return ribpolicy.ISISLevel2
+	default:
+		panic("BUG: isis: SPF route with a level that is neither 1 nor 2")
+	}
 }

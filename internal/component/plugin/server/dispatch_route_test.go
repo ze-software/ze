@@ -7,12 +7,16 @@
 package server
 
 import (
+	"encoding/json"
 	"net/netip"
+	"sync"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/redistevents"
 	"github.com/ze-software/ze/internal/core/rib/locrib"
+	ribpolicy "github.com/ze-software/ze/internal/core/rib/policy"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -253,5 +257,91 @@ func TestUnrecordStopsWithdrawal(t *testing.T) {
 	s.routeMu.Unlock()
 	if tracked {
 		t.Error("plugin still tracked after all its routes were unrecorded")
+	}
+}
+
+// routeChain adapts a function into a ribpolicy.Chain for the gate tests.
+type routeChain func(r ribpolicy.Route) ribpolicy.Verdict
+
+func (f routeChain) Evaluate(r ribpolicy.Route) ribpolicy.Verdict { return f(r) } //nolint:gocritic // hugeParam: the Chain signature passes Route by value
+
+// TestRouteInstallTagReachesGate: AC-11 forked and R-8. A forked producer's
+// route-install entry carries tag, has-tag, level and ospf-route-type over
+// the JSON wire, and the engine rebuilds them on the Path, so the Loc-RIB gate
+// judges the tag the plugin sent: a central chain holding the compiled
+// `match { action reject; tag [ 4242 ]; }` hides the tagged route. An entry
+// that omits the fields (an older plugin) reaches the gate as a route that
+// carries no tag, never as tag 0. A level or path type outside the numbering
+// fails the batch.
+func TestRouteInstallTagReachesGate(t *testing.T) {
+	reject4242, err := policy.CompileRouteMatch(map[string]any{"action": "reject", "tag": []any{"4242"}}, false, nil)
+	if err != nil {
+		t.Fatalf("compile match: %v", err)
+	}
+	var seen []ribpolicy.Route
+	var mu sync.Mutex
+	rejectTag := routeChain(func(r ribpolicy.Route) ribpolicy.Verdict {
+		mu.Lock()
+		seen = append(seen, r)
+		mu.Unlock()
+		if reject4242.Rejects(&r) {
+			return ribpolicy.Verdict{Action: ribpolicy.ActionReject}
+		}
+		return ribpolicy.Verdict{Action: ribpolicy.ActionAccept}
+	})
+	snap, err := ribpolicy.NewSnapshot(nil, rejectTag)
+	if err != nil {
+		t.Fatalf("NewSnapshot: %v", err)
+	}
+	ribpolicy.Set(snap)
+	t.Cleanup(func() { ribpolicy.Set(nil) })
+
+	// The entries cross the JSON wire, as from a forked plugin.
+	wire, err := json.Marshal(rpc.RouteInstallInput{Routes: []rpc.RouteInstallEntry{
+		{Protocol: "test-proto-install", AFI: uint16(family.AFIIPv4), SAFI: uint8(family.SAFIUnicast),
+			Prefix: "10.42.0.0/24", NextHop: "192.0.2.1", Tag: 4242, HasTag: true, Level: 2, OSPFRouteType: 4},
+		{Protocol: "test-proto-install", AFI: uint16(family.AFIIPv4), SAFI: uint8(family.SAFIUnicast),
+			Prefix: "10.43.0.0/24", NextHop: "192.0.2.1"},
+	}})
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	var in rpc.RouteInstallInput
+	if err := json.Unmarshal(wire, &in); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	rib := locrib.NewRIB()
+	if _, err := applyRouteInstall(rib, in); err != nil {
+		t.Fatalf("applyRouteInstall: %v", err)
+	}
+	if best, ok := rib.Best(v4u(), mustPfx(t, "10.42.0.0/24")); ok {
+		t.Fatalf("tagged route selected (%+v): the gate never saw tag 4242", best)
+	}
+	if _, ok := rib.Best(v4u(), mustPfx(t, "10.43.0.0/24")); !ok {
+		t.Fatal("untagged route hidden: an omitted tag reached the gate as a tag")
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if len(seen) != 2 {
+		t.Fatalf("gate judged %d routes, want 2", len(seen))
+	}
+	tagged, untagged := seen[0], seen[1]
+	if tagged.Prefix != mustPfx(t, "10.42.0.0/24") {
+		tagged, untagged = untagged, tagged
+	}
+	if tagged.Level != ribpolicy.ISISLevel2 || tagged.OSPFRouteType != ribpolicy.OSPFExternal2 {
+		t.Errorf("tagged route reached the gate at level %d route type %d, want 2 and 4", tagged.Level, tagged.OSPFRouteType)
+	}
+	if untagged.HasTag || untagged.Level != ribpolicy.ISISLevelUnspecified || untagged.OSPFRouteType != ribpolicy.OSPFRouteTypeUnspecified {
+		t.Errorf("an entry omitting the fields reached the gate carrying them: %+v", untagged)
+	}
+
+	for _, bad := range []rpc.RouteInstallEntry{
+		{Protocol: "test-proto-install", AFI: uint16(family.AFIIPv4), SAFI: uint8(family.SAFIUnicast), Prefix: "10.44.0.0/24", NextHop: "192.0.2.1", Level: 3},
+		{Protocol: "test-proto-install", AFI: uint16(family.AFIIPv4), SAFI: uint8(family.SAFIUnicast), Prefix: "10.44.0.0/24", NextHop: "192.0.2.1", OSPFRouteType: 7},
+	} {
+		if _, err := applyRouteInstall(rib, rpc.RouteInstallInput{Routes: []rpc.RouteInstallEntry{bad}}); err == nil {
+			t.Errorf("entry with level %d route type %d accepted, want refused", bad.Level, bad.OSPFRouteType)
+		}
 	}
 }

@@ -40,6 +40,10 @@ type vocabulary struct {
 	fields      map[string]Field
 	filterTypes map[string]fieldUse
 	attachments map[string]fieldUse
+	// perInstance holds, for a filter type whose instances each use a subset
+	// of its fields (match, modify), the function that reads one instance's
+	// fields from its config. The type's own declaration stays the superset.
+	perInstance map[string]InstanceFields
 }
 
 func newVocabulary() *vocabulary {
@@ -47,6 +51,7 @@ func newVocabulary() *vocabulary {
 		fields:      make(map[string]Field),
 		filterTypes: make(map[string]fieldUse),
 		attachments: make(map[string]fieldUse),
+		perInstance: make(map[string]InstanceFields),
 	}
 }
 
@@ -61,6 +66,21 @@ func MustRegisterField(name string) Field { return vocab.mustRegisterField(name)
 // MustRegisterFilterType declares the fields a filter type reads and sets.
 func MustRegisterFilterType(typeName string, reads, sets []Field) {
 	vocab.mustRegisterFilterType(typeName, reads, sets)
+}
+
+// InstanceFields answers the fields one instance of a filter type reads and
+// sets, from the instance's own config subtree. It MUST answer a subset of
+// the type's MustRegisterFilterType declaration and MUST NOT change any state:
+// a refused verify and a CLI validate run it.
+type InstanceFields func(instance map[string]any) (reads, sets []Field)
+
+// MustRegisterInstanceFields declares that the instances of typeName each use
+// only the fields their own config names, so an instance of a broad type (a
+// `match` naming only prefix-list and tag) attaches wherever those fields are
+// carried. typeName MUST already be declared with MustRegisterFilterType. A
+// second registration is a Ze defect and panics.
+func MustRegisterInstanceFields(typeName string, fields InstanceFields) {
+	vocab.mustRegisterInstanceFields(typeName, fields)
 }
 
 // MustRegisterAttachment declares the fields an attachment point's routes
@@ -105,6 +125,21 @@ func (v *vocabulary) mustRegisterField(name string) Field {
 
 func (v *vocabulary) mustRegisterFilterType(typeName string, reads, sets []Field) {
 	v.mustRegisterUse(v.filterTypes, "filter type", "", typeName, reads, sets)
+}
+
+func (v *vocabulary) mustRegisterInstanceFields(typeName string, fields InstanceFields) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	if fields == nil {
+		panic("BUG: policy: instance fields of " + typeName + " registered with no function")
+	}
+	if _, declared := v.filterTypes[typeName]; !declared {
+		panic("BUG: policy: instance fields of " + typeName + " registered before its filter type")
+	}
+	if _, dup := v.perInstance[typeName]; dup {
+		panic("BUG: policy: instance fields of " + typeName + " registered twice")
+	}
+	v.perInstance[typeName] = fields
 }
 
 func (v *vocabulary) mustRegisterAttachment(owner, name string, carries, settable []Field) {
@@ -167,12 +202,19 @@ func (v *vocabulary) checkChain(attachment string, reg *Registry, names []string
 			return fmt.Errorf("%s filter %q (%s): the filter type declares no route fields, "+
 				"so Ze cannot tell whether %s routes carry what it reads", attachment, name, inst.Type, attachment)
 		}
-		if missing := absent(ft.first, at.first); missing != "" {
+		reads, sets := ft.first, ft.second
+		if fields, ok := v.perInstance[inst.Type]; ok {
+			reads, sets = fields(inst.Config)
+			if extra := absent(slices.Concat(reads, sets), slices.Concat(ft.first, ft.second)); extra != "" {
+				return fmt.Errorf("BUG: policy: %s instance %q names %s, which its filter type never declared", inst.Type, name, extra)
+			}
+		}
+		if missing := absent(reads, at.first); missing != "" {
 			return fmt.Errorf("%s filter %q (%s) reads %s, which %s routes do not carry; "+
 				"remove it from this chain or use a filter that matches only %s",
 				attachment, name, inst.Type, missing, attachment, joinFields(at.first))
 		}
-		if missing := absent(ft.second, at.second); missing != "" {
+		if missing := absent(sets, at.second); missing != "" {
 			return fmt.Errorf("%s filter %q (%s) sets %s, which a filter at %s may not set; "+
 				"remove it from this chain",
 				attachment, name, inst.Type, missing, attachment)

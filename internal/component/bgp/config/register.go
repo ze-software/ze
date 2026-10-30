@@ -14,12 +14,29 @@ import (
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
+// attachmentOwnerBGP is the registration name of the BGP daemon plugin
+// (pluginNameBGP in internal/component/bgp/plugin/register.go), whose config
+// holds the peer chains. policy's attachment-owner test refuses an owner that
+// is not a registered plugin depending on policy, so the two cannot drift.
+const attachmentOwnerBGP = "bgp"
+
 func init() {
+	// The filter attachment points a BGP peer's config holds, with the route
+	// fields their routes carry and a filter there may set (the route field
+	// vocabulary, internal/component/policy/fields.go). They are declared here,
+	// in the package whose validateChainNames checks a chain against them, so
+	// every binary that links the check links the declaration too.
+	carries := []policy.Field{policy.FieldPrefix, policy.FieldFamily, policy.FieldProtocol, policy.FieldNextHop, policy.FieldMetric, policy.FieldOriginAS, policy.FieldCommunity, policy.FieldLargeCommunity, policy.FieldExtendedCommunity, policy.FieldASPath, policy.FieldLocalPreference, policy.FieldOrigin, policy.FieldAIGP, policy.FieldMED}
+	settable := []policy.Field{policy.FieldASPath, policy.FieldLocalPreference, policy.FieldCommunity, policy.FieldLargeCommunity, policy.FieldExtendedCommunity, policy.FieldMED, policy.FieldOrigin, policy.FieldNextHop, policy.FieldAIGP}
+	policy.MustRegisterAttachment(attachmentOwnerBGP, "bgp import", carries, settable)
+	policy.MustRegisterAttachment(attachmentOwnerBGP, "bgp export", carries, settable)
+
 	zeconfig.RegisterPluginExtractor(string(zeconfig.ConfigTypeBGP), extractBGPInlinePlugins)
 	if err := zeconfig.RegisterTreeValidator("bgp-filter-policy", validateFilterPolicies); err != nil {
 		panic("BUG: BGP filter policy validator registration failed: " + err.Error())

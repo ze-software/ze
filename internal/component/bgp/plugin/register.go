@@ -58,15 +58,9 @@ var (
 const pluginNameBGP = "bgp"
 
 func init() {
-	// The filter attachment points this plugin's config holds, with the route
-	// fields their routes carry and a filter there may set (the route field
-	// vocabulary, internal/component/policy/fields.go).
-	policy.MustRegisterAttachment(pluginNameBGP, "bgp import",
-		[]policy.Field{policy.FieldPrefix, policy.FieldFamily, policy.FieldProtocol, policy.FieldNextHop, policy.FieldMetric, policy.FieldOriginAS, policy.FieldCommunity, policy.FieldLargeCommunity, policy.FieldExtendedCommunity, policy.FieldASPath, policy.FieldLocalPreference, policy.FieldOrigin, policy.FieldAIGP, policy.FieldMED},
-		[]policy.Field{policy.FieldASPath, policy.FieldLocalPreference, policy.FieldCommunity, policy.FieldLargeCommunity, policy.FieldExtendedCommunity, policy.FieldMED, policy.FieldOrigin, policy.FieldNextHop, policy.FieldAIGP})
-	policy.MustRegisterAttachment(pluginNameBGP, "bgp export",
-		[]policy.Field{policy.FieldPrefix, policy.FieldFamily, policy.FieldProtocol, policy.FieldNextHop, policy.FieldMetric, policy.FieldOriginAS, policy.FieldCommunity, policy.FieldLargeCommunity, policy.FieldExtendedCommunity, policy.FieldASPath, policy.FieldLocalPreference, policy.FieldOrigin, policy.FieldAIGP, policy.FieldMED},
-		[]policy.Field{policy.FieldASPath, policy.FieldLocalPreference, policy.FieldCommunity, policy.FieldLargeCommunity, policy.FieldExtendedCommunity, policy.FieldMED, policy.FieldOrigin, policy.FieldNextHop, policy.FieldAIGP})
+	// The "bgp import" and "bgp export" filter attachments are declared by
+	// internal/component/bgp/config/register.go, beside the check that reads
+	// them (validateChainNames).
 
 	// The reactor raises these codes (reactor/session_health.go); the BGP
 	// subsystem owns its health row (ai/rules/plugins.md).

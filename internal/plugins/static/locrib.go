@@ -149,6 +149,9 @@ func staticPath(r staticRoute) (locrib.Path, error) {
 		// the Path, because it is a fact about this route rather than about static.
 		DistanceOverride:    r.Distance,
 		HasDistanceOverride: r.HasDistance,
+		// The route's tag leaf, which a Loc-RIB import filter may read.
+		Tag:    r.Tag,
+		HasTag: r.HasTag,
 	}
 
 	switch r.Action {

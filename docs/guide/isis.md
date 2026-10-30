@@ -335,7 +335,11 @@ redistribution drives.
 
 Redistribution feeds the redistribute orchestrator only; the kernel FIB install of
 IS-IS SPF routes is the separate Loc-RIB path, ranked at the declared IS-IS
-distance (default 115). IPv6
+distance (default 115). Each installed path carries the level it was computed
+at, so an `isis filter import` chain can match `level [ 1 ]` or `level [ 2 ]`,
+and a `modify` there can set the distance. IS-IS paths carry no tag, because Ze
+does not implement RFC 5130, so a filter that reads a tag is refused on IS-IS
+([Route Policy at the Loc-RIB](route-policy.md)). IPv6
 redistribution (TLV 236) works the same way (see below).
 
 ## Dual-stack IPv6

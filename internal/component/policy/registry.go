@@ -24,6 +24,10 @@ const RootName = "policy"
 type Instance struct {
 	Name string // the list key, unique across every filter type
 	Type string // the filter type: the name of the ze:filter list
+	// Config is the instance's own config subtree, read by a filter type that
+	// declares its route fields per instance (MustRegisterInstanceFields). Nil
+	// when the instance was given without its config (NewRegistry).
+	Config map[string]any
 }
 
 // Registry is the namespace of named filter instances under the policy root.
@@ -100,7 +104,7 @@ func NewRegistry(instances ...Instance) (*Registry, error) {
 
 // collect records the entries of one list under the policy root.
 func (r *Registry) collect(listName string, filter bool, policyTree *config.Tree) error {
-	for name := range policyTree.GetList(listName) {
+	for name, entry := range policyTree.GetList(listName) {
 		if !filter {
 			r.others[name] = listName
 			continue
@@ -112,7 +116,7 @@ func (r *Registry) collect(listName string, filter bool, policyTree *config.Tree
 				name, existing.Type, listName,
 			)
 		}
-		r.instances[name] = Instance{Name: name, Type: listName}
+		r.instances[name] = Instance{Name: name, Type: listName, Config: entry.ToMap()}
 	}
 	return nil
 }

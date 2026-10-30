@@ -306,7 +306,7 @@ func (e *engine) withdrawRedistDefault(router types.RouterID) bool {
 }
 
 // hasNonOSPFDefault reports whether the Loc-RIB holds a valid default route for prefix in
-// af, contributed by a protocol OTHER than OSPF. The caller passes the pair its address
+// af, contributed by a protocol OTHER than OSPF and not hidden by a Loc-RIB import filter. The caller passes the pair its address
 // family owns (defaultRoute), because an OSPFv3 engine asking the IPv4 unicast table would
 // answer about a route it can never advertise. The self-exclusion is essential: OSPF's own
 // originated or learned default must not satisfy its own `default-information originate`
@@ -317,7 +317,13 @@ func hasNonOSPFDefault(prefix netip.Prefix, af family.Family) bool {
 	found := false
 	locrib.Default().Inspect(af, prefix, func(g locrib.PathGroup) {
 		for i := range g.Paths {
-			if p := g.Paths[i]; p.Valid() && p.Source != ospfspf.ProtocolID() {
+			p := &g.Paths[i]
+			// A hidden path is one a Loc-RIB import filter rejected: it is
+			// never selected or programmed, so it is no default route.
+			if p.Hidden {
+				continue
+			}
+			if p.Valid() && p.Source != ospfspf.ProtocolID() {
 				found = true
 				return
 			}

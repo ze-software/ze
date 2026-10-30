@@ -13,6 +13,7 @@ import (
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/redistevents"
 	"github.com/ze-software/ze/internal/core/rib/locrib"
+	ribpolicy "github.com/ze-software/ze/internal/core/rib/policy"
 )
 
 var ospfProtocolID = redistevents.RegisterProtocol("ospf")
@@ -231,6 +232,11 @@ func (in *Installer) insert(r RouteEntry) {
 			// link (gateway outside the device's /32) needs.
 			BackupInterface: backupIface,
 			BackupOnLink:    backupIface != "",
+			// The path type and the external route tag, which a Loc-RIB
+			// import filter may read.
+			OSPFRouteType: ribRouteType(r.Type, r.NSSA),
+			Tag:           r.Tag,
+			HasTag:        r.HasTag,
 		})
 	}
 	if prev, ok := in.installed[r.Prefix]; ok && in.hasSink() {
@@ -298,4 +304,29 @@ func metricToUint32(m uint64) uint32 {
 		return ^uint32(0)
 	}
 	return uint32(m)
+}
+
+// ribRouteType converts an OSPF path type into the route type a Loc-RIB path
+// carries: an external route from an NSSA (Type 7) LSA is nssa-1 or nssa-2
+// (RFC 3101), any other external one external-1 or external-2. The switch is
+// closed: SPF produces only these four path types.
+func ribRouteType(t RouteType, nssa bool) ribpolicy.OSPFRouteType {
+	switch t {
+	case RouteIntraArea:
+		return ribpolicy.OSPFIntraArea
+	case RouteInterArea:
+		return ribpolicy.OSPFInterArea
+	case RouteExternalType1:
+		if nssa {
+			return ribpolicy.OSPFNSSA1
+		}
+		return ribpolicy.OSPFExternal1
+	case RouteExternalType2:
+		if nssa {
+			return ribpolicy.OSPFNSSA2
+		}
+		return ribpolicy.OSPFExternal2
+	default:
+		panic("BUG: ospf: SPF route with an unknown path type")
+	}
 }

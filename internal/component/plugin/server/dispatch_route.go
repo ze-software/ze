@@ -28,6 +28,7 @@ import (
 	"github.com/ze-software/ze/internal/core/redistevents"
 	"github.com/ze-software/ze/internal/core/rib/locrib"
 	"github.com/ze-software/ze/internal/core/rib/nexthop"
+	ribpolicy "github.com/ze-software/ze/internal/core/rib/policy"
 	"github.com/ze-software/ze/internal/core/rib/routetype"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -182,6 +183,10 @@ func applyRouteInstall(rib *locrib.RIB, input rpc.RouteInstallInput) ([]routeKey
 		if hasOverride {
 			override = *e.DistanceOverride
 		}
+		level, routeType, err := parseFilterFields(e)
+		if err != nil {
+			return nil, err
+		}
 		ops = append(ops, installOp{
 			fam:    family.Family{AFI: family.AFI(e.AFI), SAFI: family.SAFI(e.SAFI)},
 			prefix: prefix,
@@ -208,6 +213,13 @@ func applyRouteInstall(rib *locrib.RIB, input rpc.RouteInstallInput) ([]routeKey
 				BackupRepairLabels:  e.BackupRepairLabels,
 				BackupInterface:     e.BackupInterface,
 				BackupOnLink:        e.BackupOnLink,
+				// The fields a Loc-RIB import filter reads. A plugin that
+				// omits them sends a route that does not carry them, which
+				// is what the gate then judges (rpc.RouteInstallEntry).
+				Tag:           e.Tag,
+				HasTag:        e.HasTag,
+				Level:         level,
+				OSPFRouteType: routeType,
 			},
 		})
 	}
@@ -217,6 +229,22 @@ func applyRouteInstall(rib *locrib.RIB, input rpc.RouteInstallInput) ([]routeKey
 		keys = append(keys, routeKey{fam: ops[i].fam, prefix: ops[i].prefix, source: ops[i].path.Source, instance: ops[i].path.Instance})
 	}
 	return keys, nil
+}
+
+// parseFilterFields reads an entry's IS-IS level and OSPF route type. A value
+// outside the numbering is malformed input and fails the whole batch, the same
+// as a bad prefix does: a route must never reach a filter as a level or a path
+// type it does not have.
+func parseFilterFields(e *rpc.RouteInstallEntry) (ribpolicy.ISISLevel, ribpolicy.OSPFRouteType, error) {
+	level := ribpolicy.ISISLevel(e.Level)
+	if level > ribpolicy.ISISLevel2 {
+		return 0, 0, fmt.Errorf("route-install: route %s: level %d is not an IS-IS level (1 or 2, or 0 for none)", e.Prefix, e.Level)
+	}
+	routeType := ribpolicy.OSPFRouteType(e.OSPFRouteType)
+	if routeType > ribpolicy.OSPFNSSA2 {
+		return 0, 0, fmt.Errorf("route-install: route %s: ospf-route-type %d is not an OSPF path type (1 to 6, or 0 for none)", e.Prefix, e.OSPFRouteType)
+	}
+	return level, routeType, nil
 }
 
 // parseWireNextHops parses an entry's equal-cost set. A member names a gateway,

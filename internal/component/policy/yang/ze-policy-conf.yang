@@ -47,11 +47,117 @@ module ze-policy-conf {
         }
     }
 
+    grouping route-source-conditions {
+        description "The conditions on where a route came from, shared by the match filter and the
+                     modify filter. Within one condition the values are alternatives; every condition
+                     named must hold. A route that does not carry the field a condition reads fails it,
+                     and an attachment whose routes never carry that field refuses the filter at load.";
+        leaf-list protocol {
+            type string { length "1..max"; }
+            description "A route source registered by this build (static, connected, ospf, isis, bgp, ...),
+                         or ebgp or ibgp for the class of a BGP best. An unknown name is refused at load.";
+            ze:help "Match routes from this source";
+        }
+        leaf-list tag {
+            type uint32;
+            description "OSPF carries the external route tag and static carries its tag leaf. IS-IS carries
+                         no administrative tag in Ze, so a filter reading tag is refused on an IS-IS chain.";
+            ze:help "Match routes carrying this tag";
+        }
+        leaf-list level {
+            type uint8 { range "1..2"; }
+            description "The IS-IS level the route was selected at. Only IS-IS routes carry a level.";
+            ze:help "Match IS-IS routes of this level";
+        }
+        leaf-list route-type {
+            type enumeration {
+                enum intra-area { ze:help "OSPF intra-area path"; }
+                enum inter-area { ze:help "OSPF inter-area path"; }
+                enum external-1 { ze:help "OSPF type 1 external path"; }
+                enum external-2 { ze:help "OSPF type 2 external path"; }
+                enum nssa-1 { ze:help "OSPF NSSA type 1 external path"; }
+                enum nssa-2 { ze:help "OSPF NSSA type 2 external path"; }
+            }
+            description "The OSPF path type of RFC 2328 Section 11, with the NSSA types of RFC 3101.
+                         Only OSPF routes carry a route type.";
+            ze:help "Match OSPF routes of this path type";
+        }
+    }
+
     container policy {
         description "Each filter type is a list that its plugin adds through an augment and marks
                      ze:filter. An entry of such a list is a named filter instance, and an import or
                      export chain references it by name. One name belongs to one filter type only.
                      Policy routing adds its route list here too; a route entry is never a filter.";
         ze:help "Route policy filters and policy routing.";
+
+        list match {
+            ze:filter;
+            key "name";
+            description "With action accept, a route that meets every condition the instance names
+                         passes on to the next filter and any other route is rejected; with action
+                         reject, a route that meets them is rejected and any other passes on. An
+                         instance is checked against only the
+                         conditions it names, so one naming prefix-list and tag attaches to static, OSPF
+                         and the rib chain, and is refused on IS-IS, whose routes carry no tag.";
+            ze:help "Named route match filter instance.";
+            leaf name {
+                type string { length "1..max"; }
+                description "A filter chain names this instance by this value.";
+                ze:help "Match instance name, used in a filter chain.";
+            }
+            leaf action {
+                type enumeration {
+                    enum accept {
+                        ze:help "Pass on routes meeting every condition, reject the rest.";
+                    }
+                    enum reject {
+                        ze:help "Reject routes meeting every condition, pass on the rest.";
+                    }
+                }
+                default accept;
+                description "What happens to a route that meets every condition the instance names. The
+                             other routes get the opposite.";
+                ze:help "Accept or reject the routes this instance matches";
+            }
+            leaf prefix-list {
+                type string { length "1..max"; }
+                description "The route passes this condition when the named prefix-list accepts its prefix.
+                             The prefix-list is a policy prefix-list instance; a name that is not one is
+                             refused at load.";
+                ze:help "Match routes the named prefix-list accepts";
+            }
+            leaf-list family {
+                type string { length "1..max"; }
+                description "An address family name such as ipv4/unicast or ipv6/unicast.";
+                ze:help "Match routes of this address family";
+            }
+            leaf-list next-hop {
+                type string { length "1..max"; }
+                description "An address prefix the route's next hop lies in, such as 192.0.2.0/24 or
+                             2001:db8::1/128. A route with no next hop (connected) does not match.";
+                ze:help "Match routes whose next hop is in this prefix";
+            }
+            leaf-list interface {
+                type string { length "1..max"; }
+                description "The outgoing interface the route names.";
+                ze:help "Match routes through this interface";
+            }
+            container metric {
+                description "The route's metric as its source states it: the SPF metric or cost of an IGP
+                             route, a static route's configured metric. Either bound may be left out;
+                             a minimum above the maximum is refused.";
+                ze:help "Match routes whose metric is in this range";
+                leaf minimum {
+                    type uint32;
+                    ze:help "Lowest metric that matches";
+                }
+                leaf maximum {
+                    type uint32;
+                    ze:help "Highest metric that matches";
+                }
+            }
+            uses route-source-conditions;
+        }
     }
 }

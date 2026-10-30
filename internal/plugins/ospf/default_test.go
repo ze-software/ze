@@ -20,6 +20,7 @@ import (
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/redistevents"
 	"github.com/ze-software/ze/internal/core/rib/locrib"
+	ribpolicy "github.com/ze-software/ze/internal/core/rib/policy"
 	ospfspf "github.com/ze-software/ze/internal/plugins/ospf/spf"
 )
 
@@ -195,4 +196,29 @@ func TestOSPFDefaultInformationConcurrent(t *testing.T) {
 	// Converge to a known state: no RIB default -> conditional must not originate.
 	eng.applyDefaultInformation()
 	assert.Equal(t, 0, eng.lsdb.SelfExternalCount(rid), "no RIB default after the flap -> conditional originates nothing")
+}
+
+// rejectAllChain is a Loc-RIB import chain that hides every path it judges.
+type rejectAllChain struct{}
+
+func (rejectAllChain) Evaluate(ribpolicy.Route) ribpolicy.Verdict { //nolint:gocritic // hugeParam: the Chain signature passes Route by value
+	return ribpolicy.Verdict{Action: ribpolicy.ActionReject}
+}
+
+// TestOSPFDefaultIgnoresHiddenPath: a non-OSPF default that a Loc-RIB import
+// filter hid is never selected or programmed, so it must not satisfy the bare
+// `default-information originate` condition; publishing no policy re-admits
+// it and the condition holds again.
+func TestOSPFDefaultIgnoresHiddenPath(t *testing.T) {
+	installRIBDefault(t)
+	require.True(t, hasNonOSPFDefault(testDefaultRoute, family.IPv4Unicast), "a selectable static default satisfies the condition")
+
+	snap, err := ribpolicy.NewSnapshot(nil, rejectAllChain{})
+	require.NoError(t, err)
+	locrib.PublishPolicy(snap)
+	t.Cleanup(func() { locrib.PublishPolicy(nil) })
+	assert.False(t, hasNonOSPFDefault(testDefaultRoute, family.IPv4Unicast), "a hidden static default satisfied the condition")
+
+	locrib.PublishPolicy(nil)
+	assert.True(t, hasNonOSPFDefault(testDefaultRoute, family.IPv4Unicast), "the re-admitted default must satisfy the condition again")
 }

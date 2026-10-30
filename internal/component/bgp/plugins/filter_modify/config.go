@@ -30,6 +30,7 @@ import (
 	// other reasons; this package's own test binary does not.
 	_ "github.com/ze-software/ze/internal/component/bgp/yang"
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -190,6 +191,11 @@ func parseModifyDefs(policyCfg, bgpCfg map[string]any) (map[string]*modifyDef, e
 
 		if setBlock, ok := defMap["set"].(map[string]any); ok {
 			for key := range setBlock {
+				// A Loc-RIB set (distance, tag) is judged by the route
+				// evaluator; the field check refuses it on a BGP chain.
+				if ribSetKeys[key] {
+					continue
+				}
 				if !setBlockAllowedKeys[key] {
 					return nil, fmt.Errorf("modify %q: set: unknown key %q", name, key)
 				}
@@ -230,7 +236,7 @@ func parseModifyDefs(policyCfg, bgpCfg map[string]any) (map[string]*modifyDef, e
 		}
 
 		if def.delta == "" && len(def.increments) == 0 && len(def.decrements) == 0 &&
-			len(def.commOps) == 0 && !def.medRemove {
+			len(def.commOps) == 0 && !def.medRemove && !hasRIBSet(defMap) {
 			return nil, fmt.Errorf("modify %q: no operations defined", name)
 		}
 
@@ -250,7 +256,14 @@ func parseMatchBlock(block map[string]any) (matchCond, error) {
 		switch key {
 		case "community", "large-community", "extended-community":
 		default:
-			return matchCond{}, fmt.Errorf("match: unknown key %q (allowed: community, large-community, extended-community)", key)
+			// A source condition (protocol, tag, level, route-type) is
+			// judged by the Loc-RIB route evaluator; BGP routes carry
+			// none of those fields, so the field check refuses such an
+			// instance on a BGP chain.
+			if policy.IsSourceConditionKey(key) {
+				continue
+			}
+			return matchCond{}, fmt.Errorf("match: unknown key %q (allowed: community, large-community, extended-community, protocol, tag, level, route-type)", key)
 		}
 	}
 

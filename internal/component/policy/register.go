@@ -56,6 +56,15 @@ const relocatedFromBGP = "bgp"
 func init() {
 	config.MustRegisterRelocatedContainer(relocatedFromBGP, RootName)
 
+	// The generic match filter: always built, so a Loc-RIB chain has a
+	// filter type in a build without BGP. Its type declares every field a
+	// condition can read; each instance is checked against only the
+	// conditions it names (match.go, matchConditions).
+	MustRegisterFilterType(MatchFilterType,
+		[]Field{FieldPrefix, FieldFamily, FieldProtocol, FieldNextHop, FieldInterface, FieldMetric, FieldTag, FieldLevel, FieldRouteType}, nil)
+	MustRegisterInstanceFields(MatchFilterType, matchInstanceFields)
+	MustRegisterRouteEvaluator(MatchFilterType, compileMatchEvaluator)
+
 	if err := registry.Register(registry.Registration{
 		Name:        PluginName,
 		Description: "Route policy library: the policy root, named filter instances and the route field vocabulary",
