@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC1071-1-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/packet/checksum_test.go::TestChecksumRFC1071",
+    "unit-sha": "ee68d1038c150c61",
+    "claim-sha": "f0d9ad16308dc394",
+    "route": "mutant",
+    "producer": "internal/plugins/vrrp/packet/checksum.go::fold",
+    "producer-sha": "f979120f90f5815a",
+    "break": "line 67: \"sum = (sum \u0026 0xFFFF) + (sum \u003e\u003e 16)\" -\u003e \"sum = sum \u0026 0xFFFF\""
+  }
+]
