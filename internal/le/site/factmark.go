@@ -206,8 +206,21 @@ func (snapshot siteFactSnapshot) substitute(source string, marked bool) (string,
 	if !strings.Contains(source, "{{ze:") {
 		return source, nil
 	}
+	return snapshot.replaceTokens(source, func(key, value string) string {
+		if marked {
+			return markedFact(key, value)
+		}
+		return value
+	})
+}
+
+// replaceTokens resolves every {{ze:<dotted.key>}} token of one text through
+// answer, writing each value as render spells it, and refuses the first key
+// answer refuses. It is the one token loop: substitute and substituteHTMLToken
+// differ only in how a value is written.
+func (snapshot siteFactSnapshot) replaceTokens(text string, render func(key, value string) string) (string, error) {
 	var refusal error
-	replaced := valueTokenPattern.ReplaceAllStringFunc(source, func(token string) string {
+	replaced := valueTokenPattern.ReplaceAllStringFunc(text, func(token string) string {
 		key := valueTokenPattern.FindStringSubmatch(token)[1]
 		value, err := snapshot.answer(key)
 		if err != nil {
@@ -216,10 +229,7 @@ func (snapshot siteFactSnapshot) substitute(source string, marked bool) (string,
 			}
 			return token
 		}
-		if marked {
-			return markedFact(key, value)
-		}
-		return value
+		return render(key, value)
 	})
 	if refusal != nil {
 		return "", refusal
@@ -277,14 +287,14 @@ func (snapshot siteFactSnapshot) substituteHTML(source string) (string, error) {
 			if err != nil {
 				return "", err
 			}
-			if !held {
-				break
-			}
-			closing, err := skipMarkedText(tokenizer, string(name), key)
+			fallback, closing, err := readMarkedText(tokenizer, string(name), key)
 			if err != nil {
 				return "", err
 			}
-			page.WriteString(raw + html.EscapeString(value) + closing)
+			if held {
+				fallback = html.EscapeString(value)
+			}
+			page.WriteString(raw + fallback + closing)
 			continue
 		case xhtml.EndTagToken:
 			name, _ := tokenizer.TagName()
@@ -327,22 +337,7 @@ func (snapshot siteFactSnapshot) substituteHTMLToken(raw string, marked bool) (s
 	if !strings.Contains(raw, "{{ze:") {
 		return raw, nil
 	}
-	var refusal error
-	replaced := valueTokenPattern.ReplaceAllStringFunc(raw, func(token string) string {
-		key := valueTokenPattern.FindStringSubmatch(token)[1]
-		value, err := snapshot.answer(key)
-		if err != nil {
-			if refusal == nil {
-				refusal = err
-			}
-			return token
-		}
-		return html.EscapeString(value)
-	})
-	if refusal != nil {
-		return "", refusal
-	}
-	return replaced, nil
+	return snapshot.replaceTokens(raw, func(_, value string) string { return html.EscapeString(value) })
 }
 
 // unknownToken answers the refusal of one token whose key the snapshot does

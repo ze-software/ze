@@ -191,8 +191,10 @@ a stale recorded run; `./le site build refresh` re-records those first
   a value itself, `<span data-ze-stat="<key>">fallback</span>`: the build
   writes the snapshot's value into it when the key holds one and keeps the
   fallback while the key's section is `null`, as `site.js` does
-  (`markedValue`, `internal/le/site/factfallback.go`). The appliance lab's
-  ISO size is one: "under 150 MB" until a release carries an ISO.
+  (`markedValue`, `internal/le/site/factfallback.go`). The element holds text
+  only: markup or a token inside it stops the build even before the key holds
+  a value. The appliance lab's ISO size is one: "under 150 MB" until a release
+  carries an ISO.
 - **The plain-text guard.** `./le site check` refuses a page that shows a
   snapshot value outside a marker, `data-ze-stat="<key>"` or
   `data-ze-rfc="<stem>:<field>"`, and names the page, the figure and the key

@@ -34,29 +34,39 @@ func markerKey(tokenizer *xhtml.Tokenizer, hasAttributes bool) (string, bool) {
 	return "", false
 }
 
-// skipMarkedText consumes the fallback text of one marked element and answers
-// its raw closing tag.
+// readMarkedText consumes the fallback text of one marked element and answers
+// it with the element's raw closing tag.
 //
 // A marked element holds text only. Markup inside it would be replaced along
-// with the text, so it is refused by name rather than dropped from the page.
-// The walk ends at the element's own closing tag or at the end of the source,
-// so it is bounded by the source's length.
-func skipMarkedText(tokenizer *xhtml.Tokenizer, element, key string) (string, error) {
+// with the text, so it is refused by name rather than dropped from the page,
+// and so is a {{ze:<key>}} token, which would put one marked element inside
+// another. Both are refused whether or not the snapshot holds the key's value
+// yet, so a page that builds today still builds on the day it does. The walk
+// ends at the element's own closing tag or at the end of the source, so it is
+// bounded by the source's length.
+func readMarkedText(tokenizer *xhtml.Tokenizer, element, key string) (string, string, error) {
+	var fallback strings.Builder
 	for {
 		kind := tokenizer.Next()
 		switch kind {
 		case xhtml.TextToken:
+			text := tokenizer.Raw()
+			if strings.Contains(string(text), "{{ze:") {
+				return "", "", errors.New("the " + markerAttribute + "=" + strconv.Quote(key) + " element holds a {{ze:}} token (" +
+					strconv.Quote(string(text)) + "); a marked element holds its fallback text only, so write the value itself")
+			}
+			fallback.Write(text)
 			continue
 		case xhtml.EndTagToken:
 			name, _ := tokenizer.TagName()
 			if string(name) == element {
-				return string(tokenizer.Raw()), nil
+				return fallback.String(), string(tokenizer.Raw()), nil
 			}
 		case xhtml.ErrorToken:
-			return "", errors.New("the " + markerAttribute + "=" + strconv.Quote(key) + " element is never closed")
+			return "", "", errors.New("the " + markerAttribute + "=" + strconv.Quote(key) + " element is never closed")
 		case xhtml.StartTagToken, xhtml.SelfClosingTagToken, xhtml.CommentToken, xhtml.DoctypeToken:
 		}
-		return "", errors.New("the " + markerAttribute + "=" + strconv.Quote(key) + " element holds markup (" +
+		return "", "", errors.New("the " + markerAttribute + "=" + strconv.Quote(key) + " element holds markup (" +
 			strconv.Quote(string(tokenizer.Raw())) + "); a marked element holds its fallback text only, so move the markup outside it")
 	}
 }

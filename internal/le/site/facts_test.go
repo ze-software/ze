@@ -1074,9 +1074,19 @@ func TestTheLabISOSizeFallsBackUntilAReleaseCarriesOne(t *testing.T) {
 			t.Errorf("with %s a misspelled marker key was not refused by name (%v)", name, err)
 		}
 	}
-	markup := `<p><span data-ze-stat="release.iso.size_display">under <b>150</b> MB</span></p>`
-	if _, err := full.substituteHTML(markup); err == nil || !strings.Contains(err.Error(), "holds markup") {
-		t.Errorf("a marker holding markup was not refused (%v)", err)
+	// Markup and a token inside a marker are refused before the key's section
+	// holds a value as well as after, so a page that builds while no release
+	// exists still builds on the day one does.
+	refusedInside := map[string]string{
+		"holds markup":  `<p><span data-ze-stat="release.iso.size_display">under <b>150</b> MB</span></p>`,
+		"{{ze:}} token": `<p><span data-ze-stat="release.iso.size_display">under {{ze:tests.unit_display}} MB</span></p>`,
+	}
+	for refusal, source := range refusedInside {
+		for name, snapshot := range map[string]siteFactSnapshot{"no release": empty, "a release": full} {
+			if _, err := snapshot.substituteHTML(source); err == nil || !strings.Contains(err.Error(), refusal) {
+				t.Errorf("with %s a marker that %s was not refused (%v)", name, refusal, err)
+			}
+		}
 	}
 
 	if _, err := snapshotOf(t, twoISOs); err == nil || !strings.Contains(err.Error(), "two .iso assets") {

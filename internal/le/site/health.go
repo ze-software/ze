@@ -335,8 +335,11 @@ func healthCardHTML(metric healthMetric, lookup *factLookup) string {
 // nothing for one that does not.
 //
 // Both parts are printed beside the bar. A bar alone hides the case where a
-// ratio improves only because its denominator shrank. The attributes take the
-// plain values, because a marked element cannot stand inside one.
+// ratio improves only because its denominator shrank. The bar's label names
+// the metric and states no figure: an attribute cannot hold a marked element,
+// so a figure there would be a copy site.js never refreshes, and the note under
+// the bar states the figures, marked. The bar's width is the one plain copy of
+// the percentage, because a style cannot be filled from the snapshot either.
 func healthMeter(metric healthMetric, lookup *factLookup) string {
 	ratio, _, _, drawn := healthRatio(metric)
 	// refuse-by-default: guards healthCardHTML -- a metric that carries no ratio draws no meter, which is the empty fragment
@@ -347,7 +350,7 @@ func healthMeter(metric healthMetric, lookup *factLookup) string {
 	numeratorKey := healthFigureKey(healthSection, key, ratio, "numerator")
 	denominatorKey := healthFigureKey(healthSection, key, ratio, "denominator")
 	percentKey := healthFigureKey(healthSection, key, ratio, "percent")
-	label := html.EscapeString(lookup.plain(numeratorKey) + " of " + lookup.plain(denominatorKey))
+	label := html.EscapeString(metric.text("label"))
 	width := html.EscapeString(lookup.plain(percentKey))
 	return `<div class="th-meter" role="img" aria-label="` + label +
 		`"><span class="th-meter-fill" style="width:` + width + `%"></span></div>` +
@@ -490,11 +493,8 @@ func healthTrends(history []map[string]any, lookup *factLookup) string {
 				Str(samples).Str("</td></tr>")
 			continue
 		}
-		drawn := values
-		if len(drawn) > healthSamplesDrawn {
-			drawn = drawn[len(drawn)-healthSamplesDrawn:]
-		}
-		out.Str("<tr><td>").Str(label).Str("</td><td>").Str(healthSparkline(drawn)).Str("</td><td><code>").
+		out.Str("<tr><td>").Str(label).Str("</td><td>").Str(healthSparkline(healthDrawnSamples(values), series.Key, lookup)).
+			Str("</td><td><code>").
 			Str(lookup.marked(healthFigureKey(healthTrendsSection, series.Key, "latest"))).
 			Str("</code></td><td>").Str(samples).Str("</td></tr>")
 	}
@@ -516,27 +516,25 @@ const (
 	healthSparklineHeight = 44
 )
 
-// healthSparkline renders an inline SVG polyline.
+// healthSparkline renders an inline SVG polyline, and the sentence a screen
+// reader reads in its place.
 //
 // No chart library: the site publishes content that is meaningful without
 // JavaScript, and its content security policy blocks an external script.
 //
-// The geometry is computed from the numbers; the label states the low and the
-// high as the record spells them, so a sample of 0.0 is not reported as 0.
-func healthSparkline(values []json.Number) string {
+// The geometry is computed from the numbers. The drawing is hidden from a
+// screen reader, and the sentence beside it states how many samples it draws
+// and their low and high as marked snapshot values (healthSparkRange): an
+// attribute cannot hold a marked element, so a figure in an aria-label would
+// be a copy site.js never refreshes.
+func healthSparkline(values []json.Number, series string, lookup *factLookup) string {
 	if len(values) < 2 {
 		return ""
 	}
 	low, high := healthFloat(values[0]), healthFloat(values[0])
-	lowest, highest := values[0], values[0]
 	for _, value := range values {
-		number := healthFloat(value)
-		if number < low {
-			low, lowest = number, value
-		}
-		if number > high {
-			high, highest = number, value
-		}
+		low = min(low, healthFloat(value))
+		high = max(high, healthFloat(value))
 	}
 	span := high - low
 	if span == 0 {
@@ -556,11 +554,12 @@ func healthSparkline(values []json.Number) string {
 	size := strconv.Itoa(healthSparklineWidth) + " " + strconv.Itoa(healthSparklineHeight)
 	return `<svg class="th-spark" viewBox="0 0 ` + size + `" width="` +
 		strconv.Itoa(healthSparklineWidth) + `" height="` + strconv.Itoa(healthSparklineHeight) +
-		`" role="img" aria-label="trend over ` + strconv.Itoa(len(values)) +
-		` samples, low ` + lowest.String() + `, high ` + highest.String() +
-		`"><polyline points="` + points.String() +
+		`" aria-hidden="true"><polyline points="` + points.String() +
 		`" fill="none" stroke="currentColor" stroke-width="2" ` +
-		`stroke-linejoin="round" stroke-linecap="round"/></svg>`
+		`stroke-linejoin="round" stroke-linecap="round"/></svg>` +
+		`<span class="sr-only">trend over ` + lookup.marked(healthFigureKey(healthTrendsSection, series, "drawn")) +
+		` samples, low ` + lookup.marked(healthFigureKey(healthTrendsSection, series, "low")) +
+		`, high ` + lookup.marked(healthFigureKey(healthTrendsSection, series, "high")) + `</span>`
 }
 
 // healthFloat answers a recorded number as a float, and zero for one that is

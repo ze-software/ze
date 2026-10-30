@@ -291,7 +291,12 @@ func TestASeriesIsDrawnOnlyWhenThereAreEnoughSamples(t *testing.T) {
 			if !drawn && !strings.Contains(page, "insufficient data") {
 				t.Error("a series with too few samples does not say so")
 			}
-			if drawn && !strings.Contains(page, `aria-label="trend over 4 samples, low 30, high 33"`) {
+			series := func(field, value string) string {
+				return markedFact(healthFigureKey(healthTrendsSection, "rfc_proof_percent", field), value)
+			}
+			sentence := `<span class="sr-only">trend over ` + series("drawn", "4") + ` samples, low ` +
+				series("low", "30") + `, high ` + series("high", "33") + `</span>`
+			if drawn && !strings.Contains(page, sentence) {
 				t.Error("the drawn trend does not state its samples and its range")
 			}
 		})
@@ -389,7 +394,8 @@ func TestALongHistoryDrawsABoundedLine(t *testing.T) {
 	}
 	page := readArtifact(t, paths.Output, healthDest)
 
-	if !strings.Contains(page, `aria-label="trend over `+strconv.Itoa(healthSamplesDrawn)+` samples`) {
+	drawn := markedFact(healthFigureKey(healthTrendsSection, "rfc_proof_percent", "drawn"), strconv.Itoa(healthSamplesDrawn))
+	if !strings.Contains(page, `<span class="sr-only">trend over `+drawn+` samples`) {
 		t.Errorf("the line is drawn over more than the %d samples it is bounded to", healthSamplesDrawn)
 	}
 	samples := markedFact(healthFigureKey(healthTrendsSection, "rfc_proof_percent", "samples"), strconv.Itoa(len(history)))
@@ -485,5 +491,12 @@ func TestEveryHealthFigureIsAMarkedSnapshotValue(t *testing.T) {
 			continue
 		}
 		t.Errorf("the page prints %q outside a marked element", match[2])
+	}
+	// An accessible label is read without the script that fills a marker, so
+	// a figure in one is a copy site.js never refreshes.
+	for _, label := range regexp.MustCompile(`aria-label="([^"]*)"`).FindAllStringSubmatch(page, -1) {
+		if figure.MatchString(label[1]) {
+			t.Errorf("the page states a figure in the accessible label %q", label[1])
+		}
 	}
 }

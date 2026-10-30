@@ -157,13 +157,39 @@ func healthSeriesValues(history []map[string]any, series string) []json.Number {
 	return values
 }
 
+// healthDrawnSamples answers the samples a series' line draws: the newest
+// healthSamplesDrawn of them, so a long history draws a bounded line.
+func healthDrawnSamples(values []json.Number) []json.Number {
+	if len(values) > healthSamplesDrawn {
+		return values[len(values)-healthSamplesDrawn:]
+	}
+	return values
+}
+
+// healthSparkRange answers the lowest and the highest drawn sample as the
+// record spells them, so a sample of 0.0 is not stated as 0. The values MUST
+// hold at least one sample.
+func healthSparkRange(values []json.Number) (json.Number, json.Number) {
+	lowest, highest := values[0], values[0]
+	for _, value := range values {
+		if healthFloat(value) < healthFloat(lowest) {
+			lowest = value
+		}
+		if healthFloat(value) > healthFloat(highest) {
+			highest = value
+		}
+	}
+	return lowest, highest
+}
+
 // healthFacts derives the two health sections of the snapshot from the record
 // the testing-health page renders.
 //
 // Every figure the page prints is carried, as the string the page prints it:
 // each figure of a metric's value, detail and action, its meter's numerator, denominator and
 // percentage, each number in its worst rows, stranded files and package-age
-// buckets, and each trend series' latest sample and sample count. Strings,
+// buckets, and each trend series' latest sample, sample count, and the count, low and
+// high of the samples its line draws. Strings,
 // because the record spells a score as 0.0 and a number would publish it as 0.
 // Nothing else of the record is carried: labels, prose and the rows' names
 // are the page's words, not figures (R-9).
@@ -198,6 +224,11 @@ func healthFacts(record healthRecord) (map[string]any, map[string]any, error) {
 		entry := map[string]any{"samples": strconv.Itoa(len(values))}
 		if len(values) >= healthMinSamples {
 			entry["latest"] = values[len(values)-1].String()
+			drawn := healthDrawnSamples(values)
+			lowest, highest := healthSparkRange(drawn)
+			entry["drawn"] = strconv.Itoa(len(drawn))
+			entry["low"] = lowest.String()
+			entry["high"] = highest.String()
 		}
 		trends[name] = entry
 	}
