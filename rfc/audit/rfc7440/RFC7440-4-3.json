@@ -1,0 +1,13 @@
+{
+  "note": "TestRFC7440ClientWindowOneIsLockstep now uses the shared shortenTFTP (tftpTimeout 1 s, expectACK waits 500 ms). With windowsize 1, every DATA must draw its own ACK within tftpTimeout/2, before the next DATA is sent, so lockstep timing is now bounded. Block 3, sent while block 2 is expected, must draw nothing for 300 ms and must not be written, and the file must hold each block once. Observed red under the overlay mutant that ignores the granted windowsize: 'client sent 00 04 00 01, want nothing'.",
+  "requirement_sha": "ccfcd419f85f9d9e",
+  "tests": {
+    "internal/core/fetch/rfc7440_client_test.go::TestRFC7440ClientWindowOneIsLockstep": "ba0487920fe3a0de",
+    "internal/core/fetch/rfc7440_client_test.go::TestRFC7440ClientWindowOneIsLockstep#2": "ba0487920fe3a0de"
+  },
+  "units": {
+    "internal/core/fetch/rfc7440_client_test.go::TestRFC7440ClientWindowOneIsLockstep": "5233c47f7ba92d0d",
+    "internal/core/fetch/rfc7440_client_test.go::TestRFC7440ClientWindowOneIsLockstep#2": "5233c47f7ba92d0d"
+  },
+  "verdict": "enforced"
+}

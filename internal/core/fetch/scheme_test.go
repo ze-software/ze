@@ -64,16 +64,16 @@ func TestFetchSHA256(t *testing.T) {
 	}
 }
 
-// VALIDATES: AC-10, AC-11: http and https resolve through the one table, any
+// VALIDATES: AC-10, AC-11: http, https and tftp resolve through the one table, any
 // other scheme is refused naming it and the supported list, and a source
 // without "<scheme>://" is a local path.
 // PREVENTS: a second scheme list drifting from the table, or a local path
 // with "://" inside it read as a URL.
 func TestFetchSchemeTable(t *testing.T) {
-	if got := strings.Join(Schemes(), ","); got != "http,https" {
-		t.Fatalf("Schemes() = %s, want http,https", got)
+	if got := strings.Join(Schemes(), ","); got != "http,https,tftp" {
+		t.Fatalf("Schemes() = %s, want http,https,tftp", got)
 	}
-	for _, source := range []string{"http://host/x.zefs", "https://host/x.zefs", "HTTPS://host/x.zefs"} {
+	for _, source := range []string{"http://host/x.zefs", "https://host/x.zefs", "HTTPS://host/x.zefs", "tftp://host/x.zefs"} {
 		if !IsRemote(source) {
 			t.Fatalf("IsRemote(%q) = false", source)
 		}
@@ -87,7 +87,7 @@ func TestFetchSchemeTable(t *testing.T) {
 		}
 	}
 	_, err := Resolve("ftp://host/x.zefs")
-	if err == nil || !strings.Contains(err.Error(), `"ftp"`) || !strings.Contains(err.Error(), "http, https") {
+	if err == nil || !strings.Contains(err.Error(), `"ftp"`) || !strings.Contains(err.Error(), "http, https, tftp") {
 		t.Fatalf("ftp not refused naming the scheme and the list: %v", err)
 	}
 }

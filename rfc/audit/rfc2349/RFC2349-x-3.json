@@ -1,11 +1,15 @@
 {
-  "note": "Forbidden (server half): an OACK whose tsize is not the file size in octets, e.g. echoing the client's \"0\" or a constant. TestRFC2349TsizeRRQReturnsActualSize asserts opts[\"tsize\"] == \"7\" for a 7-octet file and == \"20\" (and != \"0\") for a 20-octet file, red on echo, constant, or wrong size. The first clause (the client specifies \"0\" in the request) binds a TFTP client, which Ze does not ship (read-only server). Both polarities.",
+  "note": "Both clauses now in Ze's roles. Client: TestRFC2349ClientTsize compares the whole RRQ byte for byte against '\\x00\\x01f.bin\\x00octet\\x00blksize\\x001468\\x00tsize\\x000\\x00windowsize\\x004\\x00', red on any tsize value other than \"0\" or a missing tsize; its negative refuses a non-octet size '12k' with ERROR 8. Server: TestRFC2349TsizeRRQReturnsActualSize (unchanged) pins tsize 7 and 20 for 7- and 20-octet files, red on echo of \"0\" or a constant.",
   "requirement_sha": "5c9bdf8331108b89",
   "tests": {
+    "internal/core/fetch/rfc2349_client_test.go::TestRFC2349ClientTsize": "fa740648197bdd35",
+    "internal/core/fetch/rfc2349_client_test.go::TestRFC2349ClientTsize#2": "fa740648197bdd35",
     "internal/plugins/tftpserver/rfc2349_tsize_test.go::TestRFC2349TsizeRRQReturnsActualSize": "dd5a1a367dcb4a76",
     "internal/plugins/tftpserver/rfc2349_tsize_test.go::TestRFC2349TsizeRRQReturnsActualSize#2": "dd5a1a367dcb4a76"
   },
   "units": {
+    "internal/core/fetch/rfc2349_client_test.go::TestRFC2349ClientTsize": "369b79c8ecda0cfc",
+    "internal/core/fetch/rfc2349_client_test.go::TestRFC2349ClientTsize#2": "369b79c8ecda0cfc",
     "internal/plugins/tftpserver/rfc2349_tsize_test.go::TestRFC2349TsizeRRQReturnsActualSize": "00c0327394fa188a",
     "internal/plugins/tftpserver/rfc2349_tsize_test.go::TestRFC2349TsizeRRQReturnsActualSize#2": "00c0327394fa188a"
   },

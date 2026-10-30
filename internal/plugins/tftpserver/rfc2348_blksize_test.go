@@ -8,12 +8,14 @@ package tftpserver
 import (
 	"strconv"
 	"testing"
+
+	"github.com/ze-software/ze/internal/core/tftp"
 )
 
 // RFC requirement: RFC2348-x-1 positive -- the server's acknowledged blksize is <=
 // the client's requested value: a request for 1200 (within Ze's cap) is acknowledged
 // as 1200 (RFC 2348; producer handleRRQ negotiatedBlksize = min(opts.blksize,
-// blksizeEthernet), internal/plugins/tftpserver/handler.go).
+// tftp.BlksizeEthernet), internal/plugins/tftpserver/handler.go).
 // RFC requirement: RFC2348-x-1 negative -- the acknowledged blksize NEVER exceeds the
 // request: a request for 60000 (above Ze's 1468 cap) is acknowledged as 1468, still
 // <= 60000, so Ze never returns a larger blocksize than asked.
@@ -46,15 +48,15 @@ func TestRFC2348BlksizeAckNotAboveRequest(t *testing.T) {
 		if acked > 60000 {
 			t.Errorf("acked blksize %d exceeds the requested 60000", acked)
 		}
-		if acked != blksizeEthernet {
-			t.Errorf("acked blksize %d, want Ze's cap %d for a request above it", acked, blksizeEthernet)
+		if acked != tftp.BlksizeEthernet {
+			t.Errorf("acked blksize %d, want Ze's cap %d for a request above it", acked, tftp.BlksizeEthernet)
 		}
 	})
 }
 
 // RFC requirement: RFC2348-x-3 positive -- a blksize within the valid range 8..65464
 // is accepted and acknowledged: 512 is acknowledged in the OACK (RFC 2348; producer
-// parseRRQ n >= blksizeMin && n <= blksizeMax, handler.go:122-125).
+// parseRRQ n >= tftp.BlksizeMin && n <= tftp.BlksizeMax, handler.go:122-125).
 // RFC requirement: RFC2348-x-3 negative -- a blksize OUTSIDE 8..65464 is rejected: a
 // too-small (5) or too-large (70000) value is ignored and does NOT appear in the OACK
 // (the tsize option, requested alongside it, is still acknowledged), so the transfer

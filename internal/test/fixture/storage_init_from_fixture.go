@@ -128,7 +128,17 @@ func storageInitFromURL(ctx context.Context, _ []string) error {
 
 	sum := sha256.Sum256(blob)
 	source := server.URL + "/install/database.zefs"
-	if _, err := storageRequireCommand(ctx, "", argInit, flagFrom, source, "--sha256", textbuf.StringHex(sum[:])); err != nil {
+	if err := storageInitFromRemote(ctx, source, textbuf.StringHex(sum[:]), values); err != nil {
+		return err
+	}
+	return storageInitFromOK("init-from-url")
+}
+
+// storageInitFromRemote runs `ze init --from source --sha256 digest` and
+// proves the import: no fetched copy is left, the tree holds every value, and
+// `ze start` runs on it. The http and tftp scenarios share it.
+func storageInitFromRemote(ctx context.Context, source, digest string, values map[string][]byte) error {
+	if _, err := storageRequireCommand(ctx, "", argInit, flagFrom, source, "--sha256", digest); err != nil {
 		return err
 	}
 	if err := storageInitFromLeftovers(); err != nil {
@@ -150,10 +160,7 @@ func storageInitFromURL(ctx context.Context, _ []string) error {
 	if err := tree.Close(); err != nil {
 		return err
 	}
-	if err := storageInitFromStart(ctx); err != nil {
-		return err
-	}
-	return storageInitFromOK("init-from-url")
+	return storageInitFromStart(ctx)
 }
 
 // storageInitFromRefused proves every refusal imports nothing and leaves no
@@ -172,7 +179,7 @@ func storageInitFromRefused(ctx context.Context, _ []string) error {
 		args []string
 		want string
 	}{
-		{[]string{argInit, flagFrom, "ftp://127.0.0.1/database.zefs"}, `unsupported scheme "ftp": supported http, https`},
+		{[]string{argInit, flagFrom, "ftp://127.0.0.1/database.zefs"}, `unsupported scheme "ftp": supported http, https, tftp`},
 		{[]string{argInit, flagFrom, server.URL + "/blob", "--sha256", strings.Repeat("0", 64)}, "sha256 mismatch"},
 		{[]string{argInit, flagFrom, server.URL + "/junk"}, "invalid magic"},
 	}

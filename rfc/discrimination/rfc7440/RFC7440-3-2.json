@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7440-3-2",
+    "polarity": "positive",
+    "unit": "internal/core/fetch/rfc7440_client_test.go::TestRFC7440ClientWindowsize",
+    "unit-sha": "321db0163348ac5a",
+    "claim-sha": "01491c1104872eab",
+    "route": "revert",
+    "producer": "internal/core/tftp/oack.go::grantWindowsize",
+    "producer-sha": "a7c72058b5956677",
+    "break": "body of grantWindowsize replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7440-3-2",
+    "polarity": "negative",
+    "unit": "internal/core/fetch/rfc7440_client_test.go::TestRFC7440ClientWindowsize",
+    "unit-sha": "321db0163348ac5a",
+    "claim-sha": "1503ecdb179710c6",
+    "route": "revert",
+    "producer": "internal/core/tftp/oack.go::grantWindowsize",
+    "producer-sha": "a7c72058b5956677",
+    "break": "body of grantWindowsize replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

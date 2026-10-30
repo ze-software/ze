@@ -1,13 +1,13 @@
 {
-  "note": "Re-judged 2026-09-30: the units changed only by dropping the retired RFC1350-5-2 tag comments; every assertion is unchanged. Forbidden: a non-final DATA block that is not 512 bytes. TestTFTPReadExact512 asserts block 1 of a 512-byte file carries exactly 512 bytes (n-4 != 512 fails) and that the transfer continues to block 2; TestTFTPReadLargeFile asserts three blocks for 1500 bytes. Single-polarity marker: ze is the sender and no input changes its framing.",
+  "note": "Re-judged 2026-10-30 by an independent auditor: the handler_test units changed only by identifier renames to internal/core/tftp (opX->tftp.OpX, errX->tftp.CodeX, defaultBlockSize->tftp.DefaultBlockSize), constant values identical, assertions unchanged. Sender-only row (Ze's client never sends DATA). TestTFTPReadExact512 requires block 1 of a 512-byte file to carry exactly 512 bytes and the transfer to continue; TestTFTPReadLargeFile requires three blocks for 1500 bytes. Single-polarity marker holds.",
   "requirement_sha": "177ec2d28dc9434d",
   "tests": {
-    "internal/plugins/tftpserver/handler_test.go::TestTFTPReadExact512": "0809d9c9f8739da3",
-    "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile": "0809d9c9f8739da3"
+    "internal/plugins/tftpserver/handler_test.go::TestTFTPReadExact512": "de0c0b43a90165f3",
+    "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile": "de0c0b43a90165f3"
   },
   "units": {
     "internal/plugins/tftpserver/handler_test.go::TestTFTPReadExact512": "98ffa756092d4fbe",
-    "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile": "240d5ea9ba163958"
+    "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile": "9d857233194f5ab8"
   },
   "verdict": "enforced"
 }

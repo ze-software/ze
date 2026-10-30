@@ -7,8 +7,8 @@
     "claim-sha": "2ebd64e76612c04b",
     "route": "revert",
     "producer": "internal/plugins/tftpserver/handler.go::sendOACKAndWait",
-    "producer-sha": "c57ca9490619cabf",
-    "break": "body of sendOACKAndWait replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "ec921933d21c9300",
+    "break": "body of sendOACKAndWait replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2347-x-1",
@@ -18,7 +18,7 @@
     "claim-sha": "8c27ae5d8f30b1cf",
     "route": "revert",
     "producer": "internal/plugins/tftpserver/handler.go::handleRRQ",
-    "producer-sha": "cddf22c402fd4ea2",
+    "producer-sha": "235d333f3c69abf1",
     "break": "body of handleRRQ replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -29,8 +29,8 @@
     "claim-sha": "837f3ae2464038a3",
     "route": "revert",
     "producer": "internal/plugins/tftpserver/handler.go::sendOACKAndWait",
-    "producer-sha": "c57ca9490619cabf",
-    "break": "body of sendOACKAndWait replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "ec921933d21c9300",
+    "break": "body of sendOACKAndWait replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2347-x-1",
@@ -40,7 +40,7 @@
     "claim-sha": "dd4cf1f5c4ee2ac9",
     "route": "revert",
     "producer": "internal/plugins/tftpserver/handler.go::handleRRQ",
-    "producer-sha": "cddf22c402fd4ea2",
+    "producer-sha": "235d333f3c69abf1",
     "break": "body of handleRRQ replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

@@ -8,6 +8,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/taskguard"
+	"github.com/ze-software/ze/internal/core/tftp"
 )
 
 // taskRequest is the task label of a listener's request task in
@@ -48,7 +49,7 @@ var (
 // error is signalled by sending an error packet."
 //
 //nolint:misspell // `signalled` is RFC 1350's spelling, and an RFC quote stays byte-exact
-var panicError = buildError(errNotDefined, panicMessage)
+var panicError = tftp.BuildError(tftp.CodeNotDefined, panicMessage)
 
 // signalPanic sends the panic's ERROR packet on conn, to target when conn is
 // unconnected. The packet is not retransmitted, as RFC 1350 Section 2 allows,

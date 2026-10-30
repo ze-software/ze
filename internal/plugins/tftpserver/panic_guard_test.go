@@ -15,6 +15,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/crashlog"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/core/tftp"
 )
 
 // TestTFTPRequestPanicContained proves a listener's request task contains a Ze
@@ -50,17 +51,17 @@ func TestTFTPRequestPanicContained(t *testing.T) {
 	if _, err := client.WriteToUDP(buildRRQPacket("ipxe.efi", "octet"), server); err != nil {
 		t.Fatalf("send the RRQ that panics: %v", err)
 	}
-	if code := readErrorCode(t, client); code != errNotDefined {
-		t.Fatalf("the panicked request was answered with ERROR code %d, want %d", code, errNotDefined)
+	if code := readErrorCode(t, client); code != tftp.CodeNotDefined {
+		t.Fatalf("the panicked request was answered with ERROR code %d, want %d", code, tftp.CodeNotDefined)
 	}
 
-	wrq := binary.BigEndian.AppendUint16(nil, opWRQ)
+	wrq := binary.BigEndian.AppendUint16(nil, tftp.OpWRQ)
 	wrq = append(wrq, "upload\x00octet\x00"...)
 	if _, err := client.WriteToUDP(wrq, server); err != nil {
 		t.Fatalf("send the WRQ after the panic: %v", err)
 	}
-	if code := readErrorCode(t, client); code != errIllegalOp {
-		t.Fatalf("the WRQ after the panic was answered with ERROR code %d, want %d: the listener did not carry on", code, errIllegalOp)
+	if code := readErrorCode(t, client); code != tftp.CodeIllegalOperation {
+		t.Fatalf("the WRQ after the panic was answered with ERROR code %d, want %d: the listener did not carry on", code, tftp.CodeIllegalOperation)
 	}
 
 	if count, _ := tftpGuard.Panics(taskRequest); count != before+1 {
@@ -74,7 +75,7 @@ func TestTFTPRequestPanicContained(t *testing.T) {
 // on the transfer's socket, the transfer's slot and socket are released, the
 // next transfer completes, and the panic is counted and crash-recorded.
 // METHOD: runTransfer is handed a negative block size, a state only a defect
-// produces since handleRRQ clamps it to [blksizeMin, blksizeEthernet];
+// produces since handleRRQ clamps it to [tftp.BlksizeMin, tftp.BlksizeEthernet];
 // serveFile's buffer allocation panics on it. The semaphore holds one slot,
 // so a read request served through the listener afterwards proves the
 // panicked transfer gave its slot back.
@@ -99,8 +100,8 @@ func TestTFTPTransferPanicContained(t *testing.T) {
 	sem <- struct{}{} // the slot handleRRQ takes before it starts a transfer
 	defective := &transfer{clientAddr: clientAddr, path: filepath.Join(root, "ipxe.efi"), blksize: -1}
 	runTransfer(generation, defective, sem, slogutil.DiscardLogger())
-	if code := readErrorCode(t, client); code != errNotDefined {
-		t.Fatalf("the panicked transfer was answered with ERROR code %d, want %d", code, errNotDefined)
+	if code := readErrorCode(t, client); code != tftp.CodeNotDefined {
+		t.Fatalf("the panicked transfer was answered with ERROR code %d, want %d", code, tftp.CodeNotDefined)
 	}
 	if held := len(generation.transfers); held != 0 {
 		t.Fatalf("the panicked transfer left %d socket(s) in its generation", held)
@@ -127,7 +128,7 @@ func TestTFTPTransferPanicContained(t *testing.T) {
 	if err != nil {
 		t.Fatalf("no answer to the RRQ after the panic: %v", err)
 	}
-	if op := binary.BigEndian.Uint16(reply[:2]); op != opDATA || string(reply[4:n]) != "boot" {
+	if op := binary.BigEndian.Uint16(reply[:2]); op != tftp.OpDATA || string(reply[4:n]) != "boot" {
 		t.Fatalf("the RRQ after the panic got opcode %d %q, want DATA \"boot\": the slot was not released", op, reply[4:n])
 	}
 
@@ -163,7 +164,7 @@ func readErrorCode(t *testing.T, conn *net.UDPConn) uint16 {
 	if err != nil {
 		t.Fatalf("no ERROR packet: %v", err)
 	}
-	if n < 4 || binary.BigEndian.Uint16(buf[:2]) != opERROR {
+	if n < 4 || binary.BigEndian.Uint16(buf[:2]) != tftp.OpERROR {
 		t.Fatalf("got %x, want an ERROR packet", buf[:n])
 	}
 	return binary.BigEndian.Uint16(buf[2:4])

@@ -29,8 +29,34 @@ request: the SHA-256 is optional, so a redirect to another host is the one way
 a fetch would take bytes from a server the operator never named. A file fetch
 is written 0600 and bounded at 1 GiB. A stalled stream fails after 60 seconds
 with no data: a timer closes the response body, which ends the blocked read.
-<!-- source: internal/core/fetch/fetch.go -- ToFile, ToDisk, sameOrigin, stallReader -->
+<!-- source: internal/core/fetch/fetch.go -- ToFile, fileFetch, ToDisk, sameOrigin, stallReader -->
 <!-- source: internal/core/fetch/scheme.go -- the scheme table ze init --from resolves -->
+
+**`ze init --from` also reads `tftp://host[:port]/file`.** The tftp scheme is
+Ze's own read-only TFTP client. It shares the http path's retry, 1 GiB bound,
+0600 mode and SHA-256 check (`fileFetch`), and TFTP authenticates nothing, so the
+digest is the only check that the bytes are the operator's. The client binds a
+fresh UDP port (its TID, RFC 1350 Section 4) and sends one read request in octet
+mode asking for blksize 1468, tsize 0 and windowsize 4 (RFC 2347, 2348, 2349,
+7440), a small fixed window as RFC 7440 Section 5 advises. It takes the
+server's port from the first answer and refuses DATA from any other port with
+ERROR 5. An OACK is checked before anything is acknowledged: an option the
+client did not request, an option named twice, a value that is not a decimal
+number, a blksize outside 8 to the requested size or a windowsize outside 1 to
+the requested size draws ERROR 8 and ends the attempt, and a tsize above the
+1 GiB bound draws ERROR 3. A valid OACK is confirmed with ACK 0. A DATA answer
+means no option was acknowledged, so the transfer is RFC 1350 lockstep with
+512-octet blocks. The client acknowledges the last block of each window, answers
+a gap once with the ACK of the last block received in order, sends that ACK
+again after each 5-second timeout up to three times, ends on a block shorter
+than the negotiated size, and dallies one timeout to acknowledge a resent final
+block. Block numbers wrap from 65535 to 0, as Ze's server sends them. The wire
+facts the client and Ze's TFTP server share (opcodes, error codes, option names
+and ranges, the request, ACK and ERROR encoders and the OACK check) live once in
+`internal/core/tftp`.
+<!-- source: internal/core/fetch/tftp.go -- tftpToFile, parseTFTPURL, tftpTransfer.run, tftpTransfer.settle, tftpTransfer.data, tftpTransfer.accept, tftpTransfer.dally -->
+<!-- source: internal/core/tftp/oack.go -- ParseOACK -->
+<!-- source: internal/core/tftp/request.go -- BuildRRQ, WriteACK -->
 
 ## What this work exists to prevent
 

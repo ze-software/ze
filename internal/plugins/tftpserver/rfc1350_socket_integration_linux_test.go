@@ -34,6 +34,7 @@ import (
 	"github.com/vishvananda/netlink"
 
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/core/tftp"
 	"github.com/ze-software/ze/internal/test/userns"
 )
 
@@ -54,7 +55,7 @@ func makeTestFile(t *testing.T, dir, name string, n int) []byte {
 // buildRRQ encodes an RFC 1350 read request for filename in octet mode.
 func buildRRQ(filename string) []byte {
 	pkt := make([]byte, 0, 2+len(filename)+1+5+1)
-	pkt = binary.BigEndian.AppendUint16(pkt, opRRQ)
+	pkt = binary.BigEndian.AppendUint16(pkt, tftp.OpRRQ)
 	pkt = append(pkt, filename...)
 	pkt = append(pkt, 0)
 	pkt = append(pkt, "octet"...)
@@ -82,7 +83,7 @@ func tftpFetch(t *testing.T, srvAddr *net.UDPAddr, filename string) ([]byte, err
 	var out bytes.Buffer
 	var tid *net.UDPAddr
 	expect := uint16(1)
-	buf := make([]byte, 4+defaultBlockSize)
+	buf := make([]byte, 4+tftp.DefaultBlockSize)
 
 	for {
 		if err := cli.SetReadDeadline(time.Now().Add(3 * time.Second)); err != nil {
@@ -96,10 +97,10 @@ func tftpFetch(t *testing.T, srvAddr *net.UDPAddr, filename string) ([]byte, err
 			continue
 		}
 		op := binary.BigEndian.Uint16(buf[0:2])
-		if op == opERROR {
+		if op == tftp.OpERROR {
 			return nil, errors.New("server returned TFTP error")
 		}
-		if op != opDATA {
+		if op != tftp.OpDATA {
 			continue
 		}
 		block := binary.BigEndian.Uint16(buf[2:4])
@@ -119,13 +120,13 @@ func tftpFetch(t *testing.T, srvAddr *net.UDPAddr, filename string) ([]byte, err
 
 		// ACK to the transfer TID.
 		ack := make([]byte, 4)
-		binary.BigEndian.PutUint16(ack[0:2], opACK)
+		binary.BigEndian.PutUint16(ack[0:2], tftp.OpACK)
 		binary.BigEndian.PutUint16(ack[2:4], block)
 		if _, err := cli.WriteToUDP(ack, tid); err != nil {
 			t.Fatalf("send ACK: %v", err)
 		}
 
-		if n-4 < defaultBlockSize {
+		if n-4 < tftp.DefaultBlockSize {
 			return out.Bytes(), nil // final (short) block
 		}
 		expect++

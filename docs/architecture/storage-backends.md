@@ -62,7 +62,7 @@ refused open leaves no lock file behind.
 <!-- source: internal/component/config/storage/open.go -- Open, OpenReadOnly, detect, openLive, lockOwner, populateOwned -->
 
 `ze init --from <source>` imports a blob through `ImportBlob`. A local path is
-read in place. An `http` or `https` source is fetched first by the shared
+read in place. An `http`, `https` or `tftp` source is fetched first by the shared
 helper (`internal/core/fetch`) into a `database.fetch-*` folder beside the
 store, checked against `--sha256 <hex>` when given, then imported; the folder,
 with the fetched copy and its retired name, is removed afterwards. It stays only

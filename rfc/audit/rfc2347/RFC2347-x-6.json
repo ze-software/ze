@@ -1,0 +1,13 @@
+{
+  "note": "TestRFC2347ClientRejectsUnrequestedOption: an OACK carrying unrequested 'timeout' (and one naming blksize twice) must draw ERROR with code exactly 8 as the client's first packet, then silence, and the fetch must fail; a client that ACKs or sends another code goes red (grant() default branch, ParseOACK seenOptions). Negative: requested options in mixed case draw ACK 0 and the file 'abc', so the refusal is not blanket.",
+  "requirement_sha": "6be3ee52a757f11e",
+  "tests": {
+    "internal/core/fetch/rfc2347_client_test.go::TestRFC2347ClientRejectsUnrequestedOption": "8b33e89eba159f87",
+    "internal/core/fetch/rfc2347_client_test.go::TestRFC2347ClientRejectsUnrequestedOption#2": "8b33e89eba159f87"
+  },
+  "units": {
+    "internal/core/fetch/rfc2347_client_test.go::TestRFC2347ClientRejectsUnrequestedOption": "4fa87617bf85da16",
+    "internal/core/fetch/rfc2347_client_test.go::TestRFC2347ClientRejectsUnrequestedOption#2": "4fa87617bf85da16"
+  },
+  "verdict": "enforced"
+}

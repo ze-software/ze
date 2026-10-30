@@ -16,6 +16,8 @@ import (
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/ze-software/ze/internal/core/tftp"
 )
 
 // quietWindow is how long a test waits to prove that the server sends nothing.
@@ -132,7 +134,7 @@ func requireData(t *testing.T, pkt []byte, block uint16) {
 	if len(pkt) < 4 {
 		t.Fatalf("datagram of %d octets, want DATA block %d", len(pkt), block)
 	}
-	if op := binary.BigEndian.Uint16(pkt[0:2]); op != opDATA {
+	if op := binary.BigEndian.Uint16(pkt[0:2]); op != tftp.OpDATA {
 		t.Fatalf("opcode %d, want DATA block %d", op, block)
 	}
 	if got := binary.BigEndian.Uint16(pkt[2:4]); got != block {

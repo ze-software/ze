@@ -1,13 +1,17 @@
 {
-  "note": "TestRFC1350DataFieldLengthEndsTheTransfer reads into a 64 KiB buffer so an oversize field is seen whole (fails >512); for 1500/1024/0-octet files a 512 block must be followed by the next block (expectData fails otherwise), the transfer must end on the first 0..511 block with expectSilence for 1 s after its ACK (red on DATA after the end), and the reassembled bytes equal the file (red on a short non-final block, which would end the loop early). All three clauses asserted; single-polarity marker holds (Ze is the sender).",
+  "note": "Receiver half now tagged with both polarities. TestRFC1350ClientDataLengthEndsTheTransfer, no option acknowledged: a 511-octet block, an empty block after 512, and an empty first block must each end the file. A block sent after the end draws nothing for 300 ms and is not written, so the file must be exact. A 512-octet block must draw its ACK and the next block. Sender half unchanged: TestRFC1350DataFieldLengthEndsTheTransfer and the renamed-only handler_test units.",
   "requirement_sha": "e9541f5c732b1360",
   "tests": {
-    "internal/plugins/tftpserver/handler_test.go::TestTFTPReadEmptyFile": "0809d9c9f8739da3",
-    "internal/plugins/tftpserver/handler_test.go::TestTFTPReadExact512": "0809d9c9f8739da3",
-    "internal/plugins/tftpserver/rfc1350_transfer_test.go::TestRFC1350DataFieldLengthEndsTheTransfer": "60a1b8ea3f073355"
+    "internal/core/fetch/rfc1350_client_test.go::TestRFC1350ClientDataLengthEndsTheTransfer": "f99149d1d6e6ec30",
+    "internal/core/fetch/rfc1350_client_test.go::TestRFC1350ClientDataLengthEndsTheTransfer#2": "f99149d1d6e6ec30",
+    "internal/plugins/tftpserver/handler_test.go::TestTFTPReadEmptyFile": "de0c0b43a90165f3",
+    "internal/plugins/tftpserver/handler_test.go::TestTFTPReadExact512": "de0c0b43a90165f3",
+    "internal/plugins/tftpserver/rfc1350_transfer_test.go::TestRFC1350DataFieldLengthEndsTheTransfer": "d286e01d267db4e3"
   },
   "units": {
-    "internal/plugins/tftpserver/handler_test.go::TestTFTPReadEmptyFile": "80b8428baab910b6",
+    "internal/core/fetch/rfc1350_client_test.go::TestRFC1350ClientDataLengthEndsTheTransfer": "a780ec23c142b6cc",
+    "internal/core/fetch/rfc1350_client_test.go::TestRFC1350ClientDataLengthEndsTheTransfer#2": "a780ec23c142b6cc",
+    "internal/plugins/tftpserver/handler_test.go::TestTFTPReadEmptyFile": "db04908cd4392cef",
     "internal/plugins/tftpserver/handler_test.go::TestTFTPReadExact512": "98ffa756092d4fbe",
     "internal/plugins/tftpserver/rfc1350_transfer_test.go::TestRFC1350DataFieldLengthEndsTheTransfer": "286bc3fb69d14cd9"
   },

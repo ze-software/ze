@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/core/tftp"
 )
 
 func closeUDP(t *testing.T, c *net.UDPConn) {
@@ -105,7 +106,7 @@ func TestTFTPParseRRQ(t *testing.T) {
 	t.Parallel()
 
 	pkt := make([]byte, 0, 30)
-	pkt = binary.BigEndian.AppendUint16(pkt, opRRQ)
+	pkt = binary.BigEndian.AppendUint16(pkt, tftp.OpRRQ)
 	pkt = append(pkt, "bootloader.bin"...)
 	pkt = append(pkt, 0)
 	pkt = append(pkt, "octet"...)
@@ -138,13 +139,13 @@ func TestTFTPParseRRQInvalid(t *testing.T) {
 		{"too short", []byte{0, 1, 'a'}},
 		{"no filename NUL", func() []byte {
 			p := make([]byte, 0, 10)
-			p = binary.BigEndian.AppendUint16(p, opRRQ)
+			p = binary.BigEndian.AppendUint16(p, tftp.OpRRQ)
 			p = append(p, "abcd"...)
 			return p
 		}()},
 		{"empty filename", func() []byte {
 			p := make([]byte, 0, 10)
-			p = binary.BigEndian.AppendUint16(p, opRRQ)
+			p = binary.BigEndian.AppendUint16(p, tftp.OpRRQ)
 			p = append(p, 0)
 			p = append(p, "octet"...)
 			p = append(p, 0)
@@ -152,7 +153,7 @@ func TestTFTPParseRRQInvalid(t *testing.T) {
 		}()},
 		{"no mode NUL", func() []byte {
 			p := make([]byte, 0, 20)
-			p = binary.BigEndian.AppendUint16(p, opRRQ)
+			p = binary.BigEndian.AppendUint16(p, tftp.OpRRQ)
 			p = append(p, "file"...)
 			p = append(p, 0)
 			p = append(p, "octet"...)
@@ -160,7 +161,7 @@ func TestTFTPParseRRQInvalid(t *testing.T) {
 		}()},
 		{"empty mode", func() []byte {
 			p := make([]byte, 0, 10)
-			p = binary.BigEndian.AppendUint16(p, opRRQ)
+			p = binary.BigEndian.AppendUint16(p, tftp.OpRRQ)
 			p = append(p, "file"...)
 			p = append(p, 0, 0)
 			return p
@@ -187,8 +188,8 @@ func TestTFTPBuildDataPacket(t *testing.T) {
 	if len(pkt) != 4+len(data) {
 		t.Fatalf("packet length = %d, want %d", len(pkt), 4+len(data))
 	}
-	if binary.BigEndian.Uint16(pkt[0:2]) != opDATA {
-		t.Errorf("opcode = %d, want %d", binary.BigEndian.Uint16(pkt[0:2]), opDATA)
+	if binary.BigEndian.Uint16(pkt[0:2]) != tftp.OpDATA {
+		t.Errorf("opcode = %d, want %d", binary.BigEndian.Uint16(pkt[0:2]), tftp.OpDATA)
 	}
 	if binary.BigEndian.Uint16(pkt[2:4]) != 1 {
 		t.Errorf("block = %d, want 1", binary.BigEndian.Uint16(pkt[2:4]))
@@ -201,13 +202,13 @@ func TestTFTPBuildDataPacket(t *testing.T) {
 func TestTFTPBuildErrorPacket(t *testing.T) {
 	t.Parallel()
 
-	pkt := buildError(errFileNotFound, "file not found")
+	pkt := tftp.BuildError(tftp.CodeFileNotFound, "file not found")
 
-	if binary.BigEndian.Uint16(pkt[0:2]) != opERROR {
-		t.Errorf("opcode = %d, want %d", binary.BigEndian.Uint16(pkt[0:2]), opERROR)
+	if binary.BigEndian.Uint16(pkt[0:2]) != tftp.OpERROR {
+		t.Errorf("opcode = %d, want %d", binary.BigEndian.Uint16(pkt[0:2]), tftp.OpERROR)
 	}
-	if binary.BigEndian.Uint16(pkt[2:4]) != errFileNotFound {
-		t.Errorf("error code = %d, want %d", binary.BigEndian.Uint16(pkt[2:4]), errFileNotFound)
+	if binary.BigEndian.Uint16(pkt[2:4]) != tftp.CodeFileNotFound {
+		t.Errorf("error code = %d, want %d", binary.BigEndian.Uint16(pkt[2:4]), tftp.CodeFileNotFound)
 	}
 	msg := string(pkt[4 : len(pkt)-1])
 	if msg != "file not found" {
@@ -274,7 +275,7 @@ func TestTFTPSymlinkTraversal(t *testing.T) {
 
 func buildRRQPacket(filename, mode string) []byte {
 	pkt := make([]byte, 0, 2+len(filename)+1+len(mode)+1)
-	pkt = binary.BigEndian.AppendUint16(pkt, opRRQ)
+	pkt = binary.BigEndian.AppendUint16(pkt, tftp.OpRRQ)
 	pkt = append(pkt, filename...)
 	pkt = append(pkt, 0)
 	pkt = append(pkt, mode...)
@@ -293,7 +294,7 @@ func buildRRQPacketWithOptions(filename string, opts ...string) []byte {
 
 func buildWRQPacket(filename, mode string) []byte {
 	pkt := make([]byte, 0, 2+len(filename)+1+len(mode)+1)
-	pkt = binary.BigEndian.AppendUint16(pkt, opWRQ)
+	pkt = binary.BigEndian.AppendUint16(pkt, tftp.OpWRQ)
 	pkt = append(pkt, filename...)
 	pkt = append(pkt, 0)
 	pkt = append(pkt, mode...)
@@ -303,7 +304,7 @@ func buildWRQPacket(filename, mode string) []byte {
 
 func buildACKPacket(block uint16) []byte {
 	pkt := make([]byte, 4)
-	binary.BigEndian.PutUint16(pkt[0:2], opACK)
+	binary.BigEndian.PutUint16(pkt[0:2], tftp.OpACK)
 	binary.BigEndian.PutUint16(pkt[2:4], block)
 	return pkt
 }
@@ -366,8 +367,8 @@ func TestTFTPReadRequest(t *testing.T) {
 	if n < 4 {
 		t.Fatalf("response too short: %d bytes", n)
 	}
-	if binary.BigEndian.Uint16(buf[0:2]) != opDATA {
-		t.Fatalf("opcode = %d, want %d (DATA)", binary.BigEndian.Uint16(buf[0:2]), opDATA)
+	if binary.BigEndian.Uint16(buf[0:2]) != tftp.OpDATA {
+		t.Fatalf("opcode = %d, want %d (DATA)", binary.BigEndian.Uint16(buf[0:2]), tftp.OpDATA)
 	}
 	if binary.BigEndian.Uint16(buf[2:4]) != 1 {
 		t.Fatalf("block = %d, want 1", binary.BigEndian.Uint16(buf[2:4]))
@@ -430,7 +431,7 @@ func TestTFTPReadLargeFile(t *testing.T) {
 			t.Fatalf("block %d: no DATA: %v", block, readErr)
 		}
 
-		if binary.BigEndian.Uint16(buf[0:2]) != opDATA {
+		if binary.BigEndian.Uint16(buf[0:2]) != tftp.OpDATA {
 			t.Fatalf("block %d: opcode = %d, want DATA", block, binary.BigEndian.Uint16(buf[0:2]))
 		}
 		gotBlock := binary.BigEndian.Uint16(buf[2:4])
@@ -561,7 +562,7 @@ func TestTFTPReadEmptyFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("no DATA: %v", err)
 	}
-	if binary.BigEndian.Uint16(buf[0:2]) != opDATA {
+	if binary.BigEndian.Uint16(buf[0:2]) != tftp.OpDATA {
 		t.Fatalf("opcode = %d, want DATA", binary.BigEndian.Uint16(buf[0:2]))
 	}
 	if binary.BigEndian.Uint16(buf[2:4]) != 1 {
@@ -597,11 +598,11 @@ func TestTFTPWriteRejected(t *testing.T) {
 	if err != nil {
 		t.Fatalf("no ERROR response: %v", err)
 	}
-	if binary.BigEndian.Uint16(buf[0:2]) != opERROR {
+	if binary.BigEndian.Uint16(buf[0:2]) != tftp.OpERROR {
 		t.Fatalf("opcode = %d, want ERROR", binary.BigEndian.Uint16(buf[0:2]))
 	}
-	if binary.BigEndian.Uint16(buf[2:4]) != errIllegalOp {
-		t.Errorf("error code = %d, want %d (illegal operation)", binary.BigEndian.Uint16(buf[2:4]), errIllegalOp)
+	if binary.BigEndian.Uint16(buf[2:4]) != tftp.CodeIllegalOperation {
+		t.Errorf("error code = %d, want %d (illegal operation)", binary.BigEndian.Uint16(buf[2:4]), tftp.CodeIllegalOperation)
 	}
 	_ = n
 }
@@ -636,13 +637,13 @@ func TestTFTPFileNotFound(t *testing.T) {
 
 	// Server may send access violation (from handleRRQ path validation)
 	// or file not found (from serveFile). Both are correct.
-	if opcode != opERROR {
+	if opcode != tftp.OpERROR {
 		t.Fatalf("opcode = %d, want ERROR", opcode)
 	}
 	errCode := binary.BigEndian.Uint16(buf[2:4])
-	if errCode != errFileNotFound && errCode != errAccessViolation {
+	if errCode != tftp.CodeFileNotFound && errCode != tftp.CodeAccessViolation {
 		t.Errorf("error code = %d, want file-not-found (%d) or access-violation (%d)",
-			errCode, errFileNotFound, errAccessViolation)
+			errCode, tftp.CodeFileNotFound, tftp.CodeAccessViolation)
 	}
 	_ = n
 }
@@ -677,11 +678,11 @@ func TestTFTPModeHandling(t *testing.T) {
 	if err != nil {
 		t.Fatalf("no ERROR response: %v", err)
 	}
-	if binary.BigEndian.Uint16(buf[0:2]) != opERROR {
+	if binary.BigEndian.Uint16(buf[0:2]) != tftp.OpERROR {
 		t.Fatalf("opcode = %d, want ERROR", binary.BigEndian.Uint16(buf[0:2]))
 	}
-	if binary.BigEndian.Uint16(buf[2:4]) != errIllegalOp {
-		t.Errorf("error code = %d, want %d (illegal operation)", binary.BigEndian.Uint16(buf[2:4]), errIllegalOp)
+	if binary.BigEndian.Uint16(buf[2:4]) != tftp.CodeIllegalOperation {
+		t.Errorf("error code = %d, want %d (illegal operation)", binary.BigEndian.Uint16(buf[2:4]), tftp.CodeIllegalOperation)
 	}
 	_ = n
 }
@@ -691,7 +692,7 @@ func TestTFTPConcurrentLimit(t *testing.T) {
 
 	rootDir := t.TempDir()
 	// Create a file large enough that transfers take time
-	content := make([]byte, 10*defaultBlockSize)
+	content := make([]byte, 10*tftp.DefaultBlockSize)
 	if err := os.WriteFile(filepath.Join(rootDir, "big.bin"), content, 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -743,7 +744,7 @@ func TestTFTPConcurrentLimit(t *testing.T) {
 	if err != nil {
 		t.Fatalf("no response for second transfer: %v", err)
 	}
-	if binary.BigEndian.Uint16(buf[0:2]) != opERROR {
+	if binary.BigEndian.Uint16(buf[0:2]) != tftp.OpERROR {
 		t.Fatalf("expected ERROR for concurrent limit, got opcode %d", binary.BigEndian.Uint16(buf[0:2]))
 	}
 	_ = n
@@ -785,7 +786,7 @@ func TestTFTPRetransmitOnTimeout(t *testing.T) {
 	if err != nil {
 		t.Fatalf("first DATA: %v", err)
 	}
-	if binary.BigEndian.Uint16(buf[0:2]) != opDATA || binary.BigEndian.Uint16(buf[2:4]) != 1 {
+	if binary.BigEndian.Uint16(buf[0:2]) != tftp.OpDATA || binary.BigEndian.Uint16(buf[2:4]) != 1 {
 		t.Fatalf("expected DATA block 1, got opcode=%d block=%d",
 			binary.BigEndian.Uint16(buf[0:2]), binary.BigEndian.Uint16(buf[2:4]))
 	}
@@ -912,8 +913,8 @@ func TestTFTPBuildOACK(t *testing.T) {
 
 	pkt := buildOACK([]string{"blksize", "1468", "tsize", "65536"})
 
-	if binary.BigEndian.Uint16(pkt[0:2]) != opOACK {
-		t.Fatalf("opcode = %d, want %d (OACK)", binary.BigEndian.Uint16(pkt[0:2]), opOACK)
+	if binary.BigEndian.Uint16(pkt[0:2]) != tftp.OpOACK {
+		t.Fatalf("opcode = %d, want %d (OACK)", binary.BigEndian.Uint16(pkt[0:2]), tftp.OpOACK)
 	}
 
 	// Parse the option pairs back out.
@@ -977,8 +978,8 @@ func TestTFTPReadWithOACK(t *testing.T) {
 		t.Fatalf("no OACK response: %v", err)
 	}
 
-	if binary.BigEndian.Uint16(buf[0:2]) != opOACK {
-		t.Fatalf("expected OACK (opcode %d), got opcode %d", opOACK, binary.BigEndian.Uint16(buf[0:2]))
+	if binary.BigEndian.Uint16(buf[0:2]) != tftp.OpOACK {
+		t.Fatalf("expected OACK (opcode %d), got opcode %d", tftp.OpOACK, binary.BigEndian.Uint16(buf[0:2]))
 	}
 
 	// Verify OACK contains tsize with correct file size.
@@ -1005,7 +1006,7 @@ func TestTFTPReadWithOACK(t *testing.T) {
 	if err != nil {
 		t.Fatalf("no DATA after OACK: %v", err)
 	}
-	if binary.BigEndian.Uint16(buf[0:2]) != opDATA {
+	if binary.BigEndian.Uint16(buf[0:2]) != tftp.OpDATA {
 		t.Fatalf("expected DATA, got opcode %d", binary.BigEndian.Uint16(buf[0:2]))
 	}
 	if binary.BigEndian.Uint16(buf[2:4]) != 1 {
@@ -1052,7 +1053,7 @@ func TestTFTPReadLargeFileWithBlksize(t *testing.T) {
 	if err != nil {
 		t.Fatalf("no OACK: %v", err)
 	}
-	if binary.BigEndian.Uint16(buf[0:2]) != opOACK {
+	if binary.BigEndian.Uint16(buf[0:2]) != tftp.OpOACK {
 		t.Fatalf("expected OACK, got opcode %d", binary.BigEndian.Uint16(buf[0:2]))
 	}
 
@@ -1071,7 +1072,7 @@ func TestTFTPReadLargeFileWithBlksize(t *testing.T) {
 		if readErr != nil {
 			t.Fatalf("block %d: %v", block, readErr)
 		}
-		if binary.BigEndian.Uint16(buf[0:2]) != opDATA {
+		if binary.BigEndian.Uint16(buf[0:2]) != tftp.OpDATA {
 			t.Fatalf("block %d: expected DATA, got opcode %d", block, binary.BigEndian.Uint16(buf[0:2]))
 		}
 		if binary.BigEndian.Uint16(buf[2:4]) != block {
@@ -1125,7 +1126,7 @@ func TestTFTPReadExactBlksizeMultiple(t *testing.T) {
 	if err != nil {
 		t.Fatalf("no OACK: %v", err)
 	}
-	if binary.BigEndian.Uint16(buf[0:2]) != opOACK {
+	if binary.BigEndian.Uint16(buf[0:2]) != tftp.OpOACK {
 		t.Fatalf("expected OACK, got opcode %d", binary.BigEndian.Uint16(buf[0:2]))
 	}
 	if _, err := client.WriteToUDP(buildACKPacket(0), senderAddr); err != nil {
@@ -1155,7 +1156,7 @@ func TestTFTPReadExactBlksizeMultiple(t *testing.T) {
 	if err != nil {
 		t.Fatalf("block 2: %v", err)
 	}
-	if binary.BigEndian.Uint16(buf[0:2]) != opDATA {
+	if binary.BigEndian.Uint16(buf[0:2]) != tftp.OpDATA {
 		t.Fatalf("block 2: expected DATA, got opcode %d", binary.BigEndian.Uint16(buf[0:2]))
 	}
 	if binary.BigEndian.Uint16(buf[2:4]) != 2 {
@@ -1199,7 +1200,7 @@ func TestTFTPReadPlainRRQStillWorks(t *testing.T) {
 	}
 
 	// Plain RRQ must get DATA directly (no OACK).
-	if binary.BigEndian.Uint16(buf[0:2]) != opDATA {
+	if binary.BigEndian.Uint16(buf[0:2]) != tftp.OpDATA {
 		t.Fatalf("expected DATA (no OACK for plain RRQ), got opcode %d", binary.BigEndian.Uint16(buf[0:2]))
 	}
 	if binary.BigEndian.Uint16(buf[2:4]) != 1 {
@@ -1244,7 +1245,7 @@ func TestTFTPIOErrorMidTransfer(t *testing.T) {
 	if err != nil {
 		t.Fatalf("block 1: %v", err)
 	}
-	if binary.BigEndian.Uint16(buf[0:2]) != opDATA {
+	if binary.BigEndian.Uint16(buf[0:2]) != tftp.OpDATA {
 		t.Fatalf("expected DATA, got opcode %d", binary.BigEndian.Uint16(buf[0:2]))
 	}
 
@@ -1269,14 +1270,14 @@ func TestTFTPIOErrorMidTransfer(t *testing.T) {
 
 	opcode := binary.BigEndian.Uint16(buf[0:2])
 	// Either an ERROR packet (read error) or a short DATA block (file truncated
-	// between reads, Read returns 0 bytes which is < defaultBlockSize, ending transfer)
+	// between reads, Read returns 0 bytes which is < tftp.DefaultBlockSize, ending transfer)
 	// are acceptable. Both correctly handle the I/O anomaly.
 	switch opcode {
-	case opERROR:
+	case tftp.OpERROR:
 		// Server detected I/O error
-	case opDATA:
+	case tftp.OpDATA:
 		dataLen := n - 4
-		if dataLen >= defaultBlockSize {
+		if dataLen >= tftp.DefaultBlockSize {
 			t.Errorf("expected short DATA block after truncation, got %d bytes", dataLen)
 		}
 	default:

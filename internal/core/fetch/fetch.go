@@ -89,12 +89,21 @@ func sameOrigin(req *http.Request, via []*http.Request) error {
 // transport error goes through redact.URLError: an installer console is read
 // over a serial line and photographed.
 func ToFile(url, dest, expectedSHA string) error {
+	return fileFetch(doToFile, url, dest, expectedSHA)
+}
+
+// fileFetch is what every scheme's file fetch shares: it refuses a malformed
+// digest before any byte is fetched, runs attempt up to retryMax times with a
+// doubling delay, then checks the SHA-256 of the bytes written when
+// expectedSHA is not empty. attempt writes url to dest, bounded at
+// fileSizeMax and with mode 0600, and the caller owns dest.
+func fileFetch(attempt func(url, dest string) error, url, dest, expectedSHA string) error {
 	if expectedSHA != "" {
 		if err := ValidSHA256(expectedSHA); err != nil {
 			return err
 		}
 	}
-	if err := toFileRetry(url, dest); err != nil {
+	if err := toFileRetry(attempt, url, dest); err != nil {
 		return err
 	}
 	if expectedSHA == "" {
@@ -103,16 +112,16 @@ func ToFile(url, dest, expectedSHA string) error {
 	return CheckSHA256(dest, expectedSHA)
 }
 
-func toFileRetry(url, dest string) error {
+func toFileRetry(attempt func(url, dest string) error, url, dest string) error {
 	delay := retryDelay
 	var err error
-	for attempt := 1; attempt <= retryMax; attempt++ {
-		err = doToFile(url, dest)
+	for try := 1; try <= retryMax; try++ {
+		err = attempt(url, dest)
 		if err == nil {
 			return nil
 		}
-		slog.Warn("download failed", "url", redact.URL(url), "attempt", attempt, "error", err)
-		if attempt < retryMax {
+		slog.Warn("download failed", "url", redact.URL(url), "attempt", try, "error", err)
+		if try < retryMax {
 			time.Sleep(delay)
 			delay *= 2
 		}

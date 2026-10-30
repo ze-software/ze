@@ -3,23 +3,23 @@
     "rid": "RFC1350-2-2",
     "polarity": "negative",
     "unit": "internal/plugins/tftpserver/handler_test.go::TestTFTPConcurrentLimit",
-    "unit-sha": "febeb4148ef90f42",
+    "unit-sha": "2dd91744edf599fd",
     "claim-sha": "2ee7488023d88acf",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/plugins/tftpserver/handler.go::sendAndWaitACK",
     "producer-sha": "815b4f92d7eacb96",
-    "break": "body of sendAndWaitACK replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "line 427: \"if err := conn.SetReadDeadline(time.Now().Add(ackTimeout)); err != nil {\" -\u003e \"if attempt \u003e= 0 { return true }; if err := conn.SetReadDeadline(time.Now().Add(ackTimeout)); err != nil {\""
   },
   {
     "rid": "RFC1350-2-2",
     "polarity": "positive",
     "unit": "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile",
-    "unit-sha": "6152642f5773d2be",
+    "unit-sha": "f776bcb7134d41af",
     "claim-sha": "9cdb89430acea20a",
     "route": "revert",
     "producer": "internal/plugins/tftpserver/handler.go::sendAndWaitACK",
     "producer-sha": "815b4f92d7eacb96",
-    "break": "body of sendAndWaitACK replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of sendAndWaitACK replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC1350-2-2",

@@ -1,0 +1,14 @@
+{
+  "note": "TestRFC7440ClientWindowsize: the ACK of each window's last block (2, 4, and the short 5) must arrive within tftpTimeout/2, before any timeout retransmission could produce it, and the first packet after blocks 1 and 2 must be ACK 2, not ACK 1. Observed red under the overlay mutant that uses the requested window 4 against a granted 2 (no ACK at window end).",
+  "requirement_sha": "97936269f9e85b92",
+  "tests": {
+    "internal/core/fetch/rfc7440_client_test.go::TestRFC7440ClientWindowsize": "ba0487920fe3a0de",
+    "internal/core/fetch/rfc7440_client_test.go::TestRFC7440ClientWindowsize#2": "ba0487920fe3a0de"
+  },
+  "units": {
+    "internal/core/fetch/rfc7440_client_test.go::TestRFC7440ClientWindowsize": "206224cf23b29f83",
+    "internal/core/fetch/rfc7440_client_test.go::TestRFC7440ClientWindowsize#2": "206224cf23b29f83"
+  },
+  "upgrade_reason": "The tagged unit is byte-identical, but the helpers it calls changed: shortenTFTP (tftp_peer_test.go) now sets tftpTimeout to 1 s and expectACK waits tftpTimeout/2, so a timeout-driven retransmitted ACK can no longer satisfy the test. The earlier weak verdict rested on that masking. I re-ran the overlay mutant against the current tree and observed it red: M1 grantWindowsize using req.Windowsize fails TestRFC7440ClientWindowsize.",
+  "verdict": "enforced"
+}

@@ -2,13 +2,35 @@
   {
     "rid": "RFC1350-7-1",
     "polarity": "positive",
+    "unit": "internal/core/fetch/rfc1350_client_test.go::TestRFC1350ClientTimeouts",
+    "unit-sha": "8f2b66e7c6196d57",
+    "claim-sha": "ea5aacaacd274da8",
+    "route": "revert",
+    "producer": "internal/core/fetch/tftp.go::tftpTransfer.firstReply",
+    "producer-sha": "fa64b3c01bf4b5be",
+    "break": "body of tftpTransfer.firstReply replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1350-7-1",
+    "polarity": "negative",
+    "unit": "internal/core/fetch/rfc1350_client_test.go::TestRFC1350ClientTimeouts",
+    "unit-sha": "8f2b66e7c6196d57",
+    "claim-sha": "2e7f7e619a791f8d",
+    "route": "revert",
+    "producer": "internal/core/fetch/tftp.go::tftpTransfer.firstReply",
+    "producer-sha": "fa64b3c01bf4b5be",
+    "break": "body of tftpTransfer.firstReply replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1350-7-1",
+    "polarity": "positive",
     "unit": "internal/plugins/tftpserver/handler_test.go::TestTFTPRetransmitOnTimeout",
-    "unit-sha": "baa2934d33840b32",
+    "unit-sha": "5940c9519e521e48",
     "claim-sha": "b5587b07f04cc21e",
     "route": "revert",
     "producer": "internal/plugins/tftpserver/handler.go::sendAndWaitACK",
     "producer-sha": "815b4f92d7eacb96",
-    "break": "body of sendAndWaitACK replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of sendAndWaitACK replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC1350-7-1",

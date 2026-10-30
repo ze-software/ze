@@ -1,0 +1,13 @@
+{
+  "note": "TestRFC7440ClientSequenceError: after block 1 and then block 3 (block 2 lost) in a window of four, ACK 1 must arrive within tftpTimeout/2, so only the sequence-error notification can produce it, not the timeout retransmission. Negative: block 4, still past the gap, draws no second ACK for 300 ms. Then the restarted window completes the file. Observed red under an overlay mutant that drops the gap ACK in (*tftpTransfer).data, re-made against the current tftp.go.",
+  "requirement_sha": "6116625376327bd3",
+  "tests": {
+    "internal/core/fetch/rfc7440_client_test.go::TestRFC7440ClientSequenceError": "ba0487920fe3a0de",
+    "internal/core/fetch/rfc7440_client_test.go::TestRFC7440ClientSequenceError#2": "ba0487920fe3a0de"
+  },
+  "units": {
+    "internal/core/fetch/rfc7440_client_test.go::TestRFC7440ClientSequenceError": "551d397491aa1e76",
+    "internal/core/fetch/rfc7440_client_test.go::TestRFC7440ClientSequenceError#2": "551d397491aa1e76"
+  },
+  "verdict": "enforced"
+}

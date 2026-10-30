@@ -1,15 +1,15 @@
 {
-  "code": {
-    "internal/plugins/tftpserver/handler.go::handleRRQ": "2935a56551876f51",
-    "internal/plugins/tftpserver/handler.go::runTransfer": "06b27c5b7fa74104"
-  },
-  "note": "Re-judged 2026-10-30 by an independent auditor (authored none of the userns spec commits d8427e4380, b00e3c6710, 68b723ec4f, 7d11a51269). userns.Enter (internal/test/userns/userns_linux.go) re-executes the one test in a new user+net+mount namespace and returns false in the parent only after the child's own PASS line; a child failure, a zero-exit failure or a child that selected nothing fails the parent, and a child skip skips it, so the guard cannot turn a red into a green. Section 4: \"In order to create a connection, each end of the connection chooses a TID for itself, to be used for the duration of that connection.\" Unit change read: the guard, and the lo:69 bind refusal now fails instead of skipping (stronger). Rest of TestListenTFTPLoopbackRoundTrip unchanged: real serve over a lo-bound listener, tftpFetch fails if the first DATA comes from port 69 and ACKs every block to the server's chosen TID, exact byte comparison of the 1100-byte, 3-block file. In the child namespace port 69 binds without host root, so the unit now runs instead of skipping. TestRFC1350ServerChoosesOneTIDForTheTransfer (unchanged) still proves the TID is kept for all three blocks. Producers handleRRQ/runTransfer re-fingerprinted. {single-polarity: positive} still holds: no input makes the server answer from port 69. Records: the hand-written mutant (DATA from mainConn instead of runTransfer) re-recorded in 68b723ec4f against the guarded unit.",
+  "note": "Both ends are now tagged. Client: tftpPeer.read fails the test on any client packet whose source address or port differs from the RRQ's, so every client test checks that the client keeps its TID. TestRFC1350ClientKeepsItsTID also requires that nothing more reaches the request port for 300 ms once the server answered from its own TID. Server: TestListenTFTPLoopbackRoundTrip and TestRFC1350ServerChoosesOneTIDForTheTransfer are unchanged in substance; handleRRQ and runTransfer changed only by identifier renames.",
   "requirement_sha": "d8ce09cd32156ece",
   "tests": {
-    "internal/plugins/tftpserver/rfc1350_socket_integration_linux_test.go::TestListenTFTPLoopbackRoundTrip": "2727462633fe002b",
-    "internal/plugins/tftpserver/rfc1350_transfer_test.go::TestRFC1350ServerChoosesOneTIDForTheTransfer": "60a1b8ea3f073355"
+    "internal/core/fetch/rfc1350_client_test.go::TestRFC1350ClientKeepsItsTID": "f99149d1d6e6ec30",
+    "internal/core/fetch/rfc1350_client_test.go::TestRFC1350ClientKeepsItsTID#2": "f99149d1d6e6ec30",
+    "internal/plugins/tftpserver/rfc1350_socket_integration_linux_test.go::TestListenTFTPLoopbackRoundTrip": "0a1cb36b3edcee59",
+    "internal/plugins/tftpserver/rfc1350_transfer_test.go::TestRFC1350ServerChoosesOneTIDForTheTransfer": "d286e01d267db4e3"
   },
   "units": {
+    "internal/core/fetch/rfc1350_client_test.go::TestRFC1350ClientKeepsItsTID": "9ad492a6d898fb64",
+    "internal/core/fetch/rfc1350_client_test.go::TestRFC1350ClientKeepsItsTID#2": "9ad492a6d898fb64",
     "internal/plugins/tftpserver/rfc1350_socket_integration_linux_test.go::TestListenTFTPLoopbackRoundTrip": "b9870b55dbe373b5",
     "internal/plugins/tftpserver/rfc1350_transfer_test.go::TestRFC1350ServerChoosesOneTIDForTheTransfer": "d6258b5c6c294eaf"
   },

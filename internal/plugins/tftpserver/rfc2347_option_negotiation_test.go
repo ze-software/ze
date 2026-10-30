@@ -14,6 +14,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/ze-software/ze/internal/core/tftp"
 )
 
 // nextCString splits b at the first NUL, returning the string before it and the
@@ -40,8 +42,8 @@ func readServerOACKOptions(t *testing.T, client *net.UDPConn) map[string]string 
 	if err != nil {
 		t.Fatalf("no OACK response: %v", err)
 	}
-	if n < 2 || binary.BigEndian.Uint16(buf[0:2]) != opOACK {
-		t.Fatalf("first response opcode = %d, want OACK (%d)", binary.BigEndian.Uint16(buf[0:2]), opOACK)
+	if n < 2 || binary.BigEndian.Uint16(buf[0:2]) != tftp.OpOACK {
+		t.Fatalf("first response opcode = %d, want OACK (%d)", binary.BigEndian.Uint16(buf[0:2]), tftp.OpOACK)
 	}
 	opts := map[string]string{}
 	rest := buf[2:n]

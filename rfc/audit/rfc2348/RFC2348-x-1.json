@@ -1,13 +1,13 @@
 {
-  "note": "(a) OACK blksize above the client's request; (b) 'above cap' subtest t.Errorf when acked > 60000, and the within-cap subtest pins 1200 == requested 1200, so an ack that ignores a smaller request also goes red.",
+  "note": "Re-judged 2026-10-30 by an independent auditor: the unit changed only by identifier renames to internal/core/tftp (blksizeEthernet->tftp.BlksizeEthernet, opX->tftp.OpX), values identical; assertions unchanged. Server-side row: the 'above cap' subtest is red when the acked blksize exceeds the 60000 requested, and the within-cap subtest pins 1200 == requested 1200.",
   "requirement_sha": "c70ae9def504f6cb",
   "tests": {
-    "internal/plugins/tftpserver/rfc2348_blksize_test.go::TestRFC2348BlksizeAckNotAboveRequest": "bba4d4b528cac222",
-    "internal/plugins/tftpserver/rfc2348_blksize_test.go::TestRFC2348BlksizeAckNotAboveRequest#2": "bba4d4b528cac222"
+    "internal/plugins/tftpserver/rfc2348_blksize_test.go::TestRFC2348BlksizeAckNotAboveRequest": "cc627219434e5b11",
+    "internal/plugins/tftpserver/rfc2348_blksize_test.go::TestRFC2348BlksizeAckNotAboveRequest#2": "cc627219434e5b11"
   },
   "units": {
-    "internal/plugins/tftpserver/rfc2348_blksize_test.go::TestRFC2348BlksizeAckNotAboveRequest": "d04f1b0826ee39b5",
-    "internal/plugins/tftpserver/rfc2348_blksize_test.go::TestRFC2348BlksizeAckNotAboveRequest#2": "d04f1b0826ee39b5"
+    "internal/plugins/tftpserver/rfc2348_blksize_test.go::TestRFC2348BlksizeAckNotAboveRequest": "d937cdadf4e59bdb",
+    "internal/plugins/tftpserver/rfc2348_blksize_test.go::TestRFC2348BlksizeAckNotAboveRequest#2": "d937cdadf4e59bdb"
   },
   "verdict": "enforced"
 }

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2349-x-5",
+    "polarity": "positive",
+    "unit": "internal/core/fetch/rfc2349_client_test.go::TestRFC2349ClientAbortsTooLargeFile",
+    "unit-sha": "1478243511cc5c61",
+    "claim-sha": "b30d4226b07c091b",
+    "route": "revert",
+    "producer": "internal/core/fetch/tftp.go::tftpTransfer.settle",
+    "producer-sha": "dde1ca80579882cd",
+    "break": "body of tftpTransfer.settle replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2349-x-5",
+    "polarity": "negative",
+    "unit": "internal/core/fetch/rfc2349_client_test.go::TestRFC2349ClientAbortsTooLargeFile",
+    "unit-sha": "1478243511cc5c61",
+    "claim-sha": "0e47017f8ae9a9f3",
+    "route": "revert",
+    "producer": "internal/core/fetch/tftp.go::tftpTransfer.settle",
+    "producer-sha": "dde1ca80579882cd",
+    "break": "body of tftpTransfer.settle replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

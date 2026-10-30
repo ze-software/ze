@@ -220,7 +220,7 @@ func TestInitFromScheme(t *testing.T) {
 		args []string
 		want string
 	}{
-		{[]string{"--from", "ftp://host/database.zefs"}, `unsupported scheme "ftp": supported http, https`},
+		{[]string{"--from", "ftp://host/database.zefs"}, `unsupported scheme "ftp": supported http, https, tftp`},
 		{[]string{"--from", "database.zefs", "--sha256", strings.Repeat("a", 63)}, "want 64 hexadecimal digits, got 63"},
 		{[]string{"--from", "database.zefs", "--sha256", strings.Repeat("a", 65)}, "want 64 hexadecimal digits, got 65"},
 		{[]string{"--sha256", strings.Repeat("a", 64)}, "--sha256 checks the --from source and needs --from"},

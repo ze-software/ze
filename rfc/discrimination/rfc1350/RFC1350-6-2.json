@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC1350-6-2",
+    "polarity": "positive",
+    "unit": "internal/core/fetch/rfc1350_client_test.go::TestRFC1350ClientDallies",
+    "unit-sha": "59c1bce4059e8006",
+    "claim-sha": "540ba0a244d096cb",
+    "route": "revert",
+    "producer": "internal/core/fetch/tftp.go::tftpTransfer.dally",
+    "producer-sha": "18f793ff3e62f7ea",
+    "break": "body of tftpTransfer.dally replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1350-6-2",
+    "polarity": "negative",
+    "unit": "internal/core/fetch/rfc1350_client_test.go::TestRFC1350ClientDallies",
+    "unit-sha": "59c1bce4059e8006",
+    "claim-sha": "bb88280b2ed6cb66",
+    "route": "revert",
+    "producer": "internal/core/fetch/tftp.go::tftpTransfer.dally",
+    "producer-sha": "18f793ff3e62f7ea",
+    "break": "body of tftpTransfer.dally replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

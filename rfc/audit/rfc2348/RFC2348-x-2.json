@@ -1,0 +1,13 @@
+{
+  "note": "TestRFC2348ClientBlocksize, unchanged apart from the added x-3 tags. Positive: an OACK blksize of 1468 or 8 must draw ACK 0 within tftpTimeout/2, a block of exactly that size is not final, and the file must be exact. Negative: 1469, 2000 and 7 must draw ERROR with code exactly 8 as the first packet, then silence, and the fetch must fail.",
+  "requirement_sha": "e4ea684bca67e7f5",
+  "tests": {
+    "internal/core/fetch/rfc2348_client_test.go::TestRFC2348ClientBlocksize": "268e5c963774e9ce",
+    "internal/core/fetch/rfc2348_client_test.go::TestRFC2348ClientBlocksize#2": "268e5c963774e9ce"
+  },
+  "units": {
+    "internal/core/fetch/rfc2348_client_test.go::TestRFC2348ClientBlocksize": "f1bbc03303e9101c",
+    "internal/core/fetch/rfc2348_client_test.go::TestRFC2348ClientBlocksize#2": "f1bbc03303e9101c"
+  },
+  "verdict": "enforced"
+}

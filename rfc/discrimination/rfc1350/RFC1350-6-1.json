@@ -3,12 +3,12 @@
     "rid": "RFC1350-6-1",
     "polarity": "positive",
     "unit": "internal/plugins/tftpserver/handler_test.go::TestTFTPRetransmitOnTimeout",
-    "unit-sha": "baa2934d33840b32",
+    "unit-sha": "5940c9519e521e48",
     "claim-sha": "436570cb29f1d9cf",
     "route": "revert",
     "producer": "internal/plugins/tftpserver/handler.go::sendAndWaitACK",
     "producer-sha": "815b4f92d7eacb96",
-    "break": "body of sendAndWaitACK replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of sendAndWaitACK replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC1350-6-1",

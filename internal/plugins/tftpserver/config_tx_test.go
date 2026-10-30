@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/tftp"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -230,7 +231,7 @@ func TestConfigTxReloadCutsTransferInFlight(t *testing.T) {
 		t.Fatalf("client: %v", err)
 	}
 	t.Cleanup(func() { _ = client.Close() })
-	rrq := append([]byte{0, byte(opRRQ)}, []byte("boot.bin\x00octet\x00")...)
+	rrq := append([]byte{0, byte(tftp.OpRRQ)}, []byte("boot.bin\x00octet\x00")...)
 	if _, err := client.WriteToUDP(rrq, server); err != nil {
 		t.Fatalf("send RRQ: %v", err)
 	}
@@ -249,7 +250,7 @@ func TestConfigTxReloadCutsTransferInFlight(t *testing.T) {
 	if err := tx.Apply(); err != nil {
 		t.Fatalf("apply: %v", err)
 	}
-	if _, err := client.WriteToUDP([]byte{0, byte(opACK), 0, 1}, transfer); err != nil {
+	if _, err := client.WriteToUDP([]byte{0, byte(tftp.OpACK), 0, 1}, transfer); err != nil {
 		t.Fatalf("send ACK 1: %v", err)
 	}
 	if err := client.SetReadDeadline(time.Now().Add(500 * time.Millisecond)); err != nil {

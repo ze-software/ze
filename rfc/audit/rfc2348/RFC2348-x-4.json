@@ -1,15 +1,19 @@
 {
-  "note": "Re-judged 2026-09-30: TestTFTPReadLargeFile changed only by losing the retired RFC1350-5-2 tag comment; every assertion is unchanged. TestRFC2348ShortBlockIsTheFinalPacket at a negotiated 1024: a 600-octet file must be exactly [600] with silence after its ACK (a server comparing against 512 sends a block 2 and goes red), and 2500 must be [1024,1024,452] then silence (red on DATA after the short block). Negative: full 1024 blocks are followed by the next block.",
+  "note": "Server units changed only by identifier renames, values identical. Client TestRFC2348ClientFinalBlockByNegotiatedSize at negotiated 1024: a 1024 block is not final (the client must ACK 1 and take block 2), a 1023 block is final (ACK 2, then block 3 is not written, file exactly 2047 octets). A client comparing against 512 reads 1023 as non-final and writes block 3 (red); one comparing against the requested 1468 ends on block 1 and never ACKs 2 (red). Server TestRFC2348ShortBlockIsTheFinalPacket unchanged in substance.",
   "requirement_sha": "6c06103dac56424f",
   "tests": {
-    "internal/plugins/tftpserver/handler_test.go::TestTFTPReadExact512": "0809d9c9f8739da3",
-    "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile": "0809d9c9f8739da3",
-    "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2348ShortBlockIsTheFinalPacket": "402f4bee572c1a29",
-    "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2348ShortBlockIsTheFinalPacket#2": "402f4bee572c1a29"
+    "internal/core/fetch/rfc2348_client_test.go::TestRFC2348ClientFinalBlockByNegotiatedSize": "268e5c963774e9ce",
+    "internal/core/fetch/rfc2348_client_test.go::TestRFC2348ClientFinalBlockByNegotiatedSize#2": "268e5c963774e9ce",
+    "internal/plugins/tftpserver/handler_test.go::TestTFTPReadExact512": "de0c0b43a90165f3",
+    "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile": "de0c0b43a90165f3",
+    "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2348ShortBlockIsTheFinalPacket": "693976d3d27ffd85",
+    "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2348ShortBlockIsTheFinalPacket#2": "693976d3d27ffd85"
   },
   "units": {
+    "internal/core/fetch/rfc2348_client_test.go::TestRFC2348ClientFinalBlockByNegotiatedSize": "181cdfd67a1c29b5",
+    "internal/core/fetch/rfc2348_client_test.go::TestRFC2348ClientFinalBlockByNegotiatedSize#2": "181cdfd67a1c29b5",
     "internal/plugins/tftpserver/handler_test.go::TestTFTPReadExact512": "98ffa756092d4fbe",
-    "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile": "240d5ea9ba163958",
+    "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile": "9d857233194f5ab8",
     "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2348ShortBlockIsTheFinalPacket": "2e2d2f3569240d7a",
     "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2348ShortBlockIsTheFinalPacket#2": "2e2d2f3569240d7a"
   },

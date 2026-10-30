@@ -1,0 +1,13 @@
+{
+  "note": "TestRFC1350ClientRefusesStrangerTID: mid-transfer, DATA block 2 'intruder' (8 octets, so it would be final) from another loopback port must draw ERROR code exactly 5 back to that port, and the transfer with the server's TID must continue to ACK 2 with the file holding only the server's 532 octets. A client that accepted the stranger ends on 'intruder' (red); one that only discarded it gets no ERROR (red). Only a different port is exercised, not a different address; fromPeer compares both.",
+  "requirement_sha": "2b3d10435cb59b45",
+  "tests": {
+    "internal/core/fetch/rfc1350_client_test.go::TestRFC1350ClientRefusesStrangerTID": "f99149d1d6e6ec30",
+    "internal/core/fetch/rfc1350_client_test.go::TestRFC1350ClientRefusesStrangerTID#2": "f99149d1d6e6ec30"
+  },
+  "units": {
+    "internal/core/fetch/rfc1350_client_test.go::TestRFC1350ClientRefusesStrangerTID": "cf263efd43ab7c03",
+    "internal/core/fetch/rfc1350_client_test.go::TestRFC1350ClientRefusesStrangerTID#2": "cf263efd43ab7c03"
+  },
+  "verdict": "enforced"
+}

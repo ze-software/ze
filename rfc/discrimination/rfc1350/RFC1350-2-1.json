@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC1350-2-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/tftpserver/handler_test.go::TestTFTPReadExact512",
+    "unit-sha": "987ab8ab67c44a6b",
+    "claim-sha": "ad084b979aa3e0e4",
+    "route": "revert",
+    "producer": "internal/plugins/tftpserver/handler.go::serveFile",
+    "producer-sha": "745fce3175a9b947",
+    "break": "body of serveFile replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1350-2-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile",
+    "unit-sha": "f776bcb7134d41af",
+    "claim-sha": "0671ee664bec0eac",
+    "route": "revert",
+    "producer": "internal/plugins/tftpserver/handler.go::serveFile",
+    "producer-sha": "745fce3175a9b947",
+    "break": "body of serveFile replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

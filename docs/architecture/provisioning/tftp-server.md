@@ -5,6 +5,14 @@ larger payloads. RFC 1350 is five opcodes, 512-byte blocks, and stop-and-wait,
 so an in-tree server costs less than an external dependency. RFC 2347 option
 negotiation is supported.
 
+The wire facts the server shares with Ze's TFTP client (the tftp scheme of
+`ze init --from`): opcodes, error codes, the block sizes and the ERROR encoder
+are declared once in the core package `internal/core/tftp`, which both import.
+The server keeps its own request parser and its DATA and OACK encoders, which
+only it uses. The client is described in
+`docs/architecture/appliance/on-device-installer.md`.
+
+<!-- source: internal/core/tftp/tftp.go -- OpRRQ, CodeNotDefined, DefaultBlockSize, BlksizeEthernet, BuildError -->
 <!-- source: internal/plugins/tftpserver/register.go -- plugin registration and engine lifecycle -->
 <!-- source: internal/plugins/tftpserver/handler.go -- parseRRQ, resolvePath, serveFile, sendAndWaitACK -->
 <!-- source: internal/plugins/tftpserver/config.go -- config parsing and verification -->

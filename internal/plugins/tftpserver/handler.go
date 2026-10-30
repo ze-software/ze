@@ -15,38 +15,12 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/taskguard"
+	"github.com/ze-software/ze/internal/core/tftp"
 )
 
-// RFC 1350 Section 2: TFTP opcodes.
-const (
-	opRRQ   uint16 = 1
-	opWRQ   uint16 = 2
-	opDATA  uint16 = 3
-	opACK   uint16 = 4
-	opERROR uint16 = 5
-	opOACK  uint16 = 6 // RFC 2347 Section "Packet Formats"
-)
-
-// RFC 1350 Section 5: error codes.
-const (
-	errNotDefined      uint16 = 0
-	errFileNotFound    uint16 = 1
-	errAccessViolation uint16 = 2
-	errIllegalOp       uint16 = 4
-)
-
-// RFC 1350 Section 2: data block size.
-const defaultBlockSize = 512
-
-// RFC 2348: blksize valid range.
-const (
-	blksizeMin = 8
-	blksizeMax = 65464
-)
-
-// RFC 2348: practical upper bound for one untagged Ethernet frame
-// (1500 MTU - 20 IP - 8 UDP - 4 TFTP header).
-const blksizeEthernet = 1468
+// The opcodes, error codes, block sizes and the ERROR encoder are the wire
+// facts the server shares with Ze's TFTP client, declared once in
+// internal/core/tftp.
 
 const (
 	ackTimeout    = 5 * time.Second
@@ -123,7 +97,7 @@ func parseRRQ(pkt []byte) (filename, mode string, opts rrqOptions, err error) {
 		switch strings.ToLower(optName) {
 		case "blksize":
 			n, parseErr := strconv.Atoi(optVal)
-			if parseErr == nil && n >= blksizeMin && n <= blksizeMax {
+			if parseErr == nil && n >= tftp.BlksizeMin && n <= tftp.BlksizeMax {
 				opts.blksize = n
 			}
 		case "tsize":
@@ -143,7 +117,7 @@ func buildOACK(opts []string) []byte {
 		size += len(o) + 1
 	}
 	pkt := make([]byte, 2, size)
-	binary.BigEndian.PutUint16(pkt[0:2], opOACK)
+	binary.BigEndian.PutUint16(pkt[0:2], tftp.OpOACK)
 	for _, o := range opts {
 		pkt = append(pkt, o...)
 		pkt = append(pkt, 0)
@@ -154,19 +128,9 @@ func buildOACK(opts []string) []byte {
 // RFC 1350 Section 2: DATA packet is opcode (2) + block# (2) + data (0-blksize).
 func buildData(block uint16, data []byte) []byte {
 	pkt := make([]byte, 4+len(data))
-	binary.BigEndian.PutUint16(pkt[0:2], opDATA)
+	binary.BigEndian.PutUint16(pkt[0:2], tftp.OpDATA)
 	binary.BigEndian.PutUint16(pkt[2:4], block)
 	copy(pkt[4:], data)
-	return pkt
-}
-
-// RFC 1350 Section 5: ERROR packet is opcode (2) + errcode (2) + message + NUL.
-func buildError(code uint16, msg string) []byte {
-	pkt := make([]byte, 5+len(msg))
-	binary.BigEndian.PutUint16(pkt[0:2], opERROR)
-	binary.BigEndian.PutUint16(pkt[2:4], code)
-	copy(pkt[4:], msg)
-	pkt[4+len(msg)] = 0
 	return pkt
 }
 
@@ -248,10 +212,10 @@ func serveRequests(generation *transferGeneration, conn *net.UDPConn, rootDir st
 
 		opcode := binary.BigEndian.Uint16(pkt[:2])
 		switch opcode {
-		case opRRQ:
+		case tftp.OpRRQ:
 			handleRRQ(generation, conn, pkt, clientAddr, rootDir, sem, log)
-		case opWRQ:
-			resp := buildError(errIllegalOp, "write not supported")
+		case tftp.OpWRQ:
+			resp := tftp.BuildError(tftp.CodeIllegalOperation, "write not supported")
 			if _, wErr := conn.WriteToUDP(resp, clientAddr); wErr != nil {
 				log.Debug("tftpserver: write error response failed", "error", wErr)
 			}
@@ -264,19 +228,19 @@ func serveRequests(generation *transferGeneration, conn *net.UDPConn, rootDir st
 // next read or write fails and the transfer ends.
 func handleRRQ(generation *transferGeneration, mainConn *net.UDPConn, pkt []byte, clientAddr *net.UDPAddr, rootDir string, sem chan struct{}, log *slog.Logger) {
 	sendErr := func(code uint16, msg string) {
-		if _, wErr := mainConn.WriteToUDP(buildError(code, msg), clientAddr); wErr != nil {
+		if _, wErr := mainConn.WriteToUDP(tftp.BuildError(code, msg), clientAddr); wErr != nil {
 			log.Debug("tftpserver: error response failed", "error", wErr)
 		}
 	}
 
 	filename, mode, opts, err := parseRRQ(pkt)
 	if err != nil {
-		sendErr(errNotDefined, "malformed request")
+		sendErr(tftp.CodeNotDefined, "malformed request")
 		return
 	}
 
 	if !strings.EqualFold(mode, "octet") {
-		sendErr(errIllegalOp, "only octet mode supported")
+		sendErr(tftp.CodeIllegalOperation, "only octet mode supported")
 		return
 	}
 
@@ -285,22 +249,22 @@ func handleRRQ(generation *transferGeneration, mainConn *net.UDPConn, pkt []byte
 	log.Info("tftpserver: read request", "file", filename, "client", clientAddr.String())
 
 	if len(filename) > 255 {
-		sendErr(errFileNotFound, "filename too long")
+		sendErr(tftp.CodeFileNotFound, "filename too long")
 		return
 	}
 
 	resolved, pathErr := resolvePath(rootDir, filename)
 	if pathErr != nil {
-		sendErr(errAccessViolation, "access denied")
+		sendErr(tftp.CodeAccessViolation, "access denied")
 		return
 	}
 
 	// RFC 2348 Blocksize Option Specification: "The specified value must be
 	// less than or equal to the value specified by the client."
-	negotiatedBlksize := defaultBlockSize
+	negotiatedBlksize := tftp.DefaultBlockSize
 	if opts.blksize > 0 {
-		negotiatedBlksize = min(opts.blksize, blksizeEthernet)
-		negotiatedBlksize = max(negotiatedBlksize, blksizeMin)
+		negotiatedBlksize = min(opts.blksize, tftp.BlksizeEthernet)
+		negotiatedBlksize = max(negotiatedBlksize, tftp.BlksizeMin)
 	}
 
 	if opts.windowsize {
@@ -320,7 +284,7 @@ func handleRRQ(generation *transferGeneration, mainConn *net.UDPConn, pkt []byte
 		}
 		go runTransfer(generation, t, sem, log)
 	default:
-		sendErr(errNotDefined, "service unavailable")
+		sendErr(tftp.CodeNotDefined, "service unavailable")
 	}
 }
 
@@ -330,7 +294,7 @@ type transfer struct {
 	path       string // resolved by resolvePath
 	opts       rrqOptions
 	hasOptions bool
-	blksize    int // negotiated, within [blksizeMin, blksizeEthernet]
+	blksize    int // negotiated, within [tftp.BlksizeMin, tftp.BlksizeEthernet]
 }
 
 // runTransfer serves one transfer on its own socket and frees its sem slot
@@ -388,7 +352,7 @@ func sendOACKAndWait(conn *net.UDPConn, filePath string, opts rrqOptions, blksiz
 	if opts.tsize {
 		info, err := os.Stat(filePath)
 		if err != nil {
-			if _, wErr := conn.Write(buildError(errFileNotFound, "file not found")); wErr != nil {
+			if _, wErr := conn.Write(tftp.BuildError(tftp.CodeFileNotFound, "file not found")); wErr != nil {
 				log.Debug("tftpserver: error response failed", "error", wErr)
 			}
 			return false
@@ -414,7 +378,7 @@ func sendOACKAndWait(conn *net.UDPConn, filePath string, opts rrqOptions, blksiz
 func serveFile(conn *net.UDPConn, filePath string, blksize int, log *slog.Logger) {
 	f, err := os.Open(filePath) //nolint:gosec // path validated by resolvePath
 	if err != nil {
-		if _, wErr := conn.Write(buildError(errFileNotFound, "file not found")); wErr != nil {
+		if _, wErr := conn.Write(tftp.BuildError(tftp.CodeFileNotFound, "file not found")); wErr != nil {
 			log.Debug("tftpserver: error response failed", "error", wErr)
 		}
 		return
@@ -432,7 +396,7 @@ func serveFile(conn *net.UDPConn, filePath string, blksize int, log *slog.Logger
 	for {
 		n, readErr := f.Read(readBuf)
 		if readErr != nil && readErr != io.EOF {
-			if _, wErr := conn.Write(buildError(errNotDefined, "read error")); wErr != nil {
+			if _, wErr := conn.Write(tftp.BuildError(tftp.CodeNotDefined, "read error")); wErr != nil {
 				log.Debug("tftpserver: error response failed", "error", wErr)
 			}
 			return
@@ -494,7 +458,7 @@ func isACKFor(pkt []byte, block uint16) bool {
 	if len(pkt) < 4 {
 		return false
 	}
-	if binary.BigEndian.Uint16(pkt[:2]) != opACK {
+	if binary.BigEndian.Uint16(pkt[:2]) != tftp.OpACK {
 		return false
 	}
 	return binary.BigEndian.Uint16(pkt[2:4]) == block

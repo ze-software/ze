@@ -1,0 +1,13 @@
+{
+  "note": "TestRFC2349ClientAbortsTooLargeFile: an OACK tsize of fileSizeMax+1 must draw ERROR with code exactly 3 before any ACK, then silence, and a failed fetch (red on ACK 0 or another code); exactly fileSizeMax draws ACK 0 and completes, so the bound is not off by one.",
+  "requirement_sha": "16934a476d18fe98",
+  "tests": {
+    "internal/core/fetch/rfc2349_client_test.go::TestRFC2349ClientAbortsTooLargeFile": "fa740648197bdd35",
+    "internal/core/fetch/rfc2349_client_test.go::TestRFC2349ClientAbortsTooLargeFile#2": "fa740648197bdd35"
+  },
+  "units": {
+    "internal/core/fetch/rfc2349_client_test.go::TestRFC2349ClientAbortsTooLargeFile": "df893d9e71a07056",
+    "internal/core/fetch/rfc2349_client_test.go::TestRFC2349ClientAbortsTooLargeFile#2": "df893d9e71a07056"
+  },
+  "verdict": "enforced"
+}

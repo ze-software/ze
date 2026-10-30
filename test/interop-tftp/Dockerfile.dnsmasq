@@ -1,0 +1,16 @@
+# dnsmasq TFTP server for internal/core/fetch/tftp_dnsmasq_docker_test.go.
+# dnsmasq 2.91 is the current upstream release; Alpine 3.22 packages it. The
+# test builds this image through labtest (Spec.Dockerfile) and runs it on the
+# host network, where dnsmasq answers on 127.0.0.1 port 69 and replies from a
+# fresh port per transfer, as RFC 1350 Section 4 describes.
+FROM alpine:3.22@sha256:2e0b81d60597f449baa56dc25d355367869d2dca4cd57e866f1e2b52af3eb55f
+
+RUN apk add --no-cache dnsmasq=2.91-r1 \
+    && mkdir -p /srv/tftp \
+    && seq 1 30000 > /srv/tftp/seq.txt \
+    && head -c 4404 /dev/zero | tr '\0' 'z' > /srv/tftp/exact.bin \
+    && : > /srv/tftp/empty.bin \
+    && chmod 644 /srv/tftp/*
+
+CMD ["dnsmasq", "--keep-in-foreground", "--port=0", "--enable-tftp", "--tftp-root=/srv/tftp", \
+     "--listen-address=127.0.0.1", "--bind-interfaces", "--log-facility=-", "--user=root"]

@@ -1,6 +1,14 @@
 {
-  "no_code_path": "The sentence binds the TFTP client that consumes an OACK. Ze ships a TFTP server only (internal/plugins/tftpserver/handler.go); no Ze code sends an RRQ/WRQ or reads an OACK (grep for tftp outside tftpserver finds only config, provisioning directories and port names), and no layer acts as a TFTP client on Ze's behalf.",
-  "note": "Row now quotes the whole client sentence (x-2 merged in under R5). Binds the TFTP client role only.",
+  "note": "Ze's fetch client fills the client role. TestRFC2347ClientUsesOnlyAcknowledgedOptions: the acknowledged blksize 1024 is used (a 1024 block is not final, file 1124 octets), the unacknowledged 1468 is not (512 blocks are not final, file 1034 octets), and the unacknowledged windowsize 4 is not used: each ACK must arrive within tftpTimeout/2. Observed red under the overlay mutant that keeps the requested windowsize (Unnegotiated() Windowsize 4). Residual: tsize is requested and unacknowledged with no assertion that it goes unused, but the client uses tsize only for the size cap, so nothing observable depends on it.",
   "requirement_sha": "c7076c780454b1e9",
-  "verdict": "not-applicable"
+  "tests": {
+    "internal/core/fetch/rfc2347_client_test.go::TestRFC2347ClientUsesOnlyAcknowledgedOptions": "8b33e89eba159f87",
+    "internal/core/fetch/rfc2347_client_test.go::TestRFC2347ClientUsesOnlyAcknowledgedOptions#2": "8b33e89eba159f87"
+  },
+  "units": {
+    "internal/core/fetch/rfc2347_client_test.go::TestRFC2347ClientUsesOnlyAcknowledgedOptions": "1b282e356eaf1c36",
+    "internal/core/fetch/rfc2347_client_test.go::TestRFC2347ClientUsesOnlyAcknowledgedOptions#2": "1b282e356eaf1c36"
+  },
+  "upgrade_reason": "The tagged unit is byte-identical, but the helpers it calls changed: shortenTFTP (tftp_peer_test.go) now sets tftpTimeout to 1 s and expectACK waits tftpTimeout/2, so a timeout-driven retransmitted ACK can no longer satisfy the test. The earlier weak verdict rested on that masking. I re-ran the overlay mutant against the current tree and observed it red: M2 Unnegotiated() Windowsize 4 fails TestRFC2347ClientUsesOnlyAcknowledgedOptions.",
+  "verdict": "enforced"
 }

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2348-x-2",
+    "polarity": "positive",
+    "unit": "internal/core/fetch/rfc2348_client_test.go::TestRFC2348ClientBlocksize",
+    "unit-sha": "b258f4d6cf34a4e2",
+    "claim-sha": "24faf97a8ec54538",
+    "route": "revert",
+    "producer": "internal/core/tftp/oack.go::grantBlksize",
+    "producer-sha": "4cb164c9c909c0d5",
+    "break": "body of grantBlksize replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2348-x-2",
+    "polarity": "negative",
+    "unit": "internal/core/fetch/rfc2348_client_test.go::TestRFC2348ClientBlocksize",
+    "unit-sha": "b258f4d6cf34a4e2",
+    "claim-sha": "7cf5654921c61dae",
+    "route": "revert",
+    "producer": "internal/core/tftp/oack.go::grantBlksize",
+    "producer-sha": "4cb164c9c909c0d5",
+    "break": "body of grantBlksize replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

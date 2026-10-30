@@ -2,45 +2,67 @@
   {
     "rid": "RFC7440-3-1",
     "polarity": "positive",
+    "unit": "internal/core/fetch/rfc7440_client_test.go::TestRFC7440ClientRequestFieldsAreNULTerminatedASCII",
+    "unit-sha": "202117c84c4bd422",
+    "claim-sha": "54a4341c9cf3eee7",
+    "route": "revert",
+    "producer": "internal/core/tftp/request.go::BuildRRQ",
+    "producer-sha": "2bb1185baa156442",
+    "break": "body of BuildRRQ replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7440-3-1",
+    "polarity": "negative",
+    "unit": "internal/core/fetch/rfc7440_client_test.go::TestRFC7440ClientRequestFieldsAreNULTerminatedASCII",
+    "unit-sha": "202117c84c4bd422",
+    "claim-sha": "8cd9874019d6b29e",
+    "route": "revert",
+    "producer": "internal/core/tftp/request.go::BuildRRQ",
+    "producer-sha": "2bb1185baa156442",
+    "break": "body of BuildRRQ replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7440-3-1",
+    "polarity": "positive",
     "unit": "internal/plugins/tftpserver/handler_test.go::TestTFTPParseRRQ",
-    "unit-sha": "ad9c481e1dca3371",
+    "unit-sha": "0f2016420f805b4a",
     "claim-sha": "c97eeecf12285d66",
     "route": "revert",
     "producer": "internal/plugins/tftpserver/handler.go::parseRRQ",
-    "producer-sha": "07f7177cd121dd6c",
-    "break": "body of parseRRQ replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "9ae8389dc1e0052e",
+    "break": "body of parseRRQ replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC7440-3-1",
     "polarity": "negative",
     "unit": "internal/plugins/tftpserver/handler_test.go::TestTFTPParseRRQInvalid",
-    "unit-sha": "0367df97e2a87cb4",
+    "unit-sha": "8ed17cffd8ade3cf",
     "claim-sha": "b199df09c76c4f79",
     "route": "revert",
     "producer": "internal/plugins/tftpserver/handler.go::parseRRQ",
-    "producer-sha": "07f7177cd121dd6c",
-    "break": "body of parseRRQ replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "9ae8389dc1e0052e",
+    "break": "body of parseRRQ replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC7440-3-1",
     "polarity": "positive",
     "unit": "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC7440FieldsAreNULTerminatedASCIIStrings",
-    "unit-sha": "6c5e61cdec6e425d",
+    "unit-sha": "ad9592a988cff74f",
     "claim-sha": "d90299299571e2f4",
     "route": "revert",
     "producer": "internal/plugins/tftpserver/handler.go::parseRRQ",
-    "producer-sha": "07f7177cd121dd6c",
-    "break": "body of parseRRQ replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "9ae8389dc1e0052e",
+    "break": "body of parseRRQ replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC7440-3-1",
     "polarity": "negative",
     "unit": "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC7440FieldsAreNULTerminatedASCIIStrings",
-    "unit-sha": "6c5e61cdec6e425d",
+    "unit-sha": "ad9592a988cff74f",
     "claim-sha": "0385b5a09f961c14",
     "route": "revert",
     "producer": "internal/plugins/tftpserver/handler.go::parseRRQ",
-    "producer-sha": "07f7177cd121dd6c",
-    "break": "body of parseRRQ replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "9ae8389dc1e0052e",
+    "break": "body of parseRRQ replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

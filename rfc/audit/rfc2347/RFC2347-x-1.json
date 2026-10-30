@@ -2,10 +2,10 @@
   "note": "TestRFC2347OnlyTheClientInitiatesNegotiation: a tsize-only RRQ gets an OACK with tsize=1500 and fails if blksize is present (the case the old verdict found missing); a plain RRQ and a windowsize-only RRQ must get DATA block 1 as the first reply (expectData fails on an OACK), so the server never initiates negotiation. With TestRFC2347ServerOACKOnlyRequestedOptions (blksize-only, no tsize) both emittable options are pinned absent when unrequested.",
   "requirement_sha": "6fc794781f7d1ec5",
   "tests": {
-    "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2347OnlyTheClientInitiatesNegotiation": "402f4bee572c1a29",
-    "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2347OnlyTheClientInitiatesNegotiation#2": "402f4bee572c1a29",
-    "internal/plugins/tftpserver/rfc2347_option_negotiation_test.go::TestRFC2347ServerOACKOnlyRequestedOptions": "9c9445e6280941e1",
-    "internal/plugins/tftpserver/rfc2347_option_negotiation_test.go::TestRFC2347ServerOACKOnlyRequestedOptions#2": "9c9445e6280941e1"
+    "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2347OnlyTheClientInitiatesNegotiation": "693976d3d27ffd85",
+    "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2347OnlyTheClientInitiatesNegotiation#2": "693976d3d27ffd85",
+    "internal/plugins/tftpserver/rfc2347_option_negotiation_test.go::TestRFC2347ServerOACKOnlyRequestedOptions": "e926e82740b44b39",
+    "internal/plugins/tftpserver/rfc2347_option_negotiation_test.go::TestRFC2347ServerOACKOnlyRequestedOptions#2": "e926e82740b44b39"
   },
   "units": {
     "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2347OnlyTheClientInitiatesNegotiation": "6468196a176bd648",

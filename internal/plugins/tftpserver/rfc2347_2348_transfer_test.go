@@ -13,6 +13,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/ze-software/ze/internal/core/tftp"
 )
 
 // expectOACK requires the next datagram to be an OACK made of whole key/value
@@ -23,7 +25,7 @@ func (c *transferClient) expectOACK() (map[string]string, []byte) {
 	if !ok {
 		c.t.Fatal("no OACK within 2 s")
 	}
-	if len(pkt) < 2 || binary.BigEndian.Uint16(pkt[0:2]) != opOACK {
+	if len(pkt) < 2 || binary.BigEndian.Uint16(pkt[0:2]) != tftp.OpOACK {
 		c.t.Fatalf("first reply is not an OACK: % x", pkt)
 	}
 	opts := map[string]string{}
@@ -164,8 +166,8 @@ func TestRFC2347UnacknowledgedOptionIsNotUsed(t *testing.T) {
 				t.Fatalf("OACK acknowledges the out-of-range blksize %s: %v", declined, opts)
 			}
 			c.ack(0)
-			if data := c.expectData(1, 2*time.Second); len(data) != defaultBlockSize {
-				t.Fatalf("block 1 carries %d octets, want the default %d", len(data), defaultBlockSize)
+			if data := c.expectData(1, 2*time.Second); len(data) != tftp.DefaultBlockSize {
+				t.Fatalf("block 1 carries %d octets, want the default %d", len(data), tftp.DefaultBlockSize)
 			}
 		})
 	}
@@ -191,7 +193,7 @@ func TestRFC2348BlksizeBoundsAreInclusive(t *testing.T) {
 	t.Run("65464", func(t *testing.T) {
 		t.Parallel()
 		c := newTransferClient(t, map[string][]byte{"b.bin": patterned(20)})
-		negotiateBlksize(c, "b.bin", "65464", strconv.Itoa(blksizeEthernet))
+		negotiateBlksize(c, "b.bin", "65464", strconv.Itoa(tftp.BlksizeEthernet))
 	})
 
 	for _, outside := range []string{"7", "65465"} {
@@ -284,7 +286,7 @@ func TestRFC7440FieldsAreNULTerminatedASCIIStrings(t *testing.T) {
 		t.Fatal("windowsize recognized although its #blocks field has no NUL")
 	}
 
-	noFilenameNUL := binary.BigEndian.AppendUint16(nil, opRRQ)
+	noFilenameNUL := binary.BigEndian.AppendUint16(nil, tftp.OpRRQ)
 	noFilenameNUL = append(noFilenameNUL, "foobar"...)
 	if _, _, _, err := parseRRQ(noFilenameNUL); err == nil {
 		t.Fatal("a request whose filename has no NUL was accepted")

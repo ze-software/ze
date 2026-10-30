@@ -1,5 +1,6 @@
 // Design: docs/architecture/appliance/on-device-installer.md -- download with retry and integrity check
-// Related: fetch.go -- ToFile, the fetcher every scheme below names
+// Related: fetch.go -- ToFile, the http and https fetcher
+// Related: tftp.go -- tftpToFile, the tftp fetcher
 
 package fetch
 
@@ -16,11 +17,12 @@ import (
 type Fetcher func(source, dest, expectedSHA string) error
 
 // schemes is the one table of the URL schemes a remote source can name. A
-// later scheme (tftp, ssh) is one entry here, and every caller, its refusal
-// and its help derive from this table.
+// later scheme (ssh) is one entry here, and every caller, its refusal and its
+// help derive from this table.
 var schemes = map[string]Fetcher{
 	"http":  ToFile,
 	"https": ToFile,
+	"tftp":  tftpToFile,
 }
 
 const schemeSeparator = "://"

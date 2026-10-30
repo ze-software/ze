@@ -1,0 +1,13 @@
+{
+  "note": "TestRFC7440ClientWindowsize: OACK windowsize 0 must draw ERROR with code exactly 8, silence and a failed fetch (red if the lower-range check in grantWindowsize is removed: 0 would be acked). windowsize 2 is accepted with ACK 0. The 65536 case is refused by the not-above-request check, not the range check, so it isolates nothing; the upper bound cannot be exceeded because the client requests 4 and refuses anything above it. Refusing an in-range value is allowed by 3-4, so the only violation is using an out-of-range value, which the 0 case catches.",
+  "requirement_sha": "acdc7a6ec53db159",
+  "tests": {
+    "internal/core/fetch/rfc7440_client_test.go::TestRFC7440ClientWindowsize": "ba0487920fe3a0de",
+    "internal/core/fetch/rfc7440_client_test.go::TestRFC7440ClientWindowsize#2": "ba0487920fe3a0de"
+  },
+  "units": {
+    "internal/core/fetch/rfc7440_client_test.go::TestRFC7440ClientWindowsize": "206224cf23b29f83",
+    "internal/core/fetch/rfc7440_client_test.go::TestRFC7440ClientWindowsize#2": "206224cf23b29f83"
+  },
+  "verdict": "enforced"
+}

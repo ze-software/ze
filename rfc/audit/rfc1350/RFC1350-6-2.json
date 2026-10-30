@@ -1,0 +1,13 @@
+{
+  "note": "TestRFC1350ClientDallies now sets the new tftpDally (1 s) instead of tftpTimeout; the assertions are unchanged. After the final ACK 2, a resent final DATA 2 must draw ACK 2 again within tftpTimeout/2, so a client that exits at once is red. A resent older block 1 must draw nothing for 200 ms, so a dally that ACKs anything is red.",
+  "requirement_sha": "ee42148b77359552",
+  "tests": {
+    "internal/core/fetch/rfc1350_client_test.go::TestRFC1350ClientDallies": "f99149d1d6e6ec30",
+    "internal/core/fetch/rfc1350_client_test.go::TestRFC1350ClientDallies#2": "f99149d1d6e6ec30"
+  },
+  "units": {
+    "internal/core/fetch/rfc1350_client_test.go::TestRFC1350ClientDallies": "1738bb16ca78deac",
+    "internal/core/fetch/rfc1350_client_test.go::TestRFC1350ClientDallies#2": "1738bb16ca78deac"
+  },
+  "verdict": "enforced"
+}

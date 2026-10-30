@@ -34,7 +34,7 @@
       "quote": "If multiple options were requested, the client must use those options which were acknowledged by the server and must not use those options which were not acknowledged by the server.",
       "disposition": "mapped",
       "mapped-to": "RFC2347-x-4",
-      "reason": "One sentence stating two client-side obligations, which rfc/short/rfc2347.md carries as one row, RFC2347-x-4, quoting the whole sentence: the client uses the options the server acknowledged and does not use those it did not. RFC2347-x-2, which quoted only the first half, was retired into x-4 on 2026-09-30 (rfc/corrections/rfc2347.md). The row is annotated {not-applicable}: the sentence binds the TFTP client, and ze ships a server only (internal/plugins/tftpserver/handler.go), with no client that could consume or ignore an acknowledged option. The site is mapped rather than excluded because the sentence is the source of a declared gated row and the annotation is a statement about ze rather than about the RFC."
+      "reason": "One sentence stating two client-side obligations, which rfc/short/rfc2347.md carries as one row, RFC2347-x-4, quoting the whole sentence: the client uses the options the server acknowledged and does not use those it did not. RFC2347-x-2, which quoted only the first half, was retired into x-4 on 2026-09-30 (rfc/corrections/rfc2347.md). The sentence binds the TFTP client, and Ze's client (the tftp scheme of ze init --from, internal/core/fetch/tftp.go with the OACK check in internal/core/tftp/oack.go) uses only the options the server's OACK grants and falls back to 512-octet lockstep when the server answers with DATA; TestRFC2347ClientUsesOnlyAcknowledgedOptions carries both polarities."
     },
     {
       "id": "front:4",
