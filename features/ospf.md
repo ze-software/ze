@@ -13,7 +13,7 @@
 | Components | internal/plugins/ospf |
 | Real-path tests | test/ospf/ospf-config.ci, test/ospf/ospf-neighbor.ci, test/ospf/ospf-flooding.ci, test/ospf/ospf-inter-area.ci, test/ospf/ospf-nssa.ci, test/ospf/ospf-stub.ci, test/ospf/ospf-route-install.ci, test/ospf/ospf-gr-helper.ci, test/ospf/ospf-sr-config.ci, test/ospf/ospf-lfa-compute.ci, test/ospf/ospf-virtual-link-config.ci, test/ospfv3/ospfv3-vlink.ci, test/ospfv3/ospfv3-sr-originate.ci, test/ospfv3/ospfv3-nssa-abr-default.ci |
 | Interop | bgp/ospf-p2p-frr, bgp/ospf-broadcast-frr, bgp/ospf-stub-nssa-frr, bgp/ospf-gr-frr, bgp/ospf-sr-frr, bgp/ospf-virtual-link-frr, bgp/ospfv3-frr, bgp/ospfv3-stub-frr |
-| RFCs | rfc2328, rfc5340, rfc3101 |
+| RFCs | rfc2328, rfc5340, rfc3101, rfc3630, rfc5187, rfc5250, rfc5709, rfc5838, rfc7684, rfc7770 |
 | Docs | docs/guide/ospf.md |
 | Doc review | 2026-10-07: every source anchor in the Description resolves to its file and symbol; NSSA border default origination is described as the anchors name it |
 | Defect review | 2026-10-07: spec-ospf-rfc3101-nssa-defaults (closed 2026-10-08) and spec-ospf-accept-lifetime-receive-window (closed 2026-10-08); journal declared-format-contradicts-payload row taken as open |

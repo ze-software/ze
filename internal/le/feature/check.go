@@ -48,11 +48,17 @@ type Verdict struct {
 // evidence is everything outside the declarations the check reads, loaded once
 // per run.
 type evidence struct {
-	tree    string
-	rfc     rfc.Collected
-	fixes   map[string]string // spec path -> its Files to Modify section
-	journal []journal.Row
-	dates   *changeDates
+	tree string
+	rfc  rfc.Collected
+	// figures is every summary's derived proof figure (rfc.StemFiguresOf),
+	// which S3 reads. figuresErr is why the corpus did not render one: S3
+	// then names it on every enrolled stem a feature lists, rather than
+	// reading an absent figure as an unproven or a proven one.
+	figures    map[string]rfc.StemFigures
+	figuresErr error
+	fixes      map[string]string // spec path -> its Files to Modify section
+	journal    []journal.Row
+	dates      *changeDates
 	// scenarios caches each interop suite's scenarios, name -> directory
 	// relative to tree; catalogErrors holds the suites whose catalog could
 	// not list them.
@@ -92,7 +98,9 @@ func checkOn(tree string, today time.Time) ([]Verdict, []error, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	in := &evidence{tree: tree, rfc: collected, fixes: fixes, journal: rows, dates: dates,
+	figures, figuresErr := stemFigures(tree, collected)
+	in := &evidence{tree: tree, rfc: collected, figures: figures, figuresErr: figuresErr,
+		fixes: fixes, journal: rows, dates: dates,
 		scenarios: map[string]map[string]string{}, catalogErrors: map[string]string{}, held: map[string]bool{}}
 	byID := make(map[string]*Declaration, len(declarations))
 	for i := range declarations {
@@ -312,10 +320,22 @@ func (in *evidence) criterionRealPath(d *Declaration, verdict *Verdict) {
 	}
 }
 
+// stemFigures answers every summary's proof figure through the rfc package's
+// one derivation, NewRenderInput then StemFiguresOf, over the corpus Collect
+// already parsed. S3 never counts proof its own way.
+func stemFigures(tree string, collected rfc.Collected) (map[string]rfc.StemFigures, error) {
+	input, err := rfc.NewRenderInput(tree, collected, nil, nil)
+	if err != nil {
+		return nil, err
+	}
+	return rfc.StemFiguresOf(&input)
+}
+
 // criterionRFC is S3 under D-3: only enrolled stems count, and a counting stem
-// must be published as supported by the ledger itself with no open gap on a
-// gated (MUST-level) requirement. The ledger's own Support status is the
-// verdict `./le rfc check` already gates, so it is read, never re-derived.
+// must be walked (a valid extraction sign-off) with every attainable mandatory
+// row proven by a verified discrimination record. A row the summary excludes
+// from the ceiling, `{linux-limit}` among them, is not attainable, so it does
+// not block: Linux cannot provide its primitive (owner rule, ai/META-DECISIONS.md).
 func (in *evidence) criterionRFC(d *Declaration, verdict *Verdict) {
 	for _, stem := range d.RFCs {
 		meta, known := in.rfc.Metas[stem]
@@ -326,36 +346,36 @@ func (in *evidence) criterionRFC(d *Declaration, verdict *Verdict) {
 			verdict.Bounds = append(verdict.Bounds, "S3 bounded: "+stem+" not enrolled")
 			continue
 		}
-		if !strings.HasPrefix(meta.Status, "Supported") {
-			verdict.Unmet[LevelSupported] = append(verdict.Unmet[LevelSupported],
-				"S3: "+stem+" ledger Support status is '"+meta.Status+"'")
-		}
-		if gaps := openGaps(in.rfc.Requirements, stem); len(gaps) > 0 {
-			verdict.Unmet[LevelSupported] = append(verdict.Unmet[LevelSupported],
-				"S3: "+stem+" open gap on "+strings.Join(gaps, ", "))
+		if line, unmet := in.rfcProofUnmet(stem); unmet {
+			verdict.Unmet[LevelSupported] = append(verdict.Unmet[LevelSupported], line)
 		}
 	}
 }
 
-// openGaps answers the gated requirement ids of stem carrying a {gap}.
-func openGaps(requirements []rfc.Requirement, stem string) []string {
-	prefix := rfc.Prefix(stem) + "-"
-	var gaps []string
-	for _, requirement := range requirements {
-		if !strings.HasPrefix(requirement.RID, prefix) {
-			continue
-		}
-		if !rfc.IsGatedLevel(requirement.Level) {
-			continue
-		}
-		if requirement.Annotation == nil {
-			continue
-		}
-		if requirement.Annotation.Kind == rfc.AnnotationGap {
-			gaps = append(gaps, requirement.RID)
-		}
+// rfcProofUnmet answers the S3 line naming stem and its figure, and whether
+// the stem falls short of S3. A figure the corpus could not derive is short,
+// with the reason: no figure is no proof.
+func (in *evidence) rfcProofUnmet(stem string) (string, bool) {
+	var tb textbuf.Buffer
+	tb.Str("S3: ").Str(stem)
+	if in.figuresErr != nil {
+		first, _, _ := strings.Cut(in.figuresErr.Error(), "\n")
+		return tb.Str(" proof figure not derived (`./le rfc check` names why): ").Str(first).String(), true
 	}
-	return gaps
+	figures, held := in.figures[stem]
+	if !held {
+		return tb.Str(" has no derived proof figure; `./le rfc check` names why").String(), true
+	}
+	if !figures.Walked {
+		return tb.Str(" not walked; sign its extraction off with `./le rfc extraction create stem ").
+			Str(stem).Str("`").String(), true
+	}
+	mandatory := figures.Mandatory
+	if mandatory.Proven == mandatory.Attainable {
+		return "", false
+	}
+	return tb.Str(" mandatory ").Int(int64(mandatory.Proven)).Str(" of ").Int(int64(mandatory.Attainable)).
+		Str(" attainable proven; record each unproven row with `./le rfc record`").String(), true
 }
 
 // criterionDocs is S4's presence half: a missing page or review lowers the

@@ -13,7 +13,7 @@
 | Components | internal/component/radius |
 | Real-path tests | test/plugin/aaa-radius-admin.ci, test/plugin/aaa-radius-chap.ci, test/plugin/aaa-radius-eap.ci, test/plugin/aaa-radius-fallback.ci |
 | Interop | radius/radius-admin-pap-freeradius, radius/radius-admin-chap-freeradius, radius/radius-admin-chap-hashed-freeradius, radius/radius-admin-eap-freeradius |
-| RFCs | rfc2865, rfc3579 |
+| RFCs | rfc2865, rfc3579, rfc2866 |
 | Docs | docs/guide/radius.md |
 | Doc review | 2026-10-07: checked aaaPriority 50 (internal/component/radius/aaa.go), maxEAPRounds 20 (internal/core/eap/peer.go), the 253-octet EAP-Message split (eap.go) and doctor-radius-admin-unreachable |
 | Defect review | 2026-10-07: open: spec-radius-rfc-defects; journal rows name internal/component/radius; journal rows naming a Component, not each re-verified here: assertion-reads-state-the-scheduler-owns.md:10, claim-outlives-the-evidence-it-cites.md:55, claim-outlives-the-evidence-it-cites.md:57, comment-describes-superseded-behaviour.md:22, false-synchronization-claim.md:13, gate-fires-outside-its-population.md:48, gate-fires-outside-its-population.md:56, green-that-could-not-have-been-red.md:174, green-that-could-not-have-been-red.md:233, green-that-could-not-have-been-red.md:234, guard-blocks-its-own-authors-repair.md:8, lint-contract-not-applied.md:22, silent-fall-through.md:68, stale-spec-claims-done.md:20, unwired-feature.md:54 |

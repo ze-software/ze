@@ -38,18 +38,55 @@ const passingDeclaration = "# Widget\n\n## Meta\n\n| Field | Value |\n|-------|-
 // applied to the declaration text, and answers its root.
 func fixtureTree(t *testing.T, edit func(string) string) string {
 	t.Helper()
+	return fixtureTreeProving(t, edit, same)
+}
+
+// The fixture's second requirement, which a case adds to the summary to give
+// the stem a row the proof of the first does not reach.
+const (
+	fixtureRIDDrop     = "RFC9999-2-2"
+	fixtureRowDrop     = "- [ ] [" + fixtureRIDDrop + "] [MUST] A speaker MUST NOT drop the widget (§2)"
+	fixtureLinuxLimit  = " {linux-limit: LL-FIXTURE; the kernel offers no primitive to keep it}"
+	fixtureProducerRel = "internal/sample/widget.go"
+	fixtureTaggedRel   = "test/plugin/widget-rfc.ci"
+)
+
+// fixtureTreeProving is fixtureTree with summary applied to the RFC summary,
+// which is then walked and proven as the real pipeline reads it: an extraction
+// sign-off mapping each section 2 sentence to its row, and a verified
+// discrimination record of each polarity for the first row. The summary is
+// edited BEFORE the proof is sealed, so a case's row change is never confused
+// with a record gone stale.
+func fixtureTreeProving(t *testing.T, edit, summary func(string) string) string {
+	t.Helper()
 	tree := t.TempDir()
 	files := rfc.FixtureFiles()
-	summary := "rfc/short/" + rfc.FixtureStem + ".md"
-	files[summary] = strings.Replace(files[summary], "| Support status | Partial |", "| Support status | Supported |", 1)
+	summaryRel := "rfc/short/" + rfc.FixtureStem + ".md"
+	files[summaryRel] = summary(files[summaryRel])
+	files["rfc/full/"+rfc.FixtureStem+".txt"] = "Test RFC 9999\n\n2.  Widgets\n\n" +
+		"A speaker MUST send the widget.\n\nA speaker MUST NOT drop the widget.\n"
 	files["internal/widget/widget.go"] = "package widget\n\nfunc Send() {}\n"
 	files["internal/widget/widget_test.go"] = "package widget\n\nimport \"testing\"\n\nfunc TestWidget(t *testing.T) {}\n"
+	files[fixtureProducerRel] = "package sample\n\n// SendWidget answers the widget the speaker sends.\n" +
+		"func SendWidget(count int) int {\n\treturn count\n}\n"
 	files["test/plugin/widget.ci"] = "cmd=foreground:seq=1:exec=ze\n"
+	// The tagged unit is its own file, so a case that edits the real-path
+	// test's recorded run never stales the RFC proof as a side effect.
+	files[fixtureTaggedRel] = "# RFC requirement: " + rfc.FixtureRequirement + " positive -- the widget is sent\n" +
+		"# RFC requirement: " + rfc.FixtureRequirement + " negative -- no widget, nothing sent\n" +
+		"cmd=foreground:seq=1:exec=ze\nexpect=stdout:contains=OK\n"
 	files["docs/widget.md"] = "# Widget\n"
 	files["plan/release/fixes/spec-unrelated.md"] = "# Spec\n\n## Files to Modify\n- `internal/other/x.go`\n" // <!-- doc-links: ignore (a synthetic path in a test fixture: the spec names a file the tree does not hold) -->
 	files["features/widget.md"] = edit(passingDeclaration)
 	for rel, content := range files {
 		writeFile(t, tree, rel, content)
+	}
+	mapped := map[string]string{"2:1": rfc.FixtureRequirement}
+	if strings.Contains(files[summaryRel], fixtureRIDDrop) {
+		mapped["2:2"] = fixtureRIDDrop
+	}
+	if err := rfc.FixtureProof(tree, rfc.FixtureStem, mapped, fixtureRecords()...); err != nil {
+		t.Fatal(err)
 	}
 	writeFile(t, tree, fixtureScenarioDir+"/README", "a scenario directory\n")
 	// Seeded before the record: the scenario's tree id is read through git.
@@ -58,6 +95,18 @@ func fixtureTree(t *testing.T, edit func(string) string) string {
 		"test/plugin/widget.ci", "internal/widget/widget_test.go::TestWidget")
 	commitFixture(t, tree, fixtureCommitDate, "record green runs")
 	return tree
+}
+
+// fixtureRecords is one unsealed record of each polarity for the fixture's
+// first row: the tags of fixtureTaggedRel, broken by zeroing SendWidget's answer.
+func fixtureRecords() []rfc.DiscriminationRecord {
+	var records []rfc.DiscriminationRecord
+	for _, polarity := range []string{rfc.PolarityPositive, rfc.PolarityNegative} {
+		records = append(records, rfc.DiscriminationRecord{RID: rfc.FixtureRequirement, Polarity: polarity,
+			Unit: fixtureTaggedRel, Route: rfc.RouteRevert, Producer: fixtureProducerRel + "::SendWidget",
+			Break: "return count -> return 0", Citation: "expect=stdout:contains=OK"})
+	}
+	return records
 }
 
 // The fixture interop scenario, as a declaration cites it and where it lives.
@@ -245,14 +294,70 @@ func TestCheckRefusesUnknownRFCStem(t *testing.T) {
 	requireRefused(t, &verdict, "RFCs 'rfc0'")
 }
 
-// TestCheckRefusesSupportedWithRFCGap reads the ledger's own verdict: a stem
-// the ledger publishes as Partial cannot carry a Supported feature.
+// TestCheckRefusesSupportedWithRFCGap: a walked stem whose one mandatory row
+// the summary marks `{gap}` cannot carry a Supported feature, even with
+// verified records on that row, because a gap is never proven and stays
+// attainable.
 func TestCheckRefusesSupportedWithRFCGap(t *testing.T) {
-	tree := fixtureTree(t, same)
-	summary := "rfc/short/" + rfc.FixtureStem + ".md"
-	writeFile(t, tree, summary, rfc.FixtureFiles()[summary])
+	tree := fixtureTreeProving(t, same, func(summary string) string {
+		return strings.Replace(summary, "send the widget (§2)", "send the widget (§2) {gap: native sending is absent}", 1)
+	})
 	verdict := judgeOne(t, tree)
-	requireRefused(t, &verdict, "S3: "+rfc.FixtureStem+" ledger Support status is 'Partial'")
+	requireRefused(t, &verdict, "S3: "+rfc.FixtureStem+" mandatory 0 of 1 attainable proven")
+}
+
+// TestCheckRefusesSupportedWithUnprovenRFC (AC-9).
+// VALIDATES: S3 refuses a Supported feature listing an enrolled stem that is
+// not walked, or walked with an attainable mandatory row no verified record
+// proves, and names the stem and its figure.
+// METHOD: start from the walked, proven fixture TestCheckAcceptsTheFixture
+// accepts, then remove the extraction sign-off, or the discrimination records.
+// PREVENTS: S3 reading an authored status, or an unwalked list, as proof.
+func TestCheckRefusesSupportedWithUnprovenRFC(t *testing.T) {
+	for name, tc := range map[string]struct {
+		removed string
+		want    string
+	}{
+		"not walked":   {"rfc/extraction/" + rfc.FixtureStem + ".json", "S3: " + rfc.FixtureStem + " not walked"},
+		"row unproven": {"rfc/discrimination", "S3: " + rfc.FixtureStem + " mandatory 0 of 1 attainable proven"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			tree := fixtureTree(t, same)
+			removed := filepath.Join(tree, filepath.FromSlash(tc.removed))
+			if _, err := os.Stat(removed); err != nil {
+				t.Fatalf("the proven fixture holds no %s to remove: %v", tc.removed, err)
+			}
+			if err := os.RemoveAll(removed); err != nil {
+				t.Fatal(err)
+			}
+			verdict := judgeOne(t, tree)
+			requireRefused(t, &verdict, tc.want)
+		})
+	}
+}
+
+// TestCheckAcceptsSupportedWithLinuxLimitOnly (AC-10).
+// VALIDATES: a walked stem whose every attainable mandatory row is proven
+// meets S3 when its only unmet row is `{linux-limit}`, which Linux cannot
+// provide (owner rule).
+// METHOD: add a second MUST row, mapped by the sign-off, and judge it twice:
+// annotated `{linux-limit}` it is accepted; unannotated, the same row is
+// refused as 1 of 2, which shows the row is counted and the annotation alone
+// moves it out of the attainable rows.
+// PREVENTS: a kernel limit blocking a feature, or an S3 that never saw the row.
+func TestCheckAcceptsSupportedWithLinuxLimitOnly(t *testing.T) {
+	withRow := func(row string) func(string) string {
+		return func(summary string) string { return strings.TrimRight(summary, "\n") + "\n" + row + "\n" }
+	}
+	limited := judgeOne(t, fixtureTreeProving(t, same, withRow(fixtureRowDrop+fixtureLinuxLimit)))
+	if len(limited.Refusals) != 0 {
+		t.Fatalf("refusals with only a {linux-limit} row unmet: %v (unmet %v)", limited.Refusals, limited.Unmet)
+	}
+	if limited.Ceiling != LevelSupported {
+		t.Fatalf("ceiling %v, want supported; unmet %v", limited.Ceiling, limited.Unmet)
+	}
+	unannotated := judgeOne(t, fixtureTreeProving(t, same, withRow(fixtureRowDrop)))
+	requireRefused(t, &unannotated, "S3: "+rfc.FixtureStem+" mandatory 1 of 2 attainable proven")
 }
 
 func TestCheckRefusesSupportedWithImmediateSpec(t *testing.T) {

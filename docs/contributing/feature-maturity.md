@@ -50,13 +50,27 @@ Supported requires, among the criteria the report names:
 |-----------|--------------------------|
 | S1 real path | at least one real-path test, and a recorded green run of each one; a promotion needs each run current |
 | S2 interop | for a protocol feature, at least one Interop scenario not listed in Stub evidence, and a recorded green run of each such scenario; a promotion needs each run current |
-| S3 RFC | each listed enrolled stem published as supported by the RFC ledger, with no gated requirement marked `{gap}`; an unenrolled stem is reported as a bound |
+| S3 RFC | each listed enrolled stem walked (a valid extraction sign-off), with every attainable mandatory row proven by a verified discrimination record; an unenrolled stem is reported as a bound |
 | S4 docs | a Docs page and a Doc review |
 | S5 defects | no `plan/release/fixes/` spec naming a Components path in its Files to Modify, and a Defect review no older than the newest journal row naming one ("re-review owed") |
 | S6 not stub-only | at least one real-path or interop item not listed in Stub evidence |
 | Extra criteria | every extra criterion gating Supported resolves |
 
 <!-- source: internal/le/feature/check.go -- releaseFixSpecs, criterionDefects -->
+
+S3 reads the RFC package's derived proof figure (`rfc.StemFiguresOf`, the
+figure `./le rfc tree` and the RFC status page print) and never an authored
+status. A row the summary excludes from the ceiling (`{not-applicable}`,
+`{lower-layer}`, `{feature-declined}`, `{linux-limit}`) is not attainable, so
+it does not block: a requirement Linux cannot provide never holds a feature
+below Supported. A `{gap}` or `{partial}` row stays attainable and is never
+proven, so it does. The unmet line names the stem and its figure, as
+`S3: rfcNNNN not walked` or `S3: rfcNNNN mandatory P of A attainable proven`.
+Walking and recording are in
+[the RFC conformance gates](rfc-conformance-gates.md).
+
+<!-- source: internal/le/feature/check.go -- criterionRFC, rfcProofUnmet, stemFigures -->
+<!-- source: internal/le/rfc/profilecoverage.go -- StemFiguresOf -->
 
 A level once Supported stays Supported (owner decision 2026-10-08). A
 promotion, a declaration raised to Supported where `HEAD` holds it below

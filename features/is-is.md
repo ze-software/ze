@@ -12,7 +12,7 @@
 | Components | internal/plugins/isis |
 | Real-path tests | test/isis/isis-adjacency.ci, test/isis/isis-auth.ci, test/isis/isis-config.ci, test/isis/isis-dis.ci, test/isis/isis-flooding.ci, test/isis/isis-ipv6.ci, test/isis/isis-hostname-ascii.ci, test/isis/isis-redist-bgp.ci, test/isis/isis-route-install.ci, test/isis/isis-show.ci |
 | Interop | bgp/isis-p2p-frr, bgp/isis-lan-dis-frr, bgp/isis-auth-frr, bgp/isis-dualstack-frr, bgp/isis-convergence-frr, bgp/isis-redist-frr |
-| RFCs | rfc1195, rfc5303, rfc5305 |
+| RFCs | rfc1195, rfc5303, rfc5305, rfc2966, rfc5286, rfc5304, rfc5310 |
 | Docs | docs/guide/isis.md |
 | Doc review | 2026-10-07: every source anchor in the Description resolves to its file and symbol; the Description states RFC 5120 Multi-Topology is not implemented |
 | Defect review | 2026-10-07: journal rows unwired-feature, zero-value-as-valid-answer and plugin-list-hardcoded naming internal/plugins/isis taken as open; interop isis-redist-frr reported red by the audit |
