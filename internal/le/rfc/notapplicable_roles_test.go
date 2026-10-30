@@ -275,7 +275,9 @@ const compoundFixtureSource = "Test RFC 9999\n\n1.  Introduction\n\n   This docu
 	"   This section does not apply to route reflectors.\n\n" +
 	"   o  A speaker MUST NOT drop the widget it received.\n\n" +
 	"   The widget MUST be sent. " + lowerCaseSentence + "\n\n" +
-	"   " + abbreviationSentence + "\n"
+	"   " + abbreviationSentence + "\n\n" +
+	"   " + rowSpeakerFirst + " " + rowReflectorSecond + "\n\n" +
+	"   " + rowReflectorFirst + " " + rowSpeakerSecond + "\n"
 
 const (
 	compoundSentence = "A route reflector MAY keep the widget, and a speaker MUST send the widget to every peer."
@@ -286,13 +288,24 @@ const (
 	// abbreviationSentence holds "etc." before a lower-case word, which
 	// quoteAbbreviations alone keeps from ending the sentence.
 	abbreviationSentence = "A speaker MAY drop widgets, frames, etc. and keep the rest."
+	// rowSpeakerFirst and rowReflectorSecond are one paragraph of two
+	// sentences: a row stating both holds a quote of the second, whose first
+	// keyword is the row's level, while the row's own MUST is the first's.
+	rowSpeakerFirst    = "A speaker MUST send the widget first."
+	rowReflectorSecond = "A route reflector MUST keep the widget it reflects."
+	// rowReflectorFirst and rowSpeakerSecond are the same paragraph with the
+	// reflector's sentence first, so the row's own MUST is the quote's.
+	rowReflectorFirst = "A route reflector MUST hold the widget it reflects."
+	rowSpeakerSecond  = "A speaker MUST send the widget last."
 )
 
 // VALIDATES: I1 -- a quoted obligation binds the row only through the row's
 // own clause: the quote's first BCP 14 keyword must lie inside the span the
 // row's quote occupies, and must be the row's level. A compound sentence
 // whose first clause names a route reflector cannot exclude ze from its
-// second clause's speaker obligation.
+// second clause's speaker obligation. When the row holds the quote, the
+// row's first keyword of its level must lie inside the quoted sentence, so a
+// row of two sentences cannot borrow its second sentence's subject.
 // METHOD: rows over compoundFixtureSource through (*evidenceReader).gap.
 func TestNotApplicableKeywordIsTheRowsClause(t *testing.T) {
 	tree := t.TempDir()
@@ -313,6 +326,34 @@ func TestNotApplicableKeywordIsTheRowsClause(t *testing.T) {
 	for _, one := range cases {
 		req := compound
 		req.Text, req.Level = one.text, one.level
+		missing, lacks := newEvidenceReader(tree).gap(&req)
+		if one.says == nil {
+			if lacks {
+				t.Errorf("%s: refused: %s", one.name, missing)
+			}
+			continue
+		}
+		if !lacks {
+			t.Errorf("%s: passed, want a refusal", one.name)
+			continue
+		}
+		for _, says := range one.says {
+			if !strings.Contains(missing, says) {
+				t.Errorf("%s: answered %q, want it to say %q", one.name, missing, says)
+			}
+		}
+	}
+	rowHolds := []struct {
+		name, quote, text string
+		says              []string
+	}{
+		{"the row's MUST in another sentence", rowReflectorSecond, rowSpeakerFirst + " " + rowReflectorSecond + " (§2)",
+			[]string{"the row's first MUST lies outside its role-condition quote", "'" + quoteNeedle(rowReflectorSecond) + "'"}},
+		{"the row's MUST in the quoted sentence", rowReflectorFirst, rowReflectorFirst + " " + rowSpeakerSecond + " (§2)", nil},
+	}
+	for _, one := range rowHolds {
+		req := evidenceRow(t, "RFC9999-2-3", "2", `not-applicable: "`+one.quote+`"; binds a route reflector; ze reflects nothing`)
+		req.Text, req.Level = one.text, levelMust
 		missing, lacks := newEvidenceReader(tree).gap(&req)
 		if one.says == nil {
 			if lacks {
@@ -367,12 +408,34 @@ func TestNotApplicableScopingSentenceIsNotNegated(t *testing.T) {
 	}
 }
 
+// splitFixtureSource is an RFC whose section 2 holds a single letter, a
+// number and each abbreviation of a whole word before a lower-case word,
+// none of which ends a sentence, and an item opened by each lettered or
+// numbered list marker shape.
+const splitFixtureSource = "Test RFC 9999\n\n1.  Introduction\n\n   This document describes widgets.\n\n" +
+	"2.  Widgets\n\n" +
+	"   " + singleLetterSentence + "\n\n" +
+	"   " + numberSentence + "\n\n" +
+	"   " + wordAbbreviationSentence + "\n\n" +
+	"   (a) A speaker MUST send the lettered widget.\n\n" +
+	"   b) A speaker MUST send the closed widget.\n\n" +
+	"   12) A speaker MUST send the numbered widget.\n"
+
+const (
+	singleLetterSentence     = "A speaker MUST set the flag in field b. then it MUST stop."
+	numberSentence           = "A speaker MUST accept version 10. later versions MAY be refused."
+	wordAbbreviationSentence = "A speaker MAY send approx. ten widgets, resp. frames, esp. small ones, min. one and max. ten, inc. headers, to corp. peers."
+)
+
 // VALIDATES: I3 -- a bulleted obligation and one opening in lower case after a
-// full stop are whole sentences, while an abbreviation ("e.g.", "i.e.")
-// followed by a lower-case word does not end one.
-// METHOD: wholeSentence over compoundFixtureSource and real RFC 1812 text.
+// full stop are whole sentences, while an abbreviation ("e.g.", "i.e.",
+// "approx."), a single letter or a number followed by a lower-case word does
+// not end one, and each list marker shape ("o", "(a)", "a)", "1)") is cut.
+// METHOD: wholeSentence over compoundFixtureSource, splitFixtureSource and
+// real RFC 1812 text.
 func TestNotApplicableQuoteSentenceSplitsListsAndLowerCase(t *testing.T) {
 	fixture := newQuoteSource(compoundFixtureSource)
+	split := newQuoteSource(splitFixtureSource)
 	rfc1812 := newQuoteSource(realRFCText(t, "rfc1812"))
 	cases := []struct {
 		source  *quoteSource
@@ -385,6 +448,14 @@ func TestNotApplicableQuoteSentenceSplitsListsAndLowerCase(t *testing.T) {
 		{fixture, "2", "The widget MUST be sent.", true},
 		{fixture, "2", "The widget MUST be sent. " + lowerCaseSentence, false},
 		{fixture, "2", abbreviationSentence, true},
+		{split, "2", singleLetterSentence, true},
+		{split, "2", "A speaker MUST set the flag in field b.", false},
+		{split, "2", numberSentence, true},
+		{split, "2", "A speaker MUST accept version 10.", false},
+		{split, "2", wordAbbreviationSentence, true},
+		{split, "2", "A speaker MUST send the lettered widget.", true},
+		{split, "2", "A speaker MUST send the closed widget.", true},
+		{split, "2", "A speaker MUST send the numbered widget.", true},
 		{rfc1812, "4.2.2.11", "A router MUST receive and process normally any packets with a broadcast destination address.", true},
 		{rfc1812, "F.1.2", "An implementation MUST NOT send a network back to the autonomous system from which it is learned, i.e. it MUST do split-horizon on an autonomous system level.", true},
 		{rfc1812, "F.1.2", "it MUST do split-horizon on an autonomous system level.", false},

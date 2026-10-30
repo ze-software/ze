@@ -14,7 +14,7 @@ import (
 // not cut after one. A word with a full stop inside it ("i.e.", "a.k.a."), a
 // single letter (an author's initial, a list label) and a number are not cut
 // after either, so the list holds only the abbreviations of whole words.
-const quoteAbbreviations = "e.g. i.e. etc. sec. cf. vs. ed. al. no. fig. viz."
+const quoteAbbreviations = "e.g. i.e. etc. sec. cf. vs. ed. al. no. fig. viz. approx. resp. esp. min. max. inc. corp."
 
 // quoteListMarkers are the list markers an RFC opens an item with, each
 // followed by a blank: stripListMarker cuts one from the front of a sentence,

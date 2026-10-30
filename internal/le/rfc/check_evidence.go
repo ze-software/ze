@@ -555,14 +555,18 @@ func (reader *evidenceReader) roleQuoteGap(req *Requirement) (string, bool) {
 // matched. One must hold the other; the span the row's quote occupies in the
 // quoted sentence (all of it, when the row holds the quote) must hold the
 // quote's first keyword, whose subject the parser held to the bound role
-// (subjectRefusal); and that keyword must be the row's level. Otherwise the
-// subject binds another clause's obligation, and the refusal names which of
-// the three failed.
+// (subjectRefusal); that keyword must be the row's level; and, when the row
+// holds the quote, the row's first keyword of its level must lie inside the
+// span the quote occupies in the row, so a row of several sentences cannot
+// bind its own obligation through another sentence's subject. Otherwise the
+// subject binds another obligation than the row's, and the refusal names
+// which of the four failed.
 func ownObligationRefusal(rowQuote, level, quote string) (string, bool) {
 	var tb textbuf.Buffer
 	row, held := quoteNeedle(strings.TrimSpace(rowQuote)), quoteNeedle(strings.TrimSpace(quote))
 	start, end := 0, len(held)
-	if !strings.Contains(row, held) {
+	rowHolds := strings.Contains(row, held)
+	if !rowHolds {
 		start = strings.Index(held, row)
 		if row == "" || start < 0 {
 			return tb.Str("its role-condition quote holds a BCP 14 keyword and is not the row's own obligation sentence: the row's quote, its text without the (§N), is ").
@@ -583,7 +587,34 @@ func ownObligationRefusal(rowQuote, level, quote string) (string, bool) {
 			Str(", so the subject held to the bound role binds an obligation other than the row's. Quote the sentence whose first keyword is the row's ").Str(level).
 			Str(", or annotate the row {gap: ...}").String(), true
 	}
+	if !rowHolds {
+		return "", false
+	}
+	from := strings.Index(row, held)
+	if own := levelKeywordAt(row, level); own < from || own >= from+len(held) {
+		return tb.Str("the row's first ").Str(level).Str(" lies outside its role-condition quote ").Str(pyRepr(held)).
+			Str(": the row's own obligation sits in another sentence than the one quoted, so the subject held to the bound role is not the row's. Quote the sentence of the row that holds its first ").Str(level).
+			Str(", or annotate the row {gap: ...}").String(), true
+	}
 	return "", false
+}
+
+// levelKeywordAt answers the byte offset of the first BCP 14 keyword in text
+// that is spelled level, -1 when none is. Keywords are read in order as
+// firstKeyword reads them, so a MUST NOT is not taken for a MUST. The loop is
+// bounded by len(text): each pass moves offset past one keyword.
+func levelKeywordAt(text, level string) int {
+	offset := 0
+	for {
+		at, keyword := firstKeyword(text[offset:])
+		if at < 0 {
+			return -1
+		}
+		if keyword == level {
+			return offset + at
+		}
+		offset += at + len(keyword)
+	}
 }
 
 // evidenceFormat answers the format sentence a refusal for this kind ends with.
