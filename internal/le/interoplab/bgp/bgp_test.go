@@ -279,6 +279,7 @@ func TestRFCInteropCheckerBindings(t *testing.T) {
 		"bgp-relay-withdraw-reflector-frr",
 		"bgp-relay-withdraw-shape-frr",
 		"bgp-rfc2545-linklocal-nexthop-frr",
+		"bgp-rfc2545-third-party-linklocal-frr",
 		"bgp-rfc7606-relay-shape-frr",
 		"bgp-rfc7606-typed-nlri-discard",
 		"bgp-rfc7999-blackhole-frr",
@@ -302,6 +303,7 @@ func TestRFCInteropCheckerBindings(t *testing.T) {
 		"bgp-med-remove-configured-gobgp":       checkMEDRemovalConfiguration,
 		"bgp-relay-withdraw-shape-frr":          checkRelayWithdrawalShape,
 		"bgp-rfc2545-linklocal-nexthop-frr":     checkRFC2545NextHops,
+		"bgp-rfc2545-third-party-linklocal-frr": checkRFC2545ThirdPartyLinkLocal,
 		"bgp-rfc7606-relay-shape-frr":           checkRFC7606MixedUpdate,
 		"bgp-rfc7606-typed-nlri-discard":        checkRFC7606TypedNLRIDiscard,
 		"bgp-rfc7999-blackhole-frr":             checkRFC7999Blackhole,
@@ -499,6 +501,7 @@ func TestBespokeCheckerBranches(t *testing.T) {
 	t.Run(bfdProfileEditScenario, bfdProfileEditCheckerBranches)
 	t.Run(attachReceiveOnlyLiveScenario, liveKeepSessionCheckerBranches)
 	t.Run(ospfSRAnycastScenario, ospfSRAnycastCheckerBranches)
+	t.Run(rfc2545ThirdPartyScenario, rfc2545ThirdPartyCheckerBranches)
 
 	t.Run("bfd-frr", func(t *testing.T) {
 		const established = "BGP state = Established, up for 00:00:05\n  Connections established 1; dropped 0\n"

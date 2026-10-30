@@ -1114,6 +1114,26 @@ not identical UPDATEs differing only in their next-hop length.
 <!-- source: internal/le/interoplab/bgp/prepare.go -- prepareScenario, renderScenario, needsIPv6, linkLocalOwners, linkLocalAt, assignLinkLocal, ownerPrestarts, scenarioPrestarts, renderPrestarts -->
 <!-- source: internal/le/interoplab/bgp/check_rfc.go -- checkRFC2545NextHops -->
 
+`bgp-rfc2545-third-party-linklocal-frr` is the same sentence for a next hop that
+names another router. A second FRR, `frr-sink` (IPv6 host 15), runs no BGP and
+carries no link-local placeholder, so it owns exactly the one link-local its
+kernel gave `eth0`. The checker reads that address from the container's
+`/proc/net/if_inet6` and its MAC from `/sys/class/net/eth0/address`, then pings
+frr-sink's global and link-local from Ze's container, so Ze's kernel learns
+both by Neighbor Discovery. It requires `ip -j -6 neigh show dev eth0` in Ze's
+container to bind both addresses to that MAC, with no second link-local on it:
+any other table is a lab that cannot discriminate and fails there, not later.
+It then runs `send bgp * update text ... nhop <frr-sink's global>` through
+`ze cli` and requires FRR to decode frr-sink's global then frr-sink's
+link-local, and to install the route through that link-local. Ze's `ze.conf`
+sets no `link-local` leaf, so the second address can only come from Ze's
+neighbor table. The announce is resent each round of the 60 second wait,
+because the neighbor-changed event that refreshes Ze's table read can race the
+first send; a resend is an implicit replace, and a Ze that never adds the
+router's link-local fails every round.
+<!-- source: internal/le/interoplab/bgp/check_rfc2545_third_party.go -- checkRFC2545ThirdPartyLinkLocal, thirdPartyIdentity, resolveThirdParty -->
+<!-- source: internal/le/interoplab/bgp/check_rfc2545_third_party_predicate.go -- onlyLinkLocal, requireNeighborPair, parseContainerMAC -->
+
 Typed checker queries and their expected JSON field values are rendered onto the
 same selected network. Rendering clones the expected-field map so concurrent or
 later runs cannot change the registered scenario's addresses. In `inject.msg`,
