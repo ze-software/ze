@@ -373,6 +373,16 @@ fixed fraction of its total height. DOM text alone does not prove the section
 is visible.
 <!-- source: website/assets/js/site.js -->
 
+The fill of `data-ze-stat` figures from `data/site-facts.json` is proven in a
+real browser, because the shared header is inserted after the body is filled
+and only a loaded page shows that ordering. The test serves a fixture site with
+the real `site.js`, drives headless Chrome through chromedp, swaps the snapshot
+and reloads, and counts one snapshot fetch per load. It needs Google Chrome or
+Chromium and fails when neither is installed; it lives in its own package so
+the other site tests run without a browser (`website/AI.md`, "The browser
+fill").
+<!-- source: internal/le/site/browsertest/fill_test.go -- TestTheBrowserFillsEveryMarkedValueFromTheSnapshot -->
+
 The corpus tests materialize all registered derived artifacts once per process.
 This setup requires the checkout's real Git history, including a resolvable
 `HEAD` for the roadmap; a source-only mount is not a substitute. A failed

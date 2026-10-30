@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling |
 | Priority | P1 |
 | Release reason | Public site figures are baked into pages by separate counters, so the site can contradict itself and a changed value needs every page rewritten; accurate public claims are release validation |
 | RFC gaps | - |
 | Depends | - |
-| Phase | - |
+| Phase | 1/7 |
 | Handoff | - |
 | Updated | 2026-10-30 |
 
@@ -147,9 +147,9 @@ Found before the spec opened:
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | The RFC index's "240 summaries" and the snapshot's 229 count different populations (summary files vs RFCs holding a requirement) | `factsFromRFCLedger` counts RFCs with a requirement | the defect is misreported to rfc-website, which owns that page | rfc-website reads its producer's count | unvalidated |
-| A-2 | The releases list (`/releases`) answers an empty array with no release, where `/releases/latest` would 404 | observed empty list via `gh release list` and the API; `/latest` behaviour from API docs, not observed | the update command reports an error instead of committing "none yet" | the command reads the list endpoint; a test states the empty answer | unvalidated |
+| A-2 | The releases list (`/releases`) answers an empty array with no release, where `/releases/latest` would 404 | observed empty list via `gh release list` and the API; `/latest` behaviour from API docs, not observed | the update command reports an error instead of committing "none yet" | the command reads the list endpoint; a test states the empty answer | confirmed (2026-10-30): `/releases/latest` answered 404, `/releases` answered `[]` |
 | A-3 | Meta and Open Graph descriptions can be worded without the number | crawlers read them without JS | a stale count survives in link previews | owner chose rewording at the research gate | confirmed |
-| A-5 | The Playwright runner the demo pipeline uses can load a locally built page with a swapped `data/site-facts.json` | `home_test.go` fixture names a playwright browser engine with `run.cjs`; node is installed | the browser AC needs another harness | phase 1 runs a stub page through the runner before any JS change | unvalidated |
+| A-5 | The Playwright runner the demo pipeline uses can load a locally built page with a swapped `data/site-facts.json` | `home_test.go` fixture names a playwright browser engine with `run.cjs`; node is installed | the browser AC needs another harness | phase 1 runs a stub page through the runner before any JS change | broken (2026-10-30): no Playwright runner exists. `Playwright` and `run.cjs` appear only as fixture strings in `home_test.go` and `terminaldemo_test.go`; no `node_modules`, no Playwright browsers, no Go browser driver in `go.mod`. Google Chrome is installed on the Mac |
 | A-6 | The ISO asset of a release is identifiable by its `.iso` name suffix | `resolveISOOutput` names it image stem + `.iso` | the lab shows no size after the first release | a unit test over a stated release record with one `.iso` asset and one other asset | unvalidated |
 | A-4 | Raw values under 100 and years are too common to match without false positives | matches of 11, 38, 45, 52, 53, 59 across hundreds of pages | the check is noisy or misses small values | the check matches display strings plus unit-labelled values; a test seeds a plain small value next to its label | unvalidated |
 
@@ -228,7 +228,7 @@ Found before the spec opened:
 | `TestReleaseUpdateLeavesTheFileWhenTheForgeIsUnreachable` | `internal/le/site/release/release_test.go` | AC-12 | |
 | `TestTheBuildReadsReleaseDataOnlyFromTheCommittedFile` | `internal/le/site/facts_test.go` | AC-13 | |
 | `TestTheLabISOSizeFallsBackUntilAReleaseCarriesOne` | `internal/le/site/facts_test.go` | AC-14, A-6 | |
-| `TestTheBrowserFillsEveryMarkedValueFromTheSnapshot` | `internal/le/site/browser_test.go` | AC-15, wiring | |
+| `TestTheBrowserFillsEveryMarkedValueFromTheSnapshot` | `internal/le/site/browsertest/fill_test.go` | AC-15, wiring | |
 | `TestEveryHealthFigureIsAMarkedSnapshotValue` | `internal/le/site/health_test.go` | AC-18 | |
 | `TestANewHealthMetricReachesTheSnapshotUnnamed` | `internal/le/site/facts_test.go` | AC-18, derived not enumerated | |
 | `TestLLMSAndMirrorsCarryPlainSnapshotValues` | `internal/le/site/derived_test.go` | AC-17 | |
@@ -243,7 +243,7 @@ Found before the spec opened:
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `TestTheBrowserFillsEveryMarkedValueFromTheSnapshot` | `internal/le/site/browser_test.go`, driving the Playwright runner | a reader loads the home and CLI reference pages; after the JSON changes, both the header and the body show the new figures | |
+| `TestTheBrowserFillsEveryMarkedValueFromTheSnapshot` | `internal/le/site/browsertest/fill_test.go`, chromedp driving headless Chrome | a reader loads the home and CLI reference pages; after the JSON changes, both the header and the body show the new figures | |
 
 ### Golden files
 `testdata/published-header.html` pins plain header text; moving the header to marked values changes it. The refresh goes through `ze-test-judge` (`ai/META-DECISIONS.md`, Test changes): the new golden must prove at least what the old one did.
@@ -274,7 +274,7 @@ Found before the spec opened:
 - `internal/le/site/release/` (`register.go`, `actions.go`, `release.go`) - `./le site release update`, registered like `internal/le/site/facts`
 - `website/data/github-releases.json` - committed release data, empty list until the first release
 - `website/data/plain-figure-ratchet.json` - committed list of RFC pages allowed to carry server-written figures until rfc-website's website phase empties it
-- `internal/le/site/browser_test.go` and its Playwright script under `internal/le/site/testdata/browser/`
+- `internal/le/site/browsertest/fill_test.go` - chromedp test serving a built fixture page; `go.mod` gains `github.com/chromedp/chromedp` (test-only use)
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -324,7 +324,7 @@ Found before the spec opened:
 ## Implementation Steps
 
 1. **Phase: Wiring** -- the marked-value helper, the derived key set, and failing wiring tests
-   - Tests: `TestEverySiteWideValueIsPublishedInsideItsMarker`, `TestATokenResolvesAnyKeyTheSnapshotNames`, `TestSiteCheckRefusesAPublishedValueOutsideItsMarker`, plus a stub page through the Playwright runner (A-5)
+   - Tests: `TestEverySiteWideValueIsPublishedInsideItsMarker`, `TestATokenResolvesAnyKeyTheSnapshotNames`, `TestSiteCheckRefusesAPublishedValueOutsideItsMarker`, plus `TestTheBrowserFillsEveryMarkedValueFromTheSnapshot` failing against today's `site.js` (header span never filled)
    - Files: `factmark.go`, `plaintext.go`, `docpage.go`
    - Verify: tests fail because producers still print plain text
 2. **Phase: Producers** -- nav, home, commands, equivalents, authored, derived through the helper; second counts removed; descriptions reworded; `nav.json` and `compare/nos.md` tokens rewritten
@@ -368,7 +368,7 @@ Found before the spec opened:
 |----------|------------------------|-----------|
 | One helper, tokens named by the snapshot's keys | rewrite plain numbers after the build by value matching | matching by value is ambiguous (45 is both weekly updates and CLI groups) |
 | Committed release file refreshed by a command | fetch at every build like the star count | owner choice at the research gate; a build stays offline for release data and the change is one commit |
-| Browser test through the existing Playwright runner | Node unit test of the fill only | only a real page proves the header ordering defect is fixed (owner approved) |
+| Browser test through chromedp driving headless Chrome, in its own package `internal/le/site/browsertest` | Playwright via npm (brings a Node toolchain); Node test with a DOM stub (no real page) | A-5 broke: no Playwright runner exists. Owner chose chromedp on 2026-10-30. Only a real page proves the header ordering defect is fixed. The test refuses (fails, never skips) when no Chrome is found, naming the install; its own package keeps `internal/le/site` tests runnable on a host without Chrome |
 
 ## Known Limitations
 - The RFC section's figures are owned by `plan/release/validation/spec-rfc-figures-sectioned-presentation.md`; this spec only accepts its marker and seeds its ratchet

@@ -183,6 +183,21 @@ a stale recorded run; `./le site build refresh` re-records those first
   number equals the previous artifact's, the build keeps that file whole, its
   `generated_at` and `published_at` included, so a build over an unchanged tree
   rewrites no byte of it (`previousFactsAt` in `internal/le/site/facts.go`).
+- **The browser fill.** `site.js` fetches `data/site-facts.json` once per page
+  load (`loadSiteFacts` keeps the one promise) and `fillRepoStats` writes each
+  `[data-ze-stat]` element's value for its dotted key as `textContent`, never
+  markup. It fills the page body at load and the shared header after
+  `loadSharedHeader` inserts it, because the header arrives after the body was
+  filled. When the snapshot cannot be read, every element keeps the value the
+  last build wrote into it. `TestTheBrowserFillsEveryMarkedValueFromTheSnapshot`
+  (`internal/le/site/browsertest/fill_test.go`) proves it in a real browser: it
+  serves a fixture site carrying the real script, loads a root page and a
+  nested one in headless Chrome through chromedp, swaps the snapshot and
+  reloads, and checks the header and body figures and the one fetch per load.
+  It needs Google Chrome or Chromium on the host and fails, never skips, when
+  neither is found (macOS `brew install --cask google-chrome`, Debian or Ubuntu
+  `apt install chromium`). It sits in its own package so the `internal/le/site`
+  tests still run on a host with no browser.
 - **The release roadmap.** The `roadmap` producer collects committed `HEAD`
   once through `internal/le/spec/roadmap.Collect` on every full or partial build.
   Shared Markdown rendering publishes `/project/roadmap/` and its `index.md`;
