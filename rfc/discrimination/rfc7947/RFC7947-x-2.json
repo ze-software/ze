@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC7947-x-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSTransparent",
+    "unit-sha": "4ea9372b813e31d5",
+    "claim-sha": "ff0b8e8ceb6d5058",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/peer_forward_facts.go::precomputeNextHop",
+    "producer-sha": "d9473e369d277c3a",
+    "break": "line 595: \"f.nhMode = nhModeNone\" -\u003e \"f.nhMode, f.nhLegacy = nhModeExplicit4, [4]byte{192, 0, 2, 1}\""
+  }
+]

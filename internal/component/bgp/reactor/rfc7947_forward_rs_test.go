@@ -41,6 +41,12 @@ func makeRSPeer(t testing.TB, addr string, peerAS uint32, ctx *bgpctx.EncodingCo
 		// The route server's send grant: the RS fast path reaches no
 		// destination without it, as the cached rail does not.
 		ProcessBindings: []ProcessBinding{rsRelaySendBinding()},
+		// Every fixture peer is EBGP to the route server, and RFC 8212
+		// Section 3 rejects at an absent policy, so each carries explicit
+		// accepting import and export policies with no filter. A test that
+		// filters a client replaces ExportPolicy after this helper returns.
+		ImportPolicy: mustPolicy(t, nil, routepolicy.FinalAccept),
+		ExportPolicy: mustPolicy(t, nil, routepolicy.FinalAccept),
 	}
 	peer := NewPeer(settings)
 	peer.state.Store(int32(PeerStateEstablished))
@@ -367,6 +373,9 @@ func TestReactorForwardRSEBGPPrepend(t *testing.T) {
 		RouterID:        0x01020302,
 		RSFastPath:      true,
 		ProcessBindings: []ProcessBinding{rsRelaySendBinding()},
+		// RFC 8212 Section 3 rejects at an absent export policy toward an
+		// EBGP peer, so the destination carries an explicit accepting one.
+		ExportPolicy: mustPolicy(t, nil, routepolicy.FinalAccept),
 	}
 	dst := NewPeer(dstSettings)
 	dst.state.Store(int32(PeerStateEstablished))

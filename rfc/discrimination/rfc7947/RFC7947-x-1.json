@@ -3,11 +3,11 @@
     "rid": "RFC7947-x-1",
     "polarity": "negative",
     "unit": "internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSEBGPPrepend",
-    "unit-sha": "3267d457fd751786",
+    "unit-sha": "842dbd96339e057b",
     "claim-sha": "ea166aed1ccb77c4",
     "route": "mutant",
     "producer": "internal/component/bgp/reactor/forward_rs.go::reactorForwardRSSection",
-    "producer-sha": "a3b261f7b099ffb2",
-    "break": "line 629: \"!facts.rsClient\" -\u003e \"false\""
+    "producer-sha": "beadd10ffbd40582",
+    "break": "line 633: \"!facts.rsClient\" -\u003e \"false\""
   }
 ]
