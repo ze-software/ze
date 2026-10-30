@@ -160,7 +160,6 @@ func TestParseConfigRejects(t *testing.T) {
 		{"default-ttl zero", `{"service":{"geodns":{"zone":["g.example."],"default-ttl":"0"}}}`, "default-ttl"},
 		{"zone suffix", `{"service":{"geodns":{"zone":["g.example."],"host-set":{"s":{"host":{"a.other.":{"address":["10.0.0.1"]}}}},"source":{"0.0.0.0/0":{"host-set":"s"}}}}}`, "zone"},
 		{"srv too few", `{"service":{"geodns":{"zone":["g.example."],"host-set":{"s":{"host":{"_x._tcp.g.example.":{"type":"SRV","srv":{"priority":"0"}}}}},"source":{"0.0.0.0/0":{"host-set":"s"}}}}}`, "srv"},
-		{"missing host-set ref", `{"service":{"geodns":{"zone":["g.example."],"source":{"0.0.0.0/0":{"host-set":"nope"}}}}}`, "host-set"},
 		{"too many nameservers", `{"service":{"geodns":{"zone":["g.example."],"nameserver":["1.1.1.1","1.1.1.2","1.1.1.3","1.1.1.4","1.1.1.5","1.1.1.6","1.1.1.7","1.1.1.8","1.1.1.9","1.1.1.10"]}}}`, "nameserver"},
 		{"bad enum", `{"service":{"geodns":{"zone":["g.example."],"client-ip-source":"bogus"}}}`, "client-ip-source"},
 		{"bad prefix", `{"service":{"geodns":{"zone":["g.example."],"host-set":{"s":{"host":{}}},"source":{"not-a-cidr":{"host-set":"s"}}}}}`, "prefix"},

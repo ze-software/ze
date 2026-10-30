@@ -1,0 +1,28 @@
+# Test: geodns-host-set reference completion offers the configured names
+# VALIDATES: Tab on the geodns-host-set reference leaf offers exactly the entries the
+#            candidate declares (leafref or ze:reference source).
+# PREVENTS: the leaf completing only a type hint, so a typo surfaces at commit.
+
+tmpfs=test.conf:terminator=EOF_CONF
+service {
+	geodns {
+		zone geodns.example.
+		host-set internal {
+		}
+		host-set external {
+		}
+		source 0.0.0.0/0 {
+		}
+	}
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+input=type:text=edit service geodns source 0.0.0.0/0
+input=enter
+expect=context:path=service/geodns/source/0.0.0.0/0
+input=type:text=set host-set
+input=space
+expect=completion:contains=external,internal

@@ -317,12 +317,13 @@ module ze-geodns-conf {
                     ze:help "Client source prefix in CIDR (e.g. 82.219.0.0/16, 82.219.4.10/32, 0.0.0.0/0)";
                 }
                 leaf host-set {
-                    type string {
-                        length "1..255";
+                    type leafref {
+                        path "../../host-set/name";
+                        require-instance true;
                     }
-                    description "The value names a `host-set` entry. A commit that names an unknown set is refused with
-                        'references unknown host-set', and a source with no value here is refused as well. A client
-                        this prefix matches is answered from that set alone.";
+                    description "The value names a `host-set` entry. The editor completes the configured sets, a commit
+                        that names any other set is refused, and a source with no value here is refused as well. A
+                        client this prefix matches is answered from that set alone.";
                     ze:help "Name of the host-set to answer for clients matching this prefix";
                 }
             }

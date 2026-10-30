@@ -1,0 +1,57 @@
+# Test: a geodns source naming a host-set no entry declares is refused
+#
+# VALIDATES: the source host-set leaf is a YANG leafref to
+#            "../../host-set/name" (ze-geodns-conf.yang), so
+#            `ze config validate` refuses an undeclared set, naming the value,
+#            the declared sets and the leaf, and accepts a declared one.
+# PREVENTS: a source answering from a set that does not exist, which the
+#           geodns parse used to refuse with no list of choices.
+
+stdin=missing:terminator=EOF_MISSING
+service {
+	geodns {
+		enabled true
+		zone geodns.example.
+		host-set internal {
+			host proxy.geodns.example. {
+				address 10.0.0.1
+			}
+		}
+		host-set external {
+			host proxy.geodns.example. {
+				address 10.0.0.2
+			}
+		}
+		source 0.0.0.0/0 {
+			host-set externl
+		}
+	}
+}
+EOF_MISSING
+
+stdin=present:terminator=EOF_PRESENT
+service {
+	geodns {
+		enabled true
+		zone geodns.example.
+		host-set external {
+			host proxy.geodns.example. {
+				address 10.0.0.2
+			}
+		}
+		source 0.0.0.0/0 {
+			host-set external
+		}
+	}
+}
+EOF_PRESENT
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=missing
+expect=exit:code=1
+expect=stdout:contains=no name "externl" exists at "../../host-set/name"
+expect=stdout:contains=name one of "external internal"
+expect=stdout:contains=source[0.0.0.0/0]/host-set
+reject=stdout:contains=references unknown host-set
+cmd=foreground:seq=2:exec=ze config validate -:stdin=present
+expect=exit:code=0
+expect=stdout:contains=configuration valid

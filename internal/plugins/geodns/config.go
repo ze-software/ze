@@ -326,9 +326,8 @@ func parseConfig(data string) (geodnsConfig, error) {
 			if setName == "" {
 				return cfg, fmt.Errorf("geodns: source %q has no host-set", pfx)
 			}
-			if _, ok := cfg.HostSets[setName]; !ok {
-				return cfg, fmt.Errorf("geodns: source %q references unknown host-set %q", pfx, setName)
-			}
+			// The YANG leafref on source/host-set (ze-geodns-conf.yang) refuses a
+			// set no host-set entry declares before this parse runs.
 			cfg.Sources = append(cfg.Sources, sourceEntry{Prefix: prefix.Masked(), HostSet: setName})
 		}
 	}
