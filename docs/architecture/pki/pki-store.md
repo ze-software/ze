@@ -27,6 +27,16 @@ A TLS listener that serves one of these certificates with its full chain is
 
 ## Decisions
 
+**A consumer names an entry, and the config checks the name.** Every leaf that
+names a store entry (web, looking glass, plugin, IPsec, RPKI, geodns and AS112)
+declares `ze:reference "pki-certificate"` or `ze:reference "pki-ca"`, the two
+sources `internal/component/pki/pkiref/reference.go` registers. The editor completes
+the entries the candidate's `pki` block defines, and a commit naming any other
+is refused with the defined names. Each consumer's module can leave the build,
+so a leafref from each would tie it to the pki module; one source declares
+each reference once.
+<!-- source: internal/component/pki/pkiref/reference.go -- certificateReference, caReference -->
+
 **Each output form of `show pki certificate name` is its own command.** The
 detail, `pem`, `bundle pem` and `fingerprint` forms take structurally different
 tails, so one command reading them from its arguments states its grammar in a

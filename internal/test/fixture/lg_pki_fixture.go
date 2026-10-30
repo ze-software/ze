@@ -692,12 +692,12 @@ func lgPKIReferenceReloadBroken(ctx context.Context, _ []string) error {
 		return fmt.Errorf("the reload naming an undefined certificate was accepted:\n%s", daemon.output.String())
 	}
 	text := daemon.output.String()
-	for _, needle := range []string{"environment.looking-glass.certificate", "no-such-certificate"} {
+	for _, needle := range []string{"environment/looking-glass/certificate", "no-such-certificate"} {
 		if !strings.Contains(text, needle) {
 			return fmt.Errorf("the refusal never named %q:\n%s", needle, text)
 		}
 	}
-	lgPKIOK("the reload is refused, naming environment.looking-glass.certificate and the missing name", "")
+	lgPKIOK("the reload is refused, naming environment/looking-glass/certificate and the missing name", "")
 
 	after, err := dialLGPKI(ctx, port, chain.RootPool)
 	if err != nil {

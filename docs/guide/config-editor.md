@@ -495,8 +495,9 @@ Tab completion is driven by registered YANG schemas. The editor suggests:
   way: a bfd session, BGP peer or static next-hop bfd profile; an OSPF or IS-IS
   key-chain; a user's or tacacs-profile's authorization profile; an IPsec
   peer's or remote-access gateway's `ike-group` and `esp-group`; a firewall
-  term's `jump` and `goto` chain; a geodns source's `host-set`; and a policy
-  match instance's `prefix-list`. Completion and commit run the same
+  term's `jump` and `goto` chain; a geodns source's `host-set`; a policy match
+  instance's `prefix-list`; and every PKI certificate or CA name a web, looking
+  glass, plugin, IPsec, RPKI, geodns or AS112 block carries. Completion and commit run the same
   check, so commit accepts every value offered; with none configured, Tab
   shows the type hint
 - Inside a leaf-list's brackets, the next value: `set filters [ P ` completes

@@ -28,14 +28,10 @@ func eapAuthCfg(mode ipsec.AuthMode, certName string) ipsec.AuthConfig {
 	return cfg
 }
 
-// eapAuthAllPresent is the PKI lookup trio for ValidatePKIRefs when every named
-// object resolves. The tests here are about the certificate being ABSENT from the
-// config, not about it being absent from the store.
-func eapAuthAllPresent() (hasCA, hasCert func(string) bool, certCN func(string) string) {
-	return func(string) bool { return true },
-		func(string) bool { return true },
-		func(string) string { return "" }
-}
+// eapAuthNoCN is the certificate CN lookup for ValidatePKIRefs. The tests here are
+// about the certificate being ABSENT from the config; whether a named entry exists
+// in the store is the YANG ze:reference check, which runs before the plugin verify.
+func eapAuthNoCN(string) string { return "" }
 
 // eapAuthForgedPSKAuth builds the AUTH payload a non-conformant responder would
 // send. It is a shared-secret MAC over the REMOTE role's signed octets, computed
@@ -207,12 +203,10 @@ func TestEapAuthResponderRefusesWithoutCertificate(t *testing.T) {
 // peer whose Auth.Certificate is empty. It accepts the same peer once a certificate is
 // named, so the rejection tracks the missing credential and not the mode alone.
 func TestEapAuthConfigRejectsEAPWithoutCertificate(t *testing.T) {
-	hasCA, hasCert, certCN := eapAuthAllPresent()
-
 	for _, mode := range []ipsec.AuthMode{ipsec.AuthEAPMSCHAPv2, ipsec.AuthEAPTLS} {
 		t.Run(mode.String(), func(t *testing.T) {
 			cfg := eapAuthPeerConfig("branch", eapAuthCfg(mode, ""))
-			err := cfg.ValidatePKIRefs(hasCA, hasCert, certCN)
+			err := cfg.ValidatePKIRefs(eapAuthNoCN)
 			if err == nil {
 				t.Fatal("ValidatePKIRefs accepted an EAP peer with no certificate")
 			}
@@ -226,7 +220,7 @@ func TestEapAuthConfigRejectsEAPWithoutCertificate(t *testing.T) {
 			// The same peer with a certificate passes, so the rule is about the
 			// missing credential rather than about the mode.
 			ok := eapAuthPeerConfig("branch", eapAuthCfg(mode, autCertName))
-			if err := ok.ValidatePKIRefs(hasCA, hasCert, certCN); err != nil {
+			if err := ok.ValidatePKIRefs(eapAuthNoCN); err != nil {
 				t.Fatalf("ValidatePKIRefs rejected a complete EAP peer: %v", err)
 			}
 		})
@@ -325,12 +319,11 @@ func TestEapAuthInitiatorRefusesPreSharedKeyResponder(t *testing.T) {
 // so a PSK peer with no certificate and no CA passes validation unchanged. The conforming
 // configuration is accepted, which is what a positive tag names.
 func TestEapAuthConfigAcceptsPreSharedKeyPeer(t *testing.T) {
-	hasCA, hasCert, certCN := eapAuthAllPresent()
 	cfg := eapAuthPeerConfig("branch", ipsec.AuthConfig{
 		Mode: ipsec.AuthPreSharedSecret,
 		PSK:  "site-to-site-secret",
 	})
-	if err := cfg.ValidatePKIRefs(hasCA, hasCert, certCN); err != nil {
+	if err := cfg.ValidatePKIRefs(eapAuthNoCN); err != nil {
 		t.Fatalf("ValidatePKIRefs rejected a pre-shared-secret peer: %v", err)
 	}
 }

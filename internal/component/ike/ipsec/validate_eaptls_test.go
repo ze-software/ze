@@ -5,8 +5,7 @@ import (
 	"testing"
 )
 
-func alwaysPresent(string) bool { return true }
-func noCN(string) string        { return "" }
+func noCN(string) string { return "" }
 
 // VALIDATES: AC-8 -- an EAP-TLS peer configured without a ca-certificate is
 // rejected at config verification, naming the peer and the requirement.
@@ -21,7 +20,7 @@ func TestValidatePKIRefsRequiresCAForEAPTLS(t *testing.T) {
 		},
 	}
 
-	err := cfg.ValidatePKIRefs(alwaysPresent, alwaysPresent, noCN)
+	err := cfg.ValidatePKIRefs(noCN)
 
 	if err == nil {
 		t.Fatal("an eap-tls peer with no ca-certificate was accepted")
@@ -43,30 +42,8 @@ func TestValidatePKIRefsAcceptsEAPTLSWithCA(t *testing.T) {
 		},
 	}
 
-	if err := cfg.ValidatePKIRefs(alwaysPresent, alwaysPresent, noCN); err != nil {
+	if err := cfg.ValidatePKIRefs(noCN); err != nil {
 		t.Fatalf("a complete eap-tls peer was rejected: %v", err)
-	}
-}
-
-// VALIDATES: AC-8 -- an EAP-TLS peer naming a CA the PKI store does not hold is
-// rejected, not silently accepted.
-// PREVENTS: A typo in ca-certificate reaching the runtime, where the CA lookup
-// returns nil and the session would previously have run with no trust anchor.
-func TestValidatePKIRefsRejectsUnknownCAForEAPTLS(t *testing.T) {
-	cfg := &IPsecConfig{
-		Peers: map[string]SiteToSitePeer{
-			"branch": {Auth: AuthConfig{Mode: AuthEAPTLS, Certificate: "client", CACertificate: "typo-ca"}},
-		},
-	}
-	absent := func(string) bool { return false }
-
-	err := cfg.ValidatePKIRefs(absent, alwaysPresent, noCN)
-
-	if err == nil {
-		t.Fatal("an eap-tls peer naming an unknown CA was accepted")
-	}
-	if !strings.Contains(err.Error(), "typo-ca") {
-		t.Errorf("error %q does not name the missing CA", err)
 	}
 }
 
@@ -91,7 +68,7 @@ func TestValidatePKIRefsIgnoresNonCertificateModes(t *testing.T) {
 		cfg := &IPsecConfig{
 			Peers: map[string]SiteToSitePeer{"branch": {Auth: AuthConfig{Mode: c.mode}}},
 		}
-		err := cfg.ValidatePKIRefs(alwaysPresent, alwaysPresent, noCN)
+		err := cfg.ValidatePKIRefs(noCN)
 		if c.wantError {
 			if err == nil {
 				t.Errorf("auth mode %v with no certificate was accepted", c.mode)
@@ -127,7 +104,7 @@ func TestValidatePKIRefsAllowsEAPTLSIdentityUnlikeCertCN(t *testing.T) {
 	}
 	certCN := func(string) string { return "alice" }
 
-	if err := cfg.ValidatePKIRefs(alwaysPresent, alwaysPresent, certCN); err != nil {
+	if err := cfg.ValidatePKIRefs(certCN); err != nil {
 		t.Fatalf("an eap-tls peer whose local-id differs from the cert CN was rejected: %v", err)
 	}
 }
@@ -149,7 +126,7 @@ func TestValidatePKIRefsStillChecksCNForX509(t *testing.T) {
 	}
 	certCN := func(string) string { return "alice" }
 
-	err := cfg.ValidatePKIRefs(alwaysPresent, alwaysPresent, certCN)
+	err := cfg.ValidatePKIRefs(certCN)
 	if err == nil {
 		t.Fatal("an x509 peer whose local-id differs from the cert CN was accepted")
 	}

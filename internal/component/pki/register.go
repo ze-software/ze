@@ -6,6 +6,8 @@ import (
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/textbuf"
 
+	// The ze:reference sources a consumer's PKI name leaf names.
+	_ "github.com/ze-software/ze/internal/component/pki/pkiref"
 	_ "github.com/ze-software/ze/internal/component/pki/yang"
 )
 

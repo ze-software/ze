@@ -1,0 +1,75 @@
+# Test: an RPKI cache TLS ca-certificate naming no pki ca entry is refused
+#
+# VALIDATES: the bgp rpki cache-server tls ca-certificate leaf declares
+#            ze:reference "pki-ca" (ze-rpki.yang), so `ze config validate`
+#            refuses a CA name the candidate's pki section does not define,
+#            naming the value, the ca entries that exist and the leaf, and
+#            accepts a defined one. The candidate holds another CA (rtr-ca) and
+#            the router certificate, so the refusal is the missing name and not
+#            an empty store. The CA and router pair (with key) are the throwaway pair
+#            test/plugin/rpki-renamed-block-pki.ci carries.
+# PREVENTS: a typo in the RTR trust anchor passing validation and surfacing
+#           only when bgp-rpki resolves its TLS names at startup.
+
+stdin=missing:terminator=EOF_MISSING
+pki {
+	ca rtr-ca {
+		certificate "MIIBgTCCASegAwIBAgIUHMGiom0qqQPBtz52fWoueLYinvAwCgYIKoZIzj0EAwIwFTETMBEGA1UEAwwKemUtdGVzdC1jYTAgFw0yNjA5MjcxNjU2MDJaGA8yMTI2MDkwMzE2NTYwMlowFTETMBEGA1UEAwwKemUtdGVzdC1jYTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABL6ErygjRm0w0WfSB9WuHwmbGjjqsY3YwBCvyJDlpvKjibJik69ZYNuT9dYIQT/aG2qGCRCpfH5ye/XqzrFuRE2jUzBRMB0GA1UdDgQWBBQ/oizf2TGZYMFzO0vslOH+dNgCuTAfBgNVHSMEGDAWgBQ/oizf2TGZYMFzO0vslOH+dNgCuTAPBgNVHRMBAf8EBTADAQH/MAoGCCqGSM49BAMCA0gAMEUCIG7F5J57bgkeA10SdWkNx6M5uqECYF5n7FeqhaSDDnLzAiEAwgD55ObsUAsTbxWerVVWIj7uiu4KVRB+g25i0LXWApI=";
+	}
+	certificate rtr-router {
+		certificate "MIIBlTCCATugAwIBAgIUIlTB1keB7zLq8ONbceYpSCjrU24wCgYIKoZIzj0EAwIwFTETMBEGA1UEAwwKemUtdGVzdC1jYTAgFw0yNjA5MjcxNjU4NDJaGA8yMTI2MDkwMzE2NTg0MlowFDESMBAGA1UEAwwJemUtY2xpZW50MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEz3iHbwH+PePyNKRL/SREvYANbZYX5luE7oFleLrqcu+RJfBkd2Pi1POh+4k85Bat0wqoT1H7AKJvxskY9erlAqNoMGYwDwYDVR0RBAgwBocEfwAAATATBgNVHSUEDDAKBggrBgEFBQcDAjAdBgNVHQ4EFgQUm6laY23lrAKkYnBuK2NzE81zJXIwHwYDVR0jBBgwFoAUP6Is39kxmWDBcztL7JTh/nTYArkwCgYIKoZIzj0EAwIDSAAwRQIge881L0ITujVjrDSEZ/EALcJZuMnizrdkfpCLohWdN8cCIQChltPGR0fs+uH544utBZZOoY6zS5r2t3ujLmd6P98dPA==";
+		private {
+			key "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgucZId8ACCg/UxtKOuceeB4Ro8DaOqOg3eYaxveKlM7ShRANCAATPeIdvAf494/I0pEv9JES9gA1tlhfmW4TugWV4uupy75El8GR3Y+LU86H7iTzkFq3TCqhPUfsAom/GyRj16uUC";
+		}
+	}
+}
+
+bgp {
+	rpki {
+		cache-server 127.0.0.1 {
+			port 3323
+			tls {
+				ca-certificate rtr-cq
+				certificate rtr-router
+				server-name cache.example.net
+			}
+		}
+	}
+}
+EOF_MISSING
+
+stdin=present:terminator=EOF_PRESENT
+pki {
+	ca rtr-ca {
+		certificate "MIIBgTCCASegAwIBAgIUHMGiom0qqQPBtz52fWoueLYinvAwCgYIKoZIzj0EAwIwFTETMBEGA1UEAwwKemUtdGVzdC1jYTAgFw0yNjA5MjcxNjU2MDJaGA8yMTI2MDkwMzE2NTYwMlowFTETMBEGA1UEAwwKemUtdGVzdC1jYTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABL6ErygjRm0w0WfSB9WuHwmbGjjqsY3YwBCvyJDlpvKjibJik69ZYNuT9dYIQT/aG2qGCRCpfH5ye/XqzrFuRE2jUzBRMB0GA1UdDgQWBBQ/oizf2TGZYMFzO0vslOH+dNgCuTAfBgNVHSMEGDAWgBQ/oizf2TGZYMFzO0vslOH+dNgCuTAPBgNVHRMBAf8EBTADAQH/MAoGCCqGSM49BAMCA0gAMEUCIG7F5J57bgkeA10SdWkNx6M5uqECYF5n7FeqhaSDDnLzAiEAwgD55ObsUAsTbxWerVVWIj7uiu4KVRB+g25i0LXWApI=";
+	}
+	certificate rtr-router {
+		certificate "MIIBlTCCATugAwIBAgIUIlTB1keB7zLq8ONbceYpSCjrU24wCgYIKoZIzj0EAwIwFTETMBEGA1UEAwwKemUtdGVzdC1jYTAgFw0yNjA5MjcxNjU4NDJaGA8yMTI2MDkwMzE2NTg0MlowFDESMBAGA1UEAwwJemUtY2xpZW50MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEz3iHbwH+PePyNKRL/SREvYANbZYX5luE7oFleLrqcu+RJfBkd2Pi1POh+4k85Bat0wqoT1H7AKJvxskY9erlAqNoMGYwDwYDVR0RBAgwBocEfwAAATATBgNVHSUEDDAKBggrBgEFBQcDAjAdBgNVHQ4EFgQUm6laY23lrAKkYnBuK2NzE81zJXIwHwYDVR0jBBgwFoAUP6Is39kxmWDBcztL7JTh/nTYArkwCgYIKoZIzj0EAwIDSAAwRQIge881L0ITujVjrDSEZ/EALcJZuMnizrdkfpCLohWdN8cCIQChltPGR0fs+uH544utBZZOoY6zS5r2t3ujLmd6P98dPA==";
+		private {
+			key "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgucZId8ACCg/UxtKOuceeB4Ro8DaOqOg3eYaxveKlM7ShRANCAATPeIdvAf494/I0pEv9JES9gA1tlhfmW4TugWV4uupy75El8GR3Y+LU86H7iTzkFq3TCqhPUfsAom/GyRj16uUC";
+		}
+	}
+}
+
+bgp {
+	rpki {
+		cache-server 127.0.0.1 {
+			port 3323
+			tls {
+				ca-certificate rtr-ca
+				certificate rtr-router
+				server-name cache.example.net
+			}
+		}
+	}
+}
+EOF_PRESENT
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=missing
+expect=exit:code=1
+expect=stdout:contains="rtr-cq"
+expect=stdout:contains=name one of "rtr-ca"
+expect=stdout:contains=tls/ca-certificate
+cmd=foreground:seq=2:exec=ze config validate -:stdin=present
+expect=exit:code=0
+expect=stdout:contains=configuration valid

@@ -933,11 +933,9 @@ func TestValidatePKIRefsLocalIDMismatch(t *testing.T) {
 			},
 		},
 	}
-	hasCA := func(string) bool { return true }
-	hasCert := func(string) bool { return true }
 	certCN := func(string) string { return "EXAFO000000400" }
 
-	err := cfg.ValidatePKIRefs(hasCA, hasCert, certCN)
+	err := cfg.ValidatePKIRefs(certCN)
 	if err == nil {
 		t.Fatal("expected error for local-id/CN mismatch")
 	}
@@ -960,11 +958,9 @@ func TestValidatePKIRefsMatch(t *testing.T) {
 			},
 		},
 	}
-	hasCA := func(string) bool { return true }
-	hasCert := func(string) bool { return true }
 	certCN := func(string) string { return "EXAFO000000400" }
 
-	if err := cfg.ValidatePKIRefs(hasCA, hasCert, certCN); err != nil {
+	if err := cfg.ValidatePKIRefs(certCN); err != nil {
 		t.Fatalf("expected no error, got: %v", err)
 	}
 }

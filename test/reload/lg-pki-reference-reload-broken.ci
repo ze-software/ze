@@ -2,7 +2,7 @@
 # refused, and the looking glass keeps serving the chain it had.
 #
 # VALIDATES: spec-lg-pki-certificate AC-5. The commit is rejected as a whole,
-# the refusal names environment.looking-glass.certificate and the missing name,
+# the refusal names environment/looking-glass/certificate and the missing name,
 # and the running listener still presents its previous leaf and intermediate and
 # still answers requests. The operator's corrected reload then commits, so the
 # rejection leaves the daemon usable.
@@ -30,7 +30,7 @@ option=timeout:value=120s
 
 cmd=foreground:seq=1:exec=le test fixture reload/lg-pki-reference-reload-broken:timeout=90s
 expect=exit:code=0
-expect=stderr:contains=OK: the reload is refused, naming environment.looking-glass.certificate and the missing name
+expect=stderr:contains=OK: the reload is refused, naming environment/looking-glass/certificate and the missing name
 expect=stderr:contains=OK: the looking glass keeps serving its previous chain and answering requests
 expect=stderr:contains=OK: the operator's corrected reload commits and serves
 expect=stderr:contains=reload error

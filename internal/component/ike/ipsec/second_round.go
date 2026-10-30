@@ -118,9 +118,13 @@ func parseSecondRoundDirection(peerName, path string, t *config.Tree, round1 *Au
 // It refuses a second round on a peer whose first round is an EAP method, a round
 // of mode pre-shared-secret with no secret, a local x509 round with no certificate
 // and a remote x509 round with no ca-certificate. It applies the identity rules
-// of local-id and remote-id to the round ids, and checks the round's PKI names
-// against the store as ValidatePKIRefs checks the first round's.
-func (c *IPsecConfig) ValidateSecondRounds(hasCA, hasCert func(string) bool, certCN func(string) string) error {
+// of local-id and remote-id to the round ids, and binds a local x509 round's id to
+// its certificate CN as ValidatePKIRefs binds the first round's local-id.
+//
+// Whether the round's certificate and ca-certificate name PKI store entries is
+// not checked here: both leaves carry a ze:reference (ze-ipsec-conf.yang), which
+// every commit door checks before this plugin verify runs.
+func (c *IPsecConfig) ValidateSecondRounds(certCN func(string) string) error {
 	for name := range c.Peers {
 		auth := c.Peers[name].Auth
 		rounds := auth.SecondRound()
@@ -137,12 +141,12 @@ func (c *IPsecConfig) ValidateSecondRounds(hasCA, hasCert func(string) bool, cer
 		}
 		local, remote := rounds.Local, rounds.Remote
 		if local != nil {
-			if err := validateSecondRoundLocal(name, local, hasCert, certCN); err != nil {
+			if err := validateSecondRoundLocal(name, local, certCN); err != nil {
 				return err
 			}
 		}
 		if remote != nil {
-			if err := validateSecondRoundRemote(name, remote, hasCA); err != nil {
+			if err := validateSecondRoundRemote(name, remote); err != nil {
 				return err
 			}
 		}
@@ -154,7 +158,7 @@ func (c *IPsecConfig) ValidateSecondRounds(hasCA, hasCert func(string) bool, cer
 }
 
 // validateSecondRoundLocal checks the credential ze proves in its second round.
-func validateSecondRoundLocal(name string, local *AuthConfig, hasCert func(string) bool, certCN func(string) string) error {
+func validateSecondRoundLocal(name string, local *AuthConfig, certCN func(string) string) error {
 	if local.Mode == AuthPreSharedSecret && local.PSK == "" {
 		return fmt.Errorf(
 			"ipsec peer %q: %s mode is pre-shared-secret and no secret is set; "+
@@ -179,11 +183,6 @@ func validateSecondRoundLocal(name string, local *AuthConfig, hasCert func(strin
 				"to sign the round's AUTH with; set %s certificate to a PKI store name",
 			name, secondRoundLocalPath, secondRoundLocalPath)
 	}
-	if !hasCert(local.Certificate) {
-		return fmt.Errorf(
-			"ipsec peer %q: %s certificate %q not found in PKI store; add it under pki "+
-				"or name a certificate the store holds", name, secondRoundLocalPath, local.Certificate)
-	}
 	// The same binding ValidatePKIRefs holds the first x509 round to: the identity
 	// ze asserts must be the one its certificate names.
 	if cn := certCN(local.Certificate); cn != "" && local.LocalID != cn {
@@ -196,7 +195,7 @@ func validateSecondRoundLocal(name string, local *AuthConfig, hasCert func(strin
 
 // validateSecondRoundRemote checks the credential the peer must prove in its
 // second round.
-func validateSecondRoundRemote(name string, remote *AuthConfig, hasCA func(string) bool) error {
+func validateSecondRoundRemote(name string, remote *AuthConfig) error {
 	if remote.Mode == AuthPreSharedSecret && remote.PSK == "" {
 		return fmt.Errorf(
 			"ipsec peer %q: %s mode is pre-shared-secret and no secret is set; "+
@@ -212,11 +211,6 @@ func validateSecondRoundRemote(name string, remote *AuthConfig, hasCA func(strin
 			"ipsec peer %q: %s mode is x509 and no ca-certificate is set, so ze could not "+
 				"validate the peer's certificate; set %s ca-certificate to a PKI store name",
 			name, secondRoundRemotePath, secondRoundRemotePath)
-	}
-	if !hasCA(remote.CACertificate) {
-		return fmt.Errorf(
-			"ipsec peer %q: %s ca-certificate %q not found in PKI store; add it under pki "+
-				"or name a CA the store holds", name, secondRoundRemotePath, remote.CACertificate)
 	}
 	return nil
 }

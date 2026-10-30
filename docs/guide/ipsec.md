@@ -436,10 +436,12 @@ vpn ipsec site-to-site peer branch authentication {
 }
 ```
 
-Commit and reload refuse a name that is not a PKI `ca` entry, an entry that is
-not a CA certificate, and the list on a peer whose mode is not `eap-tls`, where
-nothing would read it.
+Commit and reload refuse a name that is not a PKI `ca` entry (as does
+`ze config validate`, because the leaf-list is a `ze:reference "pki-ca"`), an
+entry that holds no CA certificate, and the list on a peer whose mode is not
+`eap-tls`, where nothing would read it.
 
+<!-- source: internal/component/pki/pkiref/reference.go -- CAReferenceSource -->
 <!-- source: internal/component/ike/ipsec/validate.go -- ValidateIntermediateRefs -->
 <!-- source: internal/core/eap/client_chain.go -- clientChainVerifier.verify -->
 <!-- source: internal/component/ike/engine/responder_eap.go -- eapTLSServerConfig reads intermediate-certificate -->

@@ -63,6 +63,7 @@ module ze-plugin-conf {
                 }
 
                 leaf certificate {
+                    ze:reference "pki-certificate";
                     type string { length "1..64"; }
                     description "Name of a pki certificate the managed-client listener on this block serves. An empty name serves a
                         certificate this daemon's own certificate authority issues, and reissues as it ages. Export that
@@ -162,6 +163,7 @@ module ze-plugin-conf {
                 }
 
                 leaf ca {
+                    ze:reference "pki-ca";
                     type string {
                         length "1..255";
                         pattern '[A-Za-z0-9._-]+';

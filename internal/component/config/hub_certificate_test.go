@@ -16,6 +16,11 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	// The hub certificate and ca leaves are ze:reference leaves: these register
+	// the pki schema and the two sources their commit check reads.
+	_ "github.com/ze-software/ze/internal/component/pki/pkiref"
+	_ "github.com/ze-software/ze/internal/component/pki/yang"
 )
 
 var hubTrustConfig = `plugin {
@@ -34,6 +39,14 @@ var hubTrustConfig = `plugin {
             secret edge01-secret-that-is-at-least-32ch
             ca fleet-hub-root
         }
+    }
+}
+pki {
+    ca fleet-hub-root {
+        certificate fleet-hub-root-pem
+    }
+    certificate fleet-hub {
+        certificate fleet-hub-pem
     }
 }
 `
@@ -62,10 +75,19 @@ func TestHubTrustLeavesReachTheStructs(t *testing.T) {
 // value names a pki ca entry, and an entry name carries no spaces or slashes,
 // so a value that holds one is a typo the client would otherwise fail on at
 // its first connection.
+//
+// The name is also absent from pki, so the ze:reference check refuses it too:
+// the test asserts the pattern's own refusal, and that the reference message is
+// not the one that answered, or it would pass with the pattern deleted.
+//
+// MUTATION: drop the pattern from the ca leaf in ze-plugin-conf.yang and this
+// fails on the message: the config is still refused, but by the reference check.
 func TestHubCARejectsAnUnusableName(t *testing.T) {
 	bad := strings.Replace(hubTrustConfig, "ca fleet-hub-root", `ca "fleet hub/root"`, 1)
 	_, err := LoadConfig(bad, filepath.Join(t.TempDir(), "hub-bad.conf"), nil)
 	require.Error(t, err)
+	assert.Contains(t, err.Error(), `value "fleet hub/root" does not match pattern "[A-Za-z0-9._-]+"`)
+	assert.NotContains(t, err.Error(), "is configured")
 }
 
 // TestFingerprintConfigIsRefused: AC-5 -- a config still carrying the retired

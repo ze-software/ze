@@ -276,12 +276,15 @@ func (c *IPsecConfig) ValidatePolicyOrder() error {
 // the list MUST sit on a peer in eap-tls mode, the only mode that reads it.
 //
 // caCert answers the certificate of the named PKI ca entry, or nil when the
-// candidate PKI section carries no such entry.
+// entry holds none. A name the candidate PKI section does not define never
+// reaches here: the leaf-list carries `ze:reference "pki-ca"`
+// (ze-ipsec-conf.yang), which every commit door checks before this plugin
+// verify runs.
 //
 // RFC 5216 Section 5.3: "either it will need to be pre-configured with the
 // necessary intermediate certificates to complete path validation or it will
-// rely on the EAP-TLS peer to provide this information". A name that resolves
-// to nothing, or to a certificate that cannot sign another, completes no path,
+// rely on the EAP-TLS peer to provide this information". An entry that holds
+// no certificate, or a certificate that cannot sign another, completes no path,
 // so the config is refused here rather than read as a working pre-configuration
 // (ai/rules/protocol.md). The EAP core refuses a non-CA certificate too
 // (parseIntermediateCAs, internal/core/eap/client_chain.go).
@@ -301,8 +304,8 @@ func (c *IPsecConfig) ValidateIntermediateRefs(caCert func(string) *x509.Certifi
 			cert := caCert(ref)
 			if cert == nil {
 				return fmt.Errorf(
-					"ipsec peer %q: intermediate-certificate %q not found among the PKI ca entries; "+
-						"add it with pki ca %s certificate <pem>, or remove it from the list",
+					"ipsec peer %q: intermediate-certificate %q: certificate not found in that PKI ca entry, "+
+						"so it completes no path; set pki ca %s certificate <pem>, or remove it from the list",
 					name, ref, ref)
 			}
 			if !cert.BasicConstraintsValid {
@@ -325,10 +328,18 @@ func intermediateNotCA(peer, ref string, cert *x509.Certificate) error {
 		peer, ref, cert.Subject.String())
 }
 
-// ValidatePKIRefs checks that X.509 and EAP auth references (ca-certificate,
-// certificate) exist in the PKI store, and that local-id matches the
+// ValidatePKIRefs checks that an X.509 or EAP peer names the certificate and
+// ca-certificate its mode needs, and that an x509 local-id matches the
 // certificate's subject CN.
-func (c *IPsecConfig) ValidatePKIRefs(hasCA, hasCert func(string) bool, certCN func(string) string) error {
+//
+// Whether a named entry exists in the PKI store is not checked here: both
+// leaves carry `ze:reference "pki-certificate"` and `ze:reference "pki-ca"`
+// (ze-ipsec-conf.yang), so every commit door refuses a name the candidate's
+// pki section does not define before this plugin verify runs
+// (config.ValidateCustomSections, run by config.LoadConfig).
+//
+// certCN answers the subject CN of the named certificate entry.
+func (c *IPsecConfig) ValidatePKIRefs(certCN func(string) string) error {
 	for name := range c.Peers {
 		peer := c.Peers[name]
 		if peer.Auth.Mode != AuthX509 && !IsEAPMode(peer.Auth.Mode) {
@@ -383,14 +394,8 @@ func (c *IPsecConfig) ValidatePKIRefs(hasCA, hasCert func(string) bool, certCN f
 					name, peer.Auth.Mode)
 			}
 		}
-		if ca := peer.Auth.CACertificate; ca != "" && !hasCA(ca) {
-			return fmt.Errorf("ipsec peer %q: ca-certificate %q not found in PKI store", name, ca)
-		}
 		cert := peer.Auth.Certificate
 		if cert != "" {
-			if !hasCert(cert) {
-				return fmt.Errorf("ipsec peer %q: certificate %q not found in PKI store", name, cert)
-			}
 			// X.509 only. For EAP-TLS the IKE AUTH is derived from the EAP MSK,
 			// not signed by this certificate, and local-id is the EAP identity
 			// (an NAI); nothing in RFC 5216 or RFC 7296 binds it to the
@@ -414,7 +419,9 @@ func (c *IPsecConfig) ValidatePKIRefs(hasCA, hasCert func(string) bool, certCN f
 //
 // certChainLen reports the number of certificates a PKI entry would put on the wire: the
 // device certificate plus its intermediates. It returns 0 for a name the candidate PKI
-// section does not carry, and ValidatePKIRefs has already refused that case.
+// section does not carry. That 0 passes every limit, so it is a guard: it relies on the
+// `ze:reference "pki-certificate"` of both certificate leaves (ze-ipsec-conf.yang), which
+// refuses an undefined name at every commit door before this plugin verify runs.
 //
 // Without this check the send path had two honest options and both are wrong. Truncating
 // the chain silently sends a path the peer cannot complete. The operator then sees a peer

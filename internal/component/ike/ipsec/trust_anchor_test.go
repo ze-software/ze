@@ -31,7 +31,7 @@ func TestTanCertificateModesNeedATrustAnchor(t *testing.T) {
 					"branch": {Auth: AuthConfig{Mode: tc.mode, Certificate: "device"}},
 				},
 			}
-			err := bare.ValidatePKIRefs(alwaysPresent, alwaysPresent, noCN)
+			err := bare.ValidatePKIRefs(noCN)
 			if err == nil {
 				t.Fatalf("a %s peer with no ca-certificate was accepted", tc.name)
 			}
@@ -48,7 +48,7 @@ func TestTanCertificateModesNeedATrustAnchor(t *testing.T) {
 					"branch": {Auth: AuthConfig{Mode: tc.mode, Certificate: "device", CACertificate: "corp-ca"}},
 				},
 			}
-			if err := anchored.ValidatePKIRefs(alwaysPresent, alwaysPresent, noCN); err != nil {
+			if err := anchored.ValidatePKIRefs(noCN); err != nil {
 				t.Errorf("a complete %s peer was rejected: %v", tc.name, err)
 			}
 		})
@@ -65,7 +65,7 @@ func TestTanPreSharedSecretNeedsNoCertificateMaterial(t *testing.T) {
 			"branch": {Auth: AuthConfig{Mode: AuthPreSharedSecret, PSK: "secret"}},
 		},
 	}
-	if err := cfg.ValidatePKIRefs(alwaysPresent, alwaysPresent, noCN); err != nil {
+	if err := cfg.ValidatePKIRefs(noCN); err != nil {
 		t.Fatalf("a pre-shared-secret peer was rejected: %v", err)
 	}
 }

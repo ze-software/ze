@@ -64,6 +64,7 @@ module ze-web-conf {
             }
 
             leaf certificate {
+                ze:reference "pki-certificate";
                 type string {
                     length "1..255";
                     pattern '[A-Za-z0-9._-]+';

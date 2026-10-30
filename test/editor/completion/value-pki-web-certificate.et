@@ -1,0 +1,31 @@
+# Test: the web certificate leaf completes the configured pki certificate names
+# VALIDATES: Tab on environment web certificate offers exactly the pki
+#            certificate entries the candidate declares (ze:reference
+#            "pki-certificate"), and not its ca entries.
+# PREVENTS: the leaf completing only a type hint, so a typo surfaces at commit.
+
+tmpfs=test.conf:terminator=EOF_CONF
+pki {
+	ca web-ca {
+	}
+	certificate lan {
+	}
+	certificate wan {
+	}
+}
+environment {
+	web {
+	}
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+input=type:text=edit environment web
+input=enter
+expect=context:path=environment/web
+input=type:text=set certificate
+input=space
+expect=completion:contains=lan,wan
+expect=completion:excludes=web-ca

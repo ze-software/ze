@@ -255,29 +255,6 @@ func TestValidateIPsecSectionsResolvesAgainstCandidatePKI(t *testing.T) {
 		t.Fatalf("a peer whose CA is defined in the same delivery was rejected: %v", err)
 	}
 
-	bad := []sdk.ConfigSection{
-		good[0],
-		vpnSection(`{
-		  "vpn": {
-		  "ipsec": {
-		    "site-to-site": {
-		      "peer": {
-		        "branch": {
-		          "authentication": {"mode": "eap-tls", "ca-certificate": "nowhere-ca", "certificate": "corp-cert"}
-		        }
-		      }
-		    }
-		  }
-		  }
-		}`)[0],
-	}
-	err := validateIPsecSections(bad)
-	if err == nil {
-		t.Fatal("a ca-certificate absent from the candidate pki section was accepted")
-	}
-	if !strings.Contains(err.Error(), "nowhere-ca") {
-		t.Errorf("error %q does not name the unresolvable CA", err)
-	}
 }
 
 // VALIDATES: the parser the reload's VERIFY phase stages with is side-effect free too.

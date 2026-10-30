@@ -659,25 +659,27 @@ module ze-ipsec-conf {
                     container x509 {
                         description "Server certificate references for EAP. Ze parses
                             both leaves and no component reads them today, so neither
-                            takes effect. Ze also leaves both unchecked, so a name that
-                            no PKI store entry carries still commits here. The enforced
-                            leaves of these names are the site-to-site peer ones.";
+                            takes effect. A commit still refuses a name the PKI store does
+                            not hold, and the editor completes the store's entries. The
+                            leaves a handshake reads are the site-to-site peer ones.";
                         ze:help "Server certificate references for EAP.";
 
                         leaf ca-certificate {
+                            ze:reference "pki-ca";
                             type string;
-                            description "Ze compares the name against nothing, so a name no PKI store entry
-                                carries still commits. The trust anchor of a handshake comes from the
-                                ca-certificate leaf of the site-to-site peer.";
+                            description "A commit refuses a name that is not a ca entry of the PKI store. The trust
+                                anchor of a handshake comes from the ca-certificate leaf of the site-to-site
+                                peer.";
                             ze:help "Name of the CA certificate in the PKI store.
                                 It has no effect today.";
                         }
 
                         leaf certificate {
+                            ze:reference "pki-certificate";
                             type string;
-                            description "Ze compares the name against nothing, so a name no PKI store entry
-                                carries still commits. The certificate a handshake presents comes from
-                                the certificate leaf of the site-to-site peer.";
+                            description "A commit refuses a name that is not a certificate entry of the PKI store.
+                                The certificate a handshake presents comes from the certificate leaf of the
+                                site-to-site peer.";
                             ze:help "Name of the server certificate in the PKI store.
                                 It has no effect today.";
                         }
@@ -768,11 +770,12 @@ module ze-ipsec-conf {
                     }
 
                     leaf certificate {
+                        ze:reference "pki-certificate";
                         type string;
                         description "Ze reads the leaf when the mode of the authentication block is eap-tls,
                             and ignores it under every other mode. Commit refuses an empty value under
-                            eap-tls. The name is compared against nothing, so a name the PKI store does
-                            not hold still commits.";
+                            eap-tls, and a name that is not a certificate entry of the PKI store under any
+                            mode.";
                         ze:help "Client certificate name in PKI store. Required for eap-tls.";
                     }
                 }
@@ -1361,6 +1364,7 @@ module ze-ipsec-conf {
                         }
 
                         leaf ca-certificate {
+                            ze:reference "pki-ca";
                             type string;
                             description "Name of the CA certificate in the PKI store. Required for
                                 every EAP mode and for X.509. It is the trust anchor the remote
@@ -1373,6 +1377,7 @@ module ze-ipsec-conf {
                         }
 
                         leaf-list intermediate-certificate {
+                            ze:reference "pki-ca";
                             type string;
                             description "Names of intermediate CA certificates held as ca entries in the
                                 PKI store. Read in eap-tls mode only. When ze is the EAP-TLS
@@ -1388,6 +1393,7 @@ module ze-ipsec-conf {
                         }
 
                         leaf certificate {
+                            ze:reference "pki-certificate";
                             type string;
                             description "Name of the device certificate in the PKI store. Required for
                                 every EAP mode, because RFC 7296 Section 2.16 makes the responder sign
@@ -1407,6 +1413,7 @@ module ze-ipsec-conf {
                             ze:help "X.509 certificate references, deprecated in favor of the direct leaves.";
 
                             leaf ca-certificate {
+                                ze:reference "pki-ca";
                                 type string;
                                 description "Ze reads it only when the direct ca-certificate
                                     leaf is empty. It then satisfies the trust anchor that
@@ -1415,6 +1422,7 @@ module ze-ipsec-conf {
                             }
 
                             leaf certificate {
+                                ze:reference "pki-certificate";
                                 type string;
                                 description "Ze reads it only when the direct certificate
                                     leaf is empty. It then satisfies the certificate that
@@ -1498,6 +1506,7 @@ module ze-ipsec-conf {
                                 }
 
                                 leaf certificate {
+                                    ze:reference "pki-certificate";
                                     type string;
                                     description "Name of the device certificate in the PKI store that signs the AUTH of
                                         this round. Required when the mode is x509. Ze sends this certificate first,
@@ -1589,6 +1598,7 @@ module ze-ipsec-conf {
                                 }
 
                                 leaf ca-certificate {
+                                    ze:reference "pki-ca";
                                     type string;
                                     description "Name of the CA certificate in the PKI store that the peer's second-round
                                         certificate must chain to. Required when the mode is x509. The certificate must

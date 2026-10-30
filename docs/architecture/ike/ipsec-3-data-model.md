@@ -55,12 +55,19 @@ require a code change. The range is 1 to 31.
 <!-- source: internal/component/ike/ipsec/types.go -- DHGroup, ValidDHGroup -->
 <!-- source: internal/component/ike/ipsec/algorithm_support.go -- DHGroupImplemented, SupportedDHGroupIDs -->
 
-**Cross-reference validation takes callbacks, not a `pki` import.**
-`ValidatePKIRefs` accepts `func(string) bool` predicates. Production passes
-`pki.GetCA`, `pki.GetCertificate` and `pki.CertCN`; tests pass stubs. The ipsec
+**A PKI name is checked by the schema, its content by a callback.** Every
+certificate and CA name leaf carries `ze:reference "pki-certificate"` or
+`ze:reference "pki-ca"`, so the config validation every commit door runs
+refuses a name the candidate's `pki` section does not define, before the ike
+plugin verifies. `ValidatePKIRefs` and `ValidateSecondRounds` then take only a
+`func(string) string` that answers a certificate's subject CN, and
+`ValidateCertificateChains` and `ValidateIntermediateRefs` take the chain length
+and the CA certificate the same way. Production answers them from the
+candidate's `pki` section (`candidatePKISet`); tests pass stubs. The ipsec
 package stays decoupled from pki.
 
-<!-- source: internal/component/pki/store.go -- GetCA, GetCertificate, CertCN -->
+<!-- source: internal/component/pki/pkiref/reference.go -- CertificateReferenceSource, CAReferenceSource -->
+<!-- source: internal/component/ike/engine/config.go -- candidatePKISet, validateIPsecSections -->
 
 **`Changed()` compares the WHOLE value, through `SiteToSitePeer.Equal`.** An
 explicit field list was tried first, on the reasoning that it states the criteria
@@ -120,8 +127,9 @@ round with no certificate, a remote x509 round with no ca-certificate, and a
 local round with no `id`: the round asserts an identity of its own, and a peer
 that picks the round's pre-shared key by identity would otherwise look up the
 first round's. It
-checks the round's PKI names against the store and the local certificate's CN
-against the round's `id`, as `ValidatePKIRefs` does for the first round. The
+checks the local certificate's CN against the round's `id`, as
+`ValidatePKIRefs` does for the first round; the round's PKI names are
+`ze:reference` leaves, which config validation checks against the store first. The
 round ids pass through `validateIdentityLeaves`, the helper `ValidateIdentities`
 runs over `local-id` and `remote-id`. `ValidateCertificateChains` holds the
 round's certificate chain to the peer's `certificate-count`. Every refusal names

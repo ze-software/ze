@@ -227,8 +227,6 @@ func idTypeRFC822ForTest(t *testing.T) uint8 {
 // PREVENTS: a second round that commits and then can never authenticate, with no
 // message saying why.
 func TestValidateSecondRound(t *testing.T) {
-	hasCA := func(name string) bool { return name == "round-one-ca" || name == "user-ca" }
-	hasCert := func(name string) bool { return name == "round-one-cert" || name == "user-cert" }
 	certCN := func(name string) string {
 		if name == "user-cert" {
 			return "user.example.com"
@@ -241,7 +239,7 @@ func TestValidateSecondRound(t *testing.T) {
 		auth := AuthConfig{Mode: round1, PSK: "round-one-secret", Certificate: "round-one-cert",
 			CACertificate: "round-one-ca", Additions: &AuthAdditions{SecondRound: &SecondRoundAuth{Local: local, Remote: remote}}}
 		cfg := &IPsecConfig{Peers: map[string]SiteToSitePeer{"branch": {Name: "branch", Auth: auth}}}
-		if err := cfg.ValidateSecondRounds(hasCA, hasCert, certCN); err != nil {
+		if err := cfg.ValidateSecondRounds(certCN); err != nil {
 			return err
 		}
 		return cfg.ValidateCertificateChains(func(name string) int {
@@ -279,10 +277,6 @@ func TestValidateSecondRound(t *testing.T) {
 			[]string{`"branch"`, "no certificate", "set authentication second-round local certificate"}},
 		{"remote x509 without ca-certificate", AuthPreSharedSecret, nil, &AuthConfig{Mode: AuthX509},
 			[]string{`"branch"`, "no ca-certificate", "set authentication second-round remote ca-certificate"}},
-		{"local certificate not in store", AuthPreSharedSecret, &AuthConfig{Mode: AuthX509, Certificate: "missing", LocalID: "user.example.com"}, nil,
-			[]string{"second-round local certificate", `"missing"`, "not found in PKI store"}},
-		{"remote ca not in store", AuthPreSharedSecret, nil, &AuthConfig{Mode: AuthX509, CACertificate: "missing"},
-			[]string{"second-round remote ca-certificate", `"missing"`, "not found in PKI store"}},
 		{"local id does not match certificate", AuthPreSharedSecret,
 			&AuthConfig{Mode: AuthX509, Certificate: "user-cert", LocalID: "other.example.com"}, nil,
 			[]string{"second-round local id", "does not match certificate CN", `"user.example.com"`}},

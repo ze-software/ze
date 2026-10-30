@@ -1,0 +1,33 @@
+# Test: the hub client ca leaf completes the configured pki ca names
+# VALIDATES: Tab on plugin hub client ca offers exactly the pki ca entries the
+#            candidate declares (ze:reference "pki-ca"), and not its
+#            certificate entries.
+# PREVENTS: the leaf completing only a type hint, so a typo surfaces at commit.
+
+tmpfs=test.conf:terminator=EOF_CONF
+pki {
+	ca fleet-root {
+	}
+	ca backup-root {
+	}
+	certificate edge {
+	}
+}
+plugin {
+	hub {
+		client edge-01 {
+		}
+	}
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+input=type:text=edit plugin hub client edge-01
+input=enter
+expect=context:path=plugin/hub/client/edge-01
+input=type:text=set ca
+input=space
+expect=completion:contains=backup-root,fleet-root
+expect=completion:excludes=edge

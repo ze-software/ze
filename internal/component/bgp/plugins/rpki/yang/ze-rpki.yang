@@ -159,6 +159,7 @@ certificate and its intermediate chain. The cache must request client authentica
 DNS-ID certificate; CN-ID is never used. Authentication failure never falls back to unprotected TCP.";
           ze:help "Authenticate the RTR cache and router with TLS.";
           leaf ca-certificate {
+              ze:reference "pki-ca";
             type string {
               length "1..255";
               pattern '[A-Za-z0-9._-]+';
@@ -168,6 +169,7 @@ DNS-ID certificate; CN-ID is never used. Authentication failure never falls back
             ze:help "PKI CA certificate trusted for the cache.";
           }
           leaf certificate {
+              ze:reference "pki-certificate";
             type string {
               length "1..255";
               pattern '[A-Za-z0-9._-]+';

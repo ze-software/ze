@@ -63,9 +63,9 @@ func parseVPNSections(sections []sdk.ConfigSection) (*ipsec.IPsecConfig, error) 
 }
 
 // candidatePKI parses the "pki" section of a candidate delivery into a lookup
-// set, without installing it. An absent section yields an empty set, so a
-// certificate reference in a config that defines no PKI is correctly reported
-// as unresolvable.
+// set, without installing it. An absent section yields an empty set. A name the
+// set does not hold never reaches the validators: every PKI name leaf carries a
+// ze:reference (ze-ipsec-conf.yang), refused at commit before this verify.
 func candidatePKI(sections []sdk.ConfigSection) (*candidatePKISet, error) {
 	for _, s := range sections {
 		if s.Root != configRootPKI {
@@ -91,10 +91,6 @@ type candidatePKISet struct {
 	cfg *pki.PKIConfig
 }
 
-func (c *candidatePKISet) hasCA(name string) bool { return c.cfg.CACerts[name] != nil }
-
-func (c *candidatePKISet) hasCert(name string) bool { return c.cfg.Certificates[name] != nil }
-
 func (c *candidatePKISet) certCN(name string) string {
 	entry := c.cfg.Certificates[name]
 	if entry == nil {
@@ -107,11 +103,10 @@ func (c *candidatePKISet) certCN(name string) string {
 }
 
 // certChainLen is the count ze would put on the wire: the device certificate
-// plus its intermediates, which is exactly what localCertChain assembles. A
-// name the candidate section does not carry reports 0, and ValidatePKIRefs
-// refuses that separately.
+// plus its intermediates, which is exactly what localCertChain assembles.
 func (c *candidatePKISet) certChainLen(name string) int {
 	entry := c.cfg.Certificates[name]
+	// refuse-by-default: guards validateIPsecSections -- its ValidateCertificateChains step: an undefined name never arrives, since ze:reference "pki-certificate" refused it at commit, and 0 passes every limit
 	if entry == nil {
 		return 0
 	}
@@ -119,7 +114,8 @@ func (c *candidatePKISet) certChainLen(name string) int {
 }
 
 // caCert answers the parsed certificate of a pki ca entry, or nil when the
-// candidate section carries no entry of that name.
+// entry holds none or the candidate section carries no entry of that name (a
+// name ze:reference "pki-ca" refused at commit, so it never arrives).
 func (c *candidatePKISet) caCert(name string) *x509.Certificate {
 	entry := c.cfg.CACerts[name]
 	if entry == nil {
@@ -129,13 +125,15 @@ func (c *candidatePKISet) caCert(name string) *x509.Certificate {
 }
 
 // validateIPsecSections parses the delivered config sections and runs the
-// site-to-site cross-reference checks: peer PKI references (including the
-// RFC 5216 Section 5.3 trust-anchor requirement for EAP-TLS peers), and the
+// site-to-site cross-reference checks: the certificate and ca-certificate each
+// peer's mode needs (including the RFC 5216 Section 5.3 trust-anchor
+// requirement for EAP-TLS peers), the x509 local-id binding to the certificate
+// CN, the certificate chain bound, the intermediate CA flags, and the
 // remote-access pool and user credentials. The ike-group and esp-group names
-// are YANG leafrefs, so config validation refuses a dangling one before this
-// runs, and no Go check repeats it. It does NOT check
-// the remote-access gateway's own certificate references -- that whole config
-// surface is inert today and is owned by plan/spec-ipsec-remote-access.md.
+// are YANG leafrefs, and every PKI name leaf carries a ze:reference
+// ("pki-certificate" or "pki-ca"), so config validation refuses a dangling name
+// before this runs, at every commit door (config.LoadConfig), and no Go check
+// repeats it.
 //
 // It deliberately does NOT check the interface binding either: interface
 // existence is a HOST fact, so ValidateInterfaceRef is driven from the ike
@@ -149,8 +147,8 @@ func (c *candidatePKISet) caCert(name string) *x509.Certificate {
 //
 // It is SIDE-EFFECT FREE, which the InProcessConfigVerifier contract requires
 // (internal/component/plugin/registry/registry.go) and which correctness requires
-// independently: certificate names are resolved against the CANDIDATE pki
-// section, parsed into a throwaway lookup set, never by installing it. Verifying
+// independently: certificate contents (CN, chain, CA flag) are read from the
+// CANDIDATE pki section, parsed into a throwaway lookup set, never by installing it. Verifying
 // against the live store would both judge the new config by the old PKI and, via
 // pki.Load, leave a rejected config's certificates installed in a running daemon.
 func validateIPsecSections(sections []sdk.ConfigSection) error {
@@ -165,10 +163,10 @@ func validateIPsecSections(sections []sdk.ConfigSection) error {
 	// RFC 4739 Section 2.1. Before ValidatePKIRefs, so a second round on an EAP
 	// peer is refused for what it is rather than for the EAP peer's missing
 	// certificate.
-	if err := cfg.ValidateSecondRounds(candidate.hasCA, candidate.hasCert, candidate.certCN); err != nil {
+	if err := cfg.ValidateSecondRounds(candidate.certCN); err != nil {
 		return err
 	}
-	if err := cfg.ValidatePKIRefs(candidate.hasCA, candidate.hasCert, candidate.certCN); err != nil {
+	if err := cfg.ValidatePKIRefs(candidate.certCN); err != nil {
 		return err
 	}
 	if err := cfg.ValidateCertificateChains(candidate.certChainLen); err != nil {
