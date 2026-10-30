@@ -3,7 +3,7 @@
 //
 // Config parsing for the bgp-filter-prefix plugin.
 //
-// Reads named prefix-list definitions out of the BGP config subtree:
+// Reads named prefix-list definitions out of the top-level policy root:
 //
 //   policy { prefix-list NAME { entry P { ge G; le L; action A; } } }
 //

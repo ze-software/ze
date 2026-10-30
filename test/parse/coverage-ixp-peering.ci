@@ -2,13 +2,6 @@
 # VALIDATES: AC-10 supported subset -- dual-stack, 4 peer groups, bogon filters, and filter chains validate.
 # PREVENTS: Realistic peer-group inheritance and policy chains regressing independently.
 stdin=config:terminator=EOF_CONF
-bgp {
-	router-id 198.51.100.1
-	session {
-		asn {
-			local 65000
-		}
-	}
 	policy {
 		prefix-list V4-BOGON {
 			entry 0.0.0.0/0 {
@@ -57,6 +50,14 @@ bgp {
 				med 20
 				community-add [ 65000:200 ]
 			}
+		}
+	}
+
+bgp {
+	router-id 198.51.100.1
+	session {
+		asn {
+			local 65000
 		}
 	}
 	group RS-V4 {

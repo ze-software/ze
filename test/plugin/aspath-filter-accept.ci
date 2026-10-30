@@ -41,15 +41,15 @@ plugin {
 		encoder json
 	}
 }
-bgp {
-	policy {
-		as-path-list ALLOW-PEER {
-			entry "^65001" {
-				action accept
-			}
+policy {
+	as-path-list ALLOW-PEER {
+		entry "^65001" {
+			action accept
 		}
 	}
+}
 
+bgp {
 	peer peer1 {
 		connection {
 			remote {

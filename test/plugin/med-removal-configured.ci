@@ -69,17 +69,17 @@ plugin {
 		encoder json
 	}
 }
-bgp {
-	policy {
-		# RFC 4271 Section 5.1.4's configured del { med; } removal. Nothing else
-		# is declared, so the removal is a complete definition.
-		modify DROP-MED {
-			del {
-				med
-			}
+policy {
+	# RFC 4271 Section 5.1.4's configured del { med; } removal. Nothing else
+	# is declared, so the removal is a complete definition.
+	modify DROP-MED {
+		del {
+			med
 		}
 	}
+}
 
+bgp {
 	peer source-peer {
 		connection {
 			remote {

@@ -91,16 +91,17 @@ EOF_PEER
 # tmpfs rather than stdin because the runner writes daemon.pid and daemon.ready
 # beside the config, and the compiled trigger waits on both.
 tmpfs=ze-bgp.conf:terminator=EOF_CONF
+policy {
+	reject-asn NO-TRANSIT {
+		indirect [ 3356 ]
+	}
+}
+
 bgp {
 	# A declared RFC 9234 role requires each bound chain to name a filter that
 	# can refuse a path through a transit provider (RFC 7454 Section 9). What
 	# this test exercises is elsewhere, so the decision is recorded and the
 	# filter is left deactivated: the chain names it, and it never runs.
-	policy {
-		reject-asn NO-TRANSIT {
-			indirect [ 3356 ]
-		}
-	}
 	filter {
 		import { filters [ inactive:NO-TRANSIT ]; final accept; }
 		export { filters [ inactive:NO-TRANSIT ]; final accept; }

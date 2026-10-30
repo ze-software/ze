@@ -81,16 +81,17 @@ plugin {
         encoder json;
     }
 }
+policy {
+    reject-asn NO-TRANSIT {
+        indirect [ 3356 ];
+    }
+}
+
 bgp {
     router-id 1.2.3.4;
     session {
         asn {
             local 65000
-        }
-    }
-    policy {
-        reject-asn NO-TRANSIT {
-            indirect [ 3356 ];
         }
     }
     peer peer1 {

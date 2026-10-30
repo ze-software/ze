@@ -40,20 +40,20 @@ plugin {
 		encoder json
 	}
 }
-bgp {
-	policy {
-		prefix-list ORDERED {
-			entry 10.0.0.0/8 {
-				le 32
-				action reject
-			}
-			entry 0.0.0.0/0 {
-				le 32
-				action accept
-			}
+policy {
+	prefix-list ORDERED {
+		entry 10.0.0.0/8 {
+			le 32
+			action reject
+		}
+		entry 0.0.0.0/0 {
+			le 32
+			action accept
 		}
 	}
+}
 
+bgp {
 	peer peer1 {
 		connection {
 			remote {

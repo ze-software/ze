@@ -1,0 +1,105 @@
+# Test: the top-level policy root holds policy routing and BGP filters side by side
+# VALIDATES: spec-route-policy-0-umbrella AC-3: policy { route R } beside
+#            policy { prefix-list P } loads, and a filter chain naming R is
+#            refused as a policy routing rule, not as an unknown filter.
+# PREVENTS: the shared root making a policy routing rule usable as a filter, or
+#           reporting it with the generic "unknown filter" text.
+stdin=config:terminator=EOF_CONF
+policy {
+	route R {
+		interface "eth*";
+		rule block-quic {
+			from {
+				destination-port 443;
+				protocol udp;
+			}
+			then {
+				drop;
+			}
+		}
+	}
+	prefix-list CUSTOMERS {
+		entry 192.0.2.0/24 {
+			action accept
+		}
+	}
+}
+
+bgp {
+	router-id 203.0.113.1
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65534
+			}
+		}
+		filter {
+			import { filters [ CUSTOMERS ]; final accept; }
+		}
+	}
+}
+EOF_CONF
+
+stdin=bad:terminator=EOF_BAD
+policy {
+	route R {
+		interface "eth*";
+		rule block-quic {
+			from {
+				destination-port 443;
+				protocol udp;
+			}
+			then {
+				drop;
+			}
+		}
+	}
+	prefix-list CUSTOMERS {
+		entry 192.0.2.0/24 {
+			action accept
+		}
+	}
+}
+
+bgp {
+	router-id 203.0.113.1
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65534
+			}
+		}
+		filter {
+			import { filters [ R ]; final accept; }
+		}
+	}
+}
+EOF_BAD
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=bad
+expect=exit:code=1
+expect=stdout:contains="R" is a policy route entry
+expect=stdout:contains=not a filter
+reject=stdout:contains=unknown filter

@@ -23,20 +23,17 @@ import (
 	"github.com/stretchr/testify/require"
 
 	matchyang "github.com/ze-software/ze/internal/component/bgp/plugins/filter_community_match/yang"
-	bgpyang "github.com/ze-software/ze/internal/component/bgp/yang"
 	configyang "github.com/ze-software/ze/internal/component/config/yang"
-	hubyang "github.com/ze-software/ze/internal/component/hub/yang"
+	policyyang "github.com/ze-software/ze/internal/component/policy/yang"
 )
 
 // testModules names the modules this file's model is built from: the closure of
 // what the leaves under test need.
 func testModules() map[string]string {
 	return map[string]string{
-		// ze-bgp-conf imports ze-hub-conf, so the closure carries both.
-		"ze-hub-conf.yang": hubyang.ZeHubConfYANG,
-		"ze-bgp-conf.yang": bgpyang.ZeBGPConfYANG,
-		// The `community-match` block is augmented in by the plugin that reads
-		// it, so the leaf under test is not in ze-bgp-conf alone.
+		// The `community-match` block is augmented into the top-level policy
+		// root by the plugin that reads it, so the closure carries both.
+		"ze-policy-conf.yang":            policyyang.ZePolicyConfYANG,
 		"ze-filter-community-match.yang": matchyang.ZeFilterCommunityMatchYANG,
 	}
 }
@@ -92,7 +89,7 @@ func yangEnumValues(t *testing.T, module string, path ...string) []string {
 // PREVENTS: a community type added to the model that no kind names, so
 // filter_community reads an empty config block for it and applies no rule.
 func TestCommunityKindNamesMatchTheYANGModel(t *testing.T) {
-	declared := yangEnumValues(t, "ze-bgp-conf", "bgp", "policy", "community-match", "entry", "type")
+	declared := yangEnumValues(t, "ze-policy-conf", "policy", "community-match", "entry", "type")
 
 	named := []string{
 		CommunityStandard.String(),

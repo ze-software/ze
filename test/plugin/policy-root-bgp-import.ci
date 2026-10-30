@@ -1,0 +1,102 @@
+# Test: a prefix-list under the top-level policy root drives a BGP peer's import chain
+# VALIDATES: spec-route-policy-0-umbrella AC-1 -- `policy { prefix-list P }` at
+#            the top level, referenced from a BGP peer's import chain, accepts
+#            and rejects the same prefixes the list did under `bgp policy`
+#            before the move.
+# PREVENTS: the move of filter definitions to the shared policy root leaving
+#           the BGP filter with no list (a chain that names it would then
+#           accept or reject every prefix the same way).
+#
+# Flow:
+# 1. ze-peer sends one UPDATE with three prefixes: 10.0.1.0/24 (inside
+#    10.0.0.0/8 ge 16 le 24: accept), 10.0.2.0/24 (accept), 192.168.1.0/24
+#    (no entry matches: implicit deny).
+# 2. The peer's import chain names bgp-filter-prefix:CUSTOMERS, defined in
+#    `policy { prefix-list CUSTOMERS }` at the top level of the config.
+# 3. The filter partitions the UPDATE: accepted=2, rejected=1, and the engine
+#    rewrites the NLRI to the accepted subset.
+# 4. The observer (fixture plugin/prefix-filter-modify-partial) polls
+#    adj-rib-in until it holds the two accepted routes, and fails otherwise.
+#
+# The UPDATE, the list and the expected partition are those of
+# prefix-filter-modify-partial.ci, which held the list under `bgp policy`
+# before the move: the same input meets the same verdict at the new root.
+
+option=env:var=ze.log.bgp.filter.prefix:value=info
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+option=linger:value=true
+# Marker(16) + Len=0037(55) + Type=02 + WdLen=0000 + AttrLen=0014(20)
+#   ORIGIN: 40010100 (IGP)
+#   AS_PATH: 40020602010000FDE9 (AS_SEQ [65001])
+#   NEXT_HOP: 40030401010101
+#   NLRI: 180A0001 180A0002 18C0A801 (10.0.1.0/24 10.0.2.0/24 192.168.1.0/24)
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003702000000144001010040020602010000FDE940030401010101180A0001180A000218C0A801
+EOF_PEER
+
+# The prefix-list sits at the top level, beside bgp, not inside it.
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external test-modify-partial {
+		run "le test fixture plugin/prefix-filter-modify-partial"
+		encoder json
+	}
+}
+policy {
+	prefix-list CUSTOMERS {
+		entry 10.0.0.0/8 {
+			ge 16
+			le 24
+			action accept
+		}
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+
+		filter {
+			import { filters [ bgp-filter-prefix:CUSTOMERS ]; final accept; }
+		}
+		attach process bgp-adj-rib-in {
+			receive [ update-received state ]
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze --plugin ze.bgp-filter-prefix --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=15s
+expect=exit:code=0
+# The list at the top-level root reached the filter: the decision names it,
+# and the partition is the one the list's entries give. A list the filter
+# never received would reject or accept the whole UPDATE and miss these.
+expect=stderr:pattern=prefix-list modify
+expect=stderr:pattern=accepted=2
+expect=stderr:pattern=rejected=1
+expect=stderr:pattern=filter=CUSTOMERS
+reject=stderr:pattern=prefix-list reject
+reject=stderr:pattern=prefix-list accept
+reject=stderr:pattern=adj-rib-in never reached

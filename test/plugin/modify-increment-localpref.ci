@@ -33,15 +33,15 @@ plugin {
 		encoder json
 	}
 }
-bgp {
-	policy {
-		modify INC-LP {
-			increment {
-				local-preference 50
-			}
+policy {
+	modify INC-LP {
+		increment {
+			local-preference 50
 		}
 	}
+}
 
+bgp {
 	peer peer1 {
 		connection {
 			remote {

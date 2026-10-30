@@ -66,17 +66,17 @@ plugin {
 		encoder json
 	}
 }
-bgp {
-	policy {
-		# The same del { med; } definition that med-removal-configured.ci
-		# attaches to an import chain.
-		modify DROP-MED {
-			del {
-				med
-			}
+policy {
+	# The same del { med; } definition that med-removal-configured.ci
+	# attaches to an import chain.
+	modify DROP-MED {
+		del {
+			med
 		}
 	}
+}
 
+bgp {
 	peer source-peer {
 		connection {
 			remote {

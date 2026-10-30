@@ -2,13 +2,13 @@
 # VALIDATES: AC-1, AC-9 -- plain unique name DROP_PRIVATE_AS resolves without prefix.
 # PREVENTS: Regression requiring remove-private-as:NAME prefix for filter chain refs.
 stdin=config:terminator=EOF_CONF
-bgp {
-	router-id 203.0.113.253
 	policy {
 		remove-private-as DROP_PRIVATE_AS {
 		}
 	}
 
+bgp {
+	router-id 203.0.113.253
 	peer peer1 {
 		connection {
 			remote {

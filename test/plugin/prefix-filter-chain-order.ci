@@ -32,24 +32,24 @@ plugin {
 		encoder json
 	}
 }
-bgp {
-	policy {
-		prefix-list ALLOW {
-			entry 10.0.0.0/8 {
-				ge 16
-				le 24
-				action accept
-			}
-		}
-		prefix-list DENY {
-			entry 10.0.0.0/8 {
-				ge 16
-				le 24
-				action reject
-			}
+policy {
+	prefix-list ALLOW {
+		entry 10.0.0.0/8 {
+			ge 16
+			le 24
+			action accept
 		}
 	}
+	prefix-list DENY {
+		entry 10.0.0.0/8 {
+			ge 16
+			le 24
+			action reject
+		}
+	}
+}
 
+bgp {
 	peer peer1 {
 		connection {
 			remote {

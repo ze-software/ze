@@ -109,13 +109,14 @@ plugin {
     internal adj-rib-in { use bgp-adj-rib-in; }
     external policy-final { run "le test fixture plugin/policy-final-disposition"; encoder json; }
 }
+policy {
+    reject-asn PASS { indirect [ 64512 ]; }
+    reject-asn DENY { direct [ 65001 ]; indirect [ 65001 ]; }
+    modify MED { set { med 77; } }
+    family-filter NoV6 { family ipv6/unicast; action remove; }
+}
+
 bgp {
-    policy {
-        reject-asn PASS { indirect [ 64512 ]; }
-        reject-asn DENY { direct [ 65001 ]; indirect [ 65001 ]; }
-        modify MED { set { med 77; } }
-        family-filter NoV6 { family ipv6/unicast; action remove; }
-    }
     peer peer-1 {
         connection { remote { ip 127.0.0.1; } local { ip 127.0.0.4; accept false; } }
         session {

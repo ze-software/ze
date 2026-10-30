@@ -1,14 +1,15 @@
 # Test: IRR filter with source-address parses successfully
 
 stdin=config:terminator=EOF_CONF
+policy {
+    irr {
+        server whois.radb.net;
+        source-address 198.51.100.1;
+    }
+}
+
 bgp {
     router-id 198.51.100.1
-    policy {
-        irr {
-            server whois.radb.net;
-            source-address 198.51.100.1;
-        }
-    }
     peer test {
         connection {
             remote { ip 192.0.2.2; }

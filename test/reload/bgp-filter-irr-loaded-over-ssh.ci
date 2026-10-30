@@ -86,13 +86,14 @@ bgp {
 EOF_CONF
 
 tmpfs=1-server.conf:terminator=EOF_SERVER
-bgp {
-    policy {
-        irr {
-            server 127.0.0.1:$PORT2
-            refresh-interval 3600
-        }
+policy {
+    irr {
+        server 127.0.0.1:$PORT2
+        refresh-interval 3600
     }
+}
+
+bgp {
 }
 EOF_SERVER
 

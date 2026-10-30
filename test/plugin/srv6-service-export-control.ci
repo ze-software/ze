@@ -29,13 +29,14 @@ plugin {
         encoder json
     }
 }
-bgp {
-    policy {
-        community-match SERVICE-20 {
-            entry target:65000:10 { type extended; action reject; }
-            entry target:65000:20 { type extended; action accept; }
-        }
+policy {
+    community-match SERVICE-20 {
+        entry target:65000:10 { type extended; action reject; }
+        entry target:65000:20 { type extended; action accept; }
     }
+}
+
+bgp {
     peer filtered-peer {
         connection {
             remote { ip 127.0.0.1; }

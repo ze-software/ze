@@ -37,7 +37,6 @@ EOF_PEER
 
 # Initial ze bgp configuration: import chain references prefix-list ALLOW
 stdin=ze-bgp:terminator=EOF_CONF
-bgp {
 	policy {
 		prefix-list ALLOW {
 			entry 10.0.0.0/8 {
@@ -55,6 +54,7 @@ bgp {
 		}
 	}
 
+bgp {
 	peer peer1 {
 		connection {
 			remote {
@@ -102,7 +102,6 @@ EOF_CONF
 
 # Rewritten config: the import chain is the ONLY difference (ALLOW -> DENY)
 tmpfs=config2.conf:terminator=EOF_CONF2
-bgp {
 	policy {
 		prefix-list ALLOW {
 			entry 10.0.0.0/8 {
@@ -120,6 +119,7 @@ bgp {
 		}
 	}
 
+bgp {
 	peer peer1 {
 		connection {
 			remote {

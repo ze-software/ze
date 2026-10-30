@@ -44,13 +44,13 @@ plugin {
 	}
 }
 
-bgp {
 	policy {
 		reject-asn NO-ASN {
 			anywhere [ 3356 ]
 		}
 	}
 
+bgp {
 	group ix {
 		connection {
 			remote {
@@ -101,13 +101,13 @@ plugin {
 	}
 }
 
-bgp {
 	policy {
 		reject-asn NO-ASN {
 			anywhere [ 65001 ]
 		}
 	}
 
+bgp {
 	group ix {
 		connection {
 			remote {

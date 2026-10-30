@@ -43,7 +43,6 @@ plugin {
 	}
 }
 
-bgp {
 	policy {
 		family-filter NO-FAM {
 			family ipv6/unicast
@@ -51,6 +50,7 @@ bgp {
 		}
 	}
 
+bgp {
 	group ix {
 		connection {
 			remote {
@@ -101,7 +101,6 @@ plugin {
 	}
 }
 
-bgp {
 	policy {
 		family-filter NO-FAM {
 			family ipv4/unicast
@@ -109,6 +108,7 @@ bgp {
 		}
 	}
 
+bgp {
 	group ix {
 		connection {
 			remote {

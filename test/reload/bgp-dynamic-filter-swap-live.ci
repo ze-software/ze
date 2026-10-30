@@ -68,7 +68,6 @@ plugin {
 	}
 }
 
-bgp {
 	policy {
 		prefix-list ALLOW-65533 {
 			entry 10.0.0.0/8 {
@@ -86,6 +85,7 @@ bgp {
 		}
 	}
 
+bgp {
 	group ix {
 		connection {
 			remote {
@@ -141,7 +141,6 @@ plugin {
 	}
 }
 
-bgp {
 	policy {
 		prefix-list ALLOW-65533 {
 			entry 10.0.0.0/8 {
@@ -159,6 +158,7 @@ bgp {
 		}
 	}
 
+bgp {
 	group ix {
 		connection {
 			remote {

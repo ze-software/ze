@@ -31,17 +31,17 @@ plugin {
 		encoder json
 	}
 }
-bgp {
-	policy {
-		prefix-list ONLY_V6 {
-			entry 2001:db8::/32 {
-				ge 32
-				le 48
-				action accept
-			}
+policy {
+	prefix-list ONLY_V6 {
+		entry 2001:db8::/32 {
+			ge 32
+			le 48
+			action accept
 		}
 	}
+}
 
+bgp {
 	peer peer1 {
 		connection {
 			remote {

@@ -54,17 +54,17 @@ EOF_PEER
 # tmpfs rather than stdin because the runner writes daemon.pid and daemon.ready
 # beside the config, and the compiled trigger waits on both.
 tmpfs=ze-bgp.conf:terminator=EOF_CONF
-bgp {
-	policy {
-		prefix-list CUSTOMERS {
-			entry 10.0.0.0/8 {
-				ge 16
-				le 24
-				action accept
-			}
+policy {
+	prefix-list CUSTOMERS {
+		entry 10.0.0.0/8 {
+			ge 16
+			le 24
+			action accept
 		}
 	}
+}
 
+bgp {
 	group ix {
 		connection {
 			remote {

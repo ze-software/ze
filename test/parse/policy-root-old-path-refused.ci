@@ -1,0 +1,43 @@
+# Test: a filter instance still under bgp { policy { ... } } is refused at load
+# VALIDATES: spec-route-policy-0-umbrella AC-2 (refusal): the message names the
+#            top-level policy root and the exact ze config migrate command.
+# PREVENTS: the old path failing as a bare "unknown field" that leaves the
+#           operator to guess where the block went.
+stdin=config:terminator=EOF_CONF
+bgp {
+	policy {
+		prefix-list CUSTOMERS {
+		entry 192.0.2.0/24 {
+			action accept
+		}
+	}
+	}
+
+	router-id 203.0.113.1
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65534
+			}
+		}
+		filter {
+			import { filters [ CUSTOMERS ]; final accept; }
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stdout:contains=policy is no longer inside bgp
+expect=stdout:contains=top-level policy { ... } block
+expect=stdout:contains=fix: ze config migrate -o <new-file> <file>

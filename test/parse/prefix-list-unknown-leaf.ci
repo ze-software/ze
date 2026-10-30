@@ -3,7 +3,6 @@
 #   so they do not silently become no-ops at runtime.
 # PREVENTS: User writes `ge-er 16` (typo) and wonders why the filter does nothing.
 stdin=config:terminator=EOF_CONF
-bgp {
 	policy {
 		prefix-list CUSTOMERS {
 			entry 10.0.0.0/8 {
@@ -14,6 +13,7 @@ bgp {
 		}
 	}
 
+bgp {
 	peer peer1 {
 		connection {
 			remote {

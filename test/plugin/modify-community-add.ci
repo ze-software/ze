@@ -30,15 +30,15 @@ plugin {
 		encoder json
 	}
 }
-bgp {
-	policy {
-		modify TAG-CUSTOMER {
-			set {
-				community-add [ 65000:200 ]
-			}
+policy {
+	modify TAG-CUSTOMER {
+		set {
+			community-add [ 65000:200 ]
 		}
 	}
+}
 
+bgp {
 	peer peer1 {
 		connection {
 			remote {

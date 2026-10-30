@@ -35,13 +35,13 @@ plugin {
 		encoder json
 	}
 }
-bgp {
-	policy {
-		reject-asn NO-TRANSIT {
-			indirect [ 3356 ]
-		}
+policy {
+	reject-asn NO-TRANSIT {
+		indirect [ 3356 ]
 	}
+}
 
+bgp {
 	peer peer1 {
 		connection {
 			remote {

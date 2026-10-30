@@ -42,8 +42,9 @@ plugin {
 	}
 }
 
+policy { reject-asn NO-TRANSIT { indirect [ 64496 ]; } }
+
 bgp {
-	policy { reject-asn NO-TRANSIT { indirect [ 64496 ]; } }
 	rpki {
 		cache-server 127.0.0.1 {
 			trusted-network true

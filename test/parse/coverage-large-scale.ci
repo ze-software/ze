@@ -2,11 +2,6 @@
 # VALIDATES: AC-13 -- 20+ neighbors with multiple policy chains validate.
 # PREVENTS: Large peer-group configs regressing while small single-peer tests pass.
 stdin=config:terminator=EOF_CONF
-bgp {
-	router-id 198.51.100.254
-	session {
-		asn { local 65000; }
-	}
 	policy {
 		prefix-list CUSTOMERS-V4 {
 			entry 10.0.0.0/8 { ge 16; le 24; action accept; }
@@ -33,6 +28,12 @@ bgp {
 				community-add [ 65000:400 ]
 			}
 		}
+	}
+
+bgp {
+	router-id 198.51.100.254
+	session {
+		asn { local 65000; }
 	}
 	group CUSTOMER-V4 {
 		session {

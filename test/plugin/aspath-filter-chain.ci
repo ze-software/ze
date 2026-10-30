@@ -31,22 +31,22 @@ plugin {
 		encoder json
 	}
 }
-bgp {
-	policy {
-		as-path-list ALLOW-AS {
-			entry "^65001" {
-				action accept
-			}
-		}
-		prefix-list ALLOW-PREFIX {
-			entry 10.0.0.0/8 {
-				ge 16
-				le 24
-				action accept
-			}
+policy {
+	as-path-list ALLOW-AS {
+		entry "^65001" {
+			action accept
 		}
 	}
+	prefix-list ALLOW-PREFIX {
+		entry 10.0.0.0/8 {
+			ge 16
+			le 24
+			action accept
+		}
+	}
+}
 
+bgp {
 	peer peer1 {
 		connection {
 			remote {

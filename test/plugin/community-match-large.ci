@@ -28,16 +28,16 @@ plugin {
 		encoder json
 	}
 }
-bgp {
-	policy {
-		community-match ALLOW-LARGE {
-			entry 65001:100:200 {
-				type large
-				action accept
-			}
+policy {
+	community-match ALLOW-LARGE {
+		entry 65001:100:200 {
+			type large
+			action accept
 		}
 	}
+}
 
+bgp {
 	peer peer1 {
 		connection {
 			remote {

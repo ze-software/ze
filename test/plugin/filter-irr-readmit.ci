@@ -44,14 +44,14 @@ plugin {
 		use bgp-rib
 	}
 }
-bgp {
-	policy {
-		irr {
-			server 127.0.0.1:$PORT2
-			refresh-interval 3600
-		}
+policy {
+	irr {
+		server 127.0.0.1:$PORT2
+		refresh-interval 3600
 	}
+}
 
+bgp {
 	peer peer1 {
 		connection {
 			remote {

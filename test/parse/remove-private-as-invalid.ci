@@ -2,13 +2,13 @@
 # VALIDATES: replace-with only accepts the YANG enum peer-as.
 # PREVENTS: invalid policy action modes being silently accepted.
 stdin=config:terminator=EOF_CONF
-bgp {
 	policy {
 		remove-private-as BAD {
 			replace-with local-as
 		}
 	}
 
+bgp {
 	peer peer1 {
 		connection {
 			remote {

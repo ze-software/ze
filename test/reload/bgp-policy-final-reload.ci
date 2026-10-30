@@ -55,8 +55,8 @@ plugin {
     internal rib { use bgp-rib; }
     external policy-final { run "le test fixture reload/bgp-policy-final-reload"; encoder json; }
 }
+policy { reject-asn DENY { indirect [ 65010 ]; } }
 bgp {
-    policy { reject-asn DENY { indirect [ 65010 ]; } }
     peer peer-1 {
         connection { remote { ip 127.0.0.1; } local { ip 127.0.0.4; accept false; } }
         session {

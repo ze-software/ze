@@ -52,7 +52,6 @@ plugin {
 	}
 }
 
-bgp {
 	policy {
 		as-path-list ALLOW-65533 {
 			entry "65001" {
@@ -61,6 +60,7 @@ bgp {
 		}
 	}
 
+bgp {
 	group ix {
 		connection {
 			remote {
@@ -117,7 +117,6 @@ plugin {
 	}
 }
 
-bgp {
 	policy {
 		as-path-list ALLOW-65533 {
 			entry "65001" {
@@ -126,6 +125,7 @@ bgp {
 		}
 	}
 
+bgp {
 	group ix {
 		connection {
 			remote {

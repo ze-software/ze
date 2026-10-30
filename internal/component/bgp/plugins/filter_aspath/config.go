@@ -4,7 +4,7 @@
 //
 // Config parsing for the bgp-filter-aspath plugin.
 //
-// Reads named as-path-list definitions out of the BGP config subtree:
+// Reads named as-path-list definitions out of the top-level policy root:
 //
 //	policy { as-path-list NAME { entry REGEX { action A; } } }
 //

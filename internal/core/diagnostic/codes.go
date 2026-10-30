@@ -498,7 +498,7 @@ var builtinCodes = []CodeMeta{
 	{
 		Code:        "doctor-config-reference",
 		Title:       "Dangling config reference",
-		Description: "A filter chain in BGP config references a policy name that is not defined under bgp/policy.",
+		Description: "A filter chain in BGP config references a policy name that is not defined under the top-level policy root.",
 		Examples:    []string{exampleDoctorJSON},
 	},
 	{

@@ -44,13 +44,13 @@ plugin {
 	}
 }
 
-bgp {
 	policy {
 		remove-private-as STRIP {
 			replace-with peer-as
 		}
 	}
 
+bgp {
 	group ix {
 		connection {
 			remote {
@@ -101,12 +101,12 @@ plugin {
 	}
 }
 
-bgp {
 	policy {
 		remove-private-as STRIP {
 		}
 	}
 
+bgp {
 	group ix {
 		connection {
 			remote {

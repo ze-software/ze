@@ -42,7 +42,6 @@ plugin {
 	}
 }
 
-bgp {
 	policy {
 		modify SET-MED {
 			set {
@@ -51,6 +50,7 @@ bgp {
 		}
 	}
 
+bgp {
 	group ix {
 		connection {
 			remote {
@@ -101,7 +101,6 @@ plugin {
 	}
 }
 
-bgp {
 	policy {
 		modify SET-MED {
 			set {
@@ -110,6 +109,7 @@ bgp {
 		}
 	}
 
+bgp {
 	group ix {
 		connection {
 			remote {

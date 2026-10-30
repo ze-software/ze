@@ -5,7 +5,7 @@
 // The position vocabulary and the config parse for the bgp-filter-path-asn
 // plugin.
 //
-// It reads named reject-asn lists out of the BGP config subtree:
+// It reads named reject-asn lists out of the top-level policy root:
 //
 //	policy { reject-asn NAME { indirect [ N N ]; nth 2 [ N ]; } }
 //

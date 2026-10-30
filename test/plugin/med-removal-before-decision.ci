@@ -61,18 +61,18 @@ plugin {
 		use bgp-adj-rib-in
 	}
 }
-bgp {
-	policy {
-		# RFC 4271 Section 5.1.4's configured del { med; } removal is on the
-		# import chain. The section requires the removal to precede Decision
-		# Process phases 1 and 2, and only the import chain runs there.
-		modify DROP-MED {
-			del {
-				med
-			}
+policy {
+	# RFC 4271 Section 5.1.4's configured del { med; } removal is on the
+	# import chain. The section requires the removal to precede Decision
+	# Process phases 1 and 2, and only the import chain runs there.
+	modify DROP-MED {
+		del {
+			med
 		}
 	}
+}
 
+bgp {
 	peer filtered-peer {
 		connection {
 			remote {

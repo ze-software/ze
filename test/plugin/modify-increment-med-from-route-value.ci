@@ -72,16 +72,16 @@ plugin {
 		encoder json
 	}
 }
-bgp {
-	policy {
-		# The operator's whole configuration: 50 more metric on what arrives.
-		modify INC-MED {
-			increment {
-				med 50
-			}
+policy {
+	# The operator's whole configuration: 50 more metric on what arrives.
+	modify INC-MED {
+		increment {
+			med 50
 		}
 	}
+}
 
+bgp {
 	peer source-peer {
 		connection {
 			remote {

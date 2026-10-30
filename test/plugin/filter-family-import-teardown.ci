@@ -30,14 +30,14 @@ plugin {
 		encoder json
 	}
 }
-bgp {
-	policy {
-		family-filter Kill {
-			family ipv4/flow
-			action tear-down
-		}
+policy {
+	family-filter Kill {
+		family ipv4/flow
+		action tear-down
 	}
+}
 
+bgp {
 	peer peer1 {
 		connection {
 			remote {

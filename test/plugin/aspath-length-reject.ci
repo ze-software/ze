@@ -29,13 +29,13 @@ plugin {
 		encoder json
 	}
 }
-bgp {
-	policy {
-		as-path-length REJECT-LONG {
-			max 3
-		}
+policy {
+	as-path-length REJECT-LONG {
+		max 3
 	}
+}
 
+bgp {
 	peer peer1 {
 		connection {
 			remote {

@@ -1,0 +1,49 @@
+# Test: ze config migrate moves bgp { policy { ... } } to the top-level policy root
+# VALIDATES: spec-route-policy-0-umbrella AC-2 (migrate): the relocated-blocks
+#            transformation rewrites the file and the result loads.
+# PREVENTS: an upgrade path that refuses the old config but cannot rewrite it.
+tmpfs=old.conf:terminator=EOF_FILE
+bgp {
+	policy {
+		prefix-list CUSTOMERS {
+		entry 192.0.2.0/24 {
+			action accept
+		}
+	}
+	}
+
+	router-id 203.0.113.1
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65534
+			}
+		}
+		filter {
+			import { filters [ CUSTOMERS ]; final accept; }
+		}
+	}
+}
+EOF_FILE
+
+cmd=foreground:seq=1:exec=ze config migrate format hierarchical old.conf
+expect=exit:code=0
+expect=stdout:pattern=(?m)^policy \{
+expect=stdout:contains=prefix-list CUSTOMERS
+reject=stdout:pattern=(?m)^\s+policy \{
+
+cmd=foreground:seq=2:exec=ze config migrate -o new.conf old.conf
+expect=exit:code=0
+
+cmd=foreground:seq=3:exec=ze config validate new.conf
+expect=exit:code=0
+expect=stdout:contains=configuration valid

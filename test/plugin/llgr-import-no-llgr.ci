@@ -40,10 +40,11 @@ plugin {
 		encoder json
 	}
 }
+policy {
+	modify NO-LLGR { set { community-add [ 65535:7 ]; } }
+}
+
 bgp {
-	policy {
-		modify NO-LLGR { set { community-add [ 65535:7 ]; } }
-	}
 	peer marked {
 		connection {
 			remote { ip 127.0.0.1; }

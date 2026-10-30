@@ -4,8 +4,6 @@
 # PREVENTS: YANG schema or augment regression breaking modify parsing
 # PREVENTS: Removed set { med-remove true; } syntax remains accepted
 stdin=config:terminator=EOF_CONF
-bgp {
-	router-id 203.0.113.253
 	policy {
 		modify PREFER-LOCAL {
 			set {
@@ -40,6 +38,8 @@ bgp {
 		}
 	}
 
+bgp {
+	router-id 203.0.113.253
 	peer peer1 {
 		connection {
 			remote {
@@ -63,7 +63,6 @@ bgp {
 EOF_CONF
 
 stdin=legacy:terminator=EOF_LEGACY
-bgp {
 	policy {
 		modify DROP-MED {
 			set {
@@ -71,6 +70,8 @@ bgp {
 			}
 		}
 	}
+
+bgp {
 }
 EOF_LEGACY
 

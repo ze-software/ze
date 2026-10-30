@@ -77,12 +77,13 @@ plugin {
 		encoder json
 	}
 }
-bgp {
-	policy {
-		remove-private-as REPLACE {
-			replace-with peer-as
-		}
+policy {
+	remove-private-as REPLACE {
+		replace-with peer-as
 	}
+}
+
+bgp {
 	peer source-peer {
 		connection {
 			remote {

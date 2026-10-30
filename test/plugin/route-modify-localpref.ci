@@ -31,15 +31,15 @@ plugin {
 		encoder json
 	}
 }
-bgp {
-	policy {
-		modify PREFER-LOCAL {
-			set {
-				local-preference 200
-			}
+policy {
+	modify PREFER-LOCAL {
+		set {
+			local-preference 200
 		}
 	}
+}
 
+bgp {
 	peer peer1 {
 		connection {
 			remote {

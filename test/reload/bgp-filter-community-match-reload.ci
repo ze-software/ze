@@ -44,7 +44,6 @@ plugin {
 	}
 }
 
-bgp {
 	policy {
 		community-match NOEXP {
 			entry no-export {
@@ -54,6 +53,7 @@ bgp {
 		}
 	}
 
+bgp {
 	group ix {
 		connection {
 			remote {
@@ -104,7 +104,6 @@ plugin {
 	}
 }
 
-bgp {
 	policy {
 		community-match NOEXP {
 			entry no-export {
@@ -114,6 +113,7 @@ bgp {
 		}
 	}
 
+bgp {
 	group ix {
 		connection {
 			remote {

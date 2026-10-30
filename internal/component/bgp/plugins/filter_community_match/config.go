@@ -4,7 +4,7 @@
 //
 // Config parsing for the bgp-filter-community-match plugin.
 //
-// Reads named community-match definitions out of the BGP config subtree:
+// Reads named community-match definitions out of the top-level policy root:
 //
 //	policy { community-match NAME { entry COMMUNITY { type T; action A; } } }
 //

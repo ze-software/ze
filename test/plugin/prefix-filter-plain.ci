@@ -21,17 +21,17 @@ plugin {
 		encoder json
 	}
 }
-bgp {
-	policy {
-		prefix-list GLOBALLY_UNIQUE_NAME {
-			entry 10.0.0.0/8 {
-				ge 16
-				le 24
-				action accept
-			}
+policy {
+	prefix-list GLOBALLY_UNIQUE_NAME {
+		entry 10.0.0.0/8 {
+			ge 16
+			le 24
+			action accept
 		}
 	}
+}
 
+bgp {
 	peer peer1 {
 		connection {
 			remote {

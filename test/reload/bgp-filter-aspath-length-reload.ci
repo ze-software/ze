@@ -44,13 +44,13 @@ plugin {
 	}
 }
 
-bgp {
 	policy {
 		as-path-length MAX-LEN {
 			max 3
 		}
 	}
 
+bgp {
 	group ix {
 		connection {
 			remote {
@@ -101,13 +101,13 @@ plugin {
 	}
 }
 
-bgp {
 	policy {
 		as-path-length MAX-LEN {
 			max 1
 		}
 	}
 
+bgp {
 	group ix {
 		connection {
 			remote {

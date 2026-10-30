@@ -22,11 +22,12 @@ plugin {
 		encoder json
 	}
 }
-bgp {
-	policy {
-		remove-private-as STRIP {
-		}
+policy {
+	remove-private-as STRIP {
 	}
+}
+
+bgp {
 	peer test-peer {
 		connection {
 			remote {

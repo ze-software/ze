@@ -44,7 +44,6 @@ action=send:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F020000001440010
 EOF_PEER
 
 stdin=ze-bgp:terminator=EOF_CONF
-bgp {
 	policy {
 		irr {
 			server 127.0.0.1:$PORT2
@@ -52,6 +51,7 @@ bgp {
 		}
 	}
 
+bgp {
 	peer peer1 {
 		connection {
 			remote {
@@ -85,7 +85,6 @@ EOF_CONF
 # Rewritten config: the IRR as-set, the import filter and the sentinel route are
 # the only differences.
 tmpfs=config2.conf:terminator=EOF_CONF2
-bgp {
 	policy {
 		irr {
 			server 127.0.0.1:$PORT2
@@ -93,6 +92,7 @@ bgp {
 		}
 	}
 
+bgp {
 	peer peer1 {
 		connection {
 			remote {
