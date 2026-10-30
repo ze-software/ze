@@ -104,6 +104,9 @@ system {
             profile [ admin ]
         }
     }
+    authorization {
+        profile admin { run { default-action allow; } edit { default-action allow; } }
+    }
 }
 `, cachePort, strings.TrimSpace(passwordHash))
 	if err := os.WriteFile("rpki-pipe.conf", []byte(config), 0o600); err != nil {

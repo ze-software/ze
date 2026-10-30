@@ -162,7 +162,8 @@ func listenerMigrationConfig(services []*listenerMigrationService, moved bool) s
 	tb.Str("system {\n\tauthentication {\n\t\tuser webadmin {\n")
 	// bcrypt cost-4 hash of "testpass", the hash test/plugin/authz-allow.ci uses.
 	tb.Str("\t\t\tpassword \"$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO\"\n")
-	tb.Str("\t\t\tprofile [ admin ]\n\t\t}\n\t}\n}\n\nenvironment {\n")
+	tb.Str("\t\t\tprofile [ admin ]\n\t\t}\n\t}\n")
+	tb.Str("\tauthorization {\n\t\tprofile admin { run { default-action allow; } edit { default-action allow; } }\n\t}\n}\n\nenvironment {\n")
 	for _, service := range services {
 		port := service.before
 		if moved {

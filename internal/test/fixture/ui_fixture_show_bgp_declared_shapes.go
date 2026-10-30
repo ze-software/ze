@@ -96,6 +96,9 @@ system {
             profile [ admin ]
         }
     }
+    authorization {
+        profile admin { run { default-action allow; } edit { default-action allow; } }
+    }
 }
 `, passwordHash)
 	if err := os.WriteFile(filepath.Join(workDir, "shapes.conf"), []byte(config), 0o600); err != nil {

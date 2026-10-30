@@ -80,6 +80,9 @@ system {
             profile [ admin ]
         }
     }
+    authorization {
+        profile admin { run { default-action allow; } edit { default-action allow; } }
+    }
 }
 `
 	work, err := os.MkdirTemp("", "ze-ui-alias-summary-")

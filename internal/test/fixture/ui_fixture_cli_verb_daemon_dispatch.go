@@ -50,6 +50,9 @@ func runCLIVerbDaemonDispatch(ctx context.Context) (retErr error) {
             profile [ admin ]
         }
     }
+    authorization {
+        profile admin { run { default-action allow; } edit { default-action allow; } }
+    }
 }
 `
 	if err := os.WriteFile(filepath.Join(workDir, "verb.conf"), []byte(config), 0o600); err != nil {

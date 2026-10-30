@@ -77,6 +77,9 @@ system {
             profile [ admin ]
         }
     }
+    authorization {
+        profile admin { run { default-action allow; } edit { default-action allow; } }
+    }
 }
 `, passwordHash)
 	work, err := os.MkdirTemp("", "ze-ui-cli-format-default-")

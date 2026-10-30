@@ -482,7 +482,8 @@ func strippedFlowLoginBlock(ctx context.Context) ([]byte, error) {
 	}
 	block := "\nsystem {\n    authentication {\n        user " + strippedFlowUser + " {\n" +
 		"            password \"" + strings.TrimSpace(hash.String()) + "\"\n" +
-		"            profile [ admin ]\n        }\n    }\n}\n"
+		"            profile [ admin ]\n        }\n    }\n" +
+		"    authorization {\n        profile admin { run { default-action allow; } edit { default-action allow; } }\n    }\n}\n"
 	return []byte(block), nil
 }
 

@@ -70,6 +70,9 @@ system {
             profile [ admin ]
         }
     }
+    authorization {
+        profile admin { run { default-action allow; } edit { default-action allow; } }
+    }
 }
 `
 	workDir, err := os.MkdirTemp("", "ze-ui-show-bgp-children-")
