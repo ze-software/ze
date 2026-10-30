@@ -458,6 +458,8 @@ Format: wire-method (dispatch-key) description
   ze-diag:show-capture-interface               (show capture interface        ) ze-diag:show-capture-interface [read-only]
   ze-diag:show-capture-raw                     (show capture raw              ) ze-diag:show-capture-raw [read-only]
   ze-diag:show-tcp-check                       (show tcp-check                ) ze-diag:show-tcp-check [read-only]
+  ze-dnsresolver:clear-dns-resolver-cache      (clear dns resolver cache all  ) ze-dnsresolver:clear-dns-resolver-cache
+  ze-dnsresolver:show-dns-resolver             (show dns resolver             ) ze-dnsresolver:show-dns-resolver [read-only]
   ze-doctor:show-doctor                        (show doctor                   ) ze-doctor:show-doctor [read-only]
   ze-firewall:clear-domain-group               (clear firewall domain-group   ) ze-firewall:clear-domain-group
   ze-firewall:clear-irr-as-set                 (clear firewall irr as-set     ) ze-firewall:clear-irr-as-set
@@ -778,6 +780,7 @@ Format: wire-method (dispatch-key) description
   ddos-local               DDoS local responder: on-host nft drop on attack detection
   ddos-observe             DDoS observability: incident store and show ddos status/incidents CLI
   dhcpserver               DHCP server: address assignment for LAN clients (RFC 2131)
+  dnsresolver              LAN DNS resolver: answers recursive queries from allowed prefixes by forwarding to upstream resolvers (RFC 1035, RFC 2181)
   exabgp-bridge            In-process ExaBGP compatibility bridge: runs an operator ExaBGP-format script as a subprocess and translates to/from ze events (RFC-agnostic transport shim)
   fakeas112                Test-only synthetic AS112 route producer (use ze.fakeas112; harmless when not invoked)
   fakedrain                Test-only drain responder for the stop drain functional tests (use ze.fakedrain)
@@ -811,6 +814,7 @@ Format: wire-method (dispatch-key) description
   ntp                      NTP client: system clock synchronization
   ospf                     Open Shortest Path First v2 (RFC 2328): native link-state IPv4 IGP
     RFCs: 2328, 5709, 7474, 9129
+  policy                   Route policy library: the policy root, named filter instances and the route field vocabulary
   policy-routes            Policy-based routing: nftables packet marking and ip rule table selection
   redistribute-orchestrator Redistribute orchestrator: dispatches protocol route events to registered consumers
   rib                      System RIB: selects best route across protocols by admin distance
@@ -887,6 +891,7 @@ Use with: ze cli -c "<dispatch-key>"
   clear dns cache all                      ze-resolve:clear-dns-cache
   clear dns cache record                   ze-resolve:clear-dns-cache-record
   clear dns cache stats                    ze-resolve:clear-dns-cache-stats
+  clear dns resolver cache all             ze-dnsresolver:clear-dns-resolver-cache
   clear firewall domain-group              ze-firewall:clear-domain-group
   clear firewall irr as-set                ze-firewall:clear-irr-as-set
   clear firewall irr asn                   ze-firewall:clear-irr-asn
@@ -1057,6 +1062,7 @@ Use with: ze cli -c "<dispatch-key>"
   show dns cache record                    ze-resolve:show-dns-cache-record
   show dns cache stats                     ze-resolve:show-dns-cache-stats
   show dns lookup                          ze-resolve:show-dns-lookup
+  show dns resolver                        ze-dnsresolver:show-dns-resolver
   show doctor                              ze-doctor:show-doctor
   show errors                              ze-cmd:show-errors
   show event delivery                      ze-cmd:show-event-delivery

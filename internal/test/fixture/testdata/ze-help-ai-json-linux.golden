@@ -1615,6 +1615,12 @@
       "wire-method": "ze-diag:show-tcp-check"
     },
     {
+      "wire-method": "ze-dnsresolver:clear-dns-resolver-cache"
+    },
+    {
+      "wire-method": "ze-dnsresolver:show-dns-resolver"
+    },
+    {
       "wire-method": "ze-doctor:show-doctor"
     },
     {
@@ -3555,6 +3561,8 @@
     "ze-diag:show-capture-interface": "show capture interface",
     "ze-diag:show-capture-raw": "show capture raw",
     "ze-diag:show-tcp-check": "show tcp-check",
+    "ze-dnsresolver:clear-dns-resolver-cache": "clear dns resolver cache all",
+    "ze-dnsresolver:show-dns-resolver": "show dns resolver",
     "ze-doctor:show-doctor": "show doctor",
     "ze-env:show-get": "show env get",
     "ze-env:show-list": "show env list",
@@ -4104,6 +4112,10 @@
       "description": "DHCP server: address assignment for LAN clients (RFC 2131)"
     },
     {
+      "name": "dnsresolver",
+      "description": "LAN DNS resolver: answers recursive queries from allowed prefixes by forwarding to upstream resolvers (RFC 1035, RFC 2181)"
+    },
+    {
       "name": "exabgp-bridge",
       "description": "In-process ExaBGP compatibility bridge: runs an operator ExaBGP-format script as a subprocess and translates to/from ze events (RFC-agnostic transport shim)"
     },
@@ -4234,6 +4246,10 @@
     {
       "name": "ospf",
       "description": "Open Shortest Path First v2 (RFC 2328): native link-state IPv4 IGP"
+    },
+    {
+      "name": "policy",
+      "description": "Route policy library: the policy root, named filter instances and the route field vocabulary"
     },
     {
       "name": "policy-routes",
