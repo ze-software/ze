@@ -28,8 +28,13 @@ Four filter types can run at a Loc-RIB attachment today:
 
 `match` belongs to the policy component and is in every build. The other three
 come from BGP plugins, so a build without the `ze_bgp` tag refuses a Loc-RIB
-chain that names one of them.
+chain that names one of them. Their Loc-RIB evaluators are linked into the
+daemon and run inside the policy plugin, so a Loc-RIB chain needs no BGP
+plugin process and no `bgp { }` block: a config with only `policy` and an
+IS-IS, OSPF, static or connected import chain starts without BGP. The BGP
+filter plugins themselves load only when the config holds a `bgp { }` block.
 <!-- source: feature-gates.txt -- ze_bgp -->
+<!-- source: internal/component/bgp/plugins/filter_prefix/register.go -- MustRegisterRouteEvaluator, ConfigRoots -->
 <!-- source: internal/component/policy/register.go -- MatchFilterType -->
 <!-- source: internal/component/policy/rib_compile.go -- compileRIBChain -->
 

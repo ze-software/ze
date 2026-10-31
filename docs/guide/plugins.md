@@ -1437,14 +1437,24 @@ edge fails by name.
 <!-- source: internal/component/policy/fields.go -- MustRegisterAttachment, AttachmentOwners -->
 <!-- source: internal/component/plugin/all/policy_dependency_test.go -- TestFilterAttachmentOwnersDependOnPolicy -->
 
-Filter-type plugins own the `policy` root (`ConfigRoots`), where their named
-instances live. A filter type that also needs BGP settings declares
-`ConfigReads ["bgp"]`, so its configure and reload deliveries carry the `bgp`
-section beside `policy`: `bgp-filter-family`, `bgp-filter-modify` and
-`bgp-filter-path-asn` do. `bgp-filter-irr` is the other way round: it owns
-`bgp`, because a BGP-only config with IRR peers must load it, and reads
-`policy` for its `irr` settings.
+The BGP filter-type plugins (`bgp-filter-prefix`, `bgp-filter-family`,
+`bgp-filter-modify`, `bgp-filter-aspath`, `bgp-filter-aspath-length`,
+`bgp-filter-community-match`, `bgp-filter-remove-private-as`,
+`bgp-filter-path-asn` and `bgp-filter-irr`) own the `bgp` root
+(`ConfigRoots ["bgp"]`) and read the `policy` root (`ConfigReads ["policy"]`),
+where their named instances live. They serve BGP chains only, so a `bgp { }`
+block loads them, and a config holding `policy` with no `bgp` block loads
+none of them: policy routing, or an IS-IS or OSPF import chain, starts without
+BGP. Their configure and reload deliveries carry both sections, which
+`bgp-filter-family`, `bgp-filter-modify` and `bgp-filter-path-asn` need for
+their BGP settings. A Loc-RIB chain naming a `prefix-list`, `modify` or
+`family-filter` does not need these plugins running: its evaluators are linked
+in and run inside the `policy` plugin (see [Route policy](route-policy.md)).
+`TestPolicyOnlyConfigLoadsNoBGP` derives the plugins a policy-only config
+selects from the registry and refuses one that depends on `bgp`.
 <!-- source: internal/component/bgp/plugins/filter_family/register.go -- ConfigRoots, ConfigReads -->
+<!-- source: internal/component/plugin/all/policy_dependency_test.go -- TestPolicyOnlyConfigLoadsNoBGP -->
+<!-- source: internal/component/policy/rib_compile.go -- compileRIBEvaluator -->
 <!-- source: internal/component/bgp/plugins/filter_irr/register.go -- ConfigRoots, ConfigReads -->
 <!-- source: internal/component/policy/section.go -- SectionsParser -->
 

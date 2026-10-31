@@ -20,7 +20,8 @@ func init() {
 	_ = registry.Register(registry.Registration{
 		Name:         "bgp-filter-aspath",
 		Description:  "Named AS-path regex filter (ordered entries, first match wins, accept/reject)",
-		ConfigRoots:  []string{policy.RootName},
+		ConfigRoots:  []string{configRootBGP},
+		ConfigReads:  []string{policy.RootName},
 		Dependencies: []string{configRootBGP, policy.PluginName},
 		YANG:         fayang.ZeFilterAsPathYANG,
 		FilterTypes:  []string{filterTypeName},

@@ -27,7 +27,8 @@ func init() {
 	_ = registry.Register(registry.Registration{
 		Name:         "bgp-filter-remove-private-as",
 		Description:  "Named AS-path action filter that removes RFC 6996 Private Use ASNs",
-		ConfigRoots:  []string{policy.RootName},
+		ConfigRoots:  []string{configRootBGP},
+		ConfigReads:  []string{policy.RootName},
 		Dependencies: []string{pluginNameBGP, policy.PluginName},
 		YANG:         frpayang.ZeFilterRemovePrivateASYANG,
 		FilterTypes:  []string{filterTypeName},

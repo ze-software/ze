@@ -73,6 +73,46 @@ func TestPolicyOnlyConfigAutoLoadsPolicy(t *testing.T) {
 	}
 }
 
+// bgpPluginName is the BGP subsystem's registration name, the plugin that
+// refuses to start without a `bgp { }` block.
+const bgpPluginName = "bgp"
+
+// TestPolicyOnlyConfigLoadsNoBGP: a config holding a policy block with a
+// prefix-list and a route, and no bgp block, starts no plugin that needs BGP,
+// so policy routing or an IS-IS or OSPF import chain runs without BGP.
+// Method: select the plugins the config's container paths name, as boot
+// auto-load does (registry.PluginsForConfigPaths), resolve their hard
+// dependencies as startup does, and refuse the bgp plugin itself and every
+// resolved plugin that lists it in Dependencies. Both sets come from the
+// registry, so a new policy-root plugin that drags BGP in fails here by name.
+func TestPolicyOnlyConfigLoadsNoBGP(t *testing.T) {
+	block := config.NewTree()
+	block.AddListEntry("prefix-list", "CUSTOMERS", config.NewTree())
+	block.AddListEntry("route", "R", config.NewTree())
+	root := config.NewTree()
+	root.SetContainer(policy.RootName, block)
+
+	selected := registry.PluginsForConfigPaths(config.CollectContainerPaths(root))
+	names, err := registry.ResolveDependencies(selected, nil, config.ConfigNeedHolds(map[string]any{}))
+	if err != nil {
+		t.Fatalf("ResolveDependencies(%v): %v", selected, err)
+	}
+	if slices.Contains(names, bgpPluginName) {
+		t.Errorf("a policy-only config must not load %q (selected %v, resolved %v)", bgpPluginName, selected, names)
+	}
+	for _, name := range names {
+		reg := registry.Lookup(name)
+		if reg == nil {
+			t.Errorf("resolved plugin %q is not registered", name)
+			continue
+		}
+		if slices.Contains(reg.Dependencies, bgpPluginName) {
+			t.Errorf("a policy-only config loads %q, which depends on %q: own the bgp root instead (ConfigRoots [bgp], ConfigReads [policy])",
+				name, bgpPluginName)
+		}
+	}
+}
+
 // TestProtocolLoadsPolicyAsDependency: a config with only an isis block loads
 // policy as a dependency of isis (AC-18). Method: resolve isis's dependencies
 // as startup does; skipped in a build without IS-IS (ze_isis).

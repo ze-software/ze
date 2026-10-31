@@ -27,8 +27,8 @@ func init() {
 	_ = registry.Register(registry.Registration{
 		Name:         "bgp-filter-modify",
 		Description:  "Named route attribute modifier (set local-preference, med, origin, next-hop)",
-		ConfigRoots:  []string{policy.RootName},
-		ConfigReads:  []string{configRootBGP},
+		ConfigRoots:  []string{configRootBGP},
+		ConfigReads:  []string{policy.RootName},
 		Dependencies: []string{configRootBGP, policy.PluginName},
 		YANG:         fmyang.ZeFilterModifyYANG,
 		FilterTypes:  []string{filterTypeName},

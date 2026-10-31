@@ -22,7 +22,8 @@ func init() {
 	_ = registry.Register(registry.Registration{
 		Name:         "bgp-filter-prefix",
 		Description:  "Named prefix-list filter (CIDR + ge/le + accept/reject)",
-		ConfigRoots:  []string{policy.RootName},
+		ConfigRoots:  []string{configRootBGP},
+		ConfigReads:  []string{policy.RootName},
 		Dependencies: []string{configRootBGP, policy.PluginName},
 		YANG:         fpyang.ZeFilterPrefixYANG,
 		FilterTypes:  []string{filterTypeName},

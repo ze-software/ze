@@ -25,7 +25,6 @@ import (
 	"sync/atomic"
 
 	"github.com/ze-software/ze/internal/component/bgp/filtertext"
-	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
@@ -57,7 +56,7 @@ func RunFilterPrefix(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	if err := p.Run(ctx, &sdk.Registration{
-		WantsConfig: []string{policy.RootName},
+		WantsConfig: []string{configRootBGP},
 	}); err != nil {
 		logger().Error("filter-prefix plugin failed", "error", err)
 		return 1

@@ -1,0 +1,38 @@
+# Test: a config with a policy block and no bgp block starts, with no BGP loaded.
+#
+# VALIDATES: `policy { prefix-list ... }` alone boots: every selected plugin
+#            reaches ready, the daemon serves no BGP command, and it exits 0
+#            on the observer's shutdown request.
+# PREVENTS: the BGP filter plugins owning the policy root (ConfigRoots
+#           [policy]), whose hard dependency on bgp dragged the bgp plugin in
+#           and failed startup with "missing required bgp { } block".
+#
+# DISCRIMINATION: restoring `ConfigRoots: []string{policy.RootName}` on
+# bgp-filter-prefix (internal/component/bgp/plugins/filter_prefix/register.go)
+# turns this red: the daemon exits non-zero naming the missing bgp block, and
+# the observer's OK line never prints.
+
+option=timeout:value=30s
+
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+	external policy-only-boot {
+		run "le test fixture plugin/policy-only-boot"
+		encoder json
+	}
+}
+policy {
+	prefix-list CUSTOMERS {
+		entry 10.0.0.0/8 {
+			ge 16
+			le 24
+			action accept
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=30s
+expect=exit:code=0
+expect=stderr:contains=OK: every plugin is ready and the daemon refused show bgp peer
+reject=stderr:contains=missing required bgp

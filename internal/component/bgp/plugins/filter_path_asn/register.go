@@ -22,8 +22,8 @@ func init() {
 	_ = registry.Register(registry.Registration{
 		Name:         "bgp-filter-path-asn",
 		Description:  "Named reject-asn list: rejects a route whose AS_PATH carries a listed ASN at a listed position",
-		ConfigRoots:  []string{policy.RootName},
-		ConfigReads:  []string{configRootBGP},
+		ConfigRoots:  []string{configRootBGP},
+		ConfigReads:  []string{policy.RootName},
 		Dependencies: []string{configRootBGP, policy.PluginName},
 		YANG:         fpayang.ZeFilterPathAsnYANG,
 		FilterTypes:  []string{filterTypeName},

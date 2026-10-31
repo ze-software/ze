@@ -38,12 +38,14 @@ func SectionParser[T any](plugin string, errInvalid error, parse func(policyCfg 
 }
 
 // SectionsParser builds the sdk.ConfigParser of a filter type plugin that
-// reads its own list under the policy root and also a root it does not own:
+// reads its own list under the policy root and also a second root, readRoot:
 // a family-filter checks the export chains of the bgp peers that reference
 // it, and a modify filter reads bgp's attribute defaults. The plugin MUST
-// declare readRoot in registry.Registration.ConfigReads, because a reload
-// then delivers both roots whole whenever either changes
-// (plugin/server reloadConfigSections). A root absent from that delivery holds
+// declare one of the two roots in registry.Registration.ConfigRoots and the
+// other in ConfigReads, because a reload then delivers both roots whole
+// whenever either changes (plugin/server reloadConfigSections). The BGP
+// filter types own bgp and read policy, so a config with no bgp block never
+// loads them. A root absent from that delivery holds
 // no config, so parse receives it as a nil map, which reads as empty. A
 // delivery with neither root carries nothing for the plugin.
 func SectionsParser[T any](plugin string, errInvalid error, readRoot string, parse func(policyCfg, readCfg map[string]any) (T, error)) sdk.ConfigParser[T] {
