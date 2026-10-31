@@ -57,6 +57,37 @@ func TestDoRemovePeerReturnsRemovedIdentity(t *testing.T) {
 	assert.False(t, exists, "peer must be unregistered from the reactor")
 }
 
+// TestDoRemovePeerNamesTheSessionGeneration verifies the removal down event
+// names the session it ends.
+//
+// GOAL: `delete bgp peer` tells every process the peer is down through the
+// PeerInfo doRemovePeer builds (removePeer hands it to OnPeerStateChange
+// unchanged), and the index then drops the peer, so the FSM teardown's own
+// down finds no receiver. A forwarding plugin stamps its departure with the
+// generation this down carries, and the engine refuses a departure that names
+// generation 0.
+// METHOD: give the peer a live forward generation, remove it, and read the
+// PeerInfo the removal answers.
+//
+// VALIDATES: removed.SessionGeneration is the peer's forwardGeneration.
+// PREVENTS: a removal down carrying generation 0, which made bgp-rs log
+// "recovery-generation 0 names no session", send no WITHDRAW, and keep the
+// deleted peer's routes on every other peer.
+func TestDoRemovePeerNamesTheSessionGeneration(t *testing.T) {
+	r := newRemovalTestReactor()
+	addr := netip.MustParseAddr("192.0.2.9")
+	insertTestPeer(r, addr)
+	peer := r.peers[peerKeyFromAddrPort(addr, DefaultBGPPort)]
+	const generation = 7
+	peer.forwardGeneration.Store(generation)
+
+	removed, _, err := r.doRemovePeer(addr, message.NotifyCeasePeerDeconfigured)
+	require.NoError(t, err)
+	require.NotNil(t, removed)
+	assert.Equal(t, uint64(generation), removed.SessionGeneration,
+		"the removal down names the session generation it ends, never 0")
+}
+
 // TestRemovePeerNilDispatcherNoPanic verifies RemovePeer removes the peer and
 // returns nil even when no event dispatcher is wired (metrics/telemetry off),
 // i.e. the removal-notification path is guarded.
