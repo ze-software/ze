@@ -58,7 +58,12 @@ phase itself.
    baseline.
 2. **Read the pages first (`ai/rules/documentation.md`):** `ai/CODE-TO-DOCS.md`
    names the pages for the files the spec targets. A page that changed since
-   the baseline is often the fastest sign that the design moved.
+   the baseline is often the fastest sign that the design moved. Read
+   `ai/doors/system.md` and the door of every subsystem the spec touches
+   (`ai/doors/README.md`) in full: a rework that drops an outside contract a
+   door names (third-party plugins in any language, the process protocol, the
+   public `pkg/` API) is not a fit for `main`, and the smallest redesign the
+   verdict proposes MUST keep every one of them.
 3. **Answer four questions, each with evidence:**
 
    | Question | How to answer it |

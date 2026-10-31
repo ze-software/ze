@@ -364,3 +364,30 @@ AS-path prepend and remove-private kept as typed intents. AC-7 becomes
 Current Behavior and AC-6 are rebuilt from `sectionNLRIDelta` and the `mp`
 sections, child specs move under `plan/post-release/`, and Phase 1 becomes a
 benchmark harness Thomas runs. The redesign runs through `/ze-spec`.
+
+**Fixed requirement for the redesign (owner, 2026-10-31): two paths, one
+vocabulary.** Plugins in any language are part of Ze's design
+(`ai/doors/system.md`: a third-party plugin, in Go or any other language, is a
+forked process speaking the process protocol). The lazy wire view above is
+the in-process fast path only, for filter types compiled into the binary. The
+out-of-process slow path stays language-neutral: the process protocol carries
+the raw UPDATE bytes plus a decoded map of only the fields the plugin declared
+at startup, and the plugin answers a verdict plus set fields named from the
+same registered vocabulary, in JSON, which Ze applies through the same
+handlers as the fast path. Both paths share the vocabulary, the load-time
+read/set check, and the chain model, so one chain may mix in-process and
+external members. The decoded-map and reply encoding is a versioned, documented
+part of the plugin protocol, and the Go SDK is a convenience over it, never a
+second contract. The text `Update` format is replaced, not kept beside it.
+Batching several routes per exchange is the slow path's performance lever, and
+the benchmark harness measures both paths.
+
+**Parse on demand, on both paths (owner, 2026-10-31).** A filter receives only
+the route information it asks for, and Ze decodes and serialises nothing more.
+In process, the lazy view decodes a field on first read. Out of process, a
+plugin declares at startup the fields it reads, and Ze decodes and sends only
+those for each route, so a filter that reads only the prefix is never sent the
+AS path or the communities. The raw UPDATE bytes go only to a plugin that
+declares it wants them. The load-time check uses the same declaration, so the
+set of fields a plugin may read is the set it is sent. The owner approved the
+in-code fast path as proposed above.
