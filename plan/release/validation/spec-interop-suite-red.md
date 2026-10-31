@@ -263,6 +263,15 @@ reach green (`ai/rules/completion.md`).
 - [ ] Tests PASS (paste output)
 - [ ] Interop tests for protocol features (or N-A with a reason)
 
+## Owned journal rows
+
+| Class file | Date | Surface (short) |
+|------------|------|-----------------|
+| `test-against-broken-path.md` | 2026-10-30 | `bgp-4byte-asn-frr` checker greps for 4200000000, never configured |
+| `test-against-broken-path.md` | 2026-10-30 | `as112-redistribute-origin-custom-frr` assertion 7 requires 112 with origin 65001 |
+| `session-never-establishes-with-the-peer.md` | 2026-10-30 | `bgp-md5-auth-frr` assertion 1, no messages exchanged |
+| `session-never-establishes-with-the-peer.md` | 2026-10-30 | `bgp-exabgp-bridge-vpnv4-frr` assertion 2, peer never ready |
+
 ## Work Inherited From a Deferral Row
 
 <!-- The deferral directory was deleted on 2026-09-05. A row that named this spec as
