@@ -196,6 +196,7 @@ type ContainerNode struct {
 	Related      []*RelatedTool    // ze:related — operator tools attached to this container (see related.go)
 	cases        choiceMembers     // the children a YANG choice holds, for ApplyDefaults (see schema_defaults.go)
 	relocated    map[string]string // child name -> this container's name, for children that moved to a top-level root of the same name (see relocated.go)
+	retired      map[string]string // retired leaf name -> its refusal hint (see retired_leaf.go)
 }
 
 func (n *ContainerNode) Kind() NodeKind { return NodeContainer }
@@ -236,7 +237,8 @@ type ListNode struct {
 	Related     []*RelatedTool // ze:related -- operator tools attached to this list (see related.go)
 	children    map[string]Node
 	order       []string
-	cases       choiceMembers // the children a YANG choice holds, for ApplyDefaults (see schema_defaults.go)
+	cases       choiceMembers     // the children a YANG choice holds, for ApplyDefaults (see schema_defaults.go)
+	retired     map[string]string // retired leaf name -> its refusal hint (see retired_leaf.go)
 }
 
 func (n *ListNode) Kind() NodeKind { return NodeList }

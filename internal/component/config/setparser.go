@@ -922,6 +922,14 @@ func (p *SetParser) unknownFieldHint(name string, parent Node) string {
 		if hint := container.relocatedHint(name); hint != "" {
 			return hint
 		}
+		if hint := container.retiredHint(name); hint != "" {
+			return hint
+		}
+	}
+	if list, isList := parent.(*ListNode); isList {
+		if hint := list.retiredHint(name); hint != "" {
+			return hint
+		}
 	}
 	return UnknownKeywordHint(name, known)
 }

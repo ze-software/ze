@@ -109,6 +109,7 @@ func MigrationSchema() (*Schema, error) {
 		parent.order = append(parent.order, r.root)
 		delete(parent.relocated, r.root)
 	}
+	graftRetiredLeaves(schema)
 	return schema, nil
 }
 

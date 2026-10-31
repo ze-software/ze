@@ -1,5 +1,6 @@
 // Design: docs/architecture/config/syntax.md — config migration
 // Detail: listener.go — listener normalization transformations
+// Detail: registered.go — transformations a feature package registers
 
 package migration
 
@@ -150,7 +151,7 @@ func Migrate(tree *config.Tree) (*MigrateResult, error) {
 	working := tree.Clone() // Work on clone - original unchanged until success
 	result := &MigrateResult{}
 
-	for _, t := range transformations {
+	for _, t := range allTransformations() {
 		if t.Detect(working) {
 			migrated, err := t.Apply(working)
 			if err != nil {
@@ -179,7 +180,7 @@ func DryRun(tree *config.Tree) (*DryRunResult, error) {
 	result := &DryRunResult{WouldSucceed: true}
 	working := tree.Clone()
 
-	for _, t := range transformations {
+	for _, t := range allTransformations() {
 		if t.Detect(working) {
 			result.WouldApply = append(result.WouldApply, t.Name)
 			// Run on clone to validate it would succeed
@@ -204,7 +205,7 @@ func NeedsMigration(tree *config.Tree) bool {
 	if tree == nil {
 		return false
 	}
-	for _, t := range transformations {
+	for _, t := range allTransformations() {
 		if t.Detect(tree) {
 			return true
 		}
@@ -215,9 +216,7 @@ func NeedsMigration(tree *config.Tree) bool {
 // ListTransformations returns all available transformations with their descriptions.
 // Returns a copy to prevent external modification.
 func ListTransformations() []Transformation {
-	result := make([]Transformation, len(transformations))
-	copy(result, transformations)
-	return result
+	return allTransformations()
 }
 
 // --- Apply functions ---

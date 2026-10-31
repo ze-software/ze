@@ -80,6 +80,19 @@ between them.
 <!-- source: internal/component/config/relocated.go -- MigrationSchema, ApplyRelocations, refuseRelocationConflict -->
 <!-- source: internal/component/config/migration/migrate.go -- relocated-blocks -->
 
+A leaf a schema change retired is refused the same way. The package that owns
+the rewrite registers the leaf with `config.MustRegisterRetiredLeaf(path, name,
+node, replacement)`, both parsers answer `<name> is no longer a leaf of <path>:
+write <replacement> instead`, then the `ze config migrate` fix, and
+`MigrationSchema` grafts the old leaf back so the migration can read it.
+<!-- source: internal/component/config/retired_leaf.go -- MustRegisterRetiredLeaf, markRetiredLeaves, graftRetiredLeaves -->
+
+A feature package adds its own transformation with
+`migration.MustRegisterTransformation`, so `migrate.go` never names it. The
+registered ones run after the built-in ones, in registration order, and
+`ze config migrate --list` shows them with the rest.
+<!-- source: internal/component/config/migration/registered.go -- MustRegisterTransformation, allTransformations -->
+
 An enumeration refusal includes its original path, the values it accepts, and
 the leaf statement to write. A bracket list where the schema expects a container
 names that path and renders the container's immediate fields instead, including

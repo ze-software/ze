@@ -333,6 +333,7 @@ func schemaFromResolved(loader *yang.Resolved) (*Schema, error) {
 	}
 
 	markRelocations(schema)
+	markRetiredLeaves(schema)
 	return schema, nil
 }
 

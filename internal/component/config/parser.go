@@ -524,6 +524,9 @@ func (p *Parser) parseContainer(tree *Tree, name string, node *ContainerNode) er
 			}
 			hint := node.relocatedHint(fieldName)
 			if hint == "" {
+				hint = node.retiredHint(fieldName)
+			}
+			if hint == "" {
 				hint = UnknownKeywordHint(fieldName, node.Children())
 			}
 			return p.errorf(tok, "unknown field in %s: %s%s (line %d)", name, fieldName, hint, tok.line)

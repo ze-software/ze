@@ -44,6 +44,9 @@ type chainLeaf struct {
 	attachment string
 	check      ChainMemberCheck
 	rib        *ribImport
+	// routeChain marks a site MustRegisterRouteChainPath declared: its check
+	// is checkRouteChain's over the policy root it is asked over.
+	routeChain bool
 }
 
 // chainLeaves holds the chain sites MustRegisterChainLeaf declared. Written
@@ -104,6 +107,9 @@ func filterReference(root map[string]any, at []string) yang.ReferenceAnswer {
 	if leaf.rib != nil {
 		leaf.check = ribMemberCheck(*leaf.rib, policyCfg)
 	}
+	if leaf.routeChain {
+		leaf.check = routeChainMemberCheck(leaf.attachment, policyCfg)
+	}
 	context := strings.Join(at, " ")
 
 	var names []string
@@ -125,9 +131,13 @@ func refusedAnswer(err error) yang.ReferenceAnswer {
 }
 
 // chainLeafAt answers the attachment of the chain leaf at the data path at,
+// a path MustRegisterRouteChainPath declared, else
 // `<root> ... filter <direction> filters`: a Loc-RIB import registered for
 // root, else a site MustRegisterChainLeaf declared.
 func chainLeafAt(at []string) (chainLeaf, error) {
+	if leaf, ok := routeChainLeafAt(at); ok {
+		return leaf, nil
+	}
 	last := len(at) - 1
 	if last < 3 {
 		return chainLeaf{}, fmt.Errorf("policy: %q is not a filter chain: a chain is <root> filter <direction> filters",
