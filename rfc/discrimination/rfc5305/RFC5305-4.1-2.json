@@ -18,7 +18,7 @@
     "claim-sha": "31c6ea83d01fc3ff",
     "route": "revert",
     "producer": "internal/plugins/isis/redistribute/consumer.go::InjectRoute",
-    "producer-sha": "092d358ab22aadd2",
-    "break": "body of InjectRoute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "9f2f9c03872ce311",
+    "break": "body of InjectRoute replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

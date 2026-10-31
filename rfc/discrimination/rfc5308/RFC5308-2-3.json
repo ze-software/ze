@@ -18,7 +18,7 @@
     "claim-sha": "6716702461550a51",
     "route": "revert",
     "producer": "internal/plugins/isis/redistribute/ipv6.go::injectRouteV6",
-    "producer-sha": "f2a2fa88c35aeab2",
-    "break": "body of injectRouteV6 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "4cfb5f6d6cb078d1",
+    "break": "body of injectRouteV6 replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]
