@@ -380,6 +380,12 @@ the planning reconciliation.
 - This spec does not change any MED configuration syntax.
 - This spec does not address the website deployment failure.
 
+## Owned journal rows
+
+| Class file | Date | Surface (short) |
+|------------|------|-----------------|
+| `requirement-proven-in-one-state-of-many.md` | 2026-10-31 | RFC4271-5.1.4-1 negative proves eBGP MED on the initial-send rail only, not the Established announce builders |
+
 ## RFC Documentation
 
 If implementation proceeds, add the RFC 4271 Section 9.1.2.2 requirement comment directly above the enforcing internal-egress branch. Do not add an RFC comment to syntax or import-removal code that does not enforce this boundary.
