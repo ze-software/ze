@@ -44,15 +44,15 @@ func newRelaxFixture(t *testing.T, routeRefresh bool) *rfc8212ImportFixture {
 }
 
 // relax lifts the peer's rejecting import decision through the journaled swap.
-func relax(fx *rfc8212ImportFixture, j configJournal) (*PeerSettings, error) {
+func relax(fx *rfc8212ImportFixture, j configJournal) error {
 	next := fx.peer.settingsSnapshot()
 	accept, err := filterapi.NewPolicy(nil, routepolicy.FinalAccept)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	next.ImportPolicy = accept
 	copyImport := func(dst, src *PeerSettings) { dst.ImportPolicy = src.ImportPolicy }
-	return next, (&reactorAPIAdapter{r: fx.r}).swapPeerSettingsJournaled([]peerSettingsSwap{{
+	return (&reactorAPIAdapter{r: fx.r}).swapPeerSettingsJournaled([]peerSettingsSwap{{
 		key: fx.peer.Settings().PeerKey(), next: next, apply: copyImport}}, j)
 }
 
@@ -107,7 +107,7 @@ func TestRFC8212RelaxWithoutRouteRefreshRefused(t *testing.T) {
 	require.ErrorContains(t, adapter.VerifyConfig(map[string]any{"bgp": map[string]any{}}), sequence)
 
 	j := relaxJournal(fx, "tx-no-refresh")
-	_, err := relax(fx, j)
+	err := relax(fx, j)
 	require.ErrorContains(t, err, sequence)
 	require.False(t, importAccepts(fx.peer), "the refused change was published")
 	require.Zero(t, j.Len(), "the refused change was journaled")
@@ -128,7 +128,7 @@ func TestRFC8212RelaxWithoutRouteRefreshRefused(t *testing.T) {
 func TestRFC8212RelaxRequestsEveryFamily(t *testing.T) {
 	fx := newRelaxFixture(t, true)
 	j := relaxJournal(fx, "tx-refresh")
-	_, err := relax(fx, j)
+	err := relax(fx, j)
 	require.NoError(t, err)
 	require.True(t, importAccepts(fx.peer))
 	require.Equal(t, 2, refreshesOnWire(t, fx), "one ROUTE-REFRESH per negotiated family")
@@ -159,7 +159,7 @@ func TestRFC8212RelaxReplacedSessionRefused(t *testing.T) {
 	fx.peer.mu.Unlock()
 	fx.peer.negotiated.Store(relaxNegotiated(false))
 
-	_, err := relax(fx, relaxJournal(fx, "tx-replaced"))
+	err := relax(fx, relaxJournal(fx, "tx-replaced"))
 	require.ErrorContains(t, err, "did not negotiate Route Refresh")
 	require.False(t, importAccepts(fx.peer))
 	require.Zero(t, refreshesOnWire(t, fx))
@@ -214,7 +214,7 @@ func TestRFC8212RelaxPartialSendFails(t *testing.T) {
 	conn.armed.Store(true)
 
 	j := relaxJournal(fx, "tx-partial")
-	_, err := relax(fx, j)
+	err := relax(fx, j)
 	require.ErrorContains(t, err, "ROUTE-REFRESH for ipv6/unicast not sent")
 	require.ErrorContains(t, err, "could not be withdrawn and stay eligible; run `request peer 192.0.2.1 disable`")
 	require.ErrorContains(t, err, "undoing the change did not complete")
@@ -240,7 +240,7 @@ func TestRFC8212RelaxPartialSendFails(t *testing.T) {
 func TestRFC8212RelaxUndoFencesAdmittedPaths(t *testing.T) {
 	fx := newRelaxFixture(t, true)
 	j := relaxJournal(fx, "tx-undo")
-	_, err := relax(fx, j)
+	err := relax(fx, j)
 	require.NoError(t, err)
 	require.True(t, importAccepts(fx.peer))
 	require.Equal(t, 2, refreshesOnWire(t, fx))
@@ -340,7 +340,7 @@ func TestRFC8212DynamicTemplateRelaxation(t *testing.T) {
 func TestRFC8212RelaxUndoHoldExpires(t *testing.T) {
 	fx := newRelaxFixture(t, true)
 	j := relaxJournal(fx, "tx-undo-expiry")
-	_, err := relax(fx, j)
+	err := relax(fx, j)
 	require.NoError(t, err)
 	require.Equal(t, 2, refreshesOnWire(t, fx))
 
@@ -381,7 +381,7 @@ func TestRFC8212RelaxUndoApplyFailureKeepsRejection(t *testing.T) {
 		fx.owner.mu.Unlock()
 	}
 	j := relaxJournal(fx, "tx-undo-fails")
-	_, err := relax(fx, j)
+	err := relax(fx, j)
 	require.NoError(t, err)
 	require.Equal(t, 2, refreshesOnWire(t, fx))
 
@@ -458,7 +458,7 @@ func TestRFC8212RelaxRefreshFailureOnDownSessionPurges(t *testing.T) {
 	conn.armed.Store(true)
 
 	j := relaxJournal(fx, "tx-down")
-	_, err := relax(fx, j)
+	err := relax(fx, j)
 	require.ErrorContains(t, err, "not sent")
 	require.ErrorContains(t, err, "so the change was undone")
 	require.False(t, importAccepts(fx.peer))
