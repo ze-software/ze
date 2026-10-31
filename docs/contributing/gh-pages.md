@@ -691,9 +691,9 @@ machine-readable form and is linked from the page.
 one page per file under `rfc/profiles/`, each use-case profile and each
 technology aggregate, and an index listing them with the release profiles
 first, then the other use cases, then the aggregates. Each index row carries
-both figures, the RFC and not-walked counts, and whether the mandatory
-register is complete, so a 100% bar beside an unwalked RFC cannot read as
-done. A row's RFC count links to the compliance index with the profile's
+the required tier's MUST bar and overview bar, the RFC and not-walked counts,
+and whether the mandatory register is complete, so a full bar beside an
+unwalked RFC cannot read as done. A row's RFC count links to the compliance index with the profile's
 counted RFCs named in the link (`?profile=<name>&rfc=<stem>,<stem>#rfc-list`).
 There a script shows only those rows of the enrolled and not-enrolled tables,
 names any listed RFC with no summary, and offers a text filter by RFC number
@@ -709,15 +709,26 @@ lists. The enrolled table uses short column names; its legend states the
 computed ceiling over the RFCs shown. Linux limits, lower-layer behavior,
 not-applicable requirements and declined optional features stay in the proof
 denominator but are excluded from the attainable count. The statement names
-the lowest nonempty mandatory and optional RFC ceilings. A page carries both coverage figures of its rollup and the not-walked
-count, then its RFCs grouped by DAG level, roots first, each with a bar for
-the mandatory and the optional figure. For a use case those are its required
-RFCs, the only tier its figures count. Its optional RFCs follow in a separate
-"Optional (not counted)" table with their own bars and their own rollup, and
-so do an aggregate's members whose summary writes `| Aggregate tier | optional |`. An
-RFC that is not walked keeps an empty dashed bar and says so in words. The
-figure cards name the keywords each figure counts from `rfc.MandatoryKeywords`
-and `rfc.OptionalKeywords`. A use case's rows also name the summary whose
+the lowest nonempty mandatory and optional RFC ceilings.
+
+A profile page carries its required tier's MUST bar and overview bar, then a
+table of every count the RFC data holds for that tier: the RFCs, the
+not-walked count, the mandatory register, each MUST bar segment, the rows not
+owed by kind, and the SHOULD / MAY counts. Its RFCs follow, grouped by DAG
+level, roots first, each with its own two bars. For a use case those are its
+required RFCs, the only tier its figures count. Its optional RFCs follow in a
+separate "Optional (not counted)" section with their own bars and figure
+table, and so do an aggregate's members whose summary writes
+`| Aggregate tier | optional |`. An RFC that is not walked shows "not walked"
+in place of its bars. Every value and bar is a `data-ze-rfc` or
+`data-ze-rfc-bar` element that `rfc-figures.js` fills from `data/rfc/`
+(`docs/architecture/site-facts.md`, "RFC completion data"). The build writes
+the last build's value inside each one as fallback text, read back from the
+files it has just published, and the page's mirror states the same values
+with links to those files. The producer refuses a profile whose tree rows and
+published tier list different RFCs, and a page whose data file it cannot read.
+The prose names the keywords each bar counts from `rfc.MandatoryKeywords` and
+`rfc.OptionalKeywords`. A use case's rows also name the summary whose
 `Use cases` or `Optional use cases` row declares each RFC. The `rfc-profiles`
 producer reads the `profiles` of the published requirement ledger, which
 `rfc.PriorityOf` fills, so a page counts what `./le rfc tree profile <name>`
@@ -733,7 +744,8 @@ pairing is written once and the two directions cannot disagree. A link to a
 profile no file under `rfc/profiles/` declares refuses the build. The homepage
 regression-prevention block and the Examples menu both link to the profile
 index.
-<!-- source: internal/le/site/rfcprofiles.go -- renderRFCProfiles, rfcProfileGroups, rfcProfileBarHTML, removeRetiredRFCProfilePages, rfcProfileUseCases, rfcProfileUseCasesKnown -->
+<!-- source: internal/le/site/rfcprofiles.go -- renderRFCProfiles, rfcProfileGroups, rfcProfileTiersAgree, rfcProfileFigures, removeRetiredRFCProfilePages, rfcProfileUseCases, rfcProfileUseCasesKnown -->
+<!-- source: internal/le/site/rfcfallback.go -- loadRFCFigureSet, fillHTML, fillMirror -->
 <!-- source: internal/le/site/rfcfilter.go -- rfcProfileListHref, rfcFilterHTML, rfcFilterScript, rfcStemRows, rfcIndexLegend, rfcCeilingStatement -->
 
 Ceilings describe current classifications, not an immutable Linux maximum.

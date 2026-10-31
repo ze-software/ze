@@ -14,8 +14,9 @@
  * A subject is an RFC stem (rfc4271), or a profile tier
  * (profile/<name>/required, profile/<name>/optional). A field is a dotted path
  * of a per-RFC file (must.ze-proven, should.not-decided), or one of the set
- * counts rfcs, walked and not-walked. The text inside a marked element is the
- * last build's value, shown until the files are read.
+ * counts rfcs, walked and not-walked, or register, the set's mandatory
+ * register in words. The text inside a marked element is the last build's
+ * value, shown until the files are read.
  *
  * A set sums only walked RFCs and counts the rest apart, and a set with no
  * member shows "no rows". A file the index names that cannot be read is named
@@ -159,8 +160,19 @@
                 addCounts(sum.must, item.data.must || {});
                 addCounts(sum.should, item.data.should || {});
             });
+            sum.register = registerOf(sum);
             return sum;
         });
+    }
+
+    // registerOf answers a set's mandatory register in words: complete only
+    // when the set holds at least one RFC, none of them is unwalked, and
+    // neither the Ze correctness gap nor the OS testing gap holds a row. The
+    // site build writes the same words as fallback (rfcRegisterOf,
+    // internal/le/site/rfcfallback.go).
+    function registerOf(sum) {
+        if (sum.rfcs === 0 || sum["not-walked"] !== 0 || !sum.must) return "not complete";
+        return sum.must["ze-gap"] === 0 && sum.must["os-gap"] === 0 ? "complete" : "not complete";
     }
 
     function sumSubject(subject) {
@@ -210,6 +222,10 @@
             var value = lookup(sum, marker[1]);
             if (typeof value === "number") {
                 node.textContent = value.toLocaleString("en-GB");
+                return;
+            }
+            if (typeof value === "string") {
+                node.textContent = value;
                 return;
             }
             if (sum.rfcs === 0) {

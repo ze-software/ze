@@ -211,7 +211,11 @@ MUST bar counts MUST rows only.
 A page marks a value with `data-ze-rfc="<subject>:<field>"` and a bar with
 `data-ze-rfc-bar="<subject>:<bar>"`, where the subject is a stem or a profile
 tier (`profile/<name>/required`, `profile/<name>/optional`) and the bar is
-`must` or `overview`. `assets/rfc-figures.js` reads the index, sums a set's
+`must` or `overview`. Besides the fields of a per-RFC file, a set answers
+`rfcs`, `walked`, `not-walked` and `register`, its mandatory register in
+words: `complete` only when the set holds at least one RFC, none of them is
+unwalked, and `must.ze-gap` and `must.os-gap` are both 0, `not complete`
+otherwise. `assets/rfc-figures.js` reads the index, sums a set's
 walked members count by count (the rest are `not-walked`), writes each value,
 and draws each bar's segments in the index's order, each carrying its words and
 count as text and a width of its count over the bar's total. A legend under the
@@ -219,14 +223,21 @@ bar names every non-zero segment again with its count and a colour swatch, so a
 segment too narrow for its words loses none of them. A set with no member shows
 `no rows`, one whose members are all unwalked `not walked`, and a
 `not-owed-by-kind` key no file holds shows 0. The text inside a marked element
-is the last build's value. A file the index names that cannot be read is named
+is the last build's value: a renderer writes the element empty, and
+`rfcFigureSet.fillHTML` fills it from the `data/rfc/` files the same build
+published, answering each case as the script does, a bar as its non-zero
+segments' words and counts. A Markdown mirror carries the same values through
+`fillMirror`. Both refuse the page when a marked element has no answer, so no
+page prints a figure the files do not hold. The RFC profile pages are the
+first pages marked this way (`docs/contributing/gh-pages.md`). A file the index names that cannot be read is named
 in the element with the command that publishes it (`./le site build`), never
 dropped from a sum. The segment colours are the `.rfc-seg-<segment>` rules of
 `website/assets/css/30-components.css`; OS verified has its own token,
 `--green-soft`, lighter than `--green` in both themes, and the words on a light
 fill use `--ink-on-light`, dark in both. Every segment's words meet 4.5:1 on
 their fill in both themes.
-<!-- source: website/assets/js/rfc-figures.js -- sumStems, drawBar -->
+<!-- source: website/assets/js/rfc-figures.js -- sumStems, registerOf, drawBar -->
+<!-- source: internal/le/site/rfcfallback.go -- rfcFigureSet, rfcRegisterOf, fillHTML, fillMirror -->
 <!-- source: internal/le/site/browsertest/rfcfigures_test.go -- TestTheBrowserDrawsRFCFiguresFromTheirFiles, TestRFCSegmentColoursAreReadableInBothThemes -->
 
 The browser test draws the layout the build publishes, not a copy of it:
